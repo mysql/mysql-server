@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "ndb_event_data.h"
 #include "ndb_dist_priv_util.h"
 #include "ha_ndbcluster_tables.h"
+#include "ndb_conflict.h"
 
 #include <ndbapi/NdbEventOperation.hpp>
 

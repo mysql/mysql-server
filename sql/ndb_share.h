@@ -24,7 +24,6 @@
 #include <my_bitmap.h>       // MY_BITMAP
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
-#include "ndb_conflict.h"
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
@@ -78,7 +77,7 @@ struct NDB_SHARE {
   bool util_thread; // if opened by util thread
   uint32 flags;
 #ifdef HAVE_NDB_BINLOG
-  NDB_CONFLICT_FN_SHARE *m_cfn_share;
+  struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
 #endif
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   class NdbEventOperation *op;
