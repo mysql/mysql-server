@@ -3565,8 +3565,7 @@ NdbEventBuffer::clear_event_queue()
   {
     // no event data found, remove any lingering gci_ops
     // belonging to consumed epochs
-    if (m_available_data.first_gci_ops())
-      m_available_data.~EventBufData_list();
+    m_available_data.~EventBufData_list();
   }
 }
 
