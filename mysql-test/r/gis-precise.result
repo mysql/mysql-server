@@ -549,7 +549,7 @@ SELECT ST_AsText(st_union(ST_GeomFromText('GeometryCollection(GeometryCollection
 ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
 ST_AsText(st_union(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
 ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')))
-GEOMETRYCOLLECTION(LINESTRING(1 1,2 2),POINT(1 1))
+LINESTRING(1 1,2 2)
 SELECT ST_AsText(st_difference(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
 ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
 ST_AsText(st_difference(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
@@ -613,7 +613,7 @@ SELECT ST_AsText(st_union(ST_GeomFromText('GeometryCollection(GeometryCollection
 ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
 ST_AsText(st_union(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
 ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')))
-GEOMETRYCOLLECTION(LINESTRING(1 1,2 2),POINT(1 1))
+LINESTRING(1 1,2 2)
 SELECT ST_AsText(st_difference(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
 ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
 ST_AsText(st_difference(ST_GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
@@ -1942,6 +1942,107 @@ select st_astext(st_buffer(point(-5,0),8772,
 st_buffer_strategy( 'point_circle',1024*1024*1024)))
 as result;
 ERROR HY000: Parameter points_per_circle exceeds the maximum number of points in a geometry (4194304) in function st_buffer_strategy.
+#
+# Bug#20379981 ST_CONTAINS(GEOMETRYCOLLECTION(POLY,POLY), LINESTRING) RETURNS WRONG RESULT
+#
+SELECT
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((5 0,0 10,10 10,5 0)),
+                                                POLYGON((5 0,0 -10,10 -10,5 0)))'),
+ST_GEOMFROMTEXT('LINESTRING(5 -2,5 2)')) as result;
+result
+1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((5 0,0 10,10 10,5 0)),
+                                                POLYGON((5 0,0 -10,10 -10,5 0)))'),
+ST_GEOMFROMTEXT('MULTIPOINT(4 -3,4 2)')) as result;
+1	result
+1	1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0, 2 0, 2 2, 0 2, 0 0)),
+                                                POLYGON((2 0, 4 0, 4 2, 2 2, 2 0)))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 3 0, 3 1, 1 1, 1 0))')) as result;
+1	result
+1	1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(3 0, 6 0))'),
+ST_GEOMFROMTEXT('LINESTRING(2 0, 4 0)')) as result;
+1	result
+1	1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(2 0, 2 8))'),
+ST_GEOMFROMTEXT('LINESTRING(0 0, 2 0, 2 4)')) as result;
+1	result
+1	1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(3 0, 6 0))'),
+ST_GEOMFROMTEXT('MULTIPOINT(2 0, 4 0)')) as result;
+1	result
+1	1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(2 0, 2 8))'),
+ST_GEOMFROMTEXT('MULTIPOINT(0 0, 2 0, 2 4)')) as result;
+1	result
+1	1
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                                                LINESTRING(3 1, 5 1))'),
+ST_GEOMFROMTEXT('LINESTRING(2 1, 4 1)')) as result;
+1	result
+1	0
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(POLYGON((5 0,0 10,10 10,5 0)),
+                           POLYGON((5 0,0 -10,10 -10,5 0)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+MULTIPOLYGON(((5 0,10 10,0 10,5 0)),((5 0,0 -10,10 -10,5 0)))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(POLYGON((0 0, 5 0, 5 5, 0 5,0 0)),
+                           POLYGON((5 0,10 0, 10 3,5 3,5 0)))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+POLYGON((5 3,5 5,0 5,0 0,5 0,10 0,10 3,5 3))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                           LINESTRING(0 1, 4 1))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+GEOMETRYCOLLECTION(POLYGON((0 0,3 0,3 3,0 3,0 0)),LINESTRING(3 1,4 1))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                           LINESTRING(3 0, 3 1, 4 2))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+GEOMETRYCOLLECTION(POLYGON((0 0,3 0,3 3,0 3,0 0)),LINESTRING(3 1,4 2))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                           LINESTRING(3 1, 4 1))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+GEOMETRYCOLLECTION(POLYGON((0 0,3 0,3 3,0 3,0 0)),LINESTRING(3 1,4 1))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(LINESTRING(4 1, 6 1),
+                           LINESTRING(0 1, 4 1))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+MULTILINESTRING((4 1,6 1),(0 1,4 1))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(LINESTRING(3 1, 6 1),
+                           LINESTRING(0 1, 4 1))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+MULTILINESTRING((3 1,6 1),(0 1,3 1))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(LINESTRING(3 1, 3 3),
+                           LINESTRING(0 1, 4 1))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+MULTILINESTRING((3 1,3 3),(0 1,4 1))
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+'GEOMETRYCOLLECTION(LINESTRING(3 0, 3 3),
+                           LINESTRING(0 1, 4 1))'),
+ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+result
+MULTILINESTRING((3 0,3 3),(0 1,4 1))
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
