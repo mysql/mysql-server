@@ -1493,13 +1493,13 @@ ST_EQUALS(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1));
 ST_EQUALS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_1))
-0
+1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
 ST_EQUALS(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
@@ -1667,7 +1667,7 @@ ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_ver
 0
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_1))
-0
+1
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
 ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
