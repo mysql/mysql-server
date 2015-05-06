@@ -150,7 +150,7 @@ void test_bootstrap()
 */
 PSI * load_perfschema()
 {
-  void *psi;
+  PSI *psi;
   PSI_bootstrap *boot;
   PFS_global_param param;
 
@@ -204,7 +204,7 @@ PSI * load_perfschema()
   pre_initialize_performance_schema();
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
-  psi= boot->get_interface(PSI_VERSION_1);
+  psi= (PSI *)boot->get_interface(PSI_VERSION_1);
 
   /* Reset every consumer to a known state */
   flag_global_instrumentation= true;

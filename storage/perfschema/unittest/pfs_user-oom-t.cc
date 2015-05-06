@@ -19,6 +19,7 @@
 #include <pfs_stat.h>
 #include <pfs_global.h>
 #include <pfs_user.h>
+#include <pfs_buffer_container.h>
 #include <tap.h>
 
 #include "stub_pfs_global.h"
@@ -28,8 +29,9 @@
 
 void test_oom()
 {
-  int rc;
+  PSI *psi;
   PFS_global_param param;
+  PSI_bootstrap *boot;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -39,6 +41,7 @@ void test_oom()
   param.m_thread_class_sizing= 10;
   param.m_table_share_sizing= 0;
   param.m_file_class_sizing= 0;
+  param.m_socket_class_sizing= 0;
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
   param.m_cond_sizing= 0;
@@ -46,6 +49,7 @@ void test_oom()
   param.m_table_sizing= 0;
   param.m_file_sizing= 0;
   param.m_file_handle_sizing= 0;
+  param.m_socket_sizing= 0;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
@@ -59,48 +63,64 @@ void test_oom()
   param.m_statement_class_sizing= 50;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_events_transactions_history_sizing= 0;
+  param.m_events_transactions_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
+  param.m_program_sizing= 0;
+  param.m_statement_stack_sizing= 0;
+  param.m_memory_class_sizing= 10;
+  param.m_metadata_lock_sizing= 0;
+  param.m_max_digest_length= 0;
+  param.m_max_sql_text_length= 0;
 
   /* Setup */
 
   stub_alloc_always_fails= false;
   stub_alloc_fails_after_count= 1000;
 
-  init_event_name_sizing(& param);
-  register_global_classes();
-  rc= init_stage_class(param.m_stage_class_sizing);
-  ok(rc == 0, "init stage class");
-  rc= init_statement_class(param.m_statement_class_sizing);
-  ok(rc == 0, "init statement class");
+  pre_initialize_performance_schema();
+  boot= initialize_performance_schema(&param);
+  psi= (PSI *)boot->get_interface(PSI_VERSION_1);
+
+  PSI_thread_key thread_key_1;
+  PSI_thread_info all_thread[]=
+  {
+    {&thread_key_1, "T-1", 0}
+  };
+  psi->register_thread("test", all_thread, 1);
+
+  PSI_thread *thread_1= psi->new_thread(thread_key_1, NULL, 0);
+  psi->set_thread(thread_1);
 
   /* Tests */
 
-  stub_alloc_fails_after_count= 1;
-  rc= init_user(& param);
-  ok(rc == 1, "oom (user)");
-  cleanup_user();
+  int first_fail= 1;
+  stub_alloc_fails_after_count= first_fail;
+  psi->set_thread_account("user1", 5, "", 0);
+  ok(global_user_container.m_lost == 1, "oom (user)");
 
-  stub_alloc_fails_after_count= 2;
-  rc= init_user(& param);
-  ok(rc == 1, "oom (user waits)");
-  cleanup_user();
+  stub_alloc_fails_after_count= first_fail + 1;
+  psi->set_thread_account("user2", 5, "", 0);
+  ok(global_user_container.m_lost == 2, "oom (user waits)");
 
-  stub_alloc_fails_after_count= 3;
-  rc= init_user(& param);
-  ok(rc == 1, "oom (user stages)");
-  cleanup_user();
+  stub_alloc_fails_after_count= first_fail + 2;
+  psi->set_thread_account("user3", 5, "", 0);
+  ok(global_user_container.m_lost == 3, "oom (user stages)");
 
-  stub_alloc_fails_after_count= 4;
-  rc= init_user(& param);
-  ok(rc == 1, "oom (user statements)");
-  cleanup_user();
+  stub_alloc_fails_after_count= first_fail + 3;
+  psi->set_thread_account("user4", 5, "", 0);
+  ok(global_user_container.m_lost == 4, "oom (user statements)");
 
-  stub_alloc_fails_after_count= 5;
-  rc= init_user(& param);
-  ok(rc == 1, "oom (user transactions)");
-  cleanup_user();
+  stub_alloc_fails_after_count= first_fail + 4;
+  psi->set_thread_account("user5", 5, "", 0);
+  ok(global_user_container.m_lost == 5, "oom (user transactions)");
 
-  cleanup_statement_class();
-  cleanup_stage_class();
+  stub_alloc_fails_after_count= first_fail + 5;
+  psi->set_thread_account("user6", 5, "", 0);
+  ok(global_user_container.m_lost == 6, "oom (user memory)");
+
+  shutdown_performance_schema();
 }
 
 void do_all_tests()
@@ -110,7 +130,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(7);
+  plan(6);
   MY_INIT("pfs_user-oom-t");
   do_all_tests();
   return 0;
