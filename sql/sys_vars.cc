@@ -5060,8 +5060,8 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   global_sid_lock->wrlock();
   char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
   char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-  char *current_gtid_executed;
-  char *current_gtid_lost;
+  char *current_gtid_executed= NULL;
+  char *current_gtid_lost= NULL;
   enum_return_status ret;
   Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
                     &ret, global_sid_lock);
