@@ -4126,6 +4126,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /*
+    Set tc_log to point to TC_LOG_DUMMY early in order to allow plugin_init()
+    to commit attachable transaction after reading from mysql.plugin table.
+    If necessary tc_log will be adjusted to point to correct TC_LOG instance
+    later.
+  */
+  tc_log= &tc_log_dummy;
+
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
@@ -4256,8 +4264,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     else
       tc_log= &tc_log_mmap;
   }
-  else
-    tc_log= &tc_log_dummy;
 
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
