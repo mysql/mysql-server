@@ -22,6 +22,9 @@
 # to rerun them for every format.
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
+# Do not run the test with valgrind, since the
+# server may intentionally crash in the test.
+--source include/not_valgrind.inc
 
 --disable_query_log
 call mtr.add_suppression("Can't generate a unique log-filename");
@@ -49,9 +52,9 @@ RESET MASTER;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # The following query may cause ER_BINLOG_LOGGING_IMPOSSIBLE error,
-# or lost connection to MySQL server. And it does not cause
+# lost connection to MySQL server or succeed. And it does not cause
 # assertion failure any more.
---error ER_BINLOG_LOGGING_IMPOSSIBLE,2013
+--error 0,ER_BINLOG_LOGGING_IMPOSSIBLE,2013
 FLUSH LOGS;
 
 # Restart and reset the server
