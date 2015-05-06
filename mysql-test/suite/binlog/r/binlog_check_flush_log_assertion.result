@@ -11,5 +11,4 @@ SET @@GLOBAL.DEBUG= @debug_save;
 RESET MASTER;
 ERROR HY000: Target log not found in binlog index
 FLUSH LOGS;
-Got one of the listed errors
 RESET MASTER;
