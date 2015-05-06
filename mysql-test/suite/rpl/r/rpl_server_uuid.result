@@ -9,11 +9,12 @@ CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
+CALL mtr.add_suppression("Slave I/O: Got fatal error .* slave with the same server_uuid as this slave has connected to the master");
 include/sync_slave_sql_with_master.inc
 
 # Case 1:
 # Master's UUID appears in the result of 'SHOW SLAVE STATUS'.
-# Slave's UUID appears in the resule of 'SHOW SLAVE HOSTS'.
+# Slave's UUID appears in the result of 'SHOW SLAVE HOSTS'.
 -----------------------------------------------------------------------------
 include/assert.inc ["Slave's SHOW SLAVE HOST should contain the correct value for master's server_uuid]
 include/assert.inc [Master's SHOW SLAVE HOSTS should contain the correct value for slave's server_uuid]
@@ -31,7 +32,7 @@ include/stop_slave.inc
 include/check_slave_param.inc [Slave_IO_Running]
 
 # Case 3:
-# Slave generates an errror and aborts, if master's UUID is
+# Slave generates an error and aborts, if master's UUID is
 # equal to slave's UUID unless --replicate-same-server-id
 # option is set.
 -----------------------------------------------------------------------------
@@ -118,21 +119,19 @@ include/start_slave.inc
 # Case 6:
 # In an existing master-slave replication forum (M->S1), if another
 # slave (S2) with the same UUID as S1 joins the forum and connects
-# to Master(M), then there will be ping-pong reconnections happens
-# between M->S2, M->S1, M->S2, M->S1,.... And both slave1 and slave2
-# will be informed about this UUID misconfiguration in their error
-# log file. And Master log will be populated with information that
-# it found a zombie dump thread and it is killing it(only when
-# log_warnings is greater than 1)
+# to Master(M), the master will throw an error to the first slave
+# connection that will not try to reconnect.
 -----------------------------------------------------------------------------
 include/rpl_restart_server.inc [server_number=3]
-CREATE TABLE t1(i int);
-DROP TABLE t1;
-include/sync_slave_sql_with_master.inc
-include/sync_slave_sql_with_master.inc
-Pattern "found a zombie dump thread with the same UUID" found
-Pattern "master receives a binlog send request from a duplicate server UUID" found
-Pattern "master receives a binlog send request from a duplicate server UUID" found
+[connection server_2]
+include/wait_for_slave_io_error.inc [errno=1236]
+include/assert_grep.inc [Found the expected line in master's error log for server 2 disconnection]
+include/start_slave_io.inc
+[connection server_3]
+include/wait_for_slave_io_error.inc [errno=1236]
+include/assert_grep.inc [Found the expected line in master's error log for server 3 disconnection]
+include/assert_grep.inc [Found the expected line in server 2 error log]
+include/assert_grep.inc [Found the expected line in server 3 error log]
 include/rpl_restart_server.inc [server_number=3]
 include/stop_slave.inc
 include/rpl_end.inc
