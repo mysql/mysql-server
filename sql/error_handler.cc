@@ -208,6 +208,7 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_DATETIME_FUNCTION_OVERFLOW:
   case ER_WARN_TOO_FEW_RECORDS:
   case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
+  case ER_WARN_ALLOWED_PACKET_OVERFLOWED:
     if ((*level == Sql_condition::SL_WARNING) &&
         (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
          || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
