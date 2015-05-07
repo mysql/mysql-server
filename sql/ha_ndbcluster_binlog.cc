@@ -3337,7 +3337,7 @@ class Ndb_schema_event_handler {
     ha_ndbcluster::set_dbname(new_key_for_table, new_db);
     ha_ndbcluster::set_tabname(new_key_for_table, new_name);
     from.rename_table(new_db, new_name);
-    ndbcluster_rename_share(m_thd, share);
+    ndbcluster_rename_share(m_thd, share, share->new_key);
     free_share(&share);  // temporary ref.
 
     ndbapi_invalidate_table(schema->db, schema->name);

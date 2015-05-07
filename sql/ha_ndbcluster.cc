@@ -10992,7 +10992,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   }
 
   ndbcluster_prepare_rename_share(share, to);
-  (void)ndbcluster_rename_share(thd, share);
+  (void)ndbcluster_rename_share(thd, share, share->new_key);
 
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(new_tabname);
@@ -14174,21 +14174,20 @@ int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key)
 
 int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share)
 {
-  share->new_key= share->old_names;
-  ndbcluster_rename_share(thd, share);
+  ndbcluster_rename_share(thd, share, share->old_names);
   return 0;
 }
 
 
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
 {
   NDB_SHARE *tmp;
   native_mutex_lock(&ndbcluster_mutex);
-  uint new_length= (uint) strlen(share->new_key);
+  size_t new_length= strlen(new_key);
   DBUG_PRINT("ndbcluster_rename_share", ("old_key: %s  old__length: %d",
                               share->key, share->key_length));
   if ((tmp= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
-                                        (const uchar*) share->new_key,
+                                        (const uchar*) new_key,
                                         new_length)))
     handle_trailing_share(thd, tmp);
 
@@ -14200,8 +14199,8 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
   uint old_length= share->key_length;
   char *old_key= share->key;
 
-  share->key= share->new_key;
-  share->key_length= new_length;
+  share->key= new_key;
+  share->key_length= static_cast<uint>(new_length);
 
   if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
   {
@@ -14225,9 +14224,9 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
   dbug_print_open_tables();
 
   share->db= share->key + new_length + 1;
-  ha_ndbcluster::set_dbname(share->new_key, share->db);
+  ha_ndbcluster::set_dbname(new_key, share->db);
   share->table_name= share->db + strlen(share->db) + 1;
-  ha_ndbcluster::set_tabname(share->new_key, share->table_name);
+  ha_ndbcluster::set_tabname(new_key, share->table_name);
 
   dbug_print_share("ndbcluster_rename_share:", share);
   Ndb_event_data *event_data= share->get_event_data_ptr();
