@@ -2229,11 +2229,15 @@ class Ndb_schema_dist_data {
   */
   MY_BITMAP *subscriber_bitmap;
   unsigned m_num_bitmaps;
+
+  // Holds the new key for a table to be renamed
+  char* m_prepared_rename_key;
 public:
   Ndb_schema_dist_data(const Ndb_schema_dist_data&); // Not implemented
   Ndb_schema_dist_data() :
     subscriber_bitmap(NULL),
-    m_num_bitmaps(0)
+    m_num_bitmaps(0),
+    m_prepared_rename_key(NULL)
   {}
 
   void init(Ndb_cluster_connection* cluster_connection)
@@ -2285,6 +2289,10 @@ public:
     // Free memory allocated for the bitmap array
     my_free(subscriber_bitmap);
     m_num_bitmaps = 0;
+
+    // Release the prepared rename key, it's very unlikely
+    // that the key is still around here, but just in case
+    NDB_SHARE::free_key(m_prepared_rename_key);
   }
 
   // Map from nodeid to position in subscriber bitmaps array
@@ -2357,6 +2365,15 @@ public:
     }
   }
 
+
+  void save_prepared_rename_key(char* key)
+  {
+    m_prepared_rename_key = key;
+  }
+
+  char* get_prepared_rename_key() const {
+    return m_prepared_rename_key;
+  }
 
 };
 
@@ -3260,26 +3277,17 @@ class Ndb_schema_event_handler {
     const char* new_key_for_table= schema->query;
     DBUG_PRINT("info", ("new_key_for_table: '%s'", new_key_for_table));
 
-    NDB_SHARE *share= get_share(schema); // temporary ref.
-    if (!share)
-     {
-      // The RENAME_PREPARE needs the share as a place to
-      // save the new key. Normally it should find the
-      // share, but just to be safe... but for example
-      // in ndb_share.test there are no share after restore
-      // of backup
-      // DBUG_ASSERT(share);
-      DBUG_VOID_RETURN;
+    // Release potentially previously prepared new_key
+    {
+      char* old_prepared_key = m_schema_dist_data.get_prepared_rename_key();
+      if (old_prepared_key)
+        NDB_SHARE::free_key(old_prepared_key);
     }
 
-    // Release potentially previously prepared new_key
-    if (share->new_key)
-      NDB_SHARE::free_key(share->new_key);
-
-    // Save the new key in the share and hope for the best(i.e
+    // Create a new key save it, then hope for the best(i.e
     // that it can be found later when the RENAME arrives)
-    share->new_key = NDB_SHARE::create_key(new_key_for_table);
-    free_share(&share); // temporary ref.
+    char* new_prepared_key = NDB_SHARE::create_key(new_key_for_table);
+    m_schema_dist_data.save_prepared_rename_key(new_prepared_key);
 
     DBUG_VOID_RETURN;
   }
@@ -3321,31 +3329,30 @@ class Ndb_schema_event_handler {
     share= get_share(schema);  // temporary ref.
     if (!share)
     {
-      // The RENAME need to find share, since that's where
-      // the RENAME_PREPARE has saved the new name
+      // The RENAME need to find share so it can be renamed
       DBUG_ASSERT(share);
       DBUG_VOID_RETURN;
     }
 
-    const char* new_key_for_table= share->new_key;
-    if (!new_key_for_table)
+    char* prepared_key = m_schema_dist_data.get_prepared_rename_key();
+    if (!prepared_key)
     {
-      // The rename need the share to have new_key set
+      // The rename need to have new_key set
       // by a previous RENAME_PREPARE
-      DBUG_ASSERT(new_key_for_table);
+      DBUG_ASSERT(prepared_key);
       DBUG_VOID_RETURN;
     }
 
     // Split the new key into db and table name
     char new_db[FN_REFLEN + 1], new_name[FN_REFLEN + 1];
-    ha_ndbcluster::set_dbname(new_key_for_table, new_db);
-    ha_ndbcluster::set_tabname(new_key_for_table, new_name);
+    ha_ndbcluster::set_dbname(prepared_key, new_db);
+    ha_ndbcluster::set_tabname(prepared_key, new_name);
     from.rename_table(new_db, new_name);
 
     // Rename share and release the old key
     char* old_key = share->key;
-    ndbcluster_rename_share(m_thd, share, share->new_key);
-    share->new_key = NULL;
+    ndbcluster_rename_share(m_thd, share, prepared_key);
+    m_schema_dist_data.save_prepared_rename_key(NULL);
     NDB_SHARE::free_key(old_key);
 
     free_share(&share);  // temporary ref.
