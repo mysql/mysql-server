@@ -488,11 +488,6 @@ row_drop_table_for_mysql(
 				to release and reacquire dict_operation_lock */
 	dict_table_t*	handler = NULL);
 				/*!< in/out: table handler. */
-/*********************************************************************//**
-Drop all temporary tables during crash recovery. */
-void
-row_mysql_drop_temp_tables(void);
-/*============================*/
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding

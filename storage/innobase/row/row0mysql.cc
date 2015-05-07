@@ -4036,36 +4036,25 @@ This deletes the fil_space_t if found and the file on disk.
 @param[in]	space_id	Tablespace ID
 @param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
-@param[in]	is_temp		Is this a temporary table/tablespace
-@param[in]	trx		Transaction handle
 @return error code or DB_SUCCESS */
 UNIV_INLINE
 dberr_t
 row_drop_single_table_tablespace(
 	ulint	space_id,
 	const char*	tablename,
-	const char*	filepath,
-	bool	is_temp,
-	trx_t*	trx)
+	const char*	filepath)
 {
 	dberr_t	err = DB_SUCCESS;
 
-	/* This might be a temporary single-table tablespace if the table
-	is compressed and temporary. If so, don't spam the log when we
-	delete one of these or if we can't find the tablespace. */
-	bool	print_msg = !is_temp;
-
 	/* If the tablespace is not in the cache, just delete the file. */
 	if (!fil_space_for_table_exists_in_mem(
-		    space_id, tablename, print_msg, false, NULL, 0)) {
+		    space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
 		fil_delete_file(filepath);
 
-		if (print_msg) {
-			ib::info() << "Removed datafile " << filepath
-				<< " for table " << tablename;
-		}
+		ib::info() << "Removed datafile " << filepath
+			<< " for table " << tablename;
 
 	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
 		   != DB_SUCCESS) {
@@ -4538,11 +4527,6 @@ row_drop_table_for_mysql(
 		is_temp = dict_table_is_temporary(table);
 		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
 
-		/* If there is a temp path then the temp flag is set.
-		However, during recovery, we might have a temp flag but
-		not know the temp path */
-		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
-
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
@@ -4562,10 +4546,6 @@ row_drop_table_for_mysql(
 			filepath = fil_make_filepath(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
-		} else if (table->dir_path_of_temp_table) {
-			filepath = fil_make_filepath(
-				table->dir_path_of_temp_table,
-				NULL, IBD, false);
 		} else if (!shared_tablespace) {
 			filepath = fil_make_filepath(
 				NULL, table->name.m_name, IBD, false);
@@ -4586,7 +4566,7 @@ row_drop_table_for_mysql(
 
 		/* We can now drop the single-table tablespace. */
 		err = row_drop_single_table_tablespace(
-			space_id, tablename, filepath, is_temp, trx);
+			space_id, tablename, filepath);
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
@@ -4671,99 +4651,6 @@ funct_exit:
 	}
 
 	DBUG_RETURN(err);
-}
-
-/*********************************************************************//**
-Drop all temporary tables during crash recovery. */
-void
-row_mysql_drop_temp_tables(void)
-/*============================*/
-{
-	trx_t*		trx;
-	btr_pcur_t	pcur;
-	mtr_t		mtr;
-	mem_heap_t*	heap;
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "dropping temporary tables";
-	row_mysql_lock_data_dictionary(trx);
-
-	heap = mem_heap_create(200);
-
-	mtr_start(&mtr);
-
-	btr_pcur_open_at_index_side(
-		true,
-		dict_table_get_first_index(dict_sys->sys_tables),
-		BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
-
-	for (;;) {
-		const rec_t*	rec;
-		const byte*	field;
-		ulint		len;
-		const char*	table_name;
-		dict_table_t*	table;
-
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-
-		if (!btr_pcur_is_on_user_rec(&pcur)) {
-			break;
-		}
-
-		/* The high order bit of N_COLS is set unless
-		ROW_FORMAT=REDUNDANT. */
-		rec = btr_pcur_get_rec(&pcur);
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__NAME, &len);
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
-		if (len != 4
-		    || !(mach_read_from_4(field) & DICT_N_COLS_COMPACT)) {
-			continue;
-		}
-
-		/* Older versions of InnoDB, which only supported tables
-		in ROW_FORMAT=REDUNDANT could write garbage to
-		SYS_TABLES.MIX_LEN, where we now store the is_temp flag.
-		Above, we assumed is_temp=0 if ROW_FORMAT=REDUNDANT. */
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
-		if (len != 4
-		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
-			continue;
-		}
-
-		/* This is a temporary table. */
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__NAME, &len);
-		if (len == UNIV_SQL_NULL || len == 0) {
-			/* Corrupted SYS_TABLES.NAME */
-			continue;
-		}
-
-		table_name = mem_heap_strdupl(heap, (const char*) field, len);
-
-		btr_pcur_store_position(&pcur, &mtr);
-		btr_pcur_commit_specify_mtr(&pcur, &mtr);
-
-		table = dict_load_table(table_name, true,
-					DICT_ERR_IGNORE_NONE);
-
-		if (table) {
-			row_drop_table_for_mysql(table_name, trx, FALSE);
-			trx_commit_for_mysql(trx);
-		}
-
-		mtr_start(&mtr);
-		btr_pcur_restore_position(BTR_SEARCH_LEAF,
-					  &pcur, &mtr);
-	}
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-	mem_heap_free(heap);
-	row_mysql_unlock_data_dictionary(trx);
-	trx_free_for_background(trx);
 }
 
 /*******************************************************************//**

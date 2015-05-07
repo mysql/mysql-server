@@ -3322,6 +3322,8 @@ prepare_inplace_alter_table_dict(
 		}
 	}
 
+	ut_ad(!dict_table_is_compressed_temporary(ctx->new_table));
+
 	/* Assign table_id, so that no table id of
 	fts_create_index_tables() will be written to the undo logs. */
 	DBUG_ASSERT(ctx->new_table->id != 0);
@@ -4006,7 +4008,6 @@ ha_innobase::prepare_inplace_alter_table(
 	create_table_info_t	info(m_user_thd,
 				     altered_table,
 				     ha_alter_info->create_info,
-				     NULL,
 				     NULL,
 				     NULL,
 				     NULL);

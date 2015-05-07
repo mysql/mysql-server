@@ -4654,6 +4654,7 @@ page_zip_reorganize(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(page_is_comp(page));
 	ut_ad(!dict_index_is_ibuf(index));
+	ut_ad(!dict_table_is_temporary(index->table));
 	/* Note that page_zip_validate(page_zip, page, index) may fail here. */
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -4691,7 +4692,6 @@ page_zip_reorganize(
 	max_trx_id is use to track which all trxs wrote to the page
 	in parallel but in case of temp-table this can is not needed. */
 	if (!dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(temp_page)) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
@@ -4737,10 +4737,9 @@ page_zip_copy_recs(
 	dict_index_t*		index,		/*!< in: index of the B-tree */
 	mtr_t*			mtr)		/*!< in: mini-transaction */
 {
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX)
-	      || dict_table_is_intrinsic(index->table));
-	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX)
-	      || dict_table_is_intrinsic(index->table));
+	ut_ad(!dict_table_is_temporary(index->table));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_ibuf(index));
 #ifdef UNIV_ZIP_DEBUG
 	/* The B-tree operations that call this function may set
@@ -4758,7 +4757,6 @@ page_zip_copy_recs(
 	/* The PAGE_MAX_TRX_ID must be set on leaf pages of secondary
 	indexes.  It does not matter on other pages. */
 	ut_a(dict_index_is_clust(index)
-	     || dict_table_is_temporary(index->table)
 	     || !page_is_leaf(src)
 	     || page_get_max_trx_id(src));
 

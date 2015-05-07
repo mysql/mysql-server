@@ -1333,7 +1333,8 @@ dict_sys_tables_rec_read(
 			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
 		*flags2 = mach_read_from_4(field);
 
-		if (!dict_tf2_is_valid(*flags, *flags2)) {
+		if (!dict_tf2_is_valid(*flags, *flags2)
+		    || (*flags2 & DICT_TF2_TEMPORARY)) {
 			ib::error() << "Table " << table_name << " in InnoDB"
 				" data dictionary contains invalid flags."
 				" SYS_TABLES.MIX_LEN=" << *flags2;
@@ -1475,8 +1476,7 @@ dict_check_sys_tables(
 		}
 
 		/* Check that the .ibd file exists. */
-		bool	is_temp = flags2 & DICT_TF2_TEMPORARY;
-		ulint	fsp_flags = dict_tf_to_fsp_flags(flags, is_temp);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(flags);
 		dberr_t	err = fil_ibd_open(
 			validate,
 			!srv_read_only_mode,
@@ -2674,6 +2674,8 @@ dict_load_tablespace(
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err)
 {
+	ut_ad(!dict_table_is_temporary(table));
+
 	/* The system tablespace is always available. */
 	if (is_system_tablespace(table->space)) {
 		return;
@@ -2682,12 +2684,6 @@ dict_load_tablespace(
 	if (table->flags2 & DICT_TF2_DISCARDED) {
 		ib::warn() << "Tablespace for table " << table->name
 			<< " is set as discarded.";
-		table->ibd_file_missing = TRUE;
-		return;
-	}
-
-	if (dict_table_is_temporary(table)) {
-		/* Do not bother to retry opening temporary tables. */
 		table->ibd_file_missing = TRUE;
 		return;
 	}
@@ -2765,7 +2761,7 @@ dict_load_tablespace(
 
 	/* Try to open the tablespace.  We set the 2nd param (fix_dict) to
 	false because we do not have an x-lock on dict_operation_lock */
-	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, false);
+	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
 	dberr_t err = fil_ibd_open(
 		true, false, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, filepath);

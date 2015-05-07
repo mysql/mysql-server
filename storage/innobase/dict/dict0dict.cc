@@ -1607,17 +1607,10 @@ dict_table_rename_in_cache(
 		ut_free(filepath);
 
 	} else if (dict_table_is_file_per_table(table)) {
-
-		if (table->dir_path_of_temp_table != NULL) {
-			ib::error() << "Trying to rename a TEMPORARY TABLE "
-				<< old_name
-				<< " ( " << table->dir_path_of_temp_table
-				<< " )";
-			return(DB_ERROR);
-		}
-
 		char*	new_path = NULL;
 		char*	old_path = fil_space_get_first_path(table->space);
+
+		ut_ad(!dict_table_is_temporary(table));
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
@@ -6680,12 +6673,10 @@ Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
-@param[in]	is_temp		whether the tablespace is temporary
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags,
-	bool	is_temp)
+	ulint	table_flags)
 {
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
@@ -6708,7 +6699,7 @@ dict_tf_to_fsp_flags(
 						   has_atomic_blobs,
 						   has_data_dir,
 						   is_shared,
-						   is_temp);
+						   false);
 
 	return(fsp_flags);
 }

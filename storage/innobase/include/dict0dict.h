@@ -872,12 +872,10 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
-@param[in]	is_temp		whether the tablespace is temporary
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags,
-	bool	is_temp)
+	ulint	table_flags)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -1220,6 +1218,14 @@ dict_table_check_for_dup_indexes(
 					in this table */
 	enum check_name		check);	/*!< in: whether and when to allow
 					temporary index names */
+/** Check if a table is a temporary table with compressed row format,
+we should always expect false.
+@param[in]	table	table
+@return true if it's a compressed temporary table, false otherwise */
+inline
+bool
+dict_table_is_compressed_temporary(
+	const dict_table_t*	table);
 #endif /* UNIV_DEBUG */
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.

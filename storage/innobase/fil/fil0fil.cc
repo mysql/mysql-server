@@ -262,12 +262,13 @@ fil_space_belongs_in_lru(
 	const fil_space_t*	space)	/*!< in: file space */
 {
 	switch (space->purpose) {
+	case FIL_TYPE_TEMPORARY:
 	case FIL_TYPE_LOG:
 		return(false);
 	case FIL_TYPE_TABLESPACE:
-	case FIL_TYPE_TEMPORARY:
-	case FIL_TYPE_IMPORT:
 		return(fil_is_user_tablespace_id(space->id));
+	case FIL_TYPE_IMPORT:
+		return(true);
 	}
 
 	ut_ad(0);
@@ -3451,7 +3452,7 @@ func_exit:
 	return(success);
 }
 
-/** Create a new General or Single-Table tablespace
+/** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
 For general tablespaces, the 'dbname/' part may be missing.
@@ -3473,7 +3474,6 @@ fil_ibd_create(
 	byte*		buf2;
 	byte*		page;
 	bool		success;
-	bool		is_temp = FSP_FLAGS_GET_TEMPORARY(flags);
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
@@ -3690,8 +3690,7 @@ fil_ibd_create(
 		}
 	}
 
-	space = fil_space_create(name, space_id, flags, is_temp
-				 ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+	space = fil_space_create(name, space_id, flags, FIL_TYPE_TABLESPACE);
 
 	if (!fil_node_create_low(
 			path, size, space, false, punch_hole, atomic_write)) {
@@ -3701,7 +3700,7 @@ fil_ibd_create(
 	}
 
 #ifndef UNIV_HOTBACKUP
-	if (!is_temp) {
+	{
 		mtr_t		mtr;
 
 		mtr_start(&mtr);
@@ -4333,10 +4332,8 @@ fil_ibd_load(
 	}
 #endif /* UNIV_HOTBACKUP */
 
-	bool is_temp = FSP_FLAGS_GET_TEMPORARY(file.flags());
 	space = fil_space_create(
-		file.name(), space_id, file.flags(),
-		is_temp ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+		file.name(), space_id, file.flags(), FIL_TYPE_TABLESPACE);
 
 	if (space == NULL) {
 		return(FIL_LOAD_INVALID);
@@ -4404,10 +4401,7 @@ fil_report_missing_tablespace(
 		<< " in the InnoDB data dictionary has tablespace id "
 		<< space_id << ","
 		" but tablespace with that id or name does not exist. Have"
-		" you deleted or moved .ibd files? This may also be a table"
-		" created with CREATE TEMPORARY TABLE whose .ibd and .frm"
-		" files MySQL automatically removed, but the table still"
-		" exists in the InnoDB internal data dictionary.";
+		" you deleted or moved .ibd files?";
 }
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace

@@ -738,7 +738,7 @@ fil_make_filepath(
 	ib_extention	suffix,
 	bool		strip_name);
 
-/** Creates a new General or Single-Table tablespace
+/** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
 @param[in]	name		Tablespace name in dbname/tablename format.
 For general tablespaces, the 'dbname/' part may be missing.
@@ -846,8 +846,8 @@ bool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
 	ulint		id,		/*!< in: space id */
-	const char*	name,		/*!< in: table name in the standard
-					'databasename/tablename' format */
+	const char*	name,		/*!< in: table name used in
+					fil_space_create() */
 	bool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a

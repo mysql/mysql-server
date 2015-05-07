@@ -97,20 +97,6 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
    EXECUTE createTable;
    DEALLOCATE PREPARE createTable;
 
-   CREATE TEMPORARY TABLE t3_temp(c1 int NOT NULL,
-   c2 int NOT NULL,
-   c3 char(255) NOT NULL,
-   c4 text(600) NOT NULL,
-   c5 blob(600) NOT NULL,
-   c6 varchar(600) NOT NULL,
-   c7 varchar(600) NOT NULL,
-   c8 datetime,
-   c9 decimal(6,3),
-   PRIMARY KEY (c1),
-   INDEX (c3,c4(50),c5(50)),
-   INDEX (c2))
-   ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;
-
    set @s = concat("CREATE TABLE t3",id," (c1 int NOT NULL,   c2 int NOT NULL,   c3 char(255) NOT NULL,   c4 text(600) NOT NULL,   c5 blob(600) NOT NULL,   c6 varchar(600) NOT NULL,   c7 varchar(600) NOT NULL,   c8 datetime,   c9 decimal(6,3),   PRIMARY KEY (c1),   INDEX (c3,c4(50),c5(50)),   INDEX (c2))   ENGINE=InnoDB ROW_FORMAT=compressed key_block_size=4;");
    PREPARE createTable FROM @s;
    EXECUTE createTable;
@@ -163,11 +149,6 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
      EXECUTE insertIntoTable;
      DEALLOCATE PREPARE insertIntoTable;
 
-     INSERT INTO t3_temp VALUES(n,n,REPEAT(concat(' tc3_',n),30),
-     REPEAT(concat(' tc4_',n),70),REPEAT(concat(' tc_',n),70),
-     REPEAT(concat(' tc6_',n),70),REPEAT(concat(' tc7_',n),70),
-     NOW(),(100.55+n));
-
      savepoint b;
 
      set @s = concat("INSERT INTO t4",id," VALUES(",n,",",n,",REPEAT(concat(' tc3_',",n,"),30),     REPEAT(concat(' tc4_',",n,"),70),REPEAT(concat(' tc_',",n,"),70),     REPEAT(concat(' tc6_',",n,"),70),REPEAT(concat(' tc7_',",n,"),70),     NOW(),(100.55+",n,"));");     
@@ -199,14 +180,12 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
            START TRANSACTION;
            DELETE FROM t1_temp WHERE c1 > 10 ;
            DELETE FROM t2_temp WHERE c1 > 10 ;
-           DELETE FROM t3_temp WHERE c1 > 10 ;
            DELETE FROM t4_temp WHERE c1 > 10 ;
  
            rollback;
            START TRANSACTION;
            update t1_temp set c1 = c1 + 1000 WHERE c1 > 10;
            update t2_temp set c1 = c1 + 1000 WHERE c1 > 10;
-           update t3_temp set c1 = c1 + 1000 WHERE c1 > 10;
            update t4_temp set c1 = c1 + 1000 WHERE c1 > 10;
            rollback;
         end if;
@@ -221,8 +200,6 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
      ALTER TABLE t1_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
      ALTER TABLE t2_temp DROP PRIMARY KEY;
      ALTER TABLE t2_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
-     ALTER TABLE t3_temp DROP PRIMARY KEY;
-     ALTER TABLE t3_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
      ALTER TABLE t4_temp DROP PRIMARY KEY;
      ALTER TABLE t4_temp ADD PRIMARY KEY (c1,c3(10),c4(10));
      FLUSH tables;
@@ -248,10 +225,6 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
      PREPARE insertIntoTable FROM @s;
      EXECUTE insertIntoTable;
      DEALLOCATE PREPARE insertIntoTable;
-     INSERT INTO t3_temp VALUES(n+100,n+100,REPEAT(concat(' tc3_',n+100),30),
-        REPEAT(concat(' tc4_',n+100),70),REPEAT(concat(' tc_',n+100),70),
-        REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
-        NOW(),(100.55+n+100));
      set @s = concat("INSERT INTO t4",id," VALUES(",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
      PREPARE insertIntoTable FROM @s;
      EXECUTE insertIntoTable;
@@ -264,12 +237,10 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
 
         DELETE FROM t1_temp WHERE c1 between 100 and 110;
         DELETE FROM t2_temp WHERE c1 between 100 and 110;
-        DELETE FROM t3_temp WHERE c1 between 100 and 110;
         DELETE FROM t4_temp WHERE c1 between 100 and 110;
 
         update t1_temp set c1 = c1+1 WHERE c1>110; 
         update t2_temp set c1 = c1+1 WHERE c1>110; 
-        update t3_temp set c1 = c1+1 WHERE c1>110; 
         update t4_temp set c1 = c1+1 WHERE c1>110; 
 
         savepoint a;
@@ -294,10 +265,6 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
      PREPARE insertIntoTable FROM @s;
      EXECUTE insertIntoTable;
      DEALLOCATE PREPARE insertIntoTable;
-     INSERT INTO t3_temp VALUES(300+n+100,n+100,REPEAT(concat(' tc3_',n+100),30),
-        REPEAT(concat(' tc4_',n+100),70),REPEAT(concat(' tc_',n+100),70),
-        REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
-        NOW(),(100.55+n+100));
      set @s = concat("INSERT INTO t4",id," VALUES(300+",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
      PREPARE insertIntoTable FROM @s;
      EXECUTE insertIntoTable;
@@ -328,10 +295,6 @@ CREATE PROCEDURE populate_tables(IN id VARCHAR(10))
      PREPARE insertIntoTable FROM @s;
      EXECUTE insertIntoTable;
      DEALLOCATE PREPARE insertIntoTable;
-     INSERT INTO t3_temp VALUES(400+n+100,n+100,REPEAT(concat(' tc3_',n+100),30),
-        REPEAT(concat(' tc4_',n+100),70),REPEAT(concat(' tc_',n+100),70),
-        REPEAT(concat(' tc6_',n+100),60),REPEAT(concat(' tc7_',n+100),60),
-        NOW(),(100.55+n+100));
      set @s = concat("INSERT INTO t4",id," VALUES(400+",n,"+100,",n,"+100,REPEAT(concat(' tc3_',",n,"+100),30),        REPEAT(concat(' tc4_',",n,"+100),70),REPEAT(concat(' tc_',",n,"+100),70),        REPEAT(concat(' tc6_',",n,"+100),60),REPEAT(concat(' tc7_',",n,"+100),60),        NOW(),(100.55+",n,"+100));");
      PREPARE insertIntoTable FROM @s;
      EXECUTE insertIntoTable;
@@ -392,11 +355,9 @@ SELECT c1 FROM t3_1;
 SELECT c1 FROM t4_1;
 SELECT count(*) FROM t1_temp;
 SELECT count(*) FROM t2_temp;
-SELECT count(*) FROM t3_temp;
 SELECT count(*) FROM t4_temp;
 SELECT c1 FROM t1_temp;
 SELECT c1 FROM t2_temp;
-SELECT c1 FROM t3_temp;
 SELECT c1 FROM t4_temp;
 # check data of client connection 2
 --echo # In connection 2
@@ -413,11 +374,9 @@ SELECT c1 FROM t3_2;
 SELECT c1 FROM t4_2;
 SELECT count(*) FROM t1_temp;
 SELECT count(*) FROM t2_temp;
-SELECT count(*) FROM t3_temp;
 SELECT count(*) FROM t4_temp;
 SELECT c1 FROM t1_temp;
 SELECT c1 FROM t2_temp;
-SELECT c1 FROM t3_temp;
 SELECT c1 FROM t4_temp;
 
 --echo # In connection 1
@@ -428,8 +387,6 @@ ALTER TABLE t1_temp DROP PRIMARY KEY;
 ALTER TABLE t1_temp ADD PRIMARY KEY (c1);
 ALTER TABLE t2_temp DROP PRIMARY KEY;
 ALTER TABLE t2_temp ADD PRIMARY KEY (c1);
-ALTER TABLE t3_temp DROP PRIMARY KEY;
-ALTER TABLE t3_temp ADD PRIMARY KEY (c1);
 ALTER TABLE t4_temp DROP PRIMARY KEY;
 ALTER TABLE t4_temp ADD PRIMARY KEY (c1);
 # Check duplicate key constraint + insert ignore
@@ -439,9 +396,6 @@ insert ignore into t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 --error ER_DUP_ENTRY
 INSERT INTO t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 insert ignore into t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
---error ER_DUP_ENTRY
-INSERT INTO t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-insert ignore into t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 --error ER_DUP_ENTRY
 INSERT INTO t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 insert ignore into t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
@@ -454,9 +408,6 @@ INSERT INTO t1_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 INSERT INTO t2_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
 --error ER_DUP_ENTRY
-INSERT INTO t3_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
-(20,1,'a','a','a','a','a',NOW(),100.55);
---error ER_DUP_ENTRY
 INSERT INTO t4_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
 
@@ -464,29 +415,24 @@ set AUTOCOMMIT = 1;
 
 SELECT c1,c2 FROM t1_temp WHERE c1 in (20,1);
 SELECT c1,c2 FROM t2_temp WHERE c1 in (20,1);
-SELECT c1,c2 FROM t3_temp WHERE c1 in (20,1);
 SELECT c1,c2 FROM t4_temp WHERE c1 in (20,1);
 
 #replace statement
 REPLACE INTO t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 REPLACE INTO t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
-REPLACE INTO t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 REPLACE INTO t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 # verify row is replaced FROM (20,20) to (20,1)
 SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t1_temp WHERE c1 = 20;
 SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t2_temp WHERE c1 = 20;
-SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t3_temp WHERE c1 = 20;
 SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t4_temp WHERE c1 = 20;
 
 # Update ignore. statement is gonored as 20 value exits 
 update ignore t1_temp set c1 = 20 WHERE c1 = 140 ;
 update ignore t2_temp set c1 = 20 WHERE c1 = 140 ;
-update ignore t3_temp set c1 = 20 WHERE c1 = 140 ;
 update ignore t4_temp set c1 = 20 WHERE c1 = 140 ;
 # see record 140 is present as last update ignored
 SELECT count(*) FROM t1_temp WHERE c1 = 140;
 SELECT count(*) FROM t2_temp WHERE c1 = 140;
-SELECT count(*) FROM t3_temp WHERE c1 = 140;
 SELECT count(*) FROM t4_temp WHERE c1 = 140;
 
 # Alter table to ADD COLUMN and PRIMARY KEY
@@ -542,11 +488,9 @@ SELECT c1 FROM t3_1;
 SELECT c1 FROM t4_1;
 SELECT count(*) FROM t1_temp;
 SELECT count(*) FROM t2_temp;
-SELECT count(*) FROM t3_temp;
 SELECT count(*) FROM t4_temp;
 SELECT c1 FROM t1_temp;
 SELECT c1 FROM t2_temp;
-SELECT c1 FROM t3_temp;
 SELECT c1 FROM t4_temp;
 DROP TABLE t1_1 ,t2_1 ,t3_1,t4_1;
 disconnect con1;
@@ -563,11 +507,9 @@ SELECT c1 FROM t3_2;
 SELECT c1 FROM t4_2;
 SELECT count(*) FROM t1_temp;
 SELECT count(*) FROM t2_temp;
-SELECT count(*) FROM t3_temp;
 SELECT count(*) FROM t4_temp;
 SELECT c1 FROM t1_temp;
 SELECT c1 FROM t2_temp;
-SELECT c1 FROM t3_temp;
 SELECT c1 FROM t4_temp;
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
 disconnect con2;
@@ -597,11 +539,9 @@ SELECT c1 FROM t3_1;
 SELECT c1 FROM t4_1;
 SELECT count(*) FROM t1_temp;
 SELECT count(*) FROM t2_temp;
-SELECT count(*) FROM t3_temp;
 SELECT count(*) FROM t4_temp;
 SELECT c1 FROM t1_temp;
 SELECT c1 FROM t2_temp;
-SELECT c1 FROM t3_temp;
 SELECT c1 FROM t4_temp;
 DROP TABLE t1_1 ,t2_1 ,t3_1,t4_1;
 disconnect con1;
@@ -618,11 +558,9 @@ SELECT c1 FROM t3_2;
 SELECT c1 FROM t4_2;
 SELECT count(*) FROM t1_temp;
 SELECT count(*) FROM t2_temp;
-SELECT count(*) FROM t3_temp;
 SELECT count(*) FROM t4_temp;
 SELECT c1 FROM t1_temp;
 SELECT c1 FROM t2_temp;
-SELECT c1 FROM t3_temp;
 SELECT c1 FROM t4_temp;
 DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
 disconnect con2;

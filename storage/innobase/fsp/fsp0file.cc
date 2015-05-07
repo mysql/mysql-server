@@ -518,7 +518,10 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		free_first_page();
 
 		return(DB_ERROR);
-
+	} else if (!fsp_flags_is_valid(m_flags)
+		   || FSP_FLAGS_GET_TEMPORARY(m_flags)) {
+		/* Tablespace flags must be valid. */
+		error_txt = "Tablespace flags are invalid";
 	} else if (page_get_page_no(m_first_page) != 0) {
 
 		/* First page must be number 0 */

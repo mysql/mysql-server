@@ -505,6 +505,7 @@ page_create_empty(
 	}
 
 	if (page_zip) {
+		ut_ad(!dict_table_is_temporary(index->table));
 		page_create_zip(block, index,
 				page_header_get_field(page, PAGE_LEVEL),
 				max_trx_id, NULL, mtr);

@@ -2617,8 +2617,6 @@ ha_innopart::create(
 	int		error;
 	/** {database}/{tablename} */
 	char		table_name[FN_REFLEN];
-	/** absolute path of temp frm */
-	char		temp_path[FN_REFLEN];
 	/** absolute path of table */
 	char		remote_path[FN_REFLEN];
 	char		partition_name[FN_REFLEN];
@@ -2635,7 +2633,6 @@ ha_innopart::create(
 				     form,
 				     create_info,
 				     table_name,
-				     temp_path,
 				     remote_path,
 				     tablespace_name);
 
@@ -2662,7 +2659,6 @@ ha_innopart::create(
 	if (error != 0) {
 		DBUG_RETURN(error);
 	}
-	ut_ad(temp_path[0] == '\0');
 	strcpy(partition_name, table_name);
 	partition_name_start = partition_name + strlen(partition_name);
 	table_name_len = strlen(table_name);

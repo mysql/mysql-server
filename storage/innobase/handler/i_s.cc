@@ -4184,24 +4184,6 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
 	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TEMP_TABLE_PTT		4
-	{STRUCT_FLD(field_name,		"PER_TABLE_TABLESPACE"),
-	 STRUCT_FLD(field_length,	NAME_CHAR_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TEMP_TABLE_IS_COMPRESSED	5
-	{STRUCT_FLD(field_name,		"IS_COMPRESSED"),
-	 STRUCT_FLD(field_length,	NAME_CHAR_LEN),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 	END_OF_ST_FIELD_INFO
 };
 
@@ -4210,8 +4192,6 @@ struct temp_table_info_t{
 	char		m_table_name[NAME_LEN + 1];
 	unsigned	m_n_cols;
 	unsigned	m_space_id;
-	char		m_per_table_tablespace[NAME_LEN + 1];
-	char		m_is_compressed[NAME_LEN + 1];
 };
 
 typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t> >
@@ -4248,12 +4228,6 @@ i_s_innodb_temp_table_info_fill(
 
 	OK(fields[IDX_TEMP_TABLE_SPACE_ID]->store(info->m_space_id));
 
-	OK(field_store_string(
-		fields[IDX_TEMP_TABLE_PTT], info->m_per_table_tablespace));
-
-	OK(field_store_string(
-		fields[IDX_TEMP_TABLE_IS_COMPRESSED], info->m_is_compressed));
-
 	DBUG_RETURN(schema_table_store_record(thd, table));
 }
 
@@ -4280,18 +4254,6 @@ innodb_temp_table_populate_cache(
 	cache->m_n_cols = table->n_cols;
 
 	cache->m_space_id = table->space;
-
-	if (fsp_is_system_temporary(table->space)) {
-		strcpy(cache->m_per_table_tablespace, "FALSE");
-	} else {
-		strcpy(cache->m_per_table_tablespace, "TRUE");
-	}
-
-	if (dict_table_page_size(table).is_compressed()) {
-		strcpy(cache->m_is_compressed, "TRUE");
-	} else {
-		strcpy(cache->m_is_compressed, "FALSE");
-	}
 }
 
 /*******************************************************************//**

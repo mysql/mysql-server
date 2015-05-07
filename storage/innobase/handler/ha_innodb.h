@@ -633,14 +633,12 @@ public:
 		TABLE*		form,
 		HA_CREATE_INFO*	create_info,
 		char*		table_name,
-		char*		temp_path,
 		char*		remote_path,
 		char*		tablespace)
 	:m_thd(thd),
 	m_form(form),
 	m_create_info(create_info),
 	m_table_name(table_name),
-	m_temp_path(temp_path),
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
 	m_innodb_file_per_table(srv_file_per_table)
@@ -751,13 +749,6 @@ private:
 
 	/** Table name */
 	char*		m_table_name;
-	/** If this is a table explicitly created by the user with the
-	TEMPORARY keyword, then this parameter is the dir path where the
-	table should be placed if we create an .ibd file for it
-	(no .ibd extension in the path, though).
-	Otherwise this is a zero length-string */
-	char*		m_temp_path;
-
 	/** Remote path (DATA DIRECTORY) or zero length-string */
 	char*		m_remote_path;
 

@@ -3222,12 +3222,12 @@ fail_err:
 
 	if (*rec) {
 	} else if (page_size.is_compressed()) {
+		ut_ad(!dict_table_is_temporary(index->table));
 		/* Reset the IBUF_BITMAP_FREE bits, because
 		page_cur_tuple_insert() will have attempted page
 		reorganize before failing. */
 		if (leaf
-		    && !dict_index_is_clust(index)
-		    && !dict_table_is_temporary(index->table)) {
+		    && !dict_index_is_clust(index)) {
 			ibuf_reset_free_bits(block);
 		}
 
@@ -3821,6 +3821,8 @@ btr_cur_update_in_place(
 
 	/* Check that enough space is available on the compressed page. */
 	if (page_zip) {
+		ut_ad(!dict_table_is_temporary(index->table));
+
 		if (!btr_cur_update_alloc_zip(
 			    page_zip, btr_cur_get_page_cur(cursor),
 			    index, offsets, rec_offs_size(offsets),
@@ -3898,7 +3900,6 @@ func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
 	    && !dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
@@ -4046,6 +4047,8 @@ any_extern:
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (page_zip) {
+		ut_ad(!dict_table_is_temporary(index->table));
+
 		if (!btr_cur_update_alloc_zip(
 			    page_zip, page_cursor, index, *offsets,
 			    new_rec_size, true, mtr)) {
@@ -4155,8 +4158,7 @@ any_extern:
 func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
-	    && !dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !dict_index_is_clust(index)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
 	}
@@ -4280,6 +4282,7 @@ btr_cur_pessimistic_update(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
+	ut_ad(!page_zip || !dict_table_is_temporary(index->table));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(trx_id > 0
@@ -4311,8 +4314,8 @@ btr_cur_pessimistic_update(
 		if (page_zip
 		    && optim_err != DB_ZIP_OVERFLOW
 		    && !dict_index_is_clust(index)
-		    && !dict_table_is_temporary(index->table)
 		    && page_is_leaf(page)) {
+			ut_ad(!dict_table_is_temporary(index->table));
 			ibuf_update_free_bits_zip(block, mtr);
 		}
 
@@ -4485,7 +4488,6 @@ btr_cur_pessimistic_update(
 			}
 		} else if (page_zip
 			   && !dict_index_is_clust(index)
-			   && !dict_table_is_temporary(index->table)
 			   && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer.
 			This is the same block which was skipped by

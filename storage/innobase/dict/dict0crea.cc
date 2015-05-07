@@ -368,6 +368,9 @@ dict_build_tablespace_for_table(
 					    DICT_TF2_FTS_AUX_HEX_NAME););
 
 	if (needs_file_per_table) {
+		/* Temporary table would always reside in the same
+		shared temp tablespace. */
+		ut_ad(!dict_table_is_temporary(table));
 		/* This table will need a new tablespace. */
 
 		ut_ad(DICT_TF_GET_ZIP_SSIZE(table->flags) == 0
@@ -387,20 +390,11 @@ dict_build_tablespace_for_table(
 		table->space = static_cast<unsigned int>(space);
 
 		/* Determine the tablespace flags. */
-		bool	is_temp = dict_table_is_temporary(table);
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
-		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags, is_temp);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags);
 
 		/* Determine the full filepath */
-		if (is_temp) {
-			/* Temporary table filepath contains a full path
-			and a filename without the extension. */
-			ut_ad(table->dir_path_of_temp_table);
-			filepath = fil_make_filepath(
-				table->dir_path_of_temp_table,
-				NULL, IBD, false);
-
-		} else if (has_data_dir) {
+		if (has_data_dir) {
 			ut_ad(table->data_dir_path);
 			filepath = fil_make_filepath(
 				table->data_dir_path,
@@ -434,7 +428,6 @@ dict_build_tablespace_for_table(
 
 		mtr_start(&mtr);
 		mtr.set_named_space(table->space);
-		dict_disable_redo_if_temporary(table, &mtr);
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
