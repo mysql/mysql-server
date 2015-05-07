@@ -10991,7 +10991,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                              new_tabname /* unused */);
   }
   char* old_key = share->key; // Save current key
-  char* new_key = ndbcluster_prepare_rename_share(to);
+  char* new_key = NDB_SHARE::create_key(to);
   (void)ndbcluster_rename_share(thd, share, new_key);
 
   NdbDictionary::Table new_tab= *orig_tab;
@@ -14169,23 +14169,6 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   DBUG_RETURN(0);
 }
 
-/*
-  Rename share is used during rename table.
-*/
-char* ndbcluster_prepare_rename_share(const char *new_key)
-{
-  /*
-    allocate and set the new key, db etc
-    enough space for key, db, and table_name
-  */
-  uint new_length= (uint) strlen(new_key);
-  char* allocated_key= (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                         2 * (new_length + 1),
-                                         MYF(MY_WME | ME_FATALERROR));
-  my_stpcpy(allocated_key, new_key);
-  return allocated_key;
-}
-
 
 int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
 {
@@ -14297,16 +14280,17 @@ NDB_SHARE::create(const char* key, size_t key_length,
 
   share->flags= 0;
   share->state= NSS_INITIAL;
-  /* Allocate enough space for key, db, and table_name */
-  share->key= (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                2 * (key_length + 1),
-                                MYF(MY_WME | ME_FATALERROR));
+
+  /* Allocates enough space for key, db, and table_name */
+  share->key= NDB_SHARE::create_key(key);
   share->key_length= (uint)key_length;
-  my_stpcpy(share->key, key);
+
   share->db= share->key + key_length + 1;
   my_stpcpy(share->db, db_name);
+
   share->table_name= share->db + strlen(share->db) + 1;
   my_stpcpy(share->table_name, table_name);
+
   thr_lock_init(&share->lock);
   native_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
   share->commit_count= 0;
