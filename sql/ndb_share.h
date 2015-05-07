@@ -177,7 +177,7 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
 int handle_trailing_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key);
 int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
 void ndbcluster_mark_share_dropped(NDB_SHARE*);
 inline NDB_SHARE *get_share(const char *key,
