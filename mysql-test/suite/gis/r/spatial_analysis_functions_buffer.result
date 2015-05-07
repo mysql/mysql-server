@@ -339,13 +339,11 @@ ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,
                                                               'MULTIPOLYGON(((0 0,0 10,10 10,10 0)),((10 10,10 15,15 15,15 10,10 10))))'), 10))
 POLYGON((1.3882 20,0 20,-1.9509 19.8078,-3.8268 19.2387,-5.5557 18.3146,-7.0710 17.0710,-8.3146 15.5557,-9.2387 13.8268,-9.8078 11.9509,-10 10,-10 0,-9.8078 -1.9509,-9.2387 -3.8268,-8.3146 -5.5557,-7.0710 -7.0710,-5.5557 -8.3146,-3.8268 -9.2387,-1.9509 -9.8078,0 -10,10 -10,11.9509 -9.8078,13.8268 -9.2387,15.5557 -8.3146,17.0710 -7.0710,18.3146 -5.5557,19.2387 -3.8268,19.8078 -1.9509,20 0,20.0000 1.3882,20.5557 1.6853,22.0710 2.9289,23.3146 4.4442,24.2387 6.1731,24.8078 8.0490,25 10,25 15,24.8078 16.9509,24.2387 18.8268,23.3146 20.5557,22.0710 22.0710,20.5557 23.3146,18.8268 24.2387,16.9509 24.8078,15 25,10 25,8.0490 24.8078,6.1731 24.2387,4.4442 23.3146,2.9289 22.0710,1.6853 20.5557,1.3882 20))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(x x),'
-                                                                                 'MULTIPOINT(x x,x x)),'
+                                                                                 'MULTIPOINT(x x)),'
                                                               'GEOMETRYCOLLECTION(LINESTRING(x x,x x,x x),'
-                                                                                 'MULTILINESTRING((x x,x x,x x,x x),(x x,x x,x x,x x))))'), x));
-ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(x x),'
-                                                                                 'MULTIPOINT(x x,x x)),'
-                                                          
-POLYGON((x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x))
+                                                                                 'MULTILINESTRING((x x,x x,x x,x x),(x x,x x,x x))))'), x)) as result;
+result
+POLYGON((x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x,x x))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10),'
                                                                                  'MULTIPOINT(0 0,10 10)),'
                                                               'GEOMETRYCOLLECTION(LINESTRING(1 1,2 2,3 3),'
