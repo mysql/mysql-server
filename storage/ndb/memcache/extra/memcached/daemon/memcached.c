@@ -1,3 +1,4 @@
+/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
  *  memcached - memory caching daemon
@@ -321,7 +322,7 @@ static int add_msghdr(conn *c)
 }
 
 static const char *prot_text(enum protocol prot) {
-    char *rv = "unknown";
+    const char *rv = "unknown";
     switch(prot) {
         case ascii_prot:
             rv = "ascii";
@@ -360,13 +361,13 @@ static uint64_t get_listen_disabled_num(void) {
 }
 
 static void disable_listen(void) {
+    conn *next;
     pthread_mutex_lock(&listen_state.mutex);
     listen_state.disabled = true;
     listen_state.count = 10;
     ++listen_state.num_disable;
     pthread_mutex_unlock(&listen_state.mutex);
 
-    conn *next;
     for (next = listen_conn; next; next = next->next) {
         update_event(next, 0);
         if (listen(next->sfd, 1) != 0) {
@@ -500,11 +501,10 @@ static bool conn_reset_buffersize(conn *c) {
  * @return 0 on success, 1 if we failed to allocate memory
  */
 static int conn_constructor(void *buffer, void *unused1, int unused2) {
-    (void)unused1; (void)unused2;
-
     conn *c = buffer;
     memset(c, 0, sizeof(*c));
     MEMCACHED_CONN_CREATE(c);
+    (void)unused1; (void)unused2;
 
     if (!conn_reset_buffersize(c)) {
         free(c->rbuf);
@@ -533,7 +533,6 @@ static int conn_constructor(void *buffer, void *unused1, int unused2) {
  * @param unused not used
  */
 static void conn_destructor(void *buffer, void *unused) {
-    (void)unused;
     conn *c = buffer;
     free(c->rbuf);
     free(c->wbuf);
@@ -545,6 +544,7 @@ static void conn_destructor(void *buffer, void *unused) {
     STATS_LOCK();
     stats.conn_structs--;
     STATS_UNLOCK();
+    (void)unused;
 }
 
 conn *conn_new(const SOCKET sfd, STATE_FUNC init_state,
@@ -1044,10 +1044,12 @@ static void out_string(conn *c, const char *str) {
  * has been stored in c->cmd, and the item is ready in c->item.
  */
 static void complete_update_ascii(conn *c) {
-    assert(c != NULL);
-
-    item *it = c->item;
+    item *it;
+    ENGINE_ERROR_CODE ret;
     item_info info = { .nvalue = 1 };
+
+    assert(c != NULL);
+    it = c->item;
     if (!settings.engine.v1->get_item_info(settings.engine.v0, c, it, &info)) {
         settings.engine.v1->release(settings.engine.v0, c, it);
         settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
@@ -1058,7 +1060,7 @@ static void complete_update_ascii(conn *c) {
     }
 
     c->sbytes = 2; // swallow \r\n
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->store(settings.engine.v0, c, it, &c->cas,
@@ -1210,17 +1212,18 @@ static ssize_t key_to_printable_buffer(char *dest, size_t destsz,
 {
     ssize_t nw = snprintf(dest, destsz, "%c%d %s ", from_client ? '>' : '<',
                           client, prefix);
+    size_t ii;
+    char *ptr = dest + nw;
     if (nw == -1) {
         return -1;
     }
 
-    char *ptr = dest + nw;
     destsz -= nw;
     if (nkey > destsz) {
         nkey = destsz;
     }
 
-    for (ssize_t ii = 0; ii < nkey; ++ii, ++key, ++ptr) {
+    for (ii = 0; ii < nkey; ++ii, ++key, ++ptr) {
         if (isgraph(*key)) {
             *ptr = *key;
         } else {
@@ -1252,12 +1255,13 @@ static ssize_t bytes_to_output_string(char *dest, size_t destsz,
 {
     ssize_t nw = snprintf(dest, destsz, "%c%d %s", from_client ? '>' : '<',
                           client, prefix);
+    size_t ii;
+    ssize_t offset = nw;
     if (nw == -1) {
         return -1;
     }
-    ssize_t offset = nw;
 
-    for (ssize_t ii = 0; ii < size; ++ii) {
+    for (ii = 0; ii < size; ++ii) {
         if (ii % 4 == 0) {
             if ((nw = snprintf(dest + offset, destsz - offset, "\n%c%d  ",
                                from_client ? '>' : '<', client)) == -1) {
@@ -1444,7 +1448,7 @@ static void write_bin_packet(conn *c, protocol_binary_response_status err, int s
 }
 
 /* Form and send a response to a command over the binary protocol */
-static void write_bin_response(conn *c, void *d, int hlen, int keylen, int dlen) {
+static void write_bin_response(conn *c, const void *d, int hlen, int keylen, int dlen) {
     if (!c->noreply || c->cmd == PROTOCOL_BINARY_CMD_GET ||
         c->cmd == PROTOCOL_BINARY_CMD_GETK) {
         add_bin_header(c, 0, hlen, keylen, dlen);
@@ -1460,6 +1464,13 @@ static void write_bin_response(conn *c, void *d, int hlen, int keylen, int dlen)
 
 
 static void complete_incr_bin(conn *c) {
+    uint64_t delta, initial;
+    rel_time_t expiration;
+    char *key;
+    size_t nkey;
+    bool incr;
+    ENGINE_ERROR_CODE ret;
+
     protocol_binary_response_incr* rsp = (protocol_binary_response_incr*)c->wbuf;
     protocol_binary_request_incr* req = binary_get_request(c);
 
@@ -1467,13 +1478,13 @@ static void complete_incr_bin(conn *c) {
     assert(c->wsize >= sizeof(*rsp));
 
     /* fix byteorder in the request */
-    uint64_t delta = ntohll(req->message.body.delta);
-    uint64_t initial = ntohll(req->message.body.initial);
-    rel_time_t expiration = ntohl(req->message.body.expiration);
-    char *key = binary_get_key(c);
-    size_t nkey = c->binary_header.request.keylen;
-    bool incr = (c->cmd == PROTOCOL_BINARY_CMD_INCREMENT ||
-                 c->cmd == PROTOCOL_BINARY_CMD_INCREMENTQ);
+    delta = ntohll(req->message.body.delta);
+    initial = ntohll(req->message.body.initial);
+    expiration = ntohl(req->message.body.expiration);
+    key = binary_get_key(c);
+    nkey = c->binary_header.request.keylen;
+    incr = (c->cmd == PROTOCOL_BINARY_CMD_INCREMENT ||
+            c->cmd == PROTOCOL_BINARY_CMD_INCREMENTQ);
 
     if (settings.verbose > 1) {
         char buffer[1024];
@@ -1490,7 +1501,7 @@ static void complete_incr_bin(conn *c) {
         }
     }
 
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->arithmetic(settings.engine.v0,
@@ -1554,11 +1565,13 @@ static void complete_incr_bin(conn *c) {
 }
 
 static void complete_update_bin(conn *c) {
-    protocol_binary_response_status eno = PROTOCOL_BINARY_RESPONSE_EINVAL;
-    assert(c != NULL);
-
-    item *it = c->item;
+    item *it;
+    ENGINE_ERROR_CODE ret;
     item_info info = { .nvalue = 1 };
+    protocol_binary_response_status eno = PROTOCOL_BINARY_RESPONSE_EINVAL;
+
+    assert(c != NULL);
+    it = c->item;
     if (!settings.engine.v1->get_item_info(settings.engine.v0, c, it, &info)) {
         settings.engine.v1->release(settings.engine.v0, c, it);
         settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
@@ -1568,7 +1581,7 @@ static void complete_update_bin(conn *c) {
         return;
     }
 
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->store(settings.engine.v0, c,
@@ -1668,6 +1681,10 @@ static void complete_update_bin(conn *c) {
 
 static void process_bin_get(conn *c) {
     item *it;
+    ENGINE_ERROR_CODE ret;
+    uint16_t keylen;
+    uint32_t bodylen;
+    item_info info = { .nvalue = 1 };
 
     protocol_binary_response_get* rsp = (protocol_binary_response_get*)c->wbuf;
     char* key = binary_get_key(c);
@@ -1682,16 +1699,12 @@ static void process_bin_get(conn *c) {
         }
     }
 
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->get(settings.engine.v0, c, &it, key, nkey,
                                       c->binary_header.request.vbucket);
     }
-
-    uint16_t keylen;
-    uint32_t bodylen;
-    item_info info = { .nvalue = 1 };
 
     switch (ret) {
     case ENGINE_SUCCESS:
@@ -1870,12 +1883,12 @@ static void append_stats(const char *key, const uint16_t klen,
                          const char *val, const uint32_t vlen,
                          const void *cookie)
 {
+   conn *c = (conn*)cookie;
+
     /* value without a key is invalid */
     if (klen == 0 && vlen > 0) {
         return ;
     }
-
-    conn *c = (conn*)cookie;
 
     if (c->protocol == binary_prot) {
         size_t needed = vlen + klen + sizeof(protocol_binary_response_header);
@@ -1895,6 +1908,7 @@ static void append_stats(const char *key, const uint16_t klen,
 }
 
 static void process_bin_stat(conn *c) {
+    ENGINE_ERROR_CODE ret;
     char *subcommand = binary_get_key(c);
     size_t nkey = c->binary_header.request.keylen;
 
@@ -1907,7 +1921,7 @@ static void process_bin_stat(conn *c) {
         }
     }
 
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
 
@@ -1995,12 +2009,13 @@ static void process_bin_stat(conn *c) {
 }
 
 static void bin_read_chunk(conn *c, enum bin_substates next_substate, uint32_t chunk) {
+    ptrdiff_t offset;
     assert(c);
     c->substate = next_substate;
     c->rlbytes = chunk;
 
     /* Ok... do we have room for everything in our buffer? */
-    ptrdiff_t offset = c->rcurr + sizeof(protocol_binary_request_header) - c->rbuf;
+    offset = c->rcurr + sizeof(protocol_binary_request_header) - c->rbuf;
     if (c->rlbytes > c->rsize - offset) {
         size_t nsize = c->rsize;
         size_t size = c->rlbytes + sizeof(protocol_binary_request_header);
@@ -2010,12 +2025,13 @@ static void bin_read_chunk(conn *c, enum bin_substates next_substate, uint32_t c
         }
 
         if (nsize != c->rsize) {
+            char *newm;
             if (settings.verbose > 1) {
                 settings.extensions.logger->log(EXTENSION_LOG_DEBUG, c,
                         "%d: Need to grow buffer from %lu to %lu\n",
                         c->sfd, (unsigned long)c->rsize, (unsigned long)nsize);
             }
-            char *newm = realloc(c->rbuf, nsize);
+            newm = realloc(c->rbuf, nsize);
             if (newm == NULL) {
                 if (settings.verbose) {
                     settings.extensions.logger->log(EXTENSION_LOG_INFO, c,
@@ -2088,6 +2104,7 @@ static void get_auth_data(const void *cookie, auth_data_t *data) {
         sasl_getprop(c->sasl_conn, ISASL_CONFIG, (void*)&data->config);
 #endif
     }
+    (void)(data);
 }
 
 #ifdef SASL_ENABLED
@@ -2122,10 +2139,10 @@ struct sasl_tmp {
 };
 
 static void process_bin_sasl_auth(conn *c) {
-    assert(c->binary_header.request.extlen == 0);
-
     int nkey = c->binary_header.request.keylen;
     int vlen = c->binary_header.request.bodylen - nkey;
+
+    assert(c->binary_header.request.extlen == 0);
 
     if (nkey > MAX_SASL_MECH_LEN) {
         write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_EINVAL, vlen);
@@ -2593,6 +2610,7 @@ static ENGINE_ERROR_CODE default_unknown_command(EXTENSION_BINARY_PROTOCOL_DESCR
                                                  protocol_binary_request_header *request,
                                                  ADD_RESPONSE response)
 {
+    (void)(descriptor);
     return settings.engine.v1->unknown_command(handle, cookie, request, response);
 }
 
@@ -2685,7 +2703,7 @@ static void process_bin_tap_connect(conn *c) {
 
     if (settings.verbose && c->binary_header.request.keylen > 0) {
         char buffer[1024];
-        int len = c->binary_header.request.keylen;
+        unsigned int len = c->binary_header.request.keylen;
         if (len >= sizeof(buffer)) {
             len = sizeof(buffer) - 1;
         }
@@ -3102,6 +3120,7 @@ static void process_bin_update(conn *c) {
     uint16_t nkey;
     uint32_t vlen;
     item *it;
+    ENGINE_ERROR_CODE ret;
     protocol_binary_request_set* req = binary_get_request(c);
 
     assert(c != NULL);
@@ -3118,6 +3137,7 @@ static void process_bin_update(conn *c) {
     if (settings.verbose > 1) {
         char buffer[1024];
         const char *prefix;
+        ssize_t nw;
         if (c->cmd == PROTOCOL_BINARY_CMD_ADD) {
             prefix = "ADD";
         } else if (c->cmd == PROTOCOL_BINARY_CMD_SET) {
@@ -3126,7 +3146,6 @@ static void process_bin_update(conn *c) {
             prefix = "REPLACE";
         }
 
-        size_t nw;
         nw = key_to_printable_buffer(buffer, sizeof(buffer), c->sfd, true,
                                      prefix, key, nkey);
 
@@ -3143,7 +3162,7 @@ static void process_bin_update(conn *c) {
         stats_prefix_record_set(key, nkey);
     }
 
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
     item_info info = { .nvalue = 1 };
@@ -3225,6 +3244,8 @@ static void process_bin_append_prepend(conn *c) {
     int nkey;
     int vlen;
     item *it;
+    ENGINE_ERROR_CODE ret;
+    item_info info = { .nvalue = 1 };
 
     assert(c != NULL);
 
@@ -3241,10 +3262,9 @@ static void process_bin_append_prepend(conn *c) {
         stats_prefix_record_set(key, nkey);
     }
 
-    ENGINE_ERROR_CODE ret = c->aiostat;
+    ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
-    item_info info = { .nvalue = 1 };
 
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->allocate(settings.engine.v0, c,
@@ -3460,6 +3480,7 @@ static ENGINE_ERROR_CODE ascii_response_handler(const void *cookie,
                                                 const char *dta)
 {
     conn *c = (conn*)cookie;
+    char *buf;
     if (!grow_dynamic_buffer(c, nbytes)) {
         if (settings.verbose > 0) {
             settings.extensions.logger->log(EXTENSION_LOG_INFO, c,
@@ -3469,7 +3490,7 @@ static ENGINE_ERROR_CODE ascii_response_handler(const void *cookie,
         return ENGINE_ENOMEM;
     }
 
-    char *buf = c->dynamic_buffer.buffer + c->dynamic_buffer.offset;
+    buf = c->dynamic_buffer.buffer + c->dynamic_buffer.offset;
     memcpy(buf, dta, nbytes);
     c->dynamic_buffer.offset += nbytes;
 
@@ -5655,6 +5676,8 @@ static void dispatch_event_handler(int fd, short which, void *arg) {
     char buffer[80];
     ssize_t nr = recv(fd, buffer, sizeof(buffer), 0);
 
+    (void)(which);
+    (void)(arg);
     if (nr != -1 && is_listen_disabled()) {
         bool enable = false;
         pthread_mutex_lock(&listen_state.mutex);
@@ -6048,6 +6071,10 @@ static void clock_handler(const int fd, const short which, void *arg) {
     struct timeval t = {.tv_sec = 1, .tv_usec = 0};
     static bool initialized = false;
 
+    (void)(fd);
+    (void)(which);
+    (void)(arg);
+
     if (memcached_shutdown) {
         event_base_loopbreak(main_base);
         return ;
@@ -6400,6 +6427,7 @@ static void register_callback(ENGINE_HANDLE *eh,
     h->cb_data = cb_data;
     h->next = engine_event_handlers[type];
     engine_event_handlers[type] = h;
+    (void)(eh); /* unused */
 }
 
 static rel_time_t get_current_time(void)
@@ -7309,7 +7337,7 @@ int main (int argc, char **argv) {
                 "failed to getrlimit number of files\n");
         exit(EX_OSERR);
     } else {
-        int maxfiles = settings.maxconns + (3 * (settings.num_threads + 2));
+        unsigned int maxfiles = settings.maxconns + (3 * (settings.num_threads + 2));
         int syslimit = rlim.rlim_cur;
         if (rlim.rlim_cur < maxfiles) {
             rlim.rlim_cur = maxfiles;
