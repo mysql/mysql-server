@@ -1,5 +1,9 @@
 --source include/have_ndb.inc
 
+# Test requires several mysqld(s) started which is not
+# suported with embedded, skip this test
+--source include/not_embedded.inc
+
 # No need to include the setup commands in .result file
 --disable_query_log
 
