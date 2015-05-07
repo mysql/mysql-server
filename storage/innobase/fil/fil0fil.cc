@@ -6478,8 +6478,6 @@ truncate_t::truncate(
 	space->stop_new_ops = false;
 	space->is_being_truncated = false;
 
-	mutex_exit(&fil_system->mutex);
-
 	/* If we opened the file in this function, close it. */
 	if (!already_open) {
 		bool	closed = os_file_close(node->handle);
@@ -6494,6 +6492,8 @@ truncate_t::truncate(
 			node->is_open = false;
 		}
 	}
+
+	mutex_exit(&fil_system->mutex);
 
 	ut_free(path);
 
