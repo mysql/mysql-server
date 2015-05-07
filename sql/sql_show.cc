@@ -4366,6 +4366,22 @@ public:
   }
 };
 
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
+      return true;
+
+    return false;
+  }
+};
+
 
 
 /**
@@ -7122,6 +7138,22 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(res);
 #endif /* EMBEDDED_LIBRARY */
 
+
+  /*
+    Some system variables, for example sql_log_bin,
+    have special behavior because of deprecation.
+    - SELECT @@global.sql_log_bin
+      MUST print a deprecation warning,
+      because such usage needs to be abandoned.
+    - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+      MUST NOT print a deprecation warning,
+      since the application may not be looking for
+      the 'sql_log_bin' row anyway,
+      and we do not want to create spurious warning noise.
+  */
+  Silence_deprecation_warnings silencer;
+  thd->push_internal_handler(&silencer);
+
   /*
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
     SHOW_VAR array and hold it until all variables are stored in the table.
@@ -7144,6 +7176,8 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     mysql_mutex_unlock(&LOCK_plugin_delete);
   }
+
+  thd->pop_internal_handler();
 
   DBUG_RETURN(res);
 }
