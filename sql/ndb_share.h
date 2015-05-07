@@ -60,7 +60,6 @@ struct Ndb_statistics {
 
 struct NDB_SHARE {
   NDB_SHARE_STATE state;
-  MEM_ROOT mem_root;
   THR_LOCK lock;
   native_mutex_t mutex;
   char *key;
@@ -97,6 +96,8 @@ struct NDB_SHARE {
     events from the table.
   */
   bool need_events(bool default_on) const;
+
+  static void free_key(char*);
 };
 
 
@@ -175,7 +176,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
 int handle_trailing_share(THD *thd, NDB_SHARE *share);
-char* ndbcluster_prepare_rename_share(NDB_SHARE* share, const char *new_key);
+char* ndbcluster_prepare_rename_share(const char *new_key);
 int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key);
 void ndbcluster_mark_share_dropped(NDB_SHARE*);
 inline NDB_SHARE *get_share(const char *key,
