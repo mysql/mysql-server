@@ -392,8 +392,13 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
   else
     rlb->append(STRING_WITH_LEN(" PASSWORD EXPIRE NEVER"));
 
-  if (!opt_log_backward_compatible_user_definitions ||
-      lex->alter_password.update_account_locked_column)
+  if (thd->lex->sql_command == SQLCOM_ALTER_USER)
+  {
+    if (lex->alter_password.update_account_locked_column)
+      rewrite_account_lock(lex, rlb);
+  }
+  else if (!opt_log_backward_compatible_user_definitions ||
+            lex->alter_password.update_account_locked_column)
   {
     rewrite_account_lock(lex, rlb);
   }
