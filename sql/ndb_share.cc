@@ -34,12 +34,7 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   native_mutex_destroy(&share->mutex);
 
 #ifdef HAVE_NDB_BINLOG
-  if (share->m_cfn_share && 
-      share->m_cfn_share->m_ex_tab_writer.hasTable() && 
-      g_ndb)
-  {
-    share->m_cfn_share->m_ex_tab_writer.mem_free(g_ndb);
-  }
+  teardown_conflict_fn(g_ndb, share->m_cfn_share);
 #endif
   share->new_op= 0;
   Ndb_event_data* event_data = share->event_data;
