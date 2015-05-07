@@ -208,3 +208,12 @@ repair table t1 use_frm;
 select count(*) from t1;
 check table t1;
 drop table t1;
+
+#
+# MDEV-8115 mysql_upgrade crashes the server with REPAIR VIEW
+#
+create table t1 (a blob);
+create view v1 as select * from t1;
+repair view v1;
+drop view v1;
+drop table t1;
