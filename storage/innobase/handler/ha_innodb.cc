@@ -3307,6 +3307,13 @@ innobase_init(
 		srv_undo_dir = default_path;
 	}
 
+	os_normalize_path_for_win(srv_undo_dir);
+
+	if (strchr(srv_undo_dir, ';')) {
+		sql_print_error("syntax error in innodb_undo_directory");
+		DBUG_RETURN(innobase_init_abort());
+	}
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
