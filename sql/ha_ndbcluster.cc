@@ -10990,7 +10990,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                              new_dbname /* unused */,
                              new_tabname /* unused */);
   }
-
+  char* old_key = share->key; // Save current key
   ndbcluster_prepare_rename_share(share, to);
   (void)ndbcluster_rename_share(thd, share, share->new_key);
 
@@ -10999,7 +10999,8 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
   if (dict->alterTableGlobal(*orig_tab, new_tab) != 0)
   {
     NdbError ndb_error= dict->getNdbError();
-    (void)ndbcluster_undo_rename_share(thd, share);
+    // Rename the share back to old_key
+    (void)ndbcluster_rename_share(thd, share, old_key);
     ERR_RETURN(ndb_error);
   }
 
@@ -14172,12 +14173,6 @@ int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key)
   return 0;
 }
 
-int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share)
-{
-  ndbcluster_rename_share(thd, share, share->old_names);
-  return 0;
-}
-
 
 int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
 {
@@ -14250,8 +14245,6 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
     }
   }
   /* else rename will be handled when the ALTER event comes */
-  share->old_names= old_key;
-  // ToDo free old_names after ALTER EVENT
 
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u", old_key, share->key, share->use_count);
