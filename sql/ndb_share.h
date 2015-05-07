@@ -64,7 +64,6 @@ struct NDB_SHARE {
   native_mutex_t mutex;
   char *key;
   uint key_length;
-  char *new_key; // Use only by schema dist participant
   uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
