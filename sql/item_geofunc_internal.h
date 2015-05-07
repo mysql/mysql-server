@@ -586,9 +586,65 @@ merge_components(my_bool *pnull_value)
 
   POS pos;
   Item_func_spatial_operation ifso(pos, NULL, NULL, Gcalc_function::op_union);
-  while (!*pnull_value &&
-         merge_one_run<Coord_type, Coordsys>(&ifso, pnull_value))
-    ;
+  bool do_again= true;
+  uint32 last_composition[6]= {0}, num_unchanged_composition= 0;
+  size_t last_num_geos= 0;
+
+  /*
+    After each merge_one_run call, see whether the two indicators change:
+    1. total number of geometry components;
+    2. total number of each of the 6 types of geometries
+
+    If they don't change for N*N/4 times, break out of the loop. Here N is
+    the total number of geometry components.
+
+    There is the rationale:
+
+    Given a geometry collection, it's likely that one effective merge_one_run
+    merges a polygon P and the linestring that crosses it (L) to a
+    polygon P'(the same one) and another linestring L', the 2 indicators above
+    don't change but the merge is actually done. If we merge P'
+    and L' again, they should not be considered cross, but given certain data
+    BG somehow believes L` still crosses P` even the P and P` are valid, and
+    it will give us a L'' and P'' which is different from L' and P'
+    respectively, and L'' is still considered crossing P'',
+    hence the loop here never breaks out.
+
+    If the collection has N components, and we have X [multi]linestrings and
+    N-X polygons, the number of pairs that can be merged is Y = X * (N-X),
+    so the largest Y is N*N/4. If the above 2 indicators stay unchanged more
+    than N*N/4 times the loop runs, we believe all possible combinations in
+    the collection are enumerated and no effective merge is being done any more.
+
+    Note that the L'' and P'' above is different from L' and P' so we can't
+    compare GEOMETRY byte string, and geometric comparison is expensive and may
+    still compare unequal and we would still be stuck in the endless loop.
+  */
+  while (!*pnull_value && do_again)
+  {
+    do_again= merge_one_run<Coord_type, Coordsys>(&ifso, pnull_value);
+    if (!*pnull_value && do_again)
+    {
+      const size_t num_geos= m_geos.size();
+      uint32 composition[6]= {0};
+
+      for (size_t i= 0; i < num_geos; ++i)
+        composition[m_geos[i]->get_type() - 1]++;
+
+      if (num_geos != last_num_geos ||
+          memcmp(composition, last_composition, sizeof(composition)))
+      {
+        memcpy(last_composition, composition, sizeof(composition));
+        last_num_geos= num_geos;
+        num_unchanged_composition= 0;
+      }
+      else
+        num_unchanged_composition++;
+
+      if (num_unchanged_composition > (last_num_geos * last_num_geos / 4 + 2))
+        break;
+    }
+  }
 }
 
 
