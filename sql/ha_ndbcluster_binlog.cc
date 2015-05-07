@@ -3272,9 +3272,13 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Release potentially previously prepared new_key
+    if (share->new_key)
+      NDB_SHARE::free_key(share->new_key);
+
     // Save the new key in the share and hope for the best(i.e
     // that it can be found later when the RENAME arrives)
-    share->new_key = ndbcluster_prepare_rename_share(share, new_key_for_table);
+    share->new_key = ndbcluster_prepare_rename_share(new_key_for_table);
     free_share(&share); // temporary ref.
 
     DBUG_VOID_RETURN;
@@ -3337,7 +3341,13 @@ class Ndb_schema_event_handler {
     ha_ndbcluster::set_dbname(new_key_for_table, new_db);
     ha_ndbcluster::set_tabname(new_key_for_table, new_name);
     from.rename_table(new_db, new_name);
+
+    // Rename share and release the old key
+    char* old_key = share->key;
     ndbcluster_rename_share(m_thd, share, share->new_key);
+    share->new_key = NULL;
+    NDB_SHARE::free_key(old_key);
+
     free_share(&share);  // temporary ref.
 
     ndbapi_invalidate_table(schema->db, schema->name);

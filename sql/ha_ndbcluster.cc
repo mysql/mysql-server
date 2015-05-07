@@ -10991,18 +10991,22 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                              new_tabname /* unused */);
   }
   char* old_key = share->key; // Save current key
-  char* new_key = ndbcluster_prepare_rename_share(share, to);
+  char* new_key = ndbcluster_prepare_rename_share(to);
   (void)ndbcluster_rename_share(thd, share, new_key);
 
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(new_tabname);
   if (dict->alterTableGlobal(*orig_tab, new_tab) != 0)
   {
-    NdbError ndb_error= dict->getNdbError();
+    const NdbError ndb_error= dict->getNdbError();
     // Rename the share back to old_key
     (void)ndbcluster_rename_share(thd, share, old_key);
+    // Release the unused new_key
+    NDB_SHARE::free_key(new_key);
     ERR_RETURN(ndb_error);
   }
+  // Release the unused old_key
+  NDB_SHARE::free_key(old_key);
 
   ndb_fk_util_resolve_mock_tables(thd, ndb->getDictionary(),
                                   new_dbname, new_tabname);
@@ -14145,8 +14149,15 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     const uint min_key_length= 10;
     if (share->key_length < min_key_length)
     {
-      share->key= (char*) alloc_root(&share->mem_root, min_key_length + 1);
+      share->key= (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                    min_key_length + 1,
+                                    MYF(MY_WME | ME_FATALERROR));
       share->key_length= min_key_length;
+      // Note that share->db, share->table_name as well
+      // as share->shadow_table->s->db etc. points into the memory
+      // which share->key pointed to before the memory for new key
+      // was allocated, so it's not a good time to free that memory
+      // here.
     }
     share->key_length=
       (uint)my_snprintf(share->key, min_key_length + 1, "#leak%lu",
@@ -14161,14 +14172,16 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
 /*
   Rename share is used during rename table.
 */
-char* ndbcluster_prepare_rename_share(NDB_SHARE * share, const char *new_key)
+char* ndbcluster_prepare_rename_share(const char *new_key)
 {
   /*
     allocate and set the new key, db etc
     enough space for key, db, and table_name
   */
   uint new_length= (uint) strlen(new_key);
-  char* allocated_key= (char*) alloc_root(&share->mem_root, 2 * (new_length + 1));
+  char* allocated_key= (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                         2 * (new_length + 1),
+                                         MYF(MY_WME | ME_FATALERROR));
   my_stpcpy(allocated_key, new_key);
   return allocated_key;
 }
@@ -14282,15 +14295,12 @@ NDB_SHARE::create(const char* key, size_t key_length,
                                       MYF(MY_WME | MY_ZEROFILL))))
     return NULL;
 
-  MEM_ROOT **root_ptr= my_thread_get_THR_MALLOC();
-  MEM_ROOT *old_root= *root_ptr;
-
-  init_sql_alloc(PSI_INSTRUMENT_ME, &share->mem_root, 1024, 0);
-  *root_ptr= &share->mem_root; // remember to reset before return
   share->flags= 0;
   share->state= NSS_INITIAL;
   /* Allocate enough space for key, db, and table_name */
-  share->key= (char*) alloc_root(*root_ptr, 2 * (key_length + 1));
+  share->key= (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                2 * (key_length + 1),
+                                MYF(MY_WME | ME_FATALERROR));
   share->key_length= (uint)key_length;
   my_stpcpy(share->key, key);
   share->db= share->key + key_length + 1;
@@ -14315,11 +14325,8 @@ NDB_SHARE::create(const char* key, size_t key_length,
     DBUG_PRINT("error", ("get_share: %s could not init share", key));
     DBUG_ASSERT(share->event_data == NULL);
     NDB_SHARE::destroy(share);
-    *root_ptr= old_root;
     return NULL;
   }
-
-  *root_ptr= old_root;
 
   return share;
 }

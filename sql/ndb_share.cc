@@ -43,8 +43,16 @@ NDB_SHARE::destroy(NDB_SHARE* share)
     delete event_data;
     event_data= 0;
   }
-  free_root(&share->mem_root, MYF(0));
+  // Release memory for the variable length strings held by
+  // key but also referenced by db, table_name and shadow_table->db etc.
+  free_key(share->key);
   my_free(share);
+}
+
+
+void NDB_SHARE::free_key(char* key)
+{
+  my_free(key);
 }
 
 
