@@ -1,3 +1,4 @@
+/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #include <stdarg.h>
 #include <stdio.h>
@@ -17,8 +18,8 @@ static void stderror_logger_log(EXTENSION_LOG_LEVEL severity,
                                 const void* client_cookie,
                                 const char *fmt, ...)
 {
+    (void)client_cookie;
     if (severity >= current_log_level) {
-        (void)client_cookie;
         int len = strlen(fmt);
         bool needlf = (len > 0 && fmt[len - 1] != '\n');
         va_list ap;
@@ -41,6 +42,10 @@ static void on_log_level(const void *cookie,
                          ENGINE_EVENT_TYPE type,
                          const void *event_data,
                          const void *cb_data) {
+    (void)(cookie);
+    (void)(type);
+    (void)(event_data);
+    (void)(cb_data);
     if (sapi != NULL) {
         current_log_level = sapi->log->get_level();
     }
