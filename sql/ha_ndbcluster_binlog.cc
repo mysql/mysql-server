@@ -4393,7 +4393,6 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
   {
     if (setup_conflict_fn(get_thd_ndb(thd)->ndb, 
                           &share->m_cfn_share,
-                          &share->mem_root,
                           share->db,
                           share->table_name,
                           ((share->flags & NSF_BLOB_FLAG) != 0),

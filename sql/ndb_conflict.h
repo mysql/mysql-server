@@ -509,7 +509,6 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
 int
 setup_conflict_fn(Ndb* ndb,
                   NDB_CONFLICT_FN_SHARE** ppcfn_share,
-                  MEM_ROOT* share_mem_root,
                   const char* dbName,
                   const char* tabName,
                   bool tableUsesBlobs,
@@ -520,7 +519,11 @@ setup_conflict_fn(Ndb* ndb,
                   const st_conflict_fn_arg* args,
                   const Uint32 num_args);
 
-void 
+void
+teardown_conflict_fn(Ndb* ndb,
+                     NDB_CONFLICT_FN_SHARE* cfn_share);
+
+void
 slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share);
 
 bool 
