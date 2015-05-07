@@ -3923,7 +3923,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       */
       if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
       {
-        PSI_statement_locker *parent_locker;
         MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                                thd->thread_id(),
                                (char *) (thd->db().str != NULL ?
@@ -3931,8 +3930,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                                (char *) thd->security_context()->priv_user().str,
                                (char *) thd->security_context()->host_or_ip().str,
                                1);
-        parent_locker= thd->m_statement_psi;
-        thd->m_statement_psi= NULL;
 
         /*
           Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
@@ -3957,7 +3954,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         log_execute_line(thd);
 
         error= mysql_execute_command(thd);
-        thd->m_statement_psi= parent_locker;
         MYSQL_QUERY_EXEC_DONE(error);
       }
     }
