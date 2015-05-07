@@ -50,6 +50,22 @@ NDB_SHARE::destroy(NDB_SHARE* share)
 }
 
 
+char*
+NDB_SHARE::create_key(const char *new_key)
+{
+  /*
+    Allocates and set the new key with
+    enough space also for db, and table_name
+  */
+  size_t new_length= strlen(new_key);
+  char* allocated_key= (char*) my_malloc(PSI_INSTRUMENT_ME,
+                                         2 * (new_length + 1),
+                                         MYF(MY_WME | ME_FATALERROR));
+  my_stpcpy(allocated_key, new_key);
+  return allocated_key;
+}
+
+
 void NDB_SHARE::free_key(char* key)
 {
   my_free(key);
