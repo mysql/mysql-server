@@ -3274,7 +3274,7 @@ class Ndb_schema_event_handler {
 
     // Save the new key in the share and hope for the best(i.e
     // that it can be found later when the RENAME arrives)
-    ndbcluster_prepare_rename_share(share, new_key_for_table);
+    share->new_key = ndbcluster_prepare_rename_share(share, new_key_for_table);
     free_share(&share); // temporary ref.
 
     DBUG_VOID_RETURN;

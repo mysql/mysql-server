@@ -10991,8 +10991,8 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                              new_tabname /* unused */);
   }
   char* old_key = share->key; // Save current key
-  ndbcluster_prepare_rename_share(share, to);
-  (void)ndbcluster_rename_share(thd, share, share->new_key);
+  char* new_key = ndbcluster_prepare_rename_share(share, to);
+  (void)ndbcluster_rename_share(thd, share, new_key);
 
   NdbDictionary::Table new_tab= *orig_tab;
   new_tab.setName(new_tabname);
@@ -14161,16 +14161,16 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
 /*
   Rename share is used during rename table.
 */
-int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key)
+char* ndbcluster_prepare_rename_share(NDB_SHARE * share, const char *new_key)
 {
   /*
     allocate and set the new key, db etc
     enough space for key, db, and table_name
   */
   uint new_length= (uint) strlen(new_key);
-  share->new_key= (char*) alloc_root(&share->mem_root, 2 * (new_length + 1));
-  my_stpcpy(share->new_key, new_key);
-  return 0;
+  char* allocated_key= (char*) alloc_root(&share->mem_root, 2 * (new_length + 1));
+  my_stpcpy(allocated_key, new_key);
+  return allocated_key;
 }
 
 
