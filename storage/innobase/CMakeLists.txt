@@ -144,6 +144,8 @@ IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
   ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_GCC=1)
 ENDIF()
 
+CHECK_C_SOURCE_COMPILES("struct t1{ int a; char *b; }; struct t1 c= { .a=1, .b=0 }; main() { }" HAVE_C99_INITIALIZERS)
+
 ENDIF(NOT MSVC)
 
 # Solaris atomics
