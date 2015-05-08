@@ -98,7 +98,7 @@ struct NDB_SHARE {
   static void free_key(char*);
 
   size_t key_length() const;
-  char* key_string() const;
+  const char* key_string() const;
 
 };
 
@@ -220,7 +220,7 @@ public:
     assert(m_share->use_count >= 2);
 
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             m_share->key, m_share->use_count));
+                             m_share->key_string(), m_share->use_count));
   }
 
   ~Ndb_share_temp_ref()
@@ -232,7 +232,7 @@ public:
 
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             m_share->key, m_share->use_count));
+                             m_share->key_string(), m_share->use_count));
 
     free_share(&m_share);
   }

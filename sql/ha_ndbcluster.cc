@@ -4774,7 +4774,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     {
       sql_print_warning("NDB Slave : Malformed event received on table %s "
                         "cannot parse.  Stopping Slave.",
-                        m_share->key);
+                        m_share->key_string());
       DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
     }
     
@@ -4832,7 +4832,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                           "table %s requires ndb_slave_conflict_role variable "
                           "to be set.  Stopping slave.",
                           conflict_fn->name,
-                          m_share->key);
+                          m_share->key_string());
         DBUG_RETURN(ER_SLAVE_CONFIGURATION);
       }
       case SCR_PASS:
@@ -4926,7 +4926,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     sql_print_warning("NDB Slave : Transactional conflict detection defined on table %s, but "
                       "events received without transaction ids.  Check --ndb-log-transaction-id setting "
                       "on upstream Cluster.",
-                      m_share->key);
+                      m_share->key_string());
     /* This is a user error, but we want them to notice, so treat seriously */
     DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT );
   }
@@ -5044,7 +5044,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
       sql_print_warning("NDB Slave : Binlog event on table %s missing "
                         "info necessary for conflict detection.  "
                         "Check binlog format options on upstream cluster.",
-                        m_share->key);
+                        m_share->key_string());
       DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT);
     }
   } // if (op_type != WRITE_ROW)
@@ -8313,7 +8313,7 @@ ha_ndbcluster::add_handler_to_open_tables(THD *thd,
                                           ha_ndbcluster* handler)
 {
   DBUG_ENTER("ha_ndbcluster::add_handler_to_open_tables");
-  DBUG_PRINT("info", ("Adding %s", handler->m_share->key));
+  DBUG_PRINT("info", ("Adding %s", handler->m_share->key_string()));
 
   /**
    * thd_ndb->open_tables is only used iff thd_ndb->m_handler is not
@@ -10584,7 +10584,7 @@ cleanup_failed:
     else
     {
       DBUG_PRINT("NDB_SHARE", ("%s binlog create  use_count: %u",
-                               share->key, share->use_count));
+                               share->key_string(), share->use_count));
     }
     native_mutex_unlock(&ndbcluster_mutex);
 
@@ -10809,7 +10809,7 @@ void ha_ndbcluster::prepare_for_alter()
   /* ndb_share reference schema */
   ndbcluster_get_share(m_share); // Increase ref_count
   DBUG_PRINT("NDB_SHARE", ("%s binlog schema  use_count: %u",
-                           m_share->key, m_share->use_count));
+                           m_share->key_string(), m_share->use_count));
   set_ndb_share_state(m_share, NSS_ALTERED);
 }
 
@@ -11387,12 +11387,12 @@ do_drop:
       ndbcluster_mark_share_dropped(share);
       /* ndb_share reference create free */
       DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                               share->key, share->use_count));
+                               share->key_string(), share->use_count));
       free_share(&share, TRUE);
     }
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key, share->use_count));
+                             share->key_string(), share->use_count));
     free_share(&share, TRUE);
     native_mutex_unlock(&ndbcluster_mutex);
   }
@@ -11497,7 +11497,7 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   if (share)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             share->key, share->use_count));
+                             share->key_string(), share->use_count));
   }
 
   /* Copying alter can leave #sql table which is parent of old FKs */
@@ -11814,7 +11814,7 @@ ha_ndbcluster::~ha_ndbcluster()
   {
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
-                             m_share->key, m_share->use_count));
+                             m_share->key_string(), m_share->use_count));
     free_share(&m_share);
   }
   release_metadata(thd, ndb);
@@ -11969,7 +11969,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   }
 
   DBUG_PRINT("NDB_SHARE", ("%s handler  use_count: %u",
-                           m_share->key, m_share->use_count));
+                           m_share->key_string(), m_share->use_count));
   thr_lock_data_init(&m_share->lock,&m_lock,(void*) 0);
 
   if ((res= get_metadata(thd, name)))
@@ -12223,7 +12223,7 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
   {
     /* ndb_share reference handler free */
     DBUG_PRINT("NDB_SHARE", ("%s handler free  use_count: %u",
-                             m_share->key, m_share->use_count));
+                             m_share->key_string(), m_share->use_count));
     free_share(&m_share);
   }
   m_share= 0;
@@ -12303,7 +12303,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   if (share)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                             share->key, share->use_count));
+                             share->key_string(), share->use_count));
   }
   if (share && get_ndb_share_state(share) == NSS_ALTERED)
   {
@@ -12371,7 +12371,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   {
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key, share->use_count));
+                             share->key_string(), share->use_count));
     free_share(&share);
   }
 
@@ -12382,7 +12382,7 @@ err:
   {
     /* ndb_share reference temporary free */
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                             share->key, share->use_count));
+                             share->key_string(), share->use_count));
     free_share(&share);
   }
 
@@ -13249,7 +13249,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 #ifndef DBUG_OFF
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
-              share->key, share->use_count,
+              share->key_string(), share->use_count,
               get_share_state_string(share->state),
               (uint)share->state);
 #endif
@@ -13270,7 +13270,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 #ifndef DBUG_OFF
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
-              share->key, share->use_count,
+              share->key_string(), share->use_count,
               get_share_state_string(share->state),
               (uint)share->state);
       /**
@@ -13737,7 +13737,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
   /* ndb_share reference temporary, free below */
   share->use_count++;
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                           share->key, share->use_count));
+                           share->key_string(), share->use_count));
   native_mutex_unlock(&ndbcluster_mutex);
 
   native_mutex_lock(&share->mutex);
@@ -13751,7 +13751,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
       native_mutex_unlock(&share->mutex);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                               share->key, share->use_count));
+                               share->key_string(), share->use_count));
       free_share(&share);
       DBUG_RETURN(0);
     }
@@ -13783,7 +13783,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
     {
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                               share->key, share->use_count));
+                               share->key_string(), share->use_count));
       free_share(&share);
       DBUG_RETURN(1);
     }
@@ -13804,7 +13804,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
   native_mutex_unlock(&share->mutex);
   /* ndb_share reference temporary free */
   DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                           share->key, share->use_count));
+                           share->key_string(), share->use_count));
   free_share(&share);
   DBUG_RETURN(0);
 }
@@ -14027,9 +14027,10 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   /* ndb_share reference temporary, free below */
   ++share->use_count;
   if (opt_ndb_extra_logging > 9)
-    sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
+    sql_print_information ("handle_trailing_share: %s use_count: %u",
+                           share->key_string(), share->use_count);
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                           share->key, share->use_count));
+                           share->key_string(), share->use_count));
   native_mutex_unlock(&ndbcluster_mutex);
 
   ndb_tdc_close_cached_table(thd, share->db, share->table_name);
@@ -14037,19 +14038,22 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   native_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
   DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                           share->key, share->use_count));
+                           share->key_string(), share->use_count));
   if (!--share->use_count)
   {
     if (opt_ndb_extra_logging > 9)
-      sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
+      sql_print_information ("handle_trailing_share: %s use_count: %u",
+                             share->key_string(), share->use_count);
     if (opt_ndb_extra_logging)
       sql_print_information("NDB_SHARE: trailing share %s, "
-                            "released by close_cached_tables", share->key);
+                            "released by close_cached_tables",
+                            share->key_string());
     ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
   if (opt_ndb_extra_logging > 9)
-    sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
+    sql_print_information ("handle_trailing_share: %s use_count: %u",
+                           share->key_string(), share->use_count);
 
   /*
     share still exists, if share has not been dropped by server
@@ -14060,24 +14064,25 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     ndbcluster_mark_share_dropped(share);
     /* ndb_share reference create free */
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                             share->key, share->use_count));
+                             share->key_string(), share->use_count));
     --share->use_count;
     if (opt_ndb_extra_logging > 9)
-      sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
+      sql_print_information ("handle_trailing_share: %s use_count: %u",
+                             share->key_string(), share->use_count);
 
     if (share->use_count == 0)
     {
       if (opt_ndb_extra_logging)
         sql_print_information("NDB_SHARE: trailing share %s, "
                               "released after NSS_DROPPED check",
-                              share->key);
+                              share->key_string());
       ndbcluster_real_free_share(&share);
       DBUG_RETURN(0);
     }
   }
 
   DBUG_PRINT("info", ("NDB_SHARE: %s already exists use_count=%d, op=0x%lx.",
-                      share->key, share->use_count, (long) share->op));
+                      share->key_string(), share->use_count, (long) share->op));
   /* 
      Ignore table shares only opened by util thread
    */
@@ -14085,7 +14090,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   {
     sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
                       " Moving away for safety, but possible memleak.",
-                      share->key, share->use_count);
+                      share->key_string(), share->use_count);
   }
   dbug_print_open_tables();
 
@@ -14131,7 +14136,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   size_t new_length= strlen(new_key);
   DBUG_PRINT("ndbcluster_rename_share",
              ("old_key: %s  old_length: %lu",
-              share->key, share->key_length()));
+              share->key_string(), share->key_length()));
 
   if ((tmp= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                         (const uchar*) new_key,
@@ -14151,15 +14156,16 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   {
     // ToDo free the allocated stuff above?
     DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
-                         share->key));
+                         share->key_string()));
     // Catch this unlikely error in debug
     DBUG_ASSERT(false);
     share->key= old_key;
     if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
     {
-      sql_print_error("ndbcluster_rename_share: failed to recover %s", share->key);
+      sql_print_error("ndbcluster_rename_share: failed to recover %s",
+                      share->key_string());
       DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
-                           share->key));
+                           share->key_string()));
     }
     dbug_print_open_tables();
     native_mutex_unlock(&ndbcluster_mutex);
@@ -14194,7 +14200,8 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   /* else rename will be handled when the ALTER event comes */
 
   if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u", old_key, share->key, share->use_count);
+    sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u",
+                           old_key, share->key_string(), share->use_count);
 
   native_mutex_unlock(&ndbcluster_mutex);
   return 0;
@@ -14212,7 +14219,8 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
   if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
+    sql_print_information ("ndbcluster_get_share: %s use_count: %u",
+                           share->key_string(), share->use_count);
   native_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
@@ -14298,7 +14306,8 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
   }
   share->use_count++;
   if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
+    sql_print_information ("ndbcluster_get_share: %s use_count: %u",
+                           share->key_string(), share->use_count);
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
@@ -14341,7 +14350,8 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   dbug_print_share("ndbcluster_real_free_share:", *share);
 
   if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_real_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
+    sql_print_information ("ndbcluster_real_free_share: %s use_count: %u",
+                           (*share)->key_string(), (*share)->use_count);
 
   ndb_index_stat_free(*share);
 
@@ -14374,13 +14384,15 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
   if (!--(*share)->use_count)
   {
     if (opt_ndb_extra_logging > 9)
-      sql_print_information ("ndbcluster_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
+      sql_print_information ("ndbcluster_free_share: %s use_count: %u",
+                             (*share)->key_string(), (*share)->use_count);
     ndbcluster_real_free_share(share);
   }
   else
   {
     if (opt_ndb_extra_logging > 9)
-      sql_print_information ("ndbcluster_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
+      sql_print_information ("ndbcluster_free_share: %s use_count: %u",
+                             (*share)->key_string(), (*share)->use_count);
     dbug_print_open_tables();
     dbug_print_share("ndbcluster_free_share:", *share);
   }
@@ -14403,7 +14415,7 @@ ndbcluster_mark_share_dropped(NDB_SHARE* share)
   if (opt_ndb_extra_logging > 9)
   {
     sql_print_information ("ndbcluster_mark_share_dropped: %s use_count: %u",
-                           share->key, share->use_count);
+                           share->key_string(), share->use_count);
   }
 }
 
@@ -16325,7 +16337,7 @@ Ndb_util_thread::do_run()
       share->use_count++; /* Make sure the table can't be closed */
       share->util_thread= true;
       DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
-                               share->key, share->use_count));
+                               share->key_string(), share->use_count));
       DBUG_PRINT("ndb_util_thread",
                  ("Found open table[%d]: %s, use_count: %d",
                   i, share->table_name, share->use_count));
@@ -16347,7 +16359,7 @@ Ndb_util_thread::do_run()
 	*/
         /* ndb_share reference temporary free */
         DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                                 share->key, share->use_count));
+                                 share->key_string(), share->use_count));
         
         native_mutex_lock(&ndbcluster_mutex);
         share->util_thread= false;
@@ -16356,7 +16368,7 @@ Ndb_util_thread::do_run()
         continue;
       }
       DBUG_PRINT("ndb_util_thread",
-                 ("Fetching commit count for: %s", share->key));
+                 ("Fetching commit count for: %s", share->key_string()));
 
       struct Ndb_statistics stat;
       uint lock;
@@ -16377,13 +16389,14 @@ Ndb_util_thread::do_run()
                                      &stat) == 0)
         {
           DBUG_PRINT("info", ("Table: %s, commit_count: %llu,  rows: %llu",
-                              share->key, stat.commit_count, stat.row_count));
+                              share->key_string(),
+                              stat.commit_count, stat.row_count));
         }
         else
         {
           DBUG_PRINT("ndb_util_thread",
                      ("Error: Could not get commit count for table %s",
-                      share->key));
+                      share->key_string()));
           stat.commit_count= 0;
         }
       }
@@ -16395,7 +16408,7 @@ Ndb_util_thread::do_run()
 
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
-                               share->key, share->use_count));
+                               share->key_string(), share->use_count));
       native_mutex_lock(&ndbcluster_mutex);
       share->util_thread= false;
       free_share(&share, true);
@@ -17629,7 +17642,7 @@ int ha_ndbcluster::alter_frm(const char *file,
 
   /* ndb_share reference schema(?) free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog schema(?) free  use_count: %u",
-                           m_share->key, m_share->use_count));
+                           m_share->key_string(), m_share->use_count));
 
   DBUG_RETURN(error);
 }
@@ -17782,7 +17795,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
   }
   /* ndb_share reference schema free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
-                           m_share->key, m_share->use_count));
+                           m_share->key_string(), m_share->use_count));
   delete alter_data;
   ha_alter_info->handler_ctx= 0;
   set_ndb_share_state(m_share, NSS_INITIAL);
