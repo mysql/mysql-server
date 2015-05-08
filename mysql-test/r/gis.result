@@ -2102,12 +2102,9 @@ INSERT INTO t1 VALUES (
 POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(1,1),POINT(0,1))));
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1 VALUES (MULTIPOINT(POINT(0,0),POINT(1,1)));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1 VALUES (MULTILINESTRING(LINESTRING(POINT(0,0),POINT(1,1))));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1 VALUES (MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),
 POINT(1,1),POINT(0,1)))));
-ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 INSERT INTO t1 VALUES (GEOMETRYCOLLECTION(POINT(0,0)));
 DROP TABLE t1;
 #
