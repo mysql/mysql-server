@@ -131,7 +131,7 @@ size_t NDB_SHARE::key_length() const
 }
 
 
-char* NDB_SHARE::key_string() const
+const char* NDB_SHARE::key_string() const
 {
   NDB_SHARE_KEY* share_key = reinterpret_cast<NDB_SHARE_KEY*>(key);
   return share_key->m_buffer;
@@ -217,7 +217,8 @@ void NDB_SHARE::print(const char* where, FILE* file) const
 {
   fprintf(file, "%s %s.%s: use_count: %u\n",
           where, db, table_name, use_count);
-  fprintf(file, "  - key: '%s', key_length: %lu\n", key, key_length());
+  fprintf(file, "  - key: '%s', key_length: %lu\n",
+          key_string(), key_length());
   fprintf(file, "  - commit_count: %llu\n", commit_count);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);
