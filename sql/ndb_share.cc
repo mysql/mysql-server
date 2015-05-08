@@ -58,11 +58,13 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   All the strings are zero terminated.
 
   Layout:
+  size_t key_length
   "key"\0
   "db\0"
   "table_name\0"
 */
 struct NDB_SHARE_KEY {
+  size_t m_key_length;
   char m_buffer[1];
 };
 
@@ -90,6 +92,8 @@ NDB_SHARE::create_key(const char *new_key)
       (NDB_SHARE_KEY*) my_malloc(PSI_INSTRUMENT_ME,
                                  size,
                                  MYF(MY_WME | ME_FATALERROR));
+
+  allocated_key->m_key_length = new_key_length;
 
   // Copy key into the buffer
   char* buf_ptr = allocated_key->m_buffer;
@@ -126,23 +130,26 @@ void NDB_SHARE::free_key(NDB_SHARE_KEY* key)
 
 const uchar* NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
 {
+  assert(key->m_key_length == strlen(key->m_buffer));
   return (const uchar*)key->m_buffer;
 }
 
 
 size_t NDB_SHARE::key_get_length(NDB_SHARE_KEY* key)
 {
-  return strlen(key->m_buffer);
+  assert(key->m_key_length == strlen(key->m_buffer));
+  return key->m_key_length;
 }
+
 
 char* NDB_SHARE::key_get_db_name(NDB_SHARE_KEY* key)
 {
   char* buf_ptr = key->m_buffer;
-  const size_t key_len = key_get_length(key);
   // Step past the key string and it's zero terminator
-  buf_ptr += key_len + 1;
+  buf_ptr += key->m_key_length + 1;
   return buf_ptr;
 }
+
 
 char* NDB_SHARE::key_get_table_name(NDB_SHARE_KEY* key)
 {
@@ -156,15 +163,15 @@ char* NDB_SHARE::key_get_table_name(NDB_SHARE_KEY* key)
 
 size_t NDB_SHARE::key_length() const
 {
-  NDB_SHARE_KEY* share_key = reinterpret_cast<NDB_SHARE_KEY*>(key);
-  return strlen(share_key->m_buffer);
+  assert(key->m_key_length == strlen(key->m_buffer));
+  return key->m_key_length;
 }
 
 
 const char* NDB_SHARE::key_string() const
 {
-  NDB_SHARE_KEY* share_key = reinterpret_cast<NDB_SHARE_KEY*>(key);
-  return share_key->m_buffer;
+  assert(strlen(key->m_buffer) == key->m_key_length);
+  return key->m_buffer;
 }
 
 
