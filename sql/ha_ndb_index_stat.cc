@@ -108,7 +108,7 @@ struct Ndb_index_stat {
   NdbIndexStat::Error error;
   NdbIndexStat::Error client_error;
   time_t error_time;
-  uint error_count;
+  uint error_count;     /* forever increasing */
   struct Ndb_index_stat *share_next; /* per-share list */
   int lt;
   int lt_old;     /* for info only */
@@ -959,7 +959,8 @@ ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 struct Ndb_index_stat_snap {
   time_t load_time;
   uint sample_version;
-  Ndb_index_stat_snap() { load_time= 0; sample_version= 0; }
+  uint error_count;
+  Ndb_index_stat_snap() { load_time= 0; sample_version= 0; error_count= 0; }
 };
 
 /* Subroutine, have lock */
@@ -1083,6 +1084,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
       ndb_index_stat_force_update(st, true);
     snap.load_time= st->load_time;
     snap.sample_version= st->sample_version;
+    snap.error_count= st->error_count;
     st->access_time= now;
   }
   while (0);
@@ -2668,20 +2670,14 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
   int err= 0;
   uint count= 0;
   struct timespec abstime;
+  glob.wait_stats++;
+  glob.query_count++;
   while (true)
   {
     int ret= 0;
-    if (count == 0)
-    {
-      glob.wait_stats++;
-      glob.query_count++;
-      if (st->lt == Ndb_index_stat::LT_Error)
-      {
-        err= NdbIndexStat::MyHasError;
-        break;
-      }
-      ndb_index_stat_clear_error(st);
-    }
+    /* Query waits for any samples */
+    if (st->sample_version > 0)
+      break;
     if (st->no_stats)
     {
       /* Have detected no stats now or before */
@@ -2691,14 +2687,11 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     }
     if (st->error.code != 0)
     {
-      /* A new error has occured */
-      err= st->error.code;
+      /* An error has accured now or before */
+      err= NdbIndexStat::MyHasError;
       glob.query_error++;
       break;
     }
-    /* Query waits for any samples */
-    if (st->sample_version > 0)
-      break;
     /*
       Try to detect changes behind our backs.  Should really not
       happen but make sure.
@@ -2706,6 +2699,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
+      DBUG_ASSERT(false);
       err= NdbIndexStat::NoIndexStats;
       break;
     }
@@ -2754,25 +2748,22 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   int err= 0;
   uint count= 0;
   struct timespec abstime;
+  glob.wait_update++;
+  glob.analyze_count++;
   while (true)
   {
     int ret= 0;
-    if (count == 0)
-    {
-      glob.wait_update++;
-      glob.analyze_count++;
-      ndb_index_stat_clear_error(st);
-    }
-    if (st->error.code != 0)
+    /* Analyze waits for newer samples */
+    if (st->sample_version > snap.sample_version)
+      break;
+    if (st->error_count != snap.error_count)
     {
       /* A new error has occured */
+      DBUG_ASSERT(st->error_count > snap.error_count);
       err= st->error.code;
       glob.analyze_error++;
       break;
     }
-    /* Analyze waits for newer samples */
-    if (st->sample_version > snap.sample_version)
-      break;
     /*
       Try to detect changes behind our backs.  If another process
       deleted stats, an analyze here could wait forever.
@@ -2780,6 +2771,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
+      DBUG_ASSERT(false);
       err= NdbIndexStat::AlienUpdate;
       break;
     }
