@@ -862,7 +862,6 @@ buf_LRU_remove_pages(
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
-		ut_a(trx != NULL);
 		buf_flush_dirty_pages(buf_pool, id, observer, true, trx);
 
 		if (observer == NULL) {
