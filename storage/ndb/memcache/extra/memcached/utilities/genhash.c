@@ -1,3 +1,4 @@
+/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -183,6 +184,7 @@ genhash_fun_update(genhash_t* h, const void* k, size_t klen,
     enum update_type rv=0;
     size_t newSize = 0;
 
+    (void)(deflen);
     p=genhash_find_entry(h, k, klen);
 
     if(p) {
@@ -261,7 +263,7 @@ genhash_iter(genhash_t* h,
                               const void* val, size_t nval,
                               void *arg), void *arg)
 {
-    int i=0;
+    unsigned int i;
     struct genhash_entry_t *p=NULL;
     assert(h != NULL);
 
@@ -275,7 +277,7 @@ genhash_iter(genhash_t* h,
 int
 genhash_clear(genhash_t *h)
 {
-    int i = 0, rv = 0;
+    unsigned int i;
     assert(h != NULL);
 
     for(i = 0; i < h->size; i++) {
@@ -287,7 +289,7 @@ genhash_clear(genhash_t *h)
         }
     }
 
-    return rv;
+    return 0;
 }
 
 static void
@@ -296,6 +298,10 @@ count_entries(const void *key, size_t klen,
 {
     int *count=(int *)arg;
     (*count)++;
+    (void)(key);
+    (void)(klen);
+    (void)(val);
+    (void)(vlen);
 }
 
 int
@@ -340,7 +346,7 @@ int
 genhash_string_hash(const void* p, size_t nkey)
 {
     int rv=5381;
-    int i=0;
+    unsigned int i;
     char *str=(char *)p;
 
     for(i=0; i < nkey; i++) {
