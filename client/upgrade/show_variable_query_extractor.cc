@@ -40,9 +40,29 @@ int Show_variable_query_extractor::get_variable_value(
     new Instance_callback<int, vector<string>, Show_variable_query_extractor>(
       &extractor, &Show_variable_query_extractor::extract_variable));
 
-  if (query_runner_to_use.run_query("SELECT @@" + variable))
+  /*
+   * If show_compatibility_56 is ON, variables' values could be read from
+   * information_schema. But if it is OFF, variables' values to be read
+   * from performance_schema.
+   */
+  query_runner_to_use.run_query("SELECT @@show_compatibility_56");
+  if (extractor.m_extracted_variable.compare("1") == 0)
   {
-    return 1;
+    if (query_runner_to_use.run_query(
+      "SELECT VARIABLE_VALUE FROM information_schema.global_variables WHERE "
+      "variable_name='" + variable + "'"))
+    {
+      return 1;
+    }
+  }
+  else
+  {
+    if (query_runner_to_use.run_query(
+      "SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE "
+      "variable_name='" + variable + "'"))
+    {
+      return 1;
+    }
   }
 
   *value= extractor.m_extracted_variable;
