@@ -3782,7 +3782,8 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
                             "as options related to SSL are specified.");
       return true;
     }
-    else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
+    else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED ||
+            auto_detection_status == SSL_ARTIFACT_TRACES_FOUND)
     {
       sql_print_information("Skipping generation of SSL certificates as "
                             "certificate files are present in data "

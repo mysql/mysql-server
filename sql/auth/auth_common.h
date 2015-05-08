@@ -706,6 +706,17 @@ bool check_global_access(THD *thd, ulong want_access);
 /* sql_user_table */
 void close_acl_tables(THD *thd);
 
+#ifndef EMBEDDED_LIBRARY
+typedef enum ssl_artifacts_status
+{
+  SSL_ARTIFACTS_NOT_FOUND= 0,
+  SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACT_TRACES_FOUND,
+  SSL_ARTIFACTS_AUTO_DETECTED
+} ssl_artifacts_status;
+
+#endif /* EMBEDDED_LIBRARY */
+
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
