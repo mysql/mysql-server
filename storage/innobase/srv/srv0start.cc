@@ -1034,14 +1034,11 @@ srv_undo_tablespaces_init(
 		     it != undo::Truncate::s_fix_up_spaces.end();
 		     ++it) {
 
-			trx_t		trx;
-			trx.mysql_thd = NULL;
+			buf_LRU_flush_or_remove_pages(
+				TRX_SYS_SPACE, BUF_REMOVE_FLUSH_WRITE, NULL);
 
 			buf_LRU_flush_or_remove_pages(
-				TRX_SYS_SPACE, BUF_REMOVE_FLUSH_WRITE, &trx);
-
-			buf_LRU_flush_or_remove_pages(
-				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
+				*it, BUF_REMOVE_FLUSH_WRITE, NULL);
 
 			/* Remove the truncate redo log file. */
 			undo::Truncate	undo_trunc;
