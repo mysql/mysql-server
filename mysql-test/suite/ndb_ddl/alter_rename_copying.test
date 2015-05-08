@@ -1,0 +1,13 @@
+--source setup.inc
+
+# Test ALTER TABLE with copying rename
+# - mysqld will create new temporary table, copy data and then rename
+#   temporary table to the new name
+#
+let $query =
+ALTER TABLE tx
+  algorithm=copy,
+  RENAME TO ty;
+--source alter_rename.inc
+
+--source cleanup.inc

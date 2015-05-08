@@ -4,6 +4,10 @@
 # since mysqld/libmysqld is not involved
 --source include/not_embedded.inc
 
+# Test configs should be cleared and
+# servers should be restarted in case of retries
+--source include/force_restart.inc
+
 #create database and table so that test can
 #access them through a mysql client
 CREATE DATABASE TEST_DB;

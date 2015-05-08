@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2604,7 +2604,6 @@ slave_check_resolve_col_type(const NDBTAB *ndbtab,
 static int
 slave_set_resolve_fn(Ndb* ndb, 
                      NDB_CONFLICT_FN_SHARE** ppcfn_share,
-                     MEM_ROOT* share_mem_root,
                      const char* dbName,
                      const char* tabName,
                      const NDBTAB *ndbtab, uint field_index,
@@ -2619,8 +2618,10 @@ slave_set_resolve_fn(Ndb* ndb,
   const char *ex_suffix= (char *)NDB_EXCEPTIONS_TABLE_SUFFIX;
   if (cfn_share == NULL)
   {
-    *ppcfn_share= cfn_share= (NDB_CONFLICT_FN_SHARE*)
-      alloc_root(share_mem_root, sizeof(NDB_CONFLICT_FN_SHARE));
+    *ppcfn_share= cfn_share=
+        (NDB_CONFLICT_FN_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
+                                           sizeof(NDB_CONFLICT_FN_SHARE),
+                                           MYF(MY_WME | ME_FATALERROR));
     slave_reset_conflict_fn(cfn_share);
   }
   cfn_share->m_conflict_fn= conflict_fn;
@@ -2703,7 +2704,6 @@ is_exceptions_table(const char *table_name)
 int
 setup_conflict_fn(Ndb* ndb,
                   NDB_CONFLICT_FN_SHARE** ppcfn_share,
-                  MEM_ROOT* share_mem_root,
                   const char* dbName,
                   const char* tabName,
                   bool tableUsesBlobs,
@@ -2769,10 +2769,8 @@ setup_conflict_fn(Ndb* ndb,
       DBUG_RETURN(-1);
     }
 
-    uint resolve_col_sz= 0;
-
-    if (0 == (resolve_col_sz =
-              slave_check_resolve_col_type(ndbtab, colNum)))
+    const uint resolve_col_sz= slave_check_resolve_col_type(ndbtab, colNum);
+    if (resolve_col_sz == 0)
     {
       /* wrong data type */
       slave_reset_conflict_fn(*ppcfn_share);
@@ -2785,7 +2783,6 @@ setup_conflict_fn(Ndb* ndb,
 
     if (slave_set_resolve_fn(ndb, 
                              ppcfn_share,
-                             share_mem_root,
                              dbName,
                              tabName,
                              ndbtab,
@@ -2867,7 +2864,6 @@ setup_conflict_fn(Ndb* ndb,
 
     if (slave_set_resolve_fn(ndb,
                              ppcfn_share,
-                             share_mem_root,
                              dbName,
                              tabName,
                              ndbtab,
@@ -2894,6 +2890,22 @@ setup_conflict_fn(Ndb* ndb,
     abort();
   }
   DBUG_RETURN(0);
+}
+
+
+void
+teardown_conflict_fn(Ndb* ndb, NDB_CONFLICT_FN_SHARE* cfn_share)
+{
+  if (cfn_share &&
+      cfn_share->m_ex_tab_writer.hasTable() &&
+      ndb)
+  {
+    cfn_share->m_ex_tab_writer.mem_free(ndb);
+  }
+
+  // Release the NDB_CONFLICT_FN_SHARE which was allocated
+  // in setup_conflict_fn()
+  my_free(cfn_share);
 }
 
 

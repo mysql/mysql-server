@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include <my_bitmap.h>       // MY_BITMAP
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
-#include "ndb_conflict.h"
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
@@ -61,12 +60,9 @@ struct Ndb_statistics {
 
 struct NDB_SHARE {
   NDB_SHARE_STATE state;
-  MEM_ROOT mem_root;
   THR_LOCK lock;
   native_mutex_t mutex;
-  char *key;
-  uint key_length;
-  char *new_key;
+  struct NDB_SHARE_KEY* key;
   uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
@@ -78,16 +74,14 @@ struct NDB_SHARE {
   bool util_thread; // if opened by util thread
   uint32 flags;
 #ifdef HAVE_NDB_BINLOG
-  NDB_CONFLICT_FN_SHARE *m_cfn_share;
+  struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
 #endif
   class Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   class NdbEventOperation *op;
-  char *old_names; // for rename table
   class NdbEventOperation *new_op;
 
-  static NDB_SHARE* create(const char* key, size_t key_length,
-                         struct TABLE* table, const char* db_name,
-                         const char* table_name);
+  static NDB_SHARE* create(const char* key,
+                         struct TABLE* table);
   static void destroy(NDB_SHARE* share);
 
   class Ndb_event_data* get_event_data_ptr() const;
@@ -99,6 +93,19 @@ struct NDB_SHARE {
     events from the table.
   */
   bool need_events(bool default_on) const;
+
+  // Functions for working with the opaque NDB_SHARE_KEY
+  static struct NDB_SHARE_KEY* create_key(const char *new_key);
+  static void free_key(struct NDB_SHARE_KEY*);
+
+  static const uchar* key_get_key(struct NDB_SHARE_KEY*);
+  static size_t key_get_length(struct NDB_SHARE_KEY*);
+  static char* key_get_db_name(struct NDB_SHARE_KEY*);
+  static char* key_get_table_name(struct NDB_SHARE_KEY*);
+
+  size_t key_length() const;
+  const char* key_string() const;
+
 };
 
 
@@ -177,9 +184,9 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
 int handle_trailing_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
+int ndbcluster_rename_share(THD *thd,
+                            NDB_SHARE *share,
+                            struct NDB_SHARE_KEY* new_key);
 void ndbcluster_mark_share_dropped(NDB_SHARE*);
 inline NDB_SHARE *get_share(const char *key,
                             struct TABLE *table,
@@ -198,5 +205,60 @@ inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
 {
   ndbcluster_free_share(share, have_lock);
 }
+
+/**
+   @brief Utility class for working with a temporary
+          NDB_SHARE* references RAII style
+
+          The class will automatically "get" a NDB_SHARE*
+          reference and release it when going out of scope.
+ */
+class Ndb_share_temp_ref {
+  NDB_SHARE* m_share;
+
+  Ndb_share_temp_ref(const Ndb_share_temp_ref&); // prevent
+  Ndb_share_temp_ref& operator=(const Ndb_share_temp_ref&); // prevent
+public:
+  Ndb_share_temp_ref(const char* key)
+  {
+    m_share= get_share(key, NULL, FALSE);
+     // Should always exist
+    assert(m_share);
+     // already existed + this temp ref
+    assert(m_share->use_count >= 2);
+
+    DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
+                             m_share->key_string(), m_share->use_count));
+  }
+
+  ~Ndb_share_temp_ref()
+  {
+    /* release the temporary reference */
+    assert(m_share);
+    // at least  this temp ref
+    assert(m_share->use_count > 0);
+
+    /* ndb_share reference temporary free */
+    DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
+                             m_share->key_string(), m_share->use_count));
+
+    free_share(&m_share);
+  }
+
+  // Return the NDB_SHARE* by type conversion operator
+  operator NDB_SHARE*() const
+  {
+    assert(m_share);
+    return m_share;
+  }
+
+  // Return the NDB_SHARE* when using pointer operator
+  const NDB_SHARE* operator->() const
+  {
+    assert(m_share);
+    return m_share;
+  }
+};
+
 
 #endif

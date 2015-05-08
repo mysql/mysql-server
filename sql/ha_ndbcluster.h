@@ -716,6 +716,18 @@ private:
   int update_stats(THD *thd, bool do_read_stat,
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
+  int rename_table_impl(THD* thd, Ndb* ndb,
+                        const NdbDictionary::Table* orig_tab,
+                        const char* from, const char* to,
+                        const char* old_dbname, const char* old_tabname,
+                        const char* new_dbname, const char* new_tabname,
+                        bool real_rename,
+                        const char* real_rename_db,
+                        const char* real_rename_name,
+                        bool real_rename_log_on_participant,
+                        bool drop_events,
+                        bool create_events,
+                        bool commit_alter);
 };
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
