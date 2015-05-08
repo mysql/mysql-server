@@ -1464,7 +1464,6 @@ public:
 
 class Item_func_validate_password_strength :public Item_int_func
 {
-  String value;
 public:
   Item_func_validate_password_strength(const POS &pos, Item *a)
     :Item_int_func(pos, a)
