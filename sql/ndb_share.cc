@@ -25,6 +25,7 @@
 #include <ndbapi/NdbEventOperation.hpp>
 
 #include <my_sys.h>
+#include <m_string.h>
 
 extern Ndb* g_ndb;
 
