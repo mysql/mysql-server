@@ -3576,8 +3576,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
     self_sign= false;
   }
 
-  /* Create X509 certificate with validity of 1 year */
-  x509= x509_gen(pkey, cn, serial, 0, 365L*24*60*60,
+  /* Create X509 certificate with validity of 10 year */
+  x509= x509_gen(pkey, cn, serial, 0, 365L*24*60*60*10,
                  self_sign, ca_x509, ca_key);
   DBUG_EXECUTE_IF("x509_cert_generation_error",
                   {
