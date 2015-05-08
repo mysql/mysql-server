@@ -740,16 +740,6 @@ void init_com_statement_info();
 extern my_thread_t signal_thread;
 #endif
 
-#ifndef EMBEDDED_LIBRARY
-typedef enum ssl_artifacts_status
-{
-  SSL_ARTIFACTS_NOT_FOUND= 0,
-  SSL_ARTIFACTS_VIA_OPTIONS,
-  SSL_ARTIFACTS_AUTO_DETECTED
-} ssl_artifacts_status;
-
-#endif /* EMBEDDED_LIBRARY */
-
 #ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */

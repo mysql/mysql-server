@@ -3413,6 +3413,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 ssl_artifacts_status auto_detect_ssl()
 {
   MY_STAT cert_stat, cert_key, ca_stat;
+  uint result= 1;
   ssl_artifacts_status ret_status= SSL_ARTIFACTS_VIA_OPTIONS;
 
   if ((!opt_ssl_cert || !opt_ssl_cert[0]) &&
@@ -3423,21 +3424,28 @@ ssl_artifacts_status auto_detect_ssl()
       (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
       (!opt_ssl_cipher || !opt_ssl_cipher[0]))
   {
-    if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) &&
-        my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) &&
-        my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
-    {
-      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+    result= result << (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ? 1 : 0)
+                   << (my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ? 1 : 0)
+                   << (my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)) ? 1 : 0);
 
-      ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
-    }
-    else
+    switch(result)
     {
-      ret_status= SSL_ARTIFACTS_NOT_FOUND;
-    }
+      case 8:
+        opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+        opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+        opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+        ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
+        break;
+      case 4:
+      case 2:
+        ret_status= SSL_ARTIFACT_TRACES_FOUND;
+        break;
+      default:
+        ret_status= SSL_ARTIFACTS_NOT_FOUND;
+        break;
+    };
   }
+
   return ret_status;
 }
 
