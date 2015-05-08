@@ -62,7 +62,7 @@ struct NDB_SHARE {
   NDB_SHARE_STATE state;
   THR_LOCK lock;
   native_mutex_t mutex;
-  char *key;
+  struct NDB_SHARE_KEY* key;
   uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
@@ -80,7 +80,7 @@ struct NDB_SHARE {
   class NdbEventOperation *op;
   class NdbEventOperation *new_op;
 
-  static NDB_SHARE* create(const char* key, size_t key_length,
+  static NDB_SHARE* create(const char* key,
                          struct TABLE* table);
   static void destroy(NDB_SHARE* share);
 
@@ -94,8 +94,13 @@ struct NDB_SHARE {
   */
   bool need_events(bool default_on) const;
 
-  static char* create_key(const char *new_key);
-  static void free_key(char*);
+  static struct NDB_SHARE_KEY* create_key(const char *new_key);
+  static void free_key(struct NDB_SHARE_KEY*);
+
+  static const uchar* key_get_key(struct NDB_SHARE_KEY*);
+  static size_t key_get_length(struct NDB_SHARE_KEY*);
+  static char* key_get_db_name(struct NDB_SHARE_KEY*);
+  static char* key_get_table_name(struct NDB_SHARE_KEY*);
 
   size_t key_length() const;
   const char* key_string() const;
@@ -178,7 +183,9 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
 int handle_trailing_share(THD *thd, NDB_SHARE *share);
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key);
+int ndbcluster_rename_share(THD *thd,
+                            NDB_SHARE *share,
+                            struct NDB_SHARE_KEY* new_key);
 void ndbcluster_mark_share_dropped(NDB_SHARE*);
 inline NDB_SHARE *get_share(const char *key,
                             struct TABLE *table,

@@ -10991,8 +10991,8 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
                              new_dbname /* unused */,
                              new_tabname /* unused */);
   }
-  char* old_key = share->key; // Save current key
-  char* new_key = NDB_SHARE::create_key(to);
+  NDB_SHARE_KEY* old_key = share->key; // Save current key
+  NDB_SHARE_KEY* new_key = NDB_SHARE::create_key(to);
   (void)ndbcluster_rename_share(thd, share, new_key);
 
   NdbDictionary::Table new_tab= *orig_tab;
@@ -14129,26 +14129,32 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
 }
 
 
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
+int
+ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
 {
-  NDB_SHARE *tmp;
   native_mutex_lock(&ndbcluster_mutex);
-  size_t new_length= strlen(new_key);
   DBUG_PRINT("ndbcluster_rename_share",
              ("old_key: %s  old_length: %lu",
               share->key_string(), share->key_length()));
 
-  if ((tmp= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
-                                        (const uchar*) new_key,
-                                        new_length)))
-    handle_trailing_share(thd, tmp);
+  // Handle the case where NDB_SHARE with new_key already exists
+  {
+    NDB_SHARE *tmp =
+        (NDB_SHARE*)my_hash_search(&ndbcluster_open_tables,
+                                   NDB_SHARE::key_get_key(new_key),
+                                   NDB_SHARE::key_get_length(new_key));
+    if (tmp)
+    {
+      handle_trailing_share(thd, tmp);
+    }
+  }
 
   /* remove the share from hash */
   my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
   dbug_print_open_tables();
 
   /* save old key if insert should fail */
-  char *old_key= share->key;
+  NDB_SHARE_KEY *old_key= share->key;
 
   share->key= new_key;
 
@@ -14173,8 +14179,8 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   }
   dbug_print_open_tables();
 
-  share->db= share->key + new_length + 1;
-  share->table_name= share->db + strlen(share->db) + 1;
+  share->db= NDB_SHARE::key_get_db_name(share->key);
+  share->table_name= NDB_SHARE::key_get_table_name(share->key);
 
   dbug_print_share("ndbcluster_rename_share:", share);
   Ndb_event_data *event_data= share->get_event_data_ptr();
@@ -14201,7 +14207,8 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
 
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u",
-                           old_key, share->key_string(), share->use_count);
+                           NDB_SHARE::key_get_key(old_key),
+                           share->key_string(), share->use_count);
 
   native_mutex_unlock(&ndbcluster_mutex);
   return 0;
@@ -14228,8 +14235,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
 
 NDB_SHARE*
-NDB_SHARE::create(const char* key, size_t key_length,
-                  TABLE* table)
+NDB_SHARE::create(const char* key, TABLE* table)
 {
   NDB_SHARE* share;
   if (!(share= (NDB_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
@@ -14243,8 +14249,8 @@ NDB_SHARE::create(const char* key, size_t key_length,
   /* Allocates enough space for key, db, and table_name */
   share->key= NDB_SHARE::create_key(key);
 
-  share->db= share->key + key_length + 1;
-  share->table_name= share->db + strlen(share->db) + 1;
+  share->db= NDB_SHARE::key_get_db_name(share->key);
+  share->table_name= NDB_SHARE::key_get_table_name(share->key);
 
   thr_lock_init(&share->lock);
   native_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
@@ -14276,13 +14282,12 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
                                 bool create_if_not_exists)
 {
   NDB_SHARE *share;
-  uint length= (uint) strlen(key);
   DBUG_ENTER("ndbcluster_get_share");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
   if (!(share= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                            (const uchar*) key,
-                                           length)))
+                                           strlen(key))))
   {
     if (!create_if_not_exists)
     {
@@ -14290,7 +14295,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_RETURN(0);
     }
 
-    if (!(share= NDB_SHARE::create(key, length, table)))
+    if (!(share= NDB_SHARE::create(key, table)))
     {
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));

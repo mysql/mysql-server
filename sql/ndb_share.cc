@@ -66,7 +66,7 @@ struct NDB_SHARE_KEY {
   char m_buffer[1];
 };
 
-char*
+NDB_SHARE_KEY*
 NDB_SHARE::create_key(const char *new_key)
 {
   const size_t new_key_length = strlen(new_key);
@@ -114,13 +114,43 @@ NDB_SHARE::create_key(const char *new_key)
   DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf, table_name_len));
   DBUG_DUMP("NDB_SHARE_KEY: ", (const uchar*)allocated_key->m_buffer, size);
 
-  return (char*)allocated_key;
+  return allocated_key;
 }
 
 
-void NDB_SHARE::free_key(char* key)
+void NDB_SHARE::free_key(NDB_SHARE_KEY* key)
 {
   my_free(key);
+}
+
+
+const uchar* NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
+{
+  return (const uchar*)key->m_buffer;
+}
+
+
+size_t NDB_SHARE::key_get_length(NDB_SHARE_KEY* key)
+{
+  return strlen(key->m_buffer);
+}
+
+char* NDB_SHARE::key_get_db_name(NDB_SHARE_KEY* key)
+{
+  char* buf_ptr = key->m_buffer;
+  const size_t key_len = key_get_length(key);
+  // Step past the key string and it's zero terminator
+  buf_ptr += key_len + 1;
+  return buf_ptr;
+}
+
+char* NDB_SHARE::key_get_table_name(NDB_SHARE_KEY* key)
+{
+  char* buf_ptr = key_get_db_name(key);
+  const size_t db_name_len = strlen(buf_ptr);
+  // Step past the db name string and it's zero terminator
+  buf_ptr += db_name_len + 1;
+  return buf_ptr;
 }
 
 
