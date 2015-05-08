@@ -27,7 +27,11 @@
 # include <sys/types.h> /* uintptr_t */
   typedef uintptr_t os_timer_t;
 #elif _WIN32
-  typedef HANDLE os_timer_t;
+  typedef struct st_os_timer
+  {
+    HANDLE timer_handle;
+    my_bool timer_state;
+  } os_timer_t;
 #endif
 
 typedef struct st_my_timer my_timer_t;
