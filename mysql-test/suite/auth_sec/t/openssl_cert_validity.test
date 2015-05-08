@@ -1,0 +1,17 @@
+--source include/no_valgrind_without_big.inc
+--source include/not_embedded.inc
+--source include/have_sha256_rsa_auth.inc
+
+--echo #
+--echo # Bug#20923066 SSL AND RSA KEY MATERIAL EXPIRATION SHOULD BE EXTENDED
+--echo #
+
+let VALIDITY_START= `show status like 'Ssl_server_not_before'`;
+let VALIDITY_END= `show status like 'Ssl_server_not_after'`;
+
+perl;
+my @start_date = $ENV{'VALIDITY_START'} =~ /(\d+:\d+:\d+) (\d+)/;
+my @end_date = $ENV{'VALIDITY_END'} =~ /(\d+:\d+:\d+) (\d+)/;
+my $cert_validity= $end_date[1] - $start_date[1];
+print "Validity of certificate : $cert_validity years\n";
+EOF
