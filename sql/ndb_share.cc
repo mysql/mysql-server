@@ -93,20 +93,16 @@ NDB_SHARE::create_key(const char *new_key)
 
   // Copy key into the buffer
   char* buf_ptr = allocated_key->m_buffer;
-  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
   my_stpcpy(buf_ptr, new_key);
   buf_ptr += new_key_length + 1;
-  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
 
   // Copy db_name into the buffer
   my_stpcpy(buf_ptr, db_name_buf);
   buf_ptr += db_name_len + 1;
-  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
 
   // Copy table_name into the buffer
   my_stpcpy(buf_ptr, table_name_buf);
   buf_ptr += table_name_len;
-  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
 
   // Check that writing has not occured beyond end of allocated memory
   assert(buf_ptr < reinterpret_cast<char*>(allocated_key) + size);
@@ -125,6 +121,20 @@ NDB_SHARE::create_key(const char *new_key)
 void NDB_SHARE::free_key(char* key)
 {
   my_free(key);
+}
+
+
+size_t NDB_SHARE::key_length() const
+{
+  NDB_SHARE_KEY* share_key = reinterpret_cast<NDB_SHARE_KEY*>(key);
+  return strlen(share_key->m_buffer);
+}
+
+
+char* NDB_SHARE::key_string() const
+{
+  NDB_SHARE_KEY* share_key = reinterpret_cast<NDB_SHARE_KEY*>(key);
+  return share_key->m_buffer;
 }
 
 
@@ -207,7 +217,7 @@ void NDB_SHARE::print(const char* where, FILE* file) const
 {
   fprintf(file, "%s %s.%s: use_count: %u\n",
           where, db, table_name, use_count);
-  fprintf(file, "  - key: '%s', key_length: %d\n", key, key_length);
+  fprintf(file, "  - key: '%s', key_length: %lu\n", key, key_length());
   fprintf(file, "  - commit_count: %llu\n", commit_count);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);
