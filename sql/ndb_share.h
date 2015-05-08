@@ -94,6 +94,7 @@ struct NDB_SHARE {
   */
   bool need_events(bool default_on) const;
 
+  // Functions for working with the opaque NDB_SHARE_KEY
   static struct NDB_SHARE_KEY* create_key(const char *new_key);
   static void free_key(struct NDB_SHARE_KEY*);
 
