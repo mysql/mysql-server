@@ -154,7 +154,7 @@ let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.
 
 --error 1
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$MYSQLTEST_VARDIR/doesnotexist --verbose 2> $wl7706_log
-let SEARCH_PATTERN= Failed to normalize the argument for;
+let SEARCH_PATTERN= Failed to access directory pointed by;
 --source include/search_pattern_in_file.inc
 
 --remove_file $wl7706_log
