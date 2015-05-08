@@ -444,7 +444,9 @@ int main(int argc, char *argv[])
 
   if (!dir_string.normalize_path())
   {
-    error << "Failed to normalize the argument for --datadir: "
+    error << "Failed to access directory pointed by --datadir. "
+          << "Please make sure that directory exists and is "
+          << "accessible by mysql_ssl_rsa_setup. Supplied value : "
           << dir_string.to_str() << endl;
     ret_val= 1;
     goto end;
