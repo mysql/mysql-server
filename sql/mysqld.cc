@@ -3569,7 +3569,7 @@ static int init_ssl()
   {
     ssl_artifacts_status auto_detection_status= auto_detect_ssl();
     if (auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
-      sql_print_information("Found %s, %s and %s in data directory."
+      sql_print_information("Found %s, %s and %s in data directory. "
                             "Trying to enable SSL support using them.",
                             DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
                             DEFAULT_SSL_SERVER_KEY);
