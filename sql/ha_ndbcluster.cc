@@ -423,7 +423,7 @@ HASH ndbcluster_open_tables;
 HASH ndbcluster_dropped_tables;
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
-                                my_bool not_used __attribute__((unused)));
+                                my_bool);
 
 static void modify_shared_stats(NDB_SHARE *share,
                                 Ndb_local_table_statistics *local_stat);
@@ -13972,20 +13972,11 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 }
 
 
-/**
-  Handling the shared NDB_SHARE structure that is needed to
-  provide table locking.
-
-  It's also used for sharing data with other NDB handlers
-  in the same MySQL Server. There is currently not much
-  data we want to or can share.
-*/
-
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+                                my_bool)
 {
-  *length= share->key_length;
-  return (uchar*) share->key;
+  *length= share->key_length();
+  return (uchar*) share->key_string();
 }
 
 
@@ -14120,7 +14111,6 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     my_snprintf(leak_name_buf, sizeof(leak_name_buf),
                 "#leak%lu", trailing_share_id++);
     share->key = NDB_SHARE::create_key(leak_name_buf);
-    share->key_length= strlen(leak_name_buf);
     // Note that share->db, share->table_name as well
     // as share->shadow_table->s->db etc. points into the memory
     // which share->key pointed to before the memory for leak key
@@ -14139,8 +14129,10 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   NDB_SHARE *tmp;
   native_mutex_lock(&ndbcluster_mutex);
   size_t new_length= strlen(new_key);
-  DBUG_PRINT("ndbcluster_rename_share", ("old_key: %s  old__length: %d",
-                              share->key, share->key_length));
+  DBUG_PRINT("ndbcluster_rename_share",
+             ("old_key: %s  old_length: %lu",
+              share->key, share->key_length()));
+
   if ((tmp= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                         (const uchar*) new_key,
                                         new_length)))
@@ -14150,12 +14142,10 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
   dbug_print_open_tables();
 
-  /* save old stuff if insert should fail */
-  uint old_length= share->key_length;
+  /* save old key if insert should fail */
   char *old_key= share->key;
 
   share->key= new_key;
-  share->key_length= static_cast<uint>(new_length);
 
   if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
   {
@@ -14165,7 +14155,6 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
     // Catch this unlikely error in debug
     DBUG_ASSERT(false);
     share->key= old_key;
-    share->key_length= old_length;
     if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
     {
       sql_print_error("ndbcluster_rename_share: failed to recover %s", share->key);
@@ -14245,7 +14234,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
 
   /* Allocates enough space for key, db, and table_name */
   share->key= NDB_SHARE::create_key(key);
-  share->key_length= (uint)key_length;
+
   share->db= share->key + key_length + 1;
   share->table_name= share->db + strlen(share->db) + 1;
 

@@ -63,7 +63,6 @@ struct NDB_SHARE {
   THR_LOCK lock;
   native_mutex_t mutex;
   char *key;
-  uint key_length;
   uint use_count;
   uint commit_count_lock;
   ulonglong commit_count;
@@ -97,6 +96,10 @@ struct NDB_SHARE {
 
   static char* create_key(const char *new_key);
   static void free_key(char*);
+
+  size_t key_length() const;
+  char* key_string() const;
+
 };
 
 
