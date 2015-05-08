@@ -9,7 +9,7 @@ CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
-CALL mtr.add_suppression("Slave I/O: Got fatal error .* slave with the same server_uuid as this slave has connected to the master");
+CALL mtr.add_suppression("A slave with the same server_uuid as this slave has connected to the master");
 include/sync_slave_sql_with_master.inc
 
 # Case 1:
