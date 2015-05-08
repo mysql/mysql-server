@@ -58,6 +58,7 @@
 #include "ndb_local_schema.h"
 #include "ndb_tdc.h"
 #include "ndb_log.h"
+#include "ndb_name_util.h"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "m_ctype.h"
@@ -13361,24 +13362,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
 
 void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
 {
-  char *end, *ptr, *tmp_name;
-  char tmp_buff[FN_REFLEN + 1];
- 
-  tmp_name= tmp_buff;
-  /* Scan name from the end */
-  ptr= strend(path_name)-1;
-  while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
-    ptr--;
-  }
-  ptr--;
-  end= ptr;
-  while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
-    ptr--;
-  }
-  uint name_len= (uint)(end - ptr);
-  memcpy(tmp_name, ptr + 1, name_len);
-  tmp_name[name_len]= '\0';
-  filename_to_tablename(tmp_name, dbname, sizeof(tmp_buff) - 1);
+  ndb_set_dbname(path_name, dbname);
 }
 
 /**
@@ -13387,7 +13371,7 @@ void ha_ndbcluster::set_dbname(const char *path_name, char *dbname)
 
 void ha_ndbcluster::set_dbname(const char *path_name)
 {
-  set_dbname(path_name, m_dbname);
+  ndb_set_dbname(path_name, m_dbname);
 }
 
 /**
@@ -13397,20 +13381,7 @@ void ha_ndbcluster::set_dbname(const char *path_name)
 void
 ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
 {
-  char *end, *ptr, *tmp_name;
-  char tmp_buff[FN_REFLEN + 1];
-
-  tmp_name= tmp_buff;
-  /* Scan name from the end */
-  end= strend(path_name)-1;
-  ptr= end;
-  while (ptr >= path_name && *ptr != '\\' && *ptr != '/') {
-    ptr--;
-  }
-  uint name_len= (uint)(end - ptr);
-  memcpy(tmp_name, ptr + 1, end - ptr);
-  tmp_name[name_len]= '\0';
-  filename_to_tablename(tmp_name, tabname, sizeof(tmp_buff) - 1);
+  ndb_set_tabname(path_name, tabname);
 }
 
 /**
@@ -13419,7 +13390,7 @@ ha_ndbcluster::set_tabname(const char *path_name, char * tabname)
 
 void ha_ndbcluster::set_tabname(const char *path_name)
 {
-  set_tabname(path_name, m_tabname);
+  ndb_set_tabname(path_name, m_tabname);
 }
 
 
@@ -14215,9 +14186,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, char* new_key)
   dbug_print_open_tables();
 
   share->db= share->key + new_length + 1;
-  ha_ndbcluster::set_dbname(new_key, share->db);
   share->table_name= share->db + strlen(share->db) + 1;
-  ha_ndbcluster::set_tabname(new_key, share->table_name);
 
   dbug_print_share("ndbcluster_rename_share:", share);
   Ndb_event_data *event_data= share->get_event_data_ptr();
@@ -14270,7 +14239,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
 NDB_SHARE*
 NDB_SHARE::create(const char* key, size_t key_length,
-                  TABLE* table, const char* db_name, const char* table_name)
+                  TABLE* table)
 {
   NDB_SHARE* share;
   if (!(share= (NDB_SHARE*) my_malloc(PSI_INSTRUMENT_ME,
@@ -14284,12 +14253,8 @@ NDB_SHARE::create(const char* key, size_t key_length,
   /* Allocates enough space for key, db, and table_name */
   share->key= NDB_SHARE::create_key(key);
   share->key_length= (uint)key_length;
-
   share->db= share->key + key_length + 1;
-  my_stpcpy(share->db, db_name);
-
   share->table_name= share->db + strlen(share->db) + 1;
-  my_stpcpy(share->table_name, table_name);
 
   thr_lock_init(&share->lock);
   native_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
@@ -14335,17 +14300,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
       DBUG_RETURN(0);
     }
 
-    /*
-      Extract db and table name from key (to avoid that NDB_SHARE
-      dependens on ha_ndbcluster)
-    */
-    char db_name_buf[FN_HEADLEN];
-    char table_name_buf[FN_HEADLEN];
-    ha_ndbcluster::set_dbname(key, db_name_buf);
-    ha_ndbcluster::set_tabname(key, table_name_buf);
-
-    if (!(share= NDB_SHARE::create(key, length, table,
-                                   db_name_buf, table_name_buf)))
+    if (!(share= NDB_SHARE::create(key, length, table)))
     {
       DBUG_PRINT("error", ("get_share: failed to alloc share"));
       my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(*share)));

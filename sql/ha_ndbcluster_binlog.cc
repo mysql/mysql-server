@@ -24,6 +24,7 @@
 #include "ndb_global_schema_lock.h"
 #include "ndb_global_schema_lock_guard.h"
 #include "ndb_tdc.h"
+#include "ndb_name_util.h"
 
 #include "rpl_injector.h"
 #include "rpl_filter.h"
@@ -3345,8 +3346,9 @@ class Ndb_schema_event_handler {
 
     // Split the new key into db and table name
     char new_db[FN_REFLEN + 1], new_name[FN_REFLEN + 1];
-    ha_ndbcluster::set_dbname(prepared_key, new_db);
-    ha_ndbcluster::set_tabname(prepared_key, new_name);
+    ndb_set_dbname(prepared_key, new_db);
+    ndb_set_tabname(prepared_key, new_name);
+    // Magnus, take from prepared_key!
     from.rename_table(new_db, new_name);
 
     // Rename share and release the old key

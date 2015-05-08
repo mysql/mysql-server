@@ -20,6 +20,7 @@
 #include "ndb_dist_priv_util.h"
 #include "ha_ndbcluster_tables.h"
 #include "ndb_conflict.h"
+#include "ndb_name_util.h"
 
 #include <ndbapi/NdbEventOperation.hpp>
 
@@ -49,20 +50,75 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   my_free(share);
 }
 
+/*
+  Struct holding dynamic length strings for NDB_SHARE. The type is
+  opaque to the user of NDB_SHARE and should
+  only be accessed using NDB_SHARE accessor functions.
+
+  All the strings are zero terminated.
+
+  Layout:
+  "key"\0
+  "db\0"
+  "table_name\0"
+*/
+struct NDB_SHARE_KEY {
+  char m_buffer[1];
+};
 
 char*
 NDB_SHARE::create_key(const char *new_key)
 {
-  /*
-    Allocates and set the new key with
-    enough space also for db, and table_name
-  */
-  size_t new_length= strlen(new_key);
-  char* allocated_key= (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                         2 * (new_length + 1),
-                                         MYF(MY_WME | ME_FATALERROR));
-  my_stpcpy(allocated_key, new_key);
-  return allocated_key;
+  const size_t new_key_length = strlen(new_key);
+
+  char db_name_buf[FN_HEADLEN];
+  ndb_set_dbname(new_key, db_name_buf);
+  const size_t db_name_len = strlen(db_name_buf);
+
+  char table_name_buf[FN_HEADLEN];
+  ndb_set_tabname(new_key, table_name_buf);
+  const size_t table_name_len = strlen(table_name_buf);
+
+  // Calculate total size needed for the variable length strings
+  const size_t size=
+      sizeof(NDB_SHARE_KEY) +
+      new_key_length +
+      db_name_len + 1 +
+      table_name_len + 1;
+
+  NDB_SHARE_KEY* allocated_key=
+      (NDB_SHARE_KEY*) my_malloc(PSI_INSTRUMENT_ME,
+                                 size,
+                                 MYF(MY_WME | ME_FATALERROR));
+
+  // Copy key into the buffer
+  char* buf_ptr = allocated_key->m_buffer;
+  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
+  my_stpcpy(buf_ptr, new_key);
+  buf_ptr += new_key_length + 1;
+  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
+
+  // Copy db_name into the buffer
+  my_stpcpy(buf_ptr, db_name_buf);
+  buf_ptr += db_name_len + 1;
+  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
+
+  // Copy table_name into the buffer
+  my_stpcpy(buf_ptr, table_name_buf);
+  buf_ptr += table_name_len;
+  DBUG_PRINT("info", ("buf_ptr: %p", buf_ptr));
+
+  // Check that writing has not occured beyond end of allocated memory
+  assert(buf_ptr < reinterpret_cast<char*>(allocated_key) + size);
+
+  DBUG_PRINT("info", ("size: %lu, sizeof(NDB_SHARE_KEY): %lu",
+                      size, sizeof(NDB_SHARE_KEY)));
+  DBUG_PRINT("info", ("new_key: '%s', %lu", new_key, new_key_length));
+  DBUG_PRINT("info", ("db_name: '%s', %lu", db_name_buf, db_name_len));
+  DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf, table_name_len));
+  DBUG_DUMP("NDB_SHARE_KEY: ", (const uchar*)allocated_key->m_buffer, size);
+
+  return (char*)allocated_key;
 }
 
 
