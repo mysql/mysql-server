@@ -26,7 +26,7 @@ CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
-CALL mtr.add_suppression("Slave I/O: Got fatal error .* slave with the same server_uuid as this slave has connected to the master");
+CALL mtr.add_suppression("A slave with the same server_uuid as this slave has connected to the master");
 
 --let $uuid_file= auto.cnf
 
@@ -241,6 +241,10 @@ eval CHANGE MASTER TO
 --echo # connection that will not try to reconnect.
 --echo -----------------------------------------------------------------------------
 
+# Get current server_2 thread_id at master
+--connection server_1
+--let $slave_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
+
 # Step-1: Copy server 2(S1)'s auto.cnf into server 3 (S2)'s data directory.
 --connection server_2
 --let $datadir2=`select @@datadir`
@@ -251,9 +255,6 @@ eval CHANGE MASTER TO
 --copy_file $datadir2/auto.cnf $datadir3/auto.cnf
 
 # Step-2: Restart the server 3 (two servers with the same UUID)
---append_file $MYSQLTEST_VARDIR/log/mysqld.1.err
-CASE 6 STEP 2
-EOF
 --let $rpl_server_number= 3
 --source include/rpl_restart_server.inc
 # Notice that the other slave has stopped with an error
@@ -263,16 +264,19 @@ EOF
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after=CASE 6 STEP 2
+# Grep only after the message that the server_2 has connected to the master
+--let $assert_only_after=Start binlog_dump to master_thread_id\($slave_thread_id\)
 --let $assert_count= 1
 --let $assert_select=found a zombie dump thread with the same UUID
 --let $assert_text= Found the expected line in master's error log for server 2 disconnection
 --source include/assert_grep.inc
 
+# Get current server_3 thread_id at master
+--connection server_1
+--let $slave_thread_id= query_get_value(SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND='Binlog Dump', ID, 1)
+
 # Step-3: Connect server 2 and notice that the slave server 3 will error
---append_file $MYSQLTEST_VARDIR/log/mysqld.1.err
-CASE 6 STEP 3
-EOF
+--connection server_2
 --source include/start_slave_io.inc
 # Notice that the other slave has stopped with an error
 --let $rpl_connection_name= server_3
@@ -280,13 +284,15 @@ EOF
 --let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 
---let $assert_only_after=CASE 6 STEP 3
+# Grep only after the message that the server_3 has connected to the master
+--let $assert_only_after=Start binlog_dump to master_thread_id\($slave_thread_id\)
 --let $assert_text= Found the expected line in master's error log for server 3 disconnection
 --source include/assert_grep.inc
 
 # Step-4: Check for error messages on slaves
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
---let $assert_only_after=CURRENT_TEST: rpl.rpl_server_uuid
+# Assert only the occurrences after the last CHANGE MASTER
+--let $assert_only_after=CHANGE MASTER .* executed
 --let $assert_select= Slave .* Got fatal error .* from master .* slave with the same server_uuid as this slave
 --let $assert_text= Found the expected line in server 2 error log
 --source include/assert_grep.inc
