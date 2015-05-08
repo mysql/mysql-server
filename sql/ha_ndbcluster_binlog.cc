@@ -2232,7 +2232,7 @@ class Ndb_schema_dist_data {
   unsigned m_num_bitmaps;
 
   // Holds the new key for a table to be renamed
-  char* m_prepared_rename_key;
+  struct NDB_SHARE_KEY* m_prepared_rename_key;
 public:
   Ndb_schema_dist_data(const Ndb_schema_dist_data&); // Not implemented
   Ndb_schema_dist_data() :
@@ -2367,12 +2367,12 @@ public:
   }
 
 
-  void save_prepared_rename_key(char* key)
+  void save_prepared_rename_key(NDB_SHARE_KEY* key)
   {
     m_prepared_rename_key = key;
   }
 
-  char* get_prepared_rename_key() const {
+  NDB_SHARE_KEY* get_prepared_rename_key() const {
     return m_prepared_rename_key;
   }
 
@@ -3280,14 +3280,16 @@ class Ndb_schema_event_handler {
 
     // Release potentially previously prepared new_key
     {
-      char* old_prepared_key = m_schema_dist_data.get_prepared_rename_key();
+      NDB_SHARE_KEY* old_prepared_key =
+          m_schema_dist_data.get_prepared_rename_key();
       if (old_prepared_key)
         NDB_SHARE::free_key(old_prepared_key);
     }
 
     // Create a new key save it, then hope for the best(i.e
     // that it can be found later when the RENAME arrives)
-    char* new_prepared_key = NDB_SHARE::create_key(new_key_for_table);
+    NDB_SHARE_KEY* new_prepared_key =
+        NDB_SHARE::create_key(new_key_for_table);
     m_schema_dist_data.save_prepared_rename_key(new_prepared_key);
 
     DBUG_VOID_RETURN;
@@ -3335,7 +3337,8 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    char* prepared_key = m_schema_dist_data.get_prepared_rename_key();
+    NDB_SHARE_KEY* prepared_key =
+        m_schema_dist_data.get_prepared_rename_key();
     if (!prepared_key)
     {
       // The rename need to have new_key set
@@ -3344,15 +3347,12 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    // Split the new key into db and table name
-    char new_db[FN_REFLEN + 1], new_name[FN_REFLEN + 1];
-    ndb_set_dbname(prepared_key, new_db);
-    ndb_set_tabname(prepared_key, new_name);
-    // Magnus, take from prepared_key!
-    from.rename_table(new_db, new_name);
+    // Rename the local table
+    from.rename_table(NDB_SHARE::key_get_db_name(prepared_key),
+                      NDB_SHARE::key_get_table_name(prepared_key));
 
     // Rename share and release the old key
-    char* old_key = share->key;
+    NDB_SHARE_KEY* old_key = share->key;
     ndbcluster_rename_share(m_thd, share, prepared_key);
     m_schema_dist_data.save_prepared_rename_key(NULL);
     NDB_SHARE::free_key(old_key);
