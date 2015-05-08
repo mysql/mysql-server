@@ -14112,27 +14112,20 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
   */
   my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
 
-  /*
-    now give it a new name, just a running number
-    if space is not enough allocate some more
-  */
   {
-    const uint min_key_length= 10;
-    if (share->key_length < min_key_length)
-    {
-      share->key= (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                    min_key_length + 1,
-                                    MYF(MY_WME | ME_FATALERROR));
-      share->key_length= min_key_length;
-      // Note that share->db, share->table_name as well
-      // as share->shadow_table->s->db etc. points into the memory
-      // which share->key pointed to before the memory for new key
-      // was allocated, so it's not a good time to free that memory
-      // here.
-    }
-    share->key_length=
-      (uint)my_snprintf(share->key, min_key_length + 1, "#leak%lu",
-                  trailing_share_id++);
+    /*
+      Give the leaked share a new name using a running number
+    */
+    char leak_name_buf[16]; // strlen("#leak4294967295")
+    my_snprintf(leak_name_buf, sizeof(leak_name_buf),
+                "#leak%lu", trailing_share_id++);
+    share->key = NDB_SHARE::create_key(leak_name_buf);
+    share->key_length= strlen(leak_name_buf);
+    // Note that share->db, share->table_name as well
+    // as share->shadow_table->s->db etc. points into the memory
+    // which share->key pointed to before the memory for leak key
+    // was allocated, so it's not a good time to free the old key
+    // here.
   }
   /* Keep it for possible the future trailing free */
   my_hash_insert(&ndbcluster_open_tables, (uchar*) share);
