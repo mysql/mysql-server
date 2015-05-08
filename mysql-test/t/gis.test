@@ -2133,11 +2133,11 @@ INSERT INTO t1 VALUES (LINESTRING(POINT(0,0),POINT(1,1)));
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 INSERT INTO t1 VALUES (
   POLYGON(LINESTRING(POINT(0,0),POINT(1,0),POINT(1,1),POINT(0,1))));
---error ER_CANT_CREATE_GEOMETRY_OBJECT
+# This should succeed since it's a subtype of geometrycollection
 INSERT INTO t1 VALUES (MULTIPOINT(POINT(0,0),POINT(1,1)));
---error ER_CANT_CREATE_GEOMETRY_OBJECT
+# This should succeed since it's a subtype of geometrycollection
 INSERT INTO t1 VALUES (MULTILINESTRING(LINESTRING(POINT(0,0),POINT(1,1))));
---error ER_CANT_CREATE_GEOMETRY_OBJECT
+# This should succeed since it's a subtype of geometrycollection
 INSERT INTO t1 VALUES (MULTIPOLYGON(POLYGON(LINESTRING(POINT(0,0),POINT(1,0),
   POINT(1,1),POINT(0,1)))));
 # This should succeed

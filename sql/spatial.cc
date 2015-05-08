@@ -281,7 +281,25 @@ inline static Geometry *create_geometrycollection(char *buffer)
   return ::new (buffer) Gis_geometry_collection();
 }
 
+/**
+  Check if geometry type sub is a subtype of super.
 
+  Since Geometry::wkbType can't represent the geometry type, the
+  superclass of all geometry types, this function can't check
+  that. The supertype has to be a subtype of geometry.
+
+  @param sub The type to check
+  @param super The supertype
+
+  @return True if t1 is a subtype of t2
+ */
+inline static bool is_subtype_of(Geometry::wkbType sub, Geometry::wkbType super)
+{
+  return (super == Geometry::wkb_geometrycollection &&
+          (sub == Geometry::wkb_multipoint ||
+           sub == Geometry::wkb_multilinestring ||
+           sub == Geometry::wkb_multipolygon));
+}
 
 static Geometry::Class_info point_class("POINT",
 					Geometry::wkb_point, create_point);
@@ -571,7 +589,8 @@ bool Geometry::as_geometry(String *buf, bool shallow_copy) const
 
   R1. The byte order is as specified (constructor parameter)
   R2. The wkbType is within the supported range
-  R3. The geometry is of the specified type (constructor parameter)
+  R3. The geometry is of the specified type (constructor parameter),
+      or a subtype
   R4. Nested geometries contain only geometries that can be contained
       by that type
   R5. Linestrings have at least two points
@@ -640,11 +659,13 @@ public:
       return;
     }
 
-    // First geometry must be of the specified type (if specified) (R3).
+    // First geometry must be of the specified type (if specified), or
+    // a subtype (R3).
     if (type.size() == 2)
     {
       if (geotype != outer_type &&
-          outer_type != Geometry::wkb_invalid_type)
+          outer_type != Geometry::wkb_invalid_type &&
+          !is_subtype_of(geotype, outer_type))
         is_ok= false;
       return;
     }
