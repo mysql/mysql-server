@@ -31,6 +31,7 @@ void test_oom()
   PFS_global_param param;
   TABLE_SHARE table_share;
   PFS_thread pfs_thread;
+  PFS_table_share *pfs_table_share;
 
   rc= init_sync_class(1000, 0, 0);
   ok(rc == 1, "oom (mutex)");
@@ -81,7 +82,8 @@ void test_oom()
   init_setup_object_hash(&param);
 
   stub_alloc_always_fails= false;
-  (void) find_or_create_table_share(&pfs_thread, false, &table_share);
+  pfs_table_share= find_or_create_table_share(&pfs_thread, false, &table_share);
+  ok(pfs_table_share == NULL, "oom (pfs table share)");
   ok(global_table_share_container.m_lost == 1, "oom (table share)");
 
   cleanup_table_share();
@@ -96,7 +98,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(10);
+  plan(11);
   MY_INIT("pfs_instr_info-oom-t");
   do_all_tests();
   return 0;

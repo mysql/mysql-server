@@ -1740,9 +1740,14 @@ search:
         - keep the lock stats, they are unaffected
         - destroy the index stats, indexes changed.
         - adjust the expected key count
+        - recreate index stats
       */
       pfs->destroy_index_stats();
       pfs->m_key_count= share->keys;
+      for (uint index= 0; index < pfs->m_key_count; index++)
+      {
+        (void *)pfs->find_or_create_index_stat(share, index);
+      }
     }
     lf_hash_search_unpin(pins);
     return pfs;
@@ -1783,8 +1788,14 @@ search:
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);
     res= lf_hash_insert(&table_share_hash, pins, &pfs);
+
     if (likely(res == 0))
     {
+      /* Create table share index stats. */
+      for (uint index= 0; index < pfs->m_key_count; index++)
+      {
+        (void *)pfs->find_or_create_index_stat(share, index);
+      }
       return pfs;
     }
 

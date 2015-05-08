@@ -125,7 +125,7 @@ performance_schema_max_digest_length	1024
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
-performance_schema_max_index_stat	1
+performance_schema_max_index_stat	38
 performance_schema_max_memory_classes	320
 performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
@@ -173,7 +173,7 @@ where OBJECT_SCHEMA='db1'
   order by OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, INDEX_NAME;
 COUNT_STAR	OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
 2	TABLE	db1	t1	NULL
-1	TABLE	db1	t1	(index 0)
+1	TABLE	db1	t1	uidx
 flush tables;
 select COUNT_STAR, OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 from performance_schema.table_io_waits_summary_by_table
