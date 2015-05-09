@@ -95,11 +95,10 @@ row_purge_reposition_pcur(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	if (node->found_clust) {
-		ibool	found;
+		ut_ad(node->validate_pcur());
 
-		found = btr_pcur_restore_position(mode, &node->pcur, mtr);
+		node->found_clust = btr_pcur_restore_position(mode, &node->pcur, mtr);
 
-		return(found);
 	} else {
 		node->found_clust = row_search_on_row_ref(
 			&node->pcur, mode, node->table, node->ref, mtr);
@@ -898,6 +897,8 @@ row_purge_record_func(
 	dict_index_t*	clust_index;
 	bool		purged		= true;
 
+	ut_ad(!node->found_clust);
+
 	clust_index = dict_table_get_first_index(node->table);
 
 	node->index = dict_table_get_next_index(clust_index);
@@ -1053,3 +1054,50 @@ row_purge_step(
 
 	return(thr);
 }
+
+#ifdef UNIV_DEBUG
+/***********************************************************//**
+Validate the persisent cursor. The purge node has two references
+to the clustered index record - one via the ref member, and the
+other via the persistent cursor.  These two references must match
+each other if the found_clust flag is set.
+@return true if the persistent cursor is consistent with
+the ref member.*/
+bool
+purge_node_t::validate_pcur()
+{
+	if (!found_clust) {
+		return(true);
+	}
+
+	if (index == NULL) {
+		return(true);
+	}
+
+	if (index->type == DICT_FTS) {
+		return(true);
+	}
+
+	const rec_t*	rec ;
+	dict_index_t*	clust_index = pcur.btr_cur.index;
+	if (pcur.old_stored) {
+		rec = pcur.old_rec;
+	} else {
+		rec = btr_pcur_get_rec(&pcur);
+	}
+
+	ulint*	offsets = rec_get_offsets(
+		rec, clust_index, NULL, ULINT_UNDEFINED, &heap);
+
+	int st = cmp_dtuple_rec(ref, rec, offsets);
+
+	if (st != 0) {
+		ib::error() << "Purge node pcur validation failed";
+		ib::error() << rec_printer(ref).str();
+		ib::error() << rec_printer(rec, offsets).str();
+		return(false);
+	}
+
+	return(true);
+}
+#endif /* UNIV_DEBUG */
