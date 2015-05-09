@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,23 +90,23 @@ row_purge_reposition_pcur(
 	purge_node_t*	node,	/*!< in: row purge node */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ibool	found;
-
 	if (node->found_clust) {
-		found = btr_pcur_restore_position(mode, &(node->pcur), mtr);
+		ut_ad(row_purge_validate_pcur(node));
 
-		return(found);
+		node->found_clust = btr_pcur_restore_position(
+			mode, &(node->pcur), mtr);
+
+	} else {
+
+		node->found_clust = row_search_on_row_ref(
+			&(node->pcur), mode, node->table, node->ref, mtr);
+
+		if (node->found_clust) {
+			btr_pcur_store_position(&(node->pcur), mtr);
+		}
 	}
 
-	found = row_search_on_row_ref(&(node->pcur), mode, node->table,
-				      node->ref, mtr);
-	node->found_clust = found;
-
-	if (found) {
-		btr_pcur_store_position(&(node->pcur), mtr);
-	}
-
-	return(found);
+	return(node->found_clust);
 }
 
 /***********************************************************//**
@@ -806,3 +806,51 @@ row_purge_step(
 
 	return(thr);
 }
+
+#ifdef UNIV_DEBUG
+/***********************************************************//**
+Validate the persisent cursor in the purge node. The purge node has two
+references to the clustered index record - one via the ref member, and the
+other via the persistent cursor.  These two references must match each
+other if the found_clust flag is set.
+@return true if the persistent cursor is consistent with the ref member.*/
+ibool
+row_purge_validate_pcur(
+	purge_node_t*	node)
+{
+	const rec_t*	rec ;
+	dict_index_t*	clust_index;
+	ulint*		offsets;
+	int		st;
+
+	if (!node->found_clust) {
+		return(TRUE);
+	}
+
+	if (node->index == NULL) {
+		return(TRUE);
+	}
+
+	clust_index = node->pcur.btr_cur.index;
+
+	if (node->pcur.old_stored == BTR_PCUR_OLD_STORED) {
+		rec = node->pcur.old_rec;
+	} else {
+		rec = btr_pcur_get_rec(&node->pcur);
+	}
+
+	offsets = rec_get_offsets(rec,
+		clust_index, NULL, ULINT_UNDEFINED, &node->heap);
+
+	st = cmp_dtuple_rec(node->ref, rec, offsets);
+
+	if (st != 0) {
+		fprintf(stderr, "Purge node pcur validation failed\n");
+		dtuple_print(stderr, node->ref);
+		rec_print(stderr, rec, clust_index);
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
