@@ -66,7 +66,8 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing)
 
   events_waits_history_long_array=
     PFS_MALLOC_ARRAY(& builtin_memory_waits_history_long,
-                     events_waits_history_long_size, PFS_events_waits,
+                     events_waits_history_long_size,
+                     sizeof(PFS_events_waits), PFS_events_waits,
                      MYF(MY_ZEROFILL));
 
   return (events_waits_history_long_array ? 0 : 1);
@@ -76,7 +77,7 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing)
 void cleanup_events_waits_history_long(void)
 {
   PFS_FREE_ARRAY(& builtin_memory_waits_history_long,
-                 events_waits_history_long_size, PFS_events_waits,
+                 events_waits_history_long_size, sizeof(PFS_events_waits),
                  events_waits_history_long_array);
   events_waits_history_long_array= NULL;
 }

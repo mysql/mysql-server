@@ -112,7 +112,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
   if (m_schema_name_length > 0)
     memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
 
-  uint safe_byte_count= pfs->m_digest_storage.m_byte_count;
+  size_t safe_byte_count= pfs->m_digest_storage.m_byte_count;
   if (safe_byte_count > pfs_max_digest_length)
     safe_byte_count= 0;
 

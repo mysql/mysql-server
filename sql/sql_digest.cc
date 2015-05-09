@@ -47,7 +47,7 @@
 inline uint read_token(const sql_digest_storage *digest_storage,
                        uint index, uint *tok)
 {
-  uint safe_byte_count= digest_storage->m_byte_count;
+  size_t safe_byte_count= digest_storage->m_byte_count;
 
   if (index + SIZE_OF_A_TOKEN <= safe_byte_count &&
       safe_byte_count <= digest_storage->m_token_array_length)
