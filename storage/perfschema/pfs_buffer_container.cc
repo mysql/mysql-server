@@ -85,7 +85,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array, size_t size)
   {
     array->m_ptr=
       PFS_MALLOC_ARRAY(& builtin_memory_account,
-                       size, PFS_account, MYF(MY_ZEROFILL));
+                       size, sizeof(PFS_account), PFS_account, MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
       return 1;
   }
@@ -94,7 +94,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array, size_t size)
   {
     array->m_instr_class_waits_array=
       PFS_MALLOC_ARRAY(& builtin_memory_account_waits,
-                       waits_sizing, PFS_single_stat, MYF(MY_ZEROFILL));
+                       waits_sizing, sizeof(PFS_single_stat), PFS_single_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
       return 1;
 
@@ -106,7 +106,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array, size_t size)
   {
     array->m_instr_class_stages_array=
       PFS_MALLOC_ARRAY(& builtin_memory_account_stages,
-                       stages_sizing, PFS_stage_stat, MYF(MY_ZEROFILL));
+                       stages_sizing, sizeof(PFS_stage_stat), PFS_stage_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
       return 1;
 
@@ -118,7 +118,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array, size_t size)
   {
     array->m_instr_class_statements_array=
       PFS_MALLOC_ARRAY(& builtin_memory_account_statements,
-                       statements_sizing, PFS_statement_stat, MYF(MY_ZEROFILL));
+                       statements_sizing, sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
       return 1;
 
@@ -130,7 +130,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array, size_t size)
   {
     array->m_instr_class_transactions_array=
       PFS_MALLOC_ARRAY(& builtin_memory_account_transactions,
-                       transactions_sizing, PFS_transaction_stat, MYF(MY_ZEROFILL));
+                       transactions_sizing, sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
       return 1;
 
@@ -142,7 +142,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array, size_t size)
   {
     array->m_instr_class_memory_array=
       PFS_MALLOC_ARRAY(& builtin_memory_account_memory,
-                       memory_sizing, PFS_memory_stat, MYF(MY_ZEROFILL));
+                       memory_sizing, sizeof(PFS_memory_stat), PFS_memory_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
       return 1;
 
@@ -177,31 +177,31 @@ void PFS_account_allocator::free_array(PFS_account_array *array, size_t size)
   size_t memory_sizing= size * memory_class_max;
 
   PFS_FREE_ARRAY(& builtin_memory_account,
-                 size, PFS_account, array->m_ptr);
+                 size, sizeof(PFS_account), array->m_ptr);
   array->m_ptr= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_account_waits,
-                 waits_sizing, PFS_single_stat,
+                 waits_sizing, sizeof(PFS_single_stat),
                  array->m_instr_class_waits_array);
   array->m_instr_class_waits_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_account_stages,
-                 stages_sizing, PFS_stage_stat,
+                 stages_sizing, sizeof(PFS_stage_stat),
                  array->m_instr_class_stages_array);
   array->m_instr_class_stages_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_account_statements,
-                 statements_sizing, PFS_statement_stat,
+                 statements_sizing, sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
   array->m_instr_class_statements_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_account_transactions,
-                 transactions_sizing, PFS_transaction_stat,
+                 transactions_sizing, sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
   array->m_instr_class_transactions_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_account_memory,
-                 memory_sizing, PFS_memory_stat,
+                 memory_sizing, sizeof(PFS_memory_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array= NULL;
 }
@@ -231,7 +231,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array, size_t size)
   {
     array->m_ptr=
       PFS_MALLOC_ARRAY(& builtin_memory_host,
-                       size, PFS_host, MYF(MY_ZEROFILL));
+                       size, sizeof(PFS_host), PFS_host, MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
       return 1;
   }
@@ -240,7 +240,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array, size_t size)
   {
     array->m_instr_class_waits_array=
       PFS_MALLOC_ARRAY(& builtin_memory_host_waits,
-                       waits_sizing, PFS_single_stat, MYF(MY_ZEROFILL));
+                       waits_sizing, sizeof(PFS_single_stat), PFS_single_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
       return 1;
 
@@ -252,7 +252,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array, size_t size)
   {
     array->m_instr_class_stages_array=
       PFS_MALLOC_ARRAY(& builtin_memory_host_stages,
-                       stages_sizing, PFS_stage_stat, MYF(MY_ZEROFILL));
+                       stages_sizing, sizeof(PFS_stage_stat), PFS_stage_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
       return 1;
 
@@ -264,7 +264,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array, size_t size)
   {
     array->m_instr_class_statements_array=
       PFS_MALLOC_ARRAY(& builtin_memory_host_statements,
-                       statements_sizing, PFS_statement_stat, MYF(MY_ZEROFILL));
+                       statements_sizing, sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
       return 1;
 
@@ -276,7 +276,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array, size_t size)
   {
     array->m_instr_class_transactions_array=
       PFS_MALLOC_ARRAY(& builtin_memory_host_transactions,
-                       transactions_sizing, PFS_transaction_stat, MYF(MY_ZEROFILL));
+                       transactions_sizing, sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
       return 1;
 
@@ -288,7 +288,7 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array, size_t size)
   {
     array->m_instr_class_memory_array=
       PFS_MALLOC_ARRAY(& builtin_memory_host_memory,
-                       memory_sizing, PFS_memory_stat, MYF(MY_ZEROFILL));
+                       memory_sizing, sizeof(PFS_memory_stat), PFS_memory_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
       return 1;
 
@@ -325,31 +325,31 @@ void PFS_host_allocator::free_array(PFS_host_array *array, size_t size)
   size_t memory_sizing= size * memory_class_max;
 
   PFS_FREE_ARRAY(& builtin_memory_host,
-                 size, PFS_host, array->m_ptr);
+                 size, sizeof(PFS_host), array->m_ptr);
   array->m_ptr= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_host_waits,
-                 waits_sizing, PFS_single_stat,
+                 waits_sizing, sizeof(PFS_single_stat),
                  array->m_instr_class_waits_array);
   array->m_instr_class_waits_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_host_stages,
-                 stages_sizing, PFS_stage_stat,
+                 stages_sizing, sizeof(PFS_stage_stat),
                  array->m_instr_class_stages_array);
   array->m_instr_class_stages_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_host_statements,
-                 statements_sizing, PFS_statement_stat,
+                 statements_sizing, sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
   array->m_instr_class_statements_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_host_transactions,
-                 transactions_sizing, PFS_transaction_stat,
+                 transactions_sizing, sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
   array->m_instr_class_transactions_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_host_memory,
-                 memory_sizing, PFS_memory_stat,
+                 memory_sizing, sizeof(PFS_memory_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array= NULL;
 }
@@ -406,7 +406,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_ptr=
       PFS_MALLOC_ARRAY(& builtin_memory_thread,
-                       size, PFS_thread, MYF(MY_ZEROFILL));
+                       size, sizeof(PFS_thread), PFS_thread, MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
       return 1;
   }
@@ -415,7 +415,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_instr_class_waits_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_waits,
-                       waits_sizing, PFS_single_stat, MYF(MY_ZEROFILL));
+                       waits_sizing, sizeof(PFS_single_stat), PFS_single_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
       return 1;
 
@@ -427,7 +427,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_instr_class_stages_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_stages,
-                       stages_sizing, PFS_stage_stat, MYF(MY_ZEROFILL));
+                       stages_sizing, sizeof(PFS_stage_stat), PFS_stage_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
       return 1;
 
@@ -439,7 +439,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_instr_class_statements_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_statements,
-                       statements_sizing, PFS_statement_stat, MYF(MY_ZEROFILL));
+                       statements_sizing, sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
       return 1;
 
@@ -451,7 +451,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_instr_class_transactions_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_transactions,
-                       transactions_sizing, PFS_transaction_stat, MYF(MY_ZEROFILL));
+                       transactions_sizing, sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
       return 1;
 
@@ -463,7 +463,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_instr_class_memory_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_memory,
-                       memory_sizing, PFS_memory_stat, MYF(MY_ZEROFILL));
+                       memory_sizing, sizeof(PFS_memory_stat), PFS_memory_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
       return 1;
 
@@ -475,7 +475,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_waits_history_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_waits_history,
-                       waits_history_sizing, PFS_events_waits, MYF(MY_ZEROFILL));
+                       waits_history_sizing, sizeof(PFS_events_waits), PFS_events_waits, MYF(MY_ZEROFILL));
     if (unlikely(array->m_waits_history_array == NULL))
       return 1;
   }
@@ -484,7 +484,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_stages_history_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_stages_history,
-                       stages_history_sizing, PFS_events_stages, MYF(MY_ZEROFILL));
+                       stages_history_sizing, sizeof(PFS_events_stages), PFS_events_stages, MYF(MY_ZEROFILL));
     if (unlikely(array->m_stages_history_array == NULL))
       return 1;
   }
@@ -493,7 +493,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_statements_history_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_statements_history,
-                       statements_history_sizing, PFS_events_statements, MYF(MY_ZEROFILL));
+                       statements_history_sizing, sizeof(PFS_events_statements), PFS_events_statements, MYF(MY_ZEROFILL));
     if (unlikely(array->m_statements_history_array == NULL))
       return 1;
   }
@@ -502,7 +502,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_statements_stack_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_statements_stack,
-                       statements_stack_sizing, PFS_events_statements, MYF(MY_ZEROFILL));
+                       statements_stack_sizing, sizeof(PFS_events_statements), PFS_events_statements, MYF(MY_ZEROFILL));
     if (unlikely(array->m_statements_stack_array == NULL))
       return 1;
   }
@@ -511,7 +511,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array, size_t size)
   {
     array->m_transactions_history_array=
       PFS_MALLOC_ARRAY(& builtin_memory_thread_transaction_history,
-                       transactions_history_sizing, PFS_events_transactions, MYF(MY_ZEROFILL));
+                       transactions_history_sizing, sizeof(PFS_events_transactions), PFS_events_transactions, MYF(MY_ZEROFILL));
     if (unlikely(array->m_transactions_history_array == NULL))
       return 1;
   }
@@ -635,57 +635,57 @@ void PFS_thread_allocator::free_array(PFS_thread_array *array, size_t size)
   size_t history_digest_tokens_sizing= size * pfs_max_digest_length * events_statements_history_per_thread;
 
   PFS_FREE_ARRAY(& builtin_memory_thread,
-                 size, PFS_thread, array->m_ptr);
+                 size, sizeof(PFS_thread), array->m_ptr);
   array->m_ptr= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_waits,
-                 waits_sizing, PFS_single_stat,
+                 waits_sizing, sizeof(PFS_single_stat),
                  array->m_instr_class_waits_array);
   array->m_instr_class_waits_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_stages,
-                 stages_sizing, PFS_stage_stat,
+                 stages_sizing, sizeof(PFS_stage_stat),
                  array->m_instr_class_stages_array);
   array->m_instr_class_stages_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_statements,
-                 statements_sizing, PFS_statement_stat,
+                 statements_sizing, sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
   array->m_instr_class_statements_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_transactions,
-                 transactions_sizing, PFS_transaction_stat,
+                 transactions_sizing, sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
   array->m_instr_class_transactions_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_memory,
-                 memory_sizing, PFS_memory_stat,
+                 memory_sizing, sizeof(PFS_memory_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array= NULL;
 
 
   PFS_FREE_ARRAY(& builtin_memory_thread_waits_history,
-                 waits_history_sizing, PFS_events_waits,
+                 waits_history_sizing, sizeof(PFS_events_waits),
                  array->m_waits_history_array);
   array->m_waits_history_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_stages_history,
-                 stages_history_sizing, PFS_events_stages,
+                 stages_history_sizing, sizeof(PFS_events_stages),
                  array->m_stages_history_array);
   array->m_stages_history_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_statements_history,
-                 statements_history_sizing, PFS_events_statements,
+                 statements_history_sizing, sizeof(PFS_events_statements),
                  array->m_statements_history_array);
   array->m_statements_history_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_statements_stack,
-                 statements_stack_sizing, PFS_events_statements,
+                 statements_stack_sizing, sizeof(PFS_events_statements),
                  array->m_statements_stack_array);
   array->m_statements_stack_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_thread_transaction_history,
-                 transactions_history_sizing, PFS_events_transactions,
+                 transactions_history_sizing, sizeof(PFS_events_transactions),
                  array->m_transactions_history_array);
   array->m_transactions_history_array= NULL;
 
@@ -740,7 +740,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array, size_t size)
   {
     array->m_ptr=
       PFS_MALLOC_ARRAY(& builtin_memory_user,
-                       size, PFS_user, MYF(MY_ZEROFILL));
+                       size, sizeof(PFS_user), PFS_user, MYF(MY_ZEROFILL));
     if (array->m_ptr == NULL)
       return 1;
   }
@@ -749,7 +749,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array, size_t size)
   {
     array->m_instr_class_waits_array=
       PFS_MALLOC_ARRAY(& builtin_memory_user_waits,
-                       waits_sizing, PFS_single_stat, MYF(MY_ZEROFILL));
+                       waits_sizing, sizeof(PFS_single_stat), PFS_single_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_waits_array == NULL)
       return 1;
 
@@ -761,7 +761,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array, size_t size)
   {
     array->m_instr_class_stages_array=
       PFS_MALLOC_ARRAY(& builtin_memory_user_stages,
-                       stages_sizing, PFS_stage_stat, MYF(MY_ZEROFILL));
+                       stages_sizing, sizeof(PFS_stage_stat), PFS_stage_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_stages_array == NULL)
       return 1;
 
@@ -773,7 +773,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array, size_t size)
   {
     array->m_instr_class_statements_array=
       PFS_MALLOC_ARRAY(& builtin_memory_user_statements,
-                       statements_sizing, PFS_statement_stat, MYF(MY_ZEROFILL));
+                       statements_sizing, sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_statements_array == NULL)
       return 1;
 
@@ -785,7 +785,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array, size_t size)
   {
     array->m_instr_class_transactions_array=
       PFS_MALLOC_ARRAY(& builtin_memory_user_transactions,
-                       transactions_sizing, PFS_transaction_stat, MYF(MY_ZEROFILL));
+                       transactions_sizing, sizeof(PFS_transaction_stat), PFS_transaction_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_transactions_array == NULL)
       return 1;
 
@@ -797,7 +797,7 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array, size_t size)
   {
     array->m_instr_class_memory_array=
       PFS_MALLOC_ARRAY(& builtin_memory_user_memory,
-                       memory_sizing, PFS_memory_stat, MYF(MY_ZEROFILL));
+                       memory_sizing, sizeof(PFS_memory_stat), PFS_memory_stat, MYF(MY_ZEROFILL));
     if (array->m_instr_class_memory_array == NULL)
       return 1;
 
@@ -834,31 +834,31 @@ void PFS_user_allocator::free_array(PFS_user_array *array, size_t size)
   size_t memory_sizing= size * memory_class_max;
 
   PFS_FREE_ARRAY(& builtin_memory_user,
-                 size, PFS_user, array->m_ptr);
+                 size, sizeof(PFS_user), array->m_ptr);
   array->m_ptr= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_user_waits,
-                 waits_sizing, PFS_single_stat,
+                 waits_sizing, sizeof(PFS_single_stat),
                  array->m_instr_class_waits_array);
   array->m_instr_class_waits_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_user_stages,
-                 stages_sizing, PFS_stage_stat,
+                 stages_sizing, sizeof(PFS_stage_stat),
                  array->m_instr_class_stages_array);
   array->m_instr_class_stages_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_user_statements,
-                 statements_sizing, PFS_statement_stat,
+                 statements_sizing, sizeof(PFS_statement_stat),
                  array->m_instr_class_statements_array);
   array->m_instr_class_statements_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_user_transactions,
-                 transactions_sizing, PFS_transaction_stat,
+                 transactions_sizing, sizeof(PFS_transaction_stat),
                  array->m_instr_class_transactions_array);
   array->m_instr_class_transactions_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_user_memory,
-                 memory_sizing, PFS_memory_stat,
+                 memory_sizing, sizeof(PFS_memory_stat),
                  array->m_instr_class_memory_array);
   array->m_instr_class_memory_array= NULL;
 }

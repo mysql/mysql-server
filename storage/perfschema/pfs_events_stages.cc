@@ -62,7 +62,8 @@ int init_events_stages_history_long(uint events_stages_history_long_sizing)
 
   events_stages_history_long_array=
     PFS_MALLOC_ARRAY(& builtin_memory_stages_history_long,
-                     events_stages_history_long_size, PFS_events_stages,
+                     events_stages_history_long_size,
+                     sizeof(PFS_events_stages), PFS_events_stages,
                      MYF(MY_ZEROFILL));
 
   return (events_stages_history_long_array ? 0 : 1);
@@ -72,7 +73,7 @@ int init_events_stages_history_long(uint events_stages_history_long_sizing)
 void cleanup_events_stages_history_long(void)
 {
   PFS_FREE_ARRAY(& builtin_memory_stages_history_long,
-                 events_stages_history_long_size, PFS_events_stages,
+                 events_stages_history_long_size, sizeof(PFS_events_stages),
                  events_stages_history_long_array);
   events_stages_history_long_array= NULL;
 }
