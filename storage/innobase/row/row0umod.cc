@@ -174,7 +174,9 @@ row_undo_mod_remove_clust_low(
 	or if we can remove it. */
 
 	if (!btr_pcur_restore_position(mode, &node->pcur, mtr)
-	    || row_vers_must_preserve_del_marked(node->new_trx_id, mtr)) {
+	    || row_vers_must_preserve_del_marked(node->new_trx_id,
+						 node->table->name,
+						 mtr)) {
 
 		return(DB_SUCCESS);
 	}

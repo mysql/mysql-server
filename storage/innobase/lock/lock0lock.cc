@@ -369,7 +369,7 @@ lock_clust_rec_cons_read_sees(
 
 	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	return(view->changes_visible(trx_id));
+	return(view->changes_visible(trx_id, index->table->name));
 }
 
 /*********************************************************************//**

@@ -25,8 +25,9 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include "current_thd.h"
 #include "trx0sys.h"
-
+#include "sql_error.h"
 #ifdef UNIV_NONINL
 #include "trx0sys.ic"
 #endif
@@ -50,6 +51,40 @@ Created 3/26/1996 Heikki Tuuri
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check whether transaction id is valid.
+@param[in]	id              transaction id to check
+@param[in]      name            table name */
+void
+ReadView::check_trx_id_sanity(
+	trx_id_t		id,
+	const table_name_t&	name)
+{
+	if (id >= trx_sys->max_trx_id) {
+
+		ib::warn() << "A transaction id"
+			   << " in a record of table "
+			   << name
+			   << " is newer than the"
+			   << " system-wide maximum.";
+		ut_ad(0);
+		THD *thd = current_thd;
+		if (thd != NULL) {
+			char    table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				name.m_name);
+
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
+					    ER_SIGNAL_WARN,
+					    "InnoDB: Transaction id"
+					    " in a record of table"
+					    " %s is newer than system-wide"
+					    " maximum.", table_name);
+		}
+	}
+}
 
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
