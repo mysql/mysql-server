@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,11 @@ int stub_alloc_fails_after_count= 0;
 
 void *pfs_malloc(size_t size, myf)
 {
+  /*
+    Catch non initialized sizing parameter in the unit tests.
+  */
+  DBUG_ASSERT(size <= 100*1024*1024);
+
   if (stub_alloc_always_fails)
     return NULL;
 
@@ -41,6 +46,23 @@ void pfs_free(void *ptr)
 {
   if (ptr != NULL)
     free(ptr);
+}
+
+void *pfs_malloc_array(size_t n, size_t size, myf flags)
+{
+  size_t array_size= n * size;
+  /* Check for overflow before allocating. */
+  if (is_overflow(array_size, n, size))
+    return NULL;
+  return pfs_malloc(array_size, flags);
+}
+
+bool is_overflow(size_t product, size_t n1, size_t n2)
+{
+  if (n1 != 0 && (product / n1 != n2))
+    return true;
+  else
+    return false;
 }
 
 void pfs_print_error(const char *format, ...)

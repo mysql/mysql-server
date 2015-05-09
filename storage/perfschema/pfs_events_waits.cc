@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -63,8 +63,8 @@ int init_events_waits_history_long(uint events_waits_history_long_sizing)
     return 0;
 
   events_waits_history_long_array=
-    PFS_MALLOC_ARRAY(events_waits_history_long_size, PFS_events_waits,
-                     MYF(MY_ZEROFILL));
+    PFS_MALLOC_ARRAY(events_waits_history_long_size, sizeof(PFS_events_waits),
+                     PFS_events_waits, MYF(MY_ZEROFILL));
 
   return (events_waits_history_long_array ? 0 : 1);
 }

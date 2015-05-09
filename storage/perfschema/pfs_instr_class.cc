@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -255,24 +255,24 @@ int init_sync_class(uint mutex_class_sizing,
 
   if (mutex_class_max > 0)
   {
-    mutex_class_array= PFS_MALLOC_ARRAY(mutex_class_max, PFS_mutex_class,
-                                        MYF(MY_ZEROFILL));
+    mutex_class_array= PFS_MALLOC_ARRAY(mutex_class_max, sizeof(PFS_mutex_class),
+                                        PFS_mutex_class, MYF(MY_ZEROFILL));
     if (unlikely(mutex_class_array == NULL))
       return 1;
   }
 
   if (rwlock_class_max > 0)
   {
-    rwlock_class_array= PFS_MALLOC_ARRAY(rwlock_class_max, PFS_rwlock_class,
-                                         MYF(MY_ZEROFILL));
+    rwlock_class_array= PFS_MALLOC_ARRAY(rwlock_class_max, sizeof(PFS_rwlock_class),
+                                         PFS_rwlock_class, MYF(MY_ZEROFILL));
     if (unlikely(rwlock_class_array == NULL))
       return 1;
   }
 
   if (cond_class_max > 0)
   {
-    cond_class_array= PFS_MALLOC_ARRAY(cond_class_max, PFS_cond_class,
-                                       MYF(MY_ZEROFILL));
+    cond_class_array= PFS_MALLOC_ARRAY(cond_class_max, sizeof(PFS_cond_class),
+                                       PFS_cond_class, MYF(MY_ZEROFILL));
     if (unlikely(cond_class_array == NULL))
       return 1;
   }
@@ -308,8 +308,8 @@ int init_thread_class(uint thread_class_sizing)
 
   if (thread_class_max > 0)
   {
-    thread_class_array= PFS_MALLOC_ARRAY(thread_class_max, PFS_thread_class,
-                                         MYF(MY_ZEROFILL));
+    thread_class_array= PFS_MALLOC_ARRAY(thread_class_max, sizeof(PFS_thread_class),
+                                         PFS_thread_class, MYF(MY_ZEROFILL));
     if (unlikely(thread_class_array == NULL))
       result= 1;
   }
@@ -341,8 +341,8 @@ int init_table_share(uint table_share_sizing)
 
   if (table_share_max > 0)
   {
-    table_share_array= PFS_MALLOC_ARRAY(table_share_max, PFS_table_share,
-                                        MYF(MY_ZEROFILL));
+    table_share_array= PFS_MALLOC_ARRAY(table_share_max, sizeof(PFS_table_share),
+                                        PFS_table_share, MYF(MY_ZEROFILL));
     if (unlikely(table_share_array == NULL))
       result= 1;
   }
@@ -481,8 +481,8 @@ int init_file_class(uint file_class_sizing)
 
   if (file_class_max > 0)
   {
-    file_class_array= PFS_MALLOC_ARRAY(file_class_max, PFS_file_class,
-                                       MYF(MY_ZEROFILL));
+    file_class_array= PFS_MALLOC_ARRAY(file_class_max, sizeof(PFS_file_class),
+                                       PFS_file_class, MYF(MY_ZEROFILL));
     if (unlikely(file_class_array == NULL))
       return 1;
   }
@@ -515,8 +515,8 @@ int init_stage_class(uint stage_class_sizing)
 
   if (stage_class_max > 0)
   {
-    stage_class_array= PFS_MALLOC_ARRAY(stage_class_max, PFS_stage_class,
-                                        MYF(MY_ZEROFILL));
+    stage_class_array= PFS_MALLOC_ARRAY(stage_class_max, sizeof(PFS_stage_class),
+                                        PFS_stage_class, MYF(MY_ZEROFILL));
     if (unlikely(stage_class_array == NULL))
       return 1;
   }
@@ -549,8 +549,8 @@ int init_statement_class(uint statement_class_sizing)
 
   if (statement_class_max > 0)
   {
-    statement_class_array= PFS_MALLOC_ARRAY(statement_class_max, PFS_statement_class,
-                                            MYF(MY_ZEROFILL));
+    statement_class_array= PFS_MALLOC_ARRAY(statement_class_max, sizeof(PFS_statement_class),
+                                            PFS_statement_class, MYF(MY_ZEROFILL));
     if (unlikely(statement_class_array == NULL))
       return 1;
   }
@@ -583,8 +583,8 @@ int init_socket_class(uint socket_class_sizing)
 
   if (socket_class_max > 0)
   {
-    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, PFS_socket_class,
-                                         MYF(MY_ZEROFILL));
+    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, sizeof(PFS_socket_class),
+                                         PFS_socket_class, MYF(MY_ZEROFILL));
     if (unlikely(socket_class_array == NULL))
       return 1;
   }

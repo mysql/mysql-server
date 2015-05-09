@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,18 +43,24 @@ extern size_t pfs_allocated_memory;
 
 void *pfs_malloc(size_t size, myf flags);
 
+/** Allocate an array of structures with overflow check. */
+void *pfs_malloc_array(size_t n, size_t size, myf flags);
+
 /**
   Helper, to allocate an array of structures.
-  @param n number of elements in the array.
-  @param T type of an element.
+  @param n number of elements in the array
+  @param s size of array element
+  @param T type of an element
   @param f flags to use when allocating memory
 */
-#define PFS_MALLOC_ARRAY(n, T, f) \
-  reinterpret_cast<T*> (pfs_malloc((n) * sizeof(T), (f)))
+#define PFS_MALLOC_ARRAY(n, s, T, f) \
+  reinterpret_cast<T*>(pfs_malloc_array((n), (s), (f)))
 
 /** Free memory allocated with @sa pfs_malloc. */
 void pfs_free(void *ptr);
 
+/** Detect multiplication overflow. */
+bool is_overflow(size_t product, size_t n1, size_t n2);
 
 uint pfs_get_socket_address(char *host,
                             uint host_len,
@@ -106,7 +112,7 @@ inline uint randomized_index(const void *ptr, uint max_size)
   value= (reinterpret_cast<intptr> (ptr)) >> 3;
   value*= 1789;
   value+= seed2 + seed1 + 1;
-  
+
   result= (static_cast<uint> (value)) % max_size;
 
   seed2= seed1*seed1;
