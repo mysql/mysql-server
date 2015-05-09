@@ -6907,3 +6907,42 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug#20835095 CRASH AT CREATE_REF_FOR_KEY IN SQL/SQL_SELECT.CC
+--echo #
+CREATE TABLE t1 (
+pk INTEGER,
+var_10_latin1 VARCHAR(10) CHARACTER SET latin1,
+var_255_utf8 VARCHAR(255) CHARACTER SET utf8,
+var_255_latin1 VARCHAR(255) CHARACTER SET latin1,
+var_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+INSERT INTO t1 VALUES
+(1,'FROCJ','korrhrspki','UAYVL','BPZIS'),
+(2,'him','a','CHYKN','OZZQT'),
+(3,'WBITK','ULWBF','have','rhrh'),
+(4,'or','right','up','it'),
+(5,'GGDCP','x','who','as'),
+(6,'j','i','e','w');
+
+CREATE TABLE tv
+SELECT var_255_utf8 AS field1
+FROM t1;
+
+let query=
+SELECT * FROM tv
+WHERE field1 IN (
+  SELECT tv1.var_255_utf8
+  FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1, tv;
+
