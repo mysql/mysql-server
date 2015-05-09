@@ -33,7 +33,7 @@ class String;
 struct sql_digest_storage
 {
   bool m_full;
-  uint m_byte_count;
+  size_t m_byte_count;
   unsigned char m_md5[MD5_HASH_SIZE];
   /** Character set number. */
   uint m_charset_number;
@@ -48,14 +48,14 @@ struct sql_digest_storage
   */
   unsigned char *m_token_array;
   /* Length of the token array to be considered for DIGEST_TEXT calculation. */
-  uint m_token_array_length;
+  size_t m_token_array_length;
 
   sql_digest_storage()
   {
     reset(NULL, 0);
   }
 
-  inline void reset(unsigned char *token_array, uint length)
+  inline void reset(unsigned char *token_array, size_t length)
   {
     m_token_array= token_array;
     m_token_array_length= length;
@@ -86,8 +86,8 @@ struct sql_digest_storage
       as the thread producing the digest is executing concurrently,
       without any lock enforced.
     */
-    uint byte_count_copy= m_token_array_length < from->m_byte_count ?
-                          m_token_array_length : from->m_byte_count;
+    size_t byte_count_copy= m_token_array_length < from->m_byte_count ?
+                            m_token_array_length : from->m_byte_count;
 
     if (byte_count_copy > 0)
     {

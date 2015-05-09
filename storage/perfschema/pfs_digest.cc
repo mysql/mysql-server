@@ -35,7 +35,7 @@
 #include "sql_string.h"
 #include <string.h>
 
-ulong digest_max= 0;
+size_t digest_max= 0;
 ulong digest_lost= 0;
 
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
@@ -59,8 +59,6 @@ static bool digest_hash_inited= false;
 */
 int init_digest(const PFS_global_param *param)
 {
-  unsigned int index;
-
   /*
     Allocate memory for statements_digest_stat_array based on
     performance_schema_digests_size values
@@ -76,7 +74,7 @@ int init_digest(const PFS_global_param *param)
   statements_digest_stat_array=
     PFS_MALLOC_ARRAY(& builtin_memory_digest,
                      digest_max,
-                     PFS_statements_digest_stat,
+                     sizeof(PFS_statements_digest_stat), PFS_statements_digest_stat,
                      MYF(MY_ZEROFILL));
 
   if (unlikely(statements_digest_stat_array == NULL))
@@ -87,9 +85,13 @@ int init_digest(const PFS_global_param *param)
 
   if (pfs_max_digest_length > 0)
   {
+    /* Size of each digest array. */
+    size_t digest_memory_size= pfs_max_digest_length * sizeof(unsigned char);
+
     statements_digest_token_array=
       PFS_MALLOC_ARRAY(& builtin_memory_digest_tokens,
-                       digest_max * pfs_max_digest_length,
+                       digest_max,
+                       digest_memory_size,
                        unsigned char,
                        MYF(MY_ZEROFILL));
 
@@ -100,7 +102,7 @@ int init_digest(const PFS_global_param *param)
     }
   }
 
-  for (index= 0; index < digest_max; index++)
+  for (size_t index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset_data(statements_digest_token_array
                                                    + index * pfs_max_digest_length, pfs_max_digest_length);
@@ -114,12 +116,12 @@ void cleanup_digest(void)
 {
   PFS_FREE_ARRAY(& builtin_memory_digest,
                  digest_max,
-                 PFS_statements_digest_stat,
+                 sizeof(PFS_statements_digest_stat),
                  statements_digest_stat_array);
 
   PFS_FREE_ARRAY(& builtin_memory_digest_tokens,
-                 digest_max * pfs_max_digest_length,
-                 unsigned char,
+                 digest_max,
+                 (pfs_max_digest_length * sizeof(unsigned char)),
                  statements_digest_token_array);
 
   statements_digest_stat_array= NULL;
@@ -214,7 +216,7 @@ find_or_create_digest(PFS_thread *thread,
     memcpy(hash_key.m_schema_name, schema_name, schema_name_length);
 
   int res;
-  ulong safe_index;
+  size_t safe_index;
   uint retry_count= 0;
   const uint retry_max= 3;
   PFS_statements_digest_stat **entry;
@@ -325,7 +327,7 @@ void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
   return;
 }
 
-void PFS_statements_digest_stat::reset_data(unsigned char *token_array, uint length)
+void PFS_statements_digest_stat::reset_data(unsigned char *token_array, size_t length)
 {
   m_digest_storage.reset(token_array, length);
   m_stat.reset();
