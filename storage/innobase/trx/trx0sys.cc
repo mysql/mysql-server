@@ -25,8 +25,9 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include "mysqld.h"
 #include "trx0sys.h"
-
+#include "sql_error.h"
 #ifdef UNIV_NONINL
 #include "trx0sys.ic"
 #endif
@@ -93,6 +94,40 @@ static const char*	file_format_name_map[] = {
 /** The number of elements in the file format name array. */
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
+
+/** Check whether transaction id is valid.
+@param[in]	id              transaction id to check
+@param[in]      name            table name */
+void
+ReadView::check_trx_id_sanity(
+	trx_id_t		id,
+	const table_name_t&	name)
+{
+	if (id >= trx_sys->max_trx_id) {
+
+		ib::warn() << "A transaction id"
+			   << " in a record of table "
+			   << name
+			   << " is newer than the"
+			   << " system-wide maximum.";
+		ut_ad(0);
+		THD *thd = current_thd;
+		if (thd != NULL) {
+			char    table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				name.m_name);
+
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
+					    ER_SIGNAL_WARN,
+					    "InnoDB: Transaction id"
+					    " in a record of table"
+					    " %s is newer than system-wide"
+					    " maximum.", table_name);
+		}
+	}
+}
 
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG

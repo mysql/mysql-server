@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -320,14 +320,18 @@ row_vers_impl_x_locked(
 /*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
+@param[in]	trx_id		transaction id in the version
+@param[in]	name		table name
+@param[in,out]	mtr		mini transaction holding the latch on the
+				clustered index record; it will also hold
+				the latch on purge_view
 @return TRUE if earlier version should be preserved */
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
-	trx_id_t	trx_id,	/*!< in: transaction id in the version */
-	mtr_t*		mtr)	/*!< in: mtr holding the latch on the
-				clustered index record; it will also
-				hold the latch on purge_view */
+	trx_id_t		trx_id,
+	const table_name_t&	name,
+	mtr_t*			mtr)
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
@@ -335,7 +339,7 @@ row_vers_must_preserve_del_marked(
 
 	mtr_s_lock(&purge_sys->latch, mtr);
 
-	return(!purge_sys->view.changes_visible(trx_id));
+	return(!purge_sys->view.changes_visible(trx_id,	name));
 }
 
 /*****************************************************************//**
@@ -528,7 +532,7 @@ row_vers_build_for_consistent_read(
 
 	trx_id = row_get_rec_trx_id(rec, index, *offsets);
 
-	ut_ad(!view->changes_visible(trx_id));
+	ut_ad(!view->changes_visible(trx_id, index->table->name));
 
 	version = rec;
 
@@ -566,7 +570,7 @@ row_vers_build_for_consistent_read(
 
 		trx_id = row_get_rec_trx_id(prev_version, index, *offsets);
 
-		if (view->changes_visible(trx_id)) {
+		if (view->changes_visible(trx_id, index->table->name)) {
 
 			/* The view already sees this version: we can copy
 			it to in_heap and return */
