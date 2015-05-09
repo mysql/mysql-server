@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -60,8 +60,8 @@ int init_setup_actor(const PFS_global_param *param)
 
   if (setup_actor_max > 0)
   {
-    setup_actor_array= PFS_MALLOC_ARRAY(setup_actor_max, PFS_setup_actor,
-                                         MYF(MY_ZEROFILL));
+    setup_actor_array= PFS_MALLOC_ARRAY(setup_actor_max, sizeof(PFS_setup_actor),
+                                        PFS_setup_actor, MYF(MY_ZEROFILL));
     if (unlikely(setup_actor_array == NULL))
       return 1;
   }

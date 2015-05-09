@@ -69,8 +69,8 @@ int init_account(const PFS_global_param *param)
 
   if (account_max > 0)
   {
-    account_array= PFS_MALLOC_ARRAY(account_max, PFS_account,
-                                      MYF(MY_ZEROFILL));
+    account_array= PFS_MALLOC_ARRAY(account_max, sizeof(PFS_account), PFS_account,
+                                    MYF(MY_ZEROFILL));
     if (unlikely(account_array == NULL))
       return 1;
   }

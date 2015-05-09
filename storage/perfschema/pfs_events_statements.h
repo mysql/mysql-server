@@ -106,9 +106,9 @@ extern bool flag_events_statements_history_long;
 extern bool events_statements_history_long_full;
 extern volatile uint32 events_statements_history_long_index;
 extern PFS_events_statements *events_statements_history_long_array;
-extern ulong events_statements_history_long_size;
+extern size_t events_statements_history_long_size;
 
-int init_events_statements_history_long(uint events_statements_history_long_sizing);
+int init_events_statements_history_long(size_t events_statements_history_long_sizing);
 void cleanup_events_statements_history_long();
 
 void reset_events_statements_current();

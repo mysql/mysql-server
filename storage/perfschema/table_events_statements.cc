@@ -340,8 +340,8 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
     return;
 
   base= base_name(safe_source_file);
-  m_row.m_source_length= my_snprintf(m_row.m_source, sizeof(m_row.m_source),
-                                     "%s:%d", base, statement->m_source_line);
+  m_row.m_source_length= (uint)my_snprintf(m_row.m_source, sizeof(m_row.m_source),
+                                           "%s:%d", base, statement->m_source_line);
   if (m_row.m_source_length > sizeof(m_row.m_source))
     m_row.m_source_length= sizeof(m_row.m_source);
 
@@ -382,7 +382,7 @@ void table_events_statements_common::make_row_part_2(const sql_digest_storage *d
   /*
     Filling up statement digest information.
   */
-  uint safe_byte_count= digest->m_byte_count;
+  size_t safe_byte_count= digest->m_byte_count;
   if (safe_byte_count > 0 &&
       safe_byte_count <= pfs_max_digest_length)
   {
@@ -519,7 +519,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 19: /* MESSAGE_TEXT */
-        len= strlen(m_row.m_message_text);
+        len= (uint)strlen(m_row.m_message_text);
         if (len)
           set_field_varchar_utf8(f, m_row.m_message_text, len);
         else
@@ -881,7 +881,7 @@ int table_events_statements_history_long::rnd_init(bool scan)
 int table_events_statements_history_long::rnd_next(void)
 {
   PFS_events_statements *statement;
-  uint limit;
+  size_t limit;
 
   if (events_statements_history_long_size == 0)
     return HA_ERR_END_OF_FILE;
@@ -910,7 +910,7 @@ int table_events_statements_history_long::rnd_next(void)
 int table_events_statements_history_long::rnd_pos(const void *pos)
 {
   PFS_events_statements *statement;
-  uint limit;
+  size_t limit;
 
   if (events_statements_history_long_size == 0)
     return HA_ERR_RECORD_DELETED;

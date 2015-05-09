@@ -94,7 +94,7 @@ ulong events_stages_history_per_thread;
 /** Number of EVENTS_STATEMENTS_HISTORY records per thread. */
 ulong events_statements_history_per_thread;
 uint statement_stack_max;
-uint pfs_max_digest_length= 0;
+size_t pfs_max_digest_length= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
@@ -287,56 +287,56 @@ int init_instruments(const PFS_global_param *param)
 
   if (mutex_max > 0)
   {
-    mutex_array= PFS_MALLOC_ARRAY(mutex_max, PFS_mutex, MYF(MY_ZEROFILL));
+    mutex_array= PFS_MALLOC_ARRAY(mutex_max, sizeof(PFS_mutex), PFS_mutex, MYF(MY_ZEROFILL));
     if (unlikely(mutex_array == NULL))
       return 1;
   }
 
   if (rwlock_max > 0)
   {
-    rwlock_array= PFS_MALLOC_ARRAY(rwlock_max, PFS_rwlock, MYF(MY_ZEROFILL));
+    rwlock_array= PFS_MALLOC_ARRAY(rwlock_max, sizeof(PFS_rwlock), PFS_rwlock, MYF(MY_ZEROFILL));
     if (unlikely(rwlock_array == NULL))
       return 1;
   }
 
   if (cond_max > 0)
   {
-    cond_array= PFS_MALLOC_ARRAY(cond_max, PFS_cond, MYF(MY_ZEROFILL));
+    cond_array= PFS_MALLOC_ARRAY(cond_max, sizeof(PFS_cond), PFS_cond, MYF(MY_ZEROFILL));
     if (unlikely(cond_array == NULL))
       return 1;
   }
 
   if (file_max > 0)
   {
-    file_array= PFS_MALLOC_ARRAY(file_max, PFS_file, MYF(MY_ZEROFILL));
+    file_array= PFS_MALLOC_ARRAY(file_max, sizeof(PFS_file), PFS_file, MYF(MY_ZEROFILL));
     if (unlikely(file_array == NULL))
       return 1;
   }
 
   if (file_handle_max > 0)
   {
-    file_handle_array= PFS_MALLOC_ARRAY(file_handle_max, PFS_file*, MYF(MY_ZEROFILL));
+    file_handle_array= PFS_MALLOC_ARRAY(file_handle_max, sizeof(PFS_file*), PFS_file*, MYF(MY_ZEROFILL));
     if (unlikely(file_handle_array == NULL))
       return 1;
   }
 
   if (table_max > 0)
   {
-    table_array= PFS_MALLOC_ARRAY(table_max, PFS_table, MYF(MY_ZEROFILL));
+    table_array= PFS_MALLOC_ARRAY(table_max, sizeof(PFS_table), PFS_table, MYF(MY_ZEROFILL));
     if (unlikely(table_array == NULL))
       return 1;
   }
 
   if (socket_max > 0)
   {
-    socket_array= PFS_MALLOC_ARRAY(socket_max, PFS_socket, MYF(MY_ZEROFILL));
+    socket_array= PFS_MALLOC_ARRAY(socket_max, sizeof(PFS_socket), PFS_socket, MYF(MY_ZEROFILL));
     if (unlikely(socket_array == NULL))
       return 1;
   }
 
   if (thread_max > 0)
   {
-    thread_array= PFS_MALLOC_ARRAY(thread_max, PFS_thread, MYF(MY_ZEROFILL));
+    thread_array= PFS_MALLOC_ARRAY(thread_max, sizeof(PFS_thread), PFS_thread, MYF(MY_ZEROFILL));
     if (unlikely(thread_array == NULL))
       return 1;
   }
@@ -344,7 +344,7 @@ int init_instruments(const PFS_global_param *param)
   if (thread_waits_history_sizing > 0)
   {
     thread_waits_history_array=
-      PFS_MALLOC_ARRAY(thread_waits_history_sizing, PFS_events_waits,
+      PFS_MALLOC_ARRAY(thread_waits_history_sizing, sizeof(PFS_events_waits), PFS_events_waits,
                        MYF(MY_ZEROFILL));
     if (unlikely(thread_waits_history_array == NULL))
       return 1;
@@ -354,7 +354,7 @@ int init_instruments(const PFS_global_param *param)
   {
     thread_instr_class_waits_array=
       PFS_MALLOC_ARRAY(thread_instr_class_waits_sizing,
-                       PFS_single_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_single_stat), PFS_single_stat, MYF(MY_ZEROFILL));
     if (unlikely(thread_instr_class_waits_array == NULL))
       return 1;
 
@@ -365,7 +365,7 @@ int init_instruments(const PFS_global_param *param)
   if (thread_stages_history_sizing > 0)
   {
     thread_stages_history_array=
-      PFS_MALLOC_ARRAY(thread_stages_history_sizing, PFS_events_stages,
+      PFS_MALLOC_ARRAY(thread_stages_history_sizing, sizeof(PFS_events_stages), PFS_events_stages,
                        MYF(MY_ZEROFILL));
     if (unlikely(thread_stages_history_array == NULL))
       return 1;
@@ -375,7 +375,7 @@ int init_instruments(const PFS_global_param *param)
   {
     thread_instr_class_stages_array=
       PFS_MALLOC_ARRAY(thread_instr_class_stages_sizing,
-                       PFS_stage_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_stage_stat), PFS_stage_stat, MYF(MY_ZEROFILL));
     if (unlikely(thread_instr_class_stages_array == NULL))
       return 1;
 
@@ -386,8 +386,8 @@ int init_instruments(const PFS_global_param *param)
   if (thread_statements_history_sizing > 0)
   {
     thread_statements_history_array=
-      PFS_MALLOC_ARRAY(thread_statements_history_sizing, PFS_events_statements,
-                       MYF(MY_ZEROFILL));
+      PFS_MALLOC_ARRAY(thread_statements_history_sizing, sizeof(PFS_events_statements),
+                       PFS_events_statements, MYF(MY_ZEROFILL));
     if (unlikely(thread_statements_history_array == NULL))
       return 1;
   }
@@ -395,8 +395,8 @@ int init_instruments(const PFS_global_param *param)
   if (thread_statements_stack_sizing > 0)
   {
     thread_statements_stack_array=
-      PFS_MALLOC_ARRAY(thread_statements_stack_sizing, PFS_events_statements,
-                       MYF(MY_ZEROFILL));
+      PFS_MALLOC_ARRAY(thread_statements_stack_sizing, sizeof(PFS_events_statements),
+                       PFS_events_statements, MYF(MY_ZEROFILL));
     if (unlikely(thread_statements_stack_array == NULL))
       return 1;
   }
@@ -405,7 +405,7 @@ int init_instruments(const PFS_global_param *param)
   {
     thread_instr_class_statements_array=
       PFS_MALLOC_ARRAY(thread_instr_class_statements_sizing,
-                       PFS_statement_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
     if (unlikely(thread_instr_class_statements_array == NULL))
       return 1;
 
@@ -477,7 +477,7 @@ int init_instruments(const PFS_global_param *param)
   {
     global_instr_class_stages_array=
       PFS_MALLOC_ARRAY(stage_class_max,
-                       PFS_stage_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_stage_stat), PFS_stage_stat, MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_stages_array == NULL))
       return 1;
 
@@ -489,7 +489,7 @@ int init_instruments(const PFS_global_param *param)
   {
     global_instr_class_statements_array=
       PFS_MALLOC_ARRAY(statement_class_max,
-                       PFS_statement_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_statement_stat), PFS_statement_stat, MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_statements_array == NULL))
       return 1;
 

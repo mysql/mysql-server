@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ void *pfs_malloc(size_t size, myf flags)
   DBUG_ASSERT(! pfs_initialized);
   DBUG_ASSERT(size > 0);
 
-  void *ptr;
+  void *ptr= NULL;
 
 #ifdef PFS_ALIGNEMENT
 #ifdef HAVE_POSIX_MEMALIGN
@@ -123,6 +123,40 @@ void pfs_print_error(const char *format, ...)
   vfprintf(stderr, format, args);
   va_end(args);
   fflush(stderr);
+}
+
+/**
+  Array allocation for the performance schema.
+  Checks for overflow of n * size before allocating.
+  @param n  number of array elements
+  @param size  element size
+  @param flags malloc flags
+  @return pointer to memory on success, else NULL
+*/
+void *pfs_malloc_array(size_t n, size_t size, myf flags)
+{
+  DBUG_ASSERT(n > 0);
+  DBUG_ASSERT(size > 0);
+  size_t array_size= n * size;
+  /* Check for overflow before allocating. */
+  if (is_overflow(array_size, n, size))
+    return NULL;
+  return pfs_malloc(array_size, flags);
+}
+
+/**
+  Detect multiplication overflow.
+  @param product  multiplication product
+  @param n1  operand
+  @param n2  operand
+  @return true if multiplication caused an overflow.
+*/
+bool is_overflow(size_t product, size_t n1, size_t n2)
+{
+  if (n1 != 0 && (product / n1 != n2))
+    return true;
+  else
+    return false;
 }
 
 /** Convert raw ip address into readable format. Do not do a reverse DNS lookup. */
