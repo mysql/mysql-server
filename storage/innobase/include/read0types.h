@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Created 2/16/1997 Heikki Tuuri
 #define read0types_h
 
 #include <algorithm>
+#include "dict0mem.h"
 
 #include "trx0types.h"
 
@@ -146,12 +147,20 @@ class ReadView {
 public:
 	ReadView();
 	~ReadView();
+	/** Check whether transaction id is valid.
+	@param[in]	id		transaction id to check
+	@param[in]	name		table name */
+	static void check_trx_id_sanity(
+		trx_id_t		id,
+		const table_name_t&	name);
 
-	/*
-	Check whether the changes by id are visible.
-	@param id		transaction id to check against the view
-	@return true of the view sees the modifications of id. */
-	bool changes_visible(trx_id_t id) const
+	/** Check whether the changes by id are visible.
+	@param[in]	id	transaction id to check against the view
+	@param[in]	name	table name
+	@return whether the view sees the modifications of id. */
+	bool changes_visible(
+		trx_id_t		id,
+		const table_name_t&	name) const
 		__attribute__((warn_unused_result))
 	{
 		ut_ad(id > 0);
@@ -159,8 +168,11 @@ public:
 		if (id < m_up_limit_id || id == m_creator_trx_id) {
 
 			return(true);
+		}
 
-		} else if (id >= m_low_limit_id) {
+		check_trx_id_sanity(id, name);
+
+		if (id >= m_low_limit_id) {
 
 			return(false);
 
