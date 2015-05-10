@@ -1756,7 +1756,7 @@ search:
       pfs->m_key_count= share->keys;
       for (uint index= 0; index < pfs->m_key_count; index++)
       {
-        (void *)pfs->find_or_create_index_stat(share, index);
+        (void)pfs->find_or_create_index_stat(share, index);
       }
     }
     lf_hash_search_unpin(pins);
@@ -1804,7 +1804,7 @@ search:
       /* Create table share index stats. */
       for (uint index= 0; index < pfs->m_key_count; index++)
       {
-        (void *)pfs->find_or_create_index_stat(share, index);
+        (void)pfs->find_or_create_index_stat(share, index);
       }
       return pfs;
     }
