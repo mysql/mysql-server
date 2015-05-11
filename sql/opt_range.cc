@@ -5423,7 +5423,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (!(tree->ror_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      param->keys)))
-    return NULL;
+    DBUG_RETURN(NULL);
   cpk_no= ((param->table->file->primary_key_is_clustered()) ?
            param->table->s->primary_key : MAX_KEY);
 
@@ -5433,7 +5433,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     if (!tree->ror_scans_map.is_set(idx))
       continue;
     if (!(scan= make_ror_scan(param, idx, tree->keys[idx])))
-      return NULL;
+      DBUG_RETURN(NULL);
     if (param->real_keynr[idx] == cpk_no)
     {
       cpk_scan= scan;
@@ -5463,14 +5463,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (!(intersect_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      tree->n_ror_scans)))
-    return NULL;
+    DBUG_RETURN(NULL);
   intersect_scans_end= intersect_scans;
 
   /* Create and incrementally update ROR intersection. */
   ROR_INTERSECT_INFO *intersect, *intersect_best;
   if (!(intersect= ror_intersect_init(param)) || 
       !(intersect_best= ror_intersect_init(param)))
-    return NULL;
+    DBUG_RETURN(NULL);
 
   /* [intersect_scans,intersect_scans_best) will hold the best intersection */
   ROR_SCAN_INFO **intersect_scans_best;

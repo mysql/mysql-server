@@ -3830,7 +3830,7 @@ ha_innopart::check(
 
 	if (set_altered_partitions()) {
 		ut_ad(0);   // Already checked by set_part_state()!
-		return(HA_ADMIN_INVALID);
+		DBUG_RETURN(HA_ADMIN_INVALID);
 	}
 	for (i = m_part_info->get_first_used_partition();
 	     i < m_tot_parts;
@@ -4217,7 +4217,6 @@ ha_innopart::create_new_partition(
 	create_info->data_file_name = data_file_name_backup;
 	if (error == HA_ERR_FOUND_DUPP_KEY) {
 		DBUG_RETURN(HA_ERR_TABLE_EXIST);
-		error = HA_ERR_TABLE_EXIST;
 	}
 	if (error != 0) {
 		DBUG_RETURN(error);

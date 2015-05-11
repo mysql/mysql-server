@@ -2165,11 +2165,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
   if (other)  
   {
     if (!((explain_result= new Query_result_send(ethd))))
-      return true; /* purecov: inspected */
+      DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||
         explain_result->prepare2())
-      return true; /* purecov: inspected */
+      DBUG_RETURN(true); /* purecov: inspected */
   }
   else
   {

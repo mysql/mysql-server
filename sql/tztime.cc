@@ -1,4 +1,5 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2107,7 +2108,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
                                        tz_name->length() + 1)))
   {
     sql_print_error("Out of memory while loading time zone description");
-    return 0;
+    DBUG_RETURN(0);
   }
 
   /* Move the temporary tz_info into the allocated area */
