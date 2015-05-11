@@ -3402,11 +3402,16 @@ dict_load_foreign(
 		here.  The child table will be loaded later, along with its
 		foreign key constraint. */
 
+		lint	old_size = mem_heap_get_size(ref_table->heap);
+
 		ut_a(ref_table != NULL);
 		fk_tables.push_back(
 			mem_heap_strdupl(ref_table->heap,
 					 foreign->foreign_table_name_lookup,
 					 foreign_table_name_len));
+
+		lint	new_size = mem_heap_get_size(ref_table->heap);
+		dict_sys->size += new_size - old_size;
 
 		dict_foreign_remove_from_cache(foreign);
 		DBUG_RETURN(DB_SUCCESS);

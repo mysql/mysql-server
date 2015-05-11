@@ -1957,7 +1957,7 @@ dict_table_remove_from_cache_low(
 {
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
-	ulint		size;
+	lint		size;
 
 	ut_ad(table);
 	ut_ad(dict_lru_validate());
@@ -2730,7 +2730,7 @@ dict_index_remove_from_cache_low(
 	ibool		lru_evict)	/*!< in: TRUE if index being evicted
 					to make room in the table LRU list */
 {
-	ulint		size;
+	lint		size;
 	ulint		retries = 0;
 	btr_search_t*	info;
 
@@ -2803,6 +2803,7 @@ dict_index_remove_from_cache_low(
 
 	size = mem_heap_get_size(index->heap);
 
+	ut_ad(!dict_table_is_intrinsic(table));
 	ut_ad(dict_sys->size >= size);
 
 	dict_sys->size -= size;
@@ -6342,6 +6343,8 @@ dict_close(void)
 	rw_lock_free(&dict_operation_lock);
 
 	mutex_free(&dict_foreign_err_mutex);
+
+	ut_ad(dict_sys->size == 0);
 
 	ut_free(dict_sys);
 	dict_sys = NULL;
