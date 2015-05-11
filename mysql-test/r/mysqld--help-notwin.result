@@ -519,6 +519,9 @@ The following options may be given as the first argument:
  value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
+ --max-statement-time=# 
+ Kill SELECT statement that takes over the specified
+ number of milliseconds
  --max-tmp-tables=#  Maximum number of temporary tables a client can keep open
  at a time
  --max-user-connections=# 
@@ -1332,6 +1335,7 @@ max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
 max-sort-length 1024
 max-sp-recursion-depth 0
+max-statement-time 0
 max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
