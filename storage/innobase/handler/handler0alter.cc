@@ -6901,15 +6901,13 @@ foreign_fail:
 	the MDL downgrade. */
 
 #ifndef DBUG_OFF
-	m_prebuilt = ctx0->prebuilt;
 	dict_index_t* clust_index = dict_table_get_first_index(
-		m_prebuilt->table);
+		ctx0->prebuilt->table);
 	DBUG_ASSERT(!clust_index->online_log);
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
 		    == ONLINE_INDEX_COMPLETE);
 
-	for (dict_index_t* index = dict_table_get_first_index(
-		     m_prebuilt->table);
+	for (dict_index_t* index = clust_index;
 	     index;
 	     index = dict_table_get_next_index(index)) {
 		DBUG_ASSERT(!index->to_be_dropped);
