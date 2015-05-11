@@ -110,7 +110,6 @@
  *            Manifest constants which may be "tuned" if desired.
  */
 
-#define PRINTBUF              1024    /* Print buffer size */
 #define INDENT                2       /* Indentation per trace level */
 #define MAXDEPTH              200     /* Maximum trace depth default */
 
@@ -145,41 +144,6 @@
  */
 
 #define BOOLEAN my_bool
-
-/*
- *      Make it easy to change storage classes if necessary.
- */
-
-#define IMPORT extern           /* Names defined externally */
-#define EXPORT                  /* Allocated here, available globally */
-
-/*
- * The default file for profiling.  Could also add another flag
- * (G?) which allowed the user to specify this.
- *
- * If the automatic variables get allocated on the stack in
- * reverse order from their declarations, then define AUTOS_REVERSE to 1.
- * This is used by the code that keeps track of stack usage.  For
- * forward allocation, the difference in the dbug frame pointers
- * represents stack used by the callee function.  For reverse allocation,
- * the difference represents stack used by the caller function.
- *
- */
-
-#define PROF_FILE       "dbugmon.out"
-#define PROF_EFMT       "E\t%ld\t%s\n"
-#define PROF_SFMT       "S\t%lx\t%lx\t%s\n"
-#define PROF_XFMT       "X\t%ld\t%s\n"
-
-#ifdef M_I386           /* predefined by xenix 386 compiler */
-#define AUTOS_REVERSE 1
-#else
-#define AUTOS_REVERSE 0
-#endif
-
-/*
- *      Externally supplied functions.
- */
 
 /*
  *      The user may specify a list of functions to trace or
@@ -312,7 +276,7 @@ static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
 static void Indent(CODE_STATE *cs, int indent);
 static void DbugFlush(CODE_STATE *);
-static void DbugExit(const char *why);
+static void DbugExit(const char *why) __attribute__((noreturn));
 static const char *DbugStrTok(const char *s);
 static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
@@ -2355,6 +2319,7 @@ void _db_suicide_()
   retval= sigsuspend(&new_mask);
   fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
   assert(FALSE); /* With full signal mask, we should never return here. */
+  DBUG_ABORT();
 }
 #endif  /* ! _WIN32 */
 

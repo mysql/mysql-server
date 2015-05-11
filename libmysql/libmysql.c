@@ -59,27 +59,6 @@
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
 
-
-#ifdef EMBEDDED_LIBRARY
-#undef net_flush
-my_bool	net_flush(NET *net);
-#endif
-
-#if defined(_WIN32)
-/* socket_errno is defined in my_global.h for all platforms */
-#define perror(A)
-#else
-#include <errno.h>
-#define SOCKET_ERROR -1
-#endif /* _WIN32 */
-
-/*
-  If allowed through some configuration, then this needs to
-  be changed
-*/
-#define MAX_LONG_DATA_LENGTH 8192
-#define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
-
 static void append_wild(char *to,char *end,const char *wild);
 
 static my_bool mysql_client_init= 0;

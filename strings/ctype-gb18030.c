@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21262,6 +21262,7 @@ my_wc_mb_gb18030_chs(const CHARSET_INFO *cs  __attribute__((unused)),
   uint idx= 0;
   uint len;
   uint16 cp= 0;
+  uint err;
 
   if (s >= e)
     return MY_CS_TOOSMALL;
@@ -21335,7 +21336,6 @@ my_wc_mb_gb18030_chs(const CHARSET_INFO *cs  __attribute__((unused)),
 
   switch (len)
   {
-    uint err;
     case 2:
       if (s + 2 > e)
         return MY_CS_TOOSMALL2;
@@ -21511,12 +21511,12 @@ static const MY_UNICASE_CHARACTER*
 get_case_info(const CHARSET_INFO *cs, const uchar *src, size_t srclen)
 {
   const MY_UNICASE_CHARACTER *p= NULL;
+  uint diff, code;
 
   DBUG_ASSERT(cs != NULL);
 
   switch (srclen)
   {
-    uint diff, code;
     case 1:
       return &cs->caseinfo->page[0][(uchar) src[0]];
     case 2:
@@ -22210,7 +22210,7 @@ my_wildcmp_gb18030_impl(const CHARSET_INFO *cs,
 {
   int result= -1;                      /* Not found, using wildcards */
   size_t s_gb, w_gb;
-  size_t s_len, w_len;
+  size_t s_len= 0, w_len;
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level))
     return 1;

@@ -5848,7 +5848,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
 int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
-  int exit_code, md_result_fd;
+  int exit_code, md_result_fd= 0;
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;

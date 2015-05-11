@@ -1078,11 +1078,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
   case 'V':
     print_version();
     exit(0);
-    break;
   case '?':
     usage();
     exit(0);
-    break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;

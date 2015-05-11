@@ -38,11 +38,6 @@
 
 #ifdef HAVE_UCA_COLLATIONS
 
-#define MY_UCA_NPAGES 256
-#define MY_UCA_NCHARS 256
-#define MY_UCA_CMASK  255
-#define MY_UCA_PSHIFT 8
-
 uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -6559,7 +6554,6 @@ MY_UCA_INFO my_uca_v400=
 
 /******************************************************/
 
-#define MY_UCA_CMASK  255
 #define MY_UCA_PSHIFT 8
 
 
@@ -19490,9 +19484,6 @@ static uint16 nochar[]= {0,0};
 #define MY_UCA_CNT_HEAD  1
 #define MY_UCA_CNT_TAIL  2
 #define MY_UCA_CNT_MID1  4
-#define MY_UCA_CNT_MID2  8
-#define MY_UCA_CNT_MID3  16
-#define MY_UCA_CNT_MID4  32
 
 #define MY_UCA_PREVIOUS_CONTEXT_HEAD 64
 #define MY_UCA_PREVIOUS_CONTEXT_TAIL 128

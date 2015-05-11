@@ -126,7 +126,6 @@ typedef longlong      dec2;
 #define DIG_MASK     100000000
 #define DIG_BASE     1000000000
 #define DIG_MAX      (DIG_BASE-1)
-#define DIG_BASE2    ((dec2)DIG_BASE * (dec2)DIG_BASE)
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};

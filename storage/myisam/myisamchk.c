@@ -128,7 +128,6 @@ int main(int argc, char **argv)
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
-  return 0;				/* No compiler warning */
 } /* main */
 
 enum options_mc {

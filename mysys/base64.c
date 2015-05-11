@@ -268,7 +268,6 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
   case 1:
     decoder->src--;
     return TRUE; /* base64 character expected */
-    break;
 
   case 2:
   case 3:

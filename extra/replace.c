@@ -142,7 +142,6 @@ int main(int argc, char *argv[])
   free_buffer();
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error ? 2 : 0);
-  return 0;					/* No compiler warning */
 } /* main */
 
 

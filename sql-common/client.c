@@ -53,9 +53,6 @@
 
 #define CLI_MYSQL_REAL_CONNECT STDCALL cli_mysql_real_connect
 
-#undef net_flush
-my_bool	net_flush(NET *net);
-
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT STDCALL mysql_real_connect
 #endif /*EMBEDDED_LIBRARY*/
@@ -1685,6 +1682,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
                   (STR), MYF(MY_WME)) : NULL;                    \
     } while (0)
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SET_OPTION(opt_var,arg) \
   do { \
     if (mysql->options.opt_var) \
@@ -1693,7 +1691,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   } while (0)
 
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SET_SSL_OPTION(opt_var,arg) \
   do { \
     SET_OPTION(opt_var, arg); \
@@ -3528,9 +3525,8 @@ error:
 
 #else
   (void)mysql; /* avoid warning */
-
-#endif /* HAVE_OPENSSL */
   return 0;
+#endif /* HAVE_OPENSSL */
 }
 
 

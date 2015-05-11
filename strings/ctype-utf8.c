@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -29,11 +29,7 @@
 
 #define IS_CONTINUATION_BYTE(c) (((c) ^ 0x80) < 0x40)
 
-#define MY_UTF8MB3_GENERAL_CI MY_UTF8MB3 "_general_ci"
-#define MY_UTF8MB3_GENERAL_CS MY_UTF8MB3 "_general_cs"
-#define MY_UTF8MB3_BIN        MY_UTF8MB3 "_bin"
 #define MY_UTF8MB4_GENERAL_CI MY_UTF8MB4 "_general_ci"
-#define MY_UTF8MB4_GENERAL_CS MY_UTF8MB4 "_general_cs"
 #define MY_UTF8MB4_BIN        MY_UTF8MB4 "_bin"
 
 

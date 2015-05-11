@@ -56,10 +56,8 @@ struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
   Macros for manipulating trace_info structure.
 */
 #define GET_DATA(TI)      (TI)->trace_plugin_data
-#define SET_DATA(TI,D)    GET_DATA(TI) = (D)
 #define GET_STAGE(TI)     (TI)->stage
 #define TEST_STAGE(TI,X)  (GET_STAGE(TI) == PROTOCOL_STAGE_ ## X)
-#define SET_STAGE(TI,X)   GET_STAGE(TI) = PROTOCOL_STAGE_ ## X
 
 
 /**
