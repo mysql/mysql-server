@@ -1,5 +1,9 @@
+--source include/count_sessions.inc
+
 --echo #
---echo # Test of MyISAM MRG tables with corrupted children.
+--echo # Tests for corrupted MyISAM tables and MyISAMMRG tables with corrupted
+--echo # children..
+--echo #
 --echo # Run with --myisam-recover=force option.
 --echo #
 --echo # Preparation: we need to make sure that the merge parent
@@ -17,7 +21,7 @@ connection con1;
 --echo #
 # MERGE tables require MyISAM tables
 --source include/no_valgrind_without_big.inc
---source include/have_myisam.inc 
+--source include/have_myisam.inc
 
 call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");
 call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
@@ -62,10 +66,10 @@ eval $lock;
 --echo #
 connection default;
 --echo #
---echo # We have to disable the ps-protocol, to avoid 
+--echo # We have to disable the ps-protocol, to avoid
 --echo # "Prepared statement needs to be re-prepared" errors
 --echo # -- table def versions change all the time with full table cache.
---echo # 
+--echo #
 --disable_ps_protocol
 --disable_warnings
 drop table if exists t1, t1_mrg, t1_copy;
@@ -74,12 +78,12 @@ let $MYSQLD_DATADIR=`select @@datadir`;
 --echo #
 --echo # Prepare a MERGE engine table, that refers to a corrupted
 --echo # child.
---echo # 
+--echo #
 create table t1 (a int, key(a)) engine=myisam;
 create table t1_mrg (a int) union (t1) engine=merge;
 --echo #
 --echo # Create a table with a corrupted index file:
---echo # save an old index file, insert more rows, 
+--echo # save an old index file, insert more rows,
 --echo # overwrite the new index file with the old one.
 --echo #
 insert into  t1 (a) values (1), (2), (3);
@@ -116,3 +120,64 @@ set @@global.table_open_cache=@start_table_open_cache;
 disconnect con1;
 connection default;
 --enable_ps_protocol
+
+--echo #
+--echo # 18075170 - sql node restart required to avoid deadlock after
+--echo #            restore
+--echo #
+--echo # Check that auto-repair for MyISAM tables can now happen in the
+--echo # middle of transaction, without aborting it.
+
+connection default;
+
+create table t1 (a int, key(a)) engine=myisam;
+create table t2 (a int);
+insert into t2 values (1);
+
+--echo # Create a table with a corrupted index file:
+--echo # save an old index file, insert more rows,
+--echo # overwrite the new index file with the old one.
+insert into  t1 (a) values (1);
+flush table t1;
+--copy_file $MYSQLD_DATADIR/test/t1.MYI $MYSQLD_DATADIR/test/t1_copy.MYI
+insert into  t1 (a) values (4);
+flush table t1;
+--remove_file $MYSQLD_DATADIR/test/t1.MYI
+--copy_file $MYSQLD_DATADIR/test/t1_copy.MYI $MYSQLD_DATADIR/test/t1.MYI
+--remove_file $MYSQLD_DATADIR/test/t1_copy.MYI
+
+--echo # Check table is needed to mark the table as crashed.
+check table t1;
+
+--echo # At this point we have a corrupt t1
+set autocommit = 0;
+select * from t2;
+--echo # Without fix select from t1 will break the transaction. After the fix
+--echo # transaction should be active and should hold lock on table t2. Alter
+--echo # table from con2 will wait only if the transaction is not broken.
+select * from t1;
+
+connect(con2, localhost, root);
+--SEND ALTER TABLE t2 ADD val INT
+
+connection default;
+--echo # With fix we should have alter table waiting for t2 lock here.
+let $wait_condition=
+  SELECT count(*) = 1 FROM information_schema.processlist WHERE state
+  LIKE "Waiting%" AND info = "ALTER TABLE t2 ADD val INT";
+
+--source include/wait_condition.inc
+ROLLBACK;
+SET autocommit = 1;
+
+connection con2;
+--REAP
+
+connection default;
+disconnect con2;
+
+--echo # Cleanup
+drop table t1, t2;
+
+# Wait till all disconnects are completed
+-- source include/wait_until_count_sessions.inc
