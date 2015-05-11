@@ -1053,7 +1053,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   /* we should not free mpvio->user here: it's saved by dispatch_command() */
   if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
                                                user_buff, user_len, MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
   mpvio->auth_info.user_name_length= user_len;
 
   if (make_lex_string_root(mpvio->mem_root, 
@@ -1094,7 +1094,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
                                 mpvio->charset_adapter->charset()))
-    return MY_TEST(packet_error);
+    DBUG_RETURN(MY_TEST(packet_error));
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /* 

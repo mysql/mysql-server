@@ -910,7 +910,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       (void) fprintf(stderr,
 		   "MyISAM-table '%s' is not fixed because of errors\n",
 	      filename);
-      return(-1);
+      DBUG_RETURN(-1);
     }
     recreate=1;
     if (!(param->testflag & T_REP_ANY))
