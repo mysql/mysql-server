@@ -441,20 +441,11 @@ int main(int argc, char *argv[])
     goto end;
   }
 
-  if (!dir_string.normalize_path())
+  if (!dir_string.normalize_path() || !dir_string.exists())
   {
     error << "Failed to access directory pointed by --datadir. "
           << "Please make sure that directory exists and is "
           << "accessible by mysql_ssl_rsa_setup. Supplied value : "
-          << dir_string.to_str() << endl;
-    ret_val= 1;
-    goto end;
-  }
-
-  if (!dir_string.exists())
-  {
-    error << "Invalid directory path specified. "
-          << "Failed to normalize the argument for --datadir: "
           << dir_string.to_str() << endl;
     ret_val= 1;
     goto end;
