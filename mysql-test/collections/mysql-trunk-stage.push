@@ -17,6 +17,7 @@ perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size
 
 # Run with innodb_undo_tablespace > 1
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_undo_logs=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
 
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl
