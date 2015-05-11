@@ -375,3 +375,10 @@ SELECT * from t1;
 c1
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Bug#20819189: Assert if .frm exists but no partitioned InnoDB table
+#
+CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
+SELECT * FROM t2;
+ERROR HY000: Got error 122 from storage engine
+DROP TABLE t1;
