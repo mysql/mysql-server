@@ -26,7 +26,7 @@ void test_digest_length_overflow()
 {
   if (sizeof(size_t) != 4)
   {
-    ok(true, "digest length overflow requires a 32-bit environment");
+    skip(3, "digest length overflow requires a 32-bit environment");
     return;
   }
   
@@ -66,6 +66,6 @@ int main(int, char **)
   plan(2);
   MY_INIT("pfs_misc-t");
   do_all_tests();
-  return 0;
+  return exit_status();
 }
 
