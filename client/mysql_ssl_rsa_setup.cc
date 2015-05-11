@@ -651,5 +651,5 @@ int main(int argc, char *argv[])
 end:
   free_resources();
 
-  return ret_val;
+  DBUG_RETURN(ret_val);
 }
