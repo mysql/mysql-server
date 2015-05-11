@@ -10002,7 +10002,8 @@ bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
-  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0 ||
+      mysql_bin_log.is_open() == false)
     DBUG_RETURN(true);
 
   DBUG_PRINT("info",
@@ -10061,7 +10062,8 @@ THD::is_dml_gtid_compatible(bool some_transactional_table,
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
-  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0 ||
+      mysql_bin_log.is_open() == false)
     DBUG_RETURN(true);
 
   /*
