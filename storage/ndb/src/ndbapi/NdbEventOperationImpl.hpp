@@ -500,11 +500,12 @@ private:
 
 class EventBufferManager {
 public:
-  EventBufferManager();
+  EventBufferManager(const Ndb* const m_ndb);
   ~EventBufferManager() {};
 
 private:
 
+  const Ndb* const m_ndb;
   /* Last epoch that will be buffered completely before
    * the beginning of a gap.
    */
