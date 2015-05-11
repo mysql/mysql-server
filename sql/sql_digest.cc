@@ -224,6 +224,7 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
     /* All identifiers are printed with their name. */
     case IDENT:
     case IDENT_QUOTED:
+    case TOK_IDENT:
       {
         char *id_ptr= NULL;
         int id_len= 0;
@@ -259,13 +260,10 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
           break;
         }
         /* Copy the converted identifier into the digest string. */
-        if (tok == IDENT_QUOTED)
-          digest_output->append("`", 1);
+        digest_output->append("`", 1);
         if (id_length > 0)
           digest_output->append(id_string, (uint)id_length);
-        if (tok == IDENT_QUOTED)
-          digest_output->append("`", 1);
-        digest_output->append(" ", 1);
+        digest_output->append("` ", 2);
       }
       break;
 
@@ -575,6 +573,15 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
       char *yytext= lex_token->lex_str.str;
       size_t yylen= lex_token->lex_str.length;
 
+      /*
+        REDUCE:
+          TOK_IDENT := IDENT | IDENT_QUOTED
+        The parser gives IDENT or IDENT_TOKEN for the same text,
+        depending on the character set used.
+        We unify both to always print the same digest text,
+        and always have the same digest hash.
+      */
+      token= TOK_IDENT;
       /* Add this token and identifier string to digest storage. */
       store_token_identifier(digest_storage, token, yylen, yytext);
 
