@@ -899,7 +899,7 @@ trx_purge_mark_undo_for_truncate(
 	   is being truncated server can continue to operate.
 	b. At-least 2 UNDO redo rseg/undo logs (besides the default rseg-0)
 	b. At-least 1 UNDO tablespace size > threshold. */
-	if (srv_undo_tablespaces_open < 2
+	if (srv_undo_tablespaces_active < 2
 	    || (srv_undo_logs < (1 + srv_tmp_undo_logs + 2))) {
 		return;
 	}
@@ -908,7 +908,7 @@ trx_purge_mark_undo_for_truncate(
 	of last selected UNDO tablespace for truncate. */
 	ulint space_id = undo_trunc->get_scan_start();
 
-	for (ulint i = 1; i <= srv_undo_tablespaces_open; i++) {
+	for (ulint i = 1; i <= srv_undo_tablespaces_active; i++) {
 
 		if (fil_space_get_size(space_id)
 		    > (srv_max_undo_log_size / srv_page_size)) {
@@ -918,7 +918,7 @@ trx_purge_mark_undo_for_truncate(
 			break;
 		}
 
-		space_id = ((space_id + 1) % (srv_undo_tablespaces_open + 1));
+		space_id = ((space_id + 1) % (srv_undo_tablespaces_active + 1));
 		if (space_id == 0) {
 			/* Note: UNDO tablespace ids starts from 1. */
 			++space_id;
@@ -1223,7 +1223,7 @@ trx_purge_truncate_history(
 	/* UNDO tablespace truncate. We will try to truncate as much as we
 	can (greedy approach). This will ensure when the server is idle we
 	try and truncate all the UNDO tablespaces. */
-	ulint	nchances = srv_undo_tablespaces_open;
+	ulint	nchances = srv_undo_tablespaces_active;
 	for (i = 0; i < nchances; i++) {
 		trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
 		trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);

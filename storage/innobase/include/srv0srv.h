@@ -229,6 +229,11 @@ extern ulong	srv_undo_tablespaces;
 /** The number of UNDO tablespaces that are open and ready to use. */
 extern ulint	srv_undo_tablespaces_open;
 
+/** The number of UNDO tablespaces that are active (hosting some rollback
+segment). It is quite possible that some of the tablespaces doesn't host
+any of the rollback-segment based on configuration used. */
+extern ulint	srv_undo_tablespaces_active;
+
 /** The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
