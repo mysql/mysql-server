@@ -299,3 +299,14 @@ SELECT * from t1;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+--echo #
+--echo # Bug#20819189: Assert if .frm exists but no partitioned InnoDB table
+--echo #
+CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
+--copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t2.frm
+--error ER_GET_ERRNO
+SELECT * FROM t2;
+--remove_file $MYSQLD_DATADIR/test/t2.frm
+DROP TABLE t1;
+

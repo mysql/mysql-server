@@ -230,9 +230,9 @@ Ha_innopart_share::open_table_parts(
 	}
 	ut_ad(m_ref_count == 1);
 	m_tot_parts = part_info->get_tot_partitions();
-	m_table_parts = static_cast<dict_table_t**>
-			(ut_malloc(sizeof(dict_table_t*) * m_tot_parts,
-				mem_key_partitioning));
+	size_t	table_parts_size = sizeof(dict_table_t*) * m_tot_parts;
+	m_table_parts = static_cast<dict_table_t**>(
+		ut_zalloc(table_parts_size, mem_key_partitioning));
 	if (m_table_parts == NULL) {
 		m_ref_count--;
 		return(true);
@@ -293,19 +293,18 @@ Ha_innopart_share::open_table_parts(
 	}
 
 	if (mysql_num_index != 0) {
-		m_index_mapping =
-			static_cast<dict_index_t**>
-			(ut_malloc(mysql_num_index * m_tot_parts
-					* sizeof(dict_index_t*),
-				   mem_key_partitioning));
+		size_t	alloc_size = mysql_num_index * m_tot_parts
+			* sizeof(*m_index_mapping);
+		m_index_mapping = static_cast<dict_index_t**>(
+			ut_zalloc(alloc_size, mem_key_partitioning));
 		if (m_index_mapping == NULL) {
 
 			/* Report an error if index_mapping continues to be
 			NULL and mysql_num_index is a non-zero value. */
 
 			ib::error() << "Failed to allocate memory for"
-				<< " index translation table. Number of"
-				<< " Index:" << mysql_num_index;
+				" index translation table. Number of"
+				" Index:" << mysql_num_index;
 			goto err;
 		}
 	}
@@ -329,7 +328,7 @@ Ha_innopart_share::open_table_parts(
 				ib::error() << "Cannot find index `"
 					<< part_info->table->key_info[idx].name
 					<< "` in InnoDB index dictionary"
-					<< " partition `"
+					" partition `"
 					<< get_partition_name(part) << "`.";
 				index_loaded = false;
 				break;
@@ -344,7 +343,7 @@ Ha_innopart_share::open_table_parts(
 				ib::error() << "Found index `"
 					<< part_info->table->key_info[idx].name
 					<< "` whose column info does not match"
-					<< " that of MySQL.";
+					" that of MySQL.";
 				index_loaded = false;
 				break;
 			}
@@ -487,26 +486,38 @@ Ha_innopart_share::get_mysql_key(
 	return(UINT_MAX);
 }
 
-/** Helper function for updating bit in bitmap.
+/** Helper function for set bit in bitmap.
 @param[in,out]	buf	Bitmap buffer to update bit in.
-@param[in]	bit_pos	Bit number (index starts at 0).
-@param[in]	val	Value to set (true - 0x1, false - 0x0). */
+@param[in]	bit_pos	Bit number (index starts at 0). */
 static
 inline
 void
-update_bit(
+set_bit(
 	byte*	buf,
-	size_t	pos,
-	bool	val)
+	size_t	pos)
 {
-	unsigned int	b = (val ? 0x1 : 0x0);
-	buf[pos/8] &= ~(0x1 << (pos & 0x7)) | (b << (pos & 0x7));
+	buf[pos/8] |= (0x1 << (pos & 0x7));
 }
 
-/** Helper function for updating bit in bitmap.
+/** Helper function for clear bit in bitmap.
 @param[in,out]	buf	Bitmap buffer to update bit in.
+@param[in]	bit_pos	Bit number (index starts at 0). */
+static
+inline
+void
+clear_bit(
+	byte*	buf,
+	size_t	pos)
+{
+	buf[pos/8] &= ~(0x1 << (pos & 0x7));
+}
+
+/** Helper function for get bit in bitmap.
+@param[in,out]	buf	Bitmap buffer.
 @param[in]	bit_pos	Bit number (index starts at 0).
-@param[in]	val	Value to set (true - 0x1, false - 0x0). */
+@return	byte set to 0x0 or 0x1.
+@retval	0x0 bit not set.
+@retval	0x1 bet set. */
 static
 inline
 byte
@@ -567,8 +578,7 @@ public:
 	{
 		ut_ad(m_new_table_parts[new_part_id] == NULL);
 		m_new_table_parts[new_part_id] = part;
-		ut_ad(get_bit(m_sql_stat_start, new_part_id) == 0x1);
-		update_bit(m_sql_stat_start, new_part_id, true);
+		set_bit(m_sql_stat_start, new_part_id);
 	}
 
 	/** Get lower level InnoDB table for partition.
@@ -612,8 +622,9 @@ public:
 		ut_ad(m_new_table_parts[new_part_id] == prebuilt->table);
 		m_ins_nodes[new_part_id] = prebuilt->ins_node;
 		m_trx_ids[new_part_id] = prebuilt->trx_id;
-		update_bit(m_sql_stat_start, new_part_id,
-			prebuilt->sql_stat_start == 0 ? false : true);
+		if (prebuilt->sql_stat_start == 0) {
+			clear_bit(m_sql_stat_start, new_part_id);
+		}
 	}
 };
 
@@ -674,25 +685,24 @@ Altered_partitions::initialize()
 {
 	size_t	alloc_size = sizeof(*m_new_table_parts) * m_num_new_parts;
 	m_new_table_parts = static_cast<dict_table_t**>(
-				ut_malloc(alloc_size, mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
 	if (m_new_table_parts == NULL) {
 		return(true);
 	}
-	memset(m_new_table_parts, 0, alloc_size);
 
 	alloc_size = sizeof(*m_ins_nodes) * m_num_new_parts;
 	m_ins_nodes = static_cast<ins_node_t**>(
-				ut_malloc(alloc_size, mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
 	if (m_ins_nodes == NULL) {
 		ut_free(m_new_table_parts);
 		m_new_table_parts = NULL;
 		return(true);
 	}
-	memset(m_ins_nodes, 0, alloc_size);
 
-	alloc_size = sizeof(*m_sql_stat_start) * (m_num_new_parts + 7) / 8;
+	alloc_size = sizeof(*m_sql_stat_start)
+		* UT_BITS_IN_BYTES(m_num_new_parts);
 	m_sql_stat_start = static_cast<byte*>(
-				ut_malloc(alloc_size, mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
 	if (m_sql_stat_start == NULL) {
 		ut_free(m_new_table_parts);
 		m_new_table_parts = NULL;
@@ -700,11 +710,10 @@ Altered_partitions::initialize()
 		m_ins_nodes = NULL;
 		return(true);
 	}
-	memset(m_sql_stat_start, 0xff, alloc_size);
 
 	alloc_size = sizeof(*m_trx_ids) * m_num_new_parts;
 	m_trx_ids = static_cast<trx_id_t*>(
-				ut_malloc(alloc_size, mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
 	if (m_trx_ids == NULL) {
 		ut_free(m_new_table_parts);
 		m_new_table_parts = NULL;
@@ -1071,7 +1080,7 @@ share_error:
 			table_name.m_name = const_cast<char*>(name);
 			ib::error() << "Table " << table_name
 				<< " has a primary key in InnoDB data"
-				<< " dictionary, but not in MySQL!";
+				" dictionary, but not in MySQL!";
 
 			/* This mismatch could cause further problems
 			if not attended, bring this to the user's attention
@@ -1139,14 +1148,14 @@ share_error:
 			table_name.m_name = const_cast<char*>(name);
 			ib::error() << "Table " << table_name
 				<< " has no primary key in InnoDB data"
-				<< " dictionary, but has one in MySQL! If you"
-				<< " created the table with a MySQL version <"
-				<< " 3.23.54 and did not define a primary key,"
-				<< " but defined a unique key with all non-NULL"
-				<< " columns, then MySQL internally treats that"
-				<< " key as the primary key. You can fix this"
-				<< " error by dump + DROP + CREATE + reimport"
-				<< " of the table.";
+				" dictionary, but has one in MySQL! If you"
+				" created the table with a MySQL version <"
+				" 3.23.54 and did not define a primary key,"
+				" but defined a unique key with all non-NULL"
+				" columns, then MySQL internally treats that"
+				" key as the primary key. You can fix this"
+				" error by dump + DROP + CREATE + reimport"
+				" of the table.";
 
 			/* This mismatch could cause further problems
 			if not attended, bring this to the user attention
@@ -1180,7 +1189,7 @@ share_error:
 			ib::warn() << "Table " << table_name
 				<< " key_used_on_scan is "
 				<< key_used_on_scan << " even though there is"
-				<< " no primary key inside InnoDB.";
+				" no primary key inside InnoDB.";
 		}
 	}
 
@@ -1236,28 +1245,27 @@ share_error:
 	}
 #endif /* HA_INNOPART_SUPPORTS_FULLTEXT */
 
+	size_t	alloc_size = sizeof(*m_ins_node_parts) * m_tot_parts;
 	m_ins_node_parts = static_cast<ins_node_t**>(
-				ut_malloc(sizeof(*m_ins_node_parts)
-					    * m_tot_parts,
-					  mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
+
+	alloc_size = sizeof(*m_upd_node_parts) * m_tot_parts;
 	m_upd_node_parts = static_cast<upd_node_t**>(
-				ut_malloc(sizeof(*m_upd_node_parts)
-					    * m_tot_parts,
-					  mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
 
 	alloc_blob_heap_array();
 
+	alloc_size = sizeof(*m_trx_id_parts) * m_tot_parts;
 	m_trx_id_parts = static_cast<trx_id_t*>(
-				ut_malloc(sizeof(*m_trx_id_parts)
-					    * m_tot_parts,
-					  mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
+
+	alloc_size = sizeof(*m_row_read_type_parts) * m_tot_parts;
 	m_row_read_type_parts = static_cast<ulint*>(
-				ut_malloc(sizeof(*m_row_read_type_parts)
-					    * m_tot_parts,
-					  mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
+
+	alloc_size = UT_BITS_IN_BYTES(m_tot_parts);
 	m_sql_stat_start_parts = static_cast<uchar*>(
-				ut_malloc((m_tot_parts + 7) / 8,
-					  mem_key_partitioning));
+		ut_zalloc(alloc_size, mem_key_partitioning));
 	if (m_ins_node_parts == NULL
 	    || m_upd_node_parts == NULL
 	    || m_blob_heap_parts == NULL
@@ -1267,13 +1275,6 @@ share_error:
 		close();  // Frees all the above.
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
-	memset(m_ins_node_parts, 0, sizeof(*m_ins_node_parts) * m_tot_parts);
-	memset(m_upd_node_parts, 0, sizeof(*m_upd_node_parts) * m_tot_parts);
-	memset(m_trx_id_parts, 0, sizeof(*m_trx_id_parts) * m_tot_parts);
-	memset(m_row_read_type_parts, 0,
-		sizeof(*m_row_read_type_parts) * m_tot_parts);
-	memset(m_sql_stat_start_parts, 0,
-		sizeof(*m_sql_stat_start_parts) * (m_tot_parts + 7) / 8);
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
@@ -1504,8 +1505,9 @@ ha_innopart::update_partition(
 
 	m_trx_id_parts[part_id] = m_prebuilt->trx_id;
 	m_row_read_type_parts[part_id] = m_prebuilt->row_read_type;
-	update_bit(m_sql_stat_start_parts, part_id,
-			m_prebuilt->sql_stat_start == 0 ? false : true);
+	if (m_prebuilt->sql_stat_start == 0) {
+		clear_bit(m_sql_stat_start_parts, part_id);
+	}
 	m_last_part = part_id;
 	DBUG_VOID_RETURN;
 }
@@ -1768,8 +1770,8 @@ ha_innopart::init_record_priority_queue_for_parts(
 		m_clust_pcur_parts = &m_pcur_parts[used_parts];
 	}
 	/* mapping from part_id to pcur. */
-	buf = ut_zalloc(m_tot_parts * sizeof(*m_pcur_map),
-			mem_key_partitioning);
+	alloc_size = m_tot_parts * sizeof(*m_pcur_map);
+	buf = ut_zalloc(alloc_size, mem_key_partitioning);
 	if (buf == NULL) {
 		DBUG_RETURN(true);
 	}
@@ -3623,8 +3625,8 @@ ha_innopart::info_low(
 				<< ib_table->name << " contains "
 				<< num_innodb_index
 				<< " indexes inside InnoDB, which"
-				<< " is different from the number of"
-				<< " indexes " << table->s->keys
+				" is different from the number of"
+				" indexes " << table->s->keys
 				<< " defined in the MySQL";
 		}
 
@@ -3647,11 +3649,11 @@ ha_innopart::info_low(
 			if (index == NULL) {
 				ib::error() << "Table "
 					<< ib_table->name << " contains fewer"
-					<< " indexes inside InnoDB than"
-					<< " are defined in the MySQL"
-					<< " .frm file. Have you mixed up"
-					<< " .frm files from different"
-					<< " installations? "
+					" indexes inside InnoDB than"
+					" are defined in the MySQL"
+					" .frm file. Have you mixed up"
+					" .frm files from different"
+					" installations? "
 					<< TROUBLESHOOTING_MSG;
 				break;
 			}
@@ -3673,12 +3675,12 @@ ha_innopart::info_low(
 						<< " of " << ib_table->name
 						<< " has " << index->n_uniq
 						<< " columns unique inside"
-						<< " InnoDB, but MySQL is"
-						<< " asking statistics for "
+						" InnoDB, but MySQL is"
+						" asking statistics for "
 						<< j + 1 << " columns. Have"
-						<< " you mixed up .frm files"
-						<< " from different"
-						<< " installations? "
+						" you mixed up .frm files"
+						" from different"
+						" installations? "
 						<< TROUBLESHOOTING_MSG;
 					break;
 				}
@@ -4000,9 +4002,11 @@ ha_innopart::start_stmt(
 
 	error = ha_innobase::start_stmt(thd, lock_type);
 	if (m_prebuilt->sql_stat_start) {
-		memset(m_sql_stat_start_parts, 0xff, (m_tot_parts + 7) / 8);
+		memset(m_sql_stat_start_parts, 0xff,
+		       UT_BITS_IN_BYTES(m_tot_parts));
 	} else {
-		memset(m_sql_stat_start_parts, 0, (m_tot_parts + 7) / 8);
+		memset(m_sql_stat_start_parts, 0,
+		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
 	return(error);
 }
@@ -4099,9 +4103,11 @@ ha_innopart::external_lock(
 	ut_ad(!m_auto_increment_safe_stmt_log_lock);
 
 	if (m_prebuilt->sql_stat_start) {
-		memset(m_sql_stat_start_parts, 0xff, (m_tot_parts + 7) / 8);
+		memset(m_sql_stat_start_parts, 0xff,
+		       UT_BITS_IN_BYTES(m_tot_parts));
 	} else {
-		memset(m_sql_stat_start_parts, 0, (m_tot_parts + 7) / 8);
+		memset(m_sql_stat_start_parts, 0,
+		       UT_BITS_IN_BYTES(m_tot_parts));
 	}
 	return(error);
 }
@@ -4289,11 +4295,10 @@ ha_innopart::alloc_blob_heap_array()
 
 	const ulint	len = sizeof(mem_heap_t*) * m_tot_parts;
 	m_blob_heap_parts = static_cast<mem_heap_t**>(
-		ut_malloc(len, mem_key_partitioning));
+		ut_zalloc(len, mem_key_partitioning));
 	if (m_blob_heap_parts == NULL) {
 		DBUG_RETURN(NULL);
 	}
-	memset(m_blob_heap_parts, 0, len);
 
 	DBUG_RETURN(m_blob_heap_parts);
 }
