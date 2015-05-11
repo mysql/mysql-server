@@ -3663,7 +3663,8 @@ sub mysql_install_db {
   foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
     (my $temp_extra_opt=$extra_opt) =~ s/_/-/g;
     if ($temp_extra_opt =~ /--innodb-page-size/ || 
-        $temp_extra_opt =~ /--innodb-log-file-size/) {
+        $temp_extra_opt =~ /--innodb-log-file-size/ ||
+        $temp_extra_opt =~ /--innodb-undo-tablespaces/) {
       mtr_add_arg($args, $extra_opt);
     }
   # Plugin arguments need to be given to the bootstrap 
