@@ -259,6 +259,7 @@ let SEARCH_PATTERN=Dir path is too long;
 
 
 --echo # Global Cleanup
+--remove_file $DATADIR_LOCATION/server-key.pem
 --remove_file $DATADIR_LOCATION/client-cert.pem
 --remove_file $DATADIR_LOCATION/client-key.pem
 --remove_file $DATADIR_LOCATION/public_key.pem
