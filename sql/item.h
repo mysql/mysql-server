@@ -4894,6 +4894,15 @@ public:
     return example ? example->resolved_used_tables() : used_table_map;
   }
 
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select)
+  {
+    if (example == NULL)
+      return;
+    example->fix_after_pullout(parent_select, removed_select);
+    used_table_map= example->used_tables();
+  }
+
   virtual bool allocate(uint i) { return 0; }
   virtual bool setup(Item *item)
   {
