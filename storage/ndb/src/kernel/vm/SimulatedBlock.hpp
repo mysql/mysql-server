@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,6 +112,278 @@ struct PackedWordsContainer
   Uint32 noOfPackedWords;
   Uint32 packedWords[30];
 }; // 128 bytes
+
+/**
+  Description of NDB Software Architecture
+  ----------------------------------------
+
+  The NDB software architecture has two foundations, blocks and signals.
+  The base object for the blocks is the below SimulatedBlock class and
+  the signal object is the base class Signal defined in VMSignal.hpp.
+
+  Blocks are intended as software units that owns its own data and it
+  communicates with other blocks only through signals. Each block owns
+  its own set of data which it entirely controls. There has been some
+  optimisations where blocks always executing in the same thread can do
+  some shortcuts by calling functions in a different block directly.
+  There is even some code to call functions in a block in a different
+  thread, in this case however some mutex is required to protect the
+  data.
+
+  Blocks are gathered together in threads. Threads are gathered into nodes.
+  So when sending a signal you need to send it to an address. The address is
+  a 32-bit word. It is a bit similar to IPv4 addresses. The address is
+  setup in the following manner:
+
+  -- Bit 0-8 ------- Bit 9-15 ------ Bit 16-31 ------
+  | Block number  | Thread id   |       NodeId      |
+  ---------------------------------------------------
+
+  So when delivering a signal we start by checking the node id. If the node
+  id is our own node id, then we will continue checking thread id. If it
+  is destined to another node, then we move the signal sending to the module
+  that takes care of transporting the signal to another node in the cluster.
+  
+  Each other node is found using a socket over TCP/IP. The architecture
+  supports also other ways to transport signals such as using some form
+  of shared memory between processes on the same or different machines.
+  It would also be possible to extend the architecture such that we
+  might use different sockets for different threads in the node.
+
+  If the signal is destined for a different thread then we transport the
+  signal to that thread, we use a separate memory buffer for each two
+  threads that communicate such that the communication between threads is
+  completely lock-free.
+
+  One block number can be used in several threads. So e.g. the LDM threads
+  all contain its own instance of the DBLQH block. The method instance()
+  gets the instance number of the currently executing block. The method
+  reference() gets the block reference of the currently executing block.
+
+  If we send to ourselves we put the signal in the memory buffer for
+  communication with our own thread.
+
+  The current limits of the architecture is a maximum of 512 block numbers.
+  We currently use less than 25 of those numbers. The maximum number of
+  threads are 128 threads. We currently can use at most 72 threads.
+  The current node limit is 255 nodes and node id 0 is a special case.
+
+  So there is still a lot of space in the addressing mechanism for growth
+  in terms of number of threads, blocks and nodes and even for introduction
+  of new addressable units like subthreads or similar things.
+
+  The software architecture also contains a structure for how signals are
+  structured. Each signal is sent at a certain priority level. Finally also
+  there is a concept of sending delayed signals to blocks within the same
+  thread.
+
+  Priority level on signals
+  -------------------------
+  So starting with priority level a signal can be sent on high priority
+  (JBA) and normal priority (JBB). The priority level can be used also when
+  sending to other nodes. The priority will however not be used to prioritise
+  the signal in sending it over the socket to the receiving node.
+
+  Each thread has its own buffer for A-priority signals. In the scheduler
+  we will always execute all signals in the A-priority buffer first. If
+  new A-priority signals are sent during these signals, then they will also
+  be executed until no more signals exist on A-priority level. So it's not
+  allowed to have a flow of signals all executing at A-level. We always have
+  to insert a signal in the flow that either goes down to B-level or use some
+  form of delayed signal.
+
+  If an A-level signal is sent from a B-level signal it will be handled
+  differently in the single threaded ndbd and the multi-threaded ndbmtd. In
+  ndbmtd it will be executed after executing up to 128 B-level signals. In
+  ndbd it will be executed as the next signal. So one cannot assume that an
+  A-level signal will be executed before a specific B-level signal. A B-level
+  signal can even be executed before an A-level signal although it was sent
+  after the A-level signal.
+
+  Delayed signals
+  ---------------
+  Delayed signals are used to create threads of activities that execute without
+  consuming too much CPU activity. Delayed signals can only be sent internally
+  within the same thread. When the signal has been delayed and is taken out of
+  its timer queue its inserted into the priority A buffer.
+
+  Bounded delay signals
+  ---------------------
+  A special form of delayed signal also exists, this is sent with delay equal to
+  the constant BOUNDED_DELAY. This means that the signal will be executed as a
+  priority A task as soon as the current set of B-level tasks are done. This is
+  similar to sending an A-level signal from a B-level job in ndbmtd. However for
+  ndbd it's not the same thing and also when sending an A-level signal from an
+  A-level signal it is also not the same thing.
+
+  So a delayed signal with delay BOUNDED_DELAY is a special type of signal
+  with a bounded delay. The bound is that no more than 100 B-level signals will
+  be executed before this signal is executed. Given our design requirements
+  a B-level signal should mostly be executed within at most 5-10 microseconds
+  or so, mostly much shorter than this even, so a normal execution time of
+  a signal would be below 1 microsecond. So 100 signals should almost never
+  execute for more than 1000 microseconds and rarely go beyond even 100
+  microseconds.
+
+  So these bounded delay signals are a good tool to ensure that activitites
+  such as backups, checkpoints, node recovery activities, altering of tables
+  and similar things gets executed at a certain rate. Without any possibility
+  of bounded delay signals it is very hard to implement an activity that gets
+  executed at a certain rate.
+
+  So in a sense we're using the bounded delay signals to implement a form of
+  time-sharing priority, certain activities are allowed to use a proportion
+  of the available CPU resources, not too much, but also not too little. If
+  an LCP gets bogged down by user transactions then the system will eventually
+  run out of REDO log space. If a node recovery activity gets bogged down by
+  user transactions then we will run for too long with only one replica in the
+  node group which is bad for system availability.
+
+  Execute direct signals
+  ----------------------
+  If the receiving block is within the same thread, then it is possible to
+  send the signal using the method EXECUTE_DIRECT. This execution will
+  happen immediately and won't be scheduled for later, it will be done in
+  the same fashion as a function call.
+
+  Signals
+  -------
+  Signals are carried with a certain structure:
+  1) Each signal has a signal number. This number also is mapped to a name.
+     When executing a signal with a certain number which e.g. has the name
+     TCKEYREQ, then this signal is implemented by a method called
+     execTCKEYREQ in the receiving block. More than one block could have
+     such a method since a signal is not tied to a certain block.
+
+  2) Each signal has 4 areas that can be sent in the signal. The first is
+     always sent in the signal, this is the fixed part. The fixed part
+     consists of at least 1 and at most 25 32-bit words. Many signals have
+     a class that defines this part of the signal. This is however not
+     absolutely necessary. Then there are up to 3 sections that can carry
+     longer information bits. So e.g. a TCKEYREQ has one section that contains
+     the primary key and another part that contains the attribute information.
+     The attribute information could be seen as a program sent to MySQL
+     Cluster data nodes to read, update the row specified in the key
+     section. The attribute information could also contain interpreted
+     programs that can do things like increment, decrement, conditional
+     update and so forth.
+
+   3) As mentioned above each signal carries a certain priority level to
+      execute it on. It is currently not possible to check the prio
+      level you're currently executing on, but it would be real simple
+      to add this capability if necessary.
+
+   4) When executing a certain signal it gets a signal id, this id is
+      local to the thread and is incremented by one each new signal that
+      is executed. This signal id is available in the Signal class and
+      can e.g. be used to deduce if the thread is currently at high load.
+
+   A signal is sent over the socket using a special protocol that is called
+   Protocol6. This is not discussed more here, it is a feature of the
+   transport mechanisms of the NDB Software Architecture.
+
+   CONTINUEB
+   ---------
+   CONTINUEB is a special signal used by almost all blocks. This signal is
+   used to handle background thread activities. Often the CONTINUEB signals
+   are used as part of implementing a more complex action. One example is
+   when DBDIH starts up a new LCP. It sends various forms of CONTINUEB
+   signals to itself to move ahead through the LCP actions it needs to do
+   as part of starting up a new LCP. The first word contains the type of
+   CONTINUEB signal, so this is in a sense a bit like a second level of
+   signal number. Based on this number the CONTINUEB data is treated
+   differently.
+
+   Common patterns of signals
+   --------------------------
+   There is no absolute patterns for how signal data looks like. But it is
+   very common that a signal at least contains the destination object id,
+   the senders object id and the senders block reference. The senders block
+   reference is actually also available in the Signal class when executing
+   a signal. But we can use various forms of software routing of the
+   signal, so the senders block reference is the originator of the signal,
+   not necessarily the same as the sender of the signal since it could be
+   routed through several blocks on the way.
+
+   The basic data type in the NDB signals are unsigned 32-bit integers. So
+   all addressing is using a special form of pointers. The pointers always
+   refers to a special class of objects and the pointer is the index in an
+   array of objects of this kind. So we can have up to 4 billion objects of
+   most kinds. If one needs to send strings and 64-bit integers one follows
+   various techniques to do this. Signals are sent in the endian order of
+   the machine they were generated, so machines in a cluster has to be
+   of the same type of endian.
+
+   ROUTE_SIGNAL
+   ------------
+   ROUTE_SIGNAL is a special signal that can be used to carry a signal
+   in a special path to ensure that it arrives in the correct order to
+   the receiving block.
+
+   Signal order guarantees
+   -----------------------
+   The following signal order guarantees are maintained.
+
+   1) Sending signals at the same priority level to the same block reference
+      from one block will arrive in the order they were sent.
+
+      It is not guaranteed if the priority level is different for the signals,
+      it is also not guaranteed if they are sent through different paths.
+      Not even sending in the following pattern has a guarantee on the
+      delivery order. Signal 1: Block A -> Block B, Signal 2: Block A ->
+      Block C -> Block B. Although the signal 2 uses a longer path and is
+      destined to the same block it can still arrive before signal 1 at
+      Block B. The reason is that we execute signals from one sender at a
+      time, so we might be executing in Block C very quickly whereas the
+      thread executing Block B might be stalled and then when Block C has
+      sent its signal the thread executing Block B wakes up and decides
+      to execute signals from Block C before signals from Block A.
+
+   So as can be seen there is very little support for signal orders in the
+   NDB software architecture and so most protocols have to take into
+   account that signals can arrive in many different orders.
+
+   Fragmented signals
+   ------------------
+   It is possible to send really long signals. These signals cannot be
+   sent as one signal though. They are sent as one signal, then they will
+   be split up into multiple signals. The fixed part is the same in all
+   signals. What mainly differs is that they each contain a part of each
+   segment.
+
+   When receiving such a signal one should always call assembleFragments()
+   at first to see if the entire signal has arrived first. The signal
+   executor method is executed once for each signal fragment that is sent.
+   When all fragments have arrived then they will contain the full signal
+   with up to 3 sections that can much longer than the normal sized signals
+   that have limitations on the size of the signals.
+
+   Tracing infrastructure
+   ----------------------
+   All signals are sent through memory buffers. At crashes these memory
+   buffers can be used to print the last executed signals in each thread.
+   This will aid in looking for reasons for the crash. There will be one
+   file generated for each thread in the ndbmtd, in the case of ndbd there
+   will be only one file since there is only one file.
+
+   Jams
+   ----
+   jam() and its cousins is a set of macros used for tracing what happened
+   at the point of a crash. Each jam call executes a set of instructions
+   that inserts the line number of the jam macro into an array kept per
+   thread. There is some overhead in the jams, but it helps quite a lot in
+   debugging crashes of the NDB data nodes. At crash time we can see a few
+   thousand of the last decisions made just before the crash. This together
+   with the signal logs makes for a powerful tool to root out bugs in NDB
+   data nodes.
+
+   Trace Id
+   --------
+   Each signal also carries a signal id, this id can be used to trace certain
+   activities that go on for a longer time. This tracing can happen even in a
+   live system.
+*/
+
 class SimulatedBlock {
   friend class TraceLCP;
   friend class SafeCounter;
@@ -134,6 +406,7 @@ public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
   
+  static const Uint32 BOUNDED_DELAY = 0xFFFFFF00;
 protected:
   /**
    * Constructor
@@ -310,6 +583,7 @@ protected:
   
 
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
+  Uint32 getSignalsInJBB();
 
   /**********************************************************
    * Send signal - dialects
@@ -378,6 +652,7 @@ protected:
   // Send multiple signal with delay. In this VM the jobbufffer level has 
   // no effect on on delayed signals
   //
+
   void sendSignalWithDelay(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
                            Signal* signal,

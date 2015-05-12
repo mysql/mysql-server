@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,11 @@ ThreadConfig::init()
 {
 }
 
+void
+ThreadConfig::scanZeroTimeQueue()
+{
+  globalTimeQueue.scanZeroTimeQueue();
+}
 /**
  * For each millisecond that has passed since this function was last called:
  *   Scan the job buffer and increment the internalTicksCounter 
@@ -183,6 +188,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 // is now ready to be executed.
 //--------------------------------------------------------------------
       globalData.incrementWatchDogCounter(2);
+      scanZeroTimeQueue(); 
       scanTimeQueue(); 
 
       if (LEVEL_IDLE == globalData.highestAvailablePrio)
@@ -253,13 +259,14 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
     if ((NdbTick_Elapsed(yield_ticks, start_ticks).microSec() > 10000))
       yield_flag= TRUE;
     exec_again= 0;
+    Uint32 loopStartCount = 0;
     do
     {
 //--------------------------------------------------------------------
 // This is where the actual execution of signals occur. We execute
 // until all buffers are empty or until we have executed 2048 signals.
 //--------------------------------------------------------------------
-      globalScheduler.doJob();
+      loopStartCount = globalScheduler.doJob(loopStartCount);
       if (unlikely(globalData.theRestartFlag == perform_stop))
         goto out;
 //--------------------------------------------------------------------
