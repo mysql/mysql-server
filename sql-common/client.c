@@ -3387,6 +3387,12 @@ cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
     (~(CLIENT_COMPRESS | CLIENT_SSL | CLIENT_PROTOCOL_41)
     | mysql->server_capabilities);
 
+  if(mysql->options.protocol == MYSQL_PROTOCOL_SOCKET &&
+     mysql->options.extension->ssl_enforce == FALSE)
+  {
+    mysql->client_flag&= ~CLIENT_SSL;
+    mysql->options.use_ssl= FALSE;
+  }
 #ifndef HAVE_COMPRESS
   mysql->client_flag&= ~CLIENT_COMPRESS;
 #endif
@@ -3432,7 +3438,8 @@ cli_establish_ssl(MYSQL *mysql)
   allows it
 
   use_ssl=1, ssl_enforce=0 (default) => attempt ssl connection if possible but
-  fallback on unencrypted connection if possible.
+  fallback on unencrypted connection if possible. Do not attempt ssl connection
+  if we are connecting with unix socket.
 
   */
   if ((mysql->server_capabilities & CLIENT_SSL) && mysql->options.use_ssl)
