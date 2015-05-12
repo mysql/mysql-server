@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -509,6 +509,18 @@ SimulatedBlock::getSendBufferLevel(NodeId node, SB_LevelType &level)
 #else
   globalTransporterRegistry.getSendBufferLevel(node, level);
 #endif
+}
+
+Uint32
+SimulatedBlock::getSignalsInJBB()
+{
+  Uint32 num_signals;
+#ifdef NDBD_MULTITHREADED
+  num_signals = mt_getSignalsInJBB(m_threadId);
+#else
+  num_signals = globalScheduler.getBOccupancy();
+#endif
+  return num_signals;
 }
 
 void 
