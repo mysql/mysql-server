@@ -166,8 +166,7 @@ drop table t1,t2,t3;
 select * union select 1;
 ERROR HY000: No tables used
 select 1 as a,(select a union select a);
-a	(select a union select a)
-1	1
+ERROR 42S22: Unknown column 'a' in 'field list'
 (select 1) union (select 2) order by 0;
 ERROR 42S22: Unknown column '0' in 'order clause'
 SELECT @a:=1 UNION SELECT @a:=@a+1;

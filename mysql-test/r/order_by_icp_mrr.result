@@ -932,9 +932,7 @@ num
 SELECT a + 1 AS num, num + 1 FROM t1;
 ERROR 42S22: Unknown column 'num' in 'field list'
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
-num	(select num + 2 FROM t1 LIMIT 1)
-2	4
-3	5
+ERROR 42S22: Unknown column 'num' in 'field list'
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 ERROR 42S22: Unknown column 'num' in 'on clause'
 DROP TABLE t1;
