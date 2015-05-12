@@ -141,7 +141,7 @@ a
 1
 4
 Warnings:
-Error	145	Table './test/t1' is marked as crashed and should be repaired
+Error	145	Table 't1' is marked as crashed and should be repaired
 Error	1194	Table 't1' is marked as crashed and should be repaired
 Error	1034	Number of rows changed from 1 to 2
 ALTER TABLE t2 ADD val INT;
