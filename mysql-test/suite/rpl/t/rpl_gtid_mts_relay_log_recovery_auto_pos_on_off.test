@@ -1,0 +1,59 @@
+###############################################################################
+# Bug#19316063: MAKE MTS WORK WITH RELAY_LOG_RECOVERY=1 WHEN
+# GTID IS ENABLED
+#
+# Problem:
+# ========
+# When gaps are present in MTS and trying to restart the server with
+# relay-log-recovery=1 will result in the following error.
+# "relay-log-recovery cannot be executed when the slave was stopped with an
+# error or killed in MTS mode"
+#
+# Test:
+# =====
+# Enable GTID protocol and execute the test with both master_auto_postion
+# on and master_auto_postion off. Generate gaps in MTS, on the slave and
+# restart slave server with relay-log-recovery=1. The gaps should
+# be filled because of GTID protocol and slave should be in sync with master.
+###############################################################################
+--source include/force_restart.inc
+# Script is independent of binlog format hence considering mixed mode
+--source include/have_binlog_format_mixed.inc
+--source include/have_gtid.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $rpl_gtid_utils= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Recovery from master pos*");
+CALL mtr.add_suppression("Slave SQL.*Duplicate entry.* Error_code: 1062");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+--let $auto_position=0
+--let $loop_count=2
+
+# Execute the following set of instructions twice
+# once with change master with auto position 0
+# second time change master with auto position 1
+while ($loop_count)
+{
+  --source include/stop_slave.inc
+  eval CHANGE MASTER TO MASTER_AUTO_POSITION=$auto_position;
+  SET @@global.slave_parallel_workers=4;
+  SET @@global.relay_log_info_repository='TABLE';
+  SET @@global.master_info_repository='TABLE';
+  --source include/start_slave.inc
+
+  --source extra/rpl_tests/rpl_gtid_mts_relay_log_recovery.test
+
+  if ($auto_position == 0)
+  {
+    --source include/rpl_reset.inc
+  }
+
+  --dec $loop_count
+  --inc $auto_position
+}
+
+
+--source include/rpl_end.inc
