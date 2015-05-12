@@ -2932,6 +2932,9 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -2960,6 +2963,9 @@ end_with_restore_list:
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
