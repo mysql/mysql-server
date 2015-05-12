@@ -1,7 +1,8 @@
 #
 # WL#7712 Support SSL by default in libmysql
 #
-# verify that mysql default connect with ssl channel
+# verify that mysql default connect with ssl channel when using TCP/IP
+# connection
 Variable_name	Value
 Ssl_cipher	DHE-RSA-AES256-SHA
 # verify that mysql --skip-ssl connect with unencrypted channel

@@ -45,7 +45,7 @@ disconnect con2;
 # really been established yet.
 --exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl -e "select user(), current_user()"
 --echo **** Client default_auth=native and server default auth=sha256_password
---exec $MYSQL -ukristofer -psecret2 --default_auth=mysql_native_password --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "select user(), current_user()"
+--exec $MYSQL -ukristofer -psecret2 --default_auth=mysql_native_password --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "select user(), current_user()"
 
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
