@@ -44,14 +44,14 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1249	Select 2 was reduced during optimization
 Note	1003	/* select#1 */ select (/* select#3 */ select 0 union /* select#4 */ select 0) AS `(SELECT (SELECT 0 UNION SELECT 0))`
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
-ERROR 42S22: Reference 'a' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
-ERROR 42S22: Reference 'b' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'b' in 'having clause'
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
 (SELECT 1)	MAX(1)
 1	1
 SELECT (SELECT a) as a;
-ERROR 42S22: Reference 'a' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'a' in 'field list'
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -144,8 +144,7 @@ SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
 ERROR 21000: Operand should contain 1 column(s)
 SELECT 1 as a,(SELECT a+a) b,(SELECT b);
-a	b	(SELECT b)
-1	2	2
+ERROR 42S22: Unknown column 'a' in 'field list'
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -154,7 +153,7 @@ insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
-ERROR 42S22: Reference 'a1' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'a1' in 'where clause'
 select (select a from t1 where t1.a=t2.a), a from t2;
 (select a from t1 where t1.a=t2.a)	a
 NULL	1
@@ -548,7 +547,7 @@ UNIQUE KEY `numreponse` (`numreponse`),
 KEY `pseudo` (`pseudo`,`numeropost`)
 ) ENGINE=MyISAM;
 SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
-ERROR 42S22: Reference 'numreponse' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
 ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
@@ -1096,8 +1095,7 @@ mot	topic	date	pseudo
 joce	1	0000-00-00	joce
 drop table t1, t2, t3;
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-a	(SELECT a)
-1	1
+ERROR 42S22: Unknown column 'a' in 'field list'
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1107,21 +1105,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(1) NOT NULL DEFAULT '0',
-  `(SELECT a)` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
+ERROR 42S22: Unknown column 'a' in 'field list'
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(1) NOT NULL DEFAULT '0',
-  `(SELECT a+0)` int(3) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
-drop table t1;
+ERROR 42S22: Unknown column 'a' in 'field list'
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 a
@@ -2508,16 +2494,15 @@ drop table t1;
 create  table t1 (a integer);
 insert into t1 values (1);
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
-ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'xx' in 'where clause'
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
-ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'xx' in 'where clause'
 select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
-xx	1 = ALL (  select 1 from t1 where 1 = xx )
-1	1
+ERROR 42S22: Unknown column 'xx' in 'where clause'
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
-ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'xx' in 'where clause'
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
-ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
+ERROR 42S22: Unknown column 'xx' in 'where clause'
 drop table t1;
 CREATE TABLE t1 (
 categoryId int(11) NOT NULL,
@@ -3795,13 +3780,6 @@ a	MAX(b)	test
 1	9	m
 2	3	h
 3	4	i
-SELECT a x, MAX(b),
-(SELECT t.c FROM t1 AS t WHERE x=t.a AND t.b=MAX(t1.b + 0)) as test
-FROM t1 GROUP BY a;
-x	MAX(b)	test
-1	9	m
-2	3	h
-3	4	i
 SELECT a, AVG(b),
 (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=AVG(t1.b)) AS test
 FROM t1 WHERE t1.d=0 GROUP BY a;
@@ -3892,7 +3870,7 @@ ERROR HY000: Invalid use of group function
 SELECT t1.a as XXA,
 SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING XXA < 12) ) FROM t2) )
 FROM t1;
-ERROR HY000: Invalid use of group function
+ERROR 42S22: Unknown column 'XXA' in 'having clause'
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int, b int, KEY (a));
 INSERT INTO t1 VALUES (1,1),(2,1);
@@ -4186,9 +4164,7 @@ t3.f5
 FROM
 t2, t3, t1 JOIN t2 a1 ON t1.f9 = a1.f4
 GROUP BY a4;
-a4	f3	a6
-1	NULL	NULL
-2	NULL	NULL
+ERROR 42S22: Unknown column 'a4' in 'where clause'
 DROP TABLE t1, t2, t3, t4;
 create table t1 (a float(5,4) zerofill);
 create table t2 (a float(5,4),b float(2,0));
@@ -5136,16 +5112,6 @@ a	ROW(11, 12) = (SELECT a, 22)	ROW(11, 12) IN (SELECT a, 22)
 11	0	0
 SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
 a	ROW(11, 12) = (SELECT a, 12)	ROW(11, 12) IN (SELECT a, 12)
-1	0	0
-2	0	0
-11	1	1
-SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
-x	ROW(11, 12) = (SELECT MAX(x), 22)	ROW(11, 12) IN (SELECT MAX(x), 22)
-1	0	0
-2	0	0
-11	0	0
-SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
-x	ROW(11, 12) = (SELECT MAX(x), 12)	ROW(11, 12) IN (SELECT MAX(x), 12)
 1	0	0
 2	0	0
 11	1	1

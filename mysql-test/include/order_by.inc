@@ -583,10 +583,11 @@ SELECT CONCAT('test', a) AS str FROM t1 ORDER BY UPPER(str);
 SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, num + 1 FROM t1;
+--error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 DROP TABLE t1;
 

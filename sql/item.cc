@@ -39,6 +39,18 @@ using std::max;
 
 const String my_null_string("NULL", 4, default_charset_info);
 
+/**
+  Alias from select list can be referenced only from ORDER
+  BY (SQL Standard) or from HAVING and GROUP BY (MySQL
+  extension).
+*/
+static inline bool
+select_alias_referencable(enum_parsing_context place)
+{
+  return (place == CTX_HAVING ||  place == CTX_GROUP_BY ||
+          place == CTX_ORDER_BY);
+}
+
 /****************************************************************************/
 
 /* Hybrid_type_traits {_real} */
@@ -5361,7 +5373,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
 
     /* Search in SELECT and GROUP lists of the outer select. */
-    if (place != CTX_WHERE && place != CTX_ON &&
+    if (select_alias_referencable(place) &&
         outer_context->resolve_in_select_list)
     {
       if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
@@ -7493,9 +7505,11 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         Item_subselect *prev_subselect_item=
           last_checked_context->select_lex->master_unit()->item;
         last_checked_context= outer_context;
+        place= prev_subselect_item->parsing_place;
 
         /* Search in the SELECT and GROUP lists of the outer select. */
-        if (outer_context->resolve_in_select_list)
+        if (select_alias_referencable(place) &&
+            outer_context->resolve_in_select_list)
         {
           if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
             goto error; /* Some error occurred (e.g. ambiguous names). */
@@ -7514,7 +7528,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
           ref= 0;
         }
 
-        place= prev_subselect_item->parsing_place;
         /*
           Check table fields only if the subquery is used somewhere out of
           HAVING or the outer SELECT does not use grouping (i.e. tables are
