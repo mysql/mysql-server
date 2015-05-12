@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -124,7 +124,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         modifiedProperties.putAll(props);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 2);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "4");
-        checkConnectionPoolSize2("testConnectionNodeIds", modifiedProperties);        
+        checkConnectionPoolSize2("testConnectionSingleNodeIdAndConnectionPoolSize", modifiedProperties);
         failOnError();
     }
 
@@ -146,7 +146,7 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         Employee e2 = session2.find(Employee.class, 0);
         checkSessions(where + " after get session2", sessionFactory1, new Integer[] {1, 1});
         Session session3 = sessionFactory1.getSession();
-        checkSessions(where + " nafter get session3", sessionFactory1, new Integer[] {2, 1});
+        checkSessions(where + " after get session3", sessionFactory1, new Integer[] {2, 1});
         Session session4 = sessionFactory1.getSession();
         checkSessions(where + " after get session4", sessionFactory1, new Integer[] {2, 2});
         Session session5 = sessionFactory1.getSession();
