@@ -6946,3 +6946,27 @@ eval $query;
 DROP VIEW v1;
 DROP TABLE t1, tv;
 
+--echo # 17832047 Crash in calculate_materialization_costs
+
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES (0),(1),(2);
+
+SELECT 1 FROM t1
+WHERE 1 IN
+   (SELECT 1 BETWEEN (LENGTH(a) IN (SELECT 1 FROM t1)) AND 1
+    FROM t1
+   );
+
+DROP TABLE t1;
+
+--echo # 17845989 Assertion failed: !(used_tables() & ...
+
+CREATE TABLE a(b INTEGER) engine=innodb;
+CREATE TABLE c(a INTEGER) engine=innodb;
+
+SELECT 1
+FROM a
+WHERE 1 IN (SELECT (a.b IS NULL) IN (SELECT 1 FROM c) FROM c)
+;
+
+DROP TABLE a, c;
