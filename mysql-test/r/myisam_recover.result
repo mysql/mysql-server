@@ -1,5 +1,7 @@
 #
-# Test of MyISAM MRG tables with corrupted children.
+# Tests for corrupted MyISAM tables and MyISAMMRG tables with corrupted
+# children..
+#
 # Run with --myisam-recover=force option.
 #
 # Preparation: we need to make sure that the merge parent
@@ -46,20 +48,20 @@ drop procedure p_create;
 # Switching to connection 'default'
 #
 #
-# We have to disable the ps-protocol, to avoid 
+# We have to disable the ps-protocol, to avoid
 # "Prepared statement needs to be re-prepared" errors
 # -- table def versions change all the time with full table cache.
-# 
+#
 drop table if exists t1, t1_mrg, t1_copy;
 #
 # Prepare a MERGE engine table, that refers to a corrupted
 # child.
-# 
+#
 create table t1 (a int, key(a)) engine=myisam;
 create table t1_mrg (a int) union (t1) engine=merge;
 #
 # Create a table with a corrupted index file:
-# save an old index file, insert more rows, 
+# save an old index file, insert more rows,
 # overwrite the new index file with the old one.
 #
 insert into  t1 (a) values (1), (2), (3);
@@ -103,3 +105,48 @@ execute stmt;
 deallocate prepare stmt;
 set @@global.table_definition_cache=@start_table_definition_cache;
 set @@global.table_open_cache=@start_table_open_cache;
+#
+# 18075170 - sql node restart required to avoid deadlock after
+#            restore
+#
+# Check that auto-repair for MyISAM tables can now happen in the
+# middle of transaction, without aborting it.
+create table t1 (a int, key(a)) engine=myisam;
+create table t2 (a int);
+insert into t2 values (1);
+# Create a table with a corrupted index file:
+# save an old index file, insert more rows,
+# overwrite the new index file with the old one.
+insert into  t1 (a) values (1);
+flush table t1;
+insert into  t1 (a) values (4);
+flush table t1;
+# Check table is needed to mark the table as crashed.
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	warning	Size of datafile is: 14       Should be: 7
+test.t1	check	error	Record-count is not ok; is 2   Should be: 1
+test.t1	check	warning	Found 2 key parts. Should be: 1
+test.t1	check	error	Corrupt
+# At this point we have a corrupt t1
+set autocommit = 0;
+select * from t2;
+a
+1
+# Without fix select from t1 will break the transaction. After the fix
+# transaction should be active and should hold lock on table t2. Alter
+# table from con2 will wait only if the transaction is not broken.
+select * from t1;
+a
+1
+4
+Warnings:
+Error	145	Table 't1' is marked as crashed and should be repaired
+Error	1194	Table 't1' is marked as crashed and should be repaired
+Error	1034	Number of rows changed from 1 to 2
+ALTER TABLE t2 ADD val INT;
+# With fix we should have alter table waiting for t2 lock here.
+ROLLBACK;
+SET autocommit = 1;
+# Cleanup
+drop table t1, t2;
