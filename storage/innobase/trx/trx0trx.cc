@@ -151,6 +151,8 @@ trx_init(
 
 	trx->error_key_num = ULINT_UNDEFINED;
 
+	trx->last_upd_sp_index = NULL;
+
 	trx->undo_no = 0;
 
 	trx->rsegs.m_redo.rseg = NULL;

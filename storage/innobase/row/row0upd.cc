@@ -2558,6 +2558,9 @@ row_upd(
 
 	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 
+	/* Initialize last updated spatial index. */
+	thr_get_trx(thr)->last_upd_sp_index = NULL;
+
 	do {
 		/* Skip corrupted index */
 		dict_table_skip_corrupt_index(node->index);
@@ -2572,6 +2575,12 @@ row_upd(
 			if (err != DB_SUCCESS) {
 
 				DBUG_RETURN(err);
+			}
+
+			/* Set last updated spatial index. */
+			if (dict_index_is_spatial(node->index)) {
+				trx_t*	trx = thr_get_trx(thr);
+				trx->last_upd_sp_index = node->index;
 			}
 		}
 
