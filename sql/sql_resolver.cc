@@ -463,8 +463,8 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
       check_only_full_group_by() cannot run, any error will be raised only
       when the view is later used (SELECTed...)
     */
-    if ((thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
-        (is_distinct() || is_grouped()) &&
+    if ((is_distinct() || is_grouped()) &&
+        (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
         check_only_full_group_by(thd))
       DBUG_RETURN(true);
   }
@@ -3333,10 +3333,7 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
     free_root(&root, MYF(0));
   }
 
-  if (!rc &&
-      is_distinct() &&
-      // aggregate without GROUP => single-row result => don't bother user
-      !(!group_list.elements && agg_func_used()))
+  if (!rc && is_distinct())
   {
     Distinct_check dc(this);
     rc= dc.check_query(thd);
