@@ -257,13 +257,6 @@ where t1.col2 in
       (select t2.col2 from t2 
        group by t2.col1, t2.col2 having t1.col1 <= 10);
 
-# the having column is resolved in the SELECT clause of the outer query -
-# error in ANSI, works with MySQL extension
-select t1.col1 as tmp_col from t1
-where t1.col2 in 
-      (select t2.col2 from t2 
-       group by t2.col1, t2.col2 having tmp_col <= 10);
-
 # the having column is resolved in the FROM clause of the outer query -
 # works in ANSI
 select t1.col1 from t1

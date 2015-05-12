@@ -3378,13 +3378,22 @@ gid int NOT NULL,
 lid int NOT NULL,
 dt date
 );
+CREATE TABLE t3 (
+id int NOT NULL PRIMARY KEY,
+gid int NOT NULL,
+lid int NOT NULL,
+dt date
+);
 INSERT INTO t2 (id, gid, lid, dt) VALUES
 (1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
 (3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
+INSERT INTO t3 (id, gid, lid, dt) VALUES
+(1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
+(3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
 SELECT DISTINCT t2.gid AS lgid,
-(SELECT t1.name FROM t1, t2
-WHERE t1.lid  = t2.lid AND t2.gid = lgid
-ORDER BY t2.dt DESC LIMIT 1
+(SELECT t1.name FROM t1, t3
+WHERE t1.lid  = t3.lid AND t3.gid = t2.gid
+ORDER BY t3.dt DESC LIMIT 1
 ) as clid
 FROM t2;
 lgid	clid
@@ -3392,9 +3401,9 @@ lgid	clid
 2	YES
 CREATE VIEW v1 AS
 SELECT DISTINCT t2.gid AS lgid,
-(SELECT t1.name FROM t1, t2
-WHERE t1.lid  = t2.lid AND t2.gid = lgid
-ORDER BY t2.dt DESC LIMIT 1
+(SELECT t1.name FROM t1, t3
+WHERE t1.lid  = t3.lid AND t3.gid = t2.gid
+ORDER BY t3.dt DESC LIMIT 1
 ) as clid
 FROM t2;
 SELECT * FROM v1;
@@ -3402,7 +3411,7 @@ lgid	clid
 1	NO
 2	YES
 DROP VIEW v1;
-DROP table t1,t2;
+DROP table t1,t2,t3;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;

@@ -323,7 +323,7 @@ DROP TABLE t1;
 #
 create table t2 (a int, b int);
 insert into t2 values (1,1), (2,2);
-select  b x, (select group_concat(x) from t2) from  t2;
+select  b x, (select group_concat(b) from t2) from  t2;
 drop table t2;
 
 #
