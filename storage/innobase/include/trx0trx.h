@@ -1169,6 +1169,11 @@ struct trx_t {
 	ulint		error_key_num;	/*!< if the index creation fails to a
 					duplicate key error, a mysql key
 					number of that index is stored here */
+	const dict_index_t*
+			last_upd_sp_index;
+					/*!< For last updated spatial index.
+					It's for avoiding set un-delete mark on
+					wrong rec in rollback. */
 	sess_t*		sess;		/*!< session of the trx, NULL if none */
 	que_t*		graph;		/*!< query currently run in the session,
 					or NULL if none; NOTE that the query
