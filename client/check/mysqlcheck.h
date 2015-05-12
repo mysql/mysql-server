@@ -28,7 +28,7 @@ namespace Check{
 using std::string;
 using std::vector;
 
-enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE };
 
 extern void mysql_check(MYSQL* connection, int what_to_do, my_bool opt_alldbs,
                 my_bool opt_check_only_changed, my_bool opt_extended,

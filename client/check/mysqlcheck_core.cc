@@ -105,7 +105,7 @@ static int process_selected_tables(string db, vector<string> table_names)
     return 1;
   vector<string>::iterator it;
 
-  if (opt_all_in_1 && what_to_do != DO_UPGRADE)
+  if (opt_all_in_1)
   {
     for (it= table_names.begin(); it != table_names.end(); it++)
     {
@@ -159,7 +159,7 @@ static int process_all_tables_in_db(string database)
   while ((row = mysql_fetch_row(res)))
   {
     /* Skip views if we don't perform renaming. */
-    if ((what_to_do != DO_UPGRADE) && (num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
+    if ((num_columns == 2) && (strcmp(row[1], "VIEW") == 0))
       continue;
 
     table_names.push_back(row[0]);
@@ -183,26 +183,6 @@ static int run_query(string query)
 }
 
 
-static int fix_table_storage_name(string name)
-{
-  if (strncmp(name.c_str(), "#mysql50#", 9))
-    return 1;
-  int rc= run_query("RENAME TABLE `" + name + "` TO `" + name.substr(9) + "`");
-  if (verbose)
-    printf("%-50s %s\n", name.c_str(), rc ? "FAILED" : "OK");
-  return rc;
-}
-
-static int fix_database_storage_name(string name)
-{
-  if (strncmp(name.c_str(), "#mysql50#", 9))
-    return 1;
-  int rc= run_query("ALTER DATABASE `" + name + "` UPGRADE DATA DIRECTORY NAME");
-  if (verbose)
-    printf("%-50s %s\n", name.c_str(), rc ? "FAILED" : "OK");
-  return rc;
-}
-
 static int rebuild_table(string name)
 {
   int rc= 0;
@@ -224,17 +204,6 @@ static int process_one_db(string database)
     && database == opt_skip_database)
     return 0;
 
-  if (what_to_do == DO_UPGRADE)
-  {
-    int rc= 0;
-    if (opt_fix_db_names && !strncmp(database.c_str(),"#mysql50#", 9))
-    {
-      rc= fix_database_storage_name(database);
-      database= database.substr(9);
-    }
-    if (rc || !opt_fix_table_names)
-      return rc;
-  }
   return process_all_tables_in_db(database);
 }
 
@@ -288,8 +257,6 @@ static int handle_request_for_tables(string tables)
   case DO_OPTIMIZE:
     operation= (opt_write_binlog) ? "OPTIMIZE" : "OPTIMIZE NO_WRITE_TO_BINLOG";
     break;
-  case DO_UPGRADE:
-    return fix_table_storage_name(tables);
   }
 
   if (!opt_all_in_1)
@@ -528,22 +495,6 @@ int Program::check_all_databases(MYSQL* connection)
   this->m_connection= connection;
   this->m_process_all_dbs= true;
   return this->set_what_to_do(DO_CHECK)
-    ->execute(vector<string>());
-}
-
-int Program::upgrade_databases(MYSQL* connection, vector<string> databases)
-{
-  this->m_connection= connection;
-  this->m_process_all_dbs= false;
-  return this->set_what_to_do(DO_UPGRADE)
-    ->execute(databases);
-}
-
-int Program::upgrade_all_databases(MYSQL* connection)
-{
-  this->m_connection= connection;
-  this->m_process_all_dbs= true;
-  return this->set_what_to_do(DO_UPGRADE)
     ->execute(vector<string>());
 }
 

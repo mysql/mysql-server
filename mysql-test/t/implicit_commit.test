@@ -539,14 +539,6 @@ source include/implicit_commit_helper.inc;
 #source include/implicit_commit_helper.inc;
 
 --echo #
---echo # SQLCOM_ALTER_DB_UPGRADE
---echo #
-
-#let $statement=
-#  alter database `#mysql50#db3` upgrade data directory name;
-#source include/implicit_commit_helper.inc;
-
---echo #
 --echo # SQLCOM_DROP_DB
 --echo #
 

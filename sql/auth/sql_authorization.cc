@@ -4183,7 +4183,7 @@ bool check_fk_parent_table_access(THD *thd,
 
       // Check if tablename is valid or not.
       DBUG_ASSERT(table_name.str != NULL);
-      if (check_table_name(table_name.str, table_name.length, false))
+      if (check_table_name(table_name.str, table_name.length))
       {
         my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
         return true;

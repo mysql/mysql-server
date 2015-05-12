@@ -290,7 +290,6 @@ void init_update_queries(void)
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -530,7 +529,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]|=          CF_DISALLOW_IN_RO_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]|=         CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_DISALLOW_IN_RO_TRANS;
@@ -1350,7 +1348,7 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
                         com_data->com_field_list.table_name_length,
                         thd->charset());
     enum_ident_name_check ident_check_status=
-      check_table_name(table_name.str, table_name.length, FALSE);
+      check_table_name(table_name.str, table_name.length);
     if (ident_check_status == IDENT_NAME_WRONG)
     {
       /* this is OK due to convert_string() null-terminating the string */
@@ -3430,32 +3428,6 @@ end_with_restore_list:
     res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
     break;
   }
-  case SQLCOM_ALTER_DB_UPGRADE:
-  {
-    LEX_STRING *db= & lex->name;
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      res= 1;
-      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-      break;
-    }
-#endif
-    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
-      break;
-    if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
-        check_access(thd, DROP_ACL, db->str, NULL, NULL, 1, 0) ||
-        check_access(thd, CREATE_ACL, db->str, NULL, NULL, 1, 0))
-    {
-      res= 1;
-      break;
-    }
-    LEX_CSTRING db_name= {db->str, db->length};
-    res= mysql_upgrade_db(thd, db_name);
-    if (!res)
-      my_ok(thd);
-    break;
-  }
   case SQLCOM_ALTER_DB:
   {
     LEX_STRING *db= &lex->name;
@@ -5461,7 +5433,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!MY_TEST(table_options & TL_OPTION_ALIAS))
   {
     enum_ident_name_check ident_check_status=
-      check_table_name(table->table.str, table->table.length, FALSE);
+      check_table_name(table->table.str, table->table.length);
     if (ident_check_status == IDENT_NAME_WRONG)
     {
       my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);

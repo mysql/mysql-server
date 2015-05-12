@@ -2821,8 +2821,7 @@ void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                                 bool preserve_lettercase);
 bool check_column_name(const char *name);
-enum_ident_name_check check_table_name(const char *name, size_t length,
-                                       bool check_for_path_chars);
+enum_ident_name_check check_table_name(const char *name, size_t length);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);

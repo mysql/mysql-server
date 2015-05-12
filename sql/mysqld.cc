@@ -2464,7 +2464,6 @@ SHOW_VAR com_status_vars[]= {
   {"admin_commands",       (char*) offsetof(System_status_var, com_other),                                          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"assign_to_keycache",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ASSIGN_TO_KEYCACHE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_db",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_DB]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
-  {"alter_db_upgrade",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_DB_UPGRADE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_event",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_EVENT]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_function",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_procedure",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},

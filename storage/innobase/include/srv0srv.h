@@ -138,9 +138,6 @@ struct srv_stats_t {
 
 extern const char*	srv_main_thread_op_info;
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-extern const char	srv_mysql50_table_name_prefix[10];
-
 /* The monitor thread waits on this event. */
 extern os_event_t	srv_monitor_event;
 

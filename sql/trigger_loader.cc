@@ -304,7 +304,6 @@ static bool fill_trg_data(Trg_file_data *trg,
 /**
   Change the subject table in the given list of triggers.
 
-  @param db_name         Old database of subject table
   @param new_db_name         New database of subject table
   @param new_table_name      New subject table's name
   @param stopper             Pointer to a trigger_name for
@@ -317,7 +316,6 @@ static bool fill_trg_data(Trg_file_data *trg,
 
 static Trigger *change_table_name_in_trn_files(
   List<Trigger> *triggers,
-  const char *db_name,
   const char *new_db_name,
   const LEX_STRING *new_table_name,
   const Trigger *stopper)
@@ -354,16 +352,6 @@ static Trigger *change_table_name_in_trn_files(
       return t;
     }
 
-    // Remove stale .TRN file in case of database upgrade.
-
-    if (db_name)
-    {
-      if (rm_trn_file(db_name, t->get_trigger_name().str))
-      {
-        rm_trn_file(new_db_name, t->get_trigger_name().str);
-        return t;
-      }
-    }
   }
 
   return NULL;
@@ -964,8 +952,7 @@ bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
                                           const char *db_name,
                                           LEX_STRING *table_name,
                                           const char *new_db_name,
-                                          LEX_STRING *new_table_name,
-                                          bool upgrading50to51)
+                                          LEX_STRING *new_table_name)
 {
   // Prepare TRG-data. Do it here so that OOM-error will not cause data
   // inconsistency.
@@ -979,7 +966,6 @@ bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
 
   Trigger *err_trigger=
     change_table_name_in_trn_files(triggers,
-                                   upgrading50to51 ? db_name : NULL,
                                    new_db_name, new_table_name,
                                    NULL);
 
@@ -993,7 +979,6 @@ bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
     */
     change_table_name_in_trn_files(
       triggers,
-      upgrading50to51 ? new_db_name : NULL,
       db_name, table_name,
       err_trigger);
     return true;

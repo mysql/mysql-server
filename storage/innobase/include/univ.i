@@ -385,7 +385,7 @@ mysql_com.h if you are to use this macro. */
 /** The maximum length in bytes that a table name can occupy when stored in
 UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
 mysql_com.h if you are to use this macro. */
-#define MAX_TABLE_UTF8_LEN	(NAME_LEN + sizeof(srv_mysql50_table_name_prefix))
+#define MAX_TABLE_UTF8_LEN	(NAME_LEN)
 
 /*
 			UNIVERSAL TYPE DEFINITIONS

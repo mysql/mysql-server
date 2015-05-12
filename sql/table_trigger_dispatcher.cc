@@ -23,7 +23,6 @@
 #include "sp_head.h"                // sp_head
 #include "sql_parse.h"              // create_default_definer
 #include "sql_show.h"               // append_definer
-#include "sql_table.h"              // check_n_cut_mysql50_prefix
 
 #include "trigger_loader.h"
 #include "trigger_chain.h"
@@ -647,8 +646,7 @@ bool Table_trigger_dispatcher::rename_subject_table(
   const char *old_db_name,
   const char *new_db_name,
   const char *old_table_name_str,
-  const char *new_table_name_str,
-  bool upgrading50to51)
+  const char *new_table_name_str)
 {
   LEX_STRING old_table_name;
   lex_string_set(&old_table_name, old_table_name_str);
@@ -668,8 +666,7 @@ bool Table_trigger_dispatcher::rename_subject_table(
   return Trigger_loader::rename_subject_table(get_mem_root(),
                                               &m_triggers,
                                               old_db_name, &old_table_name,
-                                              new_db_name, &new_table_name,
-                                              upgrading50to51);
+                                              new_db_name, &new_table_name);
 }
 
 

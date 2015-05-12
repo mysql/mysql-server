@@ -3883,21 +3883,12 @@ dict_scan_id(
 	}
 
 	if (!table_id) {
-convert_id:
 		/* Convert the identifier from connection character set
 		to UTF-8. */
 		len = 3 * len + 1;
 		*id = dst = static_cast<char*>(mem_heap_alloc(heap, len));
 
 		innobase_convert_from_id(cs, dst, str, len);
-	} else if (!strncmp(str, srv_mysql50_table_name_prefix,
-			    sizeof(srv_mysql50_table_name_prefix) - 1)) {
-		/* This is a pre-5.1 table name
-		containing chars other than [A-Za-z0-9].
-		Discard the prefix and use raw UTF-8 encoding. */
-		str += sizeof(srv_mysql50_table_name_prefix) - 1;
-		len -= sizeof(srv_mysql50_table_name_prefix) - 1;
-		goto convert_id;
 	} else {
 		/* Encode using filename-safe characters. */
 		len = 5 * len + 1;
@@ -6245,8 +6236,7 @@ dict_fs2utf8(
 		&errors);
 
 	if (errors != 0) {
-		ut_snprintf(table_utf8, table_utf8_size, "%s%s",
-			    srv_mysql50_table_name_prefix, table);
+		ut_snprintf(table_utf8, table_utf8_size, "%s", table);
 	}
 }
 

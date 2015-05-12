@@ -413,8 +413,6 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length
                     system_charset_info,  to, to_length, &errors);
     if (errors) // Old 5.0 name
     {
-      res= (strxnmov(to, to_length, MYSQL50_TABLE_NAME_PREFIX,  from, NullS) -
-            to);
 #ifndef DBUG_OFF
       if (!stay_quiet) {
 #endif /* DBUG_OFF */
@@ -431,47 +429,6 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length
 
   DBUG_PRINT("exit", ("to '%s'", to));
   DBUG_RETURN(res);
-}
-
-
-/**
-  Check if given string begins with "#mysql50#" prefix
-  
-  @param   name          string to check cut 
-  
-  @retval
-    FALSE  no prefix found
-  @retval
-    TRUE   prefix found
-*/
-
-bool check_mysql50_prefix(const char *name)
-{
-  return (name[0] == '#' && 
-         !strncmp(name, MYSQL50_TABLE_NAME_PREFIX,
-                  MYSQL50_TABLE_NAME_PREFIX_LENGTH));
-}
-
-
-/**
-  Check if given string begins with "#mysql50#" prefix, cut it if so.
-  
-  @param   from          string to check and cut 
-  @param   to[out]       buffer for result string
-  @param   to_length     its size
-  
-  @retval
-    0      no prefix found
-  @retval
-    non-0  result string length
-*/
-
-size_t check_n_cut_mysql50_prefix(const char *from, char *to, size_t to_length)
-{
-  if (check_mysql50_prefix(from))
-    return static_cast<size_t>(strmake(to, from + MYSQL50_TABLE_NAME_PREFIX_LENGTH,
-                                       to_length - 1) - to);
-  return 0;
 }
 
 
@@ -495,22 +452,6 @@ size_t tablename_to_filename(const char *from, char *to, size_t to_length)
   DBUG_ENTER("tablename_to_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
 
-  if ((length= check_n_cut_mysql50_prefix(from, to, to_length)))
-  {
-    /*
-      Check if the name supplied is a valid mysql 5.0 name and 
-      make the name a zero length string if it's not.
-      Note that just returning zero length is not enough : 
-      a lot of places don't check the return value and expect 
-      a zero terminated string.
-    */  
-    if (check_table_name(to, length, TRUE) != IDENT_NAME_OK)
-    {
-      to[0]= 0;
-      length= 0;
-    }
-    DBUG_RETURN(length);
-  }
   length= strconvert(system_charset_info, from,
                      &my_charset_filename, to, to_length, &errors);
   if (check_if_legal_tablename(to) &&

@@ -3122,26 +3122,6 @@ innobase_init(
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
-#ifndef DBUG_OFF
-	static const char	test_filename[] = "-@";
-	char			test_tablename[sizeof test_filename
-				+ sizeof(srv_mysql50_table_name_prefix) - 1];
-	if ((sizeof(test_tablename)) - 1
-			!= filename_to_tablename(test_filename,
-						 test_tablename,
-						 sizeof(test_tablename), true)
-			|| strncmp(test_tablename,
-				   srv_mysql50_table_name_prefix,
-				   sizeof(srv_mysql50_table_name_prefix) - 1)
-			|| strcmp(test_tablename
-				  + sizeof(srv_mysql50_table_name_prefix) - 1,
-				  test_filename)) {
-
-		sql_print_error("tablename encoding has been changed");
-		DBUG_RETURN(innobase_init_abort());
-	}
-#endif /* DBUG_OFF */
-
 	/* Check that values don't overflow on 32-bit systems. */
 	if (sizeof(ulint) == 4) {
 		if (innobase_buffer_pool_size > UINT_MAX32) {

@@ -106,5 +106,5 @@ DROP DATABASE information_schema;
 --error ER_PARSE_ERROR
 RENAME DATABASE information_schema TO info_schema;
 
---error ER_DBACCESS_DENIED_ERROR
+--error ER_PARSE_ERROR
 ALTER DATABASE information_schema UPGRADE DATA DIRECTORY NAME;

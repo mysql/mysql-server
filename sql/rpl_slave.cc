@@ -10787,7 +10787,7 @@ int add_new_channel(Master_info** mi, const char* channel,
  */
   if (channel)
   {
-    ident_check_status= check_table_name(channel, strlen(channel), false);
+    ident_check_status= check_table_name(channel, strlen(channel));
   }
   else
     ident_check_status= IDENT_NAME_WRONG;

@@ -91,9 +91,6 @@ ibool	srv_dict_stats_thread_active = FALSE;
 
 const char*	srv_main_thread_op_info = "";
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-const char		srv_mysql50_table_name_prefix[10] = "#mysql50#";
-
 /* Server parameters which are read from the initfile */
 
 /* The following three are dir paths which are catenated before file

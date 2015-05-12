@@ -140,8 +140,7 @@ public:
                                  const char *old_db_name,
                                  const char *new_db_name,
                                  const char *old_table_name_str,
-                                 const char *new_table_name_str,
-                                 bool upgrading50to51);
+                                 const char *new_table_name_str);
 
 
 private:
