@@ -30,6 +30,7 @@
 #include "sql_string.h"
 #include "pfs_setup_object.h"
 #include "pfs_buffer_container.h"
+#include "mysqld.h"                //system_charset_info
 #include <string.h>
 
 LF_HASH program_hash;
@@ -104,6 +105,17 @@ static void set_program_key(PFS_program_key *key,
   DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
   DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
 
+  /*
+    To make sure generated key is case insensitive,
+    convert object_name/schema_name to lowercase.
+   */
+  char tmp_object_name[COL_OBJECT_NAME_SIZE];
+  char tmp_schema_name[COL_OBJECT_SCHEMA_SIZE];
+  strncpy(tmp_object_name, object_name, object_name_length);
+  my_casedn_str(system_charset_info, tmp_object_name);
+  strncpy(tmp_schema_name, schema_name, schema_name_length);
+  my_casedn_str(system_charset_info, tmp_schema_name);
+
   char *ptr= &key->m_hash_key[0];
 
   ptr[0]= object_type;
@@ -111,7 +123,7 @@ static void set_program_key(PFS_program_key *key,
 
   if (object_name_length > 0)
   {
-    memcpy(ptr, object_name, object_name_length);
+    memcpy(ptr, tmp_object_name, object_name_length);
     ptr+= object_name_length;
   }
   ptr[0]= 0;
@@ -119,7 +131,7 @@ static void set_program_key(PFS_program_key *key,
 
   if (schema_name_length > 0)
   {
-    memcpy(ptr, schema_name, schema_name_length);
+    memcpy(ptr, tmp_schema_name, schema_name_length);
     ptr+= schema_name_length;
   }
   ptr[0]= 0;
