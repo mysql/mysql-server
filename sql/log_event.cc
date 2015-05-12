@@ -1148,6 +1148,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
   // Query start time
   ulong timestamp= (ulong) get_time();
 
+#ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
       DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
   {
@@ -1162,6 +1163,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
     DBUG_EXECUTE_IF("inc_event_time_by_1_hour", timestamp= timestamp + 3600;);
     DBUG_EXECUTE_IF("dec_event_time_by_1_hour", timestamp= timestamp - 3600;);
   }
+#endif
 
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
