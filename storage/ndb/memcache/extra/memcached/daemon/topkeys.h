@@ -1,4 +1,3 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 #ifndef TOPKEYS_H
 #define TOPKEYS_H 1
 
@@ -16,11 +15,11 @@
 /* Update the correct stat for a given operation */
 #define TK(tk, op, key, nkey, ctime) { \
     if (tk) { \
-        topkey_item_t *tmp; \
         assert(key); \
         assert(nkey > 0); \
         pthread_mutex_lock(&tk->mutex); \
-        tmp = topkeys_item_get_or_create((tk), (key), (nkey), (ctime)); \
+        topkey_item_t *tmp = topkeys_item_get_or_create( \
+            (tk), (key), (nkey), (ctime)); \
         tmp->op++; \
         pthread_mutex_unlock(&tk->mutex); \
     } \

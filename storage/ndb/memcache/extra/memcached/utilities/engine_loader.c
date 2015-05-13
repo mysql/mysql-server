@@ -1,4 +1,3 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #include "config.h"
 #include <ctype.h>
@@ -23,7 +22,6 @@ bool load_engine(const char *soname,
                  EXTENSION_LOGGER_DESCRIPTOR *logger,
                  ENGINE_HANDLE **engine_handle)
 {
-    void *symbol;
     ENGINE_HANDLE *engine = NULL;
     /* Hack to remove the warning from C99 */
     union my_hack {
@@ -41,7 +39,7 @@ bool load_engine(const char *soname,
         return false;
     }
 
-    symbol = dlsym(handle, "create_instance");
+    void *symbol = dlsym(handle, "create_instance");
     if (symbol == NULL) {
         logger->log(EXTENSION_LOG_WARNING, NULL,
                 "Could not find symbol \"create_instance\" in %s: %s\n",
@@ -69,7 +67,6 @@ bool init_engine(ENGINE_HANDLE * engine,
                  EXTENSION_LOGGER_DESCRIPTOR *logger)
 {
     ENGINE_HANDLE_V1 *engine_v1 = NULL;
-    ENGINE_ERROR_CODE error;
 
     if (handle == NULL) {
         logger->log(EXTENSION_LOG_WARNING, NULL,
@@ -95,7 +92,7 @@ bool init_engine(ENGINE_HANDLE * engine,
             return false;
         }
 
-        error = engine_v1->initialize(engine,config_str);
+        ENGINE_ERROR_CODE error = engine_v1->initialize(engine,config_str);
         if (error != ENGINE_SUCCESS) {
             engine_v1->destroy(engine, false);
             logger->log(EXTENSION_LOG_WARNING, NULL,
@@ -137,7 +134,7 @@ void log_engine_details(ENGINE_HANDLE * engine,
                 return;
             }
             offset += nw;
-            for (unsigned int ii = 0; ii < info->num_features; ++ii) {
+            for (int ii = 0; ii < info->num_features; ++ii) {
                 if (info->features[ii].description != NULL) {
                     nw = snprintf(message + offset, sizeof(message) - offset,
                                   "%s%s", comma ? ", " : "",
