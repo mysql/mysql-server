@@ -72,8 +72,10 @@ CREATE DATABASE mydb;
 CREATE TABLE mydb.mytable ( mycol char(3), mycol2 CHAR(100) );
 INSERT INTO mydb.mytable VALUES ( 'xxx', 'Not supposed to be seeing this.' );
 SELECT * FROM mydb.mytable WHERE mycol = 'xxx';
-mycol	mycol2
-xxx	Not supposed to be seeing this.
+rule1
+rule1
+Warnings:
+Note	1105	Query 'SELECT * FROM mydb.mytable WHERE mycol = 'xxx'' rewritten to 'select "rule1"' by plugin: Rewriter.
 DROP DATABASE mydb;
 SET @@session.character_set_client = DEFAULT;
 # Query rewrite plugin was uninstalled.
