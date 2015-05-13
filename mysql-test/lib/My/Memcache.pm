@@ -115,8 +115,8 @@ sub summarize {
   }
 }
 
-# fail() is called when an MTR test fails
 
+# fail() is called when an MTR test fails
 sub fail {
   my $self = shift;
   my $fd;
@@ -145,9 +145,7 @@ sub fail {
   }
   $msg .= "\n";
 
-  my %stats = $self->stats("errors");  # also flushes memcached error log
-  $msg .= "Server error stats:\n";
-  $msg .= sprintf("%s : %s\n", $_, $stats{$_}) for keys(%stats);
+  $msg .= $self->get_server_error_stats();
 
   # Load Average on linux
   $msg .= ("Load Avg: " . <$fd>) if(open($fd, "/proc/loadavg"));
@@ -155,6 +153,26 @@ sub fail {
   $msg .= "====~~~~____~~~~====\n";
 
   Carp::confess($msg);
+}
+
+
+# Attempt a new connection to memcached to flush the server's error log
+# and obtain error statistics
+
+sub get_server_error_stats {
+  my $self = shift;
+  my $new_client = My::Memcache::Binary->new();
+  my $r = $new_client->connect($self->{host}, $self->{port});
+  my $msg = "";
+
+  if($r) {
+    my %stats = $new_client->stats("errors");  # also flushes server log
+    $msg .= "Server error stats:\n";
+    $msg .= sprintf("%s : %s\n", $_, $stats{$_}) for keys(%stats);
+  } else {
+    $msg = "Attempted new server connection to fetch error statistics but failed.\n";
+  }
+  return $msg;
 }
 
 
@@ -183,7 +201,8 @@ sub connect {
     vec($fdset, $fd, 1) = 1;
     $self->{fdset} = $fdset;
     $self->{connection} = $conn;
-    $self->{server} = "$host:$port";
+    $self->{host} = $host;
+    $self->{port} = $port;
     return 1;
   }
   $self->{error} = "CONNECTION_FAILED";
@@ -212,6 +231,7 @@ sub set_flags {
 sub new_request {
   my $self = shift;
   $self->{error} = "OK";
+  $self->{read_try} = 0;
   $self->{has_cas} = 0;
   $self->{req_id}++;
   $self->{get_results} = undef;
@@ -402,17 +422,20 @@ sub read_line {
   my $message;
 
   $self->{read_try} = 0;
-  while($self->{read_try} < $self->{max_read_tries}) {
+  while((! defined($message)) && $self->{read_try} < $self->{max_read_tries}) {
     $self->{read_try}++;
     $message = $self->get_line_from_buffer();
-    if(defined($message)) {
-      $self->normalize_error($message);  # handle server error responses
-      return $message;
-    }
-    if(! $self->read($self->{sysread_size})) {
-      return $self->{error};
+    if(! defined($message)) {
+      if(! $self->read($self->{sysread_size})) {
+        return $self->{error};
+      }
     }
   }
+  if(defined($message)) {
+    $self->normalize_error($message);  # handle server error responses
+    return $message;
+  }
+
   $self->socket_error(0, "read_line(): timeout");
   return $self->{error};
 }
@@ -427,15 +450,17 @@ sub read_known_length {
   while($self->{read_try} < $self->{max_read_tries}) {
     $self->{read_try}++;
     $data = $self->get_length_from_buffer($len);
-    if(defined($data)) {
-      return $data;  # No need to do normalize_error for fixed-length reads.
-    }
+    return $data if(defined($data));
     if(! $self->read($len - $self->{buflen})) {
       return undef;
     }
   }
-  $self->socket_error(0, "read_known_length(): timeout");
-  return undef;
+  # Perhaps the read completed on the final attempt
+  $data = $self->get_length_from_buffer($len);
+  if(! defined($data)) {
+    $self->socket_error(0, "read_known_length(): timeout");
+  }
+  return $data;
 }
 
 
