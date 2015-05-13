@@ -5557,10 +5557,10 @@ my_bool grant_reload(THD *thd)
     tables[2].table i.e. procs_priv can be null if we are working with
     pre 4.1 privilage tables
   */
-  if ((return_val= grant_load(thd, tables)) ||
-                   (tables[2].table != NULL &&
-                    grant_reload_procs_priv(thd, &tables[2]))
-     )
+  if ((return_val= (grant_load(thd, tables) ||
+                    (tables[2].table != NULL &&
+                     grant_reload_procs_priv(thd, &tables[2])))
+     ))
   {						// Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
     my_hash_free(&column_priv_hash);
