@@ -109,12 +109,6 @@ static void set_program_key(PFS_program_key *key,
     To make sure generated key is case insensitive,
     convert object_name/schema_name to lowercase.
    */
-  char tmp_object_name[COL_OBJECT_NAME_SIZE]= {'\0'};
-  char tmp_schema_name[COL_OBJECT_SCHEMA_SIZE]= {'\0'};
-  strncpy(tmp_object_name, object_name, object_name_length);
-  my_casedn_str(system_charset_info, tmp_object_name);
-  strncpy(tmp_schema_name, schema_name, schema_name_length);
-  my_casedn_str(system_charset_info, tmp_schema_name);
 
   char *ptr= &key->m_hash_key[0];
 
@@ -123,6 +117,10 @@ static void set_program_key(PFS_program_key *key,
 
   if (object_name_length > 0)
   {
+    char tmp_object_name[COL_OBJECT_NAME_SIZE + 1];
+    memcpy(tmp_object_name, object_name, object_name_length);
+    tmp_object_name[object_name_length]= '\0';
+    my_casedn_str(system_charset_info, tmp_object_name);
     memcpy(ptr, tmp_object_name, object_name_length);
     ptr+= object_name_length;
   }
@@ -131,6 +129,10 @@ static void set_program_key(PFS_program_key *key,
 
   if (schema_name_length > 0)
   {
+    char tmp_schema_name[COL_OBJECT_SCHEMA_SIZE + 1];
+    memcpy(tmp_schema_name, schema_name, schema_name_length);
+    tmp_schema_name[schema_name_length]='\0';
+    my_casedn_str(system_charset_info, tmp_schema_name);
     memcpy(ptr, tmp_schema_name, schema_name_length);
     ptr+= schema_name_length;
   }
