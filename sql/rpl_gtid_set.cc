@@ -35,7 +35,7 @@ using std::min;
 using std::max;
 using std::list;
 
-#define MAX_NEW_TRUNK_ALLOCATE_TRIES 10
+#define MAX_NEW_CHUNK_ALLOCATE_TRIES 10
 
 const Gtid_set::String_format Gtid_set::default_string_format=
 {
@@ -216,10 +216,10 @@ void Gtid_set::create_new_chunk(int size)
 
   assert_free_intervals_locked();
   /*
-    Try to allocate the new chunk in MAX_NEW_TRUNK_ALLOCATE_TRIES
+    Try to allocate the new chunk in MAX_NEW_CHUNK_ALLOCATE_TRIES
     tries when encountering 'out of memory' situation.
   */
-  while (i < MAX_NEW_TRUNK_ALLOCATE_TRIES)
+  while (i < MAX_NEW_CHUNK_ALLOCATE_TRIES)
   {
     /*
       Allocate the new chunk. one element is already pre-allocated, so
@@ -245,10 +245,10 @@ void Gtid_set::create_new_chunk(int size)
   }
   /*
     Terminate the server after failed to allocate the new chunk
-    in MAX_NEW_TRUNK_ALLOCATE_TRIES tries.
+    in MAX_NEW_CHUNK_ALLOCATE_TRIES tries.
   */
-  if (MAX_NEW_TRUNK_ALLOCATE_TRIES == i ||
-      DBUG_EVALUATE_IF("rpl_simulate_new_trunk_allocate_failure", 1, 0))
+  if (MAX_NEW_CHUNK_ALLOCATE_TRIES == i ||
+      DBUG_EVALUATE_IF("rpl_simulate_new_chunk_allocate_failure", 1, 0))
   {
     my_safe_print_system_time();
     my_safe_printf_stderr("%s", "[Fatal] Out of memory while allocating "
@@ -276,7 +276,7 @@ void Gtid_set::get_free_interval(Interval **out)
     DBUG_EVALUATE_IF("rpl_gtid_get_free_interval_simulate_out_of_memory",
                      true, false);
   if (simulate_failure)
-    DBUG_SET("+d,rpl_simulate_new_trunk_allocate_failure");
+    DBUG_SET("+d,rpl_simulate_new_chunk_allocate_failure");
   if (ivit.get() == NULL || simulate_failure)
     create_new_chunk(CHUNK_GROW_SIZE);
   *out= ivit.get();

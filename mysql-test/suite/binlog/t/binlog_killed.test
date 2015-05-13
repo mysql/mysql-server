@@ -78,10 +78,11 @@ eval set @result= $rows - $error_code - $insert_binlogged;
 
 if (`SELECT @result != 0`)
 {
+  --source include/show_rpl_debug_info.inc
   -- echo error_code:$error_code, insert:$insert_binlogged, rows:$rows
   SELECT * FROM t2;
   
-  -- die
+  --die DIE
 }
 
 select @result /* must be zero either way */;
