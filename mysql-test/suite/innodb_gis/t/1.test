@@ -838,7 +838,7 @@ CREATE TABLE t3 (
   col2 POINT
 );
 
---error 1210
+--error ER_TOO_MANY_KEY_PARTS
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
 
 
