@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
 
     @Override
     public String toString() {
-        return " scan " + tableName;
+        return " NdbRecordScanOperationImpl with table: " + tableName + " " + super.toString();
     }
 
     /** Close the ndbOperation used by this scan after the scan is complete.
@@ -103,16 +103,19 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
 
     /** Deallocate resources used by this scan after the scan is executed */
     public void freeResourcesAfterExecute() {
-        super.freeResourcesAfterExecute();
         if (ndbInterpretedCode != null) {
             db.delete(ndbInterpretedCode);
+            ndbInterpretedCode = null;
         }
         if (ndbScanFilter != null) {
             db.delete(ndbScanFilter);
+            ndbScanFilter = null;
         }
         if (scanOptions != null) {
             db.delete(scanOptions);
+            scanOptions = null;
         }
+        super.freeResourcesAfterExecute();
     }
 
     public void deleteCurrentTuple() {
