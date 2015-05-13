@@ -606,7 +606,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	const ulint		flags
 		= BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG;
 	row_search_result	search_result;
-	ulint			orig_mode;
+	ulint			orig_mode = mode;
 
 	ut_ad(trx->id != 0);
 	/* For undel-mark spatial index rec after recovery,
@@ -616,7 +616,6 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	back partial update.	*/
 	if (dict_index_is_spatial(index)
 	    && thr_get_trx(thr)->is_recovered) {
-		orig_mode = mode;
 		mode |= BTR_RTREE_DELETE_MARK;
 	}
 
