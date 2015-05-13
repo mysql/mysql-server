@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,6 +131,14 @@ public interface Constants {
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-methods.html#ndb-ndb-init">Ndb::init()</a>
      */
     static final String PROPERTY_CLUSTER_MAX_TRANSACTIONS = "com.mysql.clusterj.max.transactions";
+
+    /** The name of the byte buffer pool sizes property. To disable buffer pooling for blob objects,
+     * set the value of this property to "1". With this setting, buffers will be allocated and freed
+     * (and cleaned if possible) immediately after being used for blob data transfer. */
+    static final String PROPERTY_CLUSTER_BYTE_BUFFER_POOL_SIZES = "com.mysql.clusterj.byte.buffer.pool.sizes";
+
+    /** The default value of the byte buffer pool sizes property: 256, 10K, 100K, 1M*/
+    static final String DEFAULT_PROPERTY_CLUSTER_BYTE_BUFFER_POOL_SIZES = "256, 10240, 102400, 1048576";
 
     /** The default value of the maximum number of transactions property */
     static final int DEFAULT_PROPERTY_CLUSTER_MAX_TRANSACTIONS = 4;
