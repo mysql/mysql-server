@@ -86,9 +86,6 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
-// Foreign key data cached under handler instance
-struct Ndb_fk_data;
-
 typedef enum ndb_write_op {
   NDB_INSERT = 0,
   NDB_UPDATE = 1,
@@ -641,7 +638,7 @@ private:
   key_map btree_keys;
   static const size_t fk_root_block_size= 1024;
   MEM_ROOT m_fk_mem_root;
-  Ndb_fk_data *m_fk_data;
+  struct Ndb_fk_data *m_fk_data;
 
   /*
     Pointer to row returned from scan nextResult().
