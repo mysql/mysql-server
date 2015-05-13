@@ -109,8 +109,8 @@ static void set_program_key(PFS_program_key *key,
     To make sure generated key is case insensitive,
     convert object_name/schema_name to lowercase.
    */
-  char tmp_object_name[COL_OBJECT_NAME_SIZE];
-  char tmp_schema_name[COL_OBJECT_SCHEMA_SIZE];
+  char tmp_object_name[COL_OBJECT_NAME_SIZE]= {'\0'};
+  char tmp_schema_name[COL_OBJECT_SCHEMA_SIZE]= {'\0'};
   strncpy(tmp_object_name, object_name, object_name_length);
   my_casedn_str(system_charset_info, tmp_object_name);
   strncpy(tmp_schema_name, schema_name, schema_name_length);

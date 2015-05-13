@@ -160,10 +160,10 @@ OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
 FUNCTION	stored_programs	append	1	1
 EVENT	stored_programs	e1	1	1
 FUNCTION	stored_programs	fac	1	19
-PROCEDURE	stored_programs	SampleProc1	1	2
-PROCEDURE	stored_programs	SampleProc2	1	5
-PROCEDURE	stored_programs	SampleProc3	1	10
-PROCEDURE	stored_programs	SampleProc4	1	11
+PROCEDURE	stored_programs	sampleproc1	1	2
+PROCEDURE	stored_programs	sampleproc2	1	5
+PROCEDURE	stored_programs	sampleproc3	1	10
+PROCEDURE	stored_programs	sampleproc4	1	11
 TRIGGER	stored_programs	trg1	3	3
 TRIGGER	stored_programs	trg2	1	1
 TRIGGER	stored_programs	trg3	1	1
@@ -323,39 +323,39 @@ statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
 statement/sp/jump	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
 statement/sp/jump_if_not	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
 statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	fac	STATEMENT	1
-statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	stored_programs	PROCEDURE	stored_programs	SampleProc1	STATEMENT	1
-statement/sp/stmt	INSERT INTO t1 VALUES (x2, y)	stored_programs	PROCEDURE	stored_programs	SampleProc1	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc2	STATEMENT	1
-statement/sp/stmt	INSERT INTO t2 VALUES (x, z2)	stored_programs	PROCEDURE	stored_programs	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	stored_programs	PROCEDURE	stored_programs	sampleproc1	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 VALUES (x2, y)	stored_programs	PROCEDURE	stored_programs	sampleproc1	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
+statement/sp/stmt	INSERT INTO t2 VALUES (x, z2)	stored_programs	PROCEDURE	stored_programs	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
 statement/sp/stmt	INSERT INTO t3 (n, f, s) VALUES ((ld IS NULL), 1,    "ld is null"),
 ((li IS NULL), 1,    "li is null"),
 ((li = 0),     NULL, "li = 0"),
 ((lf IS NULL), 1,    "lf is null"),
 ((lf = 0),     NULL, "lf = 0"),
-((ls IS NULL), 1,    "ls is null")	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/stmt	INSERT INTO t3 VALUES (ld, li, lf, ls)	stored_programs	PROCEDURE	stored_programs	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
+((ls IS NULL), 1,    "ls is null")	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/stmt	INSERT INTO t3 VALUES (ld, li, lf, ls)	stored_programs	PROCEDURE	stored_programs	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/set	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
+statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	sampleproc4	STATEMENT	1
 statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	1
 statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	2
 statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	2
@@ -376,10 +376,10 @@ OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COUNT_STAR	COUNT_STATEMENTS
 FUNCTION	stored_programs	append	0	0
 EVENT	stored_programs	e1	0	0
 FUNCTION	stored_programs	fac	0	0
-PROCEDURE	stored_programs	SampleProc1	0	0
-PROCEDURE	stored_programs	SampleProc2	0	0
-PROCEDURE	stored_programs	SampleProc3	0	0
-PROCEDURE	stored_programs	SampleProc4	0	0
+PROCEDURE	stored_programs	sampleproc1	0	0
+PROCEDURE	stored_programs	sampleproc2	0	0
+PROCEDURE	stored_programs	sampleproc3	0	0
+PROCEDURE	stored_programs	sampleproc4	0	0
 TRIGGER	stored_programs	trg1	0	0
 TRIGGER	stored_programs	trg2	0	0
 TRIGGER	stored_programs	trg3	0	0
