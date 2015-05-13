@@ -3,14 +3,27 @@
 # Windows does not have SOCKET, but will try to create a PIPE as well as MEMORY
 --source include/windows.inc
 
+# Only run this test if shared memory is avaliable
+let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
+if ($shm != ON){
+  skip No shm support;
+}
+let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
+
+
+let $nmp= query_get_value("SHOW VARIABLES LIKE 'named_pipe'", Value, 1);
+if ($nmp != ON){
+  skip No named pipe support;
+}
+
 # test for Bug #4998 "--protocol doesn't reject bad values"
 
 --exec echo "select ' ok' as '<default>'" | $MYSQL
 --exec echo "select ' ok' as 'TCP'"       | $MYSQL --protocol=TCP
---exec echo "select ' ok' as 'SOCKET'"    | $MYSQL --protocol=SOCKETE 2>&1 || true
---exec echo "select ' ok' as 'PIPE'"      | $MYSQL --protocol=PIPE
---exec echo "select ' ok' as 'MEMORY'"    | $MYSQL --protocol=MEMORY
---exec echo "select ' ok' as 'NullS'"     | $MYSQL --protocol=NullS
+# --exec echo "select ' ok' as 'SOCKET'"    | $MYSQL --protocol=SOCKET 2>&1 || true
+# --exec echo "select ' ok' as 'PIPE'"      | $MYSQL --protocol=PIPE
+# --exec echo "select ' ok' as 'MEMORY'"    | $MYSQL --protocol=MEMORY
+# --exec echo "select ' ok' as 'NullS'"     | $MYSQL --protocol=NullS 2>&1 || true
 
 # End of 4.1 tests
 
@@ -38,67 +51,35 @@ SET GLOBAL general_log=       'ON';
 
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
-CREATE USER 'user_tcp'@'127.0.0.1';
-GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
-CREATE USER 'user_ssl'@'127.0.0.1';
-GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
-
-
-#connect(pipe_con1,localhost,root,,,,$MASTER_MYSOCK,PIPE);
-# SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-#connection default;
-#disconnect pipe_con1;
-
---echo
---echo # MYSQLADMIN test 
-# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS. 
---exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK  -uroot ping
---echo
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot --protocol=PIPE ping
-
---echo # Mysql client with SSL enabled server.
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --protocol=PIPE -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
-
---echo
---echo # Connection type testing for TCP/IP  protocol 
-
-#connect(tcp_con1,localhost,root,,,,,TCP);
-#SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-#connection default;
-#disconnect tcp_con1;
-
---echo
---echo # MYSQLADMIN test 
-# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
---exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp ping
---echo
---exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --protocol=TCP ping
-
---echo # Mysql client with SSL enabled server.
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
---exec $MYSQL --host=127.0.0.1 --user=user_tcp --socket=$MASTER_MYSOCK --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 #
 --echo # Testing TCP/IP connections over SSL/TLS
 #
 
-connect(ssl_con1,localhost,root,,,,$MASTER_MYSOCK,SSL);
+connect(tcp_con1,localhost,root,,,,,);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+
+connection default;
+disconnect tcp_con1;
+
+connect(ssl_con1,localhost,root,,,,,SSL);
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect ssl_con1;
---echo
---echo # MYSQLADMIN test 
-# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
---exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp  ping
---echo
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --protocol=TCP --ssl ping
 
---echo # Mysql client with SSL enabled server.
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl  -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+connect(shm_con1,localhost,root,,,,$shm_name,SHM);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
---exec $MYSQL --host=127.0.0.1 --user=user_ssl --socket=$MASTER_MYSOCK --protocol=TCP --ssl -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+connection default;
+disconnect shm_con1;
 
---echo
+connect(pipe_con1,localhost,root,,,,,PIPE);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+
+connection default;
+disconnect pipe_con1;
+
+
 
 CREATE TABLE test_log (argument TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -119,6 +100,6 @@ SET GLOBAL log_output=        @old_log_output;
 
 
 --echo #Cleanup
-DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';
+
 
 
