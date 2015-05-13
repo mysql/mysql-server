@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,11 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     List<ByteBuffer> buffers = new ArrayList<ByteBuffer>();
 
     private Index index;
+
+    @Override
+    public String toString() {
+        return " NdbRecordIndexScanOperationImpl with index: " + index.getName() + " " + super.toString();
+    }
 
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
             Index storeIndex, Table storeTable, int lockMode) {
@@ -383,13 +388,18 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
         }
     }
 
+    /** Release resources used by this after the scan is closed
+     */
+    @Override
+    public void close() {
+        super.close();
+    }
+
     /** Free resources used by this scan after the scan is executed.
      * 
      */
+    @Override
     public void freeResourcesAfterExecute() {
-        super.freeResourcesAfterExecute();
-        // allow garbage collection for buffers used in IndexBound
-        buffers = null;
         if (ndbIndexBound != null) {
             db.delete(ndbIndexBound);
             ndbIndexBound = null;
@@ -400,6 +410,13 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
             }
             ndbIndexBoundList = null;
         }
+        // return the index buffers used in the operation to the ByteBuffer pool
+        if (buffers != null) {
+            for (ByteBuffer buffer: buffers) {
+                ndbRecordKeys.returnBuffer(buffer);
+            }
+        }
+        super.freeResourcesAfterExecute();
     }
 
 }

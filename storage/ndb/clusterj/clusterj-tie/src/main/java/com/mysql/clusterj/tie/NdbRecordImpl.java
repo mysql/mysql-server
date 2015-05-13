@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbRecord;
 import com.mysql.ndbjtie.ndbapi.NdbRecordConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
@@ -94,7 +95,10 @@ public class NdbRecordImpl {
     /** The NdbIndex, which will be null for complete-table instances */
     IndexConst indexConst = null;
 
-    /** The size of the buffer for this NdbRecord */
+    /** The name of this NdbRecord; table name + index name */
+    String name;
+
+    /** The size of the buffer for this NdbRecord, set during analyzeColumns */
     protected int bufferSize;
 
     /** The maximum column id for this NdbRecord */
@@ -130,6 +134,9 @@ public class NdbRecordImpl {
     /** Number of columns for this NdbRecord */
     private int numberOfTableColumns;
 
+    /** ByteBuffer pool for new records, created during createNdbRecord once the buffer size is known */
+    private FixedByteBufferPoolImpl bufferPool = null;
+
     /** These fields are only used during construction of the RecordSpecificationArray */
     int offset = 0;
     int nullablePosition = 0;
@@ -151,6 +158,7 @@ public class NdbRecordImpl {
     protected NdbRecordImpl(Table storeTable, Dictionary ndbDictionary) {
         this.ndbDictionary = ndbDictionary;
         this.tableConst = getNdbTable(storeTable.getName());
+        this.name = storeTable.getName();
         this.numberOfTableColumns = tableConst.getNoOfColumns();
         this.recordSpecificationArray = RecordSpecificationArray.create(numberOfTableColumns);
         recordSpecificationIndexes = new int[numberOfTableColumns];
@@ -179,6 +187,7 @@ public class NdbRecordImpl {
         this.ndbDictionary = ndbDictionary;
         this.tableConst = getNdbTable(storeTable.getName());
         this.indexConst = getNdbIndex(storeIndex.getInternalName(), tableConst.getName());
+        this.name = storeTable.getName() + ":" + storeIndex.getInternalName();
         this.numberOfTableColumns = tableConst.getNoOfColumns();
         int numberOfIndexColumns = this.indexConst.getNoOfColumns();
         this.recordSpecificationArray = RecordSpecificationArray.create(numberOfIndexColumns);
@@ -200,7 +209,7 @@ public class NdbRecordImpl {
     private void initializeDefaultBuffer() {
         // create the default value for the buffer: null values or zeros for all columns
         defaultValues = new byte[bufferSize];
-        ByteBuffer zeros = ByteBuffer.allocateDirect(bufferSize);
+        ByteBuffer zeros = bufferPool.borrowBuffer();
         zeros.order(ByteOrder.nativeOrder());
         // just to be sure, initialize with zeros
         zeros.put(defaultValues);
@@ -214,6 +223,7 @@ public class NdbRecordImpl {
         zeros.position(0);
         zeros.limit(bufferSize);
         zeros.get(defaultValues);
+        bufferPool.returnBuffer(zeros);
         // default values is now immutable and can be used thread-safe
     }
 
@@ -222,9 +232,19 @@ public class NdbRecordImpl {
      * @return a new byte buffer for use with this NdbRecord.
      */
     protected ByteBuffer newBuffer() {
-        ByteBuffer result = ByteBuffer.allocateDirect(bufferSize);
+        ByteBuffer result = bufferPool.borrowBuffer();
         initializeBuffer(result);
         return result;
+    }
+
+    /** Return the buffer to the buffer pool */
+    protected void returnBuffer(ByteBuffer buffer) {
+        bufferPool.returnBuffer(buffer);
+    }
+
+    /** Check the NdbRecord buffer guard */
+    protected void checkGuard(ByteBuffer buffer, String where) {
+        bufferPool.checkGuard(buffer, where);
     }
 
     /** Initialize an already-allocated buffer with default values for all columns.
@@ -233,10 +253,9 @@ public class NdbRecordImpl {
      */
     protected void initializeBuffer(ByteBuffer buffer) {
         buffer.order(ByteOrder.nativeOrder());
-        buffer.limit(bufferSize);
-        buffer.position(0);
+        buffer.clear();
         buffer.put(defaultValues);
-        buffer.position(0);
+        buffer.clear();
     }
 
     public int setNull(ByteBuffer buffer, Column storeColumn) {
@@ -268,9 +287,7 @@ public class NdbRecordImpl {
         int columnId = storeColumn.getColumnId();
         int newPosition = offsets[columnId];
         buffer.position(newPosition);
-        // TODO provide the buffer to Utility.convertValue to avoid copying
-        ByteBuffer bigIntegerBuffer = Utility.convertValue(storeColumn, value);
-        buffer.put(bigIntegerBuffer);
+        Utility.convertValue(buffer, storeColumn, value);
         buffer.limit(bufferSize);
         buffer.position(0);
         return columnId;
@@ -313,9 +330,7 @@ public class NdbRecordImpl {
         int columnId = storeColumn.getColumnId();
         int newPosition = offsets[columnId];
         buffer.position(newPosition);
-        // TODO provide the buffer to Utility.convertValue to avoid copying
-        ByteBuffer decimalBuffer = Utility.convertValue(storeColumn, value);
-        buffer.put(decimalBuffer);
+        Utility.convertValue(buffer, storeColumn, value);
         return columnId;
     }
 
@@ -678,6 +693,14 @@ public class NdbRecordImpl {
         // create the NdbRecord
         NdbRecord result = ndbDictionary.createRecord(indexConst, tableConst, recordSpecificationArray,
                 columnNames.length, SIZEOF_RECORD_SPECIFICATION, 0);
+        int rowLength = NdbDictionary.getRecordRowLength(result);
+        // create the buffer pool now that the size of the record is known
+        if (this.bufferSize < rowLength) {
+            logger.warn("NdbRecordImpl.createNdbRecord rowLength for " + this.name + " is " + rowLength +
+                    " but we only allocate length of " + this.bufferSize);
+            this.bufferSize = rowLength;
+        }
+        bufferPool = new FixedByteBufferPoolImpl(this.bufferSize, this.name);
         // delete the RecordSpecificationArray since it is no longer needed
         RecordSpecificationArray.delete(recordSpecificationArray);
         handleError(result, ndbDictionary);
@@ -692,6 +715,14 @@ public class NdbRecordImpl {
         // create the NdbRecord
         NdbRecord result = ndbDictionary.createRecord(tableConst, recordSpecificationArray,
                 columnNames.length, SIZEOF_RECORD_SPECIFICATION, 0);
+        int rowLength = NdbDictionary.getRecordRowLength(result);
+        // create the buffer pool now that the size of the record is known
+        if (this.bufferSize < rowLength) {
+            logger.warn("NdbRecordImpl.createNdbRecord rowLength for " + this.name + " is " + rowLength +
+                    " but we only allocate length of " + this.bufferSize);
+            this.bufferSize = rowLength;
+        }
+        bufferPool = new FixedByteBufferPoolImpl(this.bufferSize, this.name);
         // delete the RecordSpecificationArray since it is no longer needed
         RecordSpecificationArray.delete(recordSpecificationArray);
         handleError(result, ndbDictionary);
@@ -930,6 +961,8 @@ public class NdbRecordImpl {
             if (logger.isDebugEnabled())logger.debug("Releasing NdbRecord for " + tableConst.getName());
             ndbDictionary.releaseRecord(ndbRecord);
             ndbRecord = null;
+            // release the buffer pool; pooled byte buffers will be garbage collected
+            this.bufferPool = null;
         }
     }
 
