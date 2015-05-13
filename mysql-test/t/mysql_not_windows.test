@@ -12,5 +12,13 @@
 --echo Bug #54466 client 5.5 built from source lacks "pager" support
 --exec $MYSQL --pager test -e "select 1 as a"
 
+--echo #
+--echo # Bug#21074643: SERVER SETS OPEN_FILES_LIMIT UNCONDITIONALLY
+--echo #
+
+# .opt file tries to set limit to 1000000, but this should not work
+# so that the SELECT below should return 0.
+SELECT @@open_files_limit = 1000000;
+
 --echo
 --echo End of tests
