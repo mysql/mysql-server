@@ -20,3 +20,4 @@ rpl_row_mixing_engines              : Bug#19071401 2015-03-20 Erlend too many fa
 rpl_non_direct_mixed_mixing_engines : Bug#19071401 2015-03-20 Erlend too many failures on PB2 weekly trunk
 rpl_non_direct_stm_mixing_engines   : Bug#19071401 2015-03-20 Erlend too many failures on PB2 weekly trunk
 rpl_stm_mixing_engines              : Bug#19071401 2015-03-20 Erlend too many failures on PB2 weekly trunk
+rpl.rpl_perfschema_applier_status   : Bug#20762557 2015-05-13 Anitha Fails too often on PB2
