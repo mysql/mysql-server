@@ -3814,7 +3814,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     (*key_count)++;
     tmp=file->max_key_parts();
-    if (key->columns.elements > tmp)
+    if (key->columns.elements > tmp && key->type != KEYTYPE_SPATIAL)
     {
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(TRUE);
@@ -3968,16 +3968,16 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       if (key_info->user_defined_key_parts != 1)
       {
-	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
-	DBUG_RETURN(TRUE);
+        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+        DBUG_RETURN(TRUE);
       }
     }
     else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
       if ((key_info->user_defined_key_parts & 1) == 1)
       {
-	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
-	DBUG_RETURN(TRUE);
+        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+        DBUG_RETURN(TRUE);
       }
       /* TODO: To be deleted */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
