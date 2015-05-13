@@ -200,8 +200,9 @@ static openssl_lock_t *openssl_stdlocks;
 /*OpenSSL callback functions for multithreading. We implement all the functions
   as we are using our own locking mechanism.
 */
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
-  int line)
+static void openssl_lock(int mode, openssl_lock_t *lock,
+                         const char *file __attribute__((unused)),
+                         int line __attribute__((unused)))
 {
   int err;
   char const *what;
@@ -242,7 +243,9 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
   }
 }
 
-static void openssl_lock_function(int mode, int n, const char *file, int line)
+static void openssl_lock_function(int mode, int n,
+                                  const char *file __attribute__((unused)),
+                                  int line __attribute__((unused)))
 {
   if (n < 0 || n > CRYPTO_num_locks())
   {
@@ -257,7 +260,9 @@ static void openssl_lock_function(int mode, int n, const char *file, int line)
   openssl_lock(mode, &openssl_stdlocks[n], file, line);
 }
 
-static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
+static openssl_lock_t *openssl_dynlock_create(const char *file
+                                              __attribute__((unused)),
+                                              int line __attribute__((unused)))
 {
   openssl_lock_t *lock;
 
@@ -275,8 +280,9 @@ static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
 }
 
 
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
-  int line)
+static void openssl_dynlock_destroy(openssl_lock_t *lock,
+                                    const char *file __attribute__((unused)),
+                                    int line __attribute__((unused)))
 {
   DBUG_PRINT("info", ("openssl_dynlock_destroy: %s:%d", file, line));
 
