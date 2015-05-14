@@ -4790,7 +4790,8 @@ int mysqld_main(int argc, char **argv)
     reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
-      my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
+      my_tz_init((THD *)0, default_tz_name, opt_bootstrap) ||
+      grant_init(opt_noacl))
   {
     abort_loop= true;
 
@@ -4804,9 +4805,6 @@ int mysqld_main(int argc, char **argv)
 
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
-
-  if (!opt_noacl)
-    (void) grant_init();
 
   if (!opt_bootstrap)
     servers_init(0);

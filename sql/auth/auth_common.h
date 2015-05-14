@@ -576,7 +576,7 @@ bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
 my_bool acl_reload(THD *thd); 
-my_bool grant_init();
+bool grant_init(bool skip_grant_tables);
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 ulong acl_get(const char *host, const char *ip,
