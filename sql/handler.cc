@@ -7545,6 +7545,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
   DBUG_ASSERT(old_data == table->record[1]);
 
+  DBUG_ENTER("hanlder::ha_update_row");
+  DBUG_EXECUTE_IF("inject_error_ha_update_row",
+                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
+
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
@@ -7557,10 +7561,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
-    return error;
+    DBUG_RETURN(error);
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
-    return error;
-  return 0;
+    DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 int handler::ha_delete_row(const uchar *buf)
