@@ -568,6 +568,9 @@ buf_page_print(
 			<< " "
 			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< "/"
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB)
@@ -590,13 +593,19 @@ buf_page_print(
 				read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 	} else {
+		const uint32_t	crc32 = buf_calc_page_crc32(read_buf);
+
+		const uint32_t	crc32_legacy = buf_calc_page_crc32(read_buf,
+								   true);
+
 		ib::info() << "Uncompressed page, stored checksum in field1 "
 			<< mach_read_from_4(
 				read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
 			<< ", calculated checksums for field1: "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-			<< buf_calc_page_crc32(read_buf) << ", "
+			<< crc32 << "/" << crc32_legacy
+			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
 			<< buf_calc_page_new_checksum(read_buf)
@@ -610,7 +619,7 @@ buf_page_print(
 			<< ", calculated checksums for field2: "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-			<< buf_calc_page_crc32(read_buf)
+			<< crc32 << "/" << crc32_legacy
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
@@ -3117,6 +3126,9 @@ buf_zip_decompress(
 			<< ", crc32: "
 			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< "/"
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< " innodb: "
 			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_INNODB)

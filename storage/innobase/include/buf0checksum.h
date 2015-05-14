@@ -29,15 +29,19 @@ Created Aug 11, 2011 Vasil Dimov
 #include "univ.i"
 #include "buf0types.h"
 
-/********************************************************************//**
-Calculates a page CRC32 which is stored to the page when it is written
-to a file. Note that we must be careful to calculate the same value on
-32-bit and 64-bit architectures.
+/** Calculates the CRC32 checksum of a page. The value is stored to the page
+when it is written to a file and also checked for a match when reading from
+the file. When reading we allow both normal CRC32 and CRC-legacy-big-endian
+variants. Note that we must be careful to calculate the same value on 32-bit
+and 64-bit architectures.
+@param[in]	page			buffer page (UNIV_PAGE_SIZE bytes)
+@param[in]	use_legacy_big_endian	if true then use big endian
+byteorder when converting byte strings to integers
 @return checksum */
-ib_uint32_t
+uint32_t
 buf_calc_page_crc32(
-/*================*/
-	const byte*	page);	/*!< in: buffer page */
+	const byte*	page,
+	bool		use_legacy_big_endian = false);
 
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
@@ -196,22 +200,34 @@ public:
 	/** Calculate the compressed page checksum. This variant
 	should be used when only the page_size_t is unknown and
 	only physical page_size of compressed page is available.
-	@param[in]	read_buf	buffer holding the page
-	@param[in]	phys_page_size	physical page size
-	@param[in]	algo		checksum algorithm to use
+	@param[in]	read_buf		buffer holding the page
+	@param[in]	phys_page_size		physical page size
+	@param[in]	algo			checksum algorithm to use
+	@param[in]	use_legacy_big_endian	only used if algo is
+	SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
+	if true then use big endian byteorder when converting byte strings to
+	integers.
 	@return page checksum */
-	ib_uint32_t
+	uint32_t
 	calc_zip_checksum(
 		const byte*			read_buf,
 		ulint				phys_page_size,
-		srv_checksum_algorithm_t	algo) const;
+		srv_checksum_algorithm_t	algo,
+		bool				use_legacy_big_endian = false)
+	const;
 
 	/** Calculate the compressed page checksum.
-	@param[in]	algo	checksum algorithm to use
+	@param[in]	algo			checksum algorithm to use
+	@param[in]	use_legacy_big_endian	only used if algo is
+	SRV_CHECKSUM_ALGORITHM_CRC32 or SRV_CHECKSUM_ALGORITHM_STRICT_CRC32 -
+	if true then use big endian byteorder when converting byte strings to
+	integers.
 	@return page checksum */
-	ib_uint32_t
+	uint32_t
 	calc_zip_checksum(
-		srv_checksum_algorithm_t	algo) const;
+		srv_checksum_algorithm_t	algo,
+		bool				use_legacy_big_endian = false)
+	const;
 
 private:
 	/** Checks if the page is in innodb checksum format.

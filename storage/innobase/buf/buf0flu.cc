@@ -810,7 +810,7 @@ buf_flush_update_zip_checksum(
 	BlockReporter	reporter = BlockReporter(
 		false, NULL, univ_page_size, false);
 
-	ib_uint32_t	checksum = reporter.calc_zip_checksum(
+	const uint32_t	checksum = reporter.calc_zip_checksum(
 		page, size,
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 

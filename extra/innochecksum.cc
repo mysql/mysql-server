@@ -597,7 +597,7 @@ public:
 			return;
 		}
 
-		ib_uint32_t	crc32 = calc_zip_checksum(
+		const uint32_t	crc32 = calc_zip_checksum(
 			SRV_CHECKSUM_ALGORITHM_CRC32);
 
 		fprintf(m_log_file, "page::%" PRIuMAX ": crc32 checksum:"

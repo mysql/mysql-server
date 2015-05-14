@@ -2034,8 +2034,6 @@ func_exit:
 
 	if (b != NULL) {
 
-		ib_uint32_t	checksum;
-
 		/* Compute and stamp the compressed page
 		checksum while not holding any mutex.  The
 		block is already half-freed
@@ -2047,7 +2045,8 @@ func_exit:
 
 		BlockReporter	reporter = BlockReporter(
 			false, b->zip.data, b->size, false);
-		checksum = reporter.calc_zip_checksum(
+
+		const uint32_t	checksum = reporter.calc_zip_checksum(
 			static_cast<srv_checksum_algorithm_t>(
 				srv_checksum_algorithm));
 

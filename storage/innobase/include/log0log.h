@@ -370,11 +370,22 @@ ulint
 log_block_calc_checksum_innodb(const byte*	block);
 
 /** Calculates the checksum for a log block using the CRC32 algorithm.
-@param[in]	block	the redo log block
-@return		the calculated checksum value */
+@param[in]	block	log block
+@return checksum */
 UNIV_INLINE
 ulint
-log_block_calc_checksum_crc32(const byte*	block);
+log_block_calc_checksum_crc32(
+	const byte*	block);
+
+/** Calculates the checksum for a log block using the CRC32 algorithm.
+This function uses big endian byteorder when converting byte strings to
+integers.
+@param[in]	block	log block
+@return checksum */
+UNIV_INLINE
+ulint
+log_block_calc_checksum_crc32_legacy_big_endian(
+	const byte*	block);
 
 /** Calculates the checksum for a log block using the "no-op" algorithm.
 @param[in]	block	the redo log block
