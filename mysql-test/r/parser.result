@@ -1168,3 +1168,26 @@ ERROR 42000: Incorrect table name ''
 DELETE QUICK FROM t1 WHERE i = 0;
 DROP TABLE t1;
 #
+# Bug #21035515: PARSE_GCOL_EXPR SHOULD BE A KIND OF RESERVED WORD,
+#                NOT A KEYWORD
+SET @parse_gcol_expr = 1;
+SELECT 1 AS parse_gcol_expr;
+parse_gcol_expr
+1
+CREATE TABLE parse_gcol_expr (i INT);
+DROP TABLE parse_gcol_expr;
+# parse_gcol_expr can't be a label:
+CREATE PROCEDURE p1()
+BEGIN
+parse_gcol_expr: LOOP
+SELECT 1;
+END LOOP label1;
+END|
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ': LOOP
+SELECT 1;
+END LOOP label1;
+END' at line 3
+# PARSE_GCOL_EXPR is not a valid statement:
+PARSE_GCOL_EXPR (1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARSE_GCOL_EXPR (1)' at line 1
+#

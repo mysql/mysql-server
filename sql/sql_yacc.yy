@@ -6363,7 +6363,7 @@ parse_gcol_expr:
             */
             if (!Lex->parse_gcol_expr)
             {
-              my_message(ER_SYNTAX_ERROR, ER(ER_SYNTAX_ERROR), MYF(0));
+              YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
           }
@@ -13165,6 +13165,7 @@ keyword:
         | OPTIONS_SYM           {}
         | OWNER_SYM             {}
         | PARSER_SYM            {}
+        | PARSE_GCOL_EXPR_SYM   {}
         | PORT_SYM              {}
         | PRECEDES_SYM          {}
         | PREPARE_SYM           {}
