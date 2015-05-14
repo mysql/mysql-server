@@ -1,0 +1,3 @@
+--loose-enable-named-pipe
+--shared-memory=1
+--shared-memory-base-name=MYSQL
