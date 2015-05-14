@@ -308,5 +308,7 @@ CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
 --error ER_GET_ERRNO
 SELECT * FROM t2;
 --remove_file $MYSQLD_DATADIR/test/t2.frm
+# Flush table is needed to remove the 'orphan' t2 definition.
+FLUSH TABLE t2;
 DROP TABLE t1;
 
