@@ -499,9 +499,13 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
 };
 
 static struct st_mysql_show_var validate_password_status_variables[]= {
-    { "validate_password_dictionary_file_last_parsed", (char *) &validate_password_dictionary_file_last_parsed, SHOW_CHAR_PTR },
-    { "validate_password_dictionary_file_words_count", (char *) &validate_password_dictionary_file_words_count, SHOW_LONGLONG },
-    { NullS, NullS, SHOW_LONG }
+    { "validate_password_dictionary_file_last_parsed",
+      (char *) &validate_password_dictionary_file_last_parsed,
+      SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL },
+    { "validate_password_dictionary_file_words_count",
+      (char *) &validate_password_dictionary_file_words_count,
+      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL },
+    { NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL }
 };
 
 mysql_declare_plugin(validate_password)
