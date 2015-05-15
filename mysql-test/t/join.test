@@ -1074,3 +1074,30 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo # Bug#21045724: Assertion '!table || !table->read_set ...
+
+CREATE TABLE t1
+(pk INTEGER,
+ dummy VARCHAR(64),
+ col_check TINYINT,
+ PRIMARY KEY(pk)
+) engine=innodb;
+
+INSERT INTO t1 VALUES (13, '13', 13);
+
+CREATE VIEW v1 AS
+SELECT *
+FROM t1
+WHERE pk BETWEEN 13 AND 14;
+
+PREPARE st1 FROM "
+UPDATE v1 AS a NATURAL JOIN v1 AS b
+SET a.dummy = '', b.col_check = NULL ";
+
+EXECUTE st1;
+EXECUTE st1;
+
+DEALLOCATE PREPARE st1;
+DROP VIEW v1;
+DROP TABLE t1;

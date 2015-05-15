@@ -8158,12 +8158,23 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 
 bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 {
-  /* view fild reference must be defined */
-  DBUG_ASSERT(*ref);
-  /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
-  if (!(*ref)->fixed && ((*ref)->fix_fields(thd, ref)))
-    return true;                     /* purecov: inspected */
+  DBUG_ASSERT(*ref);  // view field reference must be defined
 
+  // (*ref)->check_cols() will be made in Item_direct_ref::fix_fields
+  if ((*ref)->fixed)
+  {
+    /*
+      Underlying Item_field objects may be shared. Make sure that the use
+      is marked regardless of how many ref items that point to this field.
+    */
+    Mark_field mf(thd->mark_used_columns);
+    (*ref)->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX, (uchar *)&mf);
+  }
+  else
+  {
+    if ((*ref)->fix_fields(thd, ref))
+      return true;                     /* purecov: inspected */
+  }
   return Item_direct_ref::fix_fields(thd, reference);
 }
 
