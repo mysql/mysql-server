@@ -65,7 +65,7 @@ using namespace std;
 #define MYSQL_CERT_SETUP_EXECUTABLE "mysql_ssl_rsa_setup"
 #endif /* HAVE_YASSL */
 #define MAX_MYSQLD_ARGUMENTS 10
-#define MAX_USER_NAME_LEN 16
+#define MAX_USER_NAME_LEN 32
 
 char *opt_euid= 0;
 char *opt_basedir= 0;

@@ -324,5 +324,16 @@ CREATE DATABASE b12688860_db;
 --exec $MYSQL_CHECK -uroot --password="" --fix-db-names b12688860_db 2>&1
 DROP DATABASE b12688860_db;
 
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+
+--exec $MYSQL_CHECK --host=127.0.0.1 -P $MASTER_MYPORT --user=user_with_length_32_abcdefghijkl --protocol=TCP mysql user
+
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+
 --echo
 --echo End of tests

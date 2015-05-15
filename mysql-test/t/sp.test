@@ -6051,7 +6051,7 @@ DROP FUNCTION IF EXISTS bug16899_f1|
 --enable_warnings
 
 --error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=1234567890abcdefGHIKL@localhost PROCEDURE bug16899_p1()
+CREATE DEFINER=1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhcnsndkhjkghskjfjsdhfkhskfdhksjdhfkjshfksh@localhost PROCEDURE bug16899_p1()
 BEGIN
   SET @a = 1;
 END|

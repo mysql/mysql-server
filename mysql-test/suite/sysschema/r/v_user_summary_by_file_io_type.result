@@ -1,6 +1,6 @@
 DESC sys.user_summary_by_file_io_type;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 event_name	varchar(128)	NO		NULL	
 total	bigint(20) unsigned	NO		NULL	
 latency	text	YES		NULL	
@@ -8,7 +8,7 @@ max_latency	text	YES		NULL
 SELECT * FROM sys.user_summary_by_file_io_type;
 DESC sys.x$user_summary_by_file_io_type;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 event_name	varchar(128)	NO		NULL	
 total	bigint(20) unsigned	NO		NULL	
 latency	bigint(20) unsigned	NO		NULL	
