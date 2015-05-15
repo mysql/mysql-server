@@ -95,11 +95,8 @@ DELETE FROM d3.t1 where a=3;
 --let $rpl_server_parameters= --skip_slave_start=FALSE --relay_log_info_repository=TABLE --master_info_repository=TABLE --sync_master_info=1 --relay-log-recovery=1
 --source include/rpl_restart_server.inc
 
-# Wait for slave thread to apply all events
---let $show_statement= SHOW PROCESSLIST
---let $field= State
---let $condition= = 'Slave has read all relay log; waiting for more updates';
---source include/wait_show_condition.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
 
 # Compare the tables on master and slave they should be in sync
 let $i=4;
