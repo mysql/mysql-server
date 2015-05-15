@@ -14,9 +14,15 @@
 # - Stop and start the slave (this should fail).
 # - Check the Slave_IO_Running column of SHOW SLAVE STATUS.
 #
-# ==== Related bugs ====
+# ==== Related bugs and modifications ====
 #
 # BUG#10780: slave can't connect to master - IO and SQL threads running
+#
+# Added scenario for testing WL#2284:
+#   - a) Replaced 'rpl' user name to 'rpluser_with_length_32_123456789'
+#         i.e with increased length of 32.
+#   - b) Connect to master through new user name of increased length.
+#
 
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
@@ -24,13 +30,16 @@
 --echo ==== Create new replication user ====
 --echo [on master]
 connection master;
-GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
+CREATE USER rpluser_with_length_32_123456789@127.0.0.1 IDENTIFIED BY 'rpl';
+--error 1470
+CREATE USER rpluser_with_length_32_1234567890@127.0.0.1 IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 
 --echo [on slave]
 --source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 --replace_column 2 ####
-CHANGE MASTER TO master_user='rpl', master_password='rpl';
+CHANGE MASTER TO master_user='rpluser_with_length_32_123456789', master_password='rpl';
 source include/start_slave.inc;
 
 --echo ==== Do replication as new user ====
@@ -45,7 +54,7 @@ SELECT * FROM t1;
 --echo ==== Delete new replication user ====
 --echo [on master]
 connection master;
-DROP USER rpl@127.0.0.1;
+DROP USER rpluser_with_length_32_123456789@127.0.0.1;
 FLUSH PRIVILEGES;
 
 --echo [on slave]

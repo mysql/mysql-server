@@ -333,3 +333,15 @@ UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name
 UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="statement";
 
 set sql_mode= @orig_sql_mode;
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE USER 'user_name_len_22_01234'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+GRANT ALL ON performance_schema.* TO 'user_name_len_22_01234'@localhost with GRANT OPTION;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user_name_len_22_01234'@localhost;
+DROP USER 'user_name_len_22_01234'@localhost;
