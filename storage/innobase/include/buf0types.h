@@ -26,8 +26,6 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
-#include <map> /* std::map */
-
 #include "dict0types.h" /* index_id_t */
 #include "os0event.h"
 #include "ut0lock_free_hash.h"
