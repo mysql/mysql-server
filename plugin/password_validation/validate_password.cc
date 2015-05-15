@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <set>
 #include <iostream>
 #include <fstream>
+#include <algorithm> // std::swap
 
 
 /*  
@@ -34,6 +35,28 @@
 #define PASSWORD_SCORE                25
 #define MIN_DICTIONARY_WORD_LENGTH    4
 #define MAX_PASSWORD_LENGTH           100
+
+/* Read-write lock for dictionary_words cache */
+mysql_rwlock_t LOCK_dict_file;
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_rwlock_key key_validate_password_LOCK_dict_file;
+
+static PSI_rwlock_info all_validate_password_rwlocks[]=
+{
+  { &key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0}
+};
+
+void init_validate_password_psi_keys()
+{
+  const char* category= "validate";
+  int count;
+
+  count= array_elements(all_validate_password_rwlocks);
+  mysql_rwlock_register(category, all_validate_password_rwlocks, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+
 
 /*
   Handle assigned when loading the plugin.
@@ -70,50 +93,113 @@ static int validate_password_mixed_case_count;
 static int validate_password_special_char_count;
 static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
+static char *validate_password_dictionary_file_last_parsed= NULL;
+static long long validate_password_dictionary_file_words_count= 0;
+
+/**
+  Activate the new dictionary
+
+  Assigns a local list to the global variable,
+  taking the correct locks in the process.
+  Also updates the status variables.
+  @param dict_words new dictionary words set
+
+*/
+static void dictionary_activate(set_type *dict_words)
+{
+  time_t start_time;
+  struct tm tm;
+  char timebuf[20]; /* "YYYY-MM-DD HH:MM:SS" */
+  char *new_ts;
+
+  /* fetch the start time */
+  start_time= my_time(MYF(0));
+  localtime_r(&start_time, &tm);
+  my_snprintf(timebuf, sizeof(timebuf), "%04d-%02d-%02d %02d:%02d:%02d",
+              tm.tm_year + 1900,
+              tm.tm_mon + 1,
+              tm.tm_mday,
+              tm.tm_hour,
+              tm.tm_min,
+              tm.tm_sec);
+  new_ts= my_strdup(timebuf, MYF(0));
+
+  mysql_rwlock_wrlock(&LOCK_dict_file);
+  std::swap(dictionary_words, *dict_words);
+  validate_password_dictionary_file_words_count= dictionary_words.size();
+  std::swap(new_ts, validate_password_dictionary_file_last_parsed);
+  mysql_rwlock_unlock(&LOCK_dict_file);
+
+  /* frees up the data just replaced */
+  if (!dict_words->empty())
+    dict_words->clear();
+  if (new_ts)
+    my_free(new_ts);
+}
+
 
 /* To read dictionary file into std::set */
 static void read_dictionary_file()
 {
   string_type words;
-  long file_length;
+  set_type dict_words;
+  std::streamoff file_length;
 
   if (validate_password_dictionary_file == NULL)
   {
-    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                          "Dictionary file not specified");
+    if (validate_password_policy == PASSWORD_POLICY_STRONG)
+      my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                            "Dictionary file not specified");
+    /* NULL is a valid value, despite the warning */
+    dictionary_activate(&dict_words);
     return;
   }
-  std::ifstream dictionary_stream(validate_password_dictionary_file);
-  if (!dictionary_stream)
+  try
   {
-    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                          "Dictionary file not loaded");
-    return;
-  }
-  dictionary_stream.seekg(0, std::ios::end);
-  file_length= dictionary_stream.tellg();
-  dictionary_stream.seekg(0, std::ios::beg);
-  if (file_length > MAX_DICTIONARY_FILE_LENGTH)
-  {
+    std::ifstream dictionary_stream(validate_password_dictionary_file);
+    if (!dictionary_stream || !dictionary_stream.is_open())
+    {
+      my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                            "Dictionary file not loaded");
+      return;
+    }
+    dictionary_stream.seekg(0, std::ios::end);
+    file_length= dictionary_stream.tellg();
+    dictionary_stream.seekg(0, std::ios::beg);
+    if (file_length > MAX_DICTIONARY_FILE_LENGTH)
+    {
+      dictionary_stream.close();
+      my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                            "Dictionary file size exceed",
+                            "MAX_DICTIONARY_FILE_LENGTH, not loaded");
+      return;
+    }
+    for (std::getline(dictionary_stream, words); dictionary_stream.good();
+         std::getline(dictionary_stream, words))
+         dict_words.insert(words);
     dictionary_stream.close();
-    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                          "Dictionary file size exceed",
-                          "MAX_DICTIONARY_FILE_LENGTH, not loaded");
-    return;
+    dictionary_activate(&dict_words);
   }
-  while (dictionary_stream.good())
+  catch (...) // no exceptions !
   {
-    std::getline(dictionary_stream, words);
-    dictionary_words.insert(words);
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Exception while reading the dictionary file");
   }
-  dictionary_stream.close();
 }
+
 
 /* Clear words from std::set */
 static void free_dictionary_file()
 {
+  mysql_rwlock_wrlock(&LOCK_dict_file);
   if (!dictionary_words.empty())
     dictionary_words.clear();
+  if (validate_password_dictionary_file_last_parsed)
+  {
+    my_free(validate_password_dictionary_file_last_parsed);
+    validate_password_dictionary_file_last_parsed= NULL;
+  }
+  mysql_rwlock_unlock(&LOCK_dict_file);
 }
 
 /*
@@ -148,6 +234,7 @@ static int validate_dictionary_check(mysql_string_handle password)
     std::set as container stores the dictionary words,
     binary comparison between dictionary words and password
   */
+  mysql_rwlock_rdlock(&LOCK_dict_file);
   while (substr_length >= MIN_DICTIONARY_WORD_LENGTH)
   {
     substr_pos= 0;
@@ -157,6 +244,7 @@ static int validate_dictionary_check(mysql_string_handle password)
       itr= dictionary_words.find(password_substr);
       if (itr != dictionary_words.end())
       {
+        mysql_rwlock_unlock(&LOCK_dict_file);
         free(buffer);
         return (0);
       }
@@ -164,6 +252,7 @@ static int validate_dictionary_check(mysql_string_handle password)
     }
     substr_length--;
   }
+  mysql_rwlock_unlock(&LOCK_dict_file);
   free(buffer);
   return (1);
 }
@@ -264,6 +353,10 @@ static struct st_mysql_validate_password validate_password_descriptor=
 static int validate_password_init(MYSQL_PLUGIN plugin_info)
 {
   plugin_info_ptr= plugin_info;
+#ifdef HAVE_PSI_INTERFACE
+  init_validate_password_psi_keys();
+#endif
+  mysql_rwlock_init(key_validate_password_LOCK_dict_file, &LOCK_dict_file);
   read_dictionary_file();
   return (0);
 }
@@ -276,9 +369,23 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info)
 static int validate_password_deinit(void *arg __attribute__((unused)))
 {
   free_dictionary_file();
+  mysql_rwlock_destroy(&LOCK_dict_file);
   return (0);
 }
 
+/*
+  Update function for validate_password_dictionary_file.
+  If dictionary file is changed, this function will flush
+  the cache and re-load the new dictionary file.
+*/
+static void
+dictionary_update(MYSQL_THD thd __attribute__((unused)),
+                  struct st_mysql_sys_var *var __attribute__((unused)),
+                  void *var_ptr, const void *save)
+{
+  *(const char**)var_ptr= *(const char**)save;
+  read_dictionary_file();
+}
 
 /*
   update function for:
@@ -367,9 +474,9 @@ static MYSQL_SYSVAR_ENUM(policy, validate_password_policy,
   NULL, NULL, PASSWORD_POLICY_MEDIUM, &password_policy_typelib_t);
 
 static MYSQL_SYSVAR_STR(dictionary_file, validate_password_dictionary_file,
-  PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
   "password_validate_dictionary file to be loaded and check for password",
-  NULL, NULL, NULL);
+  NULL, dictionary_update, NULL);
 
 static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(length),
@@ -379,6 +486,12 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(policy),
   MYSQL_SYSVAR(dictionary_file),
   NULL
+};
+
+static struct st_mysql_show_var validate_password_status_variables[]= {
+    { "validate_password_dictionary_file_last_parsed", (char *) &validate_password_dictionary_file_last_parsed, SHOW_CHAR_PTR },
+    { "validate_password_dictionary_file_words_count", (char *) &validate_password_dictionary_file_words_count, SHOW_LONGLONG },
+    { NullS, NullS, SHOW_LONG }
 };
 
 mysql_declare_plugin(validate_password)
@@ -391,8 +504,8 @@ mysql_declare_plugin(validate_password)
   PLUGIN_LICENSE_GPL,
   validate_password_init,             /*   init function (when loaded)     */
   validate_password_deinit,           /*   deinit function (when unloaded) */
-  0x0100,                             /*   version                         */
-  NULL,
+  0x0101,                             /*   version                         */
+  validate_password_status_variables, /*   status variables                */
   validate_password_system_variables, /*   system variables                */
   NULL,
   0,
