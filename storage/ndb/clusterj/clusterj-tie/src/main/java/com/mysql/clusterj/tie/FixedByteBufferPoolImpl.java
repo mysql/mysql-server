@@ -101,12 +101,12 @@ class FixedByteBufferPoolImpl {
         if (buffer == null) {
             buffer = ByteBuffer.allocateDirect(bufferSize + guard.length);
             initializeGuard(buffer);
-            if (logger.isDetailEnabled()) logger.detail("FixedByteBufferPoolImpl for " + name + 
-                    " got new  buffer: position " + buffer.position() + 
+            if (logger.isDetailEnabled()) logger.detail("FixedByteBufferPoolImpl for " + name +
+                    " got new  buffer: position " + buffer.position() +
                     " capacity " + buffer.capacity() + " limit " + buffer.limit());
         } else {
-            if (logger.isDetailEnabled()) logger.detail("FixedByteBufferPoolImpl for " + name + 
-                    " got used buffer: position " + buffer.position() + 
+            if (logger.isDetailEnabled()) logger.detail("FixedByteBufferPoolImpl for " + name +
+                    " got used buffer: position " + buffer.position() +
                     " capacity " + buffer.capacity() + " limit " + buffer.limit());
         }
         buffer.clear();
