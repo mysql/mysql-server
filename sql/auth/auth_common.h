@@ -544,13 +544,15 @@ bool acl_check_host(const char *host, const char *ip);
   statement. These attributes are divided into following catagories.
 */
 
-#define DEFAULT_AUTH_ATTR       1    /* update defaults auth */
-#define PLUGIN_ATTR             2    /* update plugin, authentication_string */
-#define SSL_ATTR                4    /* ex: SUBJECT,CIPHER.. */
-#define RESOURCE_ATTR           8    /* ex: MAX_QUERIES_PER_HOUR.. */
-#define PASSWORD_EXPIRE_ATTR    16   /* update password expire col */
-#define ACCESS_RIGHTS_ATTR      32   /* update privileges */
-#define ACCOUNT_LOCK_ATTR       64   /* update account lock status */
+#define NONE_ATTR               0L
+#define DEFAULT_AUTH_ATTR       (1L << 0)    /* update defaults auth */
+#define PLUGIN_ATTR             (1L << 1)    /* update plugin */
+                                             /* authentication_string */
+#define SSL_ATTR                (1L << 2)    /* ex: SUBJECT,CIPHER.. */
+#define RESOURCE_ATTR           (1L << 3)    /* ex: MAX_QUERIES_PER_HOUR.. */
+#define PASSWORD_EXPIRE_ATTR    (1L << 4)    /* update password expire col */
+#define ACCESS_RIGHTS_ATTR      (1L << 5)    /* update privileges */
+#define ACCOUNT_LOCK_ATTR       (1L << 6)    /* update account lock status */
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb);
@@ -569,7 +571,10 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
-bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str, ulong &what_to_set);
+bool set_and_validate_user_attributes(THD *thd,
+                                      LEX_USER *Str,
+                                      ulong &what_to_set,
+                                      bool is_privileged_user);
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
@@ -708,9 +713,11 @@ typedef enum ssl_artifacts_status
 {
   SSL_ARTIFACTS_NOT_FOUND= 0,
   SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACT_TRACES_FOUND,
   SSL_ARTIFACTS_AUTO_DETECTED
 } ssl_artifacts_status;
-#endif
+
+#endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;

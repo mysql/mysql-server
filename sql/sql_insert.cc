@@ -62,10 +62,10 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
   @return false if success, true if an error was raised.
 */
 
-static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
-                                     TABLE_LIST **insert_table_ref)
+static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
+                                      TABLE_LIST **insert_table_ref)
 {
-  /* it is join view => we need to find the table for update */
+  // It is join view => we need to find the table for insert
   List_iterator_fast<Item> it(fields);
   Item *item;
   *insert_table_ref= NULL;          // reset for call to check_single_table()
@@ -74,13 +74,14 @@ static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   while ((item= it++))
     tables|= item->used_tables();
 
-  if (view->check_single_table(insert_table_ref, tables) ||
-      *insert_table_ref == NULL)
+  if (view->check_single_table(insert_table_ref, tables))
   {
     my_error(ER_VIEW_MULTIUPDATE, MYF(0),
              view->view_db.str, view->view_name.str);
     return true;
   }
+  DBUG_ASSERT(*insert_table_ref && (*insert_table_ref)->is_insertable());
+
   return false;
 }
 
@@ -119,7 +120,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   TABLE *table= table_list->table;
 
-  DBUG_ASSERT(table_list->is_updatable());
+  DBUG_ASSERT(table_list->is_insertable());
 
   if (fields.elements == 0 && value_count_known && value_count > 0)
   {
@@ -184,7 +185,8 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
     if (table_list->is_merged())
     {
-      if (check_view_single_update(fields, table_list, &lex->insert_table_leaf))
+      if (check_single_table_insert(fields, table_list,
+                                    &lex->insert_table_leaf))
         return true;
       table= lex->insert_table_leaf->table;
     }
@@ -1032,7 +1034,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
       DBUG_RETURN(true);           /* purecov: inspected */
   }
 
-  if (!table_list->is_updatable())
+  if (!table_list->is_insertable())
   {
     my_error(ER_NON_INSERTABLE_TABLE, MYF(0), table_list->alias, "INSERT");
     DBUG_RETURN(true);
@@ -2649,11 +2651,75 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   }
   /* First field to copy */
   field= table->field+table->s->fields - values.elements;
+  for (Field **f= field ; *f ; f++)
+  {
+    if ((*f)->gcol_info)
+    {
+      /*
+        Generated columns are not allowed to be given a value for CREATE TABLE ..
+        SELECT statment.
+      */
+      my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
+               (*f)->field_name, (*f)->table->s->table_name.str);
+      DBUG_RETURN(true);
+    }
+  }
 
   // Turn off function defaults for columns filled from SELECT list:
   const bool retval= info.ignore_last_columns(table, values.elements);
   DBUG_RETURN(retval);
 }
+
+
+/*
+  Class for maintaining hooks used inside operations on tables such
+  as: create table functions, delete table functions, and alter table
+  functions.
+
+  Class is using the Template Method pattern to separate the public
+  usage interface from the private inheritance interface.  This
+  imposes no overhead, since the public non-virtual function is small
+  enough to be inlined.
+
+  The hooks are usually used for functions that does several things,
+  e.g., create_table_from_items(), which both create a table and lock
+  it.
+ */
+class TABLEOP_HOOKS
+{
+public:
+  TABLEOP_HOOKS() {}
+  virtual ~TABLEOP_HOOKS() {}
+
+  inline void prelock(TABLE **tables, uint count)
+  {
+    do_prelock(tables, count);
+  }
+
+  inline int postlock(TABLE **tables, uint count)
+  {
+    return do_postlock(tables, count);
+  }
+private:
+  /* Function primitive that is called prior to locking tables */
+  virtual void do_prelock(TABLE **tables, uint count)
+  {
+    /* Default is to do nothing */
+  }
+
+  /**
+     Primitive called after tables are locked.
+
+     If an error is returned, the tables will be unlocked and error
+     handling start.
+
+     @return Error code or zero.
+   */
+  virtual int do_postlock(TABLE **tables, uint count)
+  {
+    return 0;                           /* Default is to do nothing */
+  }
+};
 
 
 /**

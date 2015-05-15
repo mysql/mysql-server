@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -369,7 +369,7 @@ lock_clust_rec_cons_read_sees(
 
 	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	return(view->changes_visible(trx_id));
+	return(view->changes_visible(trx_id, index->table->name));
 }
 
 /*********************************************************************//**
@@ -1249,8 +1249,6 @@ lock_sec_rec_some_has_impl(
 		trx = 0;
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
-
-		buf_page_print(page, univ_page_size, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
 		trx = 0;

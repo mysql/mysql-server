@@ -26,8 +26,9 @@
 
 
 #include "my_global.h"
-#include "sql_opt_exec_shared.h"      // join_type
 #include "item_cmpfunc.h"             // Item_cond_and
+#include "sql_class.h"                // THD
+#include "sql_opt_exec_shared.h"      // join_type
 
 #include <functional>
 /**

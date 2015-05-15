@@ -17,8 +17,8 @@
 #ifndef _m_string_h
 #define _m_string_h
 
-#include "my_global.h"                          /* HAVE_* */
-#include "my_byteorder.h"                       /* uint8korr */
+#include "my_global.h"
+#include "my_byteorder.h"    /* uint8korr */
 
 #include <string.h>
 
@@ -27,8 +27,6 @@
 #define bmove please_use_memmove_rather_than_bmove
 #define strmov please_use_my_stpcpy_or_my_stpmov_rather_than_strmov
 #define strnmov please_use_my_stpncpy_or_my_stpnmov_rather_than_strnmov
-
-#include "mysql/service_my_snprintf.h"
 
 #if defined(__cplusplus)
 extern "C" {

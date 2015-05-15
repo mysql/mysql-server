@@ -420,27 +420,12 @@ bool change_trigger_table_name(THD *thd,
     moving table with them between two schemas raises too many questions.
     (E.g. what should happen if in new schema we already have trigger
      with same name ?).
-
-    In case of "ALTER DATABASE `#mysql50#db1` UPGRADE DATA DIRECTORY NAME"
-    we will be given table name with "#mysql50#" prefix
-    To remove this prefix we use check_n_cut_mysql50_prefix().
   */
-
-  bool upgrading50to51= false;
 
   if (my_strcasecmp(table_alias_charset, db_name, new_db_name))
   {
-    char dbname[NAME_LEN + 1];
-    if (check_n_cut_mysql50_prefix(db_name, dbname, sizeof(dbname)) &&
-        !my_strcasecmp(table_alias_charset, dbname, new_db_name))
-    {
-      upgrading50to51= true;
-    }
-    else
-    {
-      my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
-      return true;
-    }
+    my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+    return true;
   }
 
   /*
@@ -462,8 +447,7 @@ bool change_trigger_table_name(THD *thd,
          d.rename_subject_table(thd,
                                 db_name, new_db_name,
                                 table_alias,
-                                new_table_name,
-                                upgrading50to51);
+                                new_table_name);
 }
 
 

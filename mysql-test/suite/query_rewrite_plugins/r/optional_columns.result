@@ -76,11 +76,11 @@ id	pattern	pattern_database	replacement	enabled	message	pattern_digest	normalize
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
-2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL	9e17b4d54b5e7c0e275834d69b4d3327	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
-3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL	a36134e88b6901fa6923b22f516efc6b	select `a` from `test`.`t1`
-4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL	62494e3ffa931a49b85ad438dd79533f	select `a` from `test`.`t1` where (`b` = ?)
-5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL	1a6aac8031cdd01b27bc2b932f34c672	select `*` from `test`.`t2`
-6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL	11ed685112aabf96df6d699471d1b812	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
+2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL	318aa0f255906dd42b92df9fb4ccc476	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
+3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL	2a1ddb7d6fb795addaed6f4adb88e9bd	select `a` from `test`.`t1`
+4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL	6d0881bee6c831f57cc6e001f5ca5e68	select `a` from `test`.`t1` where (`b` = ?)
+5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL	270f1bccdd9a20696b7c92ab182852a2	select `*` from `test`.`t2`
+6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL	422bd50bc8088d89c69ff1051c97e8a7	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
 # Check a query that doesn't have a rewrite rule doesn't get rewritten.
 SELECT b FROM test.t1;
 b

@@ -3811,8 +3811,10 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 
 longlong Item_func_validate_password_strength::val_int()
 {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String value(buff, sizeof(buff), system_charset_info);
   String *field= args[0]->val_str(&value);
-  if ((null_value= args[0]->null_value))
+  if ((null_value= args[0]->null_value) || field->length() == 0)
     return 0;
   return (my_calculate_password_strength(field->ptr(), field->length()));
 }
@@ -4255,7 +4257,7 @@ bool udf_handler::get_arguments()
 	String *res=args[i]->val_str(&buffers[str_count++]);
 	if (!(args[i]->null_value))
 	{
-	  f_args.args[i]=    (char*) res->ptr();
+	  f_args.args[i]=    res->c_ptr_safe();
 	  f_args.lengths[i]= res->length();
 	}
 	else
@@ -6002,7 +6004,7 @@ double user_var_entry::val_real(my_bool *null_value) const
   case STRING_RESULT:
     return my_atof(m_ptr);                    // This is null terminated
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return 0.0;					// Impossible
@@ -6033,7 +6035,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     return my_strtoll10(m_ptr, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return 0LL;					// Impossible
@@ -6064,8 +6066,9 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(m_ptr, m_length, collation.collation))
       str= 0;					// EOM error
+    break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return(str);
@@ -6093,7 +6096,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) co
                    collation.collation, val);
     break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+    DBUG_ASSERT(false);                         // Impossible
     break;
   }
   return(val);
@@ -8007,7 +8010,8 @@ table_map Item_func_sp::get_initial_pseudo_tables() const
 }
 
 
-void my_missing_function_error(const LEX_STRING &token, const char *func_name)
+static void my_missing_function_error(const LEX_STRING &token,
+                                      const char *func_name)
 {
   if (token.length && is_lex_native_function (&token))
     my_error(ER_FUNC_INEXISTENT_NAME_COLLISION, MYF(0), func_name);

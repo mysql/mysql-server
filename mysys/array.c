@@ -18,6 +18,7 @@
 #include "mysys_priv.h"
 #include "m_string.h"
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
 
 /*
   Initiate dynamic array

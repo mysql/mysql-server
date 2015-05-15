@@ -17,8 +17,10 @@
 
 /* class for the the heap handler */
 
-#include <heap.h>
-#include "sql_class.h"                          /* THD */
+#include "my_global.h"
+#include "heap.h"
+#include "handler.h"
+#include "table.h"
 
 class ha_heap: public handler
 {
@@ -33,11 +35,7 @@ public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
   ~ha_heap() {}
   handler *clone(const char *name, MEM_ROOT *mem_root);
-  const char *table_type() const
-  {
-    return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
-           "HEAP" : "MEMORY";
-  }
+  const char *table_type() const;
   const char *index_type(uint inx)
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_BTREE) ?

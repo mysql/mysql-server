@@ -27,7 +27,6 @@
 #include "log.h"                        // sql_print_warning, query_logger
 #include "mysqld.h"                     // global_system_variables
 #include "psi_memory_key.h"             // key_memory_MPVIO_EXT_auth_info
-#include "read_write_lock.h"            // Write_lock, Read_lock, lock_at
 #include "sql_auth_cache.h"             // acl_cache
 #include "sql_class.h"                  // THD
 #include "sql_connect.h"                // thd_init_client_charset
@@ -1055,7 +1054,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   /* we should not free mpvio->user here: it's saved by dispatch_command() */
   if (!(mpvio->auth_info.user_name= my_strndup(key_memory_MPVIO_EXT_auth_info,
                                                user_buff, user_len, MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
   mpvio->auth_info.user_name_length= user_len;
 
   if (make_lex_string_root(mpvio->mem_root, 
@@ -1096,7 +1095,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
                                 mpvio->charset_adapter->charset()))
-    return MY_TEST(packet_error);
+    DBUG_RETURN(MY_TEST(packet_error));
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
   /* 
@@ -2221,13 +2220,11 @@ acl_authenticate(THD *thd, enum_server_command command)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    {
-      Read_lock rlk_guard(&proxy_users_rwlock);
-      proxy_user= acl_find_proxy_user(auth_user, sctx->host().str,
-                                       sctx->ip().str,
-                                       mpvio.auth_info.authenticated_as,
-                                       &is_proxy_user);
-    }
+    mysql_mutex_lock(&acl_cache->lock);
+    proxy_user= acl_find_proxy_user(auth_user, sctx->host().str, sctx->ip().str,
+                                    mpvio.auth_info.authenticated_as,
+                                    &is_proxy_user);
+    mysql_mutex_unlock(&acl_cache->lock);
     if (mpvio.auth_info.user_name && proxy_check)
     {
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
@@ -3580,8 +3577,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
     self_sign= false;
   }
 
-  /* Create X509 certificate with validity of 1 year */
-  x509= x509_gen(pkey, cn, serial, 0, 365L*24*60*60,
+  /* Create X509 certificate with validity of 10 year */
+  x509= x509_gen(pkey, cn, serial, 0, 365L*24*60*60*10,
                  self_sign, ca_x509, ca_key);
   DBUG_EXECUTE_IF("x509_cert_generation_error",
                   {
@@ -3786,7 +3783,8 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
                             "as options related to SSL are specified.");
       return true;
     }
-    else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
+    else if(auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED ||
+            auto_detection_status == SSL_ARTIFACT_TRACES_FOUND)
     {
       sql_print_information("Skipping generation of SSL certificates as "
                             "certificate files are present in data "
@@ -3918,7 +3916,8 @@ static struct st_mysql_auth native_password_handler=
   native_password_authenticate,
   generate_native_password,
   validate_native_password_hash,
-  set_native_salt
+  set_native_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #if defined(HAVE_OPENSSL)
@@ -3929,7 +3928,8 @@ static struct st_mysql_auth sha256_password_handler=
   sha256_password_authenticate,
   generate_sha256_password,
   validate_sha256_password_hash,
-  set_sha256_salt
+  set_sha256_salt,
+  AUTH_FLAG_USES_INTERNAL_STORAGE
 };
 
 #endif /* HAVE_OPENSSL */

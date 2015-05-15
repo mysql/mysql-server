@@ -624,26 +624,6 @@ inline bool is_system_table_name(const char *name, size_t length)
 }
 
 
-/**
-  Check if a string contains path elements
-*/  
-
-static inline bool has_disabled_path_chars(const char *str)
-{
-  for (; *str; str++)
-    switch (*str)
-    {
-      case FN_EXTCHAR:
-      case '/':
-      case '\\':
-      case '~':
-      case '@':
-        return TRUE;
-    }
-  return FALSE;
-}
-
-
 /*
   Read table definition from a binary / text based .frm file
   
@@ -690,57 +670,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
-    /*
-      We don't try to open 5.0 unencoded name, if
-      - non-encoded name contains '@' signs, 
-        because '@' can be misinterpreted.
-        It is not clear if '@' is escape character in 5.1,
-        or a normal character in 5.0.
-        
-      - non-encoded db or table name contain "#mysql50#" prefix.
-        This kind of tables must have been opened only by the
-        mysql_file_open() above.
-    */
-    if (has_disabled_path_chars(share->table_name.str) ||
-        has_disabled_path_chars(share->db.str) ||
-        !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
-                 MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
-        !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
-                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-      goto err_not_open;
-
-    /*
-      Trying unencoded 5.0 name for temporary tables does not
-      make sense since such tables are not persistent.
-    */
-    if (share->tmp_table)
-      goto err_not_open;
-
-    /* Try unencoded 5.0 name */
-    size_t length;
-    strxnmov(path, sizeof(path)-1,
-             mysql_data_home, "/", share->db.str, "/",
-             share->table_name.str, reg_ext, NullS);
-    length= unpack_filename(path, path) - reg_ext_length;
-    /*
-      The following is a safety test and should never fail
-      as the old file name should never be longer than the new one.
-    */
-    DBUG_ASSERT(length <= share->normalized_path.length);
-    /*
-      If the old and the new names have the same length,
-      then table name does not have tricky characters,
-      so no need to check the old file name.
-    */
-    if (length == share->normalized_path.length ||
-        ((file= mysql_file_open(key_file_frm,
-                                path, O_RDONLY | O_SHARE, MYF(0))) < 0))
-      goto err_not_open;
-
-    /* Unencoded 5.0 table name found */
-    path[length]= '\0'; // Remove .frm extension
-    my_stpcpy(share->normalized_path.str, path);
-    share->normalized_path.length= length;
+    goto err_not_open;
   }
 
   error= 4;
@@ -3845,7 +3775,6 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
 {
   char *name= org_name->str;
   size_t name_length= org_name->length;
-  bool check_for_path_chars;
   enum_ident_name_check ident_check_status;
 
   if (!name_length || name_length > NAME_LEN)
@@ -3854,16 +3783,10 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
     return IDENT_NAME_WRONG;
   }
 
-  if ((check_for_path_chars= check_mysql50_prefix(name)))
-  {
-    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-  }
-
   if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-  ident_check_status= check_table_name(name, name_length, check_for_path_chars);
+  ident_check_status= check_table_name(name, name_length);
   if (ident_check_status == IDENT_NAME_WRONG)
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
   else if (ident_check_status == IDENT_NAME_TOO_LONG)
@@ -3878,7 +3801,6 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
 
   @param name                  Table name
   @param length                Length of table name
-  @param check_for_path_chars  Check if the table name contains path chars
 
   @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
   @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
@@ -3888,8 +3810,7 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
   @note Reporting error to the user is the responsiblity of the caller.
 */
 
-enum_ident_name_check check_table_name(const char *name, size_t length,
-                                       bool check_for_path_chars)
+enum_ident_name_check check_table_name(const char *name, size_t length)
 {
   // name length in symbols
   size_t name_length= 0;
@@ -3911,9 +3832,6 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-    if (check_for_path_chars &&
-        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
-      return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
@@ -4863,20 +4781,16 @@ int TABLE_LIST::view_check_option(THD *thd) const
 		        (must be set to NULL by caller)
   @param      map       bit mask of tables
 
-  @retval false table not found or found only one
+  @retval false table not found or found only one (table_ref is non-NULL)
   @retval true  found several tables
-
-  @note This function should be called for tables to be updated, meaning
-        that any view references must be merged.
 */
 
 bool TABLE_LIST::check_single_table(TABLE_LIST **table_ref, table_map map)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    if (tbl->is_view_or_derived())
+    if (tbl->is_view_or_derived() && tbl->is_merged())
     {
-      DBUG_ASSERT(tbl->is_merged());
       if (tbl->check_single_table(table_ref, map))
         return true;
     }
@@ -6782,18 +6696,14 @@ bool TABLE_LIST::materializable_is_const() const
 
 uint TABLE_LIST::leaf_tables_count() const
 {
-  DBUG_ASSERT(is_view_or_derived() && is_merged());
+  // Join nests are not permissible, except as merged views
+  DBUG_ASSERT(nested_join == NULL || is_merged());
+  if (!is_merged())  // Base table or materialized view
+    return 1;
+
   uint count= 0;
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-  {
-    if (tbl->is_view_or_derived())
-      count+= tbl->leaf_tables_count();
-    else
-    {
-      DBUG_ASSERT(tbl->nested_join == NULL);
-      count++;
-    }
-  }
+    count+= tbl->leaf_tables_count();
 
   return count;
 }

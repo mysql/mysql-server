@@ -290,7 +290,6 @@ void init_update_queries(void)
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -530,7 +529,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]|=          CF_DISALLOW_IN_RO_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]|=         CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_DISALLOW_IN_RO_TRANS;
@@ -897,7 +895,6 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 }
 
 
-#ifdef HAVE_MY_TIMER
 /**
   Check whether max statement time is applicable to statement or not.
 
@@ -988,7 +985,6 @@ void reset_statement_timer(THD *thd)
   thd->timer_cache= thd_timer_reset(thd->timer);
   thd->timer= NULL;
 }
-#endif
 
 
 /**
@@ -1352,7 +1348,7 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
                         com_data->com_field_list.table_name_length,
                         thd->charset());
     enum_ident_name_check ident_check_status=
-      check_table_name(table_name.str, table_name.length, FALSE);
+      check_table_name(table_name.str, table_name.length);
     if (ident_check_status == IDENT_NAME_WRONG)
     {
       /* this is OK due to convert_string() null-terminating the string */
@@ -2095,18 +2091,6 @@ mysql_execute_command(THD *thd)
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
-
-  if (unlikely(lex->is_broken()))
-  {
-    // Force a Reprepare, to get a fresh LEX
-    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
-    if (reprepare_observer &&
-        reprepare_observer->report_error(thd))
-    {
-      DBUG_ASSERT(thd->is_error());
-      DBUG_RETURN(1);
-    }
-  }
 
   thd->work_part_info= 0;
 
@@ -2946,6 +2930,9 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -2974,6 +2961,9 @@ end_with_restore_list:
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
@@ -3436,32 +3426,6 @@ end_with_restore_list:
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
-    break;
-  }
-  case SQLCOM_ALTER_DB_UPGRADE:
-  {
-    LEX_STRING *db= & lex->name;
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      res= 1;
-      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-      break;
-    }
-#endif
-    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
-      break;
-    if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
-        check_access(thd, DROP_ACL, db->str, NULL, NULL, 1, 0) ||
-        check_access(thd, CREATE_ACL, db->str, NULL, NULL, 1, 0))
-    {
-      res= 1;
-      break;
-    }
-    LEX_CSTRING db_name= {db->str, db->length};
-    res= mysql_upgrade_db(thd, db_name);
-    if (!res)
-      my_ok(thd);
     break;
   }
   case SQLCOM_ALTER_DB:
@@ -4687,9 +4651,7 @@ finish:
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 {
   LEX	*lex= thd->lex;
-#ifdef HAVE_MY_TIMER
   bool statement_timer_armed= false;
-#endif
   bool res;
 
   /* assign global limit variable if limit is not given */
@@ -4700,11 +4662,9 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         new Item_int((ulonglong) thd->variables.select_limit);
   }
 
-#ifdef HAVE_MY_TIMER
   //check if timer is applicable to statement, if applicable then set timer.
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed= set_statement_timer(thd);
-#endif
 
   if (!(res= open_tables_for_query(thd, all_tables, 0)))
   {
@@ -4743,10 +4703,8 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     MYSQL_SELECT_DONE((int) res, (ulong) thd->limit_found_rows);
   }
 
-#ifdef HAVE_MY_TIMER
   if (statement_timer_armed && thd->timer)
     reset_statement_timer(thd);
-#endif
 
   DEBUG_SYNC(thd, "after_table_open");
   return res;
@@ -5475,7 +5433,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!MY_TEST(table_options & TL_OPTION_ALIAS))
   {
     enum_ident_name_check ident_check_status=
-      check_table_name(table->table.str, table->table.length, FALSE);
+      check_table_name(table->table.str, table->table.length);
     if (ident_check_status == IDENT_NAME_WRONG)
     {
       my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);

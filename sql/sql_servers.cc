@@ -45,6 +45,7 @@
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
 #include "sql_class.h"
+#include "mysql/psi/mysql_memory.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.

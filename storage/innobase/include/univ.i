@@ -90,10 +90,8 @@ support cross-platform development and expose comonly used SQL names. */
 # include <my_global.h>
 # include <my_thread.h>
 
-# ifndef UNIV_INNOCHECKSUM
 #  include <m_string.h>
 #  include <mysqld_error.h>
-# endif /* !UNIV_INNOCHECKSUM */
 #endif /* !UNIV_HOTBACKUP  */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
@@ -387,7 +385,7 @@ mysql_com.h if you are to use this macro. */
 /** The maximum length in bytes that a table name can occupy when stored in
 UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
 mysql_com.h if you are to use this macro. */
-#define MAX_TABLE_UTF8_LEN	(NAME_LEN + sizeof(srv_mysql50_table_name_prefix))
+#define MAX_TABLE_UTF8_LEN	(NAME_LEN)
 
 /*
 			UNIVERSAL TYPE DEFINITIONS

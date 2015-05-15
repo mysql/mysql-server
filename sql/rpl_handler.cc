@@ -17,6 +17,7 @@
 
 #include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
+#include "item_func.h"         // user_var_entry
 #include "log.h"               // sql_print_error
 #include "psi_memory_key.h"
 #include "replication.h"       // Trans_param

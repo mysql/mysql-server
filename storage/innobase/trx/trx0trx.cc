@@ -76,6 +76,17 @@ TrxVersion::TrxVersion(trx_t* trx)
 	/* No op */
 }
 
+/** Set flush observer for the transaction
+@param[in/out]	trx		transaction struct
+@param[in]	observer	flush observer */
+void
+trx_set_flush_observer(
+	trx_t*		trx,
+	FlushObserver*	observer)
+{
+	trx->flush_observer = observer;
+}
+
 /*************************************************************//**
 Set detailed error message for the transaction. */
 void
@@ -140,6 +151,8 @@ trx_init(
 
 	trx->error_key_num = ULINT_UNDEFINED;
 
+	trx->last_upd_sp_index = NULL;
+
 	trx->undo_no = 0;
 
 	trx->rsegs.m_redo.rseg = NULL;
@@ -190,6 +203,8 @@ trx_init(
 	it got a chance to roll them back asynchronously. */
 
 	trx->hit_list.clear();
+
+	trx->flush_observer = NULL;
 
 	++trx->version;
 }
@@ -2128,6 +2143,11 @@ trx_commit_low(
 
 		mtr->set_sync();
 
+		if (trx_is_redo_rseg_updated(trx)) {
+			mtr->set_undo_space(trx->rsegs.m_redo.rseg->space);
+			mtr->set_sys_modified();
+		}
+
 		serialised = trx_write_serialisation_history(trx, mtr);
 
 		/* The following call commits the mini-transaction, making the
@@ -2192,8 +2212,8 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 		mtr_start_sync(mtr);
+		mtr->set_sys_modified();
 	} else {
-
 		mtr = NULL;
 	}
 
@@ -2764,6 +2784,8 @@ trx_prepare_low(
 
 		if (noredo_logging) {
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(rseg->space);
 		}
 
 		/* Change the undo log segment states from TRX_UNDO_ACTIVE to
@@ -2779,12 +2801,12 @@ trx_prepare_low(
 			because only a single OS thread is allowed to do the
 			transaction prepare for this transaction. */
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->insert_undo, &mtr);
+				trx, undo_ptr->insert_undo, false, &mtr);
 		}
 
 		if (undo_ptr->update_undo != NULL) {
 			trx_undo_set_state_at_prepare(
-				trx, undo_ptr->update_undo, &mtr);
+				trx, undo_ptr->update_undo, false, &mtr);
 		}
 
 		mutex_exit(&rseg->mutex);

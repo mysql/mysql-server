@@ -1816,39 +1816,38 @@ DROP TABLE t2;
 CREATE TABLE t1 ( a INT, b INT );
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Reference 'c' not supported (reference to group function)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Reference 'c' not supported (reference to group function)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 INSERT INTO t1 VALUES (1, 1);
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-c	(SELECT a FROM t1 WHERE b = c)
-1	1
+ERROR 42S22: Unknown column 'c' in 'where clause'
 INSERT INTO t1 VALUES (2, 1);
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-ERROR 21000: Subquery returns more than 1 row
+ERROR 42S22: Unknown column 'c' in 'where clause'
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:

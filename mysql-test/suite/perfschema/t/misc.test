@@ -155,8 +155,6 @@ DELETE FROM t_60905 WHERE i = 1;
 DELETE FROM t_60905 WHERE j = 8;
 
 # show the instrument data.
-# Note that the index name "i" is not known yet, displayed as "(index 0)",
-# as the only opened table handle has never been closed yet.
 SELECT object_schema,
        object_name,
        index_name,
@@ -167,21 +165,6 @@ SELECT object_schema,
   FROM performance_schema.table_io_waits_summary_by_index_usage
  WHERE object_schema = 'test'
    AND object_name = 't_60905';
-
-flush table t_60905;
-
-# show the instrument data (index names are now known)
-SELECT object_schema,
-       object_name,
-       index_name,
-       count_fetch,
-       count_insert,
-       count_update,
-       count_delete
-  FROM performance_schema.table_io_waits_summary_by_index_usage
- WHERE object_schema = 'test'
-   AND object_name = 't_60905';
-
 
 DROP TABLE t_60905;
 

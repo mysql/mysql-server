@@ -138,9 +138,6 @@ struct srv_stats_t {
 
 extern const char*	srv_main_thread_op_info;
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-extern const char	srv_mysql50_table_name_prefix[10];
-
 /* The monitor thread waits on this event. */
 extern os_event_t	srv_monitor_event;
 
@@ -228,6 +225,11 @@ extern ulong	srv_undo_tablespaces;
 
 /** The number of UNDO tablespaces that are open and ready to use. */
 extern ulint	srv_undo_tablespaces_open;
+
+/** The number of UNDO tablespaces that are active (hosting some rollback
+segment). It is quite possible that some of the tablespaces doesn't host
+any of the rollback-segment based on configuration used. */
+extern ulint	srv_undo_tablespaces_active;
 
 /** The number of undo segments to use */
 extern ulong	srv_undo_logs;
@@ -789,7 +791,8 @@ srv_purge_wakeup(void);
 
 /** Call exit(3) */
 void
-srv_fatal_error();
+srv_fatal_error()
+	__attribute__((noreturn));
 
 /** Check if tablespace is being truncated.
 (Ignore system-tablespace as we don't re-create the tablespace

@@ -1709,7 +1709,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user12'@'localhost' IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*82DC221D557298F6CE9961037DB1C90604792F5C' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
-0.000001	#	Query	#	#	use `test`; ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+0.000001	#	Query	#	#	use `test`; ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL PASSWORD EXPIRE DEFAULT
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user11'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE INTERVAL 90 DAY ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user13'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
@@ -1719,7 +1719,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user15'@'localhost' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user16'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE NEVER ACCOUNT LOCK
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user16'@'localhost' PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK
-0.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*474F9F196851C7025F166095EDBBD42CFAB1DA6B' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+0.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*474F9F196851C7025F166095EDBBD42CFAB1DA6B' PASSWORD EXPIRE DEFAULT
 0.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
 0.000001	#	Query	#	#	use `test`; ALTER USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*EFA28F5E94885AA962E1AFC1912CE376EE374F65'
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
@@ -1834,7 +1834,7 @@ ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK
-ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SET PASSWORD FOR `u3`@`localhost`=<secret>
@@ -2097,3 +2097,46 @@ ERROR HY000: Plugin 'invalid_plugin' is not loaded
 GRANT ALL ON *.* TO u1 IDENTIFIED WITH 'invalid_plugin' AS 'secret';
 ERROR HY000: Plugin 'invalid_plugin' is not loaded
 DROP USER u1;
+
+Bug #20364862 MYSQLADMIN PASSWORD AFFECTS EXTERNAL AUTH ACCOUNTS
+
+call mtr.add_suppression("Did not write failed");
+CREATE USER bug20364862_user@localhost IDENTIFIED WITH test_plugin_server AS 'bug20364862_dest';
+CREATE USER bug20364862_dest@localhost IDENTIFIED BY 'dest_password';
+GRANT PROXY ON bug20364862_dest@localhost TO bug20364862_user@localhost;
+CREATE DATABASE db1;
+GRANT ALL PRIVILEGES ON db1.* TO bug20364862_dest@localhost WITH GRANT OPTION;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000) at line 1: Access denied for user 'bug20364862_dest'@'localhost' (using password: YES)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1045 (28000) at line 1: Access denied for user 'bug20364862_dest'@'localhost' (using password: YES)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Level	Code	Message
+Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
+USER	AUTHENTICATION_STRING
+bug20364862_user	bug20364862_dest
+GRANT UPDATE ON mysql.* TO bug20364862_dest@localhost;
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Level	Code	Message
+Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
+USER	AUTHENTICATION_STRING
+bug20364862_user	bug20364862_dest
+REVOKE UPDATE ON mysql.* FROM bug20364862_dest@localhost;
+GRANT CREATE USER ON *.* TO bug20364862_dest@localhost;
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Level	Code	Message
+Note	1699	SET PASSWORD has no significance for user 'bug20364862_user'@'localhost' as authentication plugin does not support it.
+SELECT USER, AUTHENTICATION_STRING FROM mysql.user WHERE user like 'bug20364862_user';
+USER	AUTHENTICATION_STRING
+bug20364862_user	bug20364862_dest
+DROP DATABASE db1;
+DROP USER bug20364862_user@localhost;
+DROP USER bug20364862_dest@localhost;

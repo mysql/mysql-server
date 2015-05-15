@@ -62,7 +62,8 @@ int init_events_transactions_history_long(uint events_transactions_history_long_
 
   events_transactions_history_long_array=
     PFS_MALLOC_ARRAY(& builtin_memory_transactions_history_long,
-                     events_transactions_history_long_size, PFS_events_transactions,
+                     events_transactions_history_long_size,
+                     sizeof(PFS_events_transactions), PFS_events_transactions,
                      MYF(MY_ZEROFILL));
 
   return (events_transactions_history_long_array ? 0 : 1);
@@ -72,7 +73,7 @@ int init_events_transactions_history_long(uint events_transactions_history_long_
 void cleanup_events_transactions_history_long(void)
 {
   PFS_FREE_ARRAY(& builtin_memory_transactions_history_long,
-                 events_transactions_history_long_size, PFS_events_transactions,
+                 events_transactions_history_long_size, sizeof(PFS_events_transactions),
                  events_transactions_history_long_array);
   events_transactions_history_long_array= NULL;
 }

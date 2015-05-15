@@ -20,6 +20,10 @@ SET(REWRITER_SOURCES
   rewriter.cc
   services.cc)
 
+IF (DISABLE_SHARED)
+  RETURN()
+ENDIF()
+
 MYSQL_ADD_PLUGIN(rewriter ${REWRITER_SOURCES}
                  MODULE_ONLY MODULE_OUTPUT_NAME "rewriter")
 

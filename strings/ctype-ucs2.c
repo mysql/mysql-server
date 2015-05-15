@@ -1079,7 +1079,6 @@ my_lengthsp_mb2(const CHARSET_INFO *cs __attribute__((unused)),
   DC00..DFFF - Surrogate low              (1024 codes in a page)
 */
 #define MY_UTF16_SURROGATE_HIGH_FIRST 0xD800
-#define MY_UTF16_SURROGATE_HIGH_LAST  0xDBFF
 #define MY_UTF16_SURROGATE_LOW_FIRST  0xDC00
 #define MY_UTF16_SURROGATE_LOW_LAST   0xDFFF
 

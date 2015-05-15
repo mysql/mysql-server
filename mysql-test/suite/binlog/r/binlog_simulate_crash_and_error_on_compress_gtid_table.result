@@ -1,3 +1,4 @@
+RESET MASTER;
 call mtr.add_suppression("Failed to compress the gtid_executed table.");
 SET @debug_save= @@GLOBAL.DEBUG;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;

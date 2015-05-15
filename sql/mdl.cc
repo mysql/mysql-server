@@ -16,6 +16,7 @@
 
 #include "mdl.h"
 #include "debug_sync.h"
+#include "prealloced_array.h"
 #include <lf.h>
 #include <mysqld_error.h>
 #include <mysql/plugin.h>
@@ -24,10 +25,10 @@
 #include <mysql/psi/mysql_mdl.h>
 #include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
-#include "sql_class.h"
 #include <my_murmur3.h>
 #include <algorithm>
 #include <functional>
+#include "mysql/psi/mysql_memory.h"
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -101,7 +102,8 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for trigger metadata lock", 0},
   {0, "Waiting for event metadata lock", 0},
   {0, "Waiting for commit lock", 0},
-  {0, "User lock", 0} /* Be compatible with old status. */
+  {0, "User lock", 0}, /* Be compatible with old status. */
+  {0, "Waiting for locking service lock", 0}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -1014,12 +1016,14 @@ public:
   }
 
   /**
-    Check if MDL_lock object represents user-level lock, so threads waiting
-    for it need to check if connection is lost and abort waiting when it is.
+    Check if MDL_lock object represents user-level lock or locking service
+    lock, so threads waiting for it need to check if connection is lost
+    and abort waiting when it is.
   */
   static bool object_lock_needs_connection_check(const MDL_lock *lock)
   {
-    return (lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK);
+    return (lock->key.mdl_namespace() == MDL_key::USER_LEVEL_LOCK ||
+            lock->key.mdl_namespace() == MDL_key::LOCKING_SERVICE);
   }
 
   /**
@@ -3519,7 +3523,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 
   find_deadlock();
 
-  if (lock->needs_notification(ticket))
+  if (lock->needs_notification(ticket) || lock->needs_connection_check())
   {
     struct timespec abs_shortwait;
     set_timespec(&abs_shortwait, 1);
@@ -3551,9 +3555,12 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
         break;
       }
 
-      mysql_prlock_wrlock(&lock->m_rwlock);
-      lock->notify_conflicting_locks(this);
-      mysql_prlock_unlock(&lock->m_rwlock);
+      if (lock->needs_notification(ticket))
+      {
+        mysql_prlock_wrlock(&lock->m_rwlock);
+        lock->notify_conflicting_locks(this);
+        mysql_prlock_unlock(&lock->m_rwlock);
+      }
 
       set_timespec(&abs_shortwait, 1);
     }
@@ -3563,13 +3570,6 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   }
   else
   {
-    /*
-      This branch should be never taken for locks requiring checking
-      if connection is alive. Currently such locks also always require
-      notification so we don't check this explicitly, only assert this.
-    */
-    DBUG_ASSERT(! lock->needs_connection_check());
-
     wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
                                    mdl_request->key.get_wait_state_name());
   }
@@ -3596,7 +3596,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     case MDL_wait::KILLED:
-      if ((get_thd())->killed == THD::KILL_TIMEOUT)
+      if (get_owner()->is_killed() == ER_QUERY_TIMEOUT)
         my_error(ER_QUERY_TIMEOUT, MYF(0));
       else
         my_error(ER_QUERY_INTERRUPTED, MYF(0));
@@ -3665,6 +3665,12 @@ public:
 
   @note Assumes that one already owns scoped intention exclusive lock.
 
+  @note If acquisition fails any locks with MDL_EXPLICIT duration that had
+        already been taken, are released. Not just locks with MDL_STATEMENT
+        and MDL_TRANSACTION duration. This makes acquition of MDL_EXPLICIT
+        locks atomic (all or nothing). This is needed for the locking
+        service plugin API.
+
   @retval FALSE  Success
   @retval TRUE   Failure
 */
@@ -3675,6 +3681,11 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
   MDL_request_list::Iterator it(*mdl_requests);
   MDL_request **p_req;
   MDL_savepoint mdl_svp= mdl_savepoint();
+  /*
+    Remember the first MDL_EXPLICIT ticket so that we can release
+    any new such locks taken if acquisition fails.
+  */
+  MDL_ticket *explicit_front= m_tickets[MDL_EXPLICIT].front();
   const size_t req_count= mdl_requests->elements();
 
   if (req_count == 0)
@@ -3709,6 +3720,13 @@ err:
     requests that got assigned the same ticket.
   */
   rollback_to_savepoint(mdl_svp);
+  /*
+    Also release the MDL_EXPLICIT locks taken in this call.
+    The locking service plugin API needs acquisition of such
+    locks to be atomic as well.
+  */
+  release_locks_stored_before(MDL_EXPLICIT, explicit_front);
+
   /* Reset lock requests back to its initial state. */
   for (p_req= sort_buf.begin();
        p_req != sort_buf.begin() + num_acquired; p_req++)
@@ -4275,7 +4293,7 @@ void MDL_context::release_locks_stored_before(enum_mdl_duration duration,
   Release all explicit locks in the context which correspond to the
   same name/object as this lock request.
 
-  @param ticket    One of the locks for the name/object for which all
+  @param name      One of the locks for the name/object for which all
                    locks should be released.
 */
 
@@ -4292,6 +4310,28 @@ void MDL_context::release_all_locks_for_name(MDL_ticket *name)
   {
     DBUG_ASSERT(ticket->m_lock);
     if (ticket->m_lock == lock)
+      release_lock(MDL_EXPLICIT, ticket);
+  }
+}
+
+
+/**
+  Release all explicit locks in the context for which the release()
+  method of the provided visitor evalates to true.
+
+  @param visitor   Object to ask if the lock should be released.
+*/
+
+void MDL_context::release_locks(MDL_release_locks_visitor *visitor)
+{
+  /* Remove matching lock tickets from the context. */
+  MDL_ticket *ticket;
+  Ticket_iterator it_ticket(m_tickets[MDL_EXPLICIT]);
+
+  while ((ticket= it_ticket++))
+  {
+    DBUG_ASSERT(ticket->m_lock);
+    if (visitor->release(ticket))
       release_lock(MDL_EXPLICIT, ticket);
   }
 }

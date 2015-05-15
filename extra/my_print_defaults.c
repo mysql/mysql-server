@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,12 @@
 #include <my_getopt.h>
 #include "my_default.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "mysql/service_mysql_alloc.h"
 
 
 const char *config_file="my";			/* Default config file */
 static char *my_login_path;
+static my_bool *show_passwords;
 uint verbose= 0, opt_defaults_file_used= 0;
 const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
 
@@ -87,6 +89,9 @@ static struct my_option my_long_options[] =
    0, 0, 0},
   {"login-path", 'l', "Path to be read from under the login file.",
    &my_login_path, &my_login_path, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"show", 's', "Show passwords in plain text.",
+   &show_passwords, &show_passwords, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -205,7 +210,12 @@ int main(int argc, char **argv)
 
   for (argument= arguments+1 ; *argument ; argument++)
     if (!my_getopt_is_args_separator(*argument))           /* skip arguments separator */
-      puts(*argument);
+    {
+      if (!(show_passwords) && strncmp(*argument, "--password", 10) == 0)
+        puts("--password=*****");
+      else
+        puts(*argument);
+    }
   my_free(load_default_groups);
   free_defaults(arguments);
 

@@ -1333,11 +1333,11 @@ static bool multi_update_check_table_access(THD *thd, TABLE_LIST *table,
                                             table_map tables_for_update,
                                             bool updatable, bool *updated)
 {
+  // Adjust updatability based on table/view's properties:
+  updatable&= table->is_updatable();
+
   if (table->is_view_or_derived())
   {
-    // Derived tables are not updatable:
-    updatable&= !table->is_derived();
-
     // Determine if this view/derived table is updated:
     bool view_updated= false;
     /*
@@ -1657,7 +1657,7 @@ bool mysql_multi_update(THD *thd,
   res= handle_query(thd, thd->lex, *result,
                     SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                     OPTION_SETUP_TABLES_DONE,
-                    0);
+                    OPTION_BUFFER_RESULT);
 
   DBUG_PRINT("info",("res: %d  report_error: %d",res, (int) thd->is_error()));
   res|= thd->is_error();

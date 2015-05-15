@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ namespace Check{
 using std::string;
 using std::vector;
 
-enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE };
 
 extern void mysql_check(MYSQL* connection, int what_to_do, my_bool opt_alldbs,
                 my_bool opt_check_only_changed, my_bool opt_extended,

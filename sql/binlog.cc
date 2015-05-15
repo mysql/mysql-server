@@ -19,6 +19,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
+#include "item_func.h"                      // user_var_entry
 #include "log_event.h"                      // Rows_log_event
 #include "mysqld.h"                         // sync_binlog_period ...
 #include "mysqld_thd_manager.h"             // Global_THD_manager
@@ -94,6 +95,15 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static int binlog_xa_commit(handlerton *hton,  XID *xid);
 static int binlog_xa_rollback(handlerton *hton,  XID *xid);
+
+
+#ifdef HAVE_REPLICATION
+static inline bool has_commit_order_manager(THD *thd)
+{
+  return is_mts_worker(thd) &&
+    thd->rli_slave->get_commit_order_manager() != NULL;
+}
+#endif
 
 
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
@@ -6326,7 +6336,13 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     }
     bytes_written += r.common_header->data_written;
   }
-  flush_io_cache(&log_file);
+
+  if ((error= flush_io_cache(&log_file)))
+  {
+    close_on_error= true;
+    goto end;
+  }
+
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   if (!is_relay_log)
@@ -6389,7 +6405,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
 end:
 
-  if (error && close_on_error /* rotate or reopen failed */)
+  if (error && close_on_error /* rotate, flush or reopen failed */)
   {
     /* 
       Close whatever was left opened.
@@ -6805,8 +6821,10 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
     /*
       Write the event.
     */
-    if (cache_data->write_event(thd, event_info) ||
-        DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
+    if (cache_data->write_event(thd, event_info))
+      goto err;
+
+    if (DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
 
     /*
@@ -9984,7 +10002,8 @@ bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
-  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0 ||
+      mysql_bin_log.is_open() == false)
     DBUG_RETURN(true);
 
   DBUG_PRINT("info",
@@ -10043,7 +10062,8 @@ THD::is_dml_gtid_compatible(bool some_transactional_table,
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
-  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0 ||
+      mysql_bin_log.is_open() == false)
     DBUG_RETURN(true);
 
   /*

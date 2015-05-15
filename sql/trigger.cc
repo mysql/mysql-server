@@ -27,7 +27,6 @@
 #include "sql_error.h"            // Sql_condition
 #include "sql_parse.h"            // parse_sql
 #include "sql_show.h"             // append_identifier
-#include "sql_table.h"            // check_n_cut_mysql50_prefix
 #include "trigger_creation_ctx.h" // Trigger_creation_ctx
 
 #include "mysql/psi/mysql_sp.h"
@@ -682,34 +681,6 @@ bool Trigger::parse(THD *thd)
   m_sp->m_sp_share= MYSQL_GET_SP_SHARE(SP_TYPE_TRIGGER,
                                        m_sp->m_db.str, m_sp->m_db.length,
                                        m_sp->m_name.str, m_sp->m_name.length);
-#endif
-
-#ifndef DBUG_OFF
-  /*
-    Check that we correctly update trigger definitions when we rename tables
-    with triggers.
-
-    In special cases like "RENAME TABLE `#mysql50#somename` TO `somename`"
-    or "ALTER DATABASE `#mysql50#somename` UPGRADE DATA DIRECTORY NAME"
-    we might be given table or database name with "#mysql50#" prefix (and
-    trigger's definiton contains un-prefixed version of the same name).
-    To remove this prefix we use check_n_cut_mysql50_prefix().
-  */
-
-  char fname[NAME_LEN + 1];
-  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                              lex.query_tables->db, m_db_name.str) ||
-               (check_n_cut_mysql50_prefix(m_db_name.str,
-                                           fname, sizeof(fname)) &&
-                !my_strcasecmp(table_alias_charset,
-                               lex.query_tables->db, fname))));
-  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                              lex.query_tables->table_name,
-                              m_subject_table_name.str) ||
-               (check_n_cut_mysql50_prefix(m_subject_table_name.str,
-                                           fname, sizeof(fname)) &&
-                !my_strcasecmp(table_alias_charset,
-                               lex.query_tables->table_name, fname))));
 #endif
 
 cleanup:

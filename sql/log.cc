@@ -1844,11 +1844,48 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                                    "not used' warning(s) suppressed.");
 #endif // MYSQL_SERVER
 
+/**
+  Change the file associated with a file streams.
+
+  @param filename   Path to file.
+  @param outstream  Output File stream.
+  @param errstream  Error File stream.
+
+  @note
+    On error, my_error() is not called here.
+    So, caller of this function should call my_error() to keep the protocol.
+
+  @retval false On Success
+  @retval true  On Error
+*/
 
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {
   int retries= 2, errors= 0;
+  MY_STAT f_stat;
+
+  /**
+    Make sure, file is writable if it exists. If file does not exists
+    then make sure directory path exists and it is writable.
+  */
+  if (my_stat(filename, &f_stat, MYF(0)))
+  {
+    if (!(f_stat.st_mode & MY_S_IWRITE))
+    {
+      errno= EACCES;
+      return true;
+    }
+  }
+  else
+  {
+    char path[FN_REFLEN];
+    size_t path_length;
+
+    dirname_part(path, filename, &path_length);
+    if (path_length && my_access(path, (F_OK|W_OK)))
+      return true;
+  }
 
   do
   {
@@ -1877,6 +1914,11 @@ bool flush_error_log()
   if (opt_error_log)
   {
     mysql_mutex_lock(&LOCK_error_log);
+    /**
+      When reopen_fstreams() failed, my_error() has not been called.
+      So, caller of flush_error_log() should call my_error() to keep the
+      protocol.
+    */
     result= reopen_fstreams(log_error_file, stdout, stderr);
     mysql_mutex_unlock(&LOCK_error_log);
   }

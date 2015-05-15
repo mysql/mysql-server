@@ -77,13 +77,13 @@
 
 #include "hash.h"
 #include "debug_sync.h"
-#include "sql_base.h"                       // close_tables_for_reopen
+#include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
 #include "sql_parse.h"                     // is_log_table_write_query
 #include "psi_memory_key.h"
 #include "auth_common.h"                   // SUPER_ACL
 #include "sql_class.h"
 #include "mysqld.h"                        // opt_readonly
-
+#include "my_atomic.h"
 
 /**
   @defgroup Locking Locking
@@ -316,6 +316,10 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
                                                    sql_lock->lock_count,
                                                    &thd->lock_info, timeout,
                                                    thd->mysys_var)];
+
+  DBUG_EXECUTE_IF("mysql_lock_tables_kill_query",
+                  thd->killed= THD::KILL_QUERY;);
+
   if (rc)
   {
     if (sql_lock->table_count)
@@ -531,23 +535,6 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
       }
     }
   }
-}
-
-
-/** Abort all other threads waiting to get lock in table. */
-
-void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
-{
-  MYSQL_LOCK *locked;
-  DBUG_ENTER("mysql_lock_abort");
-
-  if ((locked= get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK)))
-  {
-    for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free(locked);
-  }
-  DBUG_VOID_RETURN;
 }
 
 
@@ -941,6 +928,7 @@ static void print_lock_error(int error, const char *table)
   DBUG_VOID_RETURN;
 }
 
+volatile int32 Global_read_lock::m_active_requests;
 
 /****************************************************************************
   Handling of global read locks
@@ -1023,9 +1011,15 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 
+    /* Increment static variable first to signal innodb memcached server
+       to release mdl locks held by it */
+    my_atomic_add32(&Global_read_lock::m_active_requests, 1);
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
+    {
+      my_atomic_add32(&Global_read_lock::m_active_requests, -1);
       DBUG_RETURN(1);
+    }
 
     m_mdl_global_shared_lock= mdl_request.ticket;
     m_state= GRL_ACQUIRED;
@@ -1064,6 +1058,7 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
     m_mdl_blocks_commits_lock= NULL;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
+  my_atomic_add32(&Global_read_lock::m_active_requests, -1);
   m_mdl_global_shared_lock= NULL;
   m_state= GRL_NONE;
 

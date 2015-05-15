@@ -134,7 +134,7 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
 }
 
 int insert_setup_actor(const String *user, const String *host, const String *role,
-                       bool enabled)
+                       bool enabled, bool history)
 {
   PFS_thread *thread= PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))
@@ -161,6 +161,7 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
     pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
     pfs->m_rolename_length= role->length();
     pfs->m_enabled= enabled;
+    pfs->m_history= history;
 
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);
@@ -267,7 +268,7 @@ long setup_actor_count()
 void lookup_setup_actor(PFS_thread *thread,
                         const char *user, uint user_length,
                         const char *host, uint host_length,
-                        bool *enabled)
+                        bool *enabled, bool *history)
 {
   PFS_setup_actor_key key;
   PFS_setup_actor **entry;
@@ -277,6 +278,7 @@ void lookup_setup_actor(PFS_thread *thread,
   if (unlikely(pins == NULL))
   {
     *enabled= false;
+    *history= false;
     return;
   }
 
@@ -309,12 +311,14 @@ void lookup_setup_actor(PFS_thread *thread,
       PFS_setup_actor *pfs= *entry;
       lf_hash_search_unpin(pins);
       *enabled= pfs->m_enabled;
+      *history= pfs->m_history;
       return;
     }
 
     lf_hash_search_unpin(pins);
   }
   *enabled= false;
+  *history= false;
   return;
 }
 

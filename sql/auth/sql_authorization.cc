@@ -33,7 +33,6 @@
 #include "sql_authentication.h"
 #include "sql_authorization.h"
 #include "template_utils.h"
-#include "read_write_lock.h"    // Write_lock
 
 const char *command_array[]=
 {
@@ -1086,6 +1085,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
+  bool is_privileged_user= false;
 
   DBUG_ENTER("mysql_table_grant");
 
@@ -1252,6 +1252,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool result= FALSE;
   bool is_partial_execution= false;
 
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
+
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
@@ -1270,7 +1272,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+                                         is_privileged_user))
     {
       result= TRUE;
       continue;
@@ -1465,6 +1468,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
+  bool is_privileged_user= false;
 
   DBUG_ENTER("mysql_routine_grant");
 
@@ -1539,6 +1543,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
+
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
@@ -1558,7 +1564,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+                                         is_privileged_user))
     {
       result= TRUE;
       continue;
@@ -1691,6 +1698,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool save_binlog_row_based;
   bool transactional_tables;
   ulong what_to_set= 0;
+  bool is_privileged_user= false;
+
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
@@ -1775,6 +1784,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
 
+  is_privileged_user= is_privileged_user_for_credential_change(thd);
   /* go through users in user_list */
   Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
@@ -1792,7 +1802,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       continue;
     }
 
-    if (set_and_validate_user_attributes(thd, Str, what_to_set))
+    if (set_and_validate_user_attributes(thd, Str, what_to_set,
+                                         is_privileged_user))
     {
       result= TRUE;
       continue;
@@ -2686,7 +2697,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 {
   Protocol *protocol= thd->get_protocol();
   int error= 0;
-  Read_lock rlk_guard(&proxy_users_rwlock);
+
   for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy)
   {
@@ -3644,20 +3655,17 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   }
 
   /* check for matching WITH PROXY rights */
+  for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
+       proxy != acl_proxy_users->end(); ++proxy)
   {
-    Read_lock rlk_guard(&proxy_users_rwlock);
-    for (ACL_PROXY_USER *proxy= acl_proxy_users->begin();
-         proxy != acl_proxy_users->end(); ++proxy)
+    if (proxy->matches(thd->security_context()->host().str,
+                       thd->security_context()->user().str,
+                       thd->security_context()->ip().str,
+                       user, FALSE) &&
+        proxy->get_with_grant())
     {
-      if (proxy->matches(thd->security_context()->host().str,
-                         thd->security_context()->user().str,
-                         thd->security_context()->ip().str,
-                         user, FALSE) &&
-          proxy->get_with_grant())
-      {
-        DBUG_PRINT("info", ("found"));
-        DBUG_RETURN(FALSE);
-      }
+      DBUG_PRINT("info", ("found"));
+      DBUG_RETURN(FALSE);
     }
   }
 
@@ -4002,6 +4010,18 @@ err:
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool
+is_privileged_user_for_credential_change(THD *thd)
+{
+#ifdef HAVE_REPLICATION
+  if (thd->slave_thread)
+    return true;
+#endif /* HAVE_REPLICATION */
+  return (!check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) ||
+          thd->security_context()->check_access(CREATE_USER_ACL, false));
+}
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
 /**
   Check if user has enough privileges for execution of SHOW statement,
@@ -4163,7 +4183,7 @@ bool check_fk_parent_table_access(THD *thd,
 
       // Check if tablename is valid or not.
       DBUG_ASSERT(table_name.str != NULL);
-      if (check_table_name(table_name.str, table_name.length, false))
+      if (check_table_name(table_name.str, table_name.length))
       {
         my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name.str);
         return true;

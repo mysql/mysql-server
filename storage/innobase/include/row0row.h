@@ -160,6 +160,7 @@ row_build(
 					prefixes, or NULL */
 	mem_heap_t*		heap);	/*!< in: memory heap from which
 					the memory needed is allocated */
+
 /*******************************************************************//**
 Converts an index record to a typed data tuple.
 @return index entry built; does not set info_bits, and the data fields

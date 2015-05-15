@@ -678,10 +678,6 @@ private:
 	void
 	free_blob_heap_array();
 
-	/** Clear the blob heap for the given partition */
-	void
-	clear_blob_heap_part(uint part_id);
-
 	/** Changes the active index of a handle.
 	@param[in]	part_id	Use this partition.
 	@param[in]	keynr	Use this index; MAX_KEY means always

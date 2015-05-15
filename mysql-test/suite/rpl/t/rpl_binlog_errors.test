@@ -378,7 +378,6 @@ FLUSH LOGS;
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
 
--- error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 
 # issue some statements and check that they don't fail
@@ -410,7 +409,6 @@ FLUSH LOGS;
 eval SET GLOBAL debug='$old_debug';
 --enable_query_log
 
--- error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 # issue some statements and check that they don't fail
 CREATE TABLE t5 (a INT);

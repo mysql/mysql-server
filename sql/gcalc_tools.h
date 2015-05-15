@@ -125,9 +125,7 @@ public:
 #ifndef DBUG_OFF
   /**
     Print function buffer created after shape transformation
-    into mysqld log and into client side warnings.
-    Printing to mysqld log is useful when server crashed during an operation.
-    Printing to client side warnings is useful for mtr purposes.
+    into mysqld log. This is useful when server crashed during an operation.
   */
   void debug_print_function_buffer(THD *thd);
 #endif

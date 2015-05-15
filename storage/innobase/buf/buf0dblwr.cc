@@ -190,6 +190,7 @@ buf_dblwr_create(void)
 
 start_again:
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 	buf_dblwr_being_created = TRUE;
 
 	doublewrite = buf_dblwr_get(&mtr);
@@ -305,6 +306,7 @@ start_again:
 			are active, restart the MTR occasionally. */
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+			mtr.set_sys_modified();
 			doublewrite = buf_dblwr_get(&mtr);
 			fseg_header = doublewrite
 				      + TRX_SYS_DOUBLEWRITE_FSEG;
@@ -594,9 +596,11 @@ buf_dblwr_process(void)
 			}
 
 			/* Check if the page is corrupt */
-			if (buf_page_is_corrupted(
+			BlockReporter	block(
 				true, read_buf, page_size,
-				fsp_is_checksum_disabled(space_id))) {
+				fsp_is_checksum_disabled(space_id));
+
+			if (block.is_corrupted()) {
 
 				ib::warn() << "Database page corruption or"
 					<< " a failed file read of page "
@@ -604,9 +608,11 @@ buf_dblwr_process(void)
 					<< ". Trying to recover it from the"
 					<< " doublewrite buffer.";
 
-				if (buf_page_is_corrupted(
+				BlockReporter	dblwr_buf_page(
 					true, page, page_size,
-					fsp_is_checksum_disabled(space_id))) {
+					fsp_is_checksum_disabled(space_id));
+
+				if (dblwr_buf_page.is_corrupted()) {
 
 					ib::error() << "Dump of the page:";
 					buf_page_print(
@@ -626,25 +632,19 @@ buf_dblwr_process(void)
 						" recover the database with"
 						" innodb_force_recovery=6";
 				}
-			} else if (buf_page_is_zeroes(read_buf, page_size)
-				   && !buf_page_is_zeroes(page, page_size)
-				   && !buf_page_is_corrupted(
-					true, page, page_size,
-					fsp_is_checksum_disabled(space_id))) {
-
-				/* Database page contained only zeroes, while
-				a valid copy is available in dblwr buffer. */
-
 			} else {
 
-				bool t1 = buf_page_is_zeroes(
+				bool	t1 = buf_page_is_zeroes(
                                         read_buf, page_size);
 
-				bool t2 = buf_page_is_zeroes(page, page_size);
+				bool	t2 = buf_page_is_zeroes(
+					page, page_size);
 
-				bool t3 = buf_page_is_corrupted(
+				BlockReporter	reporter = BlockReporter(
 					true, page, page_size,
 					fsp_is_checksum_disabled(space_id));
+
+				bool	t3 = reporter.is_corrupted();
 
 				if (t1 && !(t2 || t3)) {
 

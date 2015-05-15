@@ -1948,15 +1948,6 @@ public:
     DBUG_RETURN(TRUE);
   }
 
-  /**
-    @brief  update_indexed_column_map
-    Update columns map for index.
-
-    @param int_arg It's useless 
-    @return  false successfully update 
-    */
-  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
-
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
@@ -4901,6 +4892,15 @@ public:
   virtual table_map resolved_used_tables() const
   {
     return example ? example->resolved_used_tables() : used_table_map;
+  }
+
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select)
+  {
+    if (example == NULL)
+      return;
+    example->fix_after_pullout(parent_select, removed_select);
+    used_table_map= example->used_tables();
   }
 
   virtual bool allocate(uint i) { return 0; }

@@ -17,7 +17,6 @@
 
 /* create and drop of databases */
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_db.h"
 
 #include "mysqld.h"                      // lower_case_table_names ...
@@ -372,7 +371,7 @@ static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 
 */
 
-bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
+static bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
   File file;
   char buf[256];
@@ -977,6 +976,7 @@ update_binlog:
                                               true);
       my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
                path, gtid_buf, db.str);
+      error= true;
       goto exit;
     }
 
@@ -1045,14 +1045,18 @@ update_binlog:
         goto exit;
       }
     }
+  }
 
-    /*
-      We have postponed generating the error until now, since if the
-      error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
-      should report that instead.
-    */
-    if (found_other_files)
-      my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+  /*
+    We have postponed generating the error until now, since if the
+    error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
+    should report that instead.
+   */
+  if (found_other_files)
+  {
+    my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
+    error= true;
+    goto exit;
   }
 
 exit:
@@ -1145,7 +1149,6 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       TABLE_LIST *table_list=(TABLE_LIST*)
                               thd->mem_calloc(sizeof(*table_list) + 
                                           strlen(db) + 1 +
-                                          MYSQL50_TABLE_NAME_PREFIX_LENGTH + 
                                           strlen(file->name) + 1);
 
       if (!table_list)
@@ -1156,7 +1159,6 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       table_list->table_name= table_list->db + table_list->db_length + 1;
       table_list->table_name_length= filename_to_tablename(file->name,
                                      const_cast<char*>(table_list->table_name),
-                                     MYSQL50_TABLE_NAME_PREFIX_LENGTH +
                                      strlen(file->name) + 1);
       table_list->open_type= OT_BASE_ONLY;
 
@@ -1725,223 +1727,6 @@ bool mysql_opt_change_db(THD *thd,
 
   return mysql_change_db(thd, new_db_name, force_switch);
 }
-
-
-/**
-  Upgrade a 5.0 database.
-  This function is invoked whenever an ALTER DATABASE UPGRADE query is executed:
-    ALTER DATABASE 'olddb' UPGRADE DATA DIRECTORY NAME.
-
-  If we have managed to rename (move) tables to the new database
-  but something failed on a later step, then we store the
-  RENAME DATABASE event in the log. mysql_rename_db() is atomic in
-  the sense that it will rename all or none of the tables.
-
-  @param thd Current thread
-  @param old_db 5.0 database name, in #mysql50#name format
-  @return 0 on success, 1 on error
-*/
-bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db)
-{
-  int error= 0, change_to_newdb= 0;
-  char path[FN_REFLEN+16];
-  size_t length;
-  HA_CREATE_INFO create_info;
-  MY_DIR *dirp;
-  TABLE_LIST *table_list;
-  SELECT_LEX *sl= thd->lex->current_select();
-  LEX_CSTRING new_db;
-  DBUG_ENTER("mysql_upgrade_db");
-
-  if ((old_db.length <= MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
-      (strncmp(old_db.str,
-              MYSQL50_TABLE_NAME_PREFIX,
-              MYSQL50_TABLE_NAME_PREFIX_LENGTH) != 0))
-  {
-    my_error(ER_WRONG_USAGE, MYF(0),
-             "ALTER DATABASE UPGRADE DATA DIRECTORY NAME",
-             "name");
-    DBUG_RETURN(1);
-  }
-
-  /* `#mysql50#<name>` converted to encoded `<name>` */
-  new_db.str= old_db.str + MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-  new_db.length= old_db.length - MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-
-  /* Lock the old name, the new name will be locked by mysql_create_db().*/
-  if (lock_schema_name(thd, old_db.str))
-    DBUG_RETURN(true);
-
-  /*
-    Let's remember if we should do "USE newdb" afterwards.
-    thd->db will be cleared in mysql_rename_db()
-  */
-  if (thd->db().str && !strcmp(thd->db().str, old_db.str))
-    change_to_newdb= 1;
-
-  build_table_filename(path, sizeof(path)-1,
-                       old_db.str, "", MY_DB_OPT_FILE, 0);
-  if ((load_db_opt(thd, path, &create_info)))
-    create_info.default_table_charset= thd->variables.collation_server;
-
-  length= build_table_filename(path, sizeof(path)-1, old_db.str, "", "", 0);
-  if (length && path[length-1] == FN_LIBCHAR)
-    path[length-1]=0;                            // remove ending '\'
-  if ((error= my_access(path,F_OK)))
-  {
-    my_error(ER_BAD_DB_ERROR, MYF(0), old_db.str);
-    goto exit;
-  }
-
-  /* Step1: Create the new database */
-  if ((error= mysql_create_db(thd, new_db.str, &create_info, 1)))
-    goto exit;
-
-  /* Step2: Move tables to the new database */
-  if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
-  {
-    uint nfiles= (uint) dirp->number_off_files;
-    for (uint idx=0 ; idx < nfiles && !thd->killed ; idx++)
-    {
-      FILEINFO *file= dirp->dir_entry + idx;
-      char *extension, tname[FN_REFLEN + 1];
-      LEX_CSTRING table_str;
-      DBUG_PRINT("info",("Examining: %s", file->name));
-
-      /* skiping non-FRM files */
-      if (my_strcasecmp(files_charset_info,
-                        (extension= fn_rext(file->name)), reg_ext))
-        continue;
-
-      /* A frm file found, add the table info rename list */
-      *extension= '\0';
-
-      table_str.length= filename_to_tablename(file->name,
-                                              tname, sizeof(tname)-1);
-      table_str.str= (char*) sql_memdup(tname, table_str.length + 1);
-      Table_ident *old_ident= new Table_ident(thd->get_protocol(),
-                                              old_db, table_str, 0);
-      Table_ident *new_ident= new Table_ident(thd->get_protocol(),
-                                              new_db, table_str, 0);
-      if (!old_ident || !new_ident ||
-          !sl->add_table_to_list(thd, old_ident, NULL,
-                                 TL_OPTION_UPDATING, TL_IGNORE,
-                                 MDL_EXCLUSIVE) ||
-          !sl->add_table_to_list(thd, new_ident, NULL,
-                                 TL_OPTION_UPDATING, TL_IGNORE,
-                                 MDL_EXCLUSIVE))
-      {
-        error= 1;
-        my_dirend(dirp);
-        goto exit;
-      }
-    }
-    my_dirend(dirp);  
-  }
-
-  if ((table_list= thd->lex->query_tables) &&
-      (error= mysql_rename_tables(thd, table_list, 1)))
-  {
-    /*
-      Failed to move all tables from the old database to the new one.
-      In the best case mysql_rename_tables() moved all tables back to the old
-      database. In the worst case mysql_rename_tables() moved some tables
-      to the new database, then failed, then started to move the tables back,
-      and then failed again. In this situation we have some tables in the
-      old database and some tables in the new database.
-      Let's delete the option file, and then the new database directory.
-      If some tables were left in the new directory, rmdir() will fail.
-      It garantees we never loose any tables.
-    */
-    build_table_filename(path, sizeof(path)-1,
-                         new_db.str,"",MY_DB_OPT_FILE, 0);
-    mysql_file_delete(key_file_dbopt, path, MYF(MY_WME));
-    length= build_table_filename(path, sizeof(path)-1, new_db.str, "", "", 0);
-    if (length && path[length-1] == FN_LIBCHAR)
-      path[length-1]=0;                            // remove ending '\'
-    rmdir(path);
-    goto exit;
-  }
-
-
-  /*
-    Step3: move all remaining files to the new db's directory.
-    Skip db opt file: it's been created by mysql_create_db() in
-    the new directory, and will be dropped by mysql_rm_db() in the old one.
-    Trigger TRN and TRG files are be moved as regular files at the moment,
-    without any special treatment.
-
-    Triggers without explicit database qualifiers in table names work fine: 
-      use d1;
-      create trigger trg1 before insert on t2 for each row set @a:=1
-      rename database d1 to d2;
-
-    TODO: Triggers, having the renamed database explicitely written
-    in the table qualifiers.
-    1. when the same database is renamed:
-        create trigger d1.trg1 before insert on d1.t1 for each row set @a:=1;
-        rename database d1 to d2;
-      Problem: After database renaming, the trigger's body
-               still points to the old database d1.
-    2. when another database is renamed:
-        create trigger d3.trg1 before insert on d3.t1 for each row
-          insert into d1.t1 values (...);
-        rename database d1 to d2;
-      Problem: After renaming d1 to d2, the trigger's body
-               in the database d3 still points to database d1.
-  */
-
-  if ((dirp = my_dir(path,MYF(MY_DONT_SORT))))
-  {
-    uint nfiles= (uint) dirp->number_off_files;
-    for (uint idx=0 ; idx < nfiles ; idx++)
-    {
-      FILEINFO *file= dirp->dir_entry + idx;
-      char oldname[FN_REFLEN + 1], newname[FN_REFLEN + 1];
-      DBUG_PRINT("info",("Examining: %s", file->name));
-
-      /* skiping . and .. and MY_DB_OPT_FILE */
-      if ((file->name[0] == '.' &&
-           (!file->name[1] || (file->name[1] == '.' && !file->name[2]))) ||
-          !my_strcasecmp(files_charset_info, file->name, MY_DB_OPT_FILE))
-        continue;
-
-      /* pass empty file name, and file->name as extension to avoid encoding */
-      build_table_filename(oldname, sizeof(oldname)-1,
-                           old_db.str, "", file->name, 0);
-      build_table_filename(newname, sizeof(newname)-1,
-                           new_db.str, "", file->name, 0);
-      mysql_file_rename(key_file_misc, oldname, newname, MYF(MY_WME));
-    }
-    my_dirend(dirp);
-  }
-
-  /*
-    Step7: drop the old database.
-    query_cache_invalidate(olddb) is done inside mysql_rm_db(), no need
-    to execute them again.
-    mysql_rm_db() also "unuses" if we drop the current database.
-  */
-  error= mysql_rm_db(thd, old_db, 0, 1);
-
-  /* Step8: logging */
-  if (mysql_bin_log.is_open())
-  {
-    int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                          FALSE, TRUE, TRUE, errcode);
-    thd->clear_error();
-    error|= mysql_bin_log.write_event(&qinfo);
-  }
-
-  /* Step9: Let's do "use newdb" if we renamed the current database */
-  if (change_to_newdb)
-    error|= mysql_change_db(thd, new_db, FALSE);
-
-exit:
-  DBUG_RETURN(error);
-}
-
 
 
 /*

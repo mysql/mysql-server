@@ -32,6 +32,9 @@ Created 11/17/1995 Heikki Tuuri
 #include "ut0mutex.h"
 #include "ut0ut.h"
 
+/** Magic value to use instead of checksums when they are disabled */
+#define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
+
 /** Buffer page (uncompressed or compressed) */
 class buf_page_t;
 /** Buffer block for which an uncompressed page exists */
@@ -46,6 +49,8 @@ struct buf_pool_stat_t;
 struct buf_buddy_stat_t;
 /** Doublewrite memory struct */
 struct buf_dblwr_t;
+/** Flush observer for bulk create index */
+class FlushObserver;
 
 /** A buffer frame. @see page_t */
 typedef	byte	buf_frame_t;
@@ -137,11 +142,130 @@ this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
 
-#ifndef UNIV_INNOCHECKSUM
 typedef ib_mutex_t BPageMutex;
 typedef ib_mutex_t BufPoolMutex;
 typedef ib_mutex_t FlushListMutex;
-#endif /* !UNIV_INNOCHECKSUM */
+
+/** Page identifier. */
+class page_id_t {
+public:
+
+	/** Constructor from (space, page_no).
+	@param[in]	space	tablespace id
+	@param[in]	page_no	page number */
+	page_id_t(ulint space, ulint page_no)
+		:
+		m_space(static_cast<ib_uint32_t>(space)),
+		m_page_no(static_cast<ib_uint32_t>(page_no)),
+		m_fold(ULINT_UNDEFINED)
+	{
+		ut_ad(space <= 0xFFFFFFFFU);
+		ut_ad(page_no <= 0xFFFFFFFFU);
+	}
+
+	/** Retrieve the tablespace id.
+	@return tablespace id */
+	inline ib_uint32_t space() const
+	{
+		return(m_space);
+	}
+
+	/** Retrieve the page number.
+	@return page number */
+	inline ib_uint32_t page_no() const
+	{
+		return(m_page_no);
+	}
+
+	/** Retrieve the fold value.
+	@return fold value */
+	inline ulint fold() const
+	{
+		/* Initialize m_fold if it has not been initialized yet. */
+		if (m_fold == ULINT_UNDEFINED) {
+			m_fold = (m_space << 20) + m_space + m_page_no;
+			ut_ad(m_fold != ULINT_UNDEFINED);
+		}
+
+		return(m_fold);
+	}
+
+	/** Copy the values from a given page_id_t object.
+	@param[in]	src	page id object whose values to fetch */
+	inline void copy_from(const page_id_t& src)
+	{
+		m_space = src.space();
+		m_page_no = src.page_no();
+		m_fold = src.fold();
+	}
+
+	/** Reset the values from a (space, page_no).
+	@param[in]	space	tablespace id
+	@param[in]	page_no	page number */
+	inline void reset(ulint space, ulint page_no)
+	{
+		m_space = static_cast<ib_uint32_t>(space);
+		m_page_no = static_cast<ib_uint32_t>(page_no);
+		m_fold = ULINT_UNDEFINED;
+
+		ut_ad(space <= 0xFFFFFFFFU);
+		ut_ad(page_no <= 0xFFFFFFFFU);
+	}
+
+	/** Reset the page number only.
+	@param[in]	page_no	page number */
+	inline void set_page_no(ulint page_no)
+	{
+		m_page_no = static_cast<ib_uint32_t>(page_no);
+		m_fold = ULINT_UNDEFINED;
+
+		ut_ad(page_no <= 0xFFFFFFFFU);
+	}
+
+	/** Check if a given page_id_t object is equal to the current one.
+	@param[in]	a	page_id_t object to compare
+	@return true if equal */
+	inline bool equals_to(const page_id_t& a) const
+	{
+		return(a.space() == m_space && a.page_no() == m_page_no);
+	}
+
+private:
+
+	/** Tablespace id. */
+	ib_uint32_t	m_space;
+
+	/** Page number. */
+	ib_uint32_t	m_page_no;
+
+	/** A fold value derived from m_space and m_page_no,
+	used in hashing. */
+	mutable ulint	m_fold;
+
+	/* Disable implicit copying. */
+	void operator=(const page_id_t&);
+
+	/** Declare the overloaded global operator<< as a friend of this
+	class. Refer to the global declaration for further details.  Print
+	the given page_id_t object.
+	@param[in,out]	out	the output stream
+	@param[in]	page_id	the page_id_t object to be printed
+	@return the output stream */
+        friend
+        std::ostream&
+        operator<<(
+                std::ostream&           out,
+                const page_id_t&        page_id);
+};
+
+/** Print the given page_id_t object.
+@param[in,out]	out	the output stream
+@param[in]	page_id	the page_id_t object to be printed
+@return the output stream */
+std::ostream&
+operator<<(
+	std::ostream&		out,
+	const page_id_t&	page_id);
 
 /** Per index buffer pool statistics - contains how much pages for each index
 are cached in the buffer pool(s). This is a key,value store where the key is

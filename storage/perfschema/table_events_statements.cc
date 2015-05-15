@@ -395,7 +395,7 @@ void table_events_statements_common::make_row_part_2(const sql_digest_storage *d
   /*
     Filling up statement digest information.
   */
-  uint safe_byte_count= digest->m_byte_count;
+  size_t safe_byte_count= digest->m_byte_count;
   if (safe_byte_count > 0 &&
       safe_byte_count <= pfs_max_digest_length)
   {

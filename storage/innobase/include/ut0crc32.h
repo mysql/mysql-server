@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,7 +29,7 @@ Created Aug 10, 2011 Vasil Dimov
 #include "univ.i"
 
 /********************************************************************//**
-Initializes the data structures used by ut_crc32(). Does not do any
+Initializes the data structures used by ut_crc32*(). Does not do any
 allocations, would not hurt if called twice, but would be pointless. */
 void
 ut_crc32_init();
@@ -41,10 +41,20 @@ Calculates CRC32.
 @param len - data length in bytes.
 @return CRC32 (CRC-32C, using the GF(2) primitive polynomial 0x11EDC6F41,
 or 0x1EDC6F41 without the high-order bit) */
-typedef ib_uint32_t (*ib_ut_crc32_t)(const byte* ptr, ulint len);
+typedef uint32_t	(*ut_crc32_func_t)(const byte* ptr, ulint len);
 
-extern ib_ut_crc32_t	ut_crc32;
+/** Pointer to CRC32 calculation function. */
+extern ut_crc32_func_t	ut_crc32;
 
-extern bool	ut_crc32_sse2_enabled;
+/** Pointer to CRC32 calculation function, which uses big-endian byte order
+when converting byte strings to integers internally. */
+extern ut_crc32_func_t	ut_crc32_legacy_big_endian;
+
+/** Pointer to CRC32-byte-by-byte calculation function (byte order agnostic,
+but very slow). */
+extern ut_crc32_func_t	ut_crc32_byte_by_byte;
+
+/** Flag that tells whether the CPU supports CRC32 or not */
+extern bool		ut_crc32_sse2_enabled;
 
 #endif /* ut0crc32_h */

@@ -24,10 +24,8 @@
 #include "item_geofunc.h"
 
 #include "sql_class.h"    // THD
+#include "current_thd.h"
 
-#include <boost/variant.hpp>                    // Boost.Variant
-#define BOOST_VARAINT_MAX_MULTIVIZITOR_PARAMS 5
-#include <boost/variant/multivisitors.hpp>
 #include "item_geofunc_internal.h"
 #include "gis_bg_traits.h"
 
@@ -209,6 +207,16 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
         return error_str();
       }
 
+      if (istrat != Item_func_buffer::join_miter &&
+          val > current_thd->variables.max_points_in_geometry)
+      {
+        my_error(ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED, MYF(0),
+                 "points_per_circle",
+                 current_thd->variables.max_points_in_geometry,
+                 func_name());
+        return error_str();
+      }
+
       float8store(result_buf, val);
     }
     else if (arg_count != 1)
@@ -236,178 +244,84 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
 }
 
 
-// Define Variant types holding various strategies.
-typedef boost::variant
-  <
-    boost::geometry::strategy::buffer::join_round,
-    boost::geometry::strategy::buffer::join_miter
-  > buffer_join_strategy;
-
-typedef boost::variant
-  <
-    boost::geometry::strategy::buffer::end_round,
-    boost::geometry::strategy::buffer::end_flat
-  > buffer_end_strategy;
-
-typedef boost::variant
-  <
-    boost::geometry::strategy::buffer::distance_symmetric<double>,
-    boost::geometry::strategy::buffer::distance_asymmetric<double>
-  > buffer_distance_strategy;
-
-typedef boost::variant
-  <
-    boost::geometry::strategy::buffer::point_circle,
-    boost::geometry::strategy::buffer::point_square
-  > buffer_point_strategy;
-
-typedef boost::variant
-  <
-    boost::geometry::strategy::buffer::side_straight
-  > buffer_side_strategy;
-
-
-// Define strategies multi-visitor
-template <typename GeometryIn, typename MultiPolygon>
-struct buffer_static_visitor
-  : public boost::static_visitor<>
-{
-  buffer_static_visitor(GeometryIn const &geom_in, MultiPolygon &geom_out)
-    : geometry_in(geom_in), geometry_out(geom_out)
-  {}
-
-  template <typename DistanceStrategy,
-            typename SideStrategy,
-            typename JoinStrategy,
-            typename EndStrategy,
-            typename PointStrategy>
-  void operator()(DistanceStrategy const &distance_strategy,
-                  SideStrategy const &side_strategy,
-                  JoinStrategy const &join_strategy,
-                  EndStrategy const &end_strategy,
-                  PointStrategy const &point_strategy)
-  {
-      boost::geometry::buffer(geometry_in,
-                              geometry_out,
-                              distance_strategy,
-                              side_strategy,
-                              join_strategy,
-                              end_strategy,
-                              point_strategy);
-  }
-
-  GeometryIn const &geometry_in;
-  MultiPolygon &geometry_out;
-};
-
-
-// Function for convenient use of Visitors instead of specific strategies
-template <typename GeometryIn, typename MultiPolygon>
-static inline void call_bg_buffer(GeometryIn const &geometry_in,
-                                  MultiPolygon &geometry_out,
-                                  buffer_distance_strategy const
-                                  &distance_strategy,
-                                  buffer_side_strategy const &side_strategy,
-                                  buffer_join_strategy const &join_strategy,
-                                  buffer_end_strategy const &end_strategy,
-                                  buffer_point_strategy const &point_strategy)
-{
-    buffer_static_visitor<GeometryIn, MultiPolygon>
-      visitor(geometry_in, geometry_out);
-    boost::apply_visitor(visitor, distance_strategy, side_strategy,
-                         join_strategy, end_strategy, point_strategy);
-}
-
-
-/**
-  Compute buffer by calling boost::geometry::buffer using specified strategies.
-  @param geom the geometry to compute buffer for.
-  @param [out] result takes back the result buffer.
-  @return true if got error; false if no error.
-*/
-static bool bg_buffer(Geometry *geom,
-                      BG_models<double, bgcs::cartesian>::Multipolygon &result,
-                      buffer_distance_strategy const &dist_strategy,
-                      buffer_side_strategy const &side_strategy,
-                      buffer_join_strategy const &join_strategy,
-                      buffer_end_strategy const &end_strategy,
-                      buffer_point_strategy const &point_strategy)
-{
-  switch (geom->get_type())
-  {
-  case Geometry::wkb_point:
-  {
-    BG_models<double, bgcs::cartesian>::Point
-      bg(geom->get_data_ptr(), geom->get_data_size(),
-         geom->get_flags(), geom->get_srid());
-    call_bg_buffer(bg, result, dist_strategy, side_strategy, join_strategy,
-                   end_strategy, point_strategy);
-    break;
-  }
-  case Geometry::wkb_multipoint:
-  {
-    BG_models<double, bgcs::cartesian>::Multipoint
-      bg(geom->get_data_ptr(), geom->get_data_size(),
-         geom->get_flags(), geom->get_srid());
-    call_bg_buffer(bg, result, dist_strategy, side_strategy, join_strategy,
-                   end_strategy, point_strategy);
-    break;
-  }
-  case Geometry::wkb_linestring:
-  {
-    BG_models<double, bgcs::cartesian>::Linestring
-      bg(geom->get_data_ptr(), geom->get_data_size(),
-         geom->get_flags(), geom->get_srid());
-    call_bg_buffer(bg, result, dist_strategy, side_strategy, join_strategy,
-                   end_strategy, point_strategy);
-    break;
-  }
-  case Geometry::wkb_multilinestring:
-  {
-    BG_models<double, bgcs::cartesian>::Multilinestring
-      bg(geom->get_data_ptr(), geom->get_data_size(),
-         geom->get_flags(), geom->get_srid());
-    call_bg_buffer(bg, result, dist_strategy, side_strategy, join_strategy,
-                   end_strategy, point_strategy);
-    break;
-  }
-  case Geometry::wkb_polygon:
-  {
-    const void *data_ptr= geom->normalize_ring_order();
-    if (data_ptr == NULL)
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_buffer");
-      return true;
-    }
-    BG_models<double, bgcs::cartesian>::Polygon
-      bg(data_ptr, geom->get_data_size(),
-         geom->get_flags(), geom->get_srid());
-    call_bg_buffer(bg, result, dist_strategy, side_strategy, join_strategy,
-                   end_strategy, point_strategy);
-    break;
-  }
-  case Geometry::wkb_multipolygon:
-  {
-    const void *data_ptr= geom->normalize_ring_order();
-    if (data_ptr == NULL)
-    {
-      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_buffer");
-      return true;
-    }
-    BG_models<double, bgcs::cartesian>::Multipolygon
-      bg(data_ptr, geom->get_data_size(),
-         geom->get_flags(), geom->get_srid());
-    call_bg_buffer(bg, result, dist_strategy, side_strategy, join_strategy,
-                   end_strategy, point_strategy);
-    break;
-  }
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return false;
-}
+#define CALL_BG_BUFFER(result, geom, geom_out, dist_strategy, side_strategy,\
+                       join_strategy, end_strategy, point_strategy) do {\
+  (result)= false;\
+  switch ((geom)->get_type())\
+  {\
+  case Geometry::wkb_point:\
+  {\
+    BG_models<double, bgcs::cartesian>::Point\
+      bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
+         (geom)->get_flags(), (geom)->get_srid());\
+    bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
+               (join_strategy), (end_strategy), (point_strategy));\
+    break;\
+  }\
+  case Geometry::wkb_multipoint:\
+  {\
+    BG_models<double, bgcs::cartesian>::Multipoint\
+      bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
+         (geom)->get_flags(), (geom)->get_srid());\
+    bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
+               (join_strategy), (end_strategy), (point_strategy));\
+    break;\
+  }\
+  case Geometry::wkb_linestring:\
+  {\
+    BG_models<double, bgcs::cartesian>::Linestring\
+      bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
+         (geom)->get_flags(), (geom)->get_srid());\
+    bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
+               (join_strategy), (end_strategy), (point_strategy));\
+    break;\
+  }\
+  case Geometry::wkb_multilinestring:\
+  {\
+    BG_models<double, bgcs::cartesian>::Multilinestring\
+      bg((geom)->get_data_ptr(), (geom)->get_data_size(),\
+         (geom)->get_flags(), (geom)->get_srid());\
+    bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
+               (join_strategy), (end_strategy), (point_strategy));\
+    break;\
+  }\
+  case Geometry::wkb_polygon:\
+  {\
+    const void *data_ptr= (geom)->normalize_ring_order();\
+    if (data_ptr == NULL)\
+    {\
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_buffer");\
+      (result)= true;\
+      break;            \
+    }\
+    BG_models<double, bgcs::cartesian>::Polygon\
+      bg(data_ptr, (geom)->get_data_size(),\
+         (geom)->get_flags(), (geom)->get_srid());\
+    bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
+               (join_strategy), (end_strategy), (point_strategy));\
+    break;\
+  }\
+  case Geometry::wkb_multipolygon:\
+  {\
+    const void *data_ptr= (geom)->normalize_ring_order();\
+    if (data_ptr == NULL)\
+    {\
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_buffer");\
+      (result)= true;\
+      break;            \
+    }\
+    BG_models<double, bgcs::cartesian>::Multipolygon\
+      bg(data_ptr, (geom)->get_data_size(),\
+         (geom)->get_flags(), (geom)->get_srid());\
+    bg::buffer(bg, (geom_out), (dist_strategy), (side_strategy),\
+               (join_strategy), (end_strategy), (point_strategy));\
+    break;\
+  }\
+  default:\
+    DBUG_ASSERT(false);\
+    break;\
+  }\
+} while(0)
 
 
 Item_func_buffer::Item_func_buffer(const POS &pos, PT_item_list *ilist)
@@ -524,47 +438,17 @@ String *Item_func_buffer::val_str(String *str_value_arg)
 
   try
   {
-    /*
-      Create BG strategy objects from user settings and default values.
-    */
-    buffer_join_strategy join_strat;
-    buffer_point_strategy point_strat;
-    buffer_end_strategy end_strat;
-    buffer_distance_strategy dist_strat= bgst::distance_symmetric<double>(dist);
-    buffer_side_strategy side_strat= bgst::side_straight();
-
     Strategy_setting ss1= settings[end_strategy];
     Strategy_setting ss2= settings[join_strategy];
     Strategy_setting ss3= settings[point_strategy];
 
-    if (ss1.strategy == end_flat)
-      end_strat= bgst::end_flat();
-    else if (ss1.strategy == end_round)
-      end_strat= bgst::end_round(ss1.value);
-    else
-      DBUG_ASSERT(ss1.strategy == invalid_strategy);
+    const bool is_pts= (gtype == Geometry::wkb_point ||
+                        gtype == Geometry::wkb_multipoint);
 
-    if (ss2.strategy == join_round)
-      join_strat= bgst::join_round(ss2.value);
-    else if (ss2.strategy == join_miter)
-      join_strat= bgst::join_miter(ss2.value);
-    else
-      DBUG_ASSERT(ss2.strategy == invalid_strategy);
-
-    if (ss3.strategy == point_circle)
-      point_strat= bgst::point_circle(ss3.value);
-    else if (ss3.strategy == point_square)
-      point_strat= bgst::point_square();
-    else
-      DBUG_ASSERT(ss3.strategy == invalid_strategy);
-
-    bool is_pts= (gtype == Geometry::wkb_point ||
-                  gtype == Geometry::wkb_multipoint);
-
-    bool is_plygn= (gtype == Geometry::wkb_polygon ||
-                    gtype == Geometry::wkb_multipolygon);
-    bool is_ls= (gtype == Geometry::wkb_linestring ||
-                 gtype == Geometry::wkb_multilinestring);
+    const bool is_plygn= (gtype == Geometry::wkb_polygon ||
+                          gtype == Geometry::wkb_multipolygon);
+    const bool is_ls= (gtype == Geometry::wkb_linestring ||
+                       gtype == Geometry::wkb_multilinestring);
 
     /*
       Some strategies can be applied to only part of the geometry types and
@@ -581,22 +465,82 @@ String *Item_func_buffer::val_str(String *str_value_arg)
       DBUG_RETURN(error_str());
     }
 
-    // Assign default strategies if necessary. 32 points per circle is adopted
-    // by PostGIS and 3DSMAX, it seems to be a de-facto standard, so we adopt
-    // this value here too.
-    if (is_pts && ss3.strategy == invalid_strategy)
-      point_strat= bgst::point_circle(32);
-    if (!is_pts && ss2.strategy == invalid_strategy)
-      join_strat= bgst::join_round(32);
-    if (is_ls && ss1.strategy == invalid_strategy)
-      end_strat= bgst::end_round(32);
+    bgst::distance_symmetric<double> dist_strat(dist);
+    bgst::side_straight side_strat;
+    bgst::end_round bgst_end_round(ss1.strategy ==
+                                   invalid_strategy ? 32 : ss1.value);
+    bgst::end_flat bgst_end_flat;
+    bgst::join_round bgst_join_round(ss2.strategy ==
+                                     invalid_strategy ? 32 : ss2.value);
+    bgst::join_miter bgst_join_miter(ss2.value);
+    bgst::point_circle bgst_point_circle(ss3.strategy ==
+                                         invalid_strategy ? 32 : ss3.value);
+    bgst::point_square bgst_point_square;
+
+    /*
+      Default strategies if not specified:
+      end_round(32), join_round(32), point_circle(32)
+      The order of enum items in enum enum_buffer_strategies is crucial for
+      this setting to be correct, don't modify it.
+
+      Although point strategy isn't needed for linear and areal geometries,
+      we have to specify it because of bg::buffer interface, and BG will
+      silently ignore it. Similarly for other strategies.
+    */
+    int strats_combination= 0;
+    if (ss1.strategy == end_flat)
+      strats_combination|= 1;
+    if (ss2.strategy == join_miter)
+      strats_combination|= 2;
+    if (ss3.strategy == point_square)
+      strats_combination|= 4;
 
     BG_models<double, bgcs::cartesian>::Multipolygon result;
     result.set_srid(geom->get_srid());
+
     if (geom->get_type() != Geometry::wkb_geometrycollection)
     {
-      if (bg_buffer(geom, result, dist_strat, side_strat,
-                    join_strat, end_strat, point_strat))
+      bool ret= false;
+      switch (strats_combination)
+      {
+      case 0:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_round, bgst_end_round, bgst_point_circle);
+        break;
+      case 1:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_round, bgst_end_flat, bgst_point_circle);
+        break;
+      case 2:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_miter, bgst_end_round, bgst_point_circle);
+        break;
+      case 3:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_miter, bgst_end_flat, bgst_point_circle);
+        break;
+      case 4:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_round, bgst_end_round, bgst_point_square);
+        break;
+      case 5:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_round, bgst_end_flat, bgst_point_square);
+        break;
+      case 6:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_miter, bgst_end_round, bgst_point_square);
+        break;
+      case 7:
+        CALL_BG_BUFFER(ret, geom, result, dist_strat, side_strat,
+                       bgst_join_miter, bgst_end_flat, bgst_point_square);
+        break;
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+
+      if (ret)
         DBUG_RETURN(error_str());
 
       if (result.size() == 0)
@@ -635,8 +579,47 @@ String *Item_func_buffer::val_str(String *str_value_arg)
           DBUG_RETURN(error_str());
         }
 
-        if (bg_buffer(*i, res, dist_strat, side_strat,
-                      join_strat, end_strat, point_strat))
+        bool ret= false;
+        switch (strats_combination)
+        {
+        case 0:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_round, bgst_end_round, bgst_point_circle);
+          break;
+        case 1:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_round, bgst_end_flat, bgst_point_circle);
+          break;
+        case 2:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_miter, bgst_end_round, bgst_point_circle);
+          break;
+        case 3:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_miter, bgst_end_flat, bgst_point_circle);
+          break;
+        case 4:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_round, bgst_end_round, bgst_point_square);
+          break;
+        case 5:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_round, bgst_end_flat, bgst_point_square);
+          break;
+        case 6:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_miter, bgst_end_round, bgst_point_square);
+          break;
+        case 7:
+          CALL_BG_BUFFER(ret, *i, res, dist_strat, side_strat,
+                         bgst_join_miter, bgst_end_flat, bgst_point_square);
+          break;
+        default:
+          DBUG_ASSERT(false);
+          break;
+        }
+
+        if (ret)
           DBUG_RETURN(error_str());
         if (res.size() == 0)
           continue;

@@ -73,6 +73,81 @@
 using std::max;
 using std::min;
 
+/* Define fields' indexes for COLUMNS table of I_S tables */
+#define IS_COLUMNS_TABLE_CATALOG                0
+#define IS_COLUMNS_TABLE_SCHEMA                 1
+#define IS_COLUMNS_TABLE_NAME                   2
+#define IS_COLUMNS_COLUMN_NAME                  3
+#define IS_COLUMNS_ORDINAL_POSITION             4
+#define IS_COLUMNS_COLUMN_DEFAULT               5
+#define IS_COLUMNS_IS_NULLABLE                  6
+#define IS_COLUMNS_DATA_TYPE                    7
+#define IS_COLUMNS_CHARACTER_MAXIMUM_LENGTH     8
+#define IS_COLUMNS_CHARACTER_OCTET_LENGTH       9
+#define IS_COLUMNS_NUMERIC_PRECISION           10
+#define IS_COLUMNS_NUMERIC_SCALE               11
+#define IS_COLUMNS_DATETIME_PRECISION          12
+#define IS_COLUMNS_CHARACTER_SET_NAME          13
+#define IS_COLUMNS_COLLATION_NAME              14
+#define IS_COLUMNS_COLUMN_TYPE                 15
+#define IS_COLUMNS_COLUMN_KEY                  16
+#define IS_COLUMNS_EXTRA                       17
+#define IS_COLUMNS_PRIVILEGES                  18
+#define IS_COLUMNS_COLUMN_COMMENT              19
+#define IS_COLUMNS_GENERATION_EXPRESSION       20
+
+/* Define fields' indexes for ROUTINES table of I_S tables */
+#define IS_ROUTINES_SPECIFIC_NAME               0
+#define IS_ROUTINES_ROUTINE_CATALOG             1
+#define IS_ROUTINES_ROUTINE_SCHEMA              2
+#define IS_ROUTINES_ROUTINE_NAME                3
+#define IS_ROUTINES_ROUTINE_TYPE                4
+#define IS_ROUTINES_DATA_TYPE                   5
+#define IS_ROUTINES_CHARACTER_MAXIMUM_LENGTH    6
+#define IS_ROUTINES_CHARACTER_OCTET_LENGTH      7
+#define IS_ROUTINES_NUMERIC_PRECISION           8
+#define IS_ROUTINES_NUMERIC_SCALE               9
+#define IS_ROUTINES_DATETIME_PRECISION         10
+#define IS_ROUTINES_CHARACTER_SET_NAME         11
+#define IS_ROUTINES_COLLATION_NAME             12
+#define IS_ROUTINES_DTD_IDENTIFIER             13
+#define IS_ROUTINES_ROUTINE_BODY               14
+#define IS_ROUTINES_ROUTINE_DEFINITION         15
+#define IS_ROUTINES_EXTERNAL_NAME              16
+#define IS_ROUTINES_EXTERNAL_LANGUAGE          17
+#define IS_ROUTINES_PARAMETER_STYLE            18
+#define IS_ROUTINES_IS_DETERMINISTIC           19
+#define IS_ROUTINES_SQL_DATA_ACCESS            20
+#define IS_ROUTINES_SQL_PATH                   21
+#define IS_ROUTINES_SECURITY_TYPE              22
+#define IS_ROUTINES_CREATED                    23
+#define IS_ROUTINES_LAST_ALTERED               24
+#define IS_ROUTINES_SQL_MODE                   25
+#define IS_ROUTINES_ROUTINE_COMMENT            26
+#define IS_ROUTINES_DEFINER                    27
+#define IS_ROUTINES_CHARACTER_SET_CLIENT       28
+#define IS_ROUTINES_COLLATION_CONNECTION       29
+#define IS_ROUTINES_DATABASE_COLLATION         30
+
+
+/* Define fields' indexes for PARAMETERS table of I_S tables */
+#define IS_PARAMETERS_SPECIFIC_CATALOG          0
+#define IS_PARAMETERS_SPECIFIC_SCHEMA           1
+#define IS_PARAMETERS_SPECIFIC_NAME             2
+#define IS_PARAMETERS_ORDINAL_POSITION          3
+#define IS_PARAMETERS_PARAMETER_MODE            4
+#define IS_PARAMETERS_PARAMETER_NAME            5
+#define IS_PARAMETERS_DATA_TYPE                 6
+#define IS_PARAMETERS_CHARACTER_MAXIMUM_LENGTH  7
+#define IS_PARAMETERS_CHARACTER_OCTET_LENGTH    8
+#define IS_PARAMETERS_NUMERIC_PRECISION         9
+#define IS_PARAMETERS_NUMERIC_SCALE            10
+#define IS_PARAMETERS_DATETIME_PRECISION       11
+#define IS_PARAMETERS_CHARACTER_SET_NAME       12
+#define IS_PARAMETERS_COLLATION_NAME           13
+#define IS_PARAMETERS_DTD_IDENTIFIER           14
+#define IS_PARAMETERS_ROUTINE_TYPE             15
+
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
 /**
@@ -168,6 +243,8 @@ static void
 append_algorithm(TABLE_LIST *table, String *buff);
 
 static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
+
+static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 /***************************************************************************
 ** List all table types supported
@@ -633,10 +710,11 @@ is_in_ignore_db_dirs_list(const char *directory)
 
 find_files_result
 find_files(THD *thd, List<LEX_STRING> *files, const char *db,
-           const char *path, const char *wild, bool dir)
+           const char *path, const char *wild, bool dir, MEM_ROOT *tmp_mem_root)
 {
   uint i;
   MY_DIR *dirp;
+  MEM_ROOT **root_ptr= NULL, *old_root= NULL;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
@@ -667,6 +745,13 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     }
     DBUG_RETURN(FIND_FILES_DIR);
+  }
+
+  if (tmp_mem_root)
+  {
+    root_ptr= my_thread_get_THR_MALLOC();
+    old_root= *root_ptr;
+    *root_ptr= tmp_mem_root;
   }
 
   for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
@@ -733,8 +818,11 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         continue;
     }
 #endif
-    if (!(file_name= 
-          thd->make_lex_string(file_name, uname, file_name_len, TRUE)) ||
+    if (!(file_name= tmp_mem_root ?
+                     make_lex_string_root(tmp_mem_root, file_name, uname,
+                                          file_name_len, TRUE) :
+                     thd->make_lex_string(file_name, uname,
+                                          file_name_len, TRUE)) ||
         files->push_back(file_name))
     {
       my_dirend(dirp);
@@ -745,6 +833,9 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
   my_dirend(dirp);
 
   (void) ha_find_files(thd, db, path, wild, dir, files);
+
+  if (tmp_mem_root)
+    *root_ptr= old_root;
 
   DBUG_RETURN(FIND_FILES_OK);
 }
@@ -1550,20 +1641,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       type.append(" /* 5.5 binary format */");
     packet->append(type.ptr(), type.length(), system_charset_info);
 
-    if (field->gcol_info)
-    {
-      packet->append(STRING_WITH_LEN(" GENERATED ALWAYS"));
-      packet->append(STRING_WITH_LEN(" AS ("));
-      packet->append(field->gcol_info->expr_str.str,
-                     field->gcol_info->expr_str.length,
-                     system_charset_info);
-      packet->append(STRING_WITH_LEN(")"));
-      if (field->stored_in_db)
-        packet->append(STRING_WITH_LEN(" STORED"));
-      else
-        packet->append(STRING_WITH_LEN(" VIRTUAL"));
-    }
-
     if (field->has_charset() && 
         !(thd->variables.sql_mode & (MODE_MYSQL323 | MODE_MYSQL40)))
     {
@@ -1581,6 +1658,20 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 	packet->append(STRING_WITH_LEN(" COLLATE "));
 	packet->append(field->charset()->name);
       }
+    }
+
+    if (field->gcol_info)
+    {
+      packet->append(STRING_WITH_LEN(" GENERATED ALWAYS"));
+      packet->append(STRING_WITH_LEN(" AS ("));
+      packet->append(field->gcol_info->expr_str.str,
+                     field->gcol_info->expr_str.length,
+                     system_charset_info);
+      packet->append(STRING_WITH_LEN(")"));
+      if (field->stored_in_db)
+        packet->append(STRING_WITH_LEN(" STORED"));
+      else
+        packet->append(STRING_WITH_LEN(" VIRTUAL"));
     }
 
     if (flags & NOT_NULL_FLAG)
@@ -2035,7 +2126,7 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 }
 
 
-int
+static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
   my_bool compact_view_name= TRUE;
@@ -3395,7 +3486,7 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
 
 int make_db_list(THD *thd, List<LEX_STRING> *files,
                  LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema)
+                 bool *with_i_schema, MEM_ROOT *tmp_mem_root)
 {
   LEX_STRING *i_s_name_copy= 0;
   i_s_name_copy= thd->make_lex_string(i_s_name_copy,
@@ -3419,7 +3510,8 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
         return 1;
     }
     return (find_files(thd, files, NullS, mysql_data_home,
-                       lookup_field_vals->db_value.str, 1) != FIND_FILES_OK);
+                       lookup_field_vals->db_value.str, 1, tmp_mem_root) !=
+                      FIND_FILES_OK);
   }
 
 
@@ -3461,7 +3553,7 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
     return 1;
   *with_i_schema= 1;
   return (find_files(thd, files, NullS,
-                     mysql_data_home, NullS, 1) != FIND_FILES_OK);
+                     mysql_data_home, NullS, 1, tmp_mem_root) != FIND_FILES_OK);
 }
 
 
@@ -3569,7 +3661,8 @@ int schema_tables_add(THD *thd, List<LEX_STRING> *files, const char *wild)
 static int
 make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                      LOOKUP_FIELD_VALUES *lookup_field_vals,
-                     bool with_i_schema, LEX_STRING *db_name)
+                     bool with_i_schema, LEX_STRING *db_name,
+                     MEM_ROOT *tmp_mem_root)
 {
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
@@ -3623,7 +3716,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
                               lookup_field_vals->table_value.str));
 
   find_files_result res= find_files(thd, table_names, db_name->str, path,
-                                    lookup_field_vals->table_value.str, 0);
+                                    lookup_field_vals->table_value.str, 0,
+                                    tmp_mem_root);
   if (res != FIND_FILES_OK)
   {
     /*
@@ -4272,6 +4366,22 @@ public:
   }
 };
 
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
+      return true;
+
+    return false;
+  }
+};
+
 
 
 /**
@@ -4315,6 +4425,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   bool can_deadlock;
 
   DBUG_ENTER("get_all_tables");
+
+  MEM_ROOT tmp_mem_root;
+  init_sql_alloc(key_memory_get_all_tables, &tmp_mem_root,
+                 TABLE_ALLOC_BLOCK_SIZE, 0);
 
   /*
     In cases when SELECT from I_S table being filled by this call is
@@ -4407,7 +4521,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     goto err;
   }
 
-  if (make_db_list(thd, &db_names, &lookup_field_vals, &with_i_schema))
+  if (make_db_list(thd, &db_names, &lookup_field_vals, &with_i_schema, &tmp_mem_root))
     goto err;
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
@@ -4425,7 +4539,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List<LEX_STRING> table_names;
       int res= make_table_name_list(thd, &table_names, lex,
                                     &lookup_field_vals,
-                                    with_i_schema, db_name);
+                                    with_i_schema, db_name, &tmp_mem_root);
       if (res == 2)   /* Not fatal error, continue */
         continue;
       if (res)
@@ -4512,9 +4626,10 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       with_i_schema= 0;
     }
   }
-
   error= 0;
 err:
+
+  free_root(&tmp_mem_root, MYF(0));
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
 
   DBUG_RETURN(error);
@@ -4540,6 +4655,28 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
     Returning error status in this case leads to client hangup.
   */
 
+  /*
+   * A temporary class is created to free tmp_mem_root when we return from
+   * this function, since we have 'return' from this function from many
+   * places. This is just to avoid goto.
+   */
+  class free_tmp_mem_root
+  {
+  public:
+    free_tmp_mem_root()
+    {
+      init_sql_alloc(key_memory_fill_schema_schemata, &tmp_mem_root,
+                     TABLE_ALLOC_BLOCK_SIZE, 0);
+    }
+    ~free_tmp_mem_root()
+    {
+      free_root(&tmp_mem_root, MYF(0));
+    }
+    MEM_ROOT tmp_mem_root;
+  };
+
+  free_tmp_mem_root dummy_member;
+
   LOOKUP_FIELD_VALUES lookup_field_vals;
   List<LEX_STRING> db_names;
   LEX_STRING *db_name;
@@ -4553,11 +4690,12 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
 
   if (get_lookup_field_values(thd, cond, tables, &lookup_field_vals))
     DBUG_RETURN(0);
+
   DBUG_PRINT("INDEX VALUES",("db_name='%s', table_name='%s'",
                              lookup_field_vals.db_value.str,
                              lookup_field_vals.table_value.str));
   if (make_db_list(thd, &db_names, &lookup_field_vals,
-                   &with_i_schema))
+                   &with_i_schema, &dummy_member.tmp_mem_root))
     DBUG_RETURN(1);
 
   /*
@@ -7000,6 +7138,22 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(res);
 #endif /* EMBEDDED_LIBRARY */
 
+
+  /*
+    Some system variables, for example sql_log_bin,
+    have special behavior because of deprecation.
+    - SELECT @@global.sql_log_bin
+      MUST print a deprecation warning,
+      because such usage needs to be abandoned.
+    - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+      MUST NOT print a deprecation warning,
+      since the application may not be looking for
+      the 'sql_log_bin' row anyway,
+      and we do not want to create spurious warning noise.
+  */
+  Silence_deprecation_warnings silencer;
+  thd->push_internal_handler(&silencer);
+
   /*
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
     SHOW_VAR array and hold it until all variables are stored in the table.
@@ -7022,6 +7176,8 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     mysql_mutex_unlock(&LOCK_plugin_delete);
   }
+
+  thd->pop_internal_handler();
 
   DBUG_RETURN(res);
 }
@@ -7243,6 +7399,7 @@ ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name)
 }
 
 
+static
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 {
   return &schema_tables[schema_table_idx];

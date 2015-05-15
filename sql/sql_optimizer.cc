@@ -94,6 +94,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
 
 static Item_func_match *test_if_ft_index_order(ORDER *order);
 
+static uint32 get_key_length_tmp_table(Item *item);
 
 /**
   Optimizes one query block into a query execution plan (QEP.)
@@ -5486,10 +5487,7 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
     blobs_involved|= inner->is_blob_field();
 
     // Calculate the index length of materialized table
-    const uint lookup_index_length=((inner->type() == Item::FIELD_ITEM) ?
-                            ((Item_field *)inner)->field->pack_length() :
-                            inner->max_length) +
-                            (inner->maybe_null ? HA_KEY_NULL_LENGTH : 0);
+    const uint lookup_index_length= get_key_length_tmp_table(inner);
     if (lookup_index_length > max_key_part_length)
       sj_nest->nested_join->sjm.lookup_allowed= false;
     total_lookup_index_length+= lookup_index_length ; 
@@ -10881,3 +10879,37 @@ void JOIN::refine_best_rowcount()
 /**
   @} (end of group Query_Optimizer)
 */
+
+/**
+  This function is used to get the key length of Item object on
+  which one tmp field will be created during create_tmp_table.
+  This function references KEY_PART_INFO::init_from_field().
+
+  @param item  A inner item of outer join
+
+  @return  The length of a item to be as a key of a temp table
+*/
+
+static uint32 get_key_length_tmp_table(Item *item)
+{
+  uint32 len= 0;
+
+  item= item->real_item();
+  if (item->type() == Item::FIELD_ITEM)
+    len= ((Item_field *)item)->field->key_length();
+  else
+    len= item->max_length;
+
+  if (item->maybe_null)
+    len+= HA_KEY_NULL_LENGTH;
+
+  // references KEY_PART_INFO::init_from_field()
+  enum_field_types type= item->field_type();
+  if (type == MYSQL_TYPE_BLOB ||
+      type == MYSQL_TYPE_VARCHAR ||
+      type == MYSQL_TYPE_GEOMETRY)
+    len+= HA_KEY_BLOB_LENGTH;
+
+  return len;
+}
+

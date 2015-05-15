@@ -20,6 +20,8 @@
 #include "m_string.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/psi/mysql_memory.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>

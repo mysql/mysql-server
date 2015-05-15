@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,17 +36,6 @@
     http://oss.software.ibm.com/icu/userguide/Collate_Customization.html
   
 */
-
-
-/*
-  Avoid using my_snprintf
-  We cannot use my_snprintf() here, because ctype.o is
-  used to build conf_to_src, which must require minimun
-  dependency.
-*/
-
-#undef my_snprinf
-#define my_snprintf "We cannot use my_snprintf in this file"
 
 
 int (*my_string_stack_guard)(int)= NULL;
@@ -264,8 +253,6 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 }
 
 #define MY_CS_CSDESCR_SIZE	64
-#define MY_CS_TAILORING_SIZE	32*1024
-#define MY_CS_UCA_VERSION_SIZE  64
 #define MY_CS_CONTEXT_SIZE      64
 
 typedef struct my_cs_file_info

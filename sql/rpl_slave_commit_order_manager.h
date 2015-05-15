@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 #include "rpl_rli.h"          // is_slave_worker
-#include "sql_class.h"        // THD
 
 
 class Commit_order_manager
@@ -122,11 +121,5 @@ private:
 
   uint32 queue_front() { return queue_head; }
 };
-
-inline bool has_commit_order_manager(THD *thd)
-{
-  return is_mts_worker(thd) &&
-    thd->rli_slave->get_commit_order_manager() != NULL;
-}
 
 #endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/

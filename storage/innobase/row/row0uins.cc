@@ -130,6 +130,7 @@ row_undo_ins_remove_clust_rec(
 		mtr_commit(&mtr);
 
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		success = btr_pcur_restore_position(
 			BTR_MODIFY_LEAF, &node->pcur, &mtr);

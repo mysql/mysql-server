@@ -586,9 +586,65 @@ merge_components(my_bool *pnull_value)
 
   POS pos;
   Item_func_spatial_operation ifso(pos, NULL, NULL, Gcalc_function::op_union);
-  while (!*pnull_value &&
-         merge_one_run<Coord_type, Coordsys>(&ifso, pnull_value))
-    ;
+  bool do_again= true;
+  uint32 last_composition[6]= {0}, num_unchanged_composition= 0;
+  size_t last_num_geos= 0;
+
+  /*
+    After each merge_one_run call, see whether the two indicators change:
+    1. total number of geometry components;
+    2. total number of each of the 6 types of geometries
+
+    If they don't change for N*N/4 times, break out of the loop. Here N is
+    the total number of geometry components.
+
+    There is the rationale:
+
+    Given a geometry collection, it's likely that one effective merge_one_run
+    merges a polygon P and the linestring that crosses it (L) to a
+    polygon P'(the same one) and another linestring L', the 2 indicators above
+    don't change but the merge is actually done. If we merge P'
+    and L' again, they should not be considered cross, but given certain data
+    BG somehow believes L` still crosses P` even the P and P` are valid, and
+    it will give us a L'' and P'' which is different from L' and P'
+    respectively, and L'' is still considered crossing P'',
+    hence the loop here never breaks out.
+
+    If the collection has N components, and we have X [multi]linestrings and
+    N-X polygons, the number of pairs that can be merged is Y = X * (N-X),
+    so the largest Y is N*N/4. If the above 2 indicators stay unchanged more
+    than N*N/4 times the loop runs, we believe all possible combinations in
+    the collection are enumerated and no effective merge is being done any more.
+
+    Note that the L'' and P'' above is different from L' and P' so we can't
+    compare GEOMETRY byte string, and geometric comparison is expensive and may
+    still compare unequal and we would still be stuck in the endless loop.
+  */
+  while (!*pnull_value && do_again)
+  {
+    do_again= merge_one_run<Coord_type, Coordsys>(&ifso, pnull_value);
+    if (!*pnull_value && do_again)
+    {
+      const size_t num_geos= m_geos.size();
+      uint32 composition[6]= {0};
+
+      for (size_t i= 0; i < num_geos; ++i)
+        composition[m_geos[i]->get_type() - 1]++;
+
+      if (num_geos != last_num_geos ||
+          memcmp(composition, last_composition, sizeof(composition)))
+      {
+        memcpy(last_composition, composition, sizeof(composition));
+        last_num_geos= num_geos;
+        num_unchanged_composition= 0;
+      }
+      else
+        num_unchanged_composition++;
+
+      if (num_unchanged_composition > (last_num_geos * last_num_geos / 4 + 2))
+        break;
+    }
+  }
 }
 
 
@@ -639,6 +695,113 @@ public:
 };
 
 
+template<typename Coord_type, typename Coordsys>
+inline bool
+linestring_overlaps_polygon_outerring(const Gis_line_string &ls,
+                                      const Gis_polygon &plgn)
+{
+
+  Gis_polygon_ring &oring= plgn.outer();
+  Gis_line_string ls2(oring.get_ptr(), oring.get_nbytes(),
+                      oring.get_flags(), oring.get_srid());
+  return boost::geometry::overlaps(ls, ls2);
+}
+
+
+template<typename Coord_type, typename Coordsys>
+bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
+                                     my_bool *pnull_value)
+{
+  bool res= false;
+
+  /*
+    If crosses check succeeds, make sure g2 is a valid [multi]polygon, invalid
+    ones can be accepted by BG and the cross check would be considered true,
+    we should reject such result and return false in this case.
+  */
+  if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
+      (g1, g2, Item_func::SP_CROSSES_FUNC, pnull_value) && !*pnull_value)
+  {
+    Geometry::wkbType g2_type= g2->get_type();
+    if (g2_type == Geometry::wkb_polygon)
+    {
+      Gis_polygon plgn(g2->get_data_ptr(),
+                       g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      res= bg::is_valid(plgn);
+    }
+    else if (g2_type == Geometry::wkb_multipolygon)
+    {
+      Gis_multi_polygon mplgn(g2->get_data_ptr(), g2->get_data_size(),
+                              g2->get_flags(), g2->get_srid());
+      res= bg::is_valid(mplgn);
+    }
+    else
+      DBUG_ASSERT(false);
+
+    return res;
+  }
+
+  if (*pnull_value)
+    return false;
+
+  if (g1->get_type() == Geometry::wkb_linestring)
+  {
+    Gis_line_string ls(g1->get_data_ptr(),
+                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    if (g2->get_type() == Geometry::wkb_polygon)
+    {
+      Gis_polygon plgn(g2->get_data_ptr(),
+                       g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      res= linestring_overlaps_polygon_outerring
+        <Coord_type, Coordsys>(ls, plgn);
+    }
+    else
+    {
+      Gis_multi_polygon mplgn(g2->get_data_ptr(), g2->get_data_size(),
+                              g2->get_flags(), g2->get_srid());
+      for (size_t i= 0; i < mplgn.size(); i++)
+      {
+        if (linestring_overlaps_polygon_outerring<Coord_type, Coordsys>
+            (ls, mplgn[i]))
+          return true;
+      }
+    }
+  }
+  else
+  {
+    Gis_multi_line_string mls(g1->get_data_ptr(), g1->get_data_size(),
+                              g1->get_flags(), g1->get_srid());
+    if (g2->get_type() == Geometry::wkb_polygon)
+    {
+      Gis_polygon plgn(g2->get_data_ptr(),
+                       g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      for (size_t i= 0; i < mls.size(); i++)
+      {
+        if (linestring_overlaps_polygon_outerring<Coord_type, Coordsys>
+            (mls[i], plgn))
+          return true;
+      }
+    }
+    else
+    {
+      Gis_multi_polygon mplgn(g2->get_data_ptr(), g2->get_data_size(),
+                              g2->get_flags(), g2->get_srid());
+      for (size_t j= 0; j < mls.size(); j++)
+      {
+        for (size_t i= 0; i < mplgn.size(); i++)
+        {
+          if (linestring_overlaps_polygon_outerring<Coord_type, Coordsys>
+              (mls[j], mplgn[i]))
+            return true;
+        }
+      }
+    }
+  }
+
+  return res;
+}
+
+
 /**
   One run of merging components.
 
@@ -660,8 +823,10 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
   my_bool &null_value= *pnull_value;
   String wkbres;
   Pointer_vector<Geometry> added;
+  std::vector<String> added_wkbbufs;
 
   added.reserve(16);
+  added_wkbbufs.reserve(16);
 
   Rtree_index rtree;
   make_rtree(m_geos, &rtree);
@@ -703,18 +868,17 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
       if (*i == geom2 || geom2 == NULL)
         continue;
 
-      /*
-        TODO: in future when BG::covered_by has full support for all type
-        combinations, replace below 3 checks with it. So far below 3 checks
-        don't catch the point on border of linestring/polygon or linestring
-        on border of polygon cases, and are much slower than one check.
-      */
-
-      // Equals is much easier and faster to check, so put it first.
+      // Equals is much easier and faster to check, so check it first.
       if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
           (geom2, *i, Item_func::SP_EQUALS_FUNC, &null_value) && !null_value)
       {
         *i= NULL;
+        break;
+      }
+
+      if (null_value)
+      {
+        stop_it= true;
         break;
       }
 
@@ -725,6 +889,12 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         break;
       }
 
+      if (null_value)
+      {
+        stop_it= true;
+        break;
+      }
+
       if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
           (geom2, *i, Item_func::SP_WITHIN_FUNC, &null_value) && !null_value)
       {
@@ -732,12 +902,61 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         continue;
       }
 
-      if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
-          (*i, geom2, Item_func::SP_OVERLAPS_FUNC, &null_value) && !null_value)
+      if (null_value)
+      {
+        stop_it= true;
+        break;
+      }
+
+      /*
+        If *i and geom2 is a polygon and a linestring that intersect only
+        finite number of points, the union result is the same as the two
+        geometries, and we would be stuck in an infinite loop. So we must
+        detect and exclude this case. All other argument type combinations
+        always will get a geometry different from the two arguments.
+      */
+      char d11= (*i)->feature_dimension();
+      char d12= geom2->feature_dimension();
+      Geometry *geom_d1= NULL;
+      Geometry *geom_d2= NULL;
+      bool is_linear_areal= false;
+
+      if (((d11 == 1 && d12 == 2) || (d12 == 1 && d11 == 2)))
+      {
+        geom_d1= (d11 == 1 ? *i : geom2);
+        geom_d2= (d11 == 2 ? *i : geom2);
+        if (d11 != 1)
+        {
+          const char tmp_dim= d11;
+          d11= d12;
+          d12= tmp_dim;
+        }
+        is_linear_areal= true;
+      }
+
+      /*
+        As said above, if one operand is linear, the other is areal, then we
+        only proceed the union of them if they intersect infinite number of
+        points, i.e. L crosses A or L touches A's outer ring. Note that if L
+        touches some of A's inner rings, L must be crossing A, so not gonna
+        check the inner rings.
+      */
+      if ((!is_linear_areal &&
+           Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
+           (*i, geom2, Item_func::SP_INTERSECTS_FUNC, &null_value) &&
+           !null_value) ||
+          (is_linear_areal && linear_areal_intersect_infinite
+           <Coord_type, Coordsys>(geom_d1, geom_d2, &null_value)))
       {
         // Free before using it, wkbres may have WKB data from last execution.
         wkbres.mem_free();
         wkbres.length(0);
+
+        if (null_value)
+        {
+          stop_it= true;
+          break;
+        }
 
         bool opdone= false;
         gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, geom2,
@@ -759,6 +978,9 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         if (gres != NULL && gres != *i && gres != geom2)
         {
           added.push_back(gres);
+          String tmp_wkbbuf;
+          added_wkbbufs.push_back(tmp_wkbbuf);
+          added_wkbbufs.back().takeover(wkbres);
           has_new= true;
           gres= NULL;
         }
@@ -767,7 +989,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           geometry.
          */
         break;
-      }
+      } // intersects
 
       if (null_value)
       {
@@ -775,12 +997,12 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
         break;
       }
 
-    } // for (*i)
+    } // for (*j)
 
     if (stop_it)
       break;
 
-  } // for (*j)
+  } // for (*i)
 
   // Remove deleted Geometry object pointers, then append new components if any.
   Is_target_geometry pred(NULL);
@@ -798,5 +1020,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
     fill(*i);
   }
 
+  // The added and added_wkbbufs arrays are destroyed and the Geometry objects
+  // in 'added' are freed, and memory buffers in added_wkbbufs are freed too.
   return has_new;
 }

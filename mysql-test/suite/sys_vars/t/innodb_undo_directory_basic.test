@@ -21,8 +21,8 @@
 ####################################################################
 #   Display the default value                                      #
 ####################################################################
-SELECT @@GLOBAL.innodb_undo_directory;
---echo . Expected
+SELECT COUNT(@@GLOBAL.innodb_undo_directory);
+--echo 1 Expected
 
 
 ####################################################################
@@ -42,11 +42,11 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 ################################################################################
 
 --disable_warnings
-SELECT VARIABLE_VALUE
+SELECT @@GLOBAL.innodb_undo_directory = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_undo_directory';
 --enable_warnings
---echo . Expected
+--echo 1 Expected
 
 SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 --echo 1 Expected

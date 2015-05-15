@@ -3,6 +3,8 @@
 # Replication is disabled in embedded mode.
 #
 --source include/not_embedded.inc
+# Not GTIDs because it sets slave_sql_skip_counter
+--source include/not_gtid_enabled.inc
 
 #
 # Checks how replication commands behave when replication if OFF
@@ -78,7 +80,6 @@ SET @@SESSION.sql_log_bin= 0;
 SHOW MASTER LOGS;
 SHOW MASTER STATUS;
 SHOW SLAVE HOSTS;
---error ER_FLUSH_MASTER_BINLOG_CLOSED
 RESET MASTER;
 SHOW BINLOG EVENTS;
 --error 2

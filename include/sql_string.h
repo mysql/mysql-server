@@ -18,9 +18,17 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#include "m_ctype.h"                            /* my_charset_bin */
-#include "my_sys.h"              /* alloc_root, my_free, my_realloc */
-#include "m_string.h"                           /* TRASH */
+#include "my_global.h"
+#include "m_ctype.h"                         // my_convert
+#include "m_string.h"                        // LEX_CSTRING
+#include "my_sys.h"                          // alloc_root
+#include "mysql/mysql_lex_string.h"          // LEX_STRING
+#include "mysql/service_mysql_alloc.h"       // my_free
+
+#include <string.h>
+
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 #ifdef MYSQL_SERVER
 extern "C" {

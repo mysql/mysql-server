@@ -26,8 +26,6 @@ Created May 26, 2009 Vasil Dimov
 #ifndef fsp0types_h
 #define fsp0types_h
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "univ.i"
 
 /** @name Flags for inserting records in order
@@ -41,7 +39,6 @@ fseg_alloc_free_page) */
 #define	FSP_NO_DIR	((byte)113)	/*!< no order */
 /* @} */
 
-#endif /* !UNIV_INNOCHECKSUM */
 /** File space extent size in pages
 page size | file space extent size
 ----------+-----------------------
@@ -67,7 +64,6 @@ page size | file space extent size
 offset */
 #define FSEG_PAGE_DATA		FIL_PAGE_DATA
 
-#ifndef UNIV_INNOCHECKSUM
 /** @name File segment header
 The file segment header points to the inode describing the file segment. */
 /* @{ */
@@ -223,8 +219,6 @@ bool
 fsp_skip_sanity_check(
 	ulint	space_id);
 #endif /* UNIV_DEBUG */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 /* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
 

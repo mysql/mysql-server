@@ -21,6 +21,8 @@
 */
 
 #include "vio_priv.h"
+#include "mysql/psi/mysql_memory.h"
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef HAVE_OPENSSL
 PSI_memory_key key_memory_vio_ssl_fd;
@@ -412,10 +414,6 @@ void vio_end(void)
 #if defined(HAVE_YASSL)
   yaSSL_CleanUp();
 #elif defined(HAVE_OPENSSL)
-  // This one is needed on the client side
-  ERR_remove_thread_state(0);
-  ERR_free_strings();
-  EVP_cleanup();
-  CRYPTO_cleanup_all_ex_data();
+  vio_ssl_end();
 #endif
 }

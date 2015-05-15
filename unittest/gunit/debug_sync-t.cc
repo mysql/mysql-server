@@ -23,16 +23,8 @@
   waiting for a signal that it has already lost.
 */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
+#include "my_global.h"
 #include <gtest/gtest.h>
-
-#ifdef _WIN32
-#include <Windows.h>
-#else
-#include <pthread.h>
-#endif
-#include "my_thread.h"
 #include "test_utils.h"
 #include "thread_utils.h"
 #include "debug_sync.h"

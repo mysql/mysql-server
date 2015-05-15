@@ -27,7 +27,6 @@ Created 11/26/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "fsp0sysspace.h"
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
@@ -265,10 +264,11 @@ struct DebugCheck {
 /** Release a resource acquired by the mini-transaction. */
 struct ReleaseBlocks {
 	/** Release specific object */
-	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn)
+	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn, FlushObserver* observer)
 		:
 		m_end_lsn(end_lsn),
-		m_start_lsn(start_lsn)
+		m_start_lsn(start_lsn),
+		m_flush_observer(observer)
 	{
 		/* Do nothing */
 	}
@@ -283,7 +283,8 @@ struct ReleaseBlocks {
 
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
-		buf_flush_note_modification(block, m_start_lsn, m_end_lsn);
+		buf_flush_note_modification(block, m_start_lsn,
+					    m_end_lsn, m_flush_observer);
 	}
 
 	/** @return true always. */
@@ -316,6 +317,9 @@ struct ReleaseBlocks {
 
 	/** Mini-transaction REDO end LSN */
 	lsn_t		m_start_lsn;
+
+	/** Flush observer */
+	FlushObserver*	m_flush_observer;
 };
 
 class mtr_t::Command {
@@ -415,14 +419,13 @@ void
 mtr_write_log(
 	const mtr_buf_t*	log)
 {
-	const ulint	len = log->size();
 	mtr_write_log_t	write_log;
 
 	DBUG_PRINT("ib_log",
 		   (ULINTPF "extra bytes written at " LSN_PF,
-		    len, log_sys->lsn));
+		    log->size(), log_sys->lsn));
 
-	log_reserve_and_open(len);
+	log_reserve_and_open(log->size());
 	log->for_each_block(write_log);
 	log_close();
 }
@@ -452,9 +455,12 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_state = MTR_STATE_ACTIVE;
 	ut_d(m_impl.m_user_space_id = TRX_SYS_SPACE);
+	ut_d(m_impl.m_undo_space_id = TRX_SYS_SPACE);
+	m_impl.m_modifies_sys_space = false;
 	m_impl.m_user_space = NULL;
 	m_impl.m_undo_space = NULL;
 	m_impl.m_sys_space = NULL;
+	m_impl.m_flush_observer = NULL;
 
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
@@ -574,8 +580,12 @@ mtr_t::is_named_space(ulint space) const
 	      || m_impl.m_sys_space->id == TRX_SYS_SPACE);
 	ut_ad(!m_impl.m_undo_space
 	      || m_impl.m_undo_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_undo_space
+	      || m_impl.m_undo_space->id == m_impl.m_undo_space_id);
 	ut_ad(!m_impl.m_user_space
 	      || m_impl.m_user_space->id != TRX_SYS_SPACE);
+	ut_ad(!m_impl.m_user_space
+	      || m_impl.m_user_space->id == m_impl.m_user_space_id);
 	ut_ad(!m_impl.m_sys_space
 	      || m_impl.m_sys_space != m_impl.m_user_space);
 	ut_ad(!m_impl.m_sys_space
@@ -589,8 +599,36 @@ mtr_t::is_named_space(ulint space) const
 		return(true);
 	case MTR_LOG_ALL:
 	case MTR_LOG_SHORT_INSERTS:
-		return(m_impl.m_user_space_id == space
-		       || is_predefined_tablespace(space));
+		if (space == TRX_SYS_SPACE) {
+			return(m_impl.m_modifies_sys_space);
+		} else {
+			return(m_impl.m_undo_space_id == space
+			       || m_impl.m_user_space_id == space);
+		}
+	}
+
+	ut_error;
+	return(false);
+}
+
+/** Check if an undo tablespace is associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	undo tablespace
+@return whether the mini-transaction is associated with the undo */
+bool
+mtr_t::is_undo_space(ulint space) const
+{
+	switch (get_log_mode()) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return(true);
+	case MTR_LOG_SHORT_INSERTS:
+		/* There should be no undo logging in this mode. */
+		break;
+	case MTR_LOG_ALL:
+		return(space == TRX_SYS_SPACE
+		       ? m_impl.m_modifies_sys_space
+		       : m_impl.m_undo_space_id == space);
 	}
 
 	ut_error;
@@ -649,7 +687,19 @@ mtr_t::lookup_sys_space()
 	ut_ad(m_impl.m_sys_space);
 }
 
-/** Look up the user tablespace.
+/** Look up an undo tablespace.
+@param[in]	space_id	tablespace ID */
+void
+mtr_t::lookup_undo_space(ulint space_id)
+{
+	ut_ad(space_id != TRX_SYS_SPACE);
+	ut_ad(m_impl.m_undo_space_id == space_id);
+	ut_ad(!m_impl.m_undo_space);
+	m_impl.m_undo_space = fil_space_get(space_id);
+	ut_ad(m_impl.m_undo_space);
+}
+
+/** Look up a user tablespace.
 @param[in]	space_id	tablespace ID */
 void
 mtr_t::lookup_user_space(ulint space_id)
@@ -673,6 +723,7 @@ mtr_t::set_named_space(fil_space_t* space)
 		ut_ad(m_impl.m_sys_space == NULL
 		      || m_impl.m_sys_space == space);
 		m_impl.m_sys_space = space;
+		m_impl.m_modifies_sys_space = true;
 	} else {
 		m_impl.m_user_space = space;
 	}
@@ -731,20 +782,17 @@ mtr_t::Command::prepare_write()
 
 	ut_ad(m_impl->m_n_log_recs == n_recs);
 
-	fil_space_t*	space = m_impl->m_user_space;
-
-	if (space != NULL && space->id <= srv_undo_tablespaces_open) {
-		/* Omit MLOG_FILE_NAME for predefined tablespaces. */
-		space = NULL;
-	}
-
 	log_mutex_enter();
 
 	log_margin_checkpoint_age(len);
 
-	if (fil_names_write_if_was_clean(space, m_impl->m_mtr)) {
+	if (fil_names_write_if_was_clean(m_impl->m_sys_space, m_impl->m_mtr)
+	    || fil_names_write_if_was_clean(m_impl->m_undo_space,
+					    m_impl->m_mtr)
+	    || fil_names_write_if_was_clean(m_impl->m_user_space,
+					    m_impl->m_mtr)) {
 		/* This mini-transaction was the first one to modify
-		this tablespace since the latest checkpoint, so
+		some tablespace since the latest checkpoint, so
 		some MLOG_FILE_NAME records were appended to m_log. */
 		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
@@ -840,7 +888,7 @@ mtr_t::Command::release_latches()
 void
 mtr_t::Command::release_blocks()
 {
-	ReleaseBlocks release(m_start_lsn, m_end_lsn);
+	ReleaseBlocks release(m_start_lsn, m_end_lsn, m_impl->m_flush_observer);
 	Iterate<ReleaseBlocks> iterator(release);
 
 	m_impl->m_memo.for_each_block_in_reverse(iterator);

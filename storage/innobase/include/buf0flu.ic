@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,6 +37,7 @@ buf_flush_insert_into_flush_list(
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	buf_block_t*	block,		/*!< in/out: block which is modified */
 	lsn_t		lsn);		/*!< in: oldest modification */
+
 /********************************************************************//**
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -59,8 +60,9 @@ buf_flush_note_modification(
 	buf_block_t*	block,		/*!< in: block which is modified */
 	lsn_t		start_lsn,	/*!< in: start lsn of the mtr that
 					modified this block */
-	lsn_t		end_lsn)	/*!< in: end lsn of the mtr that
+	lsn_t		end_lsn,	/*!< in: end lsn of the mtr that
 					modified this block */
+	FlushObserver*	observer)	/*!< in: flush observer */
 {
 #ifdef UNIV_DEBUG
 	{
@@ -82,6 +84,12 @@ buf_flush_note_modification(
 
 	ut_ad(block->page.newest_modification <= end_lsn);
 	block->page.newest_modification = end_lsn;
+
+	/* Don't allow to set flush observer from non-null to null,
+	or from one observer to another. */
+	ut_ad(block->page.flush_observer == NULL
+	      || block->page.flush_observer == observer);
+	block->page.flush_observer = observer;
 
 	if (block->page.oldest_modification == 0) {
 		buf_pool_t*	buf_pool = buf_pool_from_block(block);

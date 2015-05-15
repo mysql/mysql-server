@@ -44,6 +44,8 @@
 #include <my_dir.h>
 #include <my_aes.h>
 #include "mysql/psi/mysql_file.h"
+#include "mysql/service_my_snprintf.h"
+#include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>
 #endif
@@ -738,7 +740,12 @@ int my_load_defaults(const char *conf_file, const char **groups,
 	   **argv);
     for (i=1 ; i < *argc ; i++)
       if (!my_getopt_is_args_separator((*argv)[i])) /* skip arguments separator */
-        printf("%s ", (*argv)[i]);
+      {
+        if(strncmp((*argv)[i], "--password", 10) == 0)
+          printf("%s ", "--password=*****");
+        else
+          printf("%s ", (*argv)[i]);
+      }
     puts("");
     exit(0);
   }

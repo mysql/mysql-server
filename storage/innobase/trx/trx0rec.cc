@@ -1201,7 +1201,8 @@ trx_undo_parse_erase_page_end(
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 
 	if (page == NULL) {
 
@@ -1298,17 +1299,21 @@ trx_undo_report_row_operation(
 		}
 	}
 
-	/* If object is temporary, disable REDO logging that is done to track
-	changes done to UNDO logs. This is feasible given that temporary tables
-	are not restored on restart. */
 	mtr_start(&mtr);
-	dict_disable_redo_if_temporary(index->table, &mtr);
-	mutex_enter(&trx->undo_mutex);
 
-	/* If object is temp-table then select noredo rseg as changes
-	to undo logs don't need REDO logging given that they are not
-	restored on restart as corresponding object doesn't exist on restart.*/
-	undo_ptr = is_temp_table ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
+	if (is_temp_table) {
+		/* If object is temporary, disable REDO logging that
+		is done to track changes done to UNDO logs. This is
+		feasible given that temporary tables and temporary
+		undo logs are not restored on restart. */
+		undo_ptr = &trx->rsegs.m_noredo;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		undo_ptr = &trx->rsegs.m_redo;
+		mtr.set_undo_space(undo_ptr->rseg->space);
+	}
+
+	mutex_enter(&trx->undo_mutex);
 
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
@@ -1401,8 +1406,13 @@ trx_undo_report_row_operation(
 
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
-				dict_disable_redo_if_temporary(
-					index->table, &mtr);
+
+				if (dict_table_is_temporary(index->table)) {
+					mtr.set_log_mode(MTR_LOG_NO_REDO);
+				} else {
+					mtr.set_undo_space(
+						undo_ptr->rseg->space);
+				}
 
 				mutex_enter(&undo_ptr->rseg->mutex);
 				trx_undo_free_last_page(trx, undo, &mtr);
@@ -1441,7 +1451,11 @@ trx_undo_report_row_operation(
 
 		ut_ad(++loop_count < 2);
 		mtr_start(&mtr);
-		dict_disable_redo_if_temporary(index->table, &mtr);
+		if (dict_table_is_temporary(index->table)) {
+			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(undo_ptr->rseg->space);
+		}
 
 		/* When we add a page to an undo log, this is analogous to
 		a pessimistic insert in a B-tree, and we must reserve the
@@ -1518,30 +1532,34 @@ trx_undo_get_undo_rec_low(
 
 /******************************************************************//**
 Copies an undo record to heap.
-
-NOTE: the caller must have latches on the clustered index page.
-
+@param[in]	roll_ptr	roll pointer to record
+@param[in]	trx_id		id of the trx that generated
+				the roll pointer: it points to an
+				undo log of this transaction
+@param[in]	heap		memory heap where copied
+@param[in]	is_redo_rseg	true if redo rseg.
+@param[in]	name		table name
+@param[out]	undo_rec	own: copy of the record
 @retval true if the undo log has been
 truncated and we cannot fetch the old version
-@retval false if the undo log record is available */
+@retval false if the undo log record is available
+NOTE: the caller must have latches on the clustered index page. */
 static __attribute__((warn_unused_result))
 bool
 trx_undo_get_undo_rec(
 /*==================*/
-	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	trx_id_t	trx_id,		/*!< in: id of the trx that generated
-					the roll pointer: it points to an
-					undo log of this transaction */
-	trx_undo_rec_t**undo_rec,	/*!< out, own: copy of the record */
-	mem_heap_t*	heap,		/*!< in: memory heap where copied */
-	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
+	roll_ptr_t		roll_ptr,
+	trx_id_t		trx_id,
+	mem_heap_t*		heap,
+	bool			is_redo_rseg,
+	const table_name_t&	name,
+	trx_undo_rec_t**	undo_rec)
 {
 	bool		missing_history;
 
 	rw_lock_s_lock(&purge_sys->latch);
 
-	missing_history = purge_sys->view.changes_visible(trx_id);
-
+	missing_history = purge_sys->view.changes_visible(trx_id, name);
 	if (!missing_history) {
 		*undo_rec = trx_undo_get_undo_rec_low(
 			roll_ptr, heap, is_redo_rseg);
@@ -1624,7 +1642,8 @@ trx_undo_prev_version_build(
 	bool is_redo_rseg =
 		dict_table_is_temporary(index->table) ? false : true;
 	if (trx_undo_get_undo_rec(
-		roll_ptr, rec_trx_id, &undo_rec, heap, is_redo_rseg)) {
+		    roll_ptr, rec_trx_id, heap, is_redo_rseg,
+		    index->table->name, &undo_rec)) {
 		/* The undo record may already have been purged,
 		during purge or semi-consistent read. */
 		return(false);
@@ -1698,7 +1717,7 @@ trx_undo_prev_version_build(
 			rw_lock_s_lock(&purge_sys->latch);
 
 			missing_extern = purge_sys->view.changes_visible(
-				trx_id);
+				trx_id,	index->table->name);
 
 			rw_lock_s_unlock(&purge_sys->latch);
 

@@ -4,7 +4,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source suite/perfschema/include/no_protocol.inc
+--source include/no_protocol.inc
 
 --let $psi_select = SELECT STATEMENT_NAME, SQL_TEXT, COUNT_EXECUTE, COUNT_REPREPARE, OWNER_OBJECT_TYPE, OWNER_OBJECT_SCHEMA, OWNER_OBJECT_NAME FROM performance_schema.prepared_statements_instances
 TRUNCATE TABLE performance_schema.prepared_statements_instances; 

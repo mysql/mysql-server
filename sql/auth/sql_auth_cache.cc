@@ -20,9 +20,9 @@
 #include "auth_common.h"        // ACL_internal_schema_access
 #include "auth_internal.h"      // auth_plugin_is_built_in
 #include "field.h"              // Field
+#include "item_func.h"          // mqh_used
 #include "log.h"                // sql_print_warning
 #include "psi_memory_key.h"     // key_memory_acl_mem
-#include "read_write_lock.h"    // Write_lock
 #include "records.h"            // READ_RECORD
 #include "sql_authentication.h" // sha256_password_plugin_name
 #include "sql_base.h"           // open_and_lock_tables
@@ -30,6 +30,7 @@
 #include "sql_plugin.h"         // my_plugin_lock_by_name
 #include "sql_time.h"           // str_to_time_with_warn
 #include "table.h"              // TABLE
+#include "derror.h"             // ER_THD
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -64,8 +65,6 @@ Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts= NULL;
 HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 hash_filo *acl_cache;
 HASH acl_check_hosts;
-
-mysql_rwlock_t proxy_users_rwlock;
 
 bool initialized=0;
 bool allow_all_hosts=1;
@@ -472,7 +471,8 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 /*
   Return a number which, if sorted 'desc', puts strings in this order:
     no wildcards
-    wildcards
+    strings containg wildcards and non-wildcard characters
+    single muilt-wildcard character('%')
     empty string
 */
 
@@ -489,7 +489,16 @@ ulong get_sort(uint count,...)
   {
     char *start, *str= va_arg(args,char*);
     uint chars= 0;
-    uint wild_pos= 0;           /* first wildcard position */
+    uint wild_pos= 0;
+
+    /*
+      wild_pos
+        0                            if string is empty
+        1                            if string is a single muilt-wildcard
+                                     character('%')
+        first wildcard position + 1  if string containg wildcards and
+                                     non-wildcard characters
+    */
 
     if ((start= str))
     {
@@ -500,6 +509,8 @@ ulong get_sort(uint count,...)
         else if (*str == wild_many || *str == wild_one)
         {
           wild_pos= (uint) (str - start) + 1;
+          if (!(wild_pos == 1 && *str == wild_many && *(++str) == '\0'))
+            wild_pos++;
           break;
         }
         chars= 128;                             // Marker that chars existed
@@ -888,7 +899,6 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
         if (strcmp(proxy->get_proxied_user() ?
           proxy->get_proxied_user() : "", ""))
         {
-          mysql_mutex_lock(&acl_cache->lock);
           if (find_acl_user(
             proxy->get_proxied_host(),
             proxy->get_proxied_user(),
@@ -906,7 +916,6 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
             DBUG_PRINT("info", ("skipping match because ACL user \
               does not exist, looking for next match to map"));
           }
-          mysql_mutex_unlock(&acl_cache->lock);
           if (*proxy_used)
           {
             DBUG_PRINT("info", ("returning matching user"));
@@ -1347,7 +1356,6 @@ my_bool acl_init(bool dont_read_acl_tables)
                            (my_hash_free_key) free,
                            &my_charset_utf8_bin);
 
-  mysql_rwlock_init(key_rwlock_proxy_users, &proxy_users_rwlock);
   LOCK_grant.init(LOCK_GRANT_PARTITIONS
 #ifdef HAVE_PSI_INTERFACE
                   , key_rwlock_LOCK_grant
@@ -1948,7 +1956,6 @@ void acl_free(bool end)
     if (rwlocks_initialized)
     {
       LOCK_grant.destroy();
-      mysql_rwlock_destroy(&proxy_users_rwlock);
       rwlocks_initialized= false;
     }
   }
@@ -2010,19 +2017,12 @@ my_bool acl_reload(THD *thd)
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
                       thd->get_stmt_da()->message_text());
     }
-    acl_free();
     close_acl_tables(thd);
     DBUG_RETURN(true);
   }
 
-  Write_lock proxy_users_wlk(&proxy_users_rwlock, DEFER);
-
   if ((old_initialized=initialized))
-  {
-    /* If you need these two locks, always acquire them in this order:*/
     mysql_mutex_lock(&acl_cache->lock);
-    proxy_users_wlk.lock();
-  }
 
   Prealloced_array<ACL_USER, ACL_PREALLOC_SIZE> *old_acl_users= acl_users;
   Prealloced_array<ACL_DB, ACL_PREALLOC_SIZE> *old_acl_dbs= acl_dbs;
@@ -2061,10 +2061,7 @@ my_bool acl_reload(THD *thd)
     delete old_acl_proxy_users;
   }
   if (old_initialized)
-  {
     mysql_mutex_unlock(&acl_cache->lock);
-    proxy_users_wlk.unlock();
-  }
 
   close_acl_tables(thd);
   DBUG_RETURN(return_val);
@@ -2074,6 +2071,7 @@ my_bool acl_reload(THD *thd)
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 {
   DBUG_ENTER("acl_insert_proxy_user");
+  mysql_mutex_assert_owner(&acl_cache->lock);
   acl_proxy_users->push_back(*new_value);
   std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   DBUG_VOID_RETURN;
@@ -2359,6 +2357,7 @@ end_index_init:
     exists.
 
   @param thd A pointer to the thread handler object.
+  @param table A pointer to the table list.
 
   @see grant_reload
 
@@ -2436,7 +2435,27 @@ my_bool grant_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
-  tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+
+  /*
+    Reload will work in the following manner:-
+
+                             proc_priv_hash structure
+                              /                     \
+                    not initialized                 initialized
+                   /               \                     |
+    mysql.procs_priv table        Server Startup         |
+        is missing                      \                |
+             |                         open_and_lock_tables()
+    Assume we are working on           /success             \failure
+    pre 4.1 system tables.        Normal Scenario.          An error is thrown.
+    A warning is printed          Reload column privilege.  Retain the old hash.
+    and continue with             Reload function and
+    reloading the column          procedure privileges,
+    privileges.                   if available.
+  */
+
+  if (!(my_hash_inited(&proc_priv_hash)))
+    tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   /*
     To avoid deadlocks we should obtain table locks before
@@ -2444,14 +2463,21 @@ my_bool grant_reload(THD *thd)
   */
   if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
-    grant_free();
+    if (thd->get_stmt_da()->is_error())
+    {
+      sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
+                      thd->get_stmt_da()->message_text());
+    }
     goto end;
   }
 
   if (tables[2].table == NULL)
   {
-    my_hash_free(&proc_priv_hash);
-    my_hash_free(&func_priv_hash);
+    sql_print_warning("Table 'mysql.procs_priv' does not exist. "
+                      "Please run mysql_upgrade.");
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NO_SUCH_TABLE,
+                        ER_THD(thd, ER_NO_SUCH_TABLE), tables[2].db,
+                        tables[2].table_name);
   }
 
   LOCK_grant.wrlock();
@@ -2468,10 +2494,10 @@ my_bool grant_reload(THD *thd)
   /*
     tables[2].table i.e. procs_priv can be null if we are working with
     pre 4.1 privilage tables
-*/
-  if ((return_val= grant_load(thd, tables) ||
-                   (tables[2].table != NULL &&
-                    grant_reload_procs_priv(thd, &(tables[2])))
+  */
+  if ((return_val= (grant_load(thd, tables) ||
+                    (tables[2].table != NULL &&
+                     grant_reload_procs_priv(thd, &tables[2])))
      ))
   {                                             // Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
@@ -2670,6 +2696,8 @@ void acl_insert_user(const char *user, const char *host,
 
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke)
 {
+  mysql_mutex_assert_owner(&acl_cache->lock);
+
   DBUG_ENTER("acl_update_proxy_user");
   for (ACL_PROXY_USER *acl_user= acl_proxy_users->begin();
        acl_user != acl_proxy_users->end(); ++acl_user)

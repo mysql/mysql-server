@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,9 +26,7 @@ Created 11/26/1995 Heikki Tuuri
 #ifndef mtr0types_h
 #define mtr0types_h
 
-#ifndef UNIV_INNOCHECKSUM
 #include "sync0rw.h"
-#endif /* UNIV_INNOCHECKSUM */
 
 struct mtr_t;
 
@@ -130,7 +128,10 @@ enum mlog_id_t {
 
 	/** this means that a file page is taken into use and the prior
 	contents of the page should be ignored: in recovery we must not
-	trust the lsn values stored to the file page */
+	trust the lsn values stored to the file page.
+	Note: it's deprecated because it causes crash recovery problem
+	in bulk create index, and actually we don't need to reset page
+	lsn in recv_recover_page_func() now. */
 	MLOG_INIT_FILE_PAGE = 29,
 
 	/** write a string to a page */
@@ -225,8 +226,12 @@ enum mlog_id_t {
 	/** create a R-tree compact page */
 	MLOG_COMP_PAGE_CREATE_RTREE = 58,
 
+	/** this means that a file page is taken into use.
+	We use it to replace MLOG_INIT_FILE_PAGE. */
+	MLOG_INIT_FILE_PAGE2 = 59,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 58
+	MLOG_BIGGEST_TYPE = 59
 };
 
 /* @} */
@@ -239,7 +244,6 @@ mach_write_to_8(checkpoint_lsn). */
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 enum mtr_memo_type_t {
-#ifndef UNIV_INNOCHECKSUM
 	MTR_MEMO_PAGE_S_FIX = RW_S_LATCH,
 
 	MTR_MEMO_PAGE_X_FIX = RW_X_LATCH,
@@ -247,7 +251,6 @@ enum mtr_memo_type_t {
 	MTR_MEMO_PAGE_SX_FIX = RW_SX_LATCH,
 
 	MTR_MEMO_BUF_FIX = RW_NO_LATCH,
-#endif /* !UNIV_CHECKSUM */
 
 #ifdef UNIV_DEBUG
 	MTR_MEMO_MODIFY = 32,

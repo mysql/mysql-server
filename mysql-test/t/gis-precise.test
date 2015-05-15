@@ -88,7 +88,9 @@ select ST_astext(ST_UNION(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), 
 --replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select ST_astext(ST_buffer(ST_geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection);
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((0 0, 10 10, 0 8, 0 0))'));
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 values (ST_GeomFromText('POLYGON((1 1, 10 10, 0 8, 1 1))'));
 --replace_regex /([0-9]+\.[0-9]{5})[0-9]*/\1/
 select ST_astext(geom), ST_area(geom),ST_area(ST_buffer(geom,2)) from t1;
@@ -1266,5 +1268,108 @@ SELECT ST_AREA(ST_ENVELOPE(ST_GEOMFROMTEXT('LINESTRING(0 0,0 10)')));
 SELECT ST_AsText(ST_Envelope(ST_GeomFromText('POLYGON((0 0, 1 0, 2 0, 0 0))')));
 SELECT ST_AsText(ST_Envelope(ST_GeomFromText('POLYGON((0 0, 0 0, 0 0, 0 0))')));
 
+--echo #
+--echo # Bug#20842030 ST_BUFFER CAN BE CALLED WITH PARAMETERS TO CONSUME
+--echo # INORDINATE AMOUNT OF MEMORY
+--echo #
+--error ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
+select st_astext(st_buffer(point(-5,0),8772,
+                           st_buffer_strategy( 'point_circle',1024*1024*1024)))
+as result;
+
+do st_buffer(point(-5,0),8772,
+             st_buffer_strategy('point_circle',1024*1024*1024));
+
+set session max_points_in_geometry=1024*1024;
+--error ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
+select st_astext(st_buffer(point(-5,0),8772,
+                           st_buffer_strategy( 'point_circle',1024*1024*1024)))
+as result;
+
+set session max_points_in_geometry=4*1024*1024;
+--error ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
+select st_astext(st_buffer(point(-5,0),8772,
+                           st_buffer_strategy( 'point_circle',1024*1024*1024)))
+as result;
+
+--echo #
+--echo # Bug#20379981 ST_CONTAINS(GEOMETRYCOLLECTION(POLY,POLY), LINESTRING) RETURNS WRONG RESULT
+--echo #
+SELECT
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((5 0,0 10,10 10,5 0)),
+                                                POLYGON((5 0,0 -10,10 -10,5 0)))'),
+            ST_GEOMFROMTEXT('LINESTRING(5 -2,5 2)')) as result;
+
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((5 0,0 10,10 10,5 0)),
+                                                POLYGON((5 0,0 -10,10 -10,5 0)))'),
+            ST_GEOMFROMTEXT('MULTIPOINT(4 -3,4 2)')) as result;
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0, 2 0, 2 2, 0 2, 0 0)),
+                                                POLYGON((2 0, 4 0, 4 2, 2 2, 2 0)))'),
+ST_GEOMFROMTEXT('POLYGON((1 0, 3 0, 3 1, 1 1, 1 0))')) as result;
+
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(3 0, 6 0))'),
+ST_GEOMFROMTEXT('LINESTRING(2 0, 4 0)')) as result;
+
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(2 0, 2 8))'),
+ST_GEOMFROMTEXT('LINESTRING(0 0, 2 0, 2 4)')) as result;
+
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(3 0, 6 0))'),
+ST_GEOMFROMTEXT('MULTIPOINT(2 0, 4 0)')) as result;
+
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0, 3 0), LINESTRING(2 0, 2 8))'),
+ST_GEOMFROMTEXT('MULTIPOINT(0 0, 2 0, 2 4)')) as result;
+
+# This one still fails but there is no easy fix for it, and it's not the
+# scope of this bug anyway.
+SELECT 1,
+ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                                                LINESTRING(3 1, 5 1))'),
+ST_GEOMFROMTEXT('LINESTRING(2 1, 4 1)')) as result;
+
+# Tests for the modified GC component merge algorithm.
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(POLYGON((5 0,0 10,10 10,5 0)),
+                           POLYGON((5 0,0 -10,10 -10,5 0)))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(POLYGON((0 0, 5 0, 5 5, 0 5,0 0)),
+                           POLYGON((5 0,10 0, 10 3,5 3,5 0)))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                           LINESTRING(0 1, 4 1))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                           LINESTRING(3 0, 3 1, 4 2))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(POLYGON((0 0, 3 0, 3 3, 0 3, 0 0)),
+                           LINESTRING(3 1, 4 1))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(LINESTRING(4 1, 6 1),
+                           LINESTRING(0 1, 4 1))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(LINESTRING(3 1, 6 1),
+                           LINESTRING(0 1, 4 1))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(LINESTRING(3 1, 3 3),
+                           LINESTRING(0 1, 4 1))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
+SELECT ST_AsText(ST_Union(ST_GEOMFROMTEXT(
+       'GEOMETRYCOLLECTION(LINESTRING(3 0, 3 3),
+                           LINESTRING(0 1, 4 1))'),
+                          ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'))) as result;
 
 --source include/gis_debug.inc

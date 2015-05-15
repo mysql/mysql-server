@@ -32,6 +32,7 @@
 #include <assert.h>
 #include <my_dir.h>
 #include <mysql_version.h>
+#include "mysql/service_mysql_alloc.h"
 
 #define MAX_ROWS  2000
 #define HEADER_LENGTH 32                /* Length of header in errmsg.sys */
@@ -1077,11 +1078,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
   case 'V':
     print_version();
     exit(0);
-    break;
   case '?':
     usage();
     exit(0);
-    break;
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;

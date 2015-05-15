@@ -102,7 +102,10 @@ class Gtid_table_persistor
 public:
   static const uint number_fields= 3;
 
-  Gtid_table_persistor() : m_count(0) { };
+  Gtid_table_persistor()
+  {
+    m_count.atomic_set(0);
+  };
   virtual ~Gtid_table_persistor() { };
 
   /**
@@ -118,7 +121,7 @@ public:
     @retval
       -1   Error
   */
-  int save(THD *thd, Gtid *gtid);
+  int save(THD *thd, const Gtid *gtid);
   /**
     Insert the gtid set into table.
 
@@ -130,7 +133,7 @@ public:
     @retval
       -1   Error
   */
-  int save(Gtid_set *gtid_set);
+  int save(const Gtid_set *gtid_set);
   /**
     Delete all rows from the table.
 
@@ -207,7 +210,7 @@ public:
 
 private:
   /* Count the append size of the table */
-  ulong m_count;
+  Atomic_int64 m_count;
   /**
     Compress the gtid_executed table, read each row by the
     PK(sid, gno_start) in increasing order, compress the first
@@ -333,7 +336,7 @@ private:
     @retval
       -1   Error
   */
-  int save(TABLE *table, Gtid_set *gtid_set);
+  int save(TABLE *table, const Gtid_set *gtid_set);
   /* Prevent user from invoking default assignment function. */
   Gtid_table_persistor &operator=(const Gtid_table_persistor &info);
   /* Prevent user from invoking default constructor function. */

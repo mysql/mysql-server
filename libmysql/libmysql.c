@@ -18,6 +18,8 @@
 #include <my_time.h>
 #include <mysys_err.h>
 #include <m_string.h>
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 #include <m_ctype.h>
 #include "mysql.h"
 #include "mysql_version.h"
@@ -56,27 +58,6 @@
 
 ulong 		net_buffer_length=8192;
 ulong		max_allowed_packet= 1024L*1024L*1024L;
-
-
-#ifdef EMBEDDED_LIBRARY
-#undef net_flush
-my_bool	net_flush(NET *net);
-#endif
-
-#if defined(_WIN32)
-/* socket_errno is defined in my_global.h for all platforms */
-#define perror(A)
-#else
-#include <errno.h>
-#define SOCKET_ERROR -1
-#endif /* _WIN32 */
-
-/*
-  If allowed through some configuration, then this needs to
-  be changed
-*/
-#define MAX_LONG_DATA_LENGTH 8192
-#define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
 static void append_wild(char *to,char *end,const char *wild);
 
@@ -121,6 +102,10 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     init_client_errs();
     if (mysql_client_plugin_init())
       return 1;
+#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+    ssl_start();
+#endif
+
     if (!mysql_port)
     {
       char *env;

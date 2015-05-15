@@ -25,6 +25,7 @@
 #include "sql_class.h"                       // THD
 #include "myisam.h"                          // MI_MAX_MSG_BUF
 #include "derror.h"
+#include "mysql/psi/mysql_memory.h"
 
 // In sql_class.cc:
 int thd_binlog_format(const MYSQL_THD thd);
@@ -1887,9 +1888,8 @@ int Partition_helper::ph_rnd_init(bool scan)
     /* A scan can be restarted without rnd_end() in between! */
     if (m_scan_value == 1 && m_part_spec.start_part != NOT_A_PARTITION_ID)
     {
-      DBUG_ASSERT(m_part_spec.start_part == part_id);
-      DBUG_ASSERT(0);
-      if ((error= rnd_end_in_part(part_id, scan)))
+      /* End previous scan on partition before restart. */
+      if ((error= rnd_end_in_part(m_part_spec.start_part, scan)))
       {
         DBUG_RETURN(error);
       }

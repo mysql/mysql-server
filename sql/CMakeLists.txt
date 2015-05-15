@@ -112,6 +112,7 @@ SET(SQL_SHARED_SOURCES
   key_spec.cc
   keycaches.cc
   lock.cc
+  locking_service.cc
   log.cc
   mdl.cc
   my_decimal.cc
@@ -216,6 +217,7 @@ SET(SQL_SHARED_SOURCES
   sql_test.cc
   sql_thd_api.cc
   sql_time.cc
+  sql_timer.cc
   sql_tmp_table.cc
   sql_trigger.cc
   sql_truncate.cc
@@ -296,11 +298,6 @@ ADD_COMPILE_FLAGS(
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
-  auth/sql_authorization.cc
-  auth/sql_authentication.cc
-  auth/sql_user_table.cc
-  auth/sql_user.cc
-  auth/sql_auth_cache.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -314,6 +311,18 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+# In Clang 3.6 the flag is named slightly different.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" HAVE_NO_UNUSED_TYPEDEF)
+IF(HAVE_NO_UNUSED_TYPEDEF)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-unused-local-typedef"
   )
 ENDIF()
 
@@ -331,10 +340,6 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     ../sql-common/client_authentication.cc
     COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
-ENDIF()
-
-IF(HAVE_MY_TIMER)
-  SET(SQL_SOURCE ${SQL_SOURCE} sql_timer.cc)
 ENDIF()
 
 ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
@@ -558,6 +563,19 @@ IF(NOT DISABLE_SHARED)
   ENDIF()
 ENDIF()
 
+MYSQL_ADD_PLUGIN(locking_service locking_service_udf.cc
+                 MODULE_ONLY MODULE_OUTPUT_NAME "locking_service")
+IF(NOT DISABLE_SHARED)
+  IF(WIN32)
+    SET_TARGET_PROPERTIES(locking_service
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/locking_service.def")
+  ELSE()
+    SET_TARGET_PROPERTIES(locking_service
+      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+  ENDIF()
+ENDIF()
+
 FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
  tar git)
  STRING(TOUPPER ${tool}  TOOL)
@@ -580,55 +598,6 @@ ADD_CUSTOM_TARGET(distclean
   COMMAND ${CMAKE_COMMAND} -E echo  Use 'git clean -fdx' instead
   VERBATIM
   )
-
-IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
-
-# Install initial database on windows
-IF(NOT CMAKE_CROSSCOMPILING)
-  IF(DEBUG_EXTNAME)
-    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION_DEBUG)
-  ELSE()
-    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
-  ENDIF()
-ENDIF()
-IF(WIN32 AND MYSQLD_EXECUTABLE)
-  ADD_CUSTOM_COMMAND(
-     OUTPUT data
-     COMMAND "${CMAKE_COMMAND}" -E remove_directory
-       ${CMAKE_CURRENT_BINARY_DIR}/data
-     COMMAND "${MYSQLD_EXECUTABLE}"
-       --no-defaults
-       --console
-       --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
-       --datadir=${CMAKE_CURRENT_BINARY_DIR}/data
-       --default-storage-engine=MyISAM
-       --default-tmp-storage-engine=MyISAM
-       --loose-skip-auto_generate_certs
-       --loose-skip-sha256_password_auto_generate_rsa_keys
-       --initialize-insecure
-       --log_syslog=0
-       --skip-ssl
-     COMMAND "${CMAKE_COMMAND}" -E make_directory
-       ${CMAKE_CURRENT_BINARY_DIR}/data/test
-     COMMAND "${CMAKE_COMMAND}" -E remove
-       ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/db.opt
-     COMMAND "${CMAKE_COMMAND}" -E remove
-       ${CMAKE_CURRENT_BINARY_DIR}/data/performance_schema/db.opt
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-     DEPENDS mysqld
-  )
-  ADD_CUSTOM_TARGET(initial_database
-    ALL
-    DEPENDS  data
-  )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-    DESTINATION .
-    COMPONENT DataFiles)
-ELSE()
-  # Not windows or cross compiling, just install an empty directory
-  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
-ENDIF()
-ENDIF()
 
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"

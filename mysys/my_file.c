@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,10 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 #include <m_string.h>
+#include "mysql/service_mysql_alloc.h"
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>  /* RLIMIT_NOFILE */
+#endif
 
 /*
   set how many open files we want to be able to handle
@@ -32,7 +36,7 @@
     May be more or less than max_file_limit!
 */
 
-#if defined(HAVE_GETRLIMIT) && defined(RLIMIT_NOFILE)
+#if defined(HAVE_GETRLIMIT)
 
 /*
   This value is certainly wrong on all 64bit platforms,

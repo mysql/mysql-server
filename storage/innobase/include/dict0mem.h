@@ -1176,12 +1176,6 @@ struct dict_table_t {
 	/** Table name. */
 	table_name_t				name;
 
-	/** NULL or the directory path where a TEMPORARY table that was
-	explicitly created by a user should be placed if innodb_file_per_table
-	is defined in my.cnf. In Unix this is usually "/tmp/...",
-	in Windows "temp\...". */
-	const char*				dir_path_of_temp_table;
-
 	/** NULL or the directory path specified by DATA DIRECTORY. */
 	char*					data_dir_path;
 

@@ -747,6 +747,16 @@ public:
     return mts_recovery_group_cnt != 0;
   }
 
+  inline void clear_mts_recovery_groups()
+  {
+    if (recovery_groups_inited)
+    {
+      bitmap_free(&recovery_groups);
+      mts_recovery_group_cnt= 0;
+      recovery_groups_inited= false;
+    }
+  }
+
   /**
      returns true if events are to be executed in parallel
   */

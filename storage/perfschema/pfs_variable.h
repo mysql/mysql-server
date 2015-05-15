@@ -110,13 +110,13 @@
 #define PFS_VAR
 /* Class sys_var */
 #include "set_var.h"
-/* convert_value_to_string */
-#include "sql_show.h"
 /* PFS_thread */
 #include "pfs_instr.h"
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
+
+typedef std::vector<st_mysql_show_var> Status_var_array;
 
 /* Global array of all server and plugin-defined status variables. */
 extern Status_var_array all_status_vars;

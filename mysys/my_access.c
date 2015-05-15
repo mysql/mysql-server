@@ -73,8 +73,6 @@ static const char *reserved_names[]=
   NullS
 };
 
-#define MAX_RESERVED_NAME_LENGTH 6
-
 
 /*
   Looks up a null-terminated string in a list,
@@ -232,6 +230,8 @@ my_bool is_filename_allowed(const char *name __attribute__((unused)),
     0  ok
     1  reserved file name
 */
+
+#define MAX_RESERVED_NAME_LENGTH 6
 
 int check_if_legal_filename(const char *path)
 {

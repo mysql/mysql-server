@@ -16,14 +16,10 @@
 #ifndef _my_sys_h
 #define _my_sys_h
 
-#include "my_global.h"                  /* C_MODE_START, C_MODE_END */
-#include "m_ctype.h"                    /* for CHARSET_INFO */
-
-#include "my_thread.h"                  /* Needed for psi.h */
-#include "mysql/psi/psi.h"
-#include "mysql/service_mysql_alloc.h"
-#include "mysql/psi/mysql_memory.h"
-#include "mysql/psi/mysql_thread.h"
+#include "my_global.h"
+#include "m_ctype.h"                    /* CHARSET_INFO */
+#include "my_alloc.h"                   /* USED_MEM */
+#include "mysql/psi/mysql_thread.h"     /* mysql_mutex_t */
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -53,8 +49,6 @@ C_MODE_START
 # define MEM_NOACCESS(a,len) ((void) 0)
 # define MEM_CHECK_ADDRESSABLE(a,len) ((void) 0)
 #endif /* HAVE_VALGRIND */
-
-#include <typelib.h>
 
 #define MY_INIT(name)   { my_progname= name; my_init(); }
 
@@ -207,8 +201,6 @@ extern uint    my_large_page_size;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 
 #define my_alloca(SZ) alloca((size_t) (SZ))
-
-#include <errno.h>			/* errno is a define */
 
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
@@ -501,8 +493,6 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 					  *(info)->current_pos)
 
 typedef uint32 ha_checksum;
-
-#include <my_alloc.h>
 
 
 	/* Prototypes for mysys and my_func functions */

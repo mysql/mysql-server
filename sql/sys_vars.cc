@@ -609,6 +609,14 @@ static Sys_var_long Sys_pfs_events_transactions_history_size(
        DEFAULT(PFS_AUTOSIZE_VALUE),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_long Sys_pfs_max_digest_length(
+       "performance_schema_max_digest_length",
+       "Maximum length considered for digest text, when stored in performance_schema tables.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_max_digest_length),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
+       DEFAULT(1024),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 static Sys_var_long Sys_pfs_connect_attrs_size(
        "performance_schema_session_connect_attrs_size",
        "Size of session attribute string buffer per thread."
@@ -2252,14 +2260,7 @@ static Sys_var_long Sys_max_digest_length(
        READ_ONLY GLOBAL_VAR(max_digest_length),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024 * 1024),
        DEFAULT(1024),
-       BLOCK_SIZE(1),
-       NO_MUTEX_GUARD,
-       NOT_IN_BINLOG,
-       ON_CHECK(0),
-       ON_UPDATE(0),
-       NULL,
-       /* max_digest_length is used as a sizing hint by the performance schema. */
-       sys_var::PARSE_EARLY);
+       BLOCK_SIZE(1));
 
 static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 {
@@ -2360,7 +2361,14 @@ static Sys_var_ulong Sys_max_length_for_sort_data(
        SESSION_VAR(max_length_for_sort_data), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, 8192*1024L), DEFAULT(1024), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_max_points_in_geometry(
+       "max_points_in_geometry",
+       "Maximum number of points in a geometry",
+       SESSION_VAR(max_points_in_geometry), CMD_LINE(OPT_ARG),
+       VALID_RANGE(3, 64*1024*1024L), DEFAULT(65536), BLOCK_SIZE(1));
+
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
+
 static Sys_var_ulong Sys_max_prepared_stmt_count(
        "max_prepared_stmt_count",
        "Maximum number of prepared statements in the server",
@@ -3870,7 +3878,7 @@ static Sys_var_set Sys_sql_mode(
 static Sys_var_ulong Sys_max_statement_time(
        "max_statement_time",
        "Kill SELECT statement that takes over the specified number of milliseconds",
-       SESSION_VAR(max_statement_time), NO_CMD_LINE,
+       SESSION_VAR(max_statement_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -3951,12 +3959,6 @@ static Sys_var_enum Sys_updatable_views_with_limit(
        "a LIMIT clause (usually get from GUI tools)",
        SESSION_VAR(updatable_views_with_limit), CMD_LINE(REQUIRED_ARG),
        updatable_views_with_limit_names, DEFAULT(TRUE));
-
-static Sys_var_mybool Sys_sync_frm(
-       "sync_frm", "Sync .frm files to disk on creation",
-       GLOBAL_VAR(opt_sync_frm), CMD_LINE(OPT_ARG),
-       DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
@@ -5446,34 +5448,37 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   DBUG_ENTER("Sys_var_gtid_purged::global_update");
 #ifdef HAVE_REPLICATION
   bool error= false;
-  int rotate_res= 0;
 
   global_sid_lock->wrlock();
   char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
   char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-  enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
-  char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-  char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-  global_sid_lock->unlock();
-  if (RETURN_STATUS_OK != ret)
+  char *current_gtid_executed= NULL;
+  char *current_gtid_lost= NULL;
+  enum_return_status ret;
+  Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
+                    &ret, global_sid_lock);
+  if (ret != RETURN_STATUS_OK)
   {
+    global_sid_lock->unlock();
     error= true;
     goto end;
   }
+  ret= gtid_state->add_lost_gtids(&gtid_set);
+  if (ret != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    error= true;
+    goto end;
+  }
+  current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
+  current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  global_sid_lock->unlock();
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
                         previous_gtid_lost, current_gtid_lost);
   sql_print_information(ER_DEFAULT(ER_GTID_EXECUTED_WAS_CHANGED),
                         previous_gtid_executed, current_gtid_executed);
-
-  // Rotate logs to have Previous_gtid_event on last binlog.
-  rotate_res= mysql_bin_log.rotate_and_purge(thd, true);
-  if (rotate_res)
-  {
-    error= true;
-    goto end;
-  }
 
 end:
   my_free(previous_gtid_executed);

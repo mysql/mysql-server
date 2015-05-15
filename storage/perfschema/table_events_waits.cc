@@ -431,6 +431,12 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
       m_row.m_object_schema_length= 0;
       m_row.m_object_name_length= mdl->name_length();
       break;
+    case MDL_key::LOCKING_SERVICE:
+      m_row.m_object_type= "LOCKING SERVICE";
+      m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= mdl->db_name_length();
+      m_row.m_object_name_length= mdl->name_length();
+      break;
     case MDL_key::NAMESPACE_END:
     default:
       m_row.m_object_type_length= 0;

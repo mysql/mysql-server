@@ -24,6 +24,8 @@
 
 #include <my_sys.h>
 #include <my_bitmap.h>
+#include "my_byteorder.h"
+#include "m_string.h"
 
 template <uint default_width> class Bitmap
 {

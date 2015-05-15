@@ -110,7 +110,7 @@
 ################################################################################
 --source include/have_perfschema.inc
 --source include/not_embedded.inc
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 
 create table test.sanity(
   `SHOW_MODE` varchar(48) NOT NULL,
@@ -586,6 +586,7 @@ insert into test.sanity values
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_HOSTS_SIZE"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_MAX_COND_CLASSES"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_MAX_COND_INSTANCES"),
+  ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_MAX_DIGEST_LENGTH"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_MAX_FILE_CLASSES"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_MAX_FILE_HANDLES"),
   ("JUNK: GLOBAL-ONLY", "I_S.SESSION_VARIABLES", "PERFORMANCE_SCHEMA_MAX_FILE_INSTANCES"),

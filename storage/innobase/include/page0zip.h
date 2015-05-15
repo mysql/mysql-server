@@ -32,23 +32,18 @@ Created June 2005 by Marko Makela
 # define UNIV_INLINE
 #endif
 
-#ifdef UNIV_INNOCHECKSUM
 #include "univ.i"
 #include "buf0buf.h"
 #include "ut0crc32.h"
 #include "buf0checksum.h"
 #include "mach0data.h"
 #include "zlib.h"
-#endif /* UNIV_INNOCHECKSUM */
 
-#ifndef UNIV_INNOCHECKSUM
 #include "mtr0types.h"
 #include "page0types.h"
-#endif /* !UNIV_INNOCHECKSUM */
 
 #include "buf0types.h"
 
-#ifndef UNIV_INNOCHECKSUM
 #include "dict0types.h"
 #include "srv0srv.h"
 #include "trx0types.h"
@@ -463,45 +458,11 @@ Parses a log record of compressing an index page.
 byte*
 page_zip_parse_compress(
 /*====================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
-	page_t*		page,	/*!< out: uncompressed page */
-	page_zip_des_t*	page_zip);/*!< out: compressed page */
+	byte*		ptr,		/*!< in: buffer */
+	byte*		end_ptr,	/*!< in: buffer end */
+	page_t*		page,		/*!< out: uncompressed page */
+	page_zip_des_t*	page_zip);	/*!< out: compressed page */
 
-#endif /* !UNIV_INNOCHECKSUM */
-/**********************************************************************//**
-Calculate the compressed page checksum.
-@return page checksum */
-ib_uint32_t
-page_zip_calc_checksum(
-/*===================*/
-        const void*     data,   /*!< in: compressed page */
-        ulint           size,   /*!< in: size of compressed page */
-	srv_checksum_algorithm_t algo); /*!< in: algorithm to use */
-
-/**********************************************************************//**
-Verify a compressed page's checksum.
-@return TRUE if the stored checksum is valid according to the value of
-innodb_checksum_algorithm */
-ibool
-page_zip_verify_checksum(
-/*=====================*/
-	const void*	data,	/*!< in: compressed page */
-	ulint		size	/*!< in: size of compressed page */
-#ifdef UNIV_INNOCHECKSUM
-	/* these variables are used only for innochecksum tool. */
-	,uintmax_t	page_no,	/*!< in: page number of
-					given read_buf */
-	bool		strict_check,	/*!< in: true if strict-check
-					option is enable */
-	bool		is_log_enabled, /*!< in: true if log option is
-					enable */
-	FILE*		log_file	/*!< in: file pointer to
-					log_file */
-#endif /* UNIV_INNOCHECKSUM */
-);
-
-#ifndef UNIV_INNOCHECKSUM
 /**********************************************************************//**
 Write a log record of compressing an index page without the data on the page. */
 UNIV_INLINE
@@ -561,6 +522,5 @@ from outside the buffer pool.
 #ifndef UNIV_NONINL
 # include "page0zip.ic"
 #endif
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* page0zip_h */

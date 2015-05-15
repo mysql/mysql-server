@@ -209,6 +209,7 @@ our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 # -1 indicates use default, override with env.var.
 our $opt_ctest= env_or_val(MTR_UNIT_TESTS => -1);
+our $opt_ctest_report;
 # Unit test report stored here for delayed printing
 my $ctest_report;
 
@@ -1200,6 +1201,7 @@ sub command_line_setup {
 	     'report-times'             => \$opt_report_times,
 	     'result-file'              => \$opt_resfile,
 	     'unit-tests!'              => \$opt_ctest,
+	     'unit-tests-report!'	=> \$opt_ctest_report,
 	     'stress=s'                 => \$opt_stress,
 
              'help|h'                   => \$opt_usage,
@@ -1648,12 +1650,21 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Don't run ctest if tests or suites named
+  # Set default values for opt_ctest (--unit-tests)
   # --------------------------------------------------------------------------
 
-  $opt_ctest= 0 if $opt_ctest == -1 && ($opt_suites || @opt_cases);
-  # Override: disable if running in the PB test environment
-  $opt_ctest= 0 if $opt_ctest == -1 && defined $ENV{PB2WORKDIR};
+  if ($opt_ctest == -1) {
+    if (defined $opt_ctest_report && $opt_ctest_report) {
+      # Turn on --unit-tests by default if --unit-tests-report is used
+      $opt_ctest= 1;
+    } elsif ($opt_suites || @opt_cases) {
+      # Don't run ctest if tests or suites named
+      $opt_ctest= 0;
+    } elsif (defined $ENV{PB2WORKDIR}) {
+      # Override: disable if running in the PB test environment
+      $opt_ctest= 0;
+    }
+  }
 
   # --------------------------------------------------------------------------
   # Check use of wait-all
@@ -3642,11 +3653,6 @@ sub mysql_install_db {
   mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem) {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
   # Do not generate SSL/RSA certificates automatically.
   mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
   mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
@@ -3657,7 +3663,8 @@ sub mysql_install_db {
   foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
     (my $temp_extra_opt=$extra_opt) =~ s/_/-/g;
     if ($temp_extra_opt =~ /--innodb-page-size/ || 
-        $temp_extra_opt =~ /--innodb-log-file-size/) {
+        $temp_extra_opt =~ /--innodb-log-file-size/ ||
+        $temp_extra_opt =~ /--innodb-undo-tablespaces/) {
       mtr_add_arg($args, $extra_opt);
     }
   # Plugin arguments need to be given to the bootstrap 
@@ -6814,6 +6821,8 @@ sub run_ctest() {
 
   open (CTEST, " > $ctfile") or die ("Could not open output file $ctfile");
 
+  $ctest_report .= $ctest_out if $opt_ctest_report;
+
   # Put ctest output in log file, while analyzing results
   for (split ('\n', $ctest_out)) {
     print CTEST "$_\n";
@@ -7081,6 +7090,7 @@ Misc options
   nounit-tests          Do not run unit tests. Normally run if configured
                         and if not running named tests/suites
   unit-tests            Run unit tests even if they would otherwise not be run
+  unit-tests-report     Include report of every test included in unit tests.
   stress=ARGS           Run stress test, providing options to
                         mysql-stress-test.pl. Options are separated by comma.
 

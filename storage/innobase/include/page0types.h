@@ -37,7 +37,6 @@ Created 2/2/1994 Heikki Tuuri
 #define page_t	   ib_page_t
 /** Type of the index page */
 typedef	byte		page_t;
-#ifndef UNIV_INNOCHECKSUM
 /** Index page cursor */
 struct page_cur_t;
 
@@ -194,5 +193,4 @@ page_zip_dir_add_slot(
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
 	ulint		is_clustered);	/*!< in: nonzero for clustered index,
 					zero for others */
-#endif /* !UNIV_INNOCHECKSUM */
 #endif

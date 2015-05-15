@@ -1760,7 +1760,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         }
         enum_ident_name_check ident_check_status=
           check_table_name(part_elem->partition_name,
-                           strlen(part_elem->partition_name), FALSE);
+                           strlen(part_elem->partition_name));
         if (ident_check_status == IDENT_NAME_WRONG)
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
@@ -1786,7 +1786,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           warn_if_dir_in_part_elem(thd, sub_elem);
           enum_ident_name_check ident_check_status=
             check_table_name(sub_elem->partition_name,
-                             strlen(sub_elem->partition_name), FALSE);
+                             strlen(sub_elem->partition_name));
           if (ident_check_status == IDENT_NAME_WRONG)
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));

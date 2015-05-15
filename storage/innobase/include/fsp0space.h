@@ -76,7 +76,7 @@ public:
 	Tablespace& operator=(const Tablespace&);
 
 	/** Set tablespace name
-	@param name	Tablespace name */
+	@param name	tablespace name */
 	void set_name(const char* name)
 	{
 		ut_ad(m_name == NULL);
@@ -110,7 +110,7 @@ public:
 	}
 
 	/** Set the space id of the tablespace
-	@param space_id	 Tablespace ID to set */
+	@param space_id	 tablespace ID to set */
 	void set_space_id(ulint space_id)
 	{
 		ut_ad(m_space_id == ULINT_UNDEFINED);
@@ -125,7 +125,7 @@ public:
 	}
 
 	/** Set the tablespace flags
-	@param fsp_flags	Tablespace flags */
+	@param fsp_flags	tablespace flags */
 	void set_flags(ulint fsp_flags)
 	{
 		ut_ad(fsp_flags_is_valid(fsp_flags));
@@ -140,7 +140,7 @@ public:
 	}
 
 	/** Set Ignore Read Only Status for tablespace.
-	@param[in]      read_only_status        read only status indicator */
+	@param[in]	read_only_status	read only status indicator */
 	void set_ignore_read_only(bool read_only_status)
 	{
 		m_ignore_read_only = read_only_status;

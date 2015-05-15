@@ -81,8 +81,7 @@ public:
                                    const char *old_db_name,
                                    LEX_STRING *old_table_name,
                                    const char *new_db_name,
-                                   LEX_STRING *new_table_name,
-                                   bool upgrading50to51);
+                                   LEX_STRING *new_table_name);
 
 private:
   Trigger_loader()

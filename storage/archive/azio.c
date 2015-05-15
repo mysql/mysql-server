@@ -25,7 +25,6 @@ static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
 /* gzip flag uchar */
-#define ASCII_FLAG   0x01 /* bit 0 set: file probably ascii text */
 #define HEAD_CRC     0x02 /* bit 1 set: header CRC present */
 #define EXTRA_FIELD  0x04 /* bit 2 set: extra field present */
 #define ORIG_NAME    0x08 /* bit 3 set: original file name present */

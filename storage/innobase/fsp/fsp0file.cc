@@ -25,6 +25,7 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "ha_prototypes.h"
 
+#include "fsp0file.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
 #include "os0file.h"
@@ -489,9 +490,9 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		const byte*	b		= m_first_page;
 		ulint		nonzero_bytes	= UNIV_PAGE_SIZE;
 
-		while (*b == 0 && --nonzero_bytes) {
+		while (*b == '\0' && --nonzero_bytes != 0) {
 
-			++b;
+			b++;
 		}
 
 		if (nonzero_bytes == 0) {
@@ -517,7 +518,10 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		free_first_page();
 
 		return(DB_ERROR);
-
+	} else if (!fsp_flags_is_valid(m_flags)
+		   || FSP_FLAGS_GET_TEMPORARY(m_flags)) {
+		/* Tablespace flags must be valid. */
+		error_txt = "Tablespace flags are invalid";
 	} else if (page_get_page_no(m_first_page) != 0) {
 
 		/* First page must be number 0 */
@@ -527,13 +531,14 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
-
-	} else if (buf_page_is_corrupted(
+	} else {
+		BlockReporter	reporter(
 			false, m_first_page, page_size,
-			fsp_is_checksum_disabled(m_space_id))) {
-
-		/* Look for checksum and other corruptions. */
-		error_txt = "Checksum mismatch";
+			fsp_is_checksum_disabled(m_space_id));
+		if (reporter.is_corrupted()) {
+			/* Look for checksum and other corruptions. */
+			error_txt = "Checksum mismatch";
+		}
 	}
 
 	if (error_txt != NULL) {
@@ -565,9 +570,7 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		free_first_page();
 
-		return(is_predefined_tablespace(m_space_id)
-		       ? DB_CORRUPTION
-		       : DB_TABLESPACE_EXISTS);
+		return(DB_TABLESPACE_EXISTS);
 	}
 
 	return(DB_SUCCESS);
@@ -671,8 +674,11 @@ Datafile::find_space_id()
 			/* For noncompressed pages, the page size must be
 			equal to univ_page_size.physical(). */
 			if (page_size == univ_page_size.physical()) {
-				noncompressed_ok = !buf_page_is_corrupted(
+				BlockReporter	reporter(
 					false, page, univ_page_size, false);
+
+				noncompressed_ok =
+					!reporter.is_corrupted();
 			}
 
 			bool	compressed_ok = false;
@@ -691,8 +697,11 @@ Datafile::find_space_id()
 					page_size, univ_page_size.logical(),
 					true);
 
-				compressed_ok = !buf_page_is_corrupted(
+				BlockReporter	reporter(
 					false, page, compr_page_size, false);
+
+				compressed_ok =
+					!reporter.is_corrupted();
 			}
 
 			if (noncompressed_ok || compressed_ok) {

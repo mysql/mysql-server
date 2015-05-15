@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -240,9 +240,13 @@ Config::pack64(BaseString& encoded) const
   if (m_configValues->m_config.pack(buf) == 0)
     return false;
 
-  // Expand the string to correct length by filling with Z
+  /*
+    Expand the string to correct length by filling with Z.
+    The base64 encoded data of UtilBuffer can be of max length (1024*1024)/3*4
+    hence using int to store the length.
+  */
   encoded.assfmt("%*s",
-                 base64_needed_encoded_length(buf.length()),
+                 (int)base64_needed_encoded_length(buf.length()),
                  "Z");
 
   if (base64_encode(buf.get_data(),

@@ -2146,7 +2146,6 @@ public:
     char* ptr= (char*)(intptr)option.def_value;
     var->save_result.string_value.str= ptr;
     var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
-    thd->variables.gtid_next.set_automatic();
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *thd, set_var *var)

@@ -125,9 +125,7 @@ enum ib_quiesce_t {
 	QUIESCE_COMPLETE		/*!< All done */
 };
 
-#ifndef UNIV_INNOCHECKSUM
 typedef ib_mutex_t DictSysMutex;
-#endif /* !UNIV_INNOCHECKSUM */
 
 /** Prefix for tmp tables, adopted from sql/table.h */
 #define TEMP_FILE_PREFIX		"#sql"

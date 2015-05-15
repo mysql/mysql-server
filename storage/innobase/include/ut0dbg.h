@@ -26,12 +26,6 @@ Created 1/30/1994 Heikki Tuuri
 #ifndef ut0dbg_h
 #define ut0dbg_h
 
-#ifdef UNIV_INNOCHECKSUM
-#define ut_a		assert
-#define ut_ad		assert
-#define ut_error	assert(0)
-#else /* !UNIV_INNOCHECKSUM */
-
 /* Do not include univ.i because univ.i includes this. */
 
 #include "os0thread.h"
@@ -74,8 +68,6 @@ ut_dbg_assertion_failed(
 /** Silence warnings about an unused variable by doing a null assignment.
 @param A the unused variable */
 #define UT_NOT_USED(A)	A = A
-
-#ifdef UNIV_COMPILE_TEST_FUNCS
 
 #if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 
@@ -180,9 +172,5 @@ private:
 };
 
 #endif /* HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
-
-#endif /* UNIV_COMPILE_TEST_FUNCS */
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 #endif

@@ -5423,7 +5423,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (!(tree->ror_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      param->keys)))
-    return NULL;
+    DBUG_RETURN(NULL);
   cpk_no= ((param->table->file->primary_key_is_clustered()) ?
            param->table->s->primary_key : MAX_KEY);
 
@@ -5433,7 +5433,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     if (!tree->ror_scans_map.is_set(idx))
       continue;
     if (!(scan= make_ror_scan(param, idx, tree->keys[idx])))
-      return NULL;
+      DBUG_RETURN(NULL);
     if (param->real_keynr[idx] == cpk_no)
     {
       cpk_scan= scan;
@@ -5463,14 +5463,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   if (!(intersect_scans= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
                                                      sizeof(ROR_SCAN_INFO*)*
                                                      tree->n_ror_scans)))
-    return NULL;
+    DBUG_RETURN(NULL);
   intersect_scans_end= intersect_scans;
 
   /* Create and incrementally update ROR intersection. */
   ROR_INTERSECT_INFO *intersect, *intersect_best;
   if (!(intersect= ror_intersect_init(param)) || 
       !(intersect_best= ror_intersect_init(param)))
-    return NULL;
+    DBUG_RETURN(NULL);
 
   /* [intersect_scans,intersect_scans_best) will hold the best intersection */
   ROR_SCAN_INFO **intersect_scans_best;
@@ -7292,8 +7292,36 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       type != Item_func::EQUAL_FUNC)
     goto end;                                   // Can't optimize this
 
-  if (save_value_and_handle_conversion(&tree, value, type, field,
-                                       &impossible_cond_cause, alloc))
+  /*
+    Geometry operations may mix geometry types, e.g., we may be
+    checking ST_Contains(<polygon field>, <point>). In such cases,
+    field->geom_type will be a different type than the value we're
+    trying to store in it, and the conversion will fail. Therefore,
+    set the most general geometry type while saving, and revert to the
+    original geometry type afterwards.
+  */
+  Field::geometry_type save_geom_type;
+  save_geom_type= Field::GEOM_GEOMETRY;
+  if (key_part->image_type == Field::itMBR &&
+      field->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    save_geom_type= field->get_geometry_type();
+    down_cast<Field_geom*, Field*>(field)->geom_type= Field::GEOM_GEOMETRY;
+  }
+
+  bool always_true_or_false;
+  always_true_or_false=
+    save_value_and_handle_conversion(&tree, value, type, field,
+                                     &impossible_cond_cause, alloc);
+
+  if (key_part->image_type == Field::itMBR &&
+      field->type() == MYSQL_TYPE_GEOMETRY &&
+      save_geom_type != Field::GEOM_GEOMETRY)
+  {
+    down_cast<Field_geom*, Field*>(field)->geom_type= save_geom_type;
+  }
+  
+  if (always_true_or_false)
     goto end;
 
   /*

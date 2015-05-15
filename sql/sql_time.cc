@@ -1055,7 +1055,7 @@ bool parse_date_time_format(timestamp_type format_type,
       return 0;
     break;
   default:
-    DBUG_ASSERT(1);
+    DBUG_ASSERT(false);
     break;
   }
   return 1;					// Error

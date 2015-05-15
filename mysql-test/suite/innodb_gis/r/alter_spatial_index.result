@@ -248,11 +248,12 @@ WHERE MBRIntersects(tab.c4, @g1);
 ERROR 23000: Duplicate entry '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00@\xAF@\x' for key 'PRIMARY'
 UPDATE tab SET c4 = ST_GeomFromText('POINT(4000 4000)')
 WHERE MBRIntersects(tab.c4, @g1);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
-7	POINT(60 70)	POINT(4000 4000)
-8	POINT(0 0)	POINT(4000 4000)
-9	POINT(120 120)	POINT(4000 4000)
+7	POINT(60 70)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+8	POINT(0 0)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
+9	POINT(120 120)	POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))
 DELETE FROM tab WHERE MBRIntersects(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
@@ -501,10 +502,11 @@ c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
 10	POINT(160 160)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
 UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
 WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
 AND MBREquals(tab.c3,@g2) ORDER BY c1;
 c1	ST_Astext(c2)	ST_AsText(c3)	ST_Astext(c4)
-10	POINT(2000 2000)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
+10	POINT(160 160)	LINESTRING(140 140,150 150,160 160)	POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))
 DELETE FROM tab WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1)
 AND MBREquals(tab.c3,@g2) ORDER BY c1;
@@ -586,11 +588,11 @@ c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
 UPDATE tab SET c2 = ST_GeomFromText('POINT(2000 2000)'),
 c3=ST_GeomFromText('POINT(2000 2000)')
 WHERE MBRWithin(tab.c4, @g1) AND MBRWithin(tab.c3, @g2);
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SET @g1 = ST_GeomFromText('POINT(2000 2000)');
 SET @g2 = ST_GeomFromText('POINT(2000 2000)');
 SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
-5	POINT(2000 2000)	POINT(2000 2000)	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
 DELETE FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
@@ -651,7 +653,7 @@ SHOW INDEX FROM child;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 child	1	idx2	1	parent_id	A	0	32	NULL		SPATIAL		
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
-ERROR HY000: Cannot add foreign key constraint
+ERROR 42000: BLOB/TEXT column 'parent_id' used in key specification without a key length
 DROP table child,parent;
 create table t1 (c1 int) engine=innodb;
 insert into t1 values(NULL);

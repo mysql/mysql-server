@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "mysql/service_mysql_alloc.h"
 
 using namespace Mysql::Tools::Check;
 
@@ -119,12 +120,6 @@ static struct my_option my_long_options[] =
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"fix-db-names", OPT_FIX_DB_NAMES, "Fix database names.",
-    &opt_fix_db_names, &opt_fix_db_names,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"fix-table-names", OPT_FIX_TABLE_NAMES, "Fix table names.",
-    &opt_fix_table_names, &opt_fix_table_names,
-    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"force", 'f', "Continue even if we get an SQL error.",
    &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -292,15 +287,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'o':
     what_to_do = DO_OPTIMIZE;
-    break;
-  case OPT_FIX_DB_NAMES:
-    what_to_do= DO_UPGRADE;
-    opt_databases= 1;
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--fix-db-names");
-    break;
-  case OPT_FIX_TABLE_NAMES:
-    what_to_do= DO_UPGRADE;
-    CLIENT_WARN_DEPRECATED_NO_REPLACEMENT("--fix-table-names");
     break;
   case 'p':
     if (argument == disabled_my_option)

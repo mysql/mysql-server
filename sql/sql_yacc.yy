@@ -7443,19 +7443,6 @@ alter:
                 lex->copy_db_to(&lex->name.str, &lex->name.length))
               MYSQL_YYABORT;
           }
-        | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
-          {
-            LEX *lex= Lex;
-            push_deprecated_warn_no_replacement(YYTHD,
-              "UPGRADE DATA DIRECTORY NAME");
-            if (lex->sphead)
-            {
-              my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
-              MYSQL_YYABORT;
-            }
-            lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
-            lex->name= $3;
-          }
         | ALTER PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
@@ -8167,7 +8154,7 @@ alter_list_item:
               MYSQL_YYABORT;
             }
             enum_ident_name_check ident_check_status=
-              check_table_name($3->table.str,$3->table.length, FALSE);
+              check_table_name($3->table.str,$3->table.length);
             if (ident_check_status == IDENT_NAME_WRONG)
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);

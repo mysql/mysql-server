@@ -31,6 +31,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
 #include "lock.h"                            // mysql_lock_abort_for_thread
+#include "locking_service.h"                 // release_all_locking_service_locks
 #include "mysqld.h"                          // global_system_variables ...
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
@@ -249,8 +250,17 @@ THD::Attachable_trx::~Attachable_trx()
   // transaction.
   DBUG_ASSERT(!m_thd->transaction_rollback_request);
 
-  // NOTE: the attachable transaction is AUTOCOMMIT, thus there is no need for
-  // explicit commit calls.
+  // Commit the attachable transaction before discarding transaction state.
+  // Since the attachable transaction is AUTOCOMMIT we only need to commit
+  // statement transaction. This is mostly needed to properly reset transaction
+  // state in SE.
+  // Note: We can't rely on InnoDB hack which auto-magically commits InnoDB
+  // transaction when the last table for a statement in auto-commit mode is
+  // unlocked. Apparently it doesn't work correctly in some corner cases
+  // (for example, when statement is killed just after tables are locked but
+  // before any other operations on the table happes). We try not to rely on
+  // it in other places on SQL-layer as well.
+  trans_commit_stmt(m_thd);
 
   // Remember the handlerton of an open table to call the handlerton after the
   // tables are closed.
@@ -472,7 +482,8 @@ THD::THD(bool enable_plugins)
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
-   m_stmt_da(&main_da)
+   m_stmt_da(&main_da),
+   duplicate_slave_uuid(false)
 {
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -584,13 +595,8 @@ THD::THD(bool enable_plugins)
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 
-#ifdef HAVE_MY_TIMER
   timer= NULL;
   timer_cache= NULL;
-#endif
-#ifndef DBUG_OFF
-  gis_debug= 0;
-#endif
 
   m_token_array= NULL;
   if (max_digest_length > 0)
@@ -1060,6 +1066,10 @@ void THD::cleanup(void)
     global_read_lock.unlock_global_read_lock(this);
 
   mysql_ull_cleanup(this);
+  /*
+    All locking service locks must be released on disconnect.
+  */
+  release_all_locking_service_locks(this);
 
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
@@ -1136,12 +1146,10 @@ void THD::release_resources()
   ha_close_connection(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
-#ifdef HAVE_MY_TIMER
   DBUG_ASSERT(timer == NULL);
 
   if (timer_cache)
     thd_timer_destroy(timer_cache);
-#endif
 
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)

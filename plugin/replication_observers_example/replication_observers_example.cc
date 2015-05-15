@@ -631,19 +631,19 @@ static int replication_observers_example_plugin_init(MYSQL_PLUGIN plugin_info)
   if(register_server_state_observer(&server_state_observer, (void *)plugin_info_ptr))
   {
     my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL, "Failure in registering the server state observers");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr))
   {
     my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,"Failure in registering the transactions state observers");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (register_binlog_relay_io_observer(&relay_io_observer, (void *)plugin_info_ptr))
   {
     my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,"Failure in registering the relay io observer");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,"replication_observers_example_plugin: init finished");
@@ -679,19 +679,19 @@ static int replication_observers_example_plugin_deinit(void *p)
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,"Failure in unregistering the server state observers");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (unregister_trans_observer(&trans_observer, p))
   {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,"Failure in unregistering the transactions state observers");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   if (unregister_binlog_relay_io_observer(&relay_io_observer, p))
   {
     my_plugin_log_message(&p, MY_ERROR_LEVEL,"Failure in unregistering the relay io observer");
-    return 1;
+    DBUG_RETURN(1);
   }
 
   my_plugin_log_message(&p, MY_INFORMATION_LEVEL,"replication_observers_example_plugin: deinit finished");

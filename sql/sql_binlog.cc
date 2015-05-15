@@ -186,11 +186,11 @@ void mysql_client_binlog_statement(THD* thd)
        strptr < thd->lex->comment.str + thd->lex->comment.length ; )
   {
     char const *endptr= 0;
-    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr,
+    int64 bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr,
                                      MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
     DBUG_PRINT("info",
-               ("bytes_decoded: %d  strptr: 0x%lx  endptr: 0x%lx ('%c':%d)",
+               ("bytes_decoded: %lld  strptr: 0x%lx  endptr: 0x%lx ('%c':%d)",
                 bytes_decoded, (long) strptr, (long) endptr, *endptr,
                 *endptr));
 
@@ -218,7 +218,7 @@ void mysql_client_binlog_statement(THD* thd)
       order to be able to read exactly what is necessary.
     */
 
-    DBUG_PRINT("info",("binlog base64 decoded_len: %lu  bytes_decoded: %d",
+    DBUG_PRINT("info",("binlog base64 decoded_len: %lu  bytes_decoded: %lld",
                        (ulong) decoded_len, bytes_decoded));
 
     /*
@@ -238,7 +238,7 @@ void mysql_client_binlog_statement(THD* thd)
         my_error(ER_SYNTAX_ERROR, MYF(0));
         goto end;
       }
-      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%d",
+      DBUG_PRINT("info", ("event_len=%lu, bytes_decoded=%lld",
                           event_len, bytes_decoded));
 
       if (check_event_type(bufptr[EVENT_TYPE_OFFSET], rli))

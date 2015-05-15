@@ -25,6 +25,7 @@
 */
 
 #include "mysql_client_fw.c"
+#include "mysql/service_my_snprintf.h"
 
 /* Query processing */
 

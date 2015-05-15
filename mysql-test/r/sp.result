@@ -7834,3 +7834,27 @@ ERROR 22003: Out of range value for column 'v' at row 1
 SET sql_mode= @org_mode;
 DROP PROCEDURE p1;
 DROP TABLE t1;
+#
+# Bug#20583321: CRASH ON PS_THREAD_INFO / SYS USAGE
+#
+SET sql_mode = 'only_full_group_by';
+CREATE TABLE t1 ( a INT, b INT );
+CREATE TABLE t2 ( a INT );
+CREATE PROCEDURE p1 ()
+BEGIN
+DECLARE output INT;
+SET output = ( SELECT b FROM t1 LEFT JOIN t2 USING ( a ) GROUP BY t1.a );
+END $$
+CALL p1();
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+CALL p1();
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP PROCEDURE p1;
+PREPARE s FROM
+'SET @x = ( SELECT b FROM t1 LEFT JOIN t2 USING ( a ) GROUP BY t1.a )';
+EXECUTE s;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+EXECUTE s;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1, t2;
+SET sql_mode = DEFAULT;

@@ -25,6 +25,8 @@
 #include "client_priv.h"
 #include "my_default.h"
 #include "mysql_version.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 #ifdef HAVE_LIBPTHREAD
 #include <my_thread.h>
 #endif

@@ -28,8 +28,6 @@ Created 12/18/1995 Heikki Tuuri
 
 #include "univ.i"
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "fsp0space.h"
 #include "fut0lst.h"
 #include "mtr0mtr.h"
@@ -37,7 +35,6 @@ Created 12/18/1995 Heikki Tuuri
 #include "rem0types.h"
 #include "ut0byte.h"
 
-#endif /* !UNIV_INNOCHECKSUM */
 #include "fsp0types.h"
 
 /* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
@@ -104,8 +101,6 @@ descriptor page, but used only in the first. */
 					to the free list from above
 					FSP_FREE_LIMIT at a time */
 /* @} */
-
-#ifndef UNIV_INNOCHECKSUM
 
 /* @defgroup File Segment Inode Constants (moved from fsp0fsp.c) @{ */
 
@@ -654,7 +649,6 @@ ulint
 xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	ulint			offset);
-#endif /* !UNIV_INNOCHECKSUM */
 
 #ifndef UNIV_NONINL
 #include "fsp0fsp.ic"

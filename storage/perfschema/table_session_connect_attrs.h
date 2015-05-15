@@ -17,6 +17,8 @@
 #define TABLE_SESSION_CONNECT_ATTRS_H
 
 #include "table_session_connect.h"
+#include "thr_lock.h"
+
 /**
   \addtogroup Performance_schema_tables
   @{

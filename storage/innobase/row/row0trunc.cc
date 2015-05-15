@@ -64,6 +64,8 @@ public:
 
 		if (noredo) {
 			mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
+		} else {
+			m_mtr.set_sys_modified();
 		}
 
 		btr_pcur_open_on_user_rec(
@@ -958,6 +960,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
+		mtr->set_sys_modified();
 		mtr->set_log_mode(log_mode);
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
@@ -1049,7 +1052,7 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
-
+		mtr->set_sys_modified();
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	} else {
@@ -1931,9 +1934,9 @@ row_truncate_table_for_mysql(
 			return(row_truncate_complete(
 				table, trx, fsp_flags, logger, err));
 		}
-
 	} else {
 		/* For temporary tables we don't have entries in SYSTEM TABLES*/
+		ut_ad(fsp_is_system_temporary(table->space));
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -1956,9 +1959,7 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	if (is_file_per_table
-	    && !dict_table_is_temporary(table)
-	    && fsp_flags != ULINT_UNDEFINED) {
+	if (is_file_per_table && fsp_flags != ULINT_UNDEFINED) {
 
 		fil_reinit_space_header(
 			table->space,
@@ -2127,7 +2128,7 @@ truncate_t::fixup_tables_in_non_system_tablespace()
 
 	for (tables_t::iterator it = s_tables.begin(); it != end; ++it) {
 
-		/* All tables in the system tablesapce have already been
+		/* All tables in the system tablespace have already been
 		done and erased from this list. */
 		ut_a((*it)->m_space_id != TRX_SYS_SPACE);
 
@@ -2715,6 +2716,8 @@ truncate_t::drop_indexes(
 			/* Do not log changes for single-table
 			tablespaces, we are in recovery mode. */
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_sys_modified();
 		}
 
 		if (root_page_no != FIL_NULL) {
@@ -2755,6 +2758,8 @@ truncate_t::create_indexes(
 		/* Do not log changes for single-table tablespaces, we
 		are in recovery mode. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_sys_modified();
 	}
 
 	/* Create all new index trees with table format, index ids, index

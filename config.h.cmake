@@ -162,8 +162,6 @@
 
 #cmakedefine HAVE_KQUEUE_TIMERS 1
 #cmakedefine HAVE_POSIX_TIMERS 1
-#cmakedefine HAVE_WINDOWS_TIMERS 1
-#cmakedefine HAVE_MY_TIMER 1
 
 /* Endianess */
 #cmakedefine WORDS_BIGENDIAN 1 

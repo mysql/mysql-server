@@ -271,7 +271,6 @@ extern Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE> *acl_wild_hosts;
 extern HASH column_priv_hash, proc_priv_hash, func_priv_hash;
 extern hash_filo *acl_cache;
 extern HASH acl_check_hosts;
-extern mysql_rwlock_t proxy_users_rwlock;
 extern bool allow_all_hosts;
 extern uint grant_version; /* Version of priv tables */
 extern Partitioned_rwlock LOCK_grant;

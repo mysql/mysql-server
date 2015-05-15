@@ -116,8 +116,6 @@ my_bool my_thread_global_init()
 
 #if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
-#elif defined(MY_PTHREAD_FASTMUTEX)
-  fastmutex_global_init();              /* Must be called early */
 #endif
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP

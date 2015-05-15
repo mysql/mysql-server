@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,15 +28,15 @@ static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
  * Maximum length base64_needed_encoded_length()
  * can handle without overflow.
  */
-int
+uint64
 base64_encode_max_arg_length()
 {
-#if (SIZEOF_INT == 8)
+#if (SIZEOF_VOIDP == 8)
   /*
     6827690988321067803 ->   9223372036854775805
     6827690988321067804 ->  -9223372036854775807
   */
-  return 0x5EC0D4C77B03531BLL
+  return 0x5EC0D4C77B03531BLL;
 #else
   /*
     1589695686 ->  2147483646
@@ -47,10 +47,11 @@ base64_encode_max_arg_length()
 }
 
 
-int
-base64_needed_encoded_length(int length_of_data)
+uint64
+base64_needed_encoded_length(uint64 length_of_data)
 {
-  int nb_base64_chars;
+  uint64 nb_base64_chars;
+  if (length_of_data == 0) return 1;
   nb_base64_chars= (length_of_data + 2) / 3 * 4;
 
   return
@@ -64,10 +65,10 @@ base64_needed_encoded_length(int length_of_data)
  * Maximum length base64_needed_decoded_length()
  * can handle without overflow.
  */
-int
+uint64
 base64_decode_max_arg_length()
 {
-#if (SIZEOF_INT == 8)
+#if (SIZEOF_VOIDP == 8)
   return 0x2AAAAAAAAAAAAAAALL;
 #else
   return 0x2AAAAAAA;
@@ -75,10 +76,10 @@ base64_decode_max_arg_length()
 }
 
 
-int
-base64_needed_decoded_length(int length_of_encoded_data)
+uint64
+base64_needed_decoded_length(uint64 length_of_encoded_data)
 {
-  return (int) ceil(length_of_encoded_data * 3 / 4);
+  return (uint64) ceil(length_of_encoded_data * 3 / 4);
 }
 
 
@@ -267,7 +268,6 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
   case 1:
     decoder->src--;
     return TRUE; /* base64 character expected */
-    break;
 
   case 2:
   case 3:
@@ -313,7 +313,7 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
  * @flags         flags e.g. allow multiple chunks
  * @return Number of bytes written at 'dst', or -1 in case of failure
  */
-int
+int64
 base64_decode(const char *src_base, size_t len,
               void *dst, const char **end_ptr, int flags)
 {
@@ -379,16 +379,31 @@ main(void)
   size_t k, l;
   size_t dst_len;
   size_t needed_length;
+  char * src;
+  char * s;
+  char * str;
+  char * dst;
+  const char *end_ptr;
+  size_t src_len;
 
-  for (i= 0; i < 500; i++)
+  for (i= 0; i <= 500; i++)
   {
     /* Create source data */
-    const size_t src_len= rand() % 1000 + 1;
+    if (i == 500)
+    {
+#if (SIZEOF_VOIDP == 8)
+      printf("Test case for base64 max event length: 2119594243\n");
+      src_len= 2119594243;
+#else
+      printf("Test case for base64 max event length: 536870912\n");
+      src_len= 536870912;
+#endif
+    }
+    else
+     src_len= rand() % 1000 + 1;
 
-    char * src= (char *) malloc(src_len);
-    char * s= src;
-    char * str;
-    char * dst;
+    src= (char *) malloc(src_len);
+    s= src;
 
     require(src);
     for (j= 0; j<src_len; j++)
@@ -409,7 +424,7 @@ main(void)
     /* Decode */
     dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));
     require(dst);
-    dst_len= base64_decode(str, strlen(str), dst, NULL);
+    dst_len= base64_decode(str, strlen(str), dst, &end_ptr, 0);
     require(dst_len == src_len);
 
     if (memcmp(src, dst, src_len) != 0)
@@ -437,6 +452,9 @@ main(void)
              (uint) src_len, (uint) dst_len);
       require(0);
     }
+    free(src);
+    free(str);
+    free(dst);
   }
   printf("Test succeeded.\n");
   return 0;

@@ -13,16 +13,16 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "mysql.h"
-#include "sp.h"                                // sp_eval_expr
-#include "sql_cursor.h"
 #include "sp_rcontext.h"
-#include "sp_pcontext.h"
-#include "sql_tmp_table.h"                     // create_virtual_tmp_table
-#include "sp_instr.h"
-#include "template_utils.h"
-#include "derror.h"
+
+#include "derror.h"            // ER_THD
+#include "sp.h"                // sp_eval_instr
+#include "sp_instr.h"          // sp_instr
+#include "sp_pcontext.h"       // sp_pcontext
+#include "sql_class.h"         // THD
+#include "sql_cursor.h"        // mysql_open_cursor
+#include "sql_tmp_table.h"     // create_virtual_tmp_table
+#include "template_utils.h"    // delete_container_pointers
 
 extern "C" void sql_alloc_error_handler(void);
 

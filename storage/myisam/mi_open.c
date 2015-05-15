@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,9 +37,6 @@
 #endif
 
 static void setup_key_functions(MI_KEYDEF *keyinfo);
-#define get_next_element(to,pos,size) { memcpy((char*) to,pos,(size_t) size); \
-					pos+=size;}
-
 
 #define disk_pos_assert(pos, end_pos) \
 if (pos > end_pos)             \

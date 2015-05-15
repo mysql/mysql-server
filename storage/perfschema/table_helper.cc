@@ -112,7 +112,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
   if (m_schema_name_length > 0)
     memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
 
-  uint safe_byte_count= pfs->m_digest_storage.m_byte_count;
+  size_t safe_byte_count= pfs->m_digest_storage.m_byte_count;
   if (safe_byte_count > pfs_max_digest_length)
     safe_byte_count= 0;
 
@@ -268,6 +268,11 @@ int PFS_object_row::make_row(const MDL_key *mdl)
   case MDL_key::TABLESPACE:
     m_object_type= OBJECT_TYPE_TABLESPACE;
     m_schema_name_length= 0;
+    m_object_name_length= mdl->name_length();
+    break;
+  case MDL_key::LOCKING_SERVICE:
+    m_object_type= OBJECT_TYPE_LOCKING_SERVICE;
+    m_schema_name_length= mdl->db_name_length();
     m_object_name_length= mdl->name_length();
     break;
   case MDL_key::NAMESPACE_END:
@@ -549,6 +554,9 @@ void set_field_object_type(Field *f, enum_object_type object_type)
     break;
   case OBJECT_TYPE_TABLESPACE:
     PFS_engine_table::set_field_varchar_utf8(f, "TABLESPACE", 10);
+    break;
+  case OBJECT_TYPE_LOCKING_SERVICE:
+    PFS_engine_table::set_field_varchar_utf8(f, "LOCKING SERVICE", 15);
     break;
   case NO_OBJECT_TYPE:
   default:

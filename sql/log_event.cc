@@ -18,12 +18,14 @@
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
+#include "mysql/service_my_snprintf.h" // my_snprintf
 
 #ifndef MYSQL_CLIENT
 #include "current_thd.h"
 #include "debug_sync.h"        // debug_sync_set_action
 #include "my_dir.h"            // my_dir
 #include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "item_func.h"         // Item_func_set_user_var
 #include "log.h"               // Log_throttle
 #include "query_result.h"      // sql_exchange
 #include "rpl_mts_submode.h"   // Mts_submode
@@ -1171,6 +1173,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
   // Query start time
   ulong timestamp= (ulong) get_time();
 
+#ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
       DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
   {
@@ -1185,6 +1188,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
     DBUG_EXECUTE_IF("inc_event_time_by_1_hour", timestamp= timestamp + 3600;);
     DBUG_EXECUTE_IF("dec_event_time_by_1_hour", timestamp= timestamp - 3600;);
   }
+#endif
 
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
@@ -2714,7 +2718,7 @@ void Log_event::print_base64(IO_CACHE* file,
   uint32 size= uint4korr(ptr + EVENT_LEN_OFFSET);
   DBUG_ENTER("Log_event::print_base64");
 
-  size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
+  uint64 const tmp_str_sz= base64_needed_encoded_length((uint64) size);
   char *const tmp_str= (char *) my_malloc(key_memory_log_event,
                                           tmp_str_sz, MYF(MY_WME));
   if (!tmp_str) {
@@ -7440,7 +7444,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return 1;
     }
   }
@@ -7514,7 +7518,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return 0;
     }
     int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
@@ -7642,7 +7646,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return;
     }
   }
@@ -7717,7 +7721,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       DBUG_RETURN(0);
     }
   }
@@ -13856,7 +13860,7 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
-   thread_id(0), thread_id_printed(false),
+   thread_id(0), thread_id_printed(false),server_id_from_fd_event(0),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
    have_unflushed_events(false), skipped_event_in_transaction(false),
    is_gtid_next_set(false), is_gtid_next_valid(true)

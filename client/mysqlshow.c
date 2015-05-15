@@ -29,6 +29,8 @@
 #include <stdarg.h>
 #include <sslopt-vars.h>
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 
 static char * host=0, *opt_password=0, *user=0;
 static my_bool opt_show_keys= 0, opt_compress= 0, opt_count=0, opt_status= 0;
@@ -170,7 +172,6 @@ int main(int argc, char **argv)
 #endif
   my_end(my_end_arg);
   exit(error ? 1 : 0);
-  return 0;				/* No compiler warnings */
 }
 
 static struct my_option my_long_options[] =
@@ -345,7 +346,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
-    break;
   case '?':
   case 'I':					/* Info */
     usage();

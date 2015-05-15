@@ -275,10 +275,8 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   if (end_io_cache(&file))
     goto err_w_file;
 
-  if (opt_sync_frm) {
-    if (mysql_file_sync(handler, MYF(MY_WME)))
-      goto err_w_file;
-  }
+  if (mysql_file_sync(handler, MYF(MY_WME)))
+    goto err_w_file;
 
   if (mysql_file_close(handler, MYF(MY_WME)))
   {

@@ -22,6 +22,7 @@
 #include "auth/auth_common.h"
 #include "current_thd.h"
 #include "derror.h"
+#include "sp_pcontext.h"
 
 
 /**

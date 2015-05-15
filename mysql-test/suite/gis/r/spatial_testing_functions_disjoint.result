@@ -1,6 +1,6 @@
 #Creating the spatial Geometry object
 USE test;
-CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
 SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
 SET @star_center= 'POINT(15 10)';
@@ -1112,13 +1112,13 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_all_points),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems_3),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
@@ -1205,13 +1205,13 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems_3))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=110;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0
@@ -1304,7 +1304,7 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_col
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3)) FROM gis_geometrycollection WHERE fid=114;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_elems_vertical_3),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 NULL
@@ -1388,7 +1388,7 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
 0
@@ -1481,13 +1481,13 @@ ST_DISJOINT(g,g2)
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 ST_DISJOINT(g,g2)
 0
@@ -1499,16 +1499,16 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top))
 0
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_3))
-0
+1
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3)) FROM gis_geometrycollection WHERE fid=115;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_3))
-0
+1
 #====================================================================================
 # geometrycollection,multipoint
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_bottom_points))
 0
@@ -1520,7 +1520,7 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_bottom_points))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_top_to_center))
 0
@@ -1532,10 +1532,10 @@ ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_top_to_center))
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))'))
-0
+1
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))
 0
@@ -1547,25 +1547,25 @@ ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_elem_v
 0
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))'))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_elem_vertical))
-0
+1
 #====================================================================================
 # geometrycollection,multipolygon
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 ST_DISJOINT(g,g2)
 0
@@ -1574,13 +1574,13 @@ ST_DISJOINT(g,g2)
 #====================================================================================
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems_3))
-0
+1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_collection_elems))
 0
 SELECT ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
 ST_DISJOINT(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_DISJOINT(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=115;
 ST_DISJOINT(g,g2)
 0

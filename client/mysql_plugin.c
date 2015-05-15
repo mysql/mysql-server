@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #include <my_global.h>
 #include <stdio.h>
 #include <string.h>
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef _WIN32
 #define popen _popen
@@ -147,7 +149,6 @@ exit:
 
   my_end(my_end_arg);
   exit(error ? 1 : 0);
-  return 0;        /* No compiler warnings */
 }
 
 
@@ -417,7 +418,7 @@ exit:
 static void usage(void)
 {
   PRINT_VERSION;
-  puts("Copyright (c) 2011, 2013, Oracle and/or its affiliates. "
+  puts("Copyright (c) 2011, 2015, Oracle and/or its affiliates. "
        "All rights reserved.\n");
   puts("Enable or disable plugins.");
   printf("\nUsage: %s [options] <plugin> ENABLE|DISABLE\n\nOptions:\n",
@@ -499,7 +500,6 @@ get_one_option(int optid,
   case 'V':
     PRINT_VERSION;
     exit(0);
-    break;
   case '?':
   case 'I':          /* Info */
     usage();

@@ -136,7 +136,8 @@ static struct st_mysql_auth two_handler=
   two_questions,
   generate_auth_string_hash,
   validate_auth_string_hash,
-  set_salt
+  set_salt,
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
 };
 
 /* dialog demo where the number of questions is not known in advance */
@@ -176,7 +177,8 @@ static struct st_mysql_auth three_handler=
   three_attempts,
   generate_auth_string_hash,
   validate_auth_string_hash,
-  set_salt
+  set_salt,
+  AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE
 };
 
 mysql_declare_plugin(dialog)

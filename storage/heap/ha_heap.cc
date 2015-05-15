@@ -16,11 +16,13 @@
 
 
 #define MYSQL_SERVER 1
+#include "ha_heap.h"
+
 #include "probes_mysql.h"
 #include "sql_plugin.h"
-#include "ha_heap.h"
 #include "heapdef.h"
 #include "sql_base.h"                    // enum_tdc_remove_table_type
+#include "sql_class.h"
 #include "current_thd.h"
 
 static handler *heap_create_handler(handlerton *hton,
@@ -165,6 +167,13 @@ handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
                                            HA_OPEN_IGNORE_IF_LOCKED))
     return new_handler;
   return NULL;  /* purecov: inspected */
+}
+
+
+const char *ha_heap::table_type() const
+{
+  return (table->in_use->variables.sql_mode & MODE_MYSQL323) ?
+    "HEAP" : "MEMORY";
 }
 
 

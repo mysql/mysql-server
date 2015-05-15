@@ -47,6 +47,8 @@ struct row_setup_actors
   uint m_rolename_length;
   /** Column ENABLED. */
   bool *m_enabled_ptr;
+  /** Column HISTORY. */
+  bool *m_history_ptr;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_ACTORS. */

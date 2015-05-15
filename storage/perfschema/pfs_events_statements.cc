@@ -32,7 +32,7 @@
 #include "pfs_builtin_memory.h"
 #include "m_string.h"
 
-PFS_ALIGNED ulong events_statements_history_long_size= 0;
+PFS_ALIGNED size_t events_statements_history_long_size= 0;
 /** Consumer flag for table EVENTS_STATEMENTS_CURRENT. */
 PFS_ALIGNED bool flag_events_statements_current= false;
 /** Consumer flag for table EVENTS_STATEMENTS_HISTORY. */
@@ -53,9 +53,8 @@ static char *h_long_stmts_text_array= NULL;
   Initialize table EVENTS_STATEMENTS_HISTORY_LONG.
   @param events_statements_history_long_sizing       table sizing
 */
-int init_events_statements_history_long(uint events_statements_history_long_sizing)
+int init_events_statements_history_long(size_t events_statements_history_long_sizing)
 {
-  uint index;
   events_statements_history_long_size= events_statements_history_long_sizing;
   events_statements_history_long_full= false;
   PFS_atomic::store_u32(&events_statements_history_long_index.m_u32, 0);
@@ -65,8 +64,9 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
 
   events_statements_history_long_array=
     PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long,
-                     events_statements_history_long_size, PFS_events_statements,
-                     MYF(MY_ZEROFILL));
+                     events_statements_history_long_size, sizeof(PFS_events_statements),
+                     PFS_events_statements, MYF(MY_ZEROFILL));
+
   if (events_statements_history_long_array == NULL)
    {
      cleanup_events_statements_history_long();
@@ -75,10 +75,14 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
 
   if (pfs_max_digest_length > 0)
   {
+    /* Size of each digest text array. */
+    size_t digest_text_size= pfs_max_digest_length * sizeof(unsigned char);
+
     h_long_stmts_digest_token_array=
       PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long_tokens,
-                       events_statements_history_long_size * pfs_max_digest_length,
+                       events_statements_history_long_size, digest_text_size,
                        unsigned char, MYF(MY_ZEROFILL));
+
     if (h_long_stmts_digest_token_array == NULL)
     {
       cleanup_events_statements_history_long();
@@ -88,10 +92,14 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
 
   if (pfs_max_sqltext > 0)
   {
+    /* Size of each sql text array. */
+    size_t sqltext_size= pfs_max_sqltext * sizeof(char);
+
     h_long_stmts_text_array=
       PFS_MALLOC_ARRAY(& builtin_memory_statements_history_long_sqltext,
-                       events_statements_history_long_size * pfs_max_sqltext,
+                       events_statements_history_long_size, sqltext_size,
                        char, MYF(MY_ZEROFILL));
+
     if (h_long_stmts_text_array == NULL)
     {
       cleanup_events_statements_history_long();
@@ -99,11 +107,10 @@ int init_events_statements_history_long(uint events_statements_history_long_sizi
     }
   }
 
-  for (index= 0; index < events_statements_history_long_size; index++)
+  for (size_t index= 0; index < events_statements_history_long_size; index++)
   {
     events_statements_history_long_array[index].m_digest_storage.reset(h_long_stmts_digest_token_array
                                                                        + index * pfs_max_digest_length, pfs_max_digest_length);
-
     events_statements_history_long_array[index].m_sqltext= h_long_stmts_text_array + index * pfs_max_sqltext;
   }
 
@@ -115,17 +122,17 @@ void cleanup_events_statements_history_long(void)
 {
   PFS_FREE_ARRAY(& builtin_memory_statements_history_long,
                  events_statements_history_long_size,
-                 PFS_events_statements,
+                 sizeof(PFS_events_statements),
                  events_statements_history_long_array);
 
   PFS_FREE_ARRAY(& builtin_memory_statements_history_long_tokens,
-                 events_statements_history_long_size * pfs_max_digest_length,
-                 unsigned char,
+                 events_statements_history_long_size,
+                 (pfs_max_digest_length * sizeof(unsigned char)),
                  h_long_stmts_digest_token_array);
 
   PFS_FREE_ARRAY(& builtin_memory_statements_history_long_sqltext,
-                 events_statements_history_long_size * pfs_max_sqltext,
-                 char,
+                 events_statements_history_long_size,
+                 (pfs_max_sqltext * sizeof(char)),
                  h_long_stmts_text_array);
 
   events_statements_history_long_array= NULL;

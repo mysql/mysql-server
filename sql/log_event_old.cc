@@ -17,7 +17,7 @@
 #include "log_event.h"
 #ifndef MYSQL_CLIENT
 #include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
-#include "sql_base.h"                       // close_tables_for_reopen
+#include "sql_base.h"                       // open_and_lock_tables
 #include "key.h"                            // key_copy
 #include "lock.h"                           // mysql_unlock_tables
 #include "sql_parse.h"             // mysql_reset_thd_for_next_command

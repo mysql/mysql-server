@@ -727,28 +727,31 @@ rtr_page_get_father_node_ptr_func(
 	ulint	child_page = btr_node_ptr_get_child_page_no(node_ptr, offsets);
 
 	if (child_page != page_no) {
-		rec_t*	print_rec;
-		fputs("InnoDB: Dump of the child page:\n", stderr);
-		buf_page_print(page_align(user_rec), univ_page_size,
-			       BUF_PAGE_PRINT_NO_CRASH);
-		fputs("InnoDB: Dump of the parent page:\n", stderr);
-		buf_page_print(page_align(node_ptr), univ_page_size,
-			       BUF_PAGE_PRINT_NO_CRASH);
+		const rec_t*	print_rec;
 
-		ib::error() << "Corruption of index " << index->name
+		ib::fatal	error;
+
+		error << "Corruption of index " << index->name
 			<< " of table " << index->table->name
 			<< " parent page " << page_no
 			<< " child page " << child_page;
+
 		print_rec = page_rec_get_next(
 			page_get_infimum_rec(page_align(user_rec)));
 		offsets = rec_get_offsets(print_rec, index,
 					  offsets, ULINT_UNDEFINED, &heap);
-		page_rec_print(print_rec, offsets);
+		error << "; child ";
+		rec_print(error.m_oss, print_rec,
+			  rec_get_info_bits(print_rec, rec_offs_comp(offsets)),
+			  offsets);
 		offsets = rec_get_offsets(node_ptr, index, offsets,
 					  ULINT_UNDEFINED, &heap);
-		page_rec_print(node_ptr, offsets);
+		error << "; parent ";
+		rec_print(error.m_oss, print_rec,
+			  rec_get_info_bits(print_rec, rec_offs_comp(offsets)),
+			  offsets);
 
-		ib::fatal() << "You should dump + drop + reimport the table to"
+		error << ". You should dump + drop + reimport the table to"
 			" fix the corruption. If the crash happens at"
 			" database startup, see " REFMAN
 			"forcing-innodb-recovery.html about forcing"
@@ -880,8 +883,7 @@ get_parent:
 			is run out, the spatial index is corrupted. */
 			if (!ret) {
 				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(
-					index, index->table);
+				dict_set_corrupted_index_cache_only(index);
 				mutex_exit(&dict_sys->mutex);
 
 				ib::info() << "InnoDB: Corruption of a"

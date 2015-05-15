@@ -260,10 +260,6 @@ static PSI_cond_key key_COND_start_signal_handler;
 #endif // !EMBEDDED_LIBRARY
 static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
-
-#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
-static PSI_rwlock_key key_rwlock_openssl;
-#endif
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -375,7 +371,7 @@ ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
-my_bool opt_sync_frm, opt_allow_suspicious_udfs;
+my_bool opt_allow_suspicious_udfs;
 my_bool opt_secure_auth= 0;
 char* opt_secure_file_priv;
 my_bool opt_log_slow_admin_statements= 0;
@@ -414,7 +410,7 @@ const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
-uint gtid_executed_compression_period= 0;
+uint32 gtid_executed_compression_period= 0;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -663,6 +659,7 @@ my_thread_handle signal_thread_id;
 my_thread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+mysql_mutex_t LOCK_reset_gtid_table;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
@@ -984,20 +981,6 @@ char *opt_ssl_ca= NULL, *opt_ssl_capath= NULL, *opt_ssl_cert= NULL,
      *opt_ssl_crlpath= NULL;
 
 #ifdef HAVE_OPENSSL
-#include <openssl/crypto.h>
-#ifndef HAVE_YASSL
-typedef struct CRYPTO_dynlock_value
-{
-  mysql_rwlock_t lock;
-} openssl_lock_t;
-
-static openssl_lock_t *openssl_stdlocks;
-static openssl_lock_t *openssl_dynlock_create(const char *, int);
-static void openssl_dynlock_destroy(openssl_lock_t *, const char *, int);
-static void openssl_lock_function(int, int, const char *, int);
-static void openssl_lock(int, openssl_lock_t *, const char *, int);
-static unsigned long openssl_id_function();
-#endif
 char *des_key_file;
 #ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
@@ -1028,13 +1011,39 @@ static void clean_up_mutexes(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void delete_pid_file(myf flags);
-#ifndef _WIN32
-static void start_processing_signals();
-#endif
 #endif // !EMBEDDED_LIBRARY
 
 
+/**
+  Notify any waiters that the server components have been initialized.
+  Used by the signal handler thread and by Cluster.
+
+  @see signal_hand
+*/
+
+static void server_components_initialized()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= true;
+  mysql_cond_broadcast(&COND_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+}
+
+
 #ifndef EMBEDDED_LIBRARY
+/**
+  Block and wait until server components have been initialized.
+*/
+
+static void server_components_init_wait()
+{
+  mysql_mutex_lock(&LOCK_server_started);
+  while (!mysqld_server_started)
+    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+}
+
+
 /****************************************************************************
 ** Code to end mysqld
 ****************************************************************************/
@@ -1277,7 +1286,7 @@ extern "C" void unireg_abort(int exit_code)
   if (signal_thread_id.thread != 0)
   {
     // Make sure the signal thread isn't blocked when we are trying to exit.
-    start_processing_signals();
+    server_components_initialized();
 
     pthread_kill(signal_thread_id.thread, SIGTERM);
     my_thread_join(&signal_thread_id, NULL);
@@ -1508,12 +1517,10 @@ void clean_up(bool print_message)
     (void) my_delete_thread_local_key(THR_MALLOC);
   }
 
-#ifdef HAVE_MY_TIMER
   if (have_statement_timeout == SHOW_OPTION_YES)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
-#endif
 
   /*
     The following lines may never be executed as the main thread may have
@@ -1534,11 +1541,6 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_user_conn);
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
-#ifndef HAVE_YASSL
-  for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    mysql_rwlock_destroy(&openssl_stdlocks[i].lock);
-  OPENSSL_free(openssl_stdlocks);
-#endif
 #endif
   mysql_mutex_destroy(&LOCK_msr_map);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
@@ -2202,7 +2204,7 @@ static void start_signal_handler()
 }
 
 
-/** This threads handles all signals and alarms. */
+/** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
 extern "C" void *signal_hand(void *arg __attribute__((unused)))
 {
@@ -2224,15 +2226,11 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_start_signal_handler);
 
   /*
-    Waiting until mysqld_server_started == true to ensure that all server
-    components have been successfully initialized. This step is mandatory
-    since signal processing can be done safely only when all server components
-    have been initialized.
+    Wait until that all server components have been successfully initialized.
+    This step is mandatory since signal processing can be done safely only when
+    all server components have been initialized.
   */
-  mysql_mutex_lock(&LOCK_server_started);
-  while (!mysqld_server_started)
-    mysql_cond_wait(&COND_server_started, &LOCK_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
+  server_components_init_wait();
 
   for (;;)
   {
@@ -2281,10 +2279,10 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
         mysql_mutex_unlock(&LOCK_socket_listener_active);
 
         close_connections();
-        my_thread_end();
-        my_thread_exit(0);
-        return NULL;  // Avoid compiler warnings
       }
+      my_thread_end();
+      my_thread_exit(0);
+      return NULL;  // Avoid compiler warnings
       break;
     case SIGHUP:
       if (!connection_events_loop_aborted())
@@ -2306,23 +2304,9 @@ extern "C" void *signal_hand(void *arg __attribute__((unused)))
   return NULL;        /* purecov: deadcode */
 }
 
-
-/**
-  Starts processing signals initialized in the signal_hand function.
-
-  @see signal_hand
-*/
-
-static void start_processing_signals()
-{
-  mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= true;
-  mysql_cond_broadcast(&COND_server_started);
-  mysql_mutex_unlock(&LOCK_server_started);
-}
-
 #endif // !_WIN32
 #endif // !EMBEDDED_LIBRARY
+
 
 #if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
@@ -2480,7 +2464,6 @@ SHOW_VAR com_status_vars[]= {
   {"admin_commands",       (char*) offsetof(System_status_var, com_other),                                          SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"assign_to_keycache",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ASSIGN_TO_KEYCACHE]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_db",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_DB]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
-  {"alter_db_upgrade",     (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_DB_UPGRADE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_event",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_EVENT]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_function",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_procedure",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -3290,17 +3273,6 @@ static int init_thread_environment()
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
-#ifndef HAVE_YASSL
-  openssl_stdlocks= (openssl_lock_t*) OPENSSL_malloc(CRYPTO_num_locks() *
-                                                     sizeof(openssl_lock_t));
-  for (int i= 0; i < CRYPTO_num_locks(); ++i)
-    mysql_rwlock_init(key_rwlock_openssl, &openssl_stdlocks[i].lock);
-  CRYPTO_set_dynlock_create_callback(openssl_dynlock_create);
-  CRYPTO_set_dynlock_destroy_callback(openssl_dynlock_destroy);
-  CRYPTO_set_dynlock_lock_callback(openssl_lock);
-  CRYPTO_set_locking_callback(openssl_lock_function);
-  CRYPTO_set_id_callback(openssl_id_function);
-#endif
 #endif
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
@@ -3308,6 +3280,8 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started);
+  mysql_mutex_init(key_LOCK_reset_gtid_table,
+                   &LOCK_reset_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_compress_gtid_table,
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
@@ -3349,79 +3323,11 @@ static int init_thread_environment()
   return 0;
 }
 
-
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-static unsigned long openssl_id_function()
-{
-  return (unsigned long) my_thread_self();
-}
-
-
-static openssl_lock_t *openssl_dynlock_create(const char *file, int line)
-{
-  openssl_lock_t *lock= new openssl_lock_t;
-  mysql_rwlock_init(key_rwlock_openssl, &lock->lock);
-  return lock;
-}
-
-
-static void openssl_dynlock_destroy(openssl_lock_t *lock, const char *file,
-            int line)
-{
-  mysql_rwlock_destroy(&lock->lock);
-  delete lock;
-}
-
-
-static void openssl_lock_function(int mode, int n, const char *file, int line)
-{
-  if (n < 0 || n > CRYPTO_num_locks())
-  {
-    /* Lock number out of bounds. */
-    sql_print_error("Fatal: OpenSSL interface problem (n = %d)", n);
-    abort();
-  }
-  openssl_lock(mode, &openssl_stdlocks[n], file, line);
-}
-
-
-static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
-       int line)
-{
-  int err;
-  char const *what;
-
-  switch (mode) {
-  case CRYPTO_LOCK|CRYPTO_READ:
-    what = "read lock";
-    err= mysql_rwlock_rdlock(&lock->lock);
-    break;
-  case CRYPTO_LOCK|CRYPTO_WRITE:
-    what = "write lock";
-    err= mysql_rwlock_wrlock(&lock->lock);
-    break;
-  case CRYPTO_UNLOCK|CRYPTO_READ:
-  case CRYPTO_UNLOCK|CRYPTO_WRITE:
-    what = "unlock";
-    err= mysql_rwlock_unlock(&lock->lock);
-    break;
-  default:
-    /* Unknown locking mode. */
-    sql_print_error("Fatal: OpenSSL interface problem (mode=0x%x)", mode);
-    abort();
-  }
-  if (err)
-  {
-    sql_print_error("Fatal: can't %s OpenSSL lock", what);
-    abort();
-  }
-}
-#endif /* HAVE_OPENSSL */
-
 #ifndef EMBEDDED_LIBRARY
 ssl_artifacts_status auto_detect_ssl()
 {
   MY_STAT cert_stat, cert_key, ca_stat;
+  uint result= 1;
   ssl_artifacts_status ret_status= SSL_ARTIFACTS_VIA_OPTIONS;
 
   if ((!opt_ssl_cert || !opt_ssl_cert[0]) &&
@@ -3432,21 +3338,28 @@ ssl_artifacts_status auto_detect_ssl()
       (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
       (!opt_ssl_cipher || !opt_ssl_cipher[0]))
   {
-    if (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) &&
-        my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) &&
-        my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)))
-    {
-      opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+    result= result << (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ? 1 : 0)
+                   << (my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ? 1 : 0)
+                   << (my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)) ? 1 : 0);
 
-      ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
-    }
-    else
+    switch(result)
     {
-      ret_status= SSL_ARTIFACTS_NOT_FOUND;
-    }
+      case 8:
+        opt_ssl_ca= (char *)DEFAULT_SSL_CA_CERT;
+        opt_ssl_cert= (char *)DEFAULT_SSL_SERVER_CERT;
+        opt_ssl_key= (char *)DEFAULT_SSL_SERVER_KEY;
+        ret_status= SSL_ARTIFACTS_AUTO_DETECTED;
+        break;
+      case 4:
+      case 2:
+        ret_status= SSL_ARTIFACT_TRACES_FOUND;
+        break;
+      default:
+        ret_status= SSL_ARTIFACTS_NOT_FOUND;
+        break;
+    };
   }
+
   return ret_status;
 }
 
@@ -3552,7 +3465,7 @@ static int init_ssl()
   {
     ssl_artifacts_status auto_detection_status= auto_detect_ssl();
     if (auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
-      sql_print_information("Found %s, %s and %s in data directory."
+      sql_print_information("Found %s, %s and %s in data directory. "
                             "Trying to enable SSL support using them.",
                             DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
                             DEFAULT_SSL_SERVER_KEY);
@@ -3862,15 +3775,10 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-#ifdef HAVE_MY_TIMER
   if (my_timer_initialize())
     sql_print_error("Failed to initialize timer component (errno %d).", errno);
   else
     have_statement_timeout= SHOW_OPTION_YES;
-#else
-  have_statement_timeout= SHOW_OPTION_NO;
-#endif
-
 
   init_server_query_cache();
 
@@ -3910,8 +3818,13 @@ static int init_server_components()
 #else
       res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-      if (!res)
-        setbuf(stderr, NULL);
+
+      if (res)
+      {
+        sql_print_error("Could not open %s file for error logging: %s.",
+                        log_error_file, strerror(errno));
+        unireg_abort(MYSQLD_ABORT_EXIT);
+      }
     }
   }
   else
@@ -4117,6 +4030,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /*
+    Set tc_log to point to TC_LOG_DUMMY early in order to allow plugin_init()
+    to commit attachable transaction after reading from mysql.plugin table.
+    If necessary tc_log will be adjusted to point to correct TC_LOG instance
+    later.
+  */
+  tc_log= &tc_log_dummy;
+
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
@@ -4247,8 +4168,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     else
       tc_log= &tc_log_mmap;
   }
-  else
-    tc_log= &tc_log_dummy;
 
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
@@ -4264,13 +4183,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   /// @todo: this looks suspicious, revisit this /sven
   enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+
+  /* TODO: remove this. */
   if (gtid_mode != GTID_MODE_OFF && opt_bootstrap)
-  {
-    sql_print_warning("Bootstrap mode disables GTIDs. Bootstrap mode "
-    "should only be used by mysql_install_db which initializes the MySQL "
-    "data directory and creates system tables.");
     _gtid_mode= GTID_MODE_OFF;
-  }
+
   if (gtid_mode == GTID_MODE_ON &&
       _gtid_consistency_mode != GTID_CONSISTENCY_MODE_ON)
   {
@@ -4520,8 +4437,6 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_max_connections= max_connections;
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
-      /* the performance schema digest size is the same as the SQL layer */
-      pfs_param.m_max_digest_length= max_digest_length;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
@@ -4885,15 +4800,7 @@ int mysqld_main(int argc, char **argv)
   my_str_free= &my_str_free_mysqld;
   my_str_realloc= &my_str_realloc_mysqld;
 
-  /*
-    init signals & alarm
-    After this we can't quit by a simple unireg_abort
-  */
   error_handler_hook= my_message_sql;
-
-#ifndef _WIN32
-  start_signal_handler();
-#endif
 
   /* Save pid of this process in a file */
   if (!opt_bootstrap)
@@ -4909,10 +4816,6 @@ int mysqld_main(int argc, char **argv)
   {
     set_connection_events_loop_aborted(true);
 
-#ifndef _WIN32
-    (void) pthread_kill(signal_thread_id.thread, SIGTERM);
-#endif
-
     delete_pid_file(MYF(MY_WME));
 
     if (mysqld_socket_acceptor != NULL)
@@ -4920,7 +4823,8 @@ int mysqld_main(int argc, char **argv)
       delete mysqld_socket_acceptor;
       mysqld_socket_acceptor= NULL;
     }
-    exit(MYSQLD_ABORT_EXIT);
+
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
   if (!opt_noacl)
@@ -4977,11 +4881,15 @@ int mysqld_main(int argc, char **argv)
   if (Events::init(opt_noacl || opt_bootstrap))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
+#ifndef _WIN32
+  //  Start signal handler thread.
+  start_signal_handler();
+#endif
+
   if (opt_bootstrap)
   {
-#ifndef _WIN32
-    start_processing_signals();
-#endif
+    // Make sure we can process SIGHUP during bootstrap.
+    server_components_initialized();
 
     int error= bootstrap(mysql_stdin);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
@@ -5011,9 +4919,9 @@ int mysqld_main(int argc, char **argv)
                          MYSQL_COMPILATION_COMMENT);
 #if defined(_WIN32)
   Service.SetRunning();
-#else
-  start_processing_signals();
 #endif
+
+  server_components_initialized();
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
@@ -5027,6 +4935,8 @@ int mysqld_main(int argc, char **argv)
   (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
+
+  (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
 #if defined(_WIN32)
   setup_conn_event_handler_threads();
@@ -7022,7 +6932,6 @@ static int mysql_init_variables(void)
   log_bin_index= NULL;
 
   /* Handler variables */
-  total_ha= 0;
   total_ha_2pc= 0;
   /* Variables in libraries */
   charsets_dir= 0;
@@ -7981,6 +7890,9 @@ bool is_secure_file_path(char *path)
 bool check_secure_file_priv_path()
 {
   char datadir_buffer[FN_REFLEN+1]={0};
+  char plugindir_buffer[FN_REFLEN+1]={0};
+  char whichdir[20]= {0};
+  size_t opt_plugindir_len= 0;
   size_t opt_datadir_len= 0;
   size_t opt_secure_file_priv_len= 0;
   bool warn= false;
@@ -8036,14 +7948,17 @@ bool check_secure_file_priv_path()
   opt_datadir_len= strlen(datadir_buffer);
 
   case_insensitive_fs=
-    (test_if_case_insensitive(mysql_unpacked_real_data_home) == 1);
+    (test_if_case_insensitive(datadir_buffer) == 1);
 
   if (!case_insensitive_fs)
   {
     if (!strncmp(datadir_buffer, opt_secure_file_priv,
           opt_datadir_len < opt_secure_file_priv_len ?
           opt_datadir_len : opt_secure_file_priv_len))
+    {
       warn= true;
+      strcpy(whichdir, "Data directory");
+    }
   }
   else
   {
@@ -8053,15 +7968,53 @@ bool check_secure_file_priv_path()
           (uchar *) opt_secure_file_priv,
           opt_secure_file_priv_len,
           TRUE))
+    {
       warn= true;
+      strcpy(whichdir, "Data directory");
+    }
+  }
+
+  /*
+    Don't bother comparing --secure-file-priv with --plugin-dir
+    if we already have a match against --datdir or
+    --plugin-dir is not pointing to a valid directory.
+  */
+  if (!warn && !my_realpath(plugindir_buffer, opt_plugin_dir, 0))
+  {
+    convert_dirname(plugindir_buffer, plugindir_buffer, NullS);
+    opt_plugindir_len= strlen(plugindir_buffer);
+
+    if (!case_insensitive_fs)
+    {
+      if (!strncmp(plugindir_buffer, opt_secure_file_priv,
+          opt_plugindir_len < opt_secure_file_priv_len ?
+          opt_plugindir_len : opt_secure_file_priv_len))
+      {
+        warn= true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
+    else
+    {
+      if (!files_charset_info->coll->strnncoll(files_charset_info,
+          (uchar *) plugindir_buffer,
+          opt_plugindir_len,
+          (uchar *) opt_secure_file_priv,
+          opt_secure_file_priv_len,
+          TRUE))
+      {
+        warn= true;
+        strcpy(whichdir, "Plugin directory");
+      }
+    }
   }
 
 
   if (warn)
     sql_print_warning("Insecure configuration for --secure-file-priv: "
-                      "Data directory is accessible through "
+                      "%s is accessible through "
                       "--secure-file-priv. Consider choosing a different "
-                      "directory.");
+                      "directory.", whichdir);
 
 #ifndef _WIN32
   /*
@@ -8156,14 +8109,36 @@ static int fix_paths(void)
   if (opt_secure_file_priv &&
       my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
   {
-      if (my_realpath(buff, opt_secure_file_priv, 0))
-      {
-        sql_print_warning("Failed to normalize the argument "
-                          "for --secure-file-priv.");
-        return 1;
-      }
+    int retval= my_realpath(buff, opt_secure_file_priv, MYF(MY_WME));
+    if (!retval)
+    {
       convert_dirname(secure_file_real_path, buff, NullS);
-      opt_secure_file_priv= secure_file_real_path;
+#ifdef WIN32
+      MY_DIR *dir= my_dir(secure_file_real_path, MYF(MY_DONT_SORT+MY_WME));
+      if (!dir)
+      {
+        retval= 1;
+      }
+      else
+      {
+        my_dirend(dir);
+      }
+#endif
+    }
+
+    if (retval)
+    {
+      char err_buffer[FN_REFLEN];
+      my_snprintf(err_buffer, FN_REFLEN-1,
+                  "Failed to access directory for --secure-file-priv."
+                  " Please make sure that directory exists and is "
+                  "accessible by MySQL Server. Supplied value : %s",
+                  opt_secure_file_priv);
+      err_buffer[FN_REFLEN-1]='\0';
+      sql_print_error("%s", err_buffer);
+      return 1;
+    }
+    opt_secure_file_priv= secure_file_real_path;
   }
 
   if (!check_secure_file_priv_path())
@@ -8402,11 +8377,10 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+PSI_mutex_key key_LOCK_reset_gtid_table;
 PSI_mutex_key key_LOCK_compress_gtid_table;
 PSI_mutex_key key_mts_gaq_LOCK;
-#ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
-#endif
 PSI_mutex_key key_LOCK_offline_mode;
 PSI_mutex_key key_LOCK_default_password_lifetime;
 
@@ -8494,11 +8468,10 @@ static PSI_mutex_info all_server_mutexes[]=
     PSI_FLAG_GLOBAL},  
   { &key_LOCK_current_cond, "THD::LOCK_current_cond", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
+  { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_GLOBAL},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0},
-#ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
-#endif
 #ifdef HAVE_REPLICATION
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0},
@@ -8510,8 +8483,7 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock,
-  key_rwlock_proxy_users;
+  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8523,9 +8495,6 @@ PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
 
 static PSI_rwlock_info all_server_rwlocks[]=
 {
-#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
-  { &key_rwlock_openssl, "CRYPTO_dynlock_value::lock", 0},
-#endif
 #ifdef HAVE_REPLICATION
   { &key_rwlock_Binlog_transmit_delegate_lock, "Binlog_transmit_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_GLOBAL},
@@ -8540,8 +8509,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL},
-  { &key_rwlock_proxy_users, "prox_users_rwlock", PSI_FLAG_GLOBAL}
+  { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
@@ -8616,10 +8584,7 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
-
-#ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
-#endif
 
 static PSI_thread_info all_server_threads[]=
 {
@@ -8629,9 +8594,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
-#ifdef HAVE_MY_TIMER
   { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
-#endif
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},

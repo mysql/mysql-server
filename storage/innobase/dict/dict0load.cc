@@ -1333,7 +1333,8 @@ dict_sys_tables_rec_read(
 			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
 		*flags2 = mach_read_from_4(field);
 
-		if (!dict_tf2_is_valid(*flags, *flags2)) {
+		if (!dict_tf2_is_valid(*flags, *flags2)
+		    || (*flags2 & DICT_TF2_TEMPORARY)) {
 			ib::error() << "Table " << table_name << " in InnoDB"
 				" data dictionary contains invalid flags."
 				" SYS_TABLES.MIX_LEN=" << *flags2;
@@ -1475,8 +1476,7 @@ dict_check_sys_tables(
 		}
 
 		/* Check that the .ibd file exists. */
-		bool	is_temp = flags2 & DICT_TF2_TEMPORARY;
-		ulint	fsp_flags = dict_tf_to_fsp_flags(flags, is_temp);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(flags);
 		dberr_t	err = fil_ibd_open(
 			validate,
 			!srv_read_only_mode,
@@ -2049,13 +2049,17 @@ dict_load_index_low(
 		/* MERGE_THRESHOLD exists */
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_INDEXES__MERGE_THRESHOLD, &len);
-		if (len != 4) {
+		switch (len) {
+		case 4:
+			merge_threshold = mach_read_from_4(field);
+			break;
+		case UNIV_SQL_NULL:
+			merge_threshold = DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
+			break;
+		default:
 			return("incorrect MERGE_THRESHOLD length"
 			       " in SYS_INDEXES");
 		}
-
-		merge_threshold = mach_read_from_4(field);
-
 	} else if (rec_get_n_fields_old(rec)
 		   == DICT_NUM_FIELDS__SYS_INDEXES - 1) {
 		/* MERGE_THRESHOLD doesn't exist */
@@ -2355,8 +2359,8 @@ dict_load_indexes(
 				dictionary cache for such metadata corruption,
 				since we would always be able to set it
 				when loading the dictionary cache */
-				dict_set_corrupted_index_cache_only(
-					index, table);
+				ut_ad(index->table == table);
+				dict_set_corrupted_index_cache_only(index);
 
 				ib::info() << "Index is corrupt but forcing"
 					" load into data dictionary";
@@ -2670,6 +2674,8 @@ dict_load_tablespace(
 	mem_heap_t*		heap,
 	dict_err_ignore_t	ignore_err)
 {
+	ut_ad(!dict_table_is_temporary(table));
+
 	/* The system tablespace is always available. */
 	if (is_system_tablespace(table->space)) {
 		return;
@@ -2678,12 +2684,6 @@ dict_load_tablespace(
 	if (table->flags2 & DICT_TF2_DISCARDED) {
 		ib::warn() << "Tablespace for table " << table->name
 			<< " is set as discarded.";
-		table->ibd_file_missing = TRUE;
-		return;
-	}
-
-	if (dict_table_is_temporary(table)) {
-		/* Do not bother to retry opening temporary tables. */
 		table->ibd_file_missing = TRUE;
 		return;
 	}
@@ -2761,7 +2761,7 @@ dict_load_tablespace(
 
 	/* Try to open the tablespace.  We set the 2nd param (fix_dict) to
 	false because we do not have an x-lock on dict_operation_lock */
-	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags, false);
+	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
 	dberr_t err = fil_ibd_open(
 		true, false, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, filepath);
@@ -3328,7 +3328,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	field = rec_get_nth_field_old(rec, DICT_FLD__SYS_FOREIGN__ID, &len);
@@ -3348,7 +3348,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	/* Read the table names and the number of columns associated
@@ -3378,6 +3378,8 @@ dict_load_foreign(
 		foreign->heap, (char*) field, len);
 	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
+	const ulint foreign_table_name_len = len;
+
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN__REF_NAME, &len);
 	foreign->referenced_table_name = mem_heap_strdupl(
@@ -3395,7 +3397,24 @@ dict_load_foreign(
 		foreign->foreign_table_name_lookup);
 
 	if (!for_table) {
-		fk_tables.push_back(foreign->foreign_table_name_lookup);
+		/* To avoid recursively loading the tables related through
+		the foreign key constraints, the child table name is saved
+		here.  The child table will be loaded later, along with its
+		foreign key constraint. */
+
+		lint	old_size = mem_heap_get_size(ref_table->heap);
+
+		ut_a(ref_table != NULL);
+		fk_tables.push_back(
+			mem_heap_strdupl(ref_table->heap,
+					 foreign->foreign_table_name_lookup,
+					 foreign_table_name_len));
+
+		lint	new_size = mem_heap_get_size(ref_table->heap);
+		dict_sys->size += new_size - old_size;
+
+		dict_foreign_remove_from_cache(foreign);
+		DBUG_RETURN(DB_SUCCESS);
 	}
 
 	ut_a(for_table || ref_table);

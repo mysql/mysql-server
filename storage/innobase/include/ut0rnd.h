@@ -27,9 +27,6 @@ Created 1/20/1994 Heikki Tuuri
 #define ut0rnd_h
 
 #include "univ.i"
-
-#ifndef UNIV_INNOCHECKSUM
-
 #include "ut0byte.h"
 
 /** The 'character code' for end of field or string (used
@@ -82,7 +79,6 @@ ut_hash_ulint(
 /*==========*/
 	ulint	 key,		/*!< in: value to be hashed */
 	ulint	 table_size);	/*!< in: hash table size */
-#endif /* UNIV_INNOCHECKSUM */
 
 /*************************************************************//**
 Folds a 64-bit integer.
@@ -94,7 +90,6 @@ ut_fold_ull(
 	ib_uint64_t	d)	/*!< in: 64-bit integer */
 	__attribute__((const));
 
-#ifndef UNIV_INNOCHECKSUM
 /*************************************************************//**
 Folds a character string ending in the null character.
 @return folded value */
@@ -113,8 +108,6 @@ ut_find_prime(
 /*==========*/
 	ulint	n)	/*!< in: positive number > 100 */
 	__attribute__((const));
-
-#endif /* !UNIV_INNOCHECKSUM */
 
 /*************************************************************//**
 Folds a pair of ulints.

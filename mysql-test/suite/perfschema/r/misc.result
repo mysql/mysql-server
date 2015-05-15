@@ -89,20 +89,6 @@ FROM performance_schema.table_io_waits_summary_by_index_usage
 WHERE object_schema = 'test'
    AND object_name = 't_60905';
 object_schema	object_name	index_name	count_fetch	count_insert	count_update	count_delete
-test	t_60905	(index 0)	2	0	0	1
-test	t_60905	NULL	5	5	0	1
-flush table t_60905;
-SELECT object_schema,
-object_name,
-index_name,
-count_fetch,
-count_insert,
-count_update,
-count_delete
-FROM performance_schema.table_io_waits_summary_by_index_usage
-WHERE object_schema = 'test'
-   AND object_name = 't_60905';
-object_schema	object_name	index_name	count_fetch	count_insert	count_update	count_delete
 test	t_60905	i	2	0	0	1
 test	t_60905	NULL	5	5	0	1
 DROP TABLE t_60905;
@@ -113,7 +99,7 @@ explain select * from performance_schema.threads;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	threads	NULL	ALL	NULL	NULL	NULL	NULL	256	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED` from `performance_schema`.`threads`
+Note	1003	/* select#1 */ select `performance_schema`.`threads`.`THREAD_ID` AS `THREAD_ID`,`performance_schema`.`threads`.`NAME` AS `NAME`,`performance_schema`.`threads`.`TYPE` AS `TYPE`,`performance_schema`.`threads`.`PROCESSLIST_ID` AS `PROCESSLIST_ID`,`performance_schema`.`threads`.`PROCESSLIST_USER` AS `PROCESSLIST_USER`,`performance_schema`.`threads`.`PROCESSLIST_HOST` AS `PROCESSLIST_HOST`,`performance_schema`.`threads`.`PROCESSLIST_DB` AS `PROCESSLIST_DB`,`performance_schema`.`threads`.`PROCESSLIST_COMMAND` AS `PROCESSLIST_COMMAND`,`performance_schema`.`threads`.`PROCESSLIST_TIME` AS `PROCESSLIST_TIME`,`performance_schema`.`threads`.`PROCESSLIST_STATE` AS `PROCESSLIST_STATE`,`performance_schema`.`threads`.`PROCESSLIST_INFO` AS `PROCESSLIST_INFO`,`performance_schema`.`threads`.`PARENT_THREAD_ID` AS `PARENT_THREAD_ID`,`performance_schema`.`threads`.`ROLE` AS `ROLE`,`performance_schema`.`threads`.`INSTRUMENTED` AS `INSTRUMENTED`,`performance_schema`.`threads`.`HISTORY` AS `HISTORY` from `performance_schema`.`threads`
 use performance_schema;
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation

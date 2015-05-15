@@ -57,6 +57,7 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <signal.h>
 #include <algorithm>
@@ -1007,12 +1008,20 @@ int init_recovery(Master_info* mi, const char** errmsg)
     error= mts_recovery_groups(rli);
     if (rli->mts_recovery_group_cnt)
     {
-      error= 1;
-      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+      if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+      {
+        rli->recovery_parallel_workers= 0;
+        rli->clear_mts_recovery_groups();
+      }
+      else
+      {
+        error= 1;
+        sql_print_error("--relay-log-recovery cannot be executed when the slave "
                         "was stopped with an error or killed in MTS mode; "
                         "consider using RESET SLAVE or restart the server "
                         "with --relay-log-recovery = 0 followed by "
                         "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
+      }
     }
   }
 
@@ -5560,6 +5569,17 @@ ignore_log_space_limit=%d",
                           " log space");
           goto err;
         }
+      DBUG_EXECUTE_IF("flush_after_reading_user_var_event",
+                      {
+                      if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
+                      {
+                      const char act[]= "now signal Reached wait_for signal.flush_complete_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+
+                      }
+                      });
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == binary_log::GTID_LOG_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
@@ -6202,11 +6222,8 @@ err:
     delete jg->worker;
   }
 
-  if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
-  {
-    bitmap_free(groups);
-    rli->recovery_groups_inited= false;
-  }
+  if (rli->mts_recovery_group_cnt == 0)
+    rli->clear_mts_recovery_groups();
 
   DBUG_RETURN(error ? ER_MTS_RECOVERY_FAILURE : 0);
 }
@@ -7090,12 +7107,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;
   rli->current_mts_submode= 0;
-  if (rli->recovery_groups_inited)
-  {
-    bitmap_free(&rli->recovery_groups);
-    rli->mts_recovery_group_cnt= 0;
-    rli->recovery_groups_inited= false;
-  }
+  rli->clear_mts_recovery_groups();
 
   /*
     Some events set some playgrounds, which won't be cleared because thread
@@ -10775,7 +10787,7 @@ int add_new_channel(Master_info** mi, const char* channel,
  */
   if (channel)
   {
-    ident_check_status= check_table_name(channel, strlen(channel), false);
+    ident_check_status= check_table_name(channel, strlen(channel));
   }
   else
     ident_check_status= IDENT_NAME_WRONG;
@@ -10823,6 +10835,14 @@ bool change_master_cmd(THD *thd)
   bool res=false;
 
   mysql_mutex_lock(&LOCK_msr_map);
+
+  /* The slave must have been initialized to allow CHANGE MASTER statements */
+  if (!is_slave_configured())
+  {
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
+    res= true;
+    goto err;
+  }
 
   //If the chosen name is a group replication reserved name abort
   if (msr_map.is_group_replication_channel_name(lex->mi.channel))

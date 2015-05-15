@@ -142,8 +142,6 @@ page_dir_find_owner_slot(
 					      + mach_decode_2(rec_offs_bytes));
 			}
 
-			buf_page_print(page, univ_page_size, 0);
-
 			ut_error;
 		}
 
@@ -507,6 +505,7 @@ page_create_empty(
 	}
 
 	if (page_zip) {
+		ut_ad(!dict_table_is_temporary(index->table));
 		page_create_zip(block, index,
 				page_header_get_field(page, PAGE_LEVEL),
 				max_trx_id, NULL, mtr);
@@ -570,14 +569,6 @@ page_copy_rec_list_end_no_locks(
 		ins_rec = page_cur_insert_rec_low(cur2, index,
 						  cur1_rec, offsets, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
-			/* Track an assertion failure reported on the mailing
-			list on June 18th, 2003 */
-
-			buf_page_print(new_page, univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-			buf_page_print(page_align(rec), univ_page_size,
-				       BUF_PAGE_PRINT_NO_CRASH);
-
 			ib::fatal() << "Rec offset " << page_offset(rec)
 				<< ", cur1 offset "
 				<< page_offset(page_cur_get_rec(&cur1))
@@ -1941,16 +1932,14 @@ page_check_dir(
 
 	if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
 
-		ib::error() << "Page directory corruption: infimum not"
+		ib::fatal() << "Page directory corruption: infimum not"
 			" pointed to";
-		buf_page_print(page, univ_page_size, 0);
 	}
 
 	if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
 
-		ib::info() << "Page directory corruption: supremum not"
+		ib::fatal() << "Page directory corruption: supremum not"
 			" pointed to";
-		buf_page_print(page, univ_page_size, 0);
 	}
 }
 #endif /* UNIV_DEBUG */
@@ -2655,7 +2644,6 @@ func_exit2:
 		ib::error() << "Apparent corruption in space "
 			<< page_get_space_id(page) << " page "
 			<< page_get_page_no(page) << " index " << index->name;
-		buf_page_print(page, univ_page_size, 0);
 	}
 
 	return(ret);

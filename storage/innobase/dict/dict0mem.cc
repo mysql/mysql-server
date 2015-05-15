@@ -715,10 +715,9 @@ void
 dict_mem_init(void)
 {
 	/* Initialize a randomly distributed temporary file number */
-	ib_uint32_t now = static_cast<ib_uint32_t>(ut_time());
+	ib_uint32_t	now = static_cast<ib_uint32_t>(ut_time());
 
-	const byte* buf = reinterpret_cast<const byte*>(&now);
-	ut_ad(ut_crc32 != NULL);
+	const byte*	buf = reinterpret_cast<const byte*>(&now);
 
 	dict_temp_file_num = ut_crc32(buf, sizeof(now));
 

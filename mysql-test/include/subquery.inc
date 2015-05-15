@@ -24,12 +24,12 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 explain extended SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 explain extended SELECT (SELECT (SELECT 0 UNION SELECT 0));
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT a) as a;
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
@@ -71,6 +71,7 @@ SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 -- error ER_OPERAND_COLUMNS
 SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
 
+-- error ER_BAD_FIELD_ERROR
 SELECT 1 as a,(SELECT a+a) b,(SELECT b);
 
 create table t1 (a int);
@@ -80,7 +81,7 @@ create table t4 (a int not null, b int not null);
 insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
 select (select a from t1 where t1.a=t2.a), a from t2;
 select (select a from t1 where t1.a=t2.b), a from t2;
@@ -294,7 +295,7 @@ CREATE TABLE `t1` (
   UNIQUE KEY `numreponse` (`numreponse`),
   KEY `pseudo` (`pseudo`,`numeropost`)
 ) ENGINE=MyISAM;
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
 -- error ER_BAD_FIELD_ERROR
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
@@ -614,16 +615,15 @@ select * from t1;
 
 drop table t1, t2, t3;
 
+--error ER_BAD_FIELD_ERROR
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 drop table t1;
+--error ER_BAD_FIELD_ERROR
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-SHOW CREATE TABLE t1;
-drop table t1;
+--error ER_BAD_FIELD_ERROR
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
-SHOW CREATE TABLE t1;
-drop table t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 SHOW CREATE TABLE t1;
@@ -1573,14 +1573,15 @@ drop table t1;
 #
 create  table t1 (a integer);
 insert into t1 values (1);
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
+-- error ER_BAD_FIELD_ERROR
 select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
--- error ER_ILLEGAL_REFERENCE
+-- error ER_BAD_FIELD_ERROR
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
 
@@ -2756,9 +2757,6 @@ INSERT INTO t1 VALUES (1,1,0,'a'), (1,2,0,'b'), (1,3,0,'c'), (1,4,0,'d'),
 SELECT a, MAX(b),
   (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=MAX(t1.b + 0)) as test
   FROM t1 GROUP BY a;
-SELECT a x, MAX(b),
-  (SELECT t.c FROM t1 AS t WHERE x=t.a AND t.b=MAX(t1.b + 0)) as test
-  FROM t1 GROUP BY a;
 SELECT a, AVG(b),
   (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=AVG(t1.b)) AS test
   FROM t1 WHERE t1.d=0 GROUP BY a;
@@ -2831,7 +2829,7 @@ SELECT
   SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING t1.a < 12) ) FROM t2) )
 FROM t1;
 
---error ER_INVALID_GROUP_FUNC_USE
+--error ER_BAD_FIELD_ERROR
 SELECT t1.a as XXA,
    SUM( (SELECT AVG( (SELECT COUNT(*) FROM t1 t HAVING XXA < 12) ) FROM t2) )
 FROM t1;
@@ -3129,6 +3127,7 @@ CREATE TABLE t3 (
 INSERT INTO t3 VALUES (1,null), (2,null);
 --source include/turn_off_only_full_group_by.inc
 
+--error ER_BAD_FIELD_ERROR
 SELECT
   IF(t1.f1 = 'R', a1.f2, t2.f2) AS a4,
   IF(t1.f1 = 'R', a1.f3, t2.f3) AS f3,
@@ -3915,11 +3914,6 @@ SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1 GR
 SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1 GROUP BY t1.a;
 SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1;
 SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
-
-# The x alias is used below to workaround bug #40674.
-# Regression tests for sum function on outer column in subselect from dual:
-SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
-SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 
 DROP TABLE t1;
 
@@ -6377,4 +6371,34 @@ EXECUTE s;
 
 DEALLOCATE PREPARE s;
 DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#20615023 SIGNAL 11 IN ITEM_FIELD::RESULT_TYPE DURING 1ST EXECUTION OF PREPARED STMT
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1),(2);
+ANALYZE TABLE t1;
+# 3 clauses which should block the replacement with an equality:
+let $query=
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL WHERE 0);
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL HAVING 0);
+eval EXPLAIN $query;
+eval $query;
+
+--error ER_NOT_SUPPORTED_YET
+SELECT 1 as col FROM t1 WHERE a IN (SELECT a FROM DUAL LIMIT 0);
+
+let $query=SELECT 1 as col FROM t1
+WHERE a IN (SELECT a FROM DUAL WHERE 3 IN (SELECT a FROM t1));
+eval EXPLAIN $query;
+eval PREPARE s FROM '$query';
+EXECUTE s;
+EXECUTE s;
+
 DROP TABLE t1;

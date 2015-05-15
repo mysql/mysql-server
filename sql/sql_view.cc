@@ -971,27 +971,22 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 
   if ((view->updatable_view= can_be_merged))
   {
-    /* TODO: change here when we will support UNIONs */
+    /// @see SELECT_LEX::merge_derived()
+    bool updatable= false;
+    bool outer_joined= false;
     for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
-	 tbl;
-	 tbl= tbl->next_local)
+         tbl;
+         tbl= tbl->next_local)
     {
-      if ((tbl->is_view() && !tbl->updatable_view) || tbl->schema_table)
-      {
-	view->updatable_view= 0;
-	break;
-      }
-      for (TABLE_LIST *up= tbl; up; up= up->embedding)
-      {
-	if (up->outer_join)
-	{
-	  view->updatable_view= 0;
-	  goto loop_out;
-	}
-      }
+      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
+                  tbl->schema_table);
+      outer_joined|= tbl->is_inner_table_of_outer_join();
     }
+    updatable&= !outer_joined;
+    if (!updatable)
+      view->updatable_view= 0;
   }
-loop_out:
+
   /* print file name */
   dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
                                    view->db, "", "", 0);

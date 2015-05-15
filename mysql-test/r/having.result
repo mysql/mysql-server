@@ -281,15 +281,6 @@ col1
 10
 10
 10
-select t1.col1 as tmp_col from t1
-where t1.col2 in 
-(select t2.col2 from t2 
-group by t2.col1, t2.col2 having tmp_col <= 10);
-tmp_col
-10
-10
-10
-10
 select t1.col1 from t1
 where t1.col2 in 
 (select t2.col2 from t2 
@@ -729,3 +720,67 @@ SELECT 1 FROM t1 AS GroupHaving4 GROUP BY 1 HAVING a);
 a
 DROP TABLE t1, t2;
 SET @@sql_mode = @old_sql_mode;
+#
+# Bug#17055185: WRONG RESULTS WHEN RUNNING A SELECT THAT INCLUDE
+#               A HAVING BASED ON A FUNCTION.
+#
+CREATE TABLE series (
+val INT(10) UNSIGNED NOT NULL
+);
+INSERT INTO series VALUES(1);
+CREATE FUNCTION next_seq_value() RETURNS INT
+BEGIN
+DECLARE next_val INT;
+SELECT val INTO next_val FROM series;
+UPDATE series SET val=mod(val + 1, 2);
+RETURN next_val;
+END;
+|
+CREATE TABLE t1 (t INT, u INT, KEY(t));
+INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
+(16, 17), (17, 17);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
+GROUP BY t HAVING r = 1  ORDER BY t1.u;
+t	r
+10	1
+12	1
+15	1
+17	1
+SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
+WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
+t	r
+11	1
+12	1
+15	1
+17	1
+PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
+              GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
+              ORDER BY t1.u';
+EXECUTE stmt;
+t	r
+11	1
+14	1
+16	1
+EXECUTE stmt;
+t	r
+10	1
+12	1
+15	1
+17	1
+DEALLOCATE PREPARE stmt;
+INSERT INTO t1 SELECT * FROM t1;
+ALTER TABLE t1 ADD KEY(t, u);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
+r	MIN(u)
+1	11
+1	15
+1	17
+DROP TABLE t1;
+DROP FUNCTION next_seq_value;
+DROP TABLE series;

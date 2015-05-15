@@ -23,8 +23,6 @@ File space management
 Created 12/18/1995 Heikki Tuuri
 *******************************************************/
 
-#ifndef UNIV_INNOCHECKSUM
-
 /** Checks if a page address is an extent descriptor page address.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
@@ -304,4 +302,3 @@ xdes_calc_descriptor_page(
 
 	return(ut_2pow_round(offset, page_size.physical()));
 }
-#endif /* !UNIV_INNOCHECKSUM */

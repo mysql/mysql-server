@@ -25,8 +25,9 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include "current_thd.h"
 #include "trx0sys.h"
-
+#include "sql_error.h"
 #ifdef UNIV_NONINL
 #include "trx0sys.ic"
 #endif
@@ -50,6 +51,40 @@ Created 3/26/1996 Heikki Tuuri
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check whether transaction id is valid.
+@param[in]	id              transaction id to check
+@param[in]      name            table name */
+void
+ReadView::check_trx_id_sanity(
+	trx_id_t		id,
+	const table_name_t&	name)
+{
+	if (id >= trx_sys->max_trx_id) {
+
+		ib::warn() << "A transaction id"
+			   << " in a record of table "
+			   << name
+			   << " is newer than the"
+			   << " system-wide maximum.";
+		ut_ad(0);
+		THD *thd = current_thd;
+		if (thd != NULL) {
+			char    table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				name.m_name);
+
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
+					    ER_SIGNAL_WARN,
+					    "InnoDB: Transaction id"
+					    " in a record of table"
+					    " %s is newer than system-wide"
+					    " maximum.", table_name);
+		}
+	}
+}
 
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
@@ -99,6 +134,7 @@ trx_sys_flush_max_trx_id(void)
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		sys_header = trx_sysf_get(&mtr);
 
@@ -477,6 +513,7 @@ trx_sys_create_sys_pages(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	trx_sysf_create(&mtr);
 
@@ -699,6 +736,33 @@ trx_sys_close(void)
 	trx_sys = NULL;
 }
 
+/** @brief Convert an undo log to TRX_UNDO_PREPARED state on shutdown.
+
+If any prepared ACTIVE transactions exist, and their rollback was
+prevented by innodb_force_recovery, we convert these transactions to
+XA PREPARE state in the main-memory data structures, so that shutdown
+will proceed normally. These transactions will again recover as ACTIVE
+on the next restart, and they will be rolled back unless
+innodb_force_recovery prevents it again.
+
+@param[in]	trx	transaction
+@param[in,out]	undo	undo log to convert to TRX_UNDO_PREPARED */
+static
+void
+trx_undo_fake_prepared(
+	const trx_t*	trx,
+	trx_undo_t*	undo)
+{
+	ut_ad(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+	ut_ad(trx->is_recovered);
+
+	if (undo != NULL) {
+		ut_ad(undo->state == TRX_UNDO_ACTIVE);
+		undo->state = TRX_UNDO_PREPARED;
+	}
+}
+
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
 @return total number of active transactions or 0 if none */
@@ -706,15 +770,46 @@ ulint
 trx_sys_any_active_transactions(void)
 /*=================================*/
 {
-	ulint	total_trx = 0;
-
 	trx_sys_mutex_enter();
 
-	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
-		  + UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
+	ulint	total_trx = UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
 
-	ut_a(total_trx >= trx_sys->n_prepared_trx);
-	total_trx -= trx_sys->n_prepared_trx;
+	if (total_trx == 0) {
+		total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+		ut_a(total_trx >= trx_sys->n_prepared_trx);
+
+		if (total_trx > trx_sys->n_prepared_trx
+		    && srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+			for (trx_t* trx = UT_LIST_GET_FIRST(
+				     trx_sys->rw_trx_list);
+			     trx != NULL;
+			     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+				if (!trx_state_eq(trx, TRX_STATE_ACTIVE)
+				    || !trx->is_recovered) {
+					continue;
+				}
+				/* This was a recovered transaction
+				whose rollback was disabled by
+				the innodb_force_recovery setting.
+				Pretend that it is in XA PREPARE
+				state so that shutdown will work. */
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_redo.insert_undo);
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_redo.update_undo);
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_noredo.insert_undo);
+				trx_undo_fake_prepared(
+					trx, trx->rsegs.m_noredo.update_undo);
+				trx->state = TRX_STATE_PREPARED;
+				trx_sys->n_prepared_trx++;
+				trx_sys->n_prepared_recovered_trx++;
+			}
+		}
+
+		ut_a(total_trx >= trx_sys->n_prepared_trx);
+		total_trx -= trx_sys->n_prepared_trx;
+	}
 
 	trx_sys_mutex_exit();
 

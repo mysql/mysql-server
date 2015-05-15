@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "../include/my_config.h"
+#include "../include/my_compiler.h"
 #include "../sql/sql_bootstrap.h"
 
 /*
@@ -36,6 +38,8 @@
 
 FILE *in;
 FILE *out;
+
+static void die(const char *fmt, ...) __attribute__((noreturn));
 
 static void die(const char *fmt, ...)
 {
@@ -160,16 +164,13 @@ int main(int argc, char *argv[])
       case READ_BOOTSTRAP_ERROR:
         die("Failed to read the bootstrap input file. Return code (%d).\n"
             "Last query: '%s'\n", error, err_ptr);
-        break;
 
       case READ_BOOTSTRAP_QUERY_SIZE:
         die("Failed to read the bootstrap input file. Query size exceeded %d bytes.\n"
             "Last query: '%s'.\n", MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
-        break;
 
       default:
         die("Failed to read the bootstrap input file. Unknown error.\n");
-        break;
       }
     }
 

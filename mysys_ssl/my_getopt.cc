@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include "my_default.h"
 #include <m_ctype.h>
 #include "../mysys/mysys_priv.h"
+#include "mysql/service_mysql_alloc.h"
+#include "typelib.h"
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);

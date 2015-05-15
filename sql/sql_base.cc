@@ -16,44 +16,40 @@
 /* Basic functions needed by many modules */
 
 #include "sql_base.h"
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "psi_memory_key.h"
-#include "debug_sync.h"
-#include "lock.h"        // mysql_lock_remove,
-                         // mysql_unlock_tables,
-                         // mysql_lock_have_duplicate
-#include "mysqld.h"      // slave_open_temp_tables table_def_size ..
-#include "sql_show.h"    // append_identifier
-#include "strfunc.h"     // find_type
-#include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
-#include "sql_parse.h"   // check_table_access
-#include "auth_common.h" // *_ACL, check_grant_all_columns,
-                         // check_column_grant_in_table_ref,
-                         // get_column_grant
-#include "sql_handler.h" // mysql_ha_flush
-#include "partition_info.h"                     // partition_info
-#include "log_event.h"                          // Query_log_event
-#include "sql_select.h"
-#include "sp_head.h"
-#include "sp.h"
-#include "sp_cache.h"
-#include "trigger_loader.h"   // Trigger_loader::trg_file_exists()
+
+#include "my_atomic.h"                // my_atomic_add32
+#include "auth_common.h"              // check_table_access
+#include "binlog.h"                   // mysql_bin_log
+#include "datadict.h"                 // dd_frm_type
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Internal_error_handler
+#include "item_cmpfunc.h"             // Item_func_eq
+#include "log.h"                      // sql_print_error
+#include "lock.h"                     // mysql_lock_remove
+#include "log_event.h"                // Query_log_event
+#include "mysqld.h"                   // slave_open_temp_tables
+#include "partition_info.h"           // partition_info
+#include "psi_memory_key.h"           // key_memory_TABLE
+#include "rpl_handler.h"              // RUN_HOOK
+#include "sp.h"                       // Sroutine_hash_entry
+#include "sp_cache.h"                 // sp_cache_version
+#include "sp_head.h"                  // sp_head
+#include "sql_class.h"                // THD
+#include "sql_error.h"                // Sql_condition
+#include "sql_handler.h"              // mysql_ha_flush_tables
+#include "sql_hset.h"                 // Hash_set
+#include "sql_parse.h"                // is_update_query
+#include "sql_prepare.h"              // Reprepare_observer
+#include "sql_show.h"                 // append_identifier
+#include "sql_table.h"                // build_table_filename
+#include "sql_tmp_table.h"            // free_tmp_table
+#include "sql_view.h"                 // mysql_make_view
+#include "table.h"                    // TABLE_LIST
+#include "table_cache.h"              // table_cache_manager
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
-#include "transaction.h"
-#include "sql_prepare.h"   // Reprepare_observer
-#include <m_ctype.h>
-#include <my_dir.h>
-#include <hash.h>
-#include "rpl_filter.h"
-#include "rpl_handler.h"
-#include "sql_table.h"                          // build_table_filename
-#include "datadict.h"   // dd_frm_type()
-#include "sql_hset.h"   // Hash_set
-#include "sql_tmp_table.h" // free_tmp_table
-#include "table_cache.h" // Table_cache_manager, Table_cache
-#include "log.h"
-#include "binlog.h"
-#include "derror.h"
+#include "transaction.h"              // trans_rollback_stmt
+#include "trigger_loader.h"           // Trigger_loader
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
@@ -245,7 +241,9 @@ has_write_table_with_auto_increment(TABLE_LIST *tables);
 static bool
 has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
 static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
-
+static TABLE *find_temporary_table(THD *thd,
+                                   const char *table_key,
+                                   size_t table_key_length);
 
 /**
   Create a table cache/table definition cache key
@@ -1836,31 +1834,23 @@ bool close_temporary_tables(THD *thd)
   DBUG_RETURN(error);
 }
 
-/*
-  Find table in list.
 
-  SYNOPSIS
-    find_table_in_list()
-    table		Pointer to table list
-    offset		Offset to which list in table structure to use
-    db_name		Data base name
-    table_name		Table name
+/**
+  Find table in global list.
 
-  NOTES:
-    This is called by find_table_in_local_list() and
-    find_table_in_global_list().
+  @param table          Pointer to table list
+  @param db_name        Data base name
+  @param table_name     Table name
 
-  RETURN VALUES
-    NULL	Table not found
-    #		Pointer to found table.
+  @retval NULL  Table not found
+  @retval #     Pointer to found table.
 */
 
-TABLE_LIST *find_table_in_list(TABLE_LIST *table,
-                               TABLE_LIST *TABLE_LIST::*link,
-                               const char *db_name,
-                               const char *table_name)
+TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
+                                      const char *db_name,
+                                      const char *table_name)
 {
-  for (; table; table= table->*link )
+  for (; table; table= table->next_global)
   {
     if ((table->table == 0 || table->table->s->tmp_table == NO_TMP_TABLE) &&
         strcmp(table->db, db_name) == 0 &&
@@ -2130,9 +2120,9 @@ TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl)
   @return TABLE instance if a temporary table has been found; NULL otherwise.
 */
 
-TABLE *find_temporary_table(THD *thd,
-                            const char *table_key,
-                            size_t table_key_length)
+static TABLE *find_temporary_table(THD *thd,
+                                   const char *table_key,
+                                   size_t table_key_length)
 {
   for (TABLE *table= thd->temporary_tables; table; table= table->next)
   {
@@ -3339,6 +3329,8 @@ table_found:
   */
   DBUG_ASSERT(table->file->pushed_cond == NULL);
   table_list->set_updatable(); // It is not derived table nor non-updatable VIEW
+  table_list->set_insertable();
+
   table_list->table= table;
 
   if (table->part_info)
@@ -3378,7 +3370,8 @@ err_unlock:
    @return Pointer to the TABLE object found, 0 if no table found.
 */
 
-TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
+static TABLE *find_locked_table(TABLE *list, const char *db,
+                                const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
   size_t key_length= create_table_def_key((THD*)NULL, key, db, table_name,
@@ -4222,10 +4215,11 @@ request_backoff_action(enum_open_table_action action_arg,
     * We met a broken table that needs repair, or a table that
       is not present on this MySQL server and needs re-discovery.
       To perform the action, we need an exclusive metadata lock on
-      the table. Acquiring an X lock while holding other shared
-      locks is very deadlock-prone. If this is a multi- statement
-      transaction that holds metadata locks for completed
-      statements, we don't do it, and report an error instead.
+      the table. Acquiring X lock while holding other shared
+      locks can easily lead to deadlocks. We rely on MDL deadlock
+      detector to discover them. If this is a multi-statement
+      transaction that holds metadata locks for completed statements,
+      we should keep these locks after discovery/repair.
       The action type in this case is OT_DISCOVER or OT_REPAIR.
     * Our attempt to acquire an MDL lock lead to a deadlock,
       detected by the MDL deadlock detector. The current
@@ -4266,7 +4260,7 @@ request_backoff_action(enum_open_table_action action_arg,
       keep tables open between statements and a livelock
       is not possible.
   */
-  if (action_arg != OT_REOPEN_TABLES && m_has_locks)
+  if (action_arg == OT_BACKOFF_AND_RETRY && m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     m_thd->mark_transaction_to_rollback(true);
@@ -4294,6 +4288,31 @@ request_backoff_action(enum_open_table_action action_arg,
 
 
 /**
+  An error handler to mark transaction to rollback on DEADLOCK error
+  during DISCOVER / REPAIR.
+*/
+class MDL_deadlock_discovery_repair_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_LOCK_DEADLOCK)
+    {
+      thd->mark_transaction_to_rollback(true);
+    }
+    /*
+      We have marked this transaction to rollback. Return false to allow
+      error to be reported or handled by other handlers.
+    */
+    return false;
+  }
+};
+
+/**
    Recover from failed attempt of open table by performing requested action.
 
    @pre This function should be called only with "action" != OT_NO_ACTION
@@ -4308,6 +4327,12 @@ Open_table_context::
 recover_from_failed_open()
 {
   bool result= FALSE;
+  MDL_deadlock_discovery_repair_handler handler;
+  /*
+    Install error handler to mark transaction to rollback on DEADLOCK error.
+  */
+  m_thd->push_internal_handler(&handler);
+
   /* Execute the action. */
   switch (m_action)
   {
@@ -4328,7 +4353,12 @@ recover_from_failed_open()
 
         m_thd->get_stmt_da()->reset_condition_info(m_thd);
         m_thd->clear_error();                 // Clear error message
-        m_thd->mdl_context.release_transactional_locks();
+        /*
+          Rollback to start of the current statement to release exclusive lock
+          on table which was discovered but preserve locks from previous statements
+          in current transaction.
+        */
+        m_thd->mdl_context.rollback_to_savepoint(start_of_statement_svp());
         break;
       }
     case OT_REPAIR:
@@ -4341,12 +4371,18 @@ recover_from_failed_open()
                          m_failed_table->table_name, FALSE);
 
         result= auto_repair_table(m_thd, m_failed_table);
-        m_thd->mdl_context.release_transactional_locks();
+        /*
+          Rollback to start of the current statement to release exclusive lock
+          on table which was discovered but preserve locks from previous statements
+          in current transaction.
+        */
+        m_thd->mdl_context.rollback_to_savepoint(start_of_statement_svp());
         break;
       }
     default:
       DBUG_ASSERT(0);
   }
+  m_thd->pop_internal_handler();
   /*
     Reset the pointers to conflicting MDL request and the
     TABLE_LIST element, set when we need auto-discovery or repair,
@@ -5482,7 +5518,6 @@ restart:
       thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     DBUG_RETURN(true);
 
-#ifdef HAVE_MY_TIMER
   /*
    If some routine is modifying the table then the statement is not read only.
    If timer is enabled then resetting the timer in this case.
@@ -5493,7 +5528,6 @@ restart:
     push_warning(thd, Sql_condition::SL_NOTE, ER_NON_RO_SELECT_DISABLE_TIMER,
                  ER_THD(thd, ER_NON_RO_SELECT_DISABLE_TIMER));
   }
-#endif
 
   /*
     After successful open of all tables, including MERGE parents and
@@ -6715,6 +6749,8 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
   thd->thread_specific_used= TRUE;
 
   tl->set_updatable(); // It is not derived table nor non-updatable VIEW.
+  tl->set_insertable();
+
   tl->table= table;
 
   table->init(thd, tl);
@@ -6807,10 +6843,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
           Use own arena for Prepared Statements or data will be freed after
           PREPARE.
         */
-        Prepared_stmt_arena_holder ps_arena_holder(
-          thd,
-          register_tree_change &&
-            thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute());
+        Prepared_stmt_arena_holder ps_arena_holder(thd, register_tree_change);
 
         /*
           create_item() may, or may not create a new Item, depending on

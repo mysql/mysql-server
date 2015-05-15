@@ -1464,7 +1464,6 @@ public:
 
 class Item_func_validate_password_strength :public Item_int_func
 {
-  String value;
 public:
   Item_func_validate_password_strength(const POS &pos, Item *a)
     :Item_int_func(pos, a)
@@ -2815,15 +2814,6 @@ public:
       ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
-};
-
-/* For type casts */
-
-enum Cast_target
-{
-  ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
-  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
-  ITEM_CAST_DECIMAL
 };
 
 

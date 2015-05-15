@@ -90,6 +90,8 @@ public:
   PFS_account_key m_key;
   /** True if this account is enabled, per rules in table SETUP_ACTORS. */
   bool m_enabled;
+  /** True if this account has history enabled, per rules in table SETUP_ACTORS. */
+  bool m_history;
   const char *m_username;
   uint m_username_length;
   const char *m_hostname;

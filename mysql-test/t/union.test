@@ -96,6 +96,7 @@ drop table t1,t2,t3;
 #
 --error 1096
 select * union select 1;
+--error 1054
 select 1 as a,(select a union select a);
 --error 1054
 (select 1) union (select 2) order by 0;

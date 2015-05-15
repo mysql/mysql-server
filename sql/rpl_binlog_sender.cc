@@ -18,6 +18,7 @@
 
 #include "debug_sync.h"              // debug_sync_set_action
 #include "derror.h"                  // ER_THD
+#include "item_func.h"               // user_var_entry
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "mysqld.h"                  // global_system_variables ...
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
@@ -246,6 +247,19 @@ void Binlog_sender::run()
 
   THD_STAGE_INFO(m_thd, stage_waiting_to_finalize_termination);
   char error_text[MAX_SLAVE_ERRMSG];
+
+  /*
+    If the dump thread was killed because of a duplicate slave UUID we
+    will fail throwing an error to the slave so it will not try to
+    reconnect anymore.
+  */
+  mysql_mutex_lock(&m_thd->LOCK_thd_data);
+  bool was_killed_by_duplicate_slave_uuid= m_thd->duplicate_slave_uuid;
+  mysql_mutex_unlock(&m_thd->LOCK_thd_data);
+  if (was_killed_by_duplicate_slave_uuid)
+    set_fatal_error("A slave with the same server_uuid as this slave "
+                    "has connected to the master");
+
   if (file > 0)
   {
     if (is_fatal_error())

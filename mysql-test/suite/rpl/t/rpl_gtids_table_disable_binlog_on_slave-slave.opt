@@ -1,1 +1,1 @@
---disable-log-bin --log-slave-updates=false --force-restart
+--disable-log-bin --log-slave-updates=false

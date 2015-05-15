@@ -36,16 +36,16 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0types.h"
 #include "ut0vec.h"
 
-/********************************************************************//**
-Creates a purge node to a query graph.
+/** Create a purge node to a query graph.
+@param[in]	parent	parent node, i.e., a thr node
+@param[in]	heap	memory heap where created
 @return own: purge node */
 purge_node_t*
 row_purge_node_create(
-/*==================*/
-	que_thr_t*	parent,		/*!< in: parent node, i.e., a
-					thr node */
-	mem_heap_t*	heap)		/*!< in: memory heap where created */
+	que_thr_t*	parent,
+	mem_heap_t*	heap)
 	__attribute__((warn_unused_result));
+
 /***********************************************************//**
 Determines if it is possible to remove a secondary index entry.
 Removal is possible if the secondary index entry does not refer to any
@@ -115,6 +115,16 @@ struct purge_node_t{
 				clustered index record */
 	ibool		done;	/* Debug flag */
 
+#ifdef UNIV_DEBUG
+	/***********************************************************//**
+	Validate the persisent cursor. The purge node has two references
+	to the clustered index record - one via the ref member, and the
+	other via the persistent cursor.  These two references must match
+	each other if the found_clust flag is set.
+	@return true if the persistent cursor is consistent with
+	the ref member.*/
+	bool	validate_pcur();
+#endif
 };
 
 #ifndef UNIV_NONINL

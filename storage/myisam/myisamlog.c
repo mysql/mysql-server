@@ -121,7 +121,6 @@ int main(int argc, char **argv)
   my_free_open_file_info();
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
-  return 0;				/* No compiler warning */
 } /* main */
 
 
