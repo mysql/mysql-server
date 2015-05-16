@@ -358,7 +358,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   CONFIGURE_FILE(
     ${VERSION_SCRIPT_TEMPLATE}
     ${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld
-    @ONLY@
+    @ONLY
   )
   SET(VERSION_SCRIPT_LINK_FLAGS 
     "-Wl,${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld")
