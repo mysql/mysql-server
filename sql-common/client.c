@@ -2463,6 +2463,9 @@ mysql_init(MYSQL *mysql)
     (mysql.reconnect=0) will not see a behaviour change.
   */
   mysql->reconnect= 0;
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) && !defined(MYSQL_SERVER)
+  mysql->options.use_ssl= TRUE;
+#endif
 
   return mysql;
 }
@@ -3368,17 +3371,10 @@ cli_calculate_client_flag(MYSQL *mysql, const char *db, ulong client_flag)
     mysql->client_flag|= CLIENT_MULTI_RESULTS;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  /* consider SSL if any of the SSL mysql_options() is issued */
-  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
-      mysql->options.ssl_ca || mysql->options.ssl_capath ||
-      mysql->options.ssl_cipher ||
-      (mysql->options.extension && mysql->options.extension->ssl_crl) ||
-      (mysql->options.extension && mysql->options.extension->ssl_crlpath) ||
-      (mysql->options.extension && mysql->options.extension->ssl_enforce))
-      mysql->options.use_ssl= TRUE;
   if (mysql->options.use_ssl)
     mysql->client_flag |= CLIENT_SSL;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
+
   if (db)
     mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
   else
@@ -5391,10 +5387,13 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
                                                         ssl_crlpath, arg);
                                break;
-  case MYSQL_OPT_SSL_ENFORCE:  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+  case MYSQL_OPT_SSL_ENFORCE:
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+                               ENSURE_EXTENSIONS_PRESENT(&mysql->options);
 	                       mysql->options.extension->ssl_enforce=
 				 (*(my_bool *) arg) ? TRUE : FALSE;
-                               mysql->options.use_ssl= TRUE;
+                               mysql->options.use_ssl= mysql->options.extension->ssl_enforce;
+#endif
                                break;
   case MYSQL_SERVER_PUBLIC_KEY:
     EXTENSION_SET_STRING(&mysql->options, server_public_key_path, arg);
