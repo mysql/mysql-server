@@ -2294,6 +2294,7 @@ statement_cleanup(statement *stmt)
 int 
 slap_connect(MYSQL *mysql)
 {
+  mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &opt_ssl_enforce);
   /* Connect to server */
   static ulong connection_retry_sleep= 100000; /* Microseconds */
   int x, connect_error= 1;

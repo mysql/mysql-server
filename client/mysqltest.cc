@@ -5925,6 +5925,8 @@ void do_connect(struct st_command *command)
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  /* Setting default as not ssl for mysqltest because of performance implications.*/
+  mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
   opt_use_ssl= save_opt_use_ssl;
 #endif
 
