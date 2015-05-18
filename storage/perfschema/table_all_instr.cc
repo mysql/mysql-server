@@ -110,7 +110,7 @@ int table_all_instr::rnd_next(void)
       {
         PFS_socket_iterator it= global_socket_container.iterate(m_pos.m_index_2);
         socket= it.scan_next(& m_pos.m_index_2);
-        if (file != NULL)
+        if (socket != NULL)
         {
           make_socket_row(socket);
           m_next_pos.set_after(&m_pos);
