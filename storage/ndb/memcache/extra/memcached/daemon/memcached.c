@@ -1,4 +1,3 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
  *  memcached - memory caching daemon
@@ -1044,12 +1043,10 @@ static void out_string(conn *c, const char *str) {
  * has been stored in c->cmd, and the item is ready in c->item.
  */
 static void complete_update_ascii(conn *c) {
-    item *it;
-    ENGINE_ERROR_CODE ret;
-    item_info info = { .nvalue = 1 };
-
     assert(c != NULL);
-    it = c->item;
+
+    item *it = c->item;
+    item_info info = { .nvalue = 1 };
     if (!settings.engine.v1->get_item_info(settings.engine.v0, c, it, &info)) {
         settings.engine.v1->release(settings.engine.v0, c, it);
         settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
@@ -1060,7 +1057,7 @@ static void complete_update_ascii(conn *c) {
     }
 
     c->sbytes = 2; // swallow \r\n
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->store(settings.engine.v0, c, it, &c->cas,
@@ -1464,13 +1461,6 @@ static void write_bin_response(conn *c, const void *d, int hlen, int keylen, int
 
 
 static void complete_incr_bin(conn *c) {
-    uint64_t delta, initial;
-    rel_time_t expiration;
-    char *key;
-    size_t nkey;
-    bool incr;
-    ENGINE_ERROR_CODE ret;
-
     protocol_binary_response_incr* rsp = (protocol_binary_response_incr*)c->wbuf;
     protocol_binary_request_incr* req = binary_get_request(c);
 
@@ -1478,13 +1468,13 @@ static void complete_incr_bin(conn *c) {
     assert(c->wsize >= sizeof(*rsp));
 
     /* fix byteorder in the request */
-    delta = ntohll(req->message.body.delta);
-    initial = ntohll(req->message.body.initial);
-    expiration = ntohl(req->message.body.expiration);
-    key = binary_get_key(c);
-    nkey = c->binary_header.request.keylen;
-    incr = (c->cmd == PROTOCOL_BINARY_CMD_INCREMENT ||
-            c->cmd == PROTOCOL_BINARY_CMD_INCREMENTQ);
+    uint64_t delta = ntohll(req->message.body.delta);
+    uint64_t initial = ntohll(req->message.body.initial);
+    rel_time_t expiration = ntohl(req->message.body.expiration);
+    char *key = binary_get_key(c);
+    size_t nkey = c->binary_header.request.keylen;
+    bool incr = (c->cmd == PROTOCOL_BINARY_CMD_INCREMENT ||
+                 c->cmd == PROTOCOL_BINARY_CMD_INCREMENTQ);
 
     if (settings.verbose > 1) {
         char buffer[1024];
@@ -1501,7 +1491,7 @@ static void complete_incr_bin(conn *c) {
         }
     }
 
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->arithmetic(settings.engine.v0,
@@ -1565,13 +1555,11 @@ static void complete_incr_bin(conn *c) {
 }
 
 static void complete_update_bin(conn *c) {
-    item *it;
-    ENGINE_ERROR_CODE ret;
-    item_info info = { .nvalue = 1 };
     protocol_binary_response_status eno = PROTOCOL_BINARY_RESPONSE_EINVAL;
-
     assert(c != NULL);
-    it = c->item;
+
+    item *it = c->item;
+    item_info info = { .nvalue = 1 };
     if (!settings.engine.v1->get_item_info(settings.engine.v0, c, it, &info)) {
         settings.engine.v1->release(settings.engine.v0, c, it);
         settings.extensions.logger->log(EXTENSION_LOG_WARNING, c,
@@ -1581,7 +1569,7 @@ static void complete_update_bin(conn *c) {
         return;
     }
 
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->store(settings.engine.v0, c,
@@ -1681,10 +1669,6 @@ static void complete_update_bin(conn *c) {
 
 static void process_bin_get(conn *c) {
     item *it;
-    ENGINE_ERROR_CODE ret;
-    uint16_t keylen;
-    uint32_t bodylen;
-    item_info info = { .nvalue = 1 };
 
     protocol_binary_response_get* rsp = (protocol_binary_response_get*)c->wbuf;
     char* key = binary_get_key(c);
@@ -1699,12 +1683,16 @@ static void process_bin_get(conn *c) {
         }
     }
 
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->get(settings.engine.v0, c, &it, key, nkey,
                                       c->binary_header.request.vbucket);
     }
+
+    uint16_t keylen;
+    uint32_t bodylen;
+    item_info info = { .nvalue = 1 };
 
     switch (ret) {
     case ENGINE_SUCCESS:
@@ -1883,12 +1871,12 @@ static void append_stats(const char *key, const uint16_t klen,
                          const char *val, const uint32_t vlen,
                          const void *cookie)
 {
-   conn *c = (conn*)cookie;
-
     /* value without a key is invalid */
     if (klen == 0 && vlen > 0) {
         return ;
     }
+
+    conn *c = (conn*)cookie;
 
     if (c->protocol == binary_prot) {
         size_t needed = vlen + klen + sizeof(protocol_binary_response_header);
@@ -1908,7 +1896,6 @@ static void append_stats(const char *key, const uint16_t klen,
 }
 
 static void process_bin_stat(conn *c) {
-    ENGINE_ERROR_CODE ret;
     char *subcommand = binary_get_key(c);
     size_t nkey = c->binary_header.request.keylen;
 
@@ -1921,7 +1908,7 @@ static void process_bin_stat(conn *c) {
         }
     }
 
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
 
@@ -2009,13 +1996,12 @@ static void process_bin_stat(conn *c) {
 }
 
 static void bin_read_chunk(conn *c, enum bin_substates next_substate, uint32_t chunk) {
-    ptrdiff_t offset;
     assert(c);
     c->substate = next_substate;
     c->rlbytes = chunk;
 
     /* Ok... do we have room for everything in our buffer? */
-    offset = c->rcurr + sizeof(protocol_binary_request_header) - c->rbuf;
+    ptrdiff_t offset = c->rcurr + sizeof(protocol_binary_request_header) - c->rbuf;
     if (c->rlbytes > c->rsize - offset) {
         size_t nsize = c->rsize;
         size_t size = c->rlbytes + sizeof(protocol_binary_request_header);
@@ -2139,10 +2125,10 @@ struct sasl_tmp {
 };
 
 static void process_bin_sasl_auth(conn *c) {
+    assert(c->binary_header.request.extlen == 0);
+
     int nkey = c->binary_header.request.keylen;
     int vlen = c->binary_header.request.bodylen - nkey;
-
-    assert(c->binary_header.request.extlen == 0);
 
     if (nkey > MAX_SASL_MECH_LEN) {
         write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_EINVAL, vlen);
@@ -3120,7 +3106,6 @@ static void process_bin_update(conn *c) {
     uint16_t nkey;
     uint32_t vlen;
     item *it;
-    ENGINE_ERROR_CODE ret;
     protocol_binary_request_set* req = binary_get_request(c);
 
     assert(c != NULL);
@@ -3137,7 +3122,6 @@ static void process_bin_update(conn *c) {
     if (settings.verbose > 1) {
         char buffer[1024];
         const char *prefix;
-        ssize_t nw;
         if (c->cmd == PROTOCOL_BINARY_CMD_ADD) {
             prefix = "ADD";
         } else if (c->cmd == PROTOCOL_BINARY_CMD_SET) {
@@ -3146,6 +3130,7 @@ static void process_bin_update(conn *c) {
             prefix = "REPLACE";
         }
 
+        size_t nw;
         nw = key_to_printable_buffer(buffer, sizeof(buffer), c->sfd, true,
                                      prefix, key, nkey);
 
@@ -3162,7 +3147,7 @@ static void process_bin_update(conn *c) {
         stats_prefix_record_set(key, nkey);
     }
 
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
     item_info info = { .nvalue = 1 };
@@ -3244,8 +3229,6 @@ static void process_bin_append_prepend(conn *c) {
     int nkey;
     int vlen;
     item *it;
-    ENGINE_ERROR_CODE ret;
-    item_info info = { .nvalue = 1 };
 
     assert(c != NULL);
 
@@ -3262,9 +3245,10 @@ static void process_bin_append_prepend(conn *c) {
         stats_prefix_record_set(key, nkey);
     }
 
-    ret = c->aiostat;
+    ENGINE_ERROR_CODE ret = c->aiostat;
     c->aiostat = ENGINE_SUCCESS;
     c->ewouldblock = false;
+    item_info info = { .nvalue = 1 };
 
     if (ret == ENGINE_SUCCESS) {
         ret = settings.engine.v1->allocate(settings.engine.v0, c,

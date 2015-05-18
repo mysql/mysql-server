@@ -1,4 +1,3 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
