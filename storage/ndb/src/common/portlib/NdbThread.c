@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +139,8 @@ settid(struct NdbThread * thr)
   }
 #elif defined HAVE_SOLARIS_AFFINITY
   thr->tid = (id_t)_lwp_self();
+#else
+  (void)thr;
 #endif
 }
 
@@ -150,6 +152,7 @@ NdbThread_GetTid(struct NdbThread* thr)
 #elif defined HAVE_SOLARIS_AFFINITY
   return (int)thr->tid;
 #else
+  (void)thr;
   return -1;
 #endif
 }
@@ -553,6 +556,9 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
   if (ret)
     error_no= errno;
 #else
+  (void)rt_prio;
+  (void)high_prio;
+  (void)pThread;
   error_no = ENOSYS;
 #endif
 
@@ -655,6 +661,7 @@ set_old_cpu_locking(struct NdbThread* pThread)
   }
 #else
   (void)ret;
+  (void)pThread;
   goto end;
 #endif
 end:
@@ -724,6 +731,8 @@ end_error:
   return error_no;
 
 #else
+  (void)num_cpu_ids;
+  (void)cpu_ids;
   *cpu_set = NULL;
   return 0;
 #endif
@@ -855,6 +864,7 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   }
 #else
   (void) ret;
+  (void) cpu_id;
   error_no = ENOSYS;
   goto end;
 #endif
