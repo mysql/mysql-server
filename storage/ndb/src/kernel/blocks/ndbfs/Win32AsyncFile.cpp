@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,6 +72,12 @@ void Win32AsyncFile::openReq(Request* request)
     dwCreationDisposition = CREATE_NEW;
   } else {
     dwCreationDisposition = OPEN_EXISTING;
+  }
+
+  m_always_sync = false;
+  if (flags & FsOpenReq::OM_SYNC)
+  {
+    m_always_sync = true;
   }
 
   switch(flags & 3){
@@ -326,7 +332,9 @@ bool Win32AsyncFile::isOpen(){
 void
 Win32AsyncFile::syncReq(Request * request)
 {
-  if(m_auto_sync_freq && m_write_wo_sync == 0){
+  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
+      m_always_sync)
+  {
     return;
   }
   if(!FlushFileBuffers(hFile)) {
@@ -355,7 +363,9 @@ Win32AsyncFile::appendReq(Request * request){
     size -= dwWritten;
   }
 
-  if(m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq){
+  if((m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq) ||
+      m_always_sync)
+  {
     syncReq(request);
   }
 }
