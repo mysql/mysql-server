@@ -154,6 +154,46 @@ a	b	c	d	e	f
 select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
 sum(cnt)	sum(crc32(concat(cnt,crc)))
 69971	828138701178
+# Check that table scan (pushed conditions)
+# give same results
+alter table t1 engine=ndb;
+alter table t1 drop index bx;
+alter table t1 drop index cx;
+alter table t1 drop index dx;
+alter table t1 drop index ex;
+alter table t1 drop index fx;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(3) NOT NULL DEFAULT '10:11:12.123',
+  `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  PRIMARY KEY (`a`) USING HASH
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1099869477618
+select * from t1 where b = '2011';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where c = '2007-12-01';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where d = '-13:38:50.785';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where e = '8321-12-27 21:08:47.878';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where f = '1979-12-28 20:02:06.999';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
+sum(cnt)	sum(crc32(concat(cnt,crc)))
+69971	828138701178
 # drop table prec 3
 drop table t1;
 # create table prec 6
@@ -585,8 +625,166 @@ fx(f) - OrderedIndex
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	992449343770
+drop table t1, t1sum;
+Check hinting + pruning behaviour
+create table t1 (ts  timestamp,
+ts0 timestamp(0),
+ts3 timestamp(3),
+ts6 timestamp(6),
+t   time,
+t0  time(0),
+t3  time(3),
+t6  time(6),
+d   datetime,
+d0  datetime(0),
+d3  datetime(3),
+d6  datetime(6),
+a   int,
+b   int,
+primary key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6,a)) 
+engine=ndb
+partition by key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6);
+Attributes:
+ts Timestamp2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts0 Timestamp2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts3 Timestamp2(3) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts6 Timestamp2(6) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t Time2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t0 Time2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t3 Time2(3) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t6 Time2(6) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d Datetime2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d0 Datetime2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d3 Datetime2(3) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d6 Datetime2(6) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+a Int PRIMARY KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY
+Indexes:
+PRIMARY(ts, ts0, ts3, ts6, t, t0, t3, t6, d, d0, d3, d6, a) - OrderedIndex
+insert into t1 values
+('2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+'15:58:20',
+'15:58:20',
+'15:58:20.987',
+'15:58:20.987654',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+1,
+1),
+('2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+'15:58:20',
+'15:58:20',
+'15:58:20.987',
+'15:58:20.987654',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+2,
+2),
+('2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+'15:58:20',
+'15:58:20',
+'15:58:20.987',
+'15:58:20.987654',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+3,
+3),
+('2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+'16:58:20',
+'16:58:20',
+'16:58:20.987',
+'16:58:20.987654',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+4,
+4),
+('2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+'16:58:20',
+'16:58:20',
+'16:58:20.987',
+'16:58:20.987654',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+5,
+5);
+select @start_local_reads:=(Variable_value + 0)
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+Test PK lookup hinting
+SELECT b FROM t1 where
+ts = '2015-04-23 15:57:00' AND
+ts0 = '2015-04-23 15:57:00' AND
+ts3 = '2015-04-23 15:57:00.987' AND
+ts6 = '2015-04-23 15:57:00.987654' AND
+t =   '15:58:20' AND
+t0 =  '15:58:20' AND
+t3 =  '15:58:20.987' AND
+t6 =  '15:58:20.987654' AND
+d   = '2015-04-23 15:57:00' AND
+d0  = '2015-04-23 15:57:00' AND
+d3  = '2015-04-23 15:57:00.987' AND
+d6  = '2015-04-23 15:57:00.987654' AND
+a   = 2;
+b
+2
+# Expect 1 local read
+select (Variable_value - 0) - @start_local_reads as local_reads
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+local_reads
+1
+Test OI scan pruning
+select @start_local_reads:=(Variable_value + 0)
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+SELECT count(b) FROM t1 where
+ts = '2015-04-23 15:57:00' AND
+ts0 = '2015-04-23 15:57:00' AND
+ts3 = '2015-04-23 15:57:00.987' AND
+ts6 = '2015-04-23 15:57:00.987654' AND
+t =   '15:58:20' AND
+t0 =  '15:58:20' AND
+t3 =  '15:58:20.987' AND
+t6 =  '15:58:20.987654' AND
+d   = '2015-04-23 15:57:00' AND
+d0  = '2015-04-23 15:57:00' AND
+d3  = '2015-04-23 15:57:00.987' AND
+d6  = '2015-04-23 15:57:00.987654';
+count(b)
+3
+# Expect 3 local reads
+select (Variable_value - 0) - @start_local_reads as local_reads
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+local_reads
+3
+drop table t1;
 set time_zone = default;
 select @@session.time_zone;
 @@session.time_zone
 SYSTEM
-drop table t1, t1sum;
