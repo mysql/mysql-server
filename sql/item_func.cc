@@ -3265,7 +3265,6 @@ void Item_func_min_max::fix_length_and_dec()
                                                        args, arg_count);
     if (datetime_found)
     {
-      thd= current_thd;
       compare_as_dates= TRUE;
       /*
         We should not do this:
@@ -3318,6 +3317,7 @@ uint Item_func_min_max::cmp_datetimes(longlong *value)
   {
     Item **arg= args + i;
     bool is_null;
+    THD *thd= current_thd;
     longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
 
     /* Check if we need to stop (because of error or KILL)  and stop the loop */
