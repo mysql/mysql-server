@@ -10,7 +10,7 @@ INSERT INTO t1 VALUES (1);
 # Cleanup
 # restart
 # No log should be generated while persistent tablespaces are idle
-# FIXME: WL#6205 violates this in SysTablespace::replace_in_dictionary()
+# FIXME: Something occasionally violates this (log_write_requests=1)
 CREATE TEMPORARY TABLE t (a SERIAL) ENGINE=InnoDB;
 SELECT * FROM t1;
 a

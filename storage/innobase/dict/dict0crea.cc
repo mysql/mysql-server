@@ -2074,15 +2074,27 @@ dict_replace_tablespace_in_dictionary(
 
 	error = que_eval_sql(info,
 			     "PROCEDURE P () IS\n"
+			     "p CHAR;\n"
+
+			     "DECLARE CURSOR c IS\n"
+			     " SELECT PATH FROM SYS_DATAFILES\n"
+			     " WHERE SPACE=:space FOR UPDATE;\n"
+
 			     "BEGIN\n"
-			     "DELETE FROM SYS_TABLESPACES"
-			     " WHERE SPACE = :space;\n"
-			     "DELETE FROM SYS_DATAFILES"
-			     " WHERE SPACE = :space;\n"
-			     "INSERT INTO SYS_TABLESPACES VALUES"
+			     "OPEN c;\n"
+			     "FETCH c INTO p;\n"
+
+			     "IF (SQL % NOTFOUND) THEN"
+			     "  DELETE FROM SYS_TABLESPACES "
+			     "WHERE SPACE=:space;\n"
+			     "  INSERT INTO SYS_TABLESPACES VALUES"
 			     "(:space, :name, :flags);\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
+			     "  INSERT INTO SYS_DATAFILES VALUES"
 			     "(:space, :path);\n"
+			     "ELSIF p <> :path THEN\n"
+			     "  UPDATE SYS_DATAFILES SET PATH=:path"
+			     " WHERE CURRENT OF c;\n"
+			     "END IF;\n"
 			     "END;\n",
 			     FALSE, trx);
 
