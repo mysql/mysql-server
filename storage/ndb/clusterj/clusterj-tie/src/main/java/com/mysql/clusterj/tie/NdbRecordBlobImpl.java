@@ -47,7 +47,8 @@ class NdbRecordBlobImpl extends BlobImpl {
     /** The operation */
     private NdbRecordOperationImpl operation;
 
-    public NdbRecordBlobImpl(NdbRecordOperationImpl operation, Column storeColumn) {
+    public NdbRecordBlobImpl(NdbRecordOperationImpl operation, Column storeColumn, VariableByteBufferPoolImpl byteBufferPool) {
+        super(byteBufferPool);
         this.storeColumn = storeColumn;
         this.operation = operation;
     }
@@ -61,13 +62,14 @@ class NdbRecordBlobImpl extends BlobImpl {
      * @param ndbRecordBlobImpl2 the other NdbRecordBlobImpl that is connected to the database
      */
     public NdbRecordBlobImpl(NdbRecordOperationImpl operation, NdbRecordBlobImpl ndbRecordBlobImpl2) {
+        super(ndbRecordBlobImpl2.byteBufferPool);
         this.operation = operation;
         this.storeColumn = ndbRecordBlobImpl2.storeColumn;
         this.data = ndbRecordBlobImpl2.data;
     }
 
     /** Release any resources associated with this object.
-     * This method is called by the owner of this object.
+     * This method is called by the owner of this object when it is being finalized by garbage collection.
      */
     public void release() {
         if (logger.isDetailEnabled()) logger.detail("NdbRecordBlobImpl.release");
