@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +70,7 @@ void Dbtup::initData()
 Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   : SimulatedBlock(DBTUP, ctx, instanceNumber),
     c_lqh(0),
+    c_backup(0),
     c_tsman(0),
     c_lgman(0),
     c_pgman(0),
@@ -364,6 +365,7 @@ void Dbtup::execSTTOR(Signal* signal)
   case ZSTARTPHASE1:
     jam();
     ndbrequire((c_lqh= (Dblqh*)globalData.getBlock(DBLQH, instance())) != 0);
+    ndbrequire((c_backup= (Backup*)globalData.getBlock(BACKUP, instance())) != 0);
     ndbrequire((c_tsman= (Tsman*)globalData.getBlock(TSMAN)) != 0);
     ndbrequire((c_lgman= (Lgman*)globalData.getBlock(LGMAN)) != 0);
     ndbrequire((c_pgman= (Pgman*)globalData.getBlock(PGMAN, instance())) != 0);

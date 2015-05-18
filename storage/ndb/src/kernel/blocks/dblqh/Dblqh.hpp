@@ -1246,6 +1246,7 @@ public:
     Uint32 tableId;
     Uint32 fragId;
     Uint64 completionStatus;
+    Uint32 lcpScannedPages;
 
     /* Total elapsed milliseconds with no LCP progress observed */ 
     Uint32 elapsedNoProgressMillis; /* milliseconds */
@@ -1258,7 +1259,8 @@ public:
     void handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
                             Uint32 repTableId,
                             Uint32 repFragId,
-                            Uint64 repCompletionStatus);
+                            Uint64 repCompletionStatus,
+                            Uint32 repLcpScannedPages);
   };
   
   LCPFragWatchdog c_lcpFragWatchdog;
@@ -2370,8 +2372,10 @@ public:
 
   void receive_keyinfo(Signal*, Uint32 * data, Uint32 len);
   void receive_attrinfo(Signal*, Uint32 * data, Uint32 len);
-  
+
   void execTUPKEYCONF(Signal* signal);
+  Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
+
 private:
   BLOCK_DEFINES(Dblqh);
 
