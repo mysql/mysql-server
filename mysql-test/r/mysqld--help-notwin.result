@@ -162,6 +162,19 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --create-old-temporals 
+ This option affects the processing of a CREATE TABLE
+ statement, ALTER TABLE ADD/CHANGE/MODIFY COLUMN, ADD
+ INDEX or FORCE statement.  When this option is enabled,
+ the new 5.6.4 temporal types are used only when an
+ explicit fractional seconds part is specified.  When no
+ explicit fractional seconds part is specified, the pre
+ 5.6.4 temporal types are used.  e.g. 'start_time
+ TIMESTAMP' uses a pre 5.6.4 type whereas 'start_time
+ TIMESTAMP(0)' or 'start_time TIMESTAMP(4)' will use a
+ post 5.6.4 type.  This option is deprecated and will be
+ removed in a future release.  Note: the option implies
+ the "avoid_temporal_upgrade" variable. 
  -h, --datadir=name  Path to the database root directory
  --date-format=name  The DATE format (ignored)
  --datetime-format=name 
@@ -1061,6 +1074,7 @@ completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
 console FALSE
+create-old-temporals FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-storage-engine InnoDB

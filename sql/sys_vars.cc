@@ -4675,6 +4675,27 @@ static Sys_var_enum Sys_block_encryption_mode(
   SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
   my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
 
+#ifndef MCP_BUG20701918
+static Sys_var_mybool Sys_create_old_temporals(
+       "create_old_temporals",
+       "This option affects the processing of a CREATE TABLE statement, "
+       "ALTER TABLE ADD/CHANGE/MODIFY COLUMN, ADD INDEX or FORCE statement.  "
+       "When this option is enabled, the new 5.6.4 temporal types are "
+       "used only when an explicit fractional seconds part is specified.  "
+       "When no explicit fractional seconds part is specified, the pre 5.6.4 "
+       "temporal types are used.  "
+       "e.g. 'start_time TIMESTAMP' uses a pre 5.6.4 type whereas 'start_time "
+       "TIMESTAMP(0)' or 'start_time TIMESTAMP(4)' will use a post 5.6.4 "
+       "type.  " 
+       "This option is deprecated and will be removed in a future release.  "
+       "Note: the option implies the \"avoid_temporal_upgrade\" variable. ",
+        READ_ONLY GLOBAL_VAR(create_old_temporals),
+        CMD_LINE(OPT_ARG, OPT_CREATE_OLD_TEMPORALS),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(NULL), ON_UPDATE(NULL),
+        DEPRECATED(""));
+#endif
+
 static Sys_var_mybool Sys_avoid_temporal_upgrade(
        "avoid_temporal_upgrade",
        "When this option is enabled, the pre-5.6.4 temporal types are "

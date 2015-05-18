@@ -1,0 +1,69 @@
+show variables like 'create_old_temporals';
+Variable_name	Value
+create_old_temporals	ON
+reset master;
+Create table with mix of type versions
+create table test.t1 (a int primary key, 
+ts_old timestamp, 
+ts_new_zero timestamp(0), 
+ts_new_gtz timestamp (3),
+dt_old datetime,
+dt_new_zero datetime(0),
+dt_new_gtz timestamp (1),
+t_old time,
+t_new_zero time(0),
+t_new_gtz time(6)) engine=ndb;
+Show Ndb schema pre-alter : 
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts_old Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+ts_new_zero Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+ts_new_gtz Timestamp2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0.000
+dt_old Datetime NULL AT=FIXED ST=MEMORY
+dt_new_zero Datetime2(0) NULL AT=FIXED ST=MEMORY
+dt_new_gtz Timestamp2(1) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0.0
+t_old Time NULL AT=FIXED ST=MEMORY
+t_new_zero Time2(0) NULL AT=FIXED ST=MEMORY
+t_new_gtz Time2(6) NULL AT=FIXED ST=MEMORY
+Alter table
+alter table test.t1 force;
+Show Ndb schema post-alter :
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts_old Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+ts_new_zero Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+ts_new_gtz Timestamp2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0.000
+dt_old Datetime NULL AT=FIXED ST=MEMORY
+dt_new_zero Datetime2(0) NULL AT=FIXED ST=MEMORY
+dt_new_gtz Timestamp2(1) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0.0
+t_old Time NULL AT=FIXED ST=MEMORY
+t_new_zero Time2(0) NULL AT=FIXED ST=MEMORY
+t_new_gtz Time2(6) NULL AT=FIXED ST=MEMORY
+Insert row.
+insert into test.t1 values (1, '1973-07-29 12:13:14', 
+'1973-07-29 12:13:14', 
+'1973-07-29 12:13:14.156',
+'1973-07-29 12:13:14', 
+'1973-07-29 12:13:14', 
+'1973-07-29 12:13:14.1',
+'12:13:14',
+'12:13:14',
+'12:13:14.567891');
+Show metadata for events in Binlog
+Must have non '(X)' suffix for 'old' types
+select replace(txt, '\r', '') as typeinfo
+from raw_binlog_rows 
+where txt like '%time%meta%' or 
+txt like '%date%meta%';
+typeinfo
+###   @2=112785194 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
+###   @3=112785194 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
+###   @4=112785194.156 /* TIMESTAMP(3) meta=3 nullable=0 is_null=0 */
+###   @5=1973-07-29 12:13:14 /* DATETIME meta=0 nullable=1 is_null=0 */
+###   @6='1973-07-29 12:13:14' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
+###   @7=112785194.1 /* TIMESTAMP(1) meta=1 nullable=0 is_null=0 */
+###   @8='12:13:14' /* TIME meta=0 nullable=1 is_null=0 */
+###   @9='12:13:14' /* TIME(0) meta=0 nullable=1 is_null=0 */
+###   @10='12:13:14.567891' /* TIME(6) meta=6 nullable=1 is_null=0 */
+drop table raw_binlog_rows;
+drop table test.t1;

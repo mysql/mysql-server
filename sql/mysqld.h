@@ -283,6 +283,9 @@ extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern pthread_attr_t connection_attrib;
 extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
+#ifndef MCP_BUG20701918
+extern my_bool create_old_temporals;
+#endif
 extern my_bool avoid_temporal_upgrade;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
@@ -671,6 +674,9 @@ enum options_mysqld
   OPT_THREAD_CACHE_SIZE,
   OPT_HOST_CACHE_SIZE,
   OPT_TABLE_DEFINITION_CACHE,
+#ifndef MCP_BUG20701918
+  OPT_CREATE_OLD_TEMPORALS,
+#endif
   OPT_AVOID_TEMPORAL_UPGRADE,
   OPT_SHOW_OLD_TEMPORALS
 };

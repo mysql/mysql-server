@@ -59,6 +59,25 @@ select * from t1 where e = '8321-12-27 21:08:47.878';
 select * from t1 where f = '1979-12-28 20:02:06.999';
 --source ndb_wl946_main_query.inc
 
+--echo # Check that table scan (pushed conditions)
+--echo # give same results
+alter table t1 engine=ndb;
+
+alter table t1 drop index bx;
+alter table t1 drop index cx;
+alter table t1 drop index dx;
+alter table t1 drop index ex;
+alter table t1 drop index fx;
+
+show create table t1;
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+select * from t1 where b = '2011';
+select * from t1 where c = '2007-12-01';
+select * from t1 where d = '-13:38:50.785';
+select * from t1 where e = '8321-12-27 21:08:47.878';
+select * from t1 where f = '1979-12-28 20:02:06.999';
+--source ndb_wl946_main_query.inc
+
 --echo # drop table prec 3
 drop table t1;
 
@@ -234,7 +253,158 @@ show create table t1;
 --echo # check contents truncated to prec 3
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 
+drop table t1, t1sum;
+
+--echo Check hinting + pruning behaviour
+create table t1 (ts  timestamp,
+                 ts0 timestamp(0),
+                 ts3 timestamp(3),
+                 ts6 timestamp(6),
+                 t   time,
+                 t0  time(0),
+                 t3  time(3),
+                 t6  time(6),
+                 d   datetime,
+                 d0  datetime(0),
+                 d3  datetime(3),
+                 d6  datetime(6),
+                 a   int,
+                 b   int,
+                 primary key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6,a)) 
+  engine=ndb
+  partition by key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6);
+
+--source show_attributes.inc
+--source show_indexes.inc
+
+insert into t1 values
+  ('2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   '15:58:20',
+   '15:58:20',
+   '15:58:20.987',
+   '15:58:20.987654',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   1,
+   1),
+  ('2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   '15:58:20',
+   '15:58:20',
+   '15:58:20.987',
+   '15:58:20.987654',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   2,
+   2),
+  ('2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   '15:58:20',
+   '15:58:20',
+   '15:58:20.987',
+   '15:58:20.987654',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   3,
+   3),
+  ('2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   '16:58:20',
+   '16:58:20',
+   '16:58:20.987',
+   '16:58:20.987654',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   4,
+   4),
+  ('2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   '16:58:20',
+   '16:58:20',
+   '16:58:20.987',
+   '16:58:20.987654',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   5,
+   5);
+
+--disable_result_log
+select @start_local_reads:=(Variable_value + 0)
+  from information_schema.global_status
+  where variable_name="Ndb_api_trans_local_read_row_count_session";
+--enable_result_log
+
+--echo Test PK lookup hinting
+
+SELECT b FROM t1 where
+  ts = '2015-04-23 15:57:00' AND
+  ts0 = '2015-04-23 15:57:00' AND
+  ts3 = '2015-04-23 15:57:00.987' AND
+  ts6 = '2015-04-23 15:57:00.987654' AND
+  t =   '15:58:20' AND
+  t0 =  '15:58:20' AND
+  t3 =  '15:58:20.987' AND
+  t6 =  '15:58:20.987654' AND
+  d   = '2015-04-23 15:57:00' AND
+  d0  = '2015-04-23 15:57:00' AND
+  d3  = '2015-04-23 15:57:00.987' AND
+  d6  = '2015-04-23 15:57:00.987654' AND
+  a   = 2;
+
+--echo # Expect 1 local read
+select (Variable_value - 0) - @start_local_reads as local_reads
+  from information_schema.global_status
+ where variable_name="Ndb_api_trans_local_read_row_count_session";
+
+--echo Test OI scan pruning
+--disable_result_log
+select @start_local_reads:=(Variable_value + 0)
+  from information_schema.global_status
+  where variable_name="Ndb_api_trans_local_read_row_count_session";
+--enable_result_log
+
+SELECT count(b) FROM t1 where
+  ts = '2015-04-23 15:57:00' AND
+  ts0 = '2015-04-23 15:57:00' AND
+  ts3 = '2015-04-23 15:57:00.987' AND
+  ts6 = '2015-04-23 15:57:00.987654' AND
+  t =   '15:58:20' AND
+  t0 =  '15:58:20' AND
+  t3 =  '15:58:20.987' AND
+  t6 =  '15:58:20.987654' AND
+  d   = '2015-04-23 15:57:00' AND
+  d0  = '2015-04-23 15:57:00' AND
+  d3  = '2015-04-23 15:57:00.987' AND
+  d6  = '2015-04-23 15:57:00.987654';
+  # a not specified, OI scan, pruned by distribution key
+
+--echo # Expect 3 local reads
+select (Variable_value - 0) - @start_local_reads as local_reads
+  from information_schema.global_status
+ where variable_name="Ndb_api_trans_local_read_row_count_session";
+
+drop table t1;
+
 set time_zone = default;
 select @@session.time_zone;
-
-drop table t1, t1sum;
