@@ -388,7 +388,7 @@ void
 NdbReceiver::getValues(const NdbRecord* rec, char *row_ptr)
 {
   assert(m_recv_buffer == NULL);
-  assert(rec != NULL  && row_ptr != NULL);
+  assert(rec != NULL);
 
   m_ndb_record= rec;
   m_row_buffer= row_ptr;
@@ -813,6 +813,7 @@ NdbReceiver::get_range_no() const
 {
   Uint32 range_no;
   assert(m_ndb_record != NULL);
+  assert(m_row_buffer != NULL);
 
   if (unlikely(!m_read_range_no))
     return -1;
@@ -1049,6 +1050,7 @@ NdbReceiver::unpackRow(const Uint32* aDataPtr, Uint32 aLength, char* row)
        */
       if (likely(attrId == AttributeHeader::READ_PACKED))
       {
+        assert(row != NULL);
         const Uint32 len= unpackNdbRecord(m_ndb_record,
                                           attrSize >> 2, // Bitmap length
                                           aDataPtr,
@@ -1062,6 +1064,7 @@ NdbReceiver::unpackRow(const Uint32* aDataPtr, Uint32 aLength, char* row)
        * stored just after the row. */
       else if (attrId == AttributeHeader::RANGE_NO)
       {
+        assert(row != NULL);
         assert(m_read_range_no);
         assert(attrSize==sizeof(Uint32));
         memcpy(row+m_ndb_record->m_row_size, aDataPtr++, sizeof(Uint32));
