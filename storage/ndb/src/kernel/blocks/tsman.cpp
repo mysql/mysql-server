@@ -87,7 +87,7 @@ Tsman::Tsman(Block_context& ctx) :
   addRecSignal(GSN_START_RECREQ, &Tsman::execSTART_RECREQ);
 
   addRecSignal(GSN_LCP_FRAG_ORD, &Tsman::execLCP_FRAG_ORD);
-  addRecSignal(GSN_END_LCP_REQ, &Tsman::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCPREQ, &Tsman::execEND_LCPREQ);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Tsman::execGET_TABINFOREQ);
 
@@ -2225,7 +2225,7 @@ Tsman::execLCP_FRAG_ORD(Signal* signal)
 }
 
 void
-Tsman::execEND_LCP_REQ(Signal* signal)
+Tsman::execEND_LCPREQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(m_lcp_ongoing);
