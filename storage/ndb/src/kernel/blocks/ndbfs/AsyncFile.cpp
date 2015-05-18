@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,7 +162,8 @@ AsyncFile::writeReq(Request * request)
     } // while(write_not_complete)
   }
 done:
-  if(m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq)
+  if((m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq) ||
+     m_always_sync)
   {
     syncReq(request);
   }
