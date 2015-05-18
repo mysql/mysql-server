@@ -1,0 +1,561 @@
+drop table if exists t1;
+# Testing create_old_temporals option
+# This option causes column types with no
+# specific fractional part to be created
+# using the 'old' types
+show variables like '%create_old_temporals%';
+Variable_name	Value
+create_old_temporals	ON
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+set time_zone = '+00:00';
+select @@session.time_zone;
+@@session.time_zone
++00:00
+# create table prec 0
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time not null default '10:11:12',
+e datetime not null default '2000-01-02 10:11:12',
+f timestamp not null default '2000-01-02 10:11:12',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# test defaults
+insert into t1 (a) values (0);
+select * from t1;
+a	b	c	d	e	f
+0	2000	2000-01-02	10:11:12	2000-01-02 10:11:12	2000-01-02 10:11:12
+delete from t1;
+# restore data from wl946_pre with no promotion
+# will only work if the types are the same
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# run index queries
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+# run backup
+# remove indexes + run queries (test cond pushdown etc)
+alter table t1 drop index bx;
+alter table t1 drop index cx;
+alter table t1 drop index dx;
+alter table t1 drop index ex;
+alter table t1 drop index fx;
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+# drop table
+drop table t1;
+# restore meta from backup
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# run index queries
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+# drop table
+drop table t1;
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(0) not null default '10:11:12',
+e datetime(0) not null default '2000-01-02 10:11:12',
+f timestamp(0) not null default '2000-01-02 10:11:12',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup with promote
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# run index queries
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+# Alter table + forced 'upgrade' of types
+# Should be disabled due to create-old-temporals
+# Implying --avoid-temporal-upgrade
+show variables like '%avoid_temporal_upgrade%';
+Variable_name	Value
+avoid_temporal_upgrade	ON
+alter table t1 force;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# run index queries
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+drop table t1;
+Check hinting + pruning behaviour
+create table t1 (ts  timestamp,
+ts0 timestamp(0),
+ts3 timestamp(3),
+ts6 timestamp(6),
+t   time,
+t0  time(0),
+t3  time(3),
+t6  time(6),
+d   datetime,
+d0  datetime(0),
+d3  datetime(3),
+d6  datetime(6),
+a   int,
+b   int,
+primary key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6,a)) 
+engine=ndb
+partition by key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6);
+Attributes:
+ts Timestamp PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts0 Timestamp2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts3 Timestamp2(3) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+ts6 Timestamp2(6) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t Time PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t0 Time2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t3 Time2(3) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+t6 Time2(6) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d Datetime PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d0 Datetime2(0) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d3 Datetime2(3) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+d6 Datetime2(6) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+a Int PRIMARY KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY
+Indexes:
+PRIMARY(ts, ts0, ts3, ts6, t, t0, t3, t6, d, d0, d3, d6, a) - OrderedIndex
+insert into t1 values
+('2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+'15:58:20',
+'15:58:20',
+'15:58:20.987',
+'15:58:20.987654',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+1,
+1),
+('2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+'15:58:20',
+'15:58:20',
+'15:58:20.987',
+'15:58:20.987654',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+2,
+2),
+('2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+'15:58:20',
+'15:58:20',
+'15:58:20.987',
+'15:58:20.987654',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00',
+'2015-04-23 15:57:00.987',
+'2015-04-23 15:57:00.987654',
+3,
+3),
+('2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+'16:58:20',
+'16:58:20',
+'16:58:20.987',
+'16:58:20.987654',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+4,
+4),
+('2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+'16:58:20',
+'16:58:20',
+'16:58:20.987',
+'16:58:20.987654',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00',
+'2015-04-23 16:57:00.987',
+'2015-04-23 16:57:00.987654',
+5,
+5);
+select @start_local_reads:=(Variable_value + 0)
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+Test PK lookup hinting
+SELECT b FROM t1 where
+ts = '2015-04-23 15:57:00' AND
+ts0 = '2015-04-23 15:57:00' AND
+ts3 = '2015-04-23 15:57:00.987' AND
+ts6 = '2015-04-23 15:57:00.987654' AND
+t =   '15:58:20' AND
+t0 =  '15:58:20' AND
+t3 =  '15:58:20.987' AND
+t6 =  '15:58:20.987654' AND
+d   = '2015-04-23 15:57:00' AND
+d0  = '2015-04-23 15:57:00' AND
+d3  = '2015-04-23 15:57:00.987' AND
+d6  = '2015-04-23 15:57:00.987654' AND
+a   = 2;
+b
+2
+# Expect 1 local read
+select (Variable_value - 0) - @start_local_reads as local_reads
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+local_reads
+1
+Test OI scan pruning
+select @start_local_reads:=(Variable_value + 0)
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+SELECT count(b) FROM t1 where
+ts = '2015-04-23 15:57:00' AND
+ts0 = '2015-04-23 15:57:00' AND
+ts3 = '2015-04-23 15:57:00.987' AND
+ts6 = '2015-04-23 15:57:00.987654' AND
+t =   '15:58:20' AND
+t0 =  '15:58:20' AND
+t3 =  '15:58:20.987' AND
+t6 =  '15:58:20.987654' AND
+d   = '2015-04-23 15:57:00' AND
+d0  = '2015-04-23 15:57:00' AND
+d3  = '2015-04-23 15:57:00.987' AND
+d6  = '2015-04-23 15:57:00.987654';
+count(b)
+3
+# Expect 3 local reads
+select (Variable_value - 0) - @start_local_reads as local_reads
+from information_schema.global_status
+where variable_name="Ndb_api_trans_local_read_row_count_session";
+local_reads
+3
+drop table t1;
+# Specific DDL check
+create table t1 (a int primary key,
+b timestamp default current_timestamp on update current_timestamp,
+c int) engine=ndb;
+insert into t1 (a,c) values (1,1), (2,2);
+update t1 set c=3;
+delete from t1;
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+c Int NULL AT=FIXED ST=MEMORY
+Indexes:
+PRIMARY(a) - OrderedIndex
+drop table t1;
+set time_zone = default;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM

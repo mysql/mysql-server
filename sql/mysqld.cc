@@ -583,6 +583,15 @@ ulong expire_logs_days = 0;
   in the sp_cache for one connection.
 */
 ulong stored_program_cache_size= 0;
+#ifndef MCP_BUG20701918
+/**
+  Compatibility option to prevent creation of new temporals
+  during CREATE TABLE and certain ALTER TABLE operations.
+
+  @note implies avoid_temporal_upgrade.
+*/
+my_bool create_old_temporals;
+#endif
 /**
   Compatibility option to prevent auto upgrade of old temporals
   during certain ALTER TABLE operations.
@@ -8765,6 +8774,12 @@ pfs_error:
   case OPT_TABLE_DEFINITION_CACHE:
     table_definition_cache_specified= true;
     break;
+#ifndef MCP_BUG20701918
+  case OPT_CREATE_OLD_TEMPORALS:
+    WARN_DEPRECATED_NO_REPLACEMENT(NULL, "create_old_temporals");
+    avoid_temporal_upgrade= create_old_temporals= true;
+    break;
+#endif
   case OPT_AVOID_TEMPORAL_UPGRADE:
     WARN_DEPRECATED_NO_REPLACEMENT(NULL, "avoid_temporal_upgrade");
     break;

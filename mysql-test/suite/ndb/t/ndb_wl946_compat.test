@@ -1,0 +1,287 @@
+--source include/have_ndb.inc
+--source include/not_embedded.inc
+--source suite/ndb/include/have_little_endian.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+# test --create-old-temporals option for creating tables
+# with compatible 'old' types
+# uses table definition and data from wl_946_pre.test
+# (MCP_BUG20701918)
+
+--echo # Testing create_old_temporals option
+--echo # This option causes column types with no
+--echo # specific fractional part to be created
+--echo # using the 'old' types
+show variables like '%create_old_temporals%';
+
+select @@session.time_zone;
+set time_zone = '+00:00';
+select @@session.time_zone;
+
+--echo # create table prec 0
+# With --create-old-temporals, this will use the old types
+--let $prec=
+--let $frac=
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # test defaults
+insert into t1 (a) values (0);
+select * from t1;
+delete from t1;
+
+--echo # restore data from wl946_pre with no promotion
+--echo # will only work if the types are the same
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -r $MYSQL_TEST_DIR/suite/ndb/backups/wl946_pre >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/suite/ndb/backups/wl946_pre >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # run index queries
+--source ndb_wl946_pre_query.inc
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+--echo # remove indexes + run queries (test cond pushdown etc)
+alter table t1 drop index bx;
+alter table t1 drop index cx;
+alter table t1 drop index dx;
+alter table t1 drop index ex;
+alter table t1 drop index fx;
+--source ndb_wl946_pre_query.inc
+
+--echo # drop table
+drop table t1;
+
+--echo # restore meta from backup
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m --print-meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from backup
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # run index queries
+--source ndb_wl946_pre_query.inc
+
+--echo # drop table
+drop table t1;
+
+# create table with new types
+# Test promotion of old backup to new types
+
+--let $prec=(0)
+--let $frac=
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from backup with promote
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # run index queries
+--source ndb_wl946_pre_query.inc
+
+--echo # Alter table + forced 'upgrade' of types
+--echo # Should be disabled due to create-old-temporals
+--echo # Implying --avoid-temporal-upgrade
+show variables like '%avoid_temporal_upgrade%';
+
+alter table t1 force;
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # run index queries
+--source ndb_wl946_pre_query.inc
+
+drop table t1;
+
+--echo Check hinting + pruning behaviour
+create table t1 (ts  timestamp,
+                 ts0 timestamp(0),
+                 ts3 timestamp(3),
+                 ts6 timestamp(6),
+                 t   time,
+                 t0  time(0),
+                 t3  time(3),
+                 t6  time(6),
+                 d   datetime,
+                 d0  datetime(0),
+                 d3  datetime(3),
+                 d6  datetime(6),
+                 a   int,
+                 b   int,
+                 primary key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6,a)) 
+  engine=ndb
+  partition by key(ts,ts0,ts3,ts6,t,t0,t3,t6,d,d0,d3,d6);
+
+--source show_attributes.inc
+--source show_indexes.inc
+
+insert into t1 values
+  ('2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   '15:58:20',
+   '15:58:20',
+   '15:58:20.987',
+   '15:58:20.987654',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   1,
+   1),
+  ('2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   '15:58:20',
+   '15:58:20',
+   '15:58:20.987',
+   '15:58:20.987654',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   2,
+   2),
+  ('2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   '15:58:20',
+   '15:58:20',
+   '15:58:20.987',
+   '15:58:20.987654',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00',
+   '2015-04-23 15:57:00.987',
+   '2015-04-23 15:57:00.987654',
+   3,
+   3),
+  ('2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   '16:58:20',
+   '16:58:20',
+   '16:58:20.987',
+   '16:58:20.987654',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   4,
+   4),
+  ('2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   '16:58:20',
+   '16:58:20',
+   '16:58:20.987',
+   '16:58:20.987654',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00',
+   '2015-04-23 16:57:00.987',
+   '2015-04-23 16:57:00.987654',
+   5,
+   5);
+
+--disable_result_log
+select @start_local_reads:=(Variable_value + 0)
+  from information_schema.global_status
+  where variable_name="Ndb_api_trans_local_read_row_count_session";
+--enable_result_log
+
+--echo Test PK lookup hinting
+
+SELECT b FROM t1 where
+  ts = '2015-04-23 15:57:00' AND
+  ts0 = '2015-04-23 15:57:00' AND
+  ts3 = '2015-04-23 15:57:00.987' AND
+  ts6 = '2015-04-23 15:57:00.987654' AND
+  t =   '15:58:20' AND
+  t0 =  '15:58:20' AND
+  t3 =  '15:58:20.987' AND
+  t6 =  '15:58:20.987654' AND
+  d   = '2015-04-23 15:57:00' AND
+  d0  = '2015-04-23 15:57:00' AND
+  d3  = '2015-04-23 15:57:00.987' AND
+  d6  = '2015-04-23 15:57:00.987654' AND
+  a   = 2;
+
+--echo # Expect 1 local read
+select (Variable_value - 0) - @start_local_reads as local_reads
+  from information_schema.global_status
+ where variable_name="Ndb_api_trans_local_read_row_count_session";
+
+--echo Test OI scan pruning
+--disable_result_log
+select @start_local_reads:=(Variable_value + 0)
+  from information_schema.global_status
+  where variable_name="Ndb_api_trans_local_read_row_count_session";
+--enable_result_log
+
+SELECT count(b) FROM t1 where
+  ts = '2015-04-23 15:57:00' AND
+  ts0 = '2015-04-23 15:57:00' AND
+  ts3 = '2015-04-23 15:57:00.987' AND
+  ts6 = '2015-04-23 15:57:00.987654' AND
+  t =   '15:58:20' AND
+  t0 =  '15:58:20' AND
+  t3 =  '15:58:20.987' AND
+  t6 =  '15:58:20.987654' AND
+  d   = '2015-04-23 15:57:00' AND
+  d0  = '2015-04-23 15:57:00' AND
+  d3  = '2015-04-23 15:57:00.987' AND
+  d6  = '2015-04-23 15:57:00.987654';
+  # a not specified, OI scan, pruned by distribution key
+
+--echo # Expect 3 local reads
+select (Variable_value - 0) - @start_local_reads as local_reads
+  from information_schema.global_status
+ where variable_name="Ndb_api_trans_local_read_row_count_session";
+
+drop table t1;
+
+--echo # Specific DDL check
+create table t1 (a int primary key,
+                 b timestamp default current_timestamp on update current_timestamp,
+                 c int) engine=ndb;
+
+insert into t1 (a,c) values (1,1), (2,2);
+update t1 set c=3;
+delete from t1;
+
+--source show_attributes.inc
+--source show_indexes.inc
+
+drop table t1;
+
+set time_zone = default;
+select @@session.time_zone;
+

@@ -70,6 +70,18 @@ drop table t1;
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 
+--echo # Alter table + forced 'upgrade' of types
+show variables like '%avoid_temporal_upgrade%';
+
+alter table t1 force;
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+
 set time_zone = default;
 select @@session.time_zone;
 
