@@ -15,7 +15,7 @@
 #include "sql_parse.h"                  /* check_access */
 #include "rpl_filter.h"                 /* rpl_filter */
 #include "sql_base.h"                   /* MYSQL_LOCK_IGNORE_TIMEOUT */
-#include "sql_table.h"                  /* open_ltable */
+#include "sql_table.h"                  /* write_bin_log */
 #include "sql_plugin.h"                 /* lock_plugin_data etc. */
 #include "password.h"                   /* my_make_scrambled_password */
 #include "log_event.h"                  /* append_query_string */

@@ -335,7 +335,7 @@ TODO list:
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
-#include "sql_table.h"
+#include "sql_table.h"                          // filename_to_tablename
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>

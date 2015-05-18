@@ -15,7 +15,7 @@
 
 #include "datadict.h"
 #include "sql_class.h"
-#include "sql_table.h"
+#include "sql_table.h"                          // build_table_filename
 #include "mysqld.h"                             // key_file_frm
 
 #include "pfs_file_provider.h"
