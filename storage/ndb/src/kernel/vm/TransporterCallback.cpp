@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,11 +71,14 @@ static const ConnectionError connectionError[] =
 
 const char *lookupConnectionError(Uint32 err)
 {
-  int i= 0;
-  while ((Uint32)connectionError[i].err != err && 
-	 connectionError[i].err != -1)
-    i++;
-  return connectionError[i].text;
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(connectionError); i++)
+  {
+    if ((Uint32)connectionError[i].err == err)
+    {
+      return connectionError[i].text;
+    }
+  }
+  return "No connection error message available (please report a bug)";
 }
 
 #ifndef NDBD_MULTITHREADED
