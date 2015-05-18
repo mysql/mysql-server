@@ -181,6 +181,10 @@ public:
   };
   typedef Ptr<Node> NodePtr;
 
+  void update_lcp_pages_scanned(Signal *signal,
+                                Uint32 filePtrI,
+                                Uint32 scanned_pages);
+
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
     union {
@@ -264,6 +268,7 @@ public:
      */
     void newRecord(Uint32 * base);
     void finished(Uint32 len);
+    void set_scanned_pages(Uint32 num_scanned_pages);
     
   private:
     Uint32* base; 
@@ -280,6 +285,7 @@ public:
     Uint64 noOfRecords;
     Uint64 noOfBytes;
     Uint32 maxRecordSize;
+    Uint32 lcpScannedPages;
     
     /*
       keeps track of total written into backup file to be able to show
@@ -804,6 +810,13 @@ public:
     return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
   }
 };
+
+inline
+void
+Backup::OperationRecord::set_scanned_pages(Uint32 num_pages_scanned)
+{
+  lcpScannedPages = num_pages_scanned;
+}
 
 inline
 void
