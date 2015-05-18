@@ -3240,7 +3240,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
       BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
       NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
       sendSignal(rg, GSN_BACKUP_FRAGMENT_COMPLETE_REP, signal,
-                 BackupFragmentCompleteRep::SignalLength, JBB);
+                 BackupFragmentCompleteRep::SignalLength, JBA);
     }
     nextFragment(signal, ptr);
   }
@@ -3858,7 +3858,7 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     ref->fragmentId = fragPtr.p->fragmentId;
     ref->errorCode = errCode;
     sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_REF, 
-	       signal, LcpPrepareRef::SignalLength, JBB);
+	       signal, LcpPrepareRef::SignalLength, JBA);
     return;
   }
 
@@ -5444,7 +5444,7 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
     conf->noOfBytesLow = (Uint32)(op.noOfBytes & 0xFFFFFFFF);
     conf->noOfBytesHigh = (Uint32)(op.noOfBytes >> 32);
     sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	       BackupFragmentConf::SignalLength, JBB);
+	       BackupFragmentConf::SignalLength, JBA);
 
     ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_CONF;
     ptr.p->slaveState.setState(STARTED);
@@ -6641,7 +6641,174 @@ Backup::execFSREMOVECONF(Signal* signal){
 }
 
 /**
- * LCP
+ * LCP execution starts.
+ *
+ * Description of local LCP handling when checkpointing one fragment locally in
+ * this data node. DBLQH, BACKUP are executing always in the same thread. DICT
+ * and NDBFS mostly execute in different threads.
+ *
+
+ DBLQH                        BACKUP             DICT              NDBFS
+  |                             |
+  |   LCP_PREPARE_REQ           |
+  |---------------------------->|
+  |                             |    FSOPENREQ
+  |                             |----------------------------------->|
+  |                             |    FSOPENCONF                      |
+  |                             |<-----------------------------------|
+  |                             |  GET_TABINFOREQ  |
+  |                             |----------------->|
+  |                             | GET_TABINFO_CONF |
+  |                             |<-----------------|
+  |   LCP_PREPARE_CONF          |
+  |<----------------------------|
+  |   BACKUP_FRAGMENT_REQ       |-------> CONTINUEB(START_FILE_THREAD)|
+  |---------------------------->|
+  |   SCAN_FRAGREQ              |
+  |<----------------------------|
+  |
+  | Potential CONTINUEB(ZTUP_SCAN) while scanning for tuples to record in LCP
+  |
+  |  TRANSID_AI                 |
+  |---------------------------->|
+  |.... More TRANSID_AI         | (Up to 16 TRANSID_AI, 1 per record)
+  |  SCAN_FRAGCONF(close_flag)  |
+  |---------------------------->|
+  |  SCAN_NEXTREQ               |
+  |<----------------------------|
+  |
+  | Potential CONTINUEB(ZTUP_SCAN) while scanning for tuples to record in LCP
+  |
+  |  TRANSID_AI                 |
+  |---------------------------->|
+  |.... More TRANSID_AI         | (Up to 16 TRANSID_AI, 1 per record)
+  |  SCAN_FRAGCONF(close_flag)  |
+  |---------------------------->|
+  
+  After each SCAN_FRAGCONF we check of there is enough space in the Backup
+  buffer used for the LCP. We will not check it until here, so the buffer
+  must be big enough to be able to store the maximum size of 16 records
+  in the buffer. Given that maximum record size is about 16kB, this means
+  that we must have at least 256 kB of buffer space for LCPs. The default
+  is 2MB, so should not set it lower than this unless trying to achieve
+  a really memory optimised setup.
+
+  If there is currently no space in the LCP buffer, then the buffer is either
+  waiting to be written to disk, or it is being written to disk. In this case
+  we will send a CONTINUEB(BUFFER_FULL_SCAN) delayed signal until the buffer
+  is available again.
+
+  When the buffer is available again we send a new SCAN_NEXTREQ for the next
+  set of rows to be recorded in LCP.
+
+  CONTINUEB(START_FILE_THREAD) will either send a FSAPPENDREQ to the opened
+  file or it will send a delayed CONTINUEB(BUFFER_UNDERFLOW).
+
+  When FSAPPENDCONF arrives it will make the same check again and either
+  send one more file write through FSAPPENDREQ or another
+  CONTINUEB(BUFFER_UNDERFLOW). It will continue like this until the
+  SCAN_FRAGCONF has been sent with close_flag set to true AND all the buffers
+  have been written to disk.
+
+  After the LCP file write have been completed the close of the fragment LCP
+  is started.
+
+  An important consideration when executing LCPs is that they conflict with
+  the normal processing of user commands such as key lookups, scans and so
+  forth. If we execute on normal JBB-level everything we are going to get
+  problems in that we could have job buffers of thousands of signals. This
+  means that we will run the LCP extremely slow which will be a significant
+  problem.
+
+  The other approach is to use JBA-level. This will obviously give the
+  LCP too high priority, we will run LCPs until we have filled up the
+  buffer or even until we have filled up our quota for the 100ms timeslot
+  where we check for those things. This could end up in producing 10
+  MByte of LCP data before allowing user level transactions again. This
+  is also obviously not a good idea.
+
+  So most of the startup and shutdown logic for LCPs, both for the entire
+  LCP and messages per fragment LCP is ok to raise to JBA level. They are
+  short and concise messages and won't bother the user transactions at any
+  noticable level. We will avoid fixing GET_TABINFO for that since it
+  is only one signal per fragment LCP and also the code path is also used
+  many other activitites which are not suitable to run at JBA-level.
+
+  So the major problem to handle is the actual scanning towards LQH. Here
+  we need to use a mechanism that keeps the rate at appropriate levels.
+  We will use a mix of keeping track of how many jobs were executed since
+  last time we executed together with sending JBA-level signals to speed
+  up LCP processing for a short time and using signals sent with delay 0
+  to avoid being delayed for more than 128 signals (the maximum amount
+  of signals executed before we check timed signals).
+
+  The first step to handle this is to ensure that we can send SCAN_FRAGREQ
+  on priority A and that this also causes the resulting signals that these
+  messages generate also to be sent on priority A level. Then each time
+  we can continue the scan immediately after receiving SCAN_FRAGCONF we
+  need to make a decision at which level to send the signal. We can
+  either send it as delayed signal with 0 delay or we could send them
+  at priority A level to get another chunk of data for the LCP at a high
+  priority.
+
+  We send the information about Priority A-level as a flag in the
+  SCAN_FRAGREQ signal. This will ensure that all resulting signals
+  will be sent on Priority A except the CONTINUEB(ZTUP_SCAN) which
+  will get special treatment where it increases the length of the
+  loop counter and sends the signal with delay 0. We cannot send
+  this signal on priority level A since there is no bound on how
+  long it will execute.
+
+ DBLQH                        BACKUP             DICT              NDBFS
+  |                             |     FSCLOSEREQ
+  |                             |------------------------------------>|
+  |                             |     FSCLOSECONF
+  |                             |<------------------------------------|
+  | BACKUP_FRAGMENT_CONF        |
+  |<----------------------------|
+  |
+  |                     DIH
+  |  LCP_FRAG_REP        |
+  |--------------------->|
+
+  Finally after completing all fragments we have a number of signals sent to
+  complete the LCP processing.
+
+  |   END_LCPREQ                |
+  |---------------------------->|
+  |   END_LCPCONF               |
+  |<----------------------------|
+  |
+                             LQH Proxy   PGMAN(extra)     LGMAN  TSMAN
+  | LCP_COMPLETE_REP            |
+  |---------------------------->|
+
+  Here the LQH Proxy block will wait for all DBLQH instances to complete.
+  After all have complete the following signals will be sent.
+                             LQH Proxy   PGMAN(extra)     LGMAN  TSMAN
+
+                                | END_LCPREQ |
+                                |----------->|
+                                | END_LCPCONF|
+                                |<-----------|
+                                | END_LCPREQ                        |
+                                |---------------------------------->|
+                                | END_LCPREQ                |
+                                |-------------------------->|
+                                | END_LCPCONF               |
+                                |<--------------------------|
+                                |
+                                | LCP_COMPLETE_REP(DBLQH) sent to DIH
+
+  The TSMAN block doesn't respond to END_LCPREQ. The LGMAN is required to be
+  involved at the end of the LCP to ensure that the UNDO log have been fully
+  synched to disk before we report the LCP as complete. We won't use any
+  fragment LCPs until the full LCP is complete for disk data due to this.
+
+  As preparation for this DBLQH sent DEFINE_BACKUP_REQ to setup a backup
+  record in restart phase 4. It must get the response DEFINE_BACKUP_CONF for
+  the restart to successfully complete. This signal allocates memory for the
+  LCP buffers.
  */
 void
 Backup::execLCP_PREPARE_REQ(Signal* signal)
@@ -6765,7 +6932,7 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   conf->noOfBytesLow = (op.noOfBytes & 0xFFFFFFFF);
   conf->noOfBytesHigh = (op.noOfBytes >> 32);
   sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	     BackupFragmentConf::SignalLength, JBB);
+	     BackupFragmentConf::SignalLength, JBA);
 }
 
 void
@@ -6834,7 +7001,7 @@ Backup::lcp_open_file_done(Signal* signal, BackupRecordPtr ptr)
   conf->tableId = tabPtr.p->tableId;
   conf->fragmentId = fragPtr.p->fragmentId;
   sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_CONF, 
-	     signal, LcpPrepareConf::SignalLength, JBB);
+	     signal, LcpPrepareConf::SignalLength, JBA);
 
   /**
    * Start file thread
@@ -6881,7 +7048,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   conf->senderData = ptr.p->clientData;
   conf->senderRef = reference();
   sendSignal(ptr.p->masterRef, GSN_END_LCPCONF,
-	     signal, EndLcpConf::SignalLength, JBB);
+	     signal, EndLcpConf::SignalLength, JBA);
 }
 
 inline

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -348,9 +348,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIVERIFYREQ                 241
 #define GSN_ENABLE_COMREQ               242 /* local */
 #define GSN_END_LCPCONF                 243
-#define GSN_END_LCP_CONF                243
 #define GSN_END_LCPREQ                  244
-#define GSN_END_LCP_REQ                 244
 #define GSN_END_TOCONF                  245
 #define GSN_END_TOREQ                   246
 #define GSN_END_TOREF                   286

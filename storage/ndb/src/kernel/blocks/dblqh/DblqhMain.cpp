@@ -14752,7 +14752,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
      * receives this signal it will update the counter and then drop the
      * signal. So no signal will be sent to DBDIH in any case.
      */
-    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal, 1, JBB);
+    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal, 1, JBA);
     return;
   }
 
@@ -14953,7 +14953,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     if(ERROR_INSERTED(5904))
     {
     g_trace_lcp.sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
-			   BackupFragmentReq::SignalLength, JBB);
+			   BackupFragmentReq::SignalLength, JBA);
     }
     else
 #endif
@@ -14979,7 +14979,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       {
         BlockReference backupRef = calcInstanceBlockRef(BACKUP);
 	sendSignal(backupRef, GSN_BACKUP_FRAGMENT_REQ, signal, 
-		   BackupFragmentReq::SignalLength, JBB);
+		   BackupFragmentReq::SignalLength, JBA);
       }
     }
   }
@@ -15082,7 +15082,7 @@ Dblqh::sendLCP_FRAG_REP(Signal * signal,
   }
   lcpReport->nodeId = LcpFragRep::BROADCAST_REQ;
   sendSignal(ref, GSN_LCP_FRAG_REP, signal,
-             LcpFragRep::SignalLength, JBB);
+             LcpFragRep::SignalLength, JBA);
 }
 
 void Dblqh::contChkpNextFragLab(Signal* signal) 
@@ -15179,7 +15179,7 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   sendSignal(backupRef, GSN_LCP_PREPARE_REQ, signal, 
-	     LcpPrepareReq::SignalLength, JBB);
+	     LcpPrepareReq::SignalLength, JBA);
 
   /* Now start the LCP fragment watchdog */
   startLcpFragWatchdog(signal);
@@ -15242,21 +15242,21 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
 
   lcpPtr.p->m_outstanding++;
-  sendSignal(backupRef, GSN_END_LCP_REQ, signal, 
-	     EndLcpReq::SignalLength, JBB);
+  sendSignal(backupRef, GSN_END_LCPREQ, signal, 
+	     EndLcpReq::SignalLength, JBA);
 
   if (!isNdbMtLqh())
   {
     jam();
     lcpPtr.p->m_outstanding++;
-    sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
-               EndLcpReq::SignalLength, JBB);
+    sendSignal(PGMAN_REF, GSN_END_LCPREQ, signal, 
+               EndLcpReq::SignalLength, JBA);
 
     lcpPtr.p->m_outstanding++;
-    sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
-               EndLcpReq::SignalLength, JBB);
+    sendSignal(LGMAN_REF, GSN_END_LCPREQ, signal, 
+               EndLcpReq::SignalLength, JBA);
 
-    EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ,
+    EXECUTE_DIRECT(TSMAN, GSN_END_LCPREQ,
                    signal, EndLcpReq::SignalLength, 0);
   }
   else
@@ -15324,7 +15324,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   rep->nodeId = LcpFragRep::BROADCAST_REQ;
 
   sendSignal(ref, GSN_LCP_COMPLETE_REP, signal,
-             LcpCompleteRep::SignalLength, JBB);
+             LcpCompleteRep::SignalLength, JBA);
   
   if(lcpPtr.p->reportEmpty){
     jam();
