@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #define DBTUP_C
 #define DBTUP_SCAN_CPP
 #include "Dbtup.hpp"
+#include "../backup/Backup.hpp"
 #include <signaldata/AccScan.hpp>
 #include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
@@ -684,14 +685,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   Tuple_header* th = 0;
   Uint32 thbits = 0;
   Uint32 loop_count = 0;
-  Uint32 scanGCI = scanPtr.p->m_scanGCI;
+  Uint32 scanGCI = scan.m_scanGCI;
   Uint32 foundGCI;
- 
-  const bool mm = (bits & ScanOp::SCAN_DD);
+
+  const bool mm_index = (bits & ScanOp::SCAN_DD);
   const bool lcp = (bits & ScanOp::SCAN_LCP);
 
   const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
-    table.m_offsets[mm].m_fix_header_size : 1;
+    table.m_offsets[mm_index].m_fix_header_size : 1;
   const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
   if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
@@ -748,6 +749,19 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         key.m_page_no++;
+        if (bits & ScanOp::SCAN_LCP)
+        {
+          jam();
+          /**
+           * We could be scanning for a long time and only finding LCP_SKIP
+           * records, we need to keep the LCP watchdog aware that we are
+           * progressing, so we report each change to a new page by reporting
+           * the id of the next page to scan.
+           */
+          c_backup->update_lcp_pages_scanned(signal,
+                      c_lqh->get_scan_api_op_ptr(scan.m_userPtr),
+                      key.m_page_no);
+        }
         if (key.m_page_no >= frag.m_max_page_no) {
           jam();
 
