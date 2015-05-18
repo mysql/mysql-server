@@ -84,8 +84,6 @@ DROP DATABASE information_schema;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 RENAME DATABASE information_schema TO info_schema;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE information_schema TO info_schema' at line 1
-ALTER DATABASE information_schema UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UPGRADE DATA DIRECTORY NAME' at line 1
 ####################################################################################
 3 Switch to connection con100 (user=ddicttestuser1 with no PROCESS privilege):
 SHOW/SELECT shows only the processes (1) of the user.
@@ -151,8 +149,6 @@ DROP DATABASE information_schema;
 ERROR 42000: Access denied for user 'ddicttestuser1'@'localhost' to database 'information_schema'
 RENAME DATABASE information_schema TO info_schema;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE information_schema TO info_schema' at line 1
-ALTER DATABASE information_schema UPGRADE DATA DIRECTORY NAME;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UPGRADE DATA DIRECTORY NAME' at line 1
 ####################################################################################
 4 Grant PROCESS privilege to ddicttestuser1
 connection default (user=root)
