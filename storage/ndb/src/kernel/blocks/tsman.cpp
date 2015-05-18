@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -652,10 +652,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       break;
     }
 
-    if (!handle.m_cnt == 1)
-    {
-      ndbrequire(false);
-    }
+    ndbrequire(handle.m_cnt > 0);
     
     if (!m_file_pool.seize(file_ptr))
     {
