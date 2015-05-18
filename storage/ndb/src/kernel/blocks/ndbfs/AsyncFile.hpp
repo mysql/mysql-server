@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,7 @@ private:
 protected:
   size_t m_write_wo_sync;  // Writes wo/ sync
   size_t m_auto_sync_freq; // Auto sync freq in bytes
+  bool m_always_sync; /* O_SYNC not supported, then use this flag */
   Uint32 m_open_flags;
 
   /**
