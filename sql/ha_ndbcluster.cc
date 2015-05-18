@@ -10620,13 +10620,13 @@ cleanup_failed:
       */
       if (!Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, m_tabname) &&
           !ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
-                                   share && do_event_op ? 2 : 1/* push warning */))
+                                   do_event_op ? 2 : 1/* push warning */))
       {
         if (opt_ndb_extra_logging)
           sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
                                 event_name.c_ptr());
-        if (share && 
-            ndbcluster_create_event_ops(thd, share,
+
+        if (ndbcluster_create_event_ops(thd, share,
                                         m_table, event_name.c_ptr()))
         {
           sql_print_error("NDB Binlog: FAILED CREATE TABLE event operations."
@@ -14002,12 +14002,6 @@ static void print_ndbcluster_open_tables()
   DBUG_EXECUTE("info",                          \
                print_ndbcluster_open_tables(););
 
-#define dbug_print_share(t, s)                  \
-  DBUG_LOCK_FILE;                               \
-  DBUG_EXECUTE("info",                          \
-               (s)->print((t), DBUG_FILE););    \
-  DBUG_UNLOCK_FILE;
-
 
 /*
   For some reason a share is still around, try to salvage the situation
@@ -14132,10 +14126,10 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
 int
 ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
 {
+  DBUG_ENTER("ndbcluster_rename_share");
   native_mutex_lock(&ndbcluster_mutex);
-  DBUG_PRINT("ndbcluster_rename_share",
-             ("old_key: %s  old_length: %lu",
-              share->key_string(), share->key_length()));
+  DBUG_PRINT("enter", ("share->key: '%s'", share->key_string()));
+  DBUG_PRINT("enter", ("new_key: '%s'", NDB_SHARE::key_get_key(new_key)));
 
   // Handle the case where NDB_SHARE with new_key already exists
   {
@@ -14151,7 +14145,6 @@ ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
 
   /* remove the share from hash */
   my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
-  dbug_print_open_tables();
 
   /* save old key if insert should fail */
   NDB_SHARE_KEY *old_key= share->key;
@@ -14160,9 +14153,7 @@ ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
 
   if (my_hash_insert(&ndbcluster_open_tables, (uchar*) share))
   {
-    // ToDo free the allocated stuff above?
-    DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
-                         share->key_string()));
+    DBUG_PRINT("error", ("Failed to insert %s", share->key_string()));
     // Catch this unlikely error in debug
     DBUG_ASSERT(false);
     share->key= old_key;
@@ -14170,31 +14161,38 @@ ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
     {
       sql_print_error("ndbcluster_rename_share: failed to recover %s",
                       share->key_string());
-      DBUG_PRINT("error", ("ndbcluster_rename_share: my_hash_insert %s failed",
+      DBUG_PRINT("error", ("Failed to reinsert share with old name %s",
                            share->key_string()));
     }
-    dbug_print_open_tables();
     native_mutex_unlock(&ndbcluster_mutex);
-    return -1;
+    DBUG_RETURN(-1);
   }
-  dbug_print_open_tables();
 
+  DBUG_PRINT("info", ("setting db and table_name to point at new key"));
   share->db= NDB_SHARE::key_get_db_name(share->key);
   share->table_name= NDB_SHARE::key_get_table_name(share->key);
 
-  dbug_print_share("ndbcluster_rename_share:", share);
   Ndb_event_data *event_data= share->get_event_data_ptr();
   if (event_data && event_data->shadow_table)
   {
     if (!IS_TMP_PREFIX(share->table_name))
     {
-      event_data->shadow_table->s->db.str= share->db;
-      event_data->shadow_table->s->db.length= strlen(share->db);
-      event_data->shadow_table->s->table_name.str= share->table_name;
-      event_data->shadow_table->s->table_name.length= strlen(share->table_name);
+      DBUG_PRINT("info", ("Renaming shadow table"));
+      // Allocate new strings for db and table_name for shadow_table
+      // in event_data's MEM_ROOT(where the shadow_table itself is allocated)
+      // NOTE! This causes a slight memory leak since the already existing
+      // strings are not release until the mem_root is eventually
+      // released.
+      lex_string_copy(&event_data->mem_root,
+                      &event_data->shadow_table->s->db,
+                      share->db);
+      lex_string_copy(&event_data->mem_root,
+                      &event_data->shadow_table->s->table_name,
+                      share->table_name);
     }
     else
     {
+      DBUG_PRINT("info", ("Name is temporary, skip rename of shadow table"));
       /**
        * we don't rename the table->s here 
        *   that is used by injector
@@ -14205,13 +14203,11 @@ ndbcluster_rename_share(THD *thd, NDB_SHARE *share, NDB_SHARE_KEY* new_key)
   }
   /* else rename will be handled when the ALTER event comes */
 
-  if (opt_ndb_extra_logging > 9)
-    sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u",
-                           NDB_SHARE::key_get_key(old_key),
-                           share->key_string(), share->use_count);
+  // Print share after rename
+  dbug_print_share("renamed share:", share);
 
   native_mutex_unlock(&ndbcluster_mutex);
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /*
