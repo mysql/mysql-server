@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -195,10 +195,14 @@ void PosixAsyncFile::openReq(Request *request)
   }
 #endif
 
+  m_always_sync = false;
+
   if ((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
     new_flags |= O_SYNC;
+#else
+    m_always_sync = true;
 #endif
   }
 
@@ -466,6 +470,8 @@ no_odirect:
     {
       request->error = errno;
     }
+#else
+    m_always_sync = true;
 #endif
   }
 
@@ -718,7 +724,9 @@ bool PosixAsyncFile::isOpen(){
 
 void PosixAsyncFile::syncReq(Request *request)
 {
-  if(m_auto_sync_freq && m_write_wo_sync == 0){
+  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
+      m_always_sync)
+  {
     return;
   }
   if (-1 == ::fsync(theFd)){
@@ -759,7 +767,9 @@ void PosixAsyncFile::appendReq(Request *request)
     buf += n;
   }
 
-  if(m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq){
+  if ((m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq) ||
+      m_always_sync)
+  {
     syncReq(request);
   }
 }
