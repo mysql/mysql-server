@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -440,7 +440,7 @@ protected:
   void execEMPTY_LCP_REQ(Signal*);
   void execLCP_FRAG_ORD(Signal*);
   void execLCP_FRAG_REP(Signal*);
-  void execEND_LCP_CONF(Signal*);
+  void execEND_LCPCONF(Signal*);
   void execLCP_COMPLETE_REP(Signal*);
 
   struct LcpRecord {
@@ -455,7 +455,7 @@ protected:
     Uint32 m_keepGci;
     Uint32 m_lcp_frag_ord_cnt;     // No of LCP_FRAG_ORD received
     Uint32 m_lcp_frag_rep_cnt;     // No of LCP_FRAG_REP sent
-    Uint32 m_complete_outstanding; // Outstanding END_LCP_REQ
+    Uint32 m_complete_outstanding; // Outstanding END_LCPREQ
     NdbNodeBitmask m_empty_lcp_req;// Nodes waiting for EMPTY_LCP_CONF
     LcpFragOrd m_last_lcp_frag_ord;// Last received LCP_FRAG_ORD
     bool m_lastFragmentFlag;
