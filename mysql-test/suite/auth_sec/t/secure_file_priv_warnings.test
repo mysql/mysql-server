@@ -15,6 +15,9 @@ let PLUGIN_DIR= $MYSQLTEST_VARDIR/tmp;
 let SEARCH_PATTERN= Insecure configuration for --secure-file-priv: Current value does not restrict location of generated files. Consider setting it to a valid, non-empty path.;
 --source include/search_pattern_in_file.inc
 
+# Must show empty string
+SHOW VARIABLES LIKE 'secure_file_priv';
+
 --echo #-----------------------------------------------------------------------
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
