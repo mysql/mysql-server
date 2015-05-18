@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1903,8 +1903,10 @@ CommandInterpreter::executeClusterLog(char* parameters)
      {NDB_MGM_EVENT_SEVERITY_ERROR,0},
      {NDB_MGM_EVENT_SEVERITY_CRITICAL,0},
      {NDB_MGM_EVENT_SEVERITY_ALERT,0}};
-  ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv, &enabled[0], NDB_MGM_EVENT_SEVERITY_ALL);
-  if(enabled == NULL) {
+  int returned = ndb_mgm_get_clusterlog_severity_filter(m_mgmsrv,
+                                                  &enabled[0],
+                                                  NDB_MGM_EVENT_SEVERITY_ALL);
+  if(returned != NDB_MGM_EVENT_SEVERITY_ALL) {
     ndbout << "Couldn't get status" << endl;
     printError();
     m_error = -1;
