@@ -23,6 +23,7 @@
 #include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
 #include <md5_hash.hpp>
+#include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 408
 
