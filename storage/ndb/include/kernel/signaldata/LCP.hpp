@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -269,7 +269,7 @@ struct LcpStatusConf
 
   friend bool printLCP_STATUS_CONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 11 );
+  STATIC_CONST( SignalLength = 12 );
 
   enum LcpState
   {
@@ -300,9 +300,15 @@ private:
    * For LCP_SCANNED contains bytes remaining to be flushed
    * to file.
    *  (Decreases as buffer drains to file)
+   *
+   * lcpScannedPages is number of pages scanned by TUP, it is possible
+   * to scan for a long while only finding LCP_SKIP records, so this
+   * is necessary to check as well for progress.
    */
   Uint32 completionStateHi;
   Uint32 completionStateLo;
+
+  Uint32 lcpScannedPages;
 };
 
 struct LcpStatusRef

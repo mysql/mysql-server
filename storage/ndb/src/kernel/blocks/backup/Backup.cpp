@@ -4328,11 +4328,27 @@ Backup::execTRANSID_AI(Signal* signal)
   op.newRecord(dst + dataLen + 1);
 }
 
+void
+Backup::update_lcp_pages_scanned(Signal *signal,
+                                 Uint32 filePtrI,
+                                 Uint32 scanned_pages)
+{
+  BackupFilePtr filePtr;
+  jamEntry();
+
+  c_backupFilePool.getPtr(filePtr, filePtrI);
+
+  OperationRecord & op = filePtr.p->operation;
+ 
+  op.set_scanned_pages(scanned_pages);
+}
+
 void 
 Backup::OperationRecord::init(const TablePtr & ptr)
 {
   tablePtr = ptr.i;
   maxRecordSize = ptr.p->maxRecordSize;
+  lcpScannedPages = 0;
 }
 
 bool
@@ -6108,6 +6124,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       setWords(ptr.p->noOfBytes,
                conf->lcpDoneBytesHi,
                conf->lcpDoneBytesLo);
+      conf->lcpScannedPages = 0;
       
       if (state == LcpStatusConf::LCP_SCANNING ||
           state == LcpStatusConf::LCP_SCANNED)
@@ -6143,6 +6160,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           setWords(filePtr.p->operation.noOfRecords,
                    conf->completionStateHi,
                    conf->completionStateLo);
+          conf->lcpScannedPages = filePtr.p->operation.lcpScannedPages;
         }
         else if (state == LcpStatusConf::LCP_SCANNED)
         {
