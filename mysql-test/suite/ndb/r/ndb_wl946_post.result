@@ -120,6 +120,46 @@ fx(f) - OrderedIndex
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1105949732775
+# Alter table + forced 'upgrade' of types
+show variables like '%avoid_temporal_upgrade%';
+Variable_name	Value
+avoid_temporal_upgrade	OFF
+alter table t1 force;
+Warnings:
+Note	1880	TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
 set time_zone = default;
 select @@session.time_zone;
 @@session.time_zone

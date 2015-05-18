@@ -6446,6 +6446,23 @@ field_spec:
           type opt_attribute
           {
             LEX *lex=Lex;
+
+#ifndef MCP_BUG20701918
+            enum_field_types type= static_cast<enum_field_types>($3);
+            if (create_old_temporals && lex->dec == NULL &&
+                (type == MYSQL_TYPE_TIME2 || type ==  MYSQL_TYPE_DATETIME2 ||
+                 type == MYSQL_TYPE_TIMESTAMP2))
+            {
+              type= real_type_to_type(type);
+            }
+            if (add_field_to_list(lex->thd, &$1, type,
+                                  lex->length,lex->dec,lex->type,
+                                  lex->default_value, lex->on_update_value, 
+                                  &lex->comment,
+                                  lex->change,&lex->interval_list,lex->charset,
+                                  lex->uint_geom_type))
+              MYSQL_YYABORT;
+#else
             if (add_field_to_list(lex->thd, &$1, (enum enum_field_types) $3,
                                   lex->length,lex->dec,lex->type,
                                   lex->default_value, lex->on_update_value, 
@@ -6453,6 +6470,8 @@ field_spec:
                                   lex->change,&lex->interval_list,lex->charset,
                                   lex->uint_geom_type))
               MYSQL_YYABORT;
+#endif
+
           }
         ;
 
@@ -7927,6 +7946,24 @@ alter_list_item:
           type opt_attribute
           {
             LEX *lex=Lex;
+
+#ifndef MCP_BUG20701918
+            enum_field_types type= static_cast<enum_field_types>($5);
+            if (create_old_temporals && lex->dec == NULL &&
+                (type == MYSQL_TYPE_TIME2 || type ==  MYSQL_TYPE_DATETIME2 ||
+                 type == MYSQL_TYPE_TIMESTAMP2))
+            {
+              type= real_type_to_type(type);
+            }
+            if (add_field_to_list(lex->thd,&$3,
+                                  type,
+                                  lex->length,lex->dec,lex->type,
+                                  lex->default_value, lex->on_update_value,
+                                  &lex->comment,
+                                  $3.str, &lex->interval_list, lex->charset,
+                                  lex->uint_geom_type))
+              MYSQL_YYABORT;
+#else
             if (add_field_to_list(lex->thd,&$3,
                                   (enum enum_field_types) $5,
                                   lex->length,lex->dec,lex->type,
@@ -7935,6 +7972,8 @@ alter_list_item:
                                   $3.str, &lex->interval_list, lex->charset,
                                   lex->uint_geom_type))
               MYSQL_YYABORT;
+#endif
+
           }
           opt_place
           {
