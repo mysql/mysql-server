@@ -261,4 +261,10 @@ public:
 };
 
 
+#define dbug_print_share(t, s)                  \
+  DBUG_LOCK_FILE;                               \
+  DBUG_EXECUTE("info",                          \
+               (s)->print((t), DBUG_FILE););    \
+  DBUG_UNLOCK_FILE;
+
 #endif
