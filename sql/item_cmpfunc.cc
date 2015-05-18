@@ -1103,7 +1103,6 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                  Item_result type)
 {
   ulonglong const_value= (ulonglong)-1;
-  thd= current_thd;
   owner= owner_arg;
   set_null= set_null && owner_arg;
   a= a1;
@@ -1189,6 +1188,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     type= DECIMAL_RESULT;
   }
 
+  THD *thd= current_thd;
   a= cache_converted_constant(thd, a, &a_cache, type);
   b= cache_converted_constant(thd, b, &b_cache, type);
   return set_compare_func(owner_arg, type);
@@ -1267,7 +1267,7 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd->lex->is_ps_or_view_context_analysis() &&
+  if (!thd_arg->lex->is_ps_or_view_context_analysis() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -1282,7 +1282,6 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
 void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
                                            Item **a1, Item **b1)
 {
-  thd= current_thd;
   owner= owner_arg;
   a= a1;
   b= b1;
@@ -1456,6 +1455,7 @@ int Arg_comparator::compare_datetime()
 {
   bool a_is_null, b_is_null;
   longlong a_value, b_value;
+  THD *thd= current_thd;
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
   a_value= (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null);
@@ -4451,7 +4451,7 @@ void in_datetime::set(uint pos,Item *item)
   bool is_null;
   struct packed_longlong *buff= &base[pos];
 
-  buff->val= get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
+  buff->val= get_datetime_value(current_thd, &tmp_item, 0, warn_item, &is_null);
   buff->unsigned_flag= 1L;
 }
 
@@ -4460,7 +4460,7 @@ uchar *in_datetime::get_value(Item *item)
 {
   bool is_null;
   Item **tmp_item= lval_cache ? &lval_cache : &item;
-  tmp.val= get_datetime_value(thd, &tmp_item, &lval_cache, warn_item, &is_null);
+  tmp.val= get_datetime_value(current_thd, &tmp_item, &lval_cache, warn_item, &is_null);
   if (item->null_value)
     return 0;
   tmp.unsigned_flag= 1L;
@@ -4755,7 +4755,7 @@ void cmp_item_datetime::store_value(Item *item)
 {
   bool is_null;
   Item **tmp_item= lval_cache ? &lval_cache : &item;
-  value= get_datetime_value(thd, &tmp_item, &lval_cache, warn_item, &is_null);
+  value= get_datetime_value(current_thd, &tmp_item, &lval_cache, warn_item, &is_null);
   set_null_value(item->null_value);
 }
 
@@ -4765,7 +4765,7 @@ int cmp_item_datetime::cmp(Item *arg)
   bool is_null;
   Item **tmp_item= &arg;
   const bool rc= value !=
-    get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
+    get_datetime_value(current_thd, &tmp_item, 0, warn_item, &is_null);
   return (m_null_value || arg->null_value) ? UNKNOWN : rc;
 }
 
