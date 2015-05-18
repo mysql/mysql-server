@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3501,7 +3501,6 @@ Dbtup::read_lcp(const Uint32* inBuf, Uint32 inPos,
   Uint32* dst = (Uint32*)(outBuffer + ((outPos - 4) >> 2));
   dst[0] = req_struct->frag_page_id;
   dst[1] = req_struct->operPtrP->m_tuple_location.m_page_idx;
-  ndbassert(req_struct->m_tuple_ptr->m_data != 0);
   memcpy(dst+2, req_struct->m_tuple_ptr->m_data, fixsz);
 
   if (varstart)
