@@ -164,7 +164,7 @@ static void read_dictionary_file()
     {
       dictionary_stream.close();
       my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
-                            "Dictionary file size exceed",
+                            "Dictionary file size exceeded",
                             "MAX_DICTIONARY_FILE_LENGTH, not loaded");
       return;
     }
