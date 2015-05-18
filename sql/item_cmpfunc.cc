@@ -1092,9 +1092,17 @@ get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
 }
 
 
+/**
+  Sets compare functions for various datatypes.
+
+  NOTE
+    The result type of a comparison is chosen by item_cmp_type().
+    Here we override the chosen result type for certain expression
+    containing date or time or decimal expressions.
+ */
 int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
-                                        Item **a1, Item **a2,
-                                        Item_result type)
+                                 Item **a1, Item **a2,
+                                 Item_result type)
 {
   ulonglong const_value= (ulonglong)-1;
   thd= current_thd;
@@ -1164,13 +1172,40 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
       return 1;
   }
   else if (try_year_cmp_func(type))
+  {
     return 0;
+  }
+  else if (type == REAL_RESULT &&
+           (((*a)->result_type() == DECIMAL_RESULT && !(*a)->const_item() &&
+             (*b)->result_type() == STRING_RESULT  &&  (*b)->const_item()) ||
+            ((*b)->result_type() == DECIMAL_RESULT && !(*b)->const_item() &&
+             (*a)->result_type() == STRING_RESULT  &&  (*a)->const_item())))
+  {
+    /*
+     <non-const decimal expression> <cmp> <const string expression>
+     or
+     <const string expression> <cmp> <non-const decimal expression>
+
+     Do comparison as decimal rather than float, in order not to lose precision.
+    */
+    type= DECIMAL_RESULT;
+  }
 
   a= cache_converted_constant(thd, a, &a_cache, type);
   b= cache_converted_constant(thd, b, &b_cache, type);
   return set_compare_func(owner_arg, type);
 }
 
+
+int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
+                                 Item **a1, Item **a2, bool set_null_arg)
+{
+  set_null= set_null_arg;
+  const Item_result item_result=
+    item_cmp_type((*a1)->result_type(),
+                  (*a2)->result_type());
+  return set_cmp_func(owner_arg, a1, a2, item_result);
+}
 
 /*
   Helper function to call from Arg_comparator::set_cmp_func()
