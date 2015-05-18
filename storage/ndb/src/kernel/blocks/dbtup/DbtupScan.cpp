@@ -23,6 +23,7 @@
 #include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
 #include <md5_hash.hpp>
+#include <portlib/ndb_prefetch.h>
 
 #define JAM_FILE_ID 408
 
@@ -814,6 +815,34 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
         }
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
+        /**
+         * We are in the process of performing a Full table scan, this can be
+         * either due to a user requesting a full table scan, it can also be
+         * as part of Node Recovery where we are assisting the starting node
+         * to be synchronized (SCAN_NR set) and it is also used for LCP scans
+         * (SCAN_LCP set).
+         * 
+         * We know that we will touch all cache lines where there is a tuple
+         * header and all scans using main memory pages are done on the fixed
+         * pages. To speed up scan processing we will prefetch such that we
+         * always are a few tuples ahead. We scan ahead 4 tuples here and then
+         * we scan yet one more ahead at each new tuple we get to. We only need
+         * initialise by scanning 3 rows ahead since we will immediately fetch
+         * the fourth one before looking at the first row.
+         *
+         * PREFETCH_SCAN_TUPLE:
+         */
+        if ((key.m_page_idx + (size * 3)) <= Fix_page::DATA_WORDS)
+        {
+          struct Tup_fixsize_page *page_ptr =
+            (struct Tup_fixsize_page*)pagePtr.p;
+          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx,
+                                              size));
+          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + size,
+                                              size));
+          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 2),
+                                              size));
+        }
 
     nopage:
         pos.m_page = pagePtr.p;
@@ -987,6 +1016,19 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
 #endif
           th = (Tuple_header*)&page->m_data[key.m_page_idx];
+
+          if ((key.m_page_idx + (size * 4)) <= Fix_page::DATA_WORDS)
+          {
+            /**
+             * Continue staying ahead of scan on this page by prefetching
+             * a row 4 tuples ahead of this tuple, prefetched the first 3
+             * at PREFETCH_SCAN_TUPLE.
+             */
+            struct Tup_fixsize_page *page_ptr =
+              (struct Tup_fixsize_page*)page;
+            NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 3),
+                                                size));
+          }
 	  
 	  if (likely(! (bits & ScanOp::SCAN_NR)))
 	  {
