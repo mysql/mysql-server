@@ -24,6 +24,7 @@
 #include <signaldata/AccLock.hpp>
 #include <md5_hash.hpp>
 #include <portlib/ndb_prefetch.h>
+#include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 408
 
