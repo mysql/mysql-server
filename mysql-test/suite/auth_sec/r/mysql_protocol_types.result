@@ -30,7 +30,7 @@ SELECT connection_type FROM performance_schema.threads WHERE processlist_command
 connection_type
 Socket
 
-# MYSQLADMIN test 
+# MYSQLADMIN test
 mysqld is alive
 mysqld is alive
 
@@ -58,7 +58,7 @@ SELECT connection_type FROM performance_schema.threads WHERE processlist_command
 connection_type
 TCP/IP
 
-# MYSQLADMIN test 
+# MYSQLADMIN test
 mysqld is alive
 mysqld is alive
 CONNECTION_TYPE
@@ -83,7 +83,7 @@ SELECT connection_type FROM performance_schema.threads WHERE processlist_command
 connection_type
 SSL/TLS
 
-# MYSQLADMIN test 
+# MYSQLADMIN test
 mysqld is alive
 
 mysqld is alive

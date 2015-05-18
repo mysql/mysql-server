@@ -13,7 +13,7 @@
 # Windows does not have SOCKET connection protocol support.
 --source include/not_windows.inc
 
-## Connection Protocols: SOCKET, TCP/IP, SSL/TLS BY enabling general log. 
+## Connection Protocols: SOCKET, TCP/IP, SSL/TLS BY enabling general log.
 
 --echo # Enabling general logs. Make sure we start with a clean slate.
 TRUNCATE TABLE mysql.general_log;
@@ -67,8 +67,8 @@ connection default;
 disconnect socket_con4;
 
 --echo
---echo # MYSQLADMIN test 
-# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS. 
+--echo # MYSQLADMIN test
+# For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
 --exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot ping
 --exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --protocol=SOCKET ping
 --echo
@@ -112,7 +112,7 @@ connection default;
 disconnect tcp_con4;
 
 --echo
---echo # MYSQLADMIN test 
+--echo # MYSQLADMIN test
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
 --exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --protocol=TCP ping
 # Skipping SSL
@@ -155,7 +155,7 @@ connection default;
 disconnect ssl_con4;
 
 --echo
---echo # MYSQLADMIN test 
+--echo # MYSQLADMIN test
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
 --exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --ssl  ping
 --echo
