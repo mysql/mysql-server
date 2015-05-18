@@ -10103,6 +10103,15 @@ void Dblqh::execACC_SCANREF(Signal* signal)
   tupScanCloseConfLab(signal);
 }//Dblqh::execACC_SCANREF()
 
+Uint32
+Dblqh::get_scan_api_op_ptr(Uint32 scan_api_ptr_i)
+{
+  ScanRecordPtr scanPtr;
+  scanPtr.i = scan_api_ptr_i;
+  c_scanRecordPool.getPtr(scanPtr);
+  return scanPtr.p->scanApiOpPtr;
+}
+
 /* ***************>> */
 /*  NEXT_SCANCONF  > */
 /* ***************>> */
@@ -24745,6 +24754,7 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
     ndbout_c("  Lcp done rows %llu, done bytes %llu",
              (((Uint64)conf->lcpDoneRowsHi) << 32) + conf->lcpDoneRowsLo,
              (((Uint64)conf->lcpDoneBytesHi) << 32) + conf->lcpDoneBytesLo);
+    ndbout_c(" Lcp scanned %u pages", conf->lcpScannedPages);
   }
   
   /* We can ignore the LCP status as if it's complete then we should
@@ -24754,7 +24764,8 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
                                        conf->tableId,
                                        conf->fragId,
                                        (((Uint64)conf->completionStateHi) << 32) + 
-                                       conf->completionStateLo);
+                                       conf->completionStateLo,
+                                       conf->lcpScannedPages);
 }
 
 void
@@ -24778,6 +24789,7 @@ Dblqh::LCPFragWatchdog::reset()
   tableId = ~Uint32(0);
   fragId = ~Uint32(0);
   completionStatus = ~Uint64(0);
+  lcpScannedPages = 0;
   elapsedNoProgressMillis = 0;
   NdbTick_Invalidate(&lastChecked);
 }
@@ -24786,7 +24798,8 @@ void
 Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
                                            Uint32 repTableId,
                                            Uint32 repFragId,
-                                           Uint64 repCompletionStatus)
+                                           Uint64 repCompletionStatus,
+                                           Uint32 repLcpScannedPages)
 {
   jamBlock(block);
   if (scan_running)
@@ -24795,7 +24808,8 @@ Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
     if ((repCompletionStatus != completionStatus) ||
         (repFragId != fragId) ||
         (repTableId != tableId) ||
-        (repLcpState != lcpState))
+        (repLcpState != lcpState) ||
+        (repLcpScannedPages != lcpScannedPages))
     {
       jamBlock(block);
       /* Something moved since last time, reset
@@ -24807,6 +24821,7 @@ Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
       tableId = repTableId;
       fragId = repFragId;
       completionStatus = repCompletionStatus;
+      lcpScannedPages = repLcpScannedPages;
     }
   }
 }
