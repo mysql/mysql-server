@@ -1,0 +1,9 @@
+#
+# Bug#21041908 -  events+rpl: void close_thread_tables(thd*):
+#                 assertion `thd->get_transaction()
+#
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND
+ENDS NOW() + INTERVAL 1 SECOND DO SELECT 1;
+SET GLOBAL EVENT_SCHEDULER = ON;
+SET GLOBAL EVENT_SCHEDULER = OFF;
+DROP EVENT IF EXISTS e1;
