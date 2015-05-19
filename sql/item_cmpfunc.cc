@@ -4754,7 +4754,7 @@ cmp_item* cmp_item_decimal::make_same()
 
 
 cmp_item_datetime::cmp_item_datetime(Item *warn_item_arg)
-  : thd(current_thd), warn_item(warn_item_arg), lval_cache(0)
+  :warn_item(warn_item_arg), lval_cache(0)
 {}
 
 void cmp_item_datetime::store_value(Item *item)
