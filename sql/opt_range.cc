@@ -368,6 +368,11 @@ public:
   uint8 min_flag,max_flag,maybe_flag;
   uint8 part;					// Which key part
   uint8 maybe_null;
+  /**
+    The rtree index interval to scan, undefined unless
+    SEL_ARG::min_flag == GEOM_FLAG.
+   */
+  enum ha_rkey_function rkey_func_flag;
   /* 
     Number of children of this element in the RB-tree, plus 1 for this
     element itself.
@@ -442,8 +447,9 @@ public:
     SEL_ARG types. See todo for left/right pointers.
   */
   SEL_ARG(enum Type type_arg)
-    :min_flag(0),elements(1),use_count(1),left(NULL),right(NULL),
-     next_key_part(0), color(BLACK), type(type_arg)
+    :min_flag(0), rkey_func_flag(HA_READ_INVALID), elements(1),
+    use_count(1), left(NULL), right(NULL),
+    next_key_part(0), color(BLACK), type(type_arg)
   {
     DBUG_ASSERT(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
   }
@@ -571,6 +577,23 @@ public:
     min_value=arg->max_value;
     min_flag=arg->max_flag & NEAR_MAX ? 0 : NEAR_MIN;
   }
+
+  /**
+    Set spatial index range scan parameters. This object will be used to do
+    spatial index range scan after this call.
+
+    @param rkey_func The scan function to perform. It must be one of the
+                     spatial index specific scan functions.
+   */
+  void set_gis_index_read_function(const enum ha_rkey_function rkey_func)
+  {
+    DBUG_ASSERT(rkey_func >= HA_READ_MBR_CONTAIN &&
+                rkey_func <= HA_READ_MBR_EQUAL);
+    min_flag= GEOM_FLAG;
+    rkey_func_flag= rkey_func;
+    max_flag= NO_MAX_RANGE;
+  }
+
   /* returns a number of keypart values (0 or 1) appended to the key buffer */
   int store_min(uint length, uchar **min_key,uint min_key_flag)
   {
@@ -1936,22 +1959,23 @@ QUICK_ROR_UNION_SELECT::~QUICK_ROR_UNION_SELECT()
 
 QUICK_RANGE::QUICK_RANGE()
   :min_key(0),max_key(0),min_length(0),max_length(0),
-   flag(NO_MIN_RANGE | NO_MAX_RANGE),
+  flag(NO_MIN_RANGE | NO_MAX_RANGE), rkey_func_flag(HA_READ_INVALID),
   min_keypart_map(0), max_keypart_map(0)
 {}
 
 QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
                          key_part_map min_keypart_map_arg,
                          const uchar *max_key_arg, uint max_length_arg,
-                         key_part_map max_keypart_map_arg,
-                         uint flag_arg)
-  : min_key(NULL),
-    max_key(NULL),
-    min_length((uint16) min_length_arg),
-    max_length((uint16) max_length_arg),
-    flag((uint16) flag_arg),
-    min_keypart_map(min_keypart_map_arg),
-    max_keypart_map(max_keypart_map_arg)
+                         key_part_map max_keypart_map_arg, uint flag_arg,
+                         enum ha_rkey_function rkey_func_flag_arg)
+  :min_key(NULL),
+  max_key(NULL),
+  min_length((uint16) min_length_arg),
+  max_length((uint16) max_length_arg),
+  flag((uint16) flag_arg),
+  rkey_func_flag(rkey_func_flag_arg),
+  min_keypart_map(min_keypart_map_arg),
+  max_keypart_map(max_keypart_map_arg)
 {
   min_key= static_cast<uchar*>(sql_memdup(min_key_arg, min_length_arg + 1));
   max_key= static_cast<uchar*>(sql_memdup(max_key_arg, max_length_arg + 1));
@@ -1960,22 +1984,27 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
   DBUG_ASSERT(max_key_arg != is_null_string);
 }
 
-SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
+SEL_ARG::SEL_ARG(SEL_ARG &arg)
+  :Sql_alloc(),
+  min_flag(arg.min_flag),
+  max_flag(arg.max_flag),
+  maybe_flag(arg.maybe_flag),
+  part(arg.part),
+  maybe_null(arg.maybe_null),
+  rkey_func_flag(arg.rkey_func_flag),
+  elements(1),
+  use_count(1),
+  field(arg.field),
+  min_value(arg.min_value),
+  max_value(arg.max_value),
+  left(&null_element),
+  right(&null_element),
+  next(NULL),
+  prev(NULL),
+  next_key_part(arg.next_key_part),
+  type(arg.type)
 {
   DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
-  left=right= &null_element;
-  prev=next= NULL;
-  type=arg.type;
-  min_flag=arg.min_flag;
-  max_flag=arg.max_flag;
-  maybe_flag=arg.maybe_flag;
-  maybe_null=arg.maybe_null;
-  part=arg.part;
-  field=arg.field;
-  min_value=arg.min_value;
-  max_value=arg.max_value;
-  next_key_part=arg.next_key_part;
-  use_count=1; elements=1;
 }
 
 
@@ -1989,24 +2018,26 @@ inline void SEL_ARG::make_root()
 
 SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
                  const uchar *max_value_arg)
-  :min_flag(0), max_flag(0), maybe_flag(0), maybe_null(f->real_maybe_null()),
-   elements(1), use_count(1), field(f), min_value((uchar*) min_value_arg),
-   max_value((uchar*) max_value_arg), next(NULL), prev(NULL),
-   next_key_part(0), color(BLACK), type(KEY_RANGE)
-{
-  left=right= &null_element;
-}
+  :min_flag(0), max_flag(0), maybe_flag(0),
+  maybe_null(f->real_maybe_null()), rkey_func_flag(HA_READ_INVALID),
+  elements(1), use_count(1), field(f),
+  min_value(const_cast<uchar *>(min_value_arg)),
+  max_value(const_cast<uchar *>(max_value_arg)),
+  left(&null_element), right(&null_element),
+  next(NULL), prev(NULL),
+  next_key_part(0), color(BLACK), type(KEY_RANGE)
+{}
 
 SEL_ARG::SEL_ARG(Field *field_,uint8 part_,
                  uchar *min_value_, uchar *max_value_,
 		 uint8 min_flag_,uint8 max_flag_,uint8 maybe_flag_)
-  :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_),
-   part(part_),maybe_null(field_->real_maybe_null()), elements(1),use_count(1),
-   field(field_), min_value(min_value_), max_value(max_value_),
-   next(NULL), prev(NULL), next_key_part(0), color(BLACK), type(KEY_RANGE)
-{
-  left=right= &null_element;
-}
+  :min_flag(min_flag_),max_flag(max_flag_),maybe_flag(maybe_flag_), part(part_),
+  maybe_null(field_->real_maybe_null()),
+  rkey_func_flag(HA_READ_INVALID), elements(1),use_count(1),
+  field(field_), min_value(min_value_), max_value(max_value_),
+  left(&null_element), right(&null_element),
+  next(NULL), prev(NULL), next_key_part(0), color(BLACK), type(KEY_RANGE)
+{}
 
 SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent, 
                         SEL_ARG **next_arg)
@@ -7104,6 +7135,7 @@ impossible_cond:
   return true;
 }
 
+
 static SEL_ARG *
 get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
             KEY_PART *key_part, Item_func::Functype type,Item *value)
@@ -7410,51 +7442,38 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
-    /*
-      GIS seems to work by pure accident since HA_READ_MBR_* are
-      enums.
-      @todo: Make HA_READ_MBR* bitmap values
-    */
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_EQUAL;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_EQUAL);
     break;
   case Item_func::SP_DISJOINT_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_DISJOINT;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_DISJOINT);
     break;
   case Item_func::SP_INTERSECTS_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_INTERSECT);
     break;
   case Item_func::SP_TOUCHES_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_INTERSECT);
     break;
 
   case Item_func::SP_CROSSES_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_INTERSECT);
     break;
   case Item_func::SP_WITHIN_FUNC:
     /*
-      Adjust the min_flag as MyISAM implements this function
-      in reverse order.
+      Adjust the rkey_func_flag as it's assumed and observed that both
+      MyISAM and Innodb implement this function in reverse order.
     */
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_CONTAIN;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_CONTAIN);
     break;
 
   case Item_func::SP_CONTAINS_FUNC:
     /*
-      Adjust the min_flag as MyISAM implements this function
-      in reverse order.
+      Adjust the rkey_func_flag as it's assumed and observed that both
+      MyISAM and Innodb implement this function in reverse order.
     */
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_WITHIN;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_WITHIN);
     break;
   case Item_func::SP_OVERLAPS_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_INTERSECT;// NEAR_MIN;//512;
-    tree->max_flag=NO_MAX_RANGE;
+    tree->set_gis_index_read_function(HA_READ_MBR_INTERSECT);
     break;
 
   default:
@@ -9232,7 +9251,7 @@ typedef struct st_range_seq_entry
     min_key_flag may have NULL_RANGE set.
   */
   uint min_key_flag, max_key_flag;
-  
+  enum ha_rkey_function rkey_func_flag;
   /* Number of key parts */
   uint min_key_parts, max_key_parts;
   /**
@@ -9316,6 +9335,7 @@ public:
     stack[0].min_key= (uchar*)param->min_key;
     stack[0].min_key_flag= 0;
     stack[0].min_key_parts= 0;
+    stack[0].rkey_func_flag= HA_READ_INVALID;
 
     stack[0].max_key= (uchar*)param->max_key;
     stack[0].max_key_flag= 0;
@@ -9391,6 +9411,7 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
     */
     push_position->min_key_flag= key_tree->min_flag;
     push_position->max_key_flag= key_tree->max_flag;
+    push_position->rkey_func_flag= key_tree->rkey_func_flag;
   }
   else
   {
@@ -9402,6 +9423,7 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
                                  key_tree->min_flag;
     push_position->max_key_flag= last_added_kp->max_key_flag |
                                  key_tree->max_flag;
+    push_position->rkey_func_flag= key_tree->rkey_func_flag;
   }
 
   push_position->key_tree= key_tree;
@@ -9647,7 +9669,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     range->start_key.key=    param->min_key;
     range->start_key.length= min_key_length;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
-    range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
+    range->start_key.flag= cur->rkey_func_flag;
     /*
       Spatial operators are only allowed on spatial indexes, and no
       spatial index can at the moment return rows in ROWID order
@@ -10123,7 +10145,7 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
 			       param->max_key,
 			       (uint) (tmp_max_key - param->max_key),
                                max_part >=0 ? make_keypart_map(max_part) : 0,
-			       flag)))
+			       flag, key_tree->rkey_func_flag)))
     return 1;			// out of memory
 
   set_if_bigger(quick->max_used_key_length, range->min_length);
@@ -10355,7 +10377,8 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
           QUICK_RANGE(ref->key_buff, ref->key_length,
                       make_prev_keypart_map(ref->key_parts),
                       ref->key_buff, ref->key_length,
-                      make_prev_keypart_map(ref->key_parts), EQ_RANGE)))
+                      make_prev_keypart_map(ref->key_parts), EQ_RANGE,
+                      HA_READ_INVALID)))
       goto err;
     *ref->null_ref_key= 0;		// Clear null byte
     if (quick->ranges.push_back(null_range))
@@ -11076,8 +11099,7 @@ int QUICK_RANGE_SELECT_GEOM::get_next()
 
     result= file->ha_index_read_map(record, last_range->min_key,
                                     last_range->min_keypart_map,
-                                    (ha_rkey_function)(last_range->flag ^
-                                                       GEOM_FLAG));
+                                    last_range->rkey_func_flag);
     if (result != HA_ERR_KEY_NOT_FOUND && result != HA_ERR_END_OF_FILE)
       DBUG_RETURN(result);
     last_range= 0;				// Not found, to next range
@@ -13229,7 +13251,7 @@ bool QUICK_GROUP_MIN_MAX_SELECT::add_range(SEL_ARG *sel_range)
                          make_keypart_map(sel_range->part),
                          sel_range->max_value, min_max_arg_len,
                          make_keypart_map(sel_range->part),
-                         range_flag);
+                         range_flag, HA_READ_INVALID);
   if (!range)
     return TRUE;
   if (min_max_ranges.push_back(range))
