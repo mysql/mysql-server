@@ -1330,5 +1330,16 @@ SELECT
 Warnings:
 Warning	1064	Optimizer hint syntax error near '? bad syntax */ 1' at line 2
 DROP TABLE t1;
+#
+# Bug #21095608: OPTIMIZER HINT PARSER DOESN'T ACCEPT NUMBER-PREFIXED
+#                QUERY BLOCK NAMES AFTER @
+#
+CREATE TABLE t1 (i INT);
+EXPLAIN SELECT /*+ QB_NAME(1a) BKA(t1@1a) */ 1 FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select /*+ QB_NAME(`1a`) BKA(`t1`@`1a`) */ 1 AS `1` from `test`.`t1`
+DROP TABLE t1;
 SELECT /*+ 10;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1
