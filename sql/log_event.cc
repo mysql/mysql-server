@@ -7261,14 +7261,16 @@ Xid_apply_log_event::do_shall_skip(Relay_log_info *rli)
 int XA_prepare_log_event::pack_info(Protocol *protocol)
 {
   char buf[ser_buf_size];
-  char query[sizeof("XA PREPARE") + 1 + sizeof(buf)];
+  char query[sizeof("XA COMMIT ONE PHASE") + 1 + sizeof(buf)];
 
   /* RHS of the following assert is unknown to client sources */
   compile_time_assert(ser_buf_size == XID::ser_buf_size);
+  serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
+                my_xid.bqual_length, my_xid.data);
+  sprintf(query,
+          (one_phase ? "XA COMMIT %s ONE PHASE" :  "XA PREPARE %s"),
+          buf);
 
-  sprintf(query, "XA PREPARE %s",
-          serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
-                        my_xid.bqual_length, my_xid.data));
   protocol->store(query, strlen(query), &my_charset_bin);
   return 0;
 }
@@ -7311,10 +7313,10 @@ void XA_prepare_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   char buf[ser_buf_size];
 
   print_header(head, print_event_info, FALSE);
-  my_b_printf(head, "\tXA PREPARE %s\n",
-              serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
-                            my_xid.bqual_length, my_xid.data));
-  my_b_printf(head, one_phase ? "XA COMMIT %s ONE PHASE%s\n" : "XA PREPARE %s%s\n",
+  serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
+                        my_xid.bqual_length, my_xid.data);
+  my_b_printf(head, "\tXA PREPARE %s\n", buf);
+  my_b_printf(head, one_phase ? "XA COMMIT %s ONE PHASE\n%s\n" : "XA PREPARE %s\n%s\n",
               buf, print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
