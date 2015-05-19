@@ -5718,3 +5718,20 @@ update v8l set a='v8l v7n v6c v5n';
 drop view v1n,v2c,v3l,v4n,v5n,v4l,v5l,v6c,v7n,v8l;
 
 drop table t1;
+
+--echo # Bug#20982756 Crash in Table_list::fetch_number_of_rows
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+CREATE VIEW v3 AS SELECT 1 FROM t1;
+
+CREATE VIEW v2 AS SELECT 1 FROM v3 LEFT JOIN t1 ON 1;
+
+PREPARE s FROM "set @a:=(SELECT 1 FROM t1,v2);";
+
+EXECUTE s;
+EXECUTE s;
+
+DROP VIEW  v2,v3;
+DROP TABLE t1;
+
