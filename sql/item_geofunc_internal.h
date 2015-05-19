@@ -821,7 +821,6 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
   Geometry *gres= NULL;
   bool has_new= false;
   my_bool &null_value= *pnull_value;
-  String wkbres;
   Pointer_vector<Geometry> added;
   std::vector<String> added_wkbbufs;
 
@@ -948,9 +947,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           (is_linear_areal && linear_areal_intersect_infinite
            <Coord_type, Coordsys>(geom_d1, geom_d2, &null_value)))
       {
-        // Free before using it, wkbres may have WKB data from last execution.
-        wkbres.mem_free();
-        wkbres.length(0);
+        String wkbres;
 
         if (null_value)
         {

@@ -5738,8 +5738,6 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     key_range *min_endp, *max_endp;
     if (range.range_flag & GEOM_FLAG)
     {
-      /* In this case tmp_min_flag contains the handler-read-function */
-      range.start_key.flag= (ha_rkey_function) (range.range_flag ^ GEOM_FLAG);
       min_endp= &range.start_key;
       max_endp= NULL;
     }

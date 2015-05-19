@@ -3068,7 +3068,7 @@ insert into t1 values (1,'x',5);
 select * from t1 natural join v1;
 s1	s2	s3
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'x'
+Warning	1292	Truncated incorrect DECIMAL value: 'x'
 drop table t1;
 drop view v1;
 create table t1(a1 int);

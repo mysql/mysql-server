@@ -19,56 +19,48 @@
 
 #include "sql_table.h"
 
-#include "auth_common.h"        // check_fk_parent_table_access
-#include "unireg.h"
-#include "debug_sync.h"
-#include "key_spec.h"   // Key_spec
-#include "mysqld.h"           // mysql_data_home mysql_tmpdir ...
-#include "sql_rename.h" // do_rename
-#include "sql_parse.h"                        // test_if_data_home_dir
-#include "sql_cache.h"                          // query_cache_*
-#include "sql_base.h"   // open_table_uncached, lock_table_names
-#include "sql_executor.h"// QEP_TAB_standalone
-#include "lock.h"       // mysql_unlock_tables
-#include "psi_memory_key.h"
-#include "strfunc.h"    // find_type2, find_set
-#include "sql_view.h" // view_checksum 
-#include "sql_truncate.h"                       // regenerate_locked_table 
-#include "sql_partition.h"                      // mem_alloc_error,
-                                                // generate_partition_syntax,
-                                                // NOT_A_PARTITION_ID
-#include "partition_info.h"                     // partition_info
-#include "sql_db.h"                             // load_db_opt_by_name
-#include "sql_time.h"                  // make_truncated_value_warning
-#include "records.h"             // init_read_record, end_read_record
-#include "filesort.h"            // filesort_free_buffers
-#include "sql_select.h"                // setup_order,
-                                       // make_unireg_sortorder
-#include "sql_handler.h"               // mysql_ha_rm_tables
-#include "discover.h"                  // readfrm
-#include "log_event.h"                 // Query_log_event
-#include <hash.h>
-#include <myisam.h>
-#include <my_dir.h>
-#include "sp_head.h"
-#include "sp.h"
-#include "sql_parse.h"
-#include "sql_show.h"
-#include "transaction.h"
-#include "datadict.h"  // dd_frm_type()
-#include "sql_resolver.h"              // setup_order
-#include "table_cache.h"
-#include "sql_trigger.h"               // change_trigger_table_name
-#include <mysql/psi/mysql_table.h>
+#include "m_string.h"                 // my_stpncpy
+#include "my_check_opt.h"             // T_EXTEND
+
+#include "auth_common.h"              // check_fk_parent_table_access
+#include "binlog.h"                   // mysql_bin_log
+#include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_THD
+#include "discover.h"                 // readfrm
+#include "filesort.h"                 // Filesort
+#include "item_timefunc.h"            // Item_func_now_local
+#include "key.h"                      // KEY
+#include "key_spec.h"                 // Key_part_spec
+#include "lock.h"                     // mysql_lock_remove
+#include "log.h"                      // sql_print_error
+#include "mysqld.h"                   // key_file_frm
+#include "mysqld_error.h"             // ER_*
+#include "partition_info.h"           // partition_info
+#include "psi_memory_key.h"           // key_memory_gdl
+#include "records.h"                  // READ_RECORD
+#include "sp_head.h"                  // sp_head
+#include "sql_base.h"                 // lock_table_names
+#include "sql_cache.h"                // query_cache
+#include "sql_class.h"                // THD
+#include "sql_db.h"                   // load_db_opt_by_name
+#include "sql_executor.h"             // QEP_TAB_standalone
+#include "sql_parse.h"                // test_if_data_home_dir
+#include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
+#include "sql_resolver.h"             // setup_order
+#include "sql_tablespace.h"           // check_tablespace_name
+#include "sql_time.h"                 // make_truncated_value_warning
+#include "sql_trigger.h"              // change_trigger_name
+#include "strfunc.h"                  // find_type2
+#include "transaction.h"              // trans_commit_stmt
+#include "unireg.h"                   // rea_create_table
+
 #include "partitioning/partition_handler.h" // Partition_handler
-#include "log.h"
-#include "binlog.h"
-#include "sql_tablespace.h"            // check_tablespace_name())
-#include "item_timefunc.h"             // Item_func_now_local
-#include "derror.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 #include <algorithm>
 using std::max;
@@ -1536,7 +1528,7 @@ bool deactivate_ddl_log_entry(uint entry_no)
     @retval FALSE       Success
 */
 
-bool sync_ddl_log()
+static bool sync_ddl_log()
 {
   bool error;
   DBUG_ENTER("sync_ddl_log");
@@ -3764,7 +3756,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     (*key_count)++;
     tmp=file->max_key_parts();
-    if (key->columns.elements > tmp)
+    if (key->columns.elements > tmp && key->type != KEYTYPE_SPATIAL)
     {
       my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
       DBUG_RETURN(TRUE);
@@ -3915,16 +3907,16 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       }
       if (key_info->user_defined_key_parts != 1)
       {
-	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
-	DBUG_RETURN(TRUE);
+        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+        DBUG_RETURN(TRUE);
       }
     }
     else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
       if ((key_info->user_defined_key_parts & 1) == 1)
       {
-	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
-	DBUG_RETURN(TRUE);
+        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+        DBUG_RETURN(TRUE);
       }
       /* TODO: To be deleted */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");

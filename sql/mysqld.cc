@@ -333,7 +333,10 @@ ulong log_error_verbosity= 3; // have a non-zero value during early start-up
 #if MYSQL_VERSION_ID >= 50801
 #error "show_compatibility_56 is to be removed in MySQL 5.8"
 #else
-/* Default value TRUE for the EMBEDDED_LIBRARY */
+/*
+  Default value TRUE for the EMBEDDED_LIBRARY,
+  default value from Sys_show_compatibility_56 otherwise.
+*/
 my_bool show_compatibility_56= TRUE;
 #endif /* MYSQL_VERSION_ID >= 50800 */
 
@@ -6863,7 +6866,6 @@ static int mysql_init_variables(void)
   opt_general_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= NULL;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
-  opt_secure_file_priv= NULL;
   opt_myisam_log= 0;
   mqh_used= 0;
   kill_in_progress= 0;
@@ -7818,7 +7820,7 @@ bool is_secure_file_path(char *path)
   /*
     All paths are secure if opt_secure_file_priv is 0
   */
-  if (!opt_secure_file_priv || !opt_secure_file_priv[0])
+  if (!opt_secure_file_priv[0])
     return TRUE;
 
   opt_secure_file_priv_len= strlen(opt_secure_file_priv);
@@ -7901,7 +7903,7 @@ bool check_secure_file_priv_path()
   MY_STAT dir_stat;
 #endif
 
-  if (!opt_secure_file_priv)
+  if (!opt_secure_file_priv[0])
   {
     if (opt_bootstrap)
     {
@@ -8038,6 +8040,7 @@ bool check_secure_file_priv_path()
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
+  bool secure_file_priv_nonempty= false;
   convert_dirname(mysql_home,mysql_home,NullS);
   /* Resolve symlinks to allow 'mysql_home' to be a relative symlink */
   my_realpath(mysql_home,mysql_home,MYF(0));
@@ -8095,10 +8098,11 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
   */
-  if ((*opt_secure_file_priv == 0) || opt_bootstrap)
-    opt_secure_file_priv= NULL;
+  if (opt_bootstrap)
+    opt_secure_file_priv= EMPTY_STR.str;
+  secure_file_priv_nonempty= opt_secure_file_priv[0] ? true : false;
 
-  if (opt_secure_file_priv && strlen(opt_secure_file_priv) > FN_REFLEN)
+  if (secure_file_priv_nonempty && strlen(opt_secure_file_priv) > FN_REFLEN)
   {
     sql_print_warning("Value for --secure-file-priv is longer than maximum "
                       "limit of %d", FN_REFLEN-1);
@@ -8106,7 +8110,7 @@ static int fix_paths(void)
   }
 
   memset(buff, 0, sizeof(buff));
-  if (opt_secure_file_priv &&
+  if (secure_file_priv_nonempty &&
       my_strcasecmp(system_charset_info, opt_secure_file_priv, "NULL"))
   {
     int retval= my_realpath(buff, opt_secure_file_priv, MYF(MY_WME));

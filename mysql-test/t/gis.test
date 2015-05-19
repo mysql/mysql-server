@@ -831,10 +831,10 @@ CREATE TABLE t2 (
   col2 POINT
 );
 
---error ER_WRONG_ARGUMENTS
+--error ER_TOO_MANY_KEY_PARTS
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
 
---error ER_WRONG_ARGUMENTS
+--error ER_TOO_MANY_KEY_PARTS
 CREATE TABLE t3 (
   col0 INTEGER NOT NULL,
   col1 POINT,
@@ -2151,4 +2151,92 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (g GEOMETRY);
 INSERT INTO t1 VALUES(ST_GeomFromText('GEOMETRYCOLLECTION()'));
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #18320371 GIS: MISLEADING ERROR MESSAGE,WHEN TRY TO CREATE A
+--echo # SPATIAL INDEX ON MULTICOLUMN
+--echo #
+
+--error ER_TOO_MANY_KEY_PARTS
+CREATE TABLE t1 (
+  a GEOMETRY NOT NULL,
+  b GEOMETRY NOT NULL,
+  c GEOMETRY NOT NULL,
+  d GEOMETRY NOT NULL,
+  e GEOMETRY NOT NULL,
+  f GEOMETRY NOT NULL,
+  g GEOMETRY NOT NULL,
+  h GEOMETRY NOT NULL,
+  i GEOMETRY NOT NULL,
+  j GEOMETRY NOT NULL,
+  k GEOMETRY NOT NULL,
+  l GEOMETRY NOT NULL,
+  m GEOMETRY NOT NULL,
+  n GEOMETRY NOT NULL,
+  o GEOMETRY NOT NULL,
+  p GEOMETRY NOT NULL,
+  q GEOMETRY NOT NULL,
+  r GEOMETRY NOT NULL,
+  SPATIAL INDEX (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r)
+);
+
+--echo #
+--echo # Bug #18422162 THE FIND_FLAG PASSED TO MYISAM AND INNODB ARE DIFFERENT
+--echo #
+SET @poly1 = ST_GeomFromText('POLYGON((25 25, 25 35, 35 35, 35 25, 25 25))');
+
+CREATE TABLE t1 (
+                   a INT NOT NULL,
+                   p POINT NOT NULL,
+                   l LINESTRING NOT NULL,
+                   g GEOMETRY NOT NULL,
+                   PRIMARY KEY(p),
+                   SPATIAL KEY idx2 (p),
+                   SPATIAL KEY idx3 (l),
+                   SPATIAL KEY idx4 (g)
+                ) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES(
+                      1, ST_GeomFromText('POINT(10 10)'),
+                      ST_GeomFromText('LINESTRING(1 1, 5 5, 10 10)'),
+                      ST_GeomFromText('POLYGON((30 30, 40 40, 50 50, 30 50, 30 40, 30 30))'));
+
+INSERT INTO t1 VALUES(
+                      2, ST_GeomFromText('POINT(30 30)'),
+                      ST_GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
+                      ST_GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
+
+EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
+SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
+EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
+SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+                   a INT NOT NULL,
+                   p POINT NOT NULL,
+                   l LINESTRING NOT NULL,
+                   g GEOMETRY NOT NULL,
+                   PRIMARY KEY(p),
+                   SPATIAL KEY idx2 (p),
+                   SPATIAL KEY idx3 (l),
+                   SPATIAL KEY idx4 (g)
+                ) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES(
+                      1, ST_GeomFromText('POINT(10 10)'),
+                      ST_GeomFromText('LINESTRING(1 1, 5 5, 10 10)'),
+                      ST_GeomFromText('POLYGON((30 30, 40 40, 50 50, 30 50, 30 40, 30 30))'));
+
+INSERT INTO t1 VALUES(
+                      2, ST_GeomFromText('POINT(30 30)'),
+                      ST_GeomFromText('LINESTRING(2 3, 7 8, 9 10, 15 16)'),
+                      ST_GeomFromText('POLYGON((10 30, 30 40, 40 50, 40 30, 30 20, 10 30))'));
+
+EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
+SELECT ST_AsText(p) FROM t1 WHERE ST_Within(p, @poly1);
+EXPLAIN SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
+SELECT ST_AsText(p) FROM t1 WHERE ST_Equals(p, ST_PointFromText('POINT(20 20)'));
+
 DROP TABLE t1;

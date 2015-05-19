@@ -2,6 +2,10 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/have_debug.inc
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 
 CREATE TABLE t4 (id bigint(12) unsigned NOT NULL auto_increment,
   c2 varchar(15) collate utf8_bin default NULL,

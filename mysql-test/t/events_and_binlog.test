@@ -1,0 +1,18 @@
+--source include/not_embedded.inc
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Bug#21041908 -  events+rpl: void close_thread_tables(thd*):
+--echo #                 assertion `thd->get_transaction()
+--echo #
+
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND
+ ENDS NOW() + INTERVAL 1 SECOND DO SELECT 1;
+
+--sleep 1
+SET GLOBAL EVENT_SCHEDULER = ON;
+
+SET GLOBAL EVENT_SCHEDULER = OFF;
+--disable_warnings
+DROP EVENT IF EXISTS e1;
+--enable_warnings

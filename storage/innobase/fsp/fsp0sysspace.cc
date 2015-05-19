@@ -32,6 +32,7 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include "row0mysql.h"
 #include "srv0start.h"
+#include "trx0sys.h"
 #include "ut0new.h"
 
 /** The server header file is included to access opt_initialize global variable.
@@ -819,6 +820,17 @@ SysTablespace::check_file_spec(
 		} else {
 			*create_new_db = file_found(*it);
 		}
+	}
+
+	/* We assume doublewirte blocks in the first data file. */
+	if (err == DB_SUCCESS && *create_new_db
+	    && begin->m_size < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
+		ib::error() << "The " << name() << " data file "
+			<< "'" << begin->name() << "' must be at least "
+			<< TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3 * UNIV_PAGE_SIZE
+			/ (1024 * 1024) << " MB";
+
+		err = DB_ERROR;
 	}
 
 	return(err);

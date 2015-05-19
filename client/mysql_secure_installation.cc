@@ -97,9 +97,10 @@ static void usage()
 {
   print_version();
   fprintf(stdout, ORACLE_WELCOME_COPYRIGHT_NOTICE("2013"));
-  fprintf(stdout, "MySQL Configuration Utility.");
+  fprintf(stdout, "\nMySQL Configuration Utility.");
   fprintf(stdout, "Usage: %s [OPTIONS]\n", my_progname);
   my_print_help(my_connection_options);
+  print_defaults("my", load_default_groups);
   my_print_variables(my_connection_options);
 }
 

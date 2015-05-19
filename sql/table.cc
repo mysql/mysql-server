@@ -5318,6 +5318,15 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
       DBUG_RETURN(NULL);               /* purecov: inspected */
     field= *field_ref;
   }
+
+  /*
+    @note Creating an Item_direct_view_ref object on top of an Item_field
+          means that the underlying Item_field object may be shared by
+          multiple occurrences of superior fields. This is a vulnerable
+          practice, so special precaution must be taken to avoid programming
+          mistakes, such as forgetting to mark the use of a field in both
+          read_set and write_set (may happen e.g in an UPDATE statement).
+  */ 
   Item *item= new Item_direct_view_ref(context, field_ref,
                                        view->alias, view->table_name,
                                        name, view);
