@@ -41,7 +41,6 @@ class Arg_comparator: public Sql_alloc
   Arg_comparator *comparators;   // used only for compare_row()
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
-  THD *thd;
   enum_field_types a_type, b_type; // Types of a and b items
   Item *a_cache, *b_cache;         // Cached values of a and b items
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
@@ -59,9 +58,9 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
@@ -1279,14 +1278,13 @@ public:
 class in_datetime :public in_longlong
 {
 public:
-  THD *thd;
   /* An item used to issue warnings. */
   Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
 
   in_datetime(THD *thd_arg, Item *warn_item_arg, uint elements)
-    : in_longlong(thd_arg, elements), thd(thd_arg), warn_item(warn_item_arg),
+    : in_longlong(thd_arg, elements), warn_item(warn_item_arg),
       lval_cache(0)
   {};
   void set(uint pos,Item *item);
@@ -1467,14 +1465,12 @@ class cmp_item_datetime : public cmp_item_scalar
 {
   longlong value;
 public:
-  THD *thd;
   /* Item used for issuing warnings. */
   Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
 
   cmp_item_datetime(Item *warn_item_arg);
-
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *ci) const;

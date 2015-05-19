@@ -1291,7 +1291,6 @@ class Item_func_min_max :public Item_func
   bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */
   Item *datetime_item;
-  THD *thd;
 protected:
   enum_field_types cached_field_type;
   uint cmp_datetimes(longlong *value);
