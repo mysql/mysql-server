@@ -1785,7 +1785,12 @@ public class Utility {
         }
         try {
             // use basic decoding
-            CharBuffer charBuffer = charsetDecoder.decode(digits);
+            // http://docs.oracle.com/javase/7/docs/api/java/nio/charset/CharsetEncoder.html
+            // synchronize because "Instances of this class are not safe for use by multiple concurrent threads."
+            CharBuffer charBuffer;
+            synchronized(charsetDecoder) {
+                charBuffer = charsetDecoder.decode(digits);
+            }
             string = charBuffer.toString();
             return string;
         } catch (CharacterCodingException e) {
