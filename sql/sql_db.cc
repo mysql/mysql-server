@@ -19,36 +19,35 @@
 
 #include "sql_db.h"
 
-#include "mysqld.h"                      // lower_case_table_names ...
-#include "psi_memory_key.h"
-#include "sql_cache.h"                   // query_cache_*
-#include "lock.h"                        // lock_schema_name
-#include "sql_table.h"                   // build_table_filename,
-                                         // filename_to_tablename
-#include "sql_rename.h"                  // mysql_rename_tables
-#include "auth_common.h"                 // acl_get, check_grant_db
-                                         // SELECT_ACL, DB_ACLS,
-#include "log_event.h"                   // Query_log_event
-#include "sql_base.h"                    // lock_table_names, tdc_remove_table
-#include "sql_handler.h"                 // mysql_ha_rm_tables
-#include <mysys_err.h>
-#include "sp.h"
-#include "events.h"
-#include <my_dir.h>
-#include <m_ctype.h>
-#include "log.h"
-#include "binlog.h"                             // mysql_bin_log
-#include "log_event.h"
-#include "derror.h"
+#include "mysys_err.h"       // EE_*
+#include "auth_common.h"     // SELECT_ACL
+#include "binlog.h"          // mysql_bin_log
+#include "current_thd.h"
+#include "debug_sync.h"      // DEBUG_SYNC
+#include "derror.h"          // ER_THD
+#include "events.h"          // Events
+#include "lock.h"            // lock_schema_name
+#include "log.h"             // sql_print_error
+#include "log_event.h"       // Query_log_event
+#include "mysqld.h"          // key_file_misc
+#include "psi_memory_key.h"  // key_memory_THD_db
+#include "sp.h"              // lock_db_routines
+#include "sql_base.h"        // lock_table_names
+#include "sql_cache.h"       // query_cache
+#include "sql_class.h"       // THD
+#include "sql_handler.h"     // mysql_ha_rm_tables
+#include "sql_rename.h"      // mysql_rename_tables
+#include "sql_table.h"       // build_table_filename
+#include "table.h"           // TABLE_LIST
+
 #ifdef _WIN32
 #include <direct.h>
 #endif
-#include "debug_sync.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
-#define MAX_DROP_TABLE_Q_LEN      1024
+static const size_t MAX_DROP_TABLE_Q_LEN= 1024;
 
 const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", NullS};
 static TYPELIB deletable_extentions=
@@ -529,76 +528,60 @@ const CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
 }
 
 
-/*
+/**
   Create a database
 
-  SYNOPSIS
-  mysql_create_db()
-  thd		Thread handler
-  db		Name of database to create
-		Function assumes that this is already validated.
-  create_info	Database create options (like character set)
-  silent	Used by replication when internally creating a database.
-		In this case the entry should not be logged.
+  @param thd		Thread handler
+  @param db		Name of database to create
+                        Function assumes that this is already validated.
+  @param create_info	Database create options (like character set)
 
   SIDE-EFFECTS
    1. Report back to client that command succeeded (my_ok)
    2. Report errors to client
    3. Log event to binary log
-   (The 'silent' flags turns off 1 and 3.)
 
-  RETURN VALUES
-  FALSE ok
-  TRUE  Error
-
+  @retval false ok
+  @retval true  Error
 */
 
-int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info,
-                     bool silent)
+bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
-  char	 path[FN_REFLEN+16];
-  char	 tmp_query[FN_REFLEN+16];
-  long result= 1;
-  int error= 0;
-  MY_STAT stat_info;
-  uint create_options= create_info ? create_info->options : 0;
-  size_t path_len;
-  bool was_truncated;
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
   if (is_infoschema_db(db))
   {
     my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
   }
 
   if (lock_schema_name(thd, db))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
-                                 &was_truncated);
+  char	 path[FN_REFLEN+16];
+  bool   was_truncated;
+  size_t path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
+                                        &was_truncated);
   if (was_truncated)
   {
     my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
   }
   path[path_len-1]= 0;                    // Remove last '/' from path
 
+  MY_STAT stat_info;
   if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
   {
-    if (!(create_options & HA_LEX_CREATE_IF_NOT_EXISTS))
+    if (!(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
       my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
-      error= -1;
-      goto exit;
+      DBUG_RETURN(true);
     }
     push_warning_printf(thd, Sql_condition::SL_NOTE,
-			ER_DB_CREATE_EXISTS,
+                        ER_DB_CREATE_EXISTS,
                         ER_THD(thd, ER_DB_CREATE_EXISTS), db);
-    error= 0;
-    goto not_silent;
   }
   else
   {
@@ -607,107 +590,73 @@ int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info,
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_STAT, MYF(0), path,
                my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
-      goto exit;
+      DBUG_RETURN(true);
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
       my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno);
-      error= -1;
-      goto exit;
-    }
-  }
-
-  path[path_len-1]= FN_LIBCHAR;
-  strmake(path+path_len, MY_DB_OPT_FILE, sizeof(path)-path_len-1);
-  if (write_db_opt(thd, path, create_info))
-  {
-    /*
-      Could not create options file.
-      Restore things to beginning.
-    */
-    path[path_len]= 0;
-    if (rmdir(path) >= 0)
-    {
-      error= -1;
-      goto exit;
-    }
-    /*
-      We come here when we managed to create the database, but not the option
-      file.  In this case it's best to just continue as if nothing has
-      happened.  (This is a very unlikely senario)
-    */
-    thd->clear_error();
-  }
-
-not_silent:
-  if (!silent)
-  {
-    const char *query;
-    size_t query_length;
-    char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
-    size_t id_len= 0;
-
-    if (!thd->query().str)                          // Only in replication
-    {
-      id_len= my_strmov_quoted_identifier(thd, (char *) db_name_quoted, db,
-                                          0);
-      db_name_quoted[id_len]= '\0';
-      query= tmp_query;
-      query_length=
-        static_cast<size_t>(strxmov(tmp_query,"create database ",
-                                    db_name_quoted, NullS) - tmp_query);
-    }
-    else
-    {
-      query=        thd->query().str;
-      query_length= thd->query().length;
+      DBUG_RETURN(true);
     }
 
-    ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
-                        query, query_length,
-                        db, "");
-
-    if (mysql_bin_log.is_open())
+    path[path_len-1]= FN_LIBCHAR;
+    strmake(path+path_len, MY_DB_OPT_FILE, sizeof(path)-path_len-1);
+    if (write_db_opt(thd, path, create_info))
     {
-      int errcode= query_error_code(thd, TRUE);
-      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
-			    /* suppress_use */ TRUE, errcode);
-
       /*
-	Write should use the database being created as the "current
-        database" and not the threads current database, which is the
-        default. If we do not change the "current database" to the
-        database being created, the CREATE statement will not be
-        replicated when using --binlog-do-db to select databases to be
-        replicated. 
-
-	An example (--binlog-do-db=sisyfos):
-       
-          CREATE DATABASE bob;        # Not replicated
-          USE bob;                    # 'bob' is the current database
-          CREATE DATABASE sisyfos;    # Not replicated since 'bob' is
-                                      # current database.
-          USE sisyfos;                # Will give error on slave since
-                                      # database does not exist.
+        Could not create options file.
+        Restore things to beginning.
       */
-      qinfo.db     = db;
-      qinfo.db_len = strlen(db);
-      thd->add_to_binlog_accessed_dbs(db);
+      path[path_len]= 0;
+      if (rmdir(path) >= 0)
+        DBUG_RETURN(true);
       /*
-        These DDL methods and logging are protected with the exclusive
-        metadata lock on the schema
+        We come here when we managed to create the database, but not the option
+        file.  In this case it's best to just continue as if nothing has
+        happened.  (This is a very unlikely senario)
       */
-      if (mysql_bin_log.write_event(&qinfo))
-      {
-        error= -1;
-        goto exit;
-      }
+      thd->clear_error();
     }
-    my_ok(thd, result);
   }
 
-exit:
-  DBUG_RETURN(error);
+  ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB, thd->query().str,
+                      thd->query().length, db, "");
+
+  if (mysql_bin_log.is_open())
+  {
+    int errcode= query_error_code(thd, TRUE);
+    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
+                          false, true, /* suppress_use */ true, errcode);
+
+    /*
+      Write should use the database being created as the "current
+      database" and not the threads current database, which is the
+      default. If we do not change the "current database" to the
+      database being created, the CREATE statement will not be
+      replicated when using --binlog-do-db to select databases to be
+      replicated.
+
+      An example (--binlog-do-db=sisyfos):
+
+      CREATE DATABASE bob;        # Not replicated
+      USE bob;                    # 'bob' is the current database
+      CREATE DATABASE sisyfos;    # Not replicated since 'bob' is
+                                  # current database.
+      USE sisyfos;                # Will give error on slave since
+                                  # database does not exist.
+      */
+    qinfo.db     = db;
+    qinfo.db_len = strlen(db);
+    thd->add_to_binlog_accessed_dbs(db);
+    /*
+      These DDL methods and logging are protected with the exclusive
+      metadata lock on the schema
+    */
+    if (mysql_bin_log.write_event(&qinfo))
+      DBUG_RETURN(true);
+  }
+
+  my_ok(thd, 1);
+  DBUG_RETURN(false);
 }
 
 
@@ -715,22 +664,20 @@ exit:
 
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 {
-  char path[FN_REFLEN+16];
-  long result=1;
-  int error= 0;
   DBUG_ENTER("mysql_alter_db");
 
   if (lock_schema_name(thd, db))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
 
-  /* 
+  /*
      Recreate db options file: /dbpath/.db.opt
      We pass MY_DB_OPT_FILE as "extension" to avoid
      "table name to file name" encoding.
   */
+  char path[FN_REFLEN+16];
   build_table_filename(path, sizeof(path) - 1, db, "", MY_DB_OPT_FILE, 0);
-  if ((error=write_db_opt(thd, path, create_info)))
-    goto exit;
+  if (write_db_opt(thd, path, create_info))
+    DBUG_RETURN(true);
 
   /* Change options if current database is being altered. */
 
@@ -748,7 +695,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
 
   if (mysql_bin_log.is_open())
   {
-    int errcode= query_error_code(thd, TRUE); 
+    int errcode= query_error_code(thd, TRUE);
     Query_log_event qinfo(thd, thd->query().str, thd->query().length,
                           false, true, /* suppress_use */ true, errcode);
     /*
@@ -763,13 +710,11 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
       These DDL methods and logging are protected with the exclusive
       metadata lock on the schema.
     */
-    if ((error= mysql_bin_log.write_event(&qinfo)))
-      goto exit;
+    if (mysql_bin_log.write_event(&qinfo))
+      DBUG_RETURN(true);
   }
-  my_ok(thd, result);
-
-exit:
-  DBUG_RETURN(error);
+  my_ok(thd, 1);
+  DBUG_RETURN(false);
 }
 
 
@@ -781,20 +726,21 @@ exit:
                      It's already validated and set to lower case
                      (if needed) when we come here
   @param  if_exists  Don't give error if database doesn't exists
-  @param  silent     Don't write the statement to the binary log and don't
-                     send ok packet to the client
+
+  @note   We do a "best effort" - try to drop as much as possible.
+          If dropping the database itself fails, we try to binlog
+          the drop of the tables we managed to do.
 
   @retval  false  OK (Database dropped)
   @retval  true   Error
 */
 
-bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
+bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 {
   ulong deleted_tables= 0;
-  bool error= true;
+  bool error= false;
   char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
-  size_t length;
   bool found_other_files= false;
   TABLE_LIST *tables= NULL;
   TABLE_LIST *table;
@@ -805,7 +751,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
   if (lock_schema_name(thd, db.str))
     DBUG_RETURN(true);
 
-  length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
+  size_t length= build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
   my_stpcpy(path+length, MY_DB_OPT_FILE);		// Append db option file name
   del_dbopt(path);				// Remove dboption hash entry
   path[length]= '\0';				// Remove file name
@@ -813,6 +759,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
   /* See if the directory exists */
   if (!(dirp= my_dir(path,MYF(MY_DONT_SORT))))
   {
+    my_dirend(dirp);
     if (!if_exists)
     {
       my_error(ER_DB_DROP_EXISTS, MYF(0), db.str);
@@ -823,14 +770,17 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
       push_warning_printf(thd, Sql_condition::SL_NOTE,
 			  ER_DB_DROP_EXISTS,
                           ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
-      error= false;
       goto update_binlog;
     }
   }
 
   if (find_db_tables_and_rm_known_files(thd, dirp, db.str, path, &tables,
                                         &found_other_files))
-    goto exit;
+  {
+    my_dirend(dirp);
+    DBUG_RETURN(true);
+  }
+  my_dirend(dirp);
 
   /*
     Disable drop of enabled log tables, must be done before name locking.
@@ -843,7 +793,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
       if (query_logger.check_if_log_table(table, true))
       {
         my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
-        goto exit;
+        DBUG_RETURN(true);
       }
     }
   }
@@ -851,7 +801,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
   /* Lock all tables and stored routines about to be dropped. */
   if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0) ||
       lock_db_routines(thd, db.str))
-    goto exit;
+    DBUG_RETURN(true);
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
   if (tables)
@@ -864,10 +814,12 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
     deleted_tables++;
   }
 
+  if (thd->killed)
+    DBUG_RETURN(true);
+
   thd->push_internal_handler(&err_handler);
-  if (!thd->killed &&
-      !(tables &&
-        mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
+  if (!(tables &&
+        (error= mysql_rm_table_no_locks(thd, tables, true, false, true, true))))
   {
     /*
       We temporarily disable the binary log while dropping the objects
@@ -896,46 +848,29 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent)
     Events::drop_schema_events(thd, db.str);
 #endif
     reenable_binlog(thd);
+    thd->clear_error(); /* @todo Do not ignore errors */
 
     /*
       If the directory is a symbolic link, remove the link first, then
       remove the directory the symbolic link pointed at
     */
-    if (!found_other_files)
+    if (found_other_files)
+      error= true;
+    else
       error= rm_dir_w_symlink(path, true);
   }
   thd->pop_internal_handler();
 
 update_binlog:
-  if (!silent && !error)
+  if (mysql_bin_log.is_open())
   {
-    const char *query;
-    size_t query_length;
-    // quoted db name + wraping quote
-    char buffer_temp [2 * FN_REFLEN + 2];
-    size_t id_len= 0;
-    if (!thd->query().str)
-    {
-      /* The client used the old obsolete mysql_drop_db() call */
-      query= path;
-      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db.str, db.length);
-      buffer_temp[id_len] ='\0';
-      query_length=
-        static_cast<size_t>(strxmov(path, "DROP DATABASE ", buffer_temp, "",
-                                    NullS) - path);
-    }
-    else
-    {
-      query= thd->query().str;
-      query_length= thd->query().length;
-    }
-    if (mysql_bin_log.is_open())
+    if (!error)
     {
       int errcode= query_error_code(thd, TRUE);
-      Query_log_event qinfo(thd, query, query_length, FALSE, TRUE,
-			    /* suppress_use */ TRUE, errcode);
+      Query_log_event qinfo(thd, thd->query().str, thd->query().length,
+                            false, true, /* suppress_use */ true, errcode);
       /*
-        Write should use the database being created as the "current
+        Write should use the database being dropped as the "current
         database" and not the threads current database, which is the
         default.
       */
@@ -947,102 +882,84 @@ update_binlog:
         metadata lock on the schema.
       */
       if (mysql_bin_log.write_event(&qinfo))
-      {
-        error= true;
-        goto exit;
-      }
+        DBUG_RETURN(true);
     }
-    thd->clear_error();
-    thd->server_status|= SERVER_STATUS_DB_DROPPED;
-    my_ok(thd, deleted_tables);
-  }
-  else if (mysql_bin_log.is_open() && !silent)
-  {
-    char *query, *query_pos, *query_end, *query_data_start;
-    char temp_identifier[ 2 * FN_REFLEN + 2];
-    TABLE_LIST *tbl;
-    size_t id_length=0;
-
-    /*
-      If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
-      statement.  However, the incomplete DROP has already 'committed'
-      (some tables were removed).  So we generate an error and let
-      user fix the situation.
-    */
-    if (thd->variables.gtid_next.type == GTID_GROUP)
+    else
     {
-      char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
-      thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
-                                              true);
-      my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
-               path, gtid_buf, db.str);
-      error= true;
-      goto exit;
-    }
+      char *query, *query_pos, *query_end, *query_data_start;
+      char temp_identifier[ 2 * FN_REFLEN + 2];
 
-    DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
-
-    if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
-      // @todo: abort on out of memory instead
-      goto exit; /* not much else we can do */
-    query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
-    query_end= query + MAX_DROP_TABLE_Q_LEN;
-
-    for (tbl= tables; tbl; tbl= tbl->next_local)
-    {
-      size_t tbl_name_len;
-      bool exists;
-
-      // Only write drop table to the binlog for tables that no longer exist.
-      if (check_if_table_exists(thd, tbl, &exists))
+      /*
+        If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
+        statement.  However, the incomplete DROP has already 'committed'
+        (some tables were removed).  So we generate an error and let
+        user fix the situation.
+      */
+      if (thd->variables.gtid_next.type == GTID_GROUP)
       {
-        error= true;
-        goto exit;
+        char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
+        thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
+                                                true);
+        my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
+                 path, gtid_buf, db.str);
+        DBUG_RETURN(true);
       }
-      if (exists)
-        continue;
 
-      /* 3 for the quotes and the comma*/
-      tbl_name_len= strlen(tbl->table_name) + 3;
-      if (query_pos + tbl_name_len + 1 >= query_end)
+      DBUG_PRINT("info", ("DROP DATABASE failed; generating DROP TABLE statement(s) in the binlog"));
+
+      if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
+        // @todo: abort on out of memory instead
+        DBUG_RETURN(true); /* not much else we can do */
+      query_pos= query_data_start= my_stpcpy(query,"DROP TABLE IF EXISTS ");
+      query_end= query + MAX_DROP_TABLE_Q_LEN;
+
+      for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_local)
       {
-        DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
-        thd->variables.gtid_next.dbug_print("gtid_next", true);
+        // Only write drop table to the binlog for tables that no longer exist.
+        bool exists;
+        if (check_if_table_exists(thd, tbl, &exists))
+          DBUG_RETURN(true);
+
+        if (exists)
+          continue;
+
+        /* 3 for the quotes and the comma*/
+        size_t tbl_name_len= strlen(tbl->table_name) + 3;
+        if (query_pos + tbl_name_len + 1 >= query_end)
+        {
+          DBUG_PRINT("info", ("Need multiple DROP TABLE statements in the binlog"));
+          thd->variables.gtid_next.dbug_print("gtid_next", true);
+          /*
+            These DDL methods and logging are protected with the exclusive
+            metadata lock on the schema.
+          */
+
+          thd->is_commit_in_middle_of_statement= true;
+          int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                                   db.length);
+          thd->is_commit_in_middle_of_statement= false;
+          if (ret)
+            DBUG_RETURN(true);
+
+          query_pos= query_data_start;
+        }
+        size_t id_length= my_strmov_quoted_identifier(thd, temp_identifier,
+                                                      tbl->table_name, 0);
+        temp_identifier[id_length]= '\0';
+        query_pos= my_stpcpy(query_pos, (char*)&temp_identifier);
+        *query_pos++ = ',';
+      }
+
+      if (query_pos != query_data_start)
+      {
+        thd->add_to_binlog_accessed_dbs(db.str);
         /*
           These DDL methods and logging are protected with the exclusive
           metadata lock on the schema.
         */
-
-        thd->is_commit_in_middle_of_statement= true;
-        int ret= write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                                 db.length);
-        thd->is_commit_in_middle_of_statement= false;
-        if (ret)
-        {
-          error= true;
-          goto exit;
-        }
-        query_pos= query_data_start;
-      }
-      id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
-                                      tbl->table_name, 0);
-      temp_identifier[id_length]= '\0';
-      query_pos= my_stpcpy(query_pos,(char *)&temp_identifier);
-      *query_pos++ = ',';
-    }
-
-    if (query_pos != query_data_start)
-    {
-      thd->add_to_binlog_accessed_dbs(db.str);
-      /*
-        These DDL methods and logging are protected with the exclusive
-        metadata lock on the schema.
-      */
-      if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
-                          db.length))
-      {
-        error= true;
-        goto exit;
+        if (write_to_binlog(thd, query, query_pos -1 - query, db.str,
+                            db.length))
+          DBUG_RETURN(true);
       }
     }
   }
@@ -1051,22 +968,23 @@ update_binlog:
     We have postponed generating the error until now, since if the
     error ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID occurs we
     should report that instead.
-   */
+  */
   if (found_other_files)
   {
     my_error(ER_DB_DROP_RMDIR, MYF(0), path, EEXIST);
-    error= true;
-    goto exit;
+    DBUG_RETURN(true);
   }
 
-exit:
+  if (error)
+    DBUG_RETURN(true);
+
   /*
     If this database was the client's selected database, we silently
     change the client's selected database to nothing (to have an empty
     SELECT DATABASE() in the future). For this we free() thd->db and set
     it to 0.
   */
-  if (thd->db().str && !strcmp(thd->db().str, db.str) && !error)
+  if (thd->db().str && !strcmp(thd->db().str, db.str))
   {
     mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
     /*
@@ -1079,8 +997,9 @@ exit:
       thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
     }
   }
-  my_dirend(dirp);
-  DBUG_RETURN(error);
+
+  my_ok(thd, deleted_tables);
+  DBUG_RETURN(false);
 }
 
 
