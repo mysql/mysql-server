@@ -580,7 +580,6 @@ bool
 Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 {
   int ret;
-  bool save_binlog_row_based;
   DBUG_ENTER("Events::drop_event");
 
   if (check_if_system_tables_error())
@@ -588,13 +587,6 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 
   if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
     DBUG_RETURN(TRUE);
-
-  /*
-    Turn off row binlogging of this statement and use statement-based so
-    that all supporting tables are updated for DROP EVENT command.
-  */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
 
   if (lock_object_name(thd, MDL_key::EVENT,
                        dbname.str, name.str))
@@ -615,10 +607,6 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
                   dbname.str, dbname.length, name.str, name.length);
 #endif 
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
 }
 
