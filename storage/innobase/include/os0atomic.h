@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -297,6 +297,80 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"Memory barrier is not used"
 #endif
+
+/** A class that mimics parts of C++11's std::atomic.
+This is implemented only for basic integer types and is used to show where
+in the code we rely on atomic load or store. Also it uses the same methods
+names as std::atomic, so that replacing it with std::atomic will be trivial
+once we compile InnoDB in C++11 mode. */
+template <typename T>
+class os_atomic_t {
+public:
+	/** Constructor.
+	@param[in]	data	initial value */
+	explicit
+	os_atomic_t(
+		T	data)
+	:
+	m_data(data)
+	{
+		/* This class does not support arbitrary types. */
+		ut_a(sizeof(T) <= 8);
+
+		/* m_data must be aligned on 8-byte boundary, otherwise
+		plain assignment and read will not be atomic. */
+		ut_a((reinterpret_cast<uintptr_t>(&m_data) & 7) == 0);
+	}
+
+	/** Load (read) the value. */
+	T
+	load() const
+	{
+		/* Assume plain read is atomic for numeric types up to
+		8 bytes if the variable is aligned on 8-byte boundary even
+		on 32 bit CPUs and mimic std::memory_order_relaxed. */
+		return(m_data);
+	}
+
+	/** Store (write) the value.
+	@param[in]	desired	value to store */
+	void
+	store(
+		T	desired)
+	{
+		/* Assume plain assignment is atomic for numeric types up to
+		8 bytes if the variable is aligned on 8-byte boundary even
+		on 32 bit CPUs and mimic std::memory_order_relaxed. */
+		m_data = desired;
+	}
+
+	/** Atomic compare and swap.
+	This method will not set 'expected' in case of failure. In this aspect
+	it deviates from std::atomic::compare_exchange_strong().
+	@param[in]	expected	old expected value
+	@param[in]	desired		new value to be set if the current
+	value is 'expected'
+	@return true if successful */
+	bool
+	compare_exchange_strong(
+		T&	expected,
+		T	desired)
+	{
+		return(os_compare_and_swap_ulint(&m_data, expected, desired));
+	}
+
+	/** Atomic prefix increment (++a).
+	@return the new value after the increment */
+	T
+	operator++()
+	{
+		return(os_atomic_increment_ulint(&m_data, 1));
+	}
+
+private:
+	/** The actual value container. */
+	T	m_data;
+};
 
 #ifndef UNIV_NONINL
 #include "os0atomic.ic"
