@@ -7482,6 +7482,8 @@ convert_search_mode_to_innobase(
 		return(PAGE_CUR_MBR_EQUAL);
 	case HA_READ_PREFIX:
 		return(PAGE_CUR_UNSUPP);
+        case HA_READ_INVALID:
+		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
 	(if -Wswitch or -Wall is used) */
