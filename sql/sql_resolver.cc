@@ -347,7 +347,9 @@ bool SELECT_LEX::prepare(THD *thd)
 
   sj_candidates= NULL;
 
-  if (!outer_select())
+  if (outer_select() == NULL ||
+      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+       outer_select()->outer_select() == NULL))
   {
     /*
       This code is invoked in the following cases:
@@ -357,6 +359,8 @@ bool SELECT_LEX::prepare(THD *thd)
       - if this is one of highest-level subqueries, if the statement is
         something else; like subq-i in:
           UPDATE t1 SET col1=(subq-1), col2=(subq-2);
+      - If this is a subquery in a SET command
+        @todo: Refactor SET so that this is not needed.
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms
@@ -2238,6 +2242,11 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
       lex->can_not_use_merged())
     DBUG_RETURN(false);
 
+  /*
+    @todo: The implementation of LEX::can_use_merged() currently avoids
+           merging of views that are contained in other views if
+           can_use_merged() returns false.
+  */
   // Check whether derived table is mergeable, and directives allow merging
   if (!derived_unit->is_mergeable() ||
       derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
