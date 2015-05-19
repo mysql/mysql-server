@@ -28,7 +28,7 @@ Created Mar 16, 2015 Vasil Dimov
 
 #include "univ.i"
 
-#include "os0atomic.h" /* os_compare_and_swap_ulint() */
+#include "os0atomic.h" /* os_atomic_t */
 #include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
 #include "ut0rnd.h" /* ut_fold_ull() */
 
@@ -41,7 +41,7 @@ class ut_hash_interface_t {
 public:
 	/** The value that is returned when the searched for key is not
 	found. */
-	static const uint64_t	NOT_FOUND = UINT64_MAX;
+	static const int64_t	NOT_FOUND = INT64_MAX;
 
 	/** Destructor. */
 	virtual
@@ -53,7 +53,7 @@ public:
 	@param[in]	key	key to look for
 	@return the value that corresponds to key or NOT_FOUND. */
 	virtual
-	uint64_t
+	int64_t
 	get(
 		uint64_t	key) const = 0;
 
@@ -65,7 +65,7 @@ public:
 	void
 	set(
 		uint64_t	key,
-		uint64_t	val) = 0;
+		int64_t		val) = 0;
 
 	/** Increment the value for a given key with 1 or insert a new tuple
 	(key, 1).
@@ -158,7 +158,7 @@ public:
 };
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
-and the value are of type uint64_t.
+and the value are of integer type.
 Assumptions:
 * Keys can only transition from UNUSED to some real value, but never
 from a real value to UNUSED or from a real value to another real value.
@@ -194,7 +194,7 @@ public:
 	/** Get the value mapped to a given key.
 	@param[in]	key	key to look for
 	@return the value that corresponds to key or NOT_FOUND. */
-	uint64_t
+	int64_t
 	get(
 		uint64_t	key) const
 	{
@@ -228,7 +228,7 @@ public:
 	void
 	set(
 		uint64_t	key,
-		uint64_t	val)
+		int64_t		val)
 	{
 		ut_ad(key != UNUSED);
 		ut_ad(val != NOT_FOUND);
@@ -266,18 +266,18 @@ public:
 		it is some real value in which case we should increment it
 		with 1. We know that m_val will never move from some real value
 		to NOT_FOUND. */
-		uint64_t	not_found = NOT_FOUND;
+		int64_t	not_found = NOT_FOUND;
 		if (!tuple->m_val.compare_exchange_strong(not_found, 1)) {
 			++tuple->m_val;
 		}
 	}
 
-	/** Decrement the value of a given key with 1 or do nothing if a
-	tuple with the given key is not found. With respect to calling this
-	together with set(), inc() or dec() the same applies as with inc(),
-	see its comment. The only guarantee is that the calls will execute
-	in isolation, but the order in which they will execute is
-	undeterministic.
+	/** Decrement the value of a given key with 1 or insert a new tuple
+	(key, -1).
+	With respect to calling this together with set(), inc() or dec() the
+	same applies as with inc(), see its comment. The only guarantee is
+	that the calls will execute in isolation, but the order in which they
+	will execute is undeterministic.
 	@param[in]	key	key whose value to decrement */
 	void
 	dec(
@@ -285,34 +285,16 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		key_val_t*	tuple = get_tuple(key);
+		key_val_t*	tuple = insert_or_get_position(key);
 
-		if (tuple == NULL) {
-			/* Nothing to decrement. We can either signal this
-			to the caller (e.g. return bool from this method) or
-			assert. For now we just return. */
-			return;
-		}
-
-		/* Try to CAS "N" with "N - 1" in a busy loop. This could
-		starve if lots of threads modify the same key. But we can't
-		use an atomic decrement while checking for >0 and !=NOT_FOUND
-		at the same time. */
-		for (;;) {
-			uint64_t	cur_val = tuple->m_val.load();
-
-			ut_a(cur_val > 0);
-
-			if (cur_val == NOT_FOUND) {
-				break;
-			}
-
-			const uint64_t	new_val = cur_val - 1;
-
-			if (tuple->m_val.compare_exchange_strong(cur_val,
-								 new_val)) {
-				break;
-			}
+		/* Here tuple->m_val is either NOT_FOUND or some real value.
+		Try to replace NOT_FOUND with -1. If that fails, then this means
+		it is some real value in which case we should decrement it
+		with 1. We know that m_val will never move from some real value
+		to NOT_FOUND. */
+		int64_t	not_found = NOT_FOUND;
+		if (!tuple->m_val.compare_exchange_strong(not_found, -1)) {
+			--tuple->m_val;
 		}
 	}
 
@@ -353,7 +335,7 @@ private:
 		os_atomic_t<uint64_t>	m_key;
 
 		/** Value. */
-		os_atomic_t<uint64_t>	m_val;
+		os_atomic_t<int64_t>	m_val;
 	};
 
 	/** A hash function used to map a key to its suggested position in the
@@ -470,10 +452,6 @@ private:
 
 		const size_t	start = guess_position(key, arr_size);
 		const size_t	end = start + arr_size;
-
-		/* We do not have os_compare_and_swap_ptr(), thus we use
-		os_compare_and_swap_ulint(). */
-		ut_ad(sizeof(uint64_t) == sizeof(ulint));
 
 		for (size_t i = start; i < end; i++) {
 

@@ -367,6 +367,14 @@ public:
 		return(os_atomic_increment_ulint(&m_data, 1));
 	}
 
+	/** Atomic prefix decrement (--a).
+	@return the new value after the decrement */
+	T
+	operator--()
+	{
+		return(os_atomic_increment_ulint(&m_data, -1));
+	}
+
 private:
 	/** The actual value container. */
 	T	m_data;

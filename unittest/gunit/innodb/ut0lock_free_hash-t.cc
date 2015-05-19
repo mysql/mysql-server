@@ -64,9 +64,9 @@ namespace innodb_lock_free_hash_unittest {
 class std_hash_t : public ut_hash_interface_t {
 public:
 #ifdef TEST_STD_MAP
-	typedef std::map<uintptr_t, uintptr_t>			map_t;
+	typedef std::map<uint64_t, int64_t>		map_t;
 #else
-	typedef std::unordered_map<uintptr_t, uintptr_t>	map_t;
+	typedef std::unordered_map<uint64_t, int64_t>	map_t;
 #endif
 
 	/** Constructor. */
@@ -81,15 +81,15 @@ public:
 		m_map_latch.destroy();
 	}
 
-	uintptr_t
+	int64_t
 	get(
-		uintptr_t	key) const
+		uint64_t	key) const
 	{
 		m_map_latch.enter(0, 0, __FILE__, __LINE__);
 
 		map_t::const_iterator	it = m_map.find(key);
 
-		uintptr_t	val;
+		int64_t	val;
 
 		if (it != m_map.end()) {
 			val = it->second;
@@ -104,8 +104,8 @@ public:
 
 	void
 	set(
-		uintptr_t	key,
-		uintptr_t	val)
+		uint64_t	key,
+		int64_t		val)
 	{
 		m_map_latch.enter(0, 0, __FILE__, __LINE__);
 
@@ -116,7 +116,7 @@ public:
 
 	void
 	inc(
-		uintptr_t	key)
+		uint64_t	key)
 	{
 		m_map_latch.enter(0, 0, __FILE__, __LINE__);
 
@@ -133,15 +133,16 @@ public:
 
 	void
 	dec(
-		uintptr_t	key)
+		uint64_t	key)
 	{
 		m_map_latch.enter(0, 0, __FILE__, __LINE__);
 
 		map_t::iterator	it = m_map.find(key);
 
 		if (it != m_map.end()) {
-			ut_a(it->second > 0);
-			it->second--;
+			--it->second;
+		} else {
+			m_map.insert(map_t::value_type(key, -1));
 		}
 
 		m_map_latch.exit();
@@ -165,10 +166,10 @@ private:
 @param[in]	extra_bits	extra bits to OR into the result
 @return a key, derived from 'i' and 'extra_bits' */
 inline
-uintptr_t
+uint64_t
 key_gen(
-	uintptr_t	i,
-	uintptr_t	extra_bits)
+	size_t		i,
+	uint64_t	extra_bits)
 {
 	return((i * 7 + 3) | extra_bits);
 }
@@ -177,9 +178,9 @@ key_gen(
 @param[in]	i	some sequential number
 @return a value derived from 'i' */
 inline
-uintptr_t
+int64_t
 val_from_i(
-	uintptr_t	i)
+	size_t	i)
 {
 	/* Make sure that the returned value is big enough, so that a few
 	decrements don't make it negative. */
@@ -193,10 +194,10 @@ val_from_i(
 void
 hash_insert(
 	ut_hash_interface_t*	hash,
-	uintptr_t		n_elements,
-	uintptr_t		key_extra_bits)
+	size_t			n_elements,
+	uint64_t		key_extra_bits)
 {
-	for (uintptr_t i = 0; i < n_elements; i++) {
+	for (size_t i = 0; i < n_elements; i++) {
 		hash->set(key_gen(i, key_extra_bits), val_from_i(i));
 	}
 }
@@ -208,11 +209,11 @@ hash_insert(
 void
 hash_check_inserted(
 	const ut_hash_interface_t*	hash,
-	uintptr_t			n_elements,
-	uintptr_t			key_extra_bits)
+	size_t				n_elements,
+	uint64_t			key_extra_bits)
 {
-	for (uintptr_t i = 0; i < n_elements; i++) {
-		const uintptr_t	key = key_gen(i, key_extra_bits);
+	for (size_t i = 0; i < n_elements; i++) {
+		const uint64_t	key = key_gen(i, key_extra_bits);
 
 		ASSERT_EQ(val_from_i(i), hash->get(key));
 	}
@@ -226,7 +227,7 @@ TEST(ut0lock_free_hash, single_threaded)
 	ut_hash_interface_t*	hash = new ut_lock_free_hash_t(1048576);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
-	const uintptr_t	n_elements = 16 * 1024;
+	const size_t	n_elements = 16 * 1024;
 
 	hash_insert(hash, n_elements, 0);
 
@@ -236,13 +237,13 @@ TEST(ut0lock_free_hash, single_threaded)
 
 	for (size_t it = 0; it < n_iter; it++) {
 		/* Increment the values of some and decrement of others. */
-		for (uintptr_t i = 0; i < n_elements; i++) {
+		for (size_t i = 0; i < n_elements; i++) {
 
 			const bool	should_inc = i % 2 == 0;
-			const uintptr_t	key = key_gen(i, 0);
+			const uint64_t	key = key_gen(i, 0);
 
 			/* Inc/dec from 0 to 9 times, depending on 'i'. */
-			for (uintptr_t j = 0; j < i % 10; j++) {
+			for (size_t j = 0; j < i % 10; j++) {
 				if (should_inc) {
 					hash->inc(key);
 				} else {
@@ -253,10 +254,10 @@ TEST(ut0lock_free_hash, single_threaded)
 	}
 
 	/* Check that increment/decrement was done properly. */
-	for (uintptr_t i = 0; i < n_elements; i++) {
+	for (size_t i = 0; i < n_elements; i++) {
 
 		const bool	was_inc = i % 2 == 0;
-		const uintptr_t	delta = (i % 10) * n_iter;
+		const int64_t	delta = (i % 10) * n_iter;
 
 		ASSERT_EQ(val_from_i(i) + (was_inc ? delta : -delta),
 			  hash->get(key_gen(i, 0)));
@@ -269,14 +270,14 @@ TEST(ut0lock_free_hash, single_threaded)
 ut_hash_interface_t*	global_hash;
 
 /** Number of common tuples (edited by all threads) to insert into the hash. */
-static const uintptr_t	N_COMMON = 512;
+static const size_t	N_COMMON = 512;
 
 /** Number of private, per-thread tuples to insert by each thread. */
-static const uintptr_t	N_PRIV_PER_THREAD = 128;
+static const size_t	N_PRIV_PER_THREAD = 128;
 
 /** Number of threads to start. Overall the hash will be filled with
 N_COMMON + N_THREADS * N_PRIV_PER_THREAD tuples. */
-static const uintptr_t	N_THREADS = 32;
+static const size_t	N_THREADS = 32;
 
 /** Hammer the global hash with inc(), dec() and set(). The inc()/dec()
 performed on the common keys will net to 0 when this thread ends. It also
@@ -288,15 +289,15 @@ DECLARE_THREAD(thread)(
 	void*	arg)
 {
 	const uintptr_t	thread_id = reinterpret_cast<uintptr_t>(arg);
-	const uintptr_t	key_extra_bits = thread_id << 32;
+	const uint64_t	key_extra_bits = thread_id << 32;
 
 	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
-	const uintptr_t	n_iter = 512;
+	const size_t	n_iter = 512;
 
-	for (uintptr_t i = 0; i < n_iter; i++) {
-		for (uintptr_t j = 0; j < N_COMMON; j++) {
-			const uintptr_t	key = key_gen(j, 0);
+	for (size_t i = 0; i < n_iter; i++) {
+		for (size_t j = 0; j < N_COMMON; j++) {
+			const uint64_t	key = key_gen(j, 0);
 
 			global_hash->inc(key);
 			global_hash->inc(key);
@@ -310,10 +311,10 @@ DECLARE_THREAD(thread)(
 			global_hash->dec(key);
 		}
 
-		for (uintptr_t j = 0; j < N_PRIV_PER_THREAD; j++) {
-			const uintptr_t	key = key_gen(j, key_extra_bits);
+		for (size_t j = 0; j < N_PRIV_PER_THREAD; j++) {
+			const uint64_t	key = key_gen(j, key_extra_bits);
 
-			for (uintptr_t k = 0; k < 4; k++) {
+			for (size_t k = 0; k < 4; k++) {
 				global_hash->inc(key);
 				global_hash->dec(key);
 			}
@@ -343,7 +344,7 @@ TEST(ut0lock_free_hash, multi_threaded)
 	hash_insert(global_hash, N_COMMON, 0);
 
 	for (uintptr_t i = 0; i < N_THREADS; i++) {
-		/* Avoid thread_id==0 because that will collide with the
+		/* Avoid thread_id == 0 because that will collide with the
 		shared tuples, thus use 'i + 1' instead of 'i'. */
 		os_thread_create(thread, reinterpret_cast<void*>(i + 1), NULL);
 	}
