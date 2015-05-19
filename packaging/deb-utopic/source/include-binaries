@@ -25,6 +25,9 @@ debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin
 debian/extra/libdaemon_example-plugin
 debian/extra/libmemcached-plugin
+debian/extra/libtest_framework-plugin
+debian/extra/libtest_services-plugin
+debian/extra/libtest_services_threaded-plugin
 debian/extra/locking_service-plugin
 debian/extra/mypluglib-plugin
 debian/extra/mysql_no_login-plugin
