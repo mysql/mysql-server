@@ -2233,6 +2233,50 @@ on ( table2 . routine_name = table1 . compress_time )
 where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
 having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
 page_size	compress_ops	compress_ops_ok	compress_time	uncompress_ops	uncompress_time	Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+#
+# Bug#20665051 SQL_SHOW.CC:7764: ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()
+#
+EXPLAIN SELECT 1
+FROM DUAL
+WHERE (SELECT 1 FROM information_schema.tables
+WHERE table_schema
+ORDER BY table_name
+LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	tables	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using where; Skip_open_table; Scanned all databases; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from DUAL  where 0
+SELECT 1
+FROM DUAL
+WHERE (SELECT 1 FROM information_schema.tables
+WHERE table_schema
+ORDER BY table_name
+LIMIT 1);
+1
+EXPLAIN SELECT 1 AS F1 FROM information_schema.tables
+WHERE "CHARACTER_SETS"=
+(SELECT CAST(TABLE_NAME AS CHAR)
+FROM information_schema.tables
+WHERE table_schema != 'PERFORMANCE_SCHEMA'
+      ORDER BY table_name
+LIMIT 1)
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	tables	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using where; Skip_open_table; Scanned all databases; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `F1` from `information_schema`.`tables` where 0 limit 1
+SELECT 1 AS F1 FROM information_schema.tables
+WHERE "CHARACTER_SETS"=
+(SELECT CAST(TABLE_NAME AS CHAR)
+FROM information_schema.tables
+WHERE table_schema != 'PERFORMANCE_SCHEMA'
+      ORDER BY table_name
+LIMIT 1)
+LIMIT 1;
+F1
+1
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
