@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2267,6 +2267,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   int res;
   bool connected = true;
+  uint retries = 100;
 
   if (pOp == 0)
   {
@@ -2280,16 +2281,27 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     goto cleanup;
   }
 
-  res = ndb->pollEvents(5000) > 0;
-
-  if (ndb->getNdbError().code != 0)
+  Uint64 curr_gci;
+  for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
   {
-    g_err << "pollEvents failed: \n";
-    g_err << ndb->getNdbError().code << " "
-          << ndb->getNdbError().message << endl;
+    res = ndb->pollEvents(5000, &curr_gci) > 0;
+
+    if (ndb->getNdbError().code != 0)
+    {
+      g_err << "pollEvents failed: \n";
+      g_err << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+
+  if (curr_gci != NDB_FAILURE_GCI)
+  {
+    g_err << "pollEvents failed to detect cluster failure: \n";
     result = NDBT_FAILED;
     goto cleanup;
-  }
+  } 
 
   if (res > 0) {
     NdbEventOperation *tmp;
@@ -2304,6 +2316,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
       }
       switch (tmp->getEventType()) {
       case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+        g_err << "Found TE_CLUSTER_FAILURE" << endl;
         connected = false;
         break;
       default:
@@ -2319,15 +2332,12 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-cleanup:
-
   if (ndb->dropEventOperation(pOp) != 0) {
     g_err << "dropping event operation failed\n";
     result = NDBT_FAILED;
   }
 
   // Reconnect by trying to start a transaction
-  uint retries = 100;
   while (!connected && retries--)
   {
     HugoTransactions hugoTrans(* ctx->getTab());
@@ -2352,9 +2362,6 @@ cleanup:
     return NDBT_FAILED;
   }
 
-  // Stop the other thread
-  ctx->stopTest();
-
   if (restarter.waitClusterStarted(300) != 0){
     return NDBT_FAILED;
   }
@@ -2362,6 +2369,44 @@ cleanup:
   if (ndb->waitUntilReady() != 0){
     return NDBT_FAILED;
   }
+
+  pOp= createEventOperation(ndb, *pTab);
+
+  if (pOp == 0)
+  {
+    g_err << "Failed to createEventOperation" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Check that we receive events again
+  for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
+  {
+    res = ndb->pollEvents(5000, &curr_gci) > 0;
+
+    if (ndb->getNdbError().code != 0)
+    {
+      g_err << "pollEvents failed: \n";
+      g_err << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+  if (curr_gci == NDB_FAILURE_GCI)
+  {
+    g_err << "pollEvents after restart failed res " << res << " curr_gci " << curr_gci << endl;
+    result =  NDBT_FAILED;
+  }
+
+cleanup:
+
+  if (ndb->dropEventOperation(pOp) != 0) {
+    g_err << "dropping event operation failed\n";
+    result = NDBT_FAILED;
+  }
+
+  // Stop the other thread
+  ctx->stopTest();
 
   return result;
 }
