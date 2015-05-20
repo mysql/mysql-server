@@ -125,3 +125,127 @@ SET cost_value=DEFAULT;
 FLUSH OPTIMIZER_COSTS;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20947871 INDEX SCAN COST IN TEST_IF_CHEAPER_ORDERING() DOES
+--echo #              NOT USE COST CONSTANTS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  a INTEGER,
+  b INTEGER,
+  c CHAR(255),
+  UNIQUE KEY k1 (a)
+);
+
+INSERT INTO t1 VALUES (1, 1, NULL, "Abc"), (2, 2, NULL, "Abc"),
+                      (3, 3, NULL, "Abc"), (4, 4, NULL, "Abc");
+INSERT INTO t1 SELECT a + 4, a + 4, b, c FROM t1;
+INSERT INTO t1 SELECT a + 8, a + 8, b, c FROM t1;
+INSERT INTO t1 SELECT a + 16, a + 16, b, c FROM t1;
+INSERT INTO t1 SELECT a + 32, a + 32, b, c FROM t1;
+INSERT INTO t1 SELECT a + 64, a + 64, b, c FROM t1;
+INSERT INTO t1 SELECT a + 128, a + 128, b, c FROM t1;
+
+CREATE TABLE t2 (
+  d INTEGER PRIMARY KEY,
+  e INTEGER
+);
+
+INSERT INTO t2 SELECT a, b FROM t1;
+
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1, t2;
+--enable_result_log
+--enable_query_log
+
+# Test query: This should do limit optimization and use index without filesort
+let query= SELECT * FROM t1 JOIN t2 ON b=d ORDER BY a LIMIT 4;
+
+# Run the query with default cost constants
+
+# Create a user connection
+connect (con1,localhost,root,,);
+connection con1;
+
+# Get cost estimates with default values
+--echo # Query should be optimized for the LIMIT. Query plan should
+--echo # use index without filesort
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Halve the value of the cost constants:
+# 1. Replace the NULL in the cost_value column with actual value
+
+# Update server_cost:
+eval UPDATE mysql.server_cost
+     SET cost_value=$row_evaluate_cost
+     WHERE cost_name="row_evaluate_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$key_compare_cost
+     WHERE cost_name="key_compare_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$memory_temptable_create_cost
+     WHERE cost_name="memory_temptable_create_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$memory_temptable_row_cost
+     WHERE cost_name="memory_temptable_row_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$disk_temptable_create_cost
+     WHERE cost_name="disk_temptable_create_cost";
+
+eval UPDATE mysql.server_cost
+     SET cost_value=$disk_temptable_row_cost
+     WHERE cost_name="disk_temptable_row_cost";
+
+# Update engine_cost:
+eval UPDATE mysql.engine_cost
+     SET cost_value=$io_block_read_cost
+     WHERE cost_name="io_block_read_cost";
+
+# 2. Divide all cost constants by two
+UPDATE mysql.server_cost
+SET cost_value = 0.5 * cost_value;
+
+UPDATE mysql.engine_cost
+SET cost_value = 0.5 * cost_value;
+
+# Validate cost constants
+SELECT cost_name, cost_value FROM mysql.server_cost;
+SELECT cost_name, cost_value FROM mysql.engine_cost;
+
+FLUSH OPTIMIZER_COSTS;
+
+# Re-run the queries with the new cost constants
+
+# Create a user connection
+connect (con1,localhost,root,,);
+connection con1;
+
+# The new cost estimates should be approximately half compared to the
+# first run. The query plan should still be the same.
+--echo # This should be optimized for the LIMIT. Query plan should
+--echo # use index without filesort
+eval EXPLAIN FORMAT=JSON $query;
+
+disconnect con1;
+connection default;
+
+# Reset cost constants
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+
+FLUSH OPTIMIZER_COSTS;
+
+DROP TABLE t1, t2;
