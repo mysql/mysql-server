@@ -1346,12 +1346,30 @@ public:
   int pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch= 0);
 
   /**
+   * Check if higher queued epochs have been seen by the last
+   * pollEvents2 call or if a TE_CLUSTER_FAILURE event has been
+   * detected. If a cluster failure has been detected then the
+   * highestQueuedEpoch returned from pollEvents2() might not
+   * increase anymore. The correct action is then not to poll
+   * for more events, but instead consume events with nextEvent()
+   * until a TE_CLUSTER_FAILURE is detected and then reconnect to
+   * the cluster when it is available again.
+   */
+  bool isExpectingHigherQueuedEpochs();
+
+#define NDB_FAILURE_GCI ~(Uint64)0
+
+  /**
    * Wait for an event to occur. Will return as soon as an event
    * is available on any of the created events.
    *
    * @param aMillisecondNumber
    *        maximum time to wait
    * aMillisecondNumber < 0 will cause a long wait
+   * @param latestGCI
+   *        if a valid pointer is passed to a 64-bit integer it will be set
+   *        to the latest polled GCI. If a cluster failure is detected it
+   *        will be set to NDB_FAILURE_GCI.
    *
    * @return > 0 if events available, 0 if no events available, < 0 on failure
    *
