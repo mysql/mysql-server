@@ -23,10 +23,6 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <sys/stat.h>
-#include <EventLogger.hpp>
-
-extern EventLogger* g_eventLogger;
 
 #define MY_SOCKET_FORMAT "%d"
 #define MY_SOCKET_FORMAT_VALUE(x) (x.fd)
@@ -63,20 +59,8 @@ static inline int my_socket_get_fd(ndb_socket_t s)
   return s.fd;
 }
 
-static inline int my_socket_close(ndb_socket_t s)
-{
-  struct stat sb;
-  if (fstat(s.fd, &sb) == 0)
-  {
-    if ((sb.st_mode & S_IFMT) != S_IFSOCK)
-    {
-      g_eventLogger->error("fd=%d: not socket: mode=%o",
-                           s.fd, sb.st_mode);
-      abort();
-    }
-  }
-  return close(s.fd);
-}
+/* implemented in ndb_socket.cpp */
+extern int my_socket_close(ndb_socket_t s);
 
 static inline int my_socket_errno()
 {
