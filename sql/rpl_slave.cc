@@ -6633,7 +6633,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
                                                &key_relay_log_info_stop_cond,
                                                &key_relay_log_info_sleep_cond
     #endif
-                                               ,0, rli->get_channel());
+                                               ,w->id, rli->get_channel());
     worker_copy->copy_values_for_PFS(w->id, w->running_status, w->info_thd,
                                      w->last_error(),
                                      w->currently_executing_gtid);

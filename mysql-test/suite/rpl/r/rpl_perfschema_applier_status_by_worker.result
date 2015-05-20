@@ -97,6 +97,23 @@ Last_Seen_Transaction	MASTER_UUID:3
 include/stop_slave.inc
 select Last_Seen_Transaction from performance_schema.replication_applier_status_by_worker;
 Last_Seen_Transaction	MASTER_UUID:3
+#
+# BUG#20513547 REPLICATION_APPLIER_STATUS_BY_WORKER SHOWS
+#              WRONG WORKER_ID WHEN SLAVE STOPS
+#
+SET @@GLOBAL.slave_parallel_workers = 3;
+include/start_slave.inc
+SELECT worker_id from performance_schema.replication_applier_status_by_worker;
+worker_id
+1
+2
+3
+include/stop_slave.inc
+SELECT worker_id from performance_schema.replication_applier_status_by_worker;
+worker_id
+1
+2
+3
 
 # Cleanup.
 
