@@ -45,6 +45,8 @@ public:
   void clear_buffer(Uint32 &rg, Ptr<GlobalPage> & ptr, Uint32 & cnt);
 
   AsyncIoThread* getThread() const { return m_thread;}
+
+  virtual Uint32 get_fileinfo() const { return 0; }
 private:
 
   /**
