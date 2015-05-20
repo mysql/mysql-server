@@ -2448,15 +2448,49 @@ int Query_result_update::do_updates()
   DBUG_ENTER("Query_result_update::do_updates");
 
   do_update= 0;					// Don't retry this function
+
   if (!found)
+  {
+    /*
+      If the binary log is on, we still need to check
+      if there are transactional tables involved. If
+      there are mark the transactional_tables flag correctly.
+
+      This flag determines whether the writes go into the
+      transactional or non transactional cache, even if they
+      do not change any table, they are still written into
+      the binary log when the format is STMT or MIXED.
+    */
+    if(mysql_bin_log.is_open())
+    {
+      for (cur_table= update_tables; cur_table;
+           cur_table= cur_table->next_local)
+      {
+        table = cur_table->table;
+        transactional_tables= transactional_tables ||
+                              table->file->has_transactions();
+      }
+    }
     DBUG_RETURN(0);
+  }
   for (cur_table= update_tables; cur_table; cur_table= cur_table->next_local)
   {
     uint offset= cur_table->shared;
 
     table = cur_table->table;
+
+    /*
+      Always update the flag if - even if not updating the table,
+      when the binary log is ON. This will allow the right binlog
+      cache - stmt or trx cache - to be selected when logging
+      innefective statementst to the binary log (in STMT or MIXED
+      mode logging).
+     */
+    if (mysql_bin_log.is_open())
+      transactional_tables= transactional_tables || table->file->has_transactions();
+
     if (table == table_to_update)
-      continue;					// Already updated
+      continue;                                        // Already updated
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
@@ -2599,9 +2633,7 @@ int Query_result_update::do_updates()
 
     if (updated != org_updated)
     {
-      if (table->file->has_transactions())
-        transactional_tables= TRUE;
-      else
+      if (!table->file->has_transactions())
       {
         trans_safe= FALSE;				// Can't do safe rollback
         thd->get_transaction()->mark_modified_non_trans_table(
