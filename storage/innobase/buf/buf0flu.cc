@@ -1047,10 +1047,10 @@ buf_flush_write_block_low(
 				false, frame, bpage->size,
 				fsp_is_checksum_disabled(bpage->id.space()));
 
-			ut_a(reporter.verify_zip_checksum());
-
 			mach_write_to_8(frame + FIL_PAGE_LSN,
 					bpage->newest_modification);
+
+			ut_a(reporter.verify_zip_checksum());
 			break;
 		}
 	case BUF_BLOCK_FILE_PAGE:
