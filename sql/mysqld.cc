@@ -709,8 +709,6 @@ static int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
 static char **remaining_argv;
 
-bool load_perfschema_engine= false;
-
 int orig_argc;
 char **orig_argv;
 
@@ -4405,9 +4403,6 @@ int mysqld_main(int argc, char **argv)
   adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  if (pfs_param.m_enabled)
-    load_perfschema_engine= true;
-
   if (ho_error == 0)
   {
     if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
@@ -4850,7 +4845,7 @@ int mysqld_main(int argc, char **argv)
     - the tables are not supposed to exist yet, bootstrap will create them
     - a check would print spurious error messages
   */
-  if (! opt_bootstrap && load_perfschema_engine)
+  if (! opt_bootstrap)
     check_performance_schema();
 #endif
 
