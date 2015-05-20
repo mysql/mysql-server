@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <GlobalData.hpp>
 #include <FastScheduler.hpp>
 #include <VMSignal.hpp>
+#include <SimulatedBlock.hpp>
 
 #define JAM_FILE_ID 273
 
@@ -40,6 +41,7 @@ TimeQueue::clear()
 {
   globalData.theNextTimerJob = 65535;
   globalData.theCurrentTimer = 0;
+  globalData.theZeroTQIndex = 0;
   globalData.theShortTQIndex = 0;
   globalData.theLongTQIndex = 0;
   for (int i = 0; i < MAX_NO_OF_TQ; i++)
@@ -52,20 +54,43 @@ void
 TimeQueue::insert(Signal* signal, BlockNumber bnr, 
 		  GlobalSignalNumber gsn, Uint32 delayTime)
 {
-  if (delayTime == 0)
-    delayTime = 1;
   register Uint32 regCurrentTime = globalData.theCurrentTimer;
   register Uint32 i;
   register Uint32 regSave;
   register TimerEntry newEntry;
-  
+ 
+  if (delayTime == 0)
+    delayTime = 1;
+
   newEntry.time_struct.delay_time = regCurrentTime + delayTime;
   newEntry.time_struct.job_index = getIndex();
   regSave = newEntry.copy_struct;
   
   globalScheduler.insertTimeQueue(signal, bnr, gsn, 
 				  newEntry.time_struct.job_index);
-  
+ 
+  if (delayTime == SimulatedBlock::BOUNDED_DELAY)
+  {
+    /**
+     * Bounded delay signals are put into special zero time queue, no real
+     * check of timers here, it will be put back into the
+     * job buffer as soon as we complete the execution in the
+     * run job buffer loop.
+     */
+    register Uint32 regZeroIndex = globalData.theZeroTQIndex;
+    if (regZeroIndex < MAX_NO_OF_ZERO_TQ - 1)
+    {
+      theZeroQueue[regZeroIndex].copy_struct = newEntry.copy_struct;
+      globalData.theZeroTQIndex = regZeroIndex + 1;
+    }
+    else
+    {
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_ZERO, 
+                "Too many in Zero Time Queue", "TimeQueue.C" );
+    }
+    return;
+  }
+
   if (newEntry.time_struct.delay_time < globalData.theNextTimerJob)
     globalData.theNextTimerJob = newEntry.time_struct.delay_time;
   if (delayTime < 100){
@@ -130,6 +155,18 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
     ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_DELAY, 
 	      "Too long delay for Time Queue", "TimeQueue.C" );
   }
+}
+
+void
+TimeQueue::scanZeroTimeQueue()
+{
+  /* Put all jobs in zero time queue into job buffer */
+  for (Uint32 i = 0; i < globalData.theZeroTQIndex; i++)
+  {
+    releaseIndex((Uint32)theZeroQueue[i].time_struct.job_index);
+    globalScheduler.scheduleTimeQueue(theZeroQueue[i].time_struct.job_index);
+  }
+  globalData.theZeroTQIndex = 0;
 }
 
 // executes the expired signals;
