@@ -6517,10 +6517,6 @@ uint TABLE_LIST::query_block_id() const
     e.g. "USE INDEX i1, IGNORE INDEX i1, USE INDEX i1" will not use i1 at all
     as if we had "USE INDEX i1, USE INDEX i1, IGNORE INDEX i1".
 
-    As an optimization if there is a covering index, and we have 
-    IGNORE INDEX FOR GROUP/ORDER, and this index is used for the JOIN part, 
-    then we have to ignore the IGNORE INDEX FROM GROUP/ORDER.
-
   RETURN VALUE
     FALSE                no errors found
     TRUE                 found and reported an error.
