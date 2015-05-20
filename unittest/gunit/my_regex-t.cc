@@ -95,7 +95,16 @@ TEST_F(RegexTest, Bug20642505)
   int         err;
   size_t      len= 684 * 1024 * 1024;
 
-  if ((sizeof(size_t) > 4) && (sizeof(long) > 4))
+  /*
+    We're testing on 32-bit/32-bit only. We could test e.g. with
+    64-bit size_t, 32-bit long (for 64-bit Windows and such), but
+    then we'd have to allocate twice as much memory, and it's a
+    bit heavy as it is.  (In 32/32, we exceed the size_t parameter
+    to malloc() as new_ssize exceeds UINT32 / 4, whereas in 64/32,
+    new_ssize would exceed LONG_MAX at UINT32 / 2.  (64/32 verified
+    in debugger.)
+  */
+  if ((sizeof(size_t) > 4) || (sizeof(long) > 4))
     return;
 
   /* set up an empty C string as pattern as regcomp() will strlen() this */
