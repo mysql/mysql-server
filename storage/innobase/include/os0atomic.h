@@ -103,7 +103,14 @@ compare to, new_val is the value to swap in. */
 	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
 
 # define os_compare_and_swap_uint32(ptr, old_val, new_val) \
-	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+	(InterlockedCompareExchange((volatile LONG*) ptr, \
+				    (LONG) new_val, \
+				    (LONG) old_val) == (LONG) old_val)
+
+# define os_compare_and_swap_uint64(ptr, old_val, new_val) \
+	(InterlockedCompareExchange64((volatile LONG64*) (ptr), \
+				      (LONG64) (new_val), \
+				      (LONG64) (old_val)) == (LONG64) (old_val))
 
 /* windows thread objects can always be passed to windows atomic functions */
 # define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
@@ -194,6 +201,9 @@ compare to, new_val is the value to swap in. */
 	os_compare_and_swap(ptr, old_val, new_val)
 
 #  define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
+
+#  define os_compare_and_swap_uint64(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_GCC
@@ -314,12 +324,21 @@ public:
 	:
 	m_data(data)
 	{
-		/* This class does not support arbitrary types. */
-		ut_a(sizeof(T) <= 8);
-
-		/* m_data must be aligned on 8-byte boundary, otherwise
-		plain assignment and read will not be atomic. */
-		ut_a((reinterpret_cast<uintptr_t>(&m_data) & 7) == 0);
+		switch (sizeof(T)) {
+		case 4:
+			/* m_data must be aligned on 4-byte boundary, otherwise
+			plain assignment and read will not be atomic. */
+			ut_a((reinterpret_cast<uintptr_t>(&m_data) & 3) == 0);
+			break;
+		case 8:
+			/* m_data must be aligned on 8-byte boundary, otherwise
+			plain assignment and read will not be atomic. */
+			ut_a((reinterpret_cast<uintptr_t>(&m_data) & 7) == 0);
+			break;
+		default:
+			/* This class does not support arbitrary types. */
+			ut_error;
+		}
 	}
 
 	/** Load (read) the value. */
@@ -356,7 +375,13 @@ public:
 		T&	expected,
 		T	desired)
 	{
-		return(os_compare_and_swap_ulint(&m_data, expected, desired));
+		if (sizeof(T) == 8) {
+			return(os_compare_and_swap_uint64(&m_data,
+							  expected, desired));
+		} else {
+			return(os_compare_and_swap_uint32(&m_data,
+							  expected, desired));
+		}
 	}
 
 	/** Atomic prefix increment (++a).
@@ -364,7 +389,11 @@ public:
 	T
 	operator++()
 	{
-		return(os_atomic_increment_ulint(&m_data, 1));
+		if (sizeof(T) == 8) {
+			return(os_atomic_increment_uint64(&m_data, 1));
+		} else {
+			return(os_atomic_increment_uint32(&m_data, 1));
+		}
 	}
 
 	/** Atomic prefix decrement (--a).
@@ -372,7 +401,11 @@ public:
 	T
 	operator--()
 	{
-		return(os_atomic_increment_ulint(&m_data, -1));
+		if (sizeof(T) == 8) {
+			return(os_atomic_increment_uint64(&m_data, -1));
+		} else {
+			return(os_atomic_increment_uint32(&m_data, -1));
+		}
 	}
 
 private:
