@@ -375,9 +375,11 @@ btr_page_create(
 
 	if (level == 0) {
 		ib::info() /* XXX */
-			<< buf_stat_per_index->get(index->id)
-			<< " inc (crea) index_id=" << index->id;
-		buf_stat_per_index->inc(index->id);
+			<< buf_stat_per_index->get(
+				index_id_t(index->space, index->id))
+			<< " inc (crea) index_id="
+			<< index->space << ":" << index->id;
+		buf_stat_per_index->inc(index_id_t(index->space, index->id));
 	}
 }
 

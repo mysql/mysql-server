@@ -12249,7 +12249,8 @@ index_pct_cached(
 		return(0.0);
 	}
 
-	const uint64_t	n_in_mem = buf_stat_per_index->get(index->id);
+	const int64_t	n_in_mem = buf_stat_per_index->get(
+		index_id_t(index->space, index->id));
 
 	const double	ratio = static_cast<double>(n_in_mem) / n_leaf;
 
@@ -12257,7 +12258,7 @@ index_pct_cached(
 		<< __func__ << "(" << index->table_name << " " << index->name
 		<< "): " << n_in_mem << " / " << n_leaf << " = " << ratio;
 
-	return(std::min(ratio, 1.0));
+	return(std::max(std::min(ratio, 1.0), 0.0));
 }
 
 /*********************************************************************//**

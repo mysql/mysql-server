@@ -2260,13 +2260,20 @@ buf_LRU_block_remove_hashed(
 			if ((type == FIL_PAGE_INDEX || type == FIL_PAGE_RTREE)
 			    && btr_page_get_level_low(frame) == 0) {
 
+				const uint32_t		space_id
+					= bpage->id.space();
+
+				const space_index_t	idx_id
+					= btr_page_get_index_id(frame);
+
 				ib::info() /* XXX */
-					<< buf_stat_per_index->get(btr_page_get_index_id(frame))
+					<< buf_stat_per_index->get(
+						index_id_t(space_id, idx_id))
 					<< " dec index_id="
-					<< btr_page_get_index_id(frame)
+					<< space_id << ":" << idx_id
 					<< " " << bpage->id;
 				buf_stat_per_index->dec(
-					btr_page_get_index_id(frame));
+					index_id_t(space_id, idx_id));
 			}
 		}
 

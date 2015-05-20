@@ -4921,26 +4921,27 @@ buf_page_monitor(
 	const ulint		page_type = fil_page_get_type(frame);
 
 	bool			is_leaf;
-	space_index_t		index_id;
 	bool			is_ibuf;
 
 	if (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE) {
 
 		is_leaf = page_is_leaf(frame);
 
-		index_id = btr_page_get_index_id(frame);
+		const uint32_t		space_id = bpage->id.space();
+		const space_index_t	idx_id = btr_page_get_index_id(frame);
 
-		is_ibuf = bpage->id.space() == IBUF_SPACE_ID
-			&& index_id == ibuf_index_id;
+		is_ibuf = space_id == IBUF_SPACE_ID && idx_id == ibuf_index_id;
 
 		/* Account reading of leaf, non-ibuf, pages into the buffer
 		pool(s). */
 		if (is_leaf && io_type == BUF_IO_READ && !is_ibuf) {
 			ib::info() /* XXX */
-				<< buf_stat_per_index->get(index_id)
-				<< " inc (read) index_id=" << index_id
+				<< buf_stat_per_index->get(
+					index_id_t(space_id, idx_id))
+				<< " inc (read) index_id="
+				<< space_id << ":" << idx_id
 				<< " " << bpage->id;
-			buf_stat_per_index->inc(index_id);
+			buf_stat_per_index->inc(index_id_t(space_id, idx_id));
 		}
 	}
 
