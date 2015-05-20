@@ -28,6 +28,8 @@
 static MYSQL_PLUGIN plugin_info_ptr;
 
 int validate_plugin_server_requirements(Trans_param *param);
+int test_channel_service_interface_initialization();
+int test_channel_service_interface();
 
 /*
   Will register the number of calls to each method of Server state
@@ -194,7 +196,10 @@ int trans_before_dml(Trans_param *param, int& out_val)
 
   DBUG_EXECUTE_IF("cause_failure_in_before_dml_hook",
                   out_val= 1;);
-
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels",
+                  test_channel_service_interface(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels_init",
+                  test_channel_service_interface_initialization(););
   return 0;
 }
 
@@ -606,6 +611,101 @@ int validate_plugin_server_requirements(Trans_param *param)
   return 0;
 }
 
+int test_channel_service_interface_initialization()
+{
+    int error= initialize_channel_service_interface();
+    DBUG_ASSERT(error);
+    return 0;
+}
+
+int test_channel_service_interface()
+{
+    //The initialization method should return OK
+    int error= initialize_channel_service_interface();
+    DBUG_ASSERT(!error);
+
+    //Test channel creation
+    char interface_channel[]= "example_channel";
+    Channel_creation_info info;
+    initialize_channel_creation_info(&info);
+    error= channel_create(interface_channel, &info);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel exists
+    bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(exists);
+
+    //Check that a non existing channel is declared as such
+    char dummy_channel[]= "dummy_channel";
+    exists= channel_is_active(dummy_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(!exists);
+
+    //Test that we cannot create a empty named channel (the default channel)
+    char empty_interface_channel[]= "";
+    initialize_channel_creation_info(&info);
+    error= channel_create(empty_interface_channel, &info);
+    DBUG_ASSERT(error == RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
+
+    //Start the applier thread (since it does not need an external server)
+    Channel_connection_info connection_info;
+    initialize_channel_connection_info(&connection_info);
+    error= channel_start(interface_channel,
+                         &connection_info,
+                         CHANNEL_APPLIER_THREAD,
+                         true);
+    DBUG_ASSERT(!error);
+
+    //Assert that the applier thread is running
+    bool running= channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
+    DBUG_ASSERT(running);
+
+    //Wait for execution of events (none in this case so it should return OK)
+    error= channel_wait_until_apply_queue_empty(interface_channel, 100000);
+    DBUG_ASSERT(!error);
+
+    //Get the last delivered gno (should be 0)
+    rpl_sid fake_sid;
+    fake_sid.parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    rpl_sidno fake_sidno= get_sidno_from_global_sid_map(fake_sid);
+    rpl_gno gno= channel_get_last_delivered_gno(interface_channel, fake_sidno);
+    DBUG_ASSERT(gno == 0);
+
+    //Check that for non existing channels it returns the corresponding error
+    gno= channel_get_last_delivered_gno(dummy_channel, fake_sidno);
+    DBUG_ASSERT(gno == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+
+    //Extract the applier id
+    long unsigned int * applier_id= NULL;
+    channel_get_appliers_thread_id(interface_channel,
+                                   &applier_id);
+    DBUG_ASSERT(*applier_id > 0);
+    my_free(applier_id);
+
+    //Stop the channel applier
+    error= channel_stop(interface_channel,
+                        3,
+                        10000);
+    DBUG_ASSERT(!error);
+
+    //Assert that the applier thread is not running
+    running= channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
+    DBUG_ASSERT(!running);
+
+    //Purge the channel and assert all is OK
+    error= channel_purge_queue(interface_channel, true);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel is not there.
+    exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(!exists);
+
+    //Check that a queue in an empty channel will fail.
+    char empty_event[]= "";
+    error= channel_queue_packet(dummy_channel, empty_event, 0);
+    DBUG_ASSERT(error);
+
+    return 0;
+}
 
 /*
   Initialize the Replication Observer example at server start or plugin

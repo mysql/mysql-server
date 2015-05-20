@@ -134,7 +134,10 @@ Group_replication_handler* group_replication_handler= NULL;
 */
 int group_replication_init(const char* plugin_name)
 {
-  intialize_channel_service_interface();
+  if (initialize_channel_service_interface())
+  {
+    return 1;
+  }
 
   if (group_replication_handler != NULL)
     return 1;
@@ -149,7 +152,7 @@ int group_replication_init(const char* plugin_name)
 int group_replication_cleanup()
 {
   if (!group_replication_handler)
-    return 0;
+    return 1;
 
   delete group_replication_handler;
   group_replication_handler= NULL;
