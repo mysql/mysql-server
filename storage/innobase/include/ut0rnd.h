@@ -79,7 +79,6 @@ ut_hash_ulint(
 /*==========*/
 	ulint	 key,		/*!< in: value to be hashed */
 	ulint	 table_size);	/*!< in: hash table size */
-
 /*************************************************************//**
 Folds a 64-bit integer.
 @return folded value */
@@ -89,7 +88,6 @@ ut_fold_ull(
 /*========*/
 	ib_uint64_t	d)	/*!< in: 64-bit integer */
 	__attribute__((const));
-
 /*************************************************************//**
 Folds a character string ending in the null character.
 @return folded value */
