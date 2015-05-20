@@ -1,0 +1,30 @@
+# This test verifies the basic functionalities of the channel service interface.
+# Using the example plugin, we execute several of the interface methods,
+# verifying the result.
+
+--source include/not_embedded.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_gtid.inc
+--source include/have_replication_observers_example_plugin.inc
+
+# Install the replication observers example plugin
+
+--source include/install_replication_observers_example.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+
+# Execute a query that on a server hook will execute a test against the several
+# method of the channel interface
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,validate_replication_observers_plugin_server_channels';
+
+--eval INSERT INTO t1 VALUES(1)
+
+# Clean
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+DROP TABLE t1;
+
+--source include/uninstall_replication_observers_example.inc
