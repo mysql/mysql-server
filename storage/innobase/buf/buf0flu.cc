@@ -1040,10 +1040,10 @@ buf_flush_write_block_low(
 	case BUF_BLOCK_ZIP_DIRTY:
 		frame = bpage->zip.data;
 
-		ut_a(page_zip_verify_checksum(frame, bpage->size.physical()));
-
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
+
+		ut_a(page_zip_verify_checksum(frame, bpage->size.physical()));
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;
