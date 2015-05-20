@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ void senddelay(Uint32 thr_no, const struct SignalHeader*, Uint32 delay);
 void mt_execSTOP_FOR_CRASH();
 
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
+Uint32 mt_getSignalsInJBB(Uint32 self);
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,
