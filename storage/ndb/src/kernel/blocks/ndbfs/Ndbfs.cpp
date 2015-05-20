@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1290,6 +1290,7 @@ Ndbfs::report(Request * request, Signal* signal)
 	m_maxOpenedFiles = theOpenFiles.size();
 
       fsConf->filePointer = request->theFilePointer;
+      fsConf->fileInfo = request->m_fileinfo;
       sendSignal(ref, GSN_FSOPENCONF, signal, 3, JBA);
       break;
     }
@@ -1647,9 +1648,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       AsyncFile* file = theFiles[i];
       if (file == 0)
         continue;
-      ndbout_c("%u : %s %s", i,
+      ndbout_c("%u : %s %s fileInfo=%08x", i,
                file->theFileName.c_str() ? file->theFileName.c_str() : "",
-               file->isOpen() ? "OPEN" : "CLOSED");
+               file->isOpen() ? "OPEN" : "CLOSED",
+               file->get_fileinfo());
     }
   }
 }//Ndbfs::execDUMP_STATE_ORD()
