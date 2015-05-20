@@ -767,16 +767,6 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
                   "group_index_range": {
                     "potential_group_range_indexes": [
                       {
-                        "index": "PRIMARY",
-                        "usable": false,
-                        "cause": "not_covering"
-                      },
-                      {
-                        "index": "i1b",
-                        "usable": false,
-                        "cause": "not_covering"
-                      },
-                      {
                         "index": "i2_1",
                         "covering": true,
                         "rows": 103,
@@ -1005,16 +995,6 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
                   "group_index_range": {
                     "distinct_query": true,
                     "potential_group_range_indexes": [
-                      {
-                        "index": "PRIMARY",
-                        "usable": false,
-                        "cause": "not_covering"
-                      },
-                      {
-                        "index": "i1b",
-                        "usable": false,
-                        "cause": "not_covering"
-                      },
                       {
                         "index": "i2_1",
                         "covering": true,
@@ -1264,16 +1244,6 @@ GROUP BY key2	{
                   ] /* setup_range_conditions */,
                   "group_index_range": {
                     "potential_group_range_indexes": [
-                      {
-                        "index": "PRIMARY",
-                        "usable": false,
-                        "cause": "not_covering"
-                      },
-                      {
-                        "index": "i1b",
-                        "usable": false,
-                        "cause": "not_covering"
-                      },
                       {
                         "index": "i2_1",
                         "covering": true,
