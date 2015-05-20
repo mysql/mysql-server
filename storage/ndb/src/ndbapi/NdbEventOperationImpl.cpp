@@ -1330,6 +1330,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(0),
+  m_failure_detected(false),
   m_prevent_nodegroup_change(true),
   m_total_alloc(0),
   m_max_alloc(0),
@@ -1478,6 +1479,8 @@ NdbEventBuffer::init_gci_containers()
   Uint64 gci = 0;
   m_known_gci.clear();
   m_known_gci.fill(7, gci);
+  // Reset cluster failure marker
+  m_failure_detected= false;
 }
 
 int NdbEventBuffer::expand(unsigned sz)
@@ -2438,6 +2441,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
   if (!complete_cluster_failure)
   {
     m_alive_node_bit_mask.set(refToNode(rep->senderRef));
+    // Reset cluster failure marker
+    m_failure_detected= false;
 
     if (unlikely(m_active_op_count == 0))
     {
@@ -2996,6 +3001,11 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
    */
   // no need to lock()/unlock(), receive thread calls this
   insert_event(&op->m_impl, data, ptr, data.senderData);
+
+  /**
+   * Mark that event buffer is containing a failure event
+   */
+  m_failure_detected= true;
 
 #ifdef VM_TRACE
   m_flush_gci = 0;
