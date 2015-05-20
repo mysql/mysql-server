@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,9 @@ private:
     UintR filePointer;          // FSOPENCONF
     Uint32 bytes_read;          // FSREADCONF (when allow partial read)      
   };
+
+  // debug info for trace log
+  Uint32 fileInfo;
 };
 
 

@@ -41,7 +41,11 @@
 #include <sys/uio.h>
 #include <dirent.h>
 
+#include <EventLogger.hpp>
+
 #define JAM_FILE_ID 384
+
+extern EventLogger* g_eventLogger;
 
 
 PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
@@ -79,7 +83,29 @@ int PosixAsyncFile::init()
 
   nzf.stream.opaque= &nz_mempool;
 
+  m_filetype = 0;
+
   return 0;
+}
+
+void PosixAsyncFile::set_or_check_filetype(bool set)
+{
+  struct stat sb;
+  if (fstat(theFd, &sb) == -1)
+  {
+    g_eventLogger->error("fd=%d: fstat errno=%d",
+                          theFd, errno);
+    abort();
+  }
+  int ft = sb.st_mode >> 12; // posix
+  if (set)
+    m_filetype = ft;
+  else if (m_filetype != ft)
+  {
+    g_eventLogger->error("fd=%d: type old=%d new=%d",
+                          theFd, m_filetype, ft);
+    abort();
+  }
 }
 
 #ifdef O_DIRECT
@@ -502,6 +528,9 @@ no_odirect:
       abort();
     }
   }
+
+  set_or_check_filetype(true);
+  request->m_fileinfo = get_fileinfo();
 }
 
 int PosixAsyncFile::readBuffer(Request *req, char *buf,
@@ -685,6 +714,7 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 
 void PosixAsyncFile::closeReq(Request *request)
 {
+  set_or_check_filetype(false);
   if (m_open_flags & (
       FsOpenReq::OM_WRITEONLY |
       FsOpenReq::OM_READWRITE |
@@ -738,6 +768,7 @@ void PosixAsyncFile::syncReq(Request *request)
 
 void PosixAsyncFile::appendReq(Request *request)
 {
+  set_or_check_filetype(false);
   const char * buf = request->par.append.buf;
   Uint32 size = request->par.append.size;
 
