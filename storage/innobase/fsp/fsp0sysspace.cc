@@ -210,6 +210,10 @@ SysTablespace::parse_params(
 			str++;
 		} else if (*str != '\0') {
 			ut_free(new_str);
+
+			ib::error()
+				<< "syntax error in file path or size"
+				" specified is less than 1 megabyte";
 			return(false);
 		}
 	}
