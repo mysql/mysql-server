@@ -7461,7 +7461,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       return TRUE;
     }
     allows_multi_table_search &= 
-      allows_search_on_non_indexed_columns(((Item_field *)item)->table_ref);
+      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
   }
 
   /*
@@ -7557,7 +7557,7 @@ bool Item_func_match::fix_index()
   */
   if (!fixed)
   {
-    if (allows_search_on_non_indexed_columns(table_ref))
+    if (allows_search_on_non_indexed_columns(table_ref->table))
       key= NO_SUCH_KEY;
 
     return false;
@@ -7629,7 +7629,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (table_ref != 0 && allows_search_on_non_indexed_columns(table_ref))
+  if (table_ref != 0 && allows_search_on_non_indexed_columns(table_ref->table))
   {
     key=NO_SUCH_KEY;
     return 0;

@@ -2569,17 +2569,17 @@ private:
      @retval true if BOOLEAN search on non-indexed columns is supported
      @retval false otherwise
    */
-  bool allows_search_on_non_indexed_columns(const TABLE_LIST *tr)
+  bool allows_search_on_non_indexed_columns(const TABLE *tr)
   {
     // Only Boolean search may support non_indexed columns
     if (!(flags & FT_BOOL))
       return false;
 
-    DBUG_ASSERT(tr && tr->table->file);
+    DBUG_ASSERT(tr && tr->file);
 
     // Assume that if extended fulltext API is not supported,
     // non-indexed columns are allowed.  This will be true for MyISAM.
-    if ((tr->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((tr->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return true;
 
     return false;
