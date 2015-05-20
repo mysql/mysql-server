@@ -411,7 +411,7 @@ EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
-EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
@@ -423,7 +423,7 @@ EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR for unused key. MRR should not be used.
-EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
 DROP TABLE t1;
 
