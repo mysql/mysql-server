@@ -1410,33 +1410,6 @@ int plugin_init(int *argc, char **argv, int flags)
       tmp.state= 0;
       tmp.load_option= mandatory ? PLUGIN_FORCE : PLUGIN_ON;
 
-      /*
-        If the performance schema is compiled in,
-        treat the storage engine plugin as 'mandatory',
-        to suppress any plugin-level options such as '--performance-schema'.
-        This is specific to the performance schema, and is done on purpose:
-        the server-level option '--performance-schema' controls the overall
-        performance schema initialization, which consists of much more that
-        the underlying storage engine initialization.
-        See mysqld.cc, set_vars.cc.
-        Suppressing ways to interfere directly with the storage engine alone
-        prevents awkward situations where:
-        - the user wants the performance schema functionality, by using
-          '--enable-performance-schema' (the server option),
-        - yet disable explicitly a component needed for the functionality
-          to work, by using '--skip-performance-schema' (the plugin)
-      */
-      if (!my_strcasecmp(&my_charset_latin1, plugin->name, "PERFORMANCE_SCHEMA"))
-      {
-        if (load_perfschema_engine)
-          tmp.load_option= PLUGIN_FORCE;
-        else
-        {
-          tmp.load_option= PLUGIN_OFF;
-          continue;
-        }
-      }
-
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
         tmp.state= PLUGIN_IS_DISABLED;

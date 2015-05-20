@@ -352,8 +352,6 @@ static inline int my_thread_set_THR_THD(THD *thd)
   return my_set_thread_local(THR_THD, thd);
 }
 
-extern bool load_perfschema_engine;
-
 #ifdef HAVE_PSI_INTERFACE
 
 C_MODE_START
