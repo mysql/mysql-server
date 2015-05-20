@@ -4,6 +4,7 @@ information_schema
 mtr
 mysql
 performance_schema
+sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
@@ -95,16 +96,16 @@ select * from performance_schema.replication_applier_configuration;
 select * from performance_schema.replication_applier_status;
 select * from performance_schema.replication_applier_status_by_coordinator;
 select * from performance_schema.replication_applier_status_by_worker;
-select * from performance_schema.status_global;
+select * from performance_schema.global_status;
 select * from performance_schema.status_by_thread;
 select * from performance_schema.status_by_user;
 select * from performance_schema.status_by_host;
 select * from performance_schema.status_by_account;
 select * from performance_schema.session_status;
-select * from performance_schema.variables_global;
+select * from performance_schema.global_variables;
 select * from performance_schema.variables_by_thread;
 select * from performance_schema.session_variables;
-show variables like "performance_schema%";
+show global variables like "performance_schema%";
 Variable_name	Value
 performance_schema	OFF
 performance_schema_accounts_size	100
@@ -124,30 +125,37 @@ performance_schema_max_digest_length	1024
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
-performance_schema_max_memory_classes	250
-performance_schema_max_metadata_locks	-1
+performance_schema_max_index_stat	5000
+performance_schema_max_memory_classes	320
+performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	5000
+performance_schema_max_prepared_statements_instances	100
 performance_schema_max_program_instances	5000
 performance_schema_max_rwlock_classes	40
 performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
+performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	189
+performance_schema_max_statement_classes	191
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
+performance_schema_max_table_lock_stat	500
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	200
-performance_schema_max_transaction_classes	10
 performance_schema_session_connect_attrs_size	2048
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	100
 show engine PERFORMANCE_SCHEMA status;
-show status like "performance_schema%";
-show status like "performance_schema%";
+show global status like "performance_schema%";
+select * from information_schema.engines
+where engine = "PERFORMANCE_SCHEMA";
+ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
+PERFORMANCE_SCHEMA	YES	Performance Schema	NO	NO	NO
+show global status like "performance_schema%";
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0
@@ -157,12 +165,14 @@ Performance_schema_file_classes_lost	0
 Performance_schema_file_handles_lost	0
 Performance_schema_file_instances_lost	0
 Performance_schema_hosts_lost	0
+Performance_schema_index_stat_lost	0
 Performance_schema_locker_lost	0
 Performance_schema_memory_classes_lost	0
 Performance_schema_metadata_lock_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
 Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
@@ -173,30 +183,30 @@ Performance_schema_stage_classes_lost	0
 Performance_schema_statement_classes_lost	0
 Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
+Performance_schema_table_lock_stat_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
-Performance_schema_transaction_classes_lost	0
 Performance_schema_users_lost	0
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 select * from performance_schema.setup_instruments;
 NAME	ENABLED	TIMED
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE
+HOST	USER	ROLE	ENABLED	HISTORY
 select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
 insert into performance_schema.setup_objects values ('TABLE', 'myschema', 'myobject', 'YES', 'YES');
 ERROR HY000: Invalid performance_schema usage.
-insert into performance_schema.setup_actors values ('myhost', 'mysuser', 'myrole');
+insert into performance_schema.setup_actors values ('myhost', 'mysuser', 'myrole', 'YES', 'YES');
 ERROR HY000: Invalid performance_schema usage.
 select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 update performance_schema.setup_objects set OBJECT_NAME = 'myobject';
 delete from performance_schema.setup_objects;
 select * from performance_schema.setup_actors;
-HOST	USER	ROLE
+HOST	USER	ROLE	ENABLED	HISTORY
 update performance_schema.setup_actors set HOST = 'myhost';
 delete from performance_schema.setup_actors;
 truncate performance_schema.events_stages_history_long;
