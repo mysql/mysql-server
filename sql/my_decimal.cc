@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -267,6 +267,9 @@ int str2my_decimal(uint mask, const char *from, size_t length,
     }
   }
   check_result_and_overflow(mask, err, decimal_value);
+  // Avoid returning negative zero, cfr. decimal_cmp()
+  if (decimal_value->sign() && decimal_is_zero(decimal_value))
+    decimal_value->sign(false);
   return err;
 }
 
