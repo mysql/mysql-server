@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1284,14 +1284,19 @@ public:
    */
   int dropEventOperation(NdbEventOperation* eventOp);
 
+  #define NDB_FAILURE_GCI ~(Uint64)0
+
   /**
    * Wait for an event to occur. Will return as soon as an event
    * is detected on any of the created events.
    *
    * @param aMillisecondNumber
    *        maximum time to wait
-   *
-   * @return > 0 if events available, 0 if no events available, < 0 on failure
+   * @param latestGCI
+   *        if a valid pointer is passed to a 64-bit integer it will be set
+   *        to the latest polled GCI. If a cluster failure is detected it
+   *        will be set to NDB_FAILURE_GCI.
+   * @return > 0 if events available, 0 if no events available
    */
   int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
 
