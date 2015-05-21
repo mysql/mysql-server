@@ -123,7 +123,7 @@ GlobalDictCache::GlobalDictCache(){
     f_altered_table = new NdbTableImpl();
   ndb_dict_cache_count++;
   NdbMutex_Unlock(g_ndb_connection_mutex);
-#endif HAVE_CXXABI_H
+#endif // HAVE_CXXABI_H
   m_tableHash.createHashTable();
   m_waitForTableCondition = NdbCondition_Create();
   DBUG_VOID_RETURN;
