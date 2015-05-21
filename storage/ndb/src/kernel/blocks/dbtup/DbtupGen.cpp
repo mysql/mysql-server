@@ -688,7 +688,7 @@ void Dbtup::initializeDefaultValuesFrag()
   DefaultValuesFragment.p->noOfPages = 0;
   DefaultValuesFragment.p->noOfVarPages = 0;
   DefaultValuesFragment.p->m_varWordsFree = 0;
-  DefaultValuesFragment.p->m_max_page_no = 0;
+  DefaultValuesFragment.p->m_max_page_cnt = 0;
   DefaultValuesFragment.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(DefaultValuesFragment.p->m_page_map.isEmpty());
   DefaultValuesFragment.p->m_restore_lcp_id = RNIL;

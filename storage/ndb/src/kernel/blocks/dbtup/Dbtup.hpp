@@ -628,7 +628,14 @@ struct Fragrecord {
   // No of allocated but unused words for var-sized fields.
   Uint64 m_varWordsFree;
 
-  Uint32 m_max_page_no;
+  /**
+   * m_max_page_cnt contains the next page number to use when allocating
+   * a new page and all pages with lower page numbers are filled with
+   * rows. At fragment creation it is 0 since no pages are yet allocated.
+   * With 1 page allocated it is set to 1. The actual max page number with
+   * 1 page is however 0 since we start with page numbers from 0.
+   */
+  Uint32 m_max_page_cnt;
   Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
   DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
@@ -3426,8 +3433,9 @@ private:
 #endif
   
   void findFirstOp(OperationrecPtr&);
-  bool is_rowid_lcp_scanned(const Local_key& key1,
-                           const Dbtup::ScanOp& op);
+  bool is_rowid_in_remaining_lcp_set(const Page* page,
+                                     const Local_key& key1,
+                                     const Dbtup::ScanOp& op) const;
   void commit_operation(Signal*,
                         Uint32,
                         Uint32,
