@@ -378,7 +378,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   enum partition_info::enum_can_prune can_prune_partitions=
                                                   partition_info::PRUNE_NO;
   MY_BITMAP used_partitions;
-  bool prune_needs_default_values;
+  bool prune_needs_default_values= false;
 
   SELECT_LEX *const select_lex= lex->select_lex;
 

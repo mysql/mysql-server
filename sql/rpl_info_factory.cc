@@ -1076,7 +1076,7 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
   /* At this point, the repository is invalid or unknown */
   uint rli_repository= INVALID_INFO_REPOSITORY;
   bool channel_init_error= false;
-  uint idx;
+  uint idx= 0;
 
   /*
     Initialize the repository metadata. This metadata is the

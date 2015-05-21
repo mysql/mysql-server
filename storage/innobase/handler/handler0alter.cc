@@ -3917,7 +3917,7 @@ ha_innobase::prepare_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info)
 {
-	dict_index_t**	drop_index;	/*!< Index to be dropped */
+	dict_index_t**	drop_index = NULL;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
 	dict_index_t**	rename_index;	/*!< Indexes to be dropped */
 	ulint		n_rename_index;	/*!< Number of indexes to rename */

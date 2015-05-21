@@ -1103,7 +1103,7 @@ get_next_redo_rseg(
 	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
-	trx_rseg_t*	rseg;
+	trx_rseg_t*	rseg = NULL;
 	static ulint	redo_rseg_slot = 0;
 	ulint		slot = 0;
 

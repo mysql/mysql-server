@@ -1140,6 +1140,8 @@ public:
                 //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
                 );
 
+  virtual ~st_select_lex() {}
+
   st_select_lex_unit *master_unit() const { return master; }
   st_select_lex_unit *first_inner_unit() const { return slave; }
   SELECT_LEX *outer_select() const { return master->outer_select(); }

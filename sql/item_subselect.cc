@@ -535,7 +535,7 @@ bool Item_subselect::walk(Item_processor processor, enum_walk walk, uchar *arg)
 
 bool Item_subselect::explain_subquery_checker(uchar **arg)
 {
-  qep_row *qr= *reinterpret_cast<qep_row **>(arg);
+  qep_row *qr= reinterpret_cast<qep_row *>(*arg);
 
   qr->register_where_subquery(unit);
   return false;

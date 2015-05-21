@@ -10766,7 +10766,7 @@ int QUICK_ROR_UNION_SELECT::get_next()
 int QUICK_RANGE_SELECT::reset()
 {
   uint  buf_size;
-  uchar *mrange_buff;
+  uchar *mrange_buff= NULL;
   int   error;
   HANDLER_BUFFER empty_buf;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");

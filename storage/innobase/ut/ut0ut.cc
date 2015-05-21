@@ -125,7 +125,7 @@ ut_usectime(
 	ulint*	ms)	/*!< out: microseconds since the Epoch+*sec */
 {
 	struct timeval	tv;
-	int		ret;
+	int		ret = 0;
 	int		errno_gettimeofday;
 	int		i;
 

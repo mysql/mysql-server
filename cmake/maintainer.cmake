@@ -20,6 +20,13 @@ MACRO(MY_ADD_C_WARNING_FLAG WARNING_FLAG)
   ENDIF()
 ENDMACRO()
 
+MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
+  MY_CHECK_CXX_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_FLAG})
+  IF(HAVE_${WARNING_FLAG})
+    SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -${WARNING_FLAG}")
+  ENDIF()
+ENDMACRO()
+
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security -Wvla")
 
@@ -34,10 +41,10 @@ SET(MY_CXX_WARNING_FLAGS
 # Turn on extra Clang warnings in maintainer mode
 IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)
   MY_ADD_C_WARNING_FLAG("Wconditional-uninitialized")
-  MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
-  MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
   MY_ADD_C_WARNING_FLAG("Wextra-semi")
   MY_ADD_C_WARNING_FLAG("Wmissing-noreturn")
+  MY_ADD_C_WARNING_FLAG("Wunreachable-code-break")
+  MY_ADD_C_WARNING_FLAG("Wunreachable-code-return")
 # Other possible options that give warnings:
 # -Wcast-align -Wsign-conversion -Wcast-qual -Wreserved-id-macro -Wundef
 # -Wdocumentation-unknown-command -Wpadded -Wconversion -Wshorten-64-to-32
@@ -52,18 +59,25 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_CXX_WARNING_FLAGS
       "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
 
+  # Turn on extra Clang++ warnings in maintainer mode
+  IF(MYSQL_MAINTAINER_MODE)
+    MY_ADD_CXX_WARNING_FLAG("Wconditional-uninitialized")
+    MY_ADD_CXX_WARNING_FLAG("Wheader-hygiene")
+    MY_ADD_CXX_WARNING_FLAG("Wnon-virtual-dtor")
+    MY_ADD_CXX_WARNING_FLAG("Wundefined-reinterpret-cast")
+  ENDIF()
 # Other possible options that give warnings:
 # -Wold-style-cast -Wundef -Wc++11-long-long -Wconversion -Wsign-conversion -Wcast-align
 # -Wmissing-prototypes -Wdocumentation -Wweak-vtables -Wdocumentation-unknown-command
 # -Wreserved-id-macro -Wpadded -Wused-but-marked-unused -Wshadow -Wunreachable-code-return
 # -Wunused-macros -Wmissing-variable-declarations -Wc++11-extra-semi -Wswitch-enum
-# -Wextra-semi -Wfloat-equal -Wnon-virtual-dtor -Wmissing-noreturn -Wcovered-switch-default
+# -Wextra-semi -Wfloat-equal -Wmissing-noreturn -Wcovered-switch-default
 # -Wunreachable-code-break -Wglobal-constructors -Wc99-extensions -Wshift-sign-overflow
-# -Wformat-nonliteral -Wexit-time-destructors -Wpedantic -Wconditional-uninitialized
+# -Wformat-nonliteral -Wexit-time-destructors -Wpedantic
 # -Wunreachable-code-loop-increment -Wdisabled-macro-expansion -Wunreachable-code
-# -Wc++11-compat-reserved-user-defined-literal -Wundefined-reinterpret-cast
+# -Wc++11-compat-reserved-user-defined-literal
 # -Wabstract-vbase-init -Wclass-varargs -Wover-aligned -Wunused-exception-parameter
-# -Wunused-member-function -Wheader-hygiene")
+# -Wunused-member-function
 ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.

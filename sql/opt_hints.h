@@ -168,6 +168,8 @@ public:
       resolved(false), resolved_children(0)
   { }
 
+  virtual ~Opt_hints() {}
+
   bool is_specified(opt_hints_enum type_arg) const
   {
     return hints_map.is_specified(type_arg);

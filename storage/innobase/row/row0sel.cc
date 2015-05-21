@@ -4265,7 +4265,7 @@ row_search_mvcc(
 	read (fetch the newest committed version), then this is set to
 	TRUE */
 	ulint		next_offs;
-	ibool		same_user_rec;
+	ibool		same_user_rec 			= FALSE;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];

@@ -810,7 +810,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
 void create_compress_gtid_table_thread()
 {
   my_thread_attr_t attr;
-  int error;
+  int error= 0;
   THD *thd;
   if (!(thd= new THD))
   {

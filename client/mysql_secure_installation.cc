@@ -312,7 +312,7 @@ int install_password_validation_plugin()
 {
   int reply;
   int plugin_set= 0;
-  char *strength;
+  char *strength= NULL;
   bool option_read= FALSE;
   reply= get_response((const char *) "\nVALIDATE PASSWORD PLUGIN can be used "
                                      "to test passwords\nand improve security. "

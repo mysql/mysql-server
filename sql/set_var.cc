@@ -752,7 +752,7 @@ int set_var::light_check(THD *thd)
   if (!var->check_scope(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
-    my_error(err, MYF(0), var->name);
+    my_error(err, MYF(0), var->name.str);
     return -1;
   }
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))

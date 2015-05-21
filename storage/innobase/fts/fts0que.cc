@@ -2736,7 +2736,7 @@ fts_query_phrase_search(
 
 	/* Ignore empty strings. */
 	if (num_token > 0) {
-		fts_string_t*	token;
+		fts_string_t*	token = NULL;
 		fts_fetch_t	fetch;
 		trx_t*		trx = query->trx;
 		fts_ast_oper_t	oper = query->oper;

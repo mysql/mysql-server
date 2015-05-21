@@ -566,7 +566,7 @@ void Group_check::find_group_in_fd(Item *item)
 Item *Group_check::select_expression(uint idx)
 {
   List_iterator<Item> it_select_list_of_subq(*select->get_item_list());
-  Item *expr_under;
+  Item *expr_under= NULL;
   for (uint k= 0; k <= idx ; k++)
     expr_under= it_select_list_of_subq++;
   DBUG_ASSERT(expr_under);
@@ -599,7 +599,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
     return;                        // If UNION or ROLLUP, no FD
   // Grab Group_check for this subquery.
-  Group_check *mat_gc;
+  Group_check *mat_gc= NULL;
   uint j;
   for (j= 0; j < mat_tables.size(); j++)
   {
