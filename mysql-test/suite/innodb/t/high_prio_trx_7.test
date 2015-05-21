@@ -376,4 +376,36 @@ DROP TABLE t1;
 
 --disconnect con3
 
+--echo #
+--echo # Bug#21075892 SHUTDOWN HANG, WAITING FOR ASYNC ROLLBACK TO FINISH
+--echo #
+
+--connect(con1,localhost,root,,test)
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 INT) ENGINE=InnoDB;
+INSERT INTO t1 values(10, 10), (20, 20), (30, 30);
+
+--echo #connection 0
+--connection default
+START TRANSACTION;
+--echo #Lock record (col1 = 20)
+UPDATE t1 set col2 = 25 where col1 = 20;
+
+--echo #connection 1
+--connection con1
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--source include/start_transaction_high_prio.inc
+
+--echo #Semi-consistent read: Attempt lock (col1 = 20) and skip in SQL
+UPDATE t1 SET col2 = 20 where col1 > 10 and col1 <30 and col2 = 30;
+COMMIT WORK;
+
+--echo #connection 0
+--connection default
+--error ER_ERROR_DURING_ROLLBACK
+ROLLBACK WORK;
+DROP TABLE t1;
+
+--disconnect con1
+
 --source include/wait_until_count_sessions.inc

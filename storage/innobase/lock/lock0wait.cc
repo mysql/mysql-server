@@ -366,6 +366,11 @@ lock_wait_suspend_thread(
 			os_thread_sleep(1000););
 	}
 
+	/* The transaction is chosen as deadlock victim during sleep. */
+	if (trx->error_state == DB_DEADLOCK) {
+		return;
+	}
+
 	if (lock_wait_timeout < 100000000
 	    && wait_time > (double) lock_wait_timeout
 	    && !trx_is_high_priority(trx)) {
