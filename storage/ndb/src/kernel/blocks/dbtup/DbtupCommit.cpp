@@ -264,6 +264,7 @@ Dbtup::dealloc_tuple(Signal* signal,
       store_extra_row_bits(attrId, regTabPtr, ptr, gci_lo, /* truncate */true);
     }
   }
+  setInvalidChecksum(ptr, regTabPtr);
 }
 
 void
@@ -278,6 +279,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
   Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
   Tuple_header * dst = get_copy_tuple(copytuple);
   Tuple_header * org = req_struct->m_tuple_ptr;
+  Uint32 old_header_bits = org->m_header_bits;
   if (regTabPtr->need_expand(disk))
   {
     setup_fixed_tuple_ref(req_struct, opPtrP, regTabPtr);
@@ -291,6 +293,8 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
     memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
   }
   dst->m_header_bits |= Tuple_header::COPY_TUPLE;
+
+  updateChecksum(dst, regTabPtr, old_header_bits, dst->m_header_bits);
 
   /**
    * Store original row-id in copytuple[0,1]
@@ -539,11 +543,7 @@ Dbtup::commit_operation(Signal* signal,
                            /* truncate */true);
     }
   }
-  
-  if (regTabPtr->m_bits & Tablerec::TR_Checksum) {
-    jam();
-    setChecksum(tuple_ptr, regTabPtr);
-  }
+  setChecksum(tuple_ptr, regTabPtr);
 }
 
 void

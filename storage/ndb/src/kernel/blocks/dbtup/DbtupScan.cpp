@@ -1205,10 +1205,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           jam();
           // clear it so that it will show up in next LCP
           th->m_header_bits = thbits & ~(Uint32)Tuple_header::LCP_SKIP;
-	  if (tablePtr.p->m_bits & Tablerec::TR_Checksum) {
-	    jam();
-	    setChecksum(th, tablePtr.p);
-	  }
+
+          updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
         }
       }
       break;

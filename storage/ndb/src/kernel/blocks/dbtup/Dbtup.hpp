@@ -2773,7 +2773,7 @@ private:
 //------------------------------------------------------------------
   void tupkeyErrorLab(KeyReqStruct*);
   void do_tup_abortreq(Signal*, Uint32 flags);
-  bool do_tup_abort_operation(Signal*, Tuple_header *,
+  void do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
                               Fragrecord*,
                               Tablerec*);
@@ -2882,9 +2882,14 @@ private:
 		  Tablerec* regTabPtr,
 		  bool disk);
   
-  Uint32 calculateChecksum(Tuple_header*, Tablerec* regTabPtr);
-  void setChecksum(Tuple_header*, Tablerec* regTabPtr);
-  int corruptedTupleDetected(KeyReqStruct*);
+  Uint32 calculateChecksum(Tuple_header*, const Tablerec* regTabPtr);
+  void setChecksum(Tuple_header*, const Tablerec* regTabPtr);
+  void setInvalidChecksum(Tuple_header*, const Tablerec* regTabPtr);
+  void updateChecksum(Tuple_header *,
+                      const Tablerec *,
+                      Uint32 old_header,
+                      Uint32 new_header);
+  int corruptedTupleDetected(KeyReqStruct*, Tablerec*);
 
   void complexTrigger(Signal* signal,
                       KeyReqStruct *req_struct,
