@@ -1528,6 +1528,30 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
       }
+      else if (!tmp_plugin && name.length == 18 &&
+               !strncmp(name.str, "PERFORMANCE_SCHEMA", name.length))
+      {
+        /*
+          A FRM file is present on disk,
+          for a PERFORMANCE_SCHEMA table,
+          but this server binary is not compiled with the performance_schema,
+          as ha_resolve_by_name() did not find the storage engine.
+          This can happen:
+          - (a) during tests with mysql-test-run,
+            because the same database installed image is used
+            for regular builds (with P_S) and embedded builds (without P_S)
+          - (b) in production, when random binaries (without P_S) are thrown
+            on top of random installed database instances on disk (with P_S).
+          For the sake of robustness, pretend the table simply does not exist,
+          so that in particular it does not pollute the information_schema
+          with errors when scanning the disk for FRM files.
+          Note that ER_NO_SUCH_TABLE has a special treatment
+          in fill_schema_table_by_open()
+        */
+        error= 1;
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+        goto err;
+      }
       else if (!tmp_plugin)
       {
         /* purecov: begin inspected */
