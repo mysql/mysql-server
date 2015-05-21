@@ -1,5 +1,5 @@
 --source include/have_lowercase0.inc
---source include/not_windows.inc
+--source include/have_case_sensitive_file_system.inc
 
 CREATE TABLE t1(f1 INT, f2 INT);
 INSERT INTO t1 VALUES
