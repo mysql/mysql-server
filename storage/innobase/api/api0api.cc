@@ -2104,6 +2104,10 @@ ib_cursor_moveto(
 
 	n_fields = dict_index_get_n_ordering_defined_by_user(prebuilt->index);
 
+	if (n_fields > dtuple_get_n_fields(tuple->ptr)) {
+		n_fields = dtuple_get_n_fields(tuple->ptr);
+	}
+
 	dtuple_set_n_fields(search_tuple, n_fields);
 	dtuple_set_n_fields_cmp(search_tuple, n_fields);
 
