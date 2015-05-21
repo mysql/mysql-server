@@ -5714,6 +5714,15 @@ normal_return:
 
 	mtr_commit(&mtr);
 
+	/* Rollback blocking transactions from hit list for high priority
+	transaction, if any. We should not be holding latches here as
+	we are going to rollback the blocking transactions. */
+	if (!trx->hit_list.empty()) {
+
+		ut_ad(trx_is_high_priority(trx));
+		trx_kill_blocking(trx);
+	}
+
 	DEBUG_SYNC_C("row_search_for_mysql_before_return");
 
 	if (prebuilt->idx_cond != 0) {
