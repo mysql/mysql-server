@@ -64,11 +64,8 @@ public class Utility {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(Utility.class);
 
-    /** Standard Java charset encoder */
-    static CharsetEncoder charsetEncoder = Charset.forName("windows-1252").newEncoder();
-
-    /** Standard Java charset decoder */
-    static CharsetDecoder charsetDecoder = Charset.forName("windows-1252").newDecoder();
+    /** Standard Java charset */
+    static Charset charset = Charset.forName("windows-1252");
 
     static final long ooooooooooooooff = 0x00000000000000ffL;
     static final long ooooooooooooffoo = 0x000000000000ff00L;
@@ -1126,7 +1123,7 @@ public class Utility {
         ByteBuffer byteBuffer = decimalByteBufferPool.borrowBuffer();
         CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
         // basic encoding
-        charsetEncoder.encode(charBuffer, byteBuffer, true);
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
         byteBuffer.flip();
         int returnCode = Utils.decimal_str2bin(
                 byteBuffer, length, precision, scale, result, bytesNeeded);
@@ -1158,7 +1155,7 @@ public class Utility {
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(length);
         CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
         // basic encoding
-        charsetEncoder.encode(charBuffer, byteBuffer, true);
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
         byteBuffer.flip();
         int returnCode = Utils.decimal_str2bin(
                 byteBuffer, length, precision, scale, result, bytesNeeded);
@@ -1189,7 +1186,7 @@ public class Utility {
         ByteBuffer byteBuffer = decimalByteBufferPool.borrowBuffer();
         CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
         // basic encoding
-        charsetEncoder.encode(charBuffer, byteBuffer, true);
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
         byteBuffer.flip();
         int returnCode = Utils.decimal_str2bin(
                 byteBuffer, length, precision, scale, result, bytesNeeded);
@@ -1220,7 +1217,7 @@ public class Utility {
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(length);
         CharBuffer charBuffer = CharBuffer.wrap(stringRepresentation);
         // basic encoding
-        charsetEncoder.encode(charBuffer, byteBuffer, true);
+        charset.newEncoder().encode(charBuffer, byteBuffer, true);
         byteBuffer.flip();
         int returnCode = Utils.decimal_str2bin(
                 byteBuffer, length, precision, scale, result, bytesNeeded);
@@ -1785,17 +1782,10 @@ public class Utility {
         }
         try {
             // use basic decoding
-            // http://docs.oracle.com/javase/7/docs/api/java/nio/charset/CharsetEncoder.html
-            // synchronize because "Instances of this class are not safe for use by multiple concurrent threads."
             CharBuffer charBuffer;
-            synchronized(charsetDecoder) {
-                charBuffer = charsetDecoder.decode(digits);
-            }
+            charBuffer = charset.decode(digits);
             string = charBuffer.toString();
             return string;
-        } catch (CharacterCodingException e) {
-            throw new ClusterJFatalInternalException(
-                    local.message("ERR_Character_Encoding", string));
         } finally {
             decimalByteBufferPool.returnBuffer(digits);
         }
