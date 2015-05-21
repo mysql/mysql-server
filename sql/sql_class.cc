@@ -1755,6 +1755,10 @@ void THD::cleanup_connection(void)
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   killed= NOT_KILLED;
   cleanup_done= 0;
   init();
