@@ -403,12 +403,6 @@ dtuple_validate(
 	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
-Pretty prints a dfield value according to its data type. */
-void
-dfield_print(
-/*=========*/
-	const dfield_t*	dfield);	/*!< in: dfield */
-/*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
 void
