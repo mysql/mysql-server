@@ -2,7 +2,6 @@
 Variable_name	Value
 Ssl_cipher	
 # pipe protocol with ssl enforced.
-ERROR 2026 (HY000): SSL connection error: socket layer send error
 # pipe protocol with ssl disabled.
 Variable_name	Value
 Ssl_cipher	
