@@ -762,6 +762,8 @@ public:
   // "latest gci" variables updated in user thread
   Uint64 m_latest_poll_GCI; // latest gci handed over to user thread
 
+  bool m_failure_detected; // marker that event operations have failure events
+
   bool m_startup_hack;
   bool m_prevent_nodegroup_change;
 
