@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -578,7 +578,8 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
     // get page
     PagePtr pagePtr;
-    if (buildPtr.p->m_pageId >= fragPtr.p->m_max_page_no) {
+    if (buildPtr.p->m_pageId >= fragPtr.p->m_max_page_cnt)
+    {
       jam();
       buildPtr.p->m_fragNo++;
       buildPtr.p->m_pageId= 0;
@@ -939,7 +940,7 @@ Dbtup::mt_scan_init(Uint32 tableId, Uint32 fragId,
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
 
   Uint32 fragPageId = 0;
-  while (fragPageId < fragPtr.p->m_max_page_no)
+  while (fragPageId < fragPtr.p->m_max_page_cnt)
   {
     Uint32 realPageId= getRealpidCheck(fragPtr.p, fragPageId);
     if (realPageId != RNIL)
@@ -995,7 +996,7 @@ Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
 
     // End of page...move to next
     Uint32 fragPageId = pagePtr.p->frag_page_id + 1;
-    while (fragPageId < fragPtr.p->m_max_page_no)
+    while (fragPageId < fragPtr.p->m_max_page_cnt)
     {
       Uint32 realPageId = getRealpidCheck(fragPtr.p, fragPageId);
       if (realPageId != RNIL)
@@ -1006,7 +1007,7 @@ Dbtup::mt_scan_next(Uint32 tableId, Uint32 fragPtrI,
       fragPageId++;
     }
 
-    if (fragPageId == fragPtr.p->m_max_page_no)
+    if (fragPageId == fragPtr.p->m_max_page_cnt)
       break;
 
     pos->m_page_idx = 0;
