@@ -245,7 +245,7 @@ ib_open_table_by_id(
 		dict_mutex_enter_for_mysql();
 	}
 
-	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
+	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
 
 	if (table != NULL && table->ibd_file_missing) {
 		table = NULL;
