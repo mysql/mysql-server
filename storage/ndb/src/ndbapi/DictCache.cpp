@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,11 +21,20 @@
 #include <NdbTick.h>
 #include <NdbCondition.h>
 #include <NdbSleep.h>
+#include <my_pthread.h>
 
 static NdbTableImpl * f_invalid_table = 0;
 static NdbTableImpl * f_altered_table = 0;
 
-static int ndb_dict_cache_count = 0;
+static my_pthread_once_t once_control = MY_PTHREAD_ONCE_INIT;
+
+void init_static_variables( void )
+{
+  static NdbTableImpl _invalid_table;
+  static NdbTableImpl _altered_table;
+  f_invalid_table = &_invalid_table;
+  f_altered_table = &_altered_table;
+}
 
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
@@ -95,31 +104,15 @@ LocalDictCache::drop(const char * name){
  */
 GlobalDictCache::GlobalDictCache(){
   DBUG_ENTER("GlobalDictCache::GlobalDictCache");
+  // Initialize static variables
+  my_pthread_once(&once_control, init_static_variables);
   m_tableHash.createHashTable();
   m_waitForTableCondition = NdbCondition_Create();
-  if (f_invalid_table == NULL)
-    f_invalid_table = new NdbTableImpl();
-  if (f_altered_table == NULL)
-    f_altered_table = new NdbTableImpl();
-  ndb_dict_cache_count++;
   DBUG_VOID_RETURN;
 }
 
 GlobalDictCache::~GlobalDictCache(){
   DBUG_ENTER("GlobalDictCache::~GlobalDictCache");
-  if (--ndb_dict_cache_count == 0)
-  {
-    if (f_invalid_table)
-    {
-      delete f_invalid_table;
-      f_invalid_table = 0;
-    }
-    if (f_altered_table)
-    {
-      delete f_altered_table;
-      f_altered_table = 0;
-    }
-  }
   NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
   while(curr != 0){
     Vector<TableVersion> * vers = curr->theData;
