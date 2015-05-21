@@ -615,7 +615,7 @@ int test_channel_service_interface_initialization()
 {
     int error= initialize_channel_service_interface();
     DBUG_ASSERT(error);
-    return 0;
+    return error;
 }
 
 int test_channel_service_interface()
