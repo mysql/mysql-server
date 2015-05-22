@@ -2750,6 +2750,13 @@ innobase_pk_order_preserved(
 			old_field++;
 			new_field++;
 		} else if (old_col_no == ULINT_UNDEFINED) {
+
+			if (old_n_fields == 1) {
+				/* Dropping single column primary key
+				requires sorting. */
+				return(false);
+			}
+
 			pk_col_dropped = true;
 			old_field++;
 		} else {
