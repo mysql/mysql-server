@@ -26,6 +26,7 @@
 #include "mysqld_error.h"
 #include "my_default.h"
 #include "check/mysqlcheck.h"
+#include "mysql_version.h"
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 #include "../scripts/sql_commands_sys_schema.h"
 
