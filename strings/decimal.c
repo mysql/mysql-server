@@ -996,6 +996,9 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
         error= decimal_shift(to, (int) exponent);
     }
   }
+  /* Avoid returning negative zero, cfr. decimal_cmp() */
+  if (to->sign && decimal_is_zero(to))
+    to->sign= FALSE;
   return error;
 
 fatal_error:
