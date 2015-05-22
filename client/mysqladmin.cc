@@ -306,9 +306,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     error++;
     break;
   case OPT_CHARSETS_DIR:
-#if MYSQL_VERSION_ID > 32300
     charsets_dir = argument;
-#endif
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -1286,11 +1284,9 @@ static void usage(void)
   flush-threads         Flush the thread cache\n\
   flush-privileges      Reload grant tables (same as reload)\n\
   kill id,id,...	Kill mysql threads");
-#if MYSQL_VERSION_ID >= 32200
   puts("\
   password [new-password] Change old password to new-password in current format\n\
   old-password [new-password] Change old password to new-password in old format");
-#endif
   puts("\
   ping			Check if mysqld is alive\n\
   processlist		Show list of active threads in server\n\

@@ -101,6 +101,7 @@
 #include "replication.h" // thd_enter_cond
 
 #include "my_default.h"
+#include "mysql_version.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
