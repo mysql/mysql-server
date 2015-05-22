@@ -1203,6 +1203,9 @@ void Aggregator_distinct::endup()
           table->file->ha_index_or_rnd_end();
         ha_rows num_rows= 0;
         table->file->ha_records(&num_rows);
+        // We have to initialize hash_index because update_sum_func needs it
+        if (table->hash_field)
+          table->file->ha_index_init(0, false);
         sum->count= static_cast<longlong>(num_rows);
       }
       endup_done= TRUE;
