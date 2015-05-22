@@ -173,17 +173,18 @@ struct DebugCheck {
 	}
 };
 
-/** Release a resource acquired by the mini-transaction. */
+/** Add blocks modified by the mini-transaction to the flush list. */
 struct AddDirtyBlocksToFlushList {
-	/** Release specific object */
-	AddDirtyBlocksToFlushList(lsn_t start_lsn, lsn_t end_lsn, FlushObserver* observer)
-		:
-		m_end_lsn(end_lsn),
-		m_start_lsn(start_lsn),
-		m_flush_observer(observer)
-	{
-		/* Do nothing */
-	}
+	/** Constructor.
+	@param[in]	start_lsn	LSN of the first entry that was
+					added to REDO by the MTR
+	@param[in]	end_lsn		LSN after the last entry was
+					added to REDO by the MTR
+	@param[in,out]	observer	flush observer */
+	AddDirtyBlocksToFlushList(
+		lsn_t		start_lsn,
+		lsn_t		end_lsn,
+		FlushObserver*	observer);
 
 	/** Add the modified page to the buffer flush list. */
 	void add_dirty_page_to_flush_list(mtr_memo_slot_t* slot) const
@@ -224,15 +225,32 @@ struct AddDirtyBlocksToFlushList {
 		return(true);
 	}
 
-	/** Mini-transaction REDO start LSN */
-	lsn_t		m_end_lsn;
-
 	/** Mini-transaction REDO end LSN */
-	lsn_t		m_start_lsn;
+	const lsn_t		m_end_lsn;
+
+	/** Mini-transaction REDO start LSN */
+	const lsn_t		m_start_lsn;
 
 	/** Flush observer */
-	FlushObserver*	m_flush_observer;
+	FlushObserver* const	m_flush_observer;
 };
+
+/** Constructor.
+@param[in]	start_lsn	LSN of the first entry that was added
+				to REDO by the MTR
+@param[in]	end_lsn		LSN after the last entry was added
+				to REDO by the MTR
+@param[in,out]	observer	flush observer */
+AddDirtyBlocksToFlushList::AddDirtyBlocksToFlushList(
+	lsn_t		start_lsn,
+	lsn_t		end_lsn,
+	FlushObserver*	observer) :
+	m_end_lsn(end_lsn),
+	m_start_lsn(start_lsn),
+	m_flush_observer(observer)
+{
+	/* Do nothing */
+}
 
 class mtr_t::Command {
 public:
@@ -784,7 +802,8 @@ mtr_t::Command::release_all()
 void
 mtr_t::Command::add_dirty_blocks_to_flush_list()
 {
-	AddDirtyBlocksToFlushList add_to_flush(m_start_lsn, m_end_lsn, m_impl->m_flush_observer);
+	AddDirtyBlocksToFlushList add_to_flush(m_start_lsn, m_end_lsn,
+					       m_impl->m_flush_observer);
 	Iterate<AddDirtyBlocksToFlushList> iterator(add_to_flush);
 
 	m_impl->m_memo.for_each_block_in_reverse(iterator);
