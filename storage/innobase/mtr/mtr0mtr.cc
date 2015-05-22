@@ -117,19 +117,17 @@ void
 memo_slot_release(mtr_memo_slot_t* slot)
 {
 	switch (slot->type) {
+		buf_block_t*	block;
+
 	case MTR_MEMO_BUF_FIX:
 	case MTR_MEMO_PAGE_S_FIX:
 	case MTR_MEMO_PAGE_SX_FIX:
-	case MTR_MEMO_PAGE_X_FIX: {
-
-		buf_block_t*	block;
-
+	case MTR_MEMO_PAGE_X_FIX:
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		buf_block_unfix(block);
 		buf_page_release_latch(block, slot->type);
 		break;
-	}
 
 	case MTR_MEMO_S_LOCK:
 		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
@@ -151,92 +149,6 @@ memo_slot_release(mtr_memo_slot_t* slot)
 
 	slot->object = NULL;
 }
-
-/** Unfix a page, do not release the latches on the page.
-@param slot	memo slot */
-static
-void
-memo_block_unfix(mtr_memo_slot_t* slot)
-{
-	switch (slot->type) {
-	case MTR_MEMO_BUF_FIX:
-	case MTR_MEMO_PAGE_S_FIX:
-	case MTR_MEMO_PAGE_X_FIX:
-	case MTR_MEMO_PAGE_SX_FIX: {
-		buf_block_unfix(reinterpret_cast<buf_block_t*>(slot->object));
-		break;
-	}
-
-	case MTR_MEMO_S_LOCK:
-	case MTR_MEMO_X_LOCK:
-	case MTR_MEMO_SX_LOCK:
-		break;
-#ifdef UNIV_DEBUG
-	default:
-#endif /* UNIV_DEBUG */
-		break;
-	}
-}
-/** Release latches represented by a slot.
-@param slot	memo slot */
-static
-void
-memo_latch_release(mtr_memo_slot_t* slot)
-{
-	switch (slot->type) {
-	case MTR_MEMO_BUF_FIX:
-	case MTR_MEMO_PAGE_S_FIX:
-	case MTR_MEMO_PAGE_SX_FIX:
-	case MTR_MEMO_PAGE_X_FIX: {
-		buf_block_t*	block;
-
-		block = reinterpret_cast<buf_block_t*>(slot->object);
-
-		memo_block_unfix(slot);
-
-		buf_page_release_latch(block, slot->type);
-
-		slot->object = NULL;
-		break;
-	}
-
-	case MTR_MEMO_S_LOCK:
-		rw_lock_s_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
-		slot->object = NULL;
-		break;
-
-	case MTR_MEMO_X_LOCK:
-		rw_lock_x_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
-		slot->object = NULL;
-		break;
-
-	case MTR_MEMO_SX_LOCK:
-		rw_lock_sx_unlock(reinterpret_cast<rw_lock_t*>(slot->object));
-		slot->object = NULL;
-		break;
-
-#ifdef UNIV_DEBUG
-	default:
-		ut_ad(slot->type == MTR_MEMO_MODIFY);
-
-		slot->object = NULL;
-#endif /* UNIV_DEBUG */
-	}
-}
-
-/** Release the latches acquired by the mini-transaction. */
-struct ReleaseLatches {
-
-	/** @return true always. */
-	bool operator()(mtr_memo_slot_t* slot) const
-	{
-		if (slot->object != NULL) {
-			memo_latch_release(slot);
-		}
-
-		return(true);
-	}
-};
 
 /** Release the latches and blocks acquired by the mini-transaction. */
 struct ReleaseAll {
@@ -262,9 +174,9 @@ struct DebugCheck {
 };
 
 /** Release a resource acquired by the mini-transaction. */
-struct ReleaseBlocks {
+struct AddDirtyBlocksToFlushList {
 	/** Release specific object */
-	ReleaseBlocks(lsn_t start_lsn, lsn_t end_lsn, FlushObserver* observer)
+	AddDirtyBlocksToFlushList(lsn_t start_lsn, lsn_t end_lsn, FlushObserver* observer)
 		:
 		m_end_lsn(end_lsn),
 		m_start_lsn(start_lsn),
@@ -350,11 +262,8 @@ public:
 	release the resources. */
 	void execute();
 
-	/** Release the blocks used in this mini-transaction. */
-	void release_blocks();
-
-	/** Release the latches acquired by the mini-transaction. */
-	void release_latches();
+	/** Add blocks modified in this mini-transaction to the flush list. */
+	void add_dirty_blocks_to_flush_list();
 
 	/** Release both the latches and blocks used in the mini-transaction. */
 	void release_all();
@@ -871,25 +780,12 @@ mtr_t::Command::release_all()
 	m_locks_released = 1;
 }
 
-/** Release the latches acquired by this mini-transaction */
+/** Add blocks modified in this mini-transaction to the flush list. */
 void
-mtr_t::Command::release_latches()
+mtr_t::Command::add_dirty_blocks_to_flush_list()
 {
-	ReleaseLatches release;
-	Iterate<ReleaseLatches> iterator(release);
-
-	m_impl->m_memo.for_each_block_in_reverse(iterator);
-
-	/* Note that we have released the latches. */
-	m_locks_released = 1;
-}
-
-/** Release the blocks used in this mini-transaction */
-void
-mtr_t::Command::release_blocks()
-{
-	ReleaseBlocks release(m_start_lsn, m_end_lsn, m_impl->m_flush_observer);
-	Iterate<ReleaseBlocks> iterator(release);
+	AddDirtyBlocksToFlushList add_to_flush(m_start_lsn, m_end_lsn, m_impl->m_flush_observer);
+	Iterate<AddDirtyBlocksToFlushList> iterator(add_to_flush);
 
 	m_impl->m_memo.for_each_block_in_reverse(iterator);
 }
@@ -916,14 +812,13 @@ mtr_t::Command::execute()
 
 	m_impl->m_mtr->m_commit_lsn = m_end_lsn;
 
-	release_blocks();
+	add_dirty_blocks_to_flush_list();
 
 	if (m_impl->m_made_dirty) {
 		log_flush_order_mutex_exit();
 	}
 
-	release_latches();
-
+	release_all();
 	release_resources();
 }
 
