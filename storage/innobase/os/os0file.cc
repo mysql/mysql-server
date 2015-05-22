@@ -7160,7 +7160,7 @@ public:
 	{
 		ut_ad(m_segment < 100);
 
-		m_slots.reserve(OS_AIO_MERGE_N_CONSECUTIVE);
+		m_slots.resize(OS_AIO_MERGE_N_CONSECUTIVE);
 	}
 
 	/** Destructor */
