@@ -26,9 +26,7 @@ Created 11/17/1995 Heikki Tuuri
 #ifndef buf0types_h
 #define buf0types_h
 
-#include "dict0types.h" /* index_id_t */
 #include "os0event.h"
-#include "ut0lock_free_hash.h"
 #include "ut0mutex.h"
 #include "ut0ut.h"
 
@@ -266,82 +264,5 @@ std::ostream&
 operator<<(
 	std::ostream&		out,
 	const page_id_t&	page_id);
-
-/** Per index buffer pool statistics - contains how much pages for each index
-are cached in the buffer pool(s). This is a key,value store where the key is
-the index id and the value is the number of pages in the buffer pool that
-belong to this index. */
-class buf_stat_per_index_t {
-public:
-	/** Constructor. */
-	buf_stat_per_index_t()
-	{
-		m_store = UT_NEW(ut_lock_free_hash_t(1024),
-				 mem_key_buf_stat_per_index_t);
-	}
-
-	/** Destructor. */
-	~buf_stat_per_index_t()
-	{
-		UT_DELETE(m_store);
-	}
-
-	/** Increment the number of pages for a given index with 1.
-	@param[in]	id	id of the index whose count to increment */
-	void
-	inc(
-		const index_id_t&	id)
-	{
-		m_store->inc(conv_index_id_to_int(id));
-	}
-
-	/** Decrement the number of pages for a given index with 1.
-	@param[in]	id	id of the index whose count to decrement */
-	void
-	dec(
-		const index_id_t&	id)
-	{
-		m_store->dec(conv_index_id_to_int(id));
-	}
-
-	/** Get the number of pages in the buffer pool for a given index.
-	@param[in]	id	id of the index whose pages to peek
-	@return number of pages */
-	uintptr_t
-	get(
-		const index_id_t&	id)
-	{
-		const int64_t	ret = m_store->get(conv_index_id_to_int(id));
-
-		if (ret == ut_lock_free_hash_t::NOT_FOUND) {
-			/* If the index is not found in this structure,
-			then 0 of its pages are in the buffer pool. */
-			return(0);
-		}
-
-		return(ret);
-	}
-
-private:
-	/** Convert an index_id to a 64 bit integer.
-	@param[in]	id	index_id to convert
-	@return a 64 bit integer */
-	uint64_t
-	conv_index_id_to_int(
-		const index_id_t&	id)
-	{
-		ut_ad((id.m_index_id & 0xFFFFFFFF00000000ULL) == 0);
-
-		return(static_cast<uint64_t>(id.m_space_id) << 32
-		       | id.m_index_id);
-	}
-
-	/** (key, value) storage. */
-	ut_lock_free_hash_t*	m_store;
-};
-
-/** Container for how much pages from each index are contained in the buffer
-pool(s). */
-extern buf_stat_per_index_t*	buf_stat_per_index;
 
 #endif /* buf0types.h */

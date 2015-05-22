@@ -66,6 +66,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0dump.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
+#include "buf0stats.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dict.h"

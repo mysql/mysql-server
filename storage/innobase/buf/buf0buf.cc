@@ -44,6 +44,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
+#include "buf0stats.h"
 #include "lock0lock.h"
 #include "sync0rw.h"
 #include "btr0sea.h"
@@ -4932,9 +4933,8 @@ buf_page_monitor(
 
 		is_ibuf = space_id == IBUF_SPACE_ID && idx_id == ibuf_index_id;
 
-		/* Account reading of leaf, non-ibuf, pages into the buffer
-		pool(s). */
-		if (is_leaf && io_type == BUF_IO_READ && !is_ibuf) {
+		/* Account reading of leaf pages into the buffer pool(s). */
+		if (is_leaf && io_type == BUF_IO_READ) {
 			ib::info() /* XXX */
 				<< buf_stat_per_index->get(
 					index_id_t(space_id, idx_id))

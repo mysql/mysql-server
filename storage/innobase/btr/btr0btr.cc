@@ -39,6 +39,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0sea.h"
 #include "btr0pcur.h"
+#include "buf0stats.h"
 #include "rem0cmp.h"
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"

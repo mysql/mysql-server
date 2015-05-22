@@ -42,6 +42,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0dblwr.h"
 #include "buf0flu.h"
 #include "buf0rea.h"
+#include "buf0stats.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
 #include "os0file.h"
