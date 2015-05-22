@@ -267,9 +267,6 @@ int str2my_decimal(uint mask, const char *from, size_t length,
     }
   }
   check_result_and_overflow(mask, err, decimal_value);
-  // Avoid returning negative zero, cfr. decimal_cmp()
-  if (decimal_value->sign() && decimal_is_zero(decimal_value))
-    decimal_value->sign(false);
   return err;
 }
 
