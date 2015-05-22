@@ -103,6 +103,7 @@
 
 #include "my_default.h"
 #include "current_thd.h"
+#include "mysql_version.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"

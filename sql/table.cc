@@ -18,6 +18,8 @@
 
 #include "my_md5.h"                      // compute_md5_hash
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql_version.h"               // MYSQL_VERSION_ID
+
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
 #include "debug_sync.h"                  // DEBUG_SYNC
@@ -1578,20 +1580,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       next_chunk+= 5 + partition_info_str_len;
     }
-#if MYSQL_VERSION_ID < 50200
-    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
-    {
-      /*
-         Partition state array was here in version 5.1.6 to 5.1.9, this code
-         makes it possible to load a 5.1.6 table in later versions. Can most
-         likely be removed at some point in time. Will only be used for
-         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
-         done from newer 5.1 versions.
-      */
-      next_chunk+= 4;
-    }
-    else
-#endif
     if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
@@ -3522,17 +3510,6 @@ void append_unescaped(String *res, const char *pos, size_t length)
 
   for (; pos != end ; pos++)
   {
-#if MYSQL_VERSION_ID < 40100
-    uint mblen;
-    if (use_mb(default_charset_info) &&
-        (mblen= my_ismbchar(default_charset_info, pos, end)))
-    {
-      res->append(pos, mblen);
-      pos+= mblen;
-      continue;
-    }
-#endif
-
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
       res->append('\\');

@@ -4880,10 +4880,9 @@ void mysql_close_free(MYSQL *mysql)
   if (mysql->extension)
     mysql_extension_free(mysql->extension);
 
-#if defined(EMBEDDED_LIBRARY) || MYSQL_VERSION_ID >= 50100
   my_free(mysql->info_buffer);
   mysql->info_buffer= 0;
-#endif
+
   /* Clear pointers for better safety */
   mysql->host_info= NULL;
   mysql->user= NULL;
