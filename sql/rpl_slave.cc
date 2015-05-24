@@ -539,15 +539,14 @@ int start_slave(THD *thd)
   if (msr_map.get_num_instances() == 1)
   {
     mi= msr_map.get_mi(msr_map.get_default_channel());
-
-    DBUG_ASSERT(!strcmp(mi->get_channel(),
-                        msr_map.get_default_channel()));
-
-    error= start_slave(thd, &thd->lex->slave_connection,
-                       &thd->lex->mi, thd->lex->slave_thd_opt,
-                       mi, true, 1);
-    if (error)
+    DBUG_ASSERT(mi);
+    if ((error= start_slave(thd, &thd->lex->slave_connection,
+                                 &thd->lex->mi,
+                                 thd->lex->slave_thd_opt,
+                                 mi, true, 1)))
+    {
       goto err;
+    }
   }
   else
   {
@@ -570,7 +569,7 @@ int start_slave(THD *thd)
     {
       mi= it->second;
 
-      channel_configured= mi && mi->host[0];   // channel properly configured.
+      channel_configured= mi && mi->inited && mi->host[0];   // channel properly configured.
 
       if (channel_configured)
       {
