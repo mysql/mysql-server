@@ -2470,6 +2470,14 @@ SELECT ST_DISJOINT(
 	ST_GEOMFROMTEXT('LINESTRING(20 100, 31 -97, -46 57, -20 -4)'));
 
 --echo ######################################################################################################
+--echo # BUG#20841874 : ASSERT:GEOMETRY::EQUALS(CURRENT_ROBUST_RING.FRONT(), CURRENT_ROBUST_RING.BACK())
+--echo ######################################################################################################
+
+SELECT ST_ASTEXT(ST_BUFFER(
+    ST_GEOMFROMTEXT("MULTILINESTRING((-58 19, 61 88),(1.922421e+307 1.520384e+308, 15 42, 89 -93, -89 -22),(-63 -5, -262141 -536870908, -3 87, 77 -69))")
+    , 0x98));
+
+--echo ######################################################################################################
 --echo # Bug#20911624 THE SERVER CRASH WHEN TEST ST_INTERSECTS WITH ST_BUFFER
 --echo ######################################################################################################
 # The geom1 and geom2 are WKT equivalence to the mysqldump test data provided
