@@ -291,7 +291,7 @@ static struct my_option my_long_options[] =
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
    0, 0, 0,
    GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
    0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log.", &default_dbug_option,
