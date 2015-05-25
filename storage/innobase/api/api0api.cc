@@ -3290,7 +3290,8 @@ ib_table_truncate(
 	}
 
 	if (trunc_err == DB_SUCCESS) {
-		ut_a(!trx_is_started(static_cast<trx_t*>(ib_trx)));
+		ut_a(ib_trx_state(ib_trx) == static_cast<ib_trx_state_t>(
+			TRX_STATE_NOT_STARTED));
 	} else {
 		err = ib_trx_rollback(ib_trx);
 		ut_a(err == DB_SUCCESS);
