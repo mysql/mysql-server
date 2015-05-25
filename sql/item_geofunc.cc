@@ -2646,6 +2646,10 @@ String *Item_func_spatial_collection::val_str(String *str)
   str->q_append((uint32) coll_type);
   str->q_append((uint32) arg_count);
 
+  // We can construct an empty geometry by calling GeometryCollection().
+  if (arg_count == 0)
+    return str;
+
   for (i= 0; i < arg_count; ++i)
   {
     String *res= args[i]->val_str(&arg_value);
