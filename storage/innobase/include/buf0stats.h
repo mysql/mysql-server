@@ -129,7 +129,8 @@ private:
 		const bool	is_temp
 			= id.m_space_id == srv_tmp_space.space_id();
 
-		return(is_ibuf || is_temp);
+		return(is_ibuf || is_temp
+		       || (id.m_index_id & 0xFFFFFFFF00000000ULL) != 0);
 	}
 
 	/** (key, value) storage. */
