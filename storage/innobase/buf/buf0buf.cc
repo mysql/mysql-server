@@ -4912,21 +4912,22 @@ buf_page_monitor(
 
 	ut_a(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
 
-	const space_index_t	ibuf_index_id = static_cast<space_index_t>(
-		DICT_IBUF_ID_MIN + IBUF_SPACE_ID);
-
 	const byte*		frame = bpage->zip.data != NULL
 		? bpage->zip.data
 		: ((buf_block_t*) bpage)->frame;
 
 	const ulint		page_type = fil_page_get_type(frame);
 
-	bool			is_leaf;
-	bool			is_ibuf;
+	bool			is_leaf = false;
+	bool			is_ibuf = false;
 
 	if (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE) {
 
 		is_leaf = page_is_leaf(frame);
+
+		const space_index_t	ibuf_index_id
+			= static_cast<space_index_t>(DICT_IBUF_ID_MIN
+						     + IBUF_SPACE_ID);
 
 		const uint32_t		space_id = bpage->id.space();
 		const space_index_t	idx_id = btr_page_get_index_id(frame);
