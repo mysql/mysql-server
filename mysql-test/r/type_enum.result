@@ -1836,6 +1836,7 @@ CREATE TABLE t1(a enum('a','b','c','d'));
 INSERT INTO t1 VALUES (4),(1),(0),(3);
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 3
+ANALYZE TABLE t1;
 SELECT a FROM t1;
 a
 d
