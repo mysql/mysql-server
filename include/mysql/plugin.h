@@ -18,6 +18,7 @@
 
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h>
+#include "mysql_version.h" /* MYSQL_VERSION_ID */
 #endif
 
 /*

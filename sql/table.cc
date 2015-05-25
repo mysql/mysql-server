@@ -18,6 +18,8 @@
 
 #include "my_md5.h"                      // compute_md5_hash
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql_version.h"               // MYSQL_VERSION_ID
+
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
 #include "debug_sync.h"                  // DEBUG_SYNC
@@ -1646,20 +1648,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       next_chunk+= 5 + partition_info_str_len;
     }
-#if MYSQL_VERSION_ID < 50200
-    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
-    {
-      /*
-         Partition state array was here in version 5.1.6 to 5.1.9, this code
-         makes it possible to load a 5.1.6 table in later versions. Can most
-         likely be removed at some point in time. Will only be used for
-         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
-         done from newer 5.1 versions.
-      */
-      next_chunk+= 4;
-    }
-    else
-#endif
     if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
@@ -2454,18 +2442,18 @@ static bool validate_generated_expr(Field *field)
   DBUG_ASSERT(expr);
 
   /**
-    1) Subquery is not allowed
-    2) SP/UDF is not allowed
-    3) System variables and parameters are not allowed
+    1) SP/UDF is not allowed
+    2) System variables and parameters are not allowed
+    3) Subquery is not allowed(already checked, assert the condition)
    */
-  if (expr->has_subquery() ||              // 1)
-      expr->has_stored_program() ||        // 2)
+  if (expr->has_stored_program() ||        // 1)
       (expr->used_tables() &
-       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 3)
+       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 2)
   {
     my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
     DBUG_RETURN(TRUE);
   }
+  DBUG_ASSERT(!expr->has_subquery());      // 3)
   /* 
     Walk through the Item tree checking if all items are valid
     to be part of the generated column. 
@@ -2516,7 +2504,6 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-  Item *dummy;
   DBUG_ASSERT(func_expr);
   DBUG_ENTER("fix_fields_gcol_func");
 
@@ -2558,7 +2545,8 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   thd->lex->use_only_table_context= TRUE;
 
   /* Fix fields referenced to by the generated column function */
-  error= func_expr->fix_fields(thd, &dummy);
+  Item *new_func= func_expr;
+  error= func_expr->fix_fields(thd, &new_func);
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;
@@ -2576,6 +2564,9 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   */
   if (validate_generated_expr(field))
     goto end;
+
+  // Virtual columns expressions that substitute themselves are invalid
+  DBUG_ASSERT(new_func == func_expr);
   result= FALSE;
 
 end:
@@ -2659,6 +2650,9 @@ bool unpack_gcol_info_from_frm(THD *thd,
 
   thd->lex->parse_gcol_expr= TRUE;
   old_character_set_client= thd->variables.character_set_client;
+  // Subquery is not allowed in generated expression
+  const bool save_allow_subselects= thd->lex->expr_allows_subselect;
+  thd->lex->expr_allows_subselect= false;
 
   /*
     Step 3: Use the parser to build an Item object from.
@@ -2691,6 +2685,7 @@ bool unpack_gcol_info_from_frm(THD *thd,
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   field->gcol_info->item_free_list= gcol_arena.free_list;
   thd->want_privilege= save_old_privilege;
+  thd->lex->expr_allows_subselect= save_allow_subselects;
 
   DBUG_RETURN(FALSE);
 
@@ -2701,6 +2696,7 @@ parse_err:
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   thd->variables.character_set_client= old_character_set_client;
   thd->want_privilege= save_old_privilege;
+  thd->lex->expr_allows_subselect= save_allow_subselects;
   DBUG_RETURN(TRUE);
 }
 
@@ -3589,17 +3585,6 @@ void append_unescaped(String *res, const char *pos, size_t length)
 
   for (; pos != end ; pos++)
   {
-#if MYSQL_VERSION_ID < 40100
-    uint mblen;
-    if (use_mb(default_charset_info) &&
-        (mblen= my_ismbchar(default_charset_info, pos, end)))
-    {
-      res->append(pos, mblen);
-      pos+= mblen;
-      continue;
-    }
-#endif
-
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
       res->append('\\');

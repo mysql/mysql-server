@@ -19,6 +19,7 @@
 
 #include "sql_lex.h"
 
+#include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
