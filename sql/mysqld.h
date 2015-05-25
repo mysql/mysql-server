@@ -340,7 +340,6 @@ static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
   return my_set_thread_local(THR_MALLOC, hdl);
 }
 
-extern bool load_perfschema_engine;
 
 #ifdef HAVE_PSI_INTERFACE
 

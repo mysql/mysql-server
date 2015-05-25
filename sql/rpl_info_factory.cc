@@ -1047,18 +1047,35 @@ err:
 
 */
 
+struct my_cstr_comparator : public std::unary_function<const char *, bool>
+{
+  my_cstr_comparator(const char* to_comp_arg) : to_comp(to_comp_arg) {}
+  bool operator() (const char* str) { return !strcmp(str, to_comp); }
+  const char* to_comp;
+};
+
+static void my_char_array_delete(const char *s)
+{
+  delete [] s;
+}
+
 bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
-                                               uint rli_option,
-                                               int thread_mask,
-                                               Multisource_info *pmsr_map)
+                                                 uint rli_option,
+                                                 int thread_mask,
+                                                 Multisource_info *pmsr_map)
 {
   DBUG_ENTER("create_slave_info_objects");
 
   Master_info* mi= NULL;
-  const char* msg= 0;
+  const char* msg= NULL;
+  char* channel_name= NULL;
+  bool error= false;
+  bool default_channel_existed_previously= false;
+  bool multiple_channels_allowed= false;
+  bool creating_multiple_channels= false;
+  bool default_channel_created= false;
+
   std::vector<const char*> channel_list;
-  bool error= TRUE;
-  Master_info *default_mi= NULL;
 
   /* Number of instances of Master_info repository */
   uint mi_instances= 0;
@@ -1068,15 +1085,13 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
 
   /*
     Number of instances of Relay_log_info_repository.
-    (Numer of Slave worker objects will be created by the Coordinator
+    (Number of Slave worker objects that will be created by the Coordinator
     (when slave_parallel_workers>0) at a later stage and not here).
   */
   uint rli_instances= 0;
 
   /* At this point, the repository is invalid or unknown */
   uint rli_repository= INVALID_INFO_REPOSITORY;
-  bool channel_init_error= false;
-  uint idx;
 
   /*
     Initialize the repository metadata. This metadata is the
@@ -1093,7 +1108,8 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
   {
     /* msg will contain the reason of failure */
     sql_print_error("Slave: %s", msg);
-    goto err;
+    error= true;
+    goto end;
   }
 
   //DBUG_ASSERT(mi_instances == rli_instances);
@@ -1105,98 +1121,118 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
                           mi_repository, pmsr_map->get_default_channel()))
   {
     sql_print_error("Slave: Could not create channel list");
-    goto err;
+    error= true;
+    goto end;
   }
 
-  if ((channel_list.size() == 0 ) ||
-      (channel_list.size() == 1
-       && !strcmp(channel_list[0], pmsr_map->get_default_channel())))
-  {
-    /* A new server or old server with default channel */
-    if (!(mi= create_slave_per_channel(mi_option, rli_option,
-                                       pmsr_map->get_default_channel(),
-                                       true, pmsr_map)))
-    {
-      sql_print_error("Failed to create or recover replication info repository.");
-      goto err;
-    }
-    if (global_init_info(mi, true, thread_mask))
-    {
-      sql_print_error("Failed to initialize the master info structure");
-      goto err;
-    }
+  default_channel_existed_previously=
+    std::find_if(channel_list.begin(), channel_list.end(),
+      my_cstr_comparator(pmsr_map->get_default_channel())) != channel_list.end();
 
-  }
-  else if (channel_list.size() >= 1 &&
-           (mi_option == INFO_REPOSITORY_TABLE &&
-            rli_option == INFO_REPOSITORY_TABLE))
+  multiple_channels_allowed=
+    mi_option == INFO_REPOSITORY_TABLE && rli_option == INFO_REPOSITORY_TABLE;
+
+  /* Adding the default channel if needed. */
+  if (!default_channel_existed_previously)
   {
-    /* success case of case B) C) and D) above */
-    for (idx= 0; idx < channel_list.size(); idx++)
+    channel_name= new char[strlen(pmsr_map->get_default_channel())+1];
+    strcpy(channel_name, pmsr_map->get_default_channel());
+    channel_list.push_back((const char*)channel_name);
+  }
+
+  creating_multiple_channels= channel_list.size() > 1;
+
+  /* Check if we can instantiate multiple channels. */
+  if (!multiple_channels_allowed && creating_multiple_channels)
+  {
+     /* Not supported cases of B) C) and D) above */
+     sql_print_error("Slave: This slave was a multisourced slave previously which"
+                     " is supported only by both TABLE based master info and relay"
+                     " log info repositories. Found one or both of the info repos"
+                     " to be type FILE. Set both repos to type TABLE.");
+     error= true;
+     goto end;
+  }
+
+  /*
+    Create and initialize the channels.
+
+    Even if there is an error, we continue to iterate until
+    we have created the default channel.
+
+    In the event of an error, we skip creating other channels than
+    the default one.
+
+    For compatibility reasons, we have to separate the print out
+    of the error messages.
+   */
+  for(std::vector<const char*>::iterator it = channel_list.begin();
+      it != channel_list.end(); ++it)
+  {
+    const char* cname= *it;
+    bool is_default_channel= !strcmp(cname, pmsr_map->get_default_channel());
+
+    if (error && default_channel_created)
+      /* error and default_channel_created - safe to exit loop */
+      break;
+    else if (error && !is_default_channel)
+      continue; // on error, skip channels until we handle the default one
+    else
     {
+      bool create_error= false, init_error= false;
       enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
-      if (pmsr_map->is_group_replication_channel_name(channel_list[idx]))
-      {
+      if (pmsr_map->is_group_replication_channel_name(cname))
         channel_type= GROUP_REPLICATION_CHANNEL;
+
+      create_error=
+        !(mi= create_slave_per_channel(mi_option, rli_option, cname,
+                                       !creating_multiple_channels /* to_decide_repo */,
+                                       pmsr_map, channel_type));
+
+      if (create_error && !creating_multiple_channels)
+      {
+        /* legacy - default channel only error */
+        sql_print_error("Failed to create or recover replication info repository.");
       }
 
-      if (!(mi= create_slave_per_channel(mi_option, rli_option,
-                                         (const char*)channel_list[idx],
-                                         false, pmsr_map, channel_type)))
+      /*
+        Initialize the default channel conditionally:
+        - no create error
+        - not default channel
+        - or default channel and was also listed from the beginning.
+       */
+      if (!create_error && (!is_default_channel || default_channel_existed_previously))
       {
-        channel_init_error= true;
-        goto err;
+        bool ignore_if_no_info=
+          (is_default_channel && !creating_multiple_channels) ?  true : false;
+        init_error= global_init_info(mi, ignore_if_no_info, thread_mask);
       }
-      if (global_init_info(mi, false, thread_mask))
+
+      if (init_error || create_error)
       {
-        channel_init_error= true;
-        goto err;
+        if (creating_multiple_channels)
+        {
+          sql_print_error("Slave: Failed to initialize the master info structure"
+                          " for channel '%s'; its record may still be present in"
+                          " 'mysql.slave_master_info' table, consider deleting it."
+                          " Aborting initialization of other channels.",
+                          cname);
+        }
+        else if (init_error)
+        {
+          sql_print_error("Failed to initialize the master info structure");
+        }
       }
+
+      default_channel_created= default_channel_created || is_default_channel;
+      error= error || create_error || init_error;
     }
   }
-  else if (channel_list.size() >= 1 &&
-           (mi_option == INFO_REPOSITORY_FILE  ||
-            (rli_option == INFO_REPOSITORY_FILE)))
-  {
-    /* Not supported cases of B) C) and D) above */
-    sql_print_error("Slave: This slave was a multisourced slave previously which"
-                    " is supported only by both TABLE based master info and relay"
-                    " log info repositories. Found one or both of the info repos"
-                    " to be type FILE. Set both repos to type TABLE.");
-    goto err;
-  }
-
-   /* create a default channel if doesn't exist */
-  if (!(default_mi= pmsr_map->get_mi(pmsr_map->get_default_channel())))
-  {
-    if (!(mi= create_slave_per_channel(mi_option, rli_option,
-                                       pmsr_map->get_default_channel(),
-                                       false, pmsr_map)))
-    {
-      sql_print_error("Slave: Error in creating slave info objects for "
-                      " default channel");
-      goto err;
-    }
-  }
-
-  error= FALSE;
-
-err:
-  if (channel_init_error)
-  {
-    sql_print_error("Slave: Failed to initialize the master info structure"
-                    " for channel '%s'; its record may still be present in"
-                    " 'mysql.slave_master_info' table, consider deleting it",
-                    channel_list[idx]);
-    pmsr_map->delete_mi((const char*) channel_list[idx]);
-  }
+  DBUG_ASSERT(default_channel_created);
+end:
   /* Free channel list */
-  for (uint i= 0; i<channel_list.size(); i++)
-  {
-    delete[] channel_list[i];
-  }
+  std::for_each(channel_list.begin(), channel_list.end(), my_char_array_delete);
   DBUG_RETURN(error);
-
 }
 
 

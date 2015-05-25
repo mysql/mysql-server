@@ -5400,11 +5400,7 @@ void set_reconnect(MYSQL* mysql, int val)
   my_bool reconnect= val;
   DBUG_ENTER("set_reconnect");
   DBUG_PRINT("info", ("val: %d", val));
-#if MYSQL_VERSION_ID < 50000
-  mysql->reconnect= reconnect;
-#else
   mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -8112,7 +8108,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
     parameter markers.
   */
 
-#if MYSQL_VERSION_ID >= 50000
   if (cursor_protocol_enabled)
   {
     /*
@@ -8123,7 +8118,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
-#endif
 
   /*
     Execute the query

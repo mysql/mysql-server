@@ -22,6 +22,6 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
 STOP SLAVE FOR CHANNEL 'ch_a';
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start=off --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 [connection slave]
 RESET SLAVE ALL;

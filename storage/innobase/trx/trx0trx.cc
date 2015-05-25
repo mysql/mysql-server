@@ -1103,7 +1103,7 @@ get_next_redo_rseg(
 	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
 	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
 {
-	trx_rseg_t*	rseg;
+	trx_rseg_t*	rseg = NULL;
 	static ulint	redo_rseg_slot = 0;
 	ulint		slot = 0;
 
@@ -3367,6 +3367,10 @@ trx_kill_blocking(trx_t* trx)
 		if (trx_is_started(victim_trx) && rollback) {
 
 			trx_id_t	id = victim_trx->id;
+			char*		thr_text = thd_security_context(
+							victim_trx->mysql_thd,
+							buffer, sizeof(buffer),
+							512);
 
 			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
 
@@ -3375,9 +3379,7 @@ trx_kill_blocking(trx_t* trx)
 			trx_rollback_for_mysql(victim_trx);
 
 			ib::info() << "Killed transaction: ID: " << id
-				<< " - " << thd_security_context(
-					victim_trx->mysql_thd,
-					buffer, sizeof(buffer), 512);
+				<< " - " << thr_text;
 		}
 
 		trx_mutex_enter(victim_trx);

@@ -2259,7 +2259,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   for (table= tables; table; table= table->next_local)
   {
-    bool is_trans;
+    bool is_trans= false;
     const char *db= table->db;
     size_t db_len= table->db_length;
     handlerton *table_type;

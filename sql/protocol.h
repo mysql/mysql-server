@@ -130,6 +130,8 @@ union COM_DATA {
 
 class Protocol {
 public:
+  virtual ~Protocol() { }
+
   /**
     Read packet from client
 

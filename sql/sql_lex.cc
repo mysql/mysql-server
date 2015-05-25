@@ -19,6 +19,8 @@
 
 #include "sql_lex.h"
 
+#include "mysql_version.h"             // MYSQL_VERSION_ID
+
 #include "current_thd.h"
 #include "mysqld.h"                    // table_alias_charset
 #include "sp_head.h"                   // sp_head

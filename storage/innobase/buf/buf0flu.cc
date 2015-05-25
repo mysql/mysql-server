@@ -1047,10 +1047,10 @@ buf_flush_write_block_low(
 				false, frame, bpage->size,
 				fsp_is_checksum_disabled(bpage->id.space()));
 
-			ut_a(reporter.verify_zip_checksum());
-
 			mach_write_to_8(frame + FIL_PAGE_LSN,
 					bpage->newest_modification);
+
+			ut_a(reporter.verify_zip_checksum());
 			break;
 		}
 	case BUF_BLOCK_FILE_PAGE:
@@ -1146,7 +1146,7 @@ buf_flush_page(
 	ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
 	ibool		flush;
-	rw_lock_t*	rw_lock;
+	rw_lock_t*	rw_lock = NULL;
 	bool		no_fix_count = bpage->buf_fix_count == 0;
 
 	if (!is_uncompressed) {

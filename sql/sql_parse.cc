@@ -3375,13 +3375,7 @@ end_with_restore_list:
     break;
   case SQLCOM_CREATE_DB:
   {
-    /*
-      As mysql_create_db() may modify HA_CREATE_INFO structure passed to
-      it, we need to use a copy of LEX::create_info to make execution
-      prepared statement- safe.
-    */
-    HA_CREATE_INFO create_info(lex->create_info);
-    char *alias;
+    const char* alias;
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
         (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK))
       break;
@@ -3401,8 +3395,14 @@ end_with_restore_list:
 #endif
     if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
-                              lex->name.str), &create_info, 0);
+    /*
+      As mysql_create_db() may modify HA_CREATE_INFO structure passed to
+      it, we need to use a copy of LEX::create_info to make execution
+      prepared statement- safe.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
+    res= mysql_create_db(thd, (lower_case_table_names == 2 ? alias :
+                               lex->name.str), &create_info);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -3425,14 +3425,12 @@ end_with_restore_list:
 #endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
+    res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
     break;
   }
   case SQLCOM_ALTER_DB:
   {
-    LEX_STRING *db= &lex->name;
-    HA_CREATE_INFO create_info(lex->create_info);
-    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
+    if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
     /*
       If in a slave thread :
@@ -3448,9 +3446,15 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0))
+    if (check_access(thd, ALTER_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_alter_db(thd, db->str, &create_info);
+    /*
+      As mysql_alter_db() may modify HA_CREATE_INFO structure passed to
+      it, we need to use a copy of LEX::create_info to make execution
+      prepared statement- safe.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
+    res= mysql_alter_db(thd, lex->name.str, &create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:

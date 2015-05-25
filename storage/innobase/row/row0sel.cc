@@ -2480,68 +2480,6 @@ row_fetch_print(
 	return((void*)42);
 }
 
-/***********************************************************//**
-Prints a row in a select result.
-@return query thread to run next or NULL */
-que_thr_t*
-row_printf_step(
-/*============*/
-	que_thr_t*	thr)	/*!< in: query thread */
-{
-	row_printf_node_t*	node;
-	sel_node_t*		sel_node;
-	que_node_t*		arg;
-
-	ut_ad(thr);
-
-	node = static_cast<row_printf_node_t*>(thr->run_node);
-
-	sel_node = node->sel_node;
-
-	ut_ad(que_node_get_type(node) == QUE_NODE_ROW_PRINTF);
-
-	if (thr->prev_node == que_node_get_parent(node)) {
-
-		/* Reset the cursor */
-		sel_node->state = SEL_NODE_OPEN;
-
-		/* Fetch next row to print */
-
-		thr->run_node = sel_node;
-
-		return(thr);
-	}
-
-	if (sel_node->state != SEL_NODE_FETCH) {
-
-		ut_ad(sel_node->state == SEL_NODE_NO_MORE_ROWS);
-
-		/* No more rows to print */
-
-		thr->run_node = que_node_get_parent(node);
-
-		return(thr);
-	}
-
-	arg = sel_node->select_list;
-
-	while (arg) {
-		dfield_print_also_hex(que_node_get_val(arg));
-
-		fputs(" ::: ", stderr);
-
-		arg = que_node_get_next(arg);
-	}
-
-	putc('\n', stderr);
-
-	/* Fetch next row to print */
-
-	thr->run_node = sel_node;
-
-	return(thr);
-}
-
 /****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
@@ -4327,7 +4265,7 @@ row_search_mvcc(
 	read (fetch the newest committed version), then this is set to
 	TRUE */
 	ulint		next_offs;
-	ibool		same_user_rec;
+	ibool		same_user_rec 			= FALSE;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -5775,6 +5713,15 @@ normal_return:
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	mtr_commit(&mtr);
+
+	/* Rollback blocking transactions from hit list for high priority
+	transaction, if any. We should not be holding latches here as
+	we are going to rollback the blocking transactions. */
+	if (!trx->hit_list.empty()) {
+
+		ut_ad(trx_is_high_priority(trx));
+		trx_kill_blocking(trx);
+	}
 
 	DEBUG_SYNC_C("row_search_for_mysql_before_return");
 

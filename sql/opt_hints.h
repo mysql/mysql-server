@@ -168,6 +168,8 @@ public:
       resolved(false), resolved_children(0)
   { }
 
+  virtual ~Opt_hints() {}
+
   bool is_specified(opt_hints_enum type_arg) const
   {
     return hints_map.is_specified(type_arg);
@@ -243,11 +245,13 @@ public:
     Find hint among lower-level hint objects.
 
     @param name_arg        hint name
+    @param cs              Pointer to character set
 
     @return  hint if found,
              NULL otherwise
   */
-  Opt_hints *find_by_name(const LEX_CSTRING *name_arg) const;
+  Opt_hints *find_by_name(const LEX_CSTRING *name_arg,
+                          const CHARSET_INFO *cs) const;
   /**
     Print all hints except of QB_NAME hint.
 

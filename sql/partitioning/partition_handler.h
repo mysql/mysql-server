@@ -185,7 +185,7 @@ class Partition_handler :public Sql_alloc
 {
 public:
   Partition_handler() {}
-  ~Partition_handler() {}
+  virtual ~Partition_handler() {}
 
   /**
     Get dynamic table information from partition.
@@ -396,7 +396,7 @@ class Partition_helper : public Sql_alloc
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:
   Partition_helper(handler *main_handler);
-  ~Partition_helper();
+  virtual ~Partition_helper();
 
   /**
     Set partition info.

@@ -257,47 +257,6 @@ dtuple_validate(
 
 #ifndef UNIV_HOTBACKUP
 /*************************************************************//**
-Pretty prints a dfield value according to its data type. */
-void
-dfield_print(
-/*=========*/
-	const dfield_t*	dfield)	/*!< in: dfield */
-{
-	const byte*	data;
-	ulint		len;
-	ulint		i;
-
-	len = dfield_get_len(dfield);
-	data = static_cast<const byte*>(dfield_get_data(dfield));
-
-	if (dfield_is_null(dfield)) {
-		fputs("NULL", stderr);
-
-		return;
-	}
-
-	switch (dtype_get_mtype(dfield_get_type(dfield))) {
-	case DATA_CHAR:
-	case DATA_VARCHAR:
-		for (i = 0; i < len; i++) {
-			int	c = *data++;
-			putc(isprint(c) ? c : ' ', stderr);
-		}
-
-		if (dfield_is_ext(dfield)) {
-			fputs("(external)", stderr);
-		}
-		break;
-	case DATA_INT:
-		ut_a(len == 4); /* only works for 32-bit integers */
-		fprintf(stderr, "%d", (int) mach_read_from_4(data));
-		break;
-	default:
-		ut_error;
-	}
-}
-
-/*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */
 void

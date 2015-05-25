@@ -321,7 +321,7 @@ DROP PREPARE stmt;
 -- if the server is built with performance schema
 --
 
-set @have_pfs= (select count(engine) from information_schema.engines where engine='PERFORMANCE_SCHEMA' and support != 'NO');
+set @have_pfs= (select count(engine) from information_schema.engines where engine='PERFORMANCE_SCHEMA');
 
 --
 -- TABLE COND_INSTANCES

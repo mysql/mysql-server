@@ -3383,7 +3383,7 @@ ibuf_insert_low(
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
-	ulint		n_stored;
+	ulint		n_stored = 0;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 

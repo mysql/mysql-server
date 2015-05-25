@@ -10766,7 +10766,7 @@ int QUICK_ROR_UNION_SELECT::get_next()
 int QUICK_RANGE_SELECT::reset()
 {
   uint  buf_size;
-  uchar *mrange_buff;
+  uchar *mrange_buff= NULL;
   int   error;
   HANDLER_BUFFER empty_buf;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
@@ -11607,7 +11607,7 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
 
 static inline uint get_field_keypart(KEY *index, Field *field);
 static inline SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree,
-                                             PARAM *param, uint *param_idx);
+                                             PARAM *param);
 static bool get_sel_arg_for_keypart(Field *field, SEL_ARG *index_range_tree,
                                     SEL_ARG **cur_range);
 static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
@@ -11913,15 +11913,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
   */
 
   const uint pk= param->table->s->primary_key;
-  KEY *cur_index_info= table->key_info;
-  KEY *cur_index_info_end= cur_index_info + table->s->keys;
   SEL_ARG *cur_index_tree= NULL;
   ha_rows cur_quick_prefix_records= 0;
-  uint cur_param_idx= MAX_KEY;
   Opt_trace_array trace_indexes(trace, "potential_group_range_indexes");
-  for (uint cur_index= 0 ; cur_index_info != cur_index_info_end ;
-       cur_index_info++, cur_index++)
+  // We go through allowed indexes
+  for (uint cur_param_idx= 0; cur_param_idx < param->keys ; ++cur_param_idx)
   {
+    const uint cur_index= param->real_keynr[cur_param_idx];
+    KEY *const cur_index_info= &table->key_info[cur_index];
     Opt_trace_object trace_idx(trace);
     trace_idx.add_utf8("index", cur_index_info->name);
     KEY_PART_INFO *cur_part;
@@ -11940,7 +11939,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     uint cur_key_infix_len= 0;
     uchar cur_key_infix[MAX_KEY_LENGTH];
     uint cur_used_key_parts;
-    
+
     /* Check (B1) - if current index is covering. */
     if (!table->covering_keys.is_set(cur_index))
     {
@@ -12127,9 +12126,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     {
       if (tree)
       {
-        uint dummy;
-        SEL_ARG *index_range_tree= get_index_range_tree(cur_index, tree, param,
-                                                        &dummy);
+        SEL_ARG *index_range_tree= get_index_range_tree(cur_index, tree, param);
         if (!get_constant_key_infix(cur_index_info, index_range_tree,
                                     first_non_group_part, min_max_arg_part,
                                     last_part, thd, cur_key_infix, 
@@ -12204,9 +12201,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     */
     if (tree && min_max_arg_item)
     {
-      uint dummy;
-      SEL_ARG *index_range_tree= get_index_range_tree(cur_index, tree, param,
-                                                      &dummy);
+      SEL_ARG *index_range_tree= get_index_range_tree(cur_index, tree, param);
       SEL_ARG *cur_range= NULL;
       if (get_sel_arg_for_keypart(min_max_arg_part->field,
                                   index_range_tree, &cur_range) ||
@@ -12226,8 +12221,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
     if (tree)
     {
       /* Find the SEL_ARG sub-tree that corresponds to the chosen index. */
-      cur_index_tree= get_index_range_tree(cur_index, tree, param,
-                                           &cur_param_idx);
+      cur_index_tree= get_index_range_tree(cur_index, tree, param);
       /* Check if this range tree can be used for prefix retrieval. */
       Cost_estimate dummy_cost;
       uint mrr_flags= HA_MRR_SORTED;
@@ -12722,7 +12716,6 @@ get_field_keypart(KEY *index, Field *field)
     index     [in]  The ID of the index being looked for
     range_tree[in]  Tree of ranges being searched
     param     [in]  PARAM from test_quick_select
-    param_idx [out] Index in the array PARAM::key that corresponds to 'index'
 
   DESCRIPTION
 
@@ -12737,8 +12730,7 @@ get_field_keypart(KEY *index, Field *field)
     Pointer to the SEL_ARG subtree that corresponds to index.
 */
 
-SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
-                               uint *param_idx)
+SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param)
 {
   uint idx= 0; /* Index nr in param->key_parts */
   while (idx < param->keys)
@@ -12747,7 +12739,6 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
       break;
     idx++;
   }
-  *param_idx= idx;
   return(range_tree->keys[idx]);
 }
 

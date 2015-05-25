@@ -1796,7 +1796,7 @@ row_merge_read_clustered_index(
 		const rec_t*	rec;
 		ulint*		offsets;
 		const dtuple_t*	row;
-		row_ext_t*	ext;
+		row_ext_t*	ext = NULL;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
 		page_cur_move_to_next(cur);

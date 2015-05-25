@@ -2648,7 +2648,7 @@ static st_feature_version s_features[]=
 void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
 {
   THD *thd=info_thd;
-  ulong master_version, current_version;
+  ulong master_version= 0, current_version= 0;
   int changed= !fdle || ! rli_description_event ? 0 :
     (master_version= fdle->get_product_version()) -
     (current_version= rli_description_event->get_product_version());

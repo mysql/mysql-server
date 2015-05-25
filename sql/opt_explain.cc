@@ -2083,7 +2083,12 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     }
     case JOIN::PLAN_READY:
     {
-      if (!other && join->prepare_result())
+      /*
+        (1) If this connection is explaining its own query
+        (2) and it hasn't already prepared the JOIN's result,
+        then we need to prepare it (for example, to materialize I_S tables).
+      */
+      if (!other && !join->is_executed() && join->prepare_result())
         return true; /* purecov: inspected */
 
       /*

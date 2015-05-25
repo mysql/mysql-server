@@ -6614,7 +6614,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
           buffer, and grow from opposite directions, so make sure they
           don't cross.
         */
-        DBUG_ASSERT(*sargables > *reinterpret_cast<SARGABLE_PARAM**>(key_fields));
+        DBUG_ASSERT(*sargables > reinterpret_cast<SARGABLE_PARAM*>(*key_fields));
         (*sargables)->field= field;
         (*sargables)->arg_value= value;
         (*sargables)->num_values= num_values;
@@ -6708,7 +6708,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
     don't write any sargables.
   */
   DBUG_ASSERT(sargables == NULL ||
-              *key_fields < *reinterpret_cast<Key_field**>(sargables));
+              *key_fields < reinterpret_cast<Key_field*>(*sargables));
 }
 
 /**

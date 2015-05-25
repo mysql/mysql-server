@@ -526,6 +526,7 @@ private:
 class Proto_field
 {
 public:
+  virtual ~Proto_field() {}
   virtual bool send_binary(Protocol *protocol)= 0;
   virtual bool send_text(Protocol *protocol)= 0;
 };

@@ -2202,7 +2202,7 @@ fseg_create_general(
 	ib_id_t		seg_id;
 	buf_block_t*	block	= 0; /* remove warning */
 	fseg_header_t*	header	= 0; /* remove warning */
-	ulint		n_reserved;
+	ulint		n_reserved = 0;
 	ulint		i;
 
 	DBUG_ENTER("fseg_create_general");
@@ -2820,7 +2820,7 @@ fseg_alloc_free_page_general(
 	fil_space_t*	space;
 	buf_block_t*	iblock;
 	buf_block_t*	block;
-	ulint		n_reserved;
+	ulint		n_reserved = 0;
 
 	space_id = page_get_space_id(page_align(seg_header));
 	space = mtr_x_lock_space(space_id, mtr);

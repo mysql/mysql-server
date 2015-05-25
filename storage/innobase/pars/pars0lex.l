@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -64,9 +64,9 @@ Created 12/14/1997 Heikki Tuuri
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
-/* Note: We cast &result to int* from yysize_t* */
+/* Note: We cast result from int to yysize_t */
 #define YY_INPUT(buf, result, max_size) \
-	pars_get_lex_chars(buf, (int*) &result, max_size)
+	((result) = pars_get_lex_chars(buf, max_size))
 
 /* String buffer for removing quotes */
 static ulint	stringbuf_len_alloc = 0; /* Allocated length */
@@ -457,28 +457,12 @@ In the state 'id', only two actions are possible (defined below). */
 			return(PARS_NOTFOUND_TOKEN);
 }
 
-"TO_CHAR"	{
-			return(PARS_TO_CHAR_TOKEN);
-}
-
-"TO_NUMBER"	{
-			return(PARS_TO_NUMBER_TOKEN);
-}
-
 "TO_BINARY"	{
 			return(PARS_TO_BINARY_TOKEN);
 }
 
-"BINARY_TO_NUMBER" {
-			return(PARS_BINARY_TO_NUMBER_TOKEN);
-}
-
 "SUBSTR"	{
 			return(PARS_SUBSTR_TOKEN);
-}
-
-"REPLSTR"	{
-			return(PARS_REPLSTR_TOKEN);
 }
 
 "CONCAT"	{
@@ -491,30 +475,6 @@ In the state 'id', only two actions are possible (defined below). */
 
 "LENGTH"	{
 			return(PARS_LENGTH_TOKEN);
-}
-
-"SYSDATE"	{
-			return(PARS_SYSDATE_TOKEN);
-}
-
-"PRINTF"	{
-			return(PARS_PRINTF_TOKEN);
-}
-
-"ASSERT"	{
-			return(PARS_ASSERT_TOKEN);
-}
-
-"RND"		{
-			return(PARS_RND_TOKEN);
-}
-
-"RND_STR"	{
-			return(PARS_RND_STR_TOKEN);
-}
-
-"ROW_PRINTF"	{
-			return(PARS_ROW_PRINTF_TOKEN);
 }
 
 "COMMIT"	{

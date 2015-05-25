@@ -99,13 +99,6 @@ row_fetch_print(
 /*============*/
 	void*	row,		/*!< in:  sel_node_t* */
 	void*	user_arg);	/*!< in:  not used */
-/***********************************************************//**
-Prints a row in a select result.
-@return query thread to run next or NULL */
-que_thr_t*
-row_printf_step(
-/*============*/
-	que_thr_t*	thr);	/*!< in: query thread */
 
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
@@ -463,12 +456,6 @@ struct open_node_t{
 			op_type;	/*!< operation type: open or
 					close cursor */
 	sel_node_t*	cursor_def;	/*!< cursor definition */
-};
-
-/** Row printf statement node */
-struct row_printf_node_t{
-	que_common_t	common;		/*!< type: QUE_NODE_ROW_PRINTF */
-	sel_node_t*	sel_node;	/*!< select */
 };
 
 /** Search direction for the MySQL interface */

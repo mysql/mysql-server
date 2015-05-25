@@ -1077,7 +1077,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
 
   while (found && ! thd->killed)
   {
-    TABLE_SHARE *share;
+    TABLE_SHARE *share= NULL;
     found= FALSE;
     /*
       To a self-deadlock or deadlocks with other FLUSH threads

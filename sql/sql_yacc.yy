@@ -9805,7 +9805,7 @@ function_call_conflict:
         ;
 
 geometry_function:
-          GEOMETRYCOLLECTION '(' expr_list ')'
+          GEOMETRYCOLLECTION '(' opt_expr_list ')'
           {
             $$= NEW_PTN Item_func_spatial_collection(@$, $3,
                         Geometry::wkb_geometrycollection,

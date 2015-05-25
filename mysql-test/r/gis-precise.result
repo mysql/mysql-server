@@ -2002,6 +2002,16 @@ select ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((0
 ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(7 0),MULTILINESTRING((-13 -18,-16 0),(17 11,-1 11,-18 -19,-4 -18),(-8 -8,-15 -13,3 -18,6 8)),LINESTRING(5 16,0 -9,-6 4,-15 17),MULTIPOINT(-9 -5,5 15,12 -11,12 11))'))) as result;
 result
 GEOMETRYCOLLECTION(MULTIPOINT(0 14,-9 -11),MULTIPOINT(16 1,-9 -17,-16 6,-17 3),POINT(-9 -5),POINT(5 15),POINT(12 -11),MULTILINESTRING((0 -14,13 -8),(-5 -3,8 7),(-6 18,17 -11,-12 19,19 5),(16 11,9 -5),(17 -5,5 10),(-4 17,6 4),(-12 15,17 13,-18 11,15 10),(7 0,2 -16,-18 13,-6 4),(-17 -6,-6 -7,1 4,-18 0),(-11 -2,17 -14),(18 -12,18 -8),(-13 -16,9 16,9 -10,-7 20),(-14 -5,10 -9,4 1,17 -8),(-9 -4,-2 -12,9 -13,-5 4),(15 17,13 20),(5 16,0 -9,-6 4,-15 17),(-13 -18,-16 0),(17 11,-1 11,-18 -19,-4 -18),(-8 -8,-15 -13,3 -18,6 8)))
+#
+# Bug#21127270 CAN NOT CREATE EMPTY GEOMETRY WITH GEOMETRYCOLLECTION()
+#
+select st_astext(geometrycollection()) as result;
+result
+GEOMETRYCOLLECTION()
+set @empty_geom = geometrycollection();
+select 1, @empty_geom = st_geomfromtext('geometrycollection()') as equal;
+1	equal
+1	1
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
