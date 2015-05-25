@@ -33,7 +33,8 @@ call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
 call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
-
+call mtr.add_suppression("An error occured during flushing cache to file.");
+call mtr.add_suppression("Either disk is full or file system is read only");
 let $old=`select @@debug`;
 
 --let $saved_binlog_error_action=`SELECT @@GLOBAL.binlog_error_action`
@@ -139,6 +140,35 @@ CREATE TABLE t2 (f int );
 SHOW TABLES;
 DROP TABLE t2;
 SET SESSION debug="-d,fault_injection_init_name";
+--source include/restart_mysqld.inc
+
+--echo Test case9
+CREATE TABLE t1(i INT);
+# Simulate error during flushing cache to file and test the behaviour
+# when binlog_error_action is set to ABORT_SERVER/IGNORE_ERROR.
+SET SESSION debug="+d,simulate_error_during_flush_cache_to_file";
+SET GLOBAL binlog_error_action= ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+INSERT INTO t1 VALUES (1);
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--let $assert_cond= COUNT(*) = 0 FROM t1;
+--let $assert_text= Count of elements in t1 should be 0.
+--source include/assert.inc
+
+SET SESSION debug="+d,simulate_error_during_flush_cache_to_file";
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+INSERT INTO t1 VALUES (2);
+
+--let $assert_cond= COUNT(*) = 1 FROM t1;
+--let $assert_text= Count of elements in t1 should be 1.
+--source include/assert.inc
+
+DROP table t1;
+SET SESSION debug="-d,simulate_error_during_flush_cache_to_file";
 --source include/restart_mysqld.inc
 
 # Cleanup
