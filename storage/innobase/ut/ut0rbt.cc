@@ -54,24 +54,6 @@ red-black properties:
 #define ROOT(t)		(t->root->left)
 #define	SIZEOF_NODE(t)	((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
 
-/**********************************************************************//**
-Print out the sub-tree recursively. */
-static
-void
-rbt_print_subtree(
-/*==============*/
-	const ib_rbt_t*		tree,		/*!< in: tree to traverse */
-	const ib_rbt_node_t*	node,		/*!< in: node to print */
-	ib_rbt_print_node	print)		/*!< in: print key function */
-{
-	/* FIXME: Doesn't do anything yet */
-	if (node != tree->nil) {
-		print(node);
-		rbt_print_subtree(tree, node->left, print);
-		rbt_print_subtree(tree, node->right, print);
-	}
-}
-
 #if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /**********************************************************************//**
 Verify that the keys are in order.
