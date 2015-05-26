@@ -3023,9 +3023,7 @@ sha1('P'),
 )
 )
 );
-Warnings:
-Error	3037	Invalid GIS data provided to function st_geometryfromwkb.
-Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests

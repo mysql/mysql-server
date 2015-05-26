@@ -1828,8 +1828,7 @@ DROP TABLE t1;
 #              IN MY_USECONDS_TO_STR
 #
 DO MBRContains(1, if(0, coalesce(NULL), now()));
-Warnings:
-Error	3037	Invalid GIS data provided to function mbrcontains.
+ERROR 22023: Invalid GIS data provided to function mbrcontains.
 CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
 SHOW CREATE TABLE t1;
 Table	Create Table

@@ -7133,6 +7133,87 @@ bool Item::send(Protocol *protocol, String *buffer)
 
 
 /**
+  Evaluate item, possibly using the supplied buffer
+
+  @param thd    Thread context
+  @param buffer Buffer, in case item needs a large one
+
+  @returns false if success, true if error
+*/
+
+bool Item::evaluate(THD *thd, String *buffer)
+{
+  bool result= false;                       // Will be set if null_value == 0
+
+  switch (field_type())
+  {
+  default:
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BIT:
+  {
+    (void)val_str(buffer);
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  {
+    (void)val_int();
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_NEWDECIMAL:
+  {
+    my_decimal decimal_value;
+    (void)val_decimal(&decimal_value);
+    result= thd->is_error();
+    break;
+  }
+
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  {
+    (void)val_real();
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  {
+    MYSQL_TIME tm;
+    (void)get_date(&tm, TIME_FUZZY_DATE);
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_TIME:
+  {
+    MYSQL_TIME tm;
+    (void)get_time(&tm);
+    result= thd->is_error();
+    break;
+  }
+  }
+  return result;
+}
+
+
+/**
   Check if an item is a constant one and can be cached.
 
   @param arg [out] != NULL <=> Cache this item.

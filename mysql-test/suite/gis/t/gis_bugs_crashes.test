@@ -1295,6 +1295,7 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_of_elems)) a
 --echo # BUG#19584838 : ST_SYMDIFFERENCE: ASSERTION FAILED: T1->RESULT_RANGE
 --echo ######################################################################################################
 
+--error ER_GIS_INVALID_DATA
 DO ST_SYMDIFFERENCE(
       MULTIPOLYGON(
             POLYGON(

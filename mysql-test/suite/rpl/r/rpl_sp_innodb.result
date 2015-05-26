@@ -280,8 +280,7 @@ insert into t2 values(x),(x);
 return 10;
 end|
 do fn1(100);
-Warnings:
-Error	1062	Duplicate entry '100' for key 'a'
+ERROR 23000: Duplicate entry '100' for key 'a'
 select fn1(20);
 ERROR 23000: Duplicate entry '20' for key 'a'
 select * from t2;
