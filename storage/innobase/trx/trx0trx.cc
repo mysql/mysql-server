@@ -1559,6 +1559,7 @@ trx_serialisation_number_get(
 Assign the transaction its history serialisation number and write the
 update UNDO log record to the assigned rollback segment.
 @return true if a serialisation log was written */
+static
 bool
 trx_write_serialisation_history(
 /*============================*/

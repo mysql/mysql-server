@@ -35,26 +35,7 @@ simple headers.
 
 /* Forward declarations */
 class THD;
-class Field;
-struct fts_string_t;
 typedef struct charset_info_st CHARSET_INFO;
-
-/*********************************************************************//**
-Wrapper around MySQL's copy_and_convert function.
-@return number of bytes copied to 'to' */
-ulint
-innobase_convert_string(
-/*====================*/
-	void*		to,		/*!< out: converted string */
-	ulint		to_length,	/*!< in: number of bytes reserved
-					for the converted string */
-	CHARSET_INFO*	to_cs,		/*!< in: character set to convert to */
-	const void*	from,		/*!< in: string to convert */
-	ulint		from_length,	/*!< in: number of bytes to convert */
-	CHARSET_INFO*	from_cs,	/*!< in: character set to convert
-					from */
-	uint*		errors);	/*!< out: number of errors encountered
-					during the conversion */
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
@@ -185,16 +166,6 @@ innobase_strcasecmp(
 /*================*/
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b);	/*!< in: second string to compare */
-
-/******************************************************************//**
-Compares NUL-terminated UTF-8 strings case insensitively. The
-second string contains wildcards.
-@return 0 if a match is found, 1 if not */
-int
-innobase_wildcasecmp(
-/*=================*/
-	const char*	a,	/*!< in: string to compare */
-	const char*	b);	/*!< in: wildcard string to compare */
 
 /******************************************************************//**
 Strip dir name from a full path name and return only its file name.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -96,14 +96,6 @@ Get the sync level for a latch name.
 @return SYNC_UNKNOWN - if not found. */
 latch_level_t
 sync_latch_get_level(const char* name);
-
-/**
-Get the latch name from a sync level.
-@param level - latch level to look for
-@return 0 if not found. */
-const char*
-sync_latch_get_name(latch_level_t level)
-	__attribute__((warn_unused_result));
 
 #ifdef UNIV_PFS_MUTEX
 /**

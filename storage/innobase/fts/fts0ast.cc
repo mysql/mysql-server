@@ -55,6 +55,23 @@ fts_ast_node_create(void)
 	return(node);
 }
 
+/** Track node allocations, in case there is an error during parsing. */
+static
+void
+fts_ast_state_add_node(
+	fts_ast_state_t*state,			/*!< in: ast instance */
+	fts_ast_node_t*	node)			/*!< in: node to add to ast */
+{
+	if (!state->list.head) {
+		ut_a(!state->list.tail);
+
+		state->list.head = state->list.tail = node;
+	} else {
+		state->list.tail->next_alloc = node;
+		state->list.tail = node;
+	}
+}
+
 /******************************************************************//**
 Create a operator fts_ast_node_t.
 @return new node */
@@ -380,25 +397,6 @@ fts_ast_add_node(
 }
 
 /******************************************************************//**
-For tracking node allocations, in case there is an error during
-parsing. */
-void
-fts_ast_state_add_node(
-/*===================*/
-	fts_ast_state_t*state,			/*!< in: ast instance */
-	fts_ast_node_t*	node)			/*!< in: node to add to ast */
-{
-	if (!state->list.head) {
-		ut_a(!state->list.tail);
-
-		state->list.head = state->list.tail = node;
-	} else {
-		state->list.tail->next_alloc = node;
-		state->list.tail = node;
-	}
-}
-
-/******************************************************************//**
 Set the wildcard attribute of a term. */
 void
 fts_ast_term_set_wildcard(
@@ -467,6 +465,20 @@ fts_ast_state_free(
 	}
 
 	state->root = state->list.head = state->list.tail = NULL;
+}
+
+/** Print the ast string
+@param[in] str		string to print */
+static
+void
+fts_ast_string_print(
+	const fts_ast_string_t*	ast_str)
+{
+	for (ulint i = 0; i < ast_str->len; ++i) {
+		printf("%c", ast_str->str[i]);
+	}
+
+	printf("\n");
 }
 
 /******************************************************************//**
@@ -740,48 +752,7 @@ fts_ast_string_to_ul(
 		       NULL, base));
 }
 
-/**
-Print the ast string
-@param[in] str		string to print */
-void
-fts_ast_string_print(
-	const fts_ast_string_t*	ast_str)
-{
-	for (ulint i = 0; i < ast_str->len; ++i) {
-		printf("%c", ast_str->str[i]);
-	}
-
-	printf("\n");
-}
-
 #ifdef UNIV_DEBUG
-const char*
-fts_ast_oper_name_get(fts_ast_oper_t	oper)
-{
-	switch(oper) {
-	case FTS_NONE:
-		return("FTS_NONE");
-	case FTS_IGNORE:
-		return("FTS_IGNORE");
-	case FTS_EXIST:
-		return("FTS_EXIST");
-	case FTS_NEGATE:
-		return("FTS_NEGATE");
-	case FTS_INCR_RATING:
-		return("FTS_INCR_RATING");
-	case FTS_DECR_RATING:
-		return("FTS_DECR_RATING");
-	case FTS_DISTANCE:
-		return("FTS_DISTANCE");
-	case FTS_IGNORE_SKIP:
-		return("FTS_IGNORE_SKIP");
-	case FTS_EXIST_SKIP:
-		return("FTS_EXIST_SKIP");
-	}
-	ut_ad(0);
-	return("FTS_UNKNOWN");
-}
-
 const char*
 fts_ast_node_type_get(fts_ast_type_t	type)
 {

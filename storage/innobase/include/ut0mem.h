@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -108,27 +108,6 @@ ut_strlcpy_rev(
 	char*		dst,	/*!< in: destination buffer */
 	const char*	src,	/*!< in: source buffer */
 	ulint		size);	/*!< in: size of destination buffer */
-
-/**********************************************************************//**
-Return the number of times s2 occurs in s1. Overlapping instances of s2
-are only counted once.
-@return the number of times s2 occurs in s1 */
-ulint
-ut_strcount(
-/*========*/
-	const char*	s1,	/*!< in: string to search in */
-	const char*	s2);	/*!< in: string to search for */
-
-/**********************************************************************//**
-Replace every occurrence of s1 in str with s2. Overlapping instances of s1
-are only replaced once.
-@return own: modified string, must be freed with ut_free() */
-char*
-ut_strreplace(
-/*==========*/
-	const char*	str,	/*!< in: string to operate on */
-	const char*	s1,	/*!< in: string to replace */
-	const char*	s2);	/*!< in: string to replace s1 with */
 
 /********************************************************************
 Concatenate 3 strings.*/

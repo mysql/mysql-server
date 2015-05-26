@@ -1135,6 +1135,7 @@ lock_rec_has_expl(
 /*********************************************************************//**
 Checks if some other transaction has a lock request in the queue.
 @return lock or NULL */
+static
 const lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
@@ -2475,6 +2476,7 @@ lock_rec_cancel(
 Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
+static
 void
 lock_rec_dequeue_from_page(
 /*=======================*/
@@ -2757,6 +2759,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 /*************************************************************//**
 Moves the locks of a record to another record and resets the lock bits of
 the donating record. */
+static
 void
 lock_rec_move_low(
 /*==============*/
@@ -2805,6 +2808,28 @@ lock_rec_move_low(
 
 	ut_ad(lock_rec_get_first(lock_sys->rec_hash,
 				 donator, donator_heap_no) == NULL);
+}
+
+/*************************************************************//**
+Moves the locks of a record to another record and resets the lock bits of
+the donating record. */
+UNIV_INLINE
+void
+lock_rec_move(
+/*==========*/
+	const buf_block_t*	receiver,       /*!< in: buffer block containing
+						the receiving record */
+	const buf_block_t*	donator,        /*!< in: buffer block containing
+						the donating record */
+	ulint			receiver_heap_no,/*!< in: heap_no of the record
+						which gets the locks; there
+						must be no lock requests
+						on it! */
+	ulint			donator_heap_no)/*!< in: heap_no of the record
+                                                which gives the locks */
+{
+	lock_rec_move_low(lock_sys->rec_hash, receiver, donator,
+			  receiver_heap_no, donator_heap_no);
 }
 
 /*************************************************************//**
@@ -4584,6 +4609,7 @@ lock_remove_all_on_table(
 
 /*********************************************************************//**
 Prints info of a table lock. */
+static
 void
 lock_table_print(
 /*=============*/
@@ -4624,6 +4650,7 @@ lock_table_print(
 
 /*********************************************************************//**
 Prints info of a record lock. */
+static
 void
 lock_rec_print(
 /*===========*/

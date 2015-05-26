@@ -419,16 +419,6 @@ dict_foreign_replace_index(
 					to use table->col_names */
 	const dict_index_t*	index)	/*!< in: index to be replaced */
 	__attribute__((warn_unused_result));
-/**********************************************************************//**
-Determines whether a string starts with the specified keyword.
-@return TRUE if str starts with keyword */
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-	THD*		thd,		/*!< in: MySQL thread handle */
-	const char*	str,		/*!< in: string to scan for keyword */
-	const char*	keyword)	/*!< in: keyword to look for */
-	__attribute__((warn_unused_result));
 /** Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.

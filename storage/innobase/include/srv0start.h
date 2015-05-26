@@ -88,13 +88,6 @@ Shuts down the Innobase database.
 dberr_t
 innobase_shutdown_for_mysql(void);
 
-/********************************************************************
-Signal all per-table background threads to shutdown, and wait for them to do
-so. */
-void
-srv_shutdown_table_bg_threads(void);
-/*=============================*/
-
 /*************************************************************//**
 Copy the file path component of the physical file to parameter. It will
 copy up to and including the terminating path separator.

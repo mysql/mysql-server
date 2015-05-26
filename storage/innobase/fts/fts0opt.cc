@@ -341,6 +341,7 @@ fts_zip_init(
 /**********************************************************************//**
 Create a fts_optimizer_word_t instance.
 @return new instance */
+static
 fts_word_t*
 fts_word_init(
 /*==========*/
@@ -2569,8 +2570,10 @@ fts_optimize_add_table(
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 }
 
+#if 0
 /**********************************************************************//**
 Optimize a table. */
+static
 void
 fts_optimize_do_table(
 /*==================*/
@@ -2587,6 +2590,7 @@ fts_optimize_do_table(
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 }
+#endif
 
 /**********************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
@@ -2913,6 +2917,7 @@ fts_optimize_need_sync(
 /**********************************************************************//**
 Optimize all FTS tables.
 @return Dummy return */
+static
 os_thread_ret_t
 fts_optimize_thread(
 /*================*/
@@ -3109,16 +3114,6 @@ fts_optimize_init(void)
 	last_check_sync_time = ut_time();
 
 	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
-}
-
-/**********************************************************************//**
-Check whether the work queue is initialized.
-@return TRUE if optimze queue is initialized. */
-ibool
-fts_optimize_is_init(void)
-/*======================*/
-{
-	return(fts_optimize_wq != NULL);
 }
 
 /**********************************************************************//**

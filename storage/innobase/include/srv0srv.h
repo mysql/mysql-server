@@ -594,21 +594,10 @@ void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**
-Initializes the server. */
-void
-srv_init(void);
-/*==========*/
-/*********************************************************************//**
 Frees the data structures created in srv_init(). */
 void
 srv_free(void);
 /*==========*/
-/*********************************************************************//**
-Initializes the synchronization primitives, memory system, and the thread
-local storage. */
-void
-srv_general_init(void);
-/*==================*/
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 void

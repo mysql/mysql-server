@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -71,14 +71,6 @@ ib_wqueue_is_empty(
 					/* out: TRUE if queue empty
 					else FALSE */
 	const ib_wqueue_t*      wq);    /* in: work queue */
-
-/****************************************************************//**
-Wait for a work item to appear in the queue.
-@return work item */
-void*
-ib_wqueue_wait(
-/*===========*/
-	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */

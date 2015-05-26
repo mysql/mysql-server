@@ -90,35 +90,6 @@ ReadView::check_trx_id_sanity(
 # ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
-
-/****************************************************************//**
-Checks whether a trx is in one of rw_trx_list
-@return true if is in */
-bool
-trx_in_rw_trx_list(
-/*============*/
-	const trx_t*	in_trx)	/*!< in: transaction */
-{
-	const trx_t*	trx;
-
-	/* Non-locking autocommits should not hold any locks. */
-	check_trx_state(in_trx);
-
-	ut_ad(trx_sys_mutex_own());
-
-	ut_ad(trx_assert_started(in_trx));
-
-	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
-	     trx != NULL && trx != in_trx;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
-		check_trx_state(trx);
-
-		ut_ad(trx->rsegs.m_redo.rseg != NULL && !trx->read_only);
-	}
-
-	return(trx != 0);
-}
 # endif /* UNIV_DEBUG */
 
 /*****************************************************************//**

@@ -129,6 +129,7 @@ dfield_check_typed_no_assert(
 /**********************************************************//**
 Checks that a data tuple is typed.
 @return TRUE if ok */
+static
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/

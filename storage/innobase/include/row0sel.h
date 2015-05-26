@@ -91,14 +91,6 @@ que_thr_t*
 fetch_step(
 /*=======*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/****************************************************************//**
-Sample callback function for fetch that prints each row.
-@return always returns non-NULL */
-void*
-row_fetch_print(
-/*============*/
-	void*	row,		/*!< in:  sel_node_t* */
-	void*	user_arg);	/*!< in:  not used */
 
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
@@ -438,9 +430,7 @@ struct fetch_node_t{
 					further rows and the cursor is
 					modified so (cursor % NOTFOUND) is
 					true. If it returns not-NULL,
-					continue normally. See
-					row_fetch_print() for an example
-					(and a useful debugging tool). */
+					continue normally. */
 };
 
 /** Open or close cursor operation type */

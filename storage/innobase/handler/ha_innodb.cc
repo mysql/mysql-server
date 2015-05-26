@@ -276,6 +276,31 @@ const char reserved_system_space_name[] = "innodb_system";
 tablespace. */
 const char reserved_temporary_space_name[] = "innodb_temporary";
 
+/** Retrieve the FTS Relevance Ranking result for doc with doc_id
+of m_prebuilt->fts_doc_id
+@param[in,out]	fts_hdl	FTS handler
+@return the relevance ranking value */
+static
+float
+innobase_fts_retrieve_ranking(
+	FT_INFO*	fts_hdl);
+/** Free the memory for the FTS handler
+@param[in,out]	fts_hdl	FTS handler */
+static
+void
+innobase_fts_close_ranking(
+	FT_INFO*	fts_hdl);
+/** Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
+of m_prebuilt->fts_doc_id
+@param[in,out]	fts_hdl	FTS handler
+@return the relevance ranking value */
+static
+float
+innobase_fts_find_ranking(
+	FT_INFO*	fts_hdl,
+	uchar*,
+	uint);
+
 /* Call back function array defined by MySQL and used to
 retrieve FTS results. */
 const struct _ft_vft ft_vft_result = {NULL,
@@ -283,6 +308,50 @@ const struct _ft_vft ft_vft_result = {NULL,
 				      innobase_fts_close_ranking,
 				      innobase_fts_retrieve_ranking,
 				      NULL};
+
+/** @return version of the extended FTS API */
+static
+uint
+innobase_fts_get_version()
+{
+	/* Currently this doesn't make much sense as returning
+	HA_CAN_FULLTEXT_EXT automatically mean this version is supported.
+	This supposed to ease future extensions.  */
+	return(2);
+}
+
+/** @return Which part of the extended FTS API is supported */
+static
+ulonglong
+innobase_fts_flags()
+{
+	return(FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
+}
+
+/** Find and Retrieve the FTS doc_id for the current result row
+@param[in,out]	fts_hdl	FTS handler
+@return the document ID */
+static
+ulonglong
+innobase_fts_retrieve_docid(
+	FT_INFO_EXT*	fts_hdl);
+
+/** Find and retrieve the size of the current result
+@param[in,out]	fts_hdl	FTS handler
+@return number of matching rows */
+static
+ulonglong
+innobase_fts_count_matches(
+	FT_INFO_EXT*	fts_hdl)	/*!< in: FTS handler */
+{
+	NEW_FT_INFO*	handle = reinterpret_cast<NEW_FT_INFO*>(fts_hdl);
+
+	if (handle->ft_result->rankings_by_id != NULL) {
+		return(rbt_size(handle->ft_result->rankings_by_id));
+	} else {
+		return(0);
+	}
+}
 
 const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_flags,
@@ -491,6 +560,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_trx_read_only
 };
 
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 Function used to loop a thread (for debugging/instrumentation
 purpose). */
@@ -507,8 +577,6 @@ srv_debug_loop(void)
 
 /******************************************************************//**
 Debug function used to read a MBR data */
-
-#ifdef UNIV_DEBUG
 void
 srv_mbr_debug(const byte* data)
 {
@@ -1171,18 +1239,6 @@ thd_trx_priority(THD* thd)
 	return(thd == NULL ? 0 : thd_tx_priority(thd));
 }
 
-#ifdef UNIV_DEBUG
-/**
-Returns true if transaction should be flagged as DD attachable transaction
-@param[in] thd			Thread handle
-@return true if the thd is marked as read-only */
-bool
-thd_trx_is_dd_trx(THD* thd)
-{
-	return(thd != NULL && thd_tx_is_dd_trx(thd));
-}
-#endif /* UNIV_DEBUG */
-
 /******************************************************************//**
 Check if the transaction is an auto-commit transaction. TRUE also
 implies that it is a SELECT (read-only) transaction.
@@ -1833,6 +1889,7 @@ innobase_strcasecmp(
 Compares NUL-terminated UTF-8 strings case insensitively. The
 second string contains wildcards.
 @return 0 if a match is found, 1 if not */
+static
 int
 innobase_wildcasecmp(
 /*=================*/
@@ -2002,6 +2059,7 @@ innobase_mysql_tmpfile(void)
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
 @return number of bytes copied to 'to' */
+static
 ulint
 innobase_convert_string(
 /*====================*/
@@ -2368,6 +2426,7 @@ Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
 Those flags are stored in .frm file and end up in the MySQL table object,
 but are frequently used inside InnoDB so we keep their copies into the
 InnoDB table object. */
+static
 void
 innobase_copy_frm_flags_from_create_info(
 /*=====================================*/
@@ -2768,6 +2827,7 @@ and quote it.
 @param[in]	idlen	length of id, in bytes
 @param[in]	thd	MySQL connection thread, or NULL
 @return pointer to the end of buf */
+static
 char*
 innobase_convert_identifier(
 	char*		buf,
@@ -9116,6 +9176,7 @@ create_clustered_index_when_no_primary(
 /** Return a display name for the row format
 @param[in]	row_format	Row Format
 @return row format name */
+static
 const char*
 get_row_format_name(
 	enum row_type	row_format)
@@ -13864,7 +13925,7 @@ ha_innobase::external_lock(
 		TrxInInnoDB::begin_stmt(trx);
 
 #ifdef UNIV_DEBUG
-		if (thd_trx_is_dd_trx(thd)) {
+		if (thd != NULL && thd_tx_is_dd_trx(thd)) {
 			trx->is_dd_trx = true;
 		}
 #endif /* UNIV_DEBUG */
@@ -16321,14 +16382,14 @@ innobase_index_name_is_reserved(
 	return(false);
 }
 
-/***********************************************************************
-Retrieve the FTS Relevance Ranking result for doc with doc_id
+/** Retrieve the FTS Relevance Ranking result for doc with doc_id
 of m_prebuilt->fts_doc_id
+@param[in,out]	fts_hdl	FTS handler
 @return the relevance ranking value */
+static
 float
 innobase_fts_retrieve_ranking(
-/*============================*/
-		FT_INFO * fts_hdl)	/*!< in: FTS handler */
+	FT_INFO*	fts_hdl)
 {
 	fts_result_t*	result;
 	row_prebuilt_t*	ft_prebuilt;
@@ -16343,12 +16404,12 @@ innobase_fts_retrieve_ranking(
 	return(ranking->rank);
 }
 
-/***********************************************************************
-Free the memory for the FTS handler */
+/** Free the memory for the FTS handler
+@param[in,out]	fts_hdl	FTS handler */
+static
 void
 innobase_fts_close_ranking(
-/*=======================*/
-		FT_INFO * fts_hdl)
+	FT_INFO*	fts_hdl)
 {
 	reinterpret_cast<NEW_FT_INFO*>(fts_hdl)->ft_prebuilt->in_fts_query =
 		false;
@@ -16360,21 +16421,18 @@ innobase_fts_close_ranking(
 	fts_query_free_result(result);
 
 	my_free((uchar*) fts_hdl);
-
-
-	return;
 }
 
-/***********************************************************************
-Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
+/** Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
 of m_prebuilt->fts_doc_id
+@param[in,out]	fts_hdl	FTS handler
 @return the relevance ranking value */
+static
 float
 innobase_fts_find_ranking(
-/*======================*/
-		FT_INFO*	fts_hdl,	/*!< in: FTS handler */
-		uchar*		record,		/*!< in: Unused */
-		uint		len)		/*!< in: Unused */
+	FT_INFO*	fts_hdl,
+	uchar*,
+	uint)
 {
 	fts_result_t*	result;
 	row_prebuilt_t*	ft_prebuilt;
@@ -16513,35 +16571,13 @@ innodb_merge_threshold_set_all_debug_update(
 }
 #endif /* UNIV_DEBUG */
 
-/***********************************************************************
-@return version of the extended FTS API */
-uint
-innobase_fts_get_version()
-/*======================*/
-{
-	/* Currently this doesn't make much sense as returning
-	HA_CAN_FULLTEXT_EXT automatically mean this version is supported.
-	This supposed to ease future extensions.  */
-	return(2);
-}
-
-/***********************************************************************
-@return Which part of the extended FTS API is supported */
-ulonglong
-innobase_fts_flags()
-/*================*/
-{
-	return(FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
-}
-
-
-/***********************************************************************
-Find and Retrieve the FTS doc_id for the current result row
+/** Find and Retrieve the FTS doc_id for the current result row
+@param[in,out]	fts_hdl	FTS handler
 @return the document ID */
+static
 ulonglong
 innobase_fts_retrieve_docid(
-/*========================*/
-	FT_INFO_EXT*	fts_hdl)	/*!< in: FTS handler */
+	FT_INFO_EXT*	fts_hdl)
 {
 	fts_result_t*	result;
 	row_prebuilt_t* ft_prebuilt;
@@ -16558,23 +16594,6 @@ innobase_fts_retrieve_docid(
 	}
 
 	return(ft_prebuilt->fts_doc_id);
-}
-
-/***********************************************************************
-Find and retrieve the size of the current result
-@return number of matching rows */
-ulonglong
-innobase_fts_count_matches(
-/*=======================*/
-	FT_INFO_EXT*	fts_hdl)	/*!< in: FTS handler */
-{
-	NEW_FT_INFO*	handle = reinterpret_cast<NEW_FT_INFO *>(fts_hdl);
-
-	if (handle->ft_result->rankings_by_id != 0) {
-		return rbt_size(handle->ft_result->rankings_by_id);
-	} else {
-		return(0);
-	}
 }
 
 /* These variables are never read by InnoDB or changed. They are a kind of

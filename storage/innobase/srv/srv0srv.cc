@@ -910,6 +910,7 @@ srv_free_slot(
 
 /*********************************************************************//**
 Initializes the server. */
+static
 void
 srv_init(void)
 /*==========*/
@@ -1020,6 +1021,7 @@ srv_free(void)
 /*********************************************************************//**
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
+static
 void
 srv_general_init(void)
 /*==================*/

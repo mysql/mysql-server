@@ -218,29 +218,10 @@ sync_array_create(
 	return(arr);
 }
 
-/******************************************************************//**
-Frees the resources in a wait array. */
-static
-void
-sync_array_free(
-/*============*/
-	sync_array_t*	arr)	/*!< in, own: sync wait array */
-{
-	ut_a(arr->n_reserved == 0);
-
-	sync_array_validate(arr);
-
-	/* Release the mutex protecting the wait array complex */
-
-	mutex_free(&arr->mutex);
-
-	UT_DELETE_ARRAY(arr->array);
-	UT_DELETE(arr);
-}
-
 /********************************************************************//**
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */
+static
 void
 sync_array_validate(
 /*================*/
@@ -264,6 +245,26 @@ sync_array_validate(
 	ut_a(count == arr->n_reserved);
 
 	sync_array_exit(arr);
+}
+
+/******************************************************************//**
+Frees the resources in a wait array. */
+static
+void
+sync_array_free(
+/*============*/
+	sync_array_t*	arr)	/*!< in, own: sync wait array */
+{
+	ut_a(arr->n_reserved == 0);
+
+	sync_array_validate(arr);
+
+	/* Release the mutex protecting the wait array complex */
+
+	mutex_free(&arr->mutex);
+
+	UT_DELETE_ARRAY(arr->array);
+	UT_DELETE(arr);
 }
 
 /*******************************************************************//**
@@ -617,6 +618,7 @@ Report an error to stderr.
 @param lock		rw-lock instance
 @param debug		rw-lock debug information
 @param cell		thread context */
+static
 void
 sync_array_report_error(
 	rw_lock_t*		lock,

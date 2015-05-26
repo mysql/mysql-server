@@ -138,31 +138,6 @@ row_ins_index_entry_set_vals(
 	const dtuple_t*		row);
 
 /***************************************************************//**
-Tries to insert the externally stored fields (off-page columns)
-of a clustered index entry.
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-row_ins_index_entry_big_rec_func(
-/*=============================*/
-	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
-	const big_rec_t*	big_rec,/*!< in: externally stored fields */
-	ulint*			offsets,/*!< in/out: rec offsets */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
-	dict_index_t*		index,	/*!< in: index */
-	const char*		file,	/*!< in: file name of caller */
-#ifndef DBUG_OFF
-	const void*		thd,	/*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
-	ulint			line)	/*!< in: line number of caller */
-	__attribute__((warn_unused_result));
-#ifdef DBUG_OFF
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
-#else /* DBUG_OFF */
-# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
-	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,thd,line)
-#endif /* DBUG_OFF */
-/***************************************************************//**
 Inserts an entry into a clustered index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
 to a delete marked record, performs the insert by updating or delete

@@ -115,6 +115,7 @@ PSI_memory_key key_memory_MYSQL;
 PSI_memory_key key_memory_MYSQL_RES;
 PSI_memory_key key_memory_MYSQL_ROW;
 PSI_memory_key key_memory_MYSQL_state_change_info;
+PSI_memory_key key_memory_MYSQL_HANDSHAKE;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 PSI_memory_key key_memory_create_shared_memory;
@@ -139,7 +140,8 @@ static PSI_memory_info all_client_memory[]=
   { &key_memory_MYSQL, "MYSQL", 0},
   { &key_memory_MYSQL_RES, "MYSQL_RES", 0},
   { &key_memory_MYSQL_ROW, "MYSQL_ROW", 0},
-  { &key_memory_MYSQL_state_change_info, "MYSQL_STATE_CHANGE_INFO", 0}
+  { &key_memory_MYSQL_state_change_info, "MYSQL_STATE_CHANGE_INFO", 0},
+  { &key_memory_MYSQL_HANDSHAKE, "MYSQL_HANDSHAKE", 0}
 };
 
 void init_client_psi_keys(void)
@@ -4069,9 +4071,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   int           scramble_data_len, pkt_scramble_len= 0;
   char          *end,*host_info= 0, *server_version_end, *pkt_end;
   char          *scramble_data;
+  char          *scramble_buffer= NULL;
   const char    *scramble_plugin;
   ulong		pkt_length;
   NET		*net= &mysql->net;
+  my_bool       scramble_buffer_allocated= FALSE;
 #ifdef _WIN32
   HANDLE	hPipe=INVALID_HANDLE_VALUE;
 #endif
@@ -4642,6 +4646,28 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
   /* try and bring up SSL if possible */
   cli_calculate_client_flag(mysql, db, client_flag);
+
+  /*
+    Allocate separate buffer for scramble data if we are going
+    to attempt TLS connection. This would prevent a possible
+    overwrite through my_net_write.
+  */
+  if (scramble_data_len && mysql->options.use_ssl)
+  {
+    if (!(scramble_buffer= (char *) my_malloc(key_memory_MYSQL_HANDSHAKE,
+                                              scramble_data_len, MYF(MY_WME))))
+    {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+      goto error;
+    }
+    scramble_buffer_allocated= TRUE;
+    memcpy(scramble_buffer, scramble_data, scramble_data_len);
+  }
+  else
+  {
+    scramble_buffer= scramble_data;
+  }
+
   if (cli_establish_ssl(mysql))
     goto error;
 
@@ -4649,9 +4675,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     Part 2: invoke the plugin to send the authentication data to the server
   */
 
-  if (run_plugin_auth(mysql, scramble_data, scramble_data_len,
+  if (run_plugin_auth(mysql, scramble_buffer, scramble_data_len,
                       scramble_plugin, db))
     goto error;
+
+  if (scramble_buffer_allocated == TRUE)
+    my_free(scramble_buffer);
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 

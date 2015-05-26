@@ -116,15 +116,6 @@ trx_undo_rec_get_row_ref(
 	dtuple_t**	ref,	/*!< out, own: row reference */
 	mem_heap_t*	heap);	/*!< in: memory heap from which the memory
 				needed is allocated */
-/*******************************************************************//**
-Skips a row reference from an undo log record.
-@return pointer to remaining part of undo record */
-byte*
-trx_undo_rec_skip_row_ref(
-/*======================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
-				record, at the start of the row reference */
-	dict_index_t*	index);	/*!< in: clustered index */
 /**********************************************************************//**
 Reads from an undo log update record the system field values of the old
 version.
@@ -217,17 +208,6 @@ trx_undo_report_row_operation(
 					inserted undo log record,
 					0 if BTR_NO_UNDO_LOG
 					flag was specified */
-	__attribute__((warn_unused_result));
-/******************************************************************//**
-Copies an undo record to heap. This function can be called if we know that
-the undo log record exists.
-@return own: copy of the record */
-trx_undo_rec_t*
-trx_undo_get_undo_rec_low(
-/*======================*/
-	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	mem_heap_t*	heap,		/*!< in: memory heap where copied */
-	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
 	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Build a previous version of a clustered index record. The caller must

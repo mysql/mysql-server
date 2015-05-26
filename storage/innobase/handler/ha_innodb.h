@@ -782,30 +782,6 @@ private:
 };
 
 /**
-Retrieve the FTS Relevance Ranking result for doc with doc_id
-of prebuilt->fts_doc_id
-@return the relevance ranking value */
-float
-innobase_fts_retrieve_ranking(
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
-
-/**
-Find and Retrieve the FTS Relevance Ranking result for doc with doc_id
-of prebuilt->fts_doc_id
-@return the relevance ranking value */
-float
-innobase_fts_find_ranking(
-	FT_INFO*	fts_hdl,	/*!< in: FTS handler */
-	uchar*		record,		/*!< in: Unused */
-	uint		len);		/*!< in: Unused */
-
-/**
-Free the memory for the FTS handler */
-void
-innobase_fts_close_ranking(
-	FT_INFO*	fts_hdl);	/*!< in: FTS handler */
-
-/**
 Initialize the table FTS stopword list
 @return TRUE if success */
 ibool
@@ -846,40 +822,6 @@ innobase_fts_check_doc_id_index_in_def(
 	ulint		n_key,		/*!< in: Number of keys */
 	const KEY*	key_info)	/*!< in: Key definitions */
 	__attribute__((warn_unused_result));
-
-/**
-@return version of the extended FTS API */
-uint
-innobase_fts_get_version();
-
-/**
-@return Which part of the extended FTS API is supported */
-ulonglong
-innobase_fts_flags();
-
-/**
-Find and Retrieve the FTS doc_id for the current result row
-@return the document ID */
-ulonglong
-innobase_fts_retrieve_docid(
-	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
-
-/**
-Find and retrieve the size of the current result
-@return number of matching rows */
-ulonglong
-innobase_fts_count_matches(
-	FT_INFO_EXT*	fts_hdl);	/*!< in: FTS handler */
-
-/**
-Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
-Those flags are stored in .frm file and end up in the MySQL table object,
-but are frequently used inside InnoDB so we keep their copies into the
-InnoDB table object. */
-void
-innobase_copy_frm_flags_from_create_info(
-	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
-	const HA_CREATE_INFO*	create_info);	/*!< in: create info */
 
 /**
 Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
