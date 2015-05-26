@@ -374,8 +374,7 @@ int opt_sum_query(THD *thd,
         {
           Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
           fts_item->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR, false);
-          fts_item->init_search();
-          if (thd->is_error())
+          if (fts_item->init_search(thd))
             break;
           count= fts_item->get_count();
         }
