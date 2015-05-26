@@ -32,6 +32,9 @@ Type=forking
 
 PIDFile=@SYSTEMD_PID_DIR@/mysqld.pid
 
+# Disable service start and stop timeout logic of systemd for mysqld service.
+TimeoutSec=0
+
 # Execute pre and post scripts as root
 PermissionsStartOnly=true
 
