@@ -4758,7 +4758,7 @@ longlong Item_master_pos_wait::val_int()
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   if (arg_count == 4)
   {
@@ -4783,7 +4783,7 @@ longlong Item_master_pos_wait::val_int()
       mi= channel_map.get_default_channel_mi();
   }
 
-   mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   if (mi == NULL ||
       (event_count = mi->rli->wait_for_pos(thd, log_name, pos, timeout)) == -2)
@@ -4913,7 +4913,7 @@ longlong Item_master_gtid_set_wait::val_int()
     DBUG_RETURN(0);
   }
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /* If replication channel is mentioned */
   if (arg_count == 3)
@@ -4921,7 +4921,7 @@ longlong Item_master_gtid_set_wait::val_int()
     String *channel_str;
     if (!(channel_str= args[2]->val_str(&value)))
     {
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       null_value= 1;
       DBUG_RETURN(0);
     }
@@ -4931,7 +4931,7 @@ longlong Item_master_gtid_set_wait::val_int()
   {
     if (channel_map.get_num_instances() > 1)
     {
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       mi = NULL;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
       DBUG_RETURN(0);
@@ -4940,15 +4940,15 @@ longlong Item_master_gtid_set_wait::val_int()
       mi= channel_map.get_default_channel_mi();
   }
 
-  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF)
   {
     null_value= 1;
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     DBUG_RETURN(0);
   }
-  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_MSR_MAP);
+  gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   if (mi && mi->rli)
   {

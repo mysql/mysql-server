@@ -185,7 +185,7 @@ int table_replication_connection_configuration::rnd_next(void)
 {
   Master_info *mi;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels();
@@ -198,12 +198,12 @@ int table_replication_connection_configuration::rnd_next(void)
       make_row(mi);
       m_next_pos.set_after(&m_pos);
 
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       return 0;
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   return HA_ERR_END_OF_FILE;
 }
@@ -212,18 +212,18 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
 {
   Master_info *mi;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   set_position(pos);
 
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     return 0;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   return HA_ERR_RECORD_DELETED;
 }

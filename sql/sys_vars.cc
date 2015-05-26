@@ -1087,14 +1087,14 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
                           opt_mi_repository_id: opt_rli_repository_id))
       return FALSE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /* Repository conversion not possible, when multiple channels exist */
   if (channel_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       return TRUE;
   }
 
@@ -1152,7 +1152,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     }
     unlock_slave_threads(mi);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif
   return ret;
 }
@@ -2280,14 +2280,14 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
   {
     Master_info *mi =NULL;
 
-    mysql_mutex_lock(&LOCK_msr_map);
+    channel_map.wrlock();
     for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
     {
       mi= it->second;
       if (mi!= NULL)
         mi->rli->relay_log.set_max_size(max_binlog_size);
     }
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
   }
 #endif
   return false;
@@ -2453,7 +2453,7 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 #ifdef HAVE_REPLICATION
   Master_info *mi= NULL;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
   for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
@@ -2462,7 +2462,7 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
       mi->rli->relay_log.set_max_size(max_relay_log_size ?
                                       max_relay_log_size: max_binlog_size);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif
   return false;
 }
@@ -3402,7 +3402,7 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
   if (check_not_null_not_empty(self, thd, var))
     return true;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
   {
@@ -3418,7 +3418,7 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
       mysql_mutex_unlock(&mi->rli->run_lock);
     }
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   return result;
 }
 
@@ -4876,18 +4876,18 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 
   /*
    Here we have lock on LOCK_global_system_variables and we need
-    lock on LOCK_msr_map. In START_SLAVE handler, we take these
+    lock on channel_map lock. In START_SLAVE handler, we take these
     two locks in different order. This can lead to DEADLOCKs. See
     BUG#14236151 for more details.
    So we release lock on LOCK_global_system_variables before acquiring
-    lock on LOCK_msr_map. But this could lead to isolation issues
-    between multiple seters. Hence introducing secondary guard
+    lock on channel_map lock. But this could lead to isolation issues
+    between multiple setters. Hence introducing secondary guard
     for this global variable and releasing the lock here and acquiring
     locks back again at the end of this function.
    */
   mysql_mutex_unlock(&LOCK_slave_net_timeout);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   for (mi_map::iterator it=channel_map.begin(); it!=channel_map.end(); it++)
   {
@@ -4902,7 +4902,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                    ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;

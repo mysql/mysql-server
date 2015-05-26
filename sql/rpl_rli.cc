@@ -1832,7 +1832,7 @@ bool mysql_show_relaylog_events(THD* thd)
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(TRUE);
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   mi= channel_map.get_mi(thd->lex->mi.channel);
 
@@ -1853,7 +1853,7 @@ bool mysql_show_relaylog_events(THD* thd)
   res= show_binlog_events(thd, &mi->rli->relay_log);
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(res);
 }

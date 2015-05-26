@@ -139,7 +139,7 @@ int table_replication_applier_status_by_worker::rnd_next(void)
   Slave_worker *worker;
   Master_info *mi;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /*
     For each SQL Thread in all channels get the respective Master_info and
@@ -158,7 +158,7 @@ int table_replication_applier_status_by_worker::rnd_next(void)
       make_row(mi);
       m_applier_next_pos.set_after(&m_applier_pos);
 
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       return 0;
     }
   }
@@ -176,13 +176,13 @@ int table_replication_applier_status_by_worker::rnd_next(void)
       {
         make_row(worker);
         m_next_pos.set_after(&m_pos);
-        mysql_mutex_unlock(&LOCK_msr_map);
+        channel_map.unlock();
         return 0;
       }
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   return HA_ERR_END_OF_FILE;
 }
 
@@ -193,13 +193,13 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
   if (!mi || !mi->rli || !mi->host[0])
   {
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -210,7 +210,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
   if (mi->rli->get_worker_count() == 0)
   {
     make_row(mi);
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     return 0;
   }
   worker= mi->rli->get_worker(m_pos.m_index_2);
@@ -218,11 +218,11 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
   if(worker != NULL)
   {
     make_row(worker);
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     return 0;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   return HA_ERR_RECORD_DELETED;
 }

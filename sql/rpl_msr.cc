@@ -222,3 +222,6 @@ Master_info*  Multisource_info::get_mi_at_pos(uint pos)
   DBUG_RETURN(0);
 }
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+/* There is only one channel_map for the whole server */
+Multisource_info channel_map;

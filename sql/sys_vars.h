@@ -2692,7 +2692,7 @@ public:
       - gtid_mode is not changed while some other thread is rotating
         the binlog.
 
-      Hold lock_msr_map so that:
+      Hold channel_map lock so that:
       - gtid_mode is not changed during the execution of some
         replication command; particularly CHANGE MASTER. CHANGE MASTER
         checks if GTID_MODE is compatible with AUTO_POSITION, and
@@ -2708,7 +2708,7 @@ public:
       to take the other locks.
     */
     gtid_mode_lock->wrlock();
-    mysql_mutex_lock(&LOCK_msr_map);
+    channel_map.wrlock();
     mysql_mutex_lock(mysql_bin_log.get_log_lock());
     global_sid_lock->wrlock();
     int lock_count= 4;
@@ -2876,7 +2876,7 @@ err:
     if (lock_count == 4)
       global_sid_lock->unlock();
     mysql_mutex_unlock(mysql_bin_log.get_log_lock());
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     gtid_mode_lock->unlock();
     DBUG_RETURN(ret);
   }
