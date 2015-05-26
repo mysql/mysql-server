@@ -82,7 +82,7 @@ my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
 /* object for multisource replication */
-Multisource_info msr_map;
+Multisource_info channel_map;
 
 const char *relay_log_index= 0;
 const char *relay_log_basename= 0;
@@ -402,11 +402,12 @@ int init_slave()
 
   /*
     Create slave info objects by reading repositories of individual
-    channels and add them into msr_map
+    channels and add them into channel_map
   */
   if ((error= Rpl_info_factory::create_slave_info_objects(opt_mi_repository_id,
-                                                        opt_rli_repository_id,
-                                                        thread_mask, &msr_map)))
+                                                          opt_rli_repository_id,
+                                                          thread_mask,
+                                                          &channel_map)))
   {
     sql_print_error("Failed to create or recover replication info repositories.");
     error = 1;
@@ -418,13 +419,13 @@ int init_slave()
      active_mi from other part of the code except names and comments.
    */
 
-  active_mi= msr_map.get_mi(msr_map.get_default_channel());
+  active_mi= channel_map.get_mi(channel_map.get_default_channel());
 
 
   /* @todo: Print it for all the channels */
   {
     Master_info *default_mi;
-    default_mi= msr_map.get_mi(msr_map.get_default_channel());
+    default_mi= channel_map.get_mi(channel_map.get_default_channel());
     if (default_mi && default_mi->rli)
     {
       DBUG_PRINT("info", ("init group master %s %lu  group relay %s %lu event %s %lu\n",
@@ -439,7 +440,7 @@ int init_slave()
 
   if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
   {
-    for (mi_map::iterator it= msr_map.begin(); it != msr_map.end(); it++)
+    for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
     {
       Master_info *mi= it->second;
       if (mi != NULL && mi->is_auto_position())
@@ -458,11 +459,11 @@ int init_slave()
   }
 
   /*
-    Loop through the msr_map and start slave threads for each channel.
+    Loop through the channel_map and start slave threads for each channel.
   */
   if (!opt_skip_slave_start)
   {
-    for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+    for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
     {
       mi= it->second;
 
@@ -535,9 +536,9 @@ bool start_slave(THD *thd)
   Master_info *mi;
   bool channel_configured;
 
-  if (msr_map.get_num_instances() == 1)
+  if (channel_map.get_num_instances() == 1)
   {
-    mi= msr_map.get_mi(msr_map.get_default_channel());
+    mi= channel_map.get_mi(channel_map.get_default_channel());
     DBUG_ASSERT(mi);
     if (start_slave(thd, &thd->lex->slave_connection,
                     &thd->lex->mi, thd->lex->slave_thd_opt, mi, true))
@@ -559,7 +560,7 @@ bool start_slave(THD *thd)
     }
     mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
 
-    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
     {
       mi= it->second;
 
@@ -605,12 +606,12 @@ int stop_slave(THD *thd)
    int error= 0;
    bool channel_configured;
 
-   if (msr_map.get_num_instances() == 1)
+   if (channel_map.get_num_instances() == 1)
    {
-     mi= msr_map.get_mi(msr_map.get_default_channel());
+     mi= channel_map.get_mi(channel_map.get_default_channel());
 
      DBUG_ASSERT(!strcmp(mi->get_channel(),
-                         msr_map.get_default_channel()));
+                         channel_map.get_default_channel()));
 
      error= stop_slave(thd, mi, 1,
                        false /*for_one_channel*/, &push_temp_table_warning);
@@ -620,7 +621,7 @@ int stop_slave(THD *thd)
    }
    else
    {
-     for(mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+     for(mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
      {
        mi= it->second;
 
@@ -682,7 +683,7 @@ bool start_slave_cmd(THD *thd)
       If slave_until options are provided when multiple channels exist
       without explicitly providing FOR CHANNEL clause, error out.
     */
-    if (lex->mi.slave_until && msr_map.get_num_instances() > 1)
+    if (lex->mi.slave_until && channel_map.get_num_instances() > 1)
     {
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
       goto err;
@@ -692,7 +693,7 @@ bool start_slave_cmd(THD *thd)
   }
   else
   {
-    mi= msr_map.get_mi(lex->mi.channel);
+    mi= channel_map.get_mi(lex->mi.channel);
 
     /*
       If the channel being used is a group replication channel we need to
@@ -705,10 +706,11 @@ bool start_slave_cmd(THD *thd)
       For channel group_replication_recovery we disable START SLAVE command
       and its two thread variants.
     */
-    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel()) &&
-        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO))
-        || (!(msr_map.is_group_replication_channel_name(mi->get_channel(), true))
-        && (thd->lex->slave_thd_opt & SLAVE_SQL))))
+    if (mi &&
+        channel_map.is_group_replication_channel_name(mi->get_channel()) &&
+        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)) ||
+         (!(channel_map.is_group_replication_channel_name(mi->get_channel(), true))
+          && (thd->lex->slave_thd_opt & SLAVE_SQL))))
     {
       const char *command= "START SLAVE FOR CHANNEL";
       if (thd->lex->slave_thd_opt & SLAVE_IO)
@@ -725,7 +727,7 @@ bool start_slave_cmd(THD *thd)
     if (mi)
       res= start_slave(thd, &thd->lex->slave_connection,
                        &thd->lex->mi, thd->lex->slave_thd_opt, mi, true);
-    else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
+    else if (strcmp(channel_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
 
     if (!res)
@@ -771,7 +773,7 @@ bool stop_slave_cmd(THD *thd)
     res= stop_slave(thd);
   else
   {
-    mi= msr_map.get_mi(lex->mi.channel);
+    mi= channel_map.get_mi(lex->mi.channel);
 
     /*
       If the channel being used is a group replication channel we need to
@@ -784,10 +786,11 @@ bool stop_slave_cmd(THD *thd)
       For channel group_replication_recovery we disable STOP SLAVE command
       and its two thread variants.
     */
-    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel()) &&
-        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO))
-        || (!(msr_map.is_group_replication_channel_name(mi->get_channel(), true))
-        && (thd->lex->slave_thd_opt & SLAVE_SQL))))
+    if (mi &&
+        channel_map.is_group_replication_channel_name(mi->get_channel()) &&
+        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)) ||
+         (!(channel_map.is_group_replication_channel_name(mi->get_channel(), true))
+          && (thd->lex->slave_thd_opt & SLAVE_SQL))))
     {
       const char *command= "STOP SLAVE FOR CHANNEL";
       if (thd->lex->slave_thd_opt & SLAVE_IO)
@@ -805,7 +808,7 @@ bool stop_slave_cmd(THD *thd)
     if (mi)
       res= stop_slave(thd, mi, 1 /*net report */,
                       true /*for_one_channel*/, &push_temp_table_warning);
-    else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
+    else if (strcmp(channel_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
 
@@ -1906,7 +1909,7 @@ void end_slave()
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* traverse through the map and terminate the threads */
-  for(mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  for(mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -1920,7 +1923,7 @@ void end_slave()
 
 /**
    Free all resources used by slave threads at time of executing shutdown.
-   The routine must be called after all possible users of msr_map
+   The routine must be called after all possible users of channel_map
    have left.
 
 */
@@ -1932,7 +1935,7 @@ void delete_slave_info_objects()
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -1947,8 +1950,8 @@ void delete_slave_info_objects()
   }
 
   //Clean other types of channel
-  for (mi_map::iterator it= msr_map.begin(GROUP_REPLICATION_CHANNEL);
-           it!=msr_map.end(GROUP_REPLICATION_CHANNEL); it++)
+  for (mi_map::iterator it= channel_map.begin(GROUP_REPLICATION_CHANNEL);
+       it!=channel_map.end(GROUP_REPLICATION_CHANNEL); it++)
   {
     mi= it->second;
 
@@ -3720,7 +3723,7 @@ bool show_slave_status(THD *thd)
 
   mysql_mutex_assert_owner(&LOCK_msr_map);
 
-  num_io_gtid_sets= msr_map.get_num_instances();
+  num_io_gtid_sets= channel_map.get_num_instances();
 
 
   io_gtid_set_buffer_array=
@@ -3736,7 +3739,7 @@ bool show_slave_status(THD *thd)
   sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer);
 
   idx= 0;
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
     /*
@@ -3792,7 +3795,7 @@ bool show_slave_status(THD *thd)
   /* Run through each mi */
 
   idx=0;
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -3922,15 +3925,15 @@ bool show_slave_status_cmd(THD *thd)
   else
   {
     /* when mi is 0, i.e mi doesn't exist, SSS will return an empty set */
-    mi= msr_map.get_mi(lex->mi.channel);
+    mi= channel_map.get_mi(lex->mi.channel);
 
     /*
       If the channel being used is a group replication applier channel we
       need to disable the SHOW SLAVE STATUS commannd as its output is not
       compatible with this command.
     */
-    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(),
-                                                        true))
+    if (mi && channel_map.is_group_replication_channel_name(mi->get_channel(),
+                                                            true))
     {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "SHOW SLAVE STATUS", mi->get_channel());
@@ -6075,7 +6078,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     skipped due to GTIDs auto skip feature and applier will resume from
     the last applied transaction.
   */
-  if (msr_map.is_group_replication_channel_name(rli->get_channel(), true))
+  if (channel_map.is_group_replication_channel_name(rli->get_channel(), true))
   {
     rli->recovery_parallel_workers= 0;
     rli->mts_recovery_group_cnt= 0;
@@ -9301,7 +9304,7 @@ bool flush_relay_logs_cmd(THD *thd)
   */
   if (!lex->mi.channel || !lex->mi.for_channel)
   {
-    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
     {
       mi= it->second;
 
@@ -9312,7 +9315,7 @@ bool flush_relay_logs_cmd(THD *thd)
   else
   {
 
-    mi= msr_map.get_mi(lex->mi.channel);
+    mi= channel_map.get_mi(lex->mi.channel);
 
     if (mi)
     {
@@ -9320,7 +9323,7 @@ bool flush_relay_logs_cmd(THD *thd)
         Disallow flush on Group Replication applier channel to avoid
         split transactions among relay log files due to DBA action.
       */
-      if (msr_map.is_group_replication_channel_name(lex->mi.channel, true))
+      if (channel_map.is_group_replication_channel_name(lex->mi.channel, true))
       {
         if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
             thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
@@ -9912,14 +9915,14 @@ int reset_slave(THD *thd)
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
-    mi= msr_map.get_mi(msr_map.get_default_channel());
+    mi= channel_map.get_mi(channel_map.get_default_channel());
     if (mi && reset_slave(thd, mi, thd->lex->reset_slave_info.all))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
-    it= msr_map.begin();
-    while (it != msr_map.end())
+    it= channel_map.begin();
+    while (it != channel_map.end())
     {
-      if (!it->first.compare(msr_map.get_default_channel()))
+      if (!it->first.compare(channel_map.get_default_channel()))
       {
         it++;
         continue;
@@ -9928,13 +9931,13 @@ int reset_slave(THD *thd)
       DBUG_ASSERT(mi);
       if ((result= reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
         break;
-      it= msr_map.begin();
+      it= channel_map.begin();
     }
   }
   else
   {
-    it= msr_map.begin();
-    while (it!= msr_map.end())
+    it= channel_map.begin();
+    while (it != channel_map.end())
     {
       mi= it->second;
       DBUG_ASSERT(mi);
@@ -9990,7 +9993,7 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
      For named channels, we have to delete the index and log files
      and not init them
   */
-  if (strcmp(mi->get_channel(), msr_map.get_default_channel()))
+  if (strcmp(mi->get_channel(), channel_map.get_default_channel()))
     no_init_after_delete= true;
 
   if ((error= mi->rli->purge_relay_logs(thd,
@@ -10027,16 +10030,16 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
   */
   if (reset_all)
   {
-    bool is_default= !strcmp(mi->get_channel(), msr_map.get_default_channel());
+    bool is_default= !strcmp(mi->get_channel(), channel_map.get_default_channel());
 
-    msr_map.delete_mi(mi->get_channel());
+    channel_map.delete_mi(mi->get_channel());
 
     if (is_default)
     {
       if (Rpl_info_factory::
           create_slave_per_channel(opt_mi_repository_id, opt_rli_repository_id,
-                                   msr_map.get_default_channel(),
-                                   true, &msr_map, SLAVE_REPLICATION_CHANNEL)
+                                   channel_map.get_default_channel(),
+                                   true, &channel_map, SLAVE_REPLICATION_CHANNEL)
           == NULL)
       {
         error= ER_MASTER_INFO;
@@ -10083,13 +10086,13 @@ bool reset_slave_cmd(THD *thd)
     res= reset_slave(thd);
   else
   {
-    mi= msr_map.get_mi(lex->mi.channel);
+    mi= channel_map.get_mi(lex->mi.channel);
     /*
       If the channel being used is a group replication channel and
       group_replication is still running we need to disable RESET SLAVE [ALL]
       command.
     */
-    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(), true)
+    if (mi && channel_map.is_group_replication_channel_name(mi->get_channel(), true)
         && is_group_replication_running())
     {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
@@ -10100,7 +10103,7 @@ bool reset_slave_cmd(THD *thd)
 
     if (mi)
       res= reset_slave(thd, mi, thd->lex->reset_slave_info.all);
-    else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
+    else if (strcmp(channel_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
 
@@ -10947,7 +10950,7 @@ int add_new_channel(Master_info** mi, const char* channel,
     Return if max num of replication channels exceeded already.
   */
 
-  if (!msr_map.is_valid_channel_count())
+  if (!channel_map.is_valid_channel_count())
   {
     error= ER_SLAVE_MAX_CHANNELS_EXCEEDED;
     my_error(ER_SLAVE_MAX_CHANNELS_EXCEEDED, MYF(0));
@@ -10975,7 +10978,7 @@ int add_new_channel(Master_info** mi, const char* channel,
   if (!((*mi)=Rpl_info_factory::create_slave_per_channel(
                                              opt_mi_repository_id,
                                              opt_rli_repository_id,
-                                             channel, false, &msr_map,
+                                             channel, false, &channel_map,
                                              channel_type)))
   {
     error= ER_MASTER_INFO;
@@ -11018,7 +11021,7 @@ bool change_master_cmd(THD *thd)
   }
 
   //If the chosen name is a group replication reserved name abort
-  if (msr_map.is_group_replication_channel_name(lex->mi.channel))
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel))
   {
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
     res= true;
@@ -11029,7 +11032,7 @@ bool change_master_cmd(THD *thd)
     Error out if number of replication channels are > 1 if FOR CHANNEL
     clause is not provided in the CHANGE MASTER command.
   */
-  if (!lex->mi.for_channel && msr_map.get_num_instances() > 1)
+  if (!lex->mi.for_channel && channel_map.get_num_instances() > 1)
   {
     my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
     res= true;
@@ -11037,10 +11040,10 @@ bool change_master_cmd(THD *thd)
   }
 
   /* Get the Master_info of the channel */
-  mi= msr_map.get_mi(lex->mi.channel);
+  mi= channel_map.get_mi(lex->mi.channel);
 
   /* create a new channel if doesn't exist */
-  if (!mi  && strcmp(lex->mi.channel, msr_map.get_default_channel()))
+  if (!mi && strcmp(lex->mi.channel, channel_map.get_default_channel()))
   {
     if (add_new_channel(&mi, lex->mi.channel))
       goto err;
@@ -11102,7 +11105,7 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
   const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
   if (rli->opt_slave_parallel_workers > 0 &&
       rli->channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
-      msr_map.is_group_replication_channel_name(channel, true))
+      channel_map.is_group_replication_channel_name(channel, true))
   {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
@@ -11117,16 +11120,16 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
 bool inline is_slave_configured()
 {
 
-  /* If msr_map count is zero because of opt_slave_skip_start
+  /* If channel_map count is zero because of opt_slave_skip_start
      OR
      failure to load slave info repositories because of repository
      mismatch i.e Assume slave had a multisource replication with several
      channels setup  with TABLE repository. Then if the slave is restarted
      with FILE repository, we fail to load any of the slave repositories.
-     Hence, msr_map.get_num_instances() will be 0
+     Hence, channel_map.get_num_instances() will be 0
   */
 
-  return (msr_map.get_num_instances() > 0);
+  return (channel_map.get_num_instances() > 0);
 
 }
 
@@ -11152,7 +11155,7 @@ bool is_any_slave_channel_running(int thread_mask,
 
   mysql_mutex_assert_owner(&LOCK_msr_map);
 
-  for (mi_map::iterator it= msr_map.begin(); it != msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
   {
     mi= it->second;
 

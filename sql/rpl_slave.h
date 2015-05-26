@@ -105,8 +105,8 @@ extern bool server_id_supplied;
 /*
   MUTEXES in replication:
 
-  LOCK_msr_map: This is to lock the Multisource datastructure (msr_map).
-  Generally it used to retrieve an mi from msr_map.It is used to SERIALIZE ALL
+  LOCK_msr_map: This is to lock the Multisource datastructure (channel_map).
+  Generally it used to retrieve an mi from channel_map.It is used to SERIALIZE ALL
   administrative commands of replication: START SLAVE, STOP SLAVE, CHANGE
   MASTER, RESET SLAVE, end_slave() (when mysqld stops) [init_slave() does not
   need it it's called early]. Any of these commands holds the mutex from the

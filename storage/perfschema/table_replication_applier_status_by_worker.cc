@@ -130,7 +130,7 @@ ha_rows table_replication_applier_status_by_worker::get_row_count()
   /*
     Return an estimate, number of master info's multipled by worker threads
   */
- return msr_map.get_max_channels()*32;
+ return channel_map.get_max_channels()*32;
 }
 
 
@@ -148,10 +148,10 @@ int table_replication_applier_status_by_worker::rnd_next(void)
     slave mode.
   */
   for(m_applier_pos.set_at(&m_applier_next_pos);
-      m_applier_pos.m_index < msr_map.get_max_channels();
+      m_applier_pos.m_index < channel_map.get_max_channels();
       m_applier_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_applier_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_applier_pos.m_index);
 
     if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count()==0)
     {
@@ -164,10 +164,10 @@ int table_replication_applier_status_by_worker::rnd_next(void)
   }
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_channels(msr_map.get_max_channels());
+       m_pos.has_more_channels(channel_map.get_max_channels());
        m_pos.next_channel())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index_1);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
     if (mi && mi->host[0] )
     {
@@ -195,7 +195,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  mi= msr_map.get_mi_at_pos(m_pos.m_index_1);
+  mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
   if (!mi || !mi->rli || !mi->host[0])
   {

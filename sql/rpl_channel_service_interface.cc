@@ -223,7 +223,7 @@ int channel_create(const char* channel,
   mysql_mutex_lock(&LOCK_msr_map);
 
   //Don't create default channels
-  if (!strcmp(msr_map.get_default_channel(), channel))
+  if (!strcmp(channel_map.get_default_channel(), channel))
   {
     error= RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR;
     goto err;
@@ -236,7 +236,7 @@ int channel_create(const char* channel,
   }
 
   /* Get the Master_info of the channel */
-  mi= msr_map.get_mi(channel);
+  mi= channel_map.get_mi(channel);
 
     /* create a new channel if doesn't exist */
   if (!mi)
@@ -312,7 +312,7 @@ int channel_start(const char* channel,
 {
   DBUG_ENTER("channel_start(channel, threads_to_start, wait_for_connection");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
   int error= 0;
 
   if (mi == NULL)
@@ -423,7 +423,7 @@ int channel_stop(const char* channel,
 {
   DBUG_ENTER("channel_stop(channel, stop_receiver, stop_applier, timeout");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -469,7 +469,7 @@ int channel_purge_queue(const char* channel, bool reset_all)
 {
   DBUG_ENTER("channel_purge_queue(channel, only_purge");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -492,7 +492,7 @@ bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
 {
   DBUG_ENTER("channel_is_active(channel, thd_type");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -524,7 +524,7 @@ int channel_get_thread_id(const char* channel,
 
   int number_threads= -1;
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -624,7 +624,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
 {
   DBUG_ENTER("channel_get_last_delivered_gno(channel, sidno)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -657,7 +657,7 @@ int channel_queue_packet(const char* channel,
 {
   DBUG_ENTER("channel_queue_packet(channel, event_buffer, event_len)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -671,7 +671,7 @@ int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -694,7 +694,7 @@ int channel_is_applier_waiting(char* channel)
   DBUG_ENTER("channel_is_applier_waiting(channel)");
   int result= RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
@@ -770,7 +770,7 @@ int channel_flush(const char* channel)
 {
   DBUG_ENTER("channel_flush(channel)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {

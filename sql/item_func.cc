@@ -31,7 +31,7 @@
 #include <mysql/service_thd_wait.h>
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "rpl_mi.h"              // Master_info
-#include "rpl_msr.h"             // msr_map
+#include "rpl_msr.h"             // channel_map
 #include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
@@ -4769,18 +4769,18 @@ longlong Item_master_pos_wait::val_int()
       return 0;
     }
 
-    mi= msr_map.get_mi(channel_str->ptr());
+    mi= channel_map.get_mi(channel_str->ptr());
 
   }
   else
   {
-    if (msr_map.get_num_instances() > 1)
+    if (channel_map.get_num_instances() > 1)
     {
       mi = NULL;
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
     }
     else
-      mi= msr_map.get_mi(msr_map.get_default_channel());
+      mi= channel_map.get_mi(channel_map.get_default_channel());
   }
 
    mysql_mutex_unlock(&LOCK_msr_map);
@@ -4925,11 +4925,11 @@ longlong Item_master_gtid_set_wait::val_int()
       null_value= 1;
       DBUG_RETURN(0);
     }
-    mi= msr_map.get_mi(channel_str->ptr());
+    mi= channel_map.get_mi(channel_str->ptr());
   }
   else
   {
-    if (msr_map.get_num_instances() > 1)
+    if (channel_map.get_num_instances() > 1)
     {
       mysql_mutex_unlock(&LOCK_msr_map);
       mi = NULL;
@@ -4937,7 +4937,7 @@ longlong Item_master_gtid_set_wait::val_int()
       DBUG_RETURN(0);
     }
     else
-      mi= msr_map.get_mi(msr_map.get_default_channel());
+      mi= channel_map.get_mi(channel_map.get_default_channel());
   }
 
   if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)

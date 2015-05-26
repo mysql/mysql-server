@@ -182,7 +182,7 @@ void table_replication_connection_status::reset_position(void)
 ha_rows table_replication_connection_status::get_row_count()
 {
   /*A lock is not needed for an estimate */
-  return msr_map.get_max_channels();
+  return channel_map.get_max_channels();
 }
 
 
@@ -194,10 +194,10 @@ int table_replication_connection_status::rnd_next(void)
   mysql_mutex_lock(&LOCK_msr_map);
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < msr_map.get_max_channels();
+       m_pos.m_index < channel_map.get_max_channels();
        m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
 
     if (mi && mi->host[0])
     {
@@ -223,7 +223,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
 
@@ -259,7 +259,7 @@ void table_replication_connection_status::make_row(Master_info *mi)
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
   if (is_group_replication_plugin_loaded() &&
-      msr_map.is_group_replication_channel_name(mi->get_channel(), true))
+      channel_map.is_group_replication_channel_name(mi->get_channel(), true))
   {
     /*
       Group Replication applier channel.

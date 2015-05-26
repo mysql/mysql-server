@@ -47,7 +47,7 @@
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
-#include "rpl_msr.h"                     // msr_map
+#include "rpl_msr.h"                     // channel_map
 #include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
@@ -1090,7 +1090,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
   mysql_mutex_lock(&LOCK_msr_map);
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances(true) > 1)
+  if (channel_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
@@ -1098,7 +1098,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
       return TRUE;
   }
 
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_mi(channel_map.get_default_channel());
 
   if (mi != NULL)
   {
@@ -2281,7 +2281,7 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
     Master_info *mi =NULL;
 
     mysql_mutex_lock(&LOCK_msr_map);
-    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
     {
       mi= it->second;
       if (mi!= NULL)
@@ -2454,7 +2454,7 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
   Master_info *mi= NULL;
 
   mysql_mutex_lock(&LOCK_msr_map);
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -3404,7 +3404,7 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
   {
     mi= it->second;
     if (mi)
@@ -4889,7 +4889,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
   mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for (mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it=channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 

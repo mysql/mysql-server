@@ -22,7 +22,7 @@
 #include "rpl_info_table.h"         // Rpl_info_table
 #include "rpl_info_table_access.h"  // Rpl_info_table_access
 #include "rpl_mi.h"                 // Master_info
-#include "rpl_msr.h"                // msr_map
+#include "rpl_msr.h"                // channel_map
 #include "rpl_rli.h"                // Relay_log_info
 #include "rpl_rli_pdb.h"            // Slave_worker
 
@@ -438,7 +438,7 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   if (handler_dest->get_rpl_info_type() == INFO_REPOSITORY_TABLE)
     worker->set_info_search_keys(handler_dest);
 
-  DBUG_ASSERT(msr_map.get_num_instances() <= 1 ||
+  DBUG_ASSERT(channel_map.get_num_instances() <= 1 ||
               (rli_option == 1 && handler_dest->get_rpl_info_type() == 1));
   if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
@@ -956,7 +956,7 @@ err:
   During the server start, read all the slave repositories
   on disk (either in FILE or TABLE form) and create corresponding
   slave info objects. Each thus created master_info object is
-  added to pmsr_map.
+  added to pchannel_map.
 
   Multisource replication is supported by only TABLE based
   repositories. Based on this fact, the following table shows
@@ -1037,7 +1037,7 @@ err:
   @param[in]        mi_option        the user provided master_info_repository
   @param[in]       rli_option        the user provided relay_log_info_repository
   @param[in]       thread_mask       thread mask
-  @param[in]       pmsr_map          the pointer to the multi source map
+  @param[in]       pchannel_map          the pointer to the multi source map
                                      (see, rpl_msr.h)
 
   @return
@@ -1061,7 +1061,7 @@ static void my_char_array_delete(const char *s)
 bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
                                                  uint rli_option,
                                                  int thread_mask,
-                                                 Multisource_info *pmsr_map)
+                                                 Multisource_info *pchannel_map)
 {
   DBUG_ENTER("create_slave_info_objects");
 
@@ -1117,7 +1117,7 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
 
   /* Make a list of all channels if the slave was connected to previously*/
   if (create_channel_list(channel_list, mi_instances,
-                          mi_repository, pmsr_map->get_default_channel()))
+                          mi_repository, pchannel_map->get_default_channel()))
   {
     sql_print_error("Slave: Could not create channel list");
     error= true;
@@ -1126,7 +1126,7 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
 
   default_channel_existed_previously=
     std::find_if(channel_list.begin(), channel_list.end(),
-      my_cstr_comparator(pmsr_map->get_default_channel())) != channel_list.end();
+      my_cstr_comparator(pchannel_map->get_default_channel())) != channel_list.end();
 
   multiple_channels_allowed=
     mi_option == INFO_REPOSITORY_TABLE && rli_option == INFO_REPOSITORY_TABLE;
@@ -1134,8 +1134,8 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
   /* Adding the default channel if needed. */
   if (!default_channel_existed_previously)
   {
-    channel_name= new char[strlen(pmsr_map->get_default_channel())+1];
-    strcpy(channel_name, pmsr_map->get_default_channel());
+    channel_name= new char[strlen(pchannel_map->get_default_channel())+1];
+    strcpy(channel_name, pchannel_map->get_default_channel());
     channel_list.push_back((const char*)channel_name);
   }
 
@@ -1169,7 +1169,7 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
       it != channel_list.end(); ++it)
   {
     const char* cname= *it;
-    bool is_default_channel= !strcmp(cname, pmsr_map->get_default_channel());
+    bool is_default_channel= !strcmp(cname, pchannel_map->get_default_channel());
 
     if (error && default_channel_created)
       /* error and default_channel_created - safe to exit loop */
@@ -1180,13 +1180,13 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
     {
       bool create_error= false, init_error= false;
       enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
-      if (pmsr_map->is_group_replication_channel_name(cname))
+      if (pchannel_map->is_group_replication_channel_name(cname))
         channel_type= GROUP_REPLICATION_CHANNEL;
 
       create_error=
         !(mi= create_slave_per_channel(mi_option, rli_option, cname,
                                        !creating_multiple_channels /* to_decide_repo */,
-                                       pmsr_map, channel_type));
+                                       pchannel_map, channel_type));
 
       if (create_error && !creating_multiple_channels)
       {
@@ -1249,7 +1249,7 @@ end:
                                   should be created.
    @param[in]    to_decide_repo   For this channel, check if repositories
                                   are allowed to convert from one type to other.
-   @param[in]    pmsr_map         a pointer to msr_map
+   @param[in]    pchannel_map     a pointer to channel_map
    @param[in]    channel type     If the given channel is a slave channel.
                                   Default is true.
 
@@ -1263,7 +1263,7 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
                                            uint rli_option,
                                            const char* channel,
                                            bool to_decide_repo,
-                                           Multisource_info* pmsr_map,
+                                           Multisource_info* pchannel_map,
                                            enum_channel_type channel_type)
 {
   DBUG_ENTER("Rpl_info_factory::create_slave_per_channel");
@@ -1287,7 +1287,7 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
   rli->set_master_info(mi);
 
   /* Add to multisource map*/
-  if (pmsr_map->add_mi(channel, mi, channel_type))
+  if (pchannel_map->add_mi(channel, mi, channel_type))
   {
     delete mi;
     delete rli;

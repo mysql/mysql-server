@@ -103,7 +103,7 @@ void table_replication_applier_status::reset_position(void)
 
 ha_rows table_replication_applier_status::get_row_count()
 {
- return msr_map.get_max_channels();
+ return channel_map.get_max_channels();
 }
 
 
@@ -113,10 +113,11 @@ int table_replication_applier_status::rnd_next(void)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for(m_pos.set_at(&m_next_pos); m_pos.m_index < msr_map.get_max_channels();
-      m_pos.next())
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < channel_map.get_max_channels();
+       m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
 
     if (mi && mi->host[0])
     {
@@ -141,7 +142,7 @@ int table_replication_applier_status::rnd_pos(const void *pos)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
 
