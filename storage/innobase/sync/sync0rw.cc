@@ -1197,51 +1197,6 @@ rw_lock_list_print_info(
 	fprintf(file, "Total number of rw-locks %ld\n", count);
 	mutex_exit(&rw_lock_list_mutex);
 }
-
-/***************************************************************//**
-Prints debug info of an rw-lock. */
-void
-rw_lock_print(
-/*==========*/
-	rw_lock_t*	lock)	/*!< in: rw-lock */
-{
-	rw_lock_debug_t* info;
-
-	fprintf(stderr,
-		"-------------\n"
-		"RW-LATCH INFO\n"
-		"RW-LATCH: %p ", (void*) lock);
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	/* We used to acquire lock->mutex here, but it would cause a
-	recursive call to sync_thread_add_level() if UNIV_SYNC_DEBUG
-	is defined.  Since this function is only invoked from
-	sync_thread_levels_g(), let us choose the smaller evil:
-	performing dirty reads instead of causing bogus deadlocks or
-	assertion failures. */
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
-
-	if (lock->lock_word != X_LOCK_DECR) {
-
-		if (rw_lock_get_waiters(lock)) {
-			fputs(" Waiters for the lock exist\n", stderr);
-		} else {
-			putc('\n', stderr);
-		}
-
-		rw_lock_debug_mutex_enter();
-
-		for (info = UT_LIST_GET_FIRST(lock->debug_list);
-		     info != NULL;
-		     info = UT_LIST_GET_NEXT(list, info)) {
-
-			rw_lock_debug_print(stderr, info);
-		}
-
-		rw_lock_debug_mutex_exit();
-	}
-}
-
 /*********************************************************************//**
 Prints info of a debug struct. */
 void
@@ -1279,33 +1234,6 @@ rw_lock_debug_print(
 
 	fprintf(f, "\n");
 }
-
-/***************************************************************//**
-Returns the number of currently locked rw-locks. Works only in the debug
-version.
-@return number of locked rw-locks */
-ulint
-rw_lock_n_locked(void)
-/*==================*/
-{
-	ulint		count = 0;
-
-	mutex_enter(&rw_lock_list_mutex);
-
-	for (const rw_lock_t* lock = UT_LIST_GET_FIRST(rw_lock_list);
-	     lock != NULL;
-	     lock = UT_LIST_GET_NEXT(list, lock)) {
-
-		if (lock->lock_word != X_LOCK_DECR) {
-			count++;
-		}
-	}
-
-	mutex_exit(&rw_lock_list_mutex);
-
-	return(count);
-}
-
 #endif /* UNIV_SYNC_DEBUG */
 
 #ifdef UNIV_DEBUG

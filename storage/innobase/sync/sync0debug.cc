@@ -405,8 +405,32 @@ public:
 /** Do not destroy mutex at exit for static objects */
 static SyncDebug syncDebug(false);
 
-/** Report error and abort. */
 
+/**
+Get the latch name from a sync level.
+@return latch name
+@retval NULL if not found */
+static
+const char*
+sync_latch_get_name(
+	latch_level_t	level)			/*!< in: Latch level */
+{
+	LatchMap::const_iterator	end = SrvLatches->end();
+
+	// Linear scan should be OK, this should be extremely rare.
+	for (LatchMap::const_iterator it = SrvLatches->begin();
+	     it != end;
+	     ++it) {
+
+		if (it->second.m_level == level) {
+			return(it->first.c_str());
+		}
+	}
+
+	return(NULL);
+}
+
+/** Report error and abort. */
 void
 SyncDebug::crash(const latch_t* latch, latch_level_t level) const UNIV_NOTHROW
 {
@@ -423,7 +447,6 @@ SyncDebug::crash(const latch_t* latch, latch_level_t level) const UNIV_NOTHROW
 
 /** Do a basic ordering check.
 @return true if passes, else crash with error message. */
-
 bool
 SyncDebug::basic_check(const Latches* latches, ulint lvl) const UNIV_NOTHROW
 {
@@ -441,7 +464,6 @@ SyncDebug::basic_check(const Latches* latches, ulint lvl) const UNIV_NOTHROW
 /**
 Create a new instance if one doesn't exist else return the existing one.
 @return	pointer to a thread's acquired latches. */
-
 Latches*
 SyncDebug::thread_latches(bool add) UNIV_NOTHROW
 {
@@ -489,7 +511,6 @@ level than limit.
 @param levels - the thread's existing (acquired) latches
 @param limit - to check against
 @return latch if there is one with a level <= limit . */
-
 const latch_t*
 SyncDebug::less(
 	const Latches*	latches,
@@ -520,7 +541,6 @@ Checks if the level value exists in the thread's acquired latches.
 @param levels - the thread's existing (acquired) latches
 @param level - to lookup
 @return	latch if found or 0 */
-
 const latch_t*
 SyncDebug::find(
 	const Latches*	latches,
@@ -541,8 +561,8 @@ SyncDebug::find(
 /**
 Checks if the level value exists in the thread's acquired latches.
 @param level - to lookup
-@return	latch if found or 0 */
-
+@return	latch if found
+@retval NULL if no latch found */
 const latch_t*
 SyncDebug::find(latch_level_t level) UNIV_NOTHROW
 {
@@ -559,7 +579,6 @@ against other latch levels stored in the array for this thread.
 @param latch - pointer to a mutex or an rw-lock
 @param level - level in the latching order
 @return the thread's latches */
-
 Latches*
 SyncDebug::check_order(const latch_t* latch)
 {
@@ -806,8 +825,8 @@ SyncDebug::check_order(const latch_t* latch)
 	return(latches);
 }
 
-/*
-Removes a latch from the thread level array if it is found there.
+/**
+Remove a latch from the thread level array if it is found there.
 @param latch - that was released/unlocked
 @param level - level of the latch
 @return true if found in the array; it is not an error if the latch is
@@ -1290,28 +1309,6 @@ sync_latch_get_level(
 	}
 
 	return(it->second.m_level);
-}
-
-/**
-Get the latch name from a sync level.
-@return 0 if not found. */
-const char*
-sync_latch_get_name(
-	latch_level_t	level)			/*!< in: Latch level */
-{
-	LatchMap::const_iterator	end = SrvLatches->end();
-
-	// Linear scan should be OK, this should be extremely rare.
-	for (LatchMap::const_iterator it = SrvLatches->begin();
-	     it != end;
-	     ++it) {
-
-		if (it->second.m_level == level) {
-			return(it->first.c_str());
-		}
-	}
-
-	return(0);
 }
 
 #ifdef UNIV_PFS_MUTEX

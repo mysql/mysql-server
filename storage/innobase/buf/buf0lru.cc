@@ -1642,55 +1642,6 @@ buf_unzip_LRU_add_block(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list end. Please make sure that the page_size is
-already set when invoking the function, so that we can get correct
-page_size from the buffer page when adding a block into LRU */
-static
-void
-buf_LRU_add_block_to_end_low(
-/*=========================*/
-	buf_page_t*	bpage)	/*!< in: control block */
-{
-	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-
-	ut_ad(buf_pool_mutex_own(buf_pool));
-
-	ut_a(buf_page_in_file(bpage));
-
-	ut_ad(!bpage->in_LRU_list);
-	UT_LIST_ADD_LAST(buf_pool->LRU, bpage);
-	ut_d(bpage->in_LRU_list = TRUE);
-
-	incr_LRU_size_in_bytes(bpage, buf_pool);
-
-	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
-
-		ut_ad(buf_pool->LRU_old);
-
-		/* Adjust the length of the old block list if necessary */
-
-		buf_page_set_old(bpage, TRUE);
-		buf_pool->LRU_old_len++;
-		buf_LRU_old_adjust_len(buf_pool);
-
-	} else if (UT_LIST_GET_LEN(buf_pool->LRU) == BUF_LRU_OLD_MIN_LEN) {
-
-		/* The LRU list is now long enough for LRU_old to become
-		defined: init it */
-
-		buf_LRU_old_init(buf_pool);
-	} else {
-		buf_page_set_old(bpage, buf_pool->LRU_old != NULL);
-	}
-
-	/* If this is a zipped block with decompressed frame as well
-	then put it on the unzip_LRU list */
-	if (buf_page_belongs_to_unzip_LRU(bpage)) {
-		buf_unzip_LRU_add_block((buf_block_t*) bpage, TRUE);
-	}
-}
-
-/******************************************************************//**
 Adds a block to the LRU list. Please make sure that the page_size is
 already set when invoking the function, so that we can get correct
 page_size from the buffer page when adding a block into LRU */
@@ -1796,17 +1747,6 @@ buf_LRU_make_block_young(
 
 	buf_LRU_remove_block(bpage);
 	buf_LRU_add_block_low(bpage, FALSE);
-}
-
-/******************************************************************//**
-Moves a block to the end of the LRU list. */
-void
-buf_LRU_make_block_old(
-/*===================*/
-	buf_page_t*	bpage)	/*!< in: control block */
-{
-	buf_LRU_remove_block(bpage);
-	buf_LRU_add_block_to_end_low(bpage);
 }
 
 /******************************************************************//**
@@ -2679,6 +2619,7 @@ buf_LRU_validate(void)
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************//**
 Prints the LRU list for one buffer pool instance. */
+static
 void
 buf_LRU_print_instance(
 /*===================*/

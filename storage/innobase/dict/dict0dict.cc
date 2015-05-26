@@ -694,6 +694,7 @@ dict_table_autoinc_lock(
 
 /** Acquire the zip_pad_mutex latch.
 @param[in,out]	index	the index whose zip_pad_mutex to acquire.*/
+static
 void
 dict_index_zip_pad_lock(
 	dict_index_t*	index)
@@ -4918,22 +4919,6 @@ try_find_index:
 	}
 
 	goto loop;
-}
-/**************************************************************************
-Determines whether a string starts with the specified keyword.
-@return TRUE if str starts with keyword */
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-	THD*		thd,		/*!< in: MySQL thread handle */
-	const char*	str,		/*!< in: string to scan for keyword */
-	const char*	keyword)	/*!< in: keyword to look for */
-{
-	const CHARSET_INFO*	cs = innobase_get_charset(thd);
-	ibool		success;
-
-	dict_accept(cs, str, keyword, &success);
-	return(success);
 }
 
 /** Scans a table create SQL string and adds to the data dictionary

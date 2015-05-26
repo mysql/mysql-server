@@ -1816,6 +1816,7 @@ rec_print_old(
 /***************************************************************//**
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
+static
 void
 rec_print_comp(
 /*===========*/
@@ -1860,6 +1861,7 @@ rec_print_comp(
 
 /***************************************************************//**
 Prints an old-style spatial index record. */
+static
 void
 rec_print_mbr_old(
 /*==============*/

@@ -413,6 +413,7 @@ trx_undo_rec_get_row_ref(
 /*******************************************************************//**
 Skips a row reference from an undo log record.
 @return pointer to remaining part of undo record */
+static
 byte*
 trx_undo_rec_skip_row_ref(
 /*======================*/
@@ -1497,6 +1498,7 @@ err_exit:
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists.
 @return own: copy of the record */
+static __attribute__((warn_unused_result))
 trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/

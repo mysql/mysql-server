@@ -2440,47 +2440,6 @@ fetch_step(
 }
 
 /****************************************************************//**
-Sample callback function for fetch that prints each row.
-@return always returns non-NULL */
-void*
-row_fetch_print(
-/*============*/
-	void*	row,		/*!< in:  sel_node_t* */
-	void*	user_arg)	/*!< in:  not used */
-{
-	que_node_t*	exp;
-	ulint		i = 0;
-	sel_node_t*	node = static_cast<sel_node_t*>(row);
-
-	UT_NOT_USED(user_arg);
-
-	ib::info() << "row_fetch_print: row " << row;
-
-	for (exp = node->select_list;
-	     exp != 0;
-	     exp = que_node_get_next(exp), i++) {
-
-		dfield_t*	dfield = que_node_get_val(exp);
-		const dtype_t*	type = dfield_get_type(dfield);
-
-		fprintf(stderr, " column %lu:\n", (ulong) i);
-
-		dtype_print(type);
-		putc('\n', stderr);
-
-		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
-			ut_print_buf(stderr, dfield_get_data(dfield),
-				     dfield_get_len(dfield));
-			putc('\n', stderr);
-		} else {
-			fputs(" <NULL>;\n", stderr);
-		}
-	}
-
-	return((void*)42);
-}
-
-/****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the

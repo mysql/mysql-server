@@ -65,22 +65,6 @@ extern log_checksum_func_t log_checksum_algorithm_ptr;
 /** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
-/*******************************************************************//**
-Calculates where in log files we find a specified lsn.
-@return log file number */
-ulint
-log_calc_where_lsn_is(
-/*==================*/
-	int64_t*	log_file_offset,	/*!< out: offset in that file
-						(including the header) */
-	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
-						lsn */
-	ib_uint64_t	lsn,			/*!< in: lsn whose position to
-						determine */
-	ulint		n_log_files,		/*!< in: total number of log
-						files */
-	int64_t		log_file_size);		/*!< in: log file size
-						(including the header) */
 #ifndef UNIV_HOTBACKUP
 /** Append a string to the log.
 @param[in]	str		string
@@ -251,15 +235,6 @@ log_group_read_checkpoint_info(
 /*===========================*/
 	log_group_t*	group,	/*!< in: log group */
 	ulint		field);	/*!< in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
-/*******************************************************************//**
-Gets info from a checkpoint about a log group. */
-void
-log_checkpoint_get_nth_group_info(
-/*==============================*/
-	const byte*	buf,	/*!< in: buffer containing checkpoint info */
-	ulint		n,	/*!< in: nth slot */
-	ulint*		file_no,/*!< out: archived file number */
-	ulint*		offset);/*!< out: archived file offset */
 /** Write checkpoint info to the log header and invoke log_mutex_exit().
 @param[in]	sync	whether to wait for the write to complete */
 void
@@ -312,14 +287,6 @@ log_group_set_fields(
 	log_group_t*	group,	/*!< in/out: group */
 	lsn_t		lsn);	/*!< in: lsn for which the values should be
 				set */
-/******************************************************//**
-Calculates the data capacity of a log group, when the log file headers are not
-included.
-@return capacity in bytes */
-lsn_t
-log_group_get_capacity(
-/*===================*/
-	const log_group_t*	group);	/*!< in: log group */
 #endif /* !UNIV_HOTBACKUP */
 /************************************************************//**
 Gets a log block flush bit.

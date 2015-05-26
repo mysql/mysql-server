@@ -938,6 +938,7 @@ Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
+static
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx_low(
 /*============================*/

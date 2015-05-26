@@ -2290,31 +2290,6 @@ buf_flush_LRU_list(
 }
 
 /*********************************************************************//**
-Clears up tail of the LRU lists:
-* Put replaceable pages at the tail of LRU to the free list
-* Flush dirty pages at the tail of LRU to the disk
-The depth to which we scan each buffer pool is controlled by dynamic
-config parameter innodb_LRU_scan_depth.
-@return total pages flushed */
-ulint
-buf_flush_LRU_lists(void)
-/*=====================*/
-{
-	ulint	n_flushed = 0;
-
-	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-
-		n_flushed += buf_flush_LRU_list(buf_pool_from_array(i));
-	}
-
-	if (n_flushed) {
-		buf_flush_stats(0, n_flushed);
-	}
-
-	return(n_flushed);
-}
-
-/*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
 void
 buf_flush_wait_LRU_batch_end(void)
@@ -3554,6 +3529,7 @@ buf_pool_get_dirty_pages_count(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return number of dirty pages present in all the buffer pools */
+static
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/

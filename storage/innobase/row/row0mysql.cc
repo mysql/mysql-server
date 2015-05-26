@@ -336,6 +336,7 @@ row_mysql_store_geometry(
 /*******************************************************************//**
 Read geometry data in the MySQL format.
 @return pointer to geometry data */
+static
 const byte*
 row_mysql_read_geometry(
 /*====================*/
@@ -3521,6 +3522,7 @@ row_add_table_to_background_drop_list(
 /*********************************************************************//**
 Reassigns the table identifier of a table.
 @return error code or DB_SUCCESS */
+static
 dberr_t
 row_mysql_table_id_reassign(
 /*========================*/

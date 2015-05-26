@@ -2716,10 +2716,11 @@ innobase_shutdown_for_mysql(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-
+#if 0 // TODO: Enable this in WL#6608
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
+static
 void
 srv_shutdown_table_bg_threads(void)
 /*===============================*/
@@ -2792,6 +2793,7 @@ srv_shutdown_table_bg_threads(void)
 		table = next;
 	}
 }
+#endif
 
 /** Get the meta-data filename from the table name for a
 single-table tablespace.

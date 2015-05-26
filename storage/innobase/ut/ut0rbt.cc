@@ -1,6 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -880,7 +880,7 @@ rbt_add_node(
 
 	++tree->n_nodes;
 
-#if	defined(IB_RBT_TESTING)
+#if defined UNIV_DEBUG || defined IB_RBT_TESTING
 	ut_a(rbt_validate(tree));
 #endif
 	return(node);
@@ -889,6 +889,7 @@ rbt_add_node(
 /**********************************************************************//**
 Find a matching node in the rb tree.
 @return NULL if not found else the node where key was found */
+static
 const ib_rbt_node_t*
 rbt_lookup(
 /*=======*/
@@ -963,86 +964,6 @@ rbt_remove_node(
 	*/
 
 	return((ib_rbt_node_t*) const_node);
-}
-
-/**********************************************************************//**
-Find the node that has the lowest key that is >= key.
-@return node satisfying the lower bound constraint or NULL */
-const ib_rbt_node_t*
-rbt_lower_bound(
-/*============*/
-	const ib_rbt_t*	tree,			/*!< in: rb tree */
-	const void*	key)			/*!< in: key to search */
-{
-	ib_rbt_node_t*	lb_node = NULL;
-	ib_rbt_node_t*	current = ROOT(tree);
-
-	while (current != tree->nil) {
-		int	result;
-
-		if (tree->cmp_arg) {
-			result = tree->compare_with_arg(
-				tree->cmp_arg, key, current->value);
-		} else {
-			result = tree->compare(key, current->value);
-		}
-
-		if (result > 0) {
-
-			current = current->right;
-
-		} else if (result < 0) {
-
-			lb_node = current;
-			current = current->left;
-
-		} else {
-			lb_node = current;
-			break;
-		}
-	}
-
-	return(lb_node);
-}
-
-/**********************************************************************//**
-Find the node that has the greatest key that is <= key.
-@return node satisfying the upper bound constraint or NULL */
-const ib_rbt_node_t*
-rbt_upper_bound(
-/*============*/
-	const ib_rbt_t*	tree,			/*!< in: rb tree */
-	const void*	key)			/*!< in: key to search */
-{
-	ib_rbt_node_t*	ub_node = NULL;
-	ib_rbt_node_t*	current = ROOT(tree);
-
-	while (current != tree->nil) {
-		int	result;
-
-		if (tree->cmp_arg) {
-			result = tree->compare_with_arg(
-				tree->cmp_arg, key, current->value);
-		} else {
-			result = tree->compare(key, current->value);
-		}
-
-		if (result > 0) {
-
-			ub_node = current;
-			current = current->right;
-
-		} else if (result < 0) {
-
-			current = current->left;
-
-		} else {
-			ub_node = current;
-			break;
-		}
-	}
-
-	return(ub_node);
 }
 
 /**********************************************************************//**
@@ -1192,19 +1113,6 @@ rbt_prev(
 }
 
 /**********************************************************************//**
-Reset the tree. Delete all the nodes. */
-void
-rbt_clear(
-/*======*/
-	ib_rbt_t*	tree)			/*!< in: rb tree */
-{
-	rbt_free_node(ROOT(tree), tree->nil);
-
-	tree->n_nodes = 0;
-	tree->root->left = tree->root->right = tree->nil;
-}
-
-/**********************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
 @return no. of recs merged */
 ulint
@@ -1232,53 +1140,7 @@ rbt_merge_uniq(
 	return(n_merged);
 }
 
-/**********************************************************************//**
-Merge the node from dst into src. Return the number of nodes merged.
-Delete the nodes from src after copying node to dst. As a side effect
-the duplicates will be left untouched in the src.
-@return no. of recs merged */
-ulint
-rbt_merge_uniq_destructive(
-/*=======================*/
-	ib_rbt_t*	dst,			/*!< in: dst rb tree */
-	ib_rbt_t*	src)			/*!< in: src rb tree */
-{
-	ib_rbt_bound_t	parent;
-	ib_rbt_node_t*	src_node;
-	ulint		old_size = rbt_size(dst);
-
-	if (rbt_empty(src) || dst == src) {
-		return(0);
-	}
-
-	for (src_node = (ib_rbt_node_t*) rbt_first(src); src_node; /* */) {
-		ib_rbt_node_t*	prev = src_node;
-
-		src_node = (ib_rbt_node_t*) rbt_next(src, prev);
-
-		/* Skip duplicates. */
-		if (rbt_search(dst, &parent, prev->value) != 0) {
-
-			/* Remove and reset the node but preserve
-			the node (data) value. */
-			rbt_remove_node_and_rebalance(src, prev);
-
-			/* The nil should be taken from the dst tree. */
-			prev->parent = prev->left = prev->right = dst->nil;
-			rbt_tree_add_child(dst, &parent, prev);
-			rbt_balance_tree(dst, prev);
-
-			++dst->n_nodes;
-		}
-	}
-
-#if	defined(IB_RBT_TESTING)
-	ut_a(rbt_validate(dst));
-	ut_a(rbt_validate(src));
-#endif
-	return(rbt_size(dst) - old_size);
-}
-
+#if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /**********************************************************************//**
 Check that every path from the root to the leaves has the same count and
 the tree nodes are in order.
@@ -1294,14 +1156,4 @@ rbt_validate(
 
 	return(FALSE);
 }
-
-/**********************************************************************//**
-Iterate over the tree in depth first order. */
-void
-rbt_print(
-/*======*/
-	const ib_rbt_t*		tree,		/*!< in: tree to traverse */
-	ib_rbt_print_node	print)		/*!< in: print function */
-{
-	rbt_print_subtree(tree, ROOT(tree), print);
-}
+#endif /* UNIV_DEBUG || IB_RBT_TESTING */

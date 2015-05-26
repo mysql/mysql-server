@@ -342,22 +342,6 @@ btr_pcur_move_to_next_page(
 	btr_pcur_t*	cursor,	/*!< in: persistent cursor; must be on the
 				last record of the current page */
 	mtr_t*		mtr);	/*!< in: mtr */
-/*********************************************************//**
-Moves the persistent cursor backward if it is on the first record
-of the page. Releases the latch on the current page, and bufferunfixes
-it. Note that to prevent a possible deadlock, the operation first
-stores the position of the cursor, releases the leaf latch, acquires
-necessary latches and restores the cursor position again before returning.
-The alphabetical position of the cursor is guaranteed to be sensible
-on return, but it may happen that the cursor is not positioned on the
-last record of any page, because the structure of the tree may have
-changed while the cursor had no latches. */
-void
-btr_pcur_move_backward_from_page(
-/*=============================*/
-	btr_pcur_t*	cursor,	/*!< in: persistent cursor, must be on the
-				first record of the current page */
-	mtr_t*		mtr);	/*!< in: mtr */
 #ifdef UNIV_DEBUG
 /*********************************************************//**
 Returns the btr cursor component of a persistent cursor.

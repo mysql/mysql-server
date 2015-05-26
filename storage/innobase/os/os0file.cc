@@ -1305,6 +1305,7 @@ os_file_compress_page(
 # ifndef UNIV_HOTBACKUP
 /** Validates the consistency the aio system some of the time.
 @return true if ok or the check was skipped */
+static
 bool
 os_aio_validate_skip()
 {
@@ -1697,7 +1698,7 @@ os_file_make_data_dir_path(
 	ptr[tablename_len] = '\0';
 }
 
-/** The function os_file_dirname returns a directory component of a
+/** Returns a directory component of a
 null-terminated pathname string. In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
 is the component following the final '/'. Trailing '/' characters
@@ -1725,6 +1726,7 @@ returned by dirname and basename for different paths:
 
 @param[in]	path		Path name
 @return own: directory component of the pathname */
+static
 char*
 os_file_dirname(
 	const char*	path)
@@ -2820,6 +2822,7 @@ os_file_fsync_posix(
 @param[out]	exists		true if the file exists
 @param[out]	type		Type of the file, if it exists
 @return true if call succeeded */
+static
 bool
 os_file_status_posix(
 	const char*	path,
@@ -3850,6 +3853,7 @@ os_file_punch_hole_win32(
 @param[out]	exists		true if the file exists
 @param[out]	type		Type of the file, if it exists
 @return true if call succeeded */
+static
 bool
 os_file_status_win32(
 	const char*	path,
