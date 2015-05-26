@@ -8977,7 +8977,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},
-  { &key_memory_table_share, "TABLE_SHARE::mem_root", 0},
+  { &key_memory_table_share, "TABLE_SHARE::mem_root", PSI_FLAG_GLOBAL}, /* table definition cache */
   { &key_memory_gdl, "gdl", 0},
   { &key_memory_table_triggers_list, "Table_triggers_list", 0},
   { &key_memory_servers, "servers", 0},
@@ -9069,7 +9069,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_frm, "frm", 0},
   { &key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0},
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
-  { &key_memory_TABLE, "TABLE", 0},
+  { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL}, /* Table cache */
   { &key_memory_frm_extra_segment_buff, "frm::extra_segment_buff", 0},
   { &key_memory_frm_form_pos, "frm::form_pos", 0},
   { &key_memory_frm_string, "frm::string", 0},
@@ -9092,7 +9092,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_XID_STATE, "XID_STATE", 0},
   { &key_memory_MPVIO_EXT_auth_info, "MPVIO_EXT::auth_info", 0},
   { &key_memory_opt_bin_logname, "opt_bin_logname", 0},
-  { &key_memory_Query_cache, "Query_cache", 0},
+  { &key_memory_Query_cache, "Query_cache", PSI_FLAG_GLOBAL},
   { &key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0},
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -340,6 +340,27 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   /* Now everything is set; Indicate that nothing is used anymore */
   root->used= 0;
   root->first_block_usage= 0;
+}
+
+void claim_root(MEM_ROOT *root)
+{
+  USED_MEM *next,*old;
+  DBUG_ENTER("claim_root");
+  DBUG_PRINT("enter",("root: 0x%lx", (long) root));
+
+  for (next=root->used; next ;)
+  {
+    old=next; next= next->next ;
+    my_claim(old);
+  }
+
+  for (next=root->free ; next ;)
+  {
+    old=next; next= next->next;
+    my_claim(old);
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 

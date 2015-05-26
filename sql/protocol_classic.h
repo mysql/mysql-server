@@ -122,6 +122,7 @@ public:
   // NET interaction functions
   /* Initialize NET */
   bool init_net(Vio *vio);
+  void claim_memory_ownership();
   /* Deinitialize NET */
   void end_net();
   /* Flush NET buffer */

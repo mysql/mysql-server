@@ -819,6 +819,8 @@ public:
   /** Erase all prepared statements (calls Prepared_statement destructor). */
   void erase(Prepared_statement *statement);
 
+  void claim_memory_ownership();
+
   void reset();
 
   ~Prepared_statement_map();
@@ -4298,6 +4300,13 @@ public:
     slave connection.
   */
   bool duplicate_slave_uuid;
+
+  /**
+    Claim all the memory used by the THD object.
+    This method is to keep memory instrumentation statistics
+    updated, when an object is transfered across threads.
+  */
+  void claim_memory_ownership();
 };
 
 /**

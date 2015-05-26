@@ -189,11 +189,11 @@ void test_noop()
   ok(sp_share == NULL, "no sp_share");
   PSI_server->release_sp_share(NULL);
   PSI_server->register_memory(NULL, NULL, 0);
-  memory_key= PSI_server->memory_alloc(0, 0);
+  memory_key= PSI_server->memory_alloc(0, 0, NULL);
   ok(memory_key == PSI_NOT_INSTRUMENTED, "no memory_key");
-  memory_key= PSI_server->memory_realloc(0, 0, 0);
+  memory_key= PSI_server->memory_realloc(0, 0, 0, NULL);
   ok(memory_key == PSI_NOT_INSTRUMENTED, "no memory_key");
-  PSI_server->memory_free(0, 0);
+  PSI_server->memory_free(0, 0, NULL);
   PSI_server->unlock_table(NULL);
   metadata_lock= PSI_server->create_metadata_lock(NULL, NULL, 1, 2, 3, NULL, 0);
   ok(metadata_lock == NULL, "no metadata_lock");
