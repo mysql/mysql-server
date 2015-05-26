@@ -1035,7 +1035,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
   */
   mysql_mutex_lock(&LOCK_msr_map);
 
-  mi= channel_map.get_mi(channel_map.get_default_channel());
+  mi= channel_map.get_default_channel_mi();
 
   if (!mi)
   {

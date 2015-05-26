@@ -1098,7 +1098,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
       return TRUE;
   }
 
-  mi= channel_map.get_mi(channel_map.get_default_channel());
+  mi= channel_map.get_default_channel_mi();
 
   if (mi != NULL)
   {
