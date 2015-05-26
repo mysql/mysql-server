@@ -543,7 +543,7 @@ int start_slave(THD *thd)
     if ((error= start_slave(thd, &thd->lex->slave_connection,
                                  &thd->lex->mi,
                                  thd->lex->slave_thd_opt,
-                                 mi, true, 1)))
+                                 mi, true)))
     {
       goto err;
     }
@@ -575,7 +575,7 @@ int start_slave(THD *thd)
       {
         error= start_slave(thd, &thd->lex->slave_connection,
                            &thd->lex->mi,
-                           thd->lex->slave_thd_opt, mi, true, 1);
+                           thd->lex->slave_thd_opt, mi, true);
         if (error)
         {
           sql_print_error("Slave: Could not start slave for channel '%s'."
@@ -702,7 +702,7 @@ bool start_slave_cmd(THD *thd)
 
     if (mi)
       res= start_slave(thd, &thd->lex->slave_connection,
-                       &thd->lex->mi, thd->lex->slave_thd_opt, mi, true, 1);
+                       &thd->lex->mi, thd->lex->slave_thd_opt, mi, true);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
 
@@ -9424,26 +9424,21 @@ uint sql_slave_skip_counter;
                              configured settings when starting the applier
                              thread.
 
-   @param net_report         If true, saves the exit status into the
-                             Diagnostics_area.
-
-   @return
-    @retval 0   success
-    @retval !=0 error
+   @retval 0   success
+   @retval !=0 error
 */
 int start_slave(THD* thd,
                 LEX_SLAVE_CONNECTION* connection_param,
                 LEX_MASTER_INFO* master_param,
                 int thread_mask_input,
                 Master_info* mi,
-                bool set_mts_settings,
-                bool net_report)
+                bool set_mts_settings)
 {
   int slave_errno= 0;
   int thread_mask;
   bool error_reported= false;
 
-  DBUG_ENTER("start_slave(THD, lex, lex, int ,Master_info, bool, bool");
+  DBUG_ENTER("start_slave(THD, lex, lex, int, Master_info, bool");
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
@@ -9692,7 +9687,7 @@ int start_slave(THD* thd,
 
   if (slave_errno)
   {
-    if (net_report && !error_reported)
+    if (!error_reported)
     {
       if ((slave_errno==ER_SLAVE_CHANNEL_NOT_RUNNING)||
           (slave_errno==ER_SLAVE_CHANNEL_MUST_STOP))

@@ -385,7 +385,7 @@ int channel_start(const char* channel,
   }
 
   error= start_slave(thd, &lex_connection, &lex_mi,
-                         thread_mask, mi, false, true);
+                     thread_mask, mi, false);
 
   if (wait_for_connection && (thread_mask & SLAVE_IO) && !error)
   {
