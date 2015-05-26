@@ -525,7 +525,8 @@ bool mysql_update(THD *thd,
       goto exit_without_my_ok;
     }
   }
-  init_ftfuncs(thd, select_lex);
+  if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
+    goto exit_without_my_ok;
 
   table->update_const_key_parts(conds);
   order= simple_remove_const(order, conds);

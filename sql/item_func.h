@@ -2376,7 +2376,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
-  void init_search();
+  bool init_search(THD *thd);
   bool check_gcol_func_processor(uchar *int_arg) 
   {
     /* TODO: consider adding in support for the MATCH-based generated columns */
