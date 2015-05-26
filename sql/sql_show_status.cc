@@ -219,7 +219,7 @@ build_query(const POS &pos,
     return NULL;
 
   PT_select *select;
-  select= new (thd->mem_root) PT_select(select_init2);
+  select= new (thd->mem_root) PT_select(select_init2, SQLCOM_SELECT);
   if (select == NULL)
     return NULL;
 

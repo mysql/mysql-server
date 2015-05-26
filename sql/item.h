@@ -1000,6 +1000,7 @@ public:
   { return save_in_field(field, true); }
 
   virtual bool send(Protocol *protocol, String *str);
+  bool evaluate(THD *thd, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
   /**

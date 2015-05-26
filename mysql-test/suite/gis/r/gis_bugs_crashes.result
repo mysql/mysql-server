@@ -1450,8 +1450,7 @@ POLYGON(
 LINESTRING(POINT(61, 58), POINT(53, -3), POINT(-91, -19), POINT(61, 58)),
 LINESTRING(POINT(-70, -6), POINT(-70, -6)))),
 LINESTRING(POINT(27, 6), POINT(19, 15), POINT(78, -36)));
-Warnings:
-Error	3037	Invalid GIS data provided to function polygon.
+ERROR 22023: Invalid GIS data provided to function polygon.
 SELECT ST_SYMDIFFERENCE(
 MULTIPOLYGON(
 POLYGON(

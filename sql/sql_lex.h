@@ -3087,9 +3087,6 @@ public:
   // CALL statement-specific fields:
   List<Item>          call_value_list;
 
-  // DO statement-specific fields:
-  List<Item>          *do_insert_list;
-
   // HANDLER statement-specific fields:
   List<Item>          *handler_insert_list;
 
