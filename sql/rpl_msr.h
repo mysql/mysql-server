@@ -89,9 +89,6 @@ typedef std::map<int, mi_map> replication_channel_map;
          (i.e NULL). A new master info is added to this array at the
          first NULL always.
 
-  @todo: Make this class a singleton, so that only one object exists for an
-         instance.
-
   @optional_todo: since every select * in replication pfs table depends on
          LOCK_msr_map, think of either splitting the lock into rw lock
          OR making a copy of all slave_info_objects for info display.
@@ -114,6 +111,7 @@ private:
     and cannot be modified.
   */
   static const char* default_channel;
+  Master_info *default_channel_mi;
   static const char* group_replication_channel_names[];
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -134,8 +132,17 @@ public:
   /* Constructor for this class.*/
   Multisource_info()
   {
+    /*
+      This class should be a singleton.
+      The assert below is to prevent it to be instantiated more than once.
+    */
+#ifndef DBUG_OFF
+    static int instance_count= 0;
+    instance_count++;
+    DBUG_ASSERT(instance_count == 1);
+#endif
     current_mi_count= 0;
-
+    default_channel_mi= NULL;
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
     init_rpl_pfs_mi();
 #endif  /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -159,7 +166,7 @@ public:
 
   /**
     Find the master_info object corresponding to a channel explicitly
-    from replication_channel_map;
+    from replication channel_map;
     Return if it exists, otherwise return 0
 
     @param[in]  channel       channel name for the master info object.
@@ -168,6 +175,17 @@ public:
                               in the map. Otherwise, NULL;
   */
   Master_info* get_mi(const char* channel_name);
+
+  /**
+    Return the master_info object corresponding to the default channel.
+    This function does not require LOCK_channel_map as get_mi does.
+    @retval                   pointer to the master info object if exists.
+                              Otherwise, NULL;
+  */
+  Master_info* get_default_channel_mi()
+  {
+    return default_channel_mi;
+  }
 
   /**
     Remove the entry corresponding to the channel, from the
@@ -237,9 +255,10 @@ public:
   */
   inline bool is_valid_channel_count()
   {
+    bool is_valid= current_mi_count < MAX_CHANNELS;
     DBUG_EXECUTE_IF("max_replication_channels_exceeded",
-                    current_mi_count= MAX_CHANNELS+1;);
-    return (current_mi_count < MAX_CHANNELS);
+                    is_valid= false;);
+    return (is_valid);
   }
 
   /**
@@ -337,6 +356,20 @@ public:
 
 /* Global object for multisourced slave. */
 extern Multisource_info channel_map;
+
+static bool inline is_slave_configured()
+{
+  /* Server was started with server_id == 0
+     OR
+     failure to load slave info repositories because of repository
+     mismatch i.e Assume slave had a multisource replication with several
+     channels setup with TABLE repository. Then if the slave is restarted
+     with FILE repository, we fail to load any of the slave repositories,
+     including the default channel one.
+     Hence, channel_map.get_default_channel_mi() will return NULL.
+  */
+  return (channel_map.get_default_channel_mi() != NULL);
+}
 
 #endif   /* HAVE_REPLICATION */
 #endif  /*RPL_MSR_H*/

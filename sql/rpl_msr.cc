@@ -56,6 +56,10 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
   if(!ret.second)
     DBUG_RETURN(true);
 
+  /* Save the pointer for the default_channel to avoid searching it */
+  if (!strcmp(channel_name, get_default_channel()))
+    default_channel_mi= mi;
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   res= add_mi_to_rpl_pfs_mi(mi);
 #endif
@@ -141,6 +145,9 @@ void Multisource_info::delete_mi(const char* channel_name)
   it->second= 0;
   /* erase from the map */
   map_it->second.erase(it);
+
+  if (default_channel_mi == mi)
+    default_channel_mi= NULL;
 
   /* delete the master info */
   if (mi)

@@ -136,8 +136,6 @@ int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 
 static thread_local_key_t RPL_MASTER_INFO;
 
-static bool inline is_slave_configured();
-
 enum enum_slave_reconnect_actions
 {
   SLAVE_RECON_ACT_REG= 0,
@@ -419,13 +417,13 @@ int init_slave()
      active_mi from other part of the code except names and comments.
    */
 
-  active_mi= channel_map.get_mi(channel_map.get_default_channel());
+  active_mi= channel_map.get_default_channel_mi();
 
-
+#ifndef DBUG_OFF
   /* @todo: Print it for all the channels */
   {
     Master_info *default_mi;
-    default_mi= channel_map.get_mi(channel_map.get_default_channel());
+    default_mi= channel_map.get_default_channel_mi();
     if (default_mi && default_mi->rli)
     {
       DBUG_PRINT("info", ("init group master %s %lu  group relay %s %lu event %s %lu\n",
@@ -437,6 +435,7 @@ int init_slave()
                           (ulong) default_mi->rli->get_event_relay_log_pos()));
     }
   }
+#endif
 
   if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
   {
@@ -538,7 +537,7 @@ bool start_slave(THD *thd)
 
   if (channel_map.get_num_instances() == 1)
   {
-    mi= channel_map.get_mi(channel_map.get_default_channel());
+    mi= channel_map.get_default_channel_mi();
     DBUG_ASSERT(mi);
     if (start_slave(thd, &thd->lex->slave_connection,
                     &thd->lex->mi, thd->lex->slave_thd_opt, mi, true))
@@ -608,7 +607,7 @@ int stop_slave(THD *thd)
 
    if (channel_map.get_num_instances() == 1)
    {
-     mi= channel_map.get_mi(channel_map.get_default_channel());
+     mi= channel_map.get_default_channel_mi();
 
      DBUG_ASSERT(!strcmp(mi->get_channel(),
                          channel_map.get_default_channel()));
@@ -9915,7 +9914,7 @@ int reset_slave(THD *thd)
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
-    mi= channel_map.get_mi(channel_map.get_default_channel());
+    mi= channel_map.get_default_channel_mi();
     if (mi && reset_slave(thd, mi, thd->lex->reset_slave_info.all))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
@@ -11116,22 +11115,6 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
   return 0;
 }
 
-
-bool inline is_slave_configured()
-{
-
-  /* If channel_map count is zero because of opt_slave_skip_start
-     OR
-     failure to load slave info repositories because of repository
-     mismatch i.e Assume slave had a multisource replication with several
-     channels setup  with TABLE repository. Then if the slave is restarted
-     with FILE repository, we fail to load any of the slave repositories.
-     Hence, channel_map.get_num_instances() will be 0
-  */
-
-  return (channel_map.get_num_instances() > 0);
-
-}
 
 /**
   Checks if any slave threads of any channel is running in Multisource

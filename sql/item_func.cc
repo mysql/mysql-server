@@ -4780,7 +4780,7 @@ longlong Item_master_pos_wait::val_int()
       my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
     }
     else
-      mi= channel_map.get_mi(channel_map.get_default_channel());
+      mi= channel_map.get_default_channel_mi();
   }
 
    mysql_mutex_unlock(&LOCK_msr_map);
@@ -4937,7 +4937,7 @@ longlong Item_master_gtid_set_wait::val_int()
       DBUG_RETURN(0);
     }
     else
-      mi= channel_map.get_mi(channel_map.get_default_channel());
+      mi= channel_map.get_default_channel_mi();
   }
 
   if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
