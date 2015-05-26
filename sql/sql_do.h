@@ -25,7 +25,7 @@ struct LEX;
 class Query_result_do :public Query_result
 {
 public:
-  Query_result_do(THD *thd): Query_result() {}
+  Query_result_do(THD *thd): Query_result(thd) {}
   bool send_result_set_metadata(List<Item> &list, uint flags) { return false; }
   bool send_data(List<Item> &items);
   bool send_eof();

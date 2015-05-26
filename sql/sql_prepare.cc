@@ -1379,7 +1379,7 @@ static int mysql_test_select(Prepared_statement *stmt,
     }
     else
     {
-      if (!(lex->result= new (stmt->mem_root) Query_result_send()))
+      if (!(lex->result= new (stmt->mem_root) Query_result_send(thd)))
       {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
                  static_cast<int>(sizeof(Query_result_send)));
