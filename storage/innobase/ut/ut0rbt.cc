@@ -72,6 +72,7 @@ rbt_print_subtree(
 	}
 }
 
+#if defined UNIV_DEBUG || defined IB_RBT_TESTING
 /**********************************************************************//**
 Verify that the keys are in order.
 @return TRUE of OK. FALSE if not ordered */
@@ -109,6 +110,7 @@ rbt_check_ordering(
 
 	return(TRUE);
 }
+#endif /* UNIV_DEBUG || IB_RBT_TESTING */
 
 /**********************************************************************//**
 Check that every path from the root to the leaves has the same count.
