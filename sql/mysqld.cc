@@ -5927,7 +5927,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
 
-  Master_info *mi =msr_map.get_mi(msr_map.get_default_channel());
+  Master_info *mi= channel_map.get_mi(channel_map.get_default_channel());
 
   if (mi)
   {
@@ -5952,7 +5952,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 {
 
   Master_info *mi;
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_mi(channel_map.get_default_channel());
 
   if (mi)
   {
@@ -5972,7 +5972,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
   Master_info *mi;
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_mi(channel_map.get_default_channel());
 
   if (mi)
   {
@@ -5994,7 +5994,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   MYSQL_TIME received_heartbeat_time;
 
   Master_info *mi;
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_mi(channel_map.get_default_channel());
 
   if (mi)
   {
@@ -6023,7 +6023,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
 
   Master_info *mi;
-  mi=  msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_mi(channel_map.get_default_channel());
 
   if (mi)
   {

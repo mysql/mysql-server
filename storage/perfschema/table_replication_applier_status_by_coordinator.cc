@@ -115,7 +115,7 @@ void table_replication_applier_status_by_coordinator::reset_position(void)
 
 ha_rows table_replication_applier_status_by_coordinator::get_row_count()
 {
- return msr_map.get_max_channels();
+ return channel_map.get_max_channels();
 }
 
 
@@ -125,10 +125,11 @@ int table_replication_applier_status_by_coordinator::rnd_next(void)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  for(m_pos.set_at(&m_next_pos); m_pos.m_index < msr_map.get_max_channels();
-      m_pos.next())
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.m_index < channel_map.get_max_channels();
+       m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
 
     /*
       Construct and display SQL Thread's (Coordinator) information in
@@ -162,7 +163,7 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
 
   mysql_mutex_lock(&LOCK_msr_map);
 
-  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
     mysql_mutex_unlock(&LOCK_msr_map);

@@ -336,7 +336,7 @@ public:
 };
 
 /* Global object for multisourced slave. */
-extern Multisource_info  msr_map;
+extern Multisource_info channel_map;
 
 #endif   /* HAVE_REPLICATION */
 #endif  /*RPL_MSR_H*/

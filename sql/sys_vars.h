@@ -38,7 +38,7 @@
 #include "tztime.h"               // Time_zone
 #include "binlog.h"               // mysql_bin_log
 #include "rpl_rli.h"              // sql_slave_skip_counter
-#include "rpl_msr.h"              // msr_map
+#include "rpl_msr.h"              // channel_map
 #include "rpl_group_replication.h"// is_group_replication_running
 
 
@@ -2743,7 +2743,7 @@ public:
     // Cannot set OFF when some channel uses AUTO_POSITION.
     if (new_gtid_mode == GTID_MODE_OFF)
     {
-      for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+      for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
       {
         Master_info *mi= it->second;
         DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
