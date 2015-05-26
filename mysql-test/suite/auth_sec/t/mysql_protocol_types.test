@@ -1,4 +1,3 @@
-
 ######################## suite/auth_sec/mysql_protocol_types.test #####################
 # Connetion Protocols testing with new CONNECTION_TYPE field in P_S.THREADS,audit log #
 # and general log.                                                                    #
