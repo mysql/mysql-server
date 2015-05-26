@@ -2473,7 +2473,7 @@ SELECT ST_DISJOINT(
 --echo # BUG#20841874 : ASSERT:GEOMETRY::EQUALS(CURRENT_ROBUST_RING.FRONT(), CURRENT_ROBUST_RING.BACK())
 --echo ######################################################################################################
 
-SELECT ST_ASTEXT(ST_BUFFER(
+DO(SELECT ST_BUFFER(
     ST_GEOMFROMTEXT("MULTILINESTRING((-58 19, 61 88),(1.922421e+307 1.520384e+308, 15 42, 89 -93, -89 -22),(-63 -5, -262141 -536870908, -3 87, 77 -69))")
     , 0x98));
 
