@@ -31,9 +31,6 @@
 #else
 
 #include <sys/stat.h>
-#include <EventLogger.hpp>
-
-extern EventLogger* g_eventLogger;
 
 int my_socket_close(ndb_socket_t s)
 {
@@ -42,8 +39,8 @@ int my_socket_close(ndb_socket_t s)
   {
     if ((sb.st_mode & S_IFMT) != S_IFSOCK)
     {
-      g_eventLogger->error("fd=%d: not socket: mode=%o",
-                           s.fd, sb.st_mode);
+      fprintf(stderr, "fd=%d: not socket: mode=%o",
+              s.fd, sb.st_mode);
       abort();
     }
   }
