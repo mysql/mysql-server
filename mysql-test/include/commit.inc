@@ -222,6 +222,7 @@ rollback;
 select * from t2;
 
 insert into t2 (a) values (1023);
+--error ER_DUP_ENTRY
 do (f2(23));
 select * from t2;
 rollback;

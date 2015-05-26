@@ -947,6 +947,7 @@ insert into t1 values (1);
 insert into t1 values (2);
 -- error ER_SUBQUERY_NO_1_ROW
 set sort_buffer_size = (select s1 from t1);
+-- error ER_SUBQUERY_NO_1_ROW
 do (select * from t1);
 drop table t1;
 

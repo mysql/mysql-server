@@ -1299,7 +1299,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <boolfunc2creator> comp_op
 
 %type <NONE>
-        create change do drop
+        create change drop
         truncate rename
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
@@ -1434,6 +1434,7 @@ END_OF_INPUT
         opt_query_spec_options
 
 %type <select_options> select_option select_option_list select_options
+        empty_select_options
 
 %type <node> join_table order_or_limit opt_union_order_or_limit
         option_value union_opt
@@ -1509,7 +1510,7 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <select> select
+%type <select> select do_stmt
 
 %type <param_marker> param_marker
 
@@ -1642,7 +1643,7 @@ statement:
         | deallocate
         | delete_stmt           {  MAKE_CMD($1); }
         | describe
-        | do
+        | do_stmt               { CONTEXTUALIZE($1); }
         | drop
         | execute
         | flush
@@ -8885,7 +8886,7 @@ opt_ignore_leaves:
 select:
           select_init
           {
-            $$= NEW_PTN PT_select($1);
+            $$= NEW_PTN PT_select($1, SQLCOM_SELECT);
           }
         ;
 
@@ -10963,16 +10964,23 @@ into_destination:
   DO statement
 */
 
-do:
-          DO_SYM
+do_stmt:
+          DO_SYM empty_select_options select_item_list
           {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_DO;
+            $$= NEW_PTN PT_select(
+                  NEW_PTN PT_select_init2(NULL,
+                    NEW_PTN PT_select_part2(
+                      NEW_PTN PT_select_options_and_item_list($2, $3)), NULL),
+                                                              SQLCOM_DO);
           }
-          expr_list
+        ;
+
+empty_select_options:
+          /* empty */
           {
-            CONTEXTUALIZE($3);
-            Lex->do_insert_list= &$3->value;
+            $$.query_spec_options= 0;
+            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
+            $$.max_statement_time= 0;
           }
         ;
 

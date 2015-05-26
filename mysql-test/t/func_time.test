@@ -1113,6 +1113,7 @@ DROP TABLE t1;
 --echo #              IN MY_USECONDS_TO_STR
 --echo #
 
+--error ER_GIS_INVALID_DATA
 DO MBRContains(1, if(0, coalesce(NULL), now()));
 
 CREATE TABLE t1 AS SELECT IF(0, coalesce(NULL), now(0)) + 0;
