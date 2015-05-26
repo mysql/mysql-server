@@ -327,9 +327,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   else
     error= init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
-  if (error)
+  if (error || (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex, 1)))
     goto exit_without_my_ok;
-  init_ftfuncs(thd, select_lex, 1);
+
   THD_STAGE_INFO(thd, stage_updating);
 
   if (table->triggers &&
@@ -760,7 +760,9 @@ multi_delete::initialize_tables(JOIN *join)
 				  table->file->ref_length,
 				  MEM_STRIP_BUF_SIZE);
   }
-  init_ftfuncs(thd, thd->lex->current_select, 1);
+  if (thd->lex->current_select->has_ft_funcs() && init_ftfuncs(thd, thd->lex->current_select, 1))
+    DBUG_RETURN(true);
+
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 

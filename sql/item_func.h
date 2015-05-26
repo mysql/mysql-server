@@ -1898,7 +1898,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
-  void init_search(bool no_order);
+  bool init_search(THD *thd, bool no_order);
 
   /**
      Get number of matching rows from FT handler.

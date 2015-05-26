@@ -902,6 +902,11 @@ public:
   {
     return &link_next;
   }
+
+  /// @return true if query block references full-text functions
+  bool has_ft_funcs() const
+  { return ftfunc_list->elements > 0; }
+
   void invalidate();
   void mark_as_dependent(st_select_lex *last);
 

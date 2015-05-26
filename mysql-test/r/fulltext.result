@@ -689,3 +689,10 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests
+# Bug#21140111: Explain ... match against: Assertion failed: ret ...
+CREATE TABLE z(a INTEGER) engine=innodb;
+CREATE TABLE q(b TEXT CHARSET latin1, fulltext(b)) engine=innodb;
+explain format=json SELECT 1 FROM q
+WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
+ERROR HY000: Incorrect arguments to MATCH
+DROP TABLE z, q;

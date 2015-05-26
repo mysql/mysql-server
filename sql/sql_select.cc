@@ -788,8 +788,12 @@ void JOIN::reset()
       func->clear();
   }
 
-  if (!(select_options & SELECT_DESCRIBE))
-    init_ftfuncs(thd, select_lex, MY_TEST(order));
+  if (!(select_options & SELECT_DESCRIBE) &&
+      select_lex->has_ft_funcs())
+  {
+    /* TODO: move the code to JOIN::exec */
+    (void)init_ftfuncs(thd, select_lex, MY_TEST(order));
+  }
 
   DBUG_VOID_RETURN;
 }

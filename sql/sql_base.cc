@@ -9378,17 +9378,19 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 
 int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
 {
-  if (select_lex->ftfunc_list->elements)
-  {
-    List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
-    Item_func_match *ifm;
-    DBUG_PRINT("info",("Performing FULLTEXT search"));
-    THD_STAGE_INFO(thd, stage_fulltext_initialization);
+  DBUG_ASSERT(select_lex->has_ft_funcs());
 
-    while ((ifm=li++))
-      ifm->init_search(no_order);
+  List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
+  DBUG_PRINT("info",("Performing FULLTEXT search"));
+  THD_STAGE_INFO(thd, stage_fulltext_initialization);
+
+  Item_func_match *ifm;
+  while ((ifm= li++))
+  {
+    if (ifm->init_search(thd, no_order))
+      return true;
   }
-  return 0;
+  return false;
 }
 
 
