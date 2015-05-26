@@ -1314,8 +1314,8 @@ private:
   /* Get a send thread which isn't awake currently */
   struct thr_send_thread_instance* get_not_awake_send_thread(NodeId node);
 
-  /* Lock send_buffer for this node. */
-  void lock_send_node(NodeId node);
+  /* Try to lock send_buffer for this node. */
+  int trylock_send_node(NodeId node);
 
   /* Perform the actual send to the node, release send_buffer lock.
    * Return 'true' if there are still more to be sent to this node.
@@ -1589,11 +1589,11 @@ check_available_send_data(struct thr_data *not_used)
   return !g_send_threads->data_available();
 }
 
-void
-thr_send_threads::lock_send_node(NodeId node)
+int
+thr_send_threads::trylock_send_node(NodeId node)
 {
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
-  lock(&sb->m_send_lock);
+  return trylock(&sb->m_send_lock);
 }
 
 bool
@@ -1795,30 +1795,38 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     this_send_thread->m_awake = TRUE;
 
     NodeId node;
-    while ((node = get_node(instance_no)) != 0 && // PENDING -> ACTIVE
-           globalData.theRestartFlag != perform_stop)
+    while (globalData.theRestartFlag != perform_stop &&
+           (node = get_node(instance_no)) != 0)   // PENDING -> ACTIVE
     {
+      /**
+       * Multiple send threads can not 'get' the same
+       * node simultaneously. Thus, we does not need
+       * to keep the global send thread mutex any longer.
+       * Also avoids worker threads blocking on us in 
+       * ::alert_send_thread
+       */
+      NdbMutex_Unlock(send_thread_mutex);
       this_send_thread->m_watchdog_counter = 6;
 
       /**
-       * Multiple send threads can not 'get' the same
-       * node simultaneously. Thus, there will be no lock
-       * contentions between different send threads.
-       * However, lock is required by 'trp_callback protocol',
-       * and to protect reset_send_buffers(), and
-       * lock_/unlock_transporter()
+       * Need a lock on the send buffers to protect against 
+       * worker thread doing ::forceSend, possible 
+       * reset_send_buffers() and/or lock_/unlock_transporter().
+       * To avoid a livelock with ::forceSend() on an overloaded 
+       * systems, we 'try-lock', and reinsert the node for 
+       * later retry if failed.
        */
-      lock_send_node(node);
-      NdbMutex_Unlock(send_thread_mutex);
+      bool more = true;
+      if (likely(trylock_send_node(node) == 0))
+      {
+        more = perform_send(node, instance_no);
+        /* We return with no locks or mutexes held */
 
-      const bool more = perform_send(node, instance_no);
-      /* We return with no locks or mutexes held */
-
-      /* Release chunk-wise to decrease pressure on lock */
-      this_send_thread->m_watchdog_counter = 3;
-      this_send_thread->m_send_buffer_pool.
-        release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
-
+        /* Release chunk-wise to decrease pressure on lock */
+        this_send_thread->m_watchdog_counter = 3;
+        this_send_thread->m_send_buffer_pool.
+          release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
+      }
       /**
        * Either own perform_send() processing, or external 'alert'
        * could have signaled that there are more sends pending.
