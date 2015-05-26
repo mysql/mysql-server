@@ -758,6 +758,13 @@ extern "C" void *compress_gtid_table(void *p_thd)
   mysql_thread_set_psi_id(thd->thread_id());
   my_thread_init();
   DBUG_ENTER("compress_gtid_table");
+
+  /*
+    TODO: The caller should not need to create a THD object,
+    this can be done here instead.
+  */
+  thd->claim_memory_ownership();
+
   init_thd(&thd);
   for (;;)
   {

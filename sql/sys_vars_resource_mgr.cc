@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -169,6 +169,24 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   */
   *var= ptr;
   return false;
+}
+
+void Session_sysvar_resource_manager::claim_memory_ownership()
+{
+  /* Release Sys_var_charptr resources here. */
+  sys_var_ptr *ptr;
+  int i= 0;
+  while ((ptr= (sys_var_ptr*)my_hash_element(&m_sysvar_string_alloc_hash, i)))
+  {
+    if (ptr->data)
+      my_claim(ptr->data);
+    i++;
+  }
+
+  if (m_sysvar_string_alloc_hash.records)
+  {
+    my_hash_claim(&m_sysvar_string_alloc_hash);
+  }
 }
 
 
