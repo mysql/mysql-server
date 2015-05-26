@@ -1207,6 +1207,10 @@ public:
   bool has_limit() const
   { return select_limit != NULL; }
 
+  /// @return true if query block references full-text functions
+  bool has_ft_funcs() const
+  { return ftfunc_list->elements > 0; }
+
   void invalidate();
 
   bool set_braces(bool value);

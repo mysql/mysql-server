@@ -7373,7 +7373,15 @@ bool Item_func_match::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_func_match::init_search()
+/**
+  Initialize searching within full-text index.
+
+  @param thd    Thread handler
+
+  @returns false if success, true if error
+*/
+
+bool Item_func_match::init_search(THD *thd)
 {
   DBUG_ENTER("Item_func_match::init_search");
 
@@ -7382,7 +7390,7 @@ void Item_func_match::init_search()
     with fix_field
   */
   if (!fixed)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(false);
 
   TABLE *const table= table_ref->table;
   /* Check if init_search() has been called before */
@@ -7396,16 +7404,19 @@ void Item_func_match::init_search()
     */
     if (join_key)
       table->file->ft_handler= ft_handler;
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(false);
   }
 
   if (key == NO_SUCH_KEY)
   {
     List<Item> fields;
-    fields.push_back(new Item_string(" ",1, cmp_collation.collation));
+    if (fields.push_back(new Item_string(" ",1, cmp_collation.collation)))
+      DBUG_RETURN(true);
     for (uint i= 0; i < arg_count; i++)
       fields.push_back(args[i]);
     concat_ws=new Item_func_concat_ws(fields);
+    if (concat_ws == NULL)
+      DBUG_RETURN(true);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
@@ -7417,9 +7428,11 @@ void Item_func_match::init_search()
 
   if (master)
   {
-    master->init_search();
+    if (master->init_search(thd))
+      DBUG_RETURN(true);
+
     ft_handler=master->ft_handler;
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(false);
   }
 
   String *ft_tmp= 0;
@@ -7442,16 +7455,18 @@ void Item_func_match::init_search()
   if (!table->is_created())
   {
      my_error(ER_NO_FT_MATERIALIZED_SUBQUERY, MYF(0));
-     DBUG_VOID_RETURN;
+     DBUG_RETURN(true);
   }
 
   DBUG_ASSERT(master == NULL);
   ft_handler= table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
+  if (thd->is_error())
+    DBUG_RETURN(true);
 
   if (join_key)
     table->file->ft_handler=ft_handler;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
