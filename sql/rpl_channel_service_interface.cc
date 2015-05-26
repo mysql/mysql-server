@@ -220,7 +220,7 @@ int channel_create(const char* channel,
   bool thd_created= false;
   THD *thd= current_thd;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   //Don't create default channels
   if (!strcmp(channel_map.get_default_channel(), channel))
@@ -293,7 +293,7 @@ int channel_create(const char* channel,
   set_mi_settings(mi, channel_info);
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   if (thd_created)
   {

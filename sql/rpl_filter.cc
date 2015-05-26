@@ -1033,7 +1033,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
     would act on a single channel. This part of the code
     will be properly fixed in that WL.
   */
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   mi= channel_map.get_default_channel_mi();
 
@@ -1097,7 +1097,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
   my_ok(thd);
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif //HAVE_REPLICATION
   DBUG_RETURN(ret);
 }

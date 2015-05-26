@@ -81,9 +81,6 @@ Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
-/* object for multisource replication */
-Multisource_info channel_map;
-
 const char *relay_log_index= 0;
 const char *relay_log_basename= 0;
 
@@ -393,7 +390,7 @@ int init_slave()
     accepted. However bootstrap may conflict with us if it does START SLAVE.
     So it's safer to take the lock.
   */
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   if (my_create_thread_local_key(&RPL_MASTER_INFO, NULL))
     DBUG_RETURN(1);
@@ -437,7 +434,7 @@ int init_slave()
   }
 #endif
 
-  if (get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+  if (get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF)
   {
     for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
     {
@@ -497,7 +494,7 @@ int init_slave()
 
 err:
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   if (error)
     sql_print_information("Check error log for additional messages. "
                           "You will not be able to start replication until "
@@ -667,7 +664,7 @@ bool start_slave_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res= true;  /* default, an error */
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   if (!is_slave_configured())
   {
@@ -734,7 +731,7 @@ bool start_slave_cmd(THD *thd)
 
   }
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   DBUG_RETURN(res);
 }
 
@@ -759,12 +756,12 @@ bool stop_slave_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res= true;    /*default, an error */
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   if (!is_slave_configured())
   {
     my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     DBUG_RETURN(res= true);
   }
 
@@ -800,7 +797,7 @@ bool stop_slave_cmd(THD *thd)
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                command, mi->get_channel(), command);
 
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       DBUG_RETURN(true);
     }
 
@@ -811,7 +808,7 @@ bool stop_slave_cmd(THD *thd)
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(res);
 }
@@ -1905,7 +1902,7 @@ void end_slave()
     will make us wait until slave threads have started, and START SLAVE
     returns, then we terminate them here.
   */
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /* traverse through the map and terminate the threads */
   for(mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
@@ -1916,7 +1913,7 @@ void end_slave()
       terminate_slave_threads(mi,SLAVE_FORCE_ALL,
                               rpl_stop_slave_timeout);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   DBUG_VOID_RETURN;
 }
 
@@ -1932,7 +1929,7 @@ void delete_slave_info_objects()
 
   Master_info *mi= 0;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
@@ -1964,7 +1961,7 @@ void delete_slave_info_objects()
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_VOID_RETURN;
 }
@@ -3720,7 +3717,7 @@ bool show_slave_status(THD *thd)
 
   DBUG_ENTER("show_slave_status(THD)");
 
-  mysql_mutex_assert_owner(&LOCK_msr_map);
+  channel_map.assert_some_lock();
 
   num_io_gtid_sets= channel_map.get_num_instances();
 
@@ -3917,7 +3914,7 @@ bool show_slave_status_cmd(THD *thd)
 
   DBUG_ENTER("show_slave_status_cmd");
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   if (!lex->mi.for_channel)
     res= show_slave_status(thd);
@@ -3936,14 +3933,14 @@ bool show_slave_status_cmd(THD *thd)
     {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "SHOW SLAVE STATUS", mi->get_channel());
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       DBUG_RETURN(true);
     }
 
     res= show_slave_status(thd, mi);
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(res);
 }
@@ -9294,7 +9291,7 @@ bool flush_relay_logs_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool error =false;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /*
      lex->mi.channel is NULL, for FLUSH LOGS or when the client thread
@@ -9368,7 +9365,7 @@ bool flush_relay_logs_cmd(THD *thd)
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(error);
 }
@@ -10072,12 +10069,12 @@ bool reset_slave_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res= true;  // default, an error
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   if (!is_slave_configured())
   {
     my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION), MYF(0));
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
     DBUG_RETURN(res= true);
   }
 
@@ -10096,7 +10093,7 @@ bool reset_slave_cmd(THD *thd)
     {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "RESET SLAVE [ALL] FOR CHANNEL", mi->get_channel());
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       DBUG_RETURN(true);
     }
 
@@ -10106,7 +10103,7 @@ bool reset_slave_cmd(THD *thd)
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(res);
 }
@@ -10609,12 +10606,12 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   /* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 requires GTID_MODE != OFF */
   if (lex_mi->auto_position == LEX_MASTER_INFO::LEX_MI_ENABLE &&
       /*
-        We hold lock_msr_map for the duration of the CHANGE MASTER.
+        We hold channel_map lock for the duration of the CHANGE MASTER.
         This is important since it prevents that a concurrent
         connection changes to GTID_MODE=OFF between this check and the
         point where AUTO_POSITION is stored in the table and in mi.
       */
-      get_gtid_mode(GTID_MODE_LOCK_MSR_MAP) == GTID_MODE_OFF)
+      get_gtid_mode(GTID_MODE_LOCK_CHANNEL_MAP) == GTID_MODE_OFF)
   {
     error= ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF;
     my_message(ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF,
@@ -11009,7 +11006,7 @@ bool change_master_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res=false;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /* The slave must have been initialized to allow CHANGE MASTER statements */
   if (!is_slave_configured())
@@ -11066,7 +11063,7 @@ bool change_master_cmd(THD *thd)
   }
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(res);
 }
@@ -11119,7 +11116,7 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
 /**
   Checks if any slave threads of any channel is running in Multisource
   replication.
-  @note: The caller shall possess LOCK_msr_map before calling this function.
+  @note: The caller shall possess channel_map lock before calling this function.
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
   @param[in]        already_locked_mi the mi that has its run_lock already
@@ -11136,7 +11133,7 @@ bool is_any_slave_channel_running(int thread_mask,
   Master_info *mi= 0;
   bool is_running;
 
-  mysql_mutex_assert_owner(&LOCK_msr_map);
+  channel_map.assert_some_lock();
 
   for (mi_map::iterator it= channel_map.begin(); it != channel_map.end(); it++)
   {

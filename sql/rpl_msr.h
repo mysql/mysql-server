@@ -54,7 +54,7 @@ typedef std::map<int, mi_map> replication_channel_map;
   Relay_log_info by mi->rli;
 
   This class is not yet thread safe. Any part of replication code that
-  calls this class member function should always Lock the mutex LOCK_msr_map.
+  calls this class member function should always lock the channel_map.
 
   Only a single global object for a server instance should be created.
 
@@ -79,7 +79,7 @@ typedef std::map<int, mi_map> replication_channel_map;
            }
           }
          </pseudo_code>
-         However, we lock LOCK_msr_map for every rnd_next(); There is a gap
+         However, we lock channel_map lock for every rnd_next(); There is a gap
          where an addition/deletion of a channel would rearrange the map
          making the integer indices of the pfs table point to a wrong value.
          Either missing a row or duplicating a row.
@@ -88,10 +88,6 @@ typedef std::map<int, mi_map> replication_channel_map;
          replciation pfs tables, by marking a master_info defeated as 0
          (i.e NULL). A new master info is added to this array at the
          first NULL always.
-
-  @optional_todo: since every select * in replication pfs table depends on
-         LOCK_msr_map, think of either splitting the lock into rw lock
-         OR making a copy of all slave_info_objects for info display.
 */
 class Multisource_info
 {
@@ -113,6 +109,14 @@ private:
   static const char* default_channel;
   Master_info *default_channel_mi;
   static const char* group_replication_channel_names[];
+
+  /**
+    This lock was designed to protect the channel_map from adding or removing
+    master_info objects from the map (adding or removing replication channels).
+    In fact it also acts like the LOCK_active_mi of MySQL 5.6, preventing two
+    replication administrative commands to run in parallel.
+  */
+  Checkable_rwlock *m_channel_map_lock;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
@@ -147,6 +151,17 @@ public:
     init_rpl_pfs_mi();
 #endif  /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+    m_channel_map_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                             key_rwlock_channel_map_lock
+#endif
+                                            );
+  }
+
+  /* Destructor for this class.*/
+  ~Multisource_info()
+  {
+    delete m_channel_map_lock;
   }
 
   /**
@@ -352,6 +367,29 @@ public:
   Master_info* get_mi_at_pos(uint pos);
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+  /**
+    Acquire the read lock.
+  */
+  inline void rdlock()
+  { m_channel_map_lock->rdlock(); }
+
+  /**
+    Acquire the write lock.
+  */
+  inline void wrlock()
+  { m_channel_map_lock->wrlock(); }
+
+  /**
+    Release the lock (whether it is a write or read lock).
+  */
+  inline void unlock()
+  { m_channel_map_lock->unlock(); }
+
+  /**
+    Assert that some thread holds either the read or the write lock.
+  */
+  inline void assert_some_lock() const
+  { m_channel_map_lock->assert_some_lock(); }
 };
 
 /* Global object for multisourced slave. */
