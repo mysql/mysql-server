@@ -420,5 +420,4 @@ LineString(Point(1, 1), Point(2, 2), Point(3, 3))
 )
 )
 );
-Warnings:
-Error	3037	Invalid GIS data provided to function st_centroid.
+ERROR 22023: Invalid GIS data provided to function st_centroid.

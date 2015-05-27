@@ -565,7 +565,7 @@ int main(int argc, char *argv[])
         goto end;
 
       /* Generate Client Key and Certificate */
-      if ((ret_val= execute_command(x509_key("_Auto_Generated_Server_Certificate",
+      if ((ret_val= execute_command(x509_key("_Auto_Generated_Client_Certificate",
                                              cert_files[CLIENT_KEY], cert_files[CLIENT_REQ]),
                                     "Error generating client_key.pem and client_req.pem")))
         goto end;
