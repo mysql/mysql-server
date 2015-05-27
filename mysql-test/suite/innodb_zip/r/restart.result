@@ -257,7 +257,6 @@ test/t8_restart	s1_restart	129	8	Compact	0	General
 test/t9_restart	s1_restart	161	8	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t1_restart	MYSQLD_DATADIR/test/t1_restart.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t2_restart	MYSQLD_DATADIR/test/t2_restart.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t3_restart	MYSQLD_DATADIR/test/t3_restart.ibd	DEFAULT	2048	Compressed	Single
@@ -473,7 +472,6 @@ test/t8_restart	s1_restart	129	8	Compact	0	General
 test/t9_restart	s1_restart	161	8	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t1_restart	MYSQLD_DATADIR/test/t1_restart.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t2_restart	MYSQLD_DATADIR/test/t2_restart.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t3_restart	MYSQLD_DATADIR/test/t3_restart.ibd	DEFAULT	2048	Compressed	Single
@@ -501,7 +499,6 @@ ALTER TABLE t6_restart TRUNCATE PARTITION p2;
 ALTER TABLE t7_restart TRUNCATE PARTITION p1;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t5_restart	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t6_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd	DEFAULT	2048	Compressed	Single
@@ -604,7 +601,6 @@ Variable_name	Value
 innodb_file_per_table	ON
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t5_restart	MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t6_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t6_restart#p#p0.ibd	DEFAULT	2048	Compressed	Single
@@ -703,7 +699,6 @@ RENAME TABLE t6_restart TO t66_restart;
 RENAME TABLE t7_restart TO t77_restart;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t55_restart	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t66_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd	DEFAULT	2048	Compressed	Single
@@ -799,7 +794,6 @@ Variable_name	Value
 innodb_file_per_table	ON
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t4_restart	MYSQLD_DATADIR/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t55_restart	MYSQL_TMP_DIR/alt_dir/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t66_restart#p#p0	MYSQL_TMP_DIR/alt_dir/test/t66_restart#p#p0.ibd	DEFAULT	2048	Compressed	Single
@@ -928,7 +922,6 @@ t77_restart#p#p1#sp#s3.ibd
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t4_restart	MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t55_restart	MYSQL_TMP_DIR/new_dir/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t66_restart#p#p0	MYSQL_TMP_DIR/new_dir/test/t66_restart#p#p0.ibd	DEFAULT	2048	Compressed	Single
@@ -1061,7 +1054,6 @@ t77_restart.frm
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t4_restart	MYSQL_TMP_DIR/new_dir/test/t4_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t55_restart	MYSQLD_DATADIR/test/t55_restart.ibd	DEFAULT	0	Dynamic	Single
 test/t66_restart#p#p0	MYSQLD_DATADIR/test/t66_restart#p#p0.ibd	DEFAULT	2048	Compressed	Single

@@ -319,16 +319,6 @@ dict_replace_tablespace_and_filepath(
 	const char*	filepath,
 	ulint		fsp_flags);
 
-/** Add another filepath to the Data Dictionary for the given space_id
-using an independent transaction.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	First filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_add_filepath(
-	ulint		space_id,
-	const char*	filepath);
-
 #ifndef UNIV_NONINL
 #include "dict0load.ic"
 #endif

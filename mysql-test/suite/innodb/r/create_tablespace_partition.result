@@ -156,7 +156,6 @@ test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	65	5	Compact	0
 test/t3	test/t3	65	4	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
 s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
 test/t1#p#tens#sp#subpart11	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd	DEFAULT	0	Compact or Redundant	Single
@@ -413,7 +412,6 @@ test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	1	5	Compact	0	
 test/t3	test/t3	65	4	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
 s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
 test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
