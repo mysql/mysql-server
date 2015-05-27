@@ -5922,7 +5922,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 */
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-
+  channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
@@ -5936,6 +5936,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -5946,7 +5947,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 */
 static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 {
-
+  channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
@@ -5958,6 +5959,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -5966,6 +5968,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 */
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
+  channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
@@ -5977,6 +5980,7 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -5987,6 +5991,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
 
+  channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
@@ -6005,6 +6010,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -6015,6 +6021,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
 
+  channel_map.rdlock();
   Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
@@ -6026,6 +6033,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
