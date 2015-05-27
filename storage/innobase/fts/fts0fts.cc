@@ -75,8 +75,8 @@ ulong	fts_min_token_size;
 
 
 // FIXME: testing
-ib_time_t elapsed_time = 0;
-ulint n_nodes = 0;
+static ib_time_t elapsed_time = 0;
+static ulint n_nodes = 0;
 
 #ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */

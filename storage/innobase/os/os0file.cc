@@ -712,18 +712,18 @@ static bool		os_aio_recommend_sleep_for_read_threads = false;
 #endif /* !UNIV_HOTBACKUP */
 
 ulint	os_n_file_reads		= 0;
-ulint	os_bytes_read_since_printout = 0;
+static ulint	os_bytes_read_since_printout = 0;
 ulint	os_n_file_writes	= 0;
 ulint	os_n_fsyncs		= 0;
-ulint	os_n_file_reads_old	= 0;
-ulint	os_n_file_writes_old	= 0;
-ulint	os_n_fsyncs_old		= 0;
+static ulint	os_n_file_reads_old	= 0;
+static ulint	os_n_file_writes_old	= 0;
+static ulint	os_n_fsyncs_old		= 0;
 /** Number of pending write operations */
 ulint	os_n_pending_writes = 0;
 /** Number of pending read operations */
 ulint	os_n_pending_reads = 0;
 
-time_t	os_last_printout;
+static time_t	os_last_printout;
 bool	os_has_said_disk_full	= false;
 
 /** Default Zip compression level */
