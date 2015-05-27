@@ -2919,12 +2919,6 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
       if (!(pos= *(char**) value))
         pos= "";
 
-      DBUG_EXECUTE_IF("alter_server_version_str",
-            if (!my_strcasecmp(system_charset_info, variable->name, "version"))
-            {
-              pos= "some-other-version";
-            });
-
       end= strend(pos);
       break;
     }

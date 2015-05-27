@@ -4135,7 +4135,7 @@ static Sys_var_ulonglong Sys_tmp_table_size(
        BLOCK_SIZE(1));
 
 static char *server_version_ptr;
-static Sys_var_charptr Sys_version(
+static Sys_var_version Sys_version(
        "version", "Server version",
        READ_ONLY GLOBAL_VAR(server_version_ptr), NO_CMD_LINE,
        IN_SYSTEM_CHARSET, DEFAULT(server_version));
