@@ -6605,6 +6605,7 @@ struct btr_blob_log_check_t {
 		dict_index_t*	index = m_pcur->index();
 		ulint		offs = 0;
 		ulint		page_no = ULINT_UNDEFINED;
+		FlushObserver*	observer = m_mtr->get_flush_observer();
 
 		if (m_op == BTR_STORE_INSERT_BULK) {
 			offs = page_offset(*m_rec);
@@ -6625,6 +6626,7 @@ struct btr_blob_log_check_t {
 		m_mtr->start();
 		m_mtr->set_log_mode(log_mode);
 		m_mtr->set_named_space(index->space);
+		m_mtr->set_flush_observer(observer);
 
 		if (m_op == BTR_STORE_INSERT_BULK) {
 			page_id_t       page_id(dict_index_get_space(index),
@@ -6811,10 +6813,26 @@ btr_store_big_rec_extern_fields(
 	ulint	n_used = 0;	/* number of pages used */
 #endif /* UNIV_DEBUG */
 
-	if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
-				      FSP_BLOB, btr_mtr)) {
-		error = DB_OUT_OF_FILE_SPACE;
-		goto func_exit;
+	if (op == BTR_STORE_INSERT_BULK) {
+		mtr_t	alloc_mtr;
+
+		mtr_start(&alloc_mtr);
+		alloc_mtr.set_named_space(index->space);
+
+		if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
+					      FSP_BLOB, &alloc_mtr)) {
+			mtr_commit(&alloc_mtr);
+			error = DB_OUT_OF_FILE_SPACE;
+			goto func_exit;
+		}
+
+		mtr_commit(&alloc_mtr);
+	} else {
+		if (!fsp_reserve_free_extents(&n_reserved, space_id, n_extents,
+					      FSP_BLOB, btr_mtr)) {
+			error = DB_OUT_OF_FILE_SPACE;
+			goto func_exit;
+		}
 	}
 
 	ut_ad(n_reserved > 0);
@@ -6870,10 +6888,8 @@ btr_store_big_rec_extern_fields(
 			mtr_start(&mtr);
 			mtr.set_named_space(index->space);
 			mtr.set_log_mode(btr_mtr->get_log_mode());
+			mtr.set_flush_observer(btr_mtr->get_flush_observer());
 
-			/* Take sx-latch on the root page so that we can do
-			page allocations */
-			btr_root_get(index, &mtr);
 			buf_page_get(rec_block->page.id,
 				     rec_block->page.size, RW_X_LATCH, &mtr);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -74,8 +74,6 @@ ut_dbg_assertion_failed(
 /** Silence warnings about an unused variable by doing a null assignment.
 @param A the unused variable */
 #define UT_NOT_USED(A)	A = A
-
-#ifdef UNIV_COMPILE_TEST_FUNCS
 
 #if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 
@@ -180,8 +178,6 @@ private:
 };
 
 #endif /* HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
-
-#endif /* UNIV_COMPILE_TEST_FUNCS */
 
 #endif /* !UNIV_INNOCHECKSUM */
 

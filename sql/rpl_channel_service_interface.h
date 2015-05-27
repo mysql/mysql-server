@@ -18,10 +18,11 @@
 
 //Channel errors
 
-#define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR -1
-#define RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR -1
-#define RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE -2
-//Error for the wait event consuption, equal to the server wait for gtid method
+#define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR      -1
+#define RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR -2
+#define RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE      -3
+#define RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR  -4
+//Error for the wait event consumption, equal to the server wait for GTID method
 #define REPLICATION_THREAD_WAIT_TIMEOUT_ERROR -1
 #define REPLICATION_THREAD_WAIT_NO_INFO_ERROR -2
 
@@ -52,7 +53,7 @@ enum enum_multi_threaded_workers_type
 
 /**
  Creation information for a channel.
- It includes the data that is usually associated to a change master comand
+ It includes the data that is usually associated to a change master command
 */
 struct st_channel_info
 {
@@ -158,7 +159,7 @@ int channel_start(const char* channel,
 
   @param channel              The channel name
   @param threads_to_stop      The types of threads to be stopped
-  @param timeout              The expected time in which the thread shouls stop
+  @param timeout              The expected time in which the thread should stop
   @return the operation status
     @retval 0      OK
     @retval !=0    Error
@@ -170,7 +171,7 @@ int channel_stop(const char* channel,
 /**
   Purges the channel logs
 
-  @param reset_all  If true, the method will purge logs and remove the cannel
+  @param reset_all  If true, the method will purge logs and remove the channel
                     If false, only the channel information will be reset.
 
   @return the operation status
@@ -236,7 +237,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
 
   @note This method assumes that the channel is not receiving any more events.
         If it is still receiving, then the method should wait for execution of
-        transactions that were waiting when this method was invocate
+        transactions that were present when this method was invoked.
 
   @param timeout  the time (seconds) after which the method returns if the
                   above condition was not satisfied
@@ -255,6 +256,6 @@ int channel_wait_until_apply_queue_empty(char* channel, long long timeout);
     @retval 0      OK
     @retval != 0   Error on queue
 */
-int intialize_channel_service_interface();
+int initialize_channel_service_interface();
 
 #endif //RPL_SERVICE_INTERFACE_INCLUDE

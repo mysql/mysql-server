@@ -843,6 +843,8 @@ srv_undo_tablespaces_init(
 		n_undo_tablespaces = trx_rseg_get_n_undo_tablespaces(
 			undo_tablespace_ids);
 
+		srv_undo_tablespaces_active = n_undo_tablespaces;
+
 		/* Check if any of the UNDO tablespace needs fix-up because
 		server crashed while truncate was active on UNDO tablespace.*/
 		for (i = 0; i < n_undo_tablespaces; ++i) {
@@ -960,13 +962,17 @@ srv_undo_tablespaces_init(
 		return(err != DB_SUCCESS ? err : DB_ERROR);
 
 	} else  if (n_undo_tablespaces > 0) {
+
 		ib::info() << "Opened " << n_undo_tablespaces
 			<< " undo tablespaces";
 
+		ib::info() << srv_undo_tablespaces_active << " undo tablespaces"
+			<< " made active";
+
 		if (n_conf_tablespaces == 0) {
-			ib::warn() << "Using the system tablespace for all"
-				" UNDO logging because"
-				" innodb_undo_tablespaces=0";
+			ib::warn() << "Will use system tablespace for all newly"
+				<< " created rollback-segment as"
+				<< " innodb_undo_tablespaces=0";
 		}
 	}
 
@@ -1034,14 +1040,11 @@ srv_undo_tablespaces_init(
 		     it != undo::Truncate::s_fix_up_spaces.end();
 		     ++it) {
 
-			trx_t		trx;
-			trx.mysql_thd = NULL;
+			buf_LRU_flush_or_remove_pages(
+				TRX_SYS_SPACE, BUF_REMOVE_FLUSH_WRITE, NULL);
 
 			buf_LRU_flush_or_remove_pages(
-				TRX_SYS_SPACE, BUF_REMOVE_FLUSH_WRITE, &trx);
-
-			buf_LRU_flush_or_remove_pages(
-				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
+				*it, BUF_REMOVE_FLUSH_WRITE, NULL);
 
 			/* Remove the truncate redo log file. */
 			undo::Truncate	undo_trunc;

@@ -320,3 +320,13 @@ drop table t1;
 --echo #
 --echo # Constant expression
 create table t1 (a int generated always as (PI()) virtual);
+drop table t1;
+
+--echo # bug#21098119: GCOL WITH MATCH/AGAINST -->
+--echo # ASSERTION FAILED: TR && TR->TABLE->FILE
+--echo #
+create table t1 (a int);
+--error ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
+alter table t1 add column r blob generated always
+as (match(a) against ('' in boolean mode)) virtual;
+drop table t1;

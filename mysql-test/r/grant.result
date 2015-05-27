@@ -1788,9 +1788,11 @@ revoke create, insert on mysqltest.t6 from mysqltest@localhost;
 drop user mysqltest@localhost;
 drop database mysqltest;
 use test;
+call mtr.add_suppression("Can't open and lock privilege tables");
 FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
 FLUSH PRIVILEGES;
+ERROR 42S02: Table 'mysql.procs_priv' doesn't exist
 Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;
 CREATE PROCEDURE mysqltest1.test() SQL SECURITY DEFINER
@@ -2745,7 +2747,7 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
 # Doing something should fail
 SELECT 1;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # Setting password should work
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
 # Doing something should pass

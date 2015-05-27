@@ -94,7 +94,7 @@ bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
 
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);
-bool acl_trans_commit_and_close_tables(THD *thd);
+bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction);
 void acl_notify_htons(THD* thd, const char* query, size_t query_length);
 int replace_db_table(TABLE *table, const char *db,
                      const LEX_USER &combo,
@@ -123,6 +123,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables);
 int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to);
 
+void acl_print_ha_error(TABLE *table, int handler_error);
 /* sql_authorization */
 bool is_privileged_user_for_credential_change(THD *thd);
 

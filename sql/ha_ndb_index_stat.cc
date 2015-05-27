@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2934,13 +2934,12 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
     {
       double rpk= -1.0;
       NdbIndexStat::get_rpk(stat, k, &rpk);
-      ulonglong recs= ndb_index_stat_round(rpk);
-      key_info->rec_per_key[k]= (ulong)recs;
+      key_info->set_records_per_key(k, static_cast<rec_per_key_t>(rpk));
 #ifndef DBUG_OFF
       char rule[NdbIndexStat::RuleBufferBytes];
       NdbIndexStat::get_rule(stat, rule);
 #endif
-      DBUG_PRINT("index_stat", ("rpk[%u]: %u rule: %s", k, (uint)recs, rule));
+      DBUG_PRINT("index_stat", ("rpk[%u]: %f rule: %s", k, rpk, rule));
     }
     DBUG_RETURN(0);
   }

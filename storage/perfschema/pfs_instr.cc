@@ -56,8 +56,8 @@ ulong events_stages_history_per_thread= 0;
 /** Number of EVENTS_STATEMENTS_HISTORY records per thread. */
 ulong events_statements_history_per_thread= 0;
 uint statement_stack_max= 0;
-uint pfs_max_digest_length= 0;
-uint pfs_max_sqltext= 0;
+size_t pfs_max_digest_length= 0;
+size_t pfs_max_sqltext= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
 /** Number of statements lost. @sa STATEMENT_STACK_SIZE. */
@@ -139,7 +139,9 @@ int init_instruments(const PFS_global_param *param)
   if (file_handle_max > 0)
   {
     file_handle_array= PFS_MALLOC_ARRAY(& builtin_memory_file_handle,
-                                        file_handle_max, PFS_file*, MYF(MY_ZEROFILL));
+                                        file_handle_max,
+                                        sizeof(PFS_file*), PFS_file*,
+                                        MYF(MY_ZEROFILL));
     if (unlikely(file_handle_array == NULL))
       return 1;
   }
@@ -161,7 +163,8 @@ int init_instruments(const PFS_global_param *param)
     global_instr_class_stages_array=
       PFS_MALLOC_ARRAY(& builtin_memory_global_stages,
                        stage_class_max,
-                       PFS_stage_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_stage_stat), PFS_stage_stat,
+                       MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_stages_array == NULL))
       return 1;
 
@@ -174,7 +177,8 @@ int init_instruments(const PFS_global_param *param)
     global_instr_class_statements_array=
       PFS_MALLOC_ARRAY(& builtin_memory_global_statements,
                        statement_class_max,
-                       PFS_statement_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_statement_stat), PFS_statement_stat,
+                       MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_statements_array == NULL))
       return 1;
 
@@ -187,7 +191,8 @@ int init_instruments(const PFS_global_param *param)
     global_instr_class_memory_array=
       PFS_MALLOC_ARRAY(& builtin_memory_global_memory,
                        memory_class_max,
-                       PFS_memory_stat, MYF(MY_ZEROFILL));
+                       sizeof(PFS_memory_stat), PFS_memory_stat,
+                       MYF(MY_ZEROFILL));
     if (unlikely(global_instr_class_memory_array == NULL))
       return 1;
 
@@ -207,7 +212,7 @@ void cleanup_instruments(void)
   global_file_container.cleanup();
 
   PFS_FREE_ARRAY(& builtin_memory_file_handle,
-                 file_handle_max, PFS_file*,
+                 file_handle_max, sizeof(PFS_file*),
                  file_handle_array);
   file_handle_array= NULL;
   file_handle_max= 0;
@@ -219,19 +224,19 @@ void cleanup_instruments(void)
 
   PFS_FREE_ARRAY(& builtin_memory_global_stages,
                  stage_class_max,
-                 PFS_stage_stat,
+                 sizeof(PFS_stage_stat),
                  global_instr_class_stages_array);
   global_instr_class_stages_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_global_statements,
                  statement_class_max,
-                 PFS_statement_stat,
+                 sizeof(PFS_statement_stat),
                  global_instr_class_statements_array);
   global_instr_class_statements_array= NULL;
 
   PFS_FREE_ARRAY(& builtin_memory_global_memory,
                  memory_class_max,
-                 PFS_memory_stat,
+                 sizeof(PFS_memory_stat),
                  global_instr_class_memory_array);
   global_instr_class_memory_array= NULL;
 }
@@ -792,7 +797,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   char dirbuffer[FN_REFLEN];
   size_t dirlen;
   const char *normalized_filename;
-  size_t normalized_length;
+  uint normalized_length;
 
   dirlen= dirname_length(safe_filename);
   if (dirlen == 0)
@@ -823,7 +828,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   *buf_end= '\0';
 
   normalized_filename= buffer;
-  normalized_length= strlen(normalized_filename);
+  normalized_length= (uint)strlen(normalized_filename);
 
   PFS_file **entry;
   uint retry_count= 0;

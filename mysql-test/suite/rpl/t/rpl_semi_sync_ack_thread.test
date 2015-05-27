@@ -7,6 +7,7 @@
 # The thread is created when semisync master is enabled. and it is destroyed
 # when semisync master is disabled.
 ################################################################################
+--source include/not_valgrind.inc
 --source include/not_group_replication_plugin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

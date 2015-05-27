@@ -280,3 +280,35 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+--echo #
+--echo # Bug #20949314: PARTITION_HELPER::PH_RND_INIT(BOOL): ASSERTION
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (3), (4), (5), (1), (2);
+
+CREATE TABLE t2 PARTITION BY KEY (c1) PARTITIONS 3
+AS
+SELECT * FROM t1;
+
+DELETE A FROM t1 AS A WHERE A.c1 IN
+(SELECT c1 FROM t2 AS B WHERE B.c1 = A.c1);
+
+SELECT * from t1;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Bug#20819189: Assert if .frm exists but no partitioned InnoDB table
+--echo #
+CREATE TABLE t1 (a int) ENGINE=InnoDB PARTITION BY HASH (a) PARTITIONS 2;
+--copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t2.frm
+--error ER_GET_ERRNO
+SELECT * FROM t2;
+--remove_file $MYSQLD_DATADIR/test/t2.frm
+# Flush table is needed to remove the 'orphan' t2 definition.
+FLUSH TABLE t2;
+DROP TABLE t1;
+

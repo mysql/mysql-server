@@ -1689,10 +1689,12 @@ use test;
 #
 # Bug#16470 crash on grant if old grant tables
 #
+
+call mtr.add_suppression("Can't open and lock privilege tables");
+
 --echo FLUSH PRIVILEGES without procs_priv table.
 RENAME TABLE mysql.procs_priv TO mysql.procs_gone;
-#It should be possible to flush privileges as we might be working with
-#column privileges table only
+--error ER_NO_SUCH_TABLE
 FLUSH PRIVILEGES;
 --echo Assigning privileges without procs_priv table.
 CREATE DATABASE mysqltest1;

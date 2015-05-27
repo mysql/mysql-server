@@ -89,20 +89,6 @@ FROM performance_schema.table_io_waits_summary_by_index_usage
 WHERE object_schema = 'test'
    AND object_name = 't_60905';
 object_schema	object_name	index_name	count_fetch	count_insert	count_update	count_delete
-test	t_60905	(index 0)	2	0	0	1
-test	t_60905	NULL	5	5	0	1
-flush table t_60905;
-SELECT object_schema,
-object_name,
-index_name,
-count_fetch,
-count_insert,
-count_update,
-count_delete
-FROM performance_schema.table_io_waits_summary_by_index_usage
-WHERE object_schema = 'test'
-   AND object_name = 't_60905';
-object_schema	object_name	index_name	count_fetch	count_insert	count_update	count_delete
 test	t_60905	i	2	0	0	1
 test	t_60905	NULL	5	5	0	1
 DROP TABLE t_60905;

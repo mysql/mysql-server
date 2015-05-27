@@ -1,0 +1,28 @@
+--echo #Bug #20746926: GENERATED COLUMNS: INVALID READ OF THD WHEN WARNINGS
+--echo #
+--echo # Testing cmp_item_datetime
+connect(con1,localhost,root,,);
+--disable_warnings
+set sql_mode='';
+--enable_warnings
+create table t1 (
+a date not null,
+b mediumtext generated always as ((a not in (a,a))) virtual,
+c timestamp generated always as ((a not in (b,b))) stored not null
+);
+insert t1(a) values(7777777777);
+show warnings;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connect(con2,localhost,root,,);
+--disable_warnings
+set sql_mode='';
+--enable_warnings
+insert t1(a) values(6666666666);
+show warnings;
+
+drop table t1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;

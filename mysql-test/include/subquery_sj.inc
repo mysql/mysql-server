@@ -5061,11 +5061,6 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of test for bug#13545215.
 
-# Below test case gives valgrind warning when using LooseScan (see Bug#20858778)
-# Temporarily disable LooseScan until bug is fixed
-set @tmp_opt_switch=@@optimizer_switch;
-set optimizer_switch='loosescan=off';
-
 --echo #
 --echo # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 --echo # MATERIALIZATION + SEMIJOIN ON
@@ -5106,8 +5101,6 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1;
-
-set @@optimizer_switch=@tmp_opt_switch;
 
 --echo #
 --echo # Bug#13541406: Wrong result with loosescan on select .. where .. in
@@ -6914,3 +6907,66 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug#20835095 CRASH AT CREATE_REF_FOR_KEY IN SQL/SQL_SELECT.CC
+--echo #
+CREATE TABLE t1 (
+pk INTEGER,
+var_10_latin1 VARCHAR(10) CHARACTER SET latin1,
+var_255_utf8 VARCHAR(255) CHARACTER SET utf8,
+var_255_latin1 VARCHAR(255) CHARACTER SET latin1,
+var_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+INSERT INTO t1 VALUES
+(1,'FROCJ','korrhrspki','UAYVL','BPZIS'),
+(2,'him','a','CHYKN','OZZQT'),
+(3,'WBITK','ULWBF','have','rhrh'),
+(4,'or','right','up','it'),
+(5,'GGDCP','x','who','as'),
+(6,'j','i','e','w');
+
+CREATE TABLE tv
+SELECT var_255_utf8 AS field1
+FROM t1;
+
+let query=
+SELECT * FROM tv
+WHERE field1 IN (
+  SELECT tv1.var_255_utf8
+  FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP VIEW v1;
+DROP TABLE t1, tv;
+
+--echo # 17832047 Crash in calculate_materialization_costs
+
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES (0),(1),(2);
+
+SELECT 1 FROM t1
+WHERE 1 IN
+   (SELECT 1 BETWEEN (LENGTH(a) IN (SELECT 1 FROM t1)) AND 1
+    FROM t1
+   );
+
+DROP TABLE t1;
+
+--echo # 17845989 Assertion failed: !(used_tables() & ...
+
+CREATE TABLE a(b INTEGER) engine=innodb;
+CREATE TABLE c(a INTEGER) engine=innodb;
+
+SELECT 1
+FROM a
+WHERE 1 IN (SELECT (a.b IS NULL) IN (SELECT 1 FROM c) FROM c)
+;
+
+DROP TABLE a, c;

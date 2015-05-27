@@ -101,6 +101,7 @@ When one supplies long data for a placeholder:
 #include "sql_parse.h"          // sql_command_flags
 #include "sql_rewrite.h"        // mysql_rewrite_query
 #include "sql_update.h"         // mysql_prepare_update
+#include "sql_do.h"             // Query_result_do
 #include "sql_view.h"           // create_view_precheck
 #include "transaction.h"        // trans_rollback_implicit
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
@@ -1360,11 +1361,26 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
-  if (!lex->result && !(lex->result= new (stmt->mem_root) Query_result_send))
+  if (!lex->result)
   {
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-             static_cast<int>(sizeof(Query_result_send)));
-    goto error;
+    if (lex->sql_command == SQLCOM_DO)
+    {
+      if (!(lex->result= new (stmt->mem_root) Query_result_do(thd)))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+                 static_cast<int>(sizeof(Query_result_do)));
+        goto error;
+      }
+    }
+    else
+    {
+      if (!(lex->result= new (stmt->mem_root) Query_result_send()))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+                 static_cast<int>(sizeof(Query_result_send)));
+        goto error;
+      }
+    }
   }
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -1397,7 +1413,10 @@ static int mysql_test_select(Prepared_statement *stmt,
       We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    bool rc= (send_prep_stmt(stmt, result->field_count(unit->types)) ||
+    bool rc= (send_prep_stmt(stmt,
+                             lex->sql_command == SQLCOM_DO ? 
+                               0 :
+                               result->field_count(unit->types)) ||
               result->send_result_set_metadata(unit->types,
                                                Protocol::SEND_EOF) ||
               thd->get_protocol_classic()->flush());
@@ -1409,40 +1428,6 @@ static int mysql_test_select(Prepared_statement *stmt,
   DBUG_RETURN(0);
 error:
   DBUG_RETURN(1);
-}
-
-
-/**
-  Validate and prepare for execution DO statement expressions.
-
-  @param stmt               prepared statement
-  @param tables             list of tables used in this query
-  @param values             list of expressions
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message is set in THD
-*/
-
-static bool mysql_test_do_fields(Prepared_statement *stmt,
-                                TABLE_LIST *tables,
-                                List<Item> *values)
-{
-  THD *thd= stmt->thd;
-
-  DBUG_ENTER("mysql_test_do_fields");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
-  if (tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                   UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
-
-  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(TRUE);
-  if (setup_fields(thd, Ref_ptr_array(), *values, 0, 0, 0))
-    DBUG_RETURN(TRUE);
-
-  DBUG_RETURN(false);
 }
 
 
@@ -1947,6 +1932,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SELECT:
+  case SQLCOM_DO:
     res= mysql_test_select(stmt, tables);
     if (res == 2)
     {
@@ -1965,9 +1951,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
       goto error;
     }
     res= mysql_test_create_view(stmt);
-    break;
-  case SQLCOM_DO:
-    res= mysql_test_do_fields(stmt, tables, lex->do_insert_list);
     break;
 
   case SQLCOM_CALL:
@@ -2345,15 +2328,20 @@ void mysql_sql_stmt_prepare(THD *thd)
 }
 
 /**
-  Reinit prepared statement/stored procedure before execution.
+  Reinit prepared statement/stored procedure before execution. Resets the LEX
+  object.
+
 
   @todo
     When the new table structure is ready, then have a status bit
     to indicate the table is altered, and re-do the setup_*
     and open the tables back.
+
+  @retval false OK.
+  @retval true Error.
 */
 
-void reinit_stmt_before_use(THD *thd, LEX *lex)
+bool reinit_stmt_before_use(THD *thd, LEX *lex)
 {
   SELECT_LEX *sl= lex->all_selects_list;
   DBUG_ENTER("reinit_stmt_before_use");
@@ -2481,7 +2469,20 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
   }
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  DBUG_VOID_RETURN;
+
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
 }
 
 
@@ -3776,8 +3777,6 @@ Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
 bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 {
   Query_arena *old_stmt_arena;
-  bool error= TRUE;
-
   char saved_cur_db_name_buf[NAME_LEN+1];
   LEX_STRING saved_cur_db_name=
     { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
@@ -3883,7 +3882,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
   old_stmt_arena= thd->stmt_arena;
   thd->stmt_arena= this;
-  reinit_stmt_before_use(thd, lex);
+  bool error= reinit_stmt_before_use(thd, lex);
 
   /*
     Set a hint so mysql_execute_command() won't clear the DA *again*,
@@ -3892,55 +3891,54 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
   thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
 
-  /* Go! */
-
-  if (open_cursor)
-    error= mysql_open_cursor(thd, &result, &cursor);
-  else
+  if (!error)
   {
-    /*
-      Try to find it in the query cache, if not, execute it.
-      Note that multi-statements cannot exist here (they are not supported in
-      prepared statements).
-    */
-    if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
+    // Execute
+
+    if (open_cursor)
+      error= mysql_open_cursor(thd, &result, &cursor);
+    else
     {
-      PSI_statement_locker *parent_locker;
-      MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
-                             thd->thread_id(),
-                             (char *) (thd->db().str != NULL ?
-                                       thd->db().str : ""),
-                             (char *) thd->security_context()->priv_user().str,
-                             (char *) thd->security_context()->host_or_ip().str,
-                             1);
-      parent_locker= thd->m_statement_psi;
-      thd->m_statement_psi= NULL;
-
       /*
-        Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
-        prepared statements this causes two records to be output:
-
-        Query       EXECUTE <statement name>
-        Execute     <statement SQL text>
-
-        This is considered user-friendly, since in the
-        second log entry we output values of parameter markers.
-
-        Rewriting/password obfuscation:
-
-        - Any passwords in the "Execute" line should be substituted with
-        their hashes, or a notice.
-
-        Rewrite first (if needed); execution might replace passwords
-        with hashes in situ without flagging it, and then we'd make
-        a hash of that hash.
+        Try to find it in the query cache, if not, execute it.
+        Note that multi-statements cannot exist here (they are not supported in
+        prepared statements).
       */
-      rewrite_query_if_needed(thd);
-      log_execute_line(thd);
+      if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
+      {
+        MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
+                               thd->thread_id(),
+                               (char *) (thd->db().str != NULL ?
+                                         thd->db().str : ""),
+                               (char *) thd->security_context()->priv_user().str,
+                               (char *) thd->security_context()->host_or_ip().str,
+                               1);
 
-      error= mysql_execute_command(thd);
-      thd->m_statement_psi= parent_locker;
-      MYSQL_QUERY_EXEC_DONE(error);
+        /*
+          Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
+          prepared statements this causes two records to be output:
+
+          Query       EXECUTE <statement name>
+          Execute     <statement SQL text>
+
+          This is considered user-friendly, since in the
+          second log entry we output values of parameter markers.
+
+          Rewriting/password obfuscation:
+
+          - Any passwords in the "Execute" line should be substituted with
+          their hashes, or a notice.
+
+          Rewrite first (if needed); execution might replace passwords
+          with hashes in situ without flagging it, and then we'd make
+          a hash of that hash.
+        */
+        rewrite_query_if_needed(thd);
+        log_execute_line(thd);
+
+        error= mysql_execute_command(thd);
+        MYSQL_QUERY_EXEC_DONE(error);
+      }
     }
   }
 

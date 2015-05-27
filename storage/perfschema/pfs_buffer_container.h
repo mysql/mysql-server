@@ -119,7 +119,7 @@ public:
     if (size > 0)
     {
       array->m_ptr= PFS_MALLOC_ARRAY(m_builtin_class,
-                                     size, T, MYF(MY_ZEROFILL));
+                                     size, sizeof(T), T, MYF(MY_ZEROFILL));
       if (array->m_ptr == NULL)
         return 1;
       array->m_full= false;
@@ -130,7 +130,7 @@ public:
   void free_array(array_type *array, size_t size)
   {
     PFS_FREE_ARRAY(m_builtin_class,
-                   size, T, array->m_ptr);
+                   size, sizeof(T), array->m_ptr);
     array->m_ptr= NULL;
   }
 

@@ -23,6 +23,8 @@
 
 #include "my_bit.h"                   // my_count_bits
 #include "myisam.h"                   // TT_FOR_UPGRADE
+#include "mysql_version.h"            // MYSQL_VERSION_ID
+
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "discover.h"                 // writefrm
@@ -5791,8 +5793,6 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     key_range *min_endp, *max_endp;
     if (range.range_flag & GEOM_FLAG)
     {
-      /* In this case tmp_min_flag contains the handler-read-function */
-      range.start_key.flag= (ha_rkey_function) (range.range_flag ^ GEOM_FLAG);
       min_endp= &range.start_key;
       max_endp= NULL;
     }
@@ -7545,6 +7545,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
   DBUG_ASSERT(old_data == table->record[1]);
 
+  DBUG_ENTER("hanlder::ha_update_row");
+  DBUG_EXECUTE_IF("inject_error_ha_update_row",
+                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
+
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
@@ -7557,10 +7561,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
-    return error;
+    DBUG_RETURN(error);
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
-    return error;
-  return 0;
+    DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
 
 int handler::ha_delete_row(const uchar *buf)

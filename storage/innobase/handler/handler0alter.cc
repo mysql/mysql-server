@@ -2749,6 +2749,13 @@ innobase_pk_order_preserved(
 			old_field++;
 			new_field++;
 		} else if (old_col_no == ULINT_UNDEFINED) {
+
+			if (old_n_fields == 1) {
+				/* Dropping single column primary key
+				requires sorting. */
+				return(false);
+			}
+
 			pk_col_dropped = true;
 			old_field++;
 		} else {
@@ -3636,58 +3643,72 @@ innobase_check_foreign_key_index(
 	ulint			n_drop_fk)	/*!< in: Number of foreign keys
 						to drop */
 {
-	dict_foreign_t*	foreign;
+	ut_ad(index != NULL);
+	ut_ad(indexed_table != NULL);
 
-	/* Check if the index is referenced. */
-	foreign = dict_table_get_referenced_constraint(indexed_table, index);
+	const dict_foreign_set*	fks = &indexed_table->referenced_set;
 
-	ut_ad(!foreign || indexed_table
-	      == foreign->referenced_table);
+	/* Check for all FK references from other tables to the index. */
+	for (dict_foreign_set::const_iterator it = fks->begin();
+	     it != fks->end(); ++it) {
 
-	if (foreign
-	    && !dict_foreign_find_index(
-		    indexed_table, col_names,
-		    foreign->referenced_col_names,
-		    foreign->n_fields, index,
-		    /*check_charsets=*/TRUE,
-		    /*check_null=*/FALSE)
-	    && !innobase_find_equiv_index(
-		    foreign->referenced_col_names,
-		    foreign->n_fields,
-		    ha_alter_info->key_info_buffer,
-		    ha_alter_info->index_add_buffer,
-		    ha_alter_info->index_add_count)
-	    ) {
-		trx->error_info = index;
-		return(true);
+		dict_foreign_t*	foreign = *it;
+		if (foreign->referenced_index != index) {
+			continue;
+		}
+		ut_ad(indexed_table == foreign->referenced_table);
+
+		if (NULL == dict_foreign_find_index(
+			    indexed_table, col_names,
+			    foreign->referenced_col_names,
+			    foreign->n_fields, index,
+			    /*check_charsets=*/TRUE,
+			    /*check_null=*/FALSE)
+		    && NULL == innobase_find_equiv_index(
+			    foreign->referenced_col_names,
+			    foreign->n_fields,
+			    ha_alter_info->key_info_buffer,
+			    ha_alter_info->index_add_buffer,
+			    ha_alter_info->index_add_count)) {
+
+			/* Index cannot be dropped. */
+			trx->error_info = index;
+			return(true);
+		}
 	}
 
-	/* Check if this index references some
-	other table */
-	foreign = dict_table_get_foreign_constraint(
-		indexed_table, index);
+	fks = &indexed_table->foreign_set;
 
-	ut_ad(!foreign || indexed_table
-	      == foreign->foreign_table);
+	/* Check for all FK references in current table using the index. */
+	for (dict_foreign_set::const_iterator it = fks->begin();
+	     it != fks->end(); ++it) {
 
-	if (foreign
-	    && !innobase_dropping_foreign(
-		    foreign, drop_fk, n_drop_fk)
-	    && !dict_foreign_find_index(
-		    indexed_table, col_names,
-		    foreign->foreign_col_names,
-		    foreign->n_fields, index,
-		    /*check_charsets=*/TRUE,
-		    /*check_null=*/FALSE)
-	    && !innobase_find_equiv_index(
-		    foreign->foreign_col_names,
-		    foreign->n_fields,
-		    ha_alter_info->key_info_buffer,
-		    ha_alter_info->index_add_buffer,
-		    ha_alter_info->index_add_count)
-	    ) {
-		trx->error_info = index;
-		return(true);
+		dict_foreign_t*	foreign = *it;
+		if (foreign->foreign_index != index) {
+			continue;
+		}
+
+		ut_ad(indexed_table == foreign->foreign_table);
+
+		if (!innobase_dropping_foreign(
+			    foreign, drop_fk, n_drop_fk)
+		    && NULL == dict_foreign_find_index(
+			    indexed_table, col_names,
+			    foreign->foreign_col_names,
+			    foreign->n_fields, index,
+			    /*check_charsets=*/TRUE,
+			    /*check_null=*/FALSE)
+		    && NULL == innobase_find_equiv_index(
+			    foreign->foreign_col_names,
+			    foreign->n_fields,
+			    ha_alter_info->key_info_buffer,
+			    ha_alter_info->index_add_buffer,
+			    ha_alter_info->index_add_count)) {
+
+			/* Index cannot be dropped. */
+			trx->error_info = index;
+			return(true);
+		}
 	}
 
 	return(false);
@@ -6884,15 +6905,13 @@ foreign_fail:
 	the MDL downgrade. */
 
 #ifndef DBUG_OFF
-	m_prebuilt = ctx0->prebuilt;
 	dict_index_t* clust_index = dict_table_get_first_index(
-		m_prebuilt->table);
+		ctx0->prebuilt->table);
 	DBUG_ASSERT(!clust_index->online_log);
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
 		    == ONLINE_INDEX_COMPLETE);
 
-	for (dict_index_t* index = dict_table_get_first_index(
-		     m_prebuilt->table);
+	for (dict_index_t* index = clust_index;
 	     index;
 	     index = dict_table_get_next_index(index)) {
 		DBUG_ASSERT(!index->to_be_dropped);

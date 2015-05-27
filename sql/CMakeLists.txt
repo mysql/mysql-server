@@ -609,55 +609,6 @@ ADD_CUSTOM_TARGET(distclean
   VERBATIM
   )
 
-IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
-
-# Install initial database on windows
-IF(NOT CMAKE_CROSSCOMPILING)
-  IF(DEBUG_EXTNAME)
-    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION_DEBUG)
-  ELSE()
-    GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
-  ENDIF()
-ENDIF()
-IF(WIN32 AND MYSQLD_EXECUTABLE)
-  ADD_CUSTOM_COMMAND(
-     OUTPUT data
-     COMMAND "${CMAKE_COMMAND}" -E remove_directory
-       ${CMAKE_CURRENT_BINARY_DIR}/data
-     COMMAND "${MYSQLD_EXECUTABLE}"
-       --no-defaults
-       --console
-       --lc-messages-dir=${CMAKE_CURRENT_BINARY_DIR}/share
-       --datadir=${CMAKE_CURRENT_BINARY_DIR}/data
-       --default-storage-engine=MyISAM
-       --default-tmp-storage-engine=MyISAM
-       --loose-skip-auto_generate_certs
-       --loose-skip-sha256_password_auto_generate_rsa_keys
-       --initialize-insecure
-       --log_syslog=0
-       --skip-ssl
-     COMMAND "${CMAKE_COMMAND}" -E make_directory
-       ${CMAKE_CURRENT_BINARY_DIR}/data/test
-     COMMAND "${CMAKE_COMMAND}" -E remove
-       ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/db.opt
-     COMMAND "${CMAKE_COMMAND}" -E remove
-       ${CMAKE_CURRENT_BINARY_DIR}/data/performance_schema/db.opt
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-     DEPENDS mysqld
-  )
-  ADD_CUSTOM_TARGET(initial_database
-    ALL
-    DEPENDS  data
-  )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-    DESTINATION .
-    COMPONENT DataFiles)
-ELSE()
-  # Not windows or cross compiling, just install an empty directory
-  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
-ENDIF()
-ENDIF()
-
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )

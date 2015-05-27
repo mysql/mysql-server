@@ -301,39 +301,39 @@ statement/sp/set	NULL	fac	STATEMENT	1
 statement/sp/jump	NULL	fac	STATEMENT	1
 statement/sp/jump_if_not	NULL	fac	STATEMENT	1
 statement/sp/freturn	NULL	fac	STATEMENT	1
-statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	SampleProc1	STATEMENT	1
-statement/sp/stmt	INSERT INTO t1 VALUES (x2, y)	SampleProc1	STATEMENT	1
-statement/sp/set	NULL	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	SampleProc2	STATEMENT	1
-statement/sp/stmt	INSERT INTO t2 VALUES (x, z2)	SampleProc2	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc3	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 VALUES (x1, y)	sampleproc1	STATEMENT	1
+statement/sp/stmt	INSERT INTO t1 VALUES (x2, y)	sampleproc1	STATEMENT	1
+statement/sp/set	NULL	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	sampleproc2	STATEMENT	1
+statement/sp/stmt	INSERT INTO t2 VALUES (x, z2)	sampleproc2	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc3	STATEMENT	1
 statement/sp/stmt	INSERT INTO t3 (n, f, s) VALUES ((ld IS NULL), 1,    "ld is null"),
 ((li IS NULL), 1,    "li is null"),
 ((li = 0),     NULL, "li = 0"),
 ((lf IS NULL), 1,    "lf is null"),
 ((lf = 0),     NULL, "lf = 0"),
-((ls IS NULL), 1,    "ls is null")	SampleProc3	STATEMENT	1
-statement/sp/stmt	INSERT INTO t3 VALUES (ld, li, lf, ls)	SampleProc3	STATEMENT	1
-statement/sp/set	NULL	SampleProc4	STATEMENT	1
-statement/sp/set	NULL	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	SampleProc4	STATEMENT	1
-statement/sp/set	NULL	SampleProc4	STATEMENT	1
-statement/sp/jump	NULL	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	SampleProc4	STATEMENT	1
-statement/sp/set	NULL	SampleProc4	STATEMENT	1
-statement/sp/jump	NULL	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	SampleProc4	STATEMENT	1
-statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	SampleProc4	STATEMENT	1
-statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	SampleProc4	STATEMENT	1
+((ls IS NULL), 1,    "ls is null")	sampleproc3	STATEMENT	1
+statement/sp/stmt	INSERT INTO t3 VALUES (ld, li, lf, ls)	sampleproc3	STATEMENT	1
+statement/sp/set	NULL	sampleproc4	STATEMENT	1
+statement/sp/set	NULL	sampleproc4	STATEMENT	1
+statement/sp/jump_if_not	NULL	sampleproc4	STATEMENT	1
+statement/sp/set	NULL	sampleproc4	STATEMENT	1
+statement/sp/jump	NULL	sampleproc4	STATEMENT	1
+statement/sp/jump_if_not	NULL	sampleproc4	STATEMENT	1
+statement/sp/set	NULL	sampleproc4	STATEMENT	1
+statement/sp/jump	NULL	sampleproc4	STATEMENT	1
+statement/sp/jump_if_not	NULL	sampleproc4	STATEMENT	1
+statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	sampleproc4	STATEMENT	1
+statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	sampleproc4	STATEMENT	1
 statement/sp/jump_if_not	NULL	trg1	TRANSACTION	1
 statement/sp/jump_if_not	NULL	trg1	TRANSACTION	2
 statement/sp/jump_if_not	NULL	trg1	TRANSACTION	2

@@ -1973,7 +1973,7 @@ dict_table_remove_from_cache_low(
 {
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
-	ulint		size;
+	lint		size;
 
 	ut_ad(table);
 	ut_ad(dict_lru_validate());
@@ -2755,7 +2755,7 @@ dict_index_remove_from_cache_low(
 	ibool		lru_evict)	/*!< in: TRUE if index being evicted
 					to make room in the table LRU list */
 {
-	ulint		size;
+	lint		size;
 	ulint		retries = 0;
 	btr_search_t*	info;
 
@@ -2827,6 +2827,7 @@ dict_index_remove_from_cache_low(
 
 	size = mem_heap_get_size(index->heap);
 
+	ut_ad(!dict_table_is_intrinsic(table));
 	ut_ad(dict_sys->size >= size);
 
 	dict_sys->size -= size;
@@ -3417,69 +3418,6 @@ dict_table_is_referenced_by_foreign_key(
 	return(!table->referenced_set.empty());
 }
 
-/*********************************************************************//**
-Check if the index is referenced by a foreign key, if TRUE return foreign
-else return NULL
-@return pointer to foreign key struct if index is defined for foreign
-key, otherwise NULL */
-dict_foreign_t*
-dict_table_get_referenced_constraint(
-/*=================================*/
-	dict_table_t*	table,	/*!< in: InnoDB table */
-	dict_index_t*	index)	/*!< in: InnoDB index */
-{
-	dict_foreign_t*	foreign;
-
-	ut_ad(index != NULL);
-	ut_ad(table != NULL);
-
-	for (dict_foreign_set::iterator it = table->referenced_set.begin();
-	     it != table->referenced_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		if (foreign->referenced_index == index) {
-
-			return(foreign);
-		}
-	}
-
-	return(NULL);
-}
-
-/*********************************************************************//**
-Checks if a index is defined for a foreign key constraint. Index is a part
-of a foreign key constraint if the index is referenced by foreign key
-or index is a foreign key index.
-@return pointer to foreign key struct if index is defined for foreign
-key, otherwise NULL */
-dict_foreign_t*
-dict_table_get_foreign_constraint(
-/*==============================*/
-	dict_table_t*	table,	/*!< in: InnoDB table */
-	dict_index_t*	index)	/*!< in: InnoDB index */
-{
-	dict_foreign_t*	foreign;
-
-	ut_ad(index != NULL);
-	ut_ad(table != NULL);
-
-	for (dict_foreign_set::iterator it = table->foreign_set.begin();
-	     it != table->foreign_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		if (foreign->foreign_index == index) {
-
-			return(foreign);
-		}
-	}
-
-	return(NULL);
-}
-
 /**********************************************************************//**
 Removes a foreign constraint struct from the dictionary cache. */
 void
@@ -3777,13 +3715,6 @@ dict_foreign_add_to_cache(
 	}
 
 	ut_ad(dict_lru_validate());
-
-/*
-	if (for_in_cache->foreign_table == NULL) {
-		dict_foreign_remove_from_cache(for_in_cache);
-	}
-*/
-
 	DBUG_RETURN(DB_SUCCESS);
 }
 
@@ -6473,6 +6404,8 @@ dict_close(void)
 	rw_lock_free(&dict_operation_lock);
 
 	mutex_free(&dict_foreign_err_mutex);
+
+	ut_ad(dict_sys->size == 0);
 
 	ut_free(dict_sys);
 	dict_sys = NULL;

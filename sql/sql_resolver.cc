@@ -347,7 +347,9 @@ bool SELECT_LEX::prepare(THD *thd)
 
   sj_candidates= NULL;
 
-  if (!outer_select())
+  if (outer_select() == NULL ||
+      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+       outer_select()->outer_select() == NULL))
   {
     /*
       This code is invoked in the following cases:
@@ -357,6 +359,8 @@ bool SELECT_LEX::prepare(THD *thd)
       - if this is one of highest-level subqueries, if the statement is
         something else; like subq-i in:
           UPDATE t1 SET col1=(subq-1), col2=(subq-2);
+      - If this is a subquery in a SET command
+        @todo: Refactor SET so that this is not needed.
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms
@@ -436,13 +440,13 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune)
     build_bitmap_for_nested_joins(&top_join_list, 0);
 
     /*
-      Here are reasons why we do the following check here (i.e. late).
+      Here are the reasons why we do the following check here (i.e. late).
       * setup_fields () may have done split_sum_func () on aggregate items of
       the SELECT list, so for reliable comparison of the ORDER BY list with
-      the SELECT list, we need to wait until split_sum_func() has been done on
+      the SELECT list, we need to wait until split_sum_func() is done with
       the ORDER BY list.
-      * we get "most of the time" fixed items, which is always a good
-      thing. Some outer references may not be fixed, though.
+      * we get resolved expressions "most of the time", which is always a good
+      thing. Some outer references may not be resolved, though.
       * we need nested_join::used_tables, and this member is set in
       simplify_joins()
       * simplify_joins() does outer-join-to-inner conversion, which increases
@@ -841,8 +845,6 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
 
   DBUG_ASSERT(derived_table_count);
 
-  materialized_derived_table_count= 0;
-
   // Prepare derived tables and views that belong to this query block.
   for (TABLE_LIST *tl= get_table_list(); tl; tl= tl->next_local)
   {
@@ -902,7 +904,10 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
         DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->setup_materialized_derived(thd))
         DBUG_RETURN(true);        /* purecov: inspected */
-      materialized_derived_table_count++;
+      /*
+        materialized_derived_table_count was incremented during preparation,
+        so do not do it once more.
+      */
     }
   }
 
@@ -1238,22 +1243,24 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
     It also moves the join conditions for the converted outer joins
     and from inner joins to conds.
     The function also calculates some attributes for nested joins:
-    - used_tables    
-    - not_null_tables
-    - dep_tables.
-    - on_expr_dep_tables
+
+    -# used_tables
+    -# not_null_tables
+    -# dep_tables.
+    -# on_expr_dep_tables
+
     The first two attributes are used to test whether an outer join can
-    be substituted for an inner join. The third attribute represents the
+    be substituted by an inner join. The third attribute represents the
     relation 'to be dependent on' for tables. If table t2 is dependent
     on table t1, then in any evaluated execution plan table access to
     table t2 must precede access to table t2. This relation is used also
     to check whether the query contains  invalid cross-references.
-    The forth attribute is an auxiliary one and is used to calculate
+    The fourth attribute is an auxiliary one and is used to calculate
     dep_tables.
     As the attribute dep_tables qualifies possibles orders of tables in the
     execution plan, the dependencies required by the straight join
     modifiers are reflected in this attribute as well.
-    The function also removes all braces that can be removed from the join
+    The function also removes all parentheses that can be removed from the join
     expression without changing its meaning.
 
   @note
@@ -1298,7 +1305,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
         WHERE t3 IS NOT NULL AND t3.b=t2.b AND t2.a=t1.a
   @endcode
 
-    The function removes all unnecessary braces from the expression
+    The function removes all unnecessary parentheses from the expression
     produced by the conversions.
     E.g.
     @code
@@ -1311,14 +1318,14 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
     @endcode
 
 
-    It also will remove braces from the following queries:
+    It also will remove parentheses from the following queries:
     @code
       SELECT * from (t1 LEFT JOIN t2 ON t2.a=t1.a) LEFT JOIN t3 ON t3.b=t2.b
       SELECT * from (t1, (t2,t3)) WHERE t1.a=t2.a AND t2.b=t3.b.
     @endcode
 
     The benefit of this simplification procedure is that it might return 
-    a query for which the optimizer can evaluate execution plan with more
+    a query for which the optimizer can evaluate execution plans with more
     join orders. With a left join operation the optimizer does not
     consider any plan where one of the inner tables is before some of outer
     tables.
@@ -1326,7 +1333,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list)
   IMPLEMENTATION
     The function is implemented by a recursive procedure.  On the recursive
     ascent all attributes are calculated, all outer joins that can be
-    converted are replaced and then all unnecessary braces are removed.
+    converted are replaced and then all unnecessary parentheses are removed.
     As join list contains join tables in the reverse order sequential
     elimination of outer joins does not require extra recursive calls.
 
@@ -2235,6 +2242,11 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
       lex->can_not_use_merged())
     DBUG_RETURN(false);
 
+  /*
+    @todo: The implementation of LEX::can_use_merged() currently avoids
+           merging of views that are contained in other views if
+           can_use_merged() returns false.
+  */
   // Check whether derived table is mergeable, and directives allow merging
   if (!derived_unit->is_mergeable() ||
       derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
@@ -2274,11 +2286,32 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Set up permanent list of underlying tables of a merged view
   derived_table->merge_underlying_list= derived_select->get_table_list();
 
-  if (derived_table->updatable_view &&
-      (derived_table->merge_underlying_list == NULL ||
-       derived_table->merge_underlying_list->is_updatable()))
-    derived_table->set_updatable();
-
+  /**
+    A view is updatable if any underlying table is updatable.
+    A view is insertable-into if all underlying tables are insertable.
+    A view is not updatable nor insertable if it contains an outer join
+    @see mysql_register_view()
+  */
+  if (derived_table->is_view())
+  {
+    bool updatable= false;
+    bool insertable= true;
+    bool outer_joined= false;
+    for (TABLE_LIST *tr= derived_table->merge_underlying_list;
+         tr;
+         tr= tr->next_local)
+    {
+      updatable|= tr->is_updatable();
+      insertable&= tr->is_insertable();
+      outer_joined|= tr->is_inner_table_of_outer_join();
+    }
+    updatable&= !outer_joined;
+    insertable&= !outer_joined;
+    if (updatable)
+      derived_table->set_updatable();
+    if (insertable)
+      derived_table->set_insertable();
+  }
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=
        (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))
@@ -3034,8 +3067,9 @@ void SELECT_LEX::empty_order_list(int hidden_order_field_count)
 */
 
 static bool
-find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
-                   ORDER *order, List<Item> &fields, List<Item> &all_fields,
+find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
+                   TABLE_LIST *tables, ORDER *order,
+                   List<Item> &fields, List<Item> &all_fields,
                    bool is_group_field)
 {
   Item *order_item= *order->item; /* The item from the GROUP/ORDER caluse. */
@@ -3092,6 +3126,9 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
       from_field= find_field_in_tables(thd, (Item_ident*) order_item, tables,
                                        NULL, &view_ref, IGNORE_ERRORS, TRUE,
                                        FALSE);
+      if (thd->is_error())
+        return true;
+
       if (!from_field)
         from_field= (Field*) not_found_field;
     }

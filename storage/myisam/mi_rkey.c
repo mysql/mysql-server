@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,8 +84,14 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   case HA_KEY_ALG_RTREE:
     if (rtree_find_first(info,inx,key_buff,use_key_length,nextflag) < 0)
     {
-      mi_print_error(info->s, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
+      // rtree_find_first will return -1 for an empty index,
+      // but it's not a crash.
+      if (my_errno != HA_ERR_END_OF_FILE || info->lastpos != HA_OFFSET_ERROR ||
+          info->s->state.state.records != 0)
+      {
+        mi_print_error(info->s, HA_ERR_CRASHED);
+        my_errno=HA_ERR_CRASHED;
+      }
       if (share->concurrent_insert)
         mysql_rwlock_unlock(&share->key_root_lock[inx]);
       goto err;

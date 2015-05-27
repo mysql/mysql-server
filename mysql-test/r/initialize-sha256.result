@@ -13,7 +13,7 @@ password found
 # connect as root
 # must fail due to password expiration
 SELECT 1;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # reset the password
 SET PASSWORD='';
 # Check the count of columns in mysql

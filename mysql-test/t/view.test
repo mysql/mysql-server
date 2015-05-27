@@ -3296,28 +3296,38 @@ CREATE TABLE t2 (
   lid int NOT NULL,
   dt date
 );
+CREATE TABLE t3 (
+  id int NOT NULL PRIMARY KEY,
+  gid int NOT NULL,
+  lid int NOT NULL,
+  dt date
+);
+
 INSERT INTO t2 (id, gid, lid, dt) VALUES
+ (1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
+ (3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
+INSERT INTO t3 (id, gid, lid, dt) VALUES
  (1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
  (3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
 
 SELECT DISTINCT t2.gid AS lgid,
-                (SELECT t1.name FROM t1, t2
-                   WHERE t1.lid  = t2.lid AND t2.gid = lgid
-                     ORDER BY t2.dt DESC LIMIT 1
+                (SELECT t1.name FROM t1, t3
+                   WHERE t1.lid  = t3.lid AND t3.gid = t2.gid
+                     ORDER BY t3.dt DESC LIMIT 1
                 ) as clid
   FROM t2;
 
 CREATE VIEW v1 AS
 SELECT DISTINCT t2.gid AS lgid,
-                (SELECT t1.name FROM t1, t2
-                   WHERE t1.lid  = t2.lid AND t2.gid = lgid
-                     ORDER BY t2.dt DESC LIMIT 1
+                (SELECT t1.name FROM t1, t3
+                   WHERE t1.lid  = t3.lid AND t3.gid = t2.gid
+                   ORDER BY t3.dt DESC LIMIT 1
                 ) as clid
   FROM t2;
 SELECT * FROM v1;
 
 DROP VIEW v1;
-DROP table t1,t2;
+DROP table t1,t2,t3;
 
 
 #
@@ -5209,22 +5219,22 @@ CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
                   (SELECT '' AS col2 FROM DUAL) UNION ALL
                   (SELECT '' FROM DUAL);
 
---echo # Name for the column in select1 is set properly with or 
+--echo # Name for the column in select1 is set properly with or
 --echo # without this fix.
 SHOW CREATE VIEW v1;
 
 --echo # Name for the column in select2 is set with this fix.
---echo # Without this fix, name would not have set for the 
+--echo # Without this fix, name would not have set for the
 --echo # columns in select2.
 SHOW CREATE VIEW v2;
 
 --echo # Name for the field item in select2 & select3 is set with this fix.
---echo # Without this fix, name would not have set for the 
+--echo # Without this fix, name would not have set for the
 --echo # columns in select2 & select3.
 SHOW CREATE VIEW v3;
 
 --echo # Name for the field item in select3 is set with this fix.
---echo # Without this fix, name would not have set for the 
+--echo # Without this fix, name would not have set for the
 --echo # columns in select3.
 SHOW CREATE VIEW v4;
 
@@ -5276,6 +5286,277 @@ eval $query;
 
 DROP VIEW v2;
 DROP TABLE t1, t2, t3;
+
+# - Test cases for INSERT, UPDATE and DELETE against composite views
+
+CREATE TABLE t0(x INTEGER);
+INSERT INTO t0 VALUES(0);
+
+CREATE TABLE t1(a1 INTEGER PRIMARY KEY, b1 INTEGER);
+CREATE TABLE t2(a2 INTEGER PRIMARY KEY, b2 INTEGER);
+
+CREATE VIEW v0 AS SELECT DISTINCT x FROM t0;
+
+CREATE VIEW vmat1 AS SELECT DISTINCT * FROM t1;
+CREATE VIEW vmat2 AS SELECT DISTINCT * FROM t2;
+
+CREATE VIEW vtt AS
+SELECT * FROM t1 JOIN t2 ON t1.a1=t2.a2;
+
+CREATE VIEW vtr AS
+SELECT * FROM t1 JOIN vmat2 AS dt2 ON t1.a1=dt2.a2;
+
+CREATE VIEW vtrd AS
+SELECT * FROM t1 JOIN (SELECT DISTINCT * FROM t2) AS dt2 ON t1.a1=dt2.a2;
+
+CREATE VIEW vrt AS
+SELECT * FROM vmat1 AS dt1 JOIN t2 ON dt1.a1=t2.a2;
+
+CREATE VIEW vrtd AS
+SELECT * FROM (SELECT DISTINCT * FROM t1) AS dt1 JOIN t2 ON dt1.a1=t2.a2;
+
+CREATE VIEW vrr AS
+SELECT * FROM vmat1 AS dt1 JOIN vmat2 AS dt2 ON dt1.a1=dt2.a2;
+
+CREATE VIEW vrrd AS
+SELECT * FROM (SELECT DISTINCT * FROM t1) AS dt1 JOIN
+              (SELECT DISTINCT * FROM t2) AS dt2 ON dt1.a1=dt2.a2;
+
+# v0  - Dummy view for use in UPDATE
+# vtt - View defined over two tables
+# vtr - View defined over a table and a read-only view
+# vrt - View defined over a read-only view and a table
+# vrr - View defined over two read-only views
+# vtrd, vrtd, vrrd: Like above but using derived tables instead of views
+
+INSERT INTO vtt(a1,b1) VALUES (1,100);
+
+INSERT INTO vtt(a2,b2) VALUES (1,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtr(a1,b1) VALUES (2,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a1,b1) VALUES (3,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtr(a2,b2) VALUES (2,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a2,b2) VALUES (3,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrt(a1,b1) VALUES (4,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrtd(a1,b1) VALUES (5,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrt(a2,b2) VALUES (4,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrtd(a2,b2) VALUES (5,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrr(a1,b1) VALUES (6,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrrd(a1,b1) VALUES (7,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrr(a2,b2) VALUES (6,100);
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrrd(a2,b2) VALUES (7,100);
+
+SELECT * FROM vtt;
+
+DELETE FROM t1;
+DELETE FROM t2;
+
+INSERT INTO vtt(a1,b1) SELECT 1,100;
+
+INSERT INTO vtt(a2,b2) SELECT 1,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtr(a1,b1) SELECT 2,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a1,b1) SELECT 3,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtr(a2,b2) SELECT 2,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vtrd(a2,b2) SELECT 3,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrt(a1,b1) SELECT 4,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrtd(a1,b1) SELECT 5,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrt(a2,b2) SELECT 4,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrtd(a2,b2) SELECT 5,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrr(a1,b1) SELECT 6,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrrd(a1,b1) SELECT 7,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrr(a2,b2) SELECT 6,100;
+
+--error ER_NON_INSERTABLE_TABLE
+INSERT INTO vrrd(a2,b2) SELECT 7,100;
+
+SELECT * FROM vtt;
+
+DELETE FROM t1;
+DELETE FROM t2;
+
+INSERT INTO t1 VALUES
+ (1,100), (2,100), (3,100), (4,100), (5,100),
+ (6,100), (7,100), (8,100), (9,100), (10,100),
+ (11,100), (12,100), (13,100), (14,100);
+
+INSERT INTO t2 VALUES
+ (1,100), (2,100), (3,100), (4,100), (5,100),
+ (6,100), (7,100), (8,100), (9,100), (10,100),
+ (11,100), (12,100), (13,100), (14,100);
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM vtt WHERE a1=1;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM vtr WHERE a1=2;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM vtrd WHERE a1=3;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM vrt WHERE a1=4;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE FROM vrtd WHERE a1=5;
+
+--error ER_NON_UPDATABLE_TABLE
+DELETE FROM vrr WHERE a1=6;
+
+--error ER_NON_UPDATABLE_TABLE
+DELETE FROM vrrd WHERE a1=7;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE vtt FROM vtt WHERE a1=8;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE vtr FROM vtr WHERE a1=9;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE vtrd FROM vtrd WHERE a1=10;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE vrt FROM vrt WHERE a1=11;
+
+--error ER_VIEW_DELETE_MERGE_VIEW
+DELETE vrtd FROM vrtd WHERE a1=12;
+
+--error ER_NON_UPDATABLE_TABLE
+DELETE vrr FROM vrr WHERE a1=13;
+
+--error ER_NON_UPDATABLE_TABLE
+DELETE vrrd FROM vrrd WHERE a1=14;
+
+SELECT * FROM vtt;
+
+DELETE FROM t1;
+DELETE FROM t2;
+
+INSERT INTO t1 VALUES (1,100);
+
+INSERT INTO t2 VALUES (1,100);
+
+UPDATE vtt SET b1=b1+1 WHERE a1=1;
+
+UPDATE vtt SET b2=b2+1 WHERE a2=1;
+
+UPDATE vtr SET b1=b1+1 WHERE a1=1;
+
+UPDATE vtrd SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vtr SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vtrd SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrt SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrtd SET b1=b1+1 WHERE a1=1;
+
+UPDATE vrt SET b2=b2+1 WHERE a2=1;
+
+UPDATE vrtd SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrr SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrrd SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrr SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrrd SET b2=b2+1 WHERE a2=1;
+
+UPDATE vtt, v0 AS dt SET b1=b1+1 WHERE a1=1;
+
+UPDATE vtt, v0 SET b2=b2+1 WHERE a2=1;
+
+UPDATE vtr, v0 SET b1=b1+1 WHERE a1=1;
+
+UPDATE vtrd, v0 SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vtr, v0 SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vtrd, v0 SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrt, v0 SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrtd, v0 SET b1=b1+1 WHERE a1=1;
+
+UPDATE vrt, v0 SET b2=b2+1 WHERE a2=1;
+
+UPDATE vrtd, v0 SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrr, v0 SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrrd, v0 SET b1=b1+1 WHERE a1=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrr, v0 SET b2=b2+1 WHERE a2=1;
+
+--error ER_NON_UPDATABLE_TABLE
+UPDATE vrrd, v0 SET b2=b2+1 WHERE a2=1;
+
+SELECT * FROM vtt;
+
+DROP VIEW v0, vtt, vtr, vrt, vrr, vmat1, vmat2;
+DROP VIEW vtrd, vrtd, vrrd;
+DROP TABLE t0, t1, t2;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
@@ -5437,3 +5718,20 @@ update v8l set a='v8l v7n v6c v5n';
 drop view v1n,v2c,v3l,v4n,v5n,v4l,v5l,v6c,v7n,v8l;
 
 drop table t1;
+
+--echo # Bug#20982756 Crash in Table_list::fetch_number_of_rows
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+CREATE VIEW v3 AS SELECT 1 FROM t1;
+
+CREATE VIEW v2 AS SELECT 1 FROM v3 LEFT JOIN t1 ON 1;
+
+PREPARE s FROM "set @a:=(SELECT 1 FROM t1,v2);";
+
+EXECUTE s;
+EXECUTE s;
+
+DROP VIEW  v2,v3;
+DROP TABLE t1;
+

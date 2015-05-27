@@ -1,5 +1,5 @@
 # Making sure not to run when ps-protocol is set.
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 
 --echo ####################################
 --echo # SETUP

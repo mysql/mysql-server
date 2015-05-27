@@ -3332,7 +3332,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	field = rec_get_nth_field_old(rec, DICT_FLD__SYS_FOREIGN__ID, &len);
@@ -3352,7 +3352,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	/* Read the table names and the number of columns associated
@@ -3382,6 +3382,8 @@ dict_load_foreign(
 		foreign->heap, (char*) field, len);
 	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
+	const ulint foreign_table_name_len = len;
+
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN__REF_NAME, &len);
 	foreign->referenced_table_name = mem_heap_strdupl(
@@ -3399,7 +3401,24 @@ dict_load_foreign(
 		foreign->foreign_table_name_lookup);
 
 	if (!for_table) {
-		fk_tables.push_back(foreign->foreign_table_name_lookup);
+		/* To avoid recursively loading the tables related through
+		the foreign key constraints, the child table name is saved
+		here.  The child table will be loaded later, along with its
+		foreign key constraint. */
+
+		lint	old_size = mem_heap_get_size(ref_table->heap);
+
+		ut_a(ref_table != NULL);
+		fk_tables.push_back(
+			mem_heap_strdupl(ref_table->heap,
+					 foreign->foreign_table_name_lookup,
+					 foreign_table_name_len));
+
+		lint	new_size = mem_heap_get_size(ref_table->heap);
+		dict_sys->size += new_size - old_size;
+
+		dict_foreign_remove_from_cache(foreign);
+		DBUG_RETURN(DB_SUCCESS);
 	}
 
 	ut_a(for_table || ref_table);

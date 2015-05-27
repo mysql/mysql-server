@@ -213,10 +213,6 @@ public:
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
-#define TC_HEURISTIC_RECOVER_COMMIT   1
-#define TC_HEURISTIC_RECOVER_ROLLBACK 2
-extern ulong tc_heuristic_recover;
-
 typedef struct st_user_var_events
 {
   user_var_entry *user_var_event;
@@ -451,6 +447,7 @@ typedef struct system_variables
   ulong max_allowed_packet;
   ulong max_error_count;
   ulong max_length_for_sort_data;
+  ulong max_points_in_geometry;
   ulong max_sort_length;
   ulong max_tmp_tables;
   ulong max_insert_delayed_threads;
@@ -1343,6 +1340,16 @@ public:
 
   bool lock_global_read_lock(THD *thd);
   void unlock_global_read_lock(THD *thd);
+
+  /**
+    Used by innodb memcached server to check if any connections
+    have global read lock
+  */
+  static bool global_read_lock_active()
+  {
+    return my_atomic_load32(&m_active_requests) ? true : false;
+  }
+
   /**
     Check if this connection can acquire protection against GRL and
     emit error if otherwise.
@@ -1360,6 +1367,7 @@ public:
   bool is_acquired() const { return m_state != GRL_NONE; }
   void set_explicit_lock_duration(THD *thd);
 private:
+  volatile static int32 m_active_requests;
   enum_grl_state m_state;
   /**
     In order to acquire the global read lock, the connection must
@@ -4284,6 +4292,14 @@ public:
   */
 
   void send_statement_status();
+
+  /**
+    This is only used by master dump threads.
+    When the master receives a new connection from a slave with a UUID that
+    is already connected, it will set this flag TRUE before killing the old
+    slave connection.
+  */
+  bool duplicate_slave_uuid;
 };
 
 /**

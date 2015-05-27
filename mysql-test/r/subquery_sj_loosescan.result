@@ -9333,8 +9333,6 @@ x
 x
 DROP TABLE t1, t2, t3;
 # End of test for bug#13545215.
-set @tmp_opt_switch=@@optimizer_switch;
-set optimizer_switch='loosescan=off';
 #
 # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 # MATERIALIZATION + SEMIJOIN ON
@@ -9367,12 +9365,12 @@ t1 AS sq2_alias1, t1 AS sq2_alias2
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	sq2_alias1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	4	100.00	Using index; Start temporary
+1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	sq2_alias1	NULL	index	col_varchar_key	col_varchar_key	9	NULL	4	100.00	Using index; LooseScan
+1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(sq2_alias1)
 1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
-1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_nokey` AS `a1_nokey`,`test`.`alias1`.`col_varchar_key` AS `a1_key`,`test`.`alias2`.`col_varchar_nokey` AS `a2_nokey` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias2` where ((`test`.`alias2`.`col_varchar_nokey` = `test`.`sq2_alias1`.`col_varchar_key`) and (`test`.`alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_varchar_nokey` AS `a1_nokey`,`test`.`alias1`.`col_varchar_key` AS `a1_key`,`test`.`alias2`.`col_varchar_nokey` AS `a2_nokey` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias2` where ((`test`.`alias2`.`col_varchar_nokey` = `test`.`sq2_alias1`.`col_varchar_key`) and (`test`.`sq2_alias2`.`col_varchar_nokey` = `test`.`alias1`.`col_varchar_nokey`))
 SELECT
 alias1.col_varchar_nokey AS a1_nokey,
 alias1.col_varchar_key AS a1_key,
@@ -9400,7 +9398,6 @@ v	v	v
 v	v	v
 v	v	v
 DROP TABLE t1;
-set @@optimizer_switch=@tmp_opt_switch;
 #
 # Bug#13541406: Wrong result with loosescan on select .. where .. in
 #
@@ -12026,4 +12023,71 @@ col_int_key
 1368719360
 1922236416
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug#20835095 CRASH AT CREATE_REF_FOR_KEY IN SQL/SQL_SELECT.CC
+#
+CREATE TABLE t1 (
+pk INTEGER,
+var_10_latin1 VARCHAR(10) CHARACTER SET latin1,
+var_255_utf8 VARCHAR(255) CHARACTER SET utf8,
+var_255_latin1 VARCHAR(255) CHARACTER SET latin1,
+var_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES
+(1,'FROCJ','korrhrspki','UAYVL','BPZIS'),
+(2,'him','a','CHYKN','OZZQT'),
+(3,'WBITK','ULWBF','have','rhrh'),
+(4,'or','right','up','it'),
+(5,'GGDCP','x','who','as'),
+(6,'j','i','e','w');
+CREATE TABLE tv
+SELECT var_255_utf8 AS field1
+FROM t1;
+EXPLAIN SELECT * FROM tv
+WHERE field1 IN (
+SELECT tv1.var_255_utf8
+FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
+1	SIMPLE	tv	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tv`.`field1` AS `field1` from `test`.`tv` semi join (`test`.`t1` left join (`test`.`t1`) on((convert(`test`.`t1`.`var_10_latin1` using utf8) = `test`.`t1`.`var_10_utf8`))) where (`test`.`tv`.`field1` = `test`.`t1`.`var_255_utf8`)
+SELECT * FROM tv
+WHERE field1 IN (
+SELECT tv1.var_255_utf8
+FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
+field1
+korrhrspki
+a
+ULWBF
+right
+x
+i
+DROP VIEW v1;
+DROP TABLE t1, tv;
+# 17832047 Crash in calculate_materialization_costs
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT 1 FROM t1
+WHERE 1 IN
+(SELECT 1 BETWEEN (LENGTH(a) IN (SELECT 1 FROM t1)) AND 1
+FROM t1
+);
+1
+1
+1
+1
+DROP TABLE t1;
+# 17845989 Assertion failed: !(used_tables() & ...
+CREATE TABLE a(b INTEGER) engine=innodb;
+CREATE TABLE c(a INTEGER) engine=innodb;
+SELECT 1
+FROM a
+WHERE 1 IN (SELECT (a.b IS NULL) IN (SELECT 1 FROM c) FROM c)
+;
+1
+DROP TABLE a, c;
 set optimizer_switch=default;

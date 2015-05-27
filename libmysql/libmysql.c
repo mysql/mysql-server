@@ -121,6 +121,10 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
     init_client_errs();
     if (mysql_client_plugin_init())
       return 1;
+#if defined (HAVE_OPENSSL) && !defined(HAVE_YASSL)
+    ssl_start();
+#endif
+
     if (!mysql_port)
     {
       char *env;

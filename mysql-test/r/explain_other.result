@@ -1201,13 +1201,13 @@ Warning	1364	Field 'cmd' doesn't have a default value
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT 
 t1.login AS tlogin, 
 numb - 
-IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0) -
-IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0) as sp 
+IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) -
+IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) as sp
 FROM tbl1 t1, tbl2 t2 
 WHERE t1.login=t2.login 
 GROUP BY t1.login 
-ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0)
-- IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0)
+ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
+- IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
 '
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	PRIMARY,numb	PRIMARY	4	NULL	2	100.00	Using temporary; Using filesort
@@ -1217,13 +1217,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 EXPLAIN FORMAT=JSON FOR QUERY 'SELECT 
 t1.login AS tlogin, 
 numb - 
-IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0) -
-IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0) as sp 
+IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) -
+IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0) as sp
 FROM tbl1 t1, tbl2 t2 
 WHERE t1.login=t2.login 
 GROUP BY t1.login 
-ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0)
-- IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=tlogin), 0)
+ORDER BY numb - IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
+- IFNULL((SELECT sum(nump) FROM tbl2 WHERE login=t1.login), 0)
 '
 EXPLAIN
 {

@@ -11,15 +11,13 @@
 
 --source include/have_innodb_16k.inc
 --source include/not_embedded.inc
-
---echo # Skip this test other platfoms and run only on Linux.
-if (`select convert(@@version_compile_os using latin1) IN ("Linux") = 0`)
-{
-  skip Need Linux;
-}
+--source include/linux.inc
+--source include/have_util_unzip.inc
 
 --echo # Set the environmental variables
-let MYSQL_BASEDIR= `select @@basedir`;
+LET MYSQL_BASEDIR= `select @@basedir`;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --echo # Stop server
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

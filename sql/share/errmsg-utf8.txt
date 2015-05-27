@@ -6836,7 +6836,7 @@ ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"
 
 ER_MUST_CHANGE_PASSWORD
-  eng "You must SET PASSWORD before executing this statement"
+  eng "You must reset your password using ALTER USER statement before executing this statement."
   bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
 ER_FK_NO_INDEX_CHILD
@@ -7143,7 +7143,7 @@ ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
   eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
 
 ER_QUERY_TIMEOUT 
-  eng "Query execution was interrupted, max_statement_time exceeded"
+  eng "Query execution was interrupted, maximum statement execution time exceeded"
 
 ER_NON_RO_SELECT_DISABLE_TIMER
   eng "Select is not a read only statement, disabling timer"
@@ -7480,6 +7480,10 @@ ER_LOCKING_SERVICE_DEADLOCK
 
 ER_LOCKING_SERVICE_TIMEOUT
   eng "Service lock wait timeout exceeded."
+
+ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
+  eng "Parameter %s exceeds the maximum number of points in a geometry (%lu) in function %s."
+
 
 #
 #  End of 5.7 error messages.

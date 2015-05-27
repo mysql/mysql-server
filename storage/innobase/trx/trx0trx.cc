@@ -76,6 +76,17 @@ TrxVersion::TrxVersion(trx_t* trx)
 	/* No op */
 }
 
+/** Set flush observer for the transaction
+@param[in/out]	trx		transaction struct
+@param[in]	observer	flush observer */
+void
+trx_set_flush_observer(
+	trx_t*		trx,
+	FlushObserver*	observer)
+{
+	trx->flush_observer = observer;
+}
+
 /*************************************************************//**
 Set detailed error message for the transaction. */
 void
@@ -140,6 +151,8 @@ trx_init(
 
 	trx->error_key_num = ULINT_UNDEFINED;
 
+	trx->last_upd_sp_index = NULL;
+
 	trx->undo_no = 0;
 
 	trx->rsegs.m_redo.rseg = NULL;
@@ -190,6 +203,8 @@ trx_init(
 	it got a chance to roll them back asynchronously. */
 
 	trx->hit_list.clear();
+
+	trx->flush_observer = NULL;
 
 	++trx->version;
 }
@@ -3345,6 +3360,10 @@ trx_kill_blocking(trx_t* trx)
 		if (trx_is_started(victim_trx) && rollback) {
 
 			trx_id_t	id = victim_trx->id;
+			char*		thr_text = thd_security_context(
+							victim_trx->mysql_thd,
+							buffer, sizeof(buffer),
+							512);
 
 			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
 
@@ -3353,9 +3372,7 @@ trx_kill_blocking(trx_t* trx)
 			trx_rollback_for_mysql(victim_trx);
 
 			ib::info() << "Killed transaction: ID: " << id
-				<< " - " << thd_security_context(
-					victim_trx->mysql_thd,
-					buffer, sizeof(buffer), 512);
+				<< " - " << thr_text;
 		}
 
 		trx_mutex_enter(victim_trx);

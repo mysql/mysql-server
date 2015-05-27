@@ -1,0 +1,164 @@
+############### mysql-test/t/max_points_in_geometry_basic.test ################
+#                                                                             #
+# Variable Name: max_points_in_geometry                                       #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: ulong                                                            #
+# Default Value:  65536                                                       #
+# Range:   [3-64*1024*1024]                                                   #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2015-04-16                                                   #
+# Author:  David Zhao                                                         #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable max_points_in_geometry   #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference:                                                                  #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+#######################################################################
+#                    START OF max_points_in_geometry TESTS            #
+#######################################################################
+
+
+#######################################################################
+#      Saving initial value of max_points_in_geometry in a temporary  #
+#      variable                                                       #
+#######################################################################
+
+SET @session_start_value = @@session.max_points_in_geometry;
+SET @global_start_value = @@global.max_points_in_geometry;
+
+--echo '#--------------------FN_DYNVARS_001_01------------------------#'
+########################################################################
+#                    Display the DEFAULT value of max_points_in_geometry#
+########################################################################
+
+
+SET @@max_points_in_geometry = DEFAULT;
+SELECT @@max_points_in_geometry = 65536;
+
+--echo '#---------------------FN_DYNVARS_001_02-------------------------#'
+##############################################################
+#     see if accessable using global scope                   #
+##############################################################
+
+SET @@global.max_points_in_geometry = 1000;
+select @@global.max_points_in_geometry = @@session.max_points_in_geometry;
+
+SET @@session.max_points_in_geometry = 1000;
+select @@global.max_points_in_geometry = @@session.max_points_in_geometry;
+
+--echo '#--------------------FN_DYNVARS_001_03------------------------#'
+##########################################################################
+#              Change the value of max_points_in_geometry to a valid value#
+##########################################################################
+
+SET @@max_points_in_geometry = 10;
+SELECT @@max_points_in_geometry, @@session.max_points_in_geometry,
+       @@max_points_in_geometry=@@session.max_points_in_geometry;
+
+SELECT @@max_points_in_geometry, @@global.max_points_in_geometry,
+       @@max_points_in_geometry=@@global.max_points_in_geometry;
+
+--echo '#--------------------FN_DYNVARS_001_04-------------------------#'
+###########################################################################
+#               Change the value of max_points_in_geometry to invalid value#
+###########################################################################
+
+# for session scope
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@max_points_in_geometry = "1";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@max_points_in_geometry = " ";
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@max_points_in_geometry = 'abc';
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@max_points_in_geometry = NULL;
+
+SET @@max_points_in_geometry = 1;
+SELECT @@max_points_in_geometry;
+
+SET @@max_points_in_geometry = 67108865;
+SELECT @@max_points_in_geometry;
+
+--echo '#----------------------FN_DYNVARS_001_06------------------------#'
+#########################################################################
+#     Check if the value in SESSION Table matches value in variable     #
+#########################################################################
+
+--disable_warnings
+SELECT @@max_points_in_geometry = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='max_points_in_geometry';
+--enable_warnings
+
+--echo '#---------------------FN_DYNVARS_001_08-------------------------#'
+#############################################################################
+#        Check if ON, OFF, TRUE and FALSE values can be used on variable    #
+#############################################################################
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@max_points_in_geometry = OFF;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@max_points_in_geometry = ON;
+
+SET @@max_points_in_geometry = TRUE;
+SELECT @@max_points_in_geometry;
+
+SET @@max_points_in_geometry = FALSE;
+SELECT @@max_points_in_geometry;
+
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+#############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points
+#    to same session variable
+#############################################################################
+
+SET @@max_points_in_geometry = 123456;
+SELECT @@max_points_in_geometry = @@local.max_points_in_geometry and
+       @@max_points_in_geometry = @@session.max_points_in_geometry;
+SET @@max_points_in_geometry = 654321;
+SELECT @@max_points_in_geometry = @@local.max_points_in_geometry and
+       @@max_points_in_geometry = @@session.max_points_in_geometry;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+############################################################################
+#   Check if max_points_in_geometry can be accessed with and without @@ sign#
+############################################################################
+
+SET max_points_in_geometry = 100;
+SELECT @@max_points_in_geometry=100;
+--Error ER_UNKNOWN_TABLE
+SELECT local.max_points_in_geometry;
+--Error ER_UNKNOWN_TABLE
+SELECT session.max_points_in_geometry;
+--Error ER_BAD_FIELD_ERROR
+SELECT max_points_in_geometry = @@session.max_points_in_geometry;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@max_points_in_geometry = @session_start_value;
+SET @@global.max_points_in_geometry = @global_start_value;
+
+############################################################################
+#                    END OF max_points_in_geometry TESTS                    #
+############################################################################
+

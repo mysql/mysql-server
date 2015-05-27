@@ -37,6 +37,8 @@ Created 04/12/2011 Jimmy Yang
 /** Whether to update all columns' value or a specific column value */
 #define UPDATE_ALL_VAL_COL	-1
 
+extern bool    release_mdl_lock;
+
 extern option_t config_option_names[];
 
 /** InnoDB API callback functions */
@@ -160,13 +162,19 @@ innodb_api_begin(
 
 		/* If MDL is enabled, we need to create mysql handler. */
 		if (engine) {
-			/* Create a "Fake" THD if binlog is enabled */
-			/* For flush_all which request IB_LOCK_TABLE_X
-			lock, we need to add MDL lock. It's because we need
-			to block DMLs from sql layer. */
-			if (conn_data && (engine->enable_binlog
-					  || engine->enable_mdl
-					  || lock_mode == IB_LOCK_TABLE_X)) {
+
+			if (lock_mode == IB_LOCK_NONE) {
+
+				/* Skip MDL locking for enabling reads */
+			} else if (conn_data && (engine->enable_binlog
+						 || engine->enable_mdl
+						 || lock_mode == IB_LOCK_TABLE_X)) {
+
+				/* Create a "Fake" THD if binlog is enabled */
+				/* For flush_all which request IB_LOCK_TABLE_X
+				lock, we need to add MDL lock. It's because we need
+				to block DMLs from sql layer. */
+
 				if (!conn_data->thd) {
 					conn_data->thd = handler_create_thd(
 						engine->enable_binlog);
@@ -1942,7 +1950,8 @@ innodb_api_cursor_reset(
 		break;
 	}
 
-	if (conn_data->n_reads_since_commit >= engine->read_batch_size
+	if (release_mdl_lock
+	    || conn_data->n_reads_since_commit >= engine->read_batch_size
 	    || conn_data->n_writes_since_commit >= engine->write_batch_size
 	    || (op_type == CONN_OP_FLUSH) || !commit) {
 		commit_trx = innodb_reset_conn(

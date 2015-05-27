@@ -72,9 +72,9 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
     DBUG_RETURN(9);
   case NOT_YET_DETERMINED_GROUP:
     /*
-      GTID_NEXT can never be printed by a user when the value is
-      NOT_YET_DETERMINED_GROUP, but we should allow it in debug
-      printouts.
+      This can happen if user issues SELECT @@SESSION.GTID_NEXT
+      immediately after a BINLOG statement containing a
+      Format_description_log_event.
     */
     strcpy(buf, "NOT_YET_DETERMINED");
     DBUG_RETURN(18);

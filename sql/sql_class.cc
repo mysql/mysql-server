@@ -245,8 +245,17 @@ THD::Attachable_trx::~Attachable_trx()
   // transaction.
   DBUG_ASSERT(!m_thd->transaction_rollback_request);
 
-  // NOTE: the attachable transaction is AUTOCOMMIT, thus there is no need for
-  // explicit commit calls.
+  // Commit the attachable transaction before discarding transaction state.
+  // Since the attachable transaction is AUTOCOMMIT we only need to commit
+  // statement transaction. This is mostly needed to properly reset transaction
+  // state in SE.
+  // Note: We can't rely on InnoDB hack which auto-magically commits InnoDB
+  // transaction when the last table for a statement in auto-commit mode is
+  // unlocked. Apparently it doesn't work correctly in some corner cases
+  // (for example, when statement is killed just after tables are locked but
+  // before any other operations on the table happes). We try not to rely on
+  // it in other places on SQL-layer as well.
+  trans_commit_stmt(m_thd);
 
   // Remember the handlerton of an open table to call the handlerton after the
   // tables are closed.
@@ -1230,7 +1239,8 @@ THD::THD(bool enable_plugins)
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
-   m_stmt_da(&main_da)
+   m_stmt_da(&main_da),
+   duplicate_slave_uuid(false)
 {
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -1745,6 +1755,10 @@ void THD::cleanup_connection(void)
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   killed= NOT_KILLED;
   cleanup_done= 0;
   init();
@@ -1855,15 +1869,6 @@ void THD::cleanup(void)
   if (tc_log && !trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
     tc_log->commit(this, true);
 
-  /*
-    Debug sync system must be closed after tc_log->commit(), because
-    DEBUG_SYNC is used in commit code.
-  */
-#if defined(ENABLED_DEBUG_SYNC)
-  /* End the Debug Sync Facility. See debug_sync.cc. */
-  debug_sync_end_thread(this);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -1908,6 +1913,16 @@ void THD::release_resources()
 
   mdl_context.destroy();
   ha_close_connection(this);
+
+  /*
+    Debug sync system must be closed after ha_close_connection, because
+    DEBUG_SYNC is used in InnoDB connection handlerton close.
+  */
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   mysql_audit_release(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 

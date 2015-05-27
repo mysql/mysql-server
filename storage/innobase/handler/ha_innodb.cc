@@ -3302,6 +3302,18 @@ innobase_init(
 		DBUG_RETURN(innobase_init_abort());
 	}
 
+	/* ------------ UNDO tablespaces files ---------------------*/
+	if (!srv_undo_dir) {
+		srv_undo_dir = default_path;
+	}
+
+	os_normalize_path_for_win(srv_undo_dir);
+
+	if (strchr(srv_undo_dir, ';')) {
+		sql_print_error("syntax error in innodb_undo_directory");
+		DBUG_RETURN(innobase_init_abort());
+	}
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -7469,6 +7481,8 @@ convert_search_mode_to_innobase(
 	case HA_READ_MBR_EQUAL:
 		return(PAGE_CUR_MBR_EQUAL);
 	case HA_READ_PREFIX:
+		return(PAGE_CUR_UNSUPP);
+        case HA_READ_INVALID:
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
@@ -17823,7 +17837,7 @@ static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Directory where undo tablespace files live, this path can be absolute.",
-  NULL, NULL, ".");
+  NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -17831,7 +17845,7 @@ static MYSQL_SYSVAR_ULONG(undo_tablespaces, srv_undo_tablespaces,
   NULL, NULL,
   0L,			/* Default seting */
   0L,			/* Minimum value */
-  126L, 0);		/* Maximum value */
+  95L, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,

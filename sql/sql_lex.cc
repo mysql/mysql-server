@@ -19,6 +19,7 @@
 
 #include "sql_lex.h"
 
+#include "mysql_version.h"             // MYSQL_VERSION_ID
 #include "sp_head.h"                   // sp_head
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
@@ -3523,20 +3524,19 @@ LEX::LEX()
 }
 
 
-/*
+/**
   check if command can use VIEW with MERGE algorithm (for top VIEWs)
 
-  SYNOPSIS
-    LEX::can_use_merged()
-
-  DESCRIPTION
+  @details
     Only listed here commands can use merge algorithm in top level
     SELECT_LEX (for subqueries will be used merge algorithm if
     LEX::can_not_use_merged() is not TRUE).
 
-  RETURN
-    FALSE - command can't use merged VIEWs
-    TRUE  - VIEWs with MERGE algorithms can be used
+  @todo - Add SET as a command that can use merged views. Due to how
+          all uses would be embedded in subqueries, this test is worthless
+          for the SET command anyway.
+
+  @returns true if command can use merged VIEWs, false otherwise
 */
 
 bool LEX::can_use_merged()
@@ -3560,19 +3560,14 @@ bool LEX::can_use_merged()
   }
 }
 
-/*
+/**
   Check if command can't use merged views in any part of command
 
-  SYNOPSIS
-    LEX::can_not_use_merged()
-
-  DESCRIPTION
+  @details
     Temporary table algorithm will be used on all SELECT levels for queries
     listed here (see also LEX::can_use_merged()).
 
-  RETURN
-    FALSE - command can't use merged VIEWs
-    TRUE  - VIEWs with MERGE algorithms can be used
+  @returns true if command cannot use merged view, false otherwise
 */
 
 bool LEX::can_not_use_merged()

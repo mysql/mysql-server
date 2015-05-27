@@ -247,7 +247,8 @@ public:
 
   GRANT_TABLE(const char *h, const char *d,const char *u,
               const char *t, ulong p, ulong c);
-  GRANT_TABLE (TABLE *form, TABLE *col_privs);
+  explicit GRANT_TABLE(TABLE *form);
+  bool init(TABLE *col_privs);
   ~GRANT_TABLE();
   bool ok() { return privs != 0 || cols != 0; }
 };

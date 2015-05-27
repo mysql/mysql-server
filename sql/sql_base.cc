@@ -222,6 +222,7 @@ bool Strict_error_handler::handle_condition(THD *thd,
   case ER_DATETIME_FUNCTION_OVERFLOW:
   case ER_WARN_TOO_FEW_RECORDS:
   case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
+  case ER_WARN_ALLOWED_PACKET_OVERFLOWED:
     if ((*level == Sql_condition::SL_WARNING) &&
         (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
          || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
@@ -3510,6 +3511,8 @@ table_found:
   */
   DBUG_ASSERT(table->file->pushed_cond == NULL);
   table_list->set_updatable(); // It is not derived table nor non-updatable VIEW
+  table_list->set_insertable();
+
   table_list->table= table;
 
   if (table->part_info)
@@ -4382,10 +4385,11 @@ request_backoff_action(enum_open_table_action action_arg,
     * We met a broken table that needs repair, or a table that
       is not present on this MySQL server and needs re-discovery.
       To perform the action, we need an exclusive metadata lock on
-      the table. Acquiring an X lock while holding other shared
-      locks is very deadlock-prone. If this is a multi- statement
-      transaction that holds metadata locks for completed
-      statements, we don't do it, and report an error instead.
+      the table. Acquiring X lock while holding other shared
+      locks can easily lead to deadlocks. We rely on MDL deadlock
+      detector to discover them. If this is a multi-statement
+      transaction that holds metadata locks for completed statements,
+      we should keep these locks after discovery/repair.
       The action type in this case is OT_DISCOVER or OT_REPAIR.
     * Our attempt to acquire an MDL lock lead to a deadlock,
       detected by the MDL deadlock detector. The current
@@ -4426,7 +4430,7 @@ request_backoff_action(enum_open_table_action action_arg,
       keep tables open between statements and a livelock
       is not possible.
   */
-  if (action_arg != OT_REOPEN_TABLES && m_has_locks)
+  if (action_arg == OT_BACKOFF_AND_RETRY && m_has_locks)
   {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     m_thd->mark_transaction_to_rollback(true);
@@ -4454,6 +4458,31 @@ request_backoff_action(enum_open_table_action action_arg,
 
 
 /**
+  An error handler to mark transaction to rollback on DEADLOCK error
+  during DISCOVER / REPAIR.
+*/
+class MDL_deadlock_discovery_repair_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_LOCK_DEADLOCK)
+    {
+      thd->mark_transaction_to_rollback(true);
+    }
+    /*
+      We have marked this transaction to rollback. Return false to allow
+      error to be reported or handled by other handlers.
+    */
+    return false;
+  }
+};
+
+/**
    Recover from failed attempt of open table by performing requested action.
 
    @pre This function should be called only with "action" != OT_NO_ACTION
@@ -4468,6 +4497,12 @@ Open_table_context::
 recover_from_failed_open()
 {
   bool result= FALSE;
+  MDL_deadlock_discovery_repair_handler handler;
+  /*
+    Install error handler to mark transaction to rollback on DEADLOCK error.
+  */
+  m_thd->push_internal_handler(&handler);
+
   /* Execute the action. */
   switch (m_action)
   {
@@ -4488,7 +4523,12 @@ recover_from_failed_open()
 
         m_thd->get_stmt_da()->reset_condition_info(m_thd);
         m_thd->clear_error();                 // Clear error message
-        m_thd->mdl_context.release_transactional_locks();
+        /*
+          Rollback to start of the current statement to release exclusive lock
+          on table which was discovered but preserve locks from previous statements
+          in current transaction.
+        */
+        m_thd->mdl_context.rollback_to_savepoint(start_of_statement_svp());
         break;
       }
     case OT_REPAIR:
@@ -4501,12 +4541,18 @@ recover_from_failed_open()
                          m_failed_table->table_name, FALSE);
 
         result= auto_repair_table(m_thd, m_failed_table);
-        m_thd->mdl_context.release_transactional_locks();
+        /*
+          Rollback to start of the current statement to release exclusive lock
+          on table which was discovered but preserve locks from previous statements
+          in current transaction.
+        */
+        m_thd->mdl_context.rollback_to_savepoint(start_of_statement_svp());
         break;
       }
     default:
       DBUG_ASSERT(0);
   }
+  m_thd->pop_internal_handler();
   /*
     Reset the pointers to conflicting MDL request and the
     TABLE_LIST element, set when we need auto-discovery or repair,
@@ -6872,6 +6918,8 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
   thd->thread_specific_used= TRUE;
 
   tl->set_updatable(); // It is not derived table nor non-updatable VIEW.
+  tl->set_insertable();
+
   tl->table= table;
 
   table->init(thd, tl);
@@ -6964,10 +7012,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
           Use own arena for Prepared Statements or data will be freed after
           PREPARE.
         */
-        Prepared_stmt_arena_holder ps_arena_holder(
-          thd,
-          register_tree_change &&
-            thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute());
+        Prepared_stmt_arena_holder ps_arena_holder(thd, register_tree_change);
 
         /*
           create_item() may, or may not create a new Item, depending on
@@ -9649,19 +9694,21 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 }
 
 
-int init_ftfuncs(THD *thd, SELECT_LEX *select_lex)
+bool init_ftfuncs(THD *thd, SELECT_LEX *select_lex)
 {
-  if (select_lex->ftfunc_list->elements)
-  {
-    List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
-    Item_func_match *ifm;
-    DBUG_PRINT("info",("Performing FULLTEXT search"));
-    THD_STAGE_INFO(thd, stage_fulltext_initialization);
+  DBUG_ASSERT(select_lex->has_ft_funcs());
 
-    while ((ifm=li++))
-      ifm->init_search();
+  List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
+  DBUG_PRINT("info",("Performing FULLTEXT search"));
+  THD_STAGE_INFO(thd, stage_fulltext_initialization);
+
+  Item_func_match *ifm;
+  while ((ifm= li++))
+  {
+    if (ifm->init_search(thd))
+      return true;
   }
-  return 0;
+  return false;
 }
 
 

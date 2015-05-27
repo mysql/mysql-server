@@ -1770,6 +1770,8 @@ os_file_create_subdirs_if_needed(
 	char*	subdir = os_file_dirname(path);
 
 	if (strlen(path) - strlen(subdir) == 1) {
+		ut_free(subdir);
+
 		return(DB_WRONG_FILE_NAME);
 	}
 
@@ -7158,7 +7160,7 @@ public:
 	{
 		ut_ad(m_segment < 100);
 
-		m_slots.reserve(OS_AIO_MERGE_N_CONSECUTIVE);
+		m_slots.resize(OS_AIO_MERGE_N_CONSECUTIVE);
 	}
 
 	/** Destructor */

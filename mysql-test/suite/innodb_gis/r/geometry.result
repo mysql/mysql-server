@@ -1082,9 +1082,9 @@ MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
 120	120	1	1	0	1	0	0	1	0
-120	121	0	0	0	0	0	0	1	0
+120	121	0	0	0	0	0	1	1	0
 120	122	0	0	1	0	0	0	1	0
-121	120	0	0	0	0	0	0	1	0
+121	120	0	0	0	0	0	1	1	0
 121	121	1	1	0	1	0	0	1	0
 121	122	0	0	0	0	1	0	0	0
 122	120	0	0	1	0	0	0	1	0

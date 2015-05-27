@@ -8,6 +8,7 @@ call mtr.add_suppression("Error during --relay-log-recovery");
 call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
 call mtr.add_suppression("Failed to create or recover replication info repositories");
 call mtr.add_suppression("Recovery from master pos.* and file");
+call mtr.add_suppression("A slave with the same server_uuid as this slave has connected to the master");
 include/stop_slave.inc
 SET @@global.master_info_repository="TABLE";
 SET @@global.relay_log_info_repository="TABLE";
@@ -21,6 +22,6 @@ Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
 STOP SLAVE FOR CHANNEL 'ch_a';
-include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start=off --master-info-repository=TABLE --relay-log-info-repository=TABLE]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 [connection slave]
 RESET SLAVE ALL;

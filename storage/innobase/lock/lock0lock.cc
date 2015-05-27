@@ -369,7 +369,7 @@ lock_clust_rec_cons_read_sees(
 
 	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	return(view->changes_visible(trx_id));
+	return(view->changes_visible(trx_id, index->table->name));
 }
 
 /*********************************************************************//**
@@ -1634,6 +1634,7 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 	ut_ad(!trx_mutex_own(m_trx));
 	ut_ad(lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
+	ib::info() << "Blocking transaction wake up: ID: " << lock->trx->id;
 	lock->trx->lock.was_chosen_as_deadlock_victim = true;
 
 	/* Remove the blocking transaction from the hit list. */
@@ -1678,6 +1679,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 		char	buffer[1024];
 
 		ib::info() << "Blocking transaction: ID: " << trx->id << " - "
+			<< " Blocked transaction ID: "<< m_trx->id << " - "
 			<< thd_security_context(thd, buffer, sizeof(buffer),
 						512);
 	}

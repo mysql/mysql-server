@@ -583,10 +583,11 @@ SELECT CONCAT('test', a) AS str FROM t1 ORDER BY UPPER(str);
 SELECT a + 1 AS num FROM t1 GROUP BY 30 - num;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 SELECT a + 1 AS num FROM t1 HAVING 30 - num;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, num + 1 FROM t1;
+--error ER_BAD_FIELD_ERROR
 SELECT a + 1 AS num, (select num + 2 FROM t1 LIMIT 1) FROM t1;
---error 1054
+--error ER_BAD_FIELD_ERROR
 SELECT a.a + 1 AS num FROM t1 a JOIN t1 b ON num = b.a;
 DROP TABLE t1;
 
@@ -798,44 +799,33 @@ INSERT INTO t1 SELECT a +16, b +16 FROM t1;
 INSERT INTO t1 SELECT a +32, b +32 FROM t1;
 INSERT INTO t1 SELECT a +64, b +64 FROM t1;
 
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (a, ab) GROUP BY a;
+let $query=
+SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY, ab) GROUP BY a;
 
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_before = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
+eval EXPLAIN $query;
+flush status;
+eval $query;
+show status like 'Created_tmp_tables';
 
-SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (a, ab) GROUP BY a;
+let $query=
+SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, ab) ORDER BY a;
 
-# this query creates one temporary table in itself, which we are not
-# interested in.
+eval EXPLAIN $query;
+flush status;
+eval $query;
+show status like 'Created_tmp_tables';
 
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_after = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
+flush status;
+let $query=
+SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
 
-SELECT @tmp_tables_after = @tmp_tables_before ;
-
-EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (a, ab) ORDER BY a;
-
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_before = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
-
-SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (a, ab) ORDER BY a;
-
---disable_query_log
---let $q = `show status like 'Created_tmp_tables';`
-eval set @tmp_tables_after = 
-  CAST(REPLACE('$q', 'Created_tmp_tables', '') AS UNSIGNED);
---enable_query_log
-
-SELECT @tmp_tables_after = @tmp_tables_before;
+let $query=
+SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) ORDER BY a;
+eval EXPLAIN $query;
+eval $query;
+show status like 'Created_tmp_tables';
 
 DROP TABLE t1;
 --echo #

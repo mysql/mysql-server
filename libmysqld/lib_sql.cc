@@ -617,9 +617,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!(acl_error= acl_init(opt_noacl)) &&
-      !opt_noacl)
-    (void) grant_init();
+  acl_error= acl_init(opt_noacl) || grant_init(opt_noacl);
 #endif
   if (acl_error || my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {

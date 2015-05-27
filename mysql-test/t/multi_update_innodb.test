@@ -93,3 +93,25 @@ SET SESSION SQL_MODE='';
 UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 DROP TABLE table_11757486;
 
+--echo #
+--echo # Bug#20748537 INNODB: FAILING ASSERTION: NODE->PCUR->REL_POS == BTR_PCUR_ON
+--echo #
+
+CREATE TABLE t1(c1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0),(0),(1);
+CREATE TABLE t2(b INT) ENGINE=INNODB;
+INSERT INTO t2 VALUES(0),(0);
+ANALYZE TABLE t1,t2;
+
+let $query=UPDATE t1,t2 SET t2.b=0;
+# No tmp table should be used
+eval EXPLAIN $query;
+
+# sql_buffer_result should have no influence
+SET @old_buf_result=@@sql_buffer_result;
+SET sql_buffer_result=ON;
+eval EXPLAIN $query;
+eval $query;
+
+SET sql_buffer_result=@old_buf_result;
+DROP TABLE t1,t2;

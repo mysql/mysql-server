@@ -694,13 +694,16 @@ row_ins_cascade_calc_update_vec(
 	if (table->fts && *fts_col_affected) {
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	doc_id;
-                        upd_field_t*	ufield;
+			doc_id_t*	next_doc_id;
+			upd_field_t*	ufield;
+
+			next_doc_id = static_cast<doc_id_t*>(mem_heap_alloc(
+				heap, sizeof(doc_id_t)));
 
 			ut_ad(!doc_id_updated);
 			ufield = update->fields + n_fields_updated;
-			fts_get_next_doc_id(table, &trx->fts_next_doc_id);
-			doc_id = fts_update_doc_id(table, ufield,
-						   &trx->fts_next_doc_id);
+			fts_get_next_doc_id(table, next_doc_id);
+			doc_id = fts_update_doc_id(table, ufield, next_doc_id);
 			n_fields_updated++;
 			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 		} else  {
@@ -1146,7 +1149,8 @@ row_ins_foreign_check_on_constraint(
 
 
 	if (table->fts) {
-		doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
+		doc_id = fts_get_doc_id_from_rec(table, clust_rec,
+						 clust_index, tmp_heap);
 	}
 
 	if (node->is_delete

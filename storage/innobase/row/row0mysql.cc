@@ -713,6 +713,9 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
+		DBUG_EXECUTE_IF("row_mysql_crash_if_error", {
+					log_buffer_flush_to_disk();
+					DBUG_SUICIDE(); });
 		if (savept) {
 			/* Roll back the latest, possibly incomplete insertion
 			or update */

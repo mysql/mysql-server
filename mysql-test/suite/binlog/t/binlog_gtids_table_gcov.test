@@ -19,6 +19,12 @@
 --source include/have_log_bin.inc
 --source include/have_gtid.inc
 
+# Need to restart servers after this test because it closes the binary
+# log and there is no other way to recover from that.
+--source include/force_restart.inc
+
+RESET MASTER;
+
 call mtr.add_suppression("Failed to save the set of Global Transaction "
                          "Identifiers of the last binary log into the "
                          "mysql.gtid_executed table while the server was "
@@ -66,8 +72,3 @@ SELECT * FROM mysql.gtid_executed;
 --eval SET GLOBAL binlog_error_action= $saved_binlog_error_action
 
 DROP TABLE t1;
-
-# Restart and reset the server
---source include/restart_mysqld.inc
-RESET MASTER;
-

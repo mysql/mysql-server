@@ -3220,11 +3220,12 @@ row_sel_store_mysql_rec(
 	NOTE, the record can be cluster or secondary index record.
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
-	if (dict_table_has_fts_index(prebuilt->table) &&
-		(dict_index_is_clust(index) ||
-			prebuilt->fts_doc_id_in_read_set)) {
-		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
-			prebuilt->table, rec, NULL);
+	if (dict_table_has_fts_index(prebuilt->table)) {
+		if (dict_index_is_clust(index)
+		    || prebuilt->fts_doc_id_in_read_set) {
+			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
+				prebuilt->table, rec, index, NULL);
+		}
 	}
 
 	DBUG_RETURN(TRUE);
@@ -5775,6 +5776,15 @@ normal_return:
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	mtr_commit(&mtr);
+
+	/* Rollback blocking transactions from hit list for high priority
+	transaction, if any. We should not be holding latches here as
+	we are going to rollback the blocking transactions. */
+	if (!trx->hit_list.empty()) {
+
+		ut_ad(trx_is_high_priority(trx));
+		trx_kill_blocking(trx);
+	}
 
 	DEBUG_SYNC_C("row_search_for_mysql_before_return");
 

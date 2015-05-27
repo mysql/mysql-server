@@ -96,11 +96,22 @@ struct hash_lex_struct
 {
   int first_char;
   char last_char;
+  // union value is undefined if first_char == 0
   union{
-    hash_lex_struct *char_tails;
-    int iresult;
+    hash_lex_struct *char_tails; // if first_char > 0
+    int iresult;                 // if first_char == -1
   };
   int ithis;
+
+  void destroy()
+  {
+    if (first_char <= 0)
+      return;
+    for (int i= 0, size= static_cast<uchar>(last_char) - first_char + 1;
+         i < size; i++)
+      char_tails[i].destroy();
+    free(char_tails);
+  }
 };
 
 
@@ -119,6 +130,8 @@ public:
 
   ~hash_map_info()
   {
+    for (int i= 0; i < max_len; i++)
+      root_by_len[i].destroy();
     free(root_by_len);
     free(hash_map);
   }

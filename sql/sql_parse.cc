@@ -2123,18 +2123,6 @@ mysql_execute_command(THD *thd)
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
-  if (unlikely(lex->is_broken()))
-  {
-    // Force a Reprepare, to get a fresh LEX
-    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
-    if (reprepare_observer &&
-        reprepare_observer->report_error(thd))
-    {
-      DBUG_ASSERT(thd->is_error());
-      DBUG_RETURN(1);
-    }
-  }
-
   thd->work_part_info= 0;
 
   DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) ||
@@ -2486,11 +2474,7 @@ case SQLCOM_PREPARE:
     break;
   }
   case SQLCOM_DO:
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables, 0))
-      goto error;
-
-    res= mysql_do(thd, *lex->do_insert_list);
+    res= mysql_do(thd, lex);
     break;
 
   case SQLCOM_EMPTY_QUERY:
@@ -2972,6 +2956,9 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -3005,6 +2992,9 @@ end_with_restore_list:
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
