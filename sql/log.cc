@@ -46,6 +46,8 @@
 #include <syslog.h>
 #endif
 
+#include "xa.h"  // TC_HEURISTIC_NOT_USED
+
 using std::min;
 using std::max;
 
@@ -2055,7 +2057,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     inited= 1;
     crashed= TRUE;
     sql_print_information("Recovering after a crash using %s", opt_name);
-    if (tc_heuristic_recover)
+    if (tc_heuristic_recover != TC_HEURISTIC_NOT_USED)
     {
       sql_print_error("Cannot perform automatic crash recovery when "
                       "--tc-heuristic-recover is used");
@@ -2482,7 +2484,7 @@ TC_LOG_MMAP  tc_log_mmap;
 
 int TC_LOG::using_heuristic_recover()
 {
-  if (!tc_heuristic_recover)
+  if (tc_heuristic_recover == TC_HEURISTIC_NOT_USED)
     return 0;
 
   sql_print_information("Heuristic crash recovery mode");

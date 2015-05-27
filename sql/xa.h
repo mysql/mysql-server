@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,10 @@ struct xid_t;
 
 enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
                       XA_SUSPEND, XA_FOR_MIGRATE};
+
+static const int TC_HEURISTIC_NOT_USED= 0;
+static const int TC_HEURISTIC_RECOVER_COMMIT= 1;
+static const int TC_HEURISTIC_RECOVER_ROLLBACK= 2;
 
 /**
   This class represents SQL statement which starts an XA transaction
