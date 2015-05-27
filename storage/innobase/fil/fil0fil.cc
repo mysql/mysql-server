@@ -5097,10 +5097,11 @@ fil_io(
 
 	fil_space_t*	space = fil_space_get_by_id(page_id.space());
 
-	/* If we are deleting a tablespace we don't allow any read
-	operations on that. However, we do allow write operations. */
+	/* If we are deleting a tablespace we don't allow async read operations
+	on that. However, we do allow write operations and sync read operations. */
 	if (space == NULL
 	    || (req_type.is_read()
+		&& !sync
 		&& space->stop_new_ops
 		&& !space->is_being_truncated)) {
 
