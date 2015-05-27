@@ -5766,55 +5766,36 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   int i;
   THD *thd= rli->info_thd;
-
-  if (!*mts_inited) 
+  if (!*mts_inited)
     return;
   else if (rli->slave_parallel_workers == 0)
     goto end;
 
   /*
-    In case of the "soft" graceful stop Coordinator
-    guaranteed Workers were assigned with full groups so waiting
-    will be resultful.
-    "Hard" stop with KILLing Coordinator or erroring out by a Worker
-    can't wait for Workers' completion because those may not receive
-    commit-events of last assigned groups.
+    If request for stop slave is received notify worker
+    to stop.
   */
-  if (rli->mts_group_status != Relay_log_info::MTS_KILLED_GROUP &&
-      thd->killed == THD::NOT_KILLED)
-  {
-    DBUG_ASSERT(rli->mts_group_status != Relay_log_info::MTS_IN_GROUP ||
-                thd->is_error());
+  // Initialize worker exit count and max_updated_index to 0 during each stop.
+  rli->exit_counter= 0;
+  rli->max_updated_index= (rli->until_condition !=
+                           Relay_log_info::UNTIL_NONE)?
+                           rli->mts_groups_assigned:0;
 
-#ifndef DBUG_OFF
-    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
-    {
-      sql_print_error("This is not supposed to happen at this point...");
-      DBUG_SUICIDE();
-    }
-#endif
-    // No need to know a possible error out of synchronization call.
-    (void) wait_for_workers_to_finish(rli);
-    /*
-      At this point the coordinator has been stopped and the checkpoint
-      routine is executed to eliminate possible gaps.
-    */
-    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-  }
   for (i= rli->workers.elements - 1; i >= 0; i--)
   {
     Slave_worker *w;
+    struct slave_job_item item= {NULL}, *job_item= &item;
     get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
-    
     mysql_mutex_lock(&w->jobs_lock);
-    
+    //Inform all workers to stop
     if (w->running_status != Slave_worker::RUNNING)
     {
       mysql_mutex_unlock(&w->jobs_lock);
       continue;
     }
 
-    w->running_status= Slave_worker::KILLED;
+    w->running_status= Slave_worker::STOP;
+    (void) set_max_updated_index_on_stop(w, job_item);
     mysql_cond_signal(&w->jobs_cond);
 
     mysql_mutex_unlock(&w->jobs_lock);
@@ -5835,8 +5816,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     while (w->running_status != Slave_worker::NOT_RUNNING)
     {
       PSI_stage_info old_stage;
-      DBUG_ASSERT(w->running_status == Slave_worker::KILLED ||
-                  w->running_status == Slave_worker::ERROR_LEAVING);
+      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
+                  w->running_status == Slave_worker::STOP ||
+                  w->running_status == Slave_worker::STOP_ACCEPTED);
 
       thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
                       &stage_slave_waiting_workers_to_exit, &old_stage);
@@ -5845,11 +5827,18 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
+  }
 
+  if (thd->killed == THD::NOT_KILLED)
+    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
+
+  for (i= rli->workers.elements - 1; i >= 0; i--)
+  {
+    Slave_worker *w= NULL;
+    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
-
   if (log_warnings > 1)
     sql_print_information("Total MTS session statistics: "
                           "events processed = %llu; "
