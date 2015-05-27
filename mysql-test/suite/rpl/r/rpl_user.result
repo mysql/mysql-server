@@ -61,7 +61,7 @@ Host	User	password_expired
 localhost	must_change2	Y
 # must throw an error
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # setting a password unlocks it
 SET PASSWORD = 'aha2';
 include/sync_slave_sql_with_master.inc

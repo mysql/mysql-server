@@ -734,21 +734,21 @@ USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD = 'def';
 SELECT USER();
 USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER user() IDENTIFIED BY 'abc';
 SELECT USER();
 USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER u1@localhost IDENTIFIED BY 'def';
 SELECT USER();
 USER()
@@ -992,11 +992,11 @@ GRANT ALL ON *.* TO 20553132_u1@localhost;
 ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
 ALTER USER '20553132_u3'@'%' PASSWORD EXPIRE;
 ALTER USER 20553132_u1@localhost PASSWORD EXPIRE NEVER;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER 20553132_u1@localhost PASSWORD EXPIRE DEFAULT;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER 20553132_u1@localhost, 20553132_u2@localhost IDENTIFIED BY 'abcd' PASSWORD EXPIRE NEVER;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED BY 'defg' PASSWORD EXPIRE NEVER;
 ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
 ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
@@ -1052,20 +1052,20 @@ CURRENT_USER()
 bug20634154@localhost
 ALTER USER bug20634154@localhost PASSWORD EXPIRE;
 SELECT CURRENT_USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 GRANT USAGE ON *.* TO bug20634154@localhost;
 SELECT CURRENT_USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER bug20634154@localhost;
 SELECT CURRENT_USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER bug20634154@localhost IDENTIFIED BY 'def';
 SELECT CURRENT_USER();
 CURRENT_USER()
 bug20634154@localhost
 ALTER USER bug20634154@localhost IDENTIFIED BY 'abc' PASSWORD EXPIRE;
 SELECT CURRENT_USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER bug20634154@localhost IDENTIFIED BY 'def' PASSWORD EXPIRE INTERVAL 10 DAY;
 SELECT CURRENT_USER();
 CURRENT_USER()

@@ -2747,7 +2747,7 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
 # Doing something should fail
 SELECT 1;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # Setting password should work
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
 # Doing something should pass
