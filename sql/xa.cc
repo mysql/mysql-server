@@ -180,11 +180,13 @@ int ha_recover(HASH *commit_list)
   DBUG_ENTER("ha_recover");
   info.found_foreign_xids= info.found_my_xids= 0;
   info.commit_list= commit_list;
-  info.dry_run= (info.commit_list == 0 && tc_heuristic_recover == 0);
+  info.dry_run= (info.commit_list == 0 &&
+                 tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
   info.list= NULL;
 
   /* commit_list and tc_heuristic_recover cannot be set both */
-  DBUG_ASSERT(info.commit_list == 0 || tc_heuristic_recover == 0);
+  DBUG_ASSERT(info.commit_list == 0 ||
+              tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
   /* if either is set, total_ha_2pc must be set too */
   DBUG_ASSERT(info.dry_run || total_ha_2pc>(ulong)opt_bin_log);
 

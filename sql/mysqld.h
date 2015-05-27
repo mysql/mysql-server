@@ -611,8 +611,6 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 
-#define TC_HEURISTIC_RECOVER_COMMIT   1
-#define TC_HEURISTIC_RECOVER_ROLLBACK 2
 extern ulong tc_heuristic_recover;
 
 extern ulong specialflag;
