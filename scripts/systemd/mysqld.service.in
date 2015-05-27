@@ -44,6 +44,9 @@ ExecStart=@libexecdir@/mysqld --daemonize $MYSQLD_OPTS
 # Use this to switch malloc implementation
 EnvironmentFile=-/etc/sysconfig/mysql
 
+# Sets open_files_limit
+LimitNOFILE = 5000
+
 Restart=on-failure
 
 RestartPreventExitStatus=1
