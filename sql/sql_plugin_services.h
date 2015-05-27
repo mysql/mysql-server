@@ -67,6 +67,7 @@ static struct mysql_malloc_service_st mysql_malloc_handler=
 {
   my_malloc,
   my_realloc,
+  my_claim,
   my_free,
   my_memdup,
   my_strdup,

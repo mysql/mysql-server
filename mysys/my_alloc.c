@@ -344,6 +344,27 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   root->first_block_usage= 0;
 }
 
+void claim_root(MEM_ROOT *root)
+{
+  USED_MEM *next,*old;
+  DBUG_ENTER("claim_root");
+  DBUG_PRINT("enter",("root: 0x%lx", (long) root));
+
+  for (next=root->used; next ;)
+  {
+    old=next; next= next->next ;
+    my_claim(old);
+  }
+
+  for (next=root->free ; next ;)
+  {
+    old=next; next= next->next;
+    my_claim(old);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Deallocate everything used by alloc_root or just move

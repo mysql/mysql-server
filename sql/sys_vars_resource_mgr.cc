@@ -171,6 +171,24 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   return false;
 }
 
+void Session_sysvar_resource_manager::claim_memory_ownership()
+{
+  /* Release Sys_var_charptr resources here. */
+  sys_var_ptr *ptr;
+  int i= 0;
+  while ((ptr= (sys_var_ptr*)my_hash_element(&m_sysvar_string_alloc_hash, i)))
+  {
+    if (ptr->data)
+      my_claim(ptr->data);
+    i++;
+  }
+
+  if (m_sysvar_string_alloc_hash.records)
+  {
+    my_hash_claim(&m_sysvar_string_alloc_hash);
+  }
+}
+
 
 /**
   @brief Frees the memory allocated for Sys_var_charptr session variables.

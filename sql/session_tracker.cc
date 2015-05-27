@@ -87,6 +87,12 @@ private:
       init(char_set);
     }
 
+    void claim_memory_ownership()
+    {
+      my_claim(variables_list);
+      my_hash_claim(&m_registered_sysvars);
+    }
+
     ~vars_list()
     {
       /* free the allocated hash. */
@@ -169,6 +175,14 @@ public:
   /* callback */
   static uchar *sysvars_get_key(const char *entry, size_t *length,
                                 my_bool not_used __attribute__((unused)));
+
+  virtual void claim_memory_ownership()
+  {
+    if (orig_list != NULL)
+      orig_list->claim_memory_ownership();
+    if (tool_list != NULL)
+      tool_list->claim_memory_ownership();
+  }
 };
 
 
@@ -1006,6 +1020,12 @@ void Session_tracker::init(const CHARSET_INFO *char_set)
   m_trackers[SESSION_GTIDS_TRACKER]=
     new (std::nothrow) Session_gtids_tracker;
 
+}
+
+void Session_tracker::claim_memory_ownership()
+{
+  for (int i= 0; i <= SESSION_TRACKER_END; i ++)
+    m_trackers[i]->claim_memory_ownership();
 }
 
 /**

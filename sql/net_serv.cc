@@ -135,6 +135,10 @@ void net_end(NET *net)
   DBUG_VOID_RETURN;
 }
 
+void net_claim_memory_ownership(NET *net)
+{
+  my_claim(net->buff);
+}
 
 /** Realloc the packet buffer. */
 

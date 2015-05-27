@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,6 +86,7 @@ my_bool _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
                       size_t key_length, my_hash_get_key get_key,
                       void (*free_element)(void*),
                       uint flags);
+void my_hash_claim(HASH *tree);
 void my_hash_free(HASH *tree);
 void my_hash_reset(HASH *hash);
 uchar *my_hash_element(HASH *hash, ulong idx);
