@@ -168,11 +168,6 @@ public:
 		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
 
-	/** Replace any records for this space_id in the Data Dictionary with
-	this name, flags & filepath..
-	@return DB_SUCCESS or error code */
-	dberr_t replace_in_dictionary();
-
 private:
 	/** Check the tablespace header for this tablespace.
 	@param[out]	flushed_lsn	the value of FIL_PAGE_FILE_FLUSH_LSN

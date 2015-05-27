@@ -159,7 +159,6 @@ t_utf8_3	CREATE TABLE `t_utf8_3` (
 ) /*!50100 TABLESPACE `s_வணக்கம்` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_ !@#$%^&*()_+-={}[]|\?<>,. 	MYSQLD_DATADIR/s_utf8.ibd	DEFAULT	0	Any	General
 #sql_1	MYSQLD_DATADIR/#sql_1.ibd	DEFAULT	0	Any	General
 s_Cöŀumň	MYSQLD_DATADIR/s_utf8_a.ibd	DEFAULT	0	Any	General
@@ -367,7 +366,6 @@ CREATE TABLESPACE s7_bad ADD DATAFILE 's_def.ibd/tablespace.ibd';
 ERROR HY000: Failed to create TABLESPACE s7_bad
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s1_def	MYSQLD_DATADIR/s1_dir/s1.ibd	DEFAULT	0	Any	General
 s2_def	MYSQLD_DATADIR/s2_dir/.MYSQLD_DATADIR/s2_dir/s2.ibd	DEFAULT	0	Any	General
@@ -430,7 +428,6 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_single	test/t_single	1	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s1_def	MYSQLD_DATADIR/s1_dir/s1.ibd	DEFAULT	0	Any	General
 s2_def	MYSQLD_DATADIR/s2_dir/.MYSQLD_DATADIR/s2_dir/s2.ibd	DEFAULT	0	Any	General
@@ -494,7 +491,6 @@ DROP TABLESPACE `s1_#_hash`;
 DROP TABLESPACE `s2_#_hash`;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 #
 # Row format is not allowed on CREATE TABLESPACE
@@ -523,7 +519,6 @@ Error	1529	Failed to drop TABLESPACE s_def
 Error	3120	Tablespace `s_def` is not empty.
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -557,7 +552,6 @@ test/test@002ft_def_in_def	s_def	129	5	Compact	0	General
 test/t_def_in_def	s_def	129	5	Compact	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 # Directory listing of MYSQLD_DATADIR/
 s_def.ibd
@@ -611,7 +605,6 @@ Error	3119	InnoDB: A general tablespace name cannot contain '/'.
 Error	1031	Table storage engine for 't_second' doesn't have this option
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/s_single	MYSQLD_DATADIR/test/s_single.ibd	DEFAULT	0	Dynamic	Single
 DROP TABLE s_single;
@@ -662,7 +655,6 @@ DROP TABLE t4;
 SET GLOBAL innodb_file_per_table = ON;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -684,7 +676,6 @@ Error	1478	InnoDB: Tablespace `innodb_system` cannot contain a COMPRESSED table
 Error	1031	Table storage engine for 't_zip_in_system' doesn't have this option
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -712,7 +703,6 @@ CREATE TABLE t_dyn_as_file_per_table (a int, b text) TABLESPACE=innodb_file_per_
 CREATE TABLE t_def_as_remote (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/t_red_as_file_per_table	MYSQLD_DATADIR/test/t_red_as_file_per_table.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t_com_as_file_per_table	MYSQLD_DATADIR/test/t_com_as_file_per_table.ibd	DEFAULT	0	Compact or Redundant	Single
@@ -765,7 +755,6 @@ ALTER TABLE `t_dyn_as_file_per_table` TABLESPACE=`s_multiple`, RENAME TO `t_dyn_
 ALTER TABLE `t_def_as_remote` TABLESPACE=`s_multiple`, RENAME TO `t_def_was_remote`;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s_multiple	MYSQLD_DATADIR/multiple.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
@@ -791,7 +780,6 @@ Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s_multiple	MYSQLD_DATADIR/multiple.ibd	DEFAULT	0	Any	General
 test/t_red_to_file_per_table	MYSQLD_DATADIR/test/t_red_to_file_per_table.ibd	DEFAULT	0	Compact or Redundant	Single
@@ -869,7 +857,6 @@ CREATE TABLESPACE s_ignore4 ADD DATAFILE 's_ignore4.ibd' WAIT;
 CREATE TABLESPACE s_ignore5 ADD DATAFILE 's_ignore5.ibd' COMMENT = 'This comment is ignored';
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s_ignore1	MYSQLD_DATADIR/s_ignore1.ibd	DEFAULT	0	Any	General
 s_ignore2	MYSQLD_DATADIR/s_ignore2.ibd	DEFAULT	0	Any	General
@@ -1074,7 +1061,6 @@ CREATE TABLESPACE s_alt1 ADD DATAFILE 's_alt1.ibd';
 CREATE TABLESPACE s_alt2 ADD DATAFILE 's_alt2.ibd';
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s_alt1	MYSQLD_DATADIR/s_alt1.ibd	DEFAULT	0	Any	General
 s_alt2	MYSQLD_DATADIR/s_alt2.ibd	DEFAULT	0	Any	General
@@ -1120,7 +1106,6 @@ Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_nomad	s_def	161	4	Dynamic	0	General
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 s_alt1	MYSQLD_DATADIR/s_alt1.ibd	DEFAULT	0	Any	General
 s_alt2	MYSQLD_DATADIR/s_alt2.ibd	DEFAULT	0	Any	General
@@ -1554,7 +1539,6 @@ test1/t_single	test1/t_single	1	5	Compact	0	Single
 test1/t_system	innodb_system	1	5	Compact	0	System
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/t_single	MYSQLD_DATADIR/test/t_single.ibd	DEFAULT	0	Compact or Redundant	Single
 s_empty1	MYSQLD_DATADIR/s_empty1.ibd	DEFAULT	0	Any	General
@@ -1567,7 +1551,6 @@ test/t_single	test/t_single	1	5	Compact	0	Single
 test/t_system	innodb_system	1	5	Compact	0	System
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/t_single	MYSQLD_DATADIR/test/t_single.ibd	DEFAULT	0	Compact or Redundant	Single
 s_empty1	MYSQLD_DATADIR/s_empty1.ibd	DEFAULT	0	Any	General
@@ -1586,7 +1569,6 @@ CREATE TABLE t_general (a serial key, b text) TABLESPACE s_def;
 CREATE TABLE t_single (a serial key, b text) TABLESPACE=`innodb_file_per_table`;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/t_single	MYSQLD_DATADIR/test/t_single.ibd	DEFAULT	0	Compact or Redundant	Single
 s_empty1	MYSQLD_DATADIR/s_empty1.ibd	DEFAULT	0	Any	General
@@ -1605,7 +1587,6 @@ DROP DATABASE test1;
 ERROR HY000: Error dropping database (can't rmdir 'test1', errno: ##)
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/t_single	MYSQLD_DATADIR/test/t_single.ibd	DEFAULT	0	Compact or Redundant	Single
 s_empty1	MYSQLD_DATADIR/s_empty1.ibd	DEFAULT	0	Any	General
@@ -1619,7 +1600,6 @@ DROP TABLESPACE s_empty2;
 DROP DATABASE test1;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 test/t_single	MYSQLD_DATADIR/test/t_single.ibd	DEFAULT	0	Compact or Redundant	Single
 s_empty1	MYSQLD_DATADIR/s_empty1.ibd	DEFAULT	0	Any	General
@@ -1634,7 +1614,6 @@ DROP TABLE t_single;
 DROP TABLESPACE s_empty1;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type

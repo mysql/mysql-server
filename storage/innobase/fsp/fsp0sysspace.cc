@@ -963,47 +963,6 @@ SysTablespace::open_or_create(
 	return(err);
 }
 
-/** Replace any records for this space_id in the Data Dictionary with
-this name, flags & filepath..
-@return DB_SUCCESS or error code */
-dberr_t
-SysTablespace::replace_in_dictionary()
-{
-	dberr_t			err	= DB_SUCCESS;
-	files_t::iterator	begin = m_files.begin();
-	files_t::iterator	end = m_files.end();
-
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
-	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-
-	/* Add space and file info to the Data Dictionary. */
-	for (files_t::iterator it = begin; it != end; ++it) {
-		if (it == begin) {
-			/* First data file. */
-			err = dict_replace_tablespace_and_filepath(
-				space_id(), name(), it->m_filepath, flags());
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		} else {
-			/* Add extra datafiles to the Data Dictionary */
-			err = dict_add_filepath(space_id(), it->m_filepath);
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		}
-	}
-
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
-
-	return(err);
-}
-
 /** Normalize the file size, convert from megabytes to number of pages. */
 void
 SysTablespace::normalize()

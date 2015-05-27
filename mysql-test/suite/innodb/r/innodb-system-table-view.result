@@ -159,7 +159,6 @@ test/t_dynamic	test/t_dynamic	33	5	Dynamic	0	Single
 test/t_redundant	test/t_redundant	0	5	Redundant	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t_redundant	MYSQLD_DATADIR/test/t_redundant.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t_compact	MYSQLD_DATADIR/test/t_compact.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t_compressed	MYSQLD_DATADIR/test/t_compressed.ibd	DEFAULT	2048	Compressed	Single

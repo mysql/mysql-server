@@ -61,7 +61,6 @@ test/t3	5	39	PRIMARY	3	3	1	50
 test/t4	5	33	PRIMARY	3	3	1	50
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/t1	MYSQLD_DATADIR/test/t1.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t2	MYSQLD_DATADIR/test/t2.ibd	DEFAULT	0	Compact or Redundant	Single
 test/t3	MYSQLD_DATADIR/test/t3.ibd	DEFAULT	4096	Compressed	Single

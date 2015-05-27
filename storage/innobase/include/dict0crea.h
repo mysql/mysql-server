@@ -232,17 +232,6 @@ dict_replace_tablespace_in_dictionary(
 	trx_t*		trx,
 	bool		commit);
 
-/** Add another datafile to the data dictionary for a given space_id.
-@param[in]	space	Tablespace ID
-@param[in]	path	Tablespace path
-@param[in,out]	trx	Transaction**
-@return error code or DB_SUCCESS */
-dberr_t
-dict_add_datafile_to_dictionary(
-	ulint		space_id,
-	const char*	path,
-	trx_t*		trx);
-
 /** Delete records from SYS_TABLESPACES and SYS_DATAFILES associated
 with a particular tablespace ID.
 @param[in]	space	Tablespace ID
