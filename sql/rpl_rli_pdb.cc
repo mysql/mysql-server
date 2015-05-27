@@ -28,6 +28,108 @@
 #define HASH_DYNAMIC_INIT 4
 
 using std::min;
+using std::max;
+
+/**
+   This function is called by both coordinator and workers.
+
+   Upon receiving the STOP command, the workers will identify a
+   maximum group index already executed (or under execution).
+
+   All groups whose index are below or equal to the maximum
+   group index will be applied by the workers before stopping.
+
+   The workers with groups above the maximum group index will
+   exit without applying these groups by setting their running
+   status to "STOP_ACCEPTED".
+
+   @param worker    a pointer to the waiting Worker struct
+   @param job_item  a pointer to struct carrying a reference to an event
+
+   @return true if STOP command gets accepted otherwise false is returned.
+*/
+bool handle_slave_worker_stop(Slave_worker *worker,
+                              Slave_job_item *job_item)
+{
+  ulonglong group_index= 0;
+  Relay_log_info *rli= worker->c_rli;
+  mysql_mutex_lock(&rli->exit_count_lock);
+  /*
+    First, W calculates a group-"at-hands" index which is
+    either the currently read ev group index, or the last executed
+    group's one when the  queue is empty.
+  */
+  group_index= (job_item->data)?
+    rli->gaq->get_job_group(((Log_event*)
+                             (job_item->data))->mts_group_idx)->total_seqno:
+    worker->last_groups_assigned_index;
+
+  /*
+    The max updated index is being updated as long as
+    exit_counter permits. That's stopped with the final W's
+    increment of it.
+  */
+  if (!worker->exit_incremented)
+  {
+    if (rli->exit_counter < rli->slave_parallel_workers)
+      rli->max_updated_index = max(rli->max_updated_index, group_index);
+
+    ++rli->exit_counter;
+    worker->exit_incremented= true;
+    DBUG_ASSERT(!is_mts_worker(current_thd));
+  }
+#ifndef DBUG_OFF
+  else
+    DBUG_ASSERT(is_mts_worker(current_thd));
+#endif
+
+  /*
+    Now let's decide about the deferred exit to consider
+    the empty queue and the counter value reached
+    slave_parallel_workers.
+  */
+  if (!job_item->data)
+  {
+    worker->running_status= Slave_worker::STOP_ACCEPTED;
+    mysql_cond_signal(&worker->jobs_cond);
+    mysql_mutex_unlock(&rli->exit_count_lock);
+    return(true);
+  }
+  else if (rli->exit_counter == rli->slave_parallel_workers)
+  {
+    //over steppers should exit with accepting STOP
+    if (group_index > rli->max_updated_index)
+    {
+      worker->running_status= Slave_worker::STOP_ACCEPTED;
+      mysql_cond_signal(&worker->jobs_cond);
+      mysql_mutex_unlock(&rli->exit_count_lock);
+      return(true);
+    }
+  }
+  mysql_mutex_unlock(&rli->exit_count_lock);
+  return(false);
+}
+
+/**
+   This function is called by both coordinator and workers.
+   Both coordinator and workers contribute to max_updated_index.
+
+   @param worker    a pointer to the waiting Worker struct
+   @param job_item  a pointer to struct carrying a reference to an event
+
+   @return true if STOP command gets accepted otherwise false is returned.
+*/
+bool set_max_updated_index_on_stop(Slave_worker *worker,
+                                   Slave_job_item *job_item)
+{
+  head_queue(&worker->jobs, job_item);
+  if (worker->running_status == Slave_worker::STOP)
+  {
+    if (handle_slave_worker_stop(worker, job_item))
+      return true;
+  }
+  return false;
+}
 
 /*
   Please every time you add a new field to the worker slave info, update
@@ -109,7 +211,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
     curr_group_exec_parts(key_memory_db_worker_hash_entry),
     id(param_id),
     checkpoint_relay_log_pos(0), checkpoint_master_log_pos(0),
-    checkpoint_seqno(0), running_status(NOT_RUNNING)
+    checkpoint_seqno(0), running_status(NOT_RUNNING), exit_incremented(false)
 {
   /*
     In the future, it would be great if we use only one identifier.
@@ -177,7 +279,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   usage_partition= 0;
   end_group_sets_max_dbs= false;
   gaq_index= last_group_done_index= c_rli->gaq->size; // out of range
-
+  last_groups_assigned_index=0;
   DBUG_ASSERT(!jobs.inited_queue);
   jobs.avail= 0;
   jobs.len= 0;
@@ -1092,25 +1194,29 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     ptr_g->group_relay_log_pos= group_relay_log_pos;
     my_atomic_store32(&ptr_g->done, 1);
     last_group_done_index= gaq_index;
+    last_groups_assigned_index= ptr_g->total_seqno;
     reset_gaq_index();
     groups_done++;
 
   }
   else
   {
-    // tagging as exiting so Coordinator won't be able synchronize with it
-    mysql_mutex_lock(&jobs_lock);
-    running_status= ERROR_LEAVING;
-    mysql_mutex_unlock(&jobs_lock);
+    if (running_status != STOP_ACCEPTED)
+    {
+      // tagging as exiting so Coordinator won't be able synchronize with it
+      mysql_mutex_lock(&jobs_lock);
+      running_status= ERROR_LEAVING;
+      mysql_mutex_unlock(&jobs_lock);
 
-    /* Fatal error happens, it notifies the following transaction to rollback */
-    if (get_commit_order_manager())
-      get_commit_order_manager()->report_rollback(this);
+      /* Fatal error happens, it notifies the following transaction to rollback */
+      if (get_commit_order_manager())
+        get_commit_order_manager()->report_rollback(this);
 
-    // Killing Coordinator to indicate eventual consistency error
-    mysql_mutex_lock(&c_rli->info_thd->LOCK_thd_data);
-    c_rli->info_thd->awake(THD::KILL_QUERY);
-    mysql_mutex_unlock(&c_rli->info_thd->LOCK_thd_data);
+      // Killing Coordinator to indicate eventual consistency error
+      mysql_mutex_lock(&c_rli->info_thd->LOCK_thd_data);
+      c_rli->info_thd->awake(THD::KILL_QUERY);
+      mysql_mutex_unlock(&c_rli->info_thd->LOCK_thd_data);
+    }
   }
 
   /*
@@ -2060,7 +2166,7 @@ static int en_queue(Slave_jobs_queue *jobs, Slave_job_item *item)
 /**
    return the value of @c data member of the head of the queue.
 */
-static void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
+void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
 {
   if (jobs->entry == jobs->size)
   {
@@ -2348,7 +2454,8 @@ static void remove_item_from_jobs(slave_job_item *job_item,
    @return NULL failure or
            a-pointer to an item.
 */
-struct slave_job_item* pop_jobs_item(Slave_worker *worker, Slave_job_item *job_item)
+struct slave_job_item* pop_jobs_item(Slave_worker *worker,
+                                     Slave_job_item *job_item)
 {
   THD *thd= worker->info_thd;
 
@@ -2356,11 +2463,13 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker, Slave_job_item *job_i
 
   job_item->data= NULL;
   while (!job_item->data && !thd->killed &&
-         worker->running_status == Slave_worker::RUNNING)
+         (worker->running_status == Slave_worker::RUNNING ||
+          worker->running_status == Slave_worker::STOP))
   {
     PSI_stage_info old_stage;
 
-    head_queue(&worker->jobs, job_item);
+    if (set_max_updated_index_on_stop(worker, job_item))
+      break;
     if (job_item->data == NULL)
     {
       worker->wq_empty_waits++;
@@ -2417,8 +2526,9 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 
   while (1)
   {
-    if (unlikely(thd->killed || worker->running_status != Slave_worker::RUNNING))
+    if (unlikely(thd->killed || worker->running_status == Slave_worker::STOP_ACCEPTED))
     {
+      DBUG_ASSERT(worker->running_status != Slave_worker::ERROR_LEAVING);
       // de-queueing and decrement counters is in the caller's exit branch
       error= -1;
       goto err;
