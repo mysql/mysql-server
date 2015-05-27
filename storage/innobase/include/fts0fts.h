@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -610,15 +610,19 @@ fts_get_doc_id_from_row(
 	dtuple_t*	row);			/*!< in: row whose FTS doc id we
 						want to extract.*/
 
-/******************************************************************//**
-Extract the doc id from the FTS hidden column. */
+/** Extract the doc id from the record that belongs to index.
+@param[in]	table	table
+@param[in]	rec	record contains FTS_DOC_ID
+@param[in]	index	index of rec
+@param[in]	heap	memory heap
+@return doc id that was extracted from rec */
 UNIV_INTERN
 doc_id_t
 fts_get_doc_id_from_rec(
-/*====================*/
-	dict_table_t*	table,			/*!< in: table */
-	const rec_t*	rec,			/*!< in: rec */
-	mem_heap_t*	heap);			/*!< in: heap */
+	dict_table_t*		table,
+	const rec_t*		rec,
+	const dict_index_t*	index,
+	mem_heap_t*		heap);
 
 /******************************************************************//**
 Update the query graph with a new document id.
