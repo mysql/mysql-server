@@ -282,18 +282,6 @@ dict_col_get_clust_pos(
 	const dict_col_t*	col,		/*!< in: table column */
 	const dict_index_t*	clust_index)	/*!< in: clustered index */
 	__attribute__((nonnull, warn_unused_result));
-
-/** Gets the column position in the given index.
-@param[in]	col	table column
-@param[in]	index	index to searched for column
-@return position of column in the given index. */
-UNIV_INLINE
-ulint
-dict_col_get_index_pos(
-	const dict_col_t*	col,
-	const dict_index_t*	index)
-	__attribute__((nonnull, warn_unused_result));
-
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.

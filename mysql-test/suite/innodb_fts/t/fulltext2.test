@@ -233,31 +233,3 @@ INSERT INTO t1 VALUES('„MySQL“');
 SELECT a FROM t1 WHERE MATCH a AGAINST('“MySQL„' IN BOOLEAN MODE);
 DROP TABLE t1;
 SET NAMES latin1;
-
-#
-# Bug #20597981 - WRONG RELEVANCE RANKING FOR FULL TEXT SEARCHES
-# WHEN FTS_DOC_ID IS PRIMARY KEY
-
-CREATE TABLE t1 (
-  FTS_DOC_ID BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-  id int(10) not null,
-  first_name varchar(50) NOT NULL,
-  last_name varchar(50) NOT NULL,
-  PRIMARY KEY (FTS_DOC_ID, id),
-  UNIQUE KEY idx_1 (first_name, last_name),
-  FULLTEXT KEY `idx_2` (first_name)
-) ENGINE=InnoDB;
-
-INSERT INTO t1 (id, first_name, last_name) VALUES
-(10, 'Bart', 'Simpson'),
-(11, 'Homer', 'Simpson'),
-(12, 'Marge', 'Simpson'),
-(13, 'Lisa', 'Simpson'),
-(14, 'Maggie', 'Simpson'),
-(15, 'Ned', 'Flanders'),
-(16, 'Nelson', 'Muntz');
-
-ANALYZE TABLE t1;
-SELECT FTS_DOC_ID, first_name, last_name, MATCH(first_name) AGAINST('Homer' IN BOOLEAN MODE) AS score FROM t1;
-DROP TABLE t1;
-

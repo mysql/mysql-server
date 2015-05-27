@@ -5044,37 +5044,37 @@ fts_get_doc_id_from_row(
 	return(doc_id);
 }
 
-/** Extract the doc id from the record that belongs to index.
-@param[in]	table	table
-@param[in]	rec	record contains FTS_DOC_ID
-@param[in]	index	index of rec
-@param[in]	heap	memory heap
+/*********************************************************************//**
+Extract the doc id from the FTS hidden column.
 @return doc id that was extracted from rec */
 UNIV_INTERN
 doc_id_t
 fts_get_doc_id_from_rec(
-	dict_table_t*		table,
-	const rec_t*		rec,
-	const dict_index_t*	index,
-	mem_heap_t*		heap)
+/*====================*/
+	dict_table_t*	table,			/*!< in: table */
+	const rec_t*	rec,			/*!< in: rec */
+	mem_heap_t*	heap)			/*!< in: heap */
 {
 	ulint		len;
 	const byte*	data;
 	ulint		col_no;
 	doc_id_t	doc_id = 0;
+	dict_index_t*	clust_index;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets = offsets_;
 	mem_heap_t*	my_heap = heap;
 
 	ut_a(table->fts->doc_col != ULINT_UNDEFINED);
 
+	clust_index = dict_table_get_first_index(table);
+
 	rec_offs_init(offsets_);
 
 	offsets = rec_get_offsets(
-		rec, index, offsets, ULINT_UNDEFINED, &my_heap);
+		rec, clust_index, offsets, ULINT_UNDEFINED, &my_heap);
 
-	col_no = dict_col_get_index_pos(
-			&table->cols[table->fts->doc_col], index);
+	col_no = dict_col_get_clust_pos(
+		&table->cols[table->fts->doc_col], clust_index);
 	ut_ad(col_no != ULINT_UNDEFINED);
 
 	data = rec_get_nth_field(rec, offsets, col_no, &len);
