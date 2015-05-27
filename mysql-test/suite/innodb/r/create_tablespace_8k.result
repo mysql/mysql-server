@@ -41,7 +41,6 @@ Error	1528	Failed to create TABLESPACE s_64k
 Error	140	Wrong create option
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General
@@ -309,7 +308,6 @@ CREATE TABLE t_com_in_8k_from_1k TABLESPACE s_8k ROW_FORMAT=compact AS (SELECT *
 CREATE TABLE t_dyn_in_8k_from_1k TABLESPACE s_8k ROW_FORMAT=dynamic AS (SELECT * FROM t_zip1k_in_1k);
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General
@@ -351,7 +349,6 @@ s_8k.ibd
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General
@@ -452,7 +449,6 @@ CREATE TABLE t_zip4k_as_remote (a int, b text) KEY_BLOCK_SIZE=4 TABLESPACE=innod
 CREATE TABLE t_zip8k_as_remote (a int, b text) KEY_BLOCK_SIZE=8 TABLESPACE=innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR';
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General
@@ -647,7 +643,6 @@ ALTER TABLE `t_zip2k_as_remote` TABLESPACE=`s_2k`, RENAME TO `t_zip2k_remote_in_
 ALTER TABLE `t_zip4k_as_remote` TABLESPACE=`s_4k`, RENAME TO `t_zip4k_remote_in_s_4k`;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General
@@ -754,7 +749,6 @@ ALTER TABLE `t_zip2k_in_s_2k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_z
 ALTER TABLE `t_zip4k_in_s_4k` TABLESPACE=`innodb_file_per_table`, RENAME TO `t_zip4k_to_file_per_table`;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General
@@ -803,7 +797,6 @@ Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_1k	MYSQLD_DATADIR/s_1k.ibd	DEFAULT	1024	Compressed	General
 s_2k	MYSQLD_DATADIR/s_2k.ibd	DEFAULT	2048	Compressed	General
 s_4k	MYSQLD_DATADIR/s_4k.ibd	DEFAULT	4096	Compressed	General

@@ -53,7 +53,6 @@ test/emp#p#southwest#sp#sw2	test/emp#p#southwest#sp#sw2	65	7	Compact	0	Single
 test/emp#p#southwest#sp#sw3	test/emp#p#southwest#sp#sw3	65	7	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/emp#p#northeast#sp#ne0	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp#p#northeast#sp#ne1	MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp#p#southwest#sp#sw2	MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd	DEFAULT	0	Compact or Redundant	Single
@@ -131,7 +130,6 @@ test/emp#p#west#sp#w0	test/emp#p#west#sp#w0	65	7	Compact	0	Single
 test/emp#p#west#sp#w1	test/emp#p#west#sp#w1	65	7	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/emp#p#east#sp#e0	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp#p#east#sp#e1	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd	DEFAULT	0	Compact or Redundant	Single
 test/emp#p#north#sp#n0	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd	DEFAULT	0	Compact or Redundant	Single

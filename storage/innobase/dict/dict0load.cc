@@ -987,46 +987,6 @@ dict_replace_tablespace_and_filepath(
 	return(err);
 }
 
-/** Add another filepath to the Data Dictionary for the given space_id
-using an independent transaction.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	First filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_add_filepath(
-	ulint		space_id,
-	const char*	filepath)
-{
-	if (!srv_sys_tablespaces_open) {
-		/* Startup procedure is not yet ready for updates.
-		Return success since this will likely get updated
-		later. */
-		return(DB_SUCCESS);
-	}
-
-	dberr_t		err = DB_SUCCESS;
-	trx_t*		trx;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(filepath);
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "insert tablespace and filepath";
-	trx->dict_operation_lock_mode = RW_X_LATCH;
-	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
-
-	err = dict_add_datafile_to_dictionary(space_id, filepath, trx);
-
-	trx_commit_for_mysql(trx);
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	return(err);
-}
-
 /** Check the validity of a SYS_TABLES record
 Make sure the fields are the right length and that they
 do not contain invalid contents.

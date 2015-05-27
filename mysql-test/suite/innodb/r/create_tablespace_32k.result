@@ -59,7 +59,6 @@ Error	1528	Failed to create TABLESPACE s_64k
 Error	140	Wrong create option
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_32k	MYSQLD_DATADIR/s_32k.ibd	DEFAULT	0	Any	General
 #
 # Add tables to the tablespaces.
@@ -130,7 +129,6 @@ INSERT INTO t_dyn_in_32k VALUES (4,'d');
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_32k	MYSQLD_DATADIR/s_32k.ibd	DEFAULT	0	Any	General
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type

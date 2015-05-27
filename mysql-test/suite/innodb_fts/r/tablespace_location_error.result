@@ -214,7 +214,6 @@ DROP TABLE t1;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
 # Test with TABLESPACE
 SET DEBUG = '+d,ib_fts_aux_table_error';

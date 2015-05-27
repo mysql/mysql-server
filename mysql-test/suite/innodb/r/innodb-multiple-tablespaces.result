@@ -163,7 +163,6 @@ yyy.ibd
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/yyy	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd	DEFAULT	0	Compact or Redundant	Single
 test/nyy	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd	DEFAULT	0	Compact or Redundant	Single
 test/yny	MYSQL_TMP_DIR/alt_dir/test/yny.ibd	DEFAULT	0	Compact or Redundant	Single
@@ -524,7 +523,6 @@ yy	CREATE TABLE `yy` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 test/ny	MYSQL_TMP_DIR/alt_dir/test/ny.ibd	DEFAULT	0	Compact or Redundant	Single
 test/wy	MYSQL_TMP_DIR/alt_dir/test/wy.ibd	DEFAULT	0	Compact or Redundant	Single
 test/yn	MYSQL_TMP_DIR/alt_dir/test/yn.ibd	DEFAULT	0	Compact or Redundant	Single
