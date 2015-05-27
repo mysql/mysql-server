@@ -804,8 +804,9 @@ static PSI_memory_key memory_realloc_noop(PSI_memory_key key NNN, size_t old_siz
   return PSI_NOT_INSTRUMENTED;
 }
 
-static PSI_memory_key memory_claim_noop(PSI_memory_key key NNN, size_t size NNN, struct PSI_thread ** owner NNN)
+static PSI_memory_key memory_claim_noop(PSI_memory_key key NNN, size_t size NNN, struct PSI_thread ** owner)
 {
+  *owner= NULL;
   return PSI_NOT_INSTRUMENTED;
 }
 
