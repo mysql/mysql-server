@@ -1821,18 +1821,22 @@ bool mysql_show_relaylog_events(THD* thd)
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
+  channel_map.wrlock();
+
   if (!thd->lex->mi.for_channel && channel_map.get_num_instances() > 1)
   {
     my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
-    DBUG_RETURN(true);
+    res= true;
+    goto err;
   }
 
   Log_event::init_show_field_list(&field_list);
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  channel_map.wrlock();
+  {
+    res= true;
+    goto err;
+  }
 
   mi= channel_map.get_mi(thd->lex->mi.channel);
 

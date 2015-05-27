@@ -193,12 +193,12 @@ public:
 
   /**
     Return the master_info object corresponding to the default channel.
-    This function does not require LOCK_channel_map as get_mi does.
     @retval                   pointer to the master info object if exists.
                               Otherwise, NULL;
   */
   Master_info* get_default_channel_mi()
   {
+    m_channel_map_lock->assert_some_lock();
     return default_channel_mi;
   }
 
@@ -231,6 +231,8 @@ public:
   inline uint get_num_instances(bool all=false)
   {
     DBUG_ENTER("Multisource_info::get_num_instances");
+
+    m_channel_map_lock->assert_some_lock();
 
     replication_channel_map::iterator map_it;
 
@@ -270,6 +272,7 @@ public:
   */
   inline bool is_valid_channel_count()
   {
+    m_channel_map_lock->assert_some_lock();
     bool is_valid= current_mi_count < MAX_CHANNELS;
     DBUG_EXECUTE_IF("max_replication_channels_exceeded",
                     is_valid= false;);

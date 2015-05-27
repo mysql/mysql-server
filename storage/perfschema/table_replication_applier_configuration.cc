@@ -133,12 +133,16 @@ int table_replication_applier_configuration::rnd_pos(const void *pos)
 
   set_position(pos);
 
+  channel_map.wrlock();
+
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
+    channel_map.unlock();
     return 0;
   }
 
+  channel_map.unlock();
   return HA_ERR_RECORD_DELETED;
 
 }

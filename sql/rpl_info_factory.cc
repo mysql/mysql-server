@@ -438,8 +438,11 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   if (handler_dest->get_rpl_info_type() == INFO_REPOSITORY_TABLE)
     worker->set_info_search_keys(handler_dest);
 
+  /* get_num_instances() requires channel_map lock */
+  /*
   DBUG_ASSERT(channel_map.get_num_instances() <= 1 ||
               (rli_option == 1 && handler_dest->get_rpl_info_type() == 1));
+  */
   if (decide_repository(worker, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
