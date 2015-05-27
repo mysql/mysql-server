@@ -6323,14 +6323,23 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_t
   DBUG_ASSERT(owner_thread != NULL);
 
   if (! flag_global_instrumentation)
+  {
+    *owner_thread= NULL;
     return PSI_NOT_INSTRUMENTED;
+  }
 
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
+  {
+    *owner_thread= NULL;
     return PSI_NOT_INSTRUMENTED;
+  }
 
   if (! klass->m_enabled)
+  {
+    *owner_thread= NULL;
     return PSI_NOT_INSTRUMENTED;
+  }
 
   PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
@@ -6342,9 +6351,15 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_t
   {
     PFS_thread *pfs_thread= my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL))
+    {
+      *owner_thread= NULL;
       return PSI_NOT_INSTRUMENTED;
+    }
     if (! pfs_thread->m_enabled)
+    {
+      *owner_thread= NULL;
       return PSI_NOT_INSTRUMENTED;
+    }
 
     /* Aggregate to MEMORY_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     event_name_array= pfs_thread->write_instr_class_memory_stats();
@@ -6379,7 +6394,10 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
 
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
+  {
+    *owner_thread_hdl= NULL;
     return PSI_NOT_INSTRUMENTED;
+  }
 
   PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
@@ -6454,7 +6472,10 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_t
 
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
+  {
+    *owner_thread= NULL;
     return PSI_NOT_INSTRUMENTED;
+  }
 
   /*
     Do not check klass->m_enabled.

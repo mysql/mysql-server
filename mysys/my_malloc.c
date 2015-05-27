@@ -36,7 +36,7 @@ struct my_memory_header
   PSI_thread *m_owner;
 };
 typedef struct my_memory_header my_memory_header;
-#define HEADER_SIZE 24
+#define HEADER_SIZE 32
 
 #define MAGIC 1234
 
