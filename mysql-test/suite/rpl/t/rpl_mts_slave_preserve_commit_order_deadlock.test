@@ -70,7 +70,7 @@ INSERT INTO t1 VALUES(11, 11);
 
 # It guarantees the DELETE statement is waiting for
 # the transaction before it to commit
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for its turn to commit."
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
 --source include/wait_condition.inc
 
 # Resume the INSERT statement and trigger the deadlock
@@ -177,7 +177,7 @@ INSERT INTO t1 VALUES(33, 33);
 --source include/start_slave_sql.inc
 
 # It guarantees 'DELETE' statement is waiting for the transactions before it.
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for its turn to commit."
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
 --source include/wait_condition.inc
 
 # Trigger one deadlock
@@ -189,7 +189,7 @@ ROLLBACK;
 --source include/wait_condition.inc
 
 # It guarantees 'DELETE' statement is waiting for the transactions before it.
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for its turn to commit."
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
 --source include/wait_condition.inc
 
 # Trigger another deadlock
@@ -223,7 +223,7 @@ INSERT INTO t2 SELECT * FROM mysql.innodb_table_stats;
 --source include/start_slave_sql.inc
 
 # It guarantees 'INSERT' statement is waiting for the transactions before it.
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for its turn to commit."
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE STATE = "Waiting for preceding transaction to commit"
 --source include/wait_condition.inc
 
 UNLOCK TABLES;

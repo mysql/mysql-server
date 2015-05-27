@@ -396,6 +396,10 @@ if ($rpl_inited)
 }
 --let $rpl_inited= 1
 
+# Set $show_rpl_debug_info to make subsequent failures in
+# e.g. wait_condition.inc print replication debug output.
+--let $show_rpl_debug_info= 1
+
 
 # Indicate that the server is in a dirty state and needs to be restarted
 # if the test is skipped. If the test is not skipped, it will continue
