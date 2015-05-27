@@ -3220,11 +3220,12 @@ row_sel_store_mysql_rec(
 	NOTE, the record can be cluster or secondary index record.
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
-	if (dict_table_has_fts_index(prebuilt->table) &&
-		(dict_index_is_clust(index) ||
-			prebuilt->fts_doc_id_in_read_set)) {
-		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
-			prebuilt->table, rec, NULL);
+	if (dict_table_has_fts_index(prebuilt->table)) {
+		if (dict_index_is_clust(index)
+		    || prebuilt->fts_doc_id_in_read_set) {
+			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
+				prebuilt->table, rec, index, NULL);
+		}
 	}
 
 	DBUG_RETURN(TRUE);
