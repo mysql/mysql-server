@@ -46,7 +46,7 @@ CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'sha256_password';
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass';
 ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER 'u1'@'localhost' IDENTIFIED BY 'pass2';
 SELECT USER();
 USER()

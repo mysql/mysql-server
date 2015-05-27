@@ -6836,7 +6836,7 @@ ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"
 
 ER_MUST_CHANGE_PASSWORD
-  eng "You must SET PASSWORD before executing this statement"
+  eng "You must reset your password using ALTER USER statement before executing this statement."
   bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
 ER_FK_NO_INDEX_CHILD
