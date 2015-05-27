@@ -100,6 +100,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    curr_group_assigned_parts(PSI_NOT_INSTRUMENTED),
    curr_group_da(PSI_NOT_INSTRUMENTED),
    slave_parallel_workers(0),
+   exit_counter(0),
+   max_updated_index(0),
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group),
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
@@ -150,6 +152,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
+    mysql_mutex_init(key_mutex_slave_parallel_worker_count, &exit_count_lock,
+                   MY_MUTEX_INIT_FAST);
     mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
     mysql_mutex_init(key_mts_gaq_LOCK, &mts_gaq_LOCK,
@@ -210,6 +214,7 @@ Relay_log_info::~Relay_log_info()
     mysql_cond_destroy(&log_space_cond);
     mysql_mutex_destroy(&pending_jobs_lock);
     mysql_cond_destroy(&pending_jobs_cond);
+    mysql_mutex_destroy(&exit_count_lock);
     mysql_mutex_destroy(&mts_temp_table_LOCK);
     mysql_mutex_destroy(&mts_gaq_LOCK);
     mysql_cond_destroy(&logical_clock_cond);
