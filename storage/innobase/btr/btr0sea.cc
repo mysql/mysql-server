@@ -50,7 +50,7 @@ Search system is protected by array of latches. */
 char		btr_search_enabled	= true;
 
 /** Number of adaptive hash index partition. */
-ulint		btr_ahi_parts		= 1;
+ulong		btr_ahi_parts		= 8;
 
 #ifdef UNIV_SEARCH_PERF_STAT
 /** Number of successful adaptive hash index lookups */

@@ -45,7 +45,7 @@ Search system is protected by array of latches. */
 extern char	btr_search_enabled;
 
 /** Number of adaptive hash index partition. */
-extern ulint	btr_ahi_parts;
+extern ulong	btr_ahi_parts;
 
 /** The size of a reference to data stored on a different page.
 The reference is stored at the end of the prefix of the field
