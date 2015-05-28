@@ -2103,6 +2103,11 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
   mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 }
 
+void Prepared_statement_map::claim_memory_ownership()
+{
+  my_hash_claim(&names_hash);
+  my_hash_claim(&st_hash);
+}
 
 void Prepared_statement_map::reset()
 {
@@ -3160,3 +3165,38 @@ void THD::send_statement_status()
     da->set_is_sent(true);
   DBUG_VOID_RETURN;
 }
+
+void THD::claim_memory_ownership()
+{
+  /*
+    Ownership of the THD object is transfered to this thread.
+    This happens typically:
+    - in the event scheduler,
+      when the scheduler thread creates a work item and
+      starts a worker thread to run it
+    - in the main thread, when the code that accepts a new
+      network connection creates a work item and starts a
+      connection thread to run it.
+    Accounting for memory statistics needs to be told
+    that memory allocated by thread X now belongs to thread Y,
+    so that statistics by thread/account/user/host are accurate.
+    Inspect every piece of memory allocated in THD,
+    and call PSI_MEMORY_CALL(memory_claim)().
+  */
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  claim_root(&main_mem_root);
+  my_claim(m_token_array);
+  Protocol_classic *p= get_protocol_classic();
+  if (p != NULL)
+    p->claim_memory_ownership();
+  session_tracker.claim_memory_ownership();
+  session_sysvar_res_mgr.claim_memory_ownership();
+  my_hash_claim(&user_vars);
+#if defined(ENABLED_DEBUG_SYNC)
+  debug_sync_claim_memory_ownership(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+  get_transaction()->claim_memory_ownership();
+  stmt_map.claim_memory_ownership();
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
+}
+

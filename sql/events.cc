@@ -1018,7 +1018,7 @@ PSI_stage_info *all_events_stages[]=
 
 static PSI_memory_info all_events_memory[]=
 {
-  { &key_memory_event_basic_root, "Event_basic::mem_root", 0}
+  { &key_memory_event_basic_root, "Event_basic::mem_root", PSI_FLAG_GLOBAL}
 };
 
 static void init_events_psi_keys(void)

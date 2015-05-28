@@ -869,7 +869,15 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex);
+  if (select_lex->has_ft_funcs())
+  {
+#ifdef DBUG_OFF
+    (void)init_ftfuncs(thd, select_lex);
+#else
+    // Should not return an error on second execution
+    DBUG_ASSERT(!init_ftfuncs(thd, select_lex));
+#endif
+  }
 
   DBUG_VOID_RETURN;
 }

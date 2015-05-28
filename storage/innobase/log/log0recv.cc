@@ -136,7 +136,7 @@ ulint	recv_n_pool_free_frames;
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
-lsn_t	recv_max_page_lsn;
+static lsn_t	recv_max_page_lsn;
 
 #ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t	trx_rollback_clean_thread_key;

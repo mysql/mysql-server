@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ extern "C" {
 #endif /* DISABLE_PSI_MEMORY */
 #endif /* DISABLE_ALL_PSI */
 #endif /* HAVE_PSI_INTERFACE */
+
+struct PSI_thread;
 
 /**
   Instrumented memory key.
@@ -86,28 +88,41 @@ typedef void (*register_memory_v1_t)
   Instrument memory allocation.
   @param key the memory instrument key
   @param size the size of memory allocated
+  @param[out] owner the memory owner
   @return the effective memory instrument key
 */
 typedef PSI_memory_key (*memory_alloc_v1_t)
-  (PSI_memory_key key, size_t size);
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
 
 /**
   Instrument memory re allocation.
   @param key the memory instrument key
   @param old_size the size of memory previously allocated
   @param new_size the size of memory re allocated
+  @param[in, out] owner the memory owner
   @return the effective memory instrument key
 */
 typedef PSI_memory_key (*memory_realloc_v1_t)
-  (PSI_memory_key key, size_t old_size, size_t new_size);
+  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
+
+/**
+  Instrument memory claim.
+  @param key the memory instrument key
+  @param size the size of memory allocated
+  @param[in, out] owner the memory owner
+  @return the effective memory instrument key
+*/
+typedef PSI_memory_key (*memory_claim_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
 
 /**
   Instrument memory free.
   @param key the memory instrument key
   @param size the size of memory allocated
+  @param owner the memory owner
 */
 typedef void (*memory_free_v1_t)
-  (PSI_memory_key key, size_t size);
+  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
 
 /** @} (end of group Group_PSI_v1) */
 

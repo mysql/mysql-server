@@ -58,11 +58,11 @@ Created Nov 22, 2013 Mattias Jonsson */
 
 /* To be backwards compatible we also fold partition separator on windows. */
 #ifdef _WIN32
-const char* part_sep = "#p#";
-const char* sub_sep = "#sp#";
+static const char* part_sep = "#p#";
+static const char* sub_sep = "#sp#";
 #else
-const char* part_sep = "#P#";
-const char* sub_sep = "#SP#";
+static const char* part_sep = "#P#";
+static const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
 
 Ha_innopart_share::Ha_innopart_share(

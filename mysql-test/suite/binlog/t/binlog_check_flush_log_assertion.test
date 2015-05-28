@@ -32,6 +32,8 @@ call mtr.add_suppression("The server was unable to create a new log file. An inc
 call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name.");
 call mtr.add_suppression("Failed to locate old binlog or relay log files");
 call mtr.add_suppression('Attempting backtrace');
+call mtr.add_suppression("Either disk is full or file system is read only");
+
 --enable_query_log
 
 SET @debug_save= @@GLOBAL.DEBUG;

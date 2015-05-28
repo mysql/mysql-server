@@ -2112,47 +2112,6 @@ dict_replace_tablespace_in_dictionary(
 	return(error);
 }
 
-/** Add another datafile to the data dictionary for a given space_id.
-@param[in]	space	Tablespace ID
-@param[in]	path	Tablespace path
-@param[in,out]	trx	Transaction**
-@return error code or DB_SUCCESS */
-dberr_t
-dict_add_datafile_to_dictionary(
-	ulint		space_id,
-	const char*	path,
-	trx_t*		trx)
-{
-	ut_ad(srv_sys_tablespaces_open);
-
-	dberr_t		error;
-
-	pars_info_t*	info = pars_info_create();
-
-	pars_info_add_int4_literal(info, "space", space_id);
-
-	pars_info_add_str_literal(info, "path", path);
-
-	error = que_eval_sql(info,
-			     "PROCEDURE P () IS\n"
-			     "BEGIN\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
-			     "(:space, :path);\n"
-			     "END;\n",
-			     FALSE, trx);
-
-	if (error != DB_SUCCESS) {
-		return(error);
-	}
-
-	trx->op_info = "committing datafile definition";
-	trx_commit(trx);
-
-	trx->op_info = "";
-
-	return(error);
-}
-
 /** Delete records from SYS_TABLESPACES and SYS_DATAFILES associated
 with a particular tablespace ID.
 @param[in]	space	Tablespace ID

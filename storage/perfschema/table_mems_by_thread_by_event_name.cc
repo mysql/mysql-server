@@ -157,13 +157,22 @@ int table_mems_by_thread_by_event_name::rnd_next(void)
     thread= global_thread_container.get(m_pos.m_index_1, & has_more_thread);
     if (thread != NULL)
     {
-      memory_class= find_memory_class(m_pos.m_index_2);
-      if (memory_class != NULL)
+      do
       {
-        make_row(thread, memory_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
+        memory_class= find_memory_class(m_pos.m_index_2);
+        if (memory_class != NULL)
+        {
+          if (! memory_class->is_global())
+          {
+            make_row(thread, memory_class);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
+
+          m_pos.next_class();
+        }
       }
+      while (memory_class != NULL);
     }
   }
 
@@ -183,8 +192,11 @@ int table_mems_by_thread_by_event_name::rnd_pos(const void *pos)
     memory_class= find_memory_class(m_pos.m_index_2);
     if (memory_class != NULL)
     {
-      make_row(thread, memory_class);
-      return 0;
+      if (! memory_class->is_global())
+      {
+        make_row(thread, memory_class);
+        return 0;
+      }
     }
   }
 

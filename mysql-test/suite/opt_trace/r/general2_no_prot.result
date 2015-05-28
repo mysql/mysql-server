@@ -1952,13 +1952,37 @@ do (select 42)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
+        "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 42"
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 42"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select 42 AS `(select 42)`"
           }
         ] /* steps */
       } /* join_preparation */
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_execution */
     }
   ] /* steps */
 }	0	0

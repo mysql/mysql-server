@@ -202,9 +202,18 @@ struct ut_new_pfx_t {
 	/** Performance schema key. Assigned to a name at startup via
 	PSI_MEMORY_CALL(register_memory)() and later used for accounting
 	allocations and deallocations with
-	PSI_MEMORY_CALL(memory_alloc)(key, size) and
-	PSI_MEMORY_CALL(memory_free)(key, size). */
+	PSI_MEMORY_CALL(memory_alloc)(key, size, owner) and
+	PSI_MEMORY_CALL(memory_free)(key, size, owner). */
 	PSI_memory_key	m_key;
+
+        /**
+          Thread owner.
+          Instrumented thread that owns the allocated memory.
+          This state is used by the performance schema to maintain
+          per thread statistics,
+          when memory is given from thread A to thread B.
+        */
+        struct PSI_thread *m_owner;
 
 #endif /* UNIV_PFS_MEMORY */
 
@@ -681,7 +690,7 @@ private:
 	{
 		const PSI_memory_key	key = get_mem_key(file);
 
-		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size);
+		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, & pfx->m_owner);
 		pfx->m_size = size;
 	}
 
@@ -691,7 +700,7 @@ private:
 	deallocate_trace(
 		const ut_new_pfx_t*	pfx)
 	{
-		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size);
+		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size, pfx->m_owner);
 	}
 
 	/** Performance schema key. */

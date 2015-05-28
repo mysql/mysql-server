@@ -217,7 +217,7 @@ const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 
 static const char *tc_heuristic_recover_names[]=
 {
-  "COMMIT", "ROLLBACK", NullS
+  "OFF", "COMMIT", "ROLLBACK", NullS
 };
 static TYPELIB tc_heuristic_recover_typelib=
 {
@@ -426,7 +426,7 @@ uint mysqld_port_timeout;
 ulong delay_key_write_options;
 uint protocol_version;
 uint lower_case_table_names;
-ulong tc_heuristic_recover= 0;
+long tc_heuristic_recover;
 ulong back_log, connect_timeout, server_id;
 ulong table_cache_size, table_def_size;
 ulong table_cache_instances;
@@ -5779,9 +5779,10 @@ struct my_option my_long_options[]=
    &global_system_variables.sysdate_is_now,
    0, 0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
   {"tc-heuristic-recover", 0,
-   "Decision to use in heuristic recover process. Possible values are COMMIT "
-   "or ROLLBACK.", &tc_heuristic_recover, &tc_heuristic_recover,
-   &tc_heuristic_recover_typelib, GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Decision to use in heuristic recover process. Possible values are OFF, "
+   "COMMIT or ROLLBACK.", &tc_heuristic_recover, &tc_heuristic_recover,
+   &tc_heuristic_recover_typelib, GET_ENUM, REQUIRED_ARG,
+   TC_HEURISTIC_NOT_USED, 0, 0, 0, 0, 0},
 #if defined(ENABLED_DEBUG_SYNC)
   {"debug-sync-timeout", OPT_DEBUG_SYNC_TIMEOUT,
    "Enable the debug sync facility "
@@ -8355,6 +8356,7 @@ PSI_mutex_key
   key_relay_log_info_sleep_lock, key_relay_log_info_thd_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
+  key_mutex_slave_parallel_worker_count,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
@@ -8451,6 +8453,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_mutex_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_lock", 0},
+  { &key_mutex_slave_parallel_worker_count, "Relay_log_info::exit_count_lock", 0},
   { &key_mutex_mts_temp_tables_lock, "Relay_log_info::temp_tables_lock", 0},
   { &key_mutex_slave_parallel_worker, "Worker_info::jobs_lock", 0},
   { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},

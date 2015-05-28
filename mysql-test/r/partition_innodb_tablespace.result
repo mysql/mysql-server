@@ -679,7 +679,6 @@ test/t_file_per_table_off	innodb_system	1	5	Compact	0	System
 test/t_file_per_table_on	test/t_file_per_table_on	1	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
 ts_part1	MYSQLD_DATADIR/ts_part1.ibd	DEFAULT	0	Any	General
 ts part2	MYSQLD_DATADIR/ts_part2.ibd	DEFAULT	0	Any	General
 ts_part3	MYSQLD_DATADIR/ts_part3.ibd	DEFAULT	0	Any	General

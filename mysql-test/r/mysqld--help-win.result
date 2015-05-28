@@ -1140,7 +1140,7 @@ The following options may be given as the first argument:
  The number of table cache instances
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
- values are COMMIT or ROLLBACK.
+ values are OFF, COMMIT or ROLLBACK.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1500,7 +1500,7 @@ sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
 table-open-cache-instances 1
-tc-heuristic-recover COMMIT
+tc-heuristic-recover OFF
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144

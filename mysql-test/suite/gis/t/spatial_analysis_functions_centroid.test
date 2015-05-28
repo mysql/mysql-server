@@ -393,6 +393,7 @@ DROP TABLE gis_geometrycollection;
 --echo # Bug #20918881 CRASH WITH CENTROID - INVALID FREE
 --echo #
 
+--error ER_GIS_INVALID_DATA
 DO ST_Centroid(
   GeometryCollection(
     Polygon(

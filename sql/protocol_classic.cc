@@ -709,6 +709,10 @@ bool Protocol_classic::init_net(Vio *vio)
   return my_net_init(&m_thd->net, vio);
 }
 
+void Protocol_classic::claim_memory_ownership()
+{
+  net_claim_memory_ownership(&m_thd->net);
+}
 
 void Protocol_classic::end_net()
 {

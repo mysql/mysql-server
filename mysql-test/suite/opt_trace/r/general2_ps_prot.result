@@ -1945,10 +1945,20 @@ do (select 42)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
+        "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 42"
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 42"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select (/* select#2 */ select 42) AS `(select 42)`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -1959,34 +1969,58 @@ do (select 42)	{
   "steps": [
     {
       "join_preparation": {
-        "select#": 2,
+        "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select 42"
+            "join_preparation": {
+              "select#": 2,
+              "steps": [
+                {
+                  "expanded_query": "/* select#2 */ select 42"
+                }
+              ] /* steps */
+            } /* join_preparation */
+          },
+          {
+            "expanded_query": "/* select#1 */ select (/* select#2 */ select 42) AS `(select 42)`"
           }
         ] /* steps */
       } /* join_preparation */
     },
     {
-      "subselect_execution": {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_optimization": {
         "select#": 2,
         "steps": [
+        ] /* steps */
+      } /* join_optimization */
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
           {
-            "join_optimization": {
+            "subselect_execution": {
               "select#": 2,
               "steps": [
+                {
+                  "join_execution": {
+                    "select#": 2,
+                    "steps": [
+                    ] /* steps */
+                  } /* join_execution */
+                }
               ] /* steps */
-            } /* join_optimization */
-          },
-          {
-            "join_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* join_execution */
+            } /* subselect_execution */
           }
         ] /* steps */
-      } /* subselect_execution */
+      } /* join_execution */
     }
   ] /* steps */
 }	0	0

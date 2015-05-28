@@ -89,11 +89,11 @@ log_checksum_func_t log_checksum_algorithm_ptr =
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
-bool	log_has_printed_chkp_warning = false;
-time_t	log_last_warning_time;
+static bool	log_has_printed_chkp_warning = false;
+static time_t	log_last_warning_time;
 
-bool	log_has_printed_chkp_margine_warning = false;
-time_t	log_last_margine_warning_time;
+static bool	log_has_printed_chkp_margine_warning = false;
+static time_t	log_last_margine_warning_time;
 
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)

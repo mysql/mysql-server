@@ -1207,6 +1207,10 @@ public:
   bool has_limit() const
   { return select_limit != NULL; }
 
+  /// @return true if query block references full-text functions
+  bool has_ft_funcs() const
+  { return ftfunc_list->elements > 0; }
+
   void invalidate();
 
   bool set_braces(bool value);
@@ -3082,9 +3086,6 @@ public:
 
   // CALL statement-specific fields:
   List<Item>          call_value_list;
-
-  // DO statement-specific fields:
-  List<Item>          *do_insert_list;
 
   // HANDLER statement-specific fields:
   List<Item>          *handler_insert_list;

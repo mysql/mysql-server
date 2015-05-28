@@ -485,7 +485,8 @@ JOIN::optimize()
     no_jbuf_after= 0;
 
   /* Perform FULLTEXT search before all regular searches */
-  optimize_fts_query();
+  if (select_lex->has_ft_funcs() && optimize_fts_query())
+    DBUG_RETURN(1);
 
   /*
     By setting child_subquery_can_materialize so late we gain the following:
@@ -10280,12 +10281,11 @@ void JOIN::optimize_keyuse()
   and checks if FT index can be used as covered.
 */
 
-void JOIN::optimize_fts_query()
+bool JOIN::optimize_fts_query()
 {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
-  if (!select_lex->ftfunc_list->elements)
-    return;
+  DBUG_ASSERT(select_lex->has_ft_funcs());
 
   for (uint i= const_tables; i < tables; i++)
   {
@@ -10331,7 +10331,7 @@ void JOIN::optimize_fts_query()
                          !order ? m_select_limit : HA_POS_ERROR, false);
   }
 
-  init_ftfuncs(thd, select_lex);
+  return init_ftfuncs(thd, select_lex);
 }
 
 

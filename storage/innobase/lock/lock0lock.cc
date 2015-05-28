@@ -284,7 +284,7 @@ lock_sys_t*	lock_sys	= NULL;
 
 /** We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
-bool	lock_deadlock_found = false;
+static bool	lock_deadlock_found = false;
 
 /** Only created if !srv_read_only_mode */
 static FILE*		lock_latest_err_file;

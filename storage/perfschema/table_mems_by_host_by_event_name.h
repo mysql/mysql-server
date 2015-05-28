@@ -67,6 +67,11 @@ struct pos_mems_by_host_by_event_name
     m_index_1++;
     m_index_2= 1;
   }
+
+  inline void next_class(void)
+  {
+    m_index_2++;
+  }
 };
 
 /** Table PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME. */

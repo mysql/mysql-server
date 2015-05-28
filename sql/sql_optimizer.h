@@ -719,7 +719,7 @@ private:
     Function sets FT hints, initializes FT handlers and
     checks if FT index can be used as covered.
   */
-  void optimize_fts_query();
+  bool optimize_fts_query();
 
   bool prune_table_partitions();
 
