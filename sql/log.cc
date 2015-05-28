@@ -1302,10 +1302,6 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
 */
 static bool log_command(THD *thd, enum_server_command command)
 {
-  /* Audit notification when no general log handler present */
-  mysql_audit_general_log(thd, command_name[(uint) command].str,
-                          command_name[(uint) command].length);
-
   if (what_to_log & (1L << (uint) command))
   {
     if ((thd->variables.option_bits & OPTION_LOG_OFF)
@@ -1326,12 +1322,18 @@ static bool log_command(THD *thd, enum_server_command command)
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length)
 {
-  // Is general log enabled? Any active handlers?
-  if (!opt_general_log || !(*general_log_handler_list))
-    return false;
+  /* Send a general log message to the audit API. */
+  mysql_audit_general_log(thd, command_name[(uint) command].str,
+                          command_name[(uint) command].length);
 
-  // Do we want to log this kind of command?
-  if (!log_command(thd, command))
+  /*
+    Do we want to log this kind of command?
+    Is general log enabled?
+    Any active handlers?
+  */
+  if (!log_command(thd, command) ||
+      !opt_general_log ||
+      !(*general_log_handler_list))
     return false;
 
   mysql_rwlock_rdlock(&LOCK_logger);
@@ -1360,13 +1362,20 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
 bool Query_logger::general_log_print(THD *thd, enum_server_command command,
                                      const char *format, ...)
 {
-  // Is general log enabled? Any active handlers?
-  if (!opt_general_log || !(*general_log_handler_list))
+  /*
+    Do we want to log this kind of command?
+    Is general log enabled?
+    Any active handlers?
+  */
+  if (!log_command(thd, command) ||
+      !opt_general_log ||
+      !(*general_log_handler_list))
+  {
+    /* Send a general log message to the audit API. */
+    mysql_audit_general_log(thd, command_name[(uint) command].str,
+                            command_name[(uint) command].length);
     return false;
-
-  // Do we want to log this kind of command?
-  if (!log_command(thd, command))
-    return false;
+  }
 
   size_t message_buff_len= 0;
   char message_buff[MAX_LOG_BUFFER_SIZE];
