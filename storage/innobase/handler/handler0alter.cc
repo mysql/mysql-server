@@ -4163,6 +4163,19 @@ check_if_ok_to_rename:
 		if (index->type & DICT_FTS) {
 			DBUG_ASSERT(index->type == DICT_FTS
 				    || (index->type & DICT_CORRUPT));
+
+			/* We need to drop any corrupted fts indexes
+			before we add a new fts index. */
+			if (add_fts_idx && index->type & DICT_CORRUPT) {
+				ib_errf(m_user_thd, IB_LOG_LEVEL_ERROR,
+					ER_INNODB_INDEX_CORRUPT,
+					"Fulltext index '%s' is corrupt. "
+					"you should drop this index first.",
+					index->name());
+
+				goto err_exit_no_heap;
+			}
+
 			continue;
 		}
 
