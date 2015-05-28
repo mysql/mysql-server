@@ -33,7 +33,11 @@
 
 static int check_geometry_valid(Geometry *geom);
 
-// check whether all segments of a linestring are colinear.
+/**
+  Check whether all points in the sequence container are colinear.
+  @param ls a sequence of points with no duplicates.
+  @return true if the points are colinear, false otherwise.
+*/
 template <typename Point_range>
 bool is_colinear(const Point_range &ls)
 {
@@ -2070,14 +2074,34 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       if (mpts.size() == 0)
         return (null_value= true);
 
-      if (is_colinear(mpts))
+      // Make mpts unique as required by the is_colinear() algorithm.
+      typename BG_models<double, Coordsys>::Multipoint distinct_pts;
+      distinct_pts.resize(mpts.size());
+      std::sort(mpts.begin(), mpts.end(), bgpt_lt());
+      typename BG_models<double, Coordsys>::Multipoint::iterator itr=
+        std::unique_copy(mpts.begin(), mpts.end(),
+                         distinct_pts.begin(), bgpt_eq());
+      distinct_pts.resize(itr - distinct_pts.begin());
+
+      if (is_colinear(distinct_pts))
       {
-        boost::geometry::convex_hull(mpts, line_hull);
-        line_hull.set_srid(geom->get_srid());
-        // The linestring consists of 4 or more points, but only the
-        // first two contain real data, so we need to trim it down.
-        line_hull.resize(2);
-        null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
+        if (distinct_pts.size() == 1)
+        {
+          // Here we have to create a brand new point because res_hull will
+          // take over its memory, which can't be done to distinct_pts[0].
+          typename BG_models<double, Coordsys>::Point pt_hull= distinct_pts[0];
+          pt_hull.set_srid(geom->get_srid());
+          null_value= post_fix_result(&bg_resbuf_mgr, pt_hull, res_hull);
+        }
+        else
+        {
+          boost::geometry::convex_hull(distinct_pts, line_hull);
+          line_hull.set_srid(geom->get_srid());
+          // The linestring consists of 4 or more points, but only the
+          // first two contain real data, so we need to trim it down.
+          line_hull.resize(2);
+          null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
+        }
       }
       else if (geotype == Geometry::wkb_geometrycollection)
       {
