@@ -90,8 +90,8 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys);
     @todo make this function also handle INSERT ... VALUES, single-table
           UPDATE and DELETE, SET and DO.
     
-    The function processes queries where the outer-most query expression
-    contains one query block and no fake_select_lex separately.
+    The function processes simple query expressions without UNION and
+    without multi-level ORDER BY/LIMIT separately.
     Such queries are executed with a more direct code path.
 */
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
@@ -114,7 +114,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
     DBUG_RETURN(true);
   }
 
-  const bool single_query= !(unit->is_union() || unit->fake_select_lex);
+  const bool single_query= unit->is_simple();
+
   lex->used_tables=0;                         // Updated by setup_fields
 
   THD_STAGE_INFO(thd, stage_init);
