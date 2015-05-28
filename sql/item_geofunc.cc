@@ -2459,6 +2459,18 @@ Field::geometry_type Item_func_point::get_geometry_type() const
 String *Item_func_point::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+
+  /*
+    The coordinates of a point can't be another geometry, but other types
+    are allowed as before.
+  */
+  if ((null_value= (args[0]->field_type() == MYSQL_TYPE_GEOMETRY ||
+                    args[1]->field_type() == MYSQL_TYPE_GEOMETRY)))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_str();
+  }
+
   double x= args[0]->val_real();
   double y= args[1]->val_real();
   uint32 srid= 0;
@@ -2684,7 +2696,10 @@ String *Item_func_spatial_collection::val_str(String *str)
       data+= 4;
       len-= 5 + 4/*SRID*/;
       if (wkb_type != item_type)
+      {
+        my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
         goto err;
+      }
 
       switch (coll_type) {
       case Geometry::wkb_multipoint:
