@@ -118,6 +118,7 @@ err:
       any reference to it.  
     */
     mi->set_rpl_info_handler(NULL);
+    mi->channel_wrlock();
     delete mi;
   }
   sql_print_error("Error creating master info: %s.", msg);
@@ -1198,10 +1199,10 @@ bool Rpl_info_factory::create_slave_info_objects(uint mi_option,
       }
 
       /*
-        Initialize the default channel conditionally:
-        - no create error
-        - not default channel
-        - or default channel and was also listed from the beginning.
+        Initialize the channel conditionally:
+        - no create error and:
+          - not default channel
+          - or default channel and was also listed from the beginning.
        */
       if (!create_error && (!is_default_channel || default_channel_existed_previously))
       {
@@ -1280,6 +1281,7 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
   if (!(rli= Rpl_info_factory::create_rli(rli_option, relay_log_recovery,
                                           channel, to_decide_repo)))
   {
+    mi->channel_wrlock();
     delete mi;
     mi= NULL;
     DBUG_RETURN(NULL);
@@ -1292,6 +1294,7 @@ Rpl_info_factory::create_slave_per_channel(uint mi_option,
   /* Add to multisource map*/
   if (pchannel_map->add_mi(channel, mi, channel_type))
   {
+    mi->channel_wrlock();
     delete mi;
     delete rli;
     DBUG_RETURN(NULL);

@@ -393,6 +393,12 @@ public:
   */
   inline void assert_some_lock() const
   { m_channel_map_lock->assert_some_lock(); }
+
+  /**
+    Assert that some thread holds the write lock.
+  */
+  inline void assert_some_wrlock() const
+  { m_channel_map_lock->assert_some_wrlock(); }
 };
 
 /* Global object for multisourced slave. */
