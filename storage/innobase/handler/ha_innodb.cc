@@ -5119,7 +5119,7 @@ ha_innobase::open(
 	thd = ha_thd();
 
 	/* Under some cases MySQL seems to call this function while
-	holding btr_search_latch. This breaks the latching order as
+	holding search latch(es). This breaks the latching order as
 	we acquire dict_sys->mutex below and leads to a deadlock. */
 	if (thd != NULL) {
 		innobase_release_temporary_latches(ht, thd);
@@ -17521,7 +17521,15 @@ static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default). "
   " Disable with --skip-innodb-adaptive-hash-index.",
-  NULL, innodb_adaptive_hash_index_update, TRUE);
+  NULL, innodb_adaptive_hash_index_update, true);
+
+/** Number of distinct partitions of AHI.
+Each partition is protected by its own latch and so we have parts number
+of latches protecting complete search system. */
+static MYSQL_SYSVAR_ULONG(adaptive_hash_index_parts, btr_ahi_parts,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Number of InnoDB Adapative Hash Index Partitions. (default = 8). ",
+  NULL, NULL, 8, 1, 64, 0);
 
 static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   PLUGIN_VAR_RQCMDARG,
@@ -18174,6 +18182,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_persistent_sample_pages),
   MYSQL_SYSVAR(stats_auto_recalc),
   MYSQL_SYSVAR(adaptive_hash_index),
+  MYSQL_SYSVAR(adaptive_hash_index_parts),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),

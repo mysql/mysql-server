@@ -158,6 +158,7 @@ ut_allocator::get_mem_key()):
   mem_key_other will be used. Generally this should not happen and if it
   happens then that means that the list of predefined names must be extended.
 Keep this list alphabetically sorted. */
+extern PSI_memory_key	mem_key_ahi;
 extern PSI_memory_key	mem_key_buf_buf_pool;
 extern PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
