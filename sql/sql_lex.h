@@ -541,7 +541,7 @@ private:
   TABLE_LIST result_table_list;
   Query_result_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
-
+  /// Object to which the result for this query expression is sent
   Query_result *m_query_result;
 
 public:
@@ -553,7 +553,10 @@ public:
   */
   uint8 uncacheable;
 
-  st_select_lex_unit(enum_parsing_context parsing_context);
+  explicit st_select_lex_unit(enum_parsing_context parsing_context);
+
+  /// @return true for a query expression without UNION or multi-level ORDER
+  bool is_simple() const { return !(is_union() || fake_select_lex); }
 
   /// Values for st_select_lex_unit::cleaned
   enum enum_clean_state
@@ -581,18 +584,18 @@ public:
   */
   List<Item> types;
   /**
-    Pointer to 'last' select, or pointer to select where we stored
-    global parameters for union.
+    Pointer to query block containing global parameters for query.
+    Global parameters may include ORDER BY, LIMIT and OFFSET.
 
-    If this is a union of multiple selects, the parser puts the global
-    parameters in fake_select_lex. If the union doesn't use a
-    temporary table, st_select_lex_unit::prepare() nulls out
-    fake_select_lex, but saves a copy in saved_fake_select_lex in
-    order to preserve the global parameters.
+    If this is a union of multiple query blocks, the global parameters are
+    stored in fake_select_lex. If the union doesn't use a temporary table,
+    st_select_lex_unit::prepare() nulls out fake_select_lex, but saves a copy
+    in saved_fake_select_lex in order to preserve the global parameters.
 
-    If it is not a union, first_select() is the last select.
+    If this is not a union, and the query expression has no multi-level
+    ORDER BY/LIMIT, global parameters are in the single query block.
 
-    @return select containing the global parameters
+    @return query block containing the global parameters
   */
   inline st_select_lex *global_parameters() const
   {
@@ -604,13 +607,12 @@ public:
   };
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
-  /* not NULL if unit used in subselect, point to subselect item */
+  /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
-  /* thread handler */
-  THD *thd;
-  /*
-    SELECT_LEX for hidden SELECT in onion which process global
-    ORDER BY and LIMIT
+  THD *thd;                   ///< Thread handler
+  /**
+    Helper query block for query expression with UNION or multi-level
+    ORDER BY/LIMIT
   */
   st_select_lex *fake_select_lex;
   /**
@@ -618,20 +620,27 @@ public:
     fake_select_lex is used.
   */
   st_select_lex *saved_fake_select_lex;
+  /// Points to last query block used by UNION DISTINCT query
+  st_select_lex *union_distinct;
 
-  st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
-
-  /// Return true if query expression can be merged into an outer query
+  /// @return true if query expression can be merged into an outer query
   bool is_mergeable() const;
 
+  /// @return the query block this query expression belongs to as subquery
   st_select_lex* outer_select() const { return master; }
+
+  /// @return the first query block inside this query expression
   st_select_lex* first_select() const { return slave; }
 
+  /// @return the next query expression within same query block (next subquery)
   st_select_lex_unit* next_unit() const { return next; }
 
+  /// @return the query result object in use for this query expression
   Query_result *query_result() const { return m_query_result; }
+
+  /// Set new query result object for this query expression
   void set_query_result(Query_result *res) { m_query_result= res; }
-  /* UNION methods */
+
   bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
   bool optimize(THD *thd);
