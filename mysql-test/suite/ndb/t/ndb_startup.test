@@ -15,6 +15,13 @@ let $MYSQLD_CMD_11 = `select REPLACE("$MYSQLD_CMD",
                                      "defaults-group-suffix=.1.1")`;
 let $args= --loose-console > $error_log 2>&1;
 
+# Use innodb-read-only to avoid that innodb starts recovery
+# threads etc. since that will only cause mystery crashes
+# when the mysqld startup is aborted due to the invalid
+# option tests performed below. Would have been nice to
+# skip innodb for these test but that is not an option in 5.7
+let $args = --innodb-read-only $args;
+
 --echo # Stop the running server
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect;
 --exec echo "wait" > $restart_file
