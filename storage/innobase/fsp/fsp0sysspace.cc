@@ -965,7 +965,7 @@ SysTablespace::open_or_create(
 
 /** Normalize the file size, convert from megabytes to number of pages. */
 void
-SysTablespace::normalize()
+SysTablespace::normalize_size()
 {
 	files_t::iterator	end = m_files.end();
 

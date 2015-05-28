@@ -633,8 +633,11 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+
+	if (trx_sys == NULL) {
+		return;
+	}
 
 	ulint	size = trx_sys->mvcc->size();
 

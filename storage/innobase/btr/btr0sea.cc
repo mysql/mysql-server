@@ -259,7 +259,12 @@ btr_search_sys_resize(ulint hash_size)
 void
 btr_search_sys_free()
 {
-	ut_ad(btr_search_sys != NULL && btr_search_latches != NULL);
+	if (btr_search_sys == NULL) {
+		ut_ad(btr_search_latches == NULL);
+		return;
+	}
+
+	ut_ad(btr_search_latches != NULL);
 
 	/* Step-1: Release the hash tables. */
 	for (ulint i = 0; i < btr_ahi_parts; ++i) {

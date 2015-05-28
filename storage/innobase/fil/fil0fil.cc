@@ -5876,6 +5876,10 @@ void
 fil_close(void)
 /*===========*/
 {
+	if (fil_system == NULL) {
+		return;
+	}
+
 	hash_table_free(fil_system->spaces);
 
 	hash_table_free(fil_system->name_hash);

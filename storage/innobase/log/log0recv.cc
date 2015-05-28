@@ -54,7 +54,6 @@ Created 9/20/1997 Heikki Tuuri
 # include "buf0rea.h"
 # include "srv0srv.h"
 # include "srv0start.h"
-# include "trx0roll.h"
 # include "row0merge.h"
 # include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
@@ -138,17 +137,13 @@ is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 static lsn_t	recv_max_page_lsn;
 
-#ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t	trx_rollback_clean_thread_key;
-#endif /* UNIV_PFS_THREAD */
-
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
 mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
 /** Flag indicating if recv_writer thread is active. */
-volatile bool	recv_writer_thread_active = false;
+volatile static bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -3785,9 +3780,6 @@ recv_recovery_from_checkpoint_finish(void)
 
 	recv_sys_debug_free();
 
-	/* Free up the flush_rbt. */
-	buf_flush_free_flush_rbt();
-
 	/* Validate a few system page types that were left uninitialized
 	by older versions of MySQL. */
 	mtr_t		mtr;
@@ -3816,44 +3808,8 @@ recv_recovery_from_checkpoint_finish(void)
 	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 	mtr.commit();
 
-	/* Roll back any recovered data dictionary transactions, so
-	that the data dictionary tables will be free of any locks.
-	The data dictionary latch should guarantee that there is at
-	most one data dictionary transaction active at a time. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-		trx_rollback_or_clean_recovered(FALSE);
-	}
-}
-
-/********************************************************//**
-Initiates the rollback of active transactions. */
-void
-recv_recovery_rollback_active(void)
-/*===============================*/
-{
-	ut_ad(!recv_writer_thread_active);
-
-	/* We can't start any (DDL) transactions if UNDO logging
-	has been disabled, additionally disable ROLLBACK of recovered
-	user transactions. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	    && !srv_read_only_mode) {
-
-		/* Drop partially created indexes. */
-		row_merge_drop_temp_indexes();
-
-		/* Drop any auxiliary tables that were not dropped when the
-		parent table was dropped. This can happen if the parent table
-		was dropped but the server crashed before the auxiliary tables
-		were dropped. */
-		fts_drop_orphaned_tables();
-
-		/* Rollback the uncommitted transactions which have no user
-		session */
-
-		trx_rollback_or_clean_is_active = true;
-		os_thread_create(trx_rollback_or_clean_all_recovered, 0, 0);
-	}
+	/* Free up the flush_rbt. */
+	buf_flush_free_flush_rbt();
 }
 
 /******************************************************//**

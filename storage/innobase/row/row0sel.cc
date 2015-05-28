@@ -122,7 +122,7 @@ row_sel_sec_rec_is_for_blob(
 		    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
-		recv_recovery_rollback_active() or any
+		trx_rollback_or_clean_all_recovered() or any
 		TRX_ISO_READ_UNCOMMITTED transactions. */
 		return(FALSE);
 	}
@@ -489,7 +489,7 @@ row_sel_fetch_columns(
 				externally stored field was not
 				written yet. This record
 				should only be seen by
-				recv_recovery_rollback_active() or any
+				trx_rollback_or_clean_all_recovered() or any
 				TRX_ISO_READ_UNCOMMITTED
 				transactions. The InnoDB SQL parser
 				(the sole caller of this function)
@@ -2975,7 +2975,7 @@ row_sel_store_mysql_field_func(
 		if (UNIV_UNLIKELY(!data)) {
 			/* The externally stored field was not written
 			yet. This record should only be seen by
-			recv_recovery_rollback_active() or any
+			trx_rollback_or_clean_all_recovered() or any
 			TRX_ISO_READ_UNCOMMITTED transactions. */
 
 			if (heap != prebuilt->blob_heap) {

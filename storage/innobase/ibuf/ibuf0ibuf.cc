@@ -454,6 +454,10 @@ void
 ibuf_close(void)
 /*============*/
 {
+	if (ibuf == NULL) {
+		return;
+	}
+
 	mutex_free(&ibuf_pessimistic_insert_mutex);
 
 	mutex_free(&ibuf_mutex);
@@ -3735,8 +3739,6 @@ ibuf_insert(
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
 			goto check_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_DELETE_MARK:
@@ -3750,8 +3752,6 @@ ibuf_insert(
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
 			goto check_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_DELETE:
@@ -3765,8 +3765,6 @@ ibuf_insert(
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
 			goto skip_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_COUNT:

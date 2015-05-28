@@ -109,13 +109,17 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 
-/** Frees and initialize a transaction object instantinated during recovery.
-@param trx trx object to free and initialize during recovery */
+/** Resurrect table locks for resurrected transactions. */
+void
+trx_resurrect_locks();
+
+/** Free and initialize a transaction object instantiated during recovery.
+@param[in,out]	trx	transaction object to free and initialize */
 void
 trx_free_resurrected(trx_t* trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx trx object to free */
+@param[in,out]	trx	transaction object to free */
 void
 trx_free_for_background(trx_t* trx);
 

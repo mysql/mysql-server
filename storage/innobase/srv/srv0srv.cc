@@ -156,7 +156,11 @@ unsigned long long	srv_online_max_size;
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
-my_bool	srv_use_native_aio = TRUE;
+#ifdef _WIN32
+my_bool	srv_use_native_aio = TRUE; /* enabled by default on Windows */
+#else
+my_bool	srv_use_native_aio;
+#endif
 
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
@@ -168,10 +172,10 @@ char*	srv_log_group_home_dir	= NULL;
 
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /* size in database pages */
-ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
-ib_uint64_t	srv_log_file_size_requested;
+ulonglong	srv_log_file_size;
+ulonglong	srv_log_file_size_requested;
 /* size in database pages */
-ulint		srv_log_buffer_size = ULINT_MAX;
+ulong		srv_log_buffer_size;
 ulong		srv_flush_log_at_trx_commit = 1;
 uint		srv_flush_log_at_timeout = 1;
 ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
@@ -182,7 +186,7 @@ page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
-char	srv_adaptive_flushing	= TRUE;
+my_bool	srv_adaptive_flushing	= TRUE;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 my_bool	srv_flush_sync		= TRUE;
@@ -227,8 +231,8 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
-ulint	srv_n_read_io_threads	= ULINT_MAX;
-ulint	srv_n_write_io_threads	= ULINT_MAX;
+ulong	srv_n_read_io_threads;
+ulong	srv_n_write_io_threads;
 
 /* Switch to enable random read ahead. */
 my_bool	srv_random_read_ahead	= FALSE;
@@ -241,7 +245,6 @@ ulong	srv_read_ahead_threshold	= 56;
 of the buffer pool. */
 uint	srv_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
 
-char*	srv_file_flush_method_str = NULL;
 #ifndef _WIN32
 enum srv_unix_flush_t	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 #else
@@ -1026,34 +1029,11 @@ srv_general_init(void)
 }
 
 /*********************************************************************//**
-Normalizes init parameter values to use units we use inside InnoDB. */
-static
-void
-srv_normalize_init_values(void)
-/*===========================*/
-{
-	srv_sys_space.normalize();
-
-	srv_tmp_space.normalize();
-
-	srv_log_file_size /= UNIV_PAGE_SIZE;
-
-	srv_log_buffer_size /= UNIV_PAGE_SIZE;
-
-	srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
-}
-
-/*********************************************************************//**
 Boots the InnoDB server. */
 void
 srv_boot(void)
 /*==========*/
 {
-	/* Transform the init parameter values given by MySQL to
-	use units we use inside InnoDB: */
-
-	srv_normalize_init_values();
-
 	/* Initialize synchronization primitives, memory management, and thread
 	local storage */
 
@@ -1731,11 +1711,16 @@ srv_get_active_thread_type(void)
 
 	/* Check only on shutdown. */
 	if (ret == SRV_NONE
-	    && srv_shutdown_state != SRV_SHUTDOWN_NONE
-	    && trx_purge_state() != PURGE_STATE_DISABLED
-	    && trx_purge_state() != PURGE_STATE_EXIT) {
-
-		ret = SRV_PURGE;
+	    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		switch (trx_purge_state()) {
+		case PURGE_STATE_INIT:
+		case PURGE_STATE_EXIT:
+		case PURGE_STATE_DISABLED:
+			break;
+		case PURGE_STATE_RUN:
+		case PURGE_STATE_STOP:
+			ret = SRV_PURGE;
+		}
 	}
 
 	return(ret);

@@ -111,7 +111,7 @@ public:
 	void shutdown();
 
 	/** Normalize the file size, convert to extents. */
-	void normalize();
+	void normalize_size();
 
 	/**
 	@return true if a new raw device was created. */
