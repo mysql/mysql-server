@@ -30,6 +30,9 @@ usr/lib/mysql/plugin/auth_test_plugin.so
 usr/lib/mysql/plugin/daemon_example.ini
 usr/lib/mysql/plugin/ha_example.so
 usr/lib/mysql/plugin/libdaemon_example.so
+usr/lib/mysql/plugin/libtest_framework.so
+usr/lib/mysql/plugin/libtest_services.so
+usr/lib/mysql/plugin/libtest_services_threaded.so
 usr/lib/mysql/plugin/qa_auth_client.so
 usr/lib/mysql/plugin/qa_auth_interface.so
 usr/lib/mysql/plugin/qa_auth_server.so
@@ -40,6 +43,9 @@ usr/lib/mysql/plugin/debug/auth_test_plugin.so
 usr/lib/mysql/plugin/debug/daemon_example.ini
 usr/lib/mysql/plugin/debug/ha_example.so
 usr/lib/mysql/plugin/debug/libdaemon_example.so
+usr/lib/mysql/plugin/debug/libtest_framework.so
+usr/lib/mysql/plugin/debug/libtest_services.so
+usr/lib/mysql/plugin/debug/libtest_services_threaded.so
 usr/lib/mysql/plugin/debug/qa_auth_client.so
 usr/lib/mysql/plugin/debug/qa_auth_interface.so
 usr/lib/mysql/plugin/debug/qa_auth_server.so
