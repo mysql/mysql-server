@@ -1,26 +1,4 @@
 drop procedure if exists check_instrument;
-"Known PSI_FLAG_GLOBAL memory instruments"
-select name from performance_schema.setup_instruments
-where (name like "memory/%")
-and (name not like "memory/performance_schema/%")
-and (name not in
-(select event_name from
-performance_schema.memory_summary_by_account_by_event_name));
-name
-memory/sql/buffered_logs
-memory/sql/sql_acl_mem
-memory/sql/sql_acl_memex
-memory/sql/TABLE_SHARE::mem_root
-memory/sql/TABLE
-memory/sql/Query_cache
-memory/sql/Event_basic::mem_root
-memory/sql/root
-memory/sql/load_env_plugins
-memory/sql/plugin_ref
-memory/sql/plugin_mem_root
-memory/sql/tz_storage
-memory/sql/servers_cache
-memory/sql/udf_mem
 create procedure check_instrument(in instr_name varchar(128))
 begin
 declare save_count_expected integer;

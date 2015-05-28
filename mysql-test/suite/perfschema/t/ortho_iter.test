@@ -13,13 +13,13 @@ drop procedure if exists check_instrument;
 # Print known global memory instruments (PSI_FLAG_GLOBAL),
 # see maintenance of count_global_expected below.
 
---echo "Known PSI_FLAG_GLOBAL memory instruments"
-select name from performance_schema.setup_instruments
-  where (name like "memory/%")
-  and (name not like "memory/performance_schema/%")
-  and (name not in
-    (select event_name from
-      performance_schema.memory_summary_by_account_by_event_name));
+# --echo "Known PSI_FLAG_GLOBAL memory instruments"
+# select name from performance_schema.setup_instruments
+#   where (name like "memory/%")
+#   and (name not like "memory/performance_schema/%")
+#   and (name not in
+#     (select event_name from
+#       performance_schema.memory_summary_by_account_by_event_name));
 
 delimiter $;
 create procedure check_instrument(in instr_name varchar(128))
