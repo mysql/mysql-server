@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1325,7 +1325,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
         clnt->do_forceSend(1);
         first = false;
       }
-      clnt->do_poll(0);
+      clnt->do_poll(10);
       not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
       clnt->complete_poll();
     } while (not_finished);
