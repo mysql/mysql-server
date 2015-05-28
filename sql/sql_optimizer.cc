@@ -227,7 +227,6 @@ JOIN::optimize()
   }
   if (having_cond || calc_found_rows)
     m_select_limit= HA_POS_ERROR;
-  do_send_rows = unit->select_limit_cnt > 0;
 
   where_cond= optimize_cond(thd, where_cond, &cond_equal,
                             &select_lex->top_join_list, true,

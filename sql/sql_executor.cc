@@ -139,6 +139,8 @@ JOIN::exec()
 
   Query_result *const query_result= select_lex->query_result();
 
+  do_send_rows = unit->select_limit_cnt > 0;
+
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     /*
