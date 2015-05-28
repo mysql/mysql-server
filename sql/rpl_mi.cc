@@ -18,6 +18,7 @@
 
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "rpl_msr.h"            // channel_map
 #include "rpl_slave.h"          // master_retry_count
 
 
@@ -138,10 +139,22 @@ Master_info::Master_info(
              " for channel '%s'", channel);
   my_snprintf(for_channel_uppercase_str, sizeof(for_channel_uppercase_str)-1,
              " FOR CHANNEL '%s'", channel);
+
+  m_channel_lock= new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+                                       key_rwlock_channel_lock
+#endif
+                                      );
 }
 
 Master_info::~Master_info()
 {
+  /* No one else is using this master_info */
+  m_channel_lock->assert_some_wrlock();
+  /* No other administrative task is able to get this master_info */
+  channel_map.assert_some_wrlock();
+  m_channel_lock->unlock();
+  delete m_channel_lock;
   delete ignore_server_ids;
   delete mi_description_event;
 }
@@ -565,5 +578,17 @@ void Master_info::reset_start_info()
   start_user[0]= 0;
   start_password[0]= 0;
   DBUG_VOID_RETURN;
+}
+
+void Master_info::channel_rdlock()
+{
+  channel_map.assert_some_lock();
+  m_channel_lock->rdlock();
+}
+
+void Master_info::channel_wrlock()
+{
+  channel_map.assert_some_lock();
+  m_channel_lock->wrlock();
 }
 #endif /* HAVE_REPLICATION */

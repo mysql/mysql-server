@@ -596,52 +596,52 @@ bool start_slave(THD *thd)
 */
 int stop_slave(THD *thd)
 {
-   DBUG_ENTER("stop_slave(THD)");
-   bool push_temp_table_warning= true;
-   Master_info *mi=0;
-   int error= 0;
-   bool channel_configured;
+  DBUG_ENTER("stop_slave(THD)");
+  bool push_temp_table_warning= true;
+  Master_info *mi=0;
+  int error= 0;
+  bool channel_configured;
 
-   if (channel_map.get_num_instances() == 1)
-   {
-     mi= channel_map.get_default_channel_mi();
+  if (channel_map.get_num_instances() == 1)
+  {
+    mi= channel_map.get_default_channel_mi();
 
-     DBUG_ASSERT(!strcmp(mi->get_channel(),
-                         channel_map.get_default_channel()));
+    DBUG_ASSERT(!strcmp(mi->get_channel(),
+                        channel_map.get_default_channel()));
 
-     error= stop_slave(thd, mi, 1,
-                       false /*for_one_channel*/, &push_temp_table_warning);
+    error= stop_slave(thd, mi, 1,
+                      false /*for_one_channel*/, &push_temp_table_warning);
 
-     if (error)
-       goto err;
-   }
-   else
-   {
-     for(mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
-     {
-       mi= it->second;
+    if (error)
+      goto err;
+  }
+  else
+  {
+    for(mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
+    {
+      mi= it->second;
 
-       channel_configured= mi && mi->host[0];
+      channel_configured= mi && mi->host[0];
 
-       if (channel_configured)
-       {
-         error= stop_slave(thd, mi, 1,
-                           false /*for_one_channel*/, &push_temp_table_warning);
+      if (channel_configured)
+      {
+        error= stop_slave(thd, mi, 1,
+                          false /*for_one_channel*/, &push_temp_table_warning);
 
-         if (error)
-         {
-           sql_print_error("Slave: Could not stop slave for channel '%s'"
-                           " operation discontinued", mi->get_channel());
-           goto err;
-         }
-       }
-     }
-   }
-   /* no error */
-   my_ok(thd);
+        if (error)
+        {
+          sql_print_error("Slave: Could not stop slave for channel '%s'"
+                          " operation discontinued", mi->get_channel());
+          goto err;
+        }
+      }
+    }
+  }
+  /* no error */
+  my_ok(thd);
 
 err:
-   DBUG_RETURN(error);
+  DBUG_RETURN(error);
 }
 
 
@@ -1937,6 +1937,7 @@ void delete_slave_info_objects()
 
     if (mi)
     {
+      mi->channel_wrlock();
       end_info(mi);
       if (mi->rli)
         delete mi->rli;
@@ -1953,6 +1954,7 @@ void delete_slave_info_objects()
 
     if (mi)
     {
+      mi->channel_wrlock();
       end_info(mi);
       if (mi->rli)
         delete mi->rli;
@@ -9520,6 +9522,8 @@ bool start_slave(THD* thd,
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
 
+  mi->channel_wrlock();
+
   if (connection_param->user ||
       connection_param->password)
   {
@@ -9778,6 +9782,8 @@ bool start_slave(THD* thd,
 
   unlock_slave_threads(mi);
 
+  mi->channel_unlock();
+
   DBUG_RETURN(is_error);
 }
 
@@ -9817,6 +9823,8 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
+
+  mi->channel_wrlock();
 
   THD_STAGE_INFO(thd, stage_killing_slave);
   int thread_mask;
@@ -9872,6 +9880,8 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
 
   unlock_slave_threads(mi);
 
+  mi->channel_unlock();
+
   if (slave_errno)
   {
     if ((slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT) ||
@@ -9904,6 +9914,8 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
 int reset_slave(THD *thd)
 {
   DBUG_ENTER("reset_slave(THD)");
+
+  channel_map.assert_some_wrlock();
 
   Master_info *mi= 0;
   int result= 0;
@@ -9970,6 +9982,8 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
   bool no_init_after_delete= false;
 
+  mi->channel_wrlock();
+
   lock_slave_threads(mi);
   init_thread_mask(&thread_mask,mi,0 /* not inverse */);
   if (thread_mask) // We refuse if any slave thread is running
@@ -9977,6 +9991,7 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
     my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
     error=ER_SLAVE_CHANNEL_MUST_STOP;
     unlock_slave_threads(mi);
+    mi->channel_unlock();
     goto err;
   }
 
@@ -10000,6 +10015,7 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
     my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
     error= ER_RELAY_LOG_FAIL;
     unlock_slave_threads(mi);
+    mi->channel_unlock();
     goto err;
   }
 
@@ -10010,6 +10026,7 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
     error= ER_UNKNOWN_ERROR;
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     unlock_slave_threads(mi);
+    mi->channel_unlock();
     goto err;
   }
   if (!reset_all)
@@ -10042,6 +10059,10 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
         my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
       }
     }
+  }
+  else
+  {
+    mi->channel_unlock();
   }
 
 err:
@@ -10536,6 +10557,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 
   DBUG_ENTER("change_master");
 
+  mi->channel_wrlock();
   /*
     When we change master, we first decide which thread is running and
     which is not. We dont want this assumption to break while we change master.
@@ -10899,6 +10921,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 err:
 
   unlock_slave_threads(mi);
+  mi->channel_unlock();
   DBUG_RETURN(error);
 }
 
@@ -11041,9 +11064,10 @@ bool change_master_cmd(THD *thd)
   /* create a new channel if doesn't exist */
   if (!mi && strcmp(lex->mi.channel, channel_map.get_default_channel()))
   {
+    /* The mi will be returned holding mi->channel_lock for writing */
     if (add_new_channel(&mi, lex->mi.channel))
       goto err;
-    }
+  }
 
   if (mi)
   {

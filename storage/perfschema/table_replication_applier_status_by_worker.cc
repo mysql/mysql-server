@@ -138,6 +138,7 @@ int table_replication_applier_status_by_worker::rnd_next(void)
 {
   Slave_worker *worker;
   Master_info *mi;
+  int res= HA_ERR_END_OF_FILE;
 
   channel_map.wrlock();
 
@@ -164,32 +165,32 @@ int table_replication_applier_status_by_worker::rnd_next(void)
   }
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_channels(channel_map.get_max_channels());
+       m_pos.has_more_channels(channel_map.get_max_channels()) && res != 0;
        m_pos.next_channel())
   {
     mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
-    if (mi && mi->host[0] )
+    if (mi && mi->host[0])
     {
       worker= mi->rli->get_worker(m_pos.m_index_2);
       if (worker)
       {
         make_row(worker);
         m_next_pos.set_after(&m_pos);
-        channel_map.unlock();
-        return 0;
+        res= 0;
       }
     }
   }
 
   channel_map.unlock();
-  return HA_ERR_END_OF_FILE;
+  return res;
 }
 
 int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 {
   Slave_worker *worker;
   Master_info *mi;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
@@ -198,10 +199,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
   mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
   if (!mi || !mi->rli || !mi->host[0])
-  {
-    channel_map.unlock();
-    return HA_ERR_RECORD_DELETED;
-  }
+    goto end;
 
   DBUG_ASSERT(m_pos.m_index_1 < mi->rli->get_worker_count());
   /*
@@ -210,21 +208,20 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
   if (mi->rli->get_worker_count() == 0)
   {
     make_row(mi);
-    channel_map.unlock();
-    return 0;
+    res= 0;
+    goto end;
   }
   worker= mi->rli->get_worker(m_pos.m_index_2);
 
-  if(worker != NULL)
+  if (worker != NULL)
   {
     make_row(worker);
-    channel_map.unlock();
-    return 0;
+    res= 0;
   }
 
+end:
   channel_map.unlock();
-
-  return HA_ERR_RECORD_DELETED;
+  return res;
 }
 
 /**

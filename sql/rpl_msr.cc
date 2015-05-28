@@ -158,6 +158,7 @@ void Multisource_info::delete_mi(const char* channel_name)
   /* delete the master info */
   if (mi)
   {
+    mi->channel_assert_some_wrlock();
     if(mi->rli)
     {
       delete mi->rli;

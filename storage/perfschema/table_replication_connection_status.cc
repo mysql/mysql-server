@@ -190,11 +190,12 @@ ha_rows table_replication_connection_status::get_row_count()
 int table_replication_connection_status::rnd_next(void)
 {
   Master_info *mi= NULL;
+  int res= HA_ERR_END_OF_FILE;
 
   channel_map.wrlock();
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < channel_map.get_max_channels();
+       m_pos.m_index < channel_map.get_max_channels() && res != 0;
        m_pos.next())
   {
     mi= channel_map.get_mi_at_pos(m_pos.m_index);
@@ -203,21 +204,18 @@ int table_replication_connection_status::rnd_next(void)
     {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
-
-      channel_map.unlock();
-      return 0;
+      res= 0;
     }
   }
 
   channel_map.unlock();
-
-  return HA_ERR_END_OF_FILE;
-
+  return res;
 }
 
 int table_replication_connection_status::rnd_pos(const void *pos)
 {
   Master_info *mi;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
@@ -226,15 +224,11 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
-
-    channel_map.unlock();
-    return 0;
+    res= 0;
   }
 
   channel_map.unlock();
-
-  return HA_ERR_RECORD_DELETED;
-
+  return res;
 }
 
 void table_replication_connection_status::make_row(Master_info *mi)
