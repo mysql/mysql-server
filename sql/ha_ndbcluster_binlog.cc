@@ -1696,7 +1696,13 @@ int ndbcluster_log_schema_op(THD *thd,
     /* drop database command, do not log at drop table */
     if (thd->lex->sql_command ==  SQLCOM_DROP_DB)
       DBUG_RETURN(0);
-    /* redo the drop table query as is may contain several tables */
+    /*
+      Rewrite the drop table query as it may contain several tables
+      but drop_table() is called once for each table in the query
+      ie. DROP TABLE t1, t2;
+          -> DROP TABLE t1 + DROP TABLE t2
+    */
+
     query= tmp_buf2;
     id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table1,
                                             table_name, 0);
@@ -1712,7 +1718,12 @@ int ndbcluster_log_schema_op(THD *thd,
     type_str= "rename table prepare";
     break;
   case SOT_RENAME_TABLE:
-    /* redo the rename table query as is may contain several tables */
+    /*
+      Rewrite the rename table query as it may contain several tables
+      but rename_table() is called once for each table in the query
+      ie. RENAME TABLE t1 to tx, t2 to ty;
+          -> RENAME TABLE t1 to tx + RENAME TABLE t2 to ty
+    */
     query= tmp_buf2;
     id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db1,
                                             db, 0);
