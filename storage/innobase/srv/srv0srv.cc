@@ -1203,9 +1203,11 @@ srv_printf_innodb_monitor(
 	      "-------------------------------------\n", file);
 	ibuf_print(file);
 
-	rw_lock_s_lock(&btr_search_latch);
-	ha_print_info(file, btr_search_sys->hash_index);
-	rw_lock_s_unlock(&btr_search_latch);
+	for (ulint i = 0; i < btr_ahi_parts; ++i) {
+		rw_lock_s_lock(btr_search_latches[i]);
+		ha_print_info(file, btr_search_sys->hash_tables[i]);
+		rw_lock_s_unlock(btr_search_latches[i]);
+	}
 
 	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",

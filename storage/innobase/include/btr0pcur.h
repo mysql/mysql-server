@@ -138,8 +138,9 @@ btr_pcur_open_with_no_init_func(
 				page, but assume that the caller uses his
 				btr search latch to protect the record! */
 	btr_pcur_t*	cursor, /*!< in: memory buffer for persistent cursor */
-	ulint		has_search_latch,/*!< in: latch mode the caller
-				currently has on btr_search_latch:
+	ulint		has_search_latch,
+				/*!< in: latch mode the caller
+				currently has on search system:
 				RW_S_LATCH, or 0 */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */

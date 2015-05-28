@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,31 +40,12 @@ struct btr_cur_t;
 /** B-tree search information for the adaptive hash index */
 struct btr_search_t;
 
-#ifndef UNIV_HOTBACKUP
-
-/** @brief The latch protecting the adaptive search system
-
-This latch protects the
-(1) hash index;
-(2) columns of a record to which we have a pointer in the hash index;
-
-but does NOT protect:
-
-(3) next record offset field in a record;
-(4) next or previous records on the same page.
-
-Bear in mind (3) and (4) when using the hash index.
-*/
-extern rw_lock_t*	btr_search_latch_temp;
-
-#endif /* UNIV_HOTBACKUP */
-
-/** The latch protecting the adaptive search system */
-#define btr_search_latch	(*btr_search_latch_temp)
-
-/** Flag: has the search system been enabled?
-Protected by btr_search_latch. */
+/** Is search system enabled.
+Search system is protected by array of latches. */
 extern char	btr_search_enabled;
+
+/** Number of adaptive hash index partition. */
+extern ulint	btr_ahi_parts;
 
 /** The size of a reference to data stored on a different page.
 The reference is stored at the end of the prefix of the field
