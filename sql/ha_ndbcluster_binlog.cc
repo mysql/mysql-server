@@ -5422,7 +5422,8 @@ handle_error(NdbEventOperation *pOp)
   Handle _non_ data events from the storage nodes
 */
 
-static int
+static
+void
 handle_non_data_event(THD *thd,
                       NdbEventOperation *pOp,
                       ndb_binlog_index_row &row)
@@ -5478,15 +5479,15 @@ handle_non_data_event(THD *thd,
   case NDBEVENT::TE_SUBSCRIBE:
   case NDBEVENT::TE_UNSUBSCRIBE:
     /* ignore */
-    return 0;
+    break;
 
   default:
     sql_print_error("NDB Binlog: unknown non data event %d for %s. "
                     "Ignoring...", (unsigned) type, share->key_string());
-    return 0;
+    break;
   }
 
-  return 0;
+  DBUG_VOID_RETURN;
 }
 
 /*
