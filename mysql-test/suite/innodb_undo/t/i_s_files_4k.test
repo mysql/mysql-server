@@ -1,0 +1,11 @@
+--echo #
+--echo # WL7943 Implement INFORMATION_SCHEMA.FILES
+--echo #
+
+# This test must be run from MTR with innodb_undo_tablespaces >= 2
+# and innodb-page-size = 4k in order to get the correct results.
+# Example: ./mtr innodb_undo.i_s_files_4k --mysqld=--innodb-page-size=4k
+#          --mysqld=--innodb_undo_tablespaces=2 --bootstrap=--innodb_undo_tablespaces=2
+
+--source include/have_innodb_4k.inc
+--source suite/innodb_undo/include/i_s_files.inc

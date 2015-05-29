@@ -158,11 +158,17 @@ test/t_compressed	test/t_compressed	37	5	Compressed	2048	Single
 test/t_dynamic	test/t_dynamic	33	5	Dynamic	0	Single
 test/t_redundant	test/t_redundant	0	5	Redundant	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-test/t_redundant	MYSQLD_DATADIR/test/t_redundant.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t_compact	MYSQLD_DATADIR/test/t_compact.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t_compressed	MYSQLD_DATADIR/test/t_compressed.ibd	DEFAULT	2048	Compressed	Single
-test/t_dynamic	MYSQLD_DATADIR/test/t_dynamic.ibd	DEFAULT	0	Dynamic	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t_redundant	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t_redundant.ibd
+test/t_compact	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t_compact.ibd
+test/t_compressed	Single	DEFAULT	2048	Compressed	MYSQLD_DATADIR/test/t_compressed.ibd
+test/t_dynamic	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t_dynamic.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t_redundant	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_redundant.ibd
+test/t_compact	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_compact.ibd
+test/t_compressed	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_compressed.ibd
+test/t_dynamic	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t_dynamic.ibd
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name NOT LIKE 'sys/%';

@@ -14,6 +14,7 @@ SET default_storage_engine=InnoDB;
 
 # Set up some variables
 LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 LET $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
 LET $data_directory2 = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data2';
 LET $index_directory = INDEX DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
@@ -44,19 +45,8 @@ eval CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
 SHOW WARNINGS;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
-# replace_result 't1#P' with 't1#p' because on Linux, InnoDB is always
-# case sensitive with table names and on Windows, it is always lower case.
-# This is independent of the value of lower_case_table_names.  This cannot
-# be changes without breaking backward compatibility.
---replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
---replace_result t1#P t1#p
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
---replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo # Verifying .frm, .isl & .ibd files
 --file_exists $MYSQLD_DATADIR/test/t1.frm
@@ -97,15 +87,8 @@ TRUNCATE TABLE t1;
 SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
---replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
---replace_result t1#P t1#p
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
---replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # Verifying .frm and InnoDB files (.isl, .ibd)
 --file_exists $MYSQLD_DATADIR/test/t1.frm
 --file_exists $MYSQLD_DATADIR/test/t1#P#p0.isl
@@ -117,15 +100,8 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 RENAME TABLE t1 TO t11;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t11;
---replace_result t11#P t11#p
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
---replace_result t11#P t11#p
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
---replace_result t11#P t11#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 --echo # Verifying .frm and InnoDB files (.isl, .ibd)
 --file_exists $MYSQLD_DATADIR/test/t11.frm
 --file_exists $MYSQLD_DATADIR/test/t11#P#p0.isl
@@ -147,15 +123,8 @@ SHOW WARNINGS;
 DEALLOCATE PREPARE stmt1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
---replace_result t1#P t1#p
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
---replace_result t1#P t1#p
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
---replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 DROP TABLE t1;
 
 
@@ -189,15 +158,8 @@ SELECT * FROM t1;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
---replace_result #P# #p#  #SP# #sp#
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
---replace_result #P# #p#  #SP# #sp#
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
---replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo # Verifying .frm, .isl & .ibd files
 --file_exists $MYSQLD_DATADIR/test/t1.frm
@@ -246,15 +208,8 @@ SELECT * FROM t1;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
---replace_result #P# #p#  #SP# #sp#
-SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
---replace_result #P# #p#  #SP# #sp#
-SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
---replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles
-       WHERE path LIKE '%test%' ORDER BY space;
+--source suite/innodb/include/show_i_s_tables.inc
+--source suite/innodb/include/show_i_s_tablespaces.inc
 
 --echo # Verifying .frm, .isl & .ibd files
 --file_exists $MYSQLD_DATADIR/test/t1.frm

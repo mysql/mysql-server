@@ -1022,6 +1022,31 @@ innodb_enable_monitor_at_startup(
 /*=============================*/
 	char*	str);	/*!< in: monitor counter enable list */
 
+/** Fill handlerton based INFORMATION_SCHEMA tables.
+@param[in]		(unused) Handle to the handlerton structure
+@param[in]	thd	Thread/connection descriptor
+@param[in,out]	tables	Information Schema tables to fill
+@param[in]		(unused) Intended for conditional pushdown
+@param[in]	idx	Table id that indicates which I_S table to fill
+@return Operation status */
+static
+int
+innobase_fill_i_s_table(
+	handlerton*,
+	THD*			thd,
+	TABLE_LIST*		tables,
+	Item*,
+	enum_schema_tables	idx)
+{
+	int	ret = 0;
+
+	if (idx == SCH_FILES) {
+		ret = i_s_files_table_fill(thd, tables);
+	}
+
+	return(ret);
+}
+
 /** Store doc_id value into FTS_DOC_ID field
 @param[in,out]	tbl	table containing FULLTEXT index
 @param[in]	doc_id	FTS_DOC_ID value */
@@ -3157,6 +3182,7 @@ innobase_init(
 
 	innobase_hton->flush_logs = innobase_flush_logs;
 	innobase_hton->show_status = innobase_show_status;
+	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
 		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
 

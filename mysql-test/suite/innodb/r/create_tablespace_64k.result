@@ -58,8 +58,11 @@ Error	1528	Failed to create TABLESPACE s_32k
 Error	140	Wrong create option
 CREATE TABLESPACE s_64k ADD DATAFILE 's_64k.ibd' FILE_BLOCK_SIZE=64k;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-s_64k	MYSQLD_DATADIR/s_64k.ibd	DEFAULT	0	Any	General
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_64k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_64k.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
 #
 # Add tables to the tablespaces.
 #
@@ -134,8 +137,11 @@ INSERT INTO t_dyn_in_64k VALUES (4,'d');
 #
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-s_64k	MYSQLD_DATADIR/s_64k.ibd	DEFAULT	0	Any	General
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_64k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_64k.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s_64k	TABLESPACE	InnoDB	NORMAL	s_64k	MYSQLD_DATADIR/s_64k.ibd
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_64k	s_64k	129	5	Compact	0	General

@@ -84,13 +84,13 @@ begin
 end|
 delimiter ;|
 set autocommit=0;
-select count(*) from t1;
+select * from t1;
 call populate_t1();
 select count(*) from t1;
 select * from t1 limit 10;
 set autocommit=1;
 truncate table t1;
-select count(*) from t1;
+select * from t1;
 drop table t1;
 #
 # recreate table wih same name to ensure entries are removed.
@@ -106,17 +106,17 @@ create temporary table t1
 	 primary key(keyc))
 	engine = innodb key_block_size = 4 row_format = compressed;
 begin;
-select count(*) from t1;
+select * from t1;
 call populate_t1();
 select count(*) from t1;
 rollback;
-select count(*) from t1;
+select * from t1;
 begin;
 call populate_t1();
 commit;
 select count(*) from t1;
 truncate table t1;
-select count(*) from t1;
+select * from t1;
 drop table t1;
 #
 drop procedure if exists populate_t1;
@@ -270,16 +270,19 @@ set global innodb_large_prefix=default;
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
 --enable_warnings
-CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
-CREATE TEMPORARY TABLE t2 ( i INT ) ENGINE = Innodb;
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
-CREATE TEMPORARY table t3 ( i INT ) ENGINE = Innodb;
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
-DROP TABLE t1,t2,t3;
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
-SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
+set global innodb_file_per_table = 1;
+
+CREATE TABLE t6469_1 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY TABLE t6469_2 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY table t6469_3 ( i INT ) ENGINE = Innodb ROW_FORMAT=compressed;
+SELECT count(*) FROM information_schema.files WHERE file_name LIKE '%t6469%';
+SELECT count(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%t6469%';
+SELECT count(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%t6469%';
+
+DROP TABLE t6469_1,t6469_2,t6469_3;
+SELECT * FROM information_schema.files WHERE file_name LIKE '%t6469%';
+SELECT * FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%t6469%';
+SELECT * FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%t6469%';
 
 #-------------------------------------------------------------
 #
