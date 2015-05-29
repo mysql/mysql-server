@@ -17529,7 +17529,7 @@ of latches protecting complete search system. */
 static MYSQL_SYSVAR_ULONG(adaptive_hash_index_parts, btr_ahi_parts,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Number of InnoDB Adapative Hash Index Partitions. (default = 8). ",
-  NULL, NULL, 8, 1, 64, 0);
+  NULL, NULL, 8, 1, 512, 0);
 
 static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   PLUGIN_VAR_RQCMDARG,
