@@ -7484,6 +7484,13 @@ ER_LOCKING_SERVICE_TIMEOUT
 ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
   eng "Parameter %s exceeds the maximum number of points in a geometry (%lu) in function %s."
 
+ER_VTOKEN_PLUGIN_TOKEN_MISMATCH
+  eng "Version token mismatch for %.*s. Correct value %.*s"
+  bg "Клеймото за версия %.*s не съвпада. Правилната стойност е %.*s"
+
+ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
+  eng "Version token %.*s not found."
+  bg "Не е намерено клеймо за версия %.*s"
 
 #
 #  End of 5.7 error messages.
