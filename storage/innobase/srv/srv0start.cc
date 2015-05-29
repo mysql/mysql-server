@@ -2464,11 +2464,13 @@ innobase_shutdown_for_mysql(void)
 	if (srv_dict_tmpfile) {
 		fclose(srv_dict_tmpfile);
 		srv_dict_tmpfile = 0;
+		mutex_free(&srv_dict_tmpfile_mutex);
 	}
 
 	if (srv_misc_tmpfile) {
 		fclose(srv_misc_tmpfile);
 		srv_misc_tmpfile = 0;
+		mutex_free(&srv_misc_tmpfile_mutex);
 	}
 
 	if (!srv_read_only_mode) {
