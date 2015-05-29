@@ -127,7 +127,7 @@ select 1;
 set @@version_tokens_session= "token3=abc";
 
 -- echo
---error ER_ACCESS_DENIED_ERROR
+--error ER_VTOKEN_PLUGIN_TOKEN_MISMATCH
 select 1;
 
 -- echo
@@ -199,7 +199,7 @@ connect (con1,localhost,vbhagi,,test);
 -- echo
 connection con1;
 set @@version_tokens_session= "token100=def;;;      token2  =   abc    ;;;;;";
---error ER_ACCESS_DENIED_ERROR
+--error ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
 create table t1 (c1 int);
 
 -- echo
