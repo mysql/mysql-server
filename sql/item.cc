@@ -9604,6 +9604,8 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   prev_decimal_int_part= item->decimal_int_part();
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type= item->get_geometry_type();
+  else
+    geometry_type= Field::GEOM_GEOMETRY;
 }
 
 
