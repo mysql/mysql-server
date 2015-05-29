@@ -11,24 +11,25 @@
 --echo # WL#7712 Support SSL by default in libmysql
 --echo #
 
---echo # verify that mysql default connect with ssl channel
---exec $MYSQL -e "SHOW STATUS like 'Ssl_cipher'"
+--echo # verify that mysql default connect with ssl channel when using TCP/IP
+--echo # connection
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo # verify that mysql --skip-ssl connect with unencrypted channel
---exec $MYSQL -e "SHOW STATUS like 'Ssl_cipher'" --skip-ssl
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --skip-ssl
 
 --echo # verify that mysql --ssl=0 connect with unencrypted channel
---exec $MYSQL -e "SHOW STATUS like 'Ssl_cipher'" --ssl=0
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl=0
 
 --echo # verify that mysql --ssl=1 connect with ssl channel
---exec $MYSQL -e "SHOW STATUS like 'Ssl_cipher'" --ssl=1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SHOW STATUS like 'Ssl_cipher'" --ssl=1
 
 CREATE USER u1@localhost IDENTIFIED BY 'secret' REQUIRE SSL;
 --echo # verify that mysqladmin default connect with ssl channel
---exec $MYSQLADMIN -uu1 -psecret -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN -uu1 -psecret --host=127.0.0.1 -P $MASTER_MYPORT ping 2>&1
 
 --echo # verify that mysql_show default connect with ssl channel
---exec $MYSQL_SHOW -uu1 -psecret 2>&1
+--exec $MYSQL_SHOW -uu1 -psecret --host=127.0.0.1 -P $MASTER_MYPORT 2>&1
 
 DROP USER u1@localhost;
 
