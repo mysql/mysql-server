@@ -462,18 +462,27 @@ DROP TABLE s_single;
 --echo # Try to use both TABLESPACE and DATA DIRECTORY in the same CREATE TABLE.
 --echo #
 # Strict mode, file_format and file_per_table should make no difference
-# when using general tabespaces.
+# when using general tablespaces.
 SET innodb_strict_mode = OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
 eval CREATE TABLE t3 (a int, b text) DATA DIRECTORY='$MYSQL_TMP_DIR' TABLESPACE s_def;
 SHOW WARNINGS;
+
+--echo # Cannot use both a general tablespace and a DATA DIRECTORY
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
-eval CREATE TABLE t4 (a int, b text) TABLESPACE s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
+
+--echo # Do not allow an empty string in DATA DIRECTORY=''
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
+SHOW WARNINGS;
+
+--echo # TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t4 (a int, b text) TABLESPACE innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
+eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;

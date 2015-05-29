@@ -1,0 +1,53 @@
+#
+# Test the limits of a file-per-table tablespace name.  MySQL combines
+# the database name with the table name to make a unique table name.
+#
+SET default_storage_engine=InnoDB;
+#
+# MySQL limits each database and tablename identifier to 64 characters
+# of up to 3 bytes per character, corresponding to 192 bytes.
+#
+CREATE DATABASE `this_sixty_five_byte_name_is_too_long____________________________`;
+ERROR 42000: Identifier name 'this_sixty_five_byte_name_is_too_long____________________________' is too long
+CREATE DATABASE `this_sixty_four_byte_name_is_not_too_long_______________________`;
+USE `this_sixty_four_byte_name_is_not_too_long_______________________`;
+#
+# A 64 character tablename can be created in a 64 character database name
+#
+CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________`.`this_sixty_four_byte_name_is_not_too_long_______________________` (a SERIAL);
+#
+# A 65 character tablename is too long.
+#
+CREATE TABLE `test`.`this_sixty_five_byte_name_is_too_long____________________________` (a SERIAL);
+ERROR 42000: Identifier name 'this_sixty_five_byte_name_is_too_long____________________________' is too long
+CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________`.`this_sixty_five_byte_name_is_too_long____________________________` (a SERIAL);
+ERROR 42000: Identifier name 'this_sixty_five_byte_name_is_too_long____________________________' is too long
+#
+# Show the successfully created database and table
+#
+SHOW CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________`.`this_sixty_four_byte_name_is_not_too_long_______________________`;
+Table	Create Table
+this_sixty_four_byte_name_is_not_too_long_______________________	CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________` (
+  `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+---- list_files MYSQLD_DATADIR/this_sixty_four_byte_name_is_not_too_long_______________________
+db.opt
+this_sixty_four_byte_name_is_not_too_long_______________________.frm
+this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
+name
+this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
+SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+name
+this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________
+SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
+path
+./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
+file_name	./this_sixty_four_byte_name_is_not_too_long_______________________/this_sixty_four_byte_name_is_not_too_long_______________________.ibd
+tablespace_name	innodb_file_per_table_##
+#
+# Cleanup
+#
+DROP DATABASE `this_sixty_four_byte_name_is_not_too_long_______________________`;

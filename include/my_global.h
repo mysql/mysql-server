@@ -261,6 +261,7 @@ typedef socket_len_t SOCKET_SIZE_TYPE; /* Used by NDB */
 #define FN_HEADLEN	253	/* Max length of filepart of file name */
 #define FN_EXTLEN	20	/* Max length of extension (part of FN_LEN) */
 #define FN_REFLEN	512	/* Max length of full path-name */
+#define FN_REFLEN_SE	4000	/* Max length of full path-name in SE */
 #define FN_EXTCHAR	'.'
 #define FN_HOMELIB	'~'	/* ~/ is used as abbrev for home dir */
 #define FN_CURLIB	'.'	/* ./ is used as abbrev for current dir */

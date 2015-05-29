@@ -16,9 +16,13 @@ innodb_strict_mode	OFF
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 CREATE TABLESPACE s_zip ADD DATAFILE 's_zip.ibd' FILE_BLOCK_SIZE=2k;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-s_def	MYSQLD_DATADIR/s_def.ibd	DEFAULT	0	Any	General
-s_zip	MYSQLD_DATADIR/s_zip.ibd	DEFAULT	2048	Compressed	General
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_def	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_def.ibd
+s_zip	General	DEFAULT	2048	Compressed	MYSQLD_DATADIR/s_zip.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
+s_zip	TABLESPACE	InnoDB	NORMAL	s_zip	MYSQLD_DATADIR/s_zip.ibd
 #
 # tablespace=s_def row_format=redundant
 #
