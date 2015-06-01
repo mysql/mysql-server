@@ -31,8 +31,9 @@ a	b
 9	5
 explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
-1	SIMPLE	t2	ref	b	b	5	test.t1.a	1	End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	Using where
+1	SIMPLE	t2	ref	b	b	5	<subquery2>.a	1	NULL
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 select * from t2 where b in (select a from t1);
 a	b
 1	1
@@ -49,8 +50,9 @@ primary key(pk1, pk2, pk3)
 insert into t3 select a,a, a,a,a from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
-1	SIMPLE	t3	ref	b	b	5	test.t1.a	1	End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	Using where
+1	SIMPLE	t3	ref	b	b	5	<subquery2>.a	1	NULL
+2	MATERIALIZED	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
@@ -72,8 +74,9 @@ A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a
 from t0 A, t0 B where B.a <5;
 explain select * from t3 where b in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	#	Using where; Start temporary
-1	SIMPLE	t3	ref	b	b	5	test.t0.a	#	End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	#	Using where
+1	SIMPLE	t3	ref	b	b	5	<subquery2>.a	#	NULL
+2	MATERIALIZED	t0	ALL	NULL	NULL	NULL	NULL	#	NULL
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
 a	b	pk1	pk2
 0	0	0	0
