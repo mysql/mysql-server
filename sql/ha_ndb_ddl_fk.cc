@@ -2607,3 +2607,175 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
   }
   DBUG_RETURN(0);
 }
+
+
+/**
+  Save all fk data into a fk_list
+  - Build list of foreign keys for which the given table is child
+
+  @retval
+    0     ok
+  @retval
+   != 0   failure in saving the fk data
+*/
+
+int
+ha_ndbcluster::get_fk_data_for_truncate(NDBDICT* dict, const NDBTAB* table,
+                                        Ndb_fk_list& fk_list)
+{
+  DBUG_ENTER("ha_ndbcluster::get_fk_data_for_truncate");
+
+  NDBDICT::List obj_list;
+  if (dict->listDependentObjects(obj_list, *table) != 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
+  for (unsigned i = 0; i < obj_list.count; i++)
+  {
+    DBUG_PRINT("debug", ("DependentObject %d : %s, Type : %d", i,
+                          obj_list.elements[i].name,
+                          obj_list.elements[i].type));
+    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+      continue;
+
+    /* obj is an fk. Fetch it */
+    NDBFK fk;
+    if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+    {
+      ERR_RETURN(dict->getNdbError());
+    }
+    DBUG_PRINT("debug", ("Retrieving FK : %s", fk.getName()));
+
+    fk_list.push_back(new NdbDictionary::ForeignKey(fk));
+    DBUG_PRINT("info", ("Foreign Key added to list : %s", fk.getName()));
+  }
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Restore foreign keys into the child table from fk_list
+  - for all foreign keys in the given fk list, re-assign child object ids
+    to reflect the newly created child table/indexes
+  - create the fk in the child table
+
+  @retval
+    0     ok
+  @retval
+   != 0   failure in recreating the fk data
+*/
+
+int
+ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name,
+                                        Ndb_fk_list& fk_list)
+{
+  DBUG_ENTER("ha_ndbcluster::create_fk_for_truncate");
+
+  int flags = 0;
+  const int err_default= HA_ERR_CANNOT_ADD_FOREIGN;
+
+  NDBDICT* dict = ndb->getDictionary();
+
+  /* fetch child table */
+  Ndb_table_guard child_tab(dict, tab_name);
+  if (child_tab.get_table() == 0)
+  {
+    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                        ER_CANNOT_ADD_FOREIGN,
+                        "INTERNAL ERROR: Could not find created child table '%s'",
+                        tab_name);
+    // Internal error, should be able to load the just created child table
+    DBUG_ASSERT(child_tab.get_table());
+    DBUG_RETURN(err_default);
+  }
+
+  NDBFK* fk;
+  List_iterator<NDBFK> fk_iterator(fk_list);
+  while ((fk= fk_iterator++))
+  {
+    DBUG_PRINT("info",("Parsing foreign key : %s", fk->getName()));
+
+    /* Get child table columns and index */
+    const NDBCOL * child_cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
+    {
+      unsigned pos= 0;
+      const NDBTAB* tab= child_tab.get_table();
+      for(unsigned i= 0; i < fk->getChildColumnCount(); i++)
+      {
+        const NDBCOL * ndbcol= tab->getColumn(fk->getChildColumnNo(i));
+        if (ndbcol == 0)
+        {
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                              ER_CANNOT_ADD_FOREIGN,
+                              "Child table %s has no column referred by the FK %s",
+                              tab->getName(), fk->getName());
+          DBUG_ASSERT(ndbcol);
+          DBUG_RETURN(err_default);
+        }
+        child_cols[pos++]= ndbcol;
+      }
+      child_cols[pos]= 0;
+    }
+
+    bool child_primary_key= FALSE;
+    const NDBINDEX* child_index= find_matching_index(dict,
+                                                     child_tab.get_table(),
+                                                     child_cols,
+                                                     child_primary_key);
+
+    if (!child_primary_key && child_index == 0)
+    {
+      my_error(ER_FK_NO_INDEX_CHILD, MYF(0), fk->getName(),
+               child_tab.get_table()->getName());
+      DBUG_RETURN(err_default);
+    }
+
+    /* update the fk's child references */
+    fk->setChild(* child_tab.get_table(), child_index, child_cols);
+
+    /*
+     the name of "fk" seems to be different when you read it up
+     compared to when you create it. (Probably a historical artifact)
+     So update fk's name
+    */
+    {
+      char name[FN_REFLEN+1];
+      unsigned parent_id, child_id;
+      if (sscanf(fk->getName(), "%u/%u/%s",
+                 &parent_id, &child_id, name) != 3)
+      {
+        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                            ER_CANNOT_ADD_FOREIGN,
+                            "Skip, failed to parse name of fk: %s",
+                            fk->getName());
+        DBUG_RETURN(err_default);
+      }
+
+      char fk_name[FN_REFLEN+1];
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
+                  name);
+      DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
+      fk->setName(fk_name);
+    }
+
+    if (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS))
+    {
+      flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
+    }
+
+    NdbDictionary::ObjectId objid;
+    int err= dict->createForeignKey(*fk, &objid, flags);
+
+    if (child_index)
+    {
+      dict->removeIndexGlobal(* child_index, 0);
+    }
+
+    if (err)
+    {
+      ERR_RETURN(dict->getNdbError());
+    }
+  }
+  DBUG_RETURN(0);
+}
