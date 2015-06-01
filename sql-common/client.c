@@ -4025,6 +4025,8 @@ static int
 set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
 {
   int rc= 0;
+  register struct passwd *pw;
+  register uid_t uid;
 
   /*
     Clean up any values set by the client code. We want these options as
@@ -4036,6 +4038,8 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_pid");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_thread");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_version");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_login");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_hostname");
 
   /*
    Now let's set up some values
@@ -4059,6 +4063,17 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   my_snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
+
+  uid = geteuid();
+  pw = getpwuid(uid);
+  if (pw) {
+    my_snprintf(buff, buf_len, "%s", pw->pw_name);
+    rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_login", buff);
+  }
+
+  if (gethostname(buff, buf_len) == 0) {
+    rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_hostname", buff);
+  }
 
   return rc > 0 ? 1 : 0;
 }
