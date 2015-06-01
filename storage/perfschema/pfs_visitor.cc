@@ -1347,7 +1347,7 @@ void PFS_connection_status_visitor::visit_global()
 {
    /* NOTE: Requires lock on LOCK_status. */
    mysql_mutex_assert_owner(&LOCK_status);
-   add_to_status(m_status_vars, &global_status_var, false);
+   add_to_status(m_status_vars, &global_status_var, false, false);
 }
 
 void PFS_connection_status_visitor::visit_host(PFS_host *pfs)
@@ -1371,7 +1371,7 @@ void PFS_connection_status_visitor::visit_thread(PFS_thread *pfs)
 
 void PFS_connection_status_visitor::visit_THD(THD *thd)
 {
-  add_to_status(m_status_vars, &thd->status_var, false);
+  add_to_status(m_status_vars, &thd->status_var, false, false);
 }
 
 

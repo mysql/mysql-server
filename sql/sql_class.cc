@@ -1183,6 +1183,8 @@ THD::THD(bool enable_plugins)
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
 #endif
+   initial_status_var(NULL),
+   status_var_aggregated(false),
    query_plan(this),
    current_mutex(NULL),
    current_cond(NULL),
@@ -1751,7 +1753,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true);
+  add_to_status(&global_status_var, &status_var, true, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1813,6 +1815,7 @@ void THD::cleanup(void)
 
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
+  DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed= KILL_CONNECTION;
   session_tracker.deinit();
@@ -1884,7 +1887,14 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true);
+  add_to_status(&global_status_var, &status_var, true, false);
+  /*
+    Status queries after this point should not aggregate THD::status_var
+    since the values has been added to global_status_var.
+    The status values are not reset so that they can still be read
+    by performance schema.
+  */
+  status_var_aggregated= true;
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
@@ -2011,6 +2021,7 @@ THD::~THD()
    to_var       add to this array
    from_var     from this array
    add_com_vars if true, then add COM variables
+   reset_from_var if true, then memset from_var variable with 0
 
   NOTES
     This function assumes that all variables are longlong/ulonglong.
@@ -2018,7 +2029,8 @@ THD::~THD()
     the other variables after the while loop
 */
 
-void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars)
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool add_com_vars,
+                   bool reset_from_var)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
@@ -2035,6 +2047,11 @@ void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_
 
     for (c= 0; c< SQLCOM_END; c++)
       to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+  }
+
+  if (reset_from_var)
+  {
+    memset (from_var, 0, sizeof(*from_var));
   }
 }
 
