@@ -251,8 +251,14 @@ create table t3 (
                 ) engine=innodb;
 insert into t3 select a,a, a,a,a from t0;
 analyze table t1,t3;
+#Due to cost changes, materialzed scan will be preferred 
+#for this query instead of dups_weedout.  
+#So changing optimizer_switch.
+set @old_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
 explain format=json select * from t3 where b in (select a from t1);
 select * from t3 where b in (select a from t1);
+set @@optimizer_switch=@old_optimizer_switch;
 
 #multi-update
 update t1, t3 set t3.b=10, t1.a=20;
