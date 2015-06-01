@@ -459,9 +459,8 @@ reads:          %10s\n\n",
 void mysql_print_status()
 {
   char current_dir[FN_REFLEN];
-  System_status_var tmp;
+  System_status_var current_global_status_var;
 
-  calc_sum_of_all_status(&tmp);
   printf("\nStatus information:\n\n");
   (void) my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
@@ -476,6 +475,7 @@ void mysql_print_status()
   puts("\nKey caches:");
   process_key_caches(print_key_cache_status);
   mysql_mutex_lock(&LOCK_status);
+  calc_sum_of_all_status(&current_global_status_var);
   printf("\nhandler status:\n\
 read_key:   %10llu\n\
 read_next:  %10llu\n\
@@ -484,20 +484,20 @@ read_first: %10llu\n\
 write:      %10llu\n\
 delete      %10llu\n\
 update:     %10llu\n",
-	 tmp.ha_read_key_count,
-	 tmp.ha_read_next_count,
-	 tmp.ha_read_rnd_count,
-	 tmp.ha_read_first_count,
-	 tmp.ha_write_count,
-	 tmp.ha_delete_count,
-	 tmp.ha_update_count);
+	 current_global_status_var.ha_read_key_count,
+	 current_global_status_var.ha_read_next_count,
+	 current_global_status_var.ha_read_rnd_count,
+	 current_global_status_var.ha_read_first_count,
+	 current_global_status_var.ha_write_count,
+	 current_global_status_var.ha_delete_count,
+	 current_global_status_var.ha_update_count);
   mysql_mutex_unlock(&LOCK_status);
   printf("\nTable status:\n\
 Opened tables: %10lu\n\
 Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
-	 (ulong) tmp.opened_tables,
+	 (ulong) current_global_status_var.opened_tables,
 	 (ulong) table_cache_manager.cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);

@@ -3051,8 +3051,8 @@ public:
   Add_status(System_status_var* value) : m_stat_var(value) {}
   virtual void operator()(THD *thd)
   {
-    System_status_var* stat = &(thd->status_var);
-    add_to_status(m_stat_var, stat, true);
+    if (!thd->status_var_aggregated)
+      add_to_status(m_stat_var, &thd->status_var, true, false);
   }
 private:
   /* Status of all threads are summed into this. */
@@ -3062,6 +3062,7 @@ private:
 void calc_sum_of_all_status(System_status_var *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
+  mysql_mutex_assert_owner(&LOCK_status);
   /* Get global values as base. */
   *to= global_status_var;
   Add_status add_status(to);
@@ -7184,7 +7185,8 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
 
-  System_status_var *tmp1, tmp;
+  System_status_var *status_var_ptr;
+  System_status_var current_global_status_var;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
   enum enum_var_type option_type;
@@ -7194,19 +7196,20 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     option_type= lex->option_type;
     if (option_type == OPT_GLOBAL)
-      tmp1= &tmp;
+      status_var_ptr= &current_global_status_var;
     else
-      tmp1= thd->initial_status_var;
+      status_var_ptr= thd->initial_status_var;
   }
   else if (schema_table_idx == SCH_GLOBAL_STATUS)
   {
     option_type= OPT_GLOBAL;
-    tmp1= &tmp;
+    status_var_ptr= &current_global_status_var;
   }
   else
   { 
+    DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
     option_type= OPT_SESSION;
-    tmp1= &thd->status_var;
+    status_var_ptr= &thd->status_var;
   }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7223,21 +7226,24 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     Avoid recursive acquisition of LOCK_status in cases when WHERE clause
     represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
   */
+  DEBUG_SYNC(thd, "before_preparing_global_status_array");
+
   if (thd->fill_status_recursion_level++ == 0) 
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
-    calc_sum_of_all_status(&tmp);
+    calc_sum_of_all_status(status_var_ptr);
   // Push an empty tail element
   all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
                          &all_status_vars[0],
-                         option_type, tmp1, "", tables,
+                         option_type, status_var_ptr, "", tables,
                          upper_case_names, cond);
   all_status_vars.pop_back(); // Pop the empty element.
 
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
 
+  DEBUG_SYNC(thd, "after_preparing_global_status_array");
   DBUG_RETURN(res);
 }
 

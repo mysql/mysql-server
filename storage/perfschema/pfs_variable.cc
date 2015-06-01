@@ -878,6 +878,7 @@ int PFS_status_variable_cache::do_materialize_global(void)
   System_status_var status_totals;
 
   m_materialized= false;
+  DEBUG_SYNC(m_current_thd, "before_materialize_global_status_array");
 
   /* Acquire LOCK_status to guard against plugin load/unload. */
   if (m_current_thd->fill_status_recursion_level++ == 0)
@@ -912,6 +913,7 @@ int PFS_status_variable_cache::do_materialize_global(void)
     mysql_mutex_unlock(&LOCK_status);
 
   m_materialized= true;
+  DEBUG_SYNC(m_current_thd, "after_materialize_global_status_array");
 
   return 0;
 }

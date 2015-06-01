@@ -889,6 +889,8 @@ public:
   struct  System_variables variables;	// Changeable local variables
   struct  System_status_var status_var; // Per thread statistic vars
   struct  System_status_var *initial_status_var; /* used by show status */
+  // has status_var already been added to global_status_var?
+  bool status_var_aggregated;
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.
