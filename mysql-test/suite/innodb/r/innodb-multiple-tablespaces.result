@@ -162,20 +162,29 @@ yyy.ibd
 #
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-test/yyy	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd	DEFAULT	0	Compact or Redundant	Single
-test/nyy	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd	DEFAULT	0	Compact or Redundant	Single
-test/yny	MYSQL_TMP_DIR/alt_dir/test/yny.ibd	DEFAULT	0	Compact or Redundant	Single
-test/yyn	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd	DEFAULT	0	Compact or Redundant	Single
-test/nyw	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd	DEFAULT	0	Compact or Redundant	Single
-test/nwy	MYSQL_TMP_DIR/new_dir/test/nwy.ibd	DEFAULT	0	Compact or Redundant	Single
-test/wny	MYSQL_TMP_DIR/new_dir/test/wny.ibd	DEFAULT	0	Compact or Redundant	Single
-test/ynw	MYSQLD_DATADIR/test/ynw.ibd	DEFAULT	0	Compact or Redundant	Single
-test/wyn	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd	DEFAULT	0	Compact or Redundant	Single
-test/ywn	MYSQLD_DATADIR/test/ywn.ibd	DEFAULT	0	Compact or Redundant	Single
-test/nnn	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd	DEFAULT	0	Compact or Redundant	Single
-test/www	MYSQL_TMP_DIR/alt_dir/test/www.ibd	DEFAULT	0	Compact or Redundant	Single
-test/nolink	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/yyy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+test/nyy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+test/yny	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yny.ibd
+test/yyn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+test/nyw	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+test/nwy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+test/wny	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/new_dir/test/wny.ibd
+test/ynw	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/ynw.ibd
+test/wyn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+test/ywn	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/ywn.ibd
+test/nnn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
+test/www	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/www.ibd
+test/nolink	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/nyw	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+test/nwy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+test/wny	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/new_dir/test/wny.ibd
+test/ynw	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/ynw.ibd
+test/wyn	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+test/ywn	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/ywn.ibd
+test/nolink	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
 SELECT * FROM yyy;
 ERROR HY000: Tablespace is missing for table `test`.`yyy`.
 SELECT * FROM nyy;
@@ -522,12 +531,19 @@ yy	CREATE TABLE `yy` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-test/ny	MYSQL_TMP_DIR/alt_dir/test/ny.ibd	DEFAULT	0	Compact or Redundant	Single
-test/wy	MYSQL_TMP_DIR/alt_dir/test/wy.ibd	DEFAULT	0	Compact or Redundant	Single
-test/yn	MYSQL_TMP_DIR/alt_dir/test/yn.ibd	DEFAULT	0	Compact or Redundant	Single
-test/yw	MYSQL_TMP_DIR/alt_dir/test/yw.ibd	DEFAULT	0	Compact or Redundant	Single
-test/yy	MYSQL_TMP_DIR/alt_dir/test/yy.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/ny	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+test/wy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+test/yn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+test/yw	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+test/yy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/ny	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+test/wy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+test/yn	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+test/yw	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+test/yy	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 #
 # List of files before removing unused files
 #

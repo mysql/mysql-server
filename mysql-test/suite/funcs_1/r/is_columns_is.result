@@ -89,7 +89,7 @@ def	information_schema	FILES	ENGINE	10		NO	varchar	64	192	NULL	NULL	NULL	utf8	ut
 def	information_schema	FILES	EXTENT_SIZE	16	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(4)			select		
 def	information_schema	FILES	EXTRA	38	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select		
 def	information_schema	FILES	FILE_ID	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(4)			select		
-def	information_schema	FILES	FILE_NAME	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
+def	information_schema	FILES	FILE_NAME	2	NULL	YES	varchar	4000	12000	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(4000)			select		
 def	information_schema	FILES	FILE_TYPE	3		NO	varchar	20	60	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select		
 def	information_schema	FILES	FREE_EXTENTS	14	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(4)			select		
 def	information_schema	FILES	FULLTEXT_KEYS	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select		
@@ -474,7 +474,7 @@ NULL	information_schema	EVENTS	ORIGINATOR	bigint	NULL	NULL	NULL	NULL	bigint(10)
 3.0000	information_schema	EVENTS	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	EVENTS	DATABASE_COLLATION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
-3.0000	information_schema	FILES	FILE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	FILES	FILE_NAME	varchar	4000	12000	utf8	utf8_general_ci	varchar(4000)
 3.0000	information_schema	FILES	FILE_TYPE	varchar	20	60	utf8	utf8_general_ci	varchar(20)
 3.0000	information_schema	FILES	TABLESPACE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	FILES	TABLE_CATALOG	varchar	64	192	utf8	utf8_general_ci	varchar(64)

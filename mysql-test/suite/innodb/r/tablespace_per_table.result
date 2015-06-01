@@ -43,7 +43,8 @@ Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Error	1031	Table storage engine for 't1' doesn't have this option
 #
-# Without strict mode, DATA DIRECTORY without innodb_file_per_table=ON is just ignored.
+# Without strict mode, DATA DIRECTORY without innodb_file_per_table=ON
+# is just ignored.
 #
 SET SESSION innodb_strict_mode = OFF;
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
@@ -71,7 +72,7 @@ SET GLOBAL innodb_file_per_table=ON;
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 SHOW WARNINGS;
 Level	Code	Message
-INSERT INTO t1 VALUES (1, "Create the tablespace");
+INSERT INTO t1 VALUES (1, 'Create the tablespace');
 SELECT * FROM t1;
 a	b
 1	Create the tablespace
@@ -94,7 +95,7 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
-# Show that the new system tables have this table in them correctly
+# Show that the system tables have this tablespace in them correctly
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1	test/t1	65	5	Compact	0	Single
@@ -118,7 +119,8 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 # Create the same table a second time in the same place
 #
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-INSERT INTO t1 VALUES (2, "Create the same table a second time in the same place");
+INSERT INTO t1 VALUES
+(2, 'Create the same table a second time in the same place');
 SELECT * FROM t1;
 a	b
 2	Create the same table a second time in the same place
@@ -147,7 +149,7 @@ t1.ibd
 # Truncate the table, then insert and verify
 #
 TRUNCATE TABLE t1;
-INSERT INTO t1 VALUES (3, "Truncate the table, then insert");
+INSERT INTO t1 VALUES (3, 'Truncate the table, then insert');
 SELECT * FROM t1;
 a	b
 3	Truncate the table, then insert
@@ -169,7 +171,7 @@ t1.ibd
 # Rename the table, then insert and verify
 #
 RENAME TABLE t1 TO t2;
-INSERT INTO t2 VALUES (4, "Rename the table, then insert");
+INSERT INTO t2 VALUES (4, 'Rename the table, then insert');
 SELECT * FROM t2;
 a	b
 3	Truncate the table, then insert
@@ -192,7 +194,7 @@ t2.ibd
 # CREATE TABLE LIKE does not retain DATA DIRECTORY automatically.
 #
 CREATE TABLE t3 LIKE t2;
-INSERT INTO t3 VALUES (5, "CREATE TABLE LIKE");
+INSERT INTO t3 VALUES (5, 'CREATE TABLE LIKE');
 SELECT * FROM t3;
 a	b
 5	CREATE TABLE LIKE
@@ -226,7 +228,7 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
-# Be sure SQL MODE "NO_DIR_IN_CREATE" prevents the use of DATA DIRECTORY
+# Be sure SQL MODE 'NO_DIR_IN_CREATE' prevents the use of DATA DIRECTORY
 #
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
@@ -241,7 +243,7 @@ Warning	1618	<DATA DIRECTORY> option ignored
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1618	<DATA DIRECTORY> option ignored
-INSERT INTO t1 VALUES (6, "SQL MODE NO_DIR_IN_CREATE prevents DATA DIRECTORY");
+INSERT INTO t1 VALUES (6, 'SQL MODE NO_DIR_IN_CREATE prevents DATA DIRECTORY');
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
 Warnings:
@@ -265,6 +267,10 @@ CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQ
 Warnings:
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Warning	1618	<DATA DIRECTORY> option ignored
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
+Warning	1618	<DATA DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
@@ -273,25 +279,6 @@ t1	CREATE TEMPORARY TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t1;
-# Also a warning should be issued if DATA DIR and TEMP is used without
-# innodb_file_per_table
-SET GLOBAL innodb_file_per_table=OFF;
-CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-Warnings:
-Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
-Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
-Warning	1618	<DATA DIRECTORY> option ignored
-DROP TABLE t1;
-SET SESSION innodb_strict_mode = ON;
-CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
-Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
-Error	1031	Table storage engine for 't1' doesn't have this option
-SET SESSION innodb_strict_mode = OFF;
-SET GLOBAL innodb_file_per_table=ON;
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
@@ -305,7 +292,7 @@ test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-INSERT INTO t1 VALUES (7, "Create the remote table via static DDL statements");
+INSERT INTO t1 VALUES (7, 'Create the remote table via static DDL statements');
 SELECT * FROM t1;
 a	b
 7	Create the remote table via static DDL statements
@@ -326,15 +313,14 @@ DROP TABLE t1;
 #
 # Create the remote table via dynamic DDL statements in a stored procedure
 #
-CREATE PROCEDURE dynamic_proc() BEGIN PREPARE stmt1 FROM "CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir'"; EXECUTE stmt1; END |
+CREATE PROCEDURE dynamic_proc()
+BEGIN
+PREPARE stmt1 FROM
+"CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir'";
+EXECUTE stmt1;
+END |
 CALL dynamic_proc;
-=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-=== information_schema.files ===
-Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
-INSERT INTO t1 VALUES (8, "Create the remote table via dynamic DDL statements");
+INSERT INTO t1 VALUES (8, 'Create the remote table via dynamic DDL statements');
 SELECT * FROM t1;
 a	b
 8	Create the remote table via dynamic DDL statements
@@ -345,6 +331,12 @@ t1	CREATE TABLE `t1` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+=== information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 t1.frm
 t1.isl
@@ -385,6 +377,11 @@ emp	CREATE TABLE `emp` (
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
  PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
  PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west/' ENGINE = InnoDB) */
+SELECT * FROM emp;
+id	store_name	parts	store_id
+1	Oracle	NUTT	10
+2	HUAWEI	BOLT	40
+3	IBM	NAIL	70
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	65	7	Compact	0	Single
@@ -400,11 +397,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
-SELECT * FROM emp;
-id	store_name	parts	store_id
-1	Oracle	NUTT	10
-2	HUAWEI	BOLT	40
-3	IBM	NAIL	70
 ---- MYSQLD_DATADIR/test
 emp#p#east.isl
 emp#p#north.isl
@@ -431,6 +423,10 @@ emp	CREATE TABLE `emp` (
 /*!50100 PARTITION BY LIST (store_id)
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
  PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB) */
+SELECT * FROM emp;
+id	store_name	parts	store_id
+1	Oracle	NUTT	10
+2	HUAWEI	BOLT	40
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	65	7	Compact	0	Single
@@ -443,10 +439,6 @@ test/emp#p#north	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir_nor
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
-SELECT * FROM emp;
-id	store_name	parts	store_id
-1	Oracle	NUTT	10
-2	HUAWEI	BOLT	40
 ---- MYSQLD_DATADIR/test
 emp#p#east.isl
 emp#p#north.isl
@@ -462,18 +454,12 @@ emp#p#north.ibd
 ALTER TABLE emp ADD PARTITION (
 PARTITION west VALUES IN (70,80,100)
 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west');
-SHOW CREATE TABLE emp;
-Table	Create Table
-emp	CREATE TABLE `emp` (
-  `id` int(11) NOT NULL,
-  `store_name` varchar(30) DEFAULT NULL,
-  `parts` varchar(30) DEFAULT NULL,
-  `store_id` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY LIST (store_id)
-(PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
- PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
- PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB) */
+INSERT INTO emp VALUES(3,'IBM','NAIL',70);
+SELECT * FROM emp;
+id	store_name	parts	store_id
+1	Oracle	NUTT	10
+2	HUAWEI	BOLT	40
+3	IBM	NAIL	70
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	65	7	Compact	0	Single
@@ -489,12 +475,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
-INSERT INTO emp VALUES(3,'IBM','NAIL',70);
-SELECT * FROM emp;
-id	store_name	parts	store_id
-1	Oracle	NUTT	10
-2	HUAWEI	BOLT	40
-3	IBM	NAIL	70
 ---- MYSQLD_DATADIR/test
 emp#p#east.isl
 emp#p#north.isl
@@ -522,6 +502,12 @@ emp	CREATE TABLE `emp` (
 (PARTITION east VALUES IN (10,20,30) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east/' ENGINE = InnoDB,
  PARTITION north VALUES IN (40,50,60) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north/' ENGINE = InnoDB,
  PARTITION west VALUES IN (70,80,100) DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB) */
+INSERT INTO emp VALUES(3,'IBM','NAIL',70);
+SELECT * FROM emp;
+id	store_name	parts	store_id
+1	Oracle	NUTT	10
+2	HUAWEI	BOLT	40
+3	IBM	NAIL	70
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp#p#east	test/emp#p#east	65	7	Compact	0	Single
@@ -537,16 +523,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
-SELECT * FROM emp;
-id	store_name	parts	store_id
-1	Oracle	NUTT	10
-2	HUAWEI	BOLT	40
-INSERT INTO emp VALUES(3,'IBM','NAIL',70);
-SELECT * FROM emp;
-id	store_name	parts	store_id
-1	Oracle	NUTT	10
-2	HUAWEI	BOLT	40
-3	IBM	NAIL	70
 ---- MYSQLD_DATADIR/test
 emp#p#east.isl
 emp#p#north.isl
