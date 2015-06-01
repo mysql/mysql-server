@@ -150,7 +150,7 @@ void *my_realloc(PSI_memory_key key __attribute__((unused)),
   return my_raw_realloc(ptr, size, flags);
 }
 
-void my_claim(void *ptr)
+void my_claim(void *ptr __attribute__((unused)))
 {
   /* Empty */
 }
