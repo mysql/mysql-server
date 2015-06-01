@@ -1588,7 +1588,7 @@ void aggregate_thread_status(PFS_thread *thread,
   else
   {
     /* TODO: Requires LOCK_status. global_status_var updated by server on THD disconnect. */
-    add_to_status(&global_status_var, &thd->status_var, false);
+    add_to_status(&global_status_var, &thd->status_var, false, false);
   }
 #endif
   return;

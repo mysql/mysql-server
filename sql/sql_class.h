@@ -1549,6 +1549,8 @@ public:
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
+  // has status_var already been added to global_status_var?
+  bool status_var_aggregated;
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.
@@ -5188,7 +5190,8 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 
 
-void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars);
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool add_com_vars,
+                   bool reset_from_var);
 
 /* Inline functions */
 

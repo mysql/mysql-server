@@ -1582,7 +1582,9 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
 
     query_logger.general_log_print(thd, command, NullS);
     thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
+    mysql_mutex_lock(&LOCK_status);
     calc_sum_of_all_status(&current_global_status_var);
+    mysql_mutex_unlock(&LOCK_status);
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
     else
@@ -2417,6 +2419,7 @@ mysql_execute_command(THD *thd)
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
+    thd->initial_status_var= NULL;
     mysql_mutex_unlock(&LOCK_status);
     break;
   }
