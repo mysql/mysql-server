@@ -2991,42 +2991,48 @@ EXPLAIN
 {
   "query_block": {
     "select_id": 1,
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "nested_loop": [
-        {
-          "table": {
-            "table_name": "t11",
-            "access_type": "ALL",
-            "rows": 8,
-            "filtered": 100
-          }
-        },
-        {
-          "table": {
-            "table_name": "t1",
-            "access_type": "eq_ref",
-            "possible_keys": [
-              "PRIMARY"
-            ],
-            "key": "PRIMARY",
-            "used_key_parts": [
-              "a"
-            ],
-            "key_length": "4",
-            "ref": [
-              "test.t11.a"
-            ],
-            "rows": 1,
-            "filtered": 100
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "<subquery2>",
+          "access_type": "ALL",
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "query_block": {
+              "table": {
+                "table_name": "t11",
+                "access_type": "ALL",
+                "rows": 8,
+                "filtered": 100
+              }
+            }
           }
         }
-      ]
-    }
+      },
+      {
+        "table": {
+          "table_name": "t1",
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "a"
+          ],
+          "key_length": "4",
+          "ref": [
+            "<subquery2>.a"
+          ],
+          "rows": 1,
+          "filtered": 100
+        }
+      }
+    ]
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t11`) where (`test`.`t1`.`a` = `test`.`t11`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` semi join (`test`.`t11`) where (`test`.`t1`.`a` = `<subquery2>`.`a`)
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -3281,8 +3287,9 @@ create table t3 ( a int , filler char(100), key(a));
 insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	SIMPLE	t3	ref	a	a	5	test.t2.a	1	End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	Using where
+1	SIMPLE	t3	ref	a	a	5	<subquery2>.a	1	NULL
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -5819,11 +5826,12 @@ INNER JOIN t2 c ON c.idContact=cona.idContact
 WHERE cona.postalStripped='T2H3B2'
 	);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	Using where
-1	SIMPLE	a	eq_ref	PRIMARY	PRIMARY	4	test.c.idObj	1	100.00	Using index; End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using where
+1	SIMPLE	a	eq_ref	PRIMARY	PRIMARY	4	<subquery2>.idObj	1	100.00	Using index
+2	MATERIALIZED	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	MATERIALIZED	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
+Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `<subquery2>`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
@@ -6956,8 +6964,8 @@ and t2.uid=t1.fid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ref	uid	uid	5	const	4	Using where; Start temporary
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	Using index
-1	SIMPLE	t1	ref	uid	uid	5	test.t3.fid	2	End temporary
-1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	9	Using where
+1	SIMPLE	t1	ref	uid	uid	5	test.t3.fid	2	Using where
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	End temporary
 select name from t2, t1 
 where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
 and t2.uid=t1.fid;
@@ -7729,8 +7737,9 @@ WHERE col_varchar_key IN (SELECT col_varchar_nokey
 FROM t2)
 ORDER BY col_datetime_key LIMIT 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort; Start temporary
-1	SIMPLE	t1	ref	col_varchar_key	col_varchar_key	3	test.t2.col_varchar_nokey	1	End temporary
+1	SIMPLE	t1	ALL	col_varchar_key	NULL	NULL	NULL	20	Using where; Using filesort
+1	SIMPLE	<subquery2>	eq_ref	<auto_key>	<auto_key>	3	test.t1.col_varchar_key	1	NULL
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	6	NULL
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
@@ -7802,9 +7811,10 @@ AND grandparent1.col_varchar_key IS NOT NULL
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	20	Start temporary
-2	SUBQUERY	parent2	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	Using index
-2	SUBQUERY	grandparent1	ref	col_varchar_key	col_varchar_key	3	test.parent1.col_varchar_nokey	1	Using where; End temporary
+2	SUBQUERY	<subquery3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+2	SUBQUERY	grandparent1	ref	col_varchar_key	col_varchar_key	3	<subquery3>.p1	1	Using where
+3	MATERIALIZED	parent1	ALL	NULL	NULL	NULL	NULL	20	NULL
+3	MATERIALIZED	parent2	eq_ref	PRIMARY	PRIMARY	4	test.parent1.pk	1	Using index
 SELECT *
 FROM t1
 WHERE g1 NOT IN
@@ -10670,6 +10680,68 @@ p2, t1 p3 WHERE p0.id=p2.id6 AND p2.id7=p3.id));
 ID
 126
 DROP TABLE t1,t2;
+#
+# Bug#18194196: OPTIMIZER EXECUTES STATEMENT INPERFORMANT 
+#
+CREATE TABLE t1 (uid INTEGER, fid INTEGER, INDEX(uid));
+INSERT INTO t1 VALUES
+(1,1), (1,2), (1,3), (1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+CREATE TABLE t2 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t2 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+CREATE TABLE t3 (uid INT, fid INT, INDEX(uid));
+INSERT INTO t3 VALUES
+(1,1), (1,2), (1,3),(1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+CREATE TABLE t4 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t4 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+ANALYZE TABLE t1,t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t3	ref	uid	uid	5	const	4	Using where; Start temporary
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	Using index
+1	SIMPLE	t1	ref	uid	uid	5	test.t3.fid	4	Using where; End temporary
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	NULL
+FLUSH STATUS;
+SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+name
+A
+B
+C
+D
+E
+F
+G
+H
+A
+B
+I
+SHOW STATUS LIKE '%handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	20
+Handler_read_last	0
+Handler_read_next	15
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1,t2,t3,t4;
+# End of test for Bug#18194196
 set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
 set optimizer_switch=default;

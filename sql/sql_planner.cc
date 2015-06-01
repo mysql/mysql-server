@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3034,6 +3034,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
   double cost, rowcount;
   double inner_fanout= 1.0;
   double outer_fanout= 1.0;
+  double max_outer_fanout= 1.0;
   uint rowsize;             // Row size of the temporary table
   if (first_tab == join->const_tables)
   {
@@ -3048,47 +3049,58 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
     rowsize= 8;             // This is not true but we'll make it so
   }
   /**
-    @todo: Some times, some outer fanout is "absorbed" into the inner fanout.
+    Some times, some outer fanout is "absorbed" into the inner fanout.
     In this case, we should make a better estimate for outer_fanout that
     is used to calculate the output rowcount.
-    Trial code:
-      if (inner_fanout > 1.0)
-      {
-       // We have inner table(s) before an outer table. If there are
-       // dependencies between these tables, the fanout for the outer
-       // table is not a good estimate for the final number of rows from
-       // the weedout execution, therefore we convert some of the inner
-       // fanout into an outer fanout, limited to the number of possible
-       // rows in the outer table.
-        double fanout= min(inner_fanout*p->records_read,
-                           p->table->table->quick_condition_rows);
-        inner_fanout*= p->records_read / fanout;
-        outer_fanout*= fanout;
-      }
-      else
-        outer_fanout*= p->records_read;
+    If we have inner table(s) before an outer table and if there are
+    dependencies between these tables, the fanout for the outer table is not
+    a good estimate for the final number of rows from the weedout execution,
+    therefore we convert some of the inner fanout into an outer fanout,
+    limited to the number of possible rows in the outer table.
   */
   for (uint j= first_tab; j <= last_tab; j++)
   {
     const POSITION *const p= join->positions + j;
     if (p->table->emb_sj_nest)
-    {
       inner_fanout*= p->records_read;
-    }
     else
     {
-      outer_fanout*= p->records_read;
-
+      /*
+        max_outer_fanout is the cardinality of the cross product of the
+        outer tables.
+        @note: We do not consider dependencies between these tables here.
+      */
+      max_outer_fanout*= p->table->table->quick_condition_rows;
+      if (inner_fanout > 1.0)
+      {
+        // Absorb inner fanout into the outer fanout:
+        outer_fanout*= inner_fanout * p->records_read;
+        inner_fanout= 1.0;
+      }
+      else
+        outer_fanout*= p->records_read;
       rowsize+= p->table->table->file->ref_length;
     }
     cost+= p->read_time +
            rowcount * inner_fanout * outer_fanout * ROW_EVALUATE_COST;
   }
 
+  if (max_outer_fanout < outer_fanout)
+  {
+    /*
+      The calculated fanout for the outer tables is bigger than the
+      cardinality of the cross product of the outer tables. Adjust outer
+      fanout to the max value, but also adjust inner fanout so that
+      inner_fanout * outer_fanout is still the same (dups weedout runs
+      a complete join internally).
+    */
+    inner_fanout*= outer_fanout / max_outer_fanout;
+    outer_fanout= max_outer_fanout;
+  }
+
   /*
-    @todo: Change this paragraph in concert with the todo note above.
     Add the cost of temptable use. The table will have outer_fanout rows,
-    and we will make 
+    and we will make
     - rowcount * outer_fanout writes
     - rowcount * inner_fanout * outer_fanout lookups.
     We assume here that a lookup and a write has the same cost.
