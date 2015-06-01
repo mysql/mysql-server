@@ -1779,6 +1779,12 @@ void Partition_helper::set_partition_read_set()
       */
       bitmap_union(m_table->read_set, &m_part_info->full_part_field_set);
     }
+    // Mark virtual generated columns writable
+    for (Field **vf= m_table->vfield; vf && *vf; vf++)
+    {
+      if (bitmap_is_set(m_table->read_set, (*vf)->field_index))
+        bitmap_set_bit(m_table->write_set, (*vf)->field_index);
+    }
   }
 }
 
