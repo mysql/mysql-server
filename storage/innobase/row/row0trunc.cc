@@ -1290,6 +1290,20 @@ row_truncate_fts(
 		ut_ad(table->data_dir_path != NULL);
 	}
 
+	/* table->tablespace() may not be always populated or
+	if table->tablespace() uses "innodb_general" name,
+	fetch the real name. */
+	if (DICT_TF_HAS_SHARED_SPACE(table->flags)
+	    && (table->tablespace() == NULL
+		|| dict_table_has_temp_general_tablespace_name(
+			table->tablespace()))) {
+		dict_get_and_save_space_name(table, true);
+		ut_ad(table->tablespace() != NULL);
+		ut_ad(!dict_table_has_temp_general_tablespace_name(
+			table->tablespace()));
+	}
+
+	fts_table.tablespace = table->tablespace();
 	fts_table.data_dir_path = table->data_dir_path;
 
 	dberr_t		err;
