@@ -6737,6 +6737,8 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     Avoid recursive acquisition of LOCK_status in cases when WHERE clause
     represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
   */
+  DEBUG_SYNC(thd, "before_preparing_global_status_array");
+
   if (thd->fill_status_recursion_level++ == 0) 
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
@@ -6747,6 +6749,8 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
                          upper_case_names, cond);
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
+
+  DEBUG_SYNC(thd, "after_preparing_global_status_array");
   DBUG_RETURN(res);
 }
 
