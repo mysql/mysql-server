@@ -2522,8 +2522,8 @@ dict_get_and_save_space_name(
 	if (table->tablespace != NULL) {
 
 		if (srv_sys_tablespaces_open
-		    && 0 == strncmp(table->tablespace, general_space_name,
-			     strlen(general_space_name))) {
+		    && dict_table_has_temp_general_tablespace_name(
+			    table->tablespace)) {
 			/* We previous saved the temporary name,
 			get the real one now. */
 			use_cache = false;
@@ -2540,8 +2540,8 @@ dict_get_and_save_space_name(
 			/* Use this name unless it is a temporary general
 			tablespace name and we can now replace it. */
 			if (!srv_sys_tablespaces_open
-			    || 0 != strncmp(space->name, general_space_name,
-					    strlen(general_space_name))) {
+			    || !dict_table_has_temp_general_tablespace_name(
+				    space->name)) {
 
 				/* Use this tablespace name */
 				table->tablespace = mem_heap_strdup(
