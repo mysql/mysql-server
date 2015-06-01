@@ -727,7 +727,7 @@ drop table t3, t1;
 create table t1 (
   pk1 int not null primary key,
   b int,
-  foreign key (b) references t2(pk2)
+  foreign key fk1 (b) references t2(pk2)
 ) engine=ndb;
 
 set foreign_key_checks=1;
@@ -737,6 +737,8 @@ set foreign_key_checks=0;
 set @@ndb_show_foreign_key_mock_tables= 1;
 truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
+
+show create table t1;
 
 drop table t1;
 
@@ -805,7 +807,38 @@ create table t2 (
 create table t1 (
   pk1 int not null primary key,
   b int,
-  foreign key (b) references t2(pk2)
+  foreign key fk1 (b) references t2(pk2)
+) engine=ndb;
+
+set @@ndb_show_foreign_key_mock_tables= 1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+
+show create table t1;
+
+drop table t1, t2;
+
+--echo #
+--echo # Truncate with multiple foreign keys
+--echo #
+create table t2 (
+  pk2 int not null primary key,
+  c int
+) engine=ndb;
+create table t1 (
+  pk1 int not null primary key,
+  b int,
+  c int,
+  d int,
+  e int,
+  foreign key fk1 (b) references t2(pk2),
+  foreign key fk2 (c) references t3(pk3),
+  foreign key fk3 (d) references t3(pk4),
+  foreign key fk4 (e) references t4(pk5)
 ) engine=ndb;
 
 set @@ndb_show_foreign_key_mock_tables= 1;
