@@ -146,6 +146,7 @@ ERROR HY000: The table does not have FULLTEXT index to support this query
 SELECT * FROM t1 WHERE MATCH(c) AGAINST ('TEXT5');
 ERROR HY000: The table does not have FULLTEXT index to support this query
 ALTER TABLE t1 ADD FULLTEXT(b);
+ERROR HY000: Index corrupt: Fulltext index 'AB' is corrupt. you should drop this index first.
 # Restart the server
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 ERROR HY000: The table does not have FULLTEXT index to support this query
