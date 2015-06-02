@@ -10015,6 +10015,16 @@ int ha_ndbcluster::create(const char *name,
 
     ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
                                    m_dbname, m_tabname, form);
+    if (my_errno == HA_ERR_TABLE_EXIST)
+    {
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_TABLE_EXISTS_ERROR,
+                          "Failed to setup replication of table %s.%s",
+                          m_dbname, m_tabname);
+      my_errno= 0;
+    }
+
+
     DBUG_RETURN(my_errno);
   }
 
@@ -12111,9 +12121,20 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
     ERR_RETURN(ndb->getNdbError());
   }
   NDBDICT* dict= ndb->getDictionary();
+  NDB_SHARE * share= NULL;
+  build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
+  int database_exists= !my_access(key, F_OK);
+  if (!database_exists)
+  {
+    DBUG_PRINT("info", ("Cound not find database"));
+    sql_print_information("NDB: Could not find database '%s'", db);
+    error= 1;
+    my_error(ER_FILE_NOT_FOUND, MYF(0), key);
+    goto err;
+  }
   build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
   /* ndb_share reference temporary */
-  NDB_SHARE *share= get_share(key, 0, FALSE);
+  share= get_share(key, 0, FALSE);
   if (share)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
