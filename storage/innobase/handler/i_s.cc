@@ -147,19 +147,6 @@ const ulint	MAX_BUF_INFO_CACHED = 10000;
 		DBUG_RETURN(1);	\
 	}
 
-#define RETURN_IF_INNODB_NOT_STARTED(plugin_name)			\
-do {									\
-	if (!srv_was_started) {						\
-		push_warning_printf(thd, Sql_condition::SL_WARNING,	\
-				    ER_CANT_FIND_SYSTEM_REC,		\
-				    "InnoDB: SELECTing from "		\
-				    "INFORMATION_SCHEMA.%s but "	\
-				    "the InnoDB storage engine "	\
-				    "is not installed", plugin_name);	\
-		DBUG_RETURN(0);						\
-	}								\
-} while (0)
-
 #if !defined __STRICT_ANSI__ && defined __GNUC__ && !defined __clang__
 #define STRUCT_FLD(name, value)	name: value
 #else
@@ -1296,8 +1283,6 @@ trx_i_s_common_fill_table(
 	table_name = tables->schema_table_name;
 	/* or table_name = tables->schema_table->table_name; */
 
-	RETURN_IF_INNODB_NOT_STARTED(table_name);
-
 	/* update the cache */
 	trx_i_s_cache_start_write(cache);
 	trx_i_s_possibly_fetch_data_into_cache(cache);
@@ -1442,8 +1427,6 @@ i_s_cmp_fill_low(
 
 		DBUG_RETURN(0);
 	}
-
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	for (uint i = 0; i < PAGE_ZIP_SSIZE_MAX; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
@@ -1756,8 +1739,6 @@ i_s_cmp_per_index_fill_low(
 
 		DBUG_RETURN(0);
 	}
-
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Create a snapshot of the stats so we do not bump into lock
 	order violations with dict_sys->mutex below. */
@@ -2088,8 +2069,6 @@ i_s_cmpmem_fill_low(
 
 		DBUG_RETURN(0);
 	}
-
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
@@ -4836,7 +4815,6 @@ i_s_innodb_buffer_stats_fill_table(
 	buf_pool_info_t*	pool_info;
 
 	DBUG_ENTER("i_s_innodb_buffer_fill_general");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Only allow the PROCESS privilege holder to access the stats */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -5563,8 +5541,6 @@ i_s_innodb_buffer_page_fill_table(
 
 	DBUG_ENTER("i_s_innodb_buffer_page_fill_table");
 
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
 	/* deny access to user without PROCESS privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(0);
@@ -6116,8 +6092,6 @@ i_s_innodb_buf_page_lru_fill_table(
 
 	DBUG_ENTER("i_s_innodb_buf_page_lru_fill_table");
 
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
-
 	/* deny access to any users that do not hold PROCESS_ACL */
 	if (check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(0);
@@ -6394,7 +6368,6 @@ i_s_sys_tables_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_tables_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6699,7 +6672,6 @@ i_s_sys_tables_fill_table_stats(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_tables_fill_table_stats");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6966,7 +6938,6 @@ i_s_sys_indexes_fill_table(
 	mtr_t			mtr;
 
 	DBUG_ENTER("i_s_sys_indexes_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7208,7 +7179,6 @@ i_s_sys_columns_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_columns_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7416,7 +7386,6 @@ i_s_sys_fields_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_fields_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7652,7 +7621,6 @@ i_s_sys_foreign_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_foreign_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -7871,7 +7839,6 @@ i_s_sys_foreign_cols_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_foreign_cols_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8240,7 +8207,6 @@ i_s_sys_tablespaces_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_tablespaces_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8435,7 +8401,6 @@ i_s_sys_datafiles_fill_table(
 	mtr_t		mtr;
 
 	DBUG_ENTER("i_s_sys_datafiles_fill_table");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS_ACL privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -8556,3 +8521,146 @@ struct st_mysql_plugin	i_s_innodb_sys_datafiles =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
+
+/** Fill handlerton based INFORMATION_SCHEMA.FILES table.
+@param[in,out]	thd	thread/connection descriptor
+@param[in,out]	tables	information schema tables to fill
+@retval 0 for success
+@retval HA_ERR_OUT_OF_MEM when running out of memory
+@return nonzero for failure */
+int
+i_s_files_table_fill(
+	THD*		thd,
+	TABLE_LIST*	tables)
+{
+	TABLE*			table_to_fill	= tables->table;
+	Field**			fields		= table_to_fill->field;
+	/* Use this class so that if the OK() macro returns,
+	fil_space_release() is called. */
+	FilSpace		space;
+
+	DBUG_ENTER("i_s_files_table_fill");
+
+	/* Gather information reportable to information_schema.files
+	for the first or next file in fil_system. */
+	for (const fil_node_t* node = fil_node_next(NULL);
+	     node != NULL;
+	     node = fil_node_next(node)) {
+		const char*	type;
+		const char*	space_name;
+		/** Buffer to build file-per-table tablespace names.
+		Even though a space_id is often stored in a ulint, it cannot
+		be larger than 1<<32-1, which is 10 numeric characters. */
+		char		file_per_table_name[
+			sizeof("innodb_file_per_table_1234567890")];
+		uintmax_t	avail_space;
+		ulint		extent_pages;
+		ulint		extend_pages;
+
+		space = node->space;
+		fil_type_t	purpose = space()->purpose;
+
+		switch (purpose) {
+		case FIL_TYPE_LOG:
+			/* Do not report REDO LOGs to I_S.FILES */
+			space = NULL;
+			continue;
+		case FIL_TYPE_TABLESPACE:
+			if (!is_system_tablespace(space()->id)
+			    && space()->id <= srv_undo_tablespaces_open) {
+				type = "UNDO LOG";
+				break;
+			} /* else fall through for TABLESPACE */
+		case FIL_TYPE_IMPORT:
+			/* 'IMPORTING'is a status. The type is TABLESPACE. */
+			type = "TABLESPACE";
+			break;
+		case FIL_TYPE_TEMPORARY:
+			type = "TEMPORARY";
+			break;
+		};
+
+		page_size_t	page_size(space()->flags);
+
+		/* Single-table tablespaces are assigned to a schema. */
+		if (!is_predefined_tablespace(space()->id)
+		    && !FSP_FLAGS_GET_SHARED(space()->flags)) {
+			/* Their names will be like "test/t1" */
+			ut_ad(NULL != strchr(space()->name, '/'));
+
+			/* File-per-table tablespace names are generated
+			internally and certain non-file-system-allowed
+			characters are expanded which can make the space
+			name too long. In order to avoid that problem,
+			use a modified tablespace name.
+			Since we are not returning dbname and tablename,
+			the user must match the space_id to i_s_table.space
+			in order find the single table that is in it or the
+			schema it belongs to. */
+			ut_snprintf(
+				file_per_table_name,
+				sizeof(file_per_table_name),
+				"innodb_file_per_table_" ULINTPF,
+				space()->id);
+			space_name = file_per_table_name;
+		} else {
+			/* No other kind of space name contains a "/" */
+			ut_ad(NULL == strchr(space()->name, '/'));
+			space_name = space()->name;
+		}
+
+		init_fill_schema_files_row(table_to_fill);
+
+		OK(field_store_ulint(fields[IS_FILES_FILE_ID],
+				     space()->id));
+		OK(field_store_string(fields[IS_FILES_FILE_NAME],
+				      node->name));
+		OK(field_store_string(fields[IS_FILES_FILE_TYPE],
+				      type));
+		OK(field_store_string(fields[IS_FILES_TABLESPACE_NAME],
+				      space_name));
+		OK(field_store_string(fields[IS_FILES_ENGINE],
+				      "InnoDB"));
+		OK(field_store_ulint(fields[IS_FILES_FREE_EXTENTS],
+				     space()->free_len));
+
+		extent_pages = fsp_get_extent_size_in_pages(page_size);
+
+		OK(field_store_ulint(fields[IS_FILES_TOTAL_EXTENTS],
+				     space()->size_in_header / extent_pages));
+		OK(field_store_ulint(fields[IS_FILES_EXTENT_SIZE],
+				     extent_pages * page_size.physical()));
+		OK(field_store_ulint(fields[IS_FILES_INITIAL_SIZE],
+				     node->init_size * page_size.physical()));
+
+		if (node->max_size >= ULINT_MAX) {
+			fields[IS_FILES_MAXIMUM_SIZE]->set_null();
+		} else {
+			OK(field_store_ulint(fields[IS_FILES_MAXIMUM_SIZE],
+				node->max_size * page_size.physical()));
+		}
+		if (space()->id == srv_sys_space.space_id()) {
+			extend_pages = srv_sys_space.get_increment();
+		} else if (space()->id == srv_tmp_space.space_id()) {
+			extend_pages = srv_tmp_space.get_increment();
+		} else {
+			extend_pages = fsp_get_pages_to_extend_ibd(
+				page_size, node->size);
+		}
+
+		OK(field_store_ulint(fields[IS_FILES_AUTOEXTEND_SIZE],
+				     extend_pages * page_size.physical()));
+
+		avail_space = fsp_get_available_space_in_free_extents(space());
+		OK(field_store_ulint(fields[IS_FILES_DATA_FREE],
+				     static_cast<ulint>(avail_space * 1024)));
+		OK(field_store_string(fields[IS_FILES_STATUS],
+				      (purpose == FIL_TYPE_IMPORT)
+				      ? "IMPORTING" : "NORMAL"));
+
+		schema_table_store_record(thd, table_to_fill);
+		space = NULL;
+	}
+
+	DBUG_RETURN(0);
+}

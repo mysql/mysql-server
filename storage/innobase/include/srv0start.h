@@ -75,13 +75,22 @@ srv_add_path_separator_if_needed(
 /*=============================*/
 	char*	str);	/*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
-/****************************************************************//**
-Starts Innobase and creates a new database if database files
-are not found and the user wants.
+/** Start InnoDB.
+@param[in]	create_new_db	whether to create a new database
 @return DB_SUCCESS or error code */
 dberr_t
-innobase_start_or_create_for_mysql(void);
-/*====================================*/
+srv_start(
+	bool	create_new_db);
+
+/** On a restart, initialize the remaining InnoDB subsystems so that
+any tables (including data dictionary tables) can be accessed. */
+void
+srv_dict_recover_on_restart();
+
+/** Start up the remaining InnoDB service threads. */
+void
+srv_start_threads();
+
 /****************************************************************//**
 Shuts down the Innobase database.
 @return DB_SUCCESS or error code */
@@ -127,8 +136,6 @@ extern	lsn_t	srv_start_lsn;
 extern	bool	srv_is_being_started;
 /** TRUE if SYS_TABLESPACES is available for lookups */
 extern	bool	srv_sys_tablespaces_open;
-/** TRUE if the server was successfully started */
-extern	ibool	srv_was_started;
 /** TRUE if the server is being started, before rolling back any
 incomplete transactions */
 extern	bool	srv_startup_is_before_trx_rollback_phase;

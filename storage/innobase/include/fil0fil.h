@@ -187,6 +187,12 @@ struct fil_node_t {
 	ulint		size;	/*!< size of the file in database pages, 0 if
 				not known yet; the possible last incomplete
 				megabyte may be ignored if space == 0 */
+	ulint		init_size;
+				/*!< initial size of the file in database pages,
+				defaults to FIL_IBD_FILE_INITIAL_SIZE. */
+	ulint		max_size;
+				/*!< maximum size of the file in database pages;
+				0 if there is no maximum size. */
 	ulint		n_pending;
 				/*!< count of pending i/o's on this file;
 				closing of the file is not allowed if
@@ -363,19 +369,23 @@ __attribute__((warn_unused_result, pure));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Append a file to the chain of files of a space.
-@param[in]	name	file name of a file that is not open
-@param[in]	size	file size in entire database blocks
-@param[in,out]	space	tablespace from fil_space_create()
-@param[in]	is_raw	whether this is a raw device or partition
-@param[in]	atomic_write true if atomic write enabled
-@return pointer to the file name, or NULL on error */
+@param[in]	name		file name of a file that is not open
+@param[in]	size		file size in entire database blocks
+@param[in,out]	space		tablespace from fil_space_create()
+@param[in]	is_raw		whether this is a raw device or partition
+@param[in]	atomic_write	true if atomic write enabled
+@param[in]	max_pages	maximum number of pages in file,
+ULINT_MAX means the file size is unlimited.
+@return pointer to the file name
+@retval NULL if error */
 char*
 fil_node_create(
 	const char*	name,
 	ulint		size,
 	fil_space_t*	space,
 	bool		is_raw,
-	bool		atomic_write)
+	bool		atomic_write,
+	ulint		max_pages = ULINT_MAX)
 	__attribute__((warn_unused_result));
 
 /** Create a space memory object and put it to the fil_system hash table.
@@ -533,6 +543,7 @@ fil_space_t*
 fil_space_acquire(
 	ulint	id)
 	__attribute__((warn_unused_result));
+
 /** Acquire a tablespace that may not exist.
 Used by background threads that do not necessarily hold proper locks
 for concurrency control.
@@ -542,11 +553,68 @@ fil_space_t*
 fil_space_acquire_silent(
 	ulint	id)
 	__attribute__((warn_unused_result));
+
 /** Release a tablespace acquired with fil_space_acquire().
 @param[in,out]	space	tablespace to release  */
 void
 fil_space_release(
 	fil_space_t*	space);
+
+/** Wrapper with reference-counting for a fil_space_t. */
+class FilSpace
+{
+public:
+	/** Default constructor: Use this when reference counting
+	is done outside this wrapper. */
+	FilSpace() : m_space(NULL) {}
+
+	/** Constructor: Look up the tablespace and increment the
+	referece count if found.
+	@param[in]	space_id	tablespace ID */
+	explicit FilSpace(ulint space_id)
+		: m_space(fil_space_acquire(space_id)) {}
+
+	/** Assignment operator: This assumes that fil_space_acquire()
+	has already been done for the fil_space_t. The caller must
+	assign NULL if it calls fil_space_release().
+	@param[in]	space	tablespace to assign */
+	class FilSpace& operator=(
+		fil_space_t*	space)
+	{
+		/* fil_space_acquire() must have been invoked. */
+		ut_ad(space == NULL || space->n_pending_ops > 0);
+		m_space = space;
+		return(*this);
+	}
+
+	/** Destructor - Decrement the reference count if a fil_space_t
+	is still assigned. */
+	~FilSpace()
+	{
+		if (m_space != NULL) {
+			fil_space_release(m_space);
+		}
+	}
+
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator const fil_space_t*() const
+	{
+		return(m_space);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	const fil_space_t* operator()() const
+	{
+		return(m_space);
+	}
+
+private:
+	/** The wrapped pointer */
+	fil_space_t*	m_space;
+};
+
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************//**
 Creates the database directory for a table if it does not exist yet. */
@@ -1200,6 +1268,18 @@ fil_get_space_names(
 	space_name_list_t&	space_name_list)
 				/*!< in/out: Vector for collecting the names. */
 	__attribute__((warn_unused_result));
+
+/** Return the next fil_node_t in the current or next fil_space_t.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in]	prev_node	Pointer to the previous fil_node_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_node_t.
+@retval NULL if this was the last file node */
+const fil_node_t*
+fil_node_next(
+	const fil_node_t*	prev_node);
 
 /** Generate redo log for swapping two .ibd files
 @param[in]	old_table	old table

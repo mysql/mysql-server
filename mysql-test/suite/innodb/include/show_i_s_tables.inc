@@ -14,8 +14,8 @@ SELECT t.name 'Table Name',
 	     information_schema.innodb_sys_tablespaces s
 	ON t.space = s.space
 	WHERE t.name not like 'SYS_%'
-	AND t.name not like 'mysql\/%'
-	AND t.name not like 'sys\/%'
+	AND t.name NOT LIKE 'mysql/%'
+	AND t.name NOT LIKE 'sys/%'
 	ORDER BY t.name;
 --enable_query_log
 

@@ -419,7 +419,8 @@ private:
 	/** Flags to use for opening the data file */
 	os_file_create_t	m_open_flags;
 
-	/** size in database pages */
+	/** size in megabytes or pages; converted from megabytes to
+	pages in SysTablespace::normalize_size() */
 	ulint			m_size;
 
 	/** ordinal position or this datafile in the tablespace */

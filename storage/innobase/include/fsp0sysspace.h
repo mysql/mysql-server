@@ -111,7 +111,7 @@ public:
 	void shutdown();
 
 	/** Normalize the file size, convert to extents. */
-	void normalize();
+	void normalize_size();
 
 	/**
 	@return true if a new raw device was created. */
@@ -307,7 +307,6 @@ is_system_or_undo_tablespace(
 	       || id <= srv_undo_tablespaces_open);
 }
 
-#ifdef UNIV_DEBUG
 /** Check if predefined shared tablespace.
 @return true if predefined shared tablespace */
 UNIV_INLINE
@@ -320,5 +319,4 @@ is_predefined_tablespace(
 	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
-#endif /* UNIV_DEBUG */
 #endif /* fsp0sysspace_h */

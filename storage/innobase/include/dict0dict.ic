@@ -1708,4 +1708,18 @@ dict_table_t::release()
 	--n_ref_count;
 }
 
+/** Check if tablespace name is "innodb_general".
+@param[in]	tablespace_name	tablespace name
+@retval		true		if name is "innodb_general"
+@retval		false		if name is not "innodb_general" */
+inline
+bool
+dict_table_has_temp_general_tablespace_name(
+	const char*	tablespace_name) {
+
+	return(tablespace_name != NULL
+	       && strncmp(tablespace_name, general_space_name,
+			  strlen(general_space_name)) == 0);
+}
+
 #endif /* !UNIV_HOTBACKUP */

@@ -234,7 +234,7 @@ public:
   bool     sort_and_group; 
   bool     first_record;
   bool     grouped;          ///< If query contains GROUP BY clause
-  bool     do_send_rows;
+  bool     do_send_rows;     ///< If true, send produced rows using query_result
   table_map all_table_map;   ///< Set of tables contained in query
   table_map const_table_map; ///< Set of tables found to be const
   /**

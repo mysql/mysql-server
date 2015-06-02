@@ -1571,7 +1571,7 @@ struct buf_block_t{
 
 	/** @name Hash search fields
 	These 5 fields may only be modified when we have
-	an x-latch on btr_search_latch AND
+	an x-latch on search system AND
 	- we are holding an s-latch or x-latch on buf_block_t::lock or
 	- we know that buf_block_t::buf_fix_count == 0.
 
@@ -1579,7 +1579,7 @@ struct buf_block_t{
 	in the buffer pool in buf0buf.cc.
 
 	Another exception is that assigning block->index = NULL
-	is allowed whenever holding an x-latch on btr_search_latch. */
+	is allowed whenever holding an x-latch on search system. */
 
 	/* @{ */
 

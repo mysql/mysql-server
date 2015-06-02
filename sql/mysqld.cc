@@ -8256,16 +8256,16 @@ static void delete_pid_file(myf flags)
 class Reset_thd_status : public Do_THD_Impl
 {
 public:
-  Reset_thd_status(System_status_var *global_status) : m_global_status(global_status) { }
+  Reset_thd_status() { }
   virtual void operator()(THD *thd)
   {
-    /* Add thread's status variabes to global status. */
-    add_to_status(m_global_status, &thd->status_var, true);
-    /* Reset thread's status variables. */
-    memset(&thd->status_var, 0, sizeof(thd->status_var));
+    /*
+      Add thread's status variabes to global status
+      and reset thread's status variables.
+    */
+    add_to_status(&global_status_var, &thd->status_var, true, true);
   }
-private:
-  System_status_var *m_global_status;
+
 };
 
 /**
@@ -8277,16 +8277,16 @@ void refresh_status(THD *thd)
 
   if (show_compatibility_56)
   {
-    /* Add thread's status variables to global status. */
-    add_to_status(&global_status_var, &thd->status_var, true);
-
-    /* Reset current thread's status variables. */
-    memset(&thd->status_var, 0, sizeof(thd->status_var));
+    /*
+      Add thread's status variabes to global status
+      and reset thread's status variables.
+    */
+    add_to_status(&global_status_var, &thd->status_var, true, true);
   }
   else
   {
     /* For all threads, add status to global status and then reset. */
-    Reset_thd_status reset_thd_status(&global_status_var);
+    Reset_thd_status reset_thd_status;
     Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE

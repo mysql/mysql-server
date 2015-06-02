@@ -1925,12 +1925,12 @@ buf_pool_resize()
 
 	buf_resize_status("Disabling adaptive hash index.");
 
-	rw_lock_s_lock(&btr_search_latch);
+	btr_search_s_lock_all();
 	if (btr_search_enabled) {
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 		btr_search_disabled = true;
 	} else {
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 	}
 
 	btr_search_disable();
@@ -2384,7 +2384,7 @@ buf_pool_clear_hash_index(void)
 	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
+	ut_ad(btr_search_own_all(RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!btr_search_enabled);
@@ -2402,7 +2402,7 @@ buf_pool_clear_hash_index(void)
 				dict_index_t*	index	= block->index;
 
 				/* We can set block->index = NULL
-				when we have an x-latch on btr_search_latch;
+				when we have an x-latch on search latch;
 				see the comment in buf0buf.h */
 
 				if (!index) {

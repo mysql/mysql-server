@@ -1904,13 +1904,15 @@ analyze table t1,t3;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 test.t3	analyze	status	OK
+set @old_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='materialization=off';
 explain format=json select * from t3 where b in (select a from t1);
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "8.00"
+      "query_cost": "8.40"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -1950,13 +1952,13 @@ EXPLAIN
               "test.t1.a"
             ],
             "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 1,
+            "rows_produced_per_join": 3,
             "filtered": "100.00",
             "cost_info": {
               "read_cost": "3.00",
-              "eval_cost": "0.20",
-              "prefix_cost": "8.00",
-              "data_read_per_join": "616"
+              "eval_cost": "0.60",
+              "prefix_cost": "8.40",
+              "data_read_per_join": "1K"
             },
             "used_columns": [
               "a",
@@ -1977,6 +1979,7 @@ select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
 2	2	2	2	2
+set @@optimizer_switch=@old_optimizer_switch;
 update t1, t3 set t3.b=10, t1.a=20;
 select * from t1 order by 1,2;
 a	b

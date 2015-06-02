@@ -934,6 +934,7 @@ SysTablespace::open_or_create(
 	/* Close the curent handles, add space and file info to the
 	fil_system cache and the Data Dictionary, and re-open them
 	in file_system cache so that they stay open until shutdown. */
+	ulint	node_counter = 0;
 	for (files_t::iterator it = begin; it != end; ++it) {
 		it->close();
 		it->m_exists = true;
@@ -950,13 +951,20 @@ SysTablespace::open_or_create(
 
 		ut_a(fil_validate());
 
-		/* Open the data file. */
-		if (!fil_node_create(
-			it->m_filepath, it->m_size,
-			space, it->m_type != SRV_NOT_RAW, it->m_atomic_write)) {
+		ulint	max_size = (++node_counter == m_files.size()
+				    ? (m_last_file_size_max == 0
+				       ? ULINT_MAX
+				       : m_last_file_size_max)
+				    : it->m_size);
 
-		       err = DB_ERROR;
-		       break;
+		/* Add the datafile to the fil_system cache. */
+		if (!fil_node_create(
+			    it->m_filepath, it->m_size,
+			    space, it->m_type != SRV_NOT_RAW,
+			    it->m_atomic_write, max_size)) {
+
+			err = DB_ERROR;
+			break;
 		}
 	}
 
@@ -965,7 +973,7 @@ SysTablespace::open_or_create(
 
 /** Normalize the file size, convert from megabytes to number of pages. */
 void
-SysTablespace::normalize()
+SysTablespace::normalize_size()
 {
 	files_t::iterator	end = m_files.end();
 

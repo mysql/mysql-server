@@ -24,6 +24,7 @@
    to_var       add to this array
    from_var     from this array
    add_com_vars if true, then add COM variables
+   reset_from_var if true, then memset from_var variable with 0
 
   NOTES
     This function assumes that all variables are longlong/ulonglong.
@@ -31,8 +32,8 @@
     the other variables after the while loop
 */
 
-void add_to_status(System_status_var *to_var, const System_status_var *from_var,
-                   bool add_com_vars)
+void add_to_status(System_status_var *to_var, System_status_var *from_var,
+                   bool add_com_vars, bool reset_from_var)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
@@ -49,6 +50,10 @@ void add_to_status(System_status_var *to_var, const System_status_var *from_var,
 
     for (c= 0; c< SQLCOM_END; c++)
       to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+  }
+  if (reset_from_var)
+  {
+    memset (from_var, 0, sizeof(*from_var));
   }
 }
 

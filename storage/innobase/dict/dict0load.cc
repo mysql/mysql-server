@@ -2522,8 +2522,8 @@ dict_get_and_save_space_name(
 	if (table->tablespace != NULL) {
 
 		if (srv_sys_tablespaces_open
-		    && 0 == strncmp(table->tablespace, general_space_name,
-			     strlen(general_space_name))) {
+		    && dict_table_has_temp_general_tablespace_name(
+			    table->tablespace)) {
 			/* We previous saved the temporary name,
 			get the real one now. */
 			use_cache = false;
@@ -2540,8 +2540,8 @@ dict_get_and_save_space_name(
 			/* Use this name unless it is a temporary general
 			tablespace name and we can now replace it. */
 			if (!srv_sys_tablespaces_open
-			    || 0 != strncmp(space->name, general_space_name,
-					    strlen(general_space_name))) {
+			    || !dict_table_has_temp_general_tablespace_name(
+				    space->name)) {
 
 				/* Use this tablespace name */
 				table->tablespace = mem_heap_strdup(
@@ -2681,7 +2681,12 @@ dict_load_tablespace(
 		return;
 	}
 
-	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
+	if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)
+	    /* FIXME: In WL#7141, the tweak below will be removed.
+	    On startup, mysql.* tables will be opened before
+	    dict_check_tablespaces_and_store_max_id() is called
+	    in srv_dict_recover_on_restart(). */
+	    && strncmp(table->name.m_name, "mysql/", 6)) {
 		ib::error() << "Failed to find tablespace for table "
 			<< table->name << " in the cache. Attempting"
 			" to load the tablespace with space id "

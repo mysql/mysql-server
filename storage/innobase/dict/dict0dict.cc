@@ -1354,7 +1354,7 @@ dict_table_can_be_evicted(
 
 			See also: dict_index_remove_from_cache_low() */
 
-			if (btr_search_info_get_ref_count(info) > 0) {
+			if (btr_search_info_get_ref_count(info, index) > 0) {
 				return(FALSE);
 			}
 		}
@@ -2764,7 +2764,7 @@ dict_index_remove_from_cache_low(
 	zero. See also: dict_table_can_be_evicted() */
 
 	do {
-		ulint ref_count = btr_search_info_get_ref_count(info);
+		ulint ref_count = btr_search_info_get_ref_count(info, index);
 
 		if (ref_count == 0) {
 			break;
@@ -6288,11 +6288,18 @@ void
 dict_close(void)
 /*============*/
 {
-	ulint	i;
+	if (dict_sys == NULL) {
+		/* This should only happen if a failure occurred
+		during redo log processing. */
+		return;
+	}
+
+	/* Acquire only because it's a pre-condition. */
+	mutex_enter(&dict_sys->mutex);
 
 	/* Free the hash elements. We don't remove them from the table
 	because we are going to destroy the table anyway. */
-	for (i = 0; i < hash_get_n_cells(dict_sys->table_hash); i++) {
+	for (ulint i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); i++) {
 		dict_table_t*	table;
 
 		table = static_cast<dict_table_t*>(
@@ -6303,15 +6310,8 @@ dict_close(void)
 
 			table = static_cast<dict_table_t*>(
 				HASH_GET_NEXT(name_hash, prev_table));
-#ifdef UNIV_DEBUG
-			ut_a(prev_table->magic_n == DICT_TABLE_MAGIC_N);
-#endif /* UNIV_DEBUG */
-			/* Acquire only because it's a pre-condition. */
-			mutex_enter(&dict_sys->mutex);
-
+			ut_ad(prev_table->magic_n == DICT_TABLE_MAGIC_N);
 			dict_table_remove_from_cache(prev_table);
-
-			mutex_exit(&dict_sys->mutex);
 		}
 	}
 
@@ -6323,11 +6323,17 @@ dict_close(void)
 
 	dict_ind_free();
 
+	mutex_exit(&dict_sys->mutex);
 	mutex_free(&dict_sys->mutex);
 
 	rw_lock_free(&dict_operation_lock);
 
 	mutex_free(&dict_foreign_err_mutex);
+
+	if (dict_foreign_err_file != NULL) {
+		fclose(dict_foreign_err_file);
+		dict_foreign_err_file = NULL;
+	}
 
 	ut_ad(dict_sys->size == 0);
 

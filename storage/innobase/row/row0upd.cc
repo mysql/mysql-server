@@ -1293,7 +1293,7 @@ row_upd_changes_ord_field_binary_func(
 					/* The externally stored field
 					was not written yet. This
 					record should only be seen by
-					recv_recovery_rollback_active(),
+					trx_rollback_or_clean_all_recovered(),
 					when the server had crashed before
 					storing the field. */
 					ut_ad(thr->graph->trx->is_recovered);
