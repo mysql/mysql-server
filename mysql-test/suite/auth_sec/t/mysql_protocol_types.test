@@ -75,7 +75,7 @@ disconnect socket_con4;
 --exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot --skip-ssl --protocol=SOCKET ping
 
 # Mysql client with SSL enabled server.
---exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK  --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --ssl --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 # Skipping SSL
 --exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --skip-ssl --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 
