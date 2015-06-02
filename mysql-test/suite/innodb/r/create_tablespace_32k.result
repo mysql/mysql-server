@@ -58,9 +58,11 @@ Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because
 Error	1528	Failed to create TABLESPACE s_64k
 Error	140	Wrong create option
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-s_32k	MYSQLD_DATADIR/s_32k.ibd	DEFAULT	0	Any	General
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_32k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_32k.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s_32k	TABLESPACE	InnoDB	NORMAL	s_32k	MYSQLD_DATADIR/s_32k.ibd
 #
 # Add tables to the tablespaces.
 #
@@ -129,9 +131,11 @@ INSERT INTO t_dyn_in_32k VALUES (4,'d');
 #
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-s_32k	MYSQLD_DATADIR/s_32k.ibd	DEFAULT	0	Any	General
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s_32k	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_32k.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s_32k	TABLESPACE	InnoDB	NORMAL	s_32k	MYSQLD_DATADIR/s_32k.ibd
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_com_in_32k	s_32k	129	5	Compact	0	General

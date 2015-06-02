@@ -5774,6 +5774,7 @@ void do_connect(struct st_command *command)
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   my_bool save_opt_use_ssl= opt_use_ssl;
+  my_bool save_opt_ssl_enforce= opt_ssl_enforce;
 #endif
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5914,6 +5915,7 @@ void do_connect(struct st_command *command)
   {
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
+    opt_ssl_enforce= 1;
   }
 #else
   /* keep the compiler happy about con_ssl */
@@ -5924,6 +5926,7 @@ void do_connect(struct st_command *command)
   /* Setting default as not ssl for mysqltest because of performance implications.*/
   mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
   opt_use_ssl= save_opt_use_ssl;
+  opt_ssl_enforce= save_opt_ssl_enforce;
 #endif
 
   if (con_pipe)
@@ -7281,7 +7284,9 @@ void init_win_path_patterns()
                           "$MYSQL_LIBDIR",
                           "./test/",
                           ".ibd",
-                          "ibdata"};
+                          "ibdata",
+                          "ibtmp",
+                          "undo"};
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;

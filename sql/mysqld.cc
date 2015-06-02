@@ -8228,16 +8228,15 @@ static void delete_pid_file(myf flags)
 class Reset_thd_status : public Do_THD_Impl
 {
 public:
-  Reset_thd_status(STATUS_VAR *global_status) : m_global_status(global_status) { }
+  Reset_thd_status() { }
   virtual void operator()(THD *thd)
   {
-    /* Add thread's status variabes to global status. */
-    add_to_status(m_global_status, &thd->status_var, true);
-    /* Reset thread's status variables. */
-    memset(&thd->status_var, 0, sizeof(thd->status_var));
+    /*
+      Add thread's status variabes to global status
+      and reset thread's status variables.
+    */
+    add_to_status(&global_status_var, &thd->status_var, true, true);
   }
-private:
-  STATUS_VAR* m_global_status;
 };
 
 /**
@@ -8249,16 +8248,16 @@ void refresh_status(THD *thd)
 
   if (show_compatibility_56)
   {
-    /* Add thread's status variables to global status. */
-    add_to_status(&global_status_var, &thd->status_var, true);
-
-    /* Reset current thread's status variables. */
-    memset(&thd->status_var, 0, sizeof(thd->status_var));
+    /*
+      Add thread's status variabes to global status
+      and reset current thread's status variables.
+    */
+    add_to_status(&global_status_var, &thd->status_var, true, true);
   }
   else
   {
     /* For all threads, add status to global status and then reset. */
-    Reset_thd_status reset_thd_status(&global_status_var);
+    Reset_thd_status reset_thd_status;
     Global_THD_manager::get_instance()->do_for_all_thd_copy(&reset_thd_status);
 #ifndef EMBEDDED_LIBRARY
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -8977,7 +8976,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},
-  { &key_memory_table_share, "TABLE_SHARE::mem_root", 0},
+  { &key_memory_table_share, "TABLE_SHARE::mem_root", PSI_FLAG_GLOBAL}, /* table definition cache */
   { &key_memory_gdl, "gdl", 0},
   { &key_memory_table_triggers_list, "Table_triggers_list", 0},
   { &key_memory_servers, "servers", 0},
@@ -9069,7 +9068,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_frm, "frm", 0},
   { &key_memory_Unique_sort_buffer, "Unique::sort_buffer", 0},
   { &key_memory_Unique_merge_buffer, "Unique::merge_buffer", 0},
-  { &key_memory_TABLE, "TABLE", 0},
+  { &key_memory_TABLE, "TABLE", PSI_FLAG_GLOBAL}, /* Table cache */
   { &key_memory_frm_extra_segment_buff, "frm::extra_segment_buff", 0},
   { &key_memory_frm_form_pos, "frm::form_pos", 0},
   { &key_memory_frm_string, "frm::string", 0},
@@ -9092,7 +9091,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_XID_STATE, "XID_STATE", 0},
   { &key_memory_MPVIO_EXT_auth_info, "MPVIO_EXT::auth_info", 0},
   { &key_memory_opt_bin_logname, "opt_bin_logname", 0},
-  { &key_memory_Query_cache, "Query_cache", 0},
+  { &key_memory_Query_cache, "Query_cache", PSI_FLAG_GLOBAL},
   { &key_memory_READ_RECORD_cache, "READ_RECORD_cache", 0},
   { &key_memory_Quick_ranges, "Quick_ranges", 0},
   { &key_memory_File_query_log_name, "File_query_log::name", 0},

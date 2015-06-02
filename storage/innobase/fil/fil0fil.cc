@@ -43,7 +43,6 @@ Created 10/25/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "row0mysql.h"
 #include "row0trunc.h"
-#include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "ut0new.h"
@@ -555,9 +554,12 @@ fil_fusionio_enable_atomic_write(os_file_t file)
 @param[in]	size		file size in entire database blocks
 @param[in,out]	space		tablespace from fil_space_create()
 @param[in]	is_raw		whether this is a raw device or partition
-@param[in]	atomic_write	true if the file has atomic write enabled
 @param[in]	punch_hole	true if supported for this node
-@return pointer to the file name, or NULL on error */
+@param[in]	atomic_write	true if the file has atomic write enabled
+@param[in]	max_pages	maximum number of pages in file,
+ULINT_MAX means the file size is unlimited.
+@return pointer to the file name
+@retval NULL if error */
 static
 fil_node_t*
 fil_node_create_low(
@@ -566,7 +568,8 @@ fil_node_create_low(
 	fil_space_t*	space,
 	bool		is_raw,
 	bool		punch_hole,
-	bool		atomic_write)
+	bool		atomic_write,
+	ulint		max_pages = ULINT_MAX)
 {
 	fil_node_t*	node;
 
@@ -590,6 +593,9 @@ fil_node_create_low(
 	node->size = size;
 
 	node->magic_n = FIL_NODE_MAGIC_N;
+
+	node->init_size = size;
+	node->max_size = max_pages;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -627,29 +633,31 @@ fil_node_create_low(
 	return(node);
 }
 
-/**
-Appends a new file to the chain of files of a space. File must be closed.
-@param[in] name		file name (file must be closed)
-@param[in] size		file size in database blocks, rounded downwards to
-			an integer
-@param[in,out] space	space where to append
-@param[in] is_raw	true if a raw device or a raw disk partition
-@param[in] atomic_write	true if the file has atomic write enabled
-@return pointer to the file name, or NULL on error */
-
+/** Appends a new file to the chain of files of a space. File must be closed.
+@param[in]	name		file name (file must be closed)
+@param[in]	size		file size in database blocks, rounded downwards to
+				an integer
+@param[in,out]	space		space where to append
+@param[in]	is_raw		true if a raw device or a raw disk partition
+@param[in]	atomic_write	true if the file has atomic write enabled
+@param[in]	max_pages	maximum number of pages in file,
+ULINT_MAX means the file size is unlimited.
+@return pointer to the file name
+@retval NULL if error */
 char*
 fil_node_create(
 	const char*	name,
 	ulint		size,
 	fil_space_t*	space,
 	bool		is_raw,
-	bool		atomic_write)
+	bool		atomic_write,
+	ulint		max_pages)
 {
 	fil_node_t*	node;
 
 	node = fil_node_create_low(
 		name, size, space, is_raw, IORequest::is_punch_hole_supported(),
-		atomic_write);
+		atomic_write, max_pages);
 
 	return(node == NULL ? NULL : node->name);
 }
@@ -5097,10 +5105,11 @@ fil_io(
 
 	fil_space_t*	space = fil_space_get_by_id(page_id.space());
 
-	/* If we are deleting a tablespace we don't allow any read
-	operations on that. However, we do allow write operations. */
+	/* If we are deleting a tablespace we don't allow async read operations
+	on that. However, we do allow write operations and sync read operations. */
 	if (space == NULL
 	    || (req_type.is_read()
+		&& !sync
 		&& space->stop_new_ops
 		&& !space->is_being_truncated)) {
 
@@ -6188,6 +6197,62 @@ fil_get_space_names(
 	mutex_exit(&fil_system->mutex);
 
 	return(err);
+}
+
+/** Return the next fil_node_t in the current or next fil_space_t.
+Once started, the caller must keep calling this until it returns NULL.
+fil_space_acquire() and fil_space_release() are invoked here which
+blocks a concurrent operation from dropping the tablespace.
+@param[in]	prev_node	Pointer to the previous fil_node_t.
+If NULL, use the first fil_space_t on fil_system->space_list.
+@return pointer to the next fil_node_t.
+@retval NULL if this was the last file node */
+const fil_node_t*
+fil_node_next(
+	const fil_node_t*	prev_node)
+{
+	fil_space_t*		space;
+	const fil_node_t*	node = prev_node;
+
+	mutex_enter(&fil_system->mutex);
+
+	if (node == NULL) {
+		space = UT_LIST_GET_FIRST(fil_system->space_list);
+
+		/* We can trust that space is not NULL because at least the
+		system tablespace is always present and loaded first. */
+		space->n_pending_ops++;
+
+		node = UT_LIST_GET_FIRST(space->chain);
+		ut_ad(node != NULL);
+	} else {
+		space = node->space;
+		ut_ad(space->n_pending_ops > 0);
+		node = UT_LIST_GET_NEXT(chain, node);
+
+		if (node == NULL) {
+			/* Move on to the next fil_space_t */
+			space->n_pending_ops--;
+			space = UT_LIST_GET_NEXT(space_list, space);
+
+			/* Skip spaces that are being dropped or truncated. */
+			while (space != NULL
+			       && (space->stop_new_ops
+				   || space->is_being_truncated)) {
+				space = UT_LIST_GET_NEXT(space_list, space);
+			}
+
+			if (space != NULL) {
+				space->n_pending_ops++;
+				node = UT_LIST_GET_FIRST(space->chain);
+				ut_ad(node != NULL);
+			}
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(node);
 }
 
 /** Generate redo log for swapping two .ibd files

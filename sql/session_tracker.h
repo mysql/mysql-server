@@ -95,6 +95,9 @@ public:
 
   /** Mark the entity as changed. */
   virtual void mark_as_changed(THD *thd, LEX_CSTRING *name)= 0;
+
+  virtual void claim_memory_ownership()
+  {}
 };
 
 
@@ -163,6 +166,8 @@ public:
     for (int i= 0; i <= SESSION_TRACKER_END; i ++)
       delete m_trackers[i];
   }
+
+  void claim_memory_ownership();
 };
 
 /*

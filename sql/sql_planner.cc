@@ -3843,6 +3843,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
   double cost, rowcount;
   double inner_fanout= 1.0;
   double outer_fanout= 1.0;
+  double max_outer_fanout= 1.0;
   uint rowsize;             // Row size of the temporary table
   if (first_tab == join->const_tables)
   {
@@ -3857,25 +3858,14 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
     rowsize= 8;             // This is not true but we'll make it so
   }
   /**
-    @todo: Some times, some outer fanout is "absorbed" into the inner fanout.
+    Some times, some outer fanout is "absorbed" into the inner fanout.
     In this case, we should make a better estimate for outer_fanout that
     is used to calculate the output rowcount.
-    Trial code:
-      if (inner_fanout > 1.0)
-      {
-       // We have inner table(s) before an outer table. If there are
-       // dependencies between these tables, the fanout for the outer
-       // table is not a good estimate for the final number of rows from
-       // the weedout execution, therefore we convert some of the inner
-       // fanout into an outer fanout, limited to the number of possible
-       // rows in the outer table.
-        double fanout= min(inner_fanout * p->rows_fetched,
-                           p->table->table->quick_condition_rows);
-        inner_fanout*= p->rows_fetched / fanout;
-        outer_fanout*= fanout;
-      }
-      else
-        outer_fanout*= p->rows_fetched;
+    If we have inner table(s) before an outer table, there are
+    dependencies between these tables. The fanout for the outer table is
+    not a good estimate for the final number of rows from the weedout
+    execution, therefore we convert some of the inner fanout into an outer
+    fanout, limited to the number of possible rows in the outer table.
   */
   for (uint j= first_tab; j <= last_tab; j++)
   {
@@ -3888,13 +3878,39 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       inner_fanout*= p->rows_fetched * p->filter_effect;
     else
     {
-      outer_fanout*= p->rows_fetched * p->filter_effect;
+      /*
+        max_outer_fanout is the cardinality of the cross product
+        of the outer tables.
+        @note: We do not consider dependencies between these tables here.
+      */
+      double total_records= p->table->table()->file->stats.records;
+      max_outer_fanout*= total_records * p->filter_effect;
+      if (inner_fanout > 1.0 )
+      {
+        // Absorb inner fanout into the outer fanout
+        outer_fanout*= inner_fanout * p->rows_fetched * p->filter_effect;
+        inner_fanout= 1;
+      }
+      else
+        outer_fanout*= p->rows_fetched * p->filter_effect;
       rowsize+= p->table->table()->file->ref_length;
     }
   }
 
+  if (max_outer_fanout < outer_fanout)
+  {
+    /*
+      The calculated fanout for the outer tables is bigger than
+      the cardinality of the cross product of the outer tables.
+      Adjust outer fanout to the max value, but also adjust
+      inner fanout so that inner_fanout * outer_fanout is still
+      the same (dups weedout runs a complete join internally).
+    */
+    inner_fanout*= outer_fanout / max_outer_fanout;
+    outer_fanout= max_outer_fanout;
+  }
+
   /*
-    @todo: Change this paragraph in concert with the todo note above.
     Add the cost of temptable use. The table will have outer_fanout rows,
     and we will make 
     - rowcount * outer_fanout writes

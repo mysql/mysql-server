@@ -2650,6 +2650,8 @@ struct PSI_v1
   memory_alloc_v1_t memory_alloc;
   /** @sa memory_realloc_v1_t. */
   memory_realloc_v1_t memory_realloc;
+  /** @sa memory_claim_v1_t. */
+  memory_claim_v1_t memory_claim;
   /** @sa memory_free_v1_t. */
   memory_free_v1_t memory_free;
 

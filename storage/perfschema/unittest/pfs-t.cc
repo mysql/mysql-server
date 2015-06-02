@@ -1705,6 +1705,7 @@ void test_event_name_index()
 void test_memory_instruments()
 {
   PSI *psi;
+  PSI_thread *owner;
 
   diag("test_memory_instruments");
 
@@ -1750,39 +1751,39 @@ void test_memory_instruments()
 
   /* for coverage, need to print stats collected. */
 
-  key= psi->memory_alloc(memory_key_A, 100);
+  key= psi->memory_alloc(memory_key_A, 100, & owner);
   ok(key == memory_key_A, "alloc memory info A");
-  key= psi->memory_realloc(memory_key_A, 100, 200);
+  key= psi->memory_realloc(memory_key_A, 100, 200, & owner);
   ok(key == memory_key_A, "realloc memory info A");
-  key= psi->memory_realloc(memory_key_A, 200, 300);
+  key= psi->memory_realloc(memory_key_A, 200, 300, & owner);
   ok(key == memory_key_A, "realloc up memory info A");
-  key= psi->memory_realloc(memory_key_A, 300, 50);
+  key= psi->memory_realloc(memory_key_A, 300, 50, & owner);
   ok(key == memory_key_A, "realloc down memory info A");
-  psi->memory_free(memory_key_A, 50);
+  psi->memory_free(memory_key_A, 50, owner);
 
   /* Use global instrumentation only */
   /* ------------------------------- */
 
   flag_thread_instrumentation= false;
 
-  key= psi->memory_alloc(memory_key_A, 100);
+  key= psi->memory_alloc(memory_key_A, 100, & owner);
   ok(key == memory_key_A, "alloc memory info A");
-  key= psi->memory_realloc(memory_key_A, 100, 200);
+  key= psi->memory_realloc(memory_key_A, 100, 200, & owner);
   ok(key == memory_key_A, "realloc memory info A");
-  key= psi->memory_realloc(memory_key_A, 200, 300);
+  key= psi->memory_realloc(memory_key_A, 200, 300, & owner);
   ok(key == memory_key_A, "realloc up memory info A");
-  key= psi->memory_realloc(memory_key_A, 300, 50);
+  key= psi->memory_realloc(memory_key_A, 300, 50, & owner);
   ok(key == memory_key_A, "realloc down memory info A");
-  psi->memory_free(memory_key_A, 50);
+  psi->memory_free(memory_key_A, 50, owner);
 
   /* Garbage, for robustness */
   /* ----------------------- */
 
-  key= psi->memory_alloc(9999, 100);
+  key= psi->memory_alloc(9999, 100, & owner);
   ok(key == PSI_NOT_INSTRUMENTED, "alloc with unknown key");
-  key= psi->memory_realloc(PSI_NOT_INSTRUMENTED, 100, 200);
+  key= psi->memory_realloc(PSI_NOT_INSTRUMENTED, 100, 200, & owner);
   ok(key == PSI_NOT_INSTRUMENTED, "realloc with unknown key");
-  psi->memory_free(PSI_NOT_INSTRUMENTED, 200);
+  psi->memory_free(PSI_NOT_INSTRUMENTED, 200, owner);
 
   shutdown_performance_schema();
 }

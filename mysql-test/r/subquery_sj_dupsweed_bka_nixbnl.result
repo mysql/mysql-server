@@ -3391,7 +3391,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "17.03"
+      "query_cost": "18.43"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -3430,13 +3430,13 @@ EXPLAIN
               "test.t11.a"
             ],
             "rows_examined_per_scan": 1,
-            "rows_produced_per_join": 1,
+            "rows_produced_per_join": 8,
             "filtered": "100.00",
             "cost_info": {
               "read_cost": "8.00",
-              "eval_cost": "0.20",
-              "prefix_cost": "17.03",
-              "data_read_per_join": "16"
+              "eval_cost": "1.60",
+              "prefix_cost": "18.43",
+              "data_read_per_join": "128"
             },
             "used_columns": [
               "a",
@@ -3777,7 +3777,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "152.03"
+      "query_cost": "170.03"
     },
     "nested_loop": [
       {
@@ -3838,13 +3838,13 @@ EXPLAIN
                   "test.t2.a"
                 ],
                 "rows_examined_per_scan": 10,
-                "rows_produced_per_join": 10,
+                "rows_produced_per_join": 100,
                 "filtered": "100.00",
                 "cost_info": {
                   "read_cost": "100.00",
-                  "eval_cost": "2.00",
-                  "prefix_cost": "152.03",
-                  "data_read_per_join": "1K"
+                  "eval_cost": "20.00",
+                  "prefix_cost": "170.03",
+                  "data_read_per_join": "10K"
                 },
                 "used_columns": [
                   "a",
@@ -7696,8 +7696,8 @@ and t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	2	100.00	End temporary
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	11.11	Using where
+1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	2	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
 select name from t2, t1 
@@ -10227,14 +10227,14 @@ FROM ( view_c AS sq2_alias1, t1 AS sq2_alias2 )
 )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Start temporary
-1	SIMPLE	t2	NULL	index	col_int_key	col_int_key	5	NULL	5	100.00	Using where; Using index
-1	SIMPLE	alias3	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.t2.col_int_key	1	100.00	Using where
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	2	100.00	Using index
+1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index; Start temporary
+1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	test.alias3.pk	2	100.00	Using index
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using index; End temporary
 Warnings:
-Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`alias3`.`pk` = `test`.`t2`.`col_int_key`))
+Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_int_key` = `test`.`alias3`.`pk`))
 PREPARE prep_stmt_7430 FROM 'SELECT SUM( alias1.col_varchar_key ) AS field1
 FROM t1 AS alias1
 RIGHT JOIN t2 AS alias2
@@ -10274,15 +10274,15 @@ AND sq2_alias1.col_varchar_key < "l"
   )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	col_int_key,col_varchar_key	col_varchar_key	4	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	alias3	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.t2.col_int_key	1	100.00	Using where
-1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	test.alias3.pk	2	40.00	Using where; Start temporary
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	2	100.00	Using index
+1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using index; End temporary
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`alias3`.`pk` = `test`.`t2`.`col_int_key`) and (`test`.`t2`.`col_varchar_nokey` <> `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_varchar_key` < 'l'))
+Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_int_key` = `test`.`alias3`.`pk`) and (`test`.`t2`.`col_varchar_nokey` <> `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_varchar_key` < 'l'))
 DROP TABLE t1,t2;
 DROP VIEW view_c;
 #
@@ -10964,7 +10964,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "37.63"
+      "query_cost": "69.12"
     },
     "nested_loop": [
       {
@@ -11010,13 +11010,13 @@ EXPLAIN
                   "test.derived2.col_varchar_nokey"
                 ],
                 "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 2,
+                "rows_produced_per_join": 7,
                 "filtered": "100.00",
                 "cost_info": {
                   "read_cost": "14.00",
-                  "eval_cost": "0.40",
-                  "prefix_cost": "25.43",
-                  "data_read_per_join": "32"
+                  "eval_cost": "1.40",
+                  "prefix_cost": "26.43",
+                  "data_read_per_join": "112"
                 },
                 "used_columns": [
                   "col_varchar_key",
@@ -11060,13 +11060,13 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 20,
-          "rows_produced_per_join": 40,
+          "rows_produced_per_join": 140,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "4.20",
-            "eval_cost": "8.00",
-            "prefix_cost": "37.63",
-            "data_read_per_join": "320"
+            "read_cost": "14.68",
+            "eval_cost": "28.00",
+            "prefix_cost": "69.12",
+            "data_read_per_join": "1K"
           },
           "used_columns": [
             "col_varchar_nokey"
@@ -12092,5 +12092,69 @@ WHERE 1 IN (SELECT (a.b IS NULL) IN (SELECT 1 FROM c) FROM c)
 ;
 1
 DROP TABLE a, c;
+#
+# Bug#18194196: OPTIMIZER EXECUTES STATEMENT INPERFORMANT
+#
+CREATE TABLE t1 (uid INTEGER, fid INTEGER, INDEX(uid));
+INSERT INTO t1 VALUES
+(1,1), (1,2), (1,3), (1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+CREATE TABLE t2 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t2 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+CREATE TABLE t3 (uid INT, fid INT, INDEX(uid));
+INSERT INTO t3 VALUES
+(1,1), (1,2), (1,3),(1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+CREATE TABLE t4 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t4 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+ANALYZE TABLE t1,t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
+1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	4	100.00	Using where; End temporary
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
+FLUSH STATUS;
+SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+name
+A
+B
+C
+D
+E
+F
+G
+H
+A
+B
+I
+SHOW STATUS LIKE '%handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	20
+Handler_read_last	0
+Handler_read_next	15
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1,t2,t3,t4;
+# End of test for Bug#18194196
 set optimizer_switch=default;
 set optimizer_switch=default;
