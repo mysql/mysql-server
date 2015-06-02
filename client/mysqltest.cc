@@ -301,7 +301,6 @@ struct MasterPos
 
 /* if set, all results are concated and compared against this file */
 const char *result_file_name= 0;
-const char *test_file_name= 0;
 
 typedef struct
 {
@@ -6951,7 +6950,7 @@ static struct my_option my_long_options[] =
    &opt_tail_lines, &opt_tail_lines, 0,
    GET_INT, REQUIRED_ARG, 0, 0, 10000, 0, 0, 0},
   {"test-file", 'x', "Read test from/in this file (default stdin).",
-   &test_file_name, &test_file_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}, 
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"timer-file", 'm', "File where the timing in microseconds is stored.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
@@ -9023,7 +9022,7 @@ int main(int argc, char **argv)
 
   parse_args(argc, argv);
 
-  log_file.open(opt_logdir, test_file_name, ".log");
+  log_file.open(opt_logdir, result_file_name, ".log");
   verbose_msg("Logging to '%s'.", log_file.file_name());
   if (opt_mark_progress)
   {
