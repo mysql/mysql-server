@@ -7314,10 +7314,10 @@ ER_SLAVE_MAX_CHANNELS_EXCEEDED
    eng "Maximum number of replication channels allowed exceeded."
 
 ER_SLAVE_CHANNEL_MUST_STOP
-   eng "This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
+   eng "This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
 
 ER_SLAVE_CHANNEL_NOT_RUNNING
-   eng "This operation requires a running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
+   eng "This operation requires running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
 
 ER_SLAVE_CHANNEL_WAS_RUNNING
    eng "Replication thread(s) for channel '%s' are already runnning."
