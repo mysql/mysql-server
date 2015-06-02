@@ -115,6 +115,17 @@ public:
 	}
 
 	void
+	del(
+		uint64_t	key)
+	{
+		m_map_latch.enter(0, 0, __FILE__, __LINE__);
+
+		m_map.erase(key);
+
+		m_map_latch.exit();
+	}
+
+	void
 	inc(
 		uint64_t	key)
 	{
@@ -202,6 +213,22 @@ hash_insert(
 	}
 }
 
+/** Delete the tuples from the hash, inserted by hash_insert(), when called
+with the same arguments.
+@param[in,out]	hash		hash from which to delete
+@param[in]	n_elements	number of elements to delete
+@param[in]	key_extra_bits	extra bits to use for key generation */
+void
+hash_delete(
+	ut_hash_interface_t*	hash,
+	size_t			n_elements,
+	uint64_t		key_extra_bits)
+{
+	for (size_t i = 0; i < n_elements; i++) {
+		hash->del(key_gen(i, key_extra_bits));
+	}
+}
+
 /** Check that the tuples inserted by hash_insert() are present in the hash.
 @param[in]	hash		hash to check
 @param[in]	n_elements	number of elements inserted by hash_insert()
@@ -219,6 +246,25 @@ hash_check_inserted(
 	}
 }
 
+/** Check that the tuples deleted by hash_delete() are missing from the hash.
+@param[in]	hash		hash to check
+@param[in]	n_elements	number of elements deleted by hash_delete()
+@param[in]	key_extra_bits	extra bits that were given to hash_delete() */
+void
+hash_check_deleted(
+	const ut_hash_interface_t*	hash,
+	size_t				n_elements,
+	uint64_t			key_extra_bits)
+{
+	for (size_t i = 0; i < n_elements; i++) {
+		const uint64_t	key = key_gen(i, key_extra_bits);
+
+		const int64_t	not_found = ut_hash_interface_t::NOT_FOUND;
+
+		ASSERT_EQ(not_found, hash->get(key));
+	}
+}
+
 TEST(ut0lock_free_hash, single_threaded)
 {
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
@@ -228,6 +274,14 @@ TEST(ut0lock_free_hash, single_threaded)
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
 	const size_t	n_elements = 16 * 1024;
+
+	hash_insert(hash, n_elements, 0);
+
+	hash_check_inserted(hash, n_elements, 0);
+
+	hash_delete(hash, n_elements, 0);
+
+	hash_check_deleted(hash, n_elements, 0);
 
 	hash_insert(hash, n_elements, 0);
 
@@ -263,6 +317,10 @@ TEST(ut0lock_free_hash, single_threaded)
 			  hash->get(key_gen(i, 0)));
 	}
 
+	hash_delete(hash, n_elements, 0);
+
+	hash_check_deleted(hash, n_elements, 0);
+
 	delete hash;
 }
 
@@ -293,6 +351,8 @@ DECLARE_THREAD(thread)(
 
 	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
+	hash_check_inserted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+
 	const size_t	n_iter = 512;
 
 	for (size_t i = 0; i < n_iter; i++) {
@@ -322,6 +382,10 @@ DECLARE_THREAD(thread)(
 	}
 
 	hash_check_inserted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+
+	hash_delete(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+
+	hash_check_deleted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
 
 	os_thread_exit(NULL);
 

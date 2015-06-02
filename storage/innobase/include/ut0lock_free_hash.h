@@ -67,6 +67,13 @@ public:
 		uint64_t	key,
 		int64_t		val) = 0;
 
+	/** Delete a (key, val) pair from the hash.
+	@param[in]	key	key whose pair to delete */
+	virtual
+	void
+	del(
+		uint64_t	key) = 0;
+
 	/** Increment the value for a given key with 1 or insert a new tuple
 	(key, 1).
 	@param[in]	key	key whose value to increment or insert as 1 */
@@ -159,11 +166,20 @@ public:
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
 and the value are of integer type.
-Assumptions:
-* Keys can only transition from UNUSED to some real value, but never
-from a real value to UNUSED or from a real value to another real value.
-* Values can only transition from NOT_FOUND to some real value, but never
-from a real value to NOT_FOUND. */
+* Transitions for keys (a real key is anything other than UNUSED and DELETED):
+  * UNUSED -> real key -- allowed
+  * real key -> DELETED -- allowed
+  anything else is not allowed, for example:
+  * real key -> UNUSED -- not allowed
+  * real key -> another real key -- not allowed
+  * UNUSED -> DELETED -- not allowed
+  * DELETED -> real key -- not allowed
+  * DELETED -> UNUSED -- not allowed
+* Transitions for values (a real value is anything other than NOT_FOUND):
+  * NOT_FOUND -> real value -- allowed
+  * real value -> another real value -- allowed
+  * real value -> NOT_FOUND -- not allowed
+*/
 class ut_lock_free_hash_t : public ut_hash_interface_t {
 public:
 	/** Constructor. Not thread safe.
@@ -199,6 +215,7 @@ public:
 		uint64_t	key) const
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != DELETED);
 
 		const key_val_t*	tuple = get_tuple(key);
 
@@ -210,6 +227,17 @@ public:
 		first time, then the tuple could be (key, NOT_FOUND)
 		(remember all vals are initialized to NOT_FOUND initially)
 		in which case we will return NOT_FOUND below which is fine. */
+
+		/* Another acceptable thing that can happen here is if another
+		thread deletes this (key, val) tuple from the hash after
+		get_tuple() above has found it and returned != NULL. Then this
+		late get() will succeed and return the value even though at
+		the time of return the tuple may already be
+		(key == DELETED, val == some real value). It is up to the
+		caller to handle such a situation or prevent it from happening
+		altogether at a higher level in the code. It is acceptable
+		because it is the same as if get() completed before del()
+		started. */
 
 		return(tuple->m_val.load());
 	}
@@ -231,11 +259,51 @@ public:
 		int64_t		val)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != DELETED);
 		ut_ad(val != NOT_FOUND);
 
 		key_val_t*	tuple = insert_or_get_position(key);
 
 		tuple->m_val.store(val);
+	}
+
+	/** Delete a (key, val) pair from the hash.
+	If this gets called concurrently with get(), inc(), dec() or set(),
+	then to the caller it will look like the calls executed in isolation,
+	the hash structure itself will not be damaged, but it is undefined in
+	what order the calls will be executed. For example:
+	Let this tuple exist in the hash: (key == 5, val == 10)
+	Thread 1: inc(key == 5)
+	Thread 2: del(key == 5)
+	[1] If inc() executes first then the tuple will become
+	(key == 5, val == 11) and then del() will make it
+	(key == DELETED, val == 11). At the end the hash will not contain a
+	tuple for key == 5.
+	[2] If del() executes first then the tuple will become
+	(key == DELETED, val == 10) and then inc() will insert a new tuple
+	(key == 5, value == 1).
+	It is undefined which one of [1] or [2] will happen. It is up to the
+	caller to accept this behavior or prevent it at a higher level.
+	@param[in]	key	key whose pair to delete */
+	void
+	del(
+		uint64_t	key)
+	{
+		ut_ad(key != UNUSED);
+		ut_ad(key != DELETED);
+
+		key_val_t*	tuple = get_tuple(key);
+
+		if (tuple == NULL) {
+			/* Nothing to delete. */
+			return;
+		}
+
+		/* There is no need for CAS(key -> DELETED) here because
+		key is not allowed to change to another key. It is only
+		allowed to change into DELETED. A concurrent execution of
+		to del(same key) is fine. */
+		tuple->m_key.store(DELETED);
 	}
 
 	/** Increment the value for a given key with 1 or insert a new tuple
@@ -258,6 +326,7 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != DELETED);
 
 		key_val_t*	tuple = insert_or_get_position(key);
 
@@ -268,7 +337,8 @@ public:
 		to NOT_FOUND. */
 		int64_t	not_found = NOT_FOUND;
 		if (!tuple->m_val.compare_exchange_strong(not_found, 1)) {
-			++tuple->m_val;
+			const int64_t	new_val = ++tuple->m_val;
+			ut_a(new_val != NOT_FOUND);
 		}
 	}
 
@@ -284,6 +354,7 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != DELETED);
 
 		key_val_t*	tuple = insert_or_get_position(key);
 
@@ -294,7 +365,8 @@ public:
 		to NOT_FOUND. */
 		int64_t	not_found = NOT_FOUND;
 		if (!tuple->m_val.compare_exchange_strong(not_found, -1)) {
-			--tuple->m_val;
+			const int64_t	new_val = --tuple->m_val;
+			ut_a(new_val != NOT_FOUND);
 		}
 	}
 
@@ -321,6 +393,15 @@ public:
 private:
 	/** A key == UNUSED designates that this cell in the array is empty. */
 	static const uint64_t	UNUSED = UINT64_MAX;
+
+	/** A key == DELETED designates that this cell in the array has been
+	used in the past, but it was deleted later. Searches should skip
+	through it and continue as if it was a real value != UNUSED. It is
+	important that such a cell is never reused for another tuple because
+	late get(), inc() or dec() operations from the time before the key was
+	set to DELETED could still be lurking to execute or be executing right
+	now. */
+	static const uint64_t	DELETED = UINT64_MAX - 1;
 
 	/** (key, val) tuple type. */
 	struct key_val_t {
@@ -351,7 +432,7 @@ private:
 		size_t		arr_size) const
 	{
 		/* Implement a better hashing function to map
-		[0, UINTPTR_MAX] -> [0, arr_size - 1] if this one turns
+		[0, UINT64_MAX] -> [0, arr_size - 1] if this one turns
 		out to generate too many collisions. */
 
 		/* arr_size is a power of 2. */
@@ -396,10 +477,18 @@ private:
 			const uint64_t	cur_key = cur_tuple->m_key.load();
 
 			if (cur_key == key) {
+				/* cur_tuple->m_key could be changed to
+				DELETED just after we have read it above, this
+				is fine - let the current operation complete
+				like it could have completed before the key
+				was set to DELETED. */
 				return(cur_tuple);
 			} else if (cur_key == UNUSED) {
 				return(NULL);
 			}
+
+			/* cur_key could be == DELETED here, skip through it
+			and continue the search. */
 		}
 
 		return(NULL);
@@ -488,9 +577,14 @@ private:
 				}
 
 				/* The current key, which was UNUSED, has been
-				replaced with something else (!= key). Keep
-				searching for a free slot. */
+				replaced with something else (!= key) by a
+				concurrently executing insert. Keep searching
+				for a free slot. */
 			}
+
+			/* cur_key could be DELETED here, just skip through it
+			like it was a normal key, other than UNUSED and the
+			searched for key. */
 		}
 
 		return(NULL);

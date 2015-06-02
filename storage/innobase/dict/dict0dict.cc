@@ -29,6 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mysqld.h"                             // system_charset_info
 #include <strfunc.h>
 
+#include "buf0stats.h"
 #include "dict0dict.h"
 #include "fts0fts.h"
 #include "fil0fil.h"
@@ -2791,12 +2792,21 @@ dict_index_remove_from_cache_low(
 
 	rw_lock_free(&index->lock);
 
-	/* The index is being dropped, remove any compression stats for it. */
-	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
-		index_id_t	id(index->space, index->id);
-		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index.erase(id);
-		mutex_exit(&page_zip_stat_per_index_mutex);
+	/* The index is being dropped, remove any stats for it. */
+	if (!lru_evict) {
+		const index_id_t	id(index->space, index->id);
+
+		if (DICT_TF_GET_ZIP_SSIZE(index->table->flags) != 0) {
+			mutex_enter(&page_zip_stat_per_index_mutex);
+			page_zip_stat_per_index.erase(id);
+			mutex_exit(&page_zip_stat_per_index_mutex);
+		}
+
+		ib::info() /* XXX */
+			<< buf_stat_per_index->get(id)
+			<< " drop index index_id="
+			<< index->space << ":" << index->id;
+		buf_stat_per_index->drop(id);
 	}
 
 	/* Remove the index from the list of indexes of the table */
