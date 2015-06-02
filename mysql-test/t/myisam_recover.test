@@ -129,7 +129,6 @@ connection default;
 --echo # middle of transaction, without aborting it.
 
 connection default;
---let $MYSQL_DATA_DIR=`select @@datadir`
 
 create table t1 (a int, key(a)) engine=myisam;
 create table t2 (a int);
@@ -156,7 +155,7 @@ select * from t2;
 --echo # Without fix select from t1 will break the transaction. After the fix
 --echo # transaction should be active and should hold lock on table t2. Alter
 --echo # table from con2 will wait only if the transaction is not broken.
---replace_result $MYSQL_DATA_DIR '' ./ '' test/ ''
+--replace_regex /'.*[\/\\]/'/
 select * from t1;
 
 connect(con2, localhost, root);
