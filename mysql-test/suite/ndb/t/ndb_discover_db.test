@@ -72,6 +72,38 @@ reset master;
 insert into discover_db_2.t1 values (1,1);
 --source include/show_binlog_events2.inc
 
+ #
+# Bug#16890703 MYSQLD STUCK IN OPN TABLES ON SELECT FROM 
+# RESTORED TABLE WHERE DB IS NOT THERE
+#
+-- connection server2
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Deleting table t1 metadata files and discover_db directory from fs.
+#--echo rm -fr $MYSQLD_DATADIR/discover_db/*
+--remove_file $MYSQLD_DATADIR/discover_db/db.opt
+--remove_file $MYSQLD_DATADIR/discover_db/t1.ndb
+--remove_file $MYSQLD_DATADIR/discover_db/t1.frm
+#--echo rmdir $MYSQLD_DATADIR/discover_db
+rmdir $MYSQLD_DATADIR/discover_db;
+-- connection server1
+let $MYSQLD_DATADIR= `select @@datadir`;
+--echo Deleting table t1 metadata files and discover_db directory from fs.
+#--echo rm -fr $MYSQLD_DATADIR/discover_db/*
+--remove_file $MYSQLD_DATADIR/discover_db/db.opt
+--remove_file $MYSQLD_DATADIR/discover_db/t1.ndb
+--remove_file $MYSQLD_DATADIR/discover_db/t1.frm
+#--echo rmdir $MYSQLD_DATADIR/discover_db
+rmdir $MYSQLD_DATADIR/discover_db;
+
+flush tables;
+--echo Attempt to access table should get error
+--error ER_NO_SUCH_TABLE
+select * from discover_db.t1;
+
+--echo Attempt to access table after database created should be ok
+create database discover_db;
+select * from discover_db.t1;
+
 #
 # Cleanup
 #
