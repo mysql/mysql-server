@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -370,6 +370,11 @@ public:
      * Array length for column or max length for variable length arrays.
      */
     int getLength() const;
+
+    /**
+     * Get size required to store column in NdbRecord layout.
+     */
+    int getSizeInBytesForRecord() const;
 
     /**
      * For Char or Varchar or Text, get MySQL CHARSET_INFO.  This
