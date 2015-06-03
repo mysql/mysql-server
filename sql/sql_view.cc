@@ -228,7 +228,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
     view->definer.user= decoy.definer.user;
     lex->definer= &view->definer;
   }
-  if (lex->create_view_algorithm == DTYPE_ALGORITHM_UNDEFINED)
+  if (lex->create_view_algorithm == VIEW_ALGORITHM_INHERIT)
     lex->create_view_algorithm= (uint8) decoy.algorithm;
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
     lex->create_view_suid= decoy.view_suid ? 

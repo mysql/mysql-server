@@ -5411,6 +5411,24 @@ create view v2 as select t2.* from (t2 left join v1 using (id));
 update t3 left join v2 using (id) set flag=flag+1;
 drop view v2, v1;
 drop table t1, t2, t3;
+#
+# MDEV-7207 - ALTER VIEW does not change ALGORITM
+#
+create table t1 (a int, b int);
+create algorithm=temptable view v2 (c) as select b+1 from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+alter algorithm=undefined view v2 (c) as select b+1 from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+alter algorithm=merge view v2 (c) as select b+1 from t1;
+show create view v2;
+View	Create View	character_set_client	collation_connection
+v2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
+drop view v2;
+drop table t1;
 # -----------------------------------------------------------------
 # -- End of 5.5 tests.
 # -----------------------------------------------------------------

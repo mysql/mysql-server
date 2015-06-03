@@ -5367,6 +5367,19 @@ update t3 left join v2 using (id) set flag=flag+1;
 drop view v2, v1;
 drop table t1, t2, t3;
 
+--echo #
+--echo # MDEV-7207 - ALTER VIEW does not change ALGORITM
+--echo #
+create table t1 (a int, b int);
+create algorithm=temptable view v2 (c) as select b+1 from t1;
+show create view v2;
+alter algorithm=undefined view v2 (c) as select b+1 from t1;
+show create view v2;
+alter algorithm=merge view v2 (c) as select b+1 from t1;
+show create view v2;
+drop view v2;
+drop table t1;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.5 tests.
 --echo # -----------------------------------------------------------------
