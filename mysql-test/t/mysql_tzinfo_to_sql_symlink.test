@@ -37,3 +37,14 @@
 #
 
 --exec rm -rf $MYSQLTEST_VARDIR/zoneinfo
+
+--echo #
+--echo # MDEV-6236 - [PATCH] mysql_tzinfo_to_sql may produce invalid SQL
+--echo #
+--exec mkdir $MYSQLTEST_VARDIR/zoneinfo
+--copy_file std_data/zoneinfo/GMT $MYSQLTEST_VARDIR/zoneinfo/Factory
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYSQL_TZINFO_TO_SQL $MYSQLTEST_VARDIR/zoneinfo 2>&1
+
+--exec rm -rf $MYSQLTEST_VARDIR/zoneinfo

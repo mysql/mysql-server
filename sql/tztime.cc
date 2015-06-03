@@ -2521,7 +2521,8 @@ scan_tz_dir(char * name_end, uint symlink_recursion_level, uint verbose)
 
   for (i= 0; i < cur_dir->number_off_files; i++)
   {
-    if (cur_dir->dir_entry[i].name[0] != '.')
+    if (cur_dir->dir_entry[i].name[0] != '.' &&
+        strcmp(cur_dir->dir_entry[i].name, "Factory"))
     {
       name_end_tmp= strmake(name_end, cur_dir->dir_entry[i].name,
                             FN_REFLEN - (name_end - fullname));
