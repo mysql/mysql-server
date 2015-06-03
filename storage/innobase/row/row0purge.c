@@ -823,12 +823,12 @@ Validate the persisent cursor in the purge node. The purge node has two
 references to the clustered index record - one via the ref member, and the
 other via the persistent cursor.  These two references must match each
 other if the found_clust flag is set.
-@return true if the persistent cursor is consistent with the ref member.*/
+@return true if the stored copy of persistent cursor is consistent
+with the ref member.*/
 ibool
 row_purge_validate_pcur(
 	purge_node_t*	node)
 {
-	const rec_t*	rec ;
 	dict_index_t*	clust_index;
 	ulint*		offsets;
 	int		st;
@@ -841,23 +841,25 @@ row_purge_validate_pcur(
 		return(TRUE);
 	}
 
-	clust_index = node->pcur.btr_cur.index;
-
-	if (node->pcur.old_stored == BTR_PCUR_OLD_STORED) {
-		rec = node->pcur.old_rec;
-	} else {
-		rec = btr_pcur_get_rec(&node->pcur);
+	if (node->pcur.old_stored != BTR_PCUR_OLD_STORED) {
+		return(TRUE);
 	}
 
-	offsets = rec_get_offsets(rec,
-		clust_index, NULL, ULINT_UNDEFINED, &node->heap);
+	clust_index = node->pcur.btr_cur.index;
 
-	st = cmp_dtuple_rec(node->ref, rec, offsets);
+	offsets = rec_get_offsets(node->pcur.old_rec, clust_index, NULL,
+				  node->pcur.old_n_fields, &node->heap);
+
+	/* Here we are comparing the purge ref record and the stored initial
+	part in persistent cursor. Both cases we store n_uniq fields of the
+	cluster index and so it is fine to do the comparison. We note this
+	dependency here as pcur and ref belong to different modules. */
+	st = cmp_dtuple_rec(node->ref, node->pcur.old_rec, offsets);
 
 	if (st != 0) {
 		fprintf(stderr, "Purge node pcur validation failed\n");
 		dtuple_print(stderr, node->ref);
-		rec_print(stderr, rec, clust_index);
+		rec_print(stderr, node->pcur.old_rec, clust_index);
 		return(FALSE);
 	}
 
