@@ -68,8 +68,8 @@ disconnect socket_con4;
 --echo
 --echo # MYSQLADMIN test
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
---exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot ping
---exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --protocol=SOCKET ping
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl ping
+--exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl --protocol=SOCKET ping
 --echo
 # Skipping SSL
 --exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot --skip-ssl --protocol=SOCKET ping
