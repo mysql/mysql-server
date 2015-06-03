@@ -216,9 +216,11 @@ a	b	c
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t5980	test/t5980	65	6	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t5980	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 #
 # Drop the imported table and show that the system tables are updated.
 #
@@ -226,8 +228,9 @@ DROP TABLE t5980;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -440,9 +443,11 @@ t5980	CREATE TABLE `t5980` (
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t5980	test/t5980	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t5980	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 DROP TABLE t5980;
 #
 # Create a local and remote tablespaces, discard two and make
@@ -501,12 +506,17 @@ test/t5980b	test/t5980b	65	5	Compact	0	Single
 test/t5980c	test/t5980c	1	5	Compact	0	Single
 test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980a	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+test/t5980c	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/t5980a	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+test/t5980c	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
 ### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980a.ibd
@@ -564,12 +574,13 @@ test/t5980b	test/t5980b	65	5	Compact	0	Single
 test/t5980c	test/t5980c	1	5	Compact	0	Single
 test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980a	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+test/t5980c	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
@@ -634,12 +645,13 @@ test/t5980bb	test/t5980b	65	5	Compact	0	Single
 test/t5980c	test/t5980c	1	5	Compact	0	Single
 test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980a	MYSQLD_DATADIR/test/t5980a.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980b	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980a	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980a.ibd
+test/t5980b	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+test/t5980c	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 #
 # Discarded tablespaces cannot be ALTERED with ALGORITHM=COPY.
 #
@@ -701,12 +713,13 @@ test/t5980bb	test/t5980bb	65	5	Compact	0	Single
 test/t5980c	test/t5980c	1	5	Compact	0	Single
 test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980aa	MYSQLD_DATADIR/test/t5980aa.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980bb	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980c	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+test/t5980aa	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980aa.ibd
+test/t5980bb	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
 t5980aa.frm
 t5980bb.frm
@@ -755,12 +768,13 @@ test/t5980b	test/t5980bb	65	5	Compact	0	Single
 test/t5980c	test/t5980c	1	5	Compact	0	Single
 test/t5980d	test/t5980d	65	5	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/t5980c	MYSQLD_DATADIR/test/t5980c.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980d	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980aa	MYSQLD_DATADIR/test/t5980aa.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t5980bb	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/t5980c	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980c.ibd
+test/t5980d	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+test/t5980aa	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t5980aa.ibd
+test/t5980bb	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
 t5980a.frm
 t5980b.frm
@@ -870,8 +884,9 @@ DROP TABLE t5980d;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 #

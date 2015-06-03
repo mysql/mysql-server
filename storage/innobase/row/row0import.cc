@@ -138,13 +138,6 @@ struct row_import {
 	@return ULINT_UNDEFINED if not found. */
 	ulint find_col(const char* name) const UNIV_NOTHROW;
 
-	/** Find the index field entry in in the cfg indexes fields.
-	@name - of the index to look for
-	@return instance if found else 0. */
-	const dict_field_t* find_field(
-		const row_index_t*	cfg_index,
-		const char* 		name) const UNIV_NOTHROW;
-
 	/** Get the number of rows for which purge failed during the
 	convert phase.
 	@param name index name
@@ -1096,30 +1089,6 @@ row_import::find_col(
 }
 
 /**
-Find the index field entry in in the cfg indexes fields.
-@name - of the index to look for
-@return instance if found else 0. */
-const dict_field_t*
-row_import::find_field(
-	const row_index_t*	cfg_index,
-	const char* 		name) const UNIV_NOTHROW
-{
-	const dict_field_t*	field = cfg_index->m_fields;
-
-	for (ulint i = 0; i < cfg_index->m_n_fields; ++i, ++field) {
-		const char*	field_name;
-
-		field_name = field->name();
-
-		if (strcmp(field_name, name) == 0) {
-			return(field);
-		}
-	}
-
-	return(0);
-}
-
-/**
 Check if the index schema that was read from the .cfg file matches the
 in memory index definition.
 @return DB_SUCCESS or error code. */
@@ -1142,51 +1111,60 @@ row_import::match_index_columns(
 		return(DB_ERROR);
 	}
 
+	if (cfg_index->m_n_fields != index->n_fields) {
+
+		ib_errf(thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLE_SCHEMA_MISMATCH,
+			"Index field count %lu doesn't match"
+			" tablespace metadata file value %lu",
+			(ulong) index->n_fields,
+			(ulong) cfg_index->m_n_fields);
+
+		return(DB_ERROR);
+	}
+
 	cfg_index->m_srv_index = index;
 
 	const dict_field_t*	field = index->fields;
+	const dict_field_t*	cfg_field = cfg_index->m_fields;
 
-	for (ulint i = 0; i < index->n_fields; ++i, ++field) {
+	for (ulint i = 0; i < index->n_fields; ++i, ++field, ++cfg_field) {
 
-		const dict_field_t*	cfg_field;
-
-		cfg_field = find_field(cfg_index, field->name);
-
-		if (cfg_field == 0) {
+		if (strcmp(field->name(), cfg_field->name()) != 0) {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
-				"Index %s field %s not found in tablespace"
-				" meta-data file.",
-				index->name(), field->name());
+				"Index field name %s doesn't match"
+				" tablespace metadata field name %s"
+				" for field position %lu",
+				field->name(), cfg_field->name(), (ulong) i);
 
 			err = DB_ERROR;
-		} else {
+		}
 
-			if (cfg_field->prefix_len != field->prefix_len) {
-				ib_errf(thd, IB_LOG_LEVEL_ERROR,
-					ER_TABLE_SCHEMA_MISMATCH,
-					"Index %s field %s prefix len %lu"
-					" doesn't match meta-data file value"
-					" %lu",
-					index->name(), field->name(),
-					(ulong) field->prefix_len,
-					(ulong) cfg_field->prefix_len);
+		if (cfg_field->prefix_len != field->prefix_len) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Index %s field %s prefix len %lu"
+				" doesn't match metadata file value"
+				" %lu",
+				index->name(), field->name(),
+				(ulong) field->prefix_len,
+				(ulong) cfg_field->prefix_len);
 
-				err = DB_ERROR;
-			}
+			err = DB_ERROR;
+		}
 
-			if (cfg_field->fixed_len != field->fixed_len) {
-				ib_errf(thd, IB_LOG_LEVEL_ERROR,
-					ER_TABLE_SCHEMA_MISMATCH,
-					"Index %s field %s fixed len %lu"
-					" doesn't match meta-data file value"
-					" %lu",
-					index->name(), field->name(),
-					(ulong) field->fixed_len,
-					(ulong) cfg_field->fixed_len);
+		if (cfg_field->fixed_len != field->fixed_len) {
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Index %s field %s fixed len %lu"
+				" doesn't match metadata file value"
+				" %lu",
+				index->name(), field->name(),
+				(ulong) field->fixed_len,
+				(ulong) cfg_field->fixed_len);
 
-				err = DB_ERROR;
-			}
+			err = DB_ERROR;
 		}
 	}
 
@@ -3597,7 +3575,7 @@ row_import_for_mysql(
 
 	err = fil_ibd_open(
 		true, true, FIL_TYPE_IMPORT, table->space,
-		dict_tf_to_fsp_flags(table->flags, false),
+		dict_tf_to_fsp_flags(table->flags),
 		table->name.m_name, filepath);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",

@@ -180,14 +180,6 @@ fts_ast_node_print(
 /*===============*/
 	fts_ast_node_t*	node);			/*!< in: ast node to print */
 /********************************************************************
-For tracking node allocations, in case there is an during parsing.*/
-extern
-void
-fts_ast_state_add_node(
-/*===================*/
-	fts_ast_state_t*state,			/*!< in: ast state instance */
-	fts_ast_node_t*	node);			/*!< in: node to add to state */
-/********************************************************************
 Free node and expr allocations.*/
 extern
 void
@@ -209,18 +201,6 @@ fts_ast_visit(
 						and ignored processing an
 						operator, currently we only
 						ignore FTS_IGNORE operator */
-	__attribute__((warn_unused_result));
-/*****************************************************************//**
-Process (nested) sub-expression, create a new result set to store the
-sub-expression result by processing nodes under current sub-expression
-list. Merge the sub-expression result with that of parent expression list.
-@return DB_SUCCESS if all went well */
-dberr_t
-fts_ast_visit_sub_exp(
-/*==================*/
-	fts_ast_node_t*		node,		/*!< in: instance to traverse*/
-	fts_ast_callback	visitor,	/*!< in: callback */
-	void*			arg)		/*!< in: callback arg */
 	__attribute__((warn_unused_result));
 /********************************************************************
 Create a lex instance.*/
@@ -266,13 +246,6 @@ ulint
 fts_ast_string_to_ul(
 	const fts_ast_string_t*	ast_str,
 	int			base);
-
-/**
-Print the ast string
-@param[in] str		string to print */
-void
-fts_ast_string_print(
-	const fts_ast_string_t*	ast_str);
 
 /* String of length len.
 We always store the string of length len with a terminating '\0',
@@ -358,8 +331,6 @@ fts_ast_create_node_phrase_list(
 	void*		arg);			/*!< in: ast state */
 
 #ifdef UNIV_DEBUG
-const char*
-fts_ast_oper_name_get(fts_ast_oper_t	oper);
 const char*
 fts_ast_node_type_get(fts_ast_type_t	type);
 #endif /* UNIV_DEBUG */

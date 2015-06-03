@@ -2754,16 +2754,15 @@ public:
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
 #endif
   /**
-    Adds the given Gtid_set that contains the groups in the given
-    string to lost_gtids and executed_gtids, since lost_gtids must
-    be a subset of executed_gtids.
-    Requires that the write lock on sid_locks is held.
+    Adds the given Gtid_set to lost_gtids and executed_gtids.
+    lost_gtids must be a subset of executed_gtids.
 
-    @param text The string to parse, see Gtid_set:add_gtid_text(const
-    char *, bool) for format details.
+    Requires that the caller holds global_sid_lock.wrlock.
+
+    @param gtid_set The Gtid_set to add.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
    */
-  enum_return_status add_lost_gtids(const char *text);
+  enum_return_status add_lost_gtids(const Gtid_set *gtid_set);
   /// Return a pointer to the Gtid_set that contains the lost groups.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
   /*
@@ -2876,7 +2875,7 @@ public:
     @retval
       -1   Error
   */
-  int save(Gtid_set *gtid_set);
+  int save(const Gtid_set *gtid_set);
   /**
     Save the set of gtids logged in the last binlog into gtid_executed table.
 

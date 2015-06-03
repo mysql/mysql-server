@@ -42,6 +42,18 @@ using std::max;
 
 const String my_null_string("NULL", 4, default_charset_info);
 
+/**
+  Alias from select list can be referenced only from ORDER
+  BY (SQL Standard) or from HAVING and GROUP BY (MySQL
+  extension).
+*/
+static inline bool
+select_alias_referencable(enum_parsing_context place)
+{
+  return (place == CTX_HAVING || place == CTX_GROUP_BY ||
+          place == CTX_ORDER_BY);
+}
+
 /****************************************************************************/
 
 /* Hybrid_type_traits {_real} */
@@ -5368,7 +5380,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
 
     /* Search in SELECT and GROUP lists of the outer select. */
-    if (place != CTX_WHERE && place != CTX_ON &&
+    if (select_alias_referencable(place) &&
         outer_context->resolve_in_select_list)
     {
       if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
@@ -7130,6 +7142,87 @@ bool Item::send(Protocol *protocol, String *buffer)
 
 
 /**
+  Evaluate item, possibly using the supplied buffer
+
+  @param thd    Thread context
+  @param buffer Buffer, in case item needs a large one
+
+  @returns false if success, true if error
+*/
+
+bool Item::evaluate(THD *thd, String *buffer)
+{
+  bool result= false;                       // Will be set if null_value == 0
+
+  switch (field_type())
+  {
+  default:
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_BIT:
+  {
+    (void)val_str(buffer);
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  {
+    (void)val_int();
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_NEWDECIMAL:
+  {
+    my_decimal decimal_value;
+    (void)val_decimal(&decimal_value);
+    result= thd->is_error();
+    break;
+  }
+
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+  {
+    (void)val_real();
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIMESTAMP:
+  {
+    MYSQL_TIME tm;
+    (void)get_date(&tm, TIME_FUZZY_DATE);
+    result= thd->is_error();
+    break;
+  }
+  case MYSQL_TYPE_TIME:
+  {
+    MYSQL_TIME tm;
+    (void)get_time(&tm);
+    result= thd->is_error();
+    break;
+  }
+  }
+  return result;
+}
+
+
+/**
   Check if an item is a constant one and can be cached.
 
   @param arg [out] != NULL <=> Cache this item.
@@ -7502,9 +7595,11 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         Item_subselect *prev_subselect_item=
           last_checked_context->select_lex->master_unit()->item;
         last_checked_context= outer_context;
+        place= prev_subselect_item->parsing_place;
 
         /* Search in the SELECT and GROUP lists of the outer select. */
-        if (outer_context->resolve_in_select_list)
+        if (select_alias_referencable(place) &&
+            outer_context->resolve_in_select_list)
         {
           if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
             goto error; /* Some error occurred (e.g. ambiguous names). */
@@ -7523,7 +7618,6 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
           ref= 0;
         }
 
-        place= prev_subselect_item->parsing_place;
         /*
           Check table fields only if the subquery is used somewhere out of
           HAVING or the outer SELECT does not use grouping (i.e. tables are
@@ -8154,12 +8248,23 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 
 bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 {
-  /* view fild reference must be defined */
-  DBUG_ASSERT(*ref);
-  /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
-  if (!(*ref)->fixed && ((*ref)->fix_fields(thd, ref)))
-    return true;                     /* purecov: inspected */
+  DBUG_ASSERT(*ref);  // view field reference must be defined
 
+  // (*ref)->check_cols() will be made in Item_direct_ref::fix_fields
+  if ((*ref)->fixed)
+  {
+    /*
+      Underlying Item_field objects may be shared. Make sure that the use
+      is marked regardless of how many ref items that point to this field.
+    */
+    Mark_field mf(thd->mark_used_columns);
+    (*ref)->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX, (uchar *)&mf);
+  }
+  else
+  {
+    if ((*ref)->fix_fields(thd, ref))
+      return true;                     /* purecov: inspected */
+  }
   return Item_direct_ref::fix_fields(thd, reference);
 }
 
@@ -9499,6 +9604,8 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   prev_decimal_int_part= item->decimal_int_part();
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type= item->get_geometry_type();
+  else
+    geometry_type= Field::GEOM_GEOMETRY;
 }
 
 

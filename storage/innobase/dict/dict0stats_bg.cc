@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -98,6 +98,7 @@ dict_stats_recalc_pool_deinit()
 	recalc_pool->clear();
 
 	UT_DELETE(recalc_pool);
+	recalc_pool = NULL;
 }
 
 /*****************************************************************//**
@@ -251,6 +252,10 @@ dict_stats_thread_deinit()
 {
 	ut_a(!srv_read_only_mode);
 	ut_ad(!srv_dict_stats_thread_active);
+
+	if (recalc_pool == NULL) {
+		return;
+	}
 
 	dict_stats_recalc_pool_deinit();
 

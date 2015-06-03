@@ -89,11 +89,11 @@ log_checksum_func_t log_checksum_algorithm_ptr =
 
 /* These control how often we print warnings if the last checkpoint is too
 old */
-bool	log_has_printed_chkp_warning = false;
-time_t	log_last_warning_time;
+static bool	log_has_printed_chkp_warning = false;
+static time_t	log_last_warning_time;
 
-bool	log_has_printed_chkp_margine_warning = false;
-time_t	log_last_margine_warning_time;
+static bool	log_has_printed_chkp_margine_warning = false;
+static time_t	log_last_margine_warning_time;
 
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
@@ -502,6 +502,7 @@ function_exit:
 Calculates the data capacity of a log group, when the log file headers are not
 included.
 @return capacity in bytes */
+static
 lsn_t
 log_group_get_capacity(
 /*===================*/
@@ -593,45 +594,6 @@ log_group_calc_lsn_offset(
 	return(log_group_calc_real_offset(offset, group));
 }
 #endif /* !UNIV_HOTBACKUP */
-
-/*******************************************************************//**
-Calculates where in log files we find a specified lsn.
-@return log file number */
-ulint
-log_calc_where_lsn_is(
-/*==================*/
-	int64_t*	log_file_offset,	/*!< out: offset in that file
-						(including the header) */
-	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
-						lsn */
-	ib_uint64_t	lsn,			/*!< in: lsn whose position to
-						determine */
-	ulint		n_log_files,		/*!< in: total number of log
-						files */
-	int64_t		log_file_size)		/*!< in: log file size
-						(including the header) */
-{
-	int64_t		capacity	= log_file_size - LOG_FILE_HDR_SIZE;
-	ulint		file_no;
-	int64_t		add_this_many;
-
-	if (lsn < first_header_lsn) {
-		add_this_many = 1 + (first_header_lsn - lsn)
-			/ (capacity * static_cast<int64_t>(n_log_files));
-		lsn += add_this_many
-			* capacity * static_cast<int64_t>(n_log_files);
-	}
-
-	ut_a(lsn >= first_header_lsn);
-
-	file_no = ((ulint)((lsn - first_header_lsn) / capacity))
-		% n_log_files;
-	*log_file_offset = (lsn - first_header_lsn) % capacity;
-
-	*log_file_offset = *log_file_offset + LOG_FILE_HDR_SIZE;
-
-	return(file_no);
-}
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************//**
@@ -1523,24 +1485,6 @@ log_checkpoint_set_nth_group_info(
 			+ 8 * n + LOG_CHECKPOINT_ARCHIVED_FILE_NO, file_no);
 	mach_write_to_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
 			+ 8 * n + LOG_CHECKPOINT_ARCHIVED_OFFSET, offset);
-}
-
-/*******************************************************************//**
-Gets info from a checkpoint about a log group. */
-void
-log_checkpoint_get_nth_group_info(
-/*==============================*/
-	const byte*	buf,	/*!< in: buffer containing checkpoint info */
-	ulint		n,	/*!< in: nth slot */
-	ulint*		file_no,/*!< out: archived file number */
-	ulint*		offset)	/*!< out: archived file offset */
-{
-	ut_ad(n < LOG_MAX_N_GROUPS);
-
-	*file_no = mach_read_from_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
-				    + 8 * n + LOG_CHECKPOINT_ARCHIVED_FILE_NO);
-	*offset = mach_read_from_4(buf + LOG_CHECKPOINT_GROUP_ARRAY
-				   + 8 * n + LOG_CHECKPOINT_ARCHIVED_OFFSET);
 }
 
 /******************************************************//**

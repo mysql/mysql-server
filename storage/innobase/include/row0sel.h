@@ -91,21 +91,6 @@ que_thr_t*
 fetch_step(
 /*=======*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/****************************************************************//**
-Sample callback function for fetch that prints each row.
-@return always returns non-NULL */
-void*
-row_fetch_print(
-/*============*/
-	void*	row,		/*!< in:  sel_node_t* */
-	void*	user_arg);	/*!< in:  not used */
-/***********************************************************//**
-Prints a row in a select result.
-@return query thread to run next or NULL */
-que_thr_t*
-row_printf_step(
-/*============*/
-	que_thr_t*	thr);	/*!< in: query thread */
 
 /** Copy used fields from cached row.
 Copy cache record field by field, don't touch fields that
@@ -445,9 +430,7 @@ struct fetch_node_t{
 					further rows and the cursor is
 					modified so (cursor % NOTFOUND) is
 					true. If it returns not-NULL,
-					continue normally. See
-					row_fetch_print() for an example
-					(and a useful debugging tool). */
+					continue normally. */
 };
 
 /** Open or close cursor operation type */
@@ -463,12 +446,6 @@ struct open_node_t{
 			op_type;	/*!< operation type: open or
 					close cursor */
 	sel_node_t*	cursor_def;	/*!< cursor definition */
-};
-
-/** Row printf statement node */
-struct row_printf_node_t{
-	que_common_t	common;		/*!< type: QUE_NODE_ROW_PRINTF */
-	sel_node_t*	sel_node;	/*!< select */
 };
 
 /** Search direction for the MySQL interface */

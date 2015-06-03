@@ -71,24 +71,6 @@ flst_add_first(
 	flst_node_t*		node,	/*!< in: node to add */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
-Inserts a node after another in a list. */
-void
-flst_insert_after(
-/*==============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node1,	/*!< in: node to insert after */
-	flst_node_t*		node2,	/*!< in: node to add */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Inserts a node before another in a list. */
-void
-flst_insert_before(
-/*===============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node2,	/*!< in: node to insert */
-	flst_node_t*		node3,	/*!< in: node to insert before */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
 Removes a node. */
 void
 flst_remove(
@@ -188,14 +170,6 @@ flst_validate(
 /*==========*/
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1);	/*!< in: mtr */
-/********************************************************************//**
-Prints info of a file-based list. */
-void
-flst_print(
-/*=======*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	mtr_t*			mtr);	/*!< in: mtr */
-
 
 #ifndef UNIV_NONINL
 #include "fut0lst.ic"

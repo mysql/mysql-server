@@ -3,7 +3,7 @@
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -29,7 +29,7 @@ count(*)
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -91,7 +91,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -174,7 +174,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -197,7 +197,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -260,7 +260,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -304,7 +304,7 @@ set password='';
 # Execution of mysql_install_db ends..............
 ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -347,7 +347,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -389,7 +389,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -431,7 +431,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin
@@ -454,7 +454,7 @@ set password='';
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
 SELECT user FROM mysql.user;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 set password='abc';
 SELECT user,host,plugin FROM mysql.user WHERE password_expired='n';
 user	host	plugin

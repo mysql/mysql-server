@@ -709,6 +709,7 @@ row_merge_fts_get_next_doc_item(
 Function performs parallel tokenization of the incoming doc strings.
 It also performs the initial in memory sort of the parsed records.
 @return OS_THREAD_DUMMY_RETURN */
+static
 os_thread_ret_t
 fts_parallel_tokenization(
 /*======================*/
@@ -1032,6 +1033,7 @@ row_fts_start_psort(
 /*********************************************************************//**
 Function performs the merge and insertion of the sorted records.
 @return OS_THREAD_DUMMY_RETURN */
+static
 os_thread_ret_t
 fts_parallel_merge(
 /*===============*/
@@ -1174,6 +1176,7 @@ row_merge_write_fts_word(
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
 @return DB_SUCCESS or error number */
+static
 void
 row_fts_insert_tuple(
 /*=================*/

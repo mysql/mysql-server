@@ -680,12 +680,12 @@ enum_return_status Gtid_state::ensure_sidno()
 }
 
 
-enum_return_status Gtid_state::add_lost_gtids(const char *text)
+enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_state::add_lost_gtids()");
   sid_lock->assert_some_wrlock();
 
-  DBUG_PRINT("info", ("add_lost_gtids '%s'", text));
+  gtid_set->dbug_print("add_lost_gtids");
 
   if (!executed_gtids.is_empty())
   {
@@ -703,8 +703,11 @@ enum_return_status Gtid_state::add_lost_gtids(const char *text)
   }
   DBUG_ASSERT(lost_gtids.is_empty());
 
-  PROPAGATE_REPORTED_ERROR(lost_gtids.add_gtid_text(text));
-  PROPAGATE_REPORTED_ERROR(executed_gtids.add_gtid_text(text));
+  if (save(gtid_set))
+    RETURN_REPORTED_ERROR;
+  PROPAGATE_REPORTED_ERROR(gtids_only_in_table.add_gtid_set(gtid_set));
+  PROPAGATE_REPORTED_ERROR(lost_gtids.add_gtid_set(gtid_set));
+  PROPAGATE_REPORTED_ERROR(executed_gtids.add_gtid_set(gtid_set));
 
   DBUG_RETURN(RETURN_STATUS_OK);
 }
@@ -753,7 +756,7 @@ int Gtid_state::save(THD *thd)
 }
 
 
-int Gtid_state::save(Gtid_set *gtid_set)
+int Gtid_state::save(const Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_state::save(Gtid_set *gtid_set)");
   int ret= gtid_table_persistor->save(gtid_set);

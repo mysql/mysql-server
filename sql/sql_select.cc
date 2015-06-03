@@ -95,8 +95,8 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
     @todo make this function also handle INSERT ... VALUES, single-table
           UPDATE and DELETE, SET and DO.
     
-    The function processes queries where the outer-most query expression
-    contains one query block and no fake_select_lex separately.
+    The function processes simple query expressions without UNION and
+    without multi-level ORDER BY/LIMIT separately.
     Such queries are executed with a more direct code path.
 */
 bool handle_query(THD *thd, LEX *lex, Query_result *result,
@@ -119,7 +119,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
     DBUG_RETURN(true);
   }
 
-  const bool single_query= !(unit->is_union() || unit->fake_select_lex);
+  const bool single_query= unit->is_simple();
+
   lex->used_tables=0;                         // Updated by setup_fields
 
   THD_STAGE_INFO(thd, stage_init);
@@ -869,7 +870,15 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex);
+  if (select_lex->has_ft_funcs())
+  {
+#ifdef DBUG_OFF
+    (void)init_ftfuncs(thd, select_lex);
+#else
+    // Should not return an error on second execution
+    DBUG_ASSERT(!init_ftfuncs(thd, select_lex));
+#endif
+  }
 
   DBUG_VOID_RETURN;
 }
@@ -4124,7 +4133,8 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
         */
         const Cost_estimate table_scan_time= table->file->table_scan_cost();
         const double index_scan_time= select_limit / rec_per_key *
-          min<double>(rec_per_key, table_scan_time.total_cost());
+          min<double>(table->cost_model()->io_block_read_cost(rec_per_key),
+                      table_scan_time.total_cost());
 
         /*
           Switch to index that gives order if its scan time is smaller than

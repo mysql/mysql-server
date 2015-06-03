@@ -91,9 +91,6 @@ ibool	srv_dict_stats_thread_active = FALSE;
 
 const char*	srv_main_thread_op_info = "";
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-const char		srv_mysql50_table_name_prefix[10] = "#mysql50#";
-
 /* Server parameters which are read from the initfile */
 
 /* The following three are dir paths which are catenated before file
@@ -109,6 +106,11 @@ ulong	srv_undo_tablespaces = 0;
 
 /** The number of UNDO tablespaces that are open and ready to use. */
 ulint	srv_undo_tablespaces_open = 0;
+
+/** The number of UNDO tablespaces that are active (hosting some rollback
+segment). It is quite possible that some of the tablespaces doesn't host
+any of the rollback-segment based on configuration used. */
+ulint	srv_undo_tablespaces_active = 0;
 
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
@@ -154,7 +156,11 @@ unsigned long long	srv_online_max_size;
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
-my_bool	srv_use_native_aio = TRUE;
+#ifdef _WIN32
+my_bool	srv_use_native_aio = TRUE; /* enabled by default on Windows */
+#else
+my_bool	srv_use_native_aio;
+#endif
 
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
@@ -166,10 +172,10 @@ char*	srv_log_group_home_dir	= NULL;
 
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /* size in database pages */
-ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
-ib_uint64_t	srv_log_file_size_requested;
+ulonglong	srv_log_file_size;
+ulonglong	srv_log_file_size_requested;
 /* size in database pages */
-ulint		srv_log_buffer_size = ULINT_MAX;
+ulong		srv_log_buffer_size;
 ulong		srv_flush_log_at_trx_commit = 1;
 uint		srv_flush_log_at_timeout = 1;
 ulong		srv_page_size = UNIV_PAGE_SIZE_DEF;
@@ -180,7 +186,7 @@ page_size_t	univ_page_size(0, 0, false);
 
 /* Try to flush dirty pages so as to avoid IO bursts at
 the checkpoints. */
-char	srv_adaptive_flushing	= TRUE;
+my_bool	srv_adaptive_flushing	= TRUE;
 
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 my_bool	srv_flush_sync		= TRUE;
@@ -225,8 +231,8 @@ ulint	srv_lock_table_size	= ULINT_MAX;
 
 /* This parameter is deprecated. Use srv_n_io_[read|write]_threads
 instead. */
-ulint	srv_n_read_io_threads	= ULINT_MAX;
-ulint	srv_n_write_io_threads	= ULINT_MAX;
+ulong	srv_n_read_io_threads;
+ulong	srv_n_write_io_threads;
 
 /* Switch to enable random read ahead. */
 my_bool	srv_random_read_ahead	= FALSE;
@@ -239,17 +245,6 @@ ulong	srv_read_ahead_threshold	= 56;
 of the buffer pool. */
 uint	srv_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
 
-/* This parameter is used to throttle the number of insert buffers that are
-merged in a batch. By increasing this parameter on a faster disk you can
-possibly reduce the number of I/O operations performed to complete the
-merge operation. The value of this parameter is used as is by the
-background loop when the system is idle (low load), on a busy system
-the parameter is scaled down by a factor of 4, this is to avoid putting
-a heavier load on the I/O sub system. */
-
-ulong	srv_insert_buffer_batch_size = 20;
-
-char*	srv_file_flush_method_str = NULL;
 #ifndef _WIN32
 enum srv_unix_flush_t	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 #else
@@ -371,9 +366,9 @@ i/o handler thread */
 const char* srv_io_thread_op_info[SRV_MAX_N_IO_THREADS];
 const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
-time_t	srv_last_monitor_time;
+static time_t	srv_last_monitor_time;
 
-ib_mutex_t	srv_innodb_monitor_mutex;
+static ib_mutex_t	srv_innodb_monitor_mutex;
 
 /** Mutex protecting page_zip_stat_per_index */
 ib_mutex_t	page_zip_stat_per_index_mutex;
@@ -396,8 +391,8 @@ ib_mutex_t	srv_misc_tmpfile_mutex;
 /** Temporary file for miscellanous diagnostic output */
 FILE*	srv_misc_tmpfile;
 
-ulint	srv_main_thread_process_no	= 0;
-ulint	srv_main_thread_id		= 0;
+static ulint	srv_main_thread_process_no	= 0;
+static ulint	srv_main_thread_id		= 0;
 
 /* The following counts are used by the srv_master_thread. */
 
@@ -908,6 +903,7 @@ srv_free_slot(
 
 /*********************************************************************//**
 Initializes the server. */
+static
 void
 srv_init(void)
 /*==========*/
@@ -1018,6 +1014,7 @@ srv_free(void)
 /*********************************************************************//**
 Initializes the synchronization primitives, memory system, and the thread
 local storage. */
+static
 void
 srv_general_init(void)
 /*==================*/
@@ -1032,34 +1029,11 @@ srv_general_init(void)
 }
 
 /*********************************************************************//**
-Normalizes init parameter values to use units we use inside InnoDB. */
-static
-void
-srv_normalize_init_values(void)
-/*===========================*/
-{
-	srv_sys_space.normalize();
-
-	srv_tmp_space.normalize();
-
-	srv_log_file_size /= UNIV_PAGE_SIZE;
-
-	srv_log_buffer_size /= UNIV_PAGE_SIZE;
-
-	srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
-}
-
-/*********************************************************************//**
 Boots the InnoDB server. */
 void
 srv_boot(void)
 /*==========*/
 {
-	/* Transform the init parameter values given by MySQL to
-	use units we use inside InnoDB: */
-
-	srv_normalize_init_values();
-
 	/* Initialize synchronization primitives, memory management, and thread
 	local storage */
 
@@ -1209,9 +1183,11 @@ srv_printf_innodb_monitor(
 	      "-------------------------------------\n", file);
 	ibuf_print(file);
 
-	rw_lock_s_lock(&btr_search_latch);
-	ha_print_info(file, btr_search_sys->hash_index);
-	rw_lock_s_unlock(&btr_search_latch);
+	for (ulint i = 0; i < btr_ahi_parts; ++i) {
+		rw_lock_s_lock(btr_search_latches[i]);
+		ha_print_info(file, btr_search_sys->hash_tables[i]);
+		rw_lock_s_unlock(btr_search_latches[i]);
+	}
 
 	fprintf(file,
 		"%.2f hash searches/s, %.2f non-hash searches/s\n",
@@ -1735,11 +1711,16 @@ srv_get_active_thread_type(void)
 
 	/* Check only on shutdown. */
 	if (ret == SRV_NONE
-	    && srv_shutdown_state != SRV_SHUTDOWN_NONE
-	    && trx_purge_state() != PURGE_STATE_DISABLED
-	    && trx_purge_state() != PURGE_STATE_EXIT) {
-
-		ret = SRV_PURGE;
+	    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+		switch (trx_purge_state()) {
+		case PURGE_STATE_INIT:
+		case PURGE_STATE_EXIT:
+		case PURGE_STATE_DISABLED:
+			break;
+		case PURGE_STATE_RUN:
+		case PURGE_STATE_STOP:
+			ret = SRV_PURGE;
+		}
 	}
 
 	return(ret);

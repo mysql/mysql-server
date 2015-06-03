@@ -441,29 +441,6 @@ void Item_sum::fix_length_and_dec()
     reject_geometry_args(arg_count, args, this);
 }
 
-
-Item *Item_sum::get_tmp_table_item(THD *thd)
-{
-  Item_sum* sum_item= (Item_sum *) copy_or_same(thd);
-  if (sum_item && sum_item->result_field)	   // If not a const sum func
-  {
-    Field *result_field_tmp= sum_item->result_field;
-    for (uint i=0 ; i < sum_item->arg_count ; i++)
-    {
-      Item *arg= sum_item->args[i];
-      if (!arg->const_item())
-      {
-	if (arg->type() == Item::FIELD_ITEM)
-	  ((Item_field*) arg)->field= result_field_tmp++;
-	else
-	  sum_item->args[i]= new Item_field(result_field_tmp++);
-      }
-    }
-  }
-  return sum_item;
-}
-
-
 bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
 {
   if ((walk & WALK_PREFIX) && (this->*processor)(argument))
@@ -1226,6 +1203,9 @@ void Aggregator_distinct::endup()
           table->file->ha_index_or_rnd_end();
         ha_rows num_rows= 0;
         table->file->ha_records(&num_rows);
+        // We have to initialize hash_index because update_sum_func needs it
+        if (table->hash_field)
+          table->file->ha_index_init(0, false);
         sum->count= static_cast<longlong>(num_rows);
       }
       endup_done= TRUE;

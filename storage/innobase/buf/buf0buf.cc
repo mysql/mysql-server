@@ -568,6 +568,9 @@ buf_page_print(
 			<< " "
 			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< "/"
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB)
@@ -590,13 +593,19 @@ buf_page_print(
 				read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 	} else {
+		const uint32_t	crc32 = buf_calc_page_crc32(read_buf);
+
+		const uint32_t	crc32_legacy = buf_calc_page_crc32(read_buf,
+								   true);
+
 		ib::info() << "Uncompressed page, stored checksum in field1 "
 			<< mach_read_from_4(
 				read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
 			<< ", calculated checksums for field1: "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-			<< buf_calc_page_crc32(read_buf) << ", "
+			<< crc32 << "/" << crc32_legacy
+			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
 			<< buf_calc_page_new_checksum(read_buf)
@@ -610,7 +619,7 @@ buf_page_print(
 			<< ", calculated checksums for field2: "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-			<< buf_calc_page_crc32(read_buf)
+			<< crc32 << "/" << crc32_legacy
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
@@ -1055,6 +1064,7 @@ buf_pool_set_sizes(void)
 /********************************************************************//**
 Initialize a buffer pool instance.
 @return DB_SUCCESS if all goes well. */
+static
 ulint
 buf_pool_init_instance(
 /*===================*/
@@ -1858,6 +1868,7 @@ buf_pool_resize_hash(
 
 /** Resize the buffer pool based on srv_buf_pool_size from
 srv_buf_pool_old_size. */
+static
 void
 buf_pool_resize()
 {
@@ -1904,12 +1915,12 @@ buf_pool_resize()
 
 	buf_resize_status("Disabling adaptive hash index.");
 
-	rw_lock_s_lock(&btr_search_latch);
+	btr_search_s_lock_all();
 	if (btr_search_enabled) {
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 		btr_search_disabled = true;
 	} else {
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 	}
 
 	btr_search_disable();
@@ -2363,7 +2374,7 @@ buf_pool_clear_hash_index(void)
 	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
+	ut_ad(btr_search_own_all(RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!btr_search_enabled);
@@ -2381,7 +2392,7 @@ buf_pool_clear_hash_index(void)
 				dict_index_t*	index	= block->index;
 
 				/* We can set block->index = NULL
-				when we have an x-latch on btr_search_latch;
+				when we have an x-latch on search latch;
 				see the comment in buf0buf.h */
 
 				if (!index) {
@@ -2598,6 +2609,7 @@ hash_lock and reacquire it.
 @param[in]	page_id		page id
 @param[in,out]	hash_lock	hash_lock currently latched
 @return NULL if watch set, block if the page is in the buffer pool */
+static
 buf_page_t*
 buf_pool_watch_set(
 	const page_id_t&	page_id,
@@ -3117,6 +3129,9 @@ buf_zip_decompress(
 			<< ", crc32: "
 			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< "/"
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< " innodb: "
 			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_INNODB)
@@ -3319,30 +3334,6 @@ buf_pointer_is_block_field_instance(
 		}
 
 		chunk++;
-	}
-
-	return(FALSE);
-}
-
-/********************************************************************//**
-Find out if a pointer belongs to a buf_block_t. It can be a pointer to
-the buf_block_t itself or a member of it
-@return TRUE if ptr belongs to a buf_block_t struct */
-ibool
-buf_pointer_is_block_field(
-/*=======================*/
-	const void*	ptr)	/*!< in: pointer not dereferenced */
-{
-	ulint	i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
-		ibool	found;
-
-		found = buf_pointer_is_block_field_instance(
-			buf_pool_from_array(i), ptr);
-		if (found) {
-			return(TRUE);
-		}
 	}
 
 	return(FALSE);
@@ -5348,6 +5339,17 @@ buf_all_freed_instance(
 	return(TRUE);
 }
 
+/** Refreshes the statistics used to print per-second averages.
+@param[in,out]	buf_pool	buffer pool instance */
+static
+void
+buf_refresh_io_stats(
+	buf_pool_t*	buf_pool)
+{
+	buf_pool->last_printout_time = ut_time();
+	buf_pool->old_stat = buf_pool->stat;
+}
+
 /*********************************************************************//**
 Invalidates file pages in one buffer pool instance */
 static
@@ -5784,6 +5786,7 @@ buf_print(void)
 /*********************************************************************//**
 Returns the number of latched pages in the buffer pool.
 @return number of latched pages */
+static
 ulint
 buf_get_latched_pages_number_instance(
 /*==================================*/
@@ -6128,6 +6131,7 @@ buf_stats_get_pool_info(
 
 /*********************************************************************//**
 Prints info of the buffer i/o. */
+static
 void
 buf_print_io_instance(
 /*==================*/
@@ -6265,17 +6269,6 @@ buf_print_io(
 	}
 
 	ut_free(pool_info);
-}
-
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
-void
-buf_refresh_io_stats(
-/*=================*/
-	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
-{
-	buf_pool->last_printout_time = ut_time();
-	buf_pool->old_stat = buf_pool->stat;
 }
 
 /**********************************************************************//**

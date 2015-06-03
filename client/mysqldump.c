@@ -291,7 +291,7 @@ static struct my_option my_long_options[] =
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
    0, 0, 0,
    GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
    0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log.", &default_dbug_option,
@@ -1726,11 +1726,9 @@ static void unescape(FILE *file,char *pos,uint length)
 
 static my_bool test_if_special_chars(const char *str)
 {
-#if MYSQL_VERSION_ID >= 32300
   for ( ; *str ; str++)
     if (!my_isvar(charset_info,*str) && *str != '$')
       return 1;
-#endif
   return 0;
 } /* test_if_special_chars */
 
@@ -5848,7 +5846,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
 int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
-  int exit_code, md_result_fd;
+  int exit_code, md_result_fd= 0;
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;

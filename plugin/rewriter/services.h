@@ -72,6 +72,7 @@ public:
 class Literal_visitor
 {
 public:
+  virtual ~Literal_visitor() {}
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
 

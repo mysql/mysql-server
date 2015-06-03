@@ -164,13 +164,8 @@ bool Group_check::check_query(THD *thd)
     ++number_in_list;
   }
 
-  /*
-    aggregate without GROUP => single row result, so bad ORDER BY is no
-    real problem.
-  */
-  if (!select->group_list.first && select->agg_func_used())
-    order= NULL;
-
+  // aggregate without GROUP BY has no ORDER BY at this stage.
+  DBUG_ASSERT(!(select->is_implicitly_grouped() && select->is_ordered()));
   // Validate ORDER BY list
   if (order)
   {
@@ -207,7 +202,7 @@ err:
     however we want to keep sending the old error codes, for pre-5.7
     applications used to it.
   */
-  if (select->group_list.elements)
+  if (select->is_explicitly_grouped())
   {
     code= ER_WRONG_FIELD_WITH_GROUP;        // old code
     text= ER_THD(thd, ER_WRONG_FIELD_WITH_GROUP_V2); // new text
@@ -438,12 +433,9 @@ bool Group_check::is_fd_on_source(Item *item)
     }
     else
     {
-      if (search_in_underlying
-#if 0
-          // @todo enable this optimization when wl#5275 is in
-          || select->derived_table_count == 0
-#endif
-          )
+      // (1) already searched in derived tables, (2) no derived tables
+      if (search_in_underlying ||               // (1)
+          select->derived_table_count == 0)     // (2)
         return false;
 
       // Iterate once more, now drilling in underlying query expressions
@@ -535,7 +527,7 @@ void Group_check::find_group_in_fd(Item *item)
 {
   if (group_in_fd == ~0ULL)
     return;                                     // nothing to do
-  if (select->group_list.first || select->agg_func_used())
+  if (select->is_grouped())
   {
     /*
       See if we now have all of query expression's GROUP BY list; an
@@ -574,7 +566,7 @@ void Group_check::find_group_in_fd(Item *item)
 Item *Group_check::select_expression(uint idx)
 {
   List_iterator<Item> it_select_list_of_subq(*select->get_item_list());
-  Item *expr_under;
+  Item *expr_under= NULL;
   for (uint k= 0; k <= idx ; k++)
     expr_under= it_select_list_of_subq++;
   DBUG_ASSERT(expr_under);
@@ -607,7 +599,7 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
   if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
     return;                        // If UNION or ROLLUP, no FD
   // Grab Group_check for this subquery.
-  Group_check *mat_gc;
+  Group_check *mat_gc= NULL;
   uint j;
   for (j= 0; j < mat_tables.size(); j++)
   {
@@ -735,8 +727,8 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
     /*
       It's a merged view's item.
       Consider
-        create view select as as a, a*2 as b from t1;
-        select v1.b group by v1.a;
+        create view v1 as select as as a, a*2 as b from t1;
+        select v1.b from v1 group by v1.a;
       we have this->fd={v1.a}, and we search if v1.b is FD on v1.a. We'll look
       if t1.a*2 is FD on t1.a.
 
@@ -749,22 +741,17 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
     Item *const real_it= item->real_item();
     const table_map used_tables= real_it->resolved_used_tables();
     /*
-      Test below is conservative: it may set to "true" when not
-      needed. This is because we don't know which nest the view was in,
-      before it was merged.
-      If view was on weak side before merging then all tables used by this
-      item are now in a weak side. We test the latter, which is broader than
-      the former.
-
-      See bug#17023060 for a related case of wrong result with view and outer
-      join, without grouping.
-
-      @todo after WL#5275, item->cached_table points to the view, I could use
-      this.
+      @todo When we eliminate all uses of cached_table, we can probably add a
+      derived_table_ref field to Item_direct_view_ref objects and use it here.
     */
-    const bool weak_side_upwards=
-      (select->outer_join != 0) &&
-      ((used_tables & select->outer_join) == used_tables);
+    TABLE_LIST *const tl= item->cached_table;
+    DBUG_ASSERT(tl->is_view_or_derived());
+    /*
+      We might find expression-based FDs in the result of the view's query
+      expression; but if this view is on the weak side of an outer join,
+      the FD won't propagate to that outer join's result.
+    */
+    const bool weak_side_upwards= tl->is_inner_table_of_outer_join();
 
     /*
       (3) real_it is a deterministic expression of columns which are all FD on
@@ -1062,10 +1049,14 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list)
         Thus, used_tables are weak tables.
       */
       DBUG_ASSERT(table->outer_join);
+      /*
+        We might find equality-based FDs in the result of this outer join; but
+        if this outer join is itself on the weak side of a parent outer join,
+        the FD won't propagate to that parent outer join's result.
+      */
       const bool weak_side_upwards=
         table->embedding &&
-        ((table->embedding->nested_join->used_tables & select->outer_join) ==
-         table->embedding->nested_join->used_tables);
+        table->embedding->is_inner_table_of_outer_join();
       find_fd_in_cond(table->join_cond(), used_tables, weak_side_upwards);
     }
   }
@@ -1112,7 +1103,7 @@ void Group_check::to_opt_trace2(Opt_trace_context *ctx,
   }
   if (is_child())
   {
-    if (group_in_fd == ~0ULL && select->group_list.first)
+    if (group_in_fd == ~0ULL && select->is_explicitly_grouped())
       parent->add("all_group_expressions", true);
   }
   if (!mat_tables.empty())

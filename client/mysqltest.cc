@@ -5400,11 +5400,7 @@ void set_reconnect(MYSQL* mysql, int val)
   my_bool reconnect= val;
   DBUG_ENTER("set_reconnect");
   DBUG_PRINT("info", ("val: %d", val));
-#if MYSQL_VERSION_ID < 50000
-  mysql->reconnect= reconnect;
-#else
   mysql_options(mysql, MYSQL_OPT_RECONNECT, (char *)&reconnect);
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -5779,6 +5775,7 @@ void do_connect(struct st_command *command)
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   my_bool save_opt_use_ssl= opt_use_ssl;
+  my_bool save_opt_ssl_enforce= opt_ssl_enforce;
 #endif
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5919,6 +5916,7 @@ void do_connect(struct st_command *command)
   {
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
+    opt_ssl_enforce= 1;
   }
 #else
   /* keep the compiler happy about con_ssl */
@@ -5926,7 +5924,10 @@ void do_connect(struct st_command *command)
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  /* Setting default as not ssl for mysqltest because of performance implications.*/
+  mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
   opt_use_ssl= save_opt_use_ssl;
+  opt_ssl_enforce= save_opt_ssl_enforce;
 #endif
 
   if (con_pipe)
@@ -7284,7 +7285,9 @@ void init_win_path_patterns()
                           "$MYSQL_LIBDIR",
                           "./test/",
                           ".ibd",
-                          "ibdata"};
+                          "ibdata",
+                          "ibtmp",
+                          "undo"};
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
   char* p;
@@ -8110,7 +8113,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
     parameter markers.
   */
 
-#if MYSQL_VERSION_ID >= 50000
   if (cursor_protocol_enabled)
   {
     /*
@@ -8121,7 +8123,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       die("mysql_stmt_attr_set(STMT_ATTR_CURSOR_TYPE) failed': %d %s",
           mysql_stmt_errno(stmt), mysql_stmt_error(stmt));
   }
-#endif
 
   /*
     Execute the query

@@ -25,7 +25,29 @@
 #include "rpl_rli.h"
 #include "rpl_rli_pdb.h"
 
-int intialize_channel_service_interface() {return 0;}
+int initialize_channel_service_interface()
+{
+  DBUG_ENTER("initialize_channel_service_interface");
+
+  //master info and relay log repositories must be TABLE
+  if (opt_mi_repository_id != INFO_REPOSITORY_TABLE ||
+      opt_rli_repository_id != INFO_REPOSITORY_TABLE)
+  {
+    sql_print_error("For the creation of replication channels the master info"
+                    " and relay log info repositories must be set to TABLE");
+    DBUG_RETURN(1);
+  }
+
+  //server id must be different from 0
+  if (server_id == 0)
+  {
+    sql_print_error("For the creation of replication channels the server id"
+                    " must be different from 0");
+    DBUG_RETURN(1);
+  }
+
+  DBUG_RETURN(0);
+}
 
 #ifdef HAVE_REPLICATION
 
@@ -232,9 +254,7 @@ int channel_start(const char* channel,
 
   if (mi == NULL)
   {
-    DBUG_ASSERT(0);
-    my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), channel);
-    DBUG_RETURN(ER_SLAVE_CHANNEL_DOES_NOT_EXIST);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   if (sql_slave_skip_counter > 0)
@@ -344,9 +364,7 @@ int channel_stop(const char* channel,
 
   if (mi == NULL)
   {
-    DBUG_ASSERT(0);
-    my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), channel);
-    DBUG_RETURN(ER_SLAVE_CHANNEL_DOES_NOT_EXIST);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   int thread_mask= 0;
@@ -392,7 +410,7 @@ int channel_purge_queue(const char* channel, bool reset_all)
 
   if (mi == NULL)
   {
-    DBUG_RETURN(ER_SLAVE_CHANNEL_DOES_NOT_EXIST);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   bool thd_init= init_thread_context();
@@ -438,7 +456,7 @@ bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
 int channel_get_appliers_thread_id(const char* channel,
                                    unsigned long** appliers_id)
 {
-  DBUG_ENTER("channel_is_active(channel, thd_type");
+  DBUG_ENTER("channel_get_appliers_thread_id(channel, *appliers_id");
 
   int number_appliers= -1;
 
@@ -446,7 +464,7 @@ int channel_get_appliers_thread_id(const char* channel,
 
   if (mi == NULL)
   {
-    DBUG_RETURN(number_appliers);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   if (mi->rli != NULL)
@@ -498,7 +516,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
 
   if (mi == NULL)
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   rpl_gno last_gno= 0;
@@ -521,7 +539,9 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   DBUG_RETURN(last_gno);
 }
 
-int channel_queue_packet(const char* channel, const char* buf, unsigned long event_len)
+int channel_queue_packet(const char* channel,
+                         const char* buf,
+                         unsigned long event_len)
 {
   DBUG_ENTER("channel_queue_packet(channel, event_buffer, event_len)");
 
@@ -529,7 +549,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long eve
 
   if (mi == NULL)
   {
-    DBUG_RETURN(-1);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   DBUG_RETURN(queue_event(mi, buf, event_len));
@@ -543,12 +563,17 @@ int channel_wait_until_apply_queue_empty(char* channel, long long timeout)
 
   if (mi == NULL)
   {
-    DBUG_ASSERT(0);
-    DBUG_RETURN(ER_SLAVE_CHANNEL_DOES_NOT_EXIST);
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   int error = mi->rli->wait_for_gtid_set(current_thd, mi->rli->get_gtid_set(),
                                          timeout);
+
+  if(error == -1)
+    DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
+  if(error == -2)
+    DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
+
   DBUG_RETURN(error);
 }
 

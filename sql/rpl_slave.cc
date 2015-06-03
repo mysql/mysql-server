@@ -541,15 +541,14 @@ int start_slave(THD *thd)
   if (msr_map.get_num_instances() == 1)
   {
     mi= msr_map.get_mi(msr_map.get_default_channel());
-
-    DBUG_ASSERT(!strcmp(mi->get_channel(),
-                        msr_map.get_default_channel()));
-
-    error= start_slave(thd, &thd->lex->slave_connection,
-                       &thd->lex->mi, thd->lex->slave_thd_opt,
-                       mi, true, 1);
-    if (error)
+    DBUG_ASSERT(mi);
+    if ((error= start_slave(thd, &thd->lex->slave_connection,
+                                 &thd->lex->mi,
+                                 thd->lex->slave_thd_opt,
+                                 mi, true, 1)))
+    {
       goto err;
+    }
   }
   else
   {
@@ -572,7 +571,7 @@ int start_slave(THD *thd)
     {
       mi= it->second;
 
-      channel_configured= mi && mi->host[0];   // channel properly configured.
+      channel_configured= mi && mi->inited && mi->host[0];   // channel properly configured.
 
       if (channel_configured)
       {
@@ -1008,12 +1007,20 @@ int init_recovery(Master_info* mi, const char** errmsg)
     error= mts_recovery_groups(rli);
     if (rli->mts_recovery_group_cnt)
     {
-      error= 1;
-      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+      if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON)
+      {
+        rli->recovery_parallel_workers= 0;
+        rli->clear_mts_recovery_groups();
+      }
+      else
+      {
+        error= 1;
+        sql_print_error("--relay-log-recovery cannot be executed when the slave "
                         "was stopped with an error or killed in MTS mode; "
                         "consider using RESET SLAVE or restart the server "
                         "with --relay-log-recovery = 0 followed by "
                         "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
+      }
     }
   }
 
@@ -5561,6 +5568,17 @@ ignore_log_space_limit=%d",
                           " log space");
           goto err;
         }
+      DBUG_EXECUTE_IF("flush_after_reading_user_var_event",
+                      {
+                      if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
+                      {
+                      const char act[]= "now signal Reached wait_for signal.flush_complete_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+
+                      }
+                      });
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == binary_log::GTID_LOG_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
@@ -6203,11 +6221,8 @@ err:
     delete jg->worker;
   }
 
-  if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
-  {
-    bitmap_free(groups);
-    rli->recovery_groups_inited= false;
-  }
+  if (rli->mts_recovery_group_cnt == 0)
+    rli->clear_mts_recovery_groups();
 
   DBUG_RETURN(error ? ER_MTS_RECOVERY_FAILURE : 0);
 }
@@ -6566,46 +6581,27 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   THD *thd= rli->info_thd;
 
-  if (!*mts_inited) 
+  if (!*mts_inited)
     return;
   else if (rli->slave_parallel_workers == 0)
     goto end;
 
   /*
-    In case of the "soft" graceful stop Coordinator
-    guaranteed Workers were assigned with full groups so waiting
-    will be resultful.
-    "Hard" stop with KILLing Coordinator or erroring out by a Worker
-    can't wait for Workers' completion because those may not receive
-    commit-events of last assigned groups.
+    If request for stop slave is received notify worker
+    to stop.
   */
-  if (rli->mts_group_status != Relay_log_info::MTS_KILLED_GROUP &&
-      thd->killed == THD::NOT_KILLED)
-  {
-    DBUG_ASSERT(rli->mts_group_status != Relay_log_info::MTS_IN_GROUP ||
-                thd->is_error());
-
-#ifndef DBUG_OFF
-    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
-    {
-      sql_print_error("This is not supposed to happen at this point...");
-      DBUG_SUICIDE();
-    }
-#endif
-    // No need to know a possible error out of synchronization call.
-    (void)rli->current_mts_submode->wait_for_workers_to_finish(rli);
-    /*
-      At this point the coordinator has been stopped and the checkpoint
-      routine is executed to eliminate possible gaps.
-    */
-    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-  }
+  // Initialize worker exit count and max_updated_index to 0 during each stop.
+  rli->exit_counter= 0;
+  rli->max_updated_index= (rli->until_condition !=
+                           Relay_log_info::UNTIL_NONE)?
+                           rli->mts_groups_assigned:0;
   if (!rli->workers.empty())
   {
     for (int i= static_cast<int>(rli->workers.size()) - 1; i >= 0; i--)
     {
       Slave_worker *w= rli->workers[i];
-
+      struct slave_job_item item= {NULL, 0, 0};
+      struct slave_job_item *job_item= &item;
       mysql_mutex_lock(&w->jobs_lock);
 
       if (w->running_status != Slave_worker::RUNNING)
@@ -6614,7 +6610,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
         continue;
       }
 
-      w->running_status= Slave_worker::KILLED;
+      w->running_status= Slave_worker::STOP;
+      (void) set_max_updated_index_on_stop(w, job_item);
       mysql_cond_signal(&w->jobs_cond);
 
       mysql_mutex_unlock(&w->jobs_lock);
@@ -6652,16 +6649,16 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     rli->workers_copy_pfs.push_back(worker_copy);
   }
 
-  while (!rli->workers.empty())
+  for (Slave_worker **it= rli->workers.begin(); it != rli->workers.end(); ++it)
   {
-    Slave_worker *w= rli->workers.back();
-
+    Slave_worker *w= *it;
     mysql_mutex_lock(&w->jobs_lock);
     while (w->running_status != Slave_worker::NOT_RUNNING)
     {
       PSI_stage_info old_stage;
-      DBUG_ASSERT(w->running_status == Slave_worker::KILLED ||
-                  w->running_status == Slave_worker::ERROR_LEAVING);
+      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
+                  w->running_status == Slave_worker::STOP ||
+                  w->running_status == Slave_worker::STOP_ACCEPTED);
 
       thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
                       &stage_slave_waiting_workers_to_exit, &old_stage);
@@ -6671,13 +6668,20 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
+  }
+
+  if (thd->killed == THD::NOT_KILLED)
+    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
+
+  while (!rli->workers.empty())
+  {
+    Slave_worker *w= rli->workers.back();
     // Free the current submode object
     delete w->current_mts_submode;
     w->current_mts_submode= 0;
     rli->workers.pop_back();
     delete w;
   }
-
   struct timespec stats_end;
   set_timespec_nsec(&stats_end, 0);
 
@@ -7091,12 +7095,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;
   rli->current_mts_submode= 0;
-  if (rli->recovery_groups_inited)
-  {
-    bitmap_free(&rli->recovery_groups);
-    rli->mts_recovery_group_cnt= 0;
-    rli->recovery_groups_inited= false;
-  }
+  rli->clear_mts_recovery_groups();
 
   /*
     Some events set some playgrounds, which won't be cleared because thread
@@ -10776,7 +10775,7 @@ int add_new_channel(Master_info** mi, const char* channel,
  */
   if (channel)
   {
-    ident_check_status= check_table_name(channel, strlen(channel), false);
+    ident_check_status= check_table_name(channel, strlen(channel));
   }
   else
     ident_check_status= IDENT_NAME_WRONG;
@@ -10824,6 +10823,14 @@ bool change_master_cmd(THD *thd)
   bool res=false;
 
   mysql_mutex_lock(&LOCK_msr_map);
+
+  /* The slave must have been initialized to allow CHANGE MASTER statements */
+  if (!is_slave_configured())
+  {
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
+    res= true;
+    goto err;
+  }
 
   //If the chosen name is a group replication reserved name abort
   if (msr_map.is_group_replication_channel_name(lex->mi.channel))

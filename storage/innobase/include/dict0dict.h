@@ -267,6 +267,18 @@ dict_col_get_clust_pos(
 	const dict_col_t*	col,		/*!< in: table column */
 	const dict_index_t*	clust_index)	/*!< in: clustered index */
 	__attribute__((warn_unused_result));
+
+/** Gets the column position in the given index.
+@param[in]	col	table column
+@param[in]	index	index to be searched for column
+@return position of column in the given index. */
+UNIV_INLINE
+ulint
+dict_col_get_index_pos(
+	const dict_col_t*	col,
+	const dict_index_t*	index)
+	__attribute__((nonnull, warn_unused_result));
+
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return
 TRUE.
@@ -399,17 +411,6 @@ dict_foreign_add_to_cache(
 				/*!< in: error to be ignored */
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
-Check if the index is referenced by a foreign key, if TRUE return the
-matching instance NULL otherwise.
-@return pointer to foreign key struct if index is defined for foreign
-key, otherwise NULL */
-dict_foreign_t*
-dict_table_get_referenced_constraint(
-/*=================================*/
-	dict_table_t*	table,	/*!< in: InnoDB table */
-	dict_index_t*	index)	/*!< in: InnoDB index */
-	__attribute__((warn_unused_result));
-/*********************************************************************//**
 Checks if a table is referenced by foreign keys.
 @return TRUE if table is referenced by a foreign key */
 ibool
@@ -429,28 +430,6 @@ dict_foreign_replace_index(
 					/*!< in: column names, or NULL
 					to use table->col_names */
 	const dict_index_t*	index)	/*!< in: index to be replaced */
-	__attribute__((warn_unused_result));
-/**********************************************************************//**
-Determines whether a string starts with the specified keyword.
-@return TRUE if str starts with keyword */
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-	THD*		thd,		/*!< in: MySQL thread handle */
-	const char*	str,		/*!< in: string to scan for keyword */
-	const char*	keyword)	/*!< in: keyword to look for */
-	__attribute__((warn_unused_result));
-/*********************************************************************//**
-Checks if a index is defined for a foreign key constraint. Index is a part
-of a foreign key constraint if the index is referenced by foreign key
-or index is a foreign key index
-@return pointer to foreign key struct if index is defined for foreign
-key, otherwise NULL */
-dict_foreign_t*
-dict_table_get_foreign_constraint(
-/*==============================*/
-	dict_table_t*	table,	/*!< in: InnoDB table */
-	dict_index_t*	index)	/*!< in: InnoDB index */
 	__attribute__((warn_unused_result));
 /** Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
@@ -895,12 +874,10 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
-@param[in]	is_temp		whether the tablespace is temporary
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags,
-	bool	is_temp)
+	ulint	table_flags)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -1243,6 +1220,14 @@ dict_table_check_for_dup_indexes(
 					in this table */
 	enum check_name		check);	/*!< in: whether and when to allow
 					temporary index names */
+/** Check if a table is a temporary table with compressed row format,
+we should always expect false.
+@param[in]	table	table
+@return true if it's a compressed temporary table, false otherwise */
+inline
+bool
+dict_table_is_compressed_temporary(
+	const dict_table_t*	table);
 #endif /* UNIV_DEBUG */
 /**********************************************************************//**
 Builds a node pointer out of a physical record and a page number.
@@ -1523,7 +1508,7 @@ struct dict_sys_t{
 					on name */
 	hash_table_t*	table_id_hash;	/*!< hash table of the tables, based
 					on id */
-	ulint		size;		/*!< varying space in bytes occupied
+	lint		size;		/*!< varying space in bytes occupied
 					by the data dictionary table and
 					index objects */
 	dict_table_t*	sys_tables;	/*!< SYS_TABLES table */

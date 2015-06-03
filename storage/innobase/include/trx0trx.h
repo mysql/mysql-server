@@ -65,20 +65,6 @@ UNIV_INLINE
 void
 trx_search_latch_release_if_reserved(trx_t* trx);
 
-/**
-Reserve the AHI latch if not already reserved by this transaction.
-@param[in,out] trx		Transaction that may own the AHI latch */
-UNIV_INLINE
-void
-trx_reserve_search_latch_if_not_reserved(trx_t* trx);
-
-/**
-Releases the search latch if the transaction has been hogging it for too long.
-@param[in,out] trx		Transaction that may own the AHI latch */
-UNIV_INLINE
-void
-trx_search_latch_timeout(trx_t* trx);
-
 /** Set flush observer for the transaction
 @param[in/out]	trx		transaction struct
 @param[in]	observer	flush observer */
@@ -123,13 +109,17 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 
-/** Frees and initialize a transaction object instantinated during recovery.
-@param trx trx object to free and initialize during recovery */
+/** Resurrect table locks for resurrected transactions. */
+void
+trx_resurrect_locks();
+
+/** Free and initialize a transaction object instantiated during recovery.
+@param[in,out]	trx	transaction object to free and initialize */
 void
 trx_free_resurrected(trx_t* trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx trx object to free */
+@param[in,out]	trx	transaction object to free */
 void
 trx_free_for_background(trx_t* trx);
 
@@ -1169,6 +1159,11 @@ struct trx_t {
 	ulint		error_key_num;	/*!< if the index creation fails to a
 					duplicate key error, a mysql key
 					number of that index is stored here */
+	const dict_index_t*
+			last_upd_sp_index;
+					/*!< For last updated spatial index.
+					It's for avoiding set un-delete mark on
+					wrong rec in rollback. */
 	sess_t*		sess;		/*!< session of the trx, NULL if none */
 	que_t*		graph;		/*!< query currently run in the session,
 					or NULL if none; NOTE that the query
@@ -1376,21 +1371,6 @@ struct commit_node_t{
 #define trx_mutex_exit(t) do {			\
 	mutex_exit(&t->mutex);			\
 } while (0)
-
-/** @brief The latch protecting the adaptive search system
-
-This latch protects the
-(1) hash index;
-(2) columns of a record to which we have a pointer in the hash index;
-
-but does NOT protect:
-
-(3) next record offset field in a record;
-(4) next or previous records on the same page.
-
-Bear in mind (3) and (4) when using the hash index.
-*/
-extern rw_lock_t*	btr_search_latch_temp;
 
 /** Track if a transaction is executing inside InnoDB code. It acts
 like a gate between the Server and InnoDB.  */
@@ -1600,9 +1580,6 @@ private:
 	Transaction instance crossing the handler boundary from the Server. */
 	trx_t*			m_trx;
 };
-
-/** The latch protecting the adaptive search system */
-#define btr_search_latch	(*btr_search_latch_temp)
 
 #ifndef UNIV_NONINL
 #include "trx0trx.ic"

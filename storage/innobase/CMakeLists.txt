@@ -157,3 +157,12 @@ MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(innobase GenError)
 ENDIF()
+
+# Avoid generating Hardware Capabilities due to crc32 instructions
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(
+    ut/ut0crc32.cc
+    COMPILE_FLAGS "-Wa,-nH"
+  )
+ENDIF()

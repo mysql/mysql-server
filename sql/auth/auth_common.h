@@ -713,9 +713,11 @@ typedef enum ssl_artifacts_status
 {
   SSL_ARTIFACTS_NOT_FOUND= 0,
   SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACT_TRACES_FOUND,
   SSL_ARTIFACTS_AUTO_DETECTED
 } ssl_artifacts_status;
-#endif
+
+#endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;

@@ -745,8 +745,9 @@ btr_cur_search_to_nth_level(
 				to protect the record! */
 	btr_cur_t*	cursor, /*!< in/out: tree cursor; the cursor page is
 				s- or x-latched, but see also above! */
-	ulint		has_search_latch,/*!< in: info on the latch mode the
-				caller currently has on btr_search_latch:
+	ulint		has_search_latch,
+				/*!< in: info on the latch mode the
+				caller currently has on search system:
 				RW_S_LATCH, or 0 */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
@@ -903,7 +904,8 @@ btr_cur_search_to_nth_level(
 # endif
 	/* Use of AHI is disabled for intrinsic table as these tables re-use
 	the index-id and AHI validation is based on index-id. */
-	if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_NOT_LOCKED
+	if (rw_lock_get_writer(btr_get_search_latch(index))
+		== RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF
 	    && info->last_hash_succ
 	    && !index->disable_ahi
@@ -942,7 +944,7 @@ btr_cur_search_to_nth_level(
 
 	if (has_search_latch) {
 		/* Release possible search latch to obey latching order */
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_get_search_latch(index));
 	}
 
 	/* Store the position of the tree latch we push to mtr so that we
@@ -1879,7 +1881,7 @@ need_opposite_intention:
 		/* We do a dirty read of btr_search_enabled here.  We
 		will properly check btr_search_enabled again in
 		btr_search_build_page_hash_index() before building a
-		page hash index, while holding btr_search_latch. */
+		page hash index, while holding search latch. */
 		if (btr_search_enabled && !index->disable_ahi) {
 			btr_search_info_update(index, cursor);
 		}
@@ -1920,7 +1922,7 @@ func_exit:
 
 	if (has_search_latch) {
 
-		rw_lock_s_lock(&btr_search_latch);
+		rw_lock_s_lock(btr_get_search_latch(index));
 	}
 
 	if (mbr_adj) {
@@ -3222,12 +3224,12 @@ fail_err:
 
 	if (*rec) {
 	} else if (page_size.is_compressed()) {
+		ut_ad(!dict_table_is_temporary(index->table));
 		/* Reset the IBUF_BITMAP_FREE bits, because
 		page_cur_tuple_insert() will have attempted page
 		reorganize before failing. */
 		if (leaf
-		    && !dict_index_is_clust(index)
-		    && !dict_table_is_temporary(index->table)) {
+		    && !dict_index_is_clust(index)) {
 			ibuf_reset_free_bits(block);
 		}
 
@@ -3656,7 +3658,7 @@ btr_cur_parse_update_in_place(
 	ut_a((ibool)!!page_is_comp(page) == dict_table_is_comp(index->table));
 	rec = page + rec_offset;
 
-	/* We do not need to reserve btr_search_latch, as the page is only
+	/* We do not need to reserve search latch, as the page is only
 	being recovered, and there cannot be a hash index to it. */
 
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
@@ -3821,6 +3823,8 @@ btr_cur_update_in_place(
 
 	/* Check that enough space is available on the compressed page. */
 	if (page_zip) {
+		ut_ad(!dict_table_is_temporary(index->table));
+
 		if (!btr_cur_update_alloc_zip(
 			    page_zip, btr_cur_get_page_cur(cursor),
 			    index, offsets, rec_offs_size(offsets),
@@ -3870,13 +3874,13 @@ btr_cur_update_in_place(
 			btr_search_update_hash_on_delete(cursor);
 		}
 
-		rw_lock_x_lock(&btr_search_latch);
+		rw_lock_x_lock(btr_get_search_latch(index));
 	}
 
 	row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
 	if (is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
+		rw_lock_x_unlock(btr_get_search_latch(index));
 	}
 
 	btr_cur_update_in_place_log(flags, rec, index, update,
@@ -3898,7 +3902,6 @@ func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
 	    && !dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
@@ -4046,6 +4049,8 @@ any_extern:
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (page_zip) {
+		ut_ad(!dict_table_is_temporary(index->table));
+
 		if (!btr_cur_update_alloc_zip(
 			    page_zip, page_cursor, index, *offsets,
 			    new_rec_size, true, mtr)) {
@@ -4155,8 +4160,7 @@ any_extern:
 func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
-	    && !dict_index_is_clust(index)
-	    && !dict_table_is_temporary(index->table)) {
+	    && !dict_index_is_clust(index)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
 	}
@@ -4280,6 +4284,7 @@ btr_cur_pessimistic_update(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
+	ut_ad(!page_zip || !dict_table_is_temporary(index->table));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(trx_id > 0
@@ -4311,8 +4316,8 @@ btr_cur_pessimistic_update(
 		if (page_zip
 		    && optim_err != DB_ZIP_OVERFLOW
 		    && !dict_index_is_clust(index)
-		    && !dict_table_is_temporary(index->table)
 		    && page_is_leaf(page)) {
+			ut_ad(!dict_table_is_temporary(index->table));
 			ibuf_update_free_bits_zip(block, mtr);
 		}
 
@@ -4485,7 +4490,6 @@ btr_cur_pessimistic_update(
 			}
 		} else if (page_zip
 			   && !dict_index_is_clust(index)
-			   && !dict_table_is_temporary(index->table)
 			   && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer.
 			This is the same block which was skipped by
@@ -4726,7 +4730,7 @@ btr_cur_parse_del_mark_set_clust_rec(
 	if (page) {
 		rec = page + offset;
 
-		/* We do not need to reserve btr_search_latch, as the page
+		/* We do not need to reserve search latch, as the page
 		is only being recovered, and there cannot be a hash index to
 		it. Besides, these fields are being updated in place
 		and the adaptive hash index does not depend on them. */
@@ -4804,7 +4808,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	/* The btr_search_latch is not needed here, because
+	/* The search latch is not needed here, because
 	the adaptive hash index does not depend on the delete-mark
 	and the delete-mark is being updated in place. */
 
@@ -4908,7 +4912,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 	if (page) {
 		rec = page + offset;
 
-		/* We do not need to reserve btr_search_latch, as the page
+		/* We do not need to reserve search latch, as the page
 		is only being recovered, and there cannot be a hash index to
 		it. Besides, the delete-mark flag is being updated in place
 		and the adaptive hash index does not depend on it. */
@@ -4958,7 +4962,7 @@ btr_cur_del_mark_set_sec_rec(
 			      cursor->index->name(), cursor->index->id,
 			      trx_get_id_for_print(thr_get_trx(thr))));
 
-	/* We do not need to reserve btr_search_latch, as the
+	/* We do not need to reserve search latch, as the
 	delete-mark flag is being updated in place and the adaptive
 	hash index does not depend on it. */
 	btr_rec_set_deleted_flag(rec, buf_block_get_page_zip(block), val);
@@ -4982,7 +4986,7 @@ btr_cur_set_deleted_flag_for_ibuf(
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	/* We do not need to reserve btr_search_latch, as the page
+	/* We do not need to reserve search latch, as the page
 	has just been read to the buffer pool and there cannot be
 	a hash index to it.  Besides, the delete-mark flag is being
 	updated in place and the adaptive hash index does not depend
@@ -7892,7 +7896,7 @@ btr_rec_copy_externally_stored_field(
 		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
-		recv_recovery_rollback_active() or any
+		trx_rollback_or_clean_all_recovered() or any
 		TRX_ISO_READ_UNCOMMITTED transactions. */
 		return(NULL);
 	}

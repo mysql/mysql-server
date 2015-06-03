@@ -94,6 +94,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
 
 static Item_func_match *test_if_ft_index_order(ORDER *order);
 
+static uint32 get_key_length_tmp_table(Item *item);
 
 /**
   Optimizes one query block into a query execution plan (QEP.)
@@ -226,7 +227,6 @@ JOIN::optimize()
   }
   if (having_cond || calc_found_rows)
     m_select_limit= HA_POS_ERROR;
-  do_send_rows = unit->select_limit_cnt > 0;
 
   where_cond= optimize_cond(thd, where_cond, &cond_equal,
                             &select_lex->top_join_list, true,
@@ -484,7 +484,8 @@ JOIN::optimize()
     no_jbuf_after= 0;
 
   /* Perform FULLTEXT search before all regular searches */
-  optimize_fts_query();
+  if (select_lex->has_ft_funcs() && optimize_fts_query())
+    DBUG_RETURN(1);
 
   /*
     By setting child_subquery_can_materialize so late we gain the following:
@@ -5486,10 +5487,7 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
     blobs_involved|= inner->is_blob_field();
 
     // Calculate the index length of materialized table
-    const uint lookup_index_length=((inner->type() == Item::FIELD_ITEM) ?
-                            ((Item_field *)inner)->field->pack_length() :
-                            inner->max_length) +
-                            (inner->maybe_null ? HA_KEY_NULL_LENGTH : 0);
+    const uint lookup_index_length= get_key_length_tmp_table(inner);
     if (lookup_index_length > max_key_part_length)
       sj_nest->nested_join->sjm.lookup_allowed= false;
     total_lookup_index_length+= lookup_index_length ; 
@@ -6616,7 +6614,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
           buffer, and grow from opposite directions, so make sure they
           don't cross.
         */
-        DBUG_ASSERT(*sargables > *reinterpret_cast<SARGABLE_PARAM**>(key_fields));
+        DBUG_ASSERT(*sargables > reinterpret_cast<SARGABLE_PARAM*>(*key_fields));
         (*sargables)->field= field;
         (*sargables)->arg_value= value;
         (*sargables)->num_values= num_values;
@@ -6710,7 +6708,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
     don't write any sargables.
   */
   DBUG_ASSERT(sargables == NULL ||
-              *key_fields < *reinterpret_cast<Key_field**>(sargables));
+              *key_fields < reinterpret_cast<Key_field*>(*sargables));
 }
 
 /**
@@ -10282,12 +10280,11 @@ void JOIN::optimize_keyuse()
   and checks if FT index can be used as covered.
 */
 
-void JOIN::optimize_fts_query()
+bool JOIN::optimize_fts_query()
 {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
-  if (!select_lex->ftfunc_list->elements)
-    return;
+  DBUG_ASSERT(select_lex->has_ft_funcs());
 
   for (uint i= const_tables; i < tables; i++)
   {
@@ -10333,7 +10330,7 @@ void JOIN::optimize_fts_query()
                          !order ? m_select_limit : HA_POS_ERROR, false);
   }
 
-  init_ftfuncs(thd, select_lex);
+  return init_ftfuncs(thd, select_lex);
 }
 
 
@@ -10881,3 +10878,37 @@ void JOIN::refine_best_rowcount()
 /**
   @} (end of group Query_Optimizer)
 */
+
+/**
+  This function is used to get the key length of Item object on
+  which one tmp field will be created during create_tmp_table.
+  This function references KEY_PART_INFO::init_from_field().
+
+  @param item  A inner item of outer join
+
+  @return  The length of a item to be as a key of a temp table
+*/
+
+static uint32 get_key_length_tmp_table(Item *item)
+{
+  uint32 len= 0;
+
+  item= item->real_item();
+  if (item->type() == Item::FIELD_ITEM)
+    len= ((Item_field *)item)->field->key_length();
+  else
+    len= item->max_length;
+
+  if (item->maybe_null)
+    len+= HA_KEY_NULL_LENGTH;
+
+  // references KEY_PART_INFO::init_from_field()
+  enum_field_types type= item->field_type();
+  if (type == MYSQL_TYPE_BLOB ||
+      type == MYSQL_TYPE_VARCHAR ||
+      type == MYSQL_TYPE_GEOMETRY)
+    len+= HA_KEY_BLOB_LENGTH;
+
+  return len;
+}
+

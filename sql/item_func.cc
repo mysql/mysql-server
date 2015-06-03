@@ -3271,7 +3271,6 @@ void Item_func_min_max::fix_length_and_dec()
                                                        args, arg_count);
     if (datetime_found)
     {
-      thd= current_thd;
       compare_as_dates= TRUE;
       /*
         We should not do this:
@@ -3338,6 +3337,7 @@ uint Item_func_min_max::cmp_datetimes(longlong *value)
   {
     Item **arg= args + i;
     bool is_null;
+    THD *thd= current_thd;
     longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
 
     /* Check if we need to stop (because of error or KILL)  and stop the loop */
@@ -3811,8 +3811,10 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 
 longlong Item_func_validate_password_strength::val_int()
 {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  String value(buff, sizeof(buff), system_charset_info);
   String *field= args[0]->val_str(&value);
-  if ((null_value= args[0]->null_value))
+  if ((null_value= args[0]->null_value) || field->length() == 0)
     return 0;
   return (my_calculate_password_strength(field->ptr(), field->length()));
 }
@@ -7371,7 +7373,15 @@ bool Item_func_match::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_func_match::init_search()
+/**
+  Initialize searching within full-text index.
+
+  @param thd    Thread handler
+
+  @returns false if success, true if error
+*/
+
+bool Item_func_match::init_search(THD *thd)
 {
   DBUG_ENTER("Item_func_match::init_search");
 
@@ -7380,7 +7390,7 @@ void Item_func_match::init_search()
     with fix_field
   */
   if (!fixed)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(false);
 
   TABLE *const table= table_ref->table;
   /* Check if init_search() has been called before */
@@ -7394,16 +7404,19 @@ void Item_func_match::init_search()
     */
     if (join_key)
       table->file->ft_handler= ft_handler;
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(false);
   }
 
   if (key == NO_SUCH_KEY)
   {
     List<Item> fields;
-    fields.push_back(new Item_string(" ",1, cmp_collation.collation));
+    if (fields.push_back(new Item_string(" ",1, cmp_collation.collation)))
+      DBUG_RETURN(true);
     for (uint i= 0; i < arg_count; i++)
       fields.push_back(args[i]);
     concat_ws=new Item_func_concat_ws(fields);
+    if (concat_ws == NULL)
+      DBUG_RETURN(true);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
@@ -7415,9 +7428,11 @@ void Item_func_match::init_search()
 
   if (master)
   {
-    master->init_search();
+    if (master->init_search(thd))
+      DBUG_RETURN(true);
+
     ft_handler=master->ft_handler;
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(false);
   }
 
   String *ft_tmp= 0;
@@ -7440,16 +7455,18 @@ void Item_func_match::init_search()
   if (!table->is_created())
   {
      my_error(ER_NO_FT_MATERIALIZED_SUBQUERY, MYF(0));
-     DBUG_VOID_RETURN;
+     DBUG_RETURN(true);
   }
 
   DBUG_ASSERT(master == NULL);
   ft_handler= table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
+  if (thd->is_error())
+    DBUG_RETURN(true);
 
   if (join_key)
     table->file->ft_handler=ft_handler;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
@@ -7529,7 +7546,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
       return TRUE;
     }
     allows_multi_table_search &= 
-      allows_search_on_non_indexed_columns(((Item_field *)item)->table_ref);
+      allows_search_on_non_indexed_columns(((Item_field *)item)->field->table);
   }
 
   /*
@@ -7625,7 +7642,7 @@ bool Item_func_match::fix_index()
   */
   if (!fixed)
   {
-    if (allows_search_on_non_indexed_columns(table_ref))
+    if (allows_search_on_non_indexed_columns(table_ref->table))
       key= NO_SUCH_KEY;
 
     return false;
@@ -7697,7 +7714,7 @@ bool Item_func_match::fix_index()
   }
 
 err:
-  if (table_ref != 0 && allows_search_on_non_indexed_columns(table_ref))
+  if (table_ref != 0 && allows_search_on_non_indexed_columns(table_ref->table))
   {
     key=NO_SUCH_KEY;
     return 0;

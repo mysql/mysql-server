@@ -44,7 +44,7 @@
 rc_reset
 
 STARTTIMEOUT=180
-STOPTIMEOUT=60
+STOPTIMEOUT=600
 PROG=/usr/bin/mysqld_safe
 
 [ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql

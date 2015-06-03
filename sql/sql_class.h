@@ -283,6 +283,8 @@ public:
   /** Erase all prepared statements (calls Prepared_statement destructor). */
   void erase(Prepared_statement *statement);
 
+  void claim_memory_ownership();
+
   void reset();
 
   ~Prepared_statement_map();
@@ -887,6 +889,8 @@ public:
   struct  System_variables variables;	// Changeable local variables
   struct  System_status_var status_var; // Per thread statistic vars
   struct  System_status_var *initial_status_var; /* used by show status */
+  // has status_var already been added to global_status_var?
+  bool status_var_aggregated;
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.
@@ -3587,6 +3591,21 @@ public:
   */
 
   void send_statement_status();
+
+  /**
+    This is only used by master dump threads.
+    When the master receives a new connection from a slave with a UUID that
+    is already connected, it will set this flag TRUE before killing the old
+    slave connection.
+  */
+  bool duplicate_slave_uuid;
+
+  /**
+    Claim all the memory used by the THD object.
+    This method is to keep memory instrumentation statistics
+    updated, when an object is transfered across threads.
+  */
+  void claim_memory_ownership();
 };
 
 

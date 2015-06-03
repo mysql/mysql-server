@@ -630,8 +630,12 @@ enum os_file_type_t {
 /* Maximum path string length in bytes when referring to tables with in the
 './databasename/tablename.ibd' path format; we can allocate at least 2 buffers
 of this size from the thread stack; that is why this should not be made much
-bigger than 4000 bytes */
+bigger than 4000 bytes.  The maximum path length used by any storage engine
+in the server must be at least this big. */
 #define OS_FILE_MAX_PATH	4000
+#if (FN_REFLEN_SE < OS_FILE_MAX_PATH)
+# error "(FN_REFLEN_SE < OS_FILE_MAX_PATH)"
+#endif
 
 /** Struct used in fetching information of a file in a directory */
 struct os_file_stat_t {
@@ -1457,38 +1461,6 @@ os_file_status(
 	const char*	path,
 	bool*		exists,
 	os_file_type_t* type);
-
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' characters
-are not counted as part of the pathname.
-
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
-@param[in]	path		pathname
-@return own: directory component of the pathname */
-char*
-os_file_dirname(
-	const char*	path);
 
 /** This function returns a new path name after replacing the basename
 in an old path with a new basename.  The old_path is a full path

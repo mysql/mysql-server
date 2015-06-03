@@ -384,6 +384,12 @@ DROP TABLE emp;
 --echo # Cleanup
 --echo #
 
+--rmdir $MYSQL_TMP_DIR/alt_dir_east/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_east
+--rmdir $MYSQL_TMP_DIR/alt_dir_north/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_north
+--rmdir $MYSQL_TMP_DIR/alt_dir_west/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_west
 --rmdir $MYSQL_TMP_DIR/alt_dir/test
 --rmdir $MYSQL_TMP_DIR/alt_dir
 

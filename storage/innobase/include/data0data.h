@@ -383,14 +383,6 @@ dtuple_check_typed(
 /*===============*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((warn_unused_result));
-/**********************************************************//**
-Checks that a data tuple is typed.
-@return TRUE if ok */
-ibool
-dtuple_check_typed_no_assert(
-/*=========================*/
-	const dtuple_t*	tuple)	/*!< in: tuple */
-	__attribute__((warn_unused_result));
 #ifdef UNIV_DEBUG
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
@@ -402,12 +394,6 @@ dtuple_validate(
 	const dtuple_t*	tuple)	/*!< in: tuple */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
-/*************************************************************//**
-Pretty prints a dfield value according to its data type. */
-void
-dfield_print(
-/*=========*/
-	const dfield_t*	dfield);	/*!< in: dfield */
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */

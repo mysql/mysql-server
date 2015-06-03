@@ -96,6 +96,7 @@ drop table t1,t2,t3;
 #
 --error 1096
 select * union select 1;
+--error 1054
 select 1 as a,(select a union select a);
 --error 1054
 (select 1) union (select 2) order by 0;
@@ -1886,3 +1887,10 @@ UNION ALL
 SELECT 1 FROM t1;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #21156155 UNION GEOMETRY TYPE: UNITIALIZED VALUE IN
+--echo # ITEM_TYPE_HOLDER::JOIN_TYPES
+--echo #
+
+SELECT NULL UNION SELECT POINT(1,1);

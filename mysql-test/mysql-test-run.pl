@@ -134,6 +134,9 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
+our $num_tests_for_report;      # for test-progress option
+our $remaining;
+
 my $auth_plugin;                # the path to the authentication test plugin
 
 END {
@@ -269,6 +272,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
+our $opt_test_progress;
 my $opt_max_connections;
 our $opt_report_times= 0;
 
@@ -401,6 +405,10 @@ sub main {
 
   #######################################################################
   my $num_tests= @$tests;
+  
+  $num_tests_for_report = $num_tests * $opt_repeat;
+  $remaining= $num_tests_for_report;
+
   if ( $opt_parallel eq "auto" ) {
     # Try to find a suitable value for number of workers
     my $sys_info= My::SysInfo->new();
@@ -1034,6 +1042,7 @@ sub print_global_resfile {
   resfile_global("suite-timeout", $opt_suite_timeout);
   resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
   resfile_global("warnings", $opt_warnings ? 1 : 0);
+  resfile_global("test-progress", $opt_test_progress ? 1 : 0);
   resfile_global("max-connections", $opt_max_connections);
 #  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
   resfile_global("product", "MySQL");
@@ -1102,6 +1111,7 @@ sub command_line_setup {
              'record'                   => \$opt_record,
              'check-testcases!'         => \$opt_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
+             'test-progress'            => \$opt_test_progress,
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
@@ -3663,7 +3673,8 @@ sub mysql_install_db {
   foreach my $extra_opt ( @opt_extra_mysqld_opt ) {
     (my $temp_extra_opt=$extra_opt) =~ s/_/-/g;
     if ($temp_extra_opt =~ /--innodb-page-size/ || 
-        $temp_extra_opt =~ /--innodb-log-file-size/) {
+        $temp_extra_opt =~ /--innodb-log-file-size/ ||
+        $temp_extra_opt =~ /--innodb-undo-tablespaces/) {
       mtr_add_arg($args, $extra_opt);
     }
   # Plugin arguments need to be given to the bootstrap 
@@ -3800,6 +3811,13 @@ sub mysql_install_db {
     mtr_error("Error executing mysqld --bootstrap\n" .
               "Could not install system database from $bootstrap_sql_file\n" .
 	      "see $path_bootstrap_log for errors");
+  }
+
+  # Remove the auto.cnf so that a new auto.cnf is generated
+  # for master and slaves when the server is restarted
+  if (-f "$datadir/auto.cnf")
+  {
+    unlink "$datadir/auto.cnf";
   }
 }
 
@@ -6957,6 +6975,7 @@ Options for test case authoring
   record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
+  test-progress         Print the percentage of tests completed
 
 Options that pass on options (these may be repeated)
 

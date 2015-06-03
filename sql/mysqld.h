@@ -147,7 +147,7 @@ extern my_bool opt_slave_preserve_commit_order;
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
-extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+extern my_bool opt_enable_named_pipe, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
@@ -340,7 +340,6 @@ static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
   return my_set_thread_local(THR_MALLOC, hdl);
 }
 
-extern bool load_perfschema_engine;
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -380,6 +379,7 @@ extern PSI_mutex_key
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
+  key_mutex_slave_parallel_worker_count,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages,
   key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
@@ -611,9 +611,7 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 
-#define TC_HEURISTIC_RECOVER_COMMIT   1
-#define TC_HEURISTIC_RECOVER_ROLLBACK 2
-extern ulong tc_heuristic_recover;
+extern long tc_heuristic_recover;
 
 extern ulong specialflag;
 extern size_t mysql_data_home_len;

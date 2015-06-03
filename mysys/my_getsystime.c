@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,9 @@ time_t my_time(myf flags)
 }
 
 
+#ifdef _WIN32
 #define OFFSET_TO_EPOCH 116444736000000000ULL
+#endif
 
 /**
   Return time in microseconds.

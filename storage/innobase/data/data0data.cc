@@ -47,11 +47,6 @@ Created 5/30/1994 Heikki Tuuri
 debug version, dtuple_create() will make all fields of dtuple_t point
 to data_error. */
 byte	data_error;
-
-# ifndef UNIV_DEBUG_VALGRIND
-/** this is used to fool the compiler in dtuple_validate */
-ulint	data_dummy;
-# endif /* !UNIV_DEBUG_VALGRIND */
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
@@ -129,6 +124,7 @@ dfield_check_typed_no_assert(
 /**********************************************************//**
 Checks that a data tuple is typed.
 @return TRUE if ok */
+static
 ibool
 dtuple_check_typed_no_assert(
 /*=========================*/
@@ -237,10 +233,6 @@ dtuple_validate(
 			ulint		j;
 
 			for (j = 0; j < len; j++) {
-
-				data_dummy  += *data; /* fool the compiler not
-						      to optimize out this
-						      code */
 				data++;
 			}
 #endif /* !UNIV_DEBUG_VALGRIND */
@@ -256,47 +248,6 @@ dtuple_validate(
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
-/*************************************************************//**
-Pretty prints a dfield value according to its data type. */
-void
-dfield_print(
-/*=========*/
-	const dfield_t*	dfield)	/*!< in: dfield */
-{
-	const byte*	data;
-	ulint		len;
-	ulint		i;
-
-	len = dfield_get_len(dfield);
-	data = static_cast<const byte*>(dfield_get_data(dfield));
-
-	if (dfield_is_null(dfield)) {
-		fputs("NULL", stderr);
-
-		return;
-	}
-
-	switch (dtype_get_mtype(dfield_get_type(dfield))) {
-	case DATA_CHAR:
-	case DATA_VARCHAR:
-		for (i = 0; i < len; i++) {
-			int	c = *data++;
-			putc(isprint(c) ? c : ' ', stderr);
-		}
-
-		if (dfield_is_ext(dfield)) {
-			fputs("(external)", stderr);
-		}
-		break;
-	case DATA_INT:
-		ut_a(len == 4); /* only works for 32-bit integers */
-		fprintf(stderr, "%d", (int) mach_read_from_4(data));
-		break;
-	default:
-		ut_error;
-	}
-}
-
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
 is printed if a string contains non-printable characters. */

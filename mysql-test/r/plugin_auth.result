@@ -587,7 +587,7 @@ ALTER USER employee@localhost PASSWORD EXPIRE;
 # Connecting with the proxied user and executing a query after the
 # proxied user's password is expired
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1820 (HY000) at line 1: You must SET PASSWORD before executing this statement
+ERROR 1820 (HY000) at line 1: You must reset your password using ALTER USER statement before executing this statement.
 # Connecting with the proxy user and executing a query after the proxied
 # user's password is expired. Here we are not supposed to get error.
 mysql: [Warning] Using a password on the command line interface can be insecure.
@@ -626,5 +626,5 @@ SELECT USER(), CURRENT_USER, @@PROXY_USER;
 USER()	CURRENT_USER	@@PROXY_USER
 empl_external@localhost	employee@localhost	'empl_external'@'localhost'
 SELECT USER(), CURRENT_USER, @@PROXY_USER;
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 DROP USER 'employee'@'localhost', 'empl_external'@'localhost';

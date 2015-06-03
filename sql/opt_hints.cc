@@ -17,6 +17,7 @@
 
 #include "derror.h"        // ER_THD
 #include "sql_class.h"     // THD
+#include "mysqld.h"        // table_alias_charset
 #include "sql_error.h"     // Sql_condition
 
 /**
@@ -58,6 +59,7 @@ const LEX_CSTRING sys_qb_prefix=  {"select#", 7};
 
   @param s     Pointer to LEX_CSTRING
   @param t     Pointer to LEX_CSTRING
+  @param cs    Pointer to character set
 
   @return  0 if strings are equal
            1 if s is greater
@@ -65,12 +67,12 @@ const LEX_CSTRING sys_qb_prefix=  {"select#", 7};
 */
 
 static int cmp_lex_string(const LEX_CSTRING *s,
-                          const LEX_CSTRING *t)
+                          const LEX_CSTRING *t,
+                          const CHARSET_INFO *cs)
 {
-  return system_charset_info->
-    coll->strnncollsp(system_charset_info,
-                      (uchar *) s->str, s->length,
-                      (uchar *) t->str, t->length, 0);
+  return cs->coll->strnncollsp(cs,
+                               (uchar *) s->str, s->length,
+                               (uchar *) t->str, t->length, 0);
 }
 
 
@@ -86,12 +88,13 @@ bool Opt_hints::get_switch(opt_hints_enum type_arg) const
 }
 
 
-Opt_hints* Opt_hints::find_by_name(const LEX_CSTRING *name_arg) const
+Opt_hints* Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
+                                   const CHARSET_INFO *cs) const
 {
   for (uint i= 0; i < child_array.size(); i++)
   {
     const LEX_CSTRING *name= child_array[i]->get_name();
-    if (name && !cmp_lex_string(name, name_arg))
+    if (name && !cmp_lex_string(name, name_arg, cs))
       return child_array[i];
   }
   return NULL;
@@ -201,7 +204,8 @@ Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE *table,
                                                   const char *alias)
 {
   const LEX_CSTRING str= { alias, strlen(alias) };
-  Opt_hints_table *tab= static_cast<Opt_hints_table *>(find_by_name(&str));
+  Opt_hints_table *tab=
+    static_cast<Opt_hints_table *>(find_by_name(&str, table_alias_charset));
 
   table->pos_in_table_list->opt_hints_qb= this;
 
@@ -283,7 +287,7 @@ void Opt_hints_table::adjust_key_hints(TABLE *table)
     for (uint j= 0 ; j < table->s->keys ; j++, key_info++)
     {
       const LEX_CSTRING key_name= { key_info->name, strlen(key_info->name) };
-      if (!cmp_lex_string((*hint)->get_name(), &key_name))
+      if (!cmp_lex_string((*hint)->get_name(), &key_name, system_charset_info))
       {
         (*hint)->set_resolved();
         keyinfo_array[j]= static_cast<Opt_hints_key *>(*hint);

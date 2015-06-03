@@ -316,6 +316,10 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
                                                    sql_lock->lock_count,
                                                    &thd->lock_info, timeout,
                                                    thd->mysys_var)];
+
+  DBUG_EXECUTE_IF("mysql_lock_tables_kill_query",
+                  thd->killed= THD::KILL_QUERY;);
+
   if (rc)
   {
     if (sql_lock->table_count)

@@ -149,7 +149,6 @@ exit:
 
   my_end(my_end_arg);
   exit(error ? 1 : 0);
-  return 0;        /* No compiler warnings */
 }
 
 
@@ -501,7 +500,6 @@ get_one_option(int optid,
   case 'V':
     PRINT_VERSION;
     exit(0);
-    break;
   case '?':
   case 'I':          /* Info */
     usage();

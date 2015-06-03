@@ -7852,9 +7852,6 @@ ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains
 DROP PROCEDURE p1;
 PREPARE s FROM
 'SET @x = ( SELECT b FROM t1 LEFT JOIN t2 USING ( a ) GROUP BY t1.a )';
-EXECUTE s;
-ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
-EXECUTE s;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;

@@ -519,6 +519,9 @@ The following options may be given as the first argument:
  value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
+ --max-statement-time=# 
+ Kill SELECT statement that takes over the specified
+ number of milliseconds
  --max-tmp-tables=#  Maximum number of temporary tables a client can keep open
  at a time
  --max-user-connections=# 
@@ -737,6 +740,9 @@ The following options may be given as the first argument:
  --performance-schema-max-cond-instances=# 
  Maximum number of instrumented condition objects. Use 0
  to disable, -1 for automated scaling.
+ --performance-schema-max-digest-length=# 
+ Maximum length considered for digest text, when stored in
+ performance_schema tables.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
@@ -991,7 +997,6 @@ The following options may be given as the first argument:
  --show-compatibility-56 
  SHOW commands / INFORMATION_SCHEMA tables compatible with
  MySQL 5.6
- (Defaults to on; use --skip-show-compatibility-56 to disable.)
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1115,8 +1120,6 @@ The following options may be given as the first argument:
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
  write to the file. Use 0 to disable synchronous flushing
- --sync-frm          Sync .frm files to disk on creation
- (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
  Synchronously flush master info to disk after every #th
  event. Use 0 to disable synchronous flushing
@@ -1138,7 +1141,7 @@ The following options may be given as the first argument:
  The number of table cache instances
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
- values are COMMIT or ROLLBACK.
+ values are OFF, COMMIT or ROLLBACK.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1329,6 +1332,7 @@ max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
 max-sort-length 1024
 max-sp-recursion-depth 0
+max-statement-time 0
 max-tmp-tables 32
 max-user-connections 0
 max-write-lock-count 18446744073709551615
@@ -1395,6 +1399,7 @@ performance-schema-hosts-size -1
 performance-schema-instrument 
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
+performance-schema-max-digest-length 1024
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
@@ -1411,7 +1416,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 191
+performance-schema-max-statement-classes 190
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1459,7 +1464,7 @@ session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 sha256-password-proxy-users FALSE
-show-compatibility-56 TRUE
+show-compatibility-56 FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
@@ -1491,13 +1496,12 @@ sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SU
 stored-program-cache 256
 symbolic-links FALSE
 sync-binlog 1
-sync-frm TRUE
 sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
 table-open-cache-instances 1
-tc-heuristic-recover COMMIT
+tc-heuristic-recover OFF
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144

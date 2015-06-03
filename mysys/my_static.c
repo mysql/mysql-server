@@ -97,14 +97,14 @@ static void enter_cond_dummy(void *a __attribute__((unused)),
                              const char *f __attribute__((unused)),
                              const char *g __attribute__((unused)),
                              int h __attribute__((unused)))
-{ };
+{ }
 
 static void exid_cond_dummy(void *a __attribute__((unused)),
                             const PSI_stage_info *b __attribute__((unused)),
                             const char *c __attribute__((unused)),
                             const char *d __attribute__((unused)),
                             int e __attribute__((unused)))
-{ };
+{ }
 
 /*
   Initialize these hooks to dummy implementations. The real server

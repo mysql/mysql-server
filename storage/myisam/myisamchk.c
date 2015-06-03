@@ -128,7 +128,6 @@ int main(int argc, char **argv)
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
-  return 0;				/* No compiler warning */
 } /* main */
 
 enum options_mc {
@@ -910,7 +909,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       (void) fprintf(stderr,
 		   "MyISAM-table '%s' is not fixed because of errors\n",
 	      filename);
-      return(-1);
+      DBUG_RETURN(-1);
     }
     recreate=1;
     if (!(param->testflag & T_REP_ANY))

@@ -19,6 +19,8 @@
 #include <iostream>
 #include <locale>
 
+using namespace std;
+
 ostream &operator<<(ostream &os, const Datetime &dt)
 {
   const char format[]= "%Y-%m-%d %X";

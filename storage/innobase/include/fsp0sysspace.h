@@ -111,7 +111,7 @@ public:
 	void shutdown();
 
 	/** Normalize the file size, convert to extents. */
-	void normalize();
+	void normalize_size();
 
 	/**
 	@return true if a new raw device was created. */
@@ -167,11 +167,6 @@ public:
 		ulint*	sum_new_sizes,
 		lsn_t*	flush_lsn)
 		__attribute__((warn_unused_result));
-
-	/** Replace any records for this space_id in the Data Dictionary with
-	this name, flags & filepath..
-	@return DB_SUCCESS or error code */
-	dberr_t replace_in_dictionary();
 
 private:
 	/** Check the tablespace header for this tablespace.
@@ -312,7 +307,6 @@ is_system_or_undo_tablespace(
 	       || id <= srv_undo_tablespaces_open);
 }
 
-#ifdef UNIV_DEBUG
 /** Check if predefined shared tablespace.
 @return true if predefined shared tablespace */
 UNIV_INLINE
@@ -325,5 +319,4 @@ is_predefined_tablespace(
 	return(id <= srv_undo_tablespaces_open
 	       || id == srv_tmp_space.space_id());
 }
-#endif /* UNIV_DEBUG */
 #endif /* fsp0sysspace_h */

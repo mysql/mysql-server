@@ -126,7 +126,6 @@ typedef longlong      dec2;
 #define DIG_MASK     100000000
 #define DIG_BASE     1000000000
 #define DIG_MAX      (DIG_BASE-1)
-#define DIG_BASE2    ((dec2)DIG_BASE * (dec2)DIG_BASE)
 #define ROUND_UP(X)  (((X)+DIG_PER_DEC1-1)/DIG_PER_DEC1)
 static const dec1 powers10[DIG_PER_DEC1+1]={
   1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
@@ -996,6 +995,9 @@ internal_str2dec(const char *from, decimal_t *to, char **end, my_bool fixed)
         error= decimal_shift(to, (int) exponent);
     }
   }
+  /* Avoid returning negative zero, cfr. decimal_cmp() */
+  if (to->sign && decimal_is_zero(to))
+    to->sign= FALSE;
   return error;
 
 fatal_error:
@@ -2123,6 +2125,11 @@ int decimal_cmp(const decimal_t *from1, const decimal_t *from2)
 {
   if (likely(from1->sign == from2->sign))
     return do_sub(from1, from2, 0);
+
+  // Reject negative zero, cfr. str2my_decimal()
+  DBUG_ASSERT(!(decimal_is_zero(from1) && from1->sign));
+  DBUG_ASSERT(!(decimal_is_zero(from2) && from2->sign));
+
   return from1->sign > from2->sign ? -1 : 1;
 }
 

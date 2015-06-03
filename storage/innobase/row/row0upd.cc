@@ -1293,7 +1293,7 @@ row_upd_changes_ord_field_binary_func(
 					/* The externally stored field
 					was not written yet. This
 					record should only be seen by
-					recv_recovery_rollback_active(),
+					trx_rollback_or_clean_all_recovered(),
 					when the server had crashed before
 					storing the field. */
 					ut_ad(thr->graph->trx->is_recovered);
@@ -2499,6 +2499,7 @@ to this node, we assume that we have a persistent cursor which was on a
 record, and the position of the cursor is stored in the cursor.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
+static
 dberr_t
 row_upd(
 /*====*/
@@ -2558,6 +2559,9 @@ row_upd(
 
 	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 
+	/* Initialize last updated spatial index. */
+	thr_get_trx(thr)->last_upd_sp_index = NULL;
+
 	do {
 		/* Skip corrupted index */
 		dict_table_skip_corrupt_index(node->index);
@@ -2572,6 +2576,12 @@ row_upd(
 			if (err != DB_SUCCESS) {
 
 				DBUG_RETURN(err);
+			}
+
+			/* Set last updated spatial index. */
+			if (dict_index_is_spatial(node->index)) {
+				trx_t*	trx = thr_get_trx(thr);
+				trx->last_upd_sp_index = node->index;
 			}
 		}
 

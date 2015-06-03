@@ -284,7 +284,7 @@ lock_sys_t*	lock_sys	= NULL;
 
 /** We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
-bool	lock_deadlock_found = false;
+static bool	lock_deadlock_found = false;
 
 /** Only created if !srv_read_only_mode */
 static FILE*		lock_latest_err_file;
@@ -369,7 +369,7 @@ lock_clust_rec_cons_read_sees(
 
 	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
-	return(view->changes_visible(trx_id));
+	return(view->changes_visible(trx_id, index->table->name));
 }
 
 /*********************************************************************//**
@@ -1135,6 +1135,7 @@ lock_rec_has_expl(
 /*********************************************************************//**
 Checks if some other transaction has a lock request in the queue.
 @return lock or NULL */
+static
 const lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
@@ -1634,6 +1635,7 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 	ut_ad(!trx_mutex_own(m_trx));
 	ut_ad(lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
+	ib::info() << "Blocking transaction wake up: ID: " << lock->trx->id;
 	lock->trx->lock.was_chosen_as_deadlock_victim = true;
 
 	/* Remove the blocking transaction from the hit list. */
@@ -1678,6 +1680,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 		char	buffer[1024];
 
 		ib::info() << "Blocking transaction: ID: " << trx->id << " - "
+			<< " Blocked transaction ID: "<< m_trx->id << " - "
 			<< thd_security_context(thd, buffer, sizeof(buffer),
 						512);
 	}
@@ -2473,6 +2476,7 @@ lock_rec_cancel(
 Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
+static
 void
 lock_rec_dequeue_from_page(
 /*=======================*/
@@ -2755,6 +2759,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 /*************************************************************//**
 Moves the locks of a record to another record and resets the lock bits of
 the donating record. */
+static
 void
 lock_rec_move_low(
 /*==============*/
@@ -2803,6 +2808,28 @@ lock_rec_move_low(
 
 	ut_ad(lock_rec_get_first(lock_sys->rec_hash,
 				 donator, donator_heap_no) == NULL);
+}
+
+/*************************************************************//**
+Moves the locks of a record to another record and resets the lock bits of
+the donating record. */
+UNIV_INLINE
+void
+lock_rec_move(
+/*==========*/
+	const buf_block_t*	receiver,       /*!< in: buffer block containing
+						the receiving record */
+	const buf_block_t*	donator,        /*!< in: buffer block containing
+						the donating record */
+	ulint			receiver_heap_no,/*!< in: heap_no of the record
+						which gets the locks; there
+						must be no lock requests
+						on it! */
+	ulint			donator_heap_no)/*!< in: heap_no of the record
+                                                which gives the locks */
+{
+	lock_rec_move_low(lock_sys->rec_hash, receiver, donator,
+			  receiver_heap_no, donator_heap_no);
 }
 
 /*************************************************************//**
@@ -4582,6 +4609,7 @@ lock_remove_all_on_table(
 
 /*********************************************************************//**
 Prints info of a table lock. */
+static
 void
 lock_table_print(
 /*=============*/
@@ -4622,6 +4650,7 @@ lock_table_print(
 
 /*********************************************************************//**
 Prints info of a record lock. */
+static
 void
 lock_rec_print(
 /*===========*/

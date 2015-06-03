@@ -1,0 +1,79 @@
+--echo #
+--echo # Test the limits of a file-per-table tablespace name.  MySQL combines
+--echo # the database name with the table name to make a unique table name.
+--echo #
+
+# There is no use in testing the maximum expanded filename using "#" or
+# some other character that is expanded by MySQL to "@0023" because
+# Windows imposes a maximum absolute path length of 260 bytes. So the
+# results will depend upon what local directory this test is run in.
+# See https://msdn.microsoft.com/en-us/library/aa365247.aspx
+# "Maximum Path Length Limitation
+# In the Windows API, the maximum length for a path is MAX_PATH, which is
+# defined as 260 characters. A local path is structured in the following
+# order: drive letter, colon, backslash, name components separated by
+# backslashes, and a terminating null character. For example, the maximum
+# path on drive D is "D:\some 256-character path string<NUL>" where
+# "<NUL>" represents the invisible terminating null character for the
+# current system codepage. (The characters < > are used here for visual
+# clarity and cannot be part of a valid path string.)"
+
+--source include/have_innodb.inc
+--source include/windows.inc
+# This will test the limit of a filename in MySQL at 512 bytes.
+# We control that by making it a relative path starting with "./".
+# The embedded server uses an absolute path as the datadir
+# which has a non-deterministic length.
+--source include/not_embedded.inc
+
+SET default_storage_engine=InnoDB;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+
+--echo #
+--echo # MySQL limits each database and tablename identifier to 64 characters
+--echo # of up to 3 bytes per character, corresponding to 192 bytes.
+--echo #
+LET $too_long_name  = this_sixty_five_byte_name_is_too_long____________________________;
+--error ER_TOO_LONG_IDENT
+--eval CREATE DATABASE `$too_long_name`
+
+LET $long_name      = this_sixty_four_byte_name_is_not_too_long_______________________;
+--eval CREATE DATABASE `$long_name`
+--eval USE `$long_name`
+
+--echo #
+--echo # A 64 character tablename can be created in a 64 character database name
+--echo #
+--eval CREATE TABLE `$long_name`.`$long_name` (a SERIAL)
+
+--echo #
+--echo # A 65 character tablename is too long.
+--echo #
+--error ER_TOO_LONG_IDENT
+--eval CREATE TABLE `test`.`$too_long_name` (a SERIAL)
+--error ER_TOO_LONG_IDENT
+--eval CREATE TABLE `$long_name`.`$too_long_name` (a SERIAL)
+
+--echo #
+--echo # Show the successfully created database and table
+--echo #
+--eval SHOW CREATE TABLE `$long_name`.`$long_name`
+
+--echo ---- list_files MYSQLD_DATADIR/$long_name
+--list_files $MYSQLD_DATADIR/$long_name
+
+SELECT name FROM information_schema.innodb_sys_tables WHERE name LIKE '%long%';
+SELECT name FROM information_schema.innodb_sys_tablespaces WHERE name LIKE '%long%';
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+SELECT path FROM information_schema.innodb_sys_datafiles WHERE path LIKE '%long%';
+--vertical_results
+--replace_regex /innodb_file_per_table_[0-9]*/innodb_file_per_table_##/
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%long%';
+--horizontal_results
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--eval DROP DATABASE `$long_name`

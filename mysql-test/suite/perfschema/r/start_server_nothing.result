@@ -121,6 +121,7 @@ performance_schema_events_waits_history_size	0
 performance_schema_hosts_size	0
 performance_schema_max_cond_classes	0
 performance_schema_max_cond_instances	0
+performance_schema_max_digest_length	1024
 performance_schema_max_file_classes	0
 performance_schema_max_file_handles	0
 performance_schema_max_file_instances	0
@@ -166,6 +167,7 @@ performance_schema_events_waits_history_size	0
 performance_schema_hosts_size	0
 performance_schema_max_cond_classes	0
 performance_schema_max_cond_instances	0
+performance_schema_max_digest_length	1024
 performance_schema_max_file_classes	0
 performance_schema_max_file_handles	0
 performance_schema_max_file_instances	0

@@ -5,6 +5,7 @@
 #  The prepared XA can be identified and concluded with XA COMMIT or ROLLBACK,
 #  "manually" by the user.
 
+--source include/not_valgrind.inc # Test takes too much time in Valgrind
 --source include/have_debug.inc
 # There's some format specifics through show_binlog_events,
 # but MIXED is chosen rather to optimize.

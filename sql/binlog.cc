@@ -3104,7 +3104,7 @@ static int find_uniq_filename(char *name)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
-  struct st_my_dir     *dir_info;
+  struct st_my_dir     *dir_info= NULL;
   struct fileinfo *file_info;
   ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;
@@ -3319,6 +3319,8 @@ err:
     my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
+    sql_print_error("Either disk is full or file system is read only while "
+                    "opening the binlog. Aborting the server");
     thd->send_statement_status();
     _exit(MYSQLD_FAILURE_EXIT);
   }
@@ -4714,6 +4716,8 @@ err:
     my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
+    sql_print_error("Either disk is full or file system is read only while "
+                    "opening the binlog. Aborting the server");
     thd->send_statement_status();
     _exit(MYSQLD_FAILURE_EXIT);
   }
@@ -6336,7 +6340,13 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     }
     bytes_written += r.common_header->data_written;
   }
-  flush_io_cache(&log_file);
+
+  if ((error= flush_io_cache(&log_file)))
+  {
+    close_on_error= true;
+    goto end;
+  }
+
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
   if (!is_relay_log)
@@ -6399,7 +6409,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
 end:
 
-  if (error && close_on_error /* rotate or reopen failed */)
+  if (error && close_on_error /* rotate, flush or reopen failed */)
   {
     /* 
       Close whatever was left opened.
@@ -6426,6 +6436,8 @@ end:
       my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
                "file system is read only while rotating the binlog. Aborting "
                "the server");
+      sql_print_error("Either disk is full or file system is read only while "
+                      "rotating the binlog. Aborting the server");
       thd->send_statement_status();
       _exit(MYSQLD_FAILURE_EXIT);
     }
@@ -6815,8 +6827,10 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
     /*
       Write the event.
     */
-    if (cache_data->write_event(thd, event_info) ||
-        DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
+    if (cache_data->write_event(thd, event_info))
+      goto err;
+
+    if (DBUG_EVALUATE_IF("injecting_fault_writing", 1, 0))
       goto err;
 
     /*
@@ -8270,8 +8284,39 @@ MYSQL_BIN_LOG::change_stage(THD *thd,
 int
 MYSQL_BIN_LOG::flush_cache_to_file(my_off_t *end_pos_var)
 {
-  if (flush_io_cache(&log_file))
-    return ER_ERROR_ON_WRITE;
+  if (DBUG_EVALUATE_IF("simulate_error_during_flush_cache_to_file", 1,
+                       flush_io_cache(&log_file)))
+  {
+    if (binlog_error_action == ABORT_SERVER)
+    {
+      THD *thd= current_thd;
+      /*
+        On fatal error when code enters here we should forcefully clear the
+        previous errors so that a new critical error message can be pushed
+        to the client side.
+       */
+      thd->clear_error();
+      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "An error occured during "
+                "flushing cache to file. 'binlog_error_action' is set to "
+                "'ABORT_SERVER'. Hence aborting the server");
+      sql_print_error("An error occured during flushing cache to file. "
+                      "'binlog_error_action' is set to 'ABORT_SERVER'. "
+                      "Hence aborting the server");
+      thd->send_statement_status();
+      _exit(MYSQLD_FAILURE_EXIT);
+    }
+    else
+    {
+      sql_print_error("An error occured during flushing cache to file. "
+                      "'binlog_error_action' is set to 'IGNORE_ERROR'. "
+                      "Hence turning logging off for the whole duration "
+                      "of the MySQL server process. To turn it on "
+                      "again: fix the cause, shutdown the MySQL "
+                      "server and restart it.");
+      close(LOG_CLOSE_INDEX|LOG_CLOSE_STOP_EVENT);
+      return ER_ERROR_ON_WRITE;
+    }
+  }
   *end_pos_var= my_b_tell(&log_file);
   return 0;
 }
@@ -9994,7 +10039,8 @@ bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
-  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0 ||
+      mysql_bin_log.is_open() == false)
     DBUG_RETURN(true);
 
   DBUG_PRINT("info",
@@ -10053,7 +10099,8 @@ THD::is_dml_gtid_compatible(bool some_transactional_table,
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
-  if ((variables.option_bits & OPTION_BIN_LOG) == 0)
+  if ((variables.option_bits & OPTION_BIN_LOG) == 0 ||
+      mysql_bin_log.is_open() == false)
     DBUG_RETURN(true);
 
   /*

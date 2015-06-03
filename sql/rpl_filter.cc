@@ -1016,7 +1016,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
   DBUG_ENTER("change_rpl_filter");
   bool ret= false;
 #ifdef HAVE_REPLICATION
-  int thread_mask;
+  int thread_mask= 0;
   Master_info *mi= NULL;
 
   if (check_global_access(thd, SUPER_ACL))

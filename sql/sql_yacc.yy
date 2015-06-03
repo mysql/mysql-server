@@ -1303,7 +1303,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %type <boolfunc2creator> comp_op
 
 %type <NONE>
-        create change do drop
+        create change drop
         truncate rename
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
@@ -1438,6 +1438,7 @@ END_OF_INPUT
         opt_query_spec_options
 
 %type <select_options> select_option select_option_list select_options
+        empty_select_options
 
 %type <node> join_table order_or_limit opt_union_order_or_limit
         option_value union_opt
@@ -1513,7 +1514,7 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <select> select
+%type <select> select do_stmt
 
 %type <param_marker> param_marker
 
@@ -1646,7 +1647,7 @@ statement:
         | deallocate
         | delete_stmt           {  MAKE_CMD($1); }
         | describe
-        | do
+        | do_stmt               { CONTEXTUALIZE($1); }
         | drop
         | execute
         | flush
@@ -6365,7 +6366,7 @@ parse_gcol_expr:
             */
             if (!Lex->parse_gcol_expr)
             {
-              my_error(ER_SYNTAX_ERROR, MYF(0));
+              YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
           }
@@ -7443,19 +7444,6 @@ alter:
                 lex->copy_db_to(&lex->name.str, &lex->name.length))
               MYSQL_YYABORT;
           }
-        | ALTER DATABASE ident UPGRADE_SYM DATA_SYM DIRECTORY_SYM NAME_SYM
-          {
-            LEX *lex= Lex;
-            push_deprecated_warn_no_replacement(YYTHD,
-              "UPGRADE DATA DIRECTORY NAME");
-            if (lex->sphead)
-            {
-              my_error(ER_SP_NO_DROP_SP, MYF(0), "DATABASE");
-              MYSQL_YYABORT;
-            }
-            lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
-            lex->name= $3;
-          }
         | ALTER PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
@@ -8167,7 +8155,7 @@ alter_list_item:
               MYSQL_YYABORT;
             }
             enum_ident_name_check ident_check_status=
-              check_table_name($3->table.str,$3->table.length, FALSE);
+              check_table_name($3->table.str,$3->table.length);
             if (ident_check_status == IDENT_NAME_WRONG)
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
@@ -8897,7 +8885,7 @@ opt_ignore_leaves:
 select:
           select_init
           {
-            $$= NEW_PTN PT_select($1);
+            $$= NEW_PTN PT_select($1, SQLCOM_SELECT);
           }
         ;
 
@@ -9818,7 +9806,7 @@ function_call_conflict:
         ;
 
 geometry_function:
-          GEOMETRYCOLLECTION '(' expr_list ')'
+          GEOMETRYCOLLECTION '(' opt_expr_list ')'
           {
             $$= NEW_PTN Item_func_spatial_collection(@$, $3,
                         Geometry::wkb_geometrycollection,
@@ -10969,16 +10957,23 @@ into_destination:
   DO statement
 */
 
-do:
-          DO_SYM
+do_stmt:
+          DO_SYM empty_select_options select_item_list
           {
-            LEX *lex=Lex;
-            lex->sql_command = SQLCOM_DO;
+            $$= NEW_PTN PT_select(
+                  NEW_PTN PT_select_init2(NULL,
+                    NEW_PTN PT_select_part2(
+                      NEW_PTN PT_select_options_and_item_list($2, $3)), NULL),
+                                                              SQLCOM_DO);
           }
-          expr_list
+        ;
+
+empty_select_options:
+          /* empty */
           {
-            CONTEXTUALIZE($3);
-            Lex->do_insert_list= &$3->value;
+            $$.query_spec_options= 0;
+            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
+            $$.max_statement_time= 0;
           }
         ;
 
@@ -13173,6 +13168,7 @@ keyword:
         | OPTIONS_SYM           {}
         | OWNER_SYM             {}
         | PARSER_SYM            {}
+        | PARSE_GCOL_EXPR_SYM   {}
         | PORT_SYM              {}
         | PRECEDES_SYM          {}
         | PREPARE_SYM           {}

@@ -282,102 +282,10 @@ error    : Corrupt
 test.t2                                            OK
 DROP TABLE t1, t2;
 End of 5.0 tests
-create table t1(a int) engine=myisam;
-create view v1 as select * from t1;
-show tables;
-Tables_in_test
-t1
-v1
-show tables;
-Tables_in_test
-t1
-#mysql50#v-1
-v1
-test.t1                                            OK
-WARNING: --fix-table-names is deprecated and will be removed in a future version
-show tables;
-Tables_in_test
-t1
-v1
-v-1
-drop view v1, `v-1`;
-drop table t1;
-SET NAMES utf8;
-CREATE TABLE `#mysql50#@` (a INT) engine=myisam;
-SHOW TABLES;
-Tables_in_test
-#mysql50#@
-SET NAMES DEFAULT;
-mysqlcheck --fix-table-names --databases test
-WARNING: --fix-table-names is deprecated and will be removed in a future version
-SET NAMES utf8;
-SHOW TABLES;
-Tables_in_test
-@
-DROP TABLE `@`;
-CREATE TABLE `я` (a INT) engine=myisam;
-SET NAMES DEFAULT;
-mysqlcheck --default-character-set="latin1" --databases test
-call mtr.add_suppression("Can't find file: '..test.@003f.frm'");
-test.?
-Error    : Table doesn't exist
-status   : Operation failed
-mysqlcheck --default-character-set="utf8" --databases test
-test.я                                            OK
-SET NAMES utf8;
-DROP TABLE `я`;
-SET NAMES DEFAULT;
-CREATE DATABASE `#mysql50#a@b`;
-USE `#mysql50#a@b`;
-CREATE TABLE `#mysql50#c@d` (a INT) engine=myisam;
-CREATE TABLE t1 (a INT) engine=myisam;
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
-WHERE TRIGGER_SCHEMA="#mysql50#a@b" ORDER BY trigger_name;
-TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	#mysql50#a@b	tr1	INSERT	def	#mysql50#a@b	#mysql50#c@d	1	NULL	SET NEW.a = 10 * NEW.a	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-def	#mysql50#a@b	tr2	INSERT	def	#mysql50#a@b	t1	1	NULL	SET NEW.a = 100 * NEW.a	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
-mysqlcheck --fix-db-names --fix-table-names --all-databases
-WARNING: --fix-db-names is deprecated and will be removed in a future version
-WARNING: --fix-table-names is deprecated and will be removed in a future version
-USE `a@b`;
-SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
-WHERE TRIGGER_SCHEMA="a@b" ORDER BY trigger_name;
-TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	a@b	tr1	INSERT	def	a@b	c@d	1	NULL	SET NEW.a = 10 * NEW.a	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	utf8	utf8_general_ci	latin1_swedish_ci
-def	a@b	tr2	INSERT	def	a@b	t1	1	NULL	SET NEW.a = 100 * NEW.a	ROW	BEFORE	NULL	NULL	OLD	NEW	NULL		root@localhost	utf8	utf8_general_ci	latin1_swedish_ci
-INSERT INTO `c@d` VALUES (2), (1);
-SELECT * FROM `c@d`;
-a
-20
-10
-INSERT INTO t1 VALUES (3), (5);
-SELECT * FROM t1;
-a
-300
-500
-DROP DATABASE `a@b`;
-USE test;
-#
-# Bug #31821: --all-in-1 and --fix-table-names don't work together
-#
-drop table if exists `#mysql50#t1-1`;
-create table `#mysql50#t1-1` (a int) engine=myisam;
-WARNING: --fix-table-names is deprecated and will be removed in a future version
-show tables like 't1-1';
-Tables_in_test (t1-1)
-t1-1
-drop table `t1-1`;
-create table `#mysql50#t1-1` (a int) engine=myisam;
-WARNING: --fix-table-names is deprecated and will be removed in a future version
-show tables like 't1-1';
-Tables_in_test (t1-1)
-t1-1
-drop table `t1-1`;
 End of 5.1 tests
 #
 # Bug #35269: mysqlcheck behaves different depending on order of parameters
 #
-WARNING: --fix-table-names is deprecated and will be removed in a future version
 #
 # Bug#11755431 47205: MAP 'REPAIR TABLE' TO RECREATE +ANALYZE FOR
 #              ENGINES NOT SUPPORTING NATIVE
@@ -448,7 +356,6 @@ DROP TABLE bug47205;
 DROP DATABASE IF EXISTS b12688860_db;
 CREATE DATABASE b12688860_db;
 mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
-WARNING: --fix-db-names is deprecated and will be removed in a future version
 DROP DATABASE b12688860_db;
 
 End of tests

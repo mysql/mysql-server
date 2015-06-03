@@ -6226,8 +6226,6 @@ ER_TOO_LONG_FIELD_COMMENT
 ER_FUNC_INEXISTENT_NAME_COLLISION 42000 
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
   ger "FUNCTION %s existiert nicht. Erläuterungen im Abschnitt 'Function Name Parsing and Resolution' im Referenzhandbuch"
-# When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
-# sql_table.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
   eng "Database"
   swe "Databas"
@@ -6836,7 +6834,7 @@ ER_NOT_VALID_PASSWORD
   eng "Your password does not satisfy the current policy requirements"
 
 ER_MUST_CHANGE_PASSWORD
-  eng "You must SET PASSWORD before executing this statement"
+  eng "You must reset your password using ALTER USER statement before executing this statement."
   bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
 ER_FK_NO_INDEX_CHILD
@@ -7143,7 +7141,7 @@ ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
   eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
 
 ER_QUERY_TIMEOUT 
-  eng "Query execution was interrupted, max_statement_time exceeded"
+  eng "Query execution was interrupted, maximum statement execution time exceeded"
 
 ER_NON_RO_SELECT_DISABLE_TIMER
   eng "Select is not a read only statement, disabling timer"
@@ -7316,10 +7314,10 @@ ER_SLAVE_MAX_CHANNELS_EXCEEDED
    eng "Maximum number of replication channels allowed exceeded."
 
 ER_SLAVE_CHANNEL_MUST_STOP
-   eng "This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
+   eng "This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '%s' first"
 
 ER_SLAVE_CHANNEL_NOT_RUNNING
-   eng "This operation requires a running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
+   eng "This operation requires running replication threads; configure slave and run START SLAVE FOR CHANNEL '%s'"
 
 ER_SLAVE_CHANNEL_WAS_RUNNING
    eng "Replication thread(s) for channel '%s' are already runnning."
@@ -7490,6 +7488,9 @@ ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
 #
 
 start-error-number 3500
+
+ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
+  eng "CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE."
 
 #
 #  End of 5.8 error messages.

@@ -2,6 +2,7 @@
 #include "psi_base.h"
 #include "psi_memory.h"
 #include "psi_base.h"
+struct PSI_thread;
 typedef unsigned int PSI_memory_key;
 struct PSI_memory_info_v1
 {
@@ -13,11 +14,13 @@ typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
 typedef void (*register_memory_v1_t)
   (const char *category, struct PSI_memory_info_v1 *info, int count);
 typedef PSI_memory_key (*memory_alloc_v1_t)
-  (PSI_memory_key key, size_t size);
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
 typedef PSI_memory_key (*memory_realloc_v1_t)
-  (PSI_memory_key key, size_t old_size, size_t new_size);
+  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_claim_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
 typedef void (*memory_free_v1_t)
-  (PSI_memory_key key, size_t size);
+  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
 typedef struct PSI_memory_info_v1 PSI_memory_info;
 C_MODE_START
 struct MDL_key;
@@ -805,6 +808,7 @@ struct PSI_v1
   register_memory_v1_t register_memory;
   memory_alloc_v1_t memory_alloc;
   memory_realloc_v1_t memory_realloc;
+  memory_claim_v1_t memory_claim;
   memory_free_v1_t memory_free;
   unlock_table_v1_t unlock_table;
   create_metadata_lock_v1_t create_metadata_lock;

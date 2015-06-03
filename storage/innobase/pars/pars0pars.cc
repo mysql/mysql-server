@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -57,20 +57,11 @@ sym_tab_t*	pars_sym_tab_global;
 /* Global variables used to denote certain reserved words, used in
 constructing the parsing tree */
 
-pars_res_word_t	pars_to_char_token = {PARS_TO_CHAR_TOKEN};
-pars_res_word_t	pars_to_number_token = {PARS_TO_NUMBER_TOKEN};
 pars_res_word_t	pars_to_binary_token = {PARS_TO_BINARY_TOKEN};
-pars_res_word_t	pars_binary_to_number_token = {PARS_BINARY_TO_NUMBER_TOKEN};
 pars_res_word_t	pars_substr_token = {PARS_SUBSTR_TOKEN};
-pars_res_word_t	pars_replstr_token = {PARS_REPLSTR_TOKEN};
 pars_res_word_t	pars_concat_token = {PARS_CONCAT_TOKEN};
 pars_res_word_t	pars_instr_token = {PARS_INSTR_TOKEN};
 pars_res_word_t	pars_length_token = {PARS_LENGTH_TOKEN};
-pars_res_word_t	pars_sysdate_token = {PARS_SYSDATE_TOKEN};
-pars_res_word_t	pars_printf_token = {PARS_PRINTF_TOKEN};
-pars_res_word_t	pars_assert_token = {PARS_ASSERT_TOKEN};
-pars_res_word_t	pars_rnd_token = {PARS_RND_TOKEN};
-pars_res_word_t	pars_rnd_str_token = {PARS_RND_STR_TOKEN};
 pars_res_word_t	pars_count_token = {PARS_COUNT_TOKEN};
 pars_res_word_t	pars_sum_token = {PARS_SUM_TOKEN};
 pars_res_word_t	pars_distinct_token = {PARS_DISTINCT_TOKEN};
@@ -205,21 +196,12 @@ pars_func_get_class(
 	case PARS_COUNT_TOKEN: case PARS_SUM_TOKEN:
 		return(PARS_FUNC_AGGREGATE);
 
-	case PARS_TO_CHAR_TOKEN:
-	case PARS_TO_NUMBER_TOKEN:
 	case PARS_TO_BINARY_TOKEN:
-	case PARS_BINARY_TO_NUMBER_TOKEN:
 	case PARS_SUBSTR_TOKEN:
 	case PARS_CONCAT_TOKEN:
 	case PARS_LENGTH_TOKEN:
 	case PARS_INSTR_TOKEN:
-	case PARS_SYSDATE_TOKEN:
 	case PARS_NOTFOUND_TOKEN:
-	case PARS_PRINTF_TOKEN:
-	case PARS_ASSERT_TOKEN:
-	case PARS_RND_TOKEN:
-	case PARS_RND_STR_TOKEN:
-	case PARS_REPLSTR_TOKEN:
 		return(PARS_FUNC_PREDEFINED);
 
 	default:
@@ -523,13 +505,6 @@ pars_resolve_func_data_type(
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
-	case PARS_TO_CHAR_TOKEN:
-	case PARS_RND_STR_TOKEN:
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
-		dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
-			  DATA_ENGLISH, 0);
-		break;
-
 	case PARS_TO_BINARY_TOKEN:
 		if (dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT) {
 			dtype_set(que_node_get_data_type(node), DATA_VARCHAR,
@@ -540,16 +515,9 @@ pars_resolve_func_data_type(
 		}
 		break;
 
-	case PARS_TO_NUMBER_TOKEN:
-	case PARS_BINARY_TO_NUMBER_TOKEN:
 	case PARS_LENGTH_TOKEN:
 	case PARS_INSTR_TOKEN:
 		ut_a(pars_is_string_type(que_node_get_data_type(arg)->mtype));
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-		break;
-
-	case PARS_SYSDATE_TOKEN:
-		ut_a(arg == NULL);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
@@ -570,11 +538,6 @@ pars_resolve_func_data_type(
 	case PARS_NOTFOUND_TOKEN:
 
 		/* We currently have no iboolean type: use integer type */
-		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
-		break;
-
-	case PARS_RND_TOKEN:
-		ut_a(dtype_get_mtype(que_node_get_data_type(arg)) == DATA_INT);
 		dtype_set(que_node_get_data_type(node), DATA_INT, 0, 4);
 		break;
 
@@ -1672,24 +1635,6 @@ pars_assignment_statement(
 }
 
 /*********************************************************************//**
-Parses a procedure call.
-@return function node */
-func_node_t*
-pars_procedure_call(
-/*================*/
-	que_node_t*	res_word,/*!< in: procedure name reserved word */
-	que_node_t*	args)	/*!< in: argument list */
-{
-	func_node_t*	node;
-
-	node = pars_func(res_word, args);
-
-	pars_resolve_exp_list_variables_and_types(NULL, args);
-
-	return(node);
-}
-
-/*********************************************************************//**
 Parses a fetch statement. into_list or user_func (but not both) must be
 non-NULL.
 @return fetch statement node */
@@ -1770,28 +1715,6 @@ pars_open_statement(
 
 	node->op_type = static_cast<open_node_op>(type);
 	node->cursor_def = cursor_decl->cursor_def;
-
-	return(node);
-}
-
-/*********************************************************************//**
-Parses a row_printf-statement.
-@return row_printf-statement node */
-row_printf_node_t*
-pars_row_printf_statement(
-/*======================*/
-	sel_node_t*	sel_node)	/*!< in: select node */
-{
-	row_printf_node_t*	node;
-
-	node = static_cast<row_printf_node_t*>(
-		mem_heap_alloc(
-			pars_sym_tab_global->heap, sizeof(row_printf_node_t)));
-	node->common.type = QUE_NODE_ROW_PRINTF;
-
-	node->sel_node = sel_node;
-
-	sel_node->common.parent = node;
 
 	return(node);
 }
@@ -2059,22 +1982,6 @@ pars_procedure_definition(
 	pars_sym_tab_global->query_graph = fork;
 
 	return(fork);
-}
-
-/*************************************************************//**
-Parses a stored procedure call, when this is not within another stored
-procedure, that is, the client issues a procedure call directly.
-In MySQL/InnoDB, stored InnoDB procedures are invoked via the
-parsed procedure tree, not via InnoDB SQL, so this function is not used.
-@return query graph */
-que_fork_t*
-pars_stored_procedure_call(
-/*=======================*/
-	sym_node_t*	sym_node __attribute__((unused)))
-					/*!< in: stored procedure name */
-{
-	ut_error;
-	return(NULL);
 }
 
 /*************************************************************//**

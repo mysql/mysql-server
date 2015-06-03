@@ -1,6 +1,16 @@
 mysql-community (5.8.0-m17-1debian7) wheezy; urgency=low
 
   * new upstream release
+  * added new plugin to source/include-binaries, mysql-*-test.install
+    libtest_framework
+    libtest_services
+    libtest_services_threaded
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 27 May 2015 13:29:25 +0530
+
+mysql-community (5.7.7-rc-1debian7) wheezy; urgency=low
+
+  * new upstream release
   * updated d/extra/my.cnf to remove option sql_mode
   * non-essential tools, files and plugins have been moved to
     mysql-community-test pkg.

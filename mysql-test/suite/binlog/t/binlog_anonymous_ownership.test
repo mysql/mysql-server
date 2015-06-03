@@ -224,8 +224,19 @@ while ($statement_number < $statement_count)
 
   if ($statement == 'reconnect')
   {
+    # Get connection id.
+    --connection $connection
+    --let $thread_id= `SELECT CONNECTION_ID()`
+
+    # Disconnect
     --connection default
     --disconnect $connection
+
+    # Wait for session to disappear.
+    --let $wait_condition= SELECT COUNT(*) = 0 FROM performance_schema.threads WHERE PROCESSLIST_ID = $thread_id
+    --source include/wait_condition.inc
+
+    # Reconnect
     --let $rpl_connection_name= $connection
     --let $rpl_server_number= 1
     --source include/rpl_connect.inc

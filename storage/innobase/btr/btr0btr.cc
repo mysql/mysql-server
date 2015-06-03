@@ -52,6 +52,7 @@ Created 6/2/1994 Heikki Tuuri
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
+static
 bool
 btr_can_merge_with_page(
 /*====================*/
@@ -315,8 +316,7 @@ btr_root_adjust_on_import(
 		} else {
 			/* Check that the table flags and the tablespace
 			flags match. */
-			ulint	flags = dict_tf_to_fsp_flags(table->flags,
-							     false);
+			ulint	flags = dict_tf_to_fsp_flags(table->flags);
 			ulint	fsp_flags = fil_space_get_flags(table->space);
 			err = fsp_flags_are_equal(flags, fsp_flags)
 			      ? DB_SUCCESS : DB_CORRUPTION;
@@ -4913,6 +4913,7 @@ node_ptr_fails:
 /**************************************************************//**
 Do an index level validation of spaital index tree.
 @return	true if no error found */
+static
 bool
 btr_validate_spatial_index(
 /*=======================*/
@@ -5003,6 +5004,7 @@ btr_validate_index(
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
+static
 bool
 btr_can_merge_with_page(
 /*====================*/

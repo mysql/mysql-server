@@ -46,30 +46,6 @@
 extern ulong net_buffer_length;
 extern ulong max_allowed_packet;
 
-#if defined(_WIN32)
-#define ERRNO WSAGetLastError()
-#define perror(A)
-#else
-#include <errno.h>
-#define ERRNO errno
-#define SOCKET_ERROR -1
-#define closesocket(A) close(A)
-#endif
-
-#ifdef HAVE_GETPWUID
-struct passwd *getpwuid(uid_t);
-char* getlogin(void);
-#endif
-
-#ifdef _WIN32
-static my_bool is_NT(void)
-{
-  char *os=getenv("OS");
-  return (os && !strcmp(os, "Windows_NT")) ? 1 : 0;
-}
-#endif
-
-
 int mysql_init_character_set(MYSQL *mysql);
 
 MYSQL * STDCALL

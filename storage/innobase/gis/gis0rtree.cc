@@ -806,6 +806,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return TRUE on success; FALSE on compression failure */
+static
 ibool
 rtr_split_page_move_rec_list(
 /*=========================*/

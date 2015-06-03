@@ -45,6 +45,7 @@ public:
   {
   public:
     Ctx_change_listener() {}
+    virtual ~Ctx_change_listener() {}
     virtual void notify_session_gtids_ctx_change()= 0;
   private:
     // not implemented

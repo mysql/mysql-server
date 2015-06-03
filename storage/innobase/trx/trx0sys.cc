@@ -25,8 +25,9 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "ha_prototypes.h"
 
+#include "current_thd.h"
 #include "trx0sys.h"
-
+#include "sql_error.h"
 #ifdef UNIV_NONINL
 #include "trx0sys.ic"
 #endif
@@ -51,39 +52,44 @@ Created 3/26/1996 Heikki Tuuri
 trx_sys_t*		trx_sys		= NULL;
 #endif /* !UNIV_HOTBACKUP */
 
+/** Check whether transaction id is valid.
+@param[in]	id              transaction id to check
+@param[in]      name            table name */
+void
+ReadView::check_trx_id_sanity(
+	trx_id_t		id,
+	const table_name_t&	name)
+{
+	if (id >= trx_sys->max_trx_id) {
+
+		ib::warn() << "A transaction id"
+			   << " in a record of table "
+			   << name
+			   << " is newer than the"
+			   << " system-wide maximum.";
+		ut_ad(0);
+		THD *thd = current_thd;
+		if (thd != NULL) {
+			char    table_name[MAX_FULL_NAME_LEN + 1];
+
+			innobase_format_name(
+				table_name, sizeof(table_name),
+				name.m_name);
+
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
+					    ER_SIGNAL_WARN,
+					    "InnoDB: Transaction id"
+					    " in a record of table"
+					    " %s is newer than system-wide"
+					    " maximum.", table_name);
+		}
+	}
+}
+
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
-
-/****************************************************************//**
-Checks whether a trx is in one of rw_trx_list
-@return true if is in */
-bool
-trx_in_rw_trx_list(
-/*============*/
-	const trx_t*	in_trx)	/*!< in: transaction */
-{
-	const trx_t*	trx;
-
-	/* Non-locking autocommits should not hold any locks. */
-	check_trx_state(in_trx);
-
-	ut_ad(trx_sys_mutex_own());
-
-	ut_ad(trx_assert_started(in_trx));
-
-	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
-	     trx != NULL && trx != in_trx;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-
-		check_trx_state(trx);
-
-		ut_ad(trx->rsegs.m_redo.rseg != NULL && !trx->read_only);
-	}
-
-	return(trx != 0);
-}
 # endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
@@ -627,8 +633,11 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	ut_ad(trx_sys != NULL);
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+
+	if (trx_sys == NULL) {
+		return;
+	}
 
 	ulint	size = trx_sys->mvcc->size();
 

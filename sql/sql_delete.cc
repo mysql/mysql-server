@@ -406,7 +406,9 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
       goto exit_without_my_ok;
     }
 
-    init_ftfuncs(thd, select_lex);
+    if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
+      goto exit_without_my_ok;
+
     THD_STAGE_INFO(thd, stage_updating);
 
     if (table->triggers &&
@@ -823,7 +825,9 @@ bool Query_result_delete::initialize_tables(JOIN *join)
 {
   DBUG_ENTER("Query_result_delete::initialize_tables");
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-  DBUG_ASSERT(join == unit->first_select()->join);
+
+  SELECT_LEX *const select= unit->first_select();
+  DBUG_ASSERT(join == select->join);
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
@@ -913,8 +917,11 @@ bool Query_result_delete::initialize_tables(JOIN *join)
       DBUG_RETURN(true);                     /* purecov: inspected */
     *(table_ptr++)= table;
   }
-  DBUG_ASSERT(unit->first_select() == thd->lex->current_select());
-  init_ftfuncs(thd, unit->first_select());
+  DBUG_ASSERT(select == thd->lex->current_select());
+
+  if (select->has_ft_funcs() && init_ftfuncs(thd, select))
+    DBUG_RETURN(true);
+
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 

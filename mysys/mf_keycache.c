@@ -160,7 +160,6 @@
 /* types of condition variables */
 #define  COND_FOR_REQUESTED 0
 #define  COND_FOR_SAVED     1
-#define  COND_FOR_READERS   2
 
 typedef mysql_cond_t KEYCACHE_CONDVAR;
 
@@ -243,9 +242,8 @@ static void test_key_cache(KEY_CACHE *keycache,
                                      (ulong) (f)) & (keycache->hash_entries-1))
 #define FILE_HASH(f)                 ((uint) (f) & (CHANGED_BLOCKS_HASH-1))
 
-#define DEFAULT_KEYCACHE_DEBUG_LOG  "keycache_debug.log"
-
 #if defined(KEYCACHE_DEBUG) && ! defined(KEYCACHE_DEBUG_LOG)
+#define DEFAULT_KEYCACHE_DEBUG_LOG  "keycache_debug.log"
 #define KEYCACHE_DEBUG_LOG  DEFAULT_KEYCACHE_DEBUG_LOG
 #endif
 
@@ -289,6 +287,7 @@ static long keycache_thread_id;
 #define KEYCACHE_THREAD_TRACE(l)                                              \
              KEYCACHE_DBUG_PRINT(l,("|thread %ld",keycache_thread_id))
 
+#ifdef KEYCACHE_TIMEOUT
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)                                        \
             { struct st_my_thread_var *thread_var= mysys_thread_var();        \
               keycache_thread_id= thread_var->id;                             \
@@ -296,16 +295,21 @@ static long keycache_thread_id;
 
 #define KEYCACHE_THREAD_TRACE_END(l)                                          \
             KEYCACHE_DBUG_PRINT(l,("]thread %ld",keycache_thread_id))
+#endif
 #else
+#ifdef KEYCACHE_TIMEOUT
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)
 #define KEYCACHE_THREAD_TRACE_END(l)
+#endif
 #define KEYCACHE_THREAD_TRACE(l)
 #endif /* defined(KEYCACHE_DEBUG) || !defined(DBUG_OFF) */
 
 #define BLOCK_NUMBER(b)                                                       \
   ((uint) (((char*)(b)-(char *) keycache->block_root)/sizeof(BLOCK_LINK)))
+#ifdef KEYCACHE_TIMEOUT
 #define HASH_LINK_NUMBER(h)                                                   \
   ((uint) (((char*)(h)-(char *) keycache->hash_link_root)/sizeof(HASH_LINK)))
+#endif
 
 #if (defined(KEYCACHE_TIMEOUT) && !defined(_WIN32)) || defined(KEYCACHE_DEBUG)
 static int keycache_pthread_cond_wait(mysql_cond_t *cond,

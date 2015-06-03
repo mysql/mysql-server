@@ -49,9 +49,18 @@ typedef struct st_key_part {
 
 
 class QUICK_RANGE :public Sql_alloc {
- public:
+public:
   uchar *min_key,*max_key;
-  uint16 min_length,max_length,flag;
+  uint16 min_length,max_length;
+
+  /// Stores bitwise-or'ed bits defined in enum key_range_flags.
+  uint16 flag;
+
+  /**
+    Stores one of the HA_READ_MBR_XXX items in enum ha_rkey_function, only
+    effective when flag has a GEOM_FLAG bit.
+  */
+  enum ha_rkey_function rkey_func_flag;
   key_part_map min_keypart_map, // bitmap of used keyparts in min_key
                max_keypart_map; // bitmap of used keyparts in max_key
 
@@ -60,7 +69,7 @@ class QUICK_RANGE :public Sql_alloc {
               key_part_map min_keypart_map_arg,
 	      const uchar *max_key_arg, uint max_length_arg,
               key_part_map max_keypart_map_arg,
-	      uint flag_arg);
+	      uint flag_arg, enum ha_rkey_function rkey_func);
 
   /**
      Initalizes a key_range object for communication with storage engine. 

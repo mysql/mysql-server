@@ -250,8 +250,17 @@ THD::Attachable_trx::~Attachable_trx()
   // transaction.
   DBUG_ASSERT(!m_thd->transaction_rollback_request);
 
-  // NOTE: the attachable transaction is AUTOCOMMIT, thus there is no need for
-  // explicit commit calls.
+  // Commit the attachable transaction before discarding transaction state.
+  // Since the attachable transaction is AUTOCOMMIT we only need to commit
+  // statement transaction. This is mostly needed to properly reset transaction
+  // state in SE.
+  // Note: We can't rely on InnoDB hack which auto-magically commits InnoDB
+  // transaction when the last table for a statement in auto-commit mode is
+  // unlocked. Apparently it doesn't work correctly in some corner cases
+  // (for example, when statement is killed just after tables are locked but
+  // before any other operations on the table happes). We try not to rely on
+  // it in other places on SQL-layer as well.
+  trans_commit_stmt(m_thd);
 
   // Remember the handlerton of an open table to call the handlerton after the
   // tables are closed.
@@ -417,6 +426,8 @@ THD::THD(bool enable_plugins)
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
 #endif
+   initial_status_var(NULL),
+   status_var_aggregated(false),
    query_plan(this),
    current_mutex(NULL),
    current_cond(NULL),
@@ -473,7 +484,8 @@ THD::THD(bool enable_plugins)
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
-   m_stmt_da(&main_da)
+   m_stmt_da(&main_da),
+   duplicate_slave_uuid(false)
 {
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -967,10 +979,14 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true);
+  add_to_status(&global_status_var, &status_var, true, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
   killed= NOT_KILLED;
   cleanup_done= 0;
   init();
@@ -1025,6 +1041,7 @@ void THD::cleanup(void)
 
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
+  DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed= KILL_CONNECTION;
   session_tracker.deinit();
@@ -1081,15 +1098,6 @@ void THD::cleanup(void)
   if (tc_log && !trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
     tc_log->commit(this, true);
 
-  /*
-    Debug sync system must be closed after tc_log->commit(), because
-    DEBUG_SYNC is used in commit code.
-  */
-#if defined(ENABLED_DEBUG_SYNC)
-  /* End the Debug Sync Facility. See debug_sync.cc. */
-  debug_sync_end_thread(this);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
   cleanup_done=1;
   DBUG_VOID_RETURN;
 }
@@ -1105,7 +1113,15 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true);
+  add_to_status(&global_status_var, &status_var, true, false);
+  /*
+    Status queries after this point should not aggregate THD::status_var
+    since the values has been added to global_status_var.
+    The status values are not reset so that they can still be read
+    by performance schema.
+  */
+  status_var_aggregated= true;
+
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
@@ -1134,6 +1150,16 @@ void THD::release_resources()
 
   mdl_context.destroy();
   ha_close_connection(this);
+
+  /*
+    Debug sync system must be closed after ha_close_connection, because
+    DEBUG_SYNC is used in InnoDB connection handlerton close.
+  */
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
   DBUG_ASSERT(timer == NULL);
@@ -2088,6 +2114,11 @@ void Prepared_statement_map::erase(Prepared_statement *statement)
   mysql_mutex_unlock(&LOCK_prepared_stmt_count);
 }
 
+void Prepared_statement_map::claim_memory_ownership()
+{
+  my_hash_claim(&names_hash);
+  my_hash_claim(&st_hash);
+}
 
 void Prepared_statement_map::reset()
 {
@@ -3145,3 +3176,38 @@ void THD::send_statement_status()
     da->set_is_sent(true);
   DBUG_VOID_RETURN;
 }
+
+void THD::claim_memory_ownership()
+{
+  /*
+    Ownership of the THD object is transfered to this thread.
+    This happens typically:
+    - in the event scheduler,
+      when the scheduler thread creates a work item and
+      starts a worker thread to run it
+    - in the main thread, when the code that accepts a new
+      network connection creates a work item and starts a
+      connection thread to run it.
+    Accounting for memory statistics needs to be told
+    that memory allocated by thread X now belongs to thread Y,
+    so that statistics by thread/account/user/host are accurate.
+    Inspect every piece of memory allocated in THD,
+    and call PSI_MEMORY_CALL(memory_claim)().
+  */
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+  claim_root(&main_mem_root);
+  my_claim(m_token_array);
+  Protocol_classic *p= get_protocol_classic();
+  if (p != NULL)
+    p->claim_memory_ownership();
+  session_tracker.claim_memory_ownership();
+  session_sysvar_res_mgr.claim_memory_ownership();
+  my_hash_claim(&user_vars);
+#if defined(ENABLED_DEBUG_SYNC)
+  debug_sync_claim_memory_ownership(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+  get_transaction()->claim_memory_ownership();
+  stmt_map.claim_memory_ownership();
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
+}
+

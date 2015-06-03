@@ -106,6 +106,7 @@ When one supplies long data for a placeholder:
 #include "sql_parse.h"          // sql_command_flags
 #include "sql_rewrite.h"        // mysql_rewrite_query
 #include "sql_update.h"         // mysql_prepare_update
+#include "sql_do.h"             // Query_result_do
 #include "sql_view.h"           // create_view_precheck
 #include "transaction.h"        // trans_rollback_implicit
 #include "mysql/psi/mysql_ps.h" // MYSQL_EXECUTE_PS
@@ -1365,12 +1366,26 @@ static int mysql_test_select(Prepared_statement *stmt,
   if (select_precheck(thd, lex, tables, lex->select_lex->table_list.first))
     goto error;
 
-  if (!lex->result &&
-      !(lex->result= new (stmt->mem_root) Query_result_send(thd)))
+  if (!lex->result)
   {
-    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
-             static_cast<int>(sizeof(Query_result_send)));
-    goto error;
+    if (lex->sql_command == SQLCOM_DO)
+    {
+      if (!(lex->result= new (stmt->mem_root) Query_result_do(thd)))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+                 static_cast<int>(sizeof(Query_result_do)));
+        goto error;
+      }
+    }
+    else
+    {
+      if (!(lex->result= new (stmt->mem_root) Query_result_send(thd)))
+      {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+                 static_cast<int>(sizeof(Query_result_send)));
+        goto error;
+      }
+    }
   }
 
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -1403,7 +1418,10 @@ static int mysql_test_select(Prepared_statement *stmt,
       We can use "result" as it should've been prepared in
       unit->prepare call above.
     */
-    bool rc= (send_prep_stmt(stmt, result->field_count(unit->types)) ||
+    bool rc= (send_prep_stmt(stmt,
+                             lex->sql_command == SQLCOM_DO ? 
+                               0 :
+                               result->field_count(unit->types)) ||
               result->send_result_set_metadata(unit->types,
                                                Protocol::SEND_EOF) ||
               thd->get_protocol_classic()->flush());
@@ -1415,40 +1433,6 @@ static int mysql_test_select(Prepared_statement *stmt,
   DBUG_RETURN(0);
 error:
   DBUG_RETURN(1);
-}
-
-
-/**
-  Validate and prepare for execution DO statement expressions.
-
-  @param stmt               prepared statement
-  @param tables             list of tables used in this query
-  @param values             list of expressions
-
-  @retval
-    FALSE             success
-  @retval
-    TRUE              error, error message is set in THD
-*/
-
-static bool mysql_test_do_fields(Prepared_statement *stmt,
-                                TABLE_LIST *tables,
-                                List<Item> *values)
-{
-  THD *thd= stmt->thd;
-
-  DBUG_ENTER("mysql_test_do_fields");
-  DBUG_ASSERT(stmt->is_stmt_prepare());
-  if (tables && check_table_access(thd, SELECT_ACL, tables, FALSE,
-                                   UINT_MAX, FALSE))
-    DBUG_RETURN(TRUE);
-
-  if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
-    DBUG_RETURN(TRUE);
-  if (setup_fields(thd, Ref_ptr_array(), *values, 0, 0, 0))
-    DBUG_RETURN(TRUE);
-
-  DBUG_RETURN(false);
 }
 
 
@@ -1953,6 +1937,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SHOW_STATUS_PROC:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SELECT:
+  case SQLCOM_DO:
     res= mysql_test_select(stmt, tables);
     if (res == 2)
     {
@@ -1971,9 +1956,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
       goto error;
     }
     res= mysql_test_create_view(stmt);
-    break;
-  case SQLCOM_DO:
-    res= mysql_test_do_fields(stmt, tables, lex->do_insert_list);
     break;
 
   case SQLCOM_CALL:
@@ -2009,7 +1991,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_UNINSTALL_PLUGIN:
   case SQLCOM_CREATE_DB:
   case SQLCOM_DROP_DB:
-  case SQLCOM_ALTER_DB_UPGRADE:
   case SQLCOM_CHECKSUM:
   case SQLCOM_CREATE_USER:
   case SQLCOM_RENAME_USER:
@@ -3925,7 +3906,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       */
       if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
       {
-        PSI_statement_locker *parent_locker;
         MYSQL_QUERY_EXEC_START(const_cast<char*>(thd->query().str),
                                thd->thread_id(),
                                (char *) (thd->db().str != NULL ?
@@ -3933,8 +3913,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
                                (char *) thd->security_context()->priv_user().str,
                                (char *) thd->security_context()->host_or_ip().str,
                                1);
-        parent_locker= thd->m_statement_psi;
-        thd->m_statement_psi= NULL;
 
         /*
           Log COM_STMT_EXECUTE to the general log. Note, that in case of SQL
@@ -3959,7 +3937,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         log_execute_line(thd);
 
         error= mysql_execute_command(thd);
-        thd->m_statement_psi= parent_locker;
         MYSQL_QUERY_EXEC_DONE(error);
       }
     }

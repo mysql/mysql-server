@@ -1453,19 +1453,6 @@ end
 until true end repeat retry;
 end//
 ERROR 42000: LEAVE with no matching label: retry
-drop procedure if exists proc_28360;
-drop function if exists func_28360;
-CREATE PROCEDURE proc_28360()
-BEGIN
-ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-END//
-ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
-CREATE FUNCTION func_28360() RETURNS int
-BEGIN
-ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-RETURN 0;
-END//
-ERROR HY000: Can't drop or alter a DATABASE from within another stored routine
 DROP PROCEDURE IF EXISTS p1;
 CREATE PROCEDURE p1()
 BEGIN

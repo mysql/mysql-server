@@ -70,6 +70,7 @@
 #endif
 
 #include <algorithm>
+#include <sql_common.h>
 
 using std::min;
 using std::max;
@@ -1391,6 +1392,12 @@ int main(int argc,char *argv[])
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input "
     "statement.\n");
   put_info(buff,INFO_INFO);
+  if (mysql.options.protocol == MYSQL_PROTOCOL_SOCKET &&
+      mysql.options.extension->ssl_enforce == TRUE)
+  put_info("You are enforcing ssl conection via unix socket. Please consider\n"
+           "switching ssl off as it does not make connection via unix socket\n"
+           "any more secure.", INFO_INFO);
+
   status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
     end_tee();

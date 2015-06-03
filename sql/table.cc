@@ -18,6 +18,8 @@
 
 #include "my_md5.h"                      // compute_md5_hash
 #include "myisam.h"                      // MI_MAX_KEY_LENGTH
+#include "mysql_version.h"               // MYSQL_VERSION_ID
+
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
 #include "debug_sync.h"                  // DEBUG_SYNC
@@ -624,26 +626,6 @@ inline bool is_system_table_name(const char *name, size_t length)
 }
 
 
-/**
-  Check if a string contains path elements
-*/  
-
-static inline bool has_disabled_path_chars(const char *str)
-{
-  for (; *str; str++)
-    switch (*str)
-    {
-      case FN_EXTCHAR:
-      case '/':
-      case '\\':
-      case '~':
-      case '@':
-        return TRUE;
-    }
-  return FALSE;
-}
-
-
 /*
   Read table definition from a binary / text based .frm file
   
@@ -690,57 +672,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
-    /*
-      We don't try to open 5.0 unencoded name, if
-      - non-encoded name contains '@' signs, 
-        because '@' can be misinterpreted.
-        It is not clear if '@' is escape character in 5.1,
-        or a normal character in 5.0.
-        
-      - non-encoded db or table name contain "#mysql50#" prefix.
-        This kind of tables must have been opened only by the
-        mysql_file_open() above.
-    */
-    if (has_disabled_path_chars(share->table_name.str) ||
-        has_disabled_path_chars(share->db.str) ||
-        !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
-                 MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
-        !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
-                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-      goto err_not_open;
-
-    /*
-      Trying unencoded 5.0 name for temporary tables does not
-      make sense since such tables are not persistent.
-    */
-    if (share->tmp_table)
-      goto err_not_open;
-
-    /* Try unencoded 5.0 name */
-    size_t length;
-    strxnmov(path, sizeof(path)-1,
-             mysql_data_home, "/", share->db.str, "/",
-             share->table_name.str, reg_ext, NullS);
-    length= unpack_filename(path, path) - reg_ext_length;
-    /*
-      The following is a safety test and should never fail
-      as the old file name should never be longer than the new one.
-    */
-    DBUG_ASSERT(length <= share->normalized_path.length);
-    /*
-      If the old and the new names have the same length,
-      then table name does not have tricky characters,
-      so no need to check the old file name.
-    */
-    if (length == share->normalized_path.length ||
-        ((file= mysql_file_open(key_file_frm,
-                                path, O_RDONLY | O_SHARE, MYF(0))) < 0))
-      goto err_not_open;
-
-    /* Unencoded 5.0 table name found */
-    path[length]= '\0'; // Remove .frm extension
-    my_stpcpy(share->normalized_path.str, path);
-    share->normalized_path.length= length;
+    goto err_not_open;
   }
 
   error= 4;
@@ -1598,6 +1530,30 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
       }
+      else if (!tmp_plugin && name.length == 18 &&
+               !strncmp(name.str, "PERFORMANCE_SCHEMA", name.length))
+      {
+        /*
+          A FRM file is present on disk,
+          for a PERFORMANCE_SCHEMA table,
+          but this server binary is not compiled with the performance_schema,
+          as ha_resolve_by_name() did not find the storage engine.
+          This can happen:
+          - (a) during tests with mysql-test-run,
+            because the same database installed image is used
+            for regular builds (with P_S) and embedded builds (without P_S)
+          - (b) in production, when random binaries (without P_S) are thrown
+            on top of random installed database instances on disk (with P_S).
+          For the sake of robustness, pretend the table simply does not exist,
+          so that in particular it does not pollute the information_schema
+          with errors when scanning the disk for FRM files.
+          Note that ER_NO_SUCH_TABLE has a special treatment
+          in fill_schema_table_by_open()
+        */
+        error= 1;
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
+        goto err;
+      }
       else if (!tmp_plugin)
       {
         /* purecov: begin inspected */
@@ -1624,20 +1580,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       next_chunk+= 5 + partition_info_str_len;
     }
-#if MYSQL_VERSION_ID < 50200
-    if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
-    {
-      /*
-         Partition state array was here in version 5.1.6 to 5.1.9, this code
-         makes it possible to load a 5.1.6 table in later versions. Can most
-         likely be removed at some point in time. Will only be used for
-         upgrades within 5.1 series of versions. Upgrade to 5.2 can only be
-         done from newer 5.1 versions.
-      */
-      next_chunk+= 4;
-    }
-    else
-#endif
     if (share->mysql_version >= 50110 && next_chunk < buff_end)
     {
       /* New auto_partitioned indicator introduced in 5.1.11 */
@@ -2432,18 +2374,18 @@ static bool validate_generated_expr(Field *field)
   DBUG_ASSERT(expr);
 
   /**
-    1) Subquery is not allowed
-    2) SP/UDF is not allowed
-    3) System variables and parameters are not allowed
+    1) SP/UDF is not allowed
+    2) System variables and parameters are not allowed
+    3) Subquery is not allowed(already checked, assert the condition)
    */
-  if (expr->has_subquery() ||              // 1)
-      expr->has_stored_program() ||        // 2)
+  if (expr->has_stored_program() ||        // 1)
       (expr->used_tables() &
-       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 3)
+       (RAND_TABLE_BIT | PARAM_TABLE_BIT)))// 2)
   {
     my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0), field_name);
     DBUG_RETURN(TRUE);
   }
+  DBUG_ASSERT(!expr->has_subquery());      // 3)
   /* 
     Walk through the Item tree checking if all items are valid
     to be part of the generated column. 
@@ -2494,7 +2436,6 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-  Item *dummy;
   DBUG_ASSERT(func_expr);
   DBUG_ENTER("fix_fields_gcol_func");
 
@@ -2536,7 +2477,8 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   thd->lex->use_only_table_context= TRUE;
 
   /* Fix fields referenced to by the generated column function */
-  error= func_expr->fix_fields(thd, &dummy);
+  Item *new_func= func_expr;
+  error= func_expr->fix_fields(thd, &new_func);
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;
@@ -2554,6 +2496,9 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   */
   if (validate_generated_expr(field))
     goto end;
+
+  // Virtual columns expressions that substitute themselves are invalid
+  DBUG_ASSERT(new_func == func_expr);
   result= FALSE;
 
 end:
@@ -2637,6 +2582,9 @@ bool unpack_gcol_info_from_frm(THD *thd,
 
   thd->lex->parse_gcol_expr= TRUE;
   old_character_set_client= thd->variables.character_set_client;
+  // Subquery is not allowed in generated expression
+  const bool save_allow_subselects= thd->lex->expr_allows_subselect;
+  thd->lex->expr_allows_subselect= false;
 
   /*
     Step 3: Use the parser to build an Item object from.
@@ -2669,6 +2617,7 @@ bool unpack_gcol_info_from_frm(THD *thd,
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   field->gcol_info->item_free_list= gcol_arena.free_list;
   thd->want_privilege= save_old_privilege;
+  thd->lex->expr_allows_subselect= save_allow_subselects;
 
   DBUG_RETURN(FALSE);
 
@@ -2679,6 +2628,7 @@ parse_err:
   thd->restore_active_arena(&gcol_arena, &backup_arena);
   thd->variables.character_set_client= old_character_set_client;
   thd->want_privilege= save_old_privilege;
+  thd->lex->expr_allows_subselect= save_allow_subselects;
   DBUG_RETURN(TRUE);
 }
 
@@ -3568,17 +3518,6 @@ void append_unescaped(String *res, const char *pos, size_t length)
 
   for (; pos != end ; pos++)
   {
-#if MYSQL_VERSION_ID < 40100
-    uint mblen;
-    if (use_mb(default_charset_info) &&
-        (mblen= my_ismbchar(default_charset_info, pos, end)))
-    {
-      res->append(pos, mblen);
-      pos+= mblen;
-      continue;
-    }
-#endif
-
     switch (*pos) {
     case 0:				/* Must be escaped for 'mysql' */
       res->append('\\');
@@ -3845,7 +3784,6 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
 {
   char *name= org_name->str;
   size_t name_length= org_name->length;
-  bool check_for_path_chars;
   enum_ident_name_check ident_check_status;
 
   if (!name_length || name_length > NAME_LEN)
@@ -3854,16 +3792,10 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
     return IDENT_NAME_WRONG;
   }
 
-  if ((check_for_path_chars= check_mysql50_prefix(name)))
-  {
-    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-  }
-
   if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-  ident_check_status= check_table_name(name, name_length, check_for_path_chars);
+  ident_check_status= check_table_name(name, name_length);
   if (ident_check_status == IDENT_NAME_WRONG)
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
   else if (ident_check_status == IDENT_NAME_TOO_LONG)
@@ -3878,7 +3810,6 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
 
   @param name                  Table name
   @param length                Length of table name
-  @param check_for_path_chars  Check if the table name contains path chars
 
   @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
   @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
@@ -3888,8 +3819,7 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
   @note Reporting error to the user is the responsiblity of the caller.
 */
 
-enum_ident_name_check check_table_name(const char *name, size_t length,
-                                       bool check_for_path_chars)
+enum_ident_name_check check_table_name(const char *name, size_t length)
 {
   // name length in symbols
   size_t name_length= 0;
@@ -3911,9 +3841,6 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-    if (check_for_path_chars &&
-        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
-      return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
@@ -4863,20 +4790,16 @@ int TABLE_LIST::view_check_option(THD *thd) const
 		        (must be set to NULL by caller)
   @param      map       bit mask of tables
 
-  @retval false table not found or found only one
+  @retval false table not found or found only one (table_ref is non-NULL)
   @retval true  found several tables
-
-  @note This function should be called for tables to be updated, meaning
-        that any view references must be merged.
 */
 
 bool TABLE_LIST::check_single_table(TABLE_LIST **table_ref, table_map map)
 {
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
   {
-    if (tbl->is_view_or_derived())
+    if (tbl->is_view_or_derived() && tbl->is_merged())
     {
-      DBUG_ASSERT(tbl->is_merged());
       if (tbl->check_single_table(table_ref, map))
         return true;
     }
@@ -5404,6 +5327,15 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
       DBUG_RETURN(NULL);               /* purecov: inspected */
     field= *field_ref;
   }
+
+  /*
+    @note Creating an Item_direct_view_ref object on top of an Item_field
+          means that the underlying Item_field object may be shared by
+          multiple occurrences of superior fields. This is a vulnerable
+          practice, so special precaution must be taken to avoid programming
+          mistakes, such as forgetting to mark the use of a field in both
+          read_set and write_set (may happen e.g in an UPDATE statement).
+  */ 
   Item *item= new Item_direct_view_ref(context, field_ref,
                                        view->alias, view->table_name,
                                        name, view);
@@ -6594,10 +6526,6 @@ uint TABLE_LIST::query_block_id() const
     e.g. "USE INDEX i1, IGNORE INDEX i1, USE INDEX i1" will not use i1 at all
     as if we had "USE INDEX i1, USE INDEX i1, IGNORE INDEX i1".
 
-    As an optimization if there is a covering index, and we have 
-    IGNORE INDEX FOR GROUP/ORDER, and this index is used for the JOIN part, 
-    then we have to ignore the IGNORE INDEX FROM GROUP/ORDER.
-
   RETURN VALUE
     FALSE                no errors found
     TRUE                 found and reported an error.
@@ -6782,18 +6710,14 @@ bool TABLE_LIST::materializable_is_const() const
 
 uint TABLE_LIST::leaf_tables_count() const
 {
-  DBUG_ASSERT(is_view_or_derived() && is_merged());
+  // Join nests are not permissible, except as merged views
+  DBUG_ASSERT(nested_join == NULL || is_merged());
+  if (!is_merged())  // Base table or materialized view
+    return 1;
+
   uint count= 0;
   for (TABLE_LIST *tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
-  {
-    if (tbl->is_view_or_derived())
-      count+= tbl->leaf_tables_count();
-    else
-    {
-      DBUG_ASSERT(tbl->nested_join == NULL);
-      count++;
-    }
-  }
+    count+= tbl->leaf_tables_count();
 
   return count;
 }

@@ -23,6 +23,8 @@
 
 #include "my_bit.h"                   // my_count_bits
 #include "myisam.h"                   // TT_FOR_UPGRADE
+#include "mysql_version.h"            // MYSQL_VERSION_ID
+
 #include "binlog.h"                   // mysql_bin_log
 #include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
@@ -3078,7 +3080,7 @@ prev_insert_id(ulonglong nr, struct System_variables *variables)
 
 int handler::update_auto_increment()
 {
-  ulonglong nr, nb_reserved_values;
+  ulonglong nr, nb_reserved_values= 0;
   bool append= FALSE;
   THD *thd= table->in_use;
   struct System_variables *variables= &thd->variables;
@@ -5823,8 +5825,6 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     key_range *min_endp, *max_endp;
     if (range.range_flag & GEOM_FLAG)
     {
-      /* In this case tmp_min_flag contains the handler-read-function */
-      range.start_key.flag= (ha_rkey_function) (range.range_flag ^ GEOM_FLAG);
       min_endp= &range.start_key;
       max_endp= NULL;
     }
@@ -6028,7 +6028,7 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 int handler::multi_range_read_next(char **range_info)
 {
   int result= HA_ERR_END_OF_FILE;
-  int range_res;
+  int range_res= 0;
   DBUG_ENTER("handler::multi_range_read_next");
 
   if (!mrr_have_range)
@@ -7064,7 +7064,7 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
 {
-  int error, error1;
+  int error, error1= 0;
   error= index_init(index, 0);
   if (!error)
   {

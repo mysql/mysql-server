@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -72,6 +72,27 @@ flst_add_to_empty(
 	/* Update len of base node */
 	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES, mtr);
 }
+
+/********************************************************************//**
+Inserts a node after another in a list. */
+static
+void
+flst_insert_after(
+/*==============*/
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node1,	/*!< in: node to insert after */
+	flst_node_t*		node2,	/*!< in: node to add */
+	mtr_t*			mtr);	/*!< in: mini-transaction handle */
+/********************************************************************//**
+Inserts a node before another in a list. */
+static
+void
+flst_insert_before(
+/*===============*/
+	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
+	flst_node_t*		node2,	/*!< in: node to insert */
+	flst_node_t*		node3,	/*!< in: node to insert before */
+	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 
 /********************************************************************//**
 Adds a node as the last node in a list. */
@@ -176,6 +197,7 @@ flst_add_first(
 
 /********************************************************************//**
 Inserts a node after another in a list. */
+static
 void
 flst_insert_after(
 /*==============*/
@@ -240,6 +262,7 @@ flst_insert_after(
 
 /********************************************************************//**
 Inserts a node before another in a list. */
+static
 void
 flst_insert_before(
 /*===============*/
@@ -563,30 +586,4 @@ flst_validate(
 	ut_a(fil_addr_is_null(node_addr));
 
 	return(TRUE);
-}
-
-/********************************************************************//**
-Prints info of a file-based list. */
-void
-flst_print(
-/*=======*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	mtr_t*			mtr)	/*!< in: mtr */
-{
-	const buf_frame_t*	frame;
-	ulint			len;
-
-	ut_ad(base && mtr);
-	ut_ad(mtr_memo_contains_page_flagged(mtr, base,
-					     MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-	frame = page_align((byte*) base);
-
-	len = flst_get_len(base);
-
-	ib::info() << "FILE-BASED LIST: Base node in space "
-		<< page_get_space_id(frame)
-		<< "; page " << page_get_page_no(frame)
-		<< "; byte offset " << page_offset(base)
-		<< "; len " << len;
 }

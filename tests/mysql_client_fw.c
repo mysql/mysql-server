@@ -111,6 +111,8 @@ static void print_error(MYSQL * l_mysql, const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
 static void client_disconnect(MYSQL* mysql);
 static void get_options(int *argc, char ***argv);
+static void die(const char *file, int line,
+                const char *expr) __attribute__((noreturn));
 
 /*
 Abort unless given experssion is non-zero.

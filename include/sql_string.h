@@ -330,6 +330,14 @@ public:
     DBUG_ASSERT(strlen(m_ptr) == m_length);
   }
 
+  void mem_claim()
+  {
+    if (m_is_alloced)
+    {
+      my_claim(m_ptr);
+    }
+  }
+
   void mem_free()
   {
     if (m_is_alloced)
@@ -341,6 +349,7 @@ public:
       m_length= 0;				/* Safety */
     }
   }
+
   bool alloc(size_t arg_length)
   {
     if (arg_length < m_alloced_length)

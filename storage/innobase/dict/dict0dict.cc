@@ -694,6 +694,7 @@ dict_table_autoinc_lock(
 
 /** Acquire the zip_pad_mutex latch.
 @param[in,out]	index	the index whose zip_pad_mutex to acquire.*/
+static
 void
 dict_index_zip_pad_lock(
 	dict_index_t*	index)
@@ -1352,7 +1353,7 @@ dict_table_can_be_evicted(
 
 			See also: dict_index_remove_from_cache_low() */
 
-			if (btr_search_info_get_ref_count(info) > 0) {
+			if (btr_search_info_get_ref_count(info, index) > 0) {
 				return(FALSE);
 			}
 		}
@@ -1607,17 +1608,10 @@ dict_table_rename_in_cache(
 		ut_free(filepath);
 
 	} else if (dict_table_is_file_per_table(table)) {
-
-		if (table->dir_path_of_temp_table != NULL) {
-			ib::error() << "Trying to rename a TEMPORARY TABLE "
-				<< old_name
-				<< " ( " << table->dir_path_of_temp_table
-				<< " )";
-			return(DB_ERROR);
-		}
-
 		char*	new_path = NULL;
 		char*	old_path = fil_space_get_first_path(table->space);
+
+		ut_ad(!dict_table_is_temporary(table));
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
@@ -1964,7 +1958,7 @@ dict_table_remove_from_cache_low(
 {
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
-	ulint		size;
+	lint		size;
 
 	ut_ad(table);
 	ut_ad(dict_lru_validate());
@@ -2737,7 +2731,7 @@ dict_index_remove_from_cache_low(
 	ibool		lru_evict)	/*!< in: TRUE if index being evicted
 					to make room in the table LRU list */
 {
-	ulint		size;
+	lint		size;
 	ulint		retries = 0;
 	btr_search_t*	info;
 
@@ -2769,7 +2763,7 @@ dict_index_remove_from_cache_low(
 	zero. See also: dict_table_can_be_evicted() */
 
 	do {
-		ulint ref_count = btr_search_info_get_ref_count(info);
+		ulint ref_count = btr_search_info_get_ref_count(info, index);
 
 		if (ref_count == 0) {
 			break;
@@ -2810,6 +2804,7 @@ dict_index_remove_from_cache_low(
 
 	size = mem_heap_get_size(index->heap);
 
+	ut_ad(!dict_table_is_intrinsic(table));
 	ut_ad(dict_sys->size >= size);
 
 	dict_sys->size -= size;
@@ -3400,69 +3395,6 @@ dict_table_is_referenced_by_foreign_key(
 	return(!table->referenced_set.empty());
 }
 
-/*********************************************************************//**
-Check if the index is referenced by a foreign key, if TRUE return foreign
-else return NULL
-@return pointer to foreign key struct if index is defined for foreign
-key, otherwise NULL */
-dict_foreign_t*
-dict_table_get_referenced_constraint(
-/*=================================*/
-	dict_table_t*	table,	/*!< in: InnoDB table */
-	dict_index_t*	index)	/*!< in: InnoDB index */
-{
-	dict_foreign_t*	foreign;
-
-	ut_ad(index != NULL);
-	ut_ad(table != NULL);
-
-	for (dict_foreign_set::iterator it = table->referenced_set.begin();
-	     it != table->referenced_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		if (foreign->referenced_index == index) {
-
-			return(foreign);
-		}
-	}
-
-	return(NULL);
-}
-
-/*********************************************************************//**
-Checks if a index is defined for a foreign key constraint. Index is a part
-of a foreign key constraint if the index is referenced by foreign key
-or index is a foreign key index.
-@return pointer to foreign key struct if index is defined for foreign
-key, otherwise NULL */
-dict_foreign_t*
-dict_table_get_foreign_constraint(
-/*==============================*/
-	dict_table_t*	table,	/*!< in: InnoDB table */
-	dict_index_t*	index)	/*!< in: InnoDB index */
-{
-	dict_foreign_t*	foreign;
-
-	ut_ad(index != NULL);
-	ut_ad(table != NULL);
-
-	for (dict_foreign_set::iterator it = table->foreign_set.begin();
-	     it != table->foreign_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		if (foreign->foreign_index == index) {
-
-			return(foreign);
-		}
-	}
-
-	return(NULL);
-}
-
 /**********************************************************************//**
 Removes a foreign constraint struct from the dictionary cache. */
 void
@@ -3760,13 +3692,6 @@ dict_foreign_add_to_cache(
 	}
 
 	ut_ad(dict_lru_validate());
-
-/*
-	if (for_in_cache->foreign_table == NULL) {
-		dict_foreign_remove_from_cache(for_in_cache);
-	}
-*/
-
 	DBUG_RETURN(DB_SUCCESS);
 }
 
@@ -3959,21 +3884,12 @@ dict_scan_id(
 	}
 
 	if (!table_id) {
-convert_id:
 		/* Convert the identifier from connection character set
 		to UTF-8. */
 		len = 3 * len + 1;
 		*id = dst = static_cast<char*>(mem_heap_alloc(heap, len));
 
 		innobase_convert_from_id(cs, dst, str, len);
-	} else if (!strncmp(str, srv_mysql50_table_name_prefix,
-			    sizeof(srv_mysql50_table_name_prefix) - 1)) {
-		/* This is a pre-5.1 table name
-		containing chars other than [A-Za-z0-9].
-		Discard the prefix and use raw UTF-8 encoding. */
-		str += sizeof(srv_mysql50_table_name_prefix) - 1;
-		len -= sizeof(srv_mysql50_table_name_prefix) - 1;
-		goto convert_id;
 	} else {
 		/* Encode using filename-safe characters. */
 		len = 5 * len + 1;
@@ -5003,22 +4919,6 @@ try_find_index:
 	}
 
 	goto loop;
-}
-/**************************************************************************
-Determines whether a string starts with the specified keyword.
-@return TRUE if str starts with keyword */
-ibool
-dict_str_starts_with_keyword(
-/*=========================*/
-	THD*		thd,		/*!< in: MySQL thread handle */
-	const char*	str,		/*!< in: string to scan for keyword */
-	const char*	keyword)	/*!< in: keyword to look for */
-{
-	const CHARSET_INFO*	cs = innobase_get_charset(thd);
-	ibool		success;
-
-	dict_accept(cs, str, keyword, &success);
-	return(success);
 }
 
 /** Scans a table create SQL string and adds to the data dictionary
@@ -6321,8 +6221,7 @@ dict_fs2utf8(
 		&errors);
 
 	if (errors != 0) {
-		ut_snprintf(table_utf8, table_utf8_size, "%s%s",
-			    srv_mysql50_table_name_prefix, table);
+		ut_snprintf(table_utf8, table_utf8_size, "%s", table);
 	}
 }
 
@@ -6379,11 +6278,18 @@ void
 dict_close(void)
 /*============*/
 {
-	ulint	i;
+	if (dict_sys == NULL) {
+		/* This should only happen if a failure occurred
+		during redo log processing. */
+		return;
+	}
+
+	/* Acquire only because it's a pre-condition. */
+	mutex_enter(&dict_sys->mutex);
 
 	/* Free the hash elements. We don't remove them from the table
 	because we are going to destroy the table anyway. */
-	for (i = 0; i < hash_get_n_cells(dict_sys->table_hash); i++) {
+	for (ulint i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); i++) {
 		dict_table_t*	table;
 
 		table = static_cast<dict_table_t*>(
@@ -6394,15 +6300,8 @@ dict_close(void)
 
 			table = static_cast<dict_table_t*>(
 				HASH_GET_NEXT(name_hash, prev_table));
-#ifdef UNIV_DEBUG
-			ut_a(prev_table->magic_n == DICT_TABLE_MAGIC_N);
-#endif /* UNIV_DEBUG */
-			/* Acquire only because it's a pre-condition. */
-			mutex_enter(&dict_sys->mutex);
-
+			ut_ad(prev_table->magic_n == DICT_TABLE_MAGIC_N);
 			dict_table_remove_from_cache(prev_table);
-
-			mutex_exit(&dict_sys->mutex);
 		}
 	}
 
@@ -6414,11 +6313,19 @@ dict_close(void)
 
 	dict_ind_free();
 
+	mutex_exit(&dict_sys->mutex);
 	mutex_free(&dict_sys->mutex);
 
 	rw_lock_free(&dict_operation_lock);
 
 	mutex_free(&dict_foreign_err_mutex);
+
+	if (dict_foreign_err_file != NULL) {
+		fclose(dict_foreign_err_file);
+		dict_foreign_err_file = NULL;
+	}
+
+	ut_ad(dict_sys->size == 0);
 
 	ut_free(dict_sys);
 	dict_sys = NULL;
@@ -6750,12 +6657,10 @@ Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
-@param[in]	is_temp		whether the tablespace is temporary
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags,
-	bool	is_temp)
+	ulint	table_flags)
 {
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
@@ -6778,7 +6683,7 @@ dict_tf_to_fsp_flags(
 						   has_atomic_blobs,
 						   has_data_dir,
 						   is_shared,
-						   is_temp);
+						   false);
 
 	return(fsp_flags);
 }

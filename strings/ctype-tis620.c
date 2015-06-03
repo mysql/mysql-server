@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,6 @@
 
 #ifdef HAVE_CHARSET_tis620
 
-#define BUFFER_MULTIPLY 4
 #define M  L_MIDDLE
 #define U  L_UPPER
 #define L  L_LOWER

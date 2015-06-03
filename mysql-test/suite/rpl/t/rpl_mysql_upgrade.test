@@ -13,6 +13,12 @@
 
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
+#
+# Special handling of the #mysql50# prefix has been removed.
+# It is now treated as any other identifier part. I.e. it has to
+# be quoted and will remain part of the identifier name.
+#
+
 connection master;
 --disable_warnings
 DROP DATABASE IF EXISTS `#mysql50#mysqltest-1`;
@@ -55,7 +61,7 @@ if ($before_position != $after_position)
   echo Master position has been changed;
 }
 
-DROP DATABASE `mysqltest-1`;
+DROP DATABASE `#mysql50#mysqltest-1`;
 connection slave;
 DROP DATABASE `#mysql50#mysqltest-1`;
 --let $rpl_only_running_threads= 1

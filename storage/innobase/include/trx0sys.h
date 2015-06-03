@@ -242,16 +242,6 @@ trx_rw_is_active(
 					that will be set if corrupt */
 	bool		do_ref_count);	/*!< in: if true then increment the
 					trx_t::n_ref_count */
-#ifdef UNIV_DEBUG
-/****************************************************************//**
-Checks whether a trx is in on of rw_trx_list
-@return TRUE if is in */
-bool
-trx_in_rw_trx_list(
-/*============*/
-	const trx_t*	in_trx)		/*!< in: transaction */
-	__attribute__((warn_unused_result));
-#endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
 Assert that a transaction has been recovered.

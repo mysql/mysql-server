@@ -1796,7 +1796,7 @@ row_merge_read_clustered_index(
 		const rec_t*	rec;
 		ulint*		offsets;
 		const dtuple_t*	row;
-		row_ext_t*	ext;
+		row_ext_t*	ext = NULL;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
 		page_cur_move_to_next(cur);
@@ -1958,7 +1958,8 @@ end_of_index:
 
 			if (!trx->read_view->changes_visible(
 				    row_get_rec_trx_id(
-					    rec, clust_index, offsets))) {
+					    rec, clust_index, offsets),
+				    old_table->name)) {
 				rec_t*	old_vers;
 
 				row_vers_build_for_consistent_read(
@@ -4171,7 +4172,9 @@ row_merge_is_index_usable(
 	       && (dict_table_is_temporary(index->table)
 		   || index->trx_id == 0
 		   || !MVCC::is_view_active(trx->read_view)
-		   || trx->read_view->changes_visible(index->trx_id)));
+		   || trx->read_view->changes_visible(
+			   index->trx_id,
+			   index->table->name)));
 }
 
 /*********************************************************************//**

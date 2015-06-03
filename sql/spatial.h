@@ -3705,6 +3705,7 @@ struct Geometry_buffer : public
 class WKB_scanner_event_handler
 {
 public:
+  virtual ~WKB_scanner_event_handler() {}
 
   /**
     Notified when scanner sees the start of a geometry WKB.

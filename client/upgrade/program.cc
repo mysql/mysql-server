@@ -26,6 +26,7 @@
 #include "mysqld_error.h"
 #include "my_default.h"
 #include "check/mysqlcheck.h"
+#include "mysql_version.h"
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 #include "../scripts/sql_commands_sys_schema.h"
 
@@ -184,10 +185,6 @@ public:
     {
       this->print_verbose_message("Checking system database.");
 
-      if (this->run_mysqlcheck_mysql_db_fixnames() != 0)
-      {
-        return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
-      }
       if (this->run_mysqlcheck_mysql_db_upgrade() != 0)
       {
         return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
@@ -418,10 +415,6 @@ public:
     {
       this->print_verbose_message("Checking databases.");
 
-      if (this->run_mysqlcheck_fixnames() != 0)
-      {
-        return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
-      }
       if (this->run_mysqlcheck_upgrade() != 0)
       {
         return this->print_error(EXIT_MYSQL_CHECK_ERROR, "Error during call to mysql_check.");
@@ -845,20 +838,6 @@ private:
   }
 
   /**
-    Upgrade all tables and DBs names in the server using mysqlcheck.
-   */
-  int run_mysqlcheck_fixnames()
-  {
-    Mysql::Tools::Check::Program mysql_check;
-    this->prepare_mysqlcheck(mysql_check)
-      ->enable_fixing_db_names(true)
-      ->enable_fixing_table_names(true)
-      ->set_skip_database("mysql")
-      ->upgrade_all_databases(this->m_mysql_connection);
-    return mysql_check_errors;
-  }
-
-  /**
     Check and upgrade(if necessary) all system tables in the server using
     mysqlcheck.
    */
@@ -872,23 +851,6 @@ private:
       ->enable_auto_repair(true)
       ->enable_upgrade(true)
       ->check_databases(this->m_mysql_connection, databases);
-    return mysql_check_errors;
-  }
-
-  /**
-    Upgrade all system tables and system DB names in the server using
-    mysqlcheck.
-   */
-  int run_mysqlcheck_mysql_db_fixnames()
-  {
-    vector<string> databases;
-    Mysql::Tools::Check::Program mysql_check;
-
-    databases.push_back("mysql");
-    this->prepare_mysqlcheck(mysql_check)
-      ->enable_fixing_db_names(true)
-      ->enable_fixing_table_names(true)
-      ->upgrade_databases(this->m_mysql_connection, databases);
     return mysql_check_errors;
   }
 

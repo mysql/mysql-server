@@ -122,7 +122,7 @@ row_sel_sec_rec_is_for_blob(
 		    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
-		recv_recovery_rollback_active() or any
+		trx_rollback_or_clean_all_recovered() or any
 		TRX_ISO_READ_UNCOMMITTED transactions. */
 		return(FALSE);
 	}
@@ -489,7 +489,7 @@ row_sel_fetch_columns(
 				externally stored field was not
 				written yet. This record
 				should only be seen by
-				recv_recovery_rollback_active() or any
+				trx_rollback_or_clean_all_recovered() or any
 				TRX_ISO_READ_UNCOMMITTED
 				transactions. The InnoDB SQL parser
 				(the sole caller of this function)
@@ -1432,8 +1432,8 @@ row_sel_try_search_shortcut(
 	plan_t*		plan,	/*!< in: plan for a unique search in clustered
 				index */
 	ibool		search_latch_locked,
-				/*!< in: whether the search holds
-				btr_search_latch */
+				/*!< in: whether the search holds latch on
+				search system. */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	dict_index_t*	index;
@@ -1451,7 +1451,7 @@ row_sel_try_search_shortcut(
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
 	if (search_latch_locked) {
-		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_S));
+		ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	}
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1625,10 +1625,11 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(btr_get_search_latch(index));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_X_WAIT) {
+		} else if (rw_lock_get_writer(btr_get_search_latch(index))
+				== RW_LOCK_X_WAIT) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1637,8 +1638,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(&btr_search_latch);
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_unlock(btr_get_search_latch(index));
+			rw_lock_s_lock(btr_get_search_latch(index));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan,
@@ -1663,7 +1664,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_get_search_latch(index));
 
 		search_latch_locked = FALSE;
 	}
@@ -2257,7 +2258,7 @@ lock_wait_or_error:
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_get_search_latch(index));
 	}
 
 	if (heap != NULL) {
@@ -2433,109 +2434,6 @@ fetch_step(
 
 		return(NULL);
 	}
-
-	thr->run_node = sel_node;
-
-	return(thr);
-}
-
-/****************************************************************//**
-Sample callback function for fetch that prints each row.
-@return always returns non-NULL */
-void*
-row_fetch_print(
-/*============*/
-	void*	row,		/*!< in:  sel_node_t* */
-	void*	user_arg)	/*!< in:  not used */
-{
-	que_node_t*	exp;
-	ulint		i = 0;
-	sel_node_t*	node = static_cast<sel_node_t*>(row);
-
-	UT_NOT_USED(user_arg);
-
-	ib::info() << "row_fetch_print: row " << row;
-
-	for (exp = node->select_list;
-	     exp != 0;
-	     exp = que_node_get_next(exp), i++) {
-
-		dfield_t*	dfield = que_node_get_val(exp);
-		const dtype_t*	type = dfield_get_type(dfield);
-
-		fprintf(stderr, " column %lu:\n", (ulong) i);
-
-		dtype_print(type);
-		putc('\n', stderr);
-
-		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
-			ut_print_buf(stderr, dfield_get_data(dfield),
-				     dfield_get_len(dfield));
-			putc('\n', stderr);
-		} else {
-			fputs(" <NULL>;\n", stderr);
-		}
-	}
-
-	return((void*)42);
-}
-
-/***********************************************************//**
-Prints a row in a select result.
-@return query thread to run next or NULL */
-que_thr_t*
-row_printf_step(
-/*============*/
-	que_thr_t*	thr)	/*!< in: query thread */
-{
-	row_printf_node_t*	node;
-	sel_node_t*		sel_node;
-	que_node_t*		arg;
-
-	ut_ad(thr);
-
-	node = static_cast<row_printf_node_t*>(thr->run_node);
-
-	sel_node = node->sel_node;
-
-	ut_ad(que_node_get_type(node) == QUE_NODE_ROW_PRINTF);
-
-	if (thr->prev_node == que_node_get_parent(node)) {
-
-		/* Reset the cursor */
-		sel_node->state = SEL_NODE_OPEN;
-
-		/* Fetch next row to print */
-
-		thr->run_node = sel_node;
-
-		return(thr);
-	}
-
-	if (sel_node->state != SEL_NODE_FETCH) {
-
-		ut_ad(sel_node->state == SEL_NODE_NO_MORE_ROWS);
-
-		/* No more rows to print */
-
-		thr->run_node = que_node_get_parent(node);
-
-		return(thr);
-	}
-
-	arg = sel_node->select_list;
-
-	while (arg) {
-		dfield_print_also_hex(que_node_get_val(arg));
-
-		fputs(" ::: ", stderr);
-
-		arg = que_node_get_next(arg);
-	}
-
-	putc('\n', stderr);
-
-	/* Fetch next row to print */
 
 	thr->run_node = sel_node;
 
@@ -3077,7 +2975,7 @@ row_sel_store_mysql_field_func(
 		if (UNIV_UNLIKELY(!data)) {
 			/* The externally stored field was not written
 			yet. This record should only be seen by
-			recv_recovery_rollback_active() or any
+			trx_rollback_or_clean_all_recovered() or any
 			TRX_ISO_READ_UNCOMMITTED transactions. */
 
 			if (heap != prebuilt->blob_heap) {
@@ -3220,11 +3118,12 @@ row_sel_store_mysql_rec(
 	NOTE, the record can be cluster or secondary index record.
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
-	if (dict_table_has_fts_index(prebuilt->table) &&
-		(dict_index_is_clust(index) ||
-			prebuilt->fts_doc_id_in_read_set)) {
-		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
-			prebuilt->table, rec, NULL);
+	if (dict_table_has_fts_index(prebuilt->table)) {
+		if (dict_index_is_clust(index)
+		    || prebuilt->fts_doc_id_in_read_set) {
+			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
+				prebuilt->table, rec, index, NULL);
+		}
 	}
 
 	DBUG_RETURN(TRUE);
@@ -4327,7 +4226,7 @@ row_search_mvcc(
 	read (fetch the newest committed version), then this is set to
 	TRUE */
 	ulint		next_offs;
-	ibool		same_user_rec;
+	ibool		same_user_rec 			= FALSE;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4378,7 +4277,8 @@ row_search_mvcc(
 
 	if (trx->has_search_latch
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED
+	    && rw_lock_get_writer(
+		btr_get_search_latch(index)) != RW_LOCK_NOT_LOCKED
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 	    ) {
 
@@ -4546,7 +4446,9 @@ row_search_mvcc(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-			trx_reserve_search_latch_if_not_reserved(trx);
+			ut_a(!trx->has_search_latch);
+			rw_lock_s_lock(btr_get_search_latch(index));
+			trx->has_search_latch = true;
 
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -4597,7 +4499,8 @@ row_search_mvcc(
 
 				err = DB_SUCCESS;
 
-				trx_search_latch_timeout(trx);
+				rw_lock_s_unlock(btr_get_search_latch(index));
+				trx->has_search_latch = false;
 
 				goto func_exit;
 
@@ -4607,7 +4510,8 @@ row_search_mvcc(
 
 				err = DB_RECORD_NOT_FOUND;
 
-				trx_search_latch_timeout(trx);
+				rw_lock_s_unlock(btr_get_search_latch(index));
+				trx->has_search_latch = false;
 
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -4623,6 +4527,9 @@ row_search_mvcc(
 
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+
+                        rw_lock_s_unlock(btr_get_search_latch(index));
+                        trx->has_search_latch = false;
 		}
 	}
 
@@ -5775,6 +5682,15 @@ normal_return:
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	mtr_commit(&mtr);
+
+	/* Rollback blocking transactions from hit list for high priority
+	transaction, if any. We should not be holding latches here as
+	we are going to rollback the blocking transactions. */
+	if (!trx->hit_list.empty()) {
+
+		ut_ad(trx_is_high_priority(trx));
+		trx_kill_blocking(trx);
+	}
 
 	DEBUG_SYNC_C("row_search_for_mysql_before_return");
 

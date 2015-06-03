@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -117,10 +117,6 @@ IF(NOT VERSION)
     SET(package_name "mysql-cluster${PRODUCT_TAG}-${NDBVERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ELSE()
     SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
-  ENDIF()
-
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
-    SET(package_name "${package_name}-gcc")
   ENDIF()
 
   MESSAGE(STATUS "Packaging as: ${package_name}")

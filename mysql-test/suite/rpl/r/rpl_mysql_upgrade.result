@@ -12,6 +12,6 @@ Master position is not changed
 STOP SLAVE SQL_THREAD;
 include/wait_for_slave_sql_to_stop.inc
 Master position has been changed
-DROP DATABASE `mysqltest-1`;
+DROP DATABASE `#mysql50#mysqltest-1`;
 DROP DATABASE `#mysql50#mysqltest-1`;
 include/rpl_end.inc

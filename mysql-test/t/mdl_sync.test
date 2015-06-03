@@ -5598,54 +5598,6 @@ connection con2;
 CREATE DATABASE db1;
 
 --echo # Test 3:
---echo # Two ALTER..UPGRADE of the same database are mutually exclusive, but
---echo # two ALTER..UPGRADE of different databases are not. Tests X vs X lock.
---echo #
-
-let $MYSQLD_DATADIR= `select @@datadir`;
-# Manually make a 5.0 database from the template
---mkdir $MYSQLD_DATADIR/a-b-c
---copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c/db.opt
---mkdir $MYSQLD_DATADIR/a-b-c-d
---copy_file $MYSQLD_DATADIR/db1/db.opt $MYSQLD_DATADIR/a-b-c-d/db.opt
-
---echo # Connection default
-connection default;
-SET DEBUG_SYNC= 'after_wait_locked_schema_name SIGNAL locked WAIT_FOR blocked';
---echo # Sending:
---send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
-
---echo # Connection con2
-connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR locked';
---echo # Sending:
-# This should block.
---send ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME
-
---echo # Connection con3
-connection con3;
-let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for schema metadata lock'
-  AND info='ALTER DATABASE `#mysql50#a-b-c` UPGRADE DATA DIRECTORY NAME';
---source include/wait_condition.inc
-# This should not block.
-ALTER DATABASE `#mysql50#a-b-c-d` UPGRADE DATA DIRECTORY NAME;
-SET DEBUG_SYNC= 'now SIGNAL blocked';
-
---echo # Connection default
-connection default;
---echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
---reap
-
---echo # Connection con2
-connection con2;
---echo # Reaping: ALTER DATABASE '#mysql50#a-b-c' UPGRADE DATA DIRECTORY NAME
---error ER_BAD_DB_ERROR
---reap
-DROP DATABASE `a-b-c`;
-DROP DATABASE `a-b-c-d`;
-
---echo # Test 4:
 --echo # DROP DATABASE blocks database DDL on the same database, but
 --echo # not database DDL on different databases. Tests X vs X lock.
 --echo #
@@ -5721,7 +5673,7 @@ connection con2;
 --reap
 
 
---echo # Test 5:
+--echo # Test 4:
 --echo # Locked database name prevents CREATE of tables in that database.
 --echo # Tests X vs IX lock.
 --echo #
@@ -5759,7 +5711,7 @@ connection con2;
 --error ER_BAD_DB_ERROR
 --reap
 
---echo # Test 6:
+--echo # Test 5:
 --echo # Locked database name prevents RENAME of tables to/from that database.
 --echo # Tests X vs IX lock.
 --echo #
@@ -5836,7 +5788,7 @@ connection con2;
 DROP TABLE test.t2;
 
 
---echo # Test 7:
+--echo # Test 6:
 --echo # Locked database name prevents DROP of tables in that database.
 --echo # Tests X vs IX lock.
 --echo #

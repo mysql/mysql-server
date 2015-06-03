@@ -34,6 +34,12 @@ ERROR 42000: Variable 'gtid_next' can't be set to the value of 'NULL'
 select @@session.gtid_next;
 @@session.gtid_next
 AUTOMATIC
+SET @@SESSION.GTID_NEXT = 'ANONYMOUS';
+SET @@SESSION.GTID_NEXT = default;
+ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns ANONYMOUS. Ownership is released on COMMIT or ROLLBACK.
+SELECT @@SESSION.GTID_NEXT;
+@@SESSION.GTID_NEXT
+ANONYMOUS
 ROLLBACK;
 set session gtid_next = @start_global_value;
 select @@session.gtid_next;

@@ -123,11 +123,6 @@ recv_recovery_from_checkpoint_start(
 /** Complete recovery from a checkpoint. */
 void
 recv_recovery_from_checkpoint_finish(void);
-/********************************************************//**
-Initiates the rollback of active transactions. */
-void
-recv_recovery_rollback_active(void);
-/*===============================*/
 /******************************************************//**
 Resets the logs. The contents of log files will be lost! */
 void
@@ -393,11 +388,6 @@ extern bool		recv_lsn_checks_on;
 /** TRUE when the redo log is being backed up */
 extern bool		recv_is_making_a_backup;
 #endif /* UNIV_HOTBACKUP */
-
-#ifndef UNIV_HOTBACKUP
-/** Flag indicating if recv_writer thread is active. */
-extern volatile bool	recv_writer_thread_active;
-#endif /* !UNIV_HOTBACKUP */
 
 /** Size of the parsing buffer; it must accommodate RECV_SCAN_SIZE many
 times! */

@@ -1,6 +1,4 @@
 --source include/have_innodb.inc
---source include/have_innodb_zip.inc
---source include/big_test.inc
 
 ####################################################################
 # TC to test temp-table DML optimization changes for correctness   #
@@ -26,12 +24,17 @@ create temporary table t2
 drop table t1;
 drop table t2;
 #
---disable_warnings
+--error ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
 create temporary table t1
 	(keyc int, c1 char(100), c2 char(100),
 	 primary key(keyc), index sec_index(c1)
 	) engine = innodb key_block_size = 4;
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc), index sec_index(c1)
+	) engine = innodb;
 set innodb_strict_mode=off;
+--disable_warnings
 create temporary table t2
 	(keyc int, c1 char(100), c2 char(100),
 	 primary key(keyc), index sec_index(c1)

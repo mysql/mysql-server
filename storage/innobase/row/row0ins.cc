@@ -694,13 +694,16 @@ row_ins_cascade_calc_update_vec(
 	if (table->fts && *fts_col_affected) {
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			doc_id_t	doc_id;
-                        upd_field_t*	ufield;
+			doc_id_t*	next_doc_id;
+			upd_field_t*	ufield;
+
+			next_doc_id = static_cast<doc_id_t*>(mem_heap_alloc(
+				heap, sizeof(doc_id_t)));
 
 			ut_ad(!doc_id_updated);
 			ufield = update->fields + n_fields_updated;
-			fts_get_next_doc_id(table, &trx->fts_next_doc_id);
-			doc_id = fts_update_doc_id(table, ufield,
-						   &trx->fts_next_doc_id);
+			fts_get_next_doc_id(table, next_doc_id);
+			doc_id = fts_update_doc_id(table, ufield, next_doc_id);
 			n_fields_updated++;
 			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 		} else  {
@@ -1146,7 +1149,8 @@ row_ins_foreign_check_on_constraint(
 
 
 	if (table->fts) {
-		doc_id = fts_get_doc_id_from_rec(table, clust_rec, tmp_heap);
+		doc_id = fts_get_doc_id_from_rec(table, clust_rec,
+						 clust_index, tmp_heap);
 	}
 
 	if (node->is_delete
@@ -2279,6 +2283,73 @@ row_ins_must_modify_rec(
 	       && !page_rec_is_infimum(btr_cur_get_rec(cursor)));
 }
 
+/** Insert the externally stored fields (off-page columns)
+of a clustered index entry.
+@param[in]	entry	index entry to insert
+@param[in]	big_rec	externally stored fields
+@param[in,out]	offsets	rec_get_offsets()
+@param[in,out]	heap	memory heap
+@param[in]	thd	client connection, or NULL
+@param[in]	index	clustered index
+@return	error code
+@retval	DB_SUCCESS
+@retval DB_OUT_OF_FILE_SPACE */
+static
+dberr_t
+row_ins_index_entry_big_rec_func(
+	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
+	const big_rec_t*	big_rec,/*!< in: externally stored fields */
+	ulint*			offsets,/*!< in/out: rec offsets */
+	mem_heap_t**		heap,	/*!< in/out: memory heap */
+#ifndef DBUG_OFF
+	const THD*		thd,    /*!< in: connection, or NULL */
+#endif /* DBUG_OFF */
+	dict_index_t*		index)	/*!< in: index */
+{
+	mtr_t		mtr;
+	btr_pcur_t	pcur;
+	rec_t*		rec;
+	dberr_t		error;
+
+	ut_ad(dict_index_is_clust(index));
+
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
+
+	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
+	dict_disable_redo_if_temporary(index->table, &mtr);
+
+	btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_TREE,
+		      &pcur, &mtr);
+	rec = btr_pcur_get_rec(&pcur);
+	offsets = rec_get_offsets(rec, index, offsets,
+				  ULINT_UNDEFINED, heap);
+
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
+	error = btr_store_big_rec_extern_fields(
+		&pcur, 0, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
+
+	if (error == DB_SUCCESS
+	    && dict_index_is_online_ddl(index)) {
+		row_log_table_insert(btr_pcur_get_rec(&pcur), index, offsets);
+	}
+
+	mtr_commit(&mtr);
+
+	btr_pcur_close(&pcur);
+
+	return(error);
+}
+
+#ifdef DBUG_OFF
+# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd) \
+	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index)
+#else /* DBUG_OFF */
+# define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd) \
+	row_ins_index_entry_big_rec_func(e,big,ofs,heap,thd,index)
+#endif /* DBUG_OFF */
+
 /***************************************************************//**
 Tries to insert an entry into a clustered index, ignoring foreign key
 constraints. If a record with the same unique key is found, the other
@@ -2490,8 +2561,7 @@ err_exit:
 					LSN_MAX, TRUE););
 			err = row_ins_index_entry_big_rec(
 				entry, big_rec, offsets, &offsets_heap, index,
-				thr_get_trx(thr)->mysql_thd,
-				__FILE__, __LINE__);
+				thr_get_trx(thr)->mysql_thd);
 			dtuple_convert_back_big_rec(index, entry, big_rec);
 		} else {
 			if (err == DB_SUCCESS
@@ -2625,7 +2695,7 @@ row_ins_sorted_clust_index_entry(
 
 			err = row_ins_index_entry_big_rec(
 				entry, big_rec, offsets, &offsets_heap, index,
-				thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
+				thr_get_trx(thr)->mysql_thd);
 
 			dtuple_convert_back_big_rec(index, entry, big_rec);
 
@@ -3055,60 +3125,6 @@ func_exit:
 
 	mtr_commit(&mtr);
 	DBUG_RETURN(err);
-}
-
-/***************************************************************//**
-Tries to insert the externally stored fields (off-page columns)
-of a clustered index entry.
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-row_ins_index_entry_big_rec_func(
-/*=============================*/
-	const dtuple_t*		entry,	/*!< in/out: index entry to insert */
-	const big_rec_t*	big_rec,/*!< in: externally stored fields */
-	ulint*			offsets,/*!< in/out: rec offsets */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
-	dict_index_t*		index,	/*!< in: index */
-	const char*		file,	/*!< in: file name of caller */
-#ifndef DBUG_OFF
-	const void*		thd,    /*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
-	ulint			line)	/*!< in: line number of caller */
-{
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
-	rec_t*		rec;
-	dberr_t		error;
-
-	ut_ad(dict_index_is_clust(index));
-
-	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
-
-	mtr_start(&mtr);
-	mtr.set_named_space(index->space);
-	dict_disable_redo_if_temporary(index->table, &mtr);
-
-	btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_TREE,
-		      &pcur, &mtr);
-	rec = btr_pcur_get_rec(&pcur);
-	offsets = rec_get_offsets(rec, index, offsets,
-				  ULINT_UNDEFINED, heap);
-
-	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
-	error = btr_store_big_rec_extern_fields(
-		&pcur, 0, offsets, big_rec, &mtr, BTR_STORE_INSERT);
-	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
-
-	if (error == DB_SUCCESS
-	    && dict_index_is_online_ddl(index)) {
-		row_log_table_insert(btr_pcur_get_rec(&pcur), index, offsets);
-	}
-
-	mtr_commit(&mtr);
-
-	btr_pcur_close(&pcur);
-
-	return(error);
 }
 
 /***************************************************************//**

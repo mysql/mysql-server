@@ -118,18 +118,6 @@ row_mysql_store_geometry(
 					is SQL NULL this should be 0; remember
 					also to set the NULL bit in the MySQL record
 					header! */
-/*******************************************************************//**
-Reads a reference to a geometry data in the MySQL format.
-@return pointer to geometry data */
-const byte*
-row_mysql_read_geometry(
-/*====================*/
-	ulint*		len,		/*!< out: geometry data length */
-	const byte*	ref,		/*!< in: reference in the
-					MySQL format */
-	ulint		col_len)	/*!< in: BLOB reference length
-					(not BLOB length) */
-	__attribute__((warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -488,11 +476,6 @@ row_drop_table_for_mysql(
 				to release and reacquire dict_operation_lock */
 	dict_table_t*	handler = NULL);
 				/*!< in/out: table handler. */
-/*********************************************************************//**
-Drop all temporary tables during crash recovery. */
-void
-row_mysql_drop_temp_tables(void);
-/*============================*/
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -580,17 +563,6 @@ Close this module */
 void
 row_mysql_close(void);
 /*=================*/
-
-/*********************************************************************//**
-Reassigns the table identifier of a table.
-@return error code or DB_SUCCESS */
-dberr_t
-row_mysql_table_id_reassign(
-/*========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx,	/*!< in/out: transaction */
-	table_id_t*	new_id) /*!< out: new table id */
-        __attribute__((warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

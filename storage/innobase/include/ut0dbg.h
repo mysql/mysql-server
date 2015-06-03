@@ -69,8 +69,6 @@ ut_dbg_assertion_failed(
 @param A the unused variable */
 #define UT_NOT_USED(A)	A = A
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
-
 #if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 
 #define HAVE_UT_CHRONO_T
@@ -174,7 +172,5 @@ private:
 };
 
 #endif /* HAVE_SYS_TIME_H && HAVE_SYS_RESOURCE_H */
-
-#endif /* UNIV_COMPILE_TEST_FUNCS */
 
 #endif

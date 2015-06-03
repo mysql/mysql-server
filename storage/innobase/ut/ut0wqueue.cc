@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,44 +87,6 @@ ib_wqueue_add(
 
 	mutex_exit(&wq->mutex);
 }
-
-/****************************************************************//**
-Wait for a work item to appear in the queue.
-@return work item */
-void*
-ib_wqueue_wait(
-/*===========*/
-	ib_wqueue_t*	wq)	/*!< in: work queue */
-{
-	ib_list_node_t*	node;
-
-	for (;;) {
-		os_event_wait(wq->event);
-
-		mutex_enter(&wq->mutex);
-
-		node = ib_list_get_first(wq->items);
-
-		if (node) {
-			ib_list_remove(wq->items, node);
-
-			if (!ib_list_get_first(wq->items)) {
-				/* We must reset the event when the list
-				gets emptied. */
-				os_event_reset(wq->event);
-			}
-
-			break;
-		}
-
-		mutex_exit(&wq->mutex);
-	}
-
-	mutex_exit(&wq->mutex);
-
-	return(node->data);
-}
-
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */

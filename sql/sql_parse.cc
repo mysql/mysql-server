@@ -290,7 +290,6 @@ void init_update_queries(void)
                                             CF_CAN_GENERATE_ROW_EVENTS;
   sql_command_flags[SQLCOM_CREATE_DB]=      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]=        CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]=       CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_TABLE]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_INDEX]=     CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -530,7 +529,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_INDEX]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_DB]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_DB]|=          CF_DISALLOW_IN_RO_TRANS;
-  sql_command_flags[SQLCOM_ALTER_DB_UPGRADE]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_DB]|=         CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_DISALLOW_IN_RO_TRANS;
@@ -1350,7 +1348,7 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
                         com_data->com_field_list.table_name_length,
                         thd->charset());
     enum_ident_name_check ident_check_status=
-      check_table_name(table_name.str, table_name.length, FALSE);
+      check_table_name(table_name.str, table_name.length);
     if (ident_check_status == IDENT_NAME_WRONG)
     {
       /* this is OK due to convert_string() null-terminating the string */
@@ -1551,7 +1549,9 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
 
     query_logger.general_log_print(thd, command, NullS);
     thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
+    mysql_mutex_lock(&LOCK_status);
     calc_sum_of_all_status(&current_global_status_var);
+    mysql_mutex_unlock(&LOCK_status);
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
     else
@@ -2388,6 +2388,7 @@ mysql_execute_command(THD *thd)
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
+    thd->initial_status_var= NULL;
     mysql_mutex_unlock(&LOCK_status);
     break;
   }
@@ -2445,11 +2446,7 @@ case SQLCOM_PREPARE:
     break;
   }
   case SQLCOM_DO:
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables, 0))
-      goto error;
-
-    res= mysql_do(thd, *lex->do_insert_list);
+    res= mysql_do(thd, lex);
     break;
 
   case SQLCOM_EMPTY_QUERY:
@@ -2938,6 +2935,9 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -2966,6 +2966,9 @@ end_with_restore_list:
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
@@ -3377,13 +3380,7 @@ end_with_restore_list:
     break;
   case SQLCOM_CREATE_DB:
   {
-    /*
-      As mysql_create_db() may modify HA_CREATE_INFO structure passed to
-      it, we need to use a copy of LEX::create_info to make execution
-      prepared statement- safe.
-    */
-    HA_CREATE_INFO create_info(lex->create_info);
-    char *alias;
+    const char* alias;
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
         (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK))
       break;
@@ -3403,8 +3400,14 @@ end_with_restore_list:
 #endif
     if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
-                              lex->name.str), &create_info, 0);
+    /*
+      As mysql_create_db() may modify HA_CREATE_INFO structure passed to
+      it, we need to use a copy of LEX::create_info to make execution
+      prepared statement- safe.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
+    res= mysql_create_db(thd, (lower_case_table_names == 2 ? alias :
+                               lex->name.str), &create_info);
     break;
   }
   case SQLCOM_DROP_DB:
@@ -3427,40 +3430,12 @@ end_with_restore_list:
 #endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
-    break;
-  }
-  case SQLCOM_ALTER_DB_UPGRADE:
-  {
-    LEX_STRING *db= & lex->name;
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      res= 1;
-      my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
-      break;
-    }
-#endif
-    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
-      break;
-    if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
-        check_access(thd, DROP_ACL, db->str, NULL, NULL, 1, 0) ||
-        check_access(thd, CREATE_ACL, db->str, NULL, NULL, 1, 0))
-    {
-      res= 1;
-      break;
-    }
-    LEX_CSTRING db_name= {db->str, db->length};
-    res= mysql_upgrade_db(thd, db_name);
-    if (!res)
-      my_ok(thd);
+    res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists);
     break;
   }
   case SQLCOM_ALTER_DB:
   {
-    LEX_STRING *db= &lex->name;
-    HA_CREATE_INFO create_info(lex->create_info);
-    if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
+    if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
     /*
       If in a slave thread :
@@ -3476,9 +3451,15 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0))
+    if (check_access(thd, ALTER_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
-    res= mysql_alter_db(thd, db->str, &create_info);
+    /*
+      As mysql_alter_db() may modify HA_CREATE_INFO structure passed to
+      it, we need to use a copy of LEX::create_info to make execution
+      prepared statement- safe.
+    */
+    HA_CREATE_INFO create_info(lex->create_info);
+    res= mysql_alter_db(thd, lex->name.str, &create_info);
     break;
   }
   case SQLCOM_SHOW_CREATE_DB:
@@ -5058,8 +5039,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
         no logging happens at all. If rewriting does not happen here,
         thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      bool general= (opt_general_log &&
-                     !(opt_general_log_raw || thd->slave_thread));
+      bool general= !(opt_general_log_raw || thd->slave_thread);
 
       if (general || opt_slow_log || opt_bin_log)
       {
@@ -5085,13 +5065,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                                          thd->query().str, qlen);
         }
       }
-
-#ifndef EMBEDDED_LIBRARY
-      /* Audit_log notification when general log is disabled */
-      if (!opt_general_log && !opt_general_log_raw)
-        mysql_audit_general_log(thd, command_name[COM_QUERY].str,
-                                command_name[COM_QUERY].length);
-#endif
     }
 
     if (!err)
@@ -5461,7 +5434,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   if (!MY_TEST(table_options & TL_OPTION_ALIAS))
   {
     enum_ident_name_check ident_check_status=
-      check_table_name(table->table.str, table->table.length, FALSE);
+      check_table_name(table->table.str, table->table.length);
     if (ident_check_status == IDENT_NAME_WRONG)
     {
       my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);

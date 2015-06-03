@@ -904,6 +904,14 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
+  /*
+    Turn off row binlogging of this statement and use statement-based so
+    that all supporting tables are updated for DROP EVENT command.
+  */
+  bool save_binlog_row_based;
+  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
+    thd->clear_current_stmt_binlog_format_row();
+
   DBUG_ENTER("Event_db_repository::drop_event");
   DBUG_PRINT("enter", ("%s@%s", db.str, name.str));
 
@@ -932,6 +940,11 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
 end:
   close_thread_tables(thd);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+
+  /* Restore the state of binlog format */
+  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(MY_TEST(ret));
 }

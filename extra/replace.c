@@ -142,7 +142,6 @@ int main(int argc, char *argv[])
   free_buffer();
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error ? 2 : 0);
-  return 0;					/* No compiler warning */
 } /* main */
 
 
@@ -1057,7 +1056,7 @@ FILE *in,*out;
       end_of_line++;
       if ((length=replace_strings(rep,&out_buff,&out_length,start_of_line)) ==
 	  (uint) -1)
-	return 1;
+	DBUG_RETURN(1);
       if (!my_eof)
 	out_buff[length++]=save_char;	/* Don't write added newline */
       if (my_fwrite(out, (uchar*) out_buff, length, MYF(MY_WME | MY_NABP)))

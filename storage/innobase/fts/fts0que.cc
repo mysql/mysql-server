@@ -300,6 +300,20 @@ fts_query_filter_doc_ids(
 	ibool			calc_doc_count);/*!< in: whether to remember doc
 						count */
 
+/** Process (nested) sub-expression, create a new result set to store the
+sub-expression result by processing nodes under current sub-expression
+list. Merge the sub-expression result with that of parent expression list.
+@param[in,out]	node	current root node
+@param[in,out]	visitor	callback function
+@param[in,out]	arg	argument for callback
+@return DB_SUCCESS if all go well */
+static
+dberr_t
+fts_ast_visit_sub_exp(
+	fts_ast_node_t*		node,
+	fts_ast_callback	visitor,
+	void*			arg);
+
 #if 0
 /*****************************************************************//***
 Find a doc_id in a word's ilist.
@@ -2736,7 +2750,7 @@ fts_query_phrase_search(
 
 	/* Ignore empty strings. */
 	if (num_token > 0) {
-		fts_string_t*	token;
+		fts_string_t*	token = NULL;
 		fts_fetch_t	fetch;
 		trx_t*		trx = query->trx;
 		fts_ast_oper_t	oper = query->oper;
@@ -3055,17 +3069,19 @@ fts_query_visitor(
 	DBUG_RETURN(query->error);
 }
 
-/*****************************************************************//**
-Process (nested) sub-expression, create a new result set to store the
+/** Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
+@param[in,out]	node	current root node
+@param[in,out]	visitor	callback function
+@param[in,out]	arg	argument for callback
 @return DB_SUCCESS if all go well */
+static
 dberr_t
 fts_ast_visit_sub_exp(
-/*==================*/
-	fts_ast_node_t*		node,		/*!< in,out: current root node */
-	fts_ast_callback	visitor,	/*!< in: callback function */
-	void*			arg)		/*!< in,out: arg for callback */
+	fts_ast_node_t*		node,
+	fts_ast_callback	visitor,
+	void*			arg)
 {
 	fts_ast_oper_t		cur_oper;
 	fts_query_t*		query = static_cast<fts_query_t*>(arg);
@@ -3975,20 +3991,6 @@ fts_query(
 	query.total_size += SIZEOF_RBT_CREATE;
 
 	query.total_docs = dict_table_get_n_rows(index->table);
-
-#ifdef FTS_DOC_STATS_DEBUG
-	if (ft_enable_diag_print) {
-		error = fts_get_total_word_count(
-			trx, query.index, &query.total_words);
-
-		if (error != DB_SUCCESS) {
-			goto func_exit;
-		}
-
-		ib::info() << "Total docs: " << query.total_docs
-			<< " Total words: " << query.total_words;
-	}
-#endif /* FTS_DOC_STATS_DEBUG */
 
 	query.fts_common_table.suffix = "DELETED";
 

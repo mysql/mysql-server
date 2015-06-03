@@ -7,8 +7,9 @@ CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd' ENGINE=InnoDB;
 ERROR HY000: Failed to create TABLESPACE s_def
 SET SESSION DEBUG='-d,innodb_fail_to_update_tablespace_dict';
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 # MYSQLD_DATADIR/
 DROP TABLESPACE s_def;
 #

@@ -515,9 +515,6 @@ NO
 # SQLCOM_ALTER_DB
 #
 #
-# SQLCOM_ALTER_DB_UPGRADE
-#
-#
 # SQLCOM_DROP_DB
 #
 use db1;

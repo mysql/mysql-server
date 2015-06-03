@@ -2570,7 +2570,6 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_DROP_EVENT:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
-  case SQLCOM_ALTER_DB_UPGRADE:
   case SQLCOM_ALTER_DB:
   case SQLCOM_ALTER_USER:
   case SQLCOM_CREATE_SERVER:

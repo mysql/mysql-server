@@ -368,6 +368,9 @@ dict_build_tablespace_for_table(
 					    DICT_TF2_FTS_AUX_HEX_NAME););
 
 	if (needs_file_per_table) {
+		/* Temporary table would always reside in the same
+		shared temp tablespace. */
+		ut_ad(!dict_table_is_temporary(table));
 		/* This table will need a new tablespace. */
 
 		ut_ad(DICT_TF_GET_ZIP_SSIZE(table->flags) == 0
@@ -387,20 +390,11 @@ dict_build_tablespace_for_table(
 		table->space = static_cast<unsigned int>(space);
 
 		/* Determine the tablespace flags. */
-		bool	is_temp = dict_table_is_temporary(table);
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
-		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags, is_temp);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags);
 
 		/* Determine the full filepath */
-		if (is_temp) {
-			/* Temporary table filepath contains a full path
-			and a filename without the extension. */
-			ut_ad(table->dir_path_of_temp_table);
-			filepath = fil_make_filepath(
-				table->dir_path_of_temp_table,
-				NULL, IBD, false);
-
-		} else if (has_data_dir) {
+		if (has_data_dir) {
 			ut_ad(table->data_dir_path);
 			filepath = fil_make_filepath(
 				table->data_dir_path,
@@ -434,7 +428,6 @@ dict_build_tablespace_for_table(
 
 		mtr_start(&mtr);
 		mtr.set_named_space(table->space);
-		dict_disable_redo_if_temporary(table, &mtr);
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
@@ -2081,15 +2074,27 @@ dict_replace_tablespace_in_dictionary(
 
 	error = que_eval_sql(info,
 			     "PROCEDURE P () IS\n"
+			     "p CHAR;\n"
+
+			     "DECLARE CURSOR c IS\n"
+			     " SELECT PATH FROM SYS_DATAFILES\n"
+			     " WHERE SPACE=:space FOR UPDATE;\n"
+
 			     "BEGIN\n"
-			     "DELETE FROM SYS_TABLESPACES"
-			     " WHERE SPACE = :space;\n"
-			     "DELETE FROM SYS_DATAFILES"
-			     " WHERE SPACE = :space;\n"
-			     "INSERT INTO SYS_TABLESPACES VALUES"
+			     "OPEN c;\n"
+			     "FETCH c INTO p;\n"
+
+			     "IF (SQL % NOTFOUND) THEN"
+			     "  DELETE FROM SYS_TABLESPACES "
+			     "WHERE SPACE=:space;\n"
+			     "  INSERT INTO SYS_TABLESPACES VALUES"
 			     "(:space, :name, :flags);\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
+			     "  INSERT INTO SYS_DATAFILES VALUES"
 			     "(:space, :path);\n"
+			     "ELSIF p <> :path THEN\n"
+			     "  UPDATE SYS_DATAFILES SET PATH=:path"
+			     " WHERE CURRENT OF c;\n"
+			     "END IF;\n"
 			     "END;\n",
 			     FALSE, trx);
 
@@ -2101,47 +2106,6 @@ dict_replace_tablespace_in_dictionary(
 		trx->op_info = "committing tablespace and datafile definition";
 		trx_commit(trx);
 	}
-
-	trx->op_info = "";
-
-	return(error);
-}
-
-/** Add another datafile to the data dictionary for a given space_id.
-@param[in]	space	Tablespace ID
-@param[in]	path	Tablespace path
-@param[in,out]	trx	Transaction**
-@return error code or DB_SUCCESS */
-dberr_t
-dict_add_datafile_to_dictionary(
-	ulint		space_id,
-	const char*	path,
-	trx_t*		trx)
-{
-	ut_ad(srv_sys_tablespaces_open);
-
-	dberr_t		error;
-
-	pars_info_t*	info = pars_info_create();
-
-	pars_info_add_int4_literal(info, "space", space_id);
-
-	pars_info_add_str_literal(info, "path", path);
-
-	error = que_eval_sql(info,
-			     "PROCEDURE P () IS\n"
-			     "BEGIN\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
-			     "(:space, :path);\n"
-			     "END;\n",
-			     FALSE, trx);
-
-	if (error != DB_SUCCESS) {
-		return(error);
-	}
-
-	trx->op_info = "committing datafile definition";
-	trx_commit(trx);
 
 	trx->op_info = "";
 

@@ -54,7 +54,6 @@ Created 9/20/1997 Heikki Tuuri
 # include "buf0rea.h"
 # include "srv0srv.h"
 # include "srv0start.h"
-# include "trx0roll.h"
 # include "row0merge.h"
 # include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
@@ -136,11 +135,7 @@ ulint	recv_n_pool_free_frames;
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
-lsn_t	recv_max_page_lsn;
-
-#ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t	trx_rollback_clean_thread_key;
-#endif /* UNIV_PFS_THREAD */
+static lsn_t	recv_max_page_lsn;
 
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
@@ -148,7 +143,7 @@ mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
 /** Flag indicating if recv_writer thread is active. */
-volatile bool	recv_writer_thread_active = false;
+volatile static bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -1002,13 +997,18 @@ log_block_checksum_weak_validation(
 		break;
 	case SRV_CHECKSUM_ALGORITHM_INNODB:
 		if (block_checksum == log_block_calc_checksum_none(block)
-		    || block_checksum == log_block_calc_checksum_crc32(block)) {
+		    || block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
 			return(true);
 		}
 		break;
 	case SRV_CHECKSUM_ALGORITHM_NONE:
 		if (block_checksum == log_block_calc_checksum_crc32(block)
-		    || block_checksum == log_block_calc_checksum_innodb(block)) {
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)
+		    || block_checksum
+		    == log_block_calc_checksum_innodb(block)) {
 			return(true);
 		}
 		break;
@@ -1043,12 +1043,16 @@ log_block_checksum_what_matches(
 		if (block_checksum == log_block_calc_checksum_none(block)) {
 			return("none");
 		}
-		if (block_checksum == log_block_calc_checksum_crc32(block)) {
+		if (block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
 			return("crc32");
 		}
 		break;
 	case SRV_CHECKSUM_ALGORITHM_NONE:
-		if (block_checksum == log_block_calc_checksum_crc32(block)) {
+		if (block_checksum == log_block_calc_checksum_crc32(block)
+		    || block_checksum
+		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
 			return("crc32");
 		}
 		if (block_checksum == log_block_calc_checksum_innodb(block)) {
@@ -1101,7 +1105,11 @@ log_block_checksum_is_ok_or_old_format(
 /*===================================*/
 	const byte*	block)	/*!< in: pointer to a log block */
 {
-	if (srv_log_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE) {
+	const srv_checksum_algorithm_t	curr_algo
+		= static_cast<const srv_checksum_algorithm_t>(
+			srv_log_checksum_algorithm);
+
+	if (curr_algo == SRV_CHECKSUM_ALGORITHM_NONE) {
 		return(TRUE);
 	}
 
@@ -1112,7 +1120,16 @@ log_block_checksum_is_ok_or_old_format(
 		return(TRUE);
 	}
 
-	if (is_checksum_strict(srv_log_checksum_algorithm)) {
+	if ((curr_algo == SRV_CHECKSUM_ALGORITHM_CRC32
+	     || curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32)
+	    /* Normal crc32 has already been checked above by
+	    log_block_calc_checksum(). */
+	    && block_checksum
+	    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
+		return(TRUE);
+	}
+
+	if (is_checksum_strict(curr_algo)) {
 
 		log_block_checksum_fail_fatal(block, block_checksum,
 					      calc_checksum);
@@ -3763,9 +3780,6 @@ recv_recovery_from_checkpoint_finish(void)
 
 	recv_sys_debug_free();
 
-	/* Free up the flush_rbt. */
-	buf_flush_free_flush_rbt();
-
 	/* Validate a few system page types that were left uninitialized
 	by older versions of MySQL. */
 	mtr_t		mtr;
@@ -3794,46 +3808,8 @@ recv_recovery_from_checkpoint_finish(void)
 	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 	mtr.commit();
 
-	/* Roll back any recovered data dictionary transactions, so
-	that the data dictionary tables will be free of any locks.
-	The data dictionary latch should guarantee that there is at
-	most one data dictionary transaction active at a time. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-		trx_rollback_or_clean_recovered(FALSE);
-	}
-}
-
-/********************************************************//**
-Initiates the rollback of active transactions. */
-void
-recv_recovery_rollback_active(void)
-/*===============================*/
-{
-	ut_ad(!recv_writer_thread_active);
-
-	/* We can't start any (DDL) transactions if UNDO logging
-	has been disabled, additionally disable ROLLBACK of recovered
-	user transactions. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	    && !srv_read_only_mode) {
-
-		/* Drop partially created indexes. */
-		row_merge_drop_temp_indexes();
-		/* Drop temporary tables. */
-		row_mysql_drop_temp_tables();
-
-		/* Drop any auxiliary tables that were not dropped when the
-		parent table was dropped. This can happen if the parent table
-		was dropped but the server crashed before the auxiliary tables
-		were dropped. */
-		fts_drop_orphaned_tables();
-
-		/* Rollback the uncommitted transactions which have no user
-		session */
-
-		trx_rollback_or_clean_is_active = true;
-		os_thread_create(trx_rollback_or_clean_all_recovered, 0, 0);
-	}
+	/* Free up the flush_rbt. */
+	buf_flush_free_flush_rbt();
 }
 
 /******************************************************//**
