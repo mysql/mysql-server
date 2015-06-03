@@ -80,7 +80,7 @@ row_purge_node_create(
 
 /***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
-if found.
+if found. If the record is not found, close pcur.
 @return	TRUE if the record was found */
 static
 ibool
@@ -104,6 +104,11 @@ row_purge_reposition_pcur(
 		if (node->found_clust) {
 			btr_pcur_store_position(&(node->pcur), mtr);
 		}
+	}
+
+	/* Close the current cursor if we fail to position it correctly. */
+	if (!node->found_clust) {
+		btr_pcur_close(&node->pcur);
 	}
 
 	return(node->found_clust);
@@ -143,8 +148,8 @@ row_purge_remove_clust_if_poss_low(
 
 	if (!success) {
 		/* The record is already removed */
-
-		btr_pcur_commit_specify_mtr(pcur, &mtr);
+		/* Persistent cursor is closed if reposition fails. */
+		mtr_commit(&mtr);
 
 		return(TRUE);
 	}
@@ -258,7 +263,12 @@ row_purge_poss_sec(
 						 btr_pcur_get_rec(&node->pcur),
 						 &mtr, index, entry);
 
-	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	/* Persistent cursor is closed if reposition fails. */
+	if (node->found_clust) {
+		btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	} else {
+		mtr_commit(&mtr);
+	}
 
 	return(can_delete);
 }
