@@ -4,7 +4,12 @@ Priority: optional
 Maintainer: MariaDB Developers <maria-developers@lists.launchpad.net>
 XSBC-Original-Maintainer: Maria Developers <maria-developers@lists.launchpad.net>
 Uploaders: MariaDB Developers <maria-developers@lists.launchpad.net>
-Build-Depends: libtool (>= 1.4.2-7), procps | hurd,  debhelper, file (>= 3.28), libncurses5-dev (>= 5.0-6), perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3), zlib1g-dev (>= 1:1.1.3-5), ${LIBREADLINE_DEV}, libevent-dev, libssl-dev, libpam0g-dev, psmisc, po-debconf, chrpath, automake1.9, doxygen, texlive-latex-base, ghostscript | gs-gpl, dpatch, gawk, bison, lsb-release, hardening-wrapper, ${CMAKE_DEP}libaio-dev, libjemalloc-dev (>= 3.0.0)
+Build-Depends: procps | hurd, debhelper, libncurses5-dev (>= 5.0-6),
+               perl (>= 5.6.0), libwrap0-dev (>= 7.6-8.3),
+               zlib1g-dev (>= 1:1.1.3-5), ${LIBREADLINE_DEV}, libevent-dev,
+               libssl-dev, libpam0g-dev, psmisc, po-debconf, chrpath,
+               dpatch, gawk, bison, lsb-release, hardening-wrapper,
+               ${CMAKE_DEP}libaio-dev, libjemalloc-dev (>= 3.0.0)
 Standards-Version: 3.8.3
 Homepage: http://mariadb.org/
 Vcs-Browser: http://bazaar.launchpad.net/~maria-captains/maria/5.5/files
