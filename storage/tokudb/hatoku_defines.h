@@ -355,6 +355,7 @@ typedef struct st_tokudb_trx_data {
     DB_TXN *sp_level;
     DB_TXN *sub_sp_level;
     uint tokudb_lock_count;
+    uint create_lock_count;
     tokudb_stmt_progress stmt_progress;
     bool checkpoint_lock_taken;
     LIST *handlers;

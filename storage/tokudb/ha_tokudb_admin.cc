@@ -121,9 +121,10 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
         progress_time = (float) (t_now - t_start) / (float) t_limit;
     char *write_status_msg = extra->write_status_msg;
     TABLE_SHARE *table_share = extra->table_share;
-    sprintf(write_status_msg, "%s.%s.%s %u of %u %.lf%% rows %.lf%% time", 
-            table_share->db.str, table_share->table_name.str, extra->key_name,
-            extra->key_i, table_share->keys, progress_rows * 100.0, progress_time * 100.0);
+    sprintf(write_status_msg, "%.*s.%.*s.%s %u of %u %.lf%% rows %.lf%% time", 
+            (int) table_share->db.length, table_share->db.str,
+            (int) table_share->table_name.length, table_share->table_name.str,
+            extra->key_name, extra->key_i, table_share->keys, progress_rows * 100.0, progress_time * 100.0);
     thd_proc_info(thd, write_status_msg);
     return 0;
 }
@@ -338,8 +339,10 @@ static int ha_tokudb_check_progress(void *extra, float progress) {
 
 static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     if (thd->vio_ok()) {
-        char tablename[256];
-        snprintf(tablename, sizeof tablename, "%s.%s", table->s->db.str, table->s->table_name.str);
+        char tablename[table->s->db.length + 1 + table->s->table_name.length + 1];
+        snprintf(tablename, sizeof tablename, "%.*s.%.*s",
+                 (int) table->s->db.length, table->s->db.str,
+                 (int) table->s->table_name.length, table->s->table_name.str);
         thd->protocol->prepare_for_resend();
         thd->protocol->store(tablename, strlen(tablename), system_charset_info);
         thd->protocol->store("check", 5, system_charset_info);
@@ -388,6 +391,11 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
             }
             struct check_context check_context = { thd };
             r = db->verify_with_progress(db, ha_tokudb_check_progress, &check_context, (tokudb_debug & TOKUDB_DEBUG_CHECK) != 0, keep_going);
+            if (r != 0) {
+                char msg[32 + strlen(kname)];
+                sprintf(msg, "Corrupt %s", kname);
+                ha_tokudb_check_info(thd, table, msg);
+            }
             snprintf(write_status_msg, sizeof write_status_msg, "%s key=%s %u result=%d", share->table_name, kname, i, r);
             thd_proc_info(thd, write_status_msg);
             if (tokudb_debug & TOKUDB_DEBUG_CHECK) {

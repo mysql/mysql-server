@@ -6207,6 +6207,12 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         if (error) { goto cleanup; }
         thd_set_ha_data(thd, tokudb_hton, trx);
     }
+
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_HANDLER_TRACE("trx %p %p %p %p %u %u", trx->all, trx->stmt, trx->sp_level, trx->sub_sp_level, 
+                             trx->tokudb_lock_count, trx->create_lock_count);
+    }
+
     if (trx->all == NULL) {
         trx->sp_level = NULL;
     }
@@ -6215,22 +6221,16 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         if (lock_type == F_WRLCK) {
             use_write_locks = true;
         }
-        if (!trx->tokudb_lock_count++) {
-            if (trx->stmt) {
-                if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-                    TOKUDB_HANDLER_TRACE("stmt already set %p %p %p %p", trx->all, trx->stmt, trx->sp_level, trx->sub_sp_level);
-                }
-            } else {
-                assert(trx->stmt == 0);
-                transaction = NULL;    // Safety
-                error = create_txn(thd, trx);
-                if (error) {
-                    trx->tokudb_lock_count--;  // We didn't get the lock
-                    goto cleanup;
-                }
+        if (!trx->stmt) {
+            transaction = NULL;    // Safety
+            error = create_txn(thd, trx);
+            if (error) {
+                goto cleanup;
             }
+            trx->create_lock_count = trx->tokudb_lock_count;
         }
         transaction = trx->sub_sp_level;
+        trx->tokudb_lock_count++;
     }
     else {
         tokudb_pthread_mutex_lock(&share->mutex);
@@ -6245,21 +6245,24 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
         added_rows = 0;
         deleted_rows = 0;
         share->rows_from_locked_table = 0;
-        if (trx->tokudb_lock_count > 0 && !--trx->tokudb_lock_count) {
-            if (trx->stmt) {
-                /*
-                   F_UNLCK is done without a transaction commit / rollback.
-                   This happens if the thread didn't update any rows
-                   We must in this case commit the work to keep the row locks
-                 */
-                DBUG_PRINT("trans", ("commiting non-updating transaction"));
-                reset_stmt_progress(&trx->stmt_progress);
-                commit_txn(trx->stmt, 0);
-                trx->stmt = NULL;
-                trx->sub_sp_level = NULL;
+        if (trx->tokudb_lock_count > 0) {
+            if (--trx->tokudb_lock_count <= trx->create_lock_count) {
+                trx->create_lock_count = 0;
+                if (trx->stmt) {
+                    /*
+                      F_UNLCK is done without a transaction commit / rollback.
+                      This happens if the thread didn't update any rows
+                      We must in this case commit the work to keep the row locks
+                    */
+                    DBUG_PRINT("trans", ("commiting non-updating transaction"));
+                    reset_stmt_progress(&trx->stmt_progress);
+                    commit_txn(trx->stmt, 0);
+                    trx->stmt = NULL;
+                    trx->sub_sp_level = NULL;
+                }
             }
+            transaction = NULL;
         }
-        transaction = NULL;
     }
 cleanup:
     if (tokudb_debug & TOKUDB_DEBUG_LOCK)
@@ -6274,8 +6277,9 @@ cleanup:
 */
 int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
     TOKUDB_HANDLER_DBUG_ENTER("cmd %d lock %d %s", thd_sql_command(thd), lock_type, share->table_name);
-    if (0)
+    if (tokudb_debug & TOKUDB_DEBUG_LOCK) {
         TOKUDB_HANDLER_TRACE("q %s", thd->query());
+    }
 
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
@@ -6283,6 +6287,11 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         error = create_tokudb_trx_data_instance(&trx);
         if (error) { goto cleanup; }
         thd_set_ha_data(thd, tokudb_hton, trx);
+    }
+
+    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
+        TOKUDB_HANDLER_TRACE("trx %p %p %p %p %u %u", trx->all, trx->stmt, trx->sp_level, trx->sub_sp_level, 
+                             trx->tokudb_lock_count, trx->create_lock_count);
     }
 
     /*
@@ -6295,9 +6304,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         if (error) {
             goto cleanup;
         }
-        if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_HANDLER_TRACE("%p %p %p %p %u", trx->all, trx->stmt, trx->sp_level, trx->sub_sp_level, trx->tokudb_lock_count);
-        }
+        trx->create_lock_count = trx->tokudb_lock_count;
     }
     else {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {

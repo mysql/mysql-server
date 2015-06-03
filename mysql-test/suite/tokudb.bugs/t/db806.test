@@ -1,0 +1,13 @@
+# DB-806 test that lock tables and create select can write rows to the new table
+source include/have_tokudb.inc;
+disable_warnings;
+drop table if exists t1,t3;
+enable_warnings;
+
+CREATE TABLE t3(a int,c int,d int)engine=TOKUDB;
+lock table t3 read;
+create temporary table t1 engine=tokudb as SELECT 1;
+select * from t1;
+unlock tables;
+
+drop table t1,t3;

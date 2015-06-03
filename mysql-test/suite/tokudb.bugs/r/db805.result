@@ -1,0 +1,18 @@
+drop table if exists t1,t3;
+create table t3(a3 int,b3 decimal(0,0),c3 int,d3 int,primary key(a3,b3)) engine=TOKUDB;
+LOCK TABLES t3 WRITE;
+create temporary table t1(f1 int,index(f1)) engine=innodb;
+INSERT INTO t1 VALUES(1),(1),(1);
+select * from t1;
+f1
+1
+1
+1
+ALTER TABLE t1 engine=TOKUDB;
+select * from t1;
+f1
+1
+1
+1
+unlock tables;
+drop table t1,t3;

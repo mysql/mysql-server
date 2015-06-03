@@ -7,7 +7,6 @@ enable_warnings;
 create table t (id int primary key);
 begin;
 insert into t values (1),(2);
---error 1030
-select * from information_schema.tokudb_fractal_tree_info;
+select dictionary_name from information_schema.tokudb_fractal_tree_info;
 commit;
 drop table t;

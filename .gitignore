@@ -193,6 +193,7 @@ storage/tokudb/ft-index/tools/tokudb_dump
 storage/tokudb/ft-index/tools/tokudb_gen
 storage/tokudb/ft-index/tools/tokudb_load
 storage/tokudb/ft-index/tools/tokuftdump
+storage/tokudb/ft-index/tools/tokuft_logprint
 storage/tokudb/ft-index/ft/ftverify
 storage/tokudb/ft-index/ft/tdb-recover
 storage/tokudb/ft-index/ft/tdb_logprint

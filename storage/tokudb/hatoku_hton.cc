@@ -1724,6 +1724,8 @@ static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
         error = tmp_cursor->c_get(tmp_cursor, &curr_key, &curr_val, DB_NEXT);
         if (!error) {
             error = tokudb_report_fractal_tree_info_for_db(&curr_key, &curr_val, table, thd);
+            if (error)
+                error = 0; // ignore read uncommitted errors
         }
         if (!error && thd_killed(thd))
             error = ER_QUERY_INTERRUPTED;
@@ -2002,7 +2004,9 @@ struct tokudb_search_txn_extra {
     uint64_t match_client_id;
 };
 
-static int tokudb_search_txn_callback(uint64_t txn_id, uint64_t client_id, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+static int tokudb_search_txn_callback(DB_TXN *txn, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+    uint64_t txn_id = txn->id64(txn);
+    uint64_t client_id = txn->get_client_id(txn);
     struct tokudb_search_txn_extra *e = reinterpret_cast<struct tokudb_search_txn_extra *>(extra);
     if (e->match_txn_id == txn_id) {
         e->match_found = true;
@@ -2134,6 +2138,7 @@ static struct st_mysql_information_schema tokudb_trx_information_schema = { MYSQ
 static ST_FIELD_INFO tokudb_trx_field_info[] = {
     {"trx_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"trx_mysql_thread_id", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"trx_time", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -2142,12 +2147,17 @@ struct tokudb_trx_extra {
     TABLE *table;
 };
 
-static int tokudb_trx_callback(uint64_t txn_id, uint64_t client_id, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+static int tokudb_trx_callback(DB_TXN *txn, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+    uint64_t txn_id = txn->id64(txn);
+    uint64_t client_id = txn->get_client_id(txn);
+    uint64_t start_time = txn->get_start_time(txn);
     struct tokudb_trx_extra *e = reinterpret_cast<struct tokudb_trx_extra *>(extra);
     THD *thd = e->thd;
     TABLE *table = e->table;
     table->field[0]->store(txn_id, false);
     table->field[1]->store(client_id, false);
+    uint64_t tnow = (uint64_t) time(NULL);
+    table->field[2]->store(tnow >= start_time ? tnow - start_time : 0, false);
     int error = schema_table_store_record(thd, table);
     if (!error && thd_killed(thd))
         error = ER_QUERY_INTERRUPTED;
@@ -2295,7 +2305,9 @@ struct tokudb_locks_extra {
     TABLE *table;
 };
 
-static int tokudb_locks_callback(uint64_t txn_id, uint64_t client_id, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+static int tokudb_locks_callback(DB_TXN *txn, iterate_row_locks_callback iterate_locks, void *locks_extra, void *extra) {
+    uint64_t txn_id = txn->id64(txn);
+    uint64_t client_id = txn->get_client_id(txn);
     struct tokudb_locks_extra *e = reinterpret_cast<struct tokudb_locks_extra *>(extra);
     THD *thd = e->thd;
     TABLE *table = e->table;
