@@ -1,3 +1,13 @@
+mysql-community (5.7.8-rc-1debian8) jessie; urgency=low
+
+  * new upstream release
+  * added new plugin to source/include-binaries, mysql-*-test.install
+    libtest_framework
+    libtest_services
+    libtest_services_threaded
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 03 Jun 2015 12:39:28 +0530
+
 mysql-community (5.7.7-rc-2debian8) jessie; urgency=low
 
   * new upstream release
