@@ -154,7 +154,7 @@ let SEARCH_PATTERN= RSA key files are present in given dir. Skipping generation.
 
 --error 1
 --exec $MYSQL_SSL_RSA_SETUP --datadir=$MYSQLTEST_VARDIR/doesnotexist --verbose 2> $wl7706_log
-let SEARCH_PATTERN= Failed to normalize the argument for;
+let SEARCH_PATTERN= Failed to access directory pointed by;
 --source include/search_pattern_in_file.inc
 
 --remove_file $wl7706_log
@@ -258,9 +258,41 @@ let SEARCH_PATTERN=Dir path is too long;
 #------------------------------------------------------------------------------
 
 
---echo # Global Cleanup
+--echo #
+--echo # Bug#21087116 : MYSQL_SSL_RSA_SETUP CREATES CLIENT-CERT.PEM WITH INCORRECT CN
+--echo #
+
+--remove_file $DATADIR_LOCATION/server-key.pem
 --remove_file $DATADIR_LOCATION/client-cert.pem
 --remove_file $DATADIR_LOCATION/client-key.pem
+--remove_file $DATADIR_LOCATION/public_key.pem
+
+--exec $MYSQL_SSL_RSA_SETUP --datadir=$DATADIR_LOCATION --verbose > $wl7706_log
+
+--echo # CN of CA certificate should be MySQL_Server_.*_Auto_Generated_CA_Certificate
+let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_CA_Certificate;
+--source include/search_pattern_in_file.inc
+
+--echo # CN of Server certificate should be MySQL_Server_.*_Auto_Generated_Server_Certificate
+let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_Server_Certificate;
+--source include/search_pattern_in_file.inc
+
+--echo # CN of Client certificate should be MySQL_Server_.*_Auto_Generated_Client_Certificate
+let SEARCH_PATTERN= MySQL_Server_.*_Auto_Generated_Client_Certificate;
+--source include/search_pattern_in_file.inc
+
+
+#------------------------------------------------------------------------------
+
+--echo # Global Cleanup
+--remove_file $wl7706_log
+--remove_file $DATADIR_LOCATION/ca.pem
+--remove_file $DATADIR_LOCATION/ca-key.pem
+--remove_file $DATADIR_LOCATION/server-cert.pem
+--remove_file $DATADIR_LOCATION/server-key.pem
+--remove_file $DATADIR_LOCATION/client-cert.pem
+--remove_file $DATADIR_LOCATION/client-key.pem
+--remove_file $DATADIR_LOCATION/private_key.pem
 --remove_file $DATADIR_LOCATION/public_key.pem
 
 # Wait till all disconnects are completed

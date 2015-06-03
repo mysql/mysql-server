@@ -561,7 +561,7 @@ buf_page_is_checksum_valid_crc32(
 #endif /* UNIV_INNOCHECKSUM */
 	)
 {
-	uint32_t	crc32 = buf_calc_page_crc32(read_buf);
+	const uint32_t	crc32 = buf_calc_page_crc32(read_buf);
 
 #ifdef UNIV_INNOCHECKSUM
 	if (is_log_enabled
@@ -569,12 +569,26 @@ buf_page_is_checksum_valid_crc32(
 		fprintf(log_file, "page::%" PRIuMAX ";"
 			" crc32 calculated = %u;"
 			" recorded checksum field1 = %lu recorded"
-			" checksum field2 =%lu\n", page_no, crc32,
-			checksum_field1, checksum_field2);
+			" checksum field2 =%lu\n", page_no,
+			crc32, checksum_field1, checksum_field2);
 	}
 #endif /* UNIV_INNOCHECKSUM */
 
-	return(checksum_field1 == crc32 && checksum_field2 == crc32);
+	if (checksum_field1 != checksum_field2) {
+		return(false);
+	}
+
+	if (checksum_field1 == crc32) {
+		return(true);
+	}
+
+	const uint32_t	crc32_legacy = buf_calc_page_crc32(read_buf, true);
+
+	if (checksum_field1 == crc32_legacy) {
+		return(true);
+	}
+
+	return(false);
 }
 
 /** Checks if the page is in innodb checksum format.
@@ -1094,6 +1108,10 @@ buf_page_print(
 			<< page_zip_calc_checksum(
 				read_buf, page_size.physical(),
 				SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< "/"
+			<< page_zip_calc_checksum(
+				read_buf, page_size.physical(),
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB)
@@ -1118,13 +1136,19 @@ buf_page_print(
 				read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 	} else {
+		const uint32_t	crc32 = buf_calc_page_crc32(read_buf);
+
+		const uint32_t	crc32_legacy = buf_calc_page_crc32(read_buf,
+								   true);
+
 		ib::info() << "Uncompressed page, stored checksum in field1 "
 			<< mach_read_from_4(
 				read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
 			<< ", calculated checksums for field1: "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-			<< buf_calc_page_crc32(read_buf) << ", "
+			<< crc32 << "/" << crc32_legacy
+			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
 			<< buf_calc_page_new_checksum(read_buf)
@@ -1138,7 +1162,7 @@ buf_page_print(
 			<< ", calculated checksums for field2: "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32) << " "
-			<< buf_calc_page_crc32(read_buf)
+			<< crc32 << "/" << crc32_legacy
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB) << " "
@@ -2441,12 +2465,12 @@ buf_pool_resize()
 
 	buf_resize_status("Disabling adaptive hash index.");
 
-	rw_lock_s_lock(&btr_search_latch);
+	btr_search_s_lock_all();
 	if (btr_search_enabled) {
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 		btr_search_disabled = true;
 	} else {
-		rw_lock_s_unlock(&btr_search_latch);
+		btr_search_s_unlock_all();
 	}
 
 	btr_search_disable();
@@ -2900,7 +2924,7 @@ buf_pool_clear_hash_index(void)
 	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
+	ut_ad(btr_search_own_all(RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!btr_search_enabled);
@@ -2918,7 +2942,7 @@ buf_pool_clear_hash_index(void)
 				dict_index_t*	index	= block->index;
 
 				/* We can set block->index = NULL
-				when we have an x-latch on btr_search_latch;
+				when we have an x-latch on search latch;
 				see the comment in buf0buf.h */
 
 				if (!index) {
@@ -3652,6 +3676,10 @@ buf_zip_decompress(
 			<< ", crc32: "
 			<< page_zip_calc_checksum(
 				frame, size, SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< "/"
+			<< page_zip_calc_checksum(
+				frame, size, SRV_CHECKSUM_ALGORITHM_CRC32,
+				true)
 			<< " innodb: "
 			<< page_zip_calc_checksum(
 				frame, size, SRV_CHECKSUM_ALGORITHM_INNODB)

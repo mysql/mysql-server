@@ -92,12 +92,12 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 SET @@SESSION.max_statement_time= 2;
 SELECT *, SLEEP(0.5) from t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 LOCK TABLE t1 WRITE;
 SELECT * FROM t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 SELECT MAX_STATEMENT_TIME=1 * FROM t1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 UNLOCK TABLES;
 CREATE TABLE t2 SELECT * FROM t1;
 ALTER TABLE t2 ADD c VARCHAR(200) default 'new_col';
@@ -117,9 +117,9 @@ PREPARE stmt1 FROM "SELECT *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
 PREPARE stmt2 FROM "SELECT MAX_STATEMENT_TIME=2 *, SLEEP(0.5) FROM t1 WHERE b= 'new_string'";
 PREPARE stmt3 FROM "SELECT MAX_STATEMENT_TIME=3600000 count(*) FROM t1";
 EXECUTE stmt1;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 EXECUTE stmt2;
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 EXECUTE stmt3;
 count(*)
 4096
@@ -148,7 +148,7 @@ END|
 INSERT INTO t2 VALUES (1, 'string1', 'string2');
 SET @@SESSION.max_statement_time= 2;
 SELECT f1();
-ERROR HY000: Query execution was interrupted, max_statement_time exceeded
+ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 SELECT MAX_STATEMENT_TIME=60000 f2();
 f2()
 1

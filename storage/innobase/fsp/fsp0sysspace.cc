@@ -32,6 +32,7 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "os0file.h"
 #include "row0mysql.h"
 #include "srv0start.h"
+#include "trx0sys.h"
 #include "ut0new.h"
 
 /** The server header file is included to access opt_initialize global variable.
@@ -209,6 +210,10 @@ SysTablespace::parse_params(
 			str++;
 		} else if (*str != '\0') {
 			ut_free(new_str);
+
+			ib::error()
+				<< "syntax error in file path or size"
+				" specified is less than 1 megabyte";
 			return(false);
 		}
 	}
@@ -821,6 +826,17 @@ SysTablespace::check_file_spec(
 		}
 	}
 
+	/* We assume doublewirte blocks in the first data file. */
+	if (err == DB_SUCCESS && *create_new_db
+	    && begin->m_size < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
+		ib::error() << "The " << name() << " data file "
+			<< "'" << begin->name() << "' must be at least "
+			<< TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3 * UNIV_PAGE_SIZE
+			/ (1024 * 1024) << " MB";
+
+		err = DB_ERROR;
+	}
+
 	return(err);
 }
 
@@ -918,6 +934,7 @@ SysTablespace::open_or_create(
 	/* Close the curent handles, add space and file info to the
 	fil_system cache and the Data Dictionary, and re-open them
 	in file_system cache so that they stay open until shutdown. */
+	ulint	node_counter = 0;
 	for (files_t::iterator it = begin; it != end; ++it) {
 		it->close();
 		it->m_exists = true;
@@ -934,56 +951,22 @@ SysTablespace::open_or_create(
 
 		ut_a(fil_validate());
 
-		/* Open the data file. */
+		ulint	max_size = (++node_counter == m_files.size()
+				    ? (m_last_file_size_max == 0
+				       ? ULINT_MAX
+				       : m_last_file_size_max)
+				    : it->m_size);
+
+		/* Add the datafile to the fil_system cache. */
 		if (!fil_node_create(
-			it->m_filepath, it->m_size,
-			space, it->m_type != SRV_NOT_RAW, it->m_atomic_write)) {
+			    it->m_filepath, it->m_size,
+			    space, it->m_type != SRV_NOT_RAW,
+			    it->m_atomic_write, max_size)) {
 
-		       err = DB_ERROR;
-		       break;
+			err = DB_ERROR;
+			break;
 		}
 	}
-
-	return(err);
-}
-
-/** Replace any records for this space_id in the Data Dictionary with
-this name, flags & filepath..
-@return DB_SUCCESS or error code */
-dberr_t
-SysTablespace::replace_in_dictionary()
-{
-	dberr_t			err	= DB_SUCCESS;
-	files_t::iterator	begin = m_files.begin();
-	files_t::iterator	end = m_files.end();
-
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
-	rw_lock_x_lock(&dict_operation_lock);
-	mutex_enter(&dict_sys->mutex);
-
-	/* Add space and file info to the Data Dictionary. */
-	for (files_t::iterator it = begin; it != end; ++it) {
-		if (it == begin) {
-			/* First data file. */
-			err = dict_replace_tablespace_and_filepath(
-				space_id(), name(), it->m_filepath, flags());
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		} else {
-			/* Add extra datafiles to the Data Dictionary */
-			err = dict_add_filepath(space_id(), it->m_filepath);
-			if (err != DB_SUCCESS) {
-				break;
-			}
-		}
-	}
-
-	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
 
 	return(err);
 }

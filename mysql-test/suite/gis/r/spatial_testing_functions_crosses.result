@@ -671,13 +671,13 @@ ST_CROSSES(g,ST_GEOMFROMTEXT(@star_of_elems))
 #====================================================================================
 SELECT ST_CROSSES(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_CROSSES(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_CROSSES(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 ST_CROSSES(g,ST_GEOMFROMTEXT(@star_collection_elems))
-0
+1
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_multilinestr))
 0

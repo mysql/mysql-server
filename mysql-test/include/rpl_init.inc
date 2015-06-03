@@ -297,13 +297,9 @@ while ($_rpl_server)
   {
     --source include/gtid_utils.inc
   }
-  --let $opt_binlog= `SELECT @@GLOBAL.log_bin`
   if (!$rpl_skip_reset_master_and_slave)
   {
-    if ($opt_binlog != 0)
-    {
-      RESET MASTER;
-    }
+    RESET MASTER;
     RESET SLAVE;
   }
   # Only way to do this in mtr :-(

@@ -999,6 +999,7 @@ public:
   { return save_in_field(field, true); }
 
   virtual bool send(Protocol *protocol, String *str);
+  bool evaluate(THD *thd, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
   /**
@@ -4900,6 +4901,15 @@ public:
   virtual table_map resolved_used_tables() const
   {
     return example ? example->resolved_used_tables() : used_table_map;
+  }
+
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select)
+  {
+    if (example == NULL)
+      return;
+    example->fix_after_pullout(parent_select, removed_select);
+    used_table_map= example->used_tables();
   }
 
   virtual bool allocate(uint i) { return 0; }

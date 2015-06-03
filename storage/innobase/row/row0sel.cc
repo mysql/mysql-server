@@ -1432,8 +1432,8 @@ row_sel_try_search_shortcut(
 	plan_t*		plan,	/*!< in: plan for a unique search in clustered
 				index */
 	ibool		search_latch_locked,
-				/*!< in: whether the search holds
-				btr_search_latch */
+				/*!< in: whether the search holds latch on
+				search system. */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	dict_index_t*	index;
@@ -1451,7 +1451,7 @@ row_sel_try_search_shortcut(
 	ut_ad(!plan->must_get_clust);
 #ifdef UNIV_SYNC_DEBUG
 	if (search_latch_locked) {
-		ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_S));
+		ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	}
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1625,10 +1625,11 @@ table_loop:
 	    && !plan->must_get_clust
 	    && !plan->table->big_rows) {
 		if (!search_latch_locked) {
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_lock(btr_get_search_latch(index));
 
 			search_latch_locked = TRUE;
-		} else if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_X_WAIT) {
+		} else if (rw_lock_get_writer(btr_get_search_latch(index))
+				== RW_LOCK_X_WAIT) {
 
 			/* There is an x-latch request waiting: release the
 			s-latch for a moment; as an s-latch here is often
@@ -1637,8 +1638,8 @@ table_loop:
 			from acquiring an s-latch for a long time, lowering
 			performance significantly in multiprocessors. */
 
-			rw_lock_s_unlock(&btr_search_latch);
-			rw_lock_s_lock(&btr_search_latch);
+			rw_lock_s_unlock(btr_get_search_latch(index));
+			rw_lock_s_lock(btr_get_search_latch(index));
 		}
 
 		found_flag = row_sel_try_search_shortcut(node, plan,
@@ -1663,7 +1664,7 @@ table_loop:
 	}
 
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_get_search_latch(index));
 
 		search_latch_locked = FALSE;
 	}
@@ -2257,7 +2258,7 @@ lock_wait_or_error:
 
 func_exit:
 	if (search_latch_locked) {
-		rw_lock_s_unlock(&btr_search_latch);
+		rw_lock_s_unlock(btr_get_search_latch(index));
 	}
 
 	if (heap != NULL) {
@@ -3220,11 +3221,12 @@ row_sel_store_mysql_rec(
 	NOTE, the record can be cluster or secondary index record.
 	if secondary index is used then FTS_DOC_ID column should be part
 	of this index. */
-	if (dict_table_has_fts_index(prebuilt->table) &&
-		(dict_index_is_clust(index) ||
-			prebuilt->fts_doc_id_in_read_set)) {
-		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
-			prebuilt->table, rec, NULL);
+	if (dict_table_has_fts_index(prebuilt->table)) {
+		if (dict_index_is_clust(index)
+		    || prebuilt->fts_doc_id_in_read_set) {
+			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
+				prebuilt->table, rec, index, NULL);
+		}
 	}
 
 	DBUG_RETURN(TRUE);
@@ -4378,7 +4380,8 @@ row_search_mvcc(
 
 	if (trx->has_search_latch
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED
+	    && rw_lock_get_writer(
+		btr_get_search_latch(index)) != RW_LOCK_NOT_LOCKED
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 	    ) {
 
@@ -4546,7 +4549,9 @@ row_search_mvcc(
 			and if we try that, we can deadlock on the adaptive
 			hash index semaphore! */
 
-			trx_reserve_search_latch_if_not_reserved(trx);
+			ut_a(!trx->has_search_latch);
+			rw_lock_s_lock(btr_get_search_latch(index));
+			trx->has_search_latch = true;
 
 			switch (row_sel_try_search_shortcut_for_mysql(
 					&rec, prebuilt, &offsets, &heap,
@@ -4597,7 +4602,8 @@ row_search_mvcc(
 
 				err = DB_SUCCESS;
 
-				trx_search_latch_timeout(trx);
+				rw_lock_s_unlock(btr_get_search_latch(index));
+				trx->has_search_latch = false;
 
 				goto func_exit;
 
@@ -4607,7 +4613,8 @@ row_search_mvcc(
 
 				err = DB_RECORD_NOT_FOUND;
 
-				trx_search_latch_timeout(trx);
+				rw_lock_s_unlock(btr_get_search_latch(index));
+				trx->has_search_latch = false;
 
 				/* NOTE that we do NOT store the cursor
 				position */
@@ -4623,6 +4630,9 @@ row_search_mvcc(
 
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+
+                        rw_lock_s_unlock(btr_get_search_latch(index));
+                        trx->has_search_latch = false;
 		}
 	}
 
@@ -5775,6 +5785,15 @@ normal_return:
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
 	mtr_commit(&mtr);
+
+	/* Rollback blocking transactions from hit list for high priority
+	transaction, if any. We should not be holding latches here as
+	we are going to rollback the blocking transactions. */
+	if (!trx->hit_list.empty()) {
+
+		ut_ad(trx_is_high_priority(trx));
+		trx_kill_blocking(trx);
+	}
 
 	DEBUG_SYNC_C("row_search_for_mysql_before_return");
 

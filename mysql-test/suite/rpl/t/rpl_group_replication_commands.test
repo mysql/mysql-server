@@ -13,3 +13,30 @@ START GROUP_REPLICATION;
 # It shall give a configuration error.
 --error ER_GROUP_REPLICATION_CONFIGURATION
 STOP GROUP_REPLICATION;
+
+
+#########################################################################################
+# This test verify that only user with super privileges can execute following
+# commands"
+# - START GROUP_REPLICATION
+# - STOP GROUP_REPLICATION
+#
+#########################################################################################
+
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+--connect (con_group_rpl_user,127.0.0.1,group_rpl_user,,test,$MASTER_MYPORT,,)
+--connection con_group_rpl_user
+
+# Start Group Replication with non-super privilege user
+# It shall give a acess denied error.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+START GROUP_REPLICATION;
+
+# Stop Group Replication with non-super privilege user
+# It shall give a acess denied error.
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+STOP GROUP_REPLICATION;
+
+--connection default
+--disconnect con_group_rpl_user
+DROP USER group_rpl_user;

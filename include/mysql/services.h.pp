@@ -106,10 +106,12 @@ void mysql_string_iterator_free(mysql_string_iterator_handle);
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/psi/psi_memory.h"
 #include "psi_base.h"
+struct PSI_thread;
 typedef unsigned int PSI_memory_key;
 typedef int myf_t;
 typedef void * (*mysql_malloc_t)(PSI_memory_key key, size_t size, myf_t flags);
 typedef void * (*mysql_realloc_t)(PSI_memory_key key, void *ptr, size_t size, myf_t flags);
+typedef void (*mysql_claim_t)(void *ptr);
 typedef void (*mysql_free_t)(void *ptr);
 typedef void * (*my_memdup_t)(PSI_memory_key key, const void *from, size_t length, myf_t flags);
 typedef char * (*my_strdup_t)(PSI_memory_key key, const char *from, myf_t flags);
@@ -118,6 +120,7 @@ struct mysql_malloc_service_st
 {
   mysql_malloc_t mysql_malloc;
   mysql_realloc_t mysql_realloc;
+  mysql_claim_t mysql_claim;
   mysql_free_t mysql_free;
   my_memdup_t my_memdup;
   my_strdup_t my_strdup;
@@ -126,6 +129,7 @@ struct mysql_malloc_service_st
 extern struct mysql_malloc_service_st *mysql_malloc_service;
 extern void * my_malloc(PSI_memory_key key, size_t size, myf_t flags);
 extern void * my_realloc(PSI_memory_key key, void *ptr, size_t size, myf_t flags);
+extern void my_claim(void *ptr);
 extern void my_free(void *ptr);
 extern void * my_memdup(PSI_memory_key key, const void *from, size_t length, myf_t flags);
 extern char * my_strdup(PSI_memory_key key, const char *from, myf_t flags);

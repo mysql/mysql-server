@@ -51,7 +51,6 @@ Warning	1264	Out of range value for column 'c2' at row 1
 Note	1265	Data truncated for column 'c3' at row 1
 insert into t2 values ("0.0","0.0","0.0",7),("-0.0","-0.0","-0.0",8),("+0.0","+0.0","+0.0",9),("01.0","01.0","01.0",10),("+01.0","+01.0","+01.0",11),("-01.0","-01.0","-01.0",12);
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 2
 Warning	1264	Out of range value for column 'c2' at row 6
 insert into t2 values ("-.1","-.1","-.1",13),("+.1","+.1","+.1",14),(".1",".1",".1",15);
 Warnings:

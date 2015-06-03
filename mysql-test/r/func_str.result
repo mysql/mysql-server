@@ -3023,9 +3023,7 @@ sha1('P'),
 )
 )
 );
-Warnings:
-Error	3037	Invalid GIS data provided to function st_geometryfromwkb.
-Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests
@@ -4694,3 +4692,12 @@ SET @@global.max_allowed_packet:= DEFAULT;
 do rpad(_utf16"33",1073741826,_latin1"44");
 Warnings:
 Warning	1301	Result of rpad() was larger than max_allowed_packet (4194304) - truncated
+#
+# Bug#13740934 ASSERTION FAILED: ARGS[0]->FIXED ITEM_FUNC_CONV_CHARSET::ITEM_FUNC_CONV_CHARSET
+#
+CREATE TABLE t1(a TIME);
+INSERT INTO t1 VALUES ();
+SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY 1;
+d5
+NULL
+DROP TABLE t1;

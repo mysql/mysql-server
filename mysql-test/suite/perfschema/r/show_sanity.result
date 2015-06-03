@@ -20,7 +20,6 @@ select "5.6", "I_S.GLOBAL_VARIABLES", variable_name
 from information_schema.global_variables;
 Warnings:
 Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
-Warning	1287	'@@global.sql_log_bin' is deprecated and will be removed in a future release. Please use the constant 1 (since @@global.sql_log_bin is always equal to 1) instead
 
 # STEP 1-2
 insert into test.sanity

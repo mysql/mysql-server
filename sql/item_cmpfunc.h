@@ -41,7 +41,6 @@ class Arg_comparator: public Sql_alloc
   Arg_comparator *comparators;   // used only for compare_row()
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
-  THD *thd;
   enum_field_types a_type, b_type; // Types of a and b items
   Item *a_cache, *b_cache;         // Cached values of a and b items
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
@@ -59,9 +58,9 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
@@ -72,17 +71,12 @@ public:
                                                      (*b)->result_type()));
   }
   int set_cmp_func(Item_result_field *owner_arg,
-			  Item **a1, Item **a2,
-			  Item_result type);
+                   Item **a1, Item **a2,
+                   Item_result type);
 
-  inline int set_cmp_func(Item_result_field *owner_arg,
-			  Item **a1, Item **a2, bool set_null_arg)
-  {
-    set_null= set_null_arg;
-    return set_cmp_func(owner_arg, a1, a2,
-                        item_cmp_type((*a1)->result_type(),
-                                      (*a2)->result_type()));
-  }
+  int set_cmp_func(Item_result_field *owner_arg,
+                   Item **a1, Item **a2, bool set_null_arg);
+
   inline int compare() { return (this->*func)(); }
 
   int compare_string();		 // compare args[0] & args[1]
@@ -947,12 +941,6 @@ class Item_func_interval :public Item_int_func
   my_bool use_decimal_comparison;
   interval_range *intervals;
 public:
-  Item_func_interval(Item_row *a)
-    :Item_int_func(a),row(a),intervals(0)
-  {
-    allowed_arg_cols= 0;    // Fetch this value from first argument
-  }
-
   Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
                      Item *expr2, class PT_item_list *opt_expr_list= NULL)
     :super(pos, alloc_row(pos, mem_root, expr1, expr2, opt_expr_list)),
@@ -1290,14 +1278,13 @@ public:
 class in_datetime :public in_longlong
 {
 public:
-  THD *thd;
   /* An item used to issue warnings. */
   Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
 
   in_datetime(THD *thd_arg, Item *warn_item_arg, uint elements)
-    : in_longlong(thd_arg, elements), thd(thd_arg), warn_item(warn_item_arg),
+    : in_longlong(thd_arg, elements), warn_item(warn_item_arg),
       lval_cache(0)
   {};
   void set(uint pos,Item *item);
@@ -1478,14 +1465,13 @@ class cmp_item_datetime : public cmp_item_scalar
 {
   longlong value;
 public:
-  THD *thd;
   /* Item used for issuing warnings. */
   Item *warn_item;
   /* Cache for the left item. */
   Item *lval_cache;
 
   cmp_item_datetime(Item *warn_item_arg)
-    :thd(current_thd), warn_item(warn_item_arg), lval_cache(0) {}
+    :warn_item(warn_item_arg), lval_cache(0) {}
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *ci) const;

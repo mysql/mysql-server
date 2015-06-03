@@ -765,8 +765,17 @@ retry:
 	  goto err;
         }
         old_map= dbug_tmp_use_all_columns(table, table->write_set);
-	item->save_in_field(key_part->field, true);
+        type_conversion_status conv_status=
+          item->save_in_field(key_part->field, true);
         dbug_tmp_restore_column_map(table->write_set, old_map);
+        /*
+          If conversion status is TYPE_ERR_BAD_VALUE, the target index value
+          is not stored into record buffer, so we can't proceed with the
+          index search.
+        */
+	if (conv_status == TYPE_ERR_BAD_VALUE)
+          goto err;
+
 	key_len+=key_part->store_length;
         keypart_map= (keypart_map << 1) | 1;
       }

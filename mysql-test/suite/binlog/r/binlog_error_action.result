@@ -6,6 +6,8 @@ call mtr.add_suppression("Could not open .*");
 call mtr.add_suppression("Could not use .*");
 call mtr.add_suppression("Can't generate a unique log-filename master-bin");
 call mtr.add_suppression("The server was unable to create a new log file *");
+call mtr.add_suppression("An error occured during flushing cache to file.");
+call mtr.add_suppression("Either disk is full or file system is read only");
 RESET MASTER;
 Test case1
 SET GLOBAL binlog_error_action= ABORT_SERVER;
@@ -66,6 +68,20 @@ Tables_in_test
 t2
 DROP TABLE t2;
 SET SESSION debug="-d,fault_injection_init_name";
+# restart
+Test case9
+CREATE TABLE t1(i INT);
+SET SESSION debug="+d,simulate_error_during_flush_cache_to_file";
+SET GLOBAL binlog_error_action= ABORT_SERVER;
+INSERT INTO t1 VALUES (1);
+ERROR HY000: Binary logging not possible. Message: An error occured during flushing cache to file. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server
+include/assert.inc [Count of elements in t1 should be 0.]
+SET SESSION debug="+d,simulate_error_during_flush_cache_to_file";
+SET GLOBAL binlog_error_action= IGNORE_ERROR;
+INSERT INTO t1 VALUES (2);
+include/assert.inc [Count of elements in t1 should be 1.]
+DROP table t1;
+SET SESSION debug="-d,simulate_error_during_flush_cache_to_file";
 # restart
 SET SESSION debug="";
 SET GLOBAL binlog_error_action= ABORT_SERVER;

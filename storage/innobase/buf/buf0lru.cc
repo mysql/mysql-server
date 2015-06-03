@@ -862,7 +862,6 @@ buf_LRU_remove_pages(
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
-		ut_a(trx != NULL);
 		buf_flush_dirty_pages(buf_pool, id, observer, true, trx);
 
 		if (observer == NULL) {
@@ -2035,8 +2034,6 @@ func_exit:
 
 	if (b != NULL) {
 
-		ib_uint32_t	checksum;
-
 		/* Compute and stamp the compressed page
 		checksum while not holding any mutex.  The
 		block is already half-freed
@@ -2046,7 +2043,7 @@ func_exit:
 
 		ut_ad(b->size.is_compressed());
 
-		checksum = page_zip_calc_checksum(
+		const uint32_t	checksum = page_zip_calc_checksum(
 			b->zip.data,
 			b->size.physical(),
 			static_cast<srv_checksum_algorithm_t>(

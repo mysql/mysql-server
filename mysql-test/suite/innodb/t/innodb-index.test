@@ -852,3 +852,23 @@ alter table t1 drop primary key, add primary key (b(8),a);
 select * from t1;
 drop table t1;
 
+
+--echo #
+--echo # Bug #21103101	SORTING SKIPPED WHEN DROPPING THE SINGLE
+--echo #			COLUMN PRIMARY KEY
+--echo #
+
+# Drop primary key column.
+create table t1(f1 int not null, f2 int not null,
+		primary key (f1), unique key(f1, f2))engine=innodb;
+insert into t1 values(1,3), (2,2);
+alter table t1 drop column f1;
+drop table t1;
+
+# Drop Primary key when lock is none.
+create table t1(f1 int not null, f2 int not null,
+		primary key (f1), unique key(f1, f2))engine=innodb;
+insert into t1 values(1,3), (2,2);
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 drop primary key, lock=none;
+drop table t1;

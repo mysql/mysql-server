@@ -208,6 +208,17 @@ void get_dynamic(DYNAMIC_ARRAY *array, void *element, uint idx)
          (size_t) array->size_of_element);
 }
 
+void claim_dynamic(DYNAMIC_ARRAY *array)
+{
+  /*
+    Check for a static buffer
+  */
+  if (array->buffer == (uchar *)(array + 1))
+    return;
+
+  my_claim(array->buffer);
+}
+
 
 /*
   Empty array by freeing all memory

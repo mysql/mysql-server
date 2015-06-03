@@ -425,6 +425,11 @@ public:
     return alloc_root(&m_mem_root, size);
   }
 
+  void claim_memory_ownership()
+  {
+    claim_root(&m_mem_root);
+  }
+
   void free_memory(myf root_alloc_flags)
   {
     free_root(&m_mem_root, root_alloc_flags);

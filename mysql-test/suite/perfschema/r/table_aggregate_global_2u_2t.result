@@ -70,6 +70,7 @@ performance_schema_events_waits_history_size	10
 performance_schema_hosts_size	100
 performance_schema_max_cond_classes	80
 performance_schema_max_cond_instances	1000
+performance_schema_max_digest_length	1024
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	10000
@@ -155,6 +156,12 @@ execute dump_waits_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
+TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
+TABLE	test	t1	PRIMARY	0	0	0	0	0	0	0
+TABLE	test	t3	index_b	0	0	0	0	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
+TABLE	test	t3	PRIMARY	0	0	0	0	0	0	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	0	0	0	0	0	0	0
@@ -202,6 +209,12 @@ execute dump_waits_history;
 event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
+TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
+TABLE	test	t1	PRIMARY	0	0	0	0	0	0	0
+TABLE	test	t3	index_b	0	0	0	0	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
+TABLE	test	t3	PRIMARY	0	0	0	0	0	0	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	0	0	0	0	0	0	0
@@ -279,11 +292,13 @@ event_name	count(event_name)	object_type	object_schema	object_name
 execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	4	3	1	3	1	0	0
-TABLE	test	t1	(index 0)	3	1	2	1	0	2	0
-TABLE	test	t1	(index 1)	0	0	0	0	0	0	0
+TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
+TABLE	test	t1	PRIMARY	3	1	2	1	0	2	0
 TABLE	test	t3	NULL	10	7	3	7	3	0	0
-TABLE	test	t3	(index 0)	4	1	3	1	0	3	0
-TABLE	test	t3	(index 1)	1	1	0	1	0	0	0
+TABLE	test	t3	index_b	1	1	0	1	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
+TABLE	test	t3	PRIMARY	4	1	3	1	0	3	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	7	4	3	4	1	2	0
@@ -332,9 +347,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	4	3	1	3	1	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	3	1	2	1	0	2	0
 TABLE	test	t3	NULL	10	7	3	7	3	0	0
 TABLE	test	t3	index_b	1	1	0	1	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	4	1	3	1	0	3	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -390,9 +407,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	4	3	1	3	1	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	3	1	2	1	0	2	0
 TABLE	test	t3	NULL	10	7	3	7	3	0	0
 TABLE	test	t3	index_b	1	1	0	1	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	4	1	3	1	0	3	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -484,9 +503,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	10	8	2	8	2	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	7	2	5	2	0	5	0
 TABLE	test	t3	NULL	26	20	6	20	6	0	0
 TABLE	test	t3	index_b	3	3	0	3	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	11	2	9	2	0	9	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -547,9 +568,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	10	8	2	8	2	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	7	2	5	2	0	5	0
 TABLE	test	t3	NULL	26	20	6	20	6	0	0
 TABLE	test	t3	index_b	3	3	0	3	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	11	2	9	2	0	9	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -653,9 +676,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	18	15	3	15	3	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	12	3	9	3	0	9	0
 TABLE	test	t3	NULL	48	39	9	39	9	0	0
 TABLE	test	t3	index_b	6	6	0	6	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	21	3	18	3	0	18	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -721,9 +746,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	18	15	3	15	3	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	12	3	9	3	0	9	0
 TABLE	test	t3	NULL	48	39	9	39	9	0	0
 TABLE	test	t3	index_b	6	6	0	6	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	21	3	18	3	0	18	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -839,9 +866,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -909,9 +938,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -976,9 +1007,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1044,9 +1077,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1109,9 +1144,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1173,9 +1210,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1236,9 +1275,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1298,9 +1339,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1361,9 +1404,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1424,9 +1469,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1487,9 +1534,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1550,9 +1599,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	28	24	4	24	4	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	18	4	14	4	0	14	0
 TABLE	test	t3	NULL	76	64	12	64	12	0	0
 TABLE	test	t3	index_b	10	10	0	10	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	34	4	30	4	0	30	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
@@ -1613,9 +1664,11 @@ execute dump_waits_index_io;
 object_type	object_schema	object_name	index_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete
 TABLE	test	t1	NULL	0	0	0	0	0	0	0
 TABLE	test	t1	index_b	0	0	0	0	0	0	0
+TABLE	test	t1	index_cb	0	0	0	0	0	0	0
 TABLE	test	t1	PRIMARY	0	0	0	0	0	0	0
 TABLE	test	t3	NULL	0	0	0	0	0	0	0
 TABLE	test	t3	index_b	0	0	0	0	0	0	0
+TABLE	test	t3	index_cb	0	0	0	0	0	0	0
 TABLE	test	t3	PRIMARY	0	0	0	0	0	0	0
 execute dump_waits_table_io;
 object_type	object_schema	object_name	count_star	count_read	count_write	count_fetch	count_insert	count_update	count_delete

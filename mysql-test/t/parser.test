@@ -1294,4 +1294,30 @@ DELETE QUICK FROM t1 WHERE i = 0;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #21035515: PARSE_GCOL_EXPR SHOULD BE A KIND OF RESERVED WORD,
+--echo #                NOT A KEYWORD
+
+SET @parse_gcol_expr = 1;
+
+SELECT 1 AS parse_gcol_expr;
+
+CREATE TABLE parse_gcol_expr (i INT);
+DROP TABLE parse_gcol_expr;
+
+DELIMITER |;
+--echo # parse_gcol_expr can't be a label:
+--error ER_PARSE_ERROR
+CREATE PROCEDURE p1()
+BEGIN
+parse_gcol_expr: LOOP
+  SELECT 1;
+END LOOP label1;
+END|
+DELIMITER ;|
+
+--echo # PARSE_GCOL_EXPR is not a valid statement:
+--error ER_PARSE_ERROR
+PARSE_GCOL_EXPR (1);
+
+--echo #
 

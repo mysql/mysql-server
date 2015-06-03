@@ -208,6 +208,31 @@ dict_col_get_clust_pos(
 	return(ULINT_UNDEFINED);
 }
 
+/** Gets the column position in the given index.
+@param[in]	col	table column
+@param[in]	index	index to be searched for column
+@return position of column in the given index. */
+UNIV_INLINE
+ulint
+dict_col_get_index_pos(
+	const dict_col_t*	col,
+	const dict_index_t*	index)
+{
+	ulint	i;
+
+	ut_ad(col);
+
+	for (i = 0; i < index->n_def; i++) {
+		const dict_field_t*	field = &index->fields[i];
+
+		if (!field->prefix_len && field->col == col) {
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /********************************************************************//**
@@ -1678,6 +1703,20 @@ dict_table_t::release()
 	ut_ad(mutex_own(&dict_sys->mutex) || dict_table_is_intrinsic(this));
 	ut_ad(n_ref_count > 0);
 	--n_ref_count;
+}
+
+/** Check if tablespace name is "innodb_general".
+@param[in]	tablespace_name	tablespace name
+@retval		true		if name is "innodb_general"
+@retval		false		if name is not "innodb_general" */
+inline
+bool
+dict_table_has_temp_general_tablespace_name(
+	const char*	tablespace_name) {
+
+	return(tablespace_name != NULL
+	       && strncmp(tablespace_name, general_space_name,
+			  strlen(general_space_name)) == 0);
 }
 
 #endif /* !UNIV_HOTBACKUP */

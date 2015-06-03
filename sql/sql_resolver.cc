@@ -347,7 +347,9 @@ bool SELECT_LEX::prepare(THD *thd)
 
   sj_candidates= NULL;
 
-  if (!outer_select())
+  if (outer_select() == NULL ||
+      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+       outer_select()->outer_select() == NULL))
   {
     /*
       This code is invoked in the following cases:
@@ -357,6 +359,8 @@ bool SELECT_LEX::prepare(THD *thd)
       - if this is one of highest-level subqueries, if the statement is
         something else; like subq-i in:
           UPDATE t1 SET col1=(subq-1), col2=(subq-2);
+      - If this is a subquery in a SET command
+        @todo: Refactor SET so that this is not needed.
 
       Local transforms are applied after query block merging.
       This means that we avoid unnecessary invocations, as local transforms
@@ -841,8 +845,6 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
 
   DBUG_ASSERT(derived_table_count);
 
-  materialized_derived_table_count= 0;
-
   // Prepare derived tables and views that belong to this query block.
   for (TABLE_LIST *tl= get_table_list(); tl; tl= tl->next_local)
   {
@@ -902,7 +904,10 @@ bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
         DBUG_RETURN(true);        /* purecov: inspected */
       if (tl->setup_materialized_derived(thd))
         DBUG_RETURN(true);        /* purecov: inspected */
-      materialized_derived_table_count++;
+      /*
+        materialized_derived_table_count was incremented during preparation,
+        so do not do it once more.
+      */
     }
   }
 
@@ -2237,6 +2242,11 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
       lex->can_not_use_merged())
     DBUG_RETURN(false);
 
+  /*
+    @todo: The implementation of LEX::can_use_merged() currently avoids
+           merging of views that are contained in other views if
+           can_use_merged() returns false.
+  */
   // Check whether derived table is mergeable, and directives allow merging
   if (!derived_unit->is_mergeable() ||
       derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
@@ -2276,11 +2286,32 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
   // Set up permanent list of underlying tables of a merged view
   derived_table->merge_underlying_list= derived_select->get_table_list();
 
-  if (derived_table->updatable_view &&
-      (derived_table->merge_underlying_list == NULL ||
-       derived_table->merge_underlying_list->is_updatable()))
-    derived_table->set_updatable();
-
+  /**
+    A view is updatable if any underlying table is updatable.
+    A view is insertable-into if all underlying tables are insertable.
+    A view is not updatable nor insertable if it contains an outer join
+    @see mysql_register_view()
+  */
+  if (derived_table->is_view())
+  {
+    bool updatable= false;
+    bool insertable= true;
+    bool outer_joined= false;
+    for (TABLE_LIST *tr= derived_table->merge_underlying_list;
+         tr;
+         tr= tr->next_local)
+    {
+      updatable|= tr->is_updatable();
+      insertable&= tr->is_insertable();
+      outer_joined|= tr->is_inner_table_of_outer_join();
+    }
+    updatable&= !outer_joined;
+    insertable&= !outer_joined;
+    if (updatable)
+      derived_table->set_updatable();
+    if (insertable)
+      derived_table->set_insertable();
+  }
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join=
        (NESTED_JOIN *) thd->mem_calloc(sizeof(NESTED_JOIN))))

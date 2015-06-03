@@ -155,27 +155,47 @@ test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	65	5	Compact	0
 test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	65	5	Compact	0	Single
 test/t3	test/t3	65	4	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
-s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
-test/t1#p#tens#sp#subpart11	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#tens#sp#subpart12	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart12.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#hundreds#sp#subpart22	MYSQLD_DATADIR/test/t1#p#hundreds#sp#subpart22.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#onethousands#sp#subpart24	MYSQLD_DATADIR/test/t1#p#onethousands#sp#subpart24.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2#p#thousands#sp#subpart31	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2#p#thousands#sp#subpart32	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#thirtythousands#sp#thirtythousandssp0	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp0.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#thirtythousands#sp#thirtythousandssp1	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#fortythousands#sp#p40k_1	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#seventythousands#sp#seventythousandssp0	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#seventythousands#sp#seventythousandssp1	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#eightythousands#sp#p80k_1	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#eightythousands#sp#p80k_2	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#ninetythousands#sp#p90k_1	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+s`1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s-1.ibd
+test/t1#p#tens#sp#subpart11	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd
+test/t1#p#tens#sp#subpart12	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart12.ibd
+test/t1#p#hundreds#sp#subpart22	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#hundreds#sp#subpart22.ibd
+test/t1#p#onethousands#sp#subpart24	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#onethousands#sp#subpart24.ibd
+test/t2#p#hundreds#sp#subpart21	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
+test/t2#p#thousands#sp#subpart31	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd
+test/t2#p#thousands#sp#subpart32	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd
+test/t1#p#thirtythousands#sp#thirtythousandssp0	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp0.ibd
+test/t1#p#thirtythousands#sp#thirtythousandssp1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp1.ibd
+test/t1#p#fortythousands#sp#p40k_1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_1.ibd
+test/t1#p#fortythousands#sp#p40k_2	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
+test/t1#p#seventythousands#sp#seventythousandssp0	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd
+test/t1#p#seventythousands#sp#seventythousandssp1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd
+test/t1#p#eightythousands#sp#p80k_1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd
+test/t1#p#eightythousands#sp#p80k_2	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd
+test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t3.ibd
+test/t1#p#ninetythousands#sp#p90k_1	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
+s`1	TABLESPACE	InnoDB	NORMAL	s`1	MYSQLD_DATADIR/s-1.ibd
+test/t1#p#tens#sp#subpart11	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart11.ibd
+test/t1#p#tens#sp#subpart12	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#tens#sp#subpart12.ibd
+test/t1#p#hundreds#sp#subpart22	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#hundreds#sp#subpart22.ibd
+test/t1#p#onethousands#sp#subpart24	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#onethousands#sp#subpart24.ibd
+test/t2#p#hundreds#sp#subpart21	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
+test/t2#p#thousands#sp#subpart31	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart31.ibd
+test/t2#p#thousands#sp#subpart32	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t2#p#thousands#sp#subpart32.ibd
+test/t1#p#thirtythousands#sp#thirtythousandssp0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp0.ibd
+test/t1#p#thirtythousands#sp#thirtythousandssp1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#thirtythousands#sp#thirtythousandssp1.ibd
+test/t1#p#fortythousands#sp#p40k_1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_1.ibd
+test/t1#p#fortythousands#sp#p40k_2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
+test/t1#p#seventythousands#sp#seventythousandssp0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp0.ibd
+test/t1#p#seventythousands#sp#seventythousandssp1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#seventythousands#sp#seventythousandssp1.ibd
+test/t1#p#eightythousands#sp#p80k_1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_1.ibd
+test/t1#p#eightythousands#sp#p80k_2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#eightythousands#sp#p80k_2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t3.ibd
+test/t1#p#ninetythousands#sp#p90k_1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t1#p#ninetythousands#sp#p90k_1.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -412,15 +432,23 @@ test/t2#p#thousands#sp#subpart31	test/t2#p#thousands#sp#subpart31	1	5	Compact	0	
 test/t2#p#thousands#sp#subpart32	test/t2#p#thousands#sp#subpart32	1	5	Compact	0	Single
 test/t3	test/t3	65	4	Compact	0	Single
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-s1	MYSQLD_DATADIR/s1.ibd	DEFAULT	0	Any	General
-s`1	MYSQLD_DATADIR/s-1.ibd	DEFAULT	0	Any	General
-test/t3	MYSQL_TMP_DIR/test/t3.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t1#p#fortythousands#sp#p40k_2	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2#p#hundreds#sp#subpart21	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2#p#thousands#sp#subpart31	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd	DEFAULT	0	Compact or Redundant	Single
-test/t2#p#thousands#sp#subpart32	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart32.ibd	DEFAULT	0	Compact or Redundant	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+s1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s1.ibd
+s`1	General	DEFAULT	0	Any	MYSQLD_DATADIR/s-1.ibd
+test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t3.ibd
+test/t1#p#fortythousands#sp#p40k_2	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
+test/t2#p#hundreds#sp#subpart21	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
+test/t2#p#thousands#sp#subpart31	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd
+test/t2#p#thousands#sp#subpart32	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart32.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+s1	TABLESPACE	InnoDB	NORMAL	s1	MYSQLD_DATADIR/s1.ibd
+s`1	TABLESPACE	InnoDB	NORMAL	s`1	MYSQLD_DATADIR/s-1.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t3.ibd
+test/t1#p#fortythousands#sp#p40k_2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t1#p#fortythousands#sp#p40k_2.ibd
+test/t2#p#hundreds#sp#subpart21	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#hundreds#sp#subpart21.ibd
+test/t2#p#thousands#sp#subpart31	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart31.ibd
+test/t2#p#thousands#sp#subpart32	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t2#p#thousands#sp#subpart32.ibd
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

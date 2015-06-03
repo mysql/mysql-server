@@ -7899,8 +7899,8 @@ and t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	2	100.00	End temporary
-1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	9	11.11	Using where
+1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	2	100.00	Using where; End temporary
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
 select name from t2, t1 
@@ -9579,8 +9579,6 @@ x
 x
 DROP TABLE t1, t2, t3;
 # End of test for bug#13545215.
-set @tmp_opt_switch=@@optimizer_switch;
-set optimizer_switch='loosescan=off';
 #
 # BUG#13553211 - MISSING ROWS ON SELECT WITH IN-SUBQUERY AND
 # MATERIALIZATION + SEMIJOIN ON
@@ -9647,7 +9645,6 @@ v	v	v
 v	v	v
 v	v	v
 DROP TABLE t1;
-set @@optimizer_switch=@tmp_opt_switch;
 #
 # Bug#13541406: Wrong result with loosescan on select .. where .. in
 #
@@ -10520,15 +10517,15 @@ AND sq2_alias1.col_varchar_key < "l"
   )
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	col_int_key,col_varchar_key	col_varchar_key	4	NULL	2	100.00	Using where; Start temporary
-1	SIMPLE	alias3	NULL	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.t2.col_int_key	1	100.00	Using where
-1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+1	SIMPLE	alias3	NULL	ALL	PRIMARY,col_varchar_key	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ref	col_int_key,col_varchar_key	col_int_key	5	test.alias3.pk	2	40.00	Using where; Start temporary
 1	SIMPLE	alias2	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	2	100.00	Using index
+1	SIMPLE	sq2_alias2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 1	SIMPLE	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using index; End temporary
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`alias3`.`pk` = `test`.`t2`.`col_int_key`) and (`test`.`t2`.`col_varchar_nokey` <> `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_varchar_key` < 'l'))
+Note	1003	/* select#1 */ select sum(`test`.`alias1`.`col_varchar_key`) AS `field1` from `test`.`t2` `alias2` semi join (`test`.`t2` join `test`.`t1` `sq2_alias2`) join `test`.`t1` `alias3` left join (`test`.`t1` `alias1` semi join (`test`.`t1` `sq1_alias1`)) on(((`test`.`sq1_alias1`.`col_varchar_nokey` = 'v') and 1)) where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_int_key` = `test`.`alias3`.`pk`) and (`test`.`t2`.`col_varchar_nokey` <> `test`.`alias3`.`col_varchar_key`) and (`test`.`t2`.`col_varchar_key` < 'l'))
 DROP TABLE t1,t2;
 DROP VIEW view_c;
 #
@@ -12310,5 +12307,137 @@ col_int_key
 1368719360
 1922236416
 DROP TABLE t1, t2, t3, t4;
+#
+# Bug#20835095 CRASH AT CREATE_REF_FOR_KEY IN SQL/SQL_SELECT.CC
+#
+CREATE TABLE t1 (
+pk INTEGER,
+var_10_latin1 VARCHAR(10) CHARACTER SET latin1,
+var_255_utf8 VARCHAR(255) CHARACTER SET utf8,
+var_255_latin1 VARCHAR(255) CHARACTER SET latin1,
+var_10_utf8 VARCHAR(10) CHARACTER SET utf8,
+PRIMARY KEY (pk)
+);
+CREATE VIEW v1 AS SELECT * FROM t1;
+INSERT INTO t1 VALUES
+(1,'FROCJ','korrhrspki','UAYVL','BPZIS'),
+(2,'him','a','CHYKN','OZZQT'),
+(3,'WBITK','ULWBF','have','rhrh'),
+(4,'or','right','up','it'),
+(5,'GGDCP','x','who','as'),
+(6,'j','i','e','w');
+CREATE TABLE tv
+SELECT var_255_utf8 AS field1
+FROM t1;
+EXPLAIN SELECT * FROM tv
+WHERE field1 IN (
+SELECT tv1.var_255_utf8
+FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tv	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
+2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
+2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`tv`.`field1` AS `field1` from `test`.`tv` semi join (`test`.`t1` left join (`test`.`t1`) on((convert(`test`.`t1`.`var_10_latin1` using utf8) = `test`.`t1`.`var_10_utf8`))) where (`<subquery2>`.`var_255_utf8` = `test`.`tv`.`field1`)
+SELECT * FROM tv
+WHERE field1 IN (
+SELECT tv1.var_255_utf8
+FROM v1 AS tv1 LEFT JOIN v1 AS tv2 ON tv1.var_10_latin1=tv2.var_10_utf8);
+field1
+korrhrspki
+a
+ULWBF
+right
+x
+i
+DROP VIEW v1;
+DROP TABLE t1, tv;
+# 17832047 Crash in calculate_materialization_costs
+CREATE TABLE t1(a INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT 1 FROM t1
+WHERE 1 IN
+(SELECT 1 BETWEEN (LENGTH(a) IN (SELECT 1 FROM t1)) AND 1
+FROM t1
+);
+1
+1
+1
+1
+DROP TABLE t1;
+# 17845989 Assertion failed: !(used_tables() & ...
+CREATE TABLE a(b INTEGER) engine=innodb;
+CREATE TABLE c(a INTEGER) engine=innodb;
+SELECT 1
+FROM a
+WHERE 1 IN (SELECT (a.b IS NULL) IN (SELECT 1 FROM c) FROM c)
+;
+1
+DROP TABLE a, c;
+#
+# Bug#18194196: OPTIMIZER EXECUTES STATEMENT INPERFORMANT
+#
+CREATE TABLE t1 (uid INTEGER, fid INTEGER, INDEX(uid));
+INSERT INTO t1 VALUES
+(1,1), (1,2), (1,3), (1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+CREATE TABLE t2 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t2 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+CREATE TABLE t3 (uid INT, fid INT, INDEX(uid));
+INSERT INTO t3 VALUES
+(1,1), (1,2), (1,3),(1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+CREATE TABLE t4 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t4 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+ANALYZE TABLE t1,t2,t3,t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ref	uid	uid	5	const	4	100.00	Using where; Start temporary
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t3.fid	1	100.00	Using index
+1	SIMPLE	t1	NULL	ref	uid	uid	5	test.t3.fid	4	100.00	Using where; End temporary
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.fid	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name` from `test`.`t4` semi join (`test`.`t3`) join `test`.`t2` join `test`.`t1` where ((`test`.`t4`.`uid` = `test`.`t3`.`fid`) and (`test`.`t1`.`uid` = `test`.`t3`.`fid`) and (`test`.`t3`.`uid` = 1) and (`test`.`t2`.`uid` = `test`.`t1`.`fid`))
+FLUSH STATUS;
+SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+name
+A
+B
+C
+D
+E
+F
+G
+H
+A
+B
+I
+SHOW STATUS LIKE '%handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	20
+Handler_read_last	0
+Handler_read_next	15
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1,t2,t3,t4;
+# End of test for Bug#18194196
 set optimizer_switch=default;
 set optimizer_switch=default;

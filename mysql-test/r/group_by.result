@@ -1816,39 +1816,38 @@ DROP TABLE t2;
 CREATE TABLE t1 ( a INT, b INT );
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Reference 'c' not supported (reference to group function)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-c	(SELECT a FROM t1 WHERE b = c)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Reference 'c' not supported (reference to group function)
+ERROR 42S22: Unknown column 'c' in 'where clause'
 INSERT INTO t1 VALUES (1, 1);
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-c	(SELECT a FROM t1 WHERE b = c)
-1	1
+ERROR 42S22: Unknown column 'c' in 'where clause'
 INSERT INTO t1 VALUES (2, 1);
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-ERROR 21000: Subquery returns more than 1 row
+ERROR 42S22: Unknown column 'c' in 'where clause'
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
@@ -3164,3 +3163,39 @@ SELECT d, COUNT(*) FROM v1 GROUP BY d;
 d	COUNT(*)
 DROP TABLE t1;
 DROP VIEW v1;
+#
+# Bug#20819199 ASSERTION FAILED IN TEST_IF_SKIP_SORT_ORDER
+#
+CREATE TABLE t0 ( a INT );
+INSERT INTO t0 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+CREATE TABLE t1 (
+pk INT NOT NULL AUTO_INCREMENT,
+a INT,
+b INT,
+PRIMARY KEY (pk),
+KEY idx1 (a),
+KEY idx2 (b, a),
+KEY idx3 (a, b)
+) ENGINE = InnoDB;
+INSERT INTO t1 (a, b) SELECT t01.a, t02.a FROM t0 t01, t0 t02;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT DISTINCT a, MAX(b) FROM t1 WHERE a >= 0 GROUP BY a,a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	idx1,idx2,idx3	idx1	5	NULL	100	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where (`test`.`t1`.`a` >= 0) group by `test`.`t1`.`a`
+SELECT DISTINCT a, MAX(b) FROM t1 WHERE a >= 0 GROUP BY a,a;
+a	MAX(b)
+1	10
+2	10
+3	10
+4	10
+5	10
+6	10
+7	10
+8	10
+9	10
+10	10
+DROP TABLE t0, t1;

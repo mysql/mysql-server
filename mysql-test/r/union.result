@@ -166,8 +166,7 @@ drop table t1,t2,t3;
 select * union select 1;
 ERROR HY000: No tables used
 select 1 as a,(select a union select a);
-a	(select a union select a)
-1	1
+ERROR 42S22: Unknown column 'a' in 'field list'
 (select 1) union (select 2) order by 0;
 ERROR 42S22: Unknown column '0' in 'order clause'
 SELECT @a:=1 UNION SELECT @a:=@a+1;
@@ -2689,3 +2688,11 @@ a
 a
 1
 DROP TABLE t1, t2;
+#
+# Bug #21156155 UNION GEOMETRY TYPE: UNITIALIZED VALUE IN
+# ITEM_TYPE_HOLDER::JOIN_TYPES
+#
+SELECT NULL UNION SELECT POINT(1,1);
+NULL
+NULL
+             ð?      ð?

@@ -1291,7 +1291,6 @@ class Item_func_min_max :public Item_func
   bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */
   Item *datetime_item;
-  THD *thd;
 protected:
   enum_field_types cached_field_type;
   uint cmp_datetimes(longlong *value);
@@ -1464,7 +1463,6 @@ public:
 
 class Item_func_validate_password_strength :public Item_int_func
 {
-  String value;
 public:
   Item_func_validate_password_strength(const POS &pos, Item *a)
     :Item_int_func(pos, a)
@@ -2378,7 +2376,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
-  void init_search();
+  bool init_search(THD *thd);
   bool check_gcol_func_processor(uchar *int_arg) 
   {
     /* TODO: consider adding in support for the MATCH-based generated columns */
@@ -2571,17 +2569,17 @@ private:
      @retval true if BOOLEAN search on non-indexed columns is supported
      @retval false otherwise
    */
-  bool allows_search_on_non_indexed_columns(const TABLE_LIST *tr)
+  bool allows_search_on_non_indexed_columns(const TABLE *tr)
   {
     // Only Boolean search may support non_indexed columns
     if (!(flags & FT_BOOL))
       return false;
 
-    DBUG_ASSERT(tr && tr->table->file);
+    DBUG_ASSERT(tr && tr->file);
 
     // Assume that if extended fulltext API is not supported,
     // non-indexed columns are allowed.  This will be true for MyISAM.
-    if ((tr->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    if ((tr->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return true;
 
     return false;

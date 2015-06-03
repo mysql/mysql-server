@@ -120,7 +120,7 @@ public:
     @retval
       -1   Error
   */
-  int save(THD *thd, Gtid *gtid);
+  int save(THD *thd, const Gtid *gtid);
   /**
     Insert the gtid set into table.
 
@@ -132,7 +132,7 @@ public:
     @retval
       -1   Error
   */
-  int save(Gtid_set *gtid_set);
+  int save(const Gtid_set *gtid_set);
   /**
     Delete all rows from the table.
 
@@ -335,7 +335,7 @@ private:
     @retval
       -1   Error
   */
-  int save(TABLE *table, Gtid_set *gtid_set);
+  int save(TABLE *table, const Gtid_set *gtid_set);
   /* Prevent user from invoking default assignment function. */
   Gtid_table_persistor &operator=(const Gtid_table_persistor &info);
   /* Prevent user from invoking default constructor function. */

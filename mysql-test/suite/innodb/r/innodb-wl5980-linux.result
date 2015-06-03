@@ -141,18 +141,29 @@ COUNT(*)
 0
 # Check the system tables have the proper entry of the tables.
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
-Space Name	Path	Page Size	Zip Size	Formats Permitted	Space Type
-innodb_system	MYSQLD_DATADIR/ibdata1	DEFAULT	0	Compact or Redundant	System
-test/emp1	.\test\emp1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/emp2#p#p1	MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/emp2#p#p2	MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd	DEFAULT	0	Compact or Redundant	Single
-test/emp3	MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd	DEFAULT	0	Compact or Redundant	Single
-test/purchase#p#p0#sp#s0	MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd	DEFAULT	0	Compact or Redundant	Single
-test/purchase#p#p0#sp#s1	MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd	DEFAULT	0	Compact or Redundant	Single
-test/purchase#p#p1#sp#s2	MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd	DEFAULT	0	Compact or Redundant	Single
-test/purchase#p#p1#sp#s3	MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd	DEFAULT	0	Compact or Redundant	Single
-test/emp4#p#p1	MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd	DEFAULT	0	Dynamic	Single
-test/emp4#p#p2	MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd	DEFAULT	0	Dynamic	Single
+Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
+test/emp1	Single	DEFAULT	0	Compact or Redundant	.\test\emp1.ibd
+test/emp2#p#p1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd
+test/emp2#p#p2	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd
+test/emp3	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd
+test/purchase#p#p0#sp#s0	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd
+test/purchase#p#p0#sp#s1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd
+test/purchase#p#p1#sp#s2	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd
+test/purchase#p#p1#sp#s3	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd
+test/emp4#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd
+test/emp4#p#p2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd
+=== information_schema.files ===
+Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
+test/emp1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/emp1.ibd
+test/emp2#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd
+test/emp2#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd
+test/emp3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd
+test/purchase#p#p0#sp#s0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd
+test/purchase#p#p0#sp#s1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd
+test/purchase#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd
+test/purchase#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd
+test/emp4#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd
+test/emp4#p#p2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/emp1	test/emp1	1	6	Compact	0	Single

@@ -470,6 +470,15 @@ struct PFS_ALIGNED PFS_socket_class : public PFS_instr_class
 /** Instrumentation metadata for a memory. */
 struct PFS_ALIGNED PFS_memory_class : public PFS_instr_class
 {
+  bool is_global() const
+  {
+    return m_flags & PSI_FLAG_GLOBAL;
+  }
+
+  bool is_transferable() const
+  {
+    return m_flags & PSI_FLAG_TRANSFER;
+  }
 };
 
 void init_event_name_sizing(const PFS_global_param *param);

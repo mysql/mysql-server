@@ -467,7 +467,7 @@ password_expired	Y
 password_last_changed	#
 password_lifetime	NULL
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER USER() IDENTIFIED BY 'abc';
 
 CREATE USER u3@localhost IDENTIFIED WITH 'sha256_password';
@@ -850,7 +850,7 @@ password_expired	Y
 password_last_changed	#
 password_lifetime	NULL
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER USER() IDENTIFIED BY 'new_pwd_string';
 SELECT USER();
 USER()
@@ -1207,14 +1207,14 @@ USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SET PASSWORD = 'def';
 SELECT USER();
 USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER IDENTIFIED BY 'npwd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'BY 'npwd'' at line 1
 ALTER USER USER() IDENTIFIED BY 'abc';
@@ -1223,7 +1223,7 @@ USER()
 u1@localhost
 ALTER USER u1@localhost PASSWORD EXPIRE;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER u1@localhost IDENTIFIED BY 'def';
 SELECT USER();
 USER()
@@ -1709,7 +1709,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user12'@'localhost' IDENTIFIED WITH 'sha256_password' PASSWORD EXPIRE NEVER ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*82DC221D557298F6CE9961037DB1C90604792F5C' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'u10'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' WITH MAX_QUERIES_PER_HOUR 2 MAX_USER_CONNECTIONS 2 PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
-0.000001	#	Query	#	#	use `test`; ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+0.000001	#	Query	#	#	use `test`; ALTER USER 'u10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS 'auth_string' REQUIRE SSL PASSWORD EXPIRE DEFAULT
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user11'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' CIPHER 'DHE-RSA-AES256-SHA' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user12'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE INTERVAL 90 DAY ACCOUNT UNLOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user13'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
@@ -1719,7 +1719,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user15'@'localhost' PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user16'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE NEVER ACCOUNT LOCK
 0.000001	#	Query	#	#	use `test`; ALTER USER 'user16'@'localhost' PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK
-0.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*474F9F196851C7025F166095EDBBD42CFAB1DA6B' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+0.000001	#	Query	#	#	use `test`; ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*474F9F196851C7025F166095EDBBD42CFAB1DA6B' PASSWORD EXPIRE DEFAULT
 0.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
 0.000001	#	Query	#	#	use `test`; ALTER USER 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*EFA28F5E94885AA962E1AFC1912CE376EE374F65'
 0.000001	#	Query	#	#	use `test`; CREATE USER 'user10'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
@@ -1834,7 +1834,7 @@ ALTER USER user13@localhost WITH MAX_QUERIES_PER_HOUR 22
 MAX_USER_CONNECTIONS 4 ACCOUNT LOCK PASSWORD EXPIRE NEVER
 ALTER USER user15@localhost PASSWORD EXPIRE DEFAULT ACCOUNT LOCK
 ALTER USER user16@localhost PASSWORD EXPIRE INTERVAL 10 DAY ACCOUNT LOCK
-ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD EXPIRE DEFAULT
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SET PASSWORD FOR `u3`@`localhost`=<secret>

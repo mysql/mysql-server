@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,50 @@ TEST_F(RegexTest, BasicTest)
       << " with input '" << basic_data[ix].input << "'";
     my_regfree(&re);
   }
+}
+
+/*
+  Bug#20642505: HENRY SPENCER REGULAR EXPRESSIONS (REGEX) LIBRARY
+
+  We have our own variant of the regex code that understands MySQL charsets.
+  This test is hear to make sure that we never checkpoint or cherrypick from
+  the upstream and end up with a version that isn't patched against a
+  potential overflow.
+*/
+TEST_F(RegexTest, Bug20642505)
+{
+  my_regex_t  re;
+  char       *pattern;
+  int         err;
+  size_t      len= 684 * 1024 * 1024;
+
+  /*
+    We're testing on 32-bit/32-bit only. We could test e.g. with
+    64-bit size_t, 32-bit long (for 64-bit Windows and such), but
+    then we'd have to allocate twice as much memory, and it's a
+    bit heavy as it is.  (In 32/32, we exceed the size_t parameter
+    to malloc() as new_ssize exceeds UINT32 / 4, whereas in 64/32,
+    new_ssize would exceed LONG_MAX at UINT32 / 2.  (64/32 verified
+    in debugger.)
+  */
+  if ((sizeof(size_t) > 4) || (sizeof(long) > 4))
+    return;
+
+  /* set up an empty C string as pattern as regcomp() will strlen() this */
+  pattern= (char *) malloc(len);
+  EXPECT_FALSE(pattern == NULL);
+  memset(pattern, (int) ' ', len);
+  pattern[len - 1]= '\0';
+
+  err= my_regcomp(&re, pattern, MY_REG_BASIC,
+                  &my_charset_latin1);
+
+  my_regfree(&re);
+  free(pattern);
+
+  EXPECT_EQ(err, MY_REG_ESPACE)
+    << "my_regcomp returned " << err
+    << " instead of MY_REG_ESPACE (" << MY_REG_ESPACE << ")";
 }
 
 }  // namespace

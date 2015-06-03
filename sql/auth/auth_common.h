@@ -576,7 +576,7 @@ bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
 my_bool acl_reload(THD *thd); 
-my_bool grant_init();
+bool grant_init(bool skip_grant_tables);
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 ulong acl_get(const char *host, const char *ip,
@@ -705,6 +705,17 @@ bool check_global_access(THD *thd, ulong want_access);
 
 /* sql_user_table */
 void close_acl_tables(THD *thd);
+
+#ifndef EMBEDDED_LIBRARY
+typedef enum ssl_artifacts_status
+{
+  SSL_ARTIFACTS_NOT_FOUND= 0,
+  SSL_ARTIFACTS_VIA_OPTIONS,
+  SSL_ARTIFACT_TRACES_FOUND,
+  SSL_ARTIFACTS_AUTO_DETECTED
+} ssl_artifacts_status;
+
+#endif /* EMBEDDED_LIBRARY */
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
 extern my_bool opt_auto_generate_certs;

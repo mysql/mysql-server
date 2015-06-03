@@ -1713,7 +1713,7 @@ UPDATE t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a SET dt.b=dt.b+1;
 DELETE FROM (SELECT * FROM t1) AS dt WHERE a=1;
 
 --error ER_NON_UPDATABLE_TABLE
-DELETE dt FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE a=1;
+DELETE dt FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE t1.a=1;
 
 # Multi-table UPDATE and DELETE allows derived tables that are not updated:
 

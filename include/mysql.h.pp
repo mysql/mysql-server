@@ -99,6 +99,7 @@ my_bool my_net_init(NET *net, Vio* vio);
 void my_net_local_init(NET *net);
 void net_end(NET *net);
 void net_clear(NET *net, my_bool check_buffer);
+void net_claim_memory_ownership(NET *net);
 my_bool net_realloc(NET *net, size_t length);
 my_bool net_flush(NET *net);
 my_bool my_net_write(NET *net,const unsigned char *packet, size_t len);
@@ -253,6 +254,7 @@ typedef unsigned long long my_ulonglong;
 #include "my_alloc.h"
 #include <mysql/psi/psi_memory.h>
 #include "psi_base.h"
+struct PSI_thread;
 typedef unsigned int PSI_memory_key;
 typedef struct st_used_mem
 {

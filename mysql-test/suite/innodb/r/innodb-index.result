@@ -1582,3 +1582,18 @@ a	b
 0	khdHps6UxW8Lwaoxa604oK6zkb
 1	khdHps6UtW8L
 drop table t1;
+#
+# Bug #21103101	SORTING SKIPPED WHEN DROPPING THE SINGLE
+#			COLUMN PRIMARY KEY
+#
+create table t1(f1 int not null, f2 int not null,
+primary key (f1), unique key(f1, f2))engine=innodb;
+insert into t1 values(1,3), (2,2);
+alter table t1 drop column f1;
+drop table t1;
+create table t1(f1 int not null, f2 int not null,
+primary key (f1), unique key(f1, f2))engine=innodb;
+insert into t1 values(1,3), (2,2);
+alter table t1 drop primary key, lock=none;
+ERROR 0A000: LOCK=NONE is not supported. Reason: Dropping a primary key is not allowed without also adding a new primary key. Try LOCK=SHARED.
+drop table t1;

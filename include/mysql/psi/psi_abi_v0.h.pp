@@ -2,6 +2,7 @@
 #include "psi_base.h"
 #include "psi_memory.h"
 #include "psi_base.h"
+struct PSI_thread;
 typedef unsigned int PSI_memory_key;
 C_MODE_START
 struct MDL_key;

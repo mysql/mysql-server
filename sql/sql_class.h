@@ -213,10 +213,6 @@ public:
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
-#define TC_HEURISTIC_RECOVER_COMMIT   1
-#define TC_HEURISTIC_RECOVER_ROLLBACK 2
-extern ulong tc_heuristic_recover;
-
 typedef struct st_user_var_events
 {
   user_var_entry *user_var_event;
@@ -822,6 +818,8 @@ public:
 
   /** Erase all prepared statements (calls Prepared_statement destructor). */
   void erase(Prepared_statement *statement);
+
+  void claim_memory_ownership();
 
   void reset();
 
@@ -1551,6 +1549,8 @@ public:
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
   struct  system_status_var *initial_status_var; /* used by show status */
+  // has status_var already been added to global_status_var?
+  bool status_var_aggregated;
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.
@@ -4294,6 +4294,21 @@ public:
   */
 
   void send_statement_status();
+
+  /**
+    This is only used by master dump threads.
+    When the master receives a new connection from a slave with a UUID that
+    is already connected, it will set this flag TRUE before killing the old
+    slave connection.
+  */
+  bool duplicate_slave_uuid;
+
+  /**
+    Claim all the memory used by the THD object.
+    This method is to keep memory instrumentation statistics
+    updated, when an object is transfered across threads.
+  */
+  void claim_memory_ownership();
 };
 
 /**
@@ -5175,7 +5190,8 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 
 
-void add_to_status(STATUS_VAR *to_var, const STATUS_VAR *from_var, bool add_com_vars);
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool add_com_vars,
+                   bool reset_from_var);
 
 /* Inline functions */
 

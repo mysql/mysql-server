@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "que0types.h"
 #include "rem0types.h"
 #include "mtr0mtr.h"
+#include "dict0mem.h"
 
 // Forward declaration
 class ReadView;
@@ -50,17 +51,23 @@ row_vers_impl_x_locked(
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
+
 /*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
+@param[in]	trx_id		transaction id in the version
+@param[in]	name		table name
+@param[in,out]	mtr		mini transaction  holding the latch on the
+				clustered index record; it will also hold
+				 the latch on purge_view
 @return TRUE if earlier version should be preserved */
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
-	trx_id_t	trx_id,	/*!< in: transaction id in the version */
-	mtr_t*		mtr);	/*!< in: mtr holding the latch on the
-				clustered index record; it will also
-				hold the latch on purge_view */
+	trx_id_t		trx_id,
+	const table_name_t&	name,
+	mtr_t*			mtr);
+
 /*****************************************************************//**
 Finds out if a version of the record, where the version >= the current
 purge view, should have ientry as its secondary index entry. We check

@@ -1309,7 +1309,7 @@ static PSI_mutex_info all_plugin_mutexes[]=
 static PSI_memory_info all_plugin_memory[]=
 {
 #ifndef DBUG_OFF
-  { &key_memory_plugin_ref, "plugin_ref", 0},
+  { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_GLOBAL},
 #endif
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},
   { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
@@ -1428,13 +1428,7 @@ int plugin_init(int *argc, char **argv, int flags)
       */
       if (!my_strcasecmp(&my_charset_latin1, plugin->name, "PERFORMANCE_SCHEMA"))
       {
-        if (load_perfschema_engine)
-          tmp.load_option= PLUGIN_FORCE;
-        else
-        {
-          tmp.load_option= PLUGIN_OFF;
-          continue;
-        }
+        tmp.load_option= PLUGIN_FORCE;
       }
 
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));

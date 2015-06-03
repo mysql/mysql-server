@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -225,8 +225,8 @@ namespace undo {
 		{
 			m_undo_for_trunc = undo_id;
 
-			m_scan_start =
-				(undo_id + 1) % (srv_undo_tablespaces_open + 1);
+			m_scan_start = (undo_id + 1)
+					% (srv_undo_tablespaces_active + 1);
 			if (m_scan_start == 0) {
 				/* Note: UNDO tablespace ids starts from 1. */
 				m_scan_start = 1;

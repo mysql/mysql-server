@@ -115,6 +115,16 @@ struct purge_node_t{
 				clustered index record */
 	ibool		done;	/* Debug flag */
 
+#ifdef UNIV_DEBUG
+	/***********************************************************//**
+	Validate the persisent cursor. The purge node has two references
+	to the clustered index record - one via the ref member, and the
+	other via the persistent cursor.  These two references must match
+	each other if the found_clust flag is set.
+	@return true if the persistent cursor is consistent with
+	the ref member.*/
+	bool	validate_pcur();
+#endif
 };
 
 #ifndef UNIV_NONINL

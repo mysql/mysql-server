@@ -151,6 +151,8 @@ trx_init(
 
 	trx->error_key_num = ULINT_UNDEFINED;
 
+	trx->last_upd_sp_index = NULL;
+
 	trx->undo_no = 0;
 
 	trx->rsegs.m_redo.rseg = NULL;
@@ -3358,6 +3360,10 @@ trx_kill_blocking(trx_t* trx)
 		if (trx_is_started(victim_trx) && rollback) {
 
 			trx_id_t	id = victim_trx->id;
+			char*		thr_text = thd_security_context(
+							victim_trx->mysql_thd,
+							buffer, sizeof(buffer),
+							512);
 
 			ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
 
@@ -3366,9 +3372,7 @@ trx_kill_blocking(trx_t* trx)
 			trx_rollback_for_mysql(victim_trx);
 
 			ib::info() << "Killed transaction: ID: " << id
-				<< " - " << thd_security_context(
-					victim_trx->mysql_thd,
-					buffer, sizeof(buffer), 512);
+				<< " - " << thr_text;
 		}
 
 		trx_mutex_enter(victim_trx);

@@ -21,7 +21,8 @@
 #include "my_timer.h"       /* my_timer_t */
 #include <windows.h>        /* Timer Queue and IO completion port functions */
 
-#define  TIMER_EXPIRED    1
+
+enum enum_timer_state { TIMER_SET=FALSE, TIMER_EXPIRED=TRUE };
 
 // Timer notifier thread id.
 static my_thread_handle timer_notify_thread;
@@ -46,7 +47,8 @@ timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired __attribut
 {
   my_timer_t *timer= (my_timer_t *)timer_data;
   DBUG_ASSERT(timer != NULL);
-  PostQueuedCompletionStatus(io_compl_port, TIMER_EXPIRED, (ULONG_PTR)timer, 0);
+  timer->id.timer_state= TIMER_EXPIRED;
+  PostQueuedCompletionStatus(io_compl_port, 0, (ULONG_PTR)timer, 0);
 }
 
 
@@ -58,7 +60,7 @@ timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired __attribut
 static void*
 timer_notify_thread_func(void *arg __attribute__((unused)))
 {
-  DWORD timer_state;
+  DWORD bytes_transferred;
   ULONG_PTR compl_key;
   LPOVERLAPPED overlapped;
   my_timer_t *timer;
@@ -68,17 +70,11 @@ timer_notify_thread_func(void *arg __attribute__((unused)))
   while(1)
   {
     // Get IO Completion status.
-    if (GetQueuedCompletionStatus(io_compl_port, &timer_state, &compl_key,
+    if (GetQueuedCompletionStatus(io_compl_port, &bytes_transferred, &compl_key,
                                   &overlapped, INFINITE) == 0)
       break;
 
     timer= (my_timer_t*)compl_key;
-
-    // Timer is cancelled.
-    if (timer->id == 0)
-      continue;
-
-    timer->id= 0;
     timer->notify_function(timer);
   }
 
@@ -102,7 +98,6 @@ static int
 delete_timer(my_timer_t *timer, int *state)
 {
   int ret_val;
-  HANDLE id= timer->id;
   int retry_count= 3;
 
   DBUG_ASSERT(timer != 0);
@@ -111,27 +106,87 @@ delete_timer(my_timer_t *timer, int *state)
   if (state != NULL)
     *state= 0;
 
-  if (id)
+  if (timer->id.timer_handle)
   {
     do {
-      ret_val= DeleteTimerQueueTimer(timer_queue, id, NULL);
+      ret_val= DeleteTimerQueueTimer(timer_queue, timer->id.timer_handle, NULL);
 
       if (ret_val != 0)
       {
-        // Timer is not signalled yet.
-        if (state != NULL)
+        /**
+          From MSDN documentation of DeleteTimerQueueTimer:
+
+            ------------------------------------------------------------------
+
+            BOOL WINAPI DeleteTimerQueueTimer(
+              _In_opt_ HANDLE TimerQueue,
+              _In_     HANDLE Timer,
+              _In_opt_ HANDLE CompletionEvent
+            );
+
+            ...
+            If there are outstanding callback functions and CompletionEvent is
+            NULL, the function will fail and set the error code to
+            ERROR_IO_PENDING. This indicates that there are outstanding callback
+            functions. Those callbacks either will execute or are in the middle
+            of executing.
+            ...
+
+            ------------------------------------------------------------------
+
+          So we are here only in 2 cases,
+             1 When timer is *not* expired yet.
+             2 When timer is expired and callback function execution is
+               completed.
+
+          So here in case 1 timer.id->timer_state is TIMER_SET and
+                  in case 2 timer.id->timer_state is TIMER_EXPIRED
+          (From MSDN documentation(pasted above), if timer callback function is
+           not yet executed or it is in the middle of execution then
+           DeleteTimerQueueTimer() fails. Hence when we are here, we are sure
+           that state is either TIMER_SET(case 1) or TIMER_EXPIRED(case 2))
+
+          Note:
+            timer.id->timer_state is set to TIMER_EXPIRED in
+            timer_callback_function(). This function is executed by the OS
+            thread on timer expiration.
+
+            On timer expiration, when callback function is in the middle of
+            execution or it is yet to be executed by OS thread the call to
+            DeleteTimerQueueTimer() fails with an error "ERROR_IO_PENDING".
+            In this case,  timer.id->timer_state is not accessed in the current
+            code (please check else if block below).
+
+            Since timer.id->timer_state is not accessed in the current code
+            while it is getting modified in timer_callback_function,
+            no synchronization mechanism used.
+
+          Setting state to 1(non-signaled) if timer_state is not set to
+          "TIMER_EXPIRED"
+        */
+        if (timer->id.timer_state != TIMER_EXPIRED && state != NULL)
           *state= 1;
 
-        timer->id= 0;
+        timer->id.timer_handle= 0;
       }
       else if (GetLastError() == ERROR_IO_PENDING)
       {
-        // Timer is signalled but callback function is not called yet.
+        /**
+          Timer is expired and timer callback function execution is not
+          yet completed.
+
+          Note: timer->id.timer_state is modified in callback function.
+                Accessing timer->id.timer_state here might result in
+                race conditions.
+                Currently we are not accessing timer->id.timer_state
+                here so not using any synchronization mechanism.
+        */
+        timer->id.timer_handle= 0;
         ret_val= 1;
       }
       else
       {
-        /*
+        /**
           Timer deletion from queue failed and there are no outstanding
           callback functions for this timer.
         */
@@ -238,7 +293,7 @@ int
 my_timer_create(my_timer_t *timer)
 {
   DBUG_ASSERT(timer_queue != 0);
-  timer->id= 0;
+  timer->id.timer_handle= 0;
   return 0;
 }
 
@@ -256,10 +311,19 @@ int
 my_timer_set(my_timer_t *timer, unsigned long time)
 {
   DBUG_ASSERT(timer != NULL);
-  DBUG_ASSERT(timer->id == 0);
   DBUG_ASSERT(timer_queue != 0);
 
-  if (CreateTimerQueueTimer(&timer->id, timer_queue,
+  /**
+    If timer set previously is expired then it will not be
+    removed from the timer queue. Removing it before creating
+    a new timer queue timer.
+  */
+  if (timer->id.timer_handle != 0)
+    my_timer_delete(timer);
+
+  timer->id.timer_state= TIMER_SET;
+
+  if (CreateTimerQueueTimer(&timer->id.timer_handle, timer_queue,
                             timer_callback_function, timer, time, 0,
                             WT_EXECUTEONLYONCE) == 0)
     return -1;

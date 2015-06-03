@@ -987,46 +987,6 @@ dict_replace_tablespace_and_filepath(
 	return(err);
 }
 
-/** Add another filepath to the Data Dictionary for the given space_id
-using an independent transaction.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	First filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_add_filepath(
-	ulint		space_id,
-	const char*	filepath)
-{
-	if (!srv_sys_tablespaces_open) {
-		/* Startup procedure is not yet ready for updates.
-		Return success since this will likely get updated
-		later. */
-		return(DB_SUCCESS);
-	}
-
-	dberr_t		err = DB_SUCCESS;
-	trx_t*		trx;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(filepath);
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "insert tablespace and filepath";
-	trx->dict_operation_lock_mode = RW_X_LATCH;
-	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
-
-	err = dict_add_datafile_to_dictionary(space_id, filepath, trx);
-
-	trx_commit_for_mysql(trx);
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	return(err);
-}
-
 /** Check the validity of a SYS_TABLES record
 Make sure the fields are the right length and that they
 do not contain invalid contents.
@@ -2563,8 +2523,8 @@ dict_get_and_save_space_name(
 	if (table->tablespace != NULL) {
 
 		if (srv_sys_tablespaces_open
-		    && 0 == strncmp(table->tablespace, general_space_name,
-			     strlen(general_space_name))) {
+		    && dict_table_has_temp_general_tablespace_name(
+			    table->tablespace)) {
 			/* We previous saved the temporary name,
 			get the real one now. */
 			use_cache = false;
@@ -2581,8 +2541,8 @@ dict_get_and_save_space_name(
 			/* Use this name unless it is a temporary general
 			tablespace name and we can now replace it. */
 			if (!srv_sys_tablespaces_open
-			    || 0 != strncmp(space->name, general_space_name,
-					    strlen(general_space_name))) {
+			    || !dict_table_has_temp_general_tablespace_name(
+				    space->name)) {
 
 				/* Use this tablespace name */
 				table->tablespace = mem_heap_strdup(
@@ -3332,7 +3292,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	field = rec_get_nth_field_old(rec, DICT_FLD__SYS_FOREIGN__ID, &len);
@@ -3352,7 +3312,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	/* Read the table names and the number of columns associated
@@ -3382,6 +3342,8 @@ dict_load_foreign(
 		foreign->heap, (char*) field, len);
 	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
+	const ulint foreign_table_name_len = len;
+
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN__REF_NAME, &len);
 	foreign->referenced_table_name = mem_heap_strdupl(
@@ -3399,7 +3361,24 @@ dict_load_foreign(
 		foreign->foreign_table_name_lookup);
 
 	if (!for_table) {
-		fk_tables.push_back(foreign->foreign_table_name_lookup);
+		/* To avoid recursively loading the tables related through
+		the foreign key constraints, the child table name is saved
+		here.  The child table will be loaded later, along with its
+		foreign key constraint. */
+
+		lint	old_size = mem_heap_get_size(ref_table->heap);
+
+		ut_a(ref_table != NULL);
+		fk_tables.push_back(
+			mem_heap_strdupl(ref_table->heap,
+					 foreign->foreign_table_name_lookup,
+					 foreign_table_name_len));
+
+		lint	new_size = mem_heap_get_size(ref_table->heap);
+		dict_sys->size += new_size - old_size;
+
+		dict_foreign_remove_from_cache(foreign);
+		DBUG_RETURN(DB_SUCCESS);
 	}
 
 	ut_a(for_table || ref_table);

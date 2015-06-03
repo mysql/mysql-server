@@ -9090,12 +9090,9 @@ CALL p1();
 DROP PROCEDURE p1;
 
 # Same, as prepared statement
+--error ER_WRONG_FIELD_WITH_GROUP
 PREPARE s FROM
  'SET @x = ( SELECT b FROM t1 LEFT JOIN t2 USING ( a ) GROUP BY t1.a )';
---error ER_WRONG_FIELD_WITH_GROUP
-EXECUTE s;
---error ER_WRONG_FIELD_WITH_GROUP
-EXECUTE s;
 
 DROP TABLE t1, t2;
 SET sql_mode = DEFAULT;

@@ -39,8 +39,8 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --disable_reconnect
 --echo # Restart completed.
 
---echo # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory.Trying to enable SSL support using them.
-let SEARCH_PATTERN= Found ca.pem, server-cert.pem and server-key.pem in data directory.Trying to enable SSL support using them.;
+--echo # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+let SEARCH_PATTERN= Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.;
 --source include/search_pattern_in_file.inc
 --echo # Search for : CA certificate is self signed.;
 let SEARCH_PATTERN= CA certificate .* is self signed.;

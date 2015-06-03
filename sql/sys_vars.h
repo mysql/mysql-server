@@ -808,6 +808,35 @@ public:
   { return type != STRING_RESULT; }
 };
 
+class Sys_var_version : public Sys_var_charptr
+{
+public:
+  Sys_var_version(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          enum charset_enum is_os_charset_arg,
+          const char *def_val)
+    : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt, is_os_charset_arg, def_val)
+  {}
+
+  ~Sys_var_version()
+  {}
+
+  virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    uchar *value= Sys_var_charptr::global_value_ptr(thd, base);
+
+    DBUG_EXECUTE_IF("alter_server_version_str",
+                    {
+                      static const char *altered_value= "some-other-version";
+                      uchar *altered_value_ptr= reinterpret_cast<uchar*> (& altered_value);
+                      value= altered_value_ptr;
+                    });
+
+    return value;
+  }
+};
+
 
 class Sys_var_proxy_user: public sys_var
 {
@@ -2205,7 +2234,6 @@ public:
     char* ptr= (char*)(intptr)option.def_value;
     var->save_result.string_value.str= ptr;
     var->save_result.string_value.length= ptr ? strlen(ptr) : 0;
-    thd->variables.gtid_next.set_automatic();
     DBUG_VOID_RETURN;
   }
   void global_save_default(THD *thd, set_var *var)
