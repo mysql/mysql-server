@@ -104,9 +104,11 @@ struct iterate_extra {
     bool visited_txn[3];
 };
 
-static int iterate_callback(uint64_t txnid, uint64_t client_id,
+static int iterate_callback(DB_TXN *txn,
                             iterate_row_locks_callback iterate_locks,
                             void *locks_extra, void *extra) {
+    uint64_t txnid = txn->id64(txn);
+    uint64_t client_id = txn->get_client_id(txn);
     iterate_extra *info = reinterpret_cast<iterate_extra *>(extra);
     DB *db;
     DBT left_key, right_key;

@@ -250,6 +250,8 @@ static int64_t getRootNode(FT ft) {
 }
 
 static int print_le(const void* key, const uint32_t keylen, const LEAFENTRY &le, const uint32_t idx UU(), void *const ai UU()) {
+    unsigned int *le_index = (unsigned int *) ai;
+    printf("%u: ", *le_index); *le_index += 1;
     print_klpair(stdout, key, keylen, le);
     printf("\n");
     return 0;
@@ -539,7 +541,8 @@ ok:
             printf(" n_bytes_in_buffer= %" PRIu64 "", BLB_DATA(n, i)->get_disk_size());
             printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->num_klpairs());
             if (do_dump_data) {
-                BLB_DATA(n, i)->iterate<void, print_le>(NULL);
+                unsigned int le_index = 0;
+                BLB_DATA(n, i)->iterate<void, print_le>(&le_index);
             }
         }
     }
@@ -938,6 +941,7 @@ static void run_iteractive_loop(int fd, FT ft, CACHEFILE cf) {
         } else if (strcmp(fields[0], "header") == 0) {
             toku_ft_free(ft);
             open_header(fd, &ft, cf);
+            dump_header(ft);
         } else if (strcmp(fields[0], "rn") == 0||strcmp(fields[0], "rootNode")==0||strcmp(fields[0], "rootnode") == 0) {
             printf("Root node :%d\n",root);
         } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {

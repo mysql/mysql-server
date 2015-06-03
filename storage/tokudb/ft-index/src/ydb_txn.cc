@@ -433,6 +433,11 @@ static DB_TXN *toku_txn_get_child(DB_TXN *txn) {
     return db_txn_struct_i(txn)->child;
 }
 
+static uint64_t toku_txn_get_start_time(DB_TXN *txn) {
+    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    return toku_txn_get_start_time(ttxn);
+}
+
 static inline void txn_func_init(DB_TXN *txn) {
 #define STXN(name) txn->name = locked_txn_ ## name
     STXN(abort);
@@ -451,6 +456,7 @@ static inline void txn_func_init(DB_TXN *txn) {
     txn->id64 = toku_txn_id64;
     txn->is_prepared = toku_txn_is_prepared;
     txn->get_child = toku_txn_get_child;
+    txn->get_start_time = toku_txn_get_start_time;
 }
 
 //

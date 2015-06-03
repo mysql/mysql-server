@@ -253,6 +253,7 @@ struct tokutxn {
     uint32_t num_pin; // number of threads (all hot indexes) that want this
                       // txn to not transition to commit or abort
     uint64_t client_id;
+    time_t start_time;
 };
 typedef struct tokutxn *TOKUTXN;
 
@@ -367,6 +368,8 @@ bool toku_txn_has_spilled_rollback(struct tokutxn *txn);
 
 uint64_t toku_txn_get_client_id(struct tokutxn *txn);
 void toku_txn_set_client_id(struct tokutxn *txn, uint64_t client_id);
+
+time_t toku_txn_get_start_time(struct tokutxn *txn);
 
 //
 // This function is used by the leafentry iterators.

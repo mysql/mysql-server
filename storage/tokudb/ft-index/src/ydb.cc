@@ -2492,24 +2492,21 @@ struct iter_txns_callback_extra {
 };
 
 static int iter_txns_callback(TOKUTXN txn, void *extra) {
+    int r = 0;
     iter_txns_callback_extra *info =
         reinterpret_cast<iter_txns_callback_extra *>(extra);
-
     DB_TXN *dbtxn = toku_txn_get_container_db_txn(txn);
     invariant_notnull(dbtxn);
+    if (db_txn_struct_i(dbtxn)->tokutxn == txn) { // make sure that the dbtxn is fully initialized
+        toku_mutex_lock(&db_txn_struct_i(dbtxn)->txn_mutex);
+        toku_pthread_rwlock_rdlock(&info->env->i->open_dbs_rwlock);
 
-    toku_mutex_lock(&db_txn_struct_i(dbtxn)->txn_mutex);
-    toku_pthread_rwlock_rdlock(&info->env->i->open_dbs_rwlock);
+        iter_txn_row_locks_callback_extra e(info->env, &db_txn_struct_i(dbtxn)->lt_map);
+        r = info->callback(dbtxn, iter_txn_row_locks_callback, &e, info->extra);
 
-    iter_txn_row_locks_callback_extra e(info->env, &db_txn_struct_i(dbtxn)->lt_map);
-    const int r = info->callback(toku_txn_get_txnid(txn).parent_id64,
-                                 toku_txn_get_client_id(txn),
-                                 iter_txn_row_locks_callback,
-                                 &e,
-                                 info->extra);
-
-    toku_pthread_rwlock_rdunlock(&info->env->i->open_dbs_rwlock);
-    toku_mutex_unlock(&db_txn_struct_i(dbtxn)->txn_mutex);
+        toku_pthread_rwlock_rdunlock(&info->env->i->open_dbs_rwlock);
+        toku_mutex_unlock(&db_txn_struct_i(dbtxn)->txn_mutex);
+    }
 
     return r;
 }
