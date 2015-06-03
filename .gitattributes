@@ -12,6 +12,7 @@
 
 # These files should be checked out as is
 *.result -text -whitespace
+*.dat -text -whitespace
 
 # Denote all files that are truly binary and should not be modified.
 *.png binary
