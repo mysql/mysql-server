@@ -8,6 +8,35 @@ drop view if exists t1,v1,v2,v3,v4,v1badcheck;
 
 create table t1(a int);
 create table kv(k varchar(30) NOT NULL PRIMARY KEY,v  varchar(50));
+create view v1 as select 1;
+
+repair table t1 quick;
+repair table t1 extended;
+repair table t1 use_frm;
+--error ER_PARSE_ERROR
+repair table t1 from mysql;
+
+--error ER_PARSE_ERROR
+repair view v1 quick;
+--error ER_PARSE_ERROR
+repair view v1 extended;
+--error ER_PARSE_ERROR
+repair view v1 use_frm;
+repair view v1 from mysql;
+
+--error ER_PARSE_ERROR
+check view v1 quick;
+--error ER_PARSE_ERROR
+check view v1 fast;
+--error ER_PARSE_ERROR
+check view v1 medium;
+--error ER_PARSE_ERROR
+check view v1 extended;
+--error ER_PARSE_ERROR
+check view v1 changed;
+check view v1 for upgrade;
+
+drop view v1;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 

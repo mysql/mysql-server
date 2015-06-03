@@ -3,6 +3,41 @@ drop table if exists t1,v1,v2,v3,v4,v1badcheck;
 drop view if exists t1,v1,v2,v3,v4,v1badcheck;
 create table t1(a int);
 create table kv(k varchar(30) NOT NULL PRIMARY KEY,v  varchar(50));
+create view v1 as select 1;
+repair table t1 quick;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+repair table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+repair table t1 from mysql;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'from mysql' at line 1
+repair view v1 quick;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'quick' at line 1
+repair view v1 extended;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'extended' at line 1
+repair view v1 use_frm;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'use_frm' at line 1
+repair view v1 from mysql;
+Table	Op	Msg_type	Msg_text
+test.v1	repair	status	OK
+check view v1 quick;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'quick' at line 1
+check view v1 fast;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'fast' at line 1
+check view v1 medium;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'medium' at line 1
+check view v1 extended;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'extended' at line 1
+check view v1 changed;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'changed' at line 1
+check view v1 for upgrade;
+Table	Op	Msg_type	Msg_text
+test.v1	check	status	OK
+drop view v1;
 flush tables;
 check view v1;
 Table	Op	Msg_type	Msg_text
