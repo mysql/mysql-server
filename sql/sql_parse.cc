@@ -1582,7 +1582,9 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
 
     query_logger.general_log_print(thd, command, NullS);
     thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
+    mysql_mutex_lock(&LOCK_status);
     calc_sum_of_all_status(&current_global_status_var);
+    mysql_mutex_unlock(&LOCK_status);
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
     else
@@ -2417,6 +2419,7 @@ mysql_execute_command(THD *thd)
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
+    thd->initial_status_var= NULL;
     mysql_mutex_unlock(&LOCK_status);
     break;
   }
@@ -2474,11 +2477,7 @@ case SQLCOM_PREPARE:
     break;
   }
   case SQLCOM_DO:
-    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-        || open_and_lock_tables(thd, all_tables, 0))
-      goto error;
-
-    res= mysql_do(thd, *lex->do_insert_list);
+    res= mysql_do(thd, lex);
     break;
 
   case SQLCOM_EMPTY_QUERY:
@@ -2966,6 +2965,9 @@ end_with_restore_list:
 #ifdef HAVE_REPLICATION
   case SQLCOM_START_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_start();
 
     //To reduce server dependency, server errors are not used here
@@ -2999,6 +3001,9 @@ end_with_restore_list:
 
   case SQLCOM_STOP_GROUP_REPLICATION:
   {
+    if (check_global_access(thd, SUPER_ACL))
+      goto error;
+
     res= group_replication_stop();
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
@@ -5101,8 +5106,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
         no logging happens at all. If rewriting does not happen here,
         thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      bool general= (opt_general_log &&
-                     !(opt_general_log_raw || thd->slave_thread));
+      bool general= !(opt_general_log_raw || thd->slave_thread);
 
       if (general || opt_slow_log || opt_bin_log)
       {
@@ -5128,11 +5132,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                                          thd->query().str, qlen);
         }
       }
-
-      /* Audit_log notification when general log is disabled */
-      if (!opt_general_log && !opt_general_log_raw)
-        mysql_audit_general_log(thd, command_name[COM_QUERY].str,
-                                command_name[COM_QUERY].length);
     }
 
     if (!err)

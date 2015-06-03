@@ -1236,7 +1236,8 @@ public:
   Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
-    DBUG_ASSERT(args[0]->fixed);
+    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+
     conv_charset= cs;
     if (cache_if_const && args[0]->const_item())
     {

@@ -75,7 +75,8 @@ enum ha_rkey_function {
   HA_READ_MBR_INTERSECT,          /* Minimum Bounding Rectangle intersect */
   HA_READ_MBR_WITHIN,             /* Minimum Bounding Rectangle within */
   HA_READ_MBR_DISJOINT,           /* Minimum Bounding Rectangle disjoint */
-  HA_READ_MBR_EQUAL               /* Minimum Bounding Rectangle equal */
+  HA_READ_MBR_EQUAL,              /* Minimum Bounding Rectangle equal */
+  HA_READ_INVALID= -1             /* Invalid enumeration value, always last. */
 };
 
 	/* Key algorithm types */
@@ -564,7 +565,7 @@ enum data_file_type {
 
 /* For key ranges */
 
-enum key_range_flag {
+enum key_range_flags {
   NO_MIN_RANGE=      1 << 0,                    ///< from -inf
   NO_MAX_RANGE=      1 << 1,                    ///< to +inf
   /*  X < key, i.e. not including the left endpoint */
@@ -588,7 +589,11 @@ enum key_range_flag {
     least one keypart the condition is "keypart IS NULL".
   */
   NULL_RANGE=        1 << 6,
-  GEOM_FLAG=         1 << 7,                     ///< GIS
+  /**
+    This flag means that the index is an rtree index, and the interval is
+    specified using HA_READ_MBR_XXX defined in enum ha_rkey_function.
+  */
+  GEOM_FLAG=         1 << 7,
   /* Deprecated, currently used only by NDB at row retrieval */
   SKIP_RANGE=        1 << 8,
   /* 

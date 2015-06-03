@@ -1926,4 +1926,33 @@ having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
 eval EXPLAIN $query;
 eval $query;
 
+--echo #
+--echo # Bug#20665051 SQL_SHOW.CC:7764: ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()
+--echo #
+
+let query=
+SELECT 1
+FROM DUAL
+WHERE (SELECT 1 FROM information_schema.tables
+        WHERE table_schema
+        ORDER BY table_name
+        LIMIT 1);
+eval EXPLAIN $query;
+--disable_warnings
+eval $query;
+--enable_warnings
+
+let $query=
+SELECT 1 AS F1 FROM information_schema.tables
+WHERE "CHARACTER_SETS"=
+      (SELECT CAST(TABLE_NAME AS CHAR)
+      FROM information_schema.tables
+      WHERE table_schema != 'PERFORMANCE_SCHEMA'
+      ORDER BY table_name
+      LIMIT 1)
+LIMIT 1;
+
+eval EXPLAIN $query;
+eval $query;
+
 set sql_mode= @orig_sql_mode;

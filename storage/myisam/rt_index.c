@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -172,9 +172,17 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
+    // This is assumed to happen only when the index is empty. If that
+    // doesn't hold, the code in mi_rkey() that checks the record
+    // count has to be changed.
+    DBUG_ASSERT(info->s->state.state.records == 0);
     my_errno= HA_ERR_END_OF_FILE;
     return -1;
   }
+
+  // All empty indexes should be caught above. Negative record counts
+  // should never occur.
+  DBUG_ASSERT(info->s->state.state.records > 0);
 
   /*
     Save searched key, include data pointer.

@@ -2606,7 +2606,7 @@ UPDATE t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a SET dt.b=dt.b+1;
 ERROR HY000: The target table t2 of the UPDATE is not updatable
 DELETE FROM (SELECT * FROM t1) AS dt WHERE a=1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT * FROM t1) AS dt WHERE a=1' at line 1
-DELETE dt FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE a=1;
+DELETE dt FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE t1.a=1;
 ERROR HY000: The target table dt of the DELETE is not updatable
 UPDATE t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a SET t1.b=t1.b+1;
 DELETE t1 FROM t1 JOIN (SELECT * FROM t2) AS dt ON t1.a=dt.a WHERE t1.a=1;

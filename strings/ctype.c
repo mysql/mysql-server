@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+ * reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -750,7 +751,7 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 
   /* Rules: Context */
   case _CS_CONTEXT:
-    if (len < sizeof(i->context) + 1)
+    if (len < sizeof(i->context))
     {
       memcpy(i->context, attr, len);
       i->context[len]= '\0';

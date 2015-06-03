@@ -2081,15 +2081,27 @@ dict_replace_tablespace_in_dictionary(
 
 	error = que_eval_sql(info,
 			     "PROCEDURE P () IS\n"
+			     "p CHAR;\n"
+
+			     "DECLARE CURSOR c IS\n"
+			     " SELECT PATH FROM SYS_DATAFILES\n"
+			     " WHERE SPACE=:space FOR UPDATE;\n"
+
 			     "BEGIN\n"
-			     "DELETE FROM SYS_TABLESPACES"
-			     " WHERE SPACE = :space;\n"
-			     "DELETE FROM SYS_DATAFILES"
-			     " WHERE SPACE = :space;\n"
-			     "INSERT INTO SYS_TABLESPACES VALUES"
+			     "OPEN c;\n"
+			     "FETCH c INTO p;\n"
+
+			     "IF (SQL % NOTFOUND) THEN"
+			     "  DELETE FROM SYS_TABLESPACES "
+			     "WHERE SPACE=:space;\n"
+			     "  INSERT INTO SYS_TABLESPACES VALUES"
 			     "(:space, :name, :flags);\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
+			     "  INSERT INTO SYS_DATAFILES VALUES"
 			     "(:space, :path);\n"
+			     "ELSIF p <> :path THEN\n"
+			     "  UPDATE SYS_DATAFILES SET PATH=:path"
+			     " WHERE CURRENT OF c;\n"
+			     "END IF;\n"
 			     "END;\n",
 			     FALSE, trx);
 
@@ -2101,47 +2113,6 @@ dict_replace_tablespace_in_dictionary(
 		trx->op_info = "committing tablespace and datafile definition";
 		trx_commit(trx);
 	}
-
-	trx->op_info = "";
-
-	return(error);
-}
-
-/** Add another datafile to the data dictionary for a given space_id.
-@param[in]	space	Tablespace ID
-@param[in]	path	Tablespace path
-@param[in,out]	trx	Transaction**
-@return error code or DB_SUCCESS */
-dberr_t
-dict_add_datafile_to_dictionary(
-	ulint		space_id,
-	const char*	path,
-	trx_t*		trx)
-{
-	ut_ad(srv_sys_tablespaces_open);
-
-	dberr_t		error;
-
-	pars_info_t*	info = pars_info_create();
-
-	pars_info_add_int4_literal(info, "space", space_id);
-
-	pars_info_add_str_literal(info, "path", path);
-
-	error = que_eval_sql(info,
-			     "PROCEDURE P () IS\n"
-			     "BEGIN\n"
-			     "INSERT INTO SYS_DATAFILES VALUES"
-			     "(:space, :path);\n"
-			     "END;\n",
-			     FALSE, trx);
-
-	if (error != DB_SUCCESS) {
-		return(error);
-	}
-
-	trx->op_info = "committing datafile definition";
-	trx_commit(trx);
 
 	trx->op_info = "";
 

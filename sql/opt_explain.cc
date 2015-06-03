@@ -2078,7 +2078,12 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
     }
     case JOIN::PLAN_READY:
     {
-      if (!other && join->prepare_result())
+      /*
+        (1) If this connection is explaining its own query
+        (2) and it hasn't already prepared the JOIN's result,
+        then we need to prepare it (for example, to materialize I_S tables).
+      */
+      if (!other && !join->is_executed() && join->prepare_result())
         return true; /* purecov: inspected */
 
       /*
@@ -2160,11 +2165,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
   if (other)  
   {
     if (!((explain_result= new Query_result_send)))
-      return true; /* purecov: inspected */
+      DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||
         explain_result->prepare2())
-      return true; /* purecov: inspected */
+      DBUG_RETURN(true); /* purecov: inspected */
   }
   else
   {

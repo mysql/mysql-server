@@ -1157,14 +1157,16 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 ( a INT, b INT );
 
+--error ER_BAD_FIELD_ERROR
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 
+--error ER_BAD_FIELD_ERROR
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
 
---error ER_ILLEGAL_REFERENCE
+--error ER_BAD_FIELD_ERROR
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
@@ -1172,24 +1174,27 @@ HAVING b = 10;
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 
+--error ER_BAD_FIELD_ERROR
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 
+--error ER_BAD_FIELD_ERROR
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
 
---error ER_ILLEGAL_REFERENCE
+--error ER_BAD_FIELD_ERROR
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
 
 INSERT INTO t1 VALUES (1, 1);
+--error ER_BAD_FIELD_ERROR
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 
 INSERT INTO t1 VALUES (2, 1);
---error ER_SUBQUERY_NO_1_ROW
+--error ER_BAD_FIELD_ERROR
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 
@@ -2351,3 +2356,32 @@ SELECT d, COUNT(*) FROM v1 GROUP BY d;
 
 DROP TABLE t1;
 DROP VIEW v1;
+
+--echo #
+--echo # Bug#20819199 ASSERTION FAILED IN TEST_IF_SKIP_SORT_ORDER
+--echo #
+
+CREATE TABLE t0 ( a INT );
+INSERT INTO t0 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  a INT,
+  b INT,
+  PRIMARY KEY (pk),
+  KEY idx1 (a),
+  KEY idx2 (b, a),
+  KEY idx3 (a, b)
+) ENGINE = InnoDB;
+
+INSERT INTO t1 (a, b) SELECT t01.a, t02.a FROM t0 t01, t0 t02;
+
+ANALYZE TABLE t1;
+
+let $query=
+SELECT DISTINCT a, MAX(b) FROM t1 WHERE a >= 0 GROUP BY a,a;
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t0, t1;

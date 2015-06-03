@@ -1148,6 +1148,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
   // Query start time
   ulong timestamp= (ulong) get_time();
 
+#ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
       DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
   {
@@ -1162,6 +1163,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
     DBUG_EXECUTE_IF("inc_event_time_by_1_hour", timestamp= timestamp + 3600;);
     DBUG_EXECUTE_IF("dec_event_time_by_1_hour", timestamp= timestamp - 3600;);
   }
+#endif
 
   /*
     Header will be of size LOG_EVENT_HEADER_LEN for all events, except for
@@ -7232,14 +7234,16 @@ Xid_apply_log_event::do_shall_skip(Relay_log_info *rli)
 int XA_prepare_log_event::pack_info(Protocol *protocol)
 {
   char buf[ser_buf_size];
-  char query[sizeof("XA PREPARE") + 1 + sizeof(buf)];
+  char query[sizeof("XA COMMIT ONE PHASE") + 1 + sizeof(buf)];
 
   /* RHS of the following assert is unknown to client sources */
   compile_time_assert(ser_buf_size == XID::ser_buf_size);
+  serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
+                my_xid.bqual_length, my_xid.data);
+  sprintf(query,
+          (one_phase ? "XA COMMIT %s ONE PHASE" :  "XA PREPARE %s"),
+          buf);
 
-  sprintf(query, "XA PREPARE %s",
-          serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
-                        my_xid.bqual_length, my_xid.data));
   protocol->store(query, strlen(query), &my_charset_bin);
   return 0;
 }
@@ -7282,10 +7286,10 @@ void XA_prepare_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
   char buf[ser_buf_size];
 
   print_header(head, print_event_info, FALSE);
-  my_b_printf(head, "\tXA PREPARE %s\n",
-              serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
-                            my_xid.bqual_length, my_xid.data));
-  my_b_printf(head, one_phase ? "XA COMMIT %s ONE PHASE%s\n" : "XA PREPARE %s%s\n",
+  serialize_xid(buf, my_xid.formatID, my_xid.gtrid_length,
+                        my_xid.bqual_length, my_xid.data);
+  my_b_printf(head, "\tXA PREPARE %s\n", buf);
+  my_b_printf(head, one_phase ? "XA COMMIT %s ONE PHASE\n%s\n" : "XA PREPARE %s\n%s\n",
               buf, print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
@@ -10697,6 +10701,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     mysql_reset_thd_for_next_command(thd);
 
     enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+    if (state == GTID_STATEMENT_EXECUTE)
+    {
+      if (gtid_pre_statement_post_implicit_commit_checks(thd))
+        state= GTID_STATEMENT_CANCEL;
+    }
+
     if (state == GTID_STATEMENT_CANCEL)
     {
       uint error= thd->get_stmt_da()->mysql_errno();

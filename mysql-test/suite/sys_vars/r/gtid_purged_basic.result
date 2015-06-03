@@ -1,3 +1,4 @@
+RESET MASTER;
 SET @start_global_value = @@global.gtid_purged;
 SELECT @start_global_value;
 @start_global_value
@@ -38,3 +39,7 @@ ERROR HY000: @@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_EXECUTED is
 SELECT @@global.gtid_purged;
 @@global.gtid_purged
 11111111-1111-1111-1111-111111111111:1-2
+RESET MASTER;
+SELECT @@global.gtid_purged;
+@@global.gtid_purged
+

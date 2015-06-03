@@ -3848,14 +3848,14 @@ int ha_prepare(THD *thd);
   @note
     there are three modes of operation:
     - automatic recover after a crash
-    in this case commit_list != 0, tc_heuristic_recover==0
+    in this case commit_list != 0, tc_heuristic_recover==TC_HEURISTIC_NOT_USED
     all xids from commit_list are committed, others are rolled back
     - manual (heuristic) recover
-    in this case commit_list==0, tc_heuristic_recover != 0
+    in this case commit_list==0, tc_heuristic_recover != TC_HEURISTIC_NOT_USED
     DBA has explicitly specified that all prepared transactions should
     be committed (or rolled back).
     - no recovery (MySQL did not detect a crash)
-    in this case commit_list==0, tc_heuristic_recover == 0
+    in this case commit_list==0, tc_heuristic_recover == TC_HEURISTIC_NOT_USED
     there should be no prepared transactions in this case.
 */
 

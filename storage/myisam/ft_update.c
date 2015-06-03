@@ -18,6 +18,7 @@
 /* functions to work with full-text indices */
 
 #include "ftdefs.h"
+#include "my_base.h" /* HA_KEYTYPE_FLOAT */
 #include <math.h>
 
 void _mi_ft_segiterator_init(MI_INFO *info, uint keynr, const uchar *record,

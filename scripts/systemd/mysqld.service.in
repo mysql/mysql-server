@@ -32,6 +32,9 @@ Type=forking
 
 PIDFile=@SYSTEMD_PID_DIR@/mysqld.pid
 
+# Disable service start and stop timeout logic of systemd for mysqld service.
+TimeoutSec=0
+
 # Execute pre and post scripts as root
 PermissionsStartOnly=true
 
@@ -43,6 +46,9 @@ ExecStart=@libexecdir@/mysqld --daemonize $MYSQLD_OPTS
 
 # Use this to switch malloc implementation
 EnvironmentFile=-/etc/sysconfig/mysql
+
+# Sets open_files_limit
+LimitNOFILE = 5000
 
 Restart=on-failure
 

@@ -5275,6 +5275,10 @@ String* Item_func_export_set::val_str(String* str)
     if (ix != num_separators)
       str->append(*sep);
   }
+
+  if (str->ptr() == NULL)
+    return make_empty_result();
+
   return str;
 }
 

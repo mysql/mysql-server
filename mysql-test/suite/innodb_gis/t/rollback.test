@@ -1,5 +1,11 @@
 # WL 6609. Testing insertion rollback
 --source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/have_debug.inc
+# Valgrind can hang or return spurious messages on DBUG_SUICIDE
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 
 CREATE TABLE t4 (id bigint(12) unsigned NOT NULL auto_increment,
   c2 varchar(15) collate utf8_bin default NULL,
@@ -402,3 +408,38 @@ INSERT INTO t4 (c2, c1, c3, spatial_point) VALUES
 rollback;
 
 DROP TABLE t4;
+
+# Test partial update rollback.
+create table t1(i int primary key,
+a geometry not null, b geometry not null,
+c int,
+spatial index(a),key(a(25)),key(b(25)),
+unique key (c),
+spatial index(b))engine=innodb;
+
+insert into t1 values(0, point(0,0), point(0,0), 0);
+insert into t1 values(1, point(1,1), point(1,1), 1);
+insert into t1 values(2, point(2,2), point(2,2), 2);
+insert into t1 values(3, point(3,3), point(3,3), 3);
+insert into t1 values(4, point(4,4), point(4,4), 4);
+
+start transaction;
+# It's a partial update, hit dup key error, rollback.
+--error ER_DUP_ENTRY
+update t1 set a=point(5,5), b=point(5,5), c=5 where i < 3;
+rollback;
+
+# Test partial update rollback after recovered.
+# Crash the server in partial update.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+set session debug="+d,row_mysql_crash_if_error";
+--error 2013
+update t1 set a=point(5,5), b=point(5,5), c=5 where i < 3;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+insert into t1 values(5, point(5,5), point(5,5), 5);
+
+drop table t1;

@@ -388,3 +388,17 @@ SELECT ST_ASTEXT(ST_CENTROID(0x010400000002000000010100000000000000000000));
 
 --echo # Clean up
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # Bug #20918881 CRASH WITH CENTROID - INVALID FREE
+--echo #
+
+--error ER_GIS_INVALID_DATA
+DO ST_Centroid(
+  GeometryCollection(
+    Polygon(
+      LineString(Point(1, 1), Point(2, 2), Point(14, 7)),
+      LineString(Point(1, 1), Point(2, 2), Point(3, 3))
+    )
+  )
+);

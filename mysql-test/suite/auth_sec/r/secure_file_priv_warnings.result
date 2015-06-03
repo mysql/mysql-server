@@ -4,6 +4,9 @@
 # Search for : Insecure configuration for --secure-file-priv: Current
 #              value does not restrict location of generated files.
 #              Consider setting it to a valid, non-empty path.
+SHOW VARIABLES LIKE 'secure_file_priv';
+Variable_name	Value
+secure_file_priv	
 #-----------------------------------------------------------------------
 # Restart completed.
 # Search for : Insecure configuration for --secure-file-priv: Plugin

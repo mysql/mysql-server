@@ -256,7 +256,25 @@ inline static Geometry *create_geometrycollection(char *buffer)
   return ::new (buffer) Gis_geometry_collection();
 }
 
+/**
+  Check if geometry type sub is a subtype of super.
 
+  Since Geometry::wkbType can't represent the geometry type, the
+  superclass of all geometry types, this function can't check
+  that. The supertype has to be a subtype of geometry.
+
+  @param sub The type to check
+  @param super The supertype
+
+  @return True if t1 is a subtype of t2
+ */
+inline static bool is_subtype_of(Geometry::wkbType sub, Geometry::wkbType super)
+{
+  return (super == Geometry::wkb_geometrycollection &&
+          (sub == Geometry::wkb_multipoint ||
+           sub == Geometry::wkb_multilinestring ||
+           sub == Geometry::wkb_multipolygon));
+}
 
 static Geometry::Class_info point_class("POINT",
 					Geometry::wkb_point, create_point);
@@ -546,7 +564,8 @@ bool Geometry::as_geometry(String *buf, bool shallow_copy) const
 
   R1. The byte order is as specified (constructor parameter)
   R2. The wkbType is within the supported range
-  R3. The geometry is of the specified type (constructor parameter)
+  R3. The geometry is of the specified type (constructor parameter),
+      or a subtype
   R4. Nested geometries contain only geometries that can be contained
       by that type
   R5. Linestrings have at least two points
@@ -615,11 +634,13 @@ public:
       return;
     }
 
-    // First geometry must be of the specified type (if specified) (R3).
+    // First geometry must be of the specified type (if specified), or
+    // a subtype (R3).
     if (type.size() == 2)
     {
       if (geotype != outer_type &&
-          outer_type != Geometry::wkb_invalid_type)
+          outer_type != Geometry::wkb_invalid_type &&
+          !is_subtype_of(geotype, outer_type))
         is_ok= false;
       return;
     }
@@ -970,7 +991,8 @@ Geometry *Geometry::create_from_wkb(Geometry_buffer *buffer,
     return NULL;
 
   geom_type= wkb_get_uint(wkb+1, ::get_byte_order(wkb));
-  if (geom_type < wkb_first || geom_type > wkb_last ||
+  if ((*wkb != wkb_xdr && *wkb != wkb_ndr) ||
+      geom_type < wkb_first || geom_type > wkb_last ||
       !(geom= create_by_typeid(buffer, (int) geom_type)) ||
       res->reserve(WKB_HEADER_SIZE, 512))
     return NULL;
@@ -1783,19 +1805,21 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   if (len < proper_length)
     return 0;
 
+  uint32 extra_length= 0;
+
   if (is_polygon_ring())
   {
     closed= (memcmp(wkb + 4, wkb_end - POINT_DATA_SIZE, POINT_DATA_SIZE) == 0);
     if (!closed)
     {
-      proper_length+= POINT_DATA_SIZE;
+      extra_length= POINT_DATA_SIZE;
       n_points++;
     }
     else if (n_points == 3)
       return 0;
   }
 
-  if (res->reserve(proper_length, 512))
+  if (res->reserve(proper_length + extra_length, 512))
     return 0;
 
   res->q_append(n_points);
@@ -2417,13 +2441,11 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
     ls.set_props(is_first ? POLYGON_OUTER_RING : POLYGON_INNER_RING);
     is_first= false;
 
-    uint32 ls_pos=wkb->length();
     if (trs->check_next_symbol('(') ||
 	ls.init_from_wkt(trs, wkb) ||
 	trs->check_next_symbol(')'))
       return true;
 
-    ls.set_data_ptr(wkb->ptr() + ls_pos, wkb->length() - ls_pos);
     n_linear_rings++;
     if (trs->skip_char(','))			// Didn't find ','
       break;
@@ -2503,15 +2525,13 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
     ls.set_props(is_first ? POLYGON_OUTER_RING : POLYGON_INNER_RING);
     is_first= false;
 
-    uint32 ls_pos= res->length();
-    int ls_len;
+    uint ls_len= 0;
 
     if (!(ls_len= ls.init_from_wkb(wkb, len, bo, res)))
       return 0;
 
-    ls.set_data_ptr(res->ptr() + ls_pos, res->length() - ls_pos);
-
     wkb+= ls_len;
+    DBUG_ASSERT(len >= ls_len);
     len-= ls_len;
   }
 
@@ -2981,7 +3001,9 @@ uint Gis_multi_point::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
   for (wkb+=4; wkb < wkb_end; wkb+= (WKB_HEADER_SIZE + POINT_DATA_SIZE))
   {
     write_wkb_header(res, wkb_point);
-    if (!p.init_from_wkb(wkb + WKB_HEADER_SIZE,
+    if ((*wkb != wkb_xdr && *wkb != wkb_ndr) ||
+        wkb_point != uint4korr(wkb + 1) ||
+        !p.init_from_wkb(wkb + WKB_HEADER_SIZE,
                          POINT_DATA_SIZE, (wkbByteOrder) wkb[0], res))
       return 0;
   }
@@ -3139,9 +3161,10 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
   while (n_line_strings--)
   {
     Gis_line_string ls(false);
-    int ls_len;
+    uint ls_len= 0;
 
-    if ((len < WKB_HEADER_SIZE) ||
+    if ((len < WKB_HEADER_SIZE) || uint4korr(wkb + 1) != wkb_linestring ||
+        (*wkb != wkb_xdr && *wkb != wkb_ndr) ||
         res->reserve(WKB_HEADER_SIZE, 512))
       return 0;
 
@@ -3151,6 +3174,7 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
       return 0;
     ls_len+= WKB_HEADER_SIZE;;
     wkb+= ls_len;
+    DBUG_ASSERT(len >= ls_len);
     len-= ls_len;
   }
   return (uint) (wkb - wkb_orig);
@@ -3390,10 +3414,10 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
   while (n_poly--)
   {
     Gis_polygon p(false);
-    int p_len;
+    uint p_len= 0;
 
-    if (len < WKB_HEADER_SIZE ||
-        res->reserve(WKB_HEADER_SIZE, 512))
+    if (len < WKB_HEADER_SIZE || uint4korr(wkb + 1) != wkb_polygon ||
+        (*wkb != wkb_xdr && *wkb != wkb_ndr) || res->reserve(WKB_HEADER_SIZE, 512))
       return 0;
     write_wkb_header(res, wkb_polygon);
     if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
@@ -3401,6 +3425,7 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
       return 0;
     p_len+= WKB_HEADER_SIZE;
     wkb+= p_len;
+    DBUG_ASSERT(len >= p_len);
     len-= p_len;
   }
   return (uint) (wkb - wkb_orig);
@@ -3871,10 +3896,10 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
   {
     Geometry_buffer buffer;
     Geometry *geom;
-    int g_len;
+    uint g_len= 0;
     uint32 wkb_type;
 
-    if (len < WKB_HEADER_SIZE ||
+    if (len < WKB_HEADER_SIZE || (*wkb != wkb_xdr && *wkb != wkb_ndr) ||
         res->reserve(WKB_HEADER_SIZE, 512))
       return 0;
 
@@ -3888,6 +3913,7 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
       return 0;
     g_len+= WKB_HEADER_SIZE;
     wkb+= g_len;
+    DBUG_ASSERT(len >= g_len);
     len-= g_len;
   }
   return (uint) (wkb - wkb_orig);

@@ -441,18 +441,11 @@ int main(int argc, char *argv[])
     goto end;
   }
 
-  if (!dir_string.normalize_path())
+  if (!dir_string.normalize_path() || !dir_string.exists())
   {
-    error << "Failed to normalize the argument for --datadir: "
-          << dir_string.to_str() << endl;
-    ret_val= 1;
-    goto end;
-  }
-
-  if (!dir_string.exists())
-  {
-    error << "Invalid directory path specified. "
-          << "Failed to normalize the argument for --datadir: "
+    error << "Failed to access directory pointed by --datadir. "
+          << "Please make sure that directory exists and is "
+          << "accessible by mysql_ssl_rsa_setup. Supplied value : "
           << dir_string.to_str() << endl;
     ret_val= 1;
     goto end;
@@ -572,7 +565,7 @@ int main(int argc, char *argv[])
         goto end;
 
       /* Generate Client Key and Certificate */
-      if ((ret_val= execute_command(x509_key("_Auto_Generated_Server_Certificate",
+      if ((ret_val= execute_command(x509_key("_Auto_Generated_Client_Certificate",
                                              cert_files[CLIENT_KEY], cert_files[CLIENT_REQ]),
                                     "Error generating client_key.pem and client_req.pem")))
         goto end;
@@ -657,5 +650,5 @@ int main(int argc, char *argv[])
 end:
   free_resources();
 
-  return ret_val;
+  DBUG_RETURN(ret_val);
 }

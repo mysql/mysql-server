@@ -125,6 +125,8 @@ JOIN::exec()
 
   Query_result *const query_result= select_lex->query_result();
 
+  do_send_rows = unit->select_limit_cnt > 0;
+
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
     /*
@@ -1850,6 +1852,9 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
         the reading now, so we must read all columns.
       */
       bitmap_set_all(table->read_set);
+      /* Virtual generated columns must be writable */
+      for (Field **vfield_ptr= table->vfield; vfield_ptr && *vfield_ptr; vfield_ptr++)
+        bitmap_set_bit(table->write_set, (*vfield_ptr)->field_index);
       table->file->column_bitmaps_signal();
     }
   }

@@ -242,11 +242,11 @@ last_t1()
 CALL test_t1(last_t1() + 1);
 # new connections are blocked until a password reset
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SELECT last_t1();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 CALL test_t1(last_t1() + 1);
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # setting a password unlocks it
 ALTER USER must_change@localhost IDENTIFIED BY 'aha2';
 # must not throw an error
@@ -268,11 +268,11 @@ UPDATE mysql.user SET password_expired='Y'
   WHERE user='must_change' and host = 'localhost';
 FLUSH PRIVILEGES;
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 SELECT last_t1();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 CALL test_t1(last_t1() + 1);
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 # setting a password with a user name is ok if it exactly matches the
 # authenticated user.
 ALTER USER must_change@localhost IDENTIFIED BY 'aha3';
@@ -300,7 +300,7 @@ WHERE user='must_change' and host = 'localhost';
 password_expired
 Y
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER must_change@localhost IDENTIFIED BY 'aha4';
 # try a valid+invalid user combo
 ALTER USER
@@ -312,7 +312,7 @@ WHERE user='must_change' and host = 'localhost';
 password_expired
 Y
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
 ALTER USER must_change@localhost IDENTIFIED BY 'aha5';
 SELECT USER();
 USER()

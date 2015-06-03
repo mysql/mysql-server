@@ -1101,14 +1101,14 @@ col1 POINT,
 col2 POINT
 );
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
-ERROR HY000: Incorrect arguments to SPATIAL INDEX
+ERROR 42000: Too many key parts specified; max 1 parts allowed
 CREATE TABLE t3 (
 col0 INTEGER NOT NULL,
 col1 POINT,
 col2 LINESTRING,
 SPATIAL INDEX i1 (col1, col2)
 );
-ERROR HY000: Incorrect arguments to SPATIAL INDEX
+ERROR 42000: Too many key parts specified; max 1 parts allowed
 DROP TABLE t0, t1, t2;
 #
 # BUG#12414917 - ST_ISCLOSED() CRASHES ON 64-BIT BUILDS

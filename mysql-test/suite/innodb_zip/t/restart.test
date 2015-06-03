@@ -192,12 +192,12 @@ SELECT count(*) FROM t9_restart;
 --source include/shutdown_mysqld.inc
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir
 --list_files $MYSQL_TMP_DIR/alt_dir
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -292,10 +292,10 @@ SHOW CREATE TABLE t7_restart;
 --copy_file $MYSQL_DATA_DIR/test/t5_restart.frm $MYSQL_DATA_DIR/test/t5_restart.frm.bak
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -343,10 +343,10 @@ RENAME TABLE t5_restart TO t55_restart;
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5_restart.ibd.bak
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -375,10 +375,10 @@ SELECT count(*) FROM t77_restart;
 SHOW CREATE TABLE t77_restart;
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -415,13 +415,13 @@ SHOW CREATE TABLE t77_restart;
 --mkdir $MYSQL_TMP_DIR/new_dir
 --mkdir $MYSQL_TMP_DIR/new_dir/test
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo # Moving tablespace 't4_restart' from MYSQL_DATA_DIR to MYSQL_TMP_DIR/new_dir
@@ -468,13 +468,13 @@ SHOW CREATE TABLE t77_restart;
 --exec echo $MYSQL_TMP_DIR/new_dir/test/t77_restart#P#p1#SP#s3.ibd > $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
@@ -515,10 +515,10 @@ SHOW CREATE TABLE t77_restart;
 --echo #
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo # Moving 't4_restart' from MYSQL_TMP_DIR/new_dir to MYSQL_DATA_DIR
@@ -557,10 +557,10 @@ SHOW CREATE TABLE t77_restart;
 --remove_file $MYSQL_DATA_DIR/test/t77_restart#P#p1#SP#s3.isl
 
 --echo ---- MYSQL_DATA_DIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_DATA_DIR/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result #P# #p#  #SP# #sp#
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #

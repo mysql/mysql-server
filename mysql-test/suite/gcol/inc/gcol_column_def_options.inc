@@ -231,3 +231,16 @@ CREATE TABLE t1 (c1 INT, c2 INT AS (c1 * 2)) SELECT 1 AS c1, a AS c2 from t2;
 CREATE TABLE t1 (c1 INT, c2 INT AS (c1 * 2)) SELECT 1 AS c1, 5;
 SELECT * FROM t1;
 DROP TABLE t1, t2;
+
+--echo # Bug#20757211: GENERATED COLUMNS: ALTER TABLE CRASHES
+--echo #  IN FIND_FIELD_IN_TABLE
+--echo # 
+CREATE TABLE t1(a int);
+--error 1064
+ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
+( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
+--error 1064
+CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)));
+--error 1064
+CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
+DROP TABLE t1;

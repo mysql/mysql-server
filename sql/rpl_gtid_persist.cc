@@ -297,7 +297,7 @@ end:
 }
 
 
-int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
+int Gtid_table_persistor::save(THD *thd, const Gtid *gtid)
 {
   DBUG_ENTER("Gtid_table_persistor::save(THD *thd, Gtid *gtid)");
   int error= 0;
@@ -341,7 +341,7 @@ end:
 }
 
 
-int Gtid_table_persistor::save(Gtid_set *gtid_set)
+int Gtid_table_persistor::save(const Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_set)");
   int ret= 0;
@@ -381,7 +381,7 @@ end:
 }
 
 
-int Gtid_table_persistor::save(TABLE *table, Gtid_set *gtid_set)
+int Gtid_table_persistor::save(TABLE *table, const Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_table_persistor::save(TABLE* table, "
              "Gtid_set *gtid_set)");
@@ -758,6 +758,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
   mysql_thread_set_psi_id(thd->thread_id());
   my_thread_init();
   DBUG_ENTER("compress_gtid_table");
+
   init_thd(&thd);
   for (;;)
   {

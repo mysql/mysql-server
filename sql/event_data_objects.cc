@@ -197,6 +197,11 @@ Event_queue_element_for_exec::init(LEX_STRING db, LEX_STRING n)
   return FALSE;
 }
 
+void Event_queue_element_for_exec::claim_memory_ownership()
+{
+  my_claim(dbname.str);
+  my_claim(name.str);
+}
 
 /*
   Destructor

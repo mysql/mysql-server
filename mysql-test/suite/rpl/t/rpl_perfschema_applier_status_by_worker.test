@@ -61,10 +61,10 @@ source include/assert.inc;
 # in non-MTS slave.
 
 source include/stop_slave.inc;
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
+SET @save_slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=0;
 # to avoid warnings
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @save_slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 let $assert_text= In non-MTS mode(SQL thread), the table should return an empty set.;
@@ -74,7 +74,7 @@ source include/assert.inc;
 source include/stop_slave.inc;
 SET @@global.slave_parallel_workers=1;
 # to avoid warnings
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @save_slave_transaction_retries= @@global.slave_transaction_retries;
 source include/start_slave.inc;
 
 let $ps_value= query_get_value(select Worker_Id from performance_schema.replication_applier_status_by_worker, Worker_Id, 1);
@@ -245,23 +245,19 @@ reset master;
 --echo # field.
 --echo
 
-let $rpl_server_number= 1;
-let $rpl_start_with_gtids= 1;
-source include/rpl_restart_server.inc;
-
-let $rpl_server_number= 2;
-let $rpl_start_with_gtids= 1;
-source include/rpl_restart_server.inc;
+--let $rpl_skip_sync= 1
+--let $rpl_set_enforce_gtid_consistency= 1
+--source include/rpl_set_gtid_mode.inc
+--let $rpl_skip_sync= 0
 
 --connection slave
 stop slave;
 replace_result $MASTER_MYPORT MASTER_MYPORT;
 replace_column 2 ####;
 eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
-SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 # to avoid warnings
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
+set @save_slave_transaction_retries= @@global.slave_transaction_retries;
 start slave;
 
 --connection master
@@ -288,8 +284,16 @@ query_vertical select Last_Seen_Transaction from performance_schema.replication_
 --echo # Cleanup.
 --echo
 
-set @@global.slave_parallel_workers= @save.slave_parallel_workers;
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+--connection master
+DROP DATABASE d1;
+
+--connection slave
+set @@global.slave_parallel_workers= @save_slave_parallel_workers;
+set @@global.slave_transaction_retries= @save_slave_transaction_retries;
 source include/start_slave.inc;
+
+--let $rpl_gtid_mode= OFF
+--let $rpl_set_enforce_gtid_consistency= 0
+--source include/rpl_set_gtid_mode.inc
 
 source include/rpl_end.inc;

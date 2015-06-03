@@ -27,7 +27,7 @@
 #include "sql_digest.h"
 
 extern bool flag_statements_digest;
-extern ulong digest_max;
+extern size_t digest_max;
 extern ulong digest_lost;
 struct PFS_thread;
 
@@ -58,7 +58,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   ulonglong m_last_seen;
 
   /** Reset data for this record. */
-  void reset_data(unsigned char* token_array, uint length);
+  void reset_data(unsigned char* token_array, size_t length);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);
 };

@@ -2808,12 +2808,6 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
       if (!(pos= *(char**) value))
         pos= "";
 
-      DBUG_EXECUTE_IF("alter_server_version_str",
-            if (!my_strcasecmp(system_charset_info, variable->name, "version"))
-            {
-              pos= "some-other-version";
-            });
-
       end= strend(pos);
       break;
     }
@@ -2946,8 +2940,8 @@ public:
   Add_status(STATUS_VAR* value) : m_stat_var(value) {}
   virtual void operator()(THD *thd)
   {
-    STATUS_VAR* stat = &(thd->status_var);
-    add_to_status(m_stat_var, stat, true);
+    if (!thd->status_var_aggregated)
+      add_to_status(m_stat_var, &thd->status_var, true, false);
   }
 private:
   /* Status of all threads are summed into this. */
@@ -2957,6 +2951,7 @@ private:
 void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
+  mysql_mutex_assert_owner(&LOCK_status);
   /* Get global values as base. */
   *to= global_status_var;
   Add_status add_status(to);
@@ -4249,6 +4244,22 @@ public:
     if (sql_errno == ER_PARSE_ERROR ||
         sql_errno == ER_TRG_NO_DEFINER ||
         sql_errno == ER_TRG_NO_CREATION_CTX)
+      return true;
+
+    return false;
+  }
+};
+
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
       return true;
 
     return false;
@@ -7011,6 +7022,22 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(res);
 #endif /* EMBEDDED_LIBRARY */
 
+
+  /*
+    Some system variables, for example sql_log_bin,
+    have special behavior because of deprecation.
+    - SELECT @@global.sql_log_bin
+      MUST print a deprecation warning,
+      because such usage needs to be abandoned.
+    - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+      MUST NOT print a deprecation warning,
+      since the application may not be looking for
+      the 'sql_log_bin' row anyway,
+      and we do not want to create spurious warning noise.
+  */
+  Silence_deprecation_warnings silencer;
+  thd->push_internal_handler(&silencer);
+
   /*
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
     SHOW_VAR array and hold it until all variables are stored in the table.
@@ -7034,6 +7061,8 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     mysql_mutex_unlock(&LOCK_plugin_delete);
   }
 
+  thd->pop_internal_handler();
+
   DBUG_RETURN(res);
 }
 
@@ -7045,7 +7074,8 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
 
-  STATUS_VAR *tmp1, tmp;
+  STATUS_VAR *status_var_ptr;
+  STATUS_VAR current_global_status_var;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
   enum enum_var_type option_type;
@@ -7055,19 +7085,20 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     option_type= lex->option_type;
     if (option_type == OPT_GLOBAL)
-      tmp1= &tmp;
+      status_var_ptr= &current_global_status_var;
     else
-      tmp1= thd->initial_status_var;
+      status_var_ptr= thd->initial_status_var;
   }
   else if (schema_table_idx == SCH_GLOBAL_STATUS)
   {
     option_type= OPT_GLOBAL;
-    tmp1= &tmp;
+    status_var_ptr= &current_global_status_var;
   }
   else
-  { 
+  {
+    DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
     option_type= OPT_SESSION;
-    tmp1= &thd->status_var;
+    status_var_ptr= &thd->status_var;
   }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7084,21 +7115,24 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     Avoid recursive acquisition of LOCK_status in cases when WHERE clause
     represented by "cond" contains subquery on I_S.SESSION/GLOBAL_STATUS.
   */
+  DEBUG_SYNC(thd, "before_preparing_global_status_array");
+
   if (thd->fill_status_recursion_level++ == 0) 
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
-    calc_sum_of_all_status(&tmp);
+    calc_sum_of_all_status(status_var_ptr);
   // Push an empty tail element
   all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
                          &all_status_vars[0],
-                         option_type, tmp1, "", tables,
+                         option_type, status_var_ptr, "", tables,
                          upper_case_names, cond);
   all_status_vars.pop_back(); // Pop the empty element.
 
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
 
+  DEBUG_SYNC(thd, "after_preparing_global_status_array");
   DBUG_RETURN(res);
 }
 
@@ -8461,7 +8495,7 @@ ST_FIELD_INFO plugin_fields_info[]=
 ST_FIELD_INFO files_fields_info[]=
 {
   {"FILE_ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, 0, SKIP_OPEN_TABLE},
-  {"FILE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"FILE_NAME", FN_REFLEN_SE, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"FILE_TYPE", 20, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
   {"TABLESPACE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0,
    SKIP_OPEN_TABLE},

@@ -21,5 +21,4 @@ alter table parent row_format=dynamic;
 Warnings:
 Warning	1088	InnoDB: Could not add foreign key constraints.
 drop table parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 drop database bug;

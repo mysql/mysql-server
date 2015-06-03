@@ -638,6 +638,34 @@ void debug_sync_init_thread(THD *thd)
   DBUG_VOID_RETURN;
 }
 
+void debug_sync_claim_memory_ownership(THD *thd)
+{
+  DBUG_ENTER("debug_sync_claim_memory_ownership");
+  DBUG_ASSERT(thd);
+
+  st_debug_sync_control *ds_control= thd->debug_sync_control;
+
+  if (ds_control != NULL)
+  {
+    if (ds_control->ds_action)
+    {
+      st_debug_sync_action *action= ds_control->ds_action;
+      st_debug_sync_action *action_end= action + ds_control->ds_allocated;
+      for (; action < action_end; action++)
+      {
+        action->signal.mem_claim();
+        action->wait_for.mem_claim();
+        action->sync_point.mem_claim();
+      }
+      my_claim(ds_control->ds_action);
+    }
+
+    my_claim(ds_control);
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 
 /**
   End the debug sync facility at thread end.

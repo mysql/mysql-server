@@ -411,7 +411,7 @@ EXPLAIN SELECT * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
-EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR for unused key. MRR should not be used.
 EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
@@ -423,7 +423,7 @@ EXPLAIN SELECT /*+ MRR(t1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR. MRR should be used.
 EXPLAIN SELECT /*+ MRR(t1 idx2) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 --echo # Turn on MRR for unused key. MRR should not be used.
-EXPLAIN SELECT /*+ MRR(t1 idx1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
+EXPLAIN SELECT /*+ MRR(t1 IDX1) */ * FROM t1 WHERE f2 <= 3 AND 3 <= f3;
 
 DROP TABLE t1;
 
@@ -625,6 +625,15 @@ SELECT /*+
 SELECT
 /*+ ? bad syntax */ 1;
 
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #21095608: OPTIMIZER HINT PARSER DOESN'T ACCEPT NUMBER-PREFIXED
+--echo #                QUERY BLOCK NAMES AFTER @
+--echo #
+
+CREATE TABLE t1 (i INT);
+EXPLAIN SELECT /*+ QB_NAME(1a) BKA(t1@1a) */ 1 FROM t1;
 DROP TABLE t1;
 
 --error ER_PARSE_ERROR

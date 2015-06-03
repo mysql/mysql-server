@@ -3378,13 +3378,22 @@ gid int NOT NULL,
 lid int NOT NULL,
 dt date
 );
+CREATE TABLE t3 (
+id int NOT NULL PRIMARY KEY,
+gid int NOT NULL,
+lid int NOT NULL,
+dt date
+);
 INSERT INTO t2 (id, gid, lid, dt) VALUES
 (1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
 (3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
+INSERT INTO t3 (id, gid, lid, dt) VALUES
+(1, 1, 1, '2007-01-01'),(2, 1, 2, '2007-01-02'),
+(3, 2, 2, '2007-02-01'),(4, 2, 1, '2007-02-02');
 SELECT DISTINCT t2.gid AS lgid,
-(SELECT t1.name FROM t1, t2
-WHERE t1.lid  = t2.lid AND t2.gid = lgid
-ORDER BY t2.dt DESC LIMIT 1
+(SELECT t1.name FROM t1, t3
+WHERE t1.lid  = t3.lid AND t3.gid = t2.gid
+ORDER BY t3.dt DESC LIMIT 1
 ) as clid
 FROM t2;
 lgid	clid
@@ -3392,9 +3401,9 @@ lgid	clid
 2	YES
 CREATE VIEW v1 AS
 SELECT DISTINCT t2.gid AS lgid,
-(SELECT t1.name FROM t1, t2
-WHERE t1.lid  = t2.lid AND t2.gid = lgid
-ORDER BY t2.dt DESC LIMIT 1
+(SELECT t1.name FROM t1, t3
+WHERE t1.lid  = t3.lid AND t3.gid = t2.gid
+ORDER BY t3.dt DESC LIMIT 1
 ) as clid
 FROM t2;
 SELECT * FROM v1;
@@ -3402,7 +3411,7 @@ lgid	clid
 1	NO
 2	YES
 DROP VIEW v1;
-DROP table t1,t2;
+DROP table t1,t2,t3;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 CREATE VIEW v1 AS SELECT a FROM t1 ORDER BY a;
@@ -5859,25 +5868,25 @@ CREATE VIEW v3 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
 CREATE VIEW v4 AS (SELECT 'BUG#14117018' AS col1 FROM DUAL) UNION ALL
 (SELECT '' AS col2 FROM DUAL) UNION ALL
 (SELECT '' FROM DUAL);
-# Name for the column in select1 is set properly with or 
+# Name for the column in select1 is set properly with or
 # without this fix.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select '' AS `Name_exp_1`)	latin1	latin1_swedish_ci
 # Name for the column in select2 is set with this fix.
-# Without this fix, name would not have set for the 
+# Without this fix, name would not have set for the
 # columns in select2.
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`)	latin1	latin1_swedish_ci
 # Name for the field item in select2 & select3 is set with this fix.
-# Without this fix, name would not have set for the 
+# Without this fix, name would not have set for the
 # columns in select2 & select3.
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
 v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`) union all (select '' AS `Name_exp_3`)	latin1	latin1_swedish_ci
 # Name for the field item in select3 is set with this fix.
-# Without this fix, name would not have set for the 
+# Without this fix, name would not have set for the
 # columns in select3.
 SHOW CREATE VIEW v4;
 View	Create View	character_set_client	collation_connection
@@ -5967,8 +5976,12 @@ INSERT INTO vtt(a1,b1) VALUES (1,100);
 INSERT INTO vtt(a2,b2) VALUES (1,100);
 INSERT INTO vtr(a1,b1) VALUES (2,100);
 ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vtrd(a1,b1) VALUES (3,100);
+ERROR HY000: The target table vtrd of the INSERT is not insertable-into
 INSERT INTO vtr(a2,b2) VALUES (2,100);
 ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vtrd(a2,b2) VALUES (3,100);
+ERROR HY000: The target table vtrd of the INSERT is not insertable-into
 INSERT INTO vrt(a1,b1) VALUES (4,100);
 ERROR HY000: The target table vrt of the INSERT is not insertable-into
 INSERT INTO vrtd(a1,b1) VALUES (5,100);
@@ -5994,8 +6007,12 @@ INSERT INTO vtt(a1,b1) SELECT 1,100;
 INSERT INTO vtt(a2,b2) SELECT 1,100;
 INSERT INTO vtr(a1,b1) SELECT 2,100;
 ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vtrd(a1,b1) SELECT 3,100;
+ERROR HY000: The target table vtrd of the INSERT is not insertable-into
 INSERT INTO vtr(a2,b2) SELECT 2,100;
 ERROR HY000: The target table vtr of the INSERT is not insertable-into
+INSERT INTO vtrd(a2,b2) SELECT 3,100;
+ERROR HY000: The target table vtrd of the INSERT is not insertable-into
 INSERT INTO vrt(a1,b1) SELECT 4,100;
 ERROR HY000: The target table vrt of the INSERT is not insertable-into
 INSERT INTO vrtd(a1,b1) SELECT 5,100;
@@ -6028,11 +6045,13 @@ INSERT INTO t2 VALUES
 DELETE FROM vtt WHERE a1=1;
 ERROR HY000: Can not delete from join view 'test.vtt'
 DELETE FROM vtr WHERE a1=2;
-ERROR HY000: The target table vtr of the DELETE is not updatable
+ERROR HY000: Can not delete from join view 'test.vtr'
+DELETE FROM vtrd WHERE a1=3;
+ERROR HY000: Can not delete from join view 'test.vtrd'
 DELETE FROM vrt WHERE a1=4;
-ERROR HY000: The target table vrt of the DELETE is not updatable
+ERROR HY000: Can not delete from join view 'test.vrt'
 DELETE FROM vrtd WHERE a1=5;
-ERROR HY000: The target table vrtd of the DELETE is not updatable
+ERROR HY000: Can not delete from join view 'test.vrtd'
 DELETE FROM vrr WHERE a1=6;
 ERROR HY000: The target table vrr of the DELETE is not updatable
 DELETE FROM vrrd WHERE a1=7;
@@ -6040,11 +6059,13 @@ ERROR HY000: The target table vrrd of the DELETE is not updatable
 DELETE vtt FROM vtt WHERE a1=8;
 ERROR HY000: Can not delete from join view 'test.vtt'
 DELETE vtr FROM vtr WHERE a1=9;
-ERROR HY000: The target table vtr of the DELETE is not updatable
+ERROR HY000: Can not delete from join view 'test.vtr'
+DELETE vtrd FROM vtrd WHERE a1=10;
+ERROR HY000: Can not delete from join view 'test.vtrd'
 DELETE vrt FROM vrt WHERE a1=11;
-ERROR HY000: The target table vrt of the DELETE is not updatable
+ERROR HY000: Can not delete from join view 'test.vrt'
 DELETE vrtd FROM vrtd WHERE a1=12;
-ERROR HY000: The target table vrtd of the DELETE is not updatable
+ERROR HY000: Can not delete from join view 'test.vrtd'
 DELETE vrr FROM vrr WHERE a1=13;
 ERROR HY000: The target table vrr of the DELETE is not updatable
 DELETE vrrd FROM vrrd WHERE a1=14;
@@ -6072,17 +6093,17 @@ INSERT INTO t2 VALUES (1,100);
 UPDATE vtt SET b1=b1+1 WHERE a1=1;
 UPDATE vtt SET b2=b2+1 WHERE a2=1;
 UPDATE vtr SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table vtr of the UPDATE is not updatable
+UPDATE vtrd SET b1=b1+1 WHERE a1=1;
 UPDATE vtr SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table vtr of the UPDATE is not updatable
+ERROR HY000: The target table dt2 of the UPDATE is not updatable
+UPDATE vtrd SET b2=b2+1 WHERE a2=1;
+ERROR HY000: The target table dt2 of the UPDATE is not updatable
 UPDATE vrt SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table vrt of the UPDATE is not updatable
+ERROR HY000: The target table dt1 of the UPDATE is not updatable
 UPDATE vrtd SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table vrtd of the UPDATE is not updatable
+ERROR HY000: The target table dt1 of the UPDATE is not updatable
 UPDATE vrt SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table vrt of the UPDATE is not updatable
 UPDATE vrtd SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table vrtd of the UPDATE is not updatable
 UPDATE vrr SET b1=b1+1 WHERE a1=1;
 ERROR HY000: The target table vrr of the UPDATE is not updatable
 UPDATE vrrd SET b1=b1+1 WHERE a1=1;
@@ -6093,6 +6114,8 @@ UPDATE vrrd SET b2=b2+1 WHERE a2=1;
 ERROR HY000: The target table vrrd of the UPDATE is not updatable
 UPDATE vtt, v0 AS dt SET b1=b1+1 WHERE a1=1;
 UPDATE vtt, v0 SET b2=b2+1 WHERE a2=1;
+UPDATE vtr, v0 SET b1=b1+1 WHERE a1=1;
+UPDATE vtrd, v0 SET b1=b1+1 WHERE a1=1;
 UPDATE vtr, v0 SET b2=b2+1 WHERE a2=1;
 ERROR HY000: The target table dt2 of the UPDATE is not updatable
 UPDATE vtrd, v0 SET b2=b2+1 WHERE a2=1;
@@ -6101,6 +6124,8 @@ UPDATE vrt, v0 SET b1=b1+1 WHERE a1=1;
 ERROR HY000: The target table dt1 of the UPDATE is not updatable
 UPDATE vrtd, v0 SET b1=b1+1 WHERE a1=1;
 ERROR HY000: The target table dt1 of the UPDATE is not updatable
+UPDATE vrt, v0 SET b2=b2+1 WHERE a2=1;
+UPDATE vrtd, v0 SET b2=b2+1 WHERE a2=1;
 UPDATE vrr, v0 SET b1=b1+1 WHERE a1=1;
 ERROR HY000: The target table dt1 of the UPDATE is not updatable
 UPDATE vrrd, v0 SET b1=b1+1 WHERE a1=1;
@@ -6111,7 +6136,7 @@ UPDATE vrrd, v0 SET b2=b2+1 WHERE a2=1;
 ERROR HY000: The target table dt2 of the UPDATE is not updatable
 SELECT * FROM vtt;
 a1	b1	a2	b2
-1	102	1	102
+1	106	1	106
 DROP VIEW v0, vtt, vtr, vrt, vrr, vmat1, vmat2;
 DROP VIEW vtrd, vrtd, vrrd;
 DROP TABLE t0, t1, t2;
@@ -6261,3 +6286,12 @@ update v8l set a='v8l v7n v6c v5n';
 ERROR HY000: CHECK OPTION failed 'test.v8l'
 drop view v1n,v2c,v3l,v4n,v5n,v4l,v5l,v6c,v7n,v8l;
 drop table t1;
+# Bug#20982756 Crash in Table_list::fetch_number_of_rows
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE VIEW v3 AS SELECT 1 FROM t1;
+CREATE VIEW v2 AS SELECT 1 FROM v3 LEFT JOIN t1 ON 1;
+PREPARE s FROM "set @a:=(SELECT 1 FROM t1,v2);";
+EXECUTE s;
+EXECUTE s;
+DROP VIEW  v2,v3;
+DROP TABLE t1;

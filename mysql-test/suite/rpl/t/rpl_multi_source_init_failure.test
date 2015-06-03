@@ -1,5 +1,5 @@
---source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
 #
@@ -12,6 +12,8 @@ call mtr.add_suppression("Error during --relay-log-recovery");
 call mtr.add_suppression("Slave: Failed to initialize the master info structure for channel");
 call mtr.add_suppression("Failed to create or recover replication info repositories");
 call mtr.add_suppression("Recovery from master pos.* and file");
+# The default channel and channel 'ch_a' will connect to the same master
+call mtr.add_suppression("A slave with the same server_uuid as this slave has connected to the master");
 
 --source include/stop_slave.inc
 
@@ -26,7 +28,7 @@ STOP SLAVE FOR CHANNEL 'ch_a';
 
 # --relay-log-recovery is a source of the following mi initialization failure
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay-log-recovery --skip-slave-start=off --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 
 --source include/rpl_connection_slave.inc

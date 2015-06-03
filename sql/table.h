@@ -1834,33 +1834,31 @@ struct TABLE_LIST
   }
 
   /// Return true if table is updatable
-  bool is_updatable() const
-  {
-    return updatable;
-  }
+  bool is_updatable() const { return m_updatable; }
 
   /// Set table as updatable. (per default, a table is non-updatable)
-  void set_updatable()
-  {
-    updatable= true;
-  }
+  void set_updatable() { m_updatable= true; }
+
+  /// Return true if table is insertable-into
+  bool is_insertable() const { return m_insertable; }
+
+  /// Set table as insertable-into. (per default, a table is not insertable)
+  void set_insertable() { m_insertable= true; }
 
   /**
     Return true if this is a view or derived table that is defined over
-    more than one base tables, and false otherwise.
-    Only to be used for updatable tables/views.
-    An updatable view has to be merged (materialization not allowed), so
-    it is safe to call leaf_tables_count().
+    more than one base table, and false otherwise.
   */
   bool is_multiple_tables() const
   {
-    DBUG_ASSERT(is_updatable());
     if (is_view_or_derived())
+    {
+      DBUG_ASSERT(is_merged());         // Cannot be a materialized view
       return leaf_tables_count() > 1;
+    }
     else
     {
-      // A nested_join cannot be an updatable table.
-      DBUG_ASSERT(nested_join == NULL);
+      DBUG_ASSERT(nested_join == NULL); // Must be a base table
       return false;
     }
   }
@@ -2287,6 +2285,12 @@ public:
   LEX_STRING    timestamp;              ///< GMT time stamp of last operation
   st_lex_user   definer;                ///< definer of view
   ulonglong     file_version;           ///< version of file's field set
+  /**
+    @note: This field is currently not reliable when read from dictionary:
+    If an underlying view is changed, updatable_view is not changed,
+    due to lack of dependency checking in dictionary implementation.
+    Prefer to use is_updatable() during preparation and optimization.
+  */
   ulonglong     updatable_view;         ///< VIEW can be updated
   /** 
       @brief The declared algorithm, if this is a view.
@@ -2315,7 +2319,8 @@ public:
   size_t        db_length;
   size_t        table_name_length;
 private:
-  bool          updatable;		/* VIEW/TABLE can be updated now */
+  bool          m_updatable;		/* VIEW/TABLE can be updated */
+  bool          m_insertable;           /* VIEW/TABLE can be inserted into */
 public:
   bool		straight;		/* optimize with prev table */
   bool          updating;               /* for replicate-do/ignore table */

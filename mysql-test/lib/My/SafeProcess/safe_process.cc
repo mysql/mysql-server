@@ -113,7 +113,8 @@ static void wait_pid(void)
   while ((ret_pid = waitpid(child_pid, &status, 0)) < 0) 
   {
     if (errno != EINTR)
-      die("Failure to wait for child %d, errno %d", child_pid, errno);
+      die("Failure to wait for child %d, errno %d",
+          static_cast<int>(child_pid), errno);
   } 
 
   if (ret_pid == child_pid)
@@ -126,22 +127,24 @@ static void wait_pid(void)
       // Print info about the exit_code except for 62 which occurs when 
       // test is skipped
       if (exit_code != 0 && exit_code != 62)
-        print_message("Child process: %d, exit: %d", child_pid, exit_code);
+        print_message("Child process: %d, exit: %d",
+                      static_cast<int>(child_pid), exit_code);
       else  
-        message("Child process: %d, exit %d", child_pid, exit_code);
+        message("Child process: %d, exit %d",
+                static_cast<int>(child_pid), exit_code);
       // Exit with exit status of the child
       exit(exit_code);
     }
 
     if (WIFSIGNALED(status))
       print_message("Child process: %d, killed by signal: %d",
-                    child_pid, WTERMSIG(status));
+                    static_cast<int>(child_pid), WTERMSIG(status));
 
     exit(exit_code);
   }
   else
   {
-    print_message("The waitpid returned: %d", ret_pid);
+    print_message("The waitpid returned: %d", static_cast<int>(ret_pid));
     exit(1);
   }
   return;
@@ -149,7 +152,7 @@ static void wait_pid(void)
 
 static void abort_child(void)
 {
-  message("Aborting child: %d", child_pid);
+  message("Aborting child: %d", static_cast<int>(child_pid));
   kill (-child_pid, SIGABRT);
   wait_pid();
 }
@@ -157,7 +160,7 @@ static void abort_child(void)
 static void kill_child(void)
 {
   // Terminate whole process group
-  message("Killing child: %d", child_pid);
+  message("Killing child: %d", static_cast<int>(child_pid));
   kill(-child_pid, SIGKILL);
   wait_pid();
 }
@@ -166,14 +169,14 @@ extern "C" void handle_abort(int sig)
 {
   aborted= sig;
   print_message("Child process: %d, aborted by signal: %d",
-                child_pid, sig);
+                static_cast<int>(child_pid), sig);
 }
 
 
 extern "C" void handle_signal(int sig)
 {
   terminated= sig;
-  message("Got SIGCHLD from process: %d", child_pid);
+  message("Got SIGCHLD from process: %d", static_cast<int>(child_pid));
 }
 
 
@@ -243,7 +246,7 @@ int main(int argc, char* const argv[] )
   if (!child_argv || *child_argv == 0)
     die("nothing to do");
 
-  message("parent_pid: %d", parent_pid);
+  message("parent_pid: %d", static_cast<int>(parent_pid));
 
   if (parent_pid == own_pid)
     die("parent_pid is equal to own pid!");
@@ -309,14 +312,15 @@ int main(int argc, char* const argv[] )
   close(pfd[0]); // Close read end
 
   /* Monitor loop */
-  message("Started child: %d", child_pid);
+  message("Started child: %d", static_cast<int>(child_pid));
 
   while(1)
   {
     // Check if parent is still alive
     if (kill(parent_pid, 0) != 0)
     {
-      print_message("Parent is not alive anymore, parent pid %d:", parent_pid);
+      print_message("Parent is not alive anymore, parent pid %d:",
+                    static_cast<int>(parent_pid));
       kill_child();
     }
 
@@ -327,7 +331,7 @@ int main(int argc, char* const argv[] )
     if(aborted)
     {
       message("Got signal: %d, child_pid: %d",
-              static_cast<int>(terminated), child_pid);
+              static_cast<int>(terminated), static_cast<int>(child_pid));
       abort_child();
     }
     sleep(1);
