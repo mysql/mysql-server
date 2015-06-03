@@ -20,6 +20,7 @@
 #include "mysqld_error.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/service_my_snprintf.h"
 
 using namespace std;
 
