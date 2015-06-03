@@ -76,6 +76,7 @@ usr/lib/mysql/plugin/debug/rewriter.so
 usr/lib/mysql/plugin/debug/semisync_master.so
 usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/validate_password.so
+usr/lib/mysql/plugin/debug/version_token.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/magic
