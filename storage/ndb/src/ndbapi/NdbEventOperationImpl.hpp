@@ -500,11 +500,12 @@ private:
 
 class EventBufferManager {
 public:
-  EventBufferManager();
+  EventBufferManager(const Ndb* const m_ndb);
   ~EventBufferManager() {};
 
 private:
 
+  const Ndb* const m_ndb;
   /* Last epoch that will be buffered completely before
    * the beginning of a gap.
    */
@@ -760,6 +761,8 @@ public:
   Uint64 m_highest_sub_gcp_complete_GCI; // highest gci seen in api
   // "latest gci" variables updated in user thread
   Uint64 m_latest_poll_GCI; // latest gci handed over to user thread
+
+  bool m_failure_detected; // marker that event operations have failure events
 
   bool m_startup_hack;
   bool m_prevent_nodegroup_change;

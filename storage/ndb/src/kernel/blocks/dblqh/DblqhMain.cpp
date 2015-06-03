@@ -6357,25 +6357,6 @@ void Dblqh::handleUserUnlockRequest(Signal* signal)
   return;
 }
 
-void Dblqh::execLQH_ALLOCREQ(Signal* signal)
-{
-  TcConnectionrecPtr regTcPtr;  
-  FragrecordPtr regFragptr;
-
-  jamEntry();
-  regTcPtr.i = signal->theData[0];
-  ptrCheckGuard(regTcPtr, ctcConnectrecFileSize, tcConnectionrec);
-
-  regFragptr.i = regTcPtr.p->fragmentptr;
-  c_fragment_pool.getPtr(regFragptr);
-
-  Uint32 tup = refToMain(regTcPtr.p->tcTupBlockref);
-  signal->theData[0] = regTcPtr.p->tupConnectrec;
-  signal->theData[1] = regFragptr.p->tupFragptr;
-  signal->theData[2] = regTcPtr.p->tableref;
-  EXECUTE_DIRECT(tup, GSN_TUP_ALLOCREQ, signal, 3);
-}//Dblqh::execTUP_ALLOCREQ()
-
 void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
 {
   TcConnectionrecPtr regTcPtr;  
@@ -6420,7 +6401,7 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
     ndbrequire(regTcPtr.p->m_dealloc == 0);
     regTcPtr.p->m_dealloc = 1;
   }
-}//Dblqh::execTUP_ALLOCREQ()
+}//Dblqh::execTUP_DEALLOCREQ()
 
 /* ************>> */
 /*  ACCKEYCONF  > */
@@ -10288,6 +10269,15 @@ void Dblqh::execACC_SCANREF(Signal* signal)
   }
   tupScanCloseConfLab(signal);
 }//Dblqh::execACC_SCANREF()
+
+Uint32
+Dblqh::get_scan_api_op_ptr(Uint32 scan_api_ptr_i)
+{
+  ScanRecordPtr scanPtr;
+  scanPtr.i = scan_api_ptr_i;
+  c_scanRecordPool.getPtr(scanPtr);
+  return scanPtr.p->scanApiOpPtr;
+}
 
 /* ***************>> */
 /*  NEXT_SCANCONF  > */
@@ -14743,7 +14733,7 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
      * receives this signal it will update the counter and then drop the
      * signal. So no signal will be sent to DBDIH in any case.
      */
-    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal, 1, JBB);
+    sendSignal(DBLQH_REF, GSN_LCP_FRAG_REP, signal, 1, JBA);
     return;
   }
 
@@ -14944,7 +14934,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
     if(ERROR_INSERTED(5904))
     {
     g_trace_lcp.sendSignal(BACKUP_REF, GSN_BACKUP_FRAGMENT_REQ, signal, 
-			   BackupFragmentReq::SignalLength, JBB);
+			   BackupFragmentReq::SignalLength, JBA);
     }
     else
 #endif
@@ -14970,7 +14960,7 @@ void Dblqh::execLCP_PREPARE_CONF(Signal* signal)
       {
         BlockReference backupRef = calcInstanceBlockRef(BACKUP);
 	sendSignal(backupRef, GSN_BACKUP_FRAGMENT_REQ, signal, 
-		   BackupFragmentReq::SignalLength, JBB);
+		   BackupFragmentReq::SignalLength, JBA);
       }
     }
   }
@@ -15073,7 +15063,7 @@ Dblqh::sendLCP_FRAG_REP(Signal * signal,
   }
   lcpReport->nodeId = LcpFragRep::BROADCAST_REQ;
   sendSignal(ref, GSN_LCP_FRAG_REP, signal,
-             LcpFragRep::SignalLength, JBB);
+             LcpFragRep::SignalLength, JBA);
 }
 
 void Dblqh::contChkpNextFragLab(Signal* signal) 
@@ -15170,7 +15160,7 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   req->backupId = lcpPtr.p->currentFragment.lcpFragOrd.lcpId;
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   sendSignal(backupRef, GSN_LCP_PREPARE_REQ, signal, 
-	     LcpPrepareReq::SignalLength, JBB);
+	     LcpPrepareReq::SignalLength, JBA);
 
   /* Now start the LCP fragment watchdog */
   startLcpFragWatchdog(signal);
@@ -15233,21 +15223,21 @@ void Dblqh::completeLcpRoundLab(Signal* signal, Uint32 lcpId)
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
 
   lcpPtr.p->m_outstanding++;
-  sendSignal(backupRef, GSN_END_LCP_REQ, signal, 
-	     EndLcpReq::SignalLength, JBB);
+  sendSignal(backupRef, GSN_END_LCPREQ, signal, 
+	     EndLcpReq::SignalLength, JBA);
 
   if (!isNdbMtLqh())
   {
     jam();
     lcpPtr.p->m_outstanding++;
-    sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
-               EndLcpReq::SignalLength, JBB);
+    sendSignal(PGMAN_REF, GSN_END_LCPREQ, signal, 
+               EndLcpReq::SignalLength, JBA);
 
     lcpPtr.p->m_outstanding++;
-    sendSignal(LGMAN_REF, GSN_END_LCP_REQ, signal, 
-               EndLcpReq::SignalLength, JBB);
+    sendSignal(LGMAN_REF, GSN_END_LCPREQ, signal, 
+               EndLcpReq::SignalLength, JBA);
 
-    EXECUTE_DIRECT(TSMAN, GSN_END_LCP_REQ,
+    EXECUTE_DIRECT(TSMAN, GSN_END_LCPREQ,
                    signal, EndLcpReq::SignalLength, 0);
   }
   else
@@ -15315,7 +15305,7 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   rep->nodeId = LcpFragRep::BROADCAST_REQ;
 
   sendSignal(ref, GSN_LCP_COMPLETE_REP, signal,
-             LcpCompleteRep::SignalLength, JBB);
+             LcpCompleteRep::SignalLength, JBA);
   
   if(lcpPtr.p->reportEmpty){
     jam();
@@ -25711,6 +25701,7 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
     ndbout_c("  Lcp done rows %llu, done bytes %llu",
              (((Uint64)conf->lcpDoneRowsHi) << 32) + conf->lcpDoneRowsLo,
              (((Uint64)conf->lcpDoneBytesHi) << 32) + conf->lcpDoneBytesLo);
+    ndbout_c(" Lcp scanned %u pages", conf->lcpScannedPages);
   }
   
   /* We can ignore the LCP status as if it's complete then we should
@@ -25720,7 +25711,8 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
                                        conf->tableId,
                                        conf->fragId,
                                        (((Uint64)conf->completionStateHi) << 32) + 
-                                       conf->completionStateLo);
+                                       conf->completionStateLo,
+                                       conf->lcpScannedPages);
 }
 
 void
@@ -25744,6 +25736,7 @@ Dblqh::LCPFragWatchdog::reset()
   tableId = ~Uint32(0);
   fragId = ~Uint32(0);
   completionStatus = ~Uint64(0);
+  lcpScannedPages = 0;
   elapsedNoProgressMillis = 0;
   NdbTick_Invalidate(&lastChecked);
 }
@@ -25752,7 +25745,8 @@ void
 Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
                                            Uint32 repTableId,
                                            Uint32 repFragId,
-                                           Uint64 repCompletionStatus)
+                                           Uint64 repCompletionStatus,
+                                           Uint32 repLcpScannedPages)
 {
   jamBlock(block);
   if (scan_running)
@@ -25761,7 +25755,8 @@ Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
     if ((repCompletionStatus != completionStatus) ||
         (repFragId != fragId) ||
         (repTableId != tableId) ||
-        (repLcpState != lcpState))
+        (repLcpState != lcpState) ||
+        (repLcpScannedPages != lcpScannedPages))
     {
       jamBlock(block);
       /* Something moved since last time, reset
@@ -25773,6 +25768,7 @@ Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
       tableId = repTableId;
       fragId = repFragId;
       completionStatus = repCompletionStatus;
+      lcpScannedPages = repLcpScannedPages;
     }
   }
 }

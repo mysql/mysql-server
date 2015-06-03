@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,27 +57,27 @@ protected:
   void execLCP_FRAG_ORD(Signal*);
   void sendLCP_FRAG_ORD(Signal*, Uint32 ssId, SectionHandle*);
 
-  // GSN_END_LCP_REQ
-  struct Ss_END_LCP_REQ : SsParallel {
+  // GSN_END_LCPREQ
+  struct Ss_END_LCPREQ : SsParallel {
     /*
      * Sent once from LQH proxy (at LCP) and LGMAN (at SR).
      * Each pgman instance runs LCP before we send a CONF.
      */
-    static const char* name() { return "END_LCP_REQ"; }
+    static const char* name() { return "END_LCPREQ"; }
     EndLcpReq m_req;
     bool m_extraLast;
-    Ss_END_LCP_REQ() {
-      m_sendREQ = (SsFUNCREQ)&PgmanProxy::sendEND_LCP_REQ;
-      m_sendCONF = (SsFUNCREP)&PgmanProxy::sendEND_LCP_CONF;
+    Ss_END_LCPREQ() {
+      m_sendREQ = (SsFUNCREQ)&PgmanProxy::sendEND_LCPREQ;
+      m_sendCONF = (SsFUNCREP)&PgmanProxy::sendEND_LCPCONF;
       // extra worker (for extent pages) must run after others
       m_extraLast = false;
     }
     enum { poolSize = 1 };
-    static SsPool<Ss_END_LCP_REQ>& pool(LocalProxy* proxy) {
-      return ((PgmanProxy*)proxy)->c_ss_END_LCP_REQ;
+    static SsPool<Ss_END_LCPREQ>& pool(LocalProxy* proxy) {
+      return ((PgmanProxy*)proxy)->c_ss_END_LCPREQ;
     }
   };
-  SsPool<Ss_END_LCP_REQ> c_ss_END_LCP_REQ;
+  SsPool<Ss_END_LCPREQ> c_ss_END_LCPREQ;
   static Uint32 getSsId(const EndLcpReq* req) {
     return SsIdBase | (req->backupId & 0xFFFF);
   }
@@ -87,10 +87,10 @@ protected:
   static Uint32 getSsId(const ReleasePagesConf* conf) {
     return conf->senderData;
   }
-  void execEND_LCP_REQ(Signal*);
-  void sendEND_LCP_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execEND_LCP_CONF(Signal*);
-  void sendEND_LCP_CONF(Signal*, Uint32 ssId);
+  void execEND_LCPREQ(Signal*);
+  void sendEND_LCPREQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execEND_LCPCONF(Signal*);
+  void sendEND_LCPCONF(Signal*, Uint32 ssId);
   void execRELEASE_PAGES_CONF(Signal*);
 
   // client methods

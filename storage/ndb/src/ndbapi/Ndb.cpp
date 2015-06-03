@@ -2166,6 +2166,12 @@ Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
   return theEventBuffer->pollEvents2(aMillisecondNumber, highestQueuedEpoch);
 }
 
+bool
+Ndb::isExpectingHigherQueuedEpochs()
+{
+  return !theEventBuffer->m_failure_detected;
+}
+
 void
 Ndb::printOverflowErrorAndExit()
 {
@@ -2205,6 +2211,10 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
     const Uint32 pollTimeout = (remaining > waitSlot) ? waitSlot :
       remaining;
     const int res = pollEvents2((int)pollTimeout, latestGCI);
+
+    if ((latestGCI) && (isExpectingHigherQueuedEpochs() == false))
+      *latestGCI= NDB_FAILURE_GCI;
+
     if (res < 0)
     {
       return res;

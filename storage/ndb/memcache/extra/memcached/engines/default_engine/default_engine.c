@@ -1,4 +1,3 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #include "config.h"
 
@@ -138,8 +137,8 @@ static bool handled_vbucket(struct default_engine *e, uint16_t vbid) {
 static bool get_item_info(ENGINE_HANDLE *handle, const void *cookie,
                           const item* item, item_info *item_info);
 
-static const char * vbucket_state_name(vbucket_state_t s) {
-    static const char * const vbucket_states[] = {
+static const char const * vbucket_state_name(vbucket_state_t s) {
+    static const char const * vbucket_states[] = {
         [vbucket_state_active] = "active",
         [vbucket_state_replica] = "replica",
         [vbucket_state_pending] = "pending",
@@ -155,8 +154,16 @@ static const char * vbucket_state_name(vbucket_state_t s) {
 ENGINE_ERROR_CODE create_instance(uint64_t interface,
                                   GET_SERVER_API get_server_api,
                                   ENGINE_HANDLE **handle) {
-   struct default_engine *engine;
    SERVER_HANDLE_V1 *api = get_server_api();
+   if (interface != 1 || api == NULL) {
+      return ENGINE_ENOTSUP;
+   }
+
+   struct default_engine *engine = malloc(sizeof(*engine));
+   if (engine == NULL) {
+      return ENGINE_ENOMEM;
+   }
+
    struct default_engine default_engine = {
       .engine = {
          .interface = {
@@ -211,17 +218,7 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
          .lock = PTHREAD_MUTEX_INITIALIZER,
          .size = 10,
       }
-   };
-
-   if (interface != 1 || api == NULL) {
-      return ENGINE_ENOTSUP;
-   }
-
-   engine = malloc(sizeof(*engine));
-   if (engine == NULL) {
-      return ENGINE_ENOMEM;
-   }
-
+  };
   default_engine.info.engine_info.description = "Default engine v0.1";
   default_engine.info.engine_info.num_features = 1;
   default_engine.info.engine_info.features[0].feature = ENGINE_FEATURE_LRU;
@@ -279,8 +276,8 @@ static ENGINE_ERROR_CODE default_initialize(ENGINE_HANDLE* handle,
 }
 
 static void default_destroy(ENGINE_HANDLE* handle, const bool force) {
-   struct default_engine* se = get_handle(handle);
    (void) force;
+   struct default_engine* se = get_handle(handle);
 
    if (se->initialized) {
       pthread_mutex_destroy(&se->cache_lock);
@@ -302,17 +299,15 @@ static ENGINE_ERROR_CODE default_item_allocate(ENGINE_HANDLE* handle,
                                                const rel_time_t exptime) {
    struct default_engine* engine = get_handle(handle);
    size_t ntotal = sizeof(hash_item) + nkey + nbytes;
-   unsigned int id;
-   hash_item *it;
-
    if (engine->config.use_cas) {
       ntotal += sizeof(uint64_t);
    }
-   id = slabs_clsid(engine, ntotal);
+   unsigned int id = slabs_clsid(engine, ntotal);
    if (id == 0) {
       return ENGINE_E2BIG;
    }
 
+   hash_item *it;
    it = item_alloc(engine, key, nkey, flags, engine->server.core->realtime(exptime),
                    nbytes, cookie);
 
@@ -332,11 +327,9 @@ static ENGINE_ERROR_CODE default_item_delete(ENGINE_HANDLE* handle,
                                              uint16_t vbucket)
 {
    struct default_engine* engine = get_handle(handle);
-   hash_item *it;
    VBUCKET_GUARD(engine, vbucket);
-   (void)(cookie);
 
-   it = item_get(engine, key, nkey);
+   hash_item *it = item_get(engine, key, nkey);
    if (it == NULL) {
       return ENGINE_KEY_ENOENT;
    }
@@ -354,7 +347,6 @@ static ENGINE_ERROR_CODE default_item_delete(ENGINE_HANDLE* handle,
 static void default_item_release(ENGINE_HANDLE* handle,
                                  const void *cookie,
                                  item* item) {
-   (void)(cookie);
    item_release(get_handle(handle), get_real_item(item));
 }
 
@@ -366,7 +358,6 @@ static ENGINE_ERROR_CODE default_get(ENGINE_HANDLE* handle,
                                      uint16_t vbucket) {
    struct default_engine *engine = get_handle(handle);
    VBUCKET_GUARD(engine, vbucket);
-   (void)(cookie);
 
    *item = item_get(engine, key, nkey);
    if (*item != NULL) {
@@ -382,10 +373,9 @@ static void stats_vbucket(struct default_engine *e,
     for (int i = 0; i < NUM_VBUCKETS; i++) {
         vbucket_state_t state = get_vbucket_state(e, i);
         if (state != vbucket_state_dead) {
-            const char * state_name;
             char buf[16];
             snprintf(buf, sizeof(buf), "vb_%d", i);
-            state_name = vbucket_state_name(state);
+            const char * state_name = vbucket_state_name(state);
             add_stat(buf, strlen(buf), state_name, strlen(state_name), cookie);
         }
     }
@@ -400,7 +390,6 @@ static ENGINE_ERROR_CODE default_get_stats(ENGINE_HANDLE* handle,
    struct default_engine* engine = get_handle(handle);
    ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
 
-   (void)(nkey);
    if (stat_key == NULL) {
       char val[128];
       int len;
@@ -492,7 +481,6 @@ static ENGINE_ERROR_CODE default_arithmetic(ENGINE_HANDLE* handle,
 
 static ENGINE_ERROR_CODE default_flush(ENGINE_HANDLE* handle,
                                        const void* cookie, time_t when) {
-   (void)(cookie);
    item_flush_expired(get_handle(handle), when);
 
    return ENGINE_SUCCESS;
@@ -500,7 +488,6 @@ static ENGINE_ERROR_CODE default_flush(ENGINE_HANDLE* handle,
 
 static void default_reset_stats(ENGINE_HANDLE* handle, const void *cookie) {
    struct default_engine *engine = get_handle(handle);
-   (void)(cookie);
    item_stats_reset(engine);
 
    pthread_mutex_lock(&engine->stats.lock);
@@ -567,7 +554,6 @@ static bool set_vbucket(struct default_engine *e,
                         const void* cookie,
                         protocol_binary_request_set_vbucket *req,
                         ADD_RESPONSE response) {
-    vbucket_state_t state;
     size_t bodylen = ntohl(req->message.header.request.bodylen)
         - ntohs(req->message.header.request.keylen);
     if (bodylen != sizeof(vbucket_state_t)) {
@@ -576,6 +562,7 @@ static bool set_vbucket(struct default_engine *e,
                         PROTOCOL_BINARY_RAW_BYTES,
                         PROTOCOL_BINARY_RESPONSE_EINVAL, 0, cookie);
     }
+    vbucket_state_t state;
     memcpy(&state, &req->message.body.state, sizeof(state));
     state = ntohl(state);
 
@@ -620,7 +607,6 @@ static bool scrub_cmd(struct default_engine *e,
                       ADD_RESPONSE response) {
 
     protocol_binary_response_status res = PROTOCOL_BINARY_RESPONSE_SUCCESS;
-    (void)(request);
     if (!item_start_scrub(e)) {
         res = PROTOCOL_BINARY_RESPONSE_EBUSY;
     }
@@ -632,18 +618,18 @@ static bool scrub_cmd(struct default_engine *e,
 static bool touch(struct default_engine *e, const void *cookie,
                   protocol_binary_request_header *request,
                   ADD_RESPONSE response) {
-    protocol_binary_request_touch *t = (void*)request;
-    void *key = t->bytes + sizeof(t->bytes);
-    uint32_t exptime = ntohl(t->message.body.expiration);
-    uint16_t nkey = ntohs(request->request.keylen);
-    hash_item *item;
-
     if (request->request.extlen != 4 || request->request.keylen == 0) {
         return response(NULL, 0, NULL, 0, NULL, 0, PROTOCOL_BINARY_RAW_BYTES,
                         PROTOCOL_BINARY_RESPONSE_EINVAL, 0, cookie);
     }
 
-    item = touch_item(e, key, nkey, e->server.core->realtime(exptime));
+    protocol_binary_request_touch *t = (void*)request;
+    void *key = t->bytes + sizeof(t->bytes);
+    uint32_t exptime = ntohl(t->message.body.expiration);
+    uint16_t nkey = ntohs(request->request.keylen);
+
+    hash_item *item = touch_item(e, key, nkey,
+                                 e->server.core->realtime(exptime));
     if (item == NULL) {
         if (request->request.opcode == PROTOCOL_BINARY_CMD_GATQ) {
             return true;
@@ -723,8 +709,6 @@ void item_set_cas(ENGINE_HANDLE *handle, const void *cookie,
     if (it->iflag & ITEM_WITH_CAS) {
         *(uint64_t*)(it + 1) = val;
     }
-    (void)(handle);
-    (void)(cookie);
 }
 
 const void* item_get_key(const hash_item* item)
@@ -744,7 +728,6 @@ char* item_get_data(const hash_item* item)
 
 uint8_t item_get_clsid(const hash_item* item)
 {
-    (void)(item);
     return 0;
 }
 
@@ -752,8 +735,6 @@ static bool get_item_info(ENGINE_HANDLE *handle, const void *cookie,
                           const item* item, item_info *item_info)
 {
     hash_item* it = (hash_item*)item;
-    (void)(handle);
-    (void)(cookie);
     if (item_info->nvalue < 1) {
         return false;
     }
@@ -790,10 +771,6 @@ static ENGINE_ERROR_CODE default_tap_notify(ENGINE_HANDLE* handle,
     vbucket_state_t state;
     item *it;
     ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
-
-    (void)(tap_seqno);
-    (void)(ttl);
-    (void)(tap_flags);
 
     switch (tap_event) {
     case TAP_ACK:
@@ -864,19 +841,14 @@ static TAP_ITERATOR default_get_tap_iterator(ENGINE_HANDLE* handle,
                                              uint32_t flags,
                                              const void* userdata,
                                              size_t nuserdata) {
-    unsigned int ii;
     struct default_engine* engine = get_handle(handle);
-
-    (void)(userdata);
-    (void)(nuserdata);
-    (void)(client);
-    (void)(nclient);
 
     if ((flags & TAP_CONNECT_FLAG_TAKEOVER_VBUCKETS)) { /* Not supported */
         return NULL;
     }
 
     pthread_mutex_lock(&engine->tap_connections.lock);
+    int ii;
     for (ii = 0; ii < engine->tap_connections.size; ++ii) {
         if (engine->tap_connections.clients[ii] == NULL) {
             engine->tap_connections.clients[ii] = cookie;
@@ -904,13 +876,9 @@ static void default_handle_disconnect(const void *cookie,
                                       ENGINE_EVENT_TYPE type,
                                       const void *event_data,
                                       const void *cb_data) {
-    unsigned int ii;
     struct default_engine *engine = (struct default_engine*)cb_data;
     pthread_mutex_lock(&engine->tap_connections.lock);
-
-    (void)(type);
-    (void)(event_data);
-
+    int ii;
     for (ii = 0; ii < engine->tap_connections.size; ++ii) {
         if (engine->tap_connections.clients[ii] == cookie) {
             free(engine->server.cookie->get_engine_specific(cookie));

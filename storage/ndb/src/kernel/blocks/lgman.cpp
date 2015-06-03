@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -98,11 +98,11 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_FSREADCONF, &Lgman::execFSREADCONF);
 
   addRecSignal(GSN_LCP_FRAG_ORD, &Lgman::execLCP_FRAG_ORD);
-  addRecSignal(GSN_END_LCP_REQ, &Lgman::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCPREQ, &Lgman::execEND_LCPREQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Lgman::execSUB_GCP_COMPLETE_REP);
   addRecSignal(GSN_START_RECREQ, &Lgman::execSTART_RECREQ);
   
-  addRecSignal(GSN_END_LCP_CONF, &Lgman::execEND_LCP_CONF);
+  addRecSignal(GSN_END_LCPCONF, &Lgman::execEND_LCPCONF);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
   addRecSignal(GSN_CALLBACK_ACK, &Lgman::execCALLBACK_ACK);
@@ -863,10 +863,7 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       break;
     }
 
-    if (!handle.m_cnt == 1)
-    {
-      ndbrequire(false);
-    }
+    ndbrequire(handle.m_cnt > 0);
     
     if (ERROR_INSERTED(15000) ||
         (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
@@ -2386,7 +2383,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
 }
 
 void
-Lgman::execEND_LCP_REQ(Signal* signal)
+Lgman::execEND_LCPREQ(Signal* signal)
 {
   jamEntry();
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
@@ -2407,7 +2404,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
       if(signal->getSendersBlockRef() != reference())
       {
         jam();
-        D("Logfile_client - execEND_LCP_REQ");
+        D("Logfile_client - execEND_LCPREQ");
 	Logfile_client tmp(this, this, ptr.p->m_logfile_group_id);
 	Logfile_client::Request req;
 	req.m_callback.m_callbackData = ptr.i;
@@ -2432,7 +2429,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
   EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = m_end_lcp_senderdata;
   conf->senderRef = reference();
-  sendSignal(DBLQH_REF, GSN_END_LCP_CONF,
+  sendSignal(DBLQH_REF, GSN_END_LCPCONF,
              signal, EndLcpConf::SignalLength, JBB);
 }
 
@@ -2442,7 +2439,7 @@ Lgman::endlcp_callback(Signal* signal, Uint32 ptr, Uint32 res)
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->backupId = m_latest_lcp;
   req->senderData = m_end_lcp_senderdata;
-  execEND_LCP_REQ(signal);
+  execEND_LCPREQ(signal);
 }
 
 void
@@ -3772,12 +3769,12 @@ Lgman::stop_run_undo_log(Signal* signal)
   req->senderData = 0;
   req->senderRef = reference();
   req->backupId = m_latest_lcp;
-  sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
+  sendSignal(PGMAN_REF, GSN_END_LCPREQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 }
 
 void
-Lgman::execEND_LCP_CONF(Signal* signal)
+Lgman::execEND_LCPCONF(Signal* signal)
 {
   {
     Dbtup_client tup(this, m_tup);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -345,8 +345,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_UPDATE_TOCONF,          "UPDATE_TOCONF" }
   ,{ GSN_UPDATE_TOREF,           "UPDATE_TOREF" }
   ,{ GSN_UPDATE_TOREQ,           "UPDATE_TOREQ" }
-  ,{ GSN_TUP_ALLOCREQ,           "TUP_ALLOCREQ" }
-  ,{ GSN_LQH_ALLOCREQ,           "LQH_ALLOCREQ" }
   ,{ GSN_TUP_DEALLOCREQ,         "TUP_DEALLOCREQ" }
   ,{ GSN_TUP_WRITELOG_REQ,       "TUP_WRITELOG_REQ" }
   ,{ GSN_LQH_WRITELOG_REQ,       "LQH_WRITELOG_REQ" }

@@ -336,10 +336,16 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
 
   shadow_table->in_use= injector_thd;
   
-  shadow_table->s->db.str= share->db;
-  shadow_table->s->db.length= strlen(share->db);
-  shadow_table->s->table_name.str= share->table_name;
-  shadow_table->s->table_name.length= strlen(share->table_name);
+
+  // Allocate strings for db and table_name for shadow_table
+  // in event_data's MEM_ROOT(where the shadow_table itself is allocated)
+  lex_string_copy(&event_data->mem_root,
+                  &shadow_table->s->db,
+                  share->db);
+  lex_string_copy(&event_data->mem_root,
+                  &shadow_table->s->table_name,
+                  share->table_name);
+
   /* We can't use 'use_all_columns()' as the file object is not setup yet */
   shadow_table->column_bitmaps_set_no_signal(&shadow_table->s->all_set,
                                              &shadow_table->s->all_set);
@@ -1690,7 +1696,13 @@ int ndbcluster_log_schema_op(THD *thd,
     /* drop database command, do not log at drop table */
     if (thd->lex->sql_command ==  SQLCOM_DROP_DB)
       DBUG_RETURN(0);
-    /* redo the drop table query as is may contain several tables */
+    /*
+      Rewrite the drop table query as it may contain several tables
+      but drop_table() is called once for each table in the query
+      ie. DROP TABLE t1, t2;
+          -> DROP TABLE t1 + DROP TABLE t2
+    */
+
     query= tmp_buf2;
     id_length= my_strmov_quoted_identifier (thd, (char *) quoted_table1,
                                             table_name, 0);
@@ -1706,7 +1718,12 @@ int ndbcluster_log_schema_op(THD *thd,
     type_str= "rename table prepare";
     break;
   case SOT_RENAME_TABLE:
-    /* redo the rename table query as is may contain several tables */
+    /*
+      Rewrite the rename table query as it may contain several tables
+      but rename_table() is called once for each table in the query
+      ie. RENAME TABLE t1 to tx, t2 to ty;
+          -> RENAME TABLE t1 to tx + RENAME TABLE t2 to ty
+    */
     query= tmp_buf2;
     id_length= my_strmov_quoted_identifier (thd, (char *) quoted_db1,
                                             db, 0);
@@ -2087,9 +2104,6 @@ end:
   DBUG_RETURN(0);
 }
 
-/*
-  Handle _non_ data events from the storage nodes
-*/
 
 static
 int
@@ -2097,18 +2111,17 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                          const Ndb_event_data *event_data)
 {
   DBUG_ENTER("ndb_handle_schema_change");
+  DBUG_PRINT("enter", ("pOp: %p", pOp));
 
-  if (pOp->getEventType() == NDBEVENT::TE_ALTER)
-  {
-    DBUG_PRINT("exit", ("Event type is TE_ALTER"));
-    DBUG_RETURN(0);
-  }
-
-  DBUG_ASSERT(event_data);
+  // Only called for TE_DROP and TE_CLUSTER_FAILURE event
   DBUG_ASSERT(pOp->getEventType() == NDBEVENT::TE_DROP ||
               pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
 
+  DBUG_ASSERT(event_data);
+
   NDB_SHARE *share= event_data->share;
+  dbug_print_share("changed share: ", share);
+
   TABLE *shadow_table= event_data->shadow_table;
   const char *tabname= shadow_table->s->table_name.str;
   const char *dbname= shadow_table->s->db.str;
@@ -2178,7 +2191,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   delete event_data;
   pOp->setCustomData(NULL);
 
-  DBUG_PRINT("info", ("Dropping event operation"));
+  DBUG_PRINT("info", ("Dropping event operation: %p", pOp));
   native_mutex_lock(&injector_mutex);
   is_ndb->dropEventOperation(pOp);
   native_mutex_unlock(&injector_mutex);
@@ -3347,6 +3360,11 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Rename on participant is always from real to
+    // real name(i.e neiher old or new name should be a temporary name)
+    DBUG_ASSERT(!IS_TMP_PREFIX(schema->name));
+    DBUG_ASSERT(!IS_TMP_PREFIX(NDB_SHARE::key_get_table_name(prepared_key)));
+
     // Rename the local table
     from.rename_table(NDB_SHARE::key_get_db_name(prepared_key),
                       NDB_SHARE::key_get_table_name(prepared_key));
@@ -3801,10 +3819,12 @@ public:
       native_mutex_unlock(&ndb_schema_share_mutex);
 
       ndb_tdc_close_cached_tables();
-      // fall through
+
+      ndb_handle_schema_change(m_thd, s_ndb, pOp, event_data);
+      break;
+
     case NDBEVENT::TE_ALTER:
       /* ndb_schema table ALTERed */
-      ndb_handle_schema_change(m_thd, s_ndb, pOp, event_data);
       break;
 
     case NDBEVENT::TE_NODE_FAILURE:
@@ -4661,9 +4681,14 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                         int push_warning)
 {
   DBUG_ENTER("ndbcluster_create_event");
-  DBUG_PRINT("info", ("table=%s version=%d event=%s share=%s",
-                      ndbtab->getName(), ndbtab->getObjectVersion(),
-                      event_name, share ? share->key_string() : "(nil)"));
+  DBUG_PRINT("enter", ("table: '%s', version: %d",
+                      ndbtab->getName(), ndbtab->getObjectVersion()));
+  DBUG_PRINT("enter", ("event: '%s', share->key: '%s'",
+                       event_name, share->key_string()));
+
+  // Never create event on table with temporary name
+  DBUG_ASSERT(! IS_TMP_PREFIX(ndbtab->getName()));
+  // Never create event on the blob table(s)
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(ndbtab->getName()));
   DBUG_ASSERT(share);
 
@@ -4809,16 +4834,11 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                       dict->getNdbError().message);
       DBUG_RETURN(-1);
     }
-#ifdef NDB_BINLOG_EXTRA_WARNINGS
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG, ER_THD(thd, ER_GET_ERRMSG),
-                        0, "NDB Binlog: Removed trailing event",
-                        "NDB");
-#endif
   }
 
   DBUG_RETURN(0);
 }
+
 
 inline int is_ndb_compatible_type(Field *field)
 {
@@ -4845,7 +4865,12 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   */
 
   DBUG_ENTER("ndbcluster_create_event_ops");
-  DBUG_PRINT("enter", ("table: %s event: %s", ndbtab->getName(), event_name));
+  DBUG_PRINT("enter", ("table: '%s' event: '%s', share->key: '%s'",
+                       ndbtab->getName(), event_name, share->key_string()));
+
+  // Never create event on table with temporary name
+  DBUG_ASSERT(! IS_TMP_PREFIX(ndbtab->getName()));
+  // Never create event on the blob table(s)
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(ndbtab->getName()));
   DBUG_ASSERT(share);
 
@@ -4944,9 +4969,9 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     if (share->flags & NSF_BLOB_FLAG)
       op->mergeEvents(TRUE); // currently not inherited from event
 
-    uint n_columns= ndbtab->getNoOfColumns();
-    uint n_fields= table->s->fields;
-    uint val_length= sizeof(NdbValue) * n_columns;
+    const uint n_columns= ndbtab->getNoOfColumns();
+    const uint n_fields= table->s->fields;
+    const uint val_length= sizeof(NdbValue) * n_columns;
 
     /*
        Allocate memory globally so it can be reused after online alter table
@@ -5392,7 +5417,13 @@ handle_error(NdbEventOperation *pOp)
   DBUG_RETURN(0);
 }
 
-static int
+
+/*
+  Handle _non_ data events from the storage nodes
+*/
+
+static
+void
 handle_non_data_event(THD *thd,
                       NdbEventOperation *pOp,
                       ndb_binlog_index_row &row)
@@ -5400,7 +5431,19 @@ handle_non_data_event(THD *thd,
   const Ndb_event_data* event_data=
     static_cast<const Ndb_event_data*>(pOp->getCustomData());
   NDB_SHARE *share= event_data->share;
-  NDBEVENT::TableEvent type= pOp->getEventType();
+  const NDBEVENT::TableEvent type= pOp->getEventType();
+
+  DBUG_ENTER("handle_non_data_event");
+  DBUG_PRINT("enter", ("pOp: %p, event_data: %p, share: %p",
+                       pOp, event_data, share));
+  DBUG_PRINT("enter", ("type: %d", type));
+
+  if (type == NDBEVENT::TE_DROP ||
+      type == NDBEVENT::TE_ALTER)
+  {
+    // Count schema events
+    row.n_schemaops++;
+  }
 
   switch (type)
   {
@@ -5410,25 +5453,7 @@ handle_non_data_event(THD *thd,
                             share->key_string(),
                             (uint)(pOp->getGCI() >> 32),
                             (uint)(pOp->getGCI()));
-    if (ndb_apply_status_share == share)
-    {
-      if (opt_ndb_extra_logging &&
-          ndb_binlog_tables_inited && ndb_binlog_running)
-        sql_print_information("NDB Binlog: ndb tables initially "
-                              "read only on reconnect.");
-      /* ndb_share reference binlog extra free */
-      DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                               share->key_string(), share->use_count));
-      free_share(&ndb_apply_status_share);
-      ndb_apply_status_share= 0;
-      ndb_binlog_tables_inited= FALSE;
-    }
-    DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
-                        "%s  received share: 0x%lx  op: 0x%lx  share op: 0x%lx  "
-                        "new_op: 0x%lx",
-                         share->key_string(), (long) share, (long) pOp,
-                         (long) share->op, (long) share->new_op));
-    break;
+    // fallthrough
   case NDBEVENT::TE_DROP:
     if (ndb_apply_status_share == share)
     {
@@ -5436,41 +5461,33 @@ handle_non_data_event(THD *thd,
           ndb_binlog_tables_inited && ndb_binlog_running)
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
-      /* ndb_share reference binlog extra free */
-      DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                               share->key_string(), share->use_count));
+
+      /* release the ndb_apply_status_share */
       free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
       ndb_binlog_tables_inited= FALSE;
     }
-    /* ToDo: remove printout */
-    if (opt_ndb_extra_logging)
-      sql_print_information("NDB Binlog: drop table %s.",
-                            share->key_string());
-    // fall through
+
+    ndb_handle_schema_change(thd, injector_ndb, pOp, event_data);
+    break;
+
   case NDBEVENT::TE_ALTER:
-    row.n_schemaops++;
-    DBUG_PRINT("info", ("TABLE %s  EVENT: %s  received share: 0x%lx  op: 0x%lx  "
-                        "share op: 0x%lx  new_op: 0x%lx",
-                        type == NDBEVENT::TE_DROP ? "DROP" : "ALTER",
-                        share->key_string(), (long) share, (long) pOp,
-                        (long) share->op, (long) share->new_op));
+    DBUG_PRINT("info", ("TE_ALTER"));
     break;
 
   case NDBEVENT::TE_NODE_FAILURE:
   case NDBEVENT::TE_SUBSCRIBE:
   case NDBEVENT::TE_UNSUBSCRIBE:
     /* ignore */
-    return 0;
+    break;
 
   default:
     sql_print_error("NDB Binlog: unknown non data event %d for %s. "
                     "Ignoring...", (unsigned) type, share->key_string());
-    return 0;
+    break;
   }
 
-  ndb_handle_schema_change(thd, injector_ndb, pOp, event_data);
-  return 0;
+  DBUG_VOID_RETURN;
 }
 
 /*

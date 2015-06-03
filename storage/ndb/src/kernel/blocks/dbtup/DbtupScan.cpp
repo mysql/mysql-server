@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
 #define DBTUP_C
 #define DBTUP_SCAN_CPP
 #include "Dbtup.hpp"
+#include "../backup/Backup.hpp"
 #include <signaldata/AccScan.hpp>
 #include <signaldata/NextScan.hpp>
 #include <signaldata/AccLock.hpp>
 #include <md5_hash.hpp>
+#include <portlib/ndb_prefetch.h>
+#include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 408
 
@@ -104,12 +107,12 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       jam();
       bits |= ScanOp::SCAN_NR;
       scanPtr.p->m_endPage = req->maxPage;
-      if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_no)
+      if (req->maxPage != RNIL && req->maxPage > frag.m_max_page_cnt)
       {
         ndbout_c("%u %u endPage: %u (noOfPages: %u maxPage: %u)", 
                  tablePtr.i, fragId,
                  req->maxPage, fragPtr.p->noOfPages,
-                 fragPtr.p->m_max_page_no);
+                 fragPtr.p->m_max_page_cnt);
       }
     }
     else
@@ -123,6 +126,7 @@ Dbtup::execACC_SCANREQ(Signal* signal)
       jam();
       ndbrequire((bits & ScanOp::SCAN_DD) == 0);
       ndbrequire((bits & ScanOp::SCAN_LOCK) == 0);
+      scanPtr.p->m_endPage = frag.m_max_page_cnt;
     }
 
     if (bits & ScanOp::SCAN_VS)
@@ -629,7 +633,7 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
 
   if (bits & ScanOp::SCAN_NR)
   { 
-    if (scan.m_endPage == 0 && frag.m_max_page_no == 0)
+    if (scan.m_endPage == 0 && frag.m_max_page_cnt == 0)
     {
       jam();
       scan.m_state = ScanOp::Last;
@@ -641,6 +645,18 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
     jam();
     scan.m_state = ScanOp::Last;
     return;
+  }
+
+  if (bits & ScanOp::SCAN_LCP)
+  {
+    jam();
+    if (scan.m_endPage == 0)
+    {
+      jam();
+      /* Partition was empty at start of LCP, no records to report. */
+      scan.m_state = ScanOp::Last;
+      return;
+    }
   }
 
   if (! (bits & ScanOp::SCAN_DD)) {
@@ -668,6 +684,42 @@ Dbtup::scanFirst(Signal*, ScanOpPtr scanPtr)
   scan.m_state = ScanOp::Next;
 }
 
+/**
+ * Handling heavy insert and delete activity during LCP scans
+ * ----------------------------------------------------------
+ * As part of the LCP we need to record all rows that existed at the beginning
+ * of the LCP. This means that any rows that are inserted after the LCP
+ * started can be skipped. This is a common activity during database load
+ * activity, so we ensure that the LCP can run quick in this case to provide
+ * much CPU resources for the insert activity. Also important to make good
+ * progress on LCPs to ensure that we can free REDO log space to avoid running
+ * out of this resource.
+ *
+ * We use three ways to signal that a row or a set of rows is not needed to
+ * record during an LCP.
+ *
+ * 1) We record the maximum page number at the start of the LCP, we never
+ *    need to scan beyond this point, there can only be pages here that
+ *    won't need recording in an LCP. We also avoid setting LCP_SKIP bits
+ *    on these pages and rows.
+ *    This will cover the common case of a small set of pages at the
+ *    start of the LCP that grows quickly during the LCP scan.
+ *
+ * 2) If a page was allocated after the LCP started, then it can only contain
+ *    rows that won't need recording in the LCP. If the page number was
+ *    within the maximum page number at start of LCP, and beyond the page
+ *    currently checked in LCP, then we will record the LCP skip information
+ *    in the page header. So when the LCP scan reaches this page it will
+ *    quickly move on to the next page since the page didn't have any records
+ *    eligible for LCP recording. After skipping the page we clear the LCP
+ *    skip flag since the rows should be recorded in the next LCP.
+ *
+ * 3) In case a row is allocated in a page that existed at start of LCP, then
+ *    we record the LCP skip information in the tuple header unless the row
+ *    has already been checked by the current LCP. We skip all rows with this
+ *    bit set and reset it to ensure that we record it in the next LCP.
+ */
+
 bool
 Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 {
@@ -689,14 +741,14 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   Tuple_header* th = 0;
   Uint32 thbits = 0;
   Uint32 loop_count = 0;
-  Uint32 scanGCI = scanPtr.p->m_scanGCI;
+  Uint32 scanGCI = scan.m_scanGCI;
   Uint32 foundGCI;
- 
-  const bool mm = (bits & ScanOp::SCAN_DD);
+
+  const bool mm_index = (bits & ScanOp::SCAN_DD);
   const bool lcp = (bits & ScanOp::SCAN_LCP);
 
   const Uint32 size = ((bits & ScanOp::SCAN_VS) == 0) ?
-    table.m_offsets[mm].m_fix_header_size : 1;
+    table.m_offsets[mm_index].m_fix_header_size : 1;
   const Uint32 first = ((bits & ScanOp::SCAN_VS) == 0) ? 0 : 1;
 
   if (lcp && ! fragPtr.p->m_lcp_keep_list_head.isNull())
@@ -753,7 +805,21 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       jam();
       {
         key.m_page_no++;
-        if (key.m_page_no >= frag.m_max_page_no) {
+        if (bits & ScanOp::SCAN_LCP)
+        {
+          jam();
+          /**
+           * We could be scanning for a long time and only finding LCP_SKIP
+           * records, we need to keep the LCP watchdog aware that we are
+           * progressing, so we report each change to a new page by reporting
+           * the id of the next page to scan.
+           */
+          c_backup->update_lcp_pages_scanned(signal,
+                      c_lqh->get_scan_api_op_ptr(scan.m_userPtr),
+                      key.m_page_no);
+        }
+        if (key.m_page_no >= frag.m_max_page_cnt)
+        {
           jam();
 
           if ((bits & ScanOp::SCAN_NR) && (scan.m_endPage != RNIL))
@@ -766,6 +832,20 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               goto cont;
             }
           }
+          // no more pages, scan ends
+          pos.m_get = ScanPos::Get_undef;
+          scan.m_state = ScanOp::Last;
+          return true;
+        }
+        if ((bits & ScanOp::SCAN_LCP) &&
+            (key.m_page_no >= scan.m_endPage))
+        {
+          jam();
+          /**
+           * We have arrived at a page number that didn't exist at start of
+           * LCP, we can quit the LCP scan since we cannot find any more
+           * pages that are containing rows to be saved in LCP.
+           */
           // no more pages, scan ends
           pos.m_get = ScanPos::Get_undef;
           scan.m_state = ScanOp::Last;
@@ -800,6 +880,53 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
         }
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
+        /**
+         * We are in the process of performing a Full table scan, this can be
+         * either due to a user requesting a full table scan, it can also be
+         * as part of Node Recovery where we are assisting the starting node
+         * to be synchronized (SCAN_NR set) and it is also used for LCP scans
+         * (SCAN_LCP set).
+         * 
+         * We know that we will touch all cache lines where there is a tuple
+         * header and all scans using main memory pages are done on the fixed
+         * pages. To speed up scan processing we will prefetch such that we
+         * always are a few tuples ahead. We scan ahead 4 tuples here and then
+         * we scan yet one more ahead at each new tuple we get to. We only need
+         * initialise by scanning 3 rows ahead since we will immediately fetch
+         * the fourth one before looking at the first row.
+         *
+         * PREFETCH_SCAN_TUPLE:
+         */
+        if ((key.m_page_idx + (size * 3)) <= Fix_page::DATA_WORDS)
+        {
+          struct Tup_fixsize_page *page_ptr =
+            (struct Tup_fixsize_page*)pagePtr.p;
+          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx,
+                                              size));
+          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + size,
+                                              size));
+          NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 2),
+                                              size));
+        }
+        if ((bits & ScanOp::SCAN_LCP) &&
+            (pagePtr.p->is_page_to_skip_lcp()))
+        {
+          /**
+           * The page was allocated after the LCP started, so it can only
+           * contain rows that should be skipped for LCP, we clear the LCP
+           * skip flag on page in this case to speed up skipping.
+           *
+           * We need to keep track of the state Get_next_page_mm when checking
+           * if a rowid is part of the remaining lcp set. If we do a real-time
+           * break right after setting Get_next_page_mm we need to move the
+           * page number forward one step since we have actually completed the
+           * current page number.
+           */
+          jam();
+          pagePtr.p->clear_page_to_skip_lcp();
+          pos.m_get = ScanPos::Get_next_page_mm;
+          break; // incr loop count
+        }
 
     nopage:
         pos.m_page = pagePtr.p;
@@ -973,6 +1100,19 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
 #endif
           th = (Tuple_header*)&page->m_data[key.m_page_idx];
+
+          if ((key.m_page_idx + (size * 4)) <= Fix_page::DATA_WORDS)
+          {
+            /**
+             * Continue staying ahead of scan on this page by prefetching
+             * a row 4 tuples ahead of this tuple, prefetched the first 3
+             * at PREFETCH_SCAN_TUPLE.
+             */
+            struct Tup_fixsize_page *page_ptr =
+              (struct Tup_fixsize_page*)page;
+            NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 3),
+                                                size));
+          }
 	  
 	  if (likely(! (bits & ScanOp::SCAN_NR)))
 	  {
@@ -1065,17 +1205,15 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           jam();
           // clear it so that it will show up in next LCP
           th->m_header_bits = thbits & ~(Uint32)Tuple_header::LCP_SKIP;
-	  if (tablePtr.p->m_bits & Tablerec::TR_Checksum) {
-	    jam();
-	    setChecksum(th, tablePtr.p);
-	  }
+
+          updateChecksum(th, tablePtr.p, thbits, th->m_header_bits);
         }
       }
       break;
   found_deleted_rowid:
       jam();
       {
-	ndbassert(bits & ScanOp::SCAN_NR);
+	ndbrequire(bits & ScanOp::SCAN_NR);
 	Local_key& key_mm = pos.m_key_mm;
 	if (! (bits & ScanOp::SCAN_DD)) {
 	  key_mm = pos.m_key;

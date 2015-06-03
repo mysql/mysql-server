@@ -1,3 +1,6 @@
+# Check  that binlogging are turned on for these tests
+--source include/have_log_bin.inc
+
 #
 # Run variations of ALTER RENAME based on template query
 # on the form ALTER RENAME tx ... ty

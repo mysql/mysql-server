@@ -76,7 +76,7 @@ static const Uint32 MAX_SIGNALS_BEFORE_SEND = 200;
  * Max. signals to execute from one job buffer before considering other
  * possible stuff to do.
  */
-static const Uint32 MAX_SIGNALS_PER_JB = 100;
+static const Uint32 MAX_SIGNALS_PER_JB = 75;
 
 /**
  * Max signals written to other thread before calling flush_jbb_write_state
@@ -789,15 +789,18 @@ struct thr_jb_read_state
  */
 struct thr_tq
 {
+  static const unsigned ZQ_SIZE = 256;
   static const unsigned SQ_SIZE = 512;
   static const unsigned LQ_SIZE = 512;
-  static const unsigned PAGES = (MAX_SIGNAL_SIZE * (SQ_SIZE + LQ_SIZE)) / 8192;
+  static const unsigned PAGES = (MAX_SIGNAL_SIZE *
+                                (ZQ_SIZE + SQ_SIZE + LQ_SIZE)) / 8192;
   
   Uint32 * m_delayed_signals[PAGES];
   Uint32 m_next_free;
   Uint32 m_next_timer;
   Uint32 m_current_time;
-  Uint32 m_cnt[2];
+  Uint32 m_cnt[3];
+  Uint32 m_zero_queue[ZQ_SIZE];
   Uint32 m_short_queue[SQ_SIZE];
   Uint32 m_long_queue[LQ_SIZE];
 };
@@ -979,6 +982,15 @@ struct MY_ALIGNED(NDB_CL) thr_data
    * max signals to execute before recomputing m_max_signals_per_jb
    */
   unsigned m_max_exec_signals;
+
+  /**
+   * Flag indicating that we have sent a local Prio A signal. Used to know
+   * if to scan for more prio A signals after executing those signals.
+   * This is used to ensure that if we execute at prio A level and send a
+   * prio A signal it will be immediately executed (or at least before any
+   * prio B signal).
+   */
+  bool m_sent_local_prioa_signal;
 
   NDB_TICKS m_ticks;
   struct thr_tq m_tq;
@@ -1351,8 +1363,8 @@ private:
   /* Get a send thread which isn't awake currently */
   struct thr_send_thread_instance* get_not_awake_send_thread(NodeId node);
 
-  /* Lock send_buffer for this node. */
-  void lock_send_node(NodeId node);
+  /* Try to lock send_buffer for this node. */
+  int trylock_send_node(NodeId node);
 
   Uint32 count_awake_send_threads(void) const;
 
@@ -1763,11 +1775,11 @@ check_available_send_data(struct thr_data *not_used)
   return !g_send_threads->data_available();
 }
 
-void
-thr_send_threads::lock_send_node(NodeId node)
+int
+thr_send_threads::trylock_send_node(NodeId node)
 {
   thr_repository::send_buffer *sb = g_thr_repository->m_send_buffers+node;
-  lock(&sb->m_send_lock);
+  return trylock(&sb->m_send_lock);
 }
 
 bool
@@ -1971,30 +1983,38 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     this_send_thread->m_awake = TRUE;
 
     NodeId node;
-    while ((node = get_node(instance_no, now)) != 0 && // PENDING -> ACTIVE
-           globalData.theRestartFlag != perform_stop)
+    while (globalData.theRestartFlag != perform_stop &&
+           (node = get_node(instance_no, now)) != 0)   // PENDING -> ACTIVE
     {
+      /**
+       * Multiple send threads can not 'get' the same
+       * node simultaneously. Thus, we does not need
+       * to keep the global send thread mutex any longer.
+       * Also avoids worker threads blocking on us in 
+       * ::alert_send_thread
+       */
+      NdbMutex_Unlock(send_thread_mutex);
       this_send_thread->m_watchdog_counter = 6;
 
       /**
-       * Multiple send threads can not 'get' the same
-       * node simultaneously. Thus, there will be no lock
-       * contentions between different send threads.
-       * However, lock is required by 'trp_callback protocol',
-       * and to protect reset_send_buffers(), and
-       * lock_/unlock_transporter()
+       * Need a lock on the send buffers to protect against 
+       * worker thread doing ::forceSend, possible 
+       * reset_send_buffers() and/or lock_/unlock_transporter().
+       * To avoid a livelock with ::forceSend() on an overloaded 
+       * systems, we 'try-lock', and reinsert the node for 
+       * later retry if failed.
        */
-      lock_send_node(node);
-      NdbMutex_Unlock(send_thread_mutex);
+      bool more = true;
+      if (likely(trylock_send_node(node) == 0))
+      {
+        more = perform_send(node, instance_no);
+        /* We return with no locks or mutexes held */
 
-      const bool more = perform_send(node, instance_no);
-      /* We return with no locks or mutexes held */
-
-      /* Release chunk-wise to decrease pressure on lock */
-      this_send_thread->m_watchdog_counter = 3;
-      this_send_thread->m_send_buffer_pool.
-        release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
-
+        /* Release chunk-wise to decrease pressure on lock */
+        this_send_thread->m_watchdog_counter = 3;
+        this_send_thread->m_send_buffer_pool.
+          release_chunk(g_thr_repository->m_mm, RG_TRANSPORTER_BUFFERS);
+      }
       /**
        * Either own perform_send() processing, or external 'alert'
        * could have signaled that there are more sends pending.
@@ -2388,10 +2408,36 @@ scan_time_queues_backtick(struct thr_data* selfptr, NDB_TICKS now)
   }
 }
 
+/**
+ * If someone sends a signal with delay it means that the signal
+ * should be executed as soon as we come to the scan_time_queues
+ * independent of the amount of time spent since it was sent. We
+ * use a special time queue for bounded delay signals to avoid having
+ * to scan through all short time queue signals in every loop of
+ * the run job buffers.
+ */
+static inline
+void
+scan_zero_queue(struct thr_data* selfptr)
+{
+  struct thr_tq * tq = &selfptr->m_tq;
+  Uint32 cnt = tq->m_cnt[2];
+  if (cnt)
+  {
+    Uint32 num_found = scan_queue(selfptr,
+                                  cnt,
+                                  tq->m_current_time,
+                                  tq->m_zero_queue);
+    require(num_found == cnt);
+  }
+  tq->m_cnt[2] = 0;
+}
+
 static inline
 Uint32
 scan_time_queues(struct thr_data* selfptr, NDB_TICKS now)
 {
+  scan_zero_queue(selfptr);
   const NDB_TICKS last = selfptr->m_ticks;
   if (unlikely(NdbTick_Compare(now, last) < 0))
   {
@@ -2465,19 +2511,30 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
   Uint32 * cntptr;
   Uint32 * queueptr;
 
-  Uint32 alarm = selfptr->m_tq.m_current_time + delay;
+  Uint32 alarm;
   Uint32 nexttimer = selfptr->m_tq.m_next_timer;
-  if (delay < 100)
+  if (delay == SimulatedBlock::BOUNDED_DELAY)
   {
-    cntptr = selfptr->m_tq.m_cnt + 0;
-    queueptr = selfptr->m_tq.m_short_queue;
-    max = thr_tq::SQ_SIZE;
+    alarm = selfptr->m_tq.m_current_time;
+    cntptr = selfptr->m_tq.m_cnt + 2;
+    queueptr = selfptr->m_tq.m_zero_queue;
+    max = thr_tq::ZQ_SIZE;
   }
   else
   {
-    cntptr = selfptr->m_tq.m_cnt + 1;
-    queueptr = selfptr->m_tq.m_long_queue;
-    max = thr_tq::LQ_SIZE;
+    alarm = selfptr->m_tq.m_current_time + delay;
+    if (delay < 100)
+    {
+      cntptr = selfptr->m_tq.m_cnt + 0;
+      queueptr = selfptr->m_tq.m_short_queue;
+      max = thr_tq::SQ_SIZE;
+    }
+    else
+    {
+      cntptr = selfptr->m_tq.m_cnt + 1;
+      queueptr = selfptr->m_tq.m_long_queue;
+      max = thr_tq::LQ_SIZE;
+    }
   }
 
   Uint32 idx;
@@ -2501,9 +2558,10 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
   * cntptr = cnt + 1;
   selfptr->m_tq.m_next_timer = alarm < nexttimer ? alarm : nexttimer;
 
-  if (cnt == 0)
+  if (cnt == 0 || delay == SimulatedBlock::BOUNDED_DELAY)
   {
-    queueptr[0] = newentry;
+    /* First delayed signal needs no order and bounded delay is FIFO */
+    queueptr[cnt] = newentry;
     return;
   }
   else if (cnt < max)
@@ -2524,7 +2582,25 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
   }
   else
   {
-    abort();
+    /* Out of entries in time queue, issue proper error */
+    if (cntptr == (selfptr->m_tq.m_cnt + 0))
+    {
+      /* Error in short time queue */
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_SHORT,
+                "Too many in Short Time Queue", "mt.cpp" );
+    }
+    else if (cntptr == (selfptr->m_tq.m_cnt + 1))
+    {
+      /* Error in long time queue */
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_LONG,
+                "Too many in Long Time Queue", "mt.cpp" );
+    }
+    else
+    {
+      /* Error in zero time queue */
+      ERROR_SET(ecError, NDBD_EXIT_TIME_QUEUE_ZERO,
+                "Too many in Zero Time Queue", "mt.cpp" );
+    }
   }
 }
 
@@ -4160,6 +4236,7 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
 {
   Uint32 thr_count = g_thr_repository->m_thread_count;
   Uint32 signal_count = 0;
+  Uint32 signal_count_since_last_zero_time_queue = 0;
   Uint32 perjb = selfptr->m_max_signals_per_jb;
 
   read_jbb_state(selfptr, thr_count);
@@ -4176,15 +4253,23 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
        send_thr_no++,queue++,read_state++,head++)
   {
     /* Read the prio A state often, to avoid starvation of prio A. */
-    bool jba_empty = read_jba_state(selfptr);
-    if (!jba_empty)
+    while (!read_jba_state(selfptr))
     {
+      selfptr->m_sent_local_prioa_signal = false;
       static Uint32 max_prioA = thr_job_queue::SIZE * thr_job_buffer::SIZE;
       signal_count += execute_signals(selfptr,
                                       &(selfptr->m_jba),
                                       &(selfptr->m_jba_head),
                                       &(selfptr->m_jba_read_state), sig,
                                       max_prioA);
+      if (!selfptr->m_sent_local_prioa_signal)
+      {
+        /**
+         * Break out of loop if there was no prio A signals generated
+         * from the local execution.
+         */
+        break;
+      }
     }
 
     /**
@@ -4250,6 +4335,25 @@ run_job_buffers(thr_data *selfptr, Signal *sig)
     /* Now execute prio B signals from one thread. */
     signal_count += execute_signals(selfptr, queue, head, read_state,
                                     sig, perjb+extra);
+
+    if (signal_count - signal_count_since_last_zero_time_queue >
+        (MAX_SIGNALS_EXECUTED_BEFORE_ZERO_TIME_QUEUE_SCAN -
+         MAX_SIGNALS_PER_JB))
+    {
+      /**
+       * Each execution of execute_signals can at most execute 75 signals
+       * from one node. We want to ensure that we execute no more than
+       * 100 signals before we arrive here to get the signals from the
+       * zero time queue. This implements the bounded delay signal
+       * concept which is required for rate controlled activities.
+       *
+       * We scan the zero time queue if more than 25 signals were executed.
+       * This means that at most 100 signals will be executed before we arrive
+       * here again to check the bounded delay signals.
+       */
+      signal_count_since_last_zero_time_queue = signal_count;
+      scan_zero_queue(selfptr);
+    }
   }
 
   return signal_count;
@@ -5093,6 +5197,24 @@ mt_job_thread_main(void *thr_arg)
   return NULL;                  // Return value not currently used
 }
 
+/**
+ * Get number of pending signals at B-level in our own thread. Used
+ * to make some decisions in rate-critical parts of the data node.
+ */
+Uint32
+mt_getSignalsInJBB(Uint32 self)
+{
+  Uint32 pending_signals = 0;
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  for (Uint32 thr_no = 0; thr_no < num_threads; thr_no++)
+  {
+    thr_jb_write_state *w = selfptr->m_write_states + thr_no;
+    pending_signals += w->get_pending_signals();
+  }
+  return pending_signals;
+}
+
 void
 sendlocal(Uint32 self, const SignalHeader *s, const Uint32 *data,
           const Uint32 secPtr[3])
@@ -5153,6 +5275,14 @@ sendprioa(Uint32 self, const SignalHeader *s, const uint32 *data,
   thr_job_queue *q = &(dstptr->m_jba);
   thr_job_queue_head *h = &(dstptr->m_jba_head);
   thr_jb_write_state w;
+
+  if (selfptr == dstptr)
+  {
+    /**
+     * Indicate that we sent Prio A signal to ourself.
+     */
+    selfptr->m_sent_local_prioa_signal = true;
+  }
 
   lock(&dstptr->m_jba_write_lock);
 
@@ -5369,7 +5499,7 @@ queue_init(struct thr_tq* tq)
   tq->m_next_timer = 0;
   tq->m_current_time = 0;
   tq->m_next_free = RNIL;
-  tq->m_cnt[0] = tq->m_cnt[1] = 0;
+  tq->m_cnt[0] = tq->m_cnt[1] = tq->m_cnt[2] = 0;
   bzero(tq->m_delayed_signals, sizeof(tq->m_delayed_signals));
 }
 

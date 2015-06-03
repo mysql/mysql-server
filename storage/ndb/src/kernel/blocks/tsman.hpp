@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ protected:
   void execALLOC_PAGE_REQ(Signal* signal);
 
   void execLCP_FRAG_ORD(Signal*);
-  void execEND_LCP_REQ(Signal*);
+  void execEND_LCPREQ(Signal*);
   void end_lcp(Signal*, Uint32 tablespace, Uint32 list, Uint32 file);
 
   void execGET_TABINFOREQ(Signal*);

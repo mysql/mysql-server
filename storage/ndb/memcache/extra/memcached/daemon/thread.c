@@ -1,4 +1,3 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
  * Thread management for memcached.
@@ -321,12 +320,10 @@ int number_of_pending(conn *c, conn *list) {
  * input arrives on the libevent wakeup pipe.
  */
 static void thread_libevent_process(int fd, short which, void *arg) {
-    conn *c, *pending;
     LIBEVENT_THREAD *me = arg;
+    assert(me->type == GENERAL);
     CQ_ITEM *item;
 
-    assert(me->type == GENERAL);
-    (void)(which);
     if (recv(fd, devnull, sizeof(devnull), 0) == -1) {
         if (settings.verbose > 0) {
             settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
@@ -341,9 +338,9 @@ static void thread_libevent_process(int fd, short which, void *arg) {
     }
 
     while ((item = cq_pop(me->new_conn_queue)) != NULL) {
-        c = conn_new(item->sfd, item->init_state, item->event_flags,
-                     item->read_buffer_size, item->transport, me->base,
-                     NULL);
+        conn *c = conn_new(item->sfd, item->init_state, item->event_flags,
+                           item->read_buffer_size, item->transport, me->base,
+                           NULL);
         if (c == NULL) {
             if (IS_UDP(item->transport)) {
                 settings.extensions.logger->log(EXTENSION_LOG_WARNING, NULL,
@@ -365,7 +362,7 @@ static void thread_libevent_process(int fd, short which, void *arg) {
     }
 
     pthread_mutex_lock(&me->mutex);
-    pending = me->pending_io;
+    conn* pending = me->pending_io;
     me->pending_io = NULL;
     pthread_mutex_unlock(&me->mutex);
     while (pending != NULL) {
@@ -478,7 +475,6 @@ void finalize_list(conn **list, size_t items) {
 static void libevent_tap_process(int fd, short which, void *arg) {
     LIBEVENT_THREAD *me = arg;
     assert(me->type == TAP);
-    (void)(which);
 
     if (recv(fd, devnull, sizeof(devnull), 0) == -1) {
         if (settings.verbose > 0) {

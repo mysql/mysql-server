@@ -2485,6 +2485,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   int res;
   bool connected = true;
+  uint retries = 100;
 
   if (pOp == 0)
   {
@@ -2498,16 +2499,27 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     goto cleanup;
   }
 
-  res = ndb->pollEvents(5000) > 0;
-
-  if (ndb->getNdbError().code != 0)
+  Uint64 curr_gci;
+  for (int i=0; (i<10) && (curr_gci != NDB_FAILURE_GCI); i++)
   {
-    g_err << "pollEvents failed: \n";
-    g_err << ndb->getNdbError().code << " "
-          << ndb->getNdbError().message << endl;
+    res = ndb->pollEvents(5000, &curr_gci) > 0;
+
+    if (ndb->getNdbError().code != 0)
+    {
+      g_err << "pollEvents failed: \n";
+      g_err << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+
+  if (curr_gci != NDB_FAILURE_GCI)
+  {
+    g_err << "pollEvents failed to detect cluster failure: \n";
     result = NDBT_FAILED;
     goto cleanup;
-  }
+  } 
 
   if (res > 0) {
     NdbEventOperation *tmp;
@@ -2522,6 +2534,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
       }
       switch (tmp->getEventType()) {
       case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+        g_err << "Found TE_CLUSTER_FAILURE" << endl;
         connected = false;
         break;
       default:
@@ -2537,15 +2550,12 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
-cleanup:
-
   if (ndb->dropEventOperation(pOp) != 0) {
     g_err << "dropping event operation failed\n";
     result = NDBT_FAILED;
   }
 
   // Reconnect by trying to start a transaction
-  uint retries = 100;
   while (!connected && retries--)
   {
     HugoTransactions hugoTrans(* ctx->getTab());
@@ -2570,9 +2580,6 @@ cleanup:
     return NDBT_FAILED;
   }
 
-  // Stop the other thread
-  ctx->stopTest();
-
   if (restarter.waitClusterStarted(300) != 0){
     return NDBT_FAILED;
   }
@@ -2580,6 +2587,44 @@ cleanup:
   if (ndb->waitUntilReady() != 0){
     return NDBT_FAILED;
   }
+
+  pOp= createEventOperation(ndb, *pTab);
+
+  if (pOp == 0)
+  {
+    g_err << "Failed to createEventOperation" << endl;
+    return NDBT_FAILED;
+  }
+
+  // Check that we receive events again
+  for (int i=0; (i<10) && (curr_gci == NDB_FAILURE_GCI); i++)
+  {
+    res = ndb->pollEvents(5000, &curr_gci) > 0;
+
+    if (ndb->getNdbError().code != 0)
+    {
+      g_err << "pollEvents failed: \n";
+      g_err << ndb->getNdbError().code << " "
+            << ndb->getNdbError().message << endl;
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+  if (curr_gci == NDB_FAILURE_GCI)
+  {
+    g_err << "pollEvents after restart failed res " << res << " curr_gci " << curr_gci << endl;
+    result =  NDBT_FAILED;
+  }
+
+cleanup:
+
+  if (ndb->dropEventOperation(pOp) != 0) {
+    g_err << "dropping event operation failed\n";
+    result = NDBT_FAILED;
+  }
+
+  // Stop the other thread
+  ctx->stopTest();
 
   return result;
 }
@@ -3928,20 +3973,22 @@ int runTryGetEvent(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-// Waits until the event buffer is filled upto fill_percent.
-void wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
+// Waits until the event buffer is filled upto fill_percent
+// or #retries exhaust.
+bool wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
 {
   Ndb::EventBufferMemoryUsage mem_usage;
-  ndb->get_event_buffer_memory_usage(mem_usage);
-  Uint32 usage_before_wait = mem_usage.usage_percent;
-  Uint64 prev_gci = ndb->getLatestGCI();
+  Uint32 usage_before_wait = 0;
+  Uint64 prev_gci = 0;
   Uint32 retries = 10;
 
   do
   {
+    ndb->get_event_buffer_memory_usage(mem_usage);
+    usage_before_wait = mem_usage.usage_percent;
     if (fill_percent < 100 && usage_before_wait >= fill_percent)
     {
-      return;
+      return true;
     }
 
     // Assume that latestGCI will increase in this sleep time
@@ -3966,18 +4013,20 @@ void wait_to_fill_buffer(Ndb* ndb, Uint32 fill_percent)
        */
       ndb->get_event_buffer_memory_usage(mem_usage);
       const Uint32 usage_after_wait = mem_usage.usage_percent;
-      usage_before_wait = usage_after_wait;
-      if (usage_before_wait != usage_after_wait)
+      if (usage_before_wait == usage_after_wait)
       {
-        g_err << "prev_gci " << prev_gci << "latest_gci " << latest_gci
-              << " usage before wait " << usage_before_wait
-              << " usage after wait " <<  usage_after_wait << endl;
+        return true;
       }
-      assert(usage_before_wait == usage_after_wait);
-      return;
+      g_err << "wait_to_fill_buffer failed : prev_gci "
+            << prev_gci << "latest_gci " << latest_gci
+            << " usage before wait " << usage_before_wait
+            << " usage after wait " <<  usage_after_wait << endl;
+      return false;
     }
     prev_gci = latest_gci;
   } while (true);
+
+  assert(false); // Should not reach here
 }
 
 /*********************************************************
@@ -4003,7 +4052,8 @@ int runPollBCOverflowEB(NDBT_Context* ctx, NDBT_Step* step)
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
   // Wait until event buffer get filled 100%, to get a gap event
-  wait_to_fill_buffer(ndb, 100);
+  if (!wait_to_fill_buffer(ndb, 100))
+    return NDBT_FAILED;
 
   g_err << endl << "The test is expected to crash with"
         << " Event buffer out of memory." << endl << endl;
@@ -4312,11 +4362,12 @@ runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
   CHK(evOp->execute() == 0, "execute operation execution failed");
 
   Uint64 highestQueuedEpoch = 0;
-  int pollRetries = 10;
+  int pollRetries = 60;
   int res = 0;
   while (res == 0 && pollRetries-- > 0)
   {
     res = pNdb->pollEvents2(1000, &highestQueuedEpoch);
+    NdbSleep_SecSleep(1);
   }
 
   // 10 sec waiting should be enough to get an epoch with default
@@ -4556,6 +4607,260 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
   CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
   return NDBT_OK;
+}
+
+/******** Test event buffer overflow **********/
+
+/**
+ * Test the production and consumption of gap epochs
+ * (having evnt type TE_OUT_OF_MEMORY) wth of a slow
+ * listenenr causing event buffer to overflow (runTardyEventListener())
+ */
+
+// Collect statistics
+class ConsumptionStatistics
+{
+public:
+  ConsumptionStatistics();
+
+  // Count the gaps consumed while the test is progressing.
+  Uint32 consumedGaps;
+
+  Uint32 emptyEpochs; // Count the empty epochs in the test
+
+  // Number of event buffer overflows, the listener has intended to consume
+  static const Uint32 totalGaps = 6;
+
+  Uint64 gap_epoch[totalGaps]; // Store the gap epochs consumed
+
+  /** consumed_epochs[0] : #epochs the event buffer can accomodate
+   * before the first overflow.
+   * consumed_epochs[1-5] : Consumed epochs between each gaps.
+   */
+  Uint32 consumed_epochs[totalGaps];
+
+  void print();
+};
+
+ConsumptionStatistics::ConsumptionStatistics() : consumedGaps(0), emptyEpochs(0)
+{
+  for (Uint32 i = 0; i < totalGaps; i++)
+  {
+    gap_epoch[i] = 0;
+    consumed_epochs[i] = 0;
+  }
+}
+
+void ConsumptionStatistics::print()
+{
+  /* Buffer capacity : #epochs event buffer can accomodate.
+   * The test fills the event buffer twice.
+   * The buffer capacity of the first and the second rounds
+   * should be comparable, with a small difference due to
+   * timimg of transactions and epochs. However,
+   * considering the different machine/platforms the test will
+   * be run on, the difference is not intended to be used as
+   * a test succees/failure criteria.
+   * Instead both values are written out for manual inspection.
+   */
+  if (consumedGaps == 0)
+    g_err << "Test failed. No epochs consumed." << endl;
+  else if (consumedGaps < totalGaps)
+    g_err << "Test failed. Less epochs consumed. Expected: "
+          << totalGaps << " Consumed: " << consumedGaps << endl;
+
+  // Calculate the event buffer capacity in the second round of filling
+  Uint32 bufferCapacitySecondRound = 0;
+  for (Uint32 i=1; i < totalGaps; ++i)
+    bufferCapacitySecondRound += consumed_epochs[i];
+  bufferCapacitySecondRound -= consumedGaps; // Exclude overflow epochs
+
+  g_err << endl << "Empty epochs consumed : " << emptyEpochs << "." << endl;
+
+  g_err << "Expected gap epochs : " << totalGaps
+        << ", consumed gap epochs : " << consumedGaps << "." << endl;
+
+  if (consumedGaps > 0)
+  {
+    g_err << "Gap epoch | Consumed epochs before this gap : " << endl;
+    for (Uint32 i = 0; i< consumedGaps; ++i)
+    {
+      g_err << gap_epoch[i] << " | "
+            << consumed_epochs[i] << endl;
+    }
+
+    g_err << endl
+          << "Buffer capacity (Epochs consumed before first gap occurred) : "
+          << consumed_epochs[0] << " epochs." << endl;
+    g_err << "Epochs consumed after first gap until the buffer"
+          << " got filled again (excluding overflow epochs): "
+          << bufferCapacitySecondRound << "." << endl << endl;
+  }
+}
+
+/* Consume event data until all gaps are consumed or
+ * free_percent space in the event buffer becomes available
+ */
+bool consume_buffer(NDBT_Context* ctx, Ndb* ndb,
+                   NdbEventOperation *pOp,
+                   Uint32 buffer_percent,
+                   ConsumptionStatistics &stats)
+{
+  Ndb::EventBufferMemoryUsage mem_usage;
+  ndb->get_event_buffer_memory_usage(mem_usage);
+  Uint32 prev_mem_usage = mem_usage.usage_percent;
+  Uint64 op_gci = 0, curr_gci = 0;
+
+  Uint64 poll_gci = 0;
+  int poll_retries = 10;
+  int res = 0;
+  while (poll_retries-- > 0 && (res = ndb->pollEvents2(1000, &poll_gci)))
+  {
+    while ((pOp = ndb->nextEvent2()))
+    {
+      op_gci = pOp->getGCI();
+
+      // -------- handle epoch boundary --------
+      if (op_gci > curr_gci)
+      {
+        curr_gci = op_gci;
+        stats.consumed_epochs[stats.consumedGaps] ++;
+
+        if (pOp->getEventType2() == NdbDictionary::Event::TE_EMPTY)
+          stats.emptyEpochs++;
+        else
+          if (pOp->getEventType2() == NdbDictionary::Event::TE_OUT_OF_MEMORY)
+          {
+            stats.gap_epoch[stats.consumedGaps++] = op_gci;
+            if (stats.consumedGaps == stats.totalGaps)
+              return true;
+          }
+
+        // Ensure that the event buffer memory usage doesn't grow during a gap
+        ndb->get_event_buffer_memory_usage(mem_usage);
+        const Uint32 current_mem_usage = mem_usage.usage_percent;
+        if (current_mem_usage > prev_mem_usage)
+        {
+          g_err << "Test failed: The buffer usage grows during gap." << endl;
+          g_err << " Prev mem usage " << prev_mem_usage
+                << ", Current mem usage " << current_mem_usage << endl;
+          return false;
+        }
+
+        /**
+         * Consume until
+         * a) the whole event buffer is consumed or
+         * b) >= free_percent is consumed such that buffering can be resumed
+         * (For case b) buffer_percent must be < (100-free_percent)
+         * for resumption).
+         */
+
+        if (current_mem_usage == 0 ||
+            current_mem_usage < buffer_percent)
+        {
+          return true;
+        }
+        prev_mem_usage = current_mem_usage;
+      }
+    }
+  }
+
+  // Event queue became empty or err before reaching the consumption target
+  g_err << "Test failed: consumption target " << buffer_percent
+        << " is not reached after "
+        << poll_retries << " poll retries."
+        << " poll results " << res << endl;
+
+  return false;
+}
+
+/**
+ * Test: Emulate a tardy consumer as follows :
+ * Fill the event buffer to 100% initially, in order to accelerate
+ * the gap occurence.
+ * Then let the consumer to consume and free the buffer a little
+ *   more than free_percent (20), such that buffering resumes again.
+ *   Fill 100%. Repeat this consume/fill until 'n' gaps are
+ *   produced and all are consumed, where n = ((100 / 20) + 1) = 6.
+ *   When 6-th gap is produced, the event buffer is filled for the second time.
+ * The load generator (insert/delete) is stopped after 6 gaps are produced.
+ * Then the consumer consumes all produced gap epochs.
+ * Test succeeds when : all gaps are consumed,
+ * Test fails if
+ *  a) producer cannot produce a gap
+ *  b) event buffer usage grows during a gap (when consuming until free %)
+ *  c) consumer cannot consume the given target buffer % within #retries
+ *  d) Total gaps consumed < 6.
+ */
+int runTardyEventListener(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  const NdbDictionary::Table * table= ctx->getTab();
+  HugoTransactions hugoTrans(* table);
+  Ndb* ndb= GETNDB(step);
+
+  ndb->set_eventbuf_max_alloc(5242880); // max event buffer size 10485760
+  const Uint32 free_percent = 20;
+  ndb->set_eventbuffer_free_percent(free_percent);
+
+  ConsumptionStatistics statistics;
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp, *pCreate = 0;
+  pCreate = pOp = ndb->createEventOperation(buf);
+  CHK(pOp != NULL, "Event operation creation failed");
+  CHK(pOp->execute() == 0, "Execute operation execution failed");
+
+  bool res = true;
+  Uint32 producedGaps = 0;
+
+  while (producedGaps++ < statistics.totalGaps)
+  {
+    /**
+     * Fill the event buffer completely to 100% :
+     *  - First time : to speed up the test,
+     *  - then fill (~ free_percent) after resuming buffering
+     */
+    if (!wait_to_fill_buffer(ndb, 100))
+    {
+      goto end_test;
+    }
+
+    if (producedGaps == statistics.totalGaps)
+      break;
+
+    /**
+     * The buffer has overflown, consume until buffer gets
+     * free_percent space free, such that buffering can be resumed.
+     */
+    res = consume_buffer(ctx, ndb, pOp, (100 - free_percent), statistics);
+    if (!res)
+    {
+      goto end_test;
+    }
+  }
+
+  // Signal the load generator to stop the load
+  ctx->stopTest();
+
+  // Consume the whole event buffer.
+  // (buffer_percent to be consumed = 100 - 100 = 0)
+  res = consume_buffer(ctx, ndb, pOp, 0, statistics);
+
+end_test:
+
+  if (!res)
+    g_err << "consume_buffer failed." << endl;
+
+  if (!res || statistics.consumedGaps < statistics.totalGaps)
+    result = NDBT_FAILED;
+
+  if (result == NDBT_FAILED)
+    statistics.print();
+
+  CHK(ndb->dropEventOperation(pOp) == 0, "dropEventOperation failed");
+  return result;
 }
 
 NDBT_TESTSUITE(test_event);
@@ -4886,6 +5191,15 @@ TESTCASE("Apiv2-check_event_queue_cleared_initial",
   TC_PROPERTY("InitialRestart", 1);
   INITIALIZER(runCreateEvent);
   STEP(runInjectClusterFailure);
+}
+TESTCASE("Apiv2EventBufferOverflow",
+         "Check gap-resume works by: create a gap"
+         "and consume to free free_percent of buffer; repeat")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runInsertDeleteUntilStopped);
+  STEP(runTardyEventListener);
+  FINALIZER(runDropEvent);
 }
 #if 0
 TESTCASE("BackwardCompatiblePollCOverflowEB",

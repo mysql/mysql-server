@@ -1120,7 +1120,8 @@ NdbEventOperationImpl::printAll()
   }
 }
 
-EventBufferManager::EventBufferManager() :
+EventBufferManager::EventBufferManager(const Ndb* const ndb) :
+  m_ndb(ndb),
   m_pre_gap_epoch(0), // equivalent to setting state COMPLETELY_BUFFERING
   m_begin_gap_epoch(0),
   m_end_gap_epoch(0),
@@ -1182,7 +1183,8 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
       // New gap is starting before the on-going gap ends.
       report_status = true;
 
-      g_eventLogger->warning("Ndb Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
+      g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
+              m_ndb->getReference(), m_ndb->getNdbObjectName(),
               Uint32(m_begin_gap_epoch >> 32), Uint32(m_begin_gap_epoch),
               m_begin_gap_epoch);
       g_eventLogger->warning("Check how many epochs the eventbuffer_free_percent memory can accommodate.\n");
@@ -1251,7 +1253,8 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
     m_event_buffer_manager_state = EBM_COMPLETELY_DISCARDING;
     gap_begins = true;
     report_status = true;
-    g_eventLogger->warning("Ndb Event Buffer : New gap begins at epoch : %u/%u (%llu)",
+    g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: New gap begins at epoch : %u/%u (%llu)",
+                           m_ndb->getReference(), m_ndb->getNdbObjectName(),
                            (Uint32)(m_begin_gap_epoch >> 32),
                            (Uint32)m_begin_gap_epoch, m_begin_gap_epoch);
   }
@@ -1259,7 +1262,9 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
   {
     // The completed_epoch marks the first completely buffered post_gap epoch
     // Transition PARTIALLY_BUFFERNG -> COMPLETELY_BUFFERING
-    g_eventLogger->warning("Ndb Event Buffer : Gap began at epoch : %u/%u (%llu) ends at epoch %u/%u (%llu)",
+    g_eventLogger->warning("Ndb 0x%x %s: Event Buffer : Gap began at epoch : %u/%u (%llu) ends at epoch %u/%u (%llu)",
+                           m_ndb->getReference(),
+                           m_ndb->getNdbObjectName(),
                            (Uint32)(m_begin_gap_epoch >> 32),
                            (Uint32)m_begin_gap_epoch, m_begin_gap_epoch,
                            (Uint32)(completed_epoch >> 32),
@@ -1325,9 +1330,11 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(0),
+  m_failure_detected(false),
   m_prevent_nodegroup_change(true),
   m_total_alloc(0),
   m_max_alloc(0),
+  m_event_buffer_manager(ndb),
   m_free_thresh(0),
   m_min_free_thresh(0),
   m_max_free_thresh(0),
@@ -1472,6 +1479,8 @@ NdbEventBuffer::init_gci_containers()
   Uint64 gci = 0;
   m_known_gci.clear();
   m_known_gci.fill(7, gci);
+  // Reset cluster failure marker
+  m_failure_detected= false;
 }
 
 int NdbEventBuffer::expand(unsigned sz)
@@ -2432,6 +2441,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
   if (!complete_cluster_failure)
   {
     m_alive_node_bit_mask.set(refToNode(rep->senderRef));
+    // Reset cluster failure marker
+    m_failure_detected= false;
 
     if (unlikely(m_active_op_count == 0))
     {
@@ -2480,8 +2491,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     }
     else
     {
-      ndbout_c("bucket == 0 due to an ongoing gap, completed epoch: %u/%u (%llu)",
-               Uint32(gci >> 32), Uint32(gci), gci);
+      DBUG_PRINT_EVENT("info", ("bucket == 0 due to an ongoing gap, completed epoch: %u/%u (%llu)",
+                                Uint32(gci >> 32), Uint32(gci), gci));
     }
     DBUG_VOID_RETURN_EVENT;
   }
@@ -2990,6 +3001,11 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
    */
   // no need to lock()/unlock(), receive thread calls this
   insert_event(&op->m_impl, data, ptr, data.senderData);
+
+  /**
+   * Mark that event buffer is containing a failure event
+   */
+  m_failure_detected= true;
 
 #ifdef VM_TRACE
   m_flush_gci = 0;

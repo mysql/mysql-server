@@ -1624,7 +1624,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupMemory",
     DB_TOKEN,
     "Total memory allocated for backups per node (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "32M", // sum of BackupDataBufferSize and BackupLogBufferSize
@@ -1640,7 +1640,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "16M", // remember to change BackupMemory
-    "0",
+    "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1652,7 +1652,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "16M", // remember to change BackupMemory
-    "0",
+    "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1664,7 +1664,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "256K",
-    "2K",
+    "32K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1676,7 +1676,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "1M",
-    "2K",
+    "256K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
