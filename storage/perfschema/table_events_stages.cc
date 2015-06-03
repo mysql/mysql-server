@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,6 +152,7 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
 {
   const char *base;
   const char *safe_source_file;
+  ulonglong timer_end;
 
   m_row_exists= false;
 
@@ -166,7 +167,16 @@ void table_events_stages_common::make_row(PFS_events_stages *stage)
   m_row.m_nesting_event_id= stage->m_nesting_event_id;
   m_row.m_nesting_event_type= stage->m_nesting_event_type;
 
-  m_normalizer->to_pico(stage->m_timer_start, stage->m_timer_end,
+  if (m_row.m_end_event_id == 0)
+  {
+    timer_end= get_timer_raw_value(stage_timer);
+  }
+  else
+  {
+    timer_end= stage->m_timer_end;
+  }
+
+  m_normalizer->to_pico(stage->m_timer_start, timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
 
   m_row.m_name= klass->m_name;

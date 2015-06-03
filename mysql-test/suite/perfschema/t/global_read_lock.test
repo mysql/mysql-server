@@ -56,7 +56,9 @@ let $wait_condition= select 1 from performance_schema.events_waits_current where
 # Observe the blocked thread in the performance schema :)
 select event_name,
   left(source, locate(":", source)) as short_source,
-  timer_end, timer_wait, operation
+  if(timer_end IS NULL, NULL, "SET") as timer_end,
+  if(timer_wait IS NULL, NULL, "SET") as timer_wait,
+  operation
   from performance_schema.events_waits_current
   where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 
