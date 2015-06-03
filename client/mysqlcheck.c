@@ -53,6 +53,7 @@ static char *opt_password = 0, *current_user = 0,
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair, tables4rebuild, alter_table_cmds;
+DYNAMIC_ARRAY views4repair;
 static char *shared_memory_base_name=0;
 static uint opt_protocol=0;
 
@@ -956,6 +957,7 @@ static void print_result()
   uint length_of_db;
   uint i;
   my_bool found_error=0, table_rebuild=0;
+  DYNAMIC_ARRAY *array4repair= &tables4repair;
   DBUG_ENTER("print_result");
 
   res = mysql_use_result(sock);
@@ -992,9 +994,10 @@ static void print_result()
         else
         {
           char *table_name= prev + (length_of_db+1);
-          insert_dynamic(&tables4repair, (uchar*) table_name);
+          insert_dynamic(array4repair, (uchar*) table_name);
         }
       }
+      array4repair= &tables4repair;
       found_error=0;
       table_rebuild=0;
       prev_alter[0]= 0;
@@ -1010,8 +1013,11 @@ static void print_result()
         we have to run upgrade on it. In this case we write a nicer message
         than "Please do "REPAIR TABLE""...
       */
-      if (!strcmp(row[2],"error") && strstr(row[3],"REPAIR TABLE"))
+      if (!strcmp(row[2],"error") && strstr(row[3],"REPAIR "))
+      {
         printf("%-50s %s", row[0], "Needs upgrade");
+        array4repair= strstr(row[3], "VIEW") ? &views4repair : &tables4repair;
+      }
       else
         printf("%s\n%-9s: %s", row[0], row[2], row[3]);
       if (opt_auto_repair && strcmp(row[2],"note"))
@@ -1061,7 +1067,7 @@ static void print_result()
     else
     {
       char *table_name= prev + (length_of_db+1);
-      insert_dynamic(&tables4repair, (uchar*) table_name);
+      insert_dynamic(array4repair, (uchar*) table_name);
     }
   }
   mysql_free_result(res);
@@ -1173,6 +1179,7 @@ int main(int argc, char **argv)
 
   if (opt_auto_repair &&
       (my_init_dynamic_array(&tables4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
+       my_init_dynamic_array(&views4repair, sizeof(char)*(NAME_LEN*2+2),16,64) ||
        my_init_dynamic_array(&tables4rebuild, sizeof(char)*(NAME_LEN*2+2),16,64) ||
        my_init_dynamic_array(&alter_table_cmds, MAX_ALTER_STR_SIZE, 0, 1)))
     goto end;
@@ -1201,6 +1208,13 @@ int main(int argc, char **argv)
       rebuild_table((char*) dynamic_array_ptr(&tables4rebuild, i));
     for (i = 0; i < alter_table_cmds.elements ; i++)
       run_query((char*) dynamic_array_ptr(&alter_table_cmds, i));
+    if (!opt_silent && views4repair.elements)
+      puts("\nRepairing views");
+    for (i = 0; i < views4repair.elements ; i++)
+    {
+      char *name= (char*) dynamic_array_ptr(&views4repair, i);
+      handle_request_for_tables(name, fixed_name_length(name), TRUE);
+    }
   }
   ret= test(first_error);
 
@@ -1208,8 +1222,10 @@ int main(int argc, char **argv)
   dbDisconnect(current_host);
   if (opt_auto_repair)
   {
+    delete_dynamic(&views4repair);
     delete_dynamic(&tables4repair);
     delete_dynamic(&tables4rebuild);
+    delete_dynamic(&alter_table_cmds);
   }
  end1:
   my_free(opt_password);

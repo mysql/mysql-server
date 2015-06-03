@@ -7,6 +7,7 @@
 # check that CSV engine was compiled in, as the result of the test
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
+let $MYSQLD_DATADIR= `select @@datadir`;
 
 #
 # Clean up after previous tests
@@ -65,7 +66,6 @@ create table t_bug25347 (a int) engine=myisam;
 create view v_bug25347 as select * from t_bug25347;
 insert into t_bug25347 values (1),(2),(3);
 flush tables;
-let $MYSQLD_DATADIR= `select @@datadir`;
 --echo removing and creating
 --remove_file $MYSQLD_DATADIR/d_bug25347/t_bug25347.MYI
 --write_file $MYSQLD_DATADIR/d_bug25347/t_bug25347.MYI
@@ -117,7 +117,6 @@ DROP TABLE t1, t2;
 create table t1(a int) engine=myisam;
 create view v1 as select * from t1;
 show tables;
-let $MYSQLD_DATADIR= `select @@datadir`;
 --copy_file $MYSQLD_DATADIR/test/v1.frm $MYSQLD_DATADIR/test/v-1.frm
 show tables;
 --exec $MYSQL_CHECK --check-upgrade --databases test
@@ -162,24 +161,23 @@ CREATE TABLE `#mysql50#c@d` (a INT) engine=myisam;
 CREATE TABLE t1 (a INT) engine=myisam;
 
 # Create 5.0 like triggers
-let $MYSQLTEST_VARDIR= `select @@datadir`;
---write_file $MYSQLTEST_VARDIR/a@b/c@d.TRG
+--write_file $MYSQLD_DATADIR/a@b/c@d.TRG
 TYPE=TRIGGERS
 triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr1 BEFORE INSERT ON `c@d` FOR EACH ROW SET NEW.a = 10 * NEW.a'
 sql_modes=0
 definers='root@localhost'
 EOF
---write_file $MYSQLTEST_VARDIR/a@b/tr1.TRN
+--write_file $MYSQLD_DATADIR/a@b/tr1.TRN
 TYPE=TRIGGERNAME
 trigger_table=c@d
 EOF
---write_file $MYSQLTEST_VARDIR/a@b/t1.TRG
+--write_file $MYSQLD_DATADIR/a@b/t1.TRG
 TYPE=TRIGGERS
 triggers='CREATE DEFINER=`root`@`localhost` TRIGGER tr2 BEFORE INSERT ON `a@b`.t1 FOR EACH ROW SET NEW.a = 100 * NEW.a'
 sql_modes=0
 definers='root@localhost'
 EOF
---write_file $MYSQLTEST_VARDIR/a@b/tr2.TRN
+--write_file $MYSQLD_DATADIR/a@b/tr2.TRN
 TYPE=TRIGGERNAME
 trigger_table=t1
 EOF
@@ -253,7 +251,6 @@ INSERT INTO bug47205 VALUES ("foobar");
 FLUSH TABLE bug47205;
 
 --echo # Replace the FRM with a 5.0 FRM that will require upgrade
-let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/bug47205.frm
 --copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/bug47205.frm
 
@@ -280,7 +277,6 @@ CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
 FLUSH TABLE bug47205;
 
 --echo # Replace the FRM with a 5.0 FRM that will require upgrade
-let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/bug47205.frm
 --copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/bug47205.frm
 
@@ -344,3 +340,13 @@ create view v1 as select 1;
 --exec $MYSQL_CHECK --process-views --check-upgrade test
 drop view v1;
 
+
+#
+# MDEV-8124 mysqlcheck: --auto-repair runs REPAIR TABLE instead of REPAIR VIEW on views
+#
+create table t1(a int);
+--copy_file $MYSQL_TEST_DIR/std_data/mysql_upgrade/v1.frm $MYSQLD_DATADIR/test/v1.frm
+--echo mysqlcheck --process-views --check-upgrade --auto-repair test
+--exec $MYSQL_CHECK --process-views --check-upgrade --auto-repair test
+drop view v1;
+drop table t1;

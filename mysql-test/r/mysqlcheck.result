@@ -330,3 +330,12 @@ test.v1                                            OK
 mysqlcheck --process-views --check-upgrade test
 test.v1                                            OK
 drop view v1;
+create table t1(a int);
+mysqlcheck --process-views --check-upgrade --auto-repair test
+test.t1                                            OK
+test.v1                                            Needs upgrade
+
+Repairing views
+test.v1                                            OK
+drop view v1;
+drop table t1;
