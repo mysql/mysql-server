@@ -1,4 +1,3 @@
-#include "mysql/psi/psi.h"
 C_MODE_START
 struct PSI_mutex;
 struct PSI_rwlock;

@@ -1,13 +1,9 @@
-#include "plugin.h"
-#include <mysql/services.h>
-#include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
   size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
 } *my_snprintf_service;
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
-#include <mysql/service_thd_alloc.h>
 struct st_mysql_lex_string
 {
   char *str;
@@ -31,7 +27,6 @@ void *thd_memdup(void* thd, const void* str, unsigned int size);
 MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, unsigned int size,
                                       int allocate_lex_string);
-#include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
   THD_WAIT_SLEEP= 1,
   THD_WAIT_DISKIO= 2,
@@ -51,7 +46,6 @@ extern struct thd_wait_service_st {
 } *thd_wait_service;
 void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
-#include <mysql/service_thread_scheduler.h>
 struct scheduler_functions;
 extern struct my_thread_scheduler_service {
   int (*set)(struct scheduler_functions *scheduler);
@@ -59,7 +53,6 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
-#include <mysql/service_progress_report.h>
 extern struct progress_report_service_st {
   void (*thd_progress_init_func)(void* thd, unsigned int max_stage);
   void (*thd_progress_report_func)(void* thd,
@@ -80,9 +73,7 @@ void thd_progress_next_stage(void* thd);
 void thd_progress_end(void* thd);
 const char *set_thd_proc_info(void*, const char * info, const char *func,
                               const char *file, unsigned int line);
-#include <mysql/service_debug_sync.h>
 extern void (*debug_sync_C_callback_ptr)(void*, const char *, size_t);
-#include <mysql/service_kill_statement.h>
 enum thd_kill_levels {
   THD_IS_NOT_KILLED=0,
   THD_ABORT_SOFTLY=50,
@@ -92,7 +83,6 @@ extern struct kill_statement_service_st {
   enum thd_kill_levels (*thd_kill_level_func)(const void*);
 } *thd_kill_statement_service;
 enum thd_kill_levels thd_kill_level(const void*);
-#include <mysql/service_logger.h>
 typedef struct logger_handle_st LOGGER_HANDLE;
 extern struct logger_service_st {
   void (*logger_init_mutexes)();
@@ -175,7 +165,6 @@ struct st_maria_plugin
   const char *version_info;
   unsigned int maturity;
 };
-#include "plugin_ftparser.h"
 struct st_mysql_daemon
 {
   int interface_version;

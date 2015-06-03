@@ -58,7 +58,7 @@ FOREACH(file ${ABI_HEADERS})
 
   EXECUTE_PROCESS(
     COMMAND ${COMPILER} 
-      -E -nostdinc -dI -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
+      -E -nostdinc -DMYSQL_ABI_CHECK -I${SOURCE_DIR}/include
       -I${BINARY_DIR}/include -I${SOURCE_DIR}/include/mysql -I${SOURCE_DIR}/sql
       ${file} 
       ERROR_QUIET OUTPUT_FILE ${tmpfile})
