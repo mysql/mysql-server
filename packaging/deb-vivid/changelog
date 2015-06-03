@@ -6,6 +6,7 @@ mysql-community (5.7.8-rc-1ubuntu15.04) vivid; urgency=low
     libtest_services
     libtest_services_threaded
     locking_service
+    version_token
 
  -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 03 Jun 2015 12:39:28 +0530
 
