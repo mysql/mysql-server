@@ -323,3 +323,24 @@ CREATE TABLE test.`t.1` (id int);
 --exec $MYSQL_CHECK test t.1
 
 drop table test.`t.1`;
+
+#
+# MDEV-8123 mysqlcheck: new --process-views option conflicts with --quick, --extended and such
+#
+create view v1 as select 1;
+--echo mysqlcheck --process-views test
+--exec $MYSQL_CHECK --process-views test
+--echo mysqlcheck --process-views --extended test
+--exec $MYSQL_CHECK --process-views --extended test
+--echo mysqlcheck --process-views --fast test
+--exec $MYSQL_CHECK --process-views --fast test
+--echo mysqlcheck --process-views --quick test
+--exec $MYSQL_CHECK --process-views --quick test
+--echo mysqlcheck --process-views --check-only-changed test
+--exec $MYSQL_CHECK --process-views --check-only-changed test
+--echo mysqlcheck --process-views --medium-check test
+--exec $MYSQL_CHECK --process-views --medium-check test
+--echo mysqlcheck --process-views --check-upgrade test
+--exec $MYSQL_CHECK --process-views --check-upgrade test
+drop view v1;
+

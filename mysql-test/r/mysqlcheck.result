@@ -316,3 +316,17 @@ CREATE TABLE test.`t.1` (id int);
 mysqlcheck test t.1
 test.t.1                                           OK
 drop table test.`t.1`;
+create view v1 as select 1;
+mysqlcheck --process-views test
+test.v1                                            OK
+mysqlcheck --process-views --extended test
+test.v1                                            OK
+mysqlcheck --process-views --fast test
+mysqlcheck --process-views --quick test
+test.v1                                            OK
+mysqlcheck --process-views --check-only-changed test
+mysqlcheck --process-views --medium-check test
+test.v1                                            OK
+mysqlcheck --process-views --check-upgrade test
+test.v1                                            OK
+drop view v1;

@@ -861,11 +861,19 @@ static int handle_request_for_tables(char *tables, size_t length, my_bool view)
   switch (what_to_do) {
   case DO_CHECK:
     op = "CHECK";
-    if (opt_quick)              end = strmov(end, " QUICK");
-    if (opt_fast)               end = strmov(end, " FAST");
-    if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
-    if (opt_extended)           end = strmov(end, " EXTENDED");
-    if (opt_check_only_changed) end = strmov(end, " CHANGED");
+    if (view)
+    {
+      if (opt_fast || opt_check_only_changed)
+        DBUG_RETURN(0);
+    }
+    else
+    {
+      if (opt_quick)              end = strmov(end, " QUICK");
+      if (opt_fast)               end = strmov(end, " FAST");
+      if (opt_extended)           end = strmov(end, " EXTENDED");
+      if (opt_medium_check)       end = strmov(end, " MEDIUM"); /* Default */
+      if (opt_check_only_changed) end = strmov(end, " CHANGED");
+    }
     if (opt_upgrade)            end = strmov(end, " FOR UPGRADE");
     break;
   case DO_REPAIR:
