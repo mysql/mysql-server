@@ -1,6 +1,18 @@
 mysql-community (5.8.0-m17-1ubuntu15.04) vivid; urgency=low
 
   * new upstream release
+  * added new plugin to source/include-binaries, mysql-*-test.install
+    libtest_framework
+    libtest_services
+    libtest_services_threaded
+    locking_service
+    version_token
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 03 Jun 2015 12:39:28 +0530
+
+mysql-community (5.7.7-rc-3ubuntu15.04) vivid; urgency=low
+
+  * new upstream release
   * forked packaging source from utopic to vivid
   * updated Standards-Version to 3.9.6 in d/control
   * apparmor profile updated to allow read on all files under /etc/mysql

@@ -25,6 +25,10 @@ debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin
 debian/extra/libdaemon_example-plugin
 debian/extra/libmemcached-plugin
+debian/extra/libtest_framework-plugin
+debian/extra/libtest_services-plugin
+debian/extra/libtest_services_threaded-plugin
+debian/extra/locking_service-plugin
 debian/extra/mypluglib-plugin
 debian/extra/mysql_no_login-plugin
 debian/extra/qa_auth_client-plugin
@@ -36,3 +40,4 @@ debian/extra/rewrite_example-plugin
 debian/extra/semisync_master-plugin
 debian/extra/semisync_slave-plugin
 debian/extra/validate_password-plugin
+debian/extra/version_token-plugin
