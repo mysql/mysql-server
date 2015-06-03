@@ -2342,7 +2342,7 @@ DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (1,11), (1,12), (2,22),(2,23), (4,44),(4,45);
 create table t2 (c int, d int);
-insert into t2 values (1,11), (1,12), (2,22),(2,23), (4,44),(4,45);
+insert into t2 values (1,11), (2,22), (4,44);
 select distinct a,sum(b), (select d from t2 where c=a order by max(b) limit 1) from t1 group by a order by max(b);
 a	sum(b)	(select d from t2 where c=a order by max(b) limit 1)
 1	23	11
