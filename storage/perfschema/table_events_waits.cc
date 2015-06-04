@@ -480,6 +480,8 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
   PFS_instr_class *safe_class;
   const char *base;
   const char *safe_source_file;
+  enum_timer_name timer_name= wait_timer;
+  ulonglong timer_end;
 
   m_row_exists= false;
 
@@ -517,6 +519,7 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
     clear_object_columns();
     m_row.m_object_instance_addr= 0;
     safe_class= sanitize_idle_class(wait->m_class);
+    timer_name= idle_timer;
     break;
   case WAIT_CLASS_MUTEX:
     clear_object_columns();
@@ -563,7 +566,17 @@ void table_events_waits_common::make_row(PFS_events_waits *wait)
   m_row.m_nesting_event_type= wait->m_nesting_event_type;
 
   get_normalizer(safe_class);
-  m_normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
+
+  if (m_row.m_end_event_id == 0)
+  {
+    timer_end= get_timer_raw_value(timer_name);
+  }
+  else
+  {
+    timer_end= wait->m_timer_end;
+  }
+
+  m_normalizer->to_pico(wait->m_timer_start, timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
 
   m_row.m_name= safe_class->m_name;
