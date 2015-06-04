@@ -144,7 +144,6 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->db().str, (thd)->db().length,\
   NO_VIO_TYPE)
 
-
 #endif // !EMBEDDED_LIBRARY
 
 #endif /* SQL_AUDIT_INCLUDED */
