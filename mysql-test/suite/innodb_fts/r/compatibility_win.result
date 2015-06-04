@@ -155,7 +155,7 @@ test.t1	check	Warning	InnoDB: Index AB is marked as corrupted
 test.t1	check	Warning	InnoDB: Index C1 is marked as corrupted
 test.t1	check	error	Corrupt
 ALTER TABLE t1 ADD FULLTEXT(b);
-ERROR 42000: Can't open table
+ERROR HY000: Index corrupt: Fulltext index 'AB' is corrupt. you should drop this index first.
 # restart
 SELECT * FROM t1 WHERE MATCH(a, b) AGAINST ('TEST2');
 ERROR HY000: The table does not have FULLTEXT index to support this query

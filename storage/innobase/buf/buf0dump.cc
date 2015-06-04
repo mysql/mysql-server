@@ -24,6 +24,7 @@ Created April 08, 2011 Vasil Dimov
 *******************************************************/
 
 #include "my_global.h"
+#include "my_sys.h"
 #include "my_thread.h"
 
 #include "mysql/psi/mysql_stage.h"
@@ -180,6 +181,56 @@ buf_load_status(
 	va_end(ap);
 }
 
+/** Generate the path to the buffer pool dump/load file.
+@param[out]	path		generated path
+@param[in]	path_size	size of 'path', used as in snprintf(3). */
+static
+void
+buf_dump_generate_path(
+	char*	path,
+	size_t	path_size)
+{
+	char	buf[FN_REFLEN];
+
+	ut_snprintf(buf, sizeof(buf), "%s%c%s", srv_data_home,
+		    OS_PATH_SEPARATOR, srv_buf_dump_filename);
+
+	os_file_type_t	type;
+	bool		exists = false;
+	bool		ret;
+
+	ret = os_file_status(buf, &exists, &type);
+
+	/* For realpath() to succeed the file must exist. */
+
+	if (ret && exists) {
+		/* my_realpath() assumes the destination buffer is big enough
+		to hold FN_REFLEN bytes. */
+		ut_a(path_size >= FN_REFLEN);
+
+		my_realpath(path, buf, 0);
+	} else {
+		/* If it does not exist, then resolve only srv_data_home
+		and append srv_buf_dump_filename to it. */
+		char	srv_data_home_full[FN_REFLEN];
+
+		my_realpath(srv_data_home_full, srv_data_home, 0);
+
+		if (srv_data_home_full[strlen(srv_data_home_full) - 1]
+		    == OS_PATH_SEPARATOR) {
+
+			ut_snprintf(path, path_size, "%s%s",
+				    srv_data_home_full,
+				    srv_buf_dump_filename);
+		} else {
+			ut_snprintf(path, path_size, "%s%c%s",
+				    srv_data_home_full,
+				    OS_PATH_SEPARATOR,
+				    srv_buf_dump_filename);
+		}
+	}
+}
+
 /*****************************************************************//**
 Perform a buffer pool dump into the file specified by
 innodb_buffer_pool_filename. If any errors occur then the value of
@@ -202,9 +253,7 @@ buf_dump(
 	ulint	i;
 	int	ret;
 
-	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
-		    srv_buf_dump_filename);
+	buf_dump_generate_path(full_filename, sizeof(full_filename));
 
 	ut_snprintf(tmp_filename, sizeof(tmp_filename),
 		    "%s.incomplete", full_filename);
@@ -438,9 +487,7 @@ buf_load()
 	/* Ignore any leftovers from before */
 	buf_load_abort_flag = FALSE;
 
-	ut_snprintf(full_filename, sizeof(full_filename),
-		    "%s%c%s", srv_data_home, OS_PATH_SEPARATOR,
-		    srv_buf_dump_filename);
+	buf_dump_generate_path(full_filename, sizeof(full_filename));
 
 	buf_load_status(STATUS_INFO,
 			"Loading buffer pool(s) from %s", full_filename);

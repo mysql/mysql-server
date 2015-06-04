@@ -84,7 +84,7 @@ row_purge_node_create(
 
 /***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
-if found.
+if found. If the record is not found, close pcur.
 @return TRUE if the record was found */
 static
 ibool
@@ -106,6 +106,11 @@ row_purge_reposition_pcur(
 		if (node->found_clust) {
 			btr_pcur_store_position(&node->pcur, mtr);
 		}
+	}
+
+	/* Close the current cursor if we fail to position it correctly. */
+	if (!node->found_clust) {
+		btr_pcur_close(&node->pcur);
 	}
 
 	return(node->found_clust);
@@ -184,7 +189,12 @@ func_exit:
 		mem_heap_free(heap);
 	}
 
-	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	/* Persistent cursor is closed if reposition fails. */
+	if (node->found_clust) {
+		btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	} else {
+		mtr_commit(&mtr);
+	}
 
 	return(success);
 }
@@ -252,7 +262,12 @@ row_purge_poss_sec(
 						 btr_pcur_get_rec(&node->pcur),
 						 &mtr, index, entry);
 
-	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	/* Persistent cursor is closed if reposition fails. */
+	if (node->found_clust) {
+		btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	} else {
+		mtr_commit(&mtr);
+	}
 
 	return(can_delete);
 }
@@ -1061,8 +1076,8 @@ Validate the persisent cursor. The purge node has two references
 to the clustered index record - one via the ref member, and the
 other via the persistent cursor.  These two references must match
 each other if the found_clust flag is set.
-@return true if the persistent cursor is consistent with
-the ref member.*/
+@return true if the stored copy of persistent cursor is consistent
+with the ref member.*/
 bool
 purge_node_t::validate_pcur()
 {
@@ -1078,23 +1093,25 @@ purge_node_t::validate_pcur()
 		return(true);
 	}
 
-	const rec_t*	rec ;
-	dict_index_t*	clust_index = pcur.btr_cur.index;
-	if (pcur.old_stored) {
-		rec = pcur.old_rec;
-	} else {
-		rec = btr_pcur_get_rec(&pcur);
+	if (!pcur.old_stored) {
+		return(true);
 	}
 
-	ulint*	offsets = rec_get_offsets(
-		rec, clust_index, NULL, ULINT_UNDEFINED, &heap);
+	dict_index_t*	clust_index = pcur.btr_cur.index;
 
-	int st = cmp_dtuple_rec(ref, rec, offsets);
+	ulint*	offsets = rec_get_offsets(
+		pcur.old_rec, clust_index, NULL, pcur.old_n_fields, &heap);
+
+	/* Here we are comparing the purge ref record and the stored initial
+	part in persistent cursor. Both cases we store n_uniq fields of the
+	cluster index and so it is fine to do the comparison. We note this
+	dependency here as pcur and ref belong to different modules. */
+	int st = cmp_dtuple_rec(ref, pcur.old_rec, offsets);
 
 	if (st != 0) {
 		ib::error() << "Purge node pcur validation failed";
 		ib::error() << rec_printer(ref).str();
-		ib::error() << rec_printer(rec, offsets).str();
+		ib::error() << rec_printer(pcur.old_rec, offsets).str();
 		return(false);
 	}
 

@@ -20,6 +20,7 @@
 #include "mysqld_error.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include "mysql/service_mysql_alloc.h"
+#include "mysql/service_my_snprintf.h"
 
 using namespace std;
 
@@ -76,7 +77,7 @@ static struct my_option my_connection_options[]=
    &opt_socket, &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
 #include "sslopt-longopts.h"
-  {"user", 'u', "User for login if not current user.", &opt_user,
+  {"user", 'u', "User for login if not root.", &opt_user,
    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong) "root", 0, 0, 0, 0, 0},
   {"use-default", 'D', "Execute with no user interactivity",
    &opt_use_default, &opt_use_default, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -487,7 +488,7 @@ my_bool mysql_expire_password(MYSQL *mysql)
 
 
 /**
-  Sets the root password with the string provided during the flow
+  Sets the user password with the string provided during the flow
   of the method. It checks for the strength of the password before
   changing it and displays the same to the user. The user can decide
   if he wants to continue with the password, or provide a new one,
@@ -497,7 +498,7 @@ my_bool mysql_expire_password(MYSQL *mysql)
                          0 if it is not.
 */
 
-static void set_root_password(int plugin_set)
+static void set_opt_user_password(int plugin_set)
 {
   char *password1= 0, *password2= 0;
   int reply= 0;
@@ -571,13 +572,13 @@ static void set_root_password(int plugin_set)
 }
 
 /**
-  Takes the root password as an input from the user and checks its validity
+  Takes the opt_user's password as an input from the user and checks its validity
   by trying to connect to the server with it. The connection to the server
   is opened in this function.
 
   @return    Returns 1 if a password already exists and 0 if it doesn't.
 */
-int get_root_password()
+int get_opt_user_password()
 {
   my_bool using_temporary_password= FALSE;
   int res;
@@ -613,8 +614,11 @@ int get_root_password()
       }
       else
       {
+        char prompt[128];
+        my_snprintf(prompt, sizeof(prompt) - 1,
+                    "Enter password for user %s: ", opt_user);
         // Request password from user
-        password= get_tty_password("Enter password for root user: ");
+        password= get_tty_password(prompt);
       }
     }
     init_connection_options(&mysql);
@@ -662,9 +666,10 @@ int get_root_password()
           This path is only executed if no temporary password can be found and
           should only happen when manual interaction is possible.
         */
-        fprintf(stdout, "\nThe existing password for the user account has "
-	                "expired. Please set a new password.\n");
-        set_root_password(0);
+        fprintf(stdout, "\nThe existing password for the user account %s has "
+	                "expired. Please set a new password.\n",
+                        opt_user);
+        set_opt_user_password(0);
       }
     }
     else
@@ -781,7 +786,7 @@ void remove_remote_root()
 }
 
 /**
-  Removes test database and deleteѕ the rows corresponding to them
+  Removes test database and deletes the rows corresponding to them
   from mysql.db table.
 */
 void remove_test_database()
@@ -935,7 +940,7 @@ int main(int argc,char *argv[])
 
   fprintf(stdout, "\nSecuring the MySQL server deployment.\n\n");
 
-  hadpass= get_root_password();
+  hadpass= get_opt_user_password();
 
   if (!validate_password_exists())
     plugin_set= install_password_validation_plugin();
@@ -950,21 +955,24 @@ int main(int argc,char *argv[])
 
   if (!hadpass)
   {
-    fprintf(stdout, "Please set the root password here.\n");
-    set_root_password(plugin_set);
+    fprintf(stdout, "Please set the password for %s here.\n", opt_user);
+    set_opt_user_password(plugin_set);
   }
   else if (opt_use_default == FALSE)
   {
-    fprintf(stdout, "Using existing root password.\n");
+    char prompt[256];
+    fprintf(stdout, "Using existing password for %s.\n", opt_user);
 
     if (plugin_set == 1)
       estimate_password_strength(password);
 
-    reply= get_response((const char *) "Change the root password? (Press y|Y "
-	                               "for Yes, any other key for No) : ", 'n');
+    my_snprintf(prompt, sizeof(prompt) - 1, 
+                "Change the password for %s ? ((Press y|Y "
+                "for Yes, any other key for No) : ", opt_user);
+    reply= get_response(prompt, 'n');
 
     if (reply == (int) 'y' || reply == (int) 'Y')
-      set_root_password(plugin_set);
+      set_opt_user_password(plugin_set);
     else
       fprintf(stdout, "\n ... skipping.\n");
   }
