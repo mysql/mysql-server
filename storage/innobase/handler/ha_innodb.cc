@@ -93,7 +93,6 @@ extern "C" {
 #include "ibuf0ibuf.h"
 
 enum_tx_isolation thd_get_trx_isolation(const THD* thd);
-
 }
 
 #include "ha_innodb.h"
@@ -6298,6 +6297,11 @@ ha_innobase::general_fetch(
 	int		error	= 0;
 
 	DBUG_ENTER("general_fetch");
+
+	/* If transaction is not startted do not continue, instead return a error code. */
+	if(!(prebuilt->sql_stat_start || (prebuilt->trx && prebuilt->trx->conc_state == 1))) {
+		DBUG_RETURN(HA_ERR_END_OF_FILE);
+	}
 
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
