@@ -40,7 +40,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
 CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
@@ -64,7 +64,7 @@ CHANGE MASTER TO RELAY_LOG_FILE= 'RELAY_LOG_FILE';
 CHANGE MASTER TO RELAY_LOG_POS= RELAY_LOG_POS;
 CHANGE MASTER TO MASTER_DELAY= 10;
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
-ERROR HY000: This operation cannot be performed with a running replication threads; run STOP SLAVE FOR CHANNEL '' first
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL '' first
 CHANGE MASTER TO MASTER_HOST= 'localhost';
 ERROR HY000: This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '' first.
 CHANGE MASTER TO MASTER_USER= 'replssl';

@@ -251,7 +251,7 @@ void print_conclusions_csv(conclusions *con);
 void generate_stats(conclusions *con, option_string *eng, stats *sptr);
 uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
-uint parse_option(const char *origin, option_string **stmt, char delm);
+int parse_option(const char *origin, option_string **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
 size_t get_random_string(char *buf);
 static statement *build_table_string(void);
@@ -1291,7 +1291,13 @@ get_options(int *argc,char ***argv)
   if (num_int_cols_opt)
   {
     option_string *str;
-    parse_option(num_int_cols_opt, &str, ',');
+    if(parse_option(num_int_cols_opt, &str, ',') == -1)
+    {
+      fprintf(stderr, "Invalid value specified for the option "
+              "'number-int-cols'\n");
+      option_cleanup(str);
+      return 1;
+    }
     num_int_cols= atoi(str->string);
     if (str->option)
       num_int_cols_index= atoi(str->option);
@@ -1301,7 +1307,13 @@ get_options(int *argc,char ***argv)
   if (num_char_cols_opt)
   {
     option_string *str;
-    parse_option(num_char_cols_opt, &str, ',');
+    if(parse_option(num_char_cols_opt, &str, ',') == -1)
+    {
+      fprintf(stderr, "Invalid value specified for the option "
+              "'number-char-cols'\n");
+      option_cleanup(str);
+      return 1;
+    }
     num_char_cols= atoi(str->string);
     if (str->option)
       num_char_cols_index= atoi(str->option);
@@ -1541,7 +1553,13 @@ get_options(int *argc,char ***argv)
     printf("Parsing engines to use.\n");
 
   if (default_engine)
-    parse_option(default_engine, &engine_options, ',');
+  {
+    if(parse_option(default_engine, &engine_options, ',') == -1)
+    {
+      fprintf(stderr, "Invalid value specified for the option 'engine'\n");
+      return 1;
+    }
+  }
 
   if (tty_password)
     opt_password= get_tty_password(NullS);
@@ -2035,7 +2053,7 @@ end:
   DBUG_RETURN(0);
 }
 
-uint
+int
 parse_option(const char *origin, option_string **stmt, char delm)
 {
   char *retstr;
@@ -2056,6 +2074,13 @@ parse_option(const char *origin, option_string **stmt, char delm)
   {
     char buffer[HUGE_STRING_LENGTH];
     char *buffer_ptr;
+
+    /*
+      Return an error if the length of the any of the comma seprated value
+      exceeds HUGE_STRING_LENGTH.
+    */
+    if ((size_t)(retstr - ptr) > HUGE_STRING_LENGTH)
+      return -1;
 
     count++;
     strncpy(buffer, ptr, (size_t)(retstr - ptr));
@@ -2092,6 +2117,13 @@ parse_option(const char *origin, option_string **stmt, char delm)
   {
     char *origin_ptr;
 
+    /*
+      Return an error if the length of the any of the comma seprated value
+      exceeds HUGE_STRING_LENGTH.
+    */
+    if (strlen(ptr) > HUGE_STRING_LENGTH)
+      return -1;
+
     if ((origin_ptr= strchr(ptr, ':')))
     {
       char *option_ptr;
@@ -2103,14 +2135,14 @@ parse_option(const char *origin, option_string **stmt, char delm)
       option_ptr= (char *)ptr + 1 + tmp->length;
 
       /* Move past the : and the first string */
-      tmp->option_length= (size_t)((ptr + length) - option_ptr);
+      tmp->option_length= strlen(option_ptr);
       tmp->option= my_strndup(PSI_NOT_INSTRUMENTED,
                               option_ptr, tmp->option_length,
                               MYF(MY_FAE));
     }
     else
     {
-      tmp->length= (size_t)((ptr + length) - ptr);
+      tmp->length= strlen(ptr);
       tmp->string= my_strndup(PSI_NOT_INSTRUMENTED,
                               ptr, tmp->length, MYF(MY_FAE));
     }
