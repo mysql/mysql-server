@@ -15,6 +15,7 @@ typedef struct MDL_key MDL_key;
 typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
+typedef int opaque_vio_type;
 struct TABLE_SHARE;
 struct sql_digest_storage;
   struct opaque_THD

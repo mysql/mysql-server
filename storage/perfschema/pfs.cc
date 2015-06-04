@@ -2446,6 +2446,24 @@ void pfs_set_thread_command_v1(int command)
 }
 
 /**
+Implementation of the thread instrumentation interface.
+@sa PSI_v1::set_thread_connection_type.
+*/
+void pfs_set_connection_type_v1(opaque_vio_type conn_type)
+{
+  PFS_thread *pfs= my_thread_get_THR_PFS();
+
+  DBUG_ASSERT(conn_type >= FIRST_VIO_TYPE);
+  DBUG_ASSERT(conn_type <= LAST_VIO_TYPE);
+
+  if (likely(pfs != NULL))
+  {
+    pfs->m_connection_type= static_cast<enum_vio_type> (conn_type);
+  }
+}
+
+
+/**
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_start_time.
 */
@@ -6852,6 +6870,7 @@ PSI_v1 PFS_v1=
   pfs_set_thread_account_v1,
   pfs_set_thread_db_v1,
   pfs_set_thread_command_v1,
+  pfs_set_connection_type_v1,
   pfs_set_thread_start_time_v1,
   pfs_set_thread_state_v1,
   pfs_set_thread_info_v1,

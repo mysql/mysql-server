@@ -1186,6 +1186,7 @@ def	performance_schema	threads	PARENT_THREAD_ID	12	NULL	YES	bigint	NULL	NULL	20	
 def	performance_schema	threads	ROLE	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references		
 def	performance_schema	threads	INSTRUMENTED	14	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
 def	performance_schema	threads	HISTORY	15	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references		
+def	performance_schema	threads	CONNECTION_TYPE	16	NULL	YES	varchar	16	48	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select,insert,update,references		
 def	performance_schema	users	USER	1	NULL	YES	char	16	48	NULL	NULL	NULL	utf8	utf8_bin	char(16)			select,insert,update,references		
 def	performance_schema	users	CURRENT_CONNECTIONS	2	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
 def	performance_schema	users	TOTAL_CONNECTIONS	3	NULL	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references		
