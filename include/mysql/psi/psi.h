@@ -56,6 +56,9 @@ typedef int opaque_mdl_duration;
 /** @sa MDL_wait::enum_wait_status. */
 typedef int opaque_mdl_status;
 
+/** @sa enum_vio_type. */
+typedef int opaque_vio_type;
+
 struct TABLE_SHARE;
 
 struct sql_digest_storage;
@@ -1616,6 +1619,13 @@ typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
 
 /**
+  Assign a connection type to the instrumented thread.
+  @param conn_type the connection type
+*/
+typedef void (*set_connection_type_v1_t)(opaque_vio_type conn_type);
+
+
+/**
   Assign a start time to the instrumented thread.
   @param start_time the thread start time
 */
@@ -2461,6 +2471,8 @@ struct PSI_v1
   set_thread_db_v1_t set_thread_db;
   /** @sa set_thread_command_v1_t. */
   set_thread_command_v1_t set_thread_command;
+  /** @sa set_connection_type_v1_t. */
+  set_connection_type_v1_t set_connection_type;
   /** @sa set_thread_start_time_v1_t. */
   set_thread_start_time_v1_t set_thread_start_time;
   /** @sa set_thread_state_v1_t. */

@@ -1,0 +1,57 @@
+TRUNCATE TABLE mysql.general_log;
+--------------- general log ---------------------------------------
+SET @old_log_output=    @@global.log_output;
+SET @old_general_log=         @@global.general_log;
+SET @old_general_log_file=    @@global.general_log_file;
+SET GLOBAL general_log_file = 'MYSQLTEST_VARDIR/log/general_connection_protocols.log';
+SET GLOBAL log_output =       'FILE,TABLE';
+SET GLOBAL general_log=       'ON';
+
+CREATE USER 'user_tcp'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_tcp'@'127.0.0.1';
+CREATE USER 'user_ssl'@'127.0.0.1';
+GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Named Pipe
+
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Named Pipe
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+connection_type
+Shared Memory
+
+# Connection type testing for TCP/IP  protocol 
+
+CONNECTION_TYPE
+SSL/TLS
+CONNECTION_TYPE
+TCP/IP
+# Testing TCP/IP connections over SSL/TLS
+CONNECTION_TYPE
+SSL/TLS
+CONNECTION_TYPE
+SSL/TLS
+
+CREATE TABLE test_log (argument TEXT);
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/general_connection_protocols.log'
+INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
+Show what is logged:
+------ rewrite ------
+SELECT argument FROM mysql.general_log where command_type='connect';
+argument
+root@localhost on test using Named Pipe
+root@localhost on test using Named Pipe
+root@localhost on test using Shared Memory
+root@localhost on  using SSL/TLS
+user_tcp@localhost on  using TCP/IP
+root@localhost on  using SSL/TLS
+user_ssl@localhost on  using SSL/TLS
+------ done ------
+DROP table test_log;
+SET GLOBAL general_log_file=  @old_general_log_file;
+SET GLOBAL general_log=       @old_general_log;
+SET GLOBAL log_output=        @old_log_output;
+#Cleanup
+DROP USER 'user_tcp'@'127.0.0.1', 'user_ssl'@'127.0.0.1';

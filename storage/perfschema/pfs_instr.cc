@@ -559,6 +559,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_stage_progress= NULL;
     pfs->m_processlist_info[0]= '\0';
     pfs->m_processlist_info_length= 0;
+    pfs->m_connection_type= NO_VIO_TYPE;
 
     pfs->m_host= NULL;
     pfs->m_user= NULL;

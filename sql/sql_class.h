@@ -2154,6 +2154,8 @@ public:
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
+  enum_vio_type get_vio_type();
+
   void shutdown_active_vio();
   void awake(THD::killed_state state_to_set);
 
