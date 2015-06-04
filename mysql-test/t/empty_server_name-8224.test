@@ -1,3 +1,7 @@
+#
+# MDEV-8224 Server crashes in get_server_from_table_to_cache on empty name
+#
+--source include/not_embedded.inc
 create server '' foreign data wrapper w2 options (host '127.0.0.1');
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
