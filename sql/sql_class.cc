@@ -2652,6 +2652,18 @@ int THD::send_explain_fields(Query_result *result)
                                            Protocol::SEND_EOF));
 }
 
+enum_vio_type THD::get_vio_type()
+{
+#ifndef EMBEDDED_LIBRARY
+  Vio *vio= get_protocol_classic()->get_vio();
+  if (vio != NULL)
+    return vio_type(vio);
+  return NO_VIO_TYPE;
+#else
+  return NO_VIO_TYPE;
+#endif
+}
+
 void THD::shutdown_active_vio()
 {
   DBUG_ENTER("shutdown_active_vio");

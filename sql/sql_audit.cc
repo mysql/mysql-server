@@ -112,6 +112,7 @@ static void connection_class_handler(THD *thd, uint event_subclass, va_list ap)
   event.ip_length= va_arg(ap, unsigned int);
   event.database= va_arg(ap, const char *);
   event.database_length= va_arg(ap, unsigned int);
+  event.connection_type = va_arg(ap, int);
   event_class_dispatch(thd, MYSQL_AUDIT_CONNECTION_CLASS, &event);
 }
 

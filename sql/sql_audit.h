@@ -232,7 +232,8 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_context()->host().length,\
   (thd)->security_context()->ip().str,\
   (thd)->security_context()->ip().length,\
-  (thd)->db().str, (thd)->db().length)
+  (thd)->db().str, (thd)->db().length,\
+  (thd)->get_vio_type());
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
   mysql_audit_notify(\
@@ -250,7 +251,8 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_context()->host().length,\
   (thd)->security_context()->ip().str,\
   (thd)->security_context()->ip().length,\
-  (thd)->db().str, (thd)->db().length)
+  (thd)->db().str, (thd)->db().length,\
+  NO_VIO_TYPE)
 
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
@@ -268,6 +270,8 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   (thd)->security_context()->host().length,\
   (thd)->security_context()->ip().str,\
   (thd)->security_context()->ip().length,\
-  (thd)->db().str, (thd)->db().length)
+  (thd)->db().str, (thd)->db().length,\
+  NO_VIO_TYPE)
+
 
 #endif /* SQL_AUDIT_INCLUDED */
