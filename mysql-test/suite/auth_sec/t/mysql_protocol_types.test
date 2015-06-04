@@ -11,7 +11,9 @@
 --source include/not_embedded.inc
 # Windows does not have SOCKET connection protocol support.
 --source include/not_windows.inc
-
+--source include/no_protocol.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
 ## Connection Protocols: SOCKET, TCP/IP, SSL/TLS BY enabling general log.
 
 --echo # Enabling general logs. Make sure we start with a clean slate.
