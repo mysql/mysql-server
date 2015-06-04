@@ -2483,7 +2483,7 @@ void Field_decimal::sql_type(String &res) const
   if (dec)
     tmp--;
   res.length(cs->cset->snprintf(cs,(char*) res.ptr(),res.alloced_length(),
-			  "decimal(%d,%d)",tmp,dec));
+			  "decimal(%d,%d)/*old*/",tmp,dec));
   add_zerofill_and_unsigned(res);
 }
 

@@ -583,3 +583,27 @@ JOIN
 WHERE CONCAT(t1.col1, CAST(subq.col0 AS DECIMAL));
 
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # MDEV-8267 Add /*old*/ comment into I_S.COLUMN_TYPE for old DECIMAL
+--echo #
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--copy_file std_data/old_decimal/t1dec102.frm $MYSQLD_DATADIR/test/t1dec102.frm
+--copy_file std_data/old_decimal/t1dec102.MYD $MYSQLD_DATADIR/test/t1dec102.MYD
+--copy_file std_data/old_decimal/t1dec102.MYI $MYSQLD_DATADIR/test/t1dec102.MYI
+
+SHOW CREATE TABLE t1dec102;
+SHOW COLUMNS FROM t1dec102;
+SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1dec102';
+DROP TABLE t1dec102;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
