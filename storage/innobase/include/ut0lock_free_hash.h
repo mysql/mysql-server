@@ -26,7 +26,11 @@ Created Mar 16, 2015 Vasil Dimov
 #ifndef ut0lock_free_hash_h
 #define ut0lock_free_hash_h
 
+#define BOOST_ATOMIC_NO_LIB
+
 #include "univ.i"
+
+#include <boost/atomic.hpp>
 
 #include "os0atomic.h" /* os_atomic_t */
 #include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
@@ -131,7 +135,7 @@ public:
 	void
 	grow()
 	{
-		if (m_next.load() != NULL) {
+		if (m_next.load(boost::memory_order_relaxed) != NULL) {
 			/* Somebody already appended. */
 			return;
 		}
@@ -161,7 +165,7 @@ public:
 
 	/** Pointer to the next node if any or NULL. */
 	typedef ut_lock_free_list_node_t<T>*	next_t;
-	os_atomic_t<next_t>			m_next;
+	boost::atomic<next_t>			m_next;
 };
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
@@ -239,7 +243,7 @@ public:
 		because it is the same as if get() completed before del()
 		started. */
 
-		return(tuple->m_val.load());
+		return(tuple->m_val.load(boost::memory_order_relaxed));
 	}
 
 	/** Set the value for a given key, either inserting a new (key, val)
@@ -264,7 +268,7 @@ public:
 
 		key_val_t*	tuple = insert_or_get_position(key);
 
-		tuple->m_val.store(val);
+		tuple->m_val.store(val, boost::memory_order_relaxed);
 	}
 
 	/** Delete a (key, val) pair from the hash.
@@ -303,7 +307,7 @@ public:
 		key is not allowed to change to another key. It is only
 		allowed to change into DELETED. A concurrent execution of
 		to del(same key) is fine. */
-		tuple->m_key.store(DELETED);
+		tuple->m_key.store(DELETED, boost::memory_order_relaxed);
 	}
 
 	/** Increment the value for a given key with 1 or insert a new tuple
@@ -337,8 +341,8 @@ public:
 		to NOT_FOUND. */
 		int64_t	not_found = NOT_FOUND;
 		if (!tuple->m_val.compare_exchange_strong(not_found, 1)) {
-			const int64_t	new_val = ++tuple->m_val;
-			ut_a(new_val != NOT_FOUND);
+			const int64_t	prev_val = tuple->m_val.fetch_add(1);
+			ut_a(prev_val + 1 != NOT_FOUND);
 		}
 	}
 
@@ -365,8 +369,8 @@ public:
 		to NOT_FOUND. */
 		int64_t	not_found = NOT_FOUND;
 		if (!tuple->m_val.compare_exchange_strong(not_found, -1)) {
-			const int64_t	new_val = --tuple->m_val;
-			ut_a(new_val != NOT_FOUND);
+			const int64_t	prev_val = tuple->m_val.fetch_sub(1);
+			ut_a(prev_val - 1 != NOT_FOUND);
 		}
 	}
 
@@ -413,10 +417,10 @@ private:
 		}
 
 		/** Key. */
-		os_atomic_t<uint64_t>	m_key;
+		boost::atomic_uint64_t	m_key;
 
 		/** Value. */
-		os_atomic_t<int64_t>	m_val;
+		boost::atomic_int64_t	m_val;
 	};
 
 	/** A hash function used to map a key to its suggested position in the
@@ -473,8 +477,11 @@ private:
 
 			/* arr_size is a power of 2. */
 			const size_t	cur_pos = i & (arr_size - 1);
+
 			key_val_t*	cur_tuple = &arr[cur_pos];
-			const uint64_t	cur_key = cur_tuple->m_key.load();
+
+			const uint64_t	cur_key = cur_tuple->m_key.load(
+				boost::memory_order_relaxed);
 
 			if (cur_key == key) {
 				/* cur_tuple->m_key could be changed to
@@ -503,7 +510,8 @@ private:
 	{
 		for (ut_lock_free_list_node_t<key_val_t>* cur_arr = m_data;
 		     cur_arr != NULL;
-		     cur_arr = cur_arr->m_next.load()) {
+		     cur_arr = cur_arr->m_next.load(
+			     boost::memory_order_relaxed)) {
 
 			key_val_t*	t;
 
@@ -551,8 +559,11 @@ private:
 
 			/* arr_size is a power of 2. */
 			const size_t	cur_pos = i & (arr_size - 1);
+
 			key_val_t*	cur_tuple = &arr[cur_pos];
-			const uint64_t	cur_key = cur_tuple->m_key.load();
+
+			const uint64_t	cur_key = cur_tuple->m_key.load(
+				boost::memory_order_relaxed);
 
 			if (cur_key == key) {
 				return(cur_tuple);
@@ -572,7 +583,10 @@ private:
 				thread just changed the current key from UNUSED
 				to something else. See if the new value is
 				'key'. */
-				if (cur_tuple->m_key.load() == key) {
+				if (cur_tuple->m_key.load(
+						boost::memory_order_relaxed)
+					== key) {
+
 					return(cur_tuple);
 				}
 
@@ -601,7 +615,8 @@ private:
 	{
 		for (ut_lock_free_list_node_t<key_val_t>* cur_arr = m_data;
 		     ;
-		     cur_arr = cur_arr->m_next.load()) {
+		     cur_arr = cur_arr->m_next.load(
+			     boost::memory_order_relaxed)) {
 
 			key_val_t*	t;
 
@@ -614,7 +629,9 @@ private:
 				return(t);
 			}
 
-			if (cur_arr->m_next.load() == NULL) {
+			if (cur_arr->m_next.load(boost::memory_order_relaxed)
+			    == NULL) {
+
 				cur_arr->grow();
 			}
 		}
