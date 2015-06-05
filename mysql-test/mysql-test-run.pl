@@ -325,6 +325,8 @@ our $ndbcluster_enabled= 0;
 my $opt_include_ndbcluster= 0;
 my $opt_skip_ndbcluster= 0;
 
+my $opt_skip_sys_schema= 0;
+
 my $exe_ndbd;
 my $exe_ndbmtd;
 my $exe_ndb_mgmd;
@@ -374,6 +376,9 @@ sub main {
   }
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
+  }
+  if ($opt_skip_sys_schema) {
+    $opt_suites =~ s/,sysschema//;
   }
   mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
@@ -1091,6 +1096,7 @@ sub command_line_setup {
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
+             'skip-sys-schema'          => \$opt_skip_sys_schema,
 	     # skip-im is deprecated and silently ignored
 	     'skip-im'                  => \&ignore_option,
 
@@ -3745,7 +3751,9 @@ sub mysql_install_db {
               "in working directory.");
   }
 
-  if ( ! $opt_embedded_server )
+  # Only load the full sys schema if enabled and not running embedded tests,
+  # otherwise create an empty schema
+  if ( ! $opt_skip_sys_schema && ! $opt_embedded_server )
   {
     # Add the sys schema, but only in non-embedded installs
     my $path_sys_schema= my_find_file($install_basedir,
@@ -3758,6 +3766,10 @@ sub mysql_install_db {
     {
       mtr_appendfile_to_file($path_sys_schema, $bootstrap_sql_file);
     }
+  }
+  else
+  {
+      mtr_tofile($bootstrap_sql_file, "CREATE DATABASE sys;\n");
   }
 
   # Make sure no anonymous accounts exists as a safety precaution
@@ -6934,6 +6946,9 @@ Options to control what test suites or cases to run
   skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
                         is an entry and should be formatted as: 
                         <TESTNAME> : <COMMENT>
+  skip-sys-schema       Skip loading of the sys schema, and running the
+                        sysschema test suite. An empty sys database is
+                        still created
 
 Options that specify ports
 
