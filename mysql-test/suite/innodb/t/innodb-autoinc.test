@@ -1,8 +1,3 @@
-if (`select plugin_auth_version <= "5.5.37-MariaDB-34.0" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB as of 5.5.37-MariaDB-34.0 or earlier
-}
-
 --source include/have_innodb.inc
 # embedded server ignores 'delayed', so skip this
 -- source include/not_embedded.inc

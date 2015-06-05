@@ -1,10 +1,5 @@
 --source include/have_innodb.inc
 
-if (`select plugin_auth_version <= "5.5.40-MariaDB-36.1" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB as of 5.5.40-MariaDB-36.1 or earlier
-}
-
 --echo #
 --echo # Bug #17852083 PRINT A WARNING WHEN DDL HAS AN ERROR IN
 --echo # INNODB_STRICT_MODE = 1

@@ -1,8 +1,3 @@
-if (`select plugin_auth_version <= "5.5.37-MariaDB-34.0" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB as of 5.5.37-MariaDB-34.0 or earlier
-}
-
 #
 # 2010-01-27 - Added
 #

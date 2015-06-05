@@ -1,3 +1,7 @@
+if (`select plugin_auth_version <= "5.5.43-MariaDB-37.2" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB as of 5.5.43-MariaDB-37.2 or earlier
+}
 --source include/have_innodb.inc
 # Embedded server does not support restarting.
 --source include/not_embedded.inc

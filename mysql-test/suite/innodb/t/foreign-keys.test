@@ -1,11 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
 
-if (`select plugin_auth_version <= "5.5.39-MariaDB-36.0" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB as of 5.5.39-MariaDB-36.0 or earlier
-}
-
 --echo #
 --echo # Bug #19471516 SERVER CRASHES WHEN EXECUTING ALTER TABLE
 --echo # ADD FOREIGN KEY

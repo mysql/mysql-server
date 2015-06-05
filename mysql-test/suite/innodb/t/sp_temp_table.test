@@ -1,11 +1,6 @@
 --source include/have_innodb.inc
 --source include/big_test.inc
 
-if (`select plugin_auth_version <= "5.5.40-MariaDB-36.1" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB as of 5.5.40-MariaDB-36.1 or earlier
-}
-
 --echo #
 --echo # Bug #19306524 FAILING ASSERTION WITH TEMP TABLE FOR A PROCEDURE
 --echo # CALLED FROM A FUNCTION
