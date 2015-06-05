@@ -994,3 +994,24 @@ GROUP BY t2.col0
 WHERE CONCAT(t1.col1, CAST(subq.col0 AS DECIMAL));
 1
 DROP TABLE t1, t2;
+#
+# Start of 5.5 tests
+#
+#
+# MDEV-8267 Add /*old*/ comment into I_S.COLUMN_TYPE for old DECIMAL
+#
+SHOW CREATE TABLE t1dec102;
+Table	Create Table
+t1dec102	CREATE TABLE `t1dec102` (
+  `a` decimal(10,2)/*old*/ DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW COLUMNS FROM t1dec102;
+Field	Type	Null	Key	Default	Extra
+a	decimal(10,2)/*old*/	YES		NULL	
+SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='t1dec102';
+COLUMN_NAME	DATA_TYPE	COLUMN_TYPE
+a	decimal	decimal(10,2)/*old*/
+DROP TABLE t1dec102;
+#
+# End of 5.5 tests
+#

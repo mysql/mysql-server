@@ -643,3 +643,9 @@ SELECT
 #
 select column_get(column_create(1, "18446744073709552001" as char), 1 as int);
 
+--echo #
+--echo # MDEV-7505 - Too large scale in DECIMAL dynamic column getter crashes
+--echo #             mysqld
+--echo #
+--error ER_TOO_BIG_SCALE
+SELECT COLUMN_GET(`x`, 'y' AS DECIMAL(5,34));

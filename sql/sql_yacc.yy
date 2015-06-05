@@ -6552,7 +6552,7 @@ alter:
               my_error(ER_SP_BADSTATEMENT, MYF(0), "ALTER VIEW");
               MYSQL_YYABORT;
             }
-            lex->create_view_algorithm= DTYPE_ALGORITHM_UNDEFINED;
+            lex->create_view_algorithm= VIEW_ALGORITHM_INHERIT;
             lex->create_view_mode= VIEW_ALTER;
           }
           view_tail

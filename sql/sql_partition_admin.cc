@@ -174,9 +174,16 @@ bool Alter_table_truncate_partition_statement::execute(THD *thd)
     log. The exception is a unimplemented truncate method or failure
     before any call to handler::truncate() is done.
     Also, it is logged in statement format, regardless of the binlog format.
+
+    Since we've changed data within the table, we also have to invalidate
+    the query cache for it.
   */
-  if (error != HA_ERR_WRONG_COMMAND && binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
+  if (error != HA_ERR_WRONG_COMMAND)
+  {
+    query_cache_invalidate3(thd, first_table, FALSE);
+    if (binlog_stmt)
+      error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
+  }
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

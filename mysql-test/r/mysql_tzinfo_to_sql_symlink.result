@@ -60,3 +60,12 @@ INSERT INTO time_zone_transition_type (Time_zone_id, Transition_type_id, Offset,
 #
 TRUNCATE TABLE time_zone_leap_second;
 ALTER TABLE time_zone_leap_second ORDER BY Transition_time;
+#
+# MDEV-6236 - [PATCH] mysql_tzinfo_to_sql may produce invalid SQL
+#
+TRUNCATE TABLE time_zone;
+TRUNCATE TABLE time_zone_name;
+TRUNCATE TABLE time_zone_transition;
+TRUNCATE TABLE time_zone_transition_type;
+ALTER TABLE time_zone_transition ORDER BY Time_zone_id, Transition_time;
+ALTER TABLE time_zone_transition_type ORDER BY Time_zone_id, Transition_type_id;

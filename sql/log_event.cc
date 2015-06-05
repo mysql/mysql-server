@@ -2192,6 +2192,12 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     my_snprintf(typestr, typestr_length, "STRING(%d)", length);
     return my_b_write_quoted_with_length(file, ptr, length);
 
+  case MYSQL_TYPE_DECIMAL:
+    my_b_printf(file,
+                "!! Old DECIMAL (mysql-4.1 or earlier). "
+                "Not enough metadata to display the value. ");
+    break;
+
   default:
     {
       char tmp[5];

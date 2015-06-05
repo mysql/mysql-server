@@ -4467,6 +4467,16 @@ null:
 
 void Item_dyncol_get::print(String *str, enum_query_type query_type)
 {
+  /*
+    Parent cast doesn't exist yet, only print dynamic column name. This happens
+    when called from create_func_cast() / wrong_precision_error().
+  */
+  if (!str->length())
+  {
+    args[1]->print(str, query_type);
+    return;
+  }
+
   /* see create_func_dyncol_get */
   DBUG_ASSERT(str->length() >= 5);
   DBUG_ASSERT(strncmp(str->ptr() + str->length() - 5, "cast(", 5) == 0);
