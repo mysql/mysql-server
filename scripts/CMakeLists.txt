@@ -64,16 +64,34 @@ ADD_CUSTOM_TARGET(GenFixPrivs
   ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
 )
 
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
-  COMMAND comp_sql
-  mysql_sys_schema
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-  sql_commands_sys_schema.h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-)
+# If we do not have performance schema compiled in then sys will not work,
+# so only create an empty sys database with an auto-generated file,
+# otherwise, load the full schema file normally.
+IF(NOT WITH_PERFSCHEMA_STORAGE_ENGINE)
+  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/mysql_sys_schema_empty.sql "CREATE DATABASE sys;")
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+    COMMAND comp_sql
+    mysql_sys_schema
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_sys_schema_empty.sql
+    sql_commands_sys_schema.h
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS comp_sql
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_sys_schema_empty.sql
+  )
+ELSE()
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+    COMMAND comp_sql
+    mysql_sys_schema
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+    sql_commands_sys_schema.h
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS comp_sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+  )
+ENDIF()
 
 ADD_CUSTOM_TARGET(GenSysSchema
   ALL

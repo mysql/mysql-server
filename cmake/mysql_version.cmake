@@ -97,10 +97,15 @@ IF(NOT COMPILATION_COMMENT)
 ENDIF()
 
 # Get the sys schema version from the mysql_sys_schema.sql file
+# however if compiling without performance schema, always use version 1.0.0
 MACRO(GET_SYS_SCHEMA_VERSION)
-  FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS")
-  IF(str)
-    STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
+  IF(NOT WITH_PERFSCHEMA_STORAGE_ENGINE)
+    SET(SYS_SCHEMA_VERSION "1.0.0")
+  ELSE()
+    FILE (STRINGS ${CMAKE_SOURCE_DIR}/scripts/mysql_sys_schema.sql str REGEX "SELECT \\'([0-9]+\\.[0-9]+\\.[0-9]+)\\' AS")
+    IF(str)
+      STRING(REGEX MATCH "([0-9]+\\.[0-9]+\\.[0-9]+)" SYS_SCHEMA_VERSION "${str}")
+    ENDIF()
   ENDIF()
 ENDMACRO()
 
