@@ -7720,15 +7720,20 @@ bool get_schema_tables_result(JOIN *join,
     TABLE_LIST *table_list= tab->table->pos_in_table_list;
     if (table_list->schema_table && thd->fill_information_schema_tables())
     {
+#if MYSQL_VERSION_ID > 100105
+#error I_S tables only need to be re-populated if make_cond_for_info_schema() will preserve outer fields
       bool is_subselect= (&lex->unit != lex->current_select->master_unit() &&
                           lex->current_select->master_unit()->item);
+#else
+#define is_subselect false
+#endif
 
       /* A value of 0 indicates a dummy implementation */
       if (table_list->schema_table->fill_table == 0)
         continue;
 
       /* skip I_S optimizations specific to get_all_tables */
-      if (thd->lex->describe &&
+      if (lex->describe &&
           (table_list->schema_table->fill_table != get_all_tables))
         continue;
 

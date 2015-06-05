@@ -6,3 +6,15 @@ select variable_name from information_schema.session_variables where variable_na
 (select variable_name from information_schema.session_variables where variable_name = 'basedir');
 variable_name
 BASEDIR
+create table t1 (a char);
+insert t1 values ('a'),('t'),('z');
+flush status;
+select a, exists (select 1 from information_schema.columns where table_schema=concat('tes',a)) from t1;
+a	exists (select 1 from information_schema.columns where table_schema=concat('tes',a))
+a	0
+t	1
+z	0
+show status like 'created_tmp_tables';
+Variable_name	Value
+Created_tmp_tables	38
+drop table t1;
