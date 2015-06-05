@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2014, Monty Program Ab.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,6 +199,13 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   set_if_bigger(min_sort_memory, sizeof(BUFFPEK*)*MERGEBUFF2);
   if (!table_sort.sort_keys)
   {
+    /*
+      Cannot depend on num_rows. For external sort, space for upto MERGEBUFF2
+      rows is required.
+    */
+    if (num_rows < MERGEBUFF2)
+      num_rows= MERGEBUFF2;
+
     while (memory_available >= min_sort_memory)
     {
       ulonglong keys= memory_available / (param.rec_length + sizeof(char*));

@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2014, Monty Program Ab.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1486,6 +1486,11 @@ static void append_create_options(THD *thd, String *packet,
                       to tailor the format of the statement.  Can be
                       NULL, in which case only SQL_MODE is considered
                       when building the statement.
+    show_database     If true, then print the database before the table
+                      name. The database name is only printed in the event
+                      that it is different from the current database.
+                      If false, then do not print the database before
+                      the table name.
 
   NOTE
     Currently always return 0, but might return error code in the
@@ -2189,7 +2194,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     Security_context *tmp_sctx= tmp->security_ctx;
     struct st_my_thread_var *mysys_var;
     if ((tmp->vio_ok() || tmp->system_thread) &&
-        (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
+        (!user || (!tmp->system_thread &&
+                   tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
     {
       thread_info *thd_info= new thread_info;
 
@@ -2314,7 +2320,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       ulonglong max_counter;
 
       if ((!tmp->vio_ok() && !tmp->system_thread) ||
-          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
+          (user && (tmp->system_thread || !tmp_sctx->user ||
+                    strcmp(tmp_sctx->user, user))))
         continue;
 
       restore_record(table, s->default_values);

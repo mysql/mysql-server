@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2008, 2014, SkySQL Ab.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3294,7 +3294,19 @@ void Item_func_group_concat::cleanup()
     }
     DBUG_ASSERT(tree == 0);
   }
-
+  /*
+    As the ORDER structures pointed to by the elements of the
+    'order' array may be modified in find_order_in_list() called
+    from Item_func_group_concat::setup() to point to runtime
+    created objects, we need to reset them back to the original
+    arguments of the function.
+  */
+  ORDER **order_ptr= order;
+  for (uint i= 0; i < arg_count_order; i++)
+  {
+    (*order_ptr)->item= &args[arg_count_field + i];
+    order_ptr++;
+  }
   DBUG_VOID_RETURN;
 }
 

@@ -367,33 +367,33 @@ DROP TABLE t1;
 create table t1 (a int) engine=innodb partition by hash(a) ;
 show table status like 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 engine = innodb
 partition by key (a);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	2	8192	16384	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (0), (1), (2), (3);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	4	4096	16384	0	0	#	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	4	4096	16384	0	0	#	NULL	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int auto_increment primary key)
 engine = innodb
 partition by key (a);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	2	8192	16384	0	0	#	1	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	2	8192	16384	0	0	#	1	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	4	4096	16384	0	0	#	5	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	4	4096	16384	0	0	#	5	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
 show table status;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	InnoDB	10	Compact	8	2048	16384	0	0	#	9	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+t1	InnoDB	10	Compact	8	2048	16384	0	0	#	9	#	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 drop table t1;
 create table t1 (a int)
 partition by key (a)
@@ -573,6 +573,17 @@ SELECT * FROM t1;
 a	b
 1	2
 0	1
+DROP TABLE t1;
+#
+# Bug #17299181  CREATE_TIME AND UPDATE_TIME ARE
+#                WRONG FOR PARTITIONED TABLES
+#
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
+CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
+COUNT(*)
+1
 DROP TABLE t1;
 #
 # BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -60,9 +60,9 @@ IF(NOT GIT_EXECUTABLE)
 
     # Save bison output first.
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-       ${CMAKE_BINARY_DIR}/sql_yacc.cc COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql_yacc.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-       ${CMAKE_BINARY_DIR}/sql_yacc.h COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql_yacc.h COPYONLY)
 
     IF(CMAKE_GENERATOR MATCHES "Makefiles")
     # make clean
@@ -74,9 +74,9 @@ IF(NOT GIT_EXECUTABLE)
     
     # Restore bison output
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.cc
-       ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.h 
-       ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPY_ONLY)
+       ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPYONLY)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.h)
   ENDIF()
