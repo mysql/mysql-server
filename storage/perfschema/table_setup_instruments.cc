@@ -67,7 +67,8 @@ table_setup_instruments::m_share=
   sizeof(pos_setup_instruments),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_setup_instruments::create(void)
