@@ -1186,10 +1186,10 @@ TransporterFacade::for_each(trp_client* sender,
   */
   trp_client * woken[16];
   Uint32 cnt_woken = 0;
-  Uint32 sz = m_threads.m_statusNext.size();
+  Uint32 sz = m_threads.m_clients.size();
   for (Uint32 i = 0; i < sz ; i ++) 
   {
-    trp_client * clnt = m_threads.m_objectExecute[i];
+    trp_client * clnt = m_threads.m_clients[i].m_clnt;
     if (clnt != 0 && clnt != sender)
     {
       bool res = clnt->is_locked_for_poll();
@@ -1250,10 +1250,10 @@ TransporterFacade::connected()
   rep->secret_lo = 0;
   rep->secret_hi = 0;
 
-  Uint32 sz = m_threads.m_statusNext.size();
+  Uint32 sz = m_threads.m_clients.size();
   for (Uint32 i = 0; i < sz ; i ++)
   {
-    trp_client * clnt = m_threads.m_objectExecute[i];
+    trp_client * clnt = m_threads.m_clients[i].m_clnt;
     if (clnt != 0)
     {
       clnt->trp_deliver_signal(&signal, 0);
@@ -1333,13 +1333,43 @@ TransporterFacade::close_clnt(trp_client* clnt)
   return 0;
 }
 
+void
+TransporterFacade::expand_clnt()  //Handle EXPAND_CLNT signal
+{
+  m_threads.expand(64);
+}
+
 Uint32
 TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
+
+  bool first = true;
   Guard g(m_open_close_mutex);
   dbg("open(%p)", clnt);
-  int r= m_threads.open(clnt);
+
+  while (m_threads.freeCnt() == 0)
+  {
+    /* Ask ClusterMgr to do m_thread.expand() (Need poll rights)*/
+    clnt->start_poll();
+    if (first)
+    {
+      NdbApiSignal signal(numberToRef(0, theOwnId));
+      signal.theVerId_signalNumber = GSN_EXPAND_CLNT;
+      signal.theTrace = 0;
+      signal.theLength = 1;
+      signal.theReceiversBlockNumber = theClusterMgr->m_blockNo;
+      signal.theData[0] = 0;  //Unused
+
+      clnt->raw_sendSignal(&signal, theOwnId);
+      clnt->do_forceSend(1);
+      first = false;
+    }
+    clnt->do_poll(10);
+    clnt->complete_poll();
+  }
+
+  const int r= m_threads.open(clnt);
   if (r < 0)
   {
     DBUG_RETURN(0);
@@ -1356,15 +1386,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
     m_fixed2dynamic[fixed_index]= r;
   }
 
-  if (theOwnId > 0)
-  {
-    r = numberToRef(r, theOwnId);
-  }
-  else
-  {
-    r = numberToRef(r, 0);
-  }
-  DBUG_RETURN(r);
+  DBUG_RETURN(numberToRef(r, (theOwnId >= 0 ? theOwnId : 0)));
 }
 
 TransporterFacade::~TransporterFacade()
@@ -2072,59 +2094,79 @@ TransporterFacade::get_an_alive_node()
   DBUG_RETURN((NodeId)0);
 }
 
-TransporterFacade::ThreadData::ThreadData(Uint32 size){
-  m_use_cnt = 0;
-  m_firstFree = END_OF_LIST;
+TransporterFacade::ThreadData::ThreadData(Uint32 size)
+  : m_use_cnt(0), 
+    m_firstFree(END_OF_LIST)
+{
   expand(size);
 }
 
+/**
+ * Expand the Vectors used to register open Clients.
+ * As a Vector::expand() reallocates and moves the Vector
+ * items, it has to be protected from concurrent get'ers.
+ * This is achieved by requiring that both get, expand and close
+ * is only called from ::deliver_signal while having the poll right.
+ *
+ * In addition to having the poll right, 
+ * m_open_close_mutex should be held.
+ */
 void
 TransporterFacade::ThreadData::expand(Uint32 size){
-  trp_client * oe = 0;
-
-  const Uint32 sz = m_statusNext.size();
-  m_objectExecute.fill(sz + size, oe);
+  const Uint32 sz = m_clients.size();
+  m_clients.expand(sz + size);
   for(Uint32 i = 0; i<size; i++){
-    m_statusNext.push_back(sz + i + 1);
+    m_clients.push_back(Client(NULL, sz + i + 1));
   }
 
-  m_statusNext.back() = m_firstFree;
-  m_firstFree = m_statusNext.size() - size;
+  m_clients.back().m_next =  m_firstFree;
+  m_firstFree = m_clients.size() - size;
 }
 
 
+/**
+ * Register 'clnt' in the TransporterFacade.
+ * Should be called with m_open_close_mutex locked.
+ *
+ * Poll right *not* required as ::open do not ::expand!:
+ *
+ * As there are no mutex protection between threads ::open'ing a 
+ * trp_client and threads get'ing the trp_client* for *other clients*,
+ * we can't let ::open do an ::expand of the Vectors. (See above.)
+ * Concurrent open and get/close of the same clients can't happen as
+ * there could be no such operation until after a succesful open.
+ * Thus, this needs no concurrency control.
+ */
 int
 TransporterFacade::ThreadData::open(trp_client * clnt)
 {
-  Uint32 nextFree = m_firstFree;
+  const Uint32 nextFree = m_firstFree;
 
-  if(m_statusNext.size() >= MAX_NO_THREADS && nextFree == END_OF_LIST){
+  if(m_clients.size() >= MAX_NO_THREADS && nextFree == END_OF_LIST){
     return -1;
   }
 
-  if(nextFree == END_OF_LIST){
-    expand(10);
-    nextFree = m_firstFree;
-  }
-
+  require(nextFree != END_OF_LIST); //::expand before ::open if required
   m_use_cnt++;
-  m_firstFree = m_statusNext[nextFree];
-
-  m_statusNext[nextFree] = INACTIVE;
-  m_objectExecute[nextFree] = clnt;
+  m_firstFree = m_clients[nextFree].m_next;
+  m_clients[nextFree] = Client(clnt, INACTIVE);;
 
   return indexToNumber(nextFree);
 }
 
+/**
+ * Should be called with m_open_close_mutex locked and
+ * only when having the poll right (Protects ::get())
+ */
 int
 TransporterFacade::ThreadData::close(int number){
-  number= numberToIndex(number);
-  assert(m_objectExecute[number] != 0);
-  m_statusNext[number] = m_firstFree;
+  const Uint32 nextFree = m_firstFree;
+  const int index= numberToIndex(number);
+  assert(m_clients[index].m_clnt != NULL);
   assert(m_use_cnt);
   m_use_cnt--;
-  m_firstFree = number;
-  m_objectExecute[number] = 0;
+  m_firstFree = index;
+  m_clients[index] = Client(NULL, nextFree);
   return 0;
 }
 
@@ -2720,7 +2762,7 @@ TransporterFacade::remove_last_from_poll_queue()
   return clnt;
 }
 
-template class Vector<trp_client*>;
+template class Vector<TransporterFacade::ThreadData::Client>;
 
 #include "SignalSender.hpp"
 
