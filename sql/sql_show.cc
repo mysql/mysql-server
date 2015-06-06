@@ -3052,7 +3052,7 @@ public:
   virtual void operator()(THD *thd)
   {
     if (!thd->status_var_aggregated)
-      add_to_status(m_stat_var, &thd->status_var, true, false);
+      add_to_status(m_stat_var, &thd->status_var, false);
   }
 private:
   /* Status of all threads are summed into this. */

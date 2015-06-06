@@ -380,6 +380,6 @@ void add_diff_to_status(System_status_var *to_var,
 
 
 void add_to_status(System_status_var *to_var, System_status_var *from_var,
-                   bool add_com_vars, bool reset_from_var);
+                   bool reset_from_var);
 
 #endif // SYSTEM_VARIABLES_INCLUDED

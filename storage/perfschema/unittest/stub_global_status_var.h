@@ -20,6 +20,6 @@
 
 
 void add_to_status(System_status_var *to_var, const System_status_var *from_var,
-                   bool add_com_vars, bool reset_from_var)
+                   bool reset_from_var)
 {
 }

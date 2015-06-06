@@ -8264,7 +8264,7 @@ public:
       Add thread's status variabes to global status
       and reset thread's status variables.
     */
-    add_to_status(&global_status_var, &thd->status_var, true, true);
+    add_to_status(&global_status_var, &thd->status_var, true);
   }
 
 };
@@ -8282,7 +8282,7 @@ void refresh_status(THD *thd)
       Add thread's status variabes to global status
       and reset thread's status variables.
     */
-    add_to_status(&global_status_var, &thd->status_var, true, true);
+    add_to_status(&global_status_var, &thd->status_var, true);
   }
   else
   {
