@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -259,8 +259,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_NEXT_SCANREF,           "NEXT_SCANREF" }
   ,{ GSN_NEXT_SCANREQ,           "NEXT_SCANREQ" }
   ,{ GSN_NF_COMPLETEREP,         "NF_COMPLETEREP" }
-//  ,{ GSN_OPEN_COMCONF,           "OPEN_COMCONF" }
-//  ,{ GSN_OPEN_COMREF,            "OPEN_COMREF" }
+  ,{ GSN_EXPAND_CLNT,            "EXPAND_CLNT" }
   ,{ GSN_OPEN_COMORD,            "OPEN_COMORD" }
   ,{ GSN_PACKED_SIGNAL,          "PACKED_SIGNAL" }
   ,{ GSN_PREP_FAILCONF,          "PREP_FAILCONF" }
