@@ -84,7 +84,8 @@ table_events_waits_summary_by_instance::m_share=
   sizeof(pos_all_instr),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_events_waits_summary_by_instance::create(void)

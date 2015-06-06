@@ -110,7 +110,8 @@ table_events_stages_current::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_stages_history::m_table_lock;
@@ -127,7 +128,8 @@ table_events_stages_history::m_share=
   sizeof(pos_events_stages_history), /* ref length */
   &m_table_lock,
   &table_events_stages_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_stages_history_long::m_table_lock;
@@ -144,7 +146,8 @@ table_events_stages_history_long::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_stages_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 table_events_stages_common::table_events_stages_common

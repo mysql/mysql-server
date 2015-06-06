@@ -186,7 +186,8 @@ table_esms_by_account_by_event_name::m_share=
   sizeof(pos_esms_by_account_by_event_name),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table*

@@ -147,7 +147,8 @@ table_events_waits_current::m_share=
   sizeof(pos_events_waits_current), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_waits_history::m_table_lock;
@@ -164,7 +165,8 @@ table_events_waits_history::m_share=
   sizeof(pos_events_waits_history), /* ref length */
   &m_table_lock,
   &table_events_waits_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_waits_history_long::m_table_lock;
@@ -181,7 +183,8 @@ table_events_waits_history_long::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_waits_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 table_events_waits_common::table_events_waits_common
