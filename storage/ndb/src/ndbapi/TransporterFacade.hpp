@@ -23,6 +23,7 @@
 #include <NdbThread.h>
 #include <TransporterRegistry.hpp>
 #include <NdbMutex.h>
+#include <Vector.hpp>
 #include "DictCache.hpp"
 #include <BlockNumbers.h>
 #include <mgmapi.h>
@@ -72,6 +73,7 @@ public:
   Uint32 open_clnt(trp_client*, int blockNo = -1);
   int close_clnt(trp_client*);
   void perform_close_clnt(trp_client*);
+  void expand_clnt();
 
   Uint32 get_active_ndb_objects() const;
 
@@ -311,21 +313,41 @@ private:
     
     Uint32 m_use_cnt;
     Uint32 m_firstFree;
-    Vector<Uint32> m_statusNext;
-    Vector<trp_client*> m_objectExecute;
-    
+
+    struct Client {
+      trp_client* m_clnt;
+      Uint32 m_next;
+
+      Client()
+	: m_clnt(NULL), m_next(END_OF_LIST) {};
+
+      Client(trp_client* clnt, Uint32 next)
+	: m_clnt(clnt), m_next(next) {};
+    };
+    Vector<struct Client> m_clients;
+
+    /**
+     * open, close and expand need to hold the m_open_close_mutex.
+     * In addition, close and expand need the poll right to 
+     * serialize access with get (also need poll right)
+     */
     int open(trp_client*);
     int close(int number);
     void expand(Uint32 size);
 
     inline trp_client* get(Uint16 blockNo) const {
       blockNo -= MIN_API_BLOCK_NO;
-      if(likely (blockNo < m_objectExecute.size()))
+      if(likely (blockNo < m_clients.size()))
       {
-        return m_objectExecute.getBase()[blockNo];
+        return m_clients[blockNo].m_clnt;
       }
       return 0;
     }
+
+    Uint32 freeCnt() const {
+      return m_clients.size() - m_use_cnt;
+    }
+
   } m_threads;
 
   Uint32 m_fixed2dynamic[NO_API_FIXED_BLOCKS];

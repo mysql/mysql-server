@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -454,12 +454,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_DATA_REF               337
 #define GSN_COPY_DATA_CONF              338
 
-/*
-   jonas 2012-01-10 unused currently...
-     so rename REQ to ORD
-#define GSN_OPEN_COMCONF                339
-#define GSN_OPEN_COMREF                 340
-*/
+#define GSN_EXPAND_CLNT                 340
 #define GSN_OPEN_COMORD                 341
 #define GSN_PACKED_SIGNAL               342
 #define GSN_PREP_FAILCONF               343
