@@ -1753,7 +1753,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true, true);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1887,7 +1887,7 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true, false);
+  add_to_status(&global_status_var, &status_var, false);
   /*
     Status queries after this point should not aggregate THD::status_var
     since the values has been added to global_status_var.
@@ -2020,7 +2020,6 @@ THD::~THD()
    add_to_status()
    to_var       add to this array
    from_var     from this array
-   add_com_vars if true, then add COM variables
    reset_from_var if true, then memset from_var variable with 0
 
   NOTES
@@ -2029,8 +2028,7 @@ THD::~THD()
     the other variables after the while loop
 */
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool add_com_vars,
-                   bool reset_from_var)
+void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool reset_from_var)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
@@ -2041,13 +2039,10 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool add_com_vars,
   while (to != end)
     *(to++)+= *(from++);
 
-  if (add_com_vars)
-  {
-    to_var->com_other+= from_var->com_other;
+  to_var->com_other+= from_var->com_other;
 
-    for (c= 0; c< SQLCOM_END; c++)
-      to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
-  }
+  for (c= 0; c< SQLCOM_END; c++)
+    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
 
   if (reset_from_var)
   {
