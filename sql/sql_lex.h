@@ -789,7 +789,8 @@ public:
   List<TABLE_LIST> leaf_tables;
   List<TABLE_LIST> leaf_tables_exec;
   List<TABLE_LIST> leaf_tables_prep;
-  bool is_prep_leaf_list_saved;
+  enum leaf_list_state {UNINIT, READY, SAVED};
+  enum leaf_list_state prep_leaf_list_state;
   uint insert_tables;
   st_select_lex *merged_into; /* select which this select is merged into */
                               /* (not 0 only for views/derived tables)   */

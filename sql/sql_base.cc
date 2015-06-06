@@ -8291,9 +8291,10 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
   if (select_lex->first_cond_optimization)
   {
     leaves.empty();
-    if (!select_lex->is_prep_leaf_list_saved)
+    if (select_lex->prep_leaf_list_state != SELECT_LEX::SAVED)
     {
       make_leaves_list(leaves, tables, full_table_list, first_select_table);
+      select_lex->prep_leaf_list_state= SELECT_LEX::READY;
       select_lex->leaf_tables_exec.empty();
     }
     else
