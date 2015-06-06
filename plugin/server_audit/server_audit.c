@@ -1118,6 +1118,8 @@ static size_t escape_string(const char *str, unsigned int len,
       *(result++)= '\\';
       *(result++)= '\\';
     }
+    else if (is_space(*str))
+      *(result++)= ' ';
     else
       *(result++)= *str;
     str++;
