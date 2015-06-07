@@ -2004,10 +2004,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     /*
       Whenever cache_mngr is not initialized, the xa prepared
       transaction's binary logging status must not be set, unless the
-      transaction is rolled back through an external connection.
+      transaction is rolled back through an external connection which
+      has binlogging switched off.
     */
     DBUG_ASSERT(cache_mngr || !xs->is_binlogged()
-                || xs->is_in_recovery());
+                || !(is_open() && thd->variables.option_bits & OPTION_BIN_LOG));
 
     if ((error= do_binlog_xa_commit_rollback(thd, xs->get_xid(), false)))
       goto end;
