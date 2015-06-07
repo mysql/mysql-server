@@ -420,16 +420,20 @@ bool String::set_ascii(const char *str, size_t arg_length)
 
 /* This is used by mysql.cc */
 
-bool String::fill(size_t max_length,char fill_char)
+bool String::fill(size_t max_length,char *fill_char)
 {
+  uint dummy_errors;
   if (m_length > max_length)
     m_ptr[m_length= max_length]= 0;
   else
   {
     if (mem_realloc(max_length))
       return true;
-    memset(m_ptr + m_length, fill_char, max_length - m_length);
-    m_length= max_length;
+    while (m_length < max_length) {
+      m_length+= copy_and_convert(m_ptr + m_length, (uint) strlen(fill_char), m_charset,
+                               fill_char, 4, &my_charset_utf8mb4_general_ci,
+                               &dummy_errors);
+    }
   }
   return false;
 }

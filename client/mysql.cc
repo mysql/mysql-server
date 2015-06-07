@@ -3840,7 +3840,7 @@ print_table_data(MYSQL_RES *result)
       return;
     mysql_field_seek(result,0);
   }
-  separator.copy("+",1,charset_info);
+  separator.copy("┼",3,charset_info);
   while ((field = mysql_fetch_field(result)))
   {
     size_t length= column_names ? field->name_length : 0;
@@ -3851,15 +3851,15 @@ print_table_data(MYSQL_RES *result)
     if (length < 4 && !IS_NOT_NULL(field->flags))
       length=4;					// Room for "NULL"
     field->max_length=length;
-    separator.fill(separator.length()+length+2,'-');
-    separator.append('+');
+    separator.fill((length*3)+separator.length()+6,"─");
+    separator.append("┼");
   }
   separator.append('\0');                       // End marker for \0
   tee_puts((char*) separator.ptr(), PAGER);
   if (column_names)
   {
     mysql_field_seek(result,0);
-    (void) tee_fputs("|", PAGER);
+    (void) tee_fputs("│", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
       size_t name_length= strlen(field->name);
@@ -3867,7 +3867,7 @@ print_table_data(MYSQL_RES *result)
                                                     field->name,
                                                     field->name + name_length);
       size_t display_length= field->max_length + name_length - numcells;
-      tee_fprintf(PAGER, " %-*s |",
+      tee_fprintf(PAGER, " %-*s │",
                   min<int>(display_length, MAX_COLUMN_LENGTH),
                   field->name);
       num_flag[off]= IS_NUM(field->type);
@@ -3881,7 +3881,7 @@ print_table_data(MYSQL_RES *result)
     if (interrupted_query)
       break;
     ulong *lengths= mysql_fetch_lengths(result);
-    (void) tee_fputs("| ", PAGER);
+    (void) tee_fputs("│ ", PAGER);
     mysql_field_seek(result, 0);
     for (uint off= 0; off < mysql_num_fields(result); off++)
     {
@@ -3928,7 +3928,7 @@ print_table_data(MYSQL_RES *result)
         else 
           tee_print_sized_data(buffer, data_length, field_max_length+extra_padding, FALSE);
       }
-      tee_fputs(" |", PAGER);
+      tee_fputs(" │", PAGER);
     }
     (void) tee_fputs("\n", PAGER);
   }

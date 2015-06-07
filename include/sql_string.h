@@ -462,7 +462,7 @@ public:
     }
     return 0;
   }
-  bool fill(size_t max_length,char fill);
+  bool fill(size_t max_length,char *fill);
   void strip_sp();
   friend int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
