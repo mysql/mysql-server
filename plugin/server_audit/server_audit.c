@@ -1175,9 +1175,15 @@ static size_t escape_string_hide_passwords(const char *str, unsigned int len,
       for (c=0; c<d_len; c++)
         result[c]= is_space(str[c]) ? ' ' : str[c];
 
-      memmove(result + d_len, "*****", 5);
-      result+= d_len + 5;
-      b_char= *(next_s++);
+      if (*next_s)
+      {
+        memmove(result + d_len, "*****", 5);
+        result+= d_len + 5;
+        b_char= *(next_s++);
+      }
+      else
+        result+= d_len;
+
       while (*next_s)
       {
         if (*next_s == b_char)

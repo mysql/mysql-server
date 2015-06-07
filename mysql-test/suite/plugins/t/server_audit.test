@@ -105,6 +105,8 @@ select * from t1;
 CREATE USER u1 IDENTIFIED BY 'pwd-123';
 GRANT ALL ON sa_db TO u2 IDENTIFIED BY "pwd-321";
 SET PASSWORD FOR u1 = PASSWORD('pwd 098');
+--error 1064
+SET PASSWORD FOR u1=<secret>;
 CREATE USER u3 IDENTIFIED BY '';
 drop user u1, u2, u3;
 select 2;
