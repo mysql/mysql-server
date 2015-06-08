@@ -50,6 +50,11 @@ install_db () {
 
     # Create initial db
     @libexecdir@/mysqld --initialize --datadir="$datadir" --user=@MYSQLD_USER@
+
+    # Generate certs if needed
+    if [ -x @bindir@/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
+        @bindir@/mysql_ssl_rsa_setup --datadir="$datadir" --uid=@MYSQLD_USER@ >/dev/null 2>&1
+    fi
     exit 0
 }
 install_db
