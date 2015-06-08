@@ -90,6 +90,10 @@ start(){
 	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
 	    ret=$?
 	    chown -R mysql:mysql "$datadir"
+            # Generate certs if needed
+            if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
+                /usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
+            fi
 	    if [ $ret -ne 0 ] ; then
 		return $ret
 	    fi
