@@ -50,6 +50,7 @@ show variables like 'server_audit%';
 set global server_audit_mode=1;
 set global server_audit_events='';
 create database sa_db;
+--sleep 2
 connect (con1,localhost,root,,test);
 connection con1;
 --sleep 2
