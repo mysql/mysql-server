@@ -1617,5 +1617,21 @@ SET NAMES utf8 COLLATE utf8_general_ci;
 --source include/ctype_utf8_ilseq.inc
 
 --echo #
+--echo # MDEV-8067 correct fix for MySQL Bug # 19699237: UNINITIALIZED VARIABLE IN ITEM_FIELD::STR_RESULT
+--echo #
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8);
+CREATE TABLE t2 (a VARCHAR(10) CHARACTER SET latin1);
+INSERT INTO t1 VALUES ('aaa');
+INSERT INTO t2 VALUES ('aaa');
+SELECT (SELECT CONCAT(a),1 FROM t1) <=> (SELECT CONCAT(a),1 FROM t2);
+INSERT INTO t1 VALUES ('aaa');
+INSERT INTO t2 VALUES ('aaa');
+# Running the below query crashed with two rows
+--error ER_SUBQUERY_NO_1_ROW
+SELECT (SELECT CONCAT(a),1 FROM t1) <=> (SELECT CONCAT(a),1 FROM t2);
+DROP TABLE t1, t2;
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

@@ -1136,6 +1136,36 @@ Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
 
 
 /**
+  Some pieces of the code do not support changing of
+  Item_cache to other Item types.
+
+  Example:
+  Item_singlerow_subselect has "Item_cache **row".
+  Creating of Item_func_conv_charset followed by THD::change_item_tree()
+  should not change row[i] from Item_cache directly to Item_func_conv_charset, because Item_singlerow_subselect
+  because Item_singlerow_subselect later calls Item_cache-specific methods,
+  e.g. row[i]->store() and row[i]->cache_value().
+
+  Let's wrap Item_func_conv_charset to a new Item_cache,
+  so the Item_cache-specific methods can still be used for
+  Item_singlerow_subselect::row[i] safely.
+
+  TODO: we should eventually check all other use cases of change_item_tree().
+  Perhaps some more potentially dangerous substitution examples exist.
+*/
+Item *Item_cache::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_func_conv_charset *conv= new Item_func_conv_charset(example, tocs, 1);
+  Item_cache *cache;
+  if (!conv || !conv->safe || !(cache= new Item_cache_str(conv)))
+    return NULL; // Safe conversion is not possible, or OEM
+  cache->setup(conv);
+  cache->fixed= false; // Make Item::fix_fields() happy
+  return cache;
+}
+
+
+/**
   @details
   Created mostly for mysql_prepare_table(). Important
   when a string ENUM/SET column is described with a numeric default value:

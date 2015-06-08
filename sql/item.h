@@ -4161,6 +4161,7 @@ public:
       return TRUE;
     return (this->*processor)(arg);
   }
+  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
 };
 
 
