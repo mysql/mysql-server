@@ -99,6 +99,9 @@ sub main
     push @defaults_options, (shift @ARGV);
   }
 
+  # add -s to uncrypt passwd
+  push @defaults_options, '-s';
+
   foreach (@defaults_options)
   {
     $_ = quote_shell_word($_);
