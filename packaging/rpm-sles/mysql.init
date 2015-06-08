@@ -92,7 +92,13 @@ install_db () {
 
     # Create initial db
     /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
-    return $?
+    ret=$?
+
+    # Generate certs if neded
+    if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
+        /usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
+    fi
+    return $ret
 }
 
 # Wait for ping to answer to signal startup completed,
