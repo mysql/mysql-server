@@ -7629,6 +7629,14 @@ err_exit:
   return -1;
 }
 
+Field::geometry_type Field_geom::geometry_type_merge(geometry_type a,
+                                                            geometry_type b)
+{
+  if (a == b)
+    return a;
+  return Field::GEOM_GEOMETRY;
+}
+
 #endif /*HAVE_SPATIAL*/
 
 /****************************************************************************

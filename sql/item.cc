@@ -9486,6 +9486,11 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
       item_decimals= 0;
     decimals= max(decimals, item_decimals);
   }
+
+  if (fld_type == FIELD_TYPE_GEOMETRY)
+    geometry_type=
+      Field_geom::geometry_type_merge(geometry_type, item->get_geometry_type());
+
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
     decimals= min(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
