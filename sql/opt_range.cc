@@ -6757,6 +6757,8 @@ bool is_spatial_operator(Item_func::Functype op_type)
   case Item_func::SP_CROSSES_FUNC:
   case Item_func::SP_WITHIN_FUNC:
   case Item_func::SP_CONTAINS_FUNC:
+  case Item_func::SP_COVEREDBY_FUNC:
+  case Item_func::SP_COVERS_FUNC:
   case Item_func::SP_OVERLAPS_FUNC:
   case Item_func::SP_STARTPOINT:
   case Item_func::SP_ENDPOINT:
@@ -7328,29 +7330,29 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     set the most general geometry type while saving, and revert to the
     original geometry type afterwards.
   */
-  Field::geometry_type save_geom_type;
-  save_geom_type= Field::GEOM_GEOMETRY;
-  if (key_part->image_type == Field::itMBR &&
-      field->type() == MYSQL_TYPE_GEOMETRY)
   {
-    save_geom_type= field->get_geometry_type();
-    down_cast<Field_geom*, Field*>(field)->geom_type= Field::GEOM_GEOMETRY;
-  }
+    const Field::geometry_type save_geom_type=
+      (field->type() == MYSQL_TYPE_GEOMETRY) ?
+      field->get_geometry_type() :
+      Field::GEOM_GEOMETRY;
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      down_cast<Field_geom*>(field)->geom_type= Field::GEOM_GEOMETRY;
+    }
 
-  bool always_true_or_false;
-  always_true_or_false=
-    save_value_and_handle_conversion(&tree, value, type, field,
-                                     &impossible_cond_cause, alloc);
+    bool always_true_or_false=
+      save_value_and_handle_conversion(&tree, value, type, field,
+                                       &impossible_cond_cause, alloc);
 
-  if (key_part->image_type == Field::itMBR &&
-      field->type() == MYSQL_TYPE_GEOMETRY &&
-      save_geom_type != Field::GEOM_GEOMETRY)
-  {
-    down_cast<Field_geom*, Field*>(field)->geom_type= save_geom_type;
+    if (field->type() == MYSQL_TYPE_GEOMETRY &&
+        save_geom_type != Field::GEOM_GEOMETRY)
+    {
+      down_cast<Field_geom*>(field)->geom_type= save_geom_type;
+    }
+
+    if (always_true_or_false)
+      goto end;
   }
-  
-  if (always_true_or_false)
-    goto end;
 
   /*
     Any sargable predicate except "<=>" involving NULL as a constant is always
