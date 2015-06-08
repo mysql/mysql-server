@@ -1021,6 +1021,15 @@ source include/implicit_commit_helper.inc;
 --echo # SQLCOM_ALTER_TABLESPACE
 --echo #
 
+let $statement=
+  CREATE TABLESPACE ts1 ADD DATAFILE './ts1.ibd' ENGINE=INNODB;
+source include/implicit_commit_helper.inc;
+
+let $statement=
+  DROP TABLESPACE ts1  ENGINE=INNODB;
+source include/implicit_commit_helper.inc;
+
+
 --echo #
 --echo # SQLCOM_INSTALL_PLUGIN
 --echo #
