@@ -66,7 +66,8 @@ table_mutex_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_mutex_instances::create(void)
@@ -239,7 +240,8 @@ table_rwlock_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_rwlock_instances::create(void)
@@ -409,7 +411,8 @@ table_cond_instances::m_share=
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_cond_instances::create(void)

@@ -559,6 +559,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
     pfs->m_stage_progress= NULL;
     pfs->m_processlist_info[0]= '\0';
     pfs->m_processlist_info_length= 0;
+    pfs->m_connection_type= NO_VIO_TYPE;
 
     pfs->m_host= NULL;
     pfs->m_user= NULL;
@@ -1585,13 +1586,7 @@ void aggregate_thread_status(PFS_thread *thread,
   {
     safe_host->aggregate_status_stats(&thd->status_var);
   }
-#if 0
-  else
-  {
-    /* TODO: Requires LOCK_status. global_status_var updated by server on THD disconnect. */
-    add_to_status(&global_status_var, &thd->status_var, false);
-  }
-#endif
+
   return;
 }
 

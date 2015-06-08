@@ -156,6 +156,7 @@ struct mysql_event_connection
   unsigned int ip_length;
   const char *database;
   unsigned int database_length;
+  int connection_type;
 };
 struct st_mysql_audit
 {

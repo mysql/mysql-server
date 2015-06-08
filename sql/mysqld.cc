@@ -4424,7 +4424,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
-    if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
+    if (!opt_help && !opt_bootstrap)
     {
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
@@ -4432,8 +4432,9 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_max_connections= max_connections;
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
+
       PSI_hook= initialize_performance_schema(&pfs_param);
-      if (PSI_hook == NULL)
+      if (PSI_hook == NULL && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
         buffered_logs.buffer(WARNING_LEVEL,
@@ -8263,7 +8264,7 @@ public:
       Add thread's status variabes to global status
       and reset thread's status variables.
     */
-    add_to_status(&global_status_var, &thd->status_var, true, true);
+    add_to_status(&global_status_var, &thd->status_var, true);
   }
 
 };
@@ -8281,7 +8282,7 @@ void refresh_status(THD *thd)
       Add thread's status variabes to global status
       and reset thread's status variables.
     */
-    add_to_status(&global_status_var, &thd->status_var, true, true);
+    add_to_status(&global_status_var, &thd->status_var, true);
   }
   else
   {

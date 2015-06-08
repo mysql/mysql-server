@@ -62,7 +62,8 @@ table_global_variables::m_share=
   sizeof(pos_t),
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  true   /* perpetual */
 };
 
 PFS_engine_table*

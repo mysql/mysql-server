@@ -92,17 +92,15 @@ void pre_initialize_performance_schema()
 struct PSI_bootstrap*
 initialize_performance_schema(PFS_global_param *param)
 {
-  pfs_automated_sizing(param);
-
-  if (!param->m_enabled || !THR_PFS_initialized)
+  if (!THR_PFS_initialized)
   {
-    /*
-      The performance schema is disabled in the startup command line.
-      All the instrumentation is turned off.
-    */
+    /* Pre-initialization failed. */
     return NULL;
   }
 
+  pfs_enabled= param->m_enabled;
+
+  pfs_automated_sizing(param);
   init_timers();
   init_event_name_sizing(param);
   register_global_classes();
@@ -154,27 +152,53 @@ initialize_performance_schema(PFS_global_param *param)
     return NULL;
   }
 
+  if (param->m_enabled)
+  {
+    /** Default values for SETUP_CONSUMERS */
+    flag_events_stages_current=            param->m_consumer_events_stages_current_enabled;
+    flag_events_stages_history=            param->m_consumer_events_stages_history_enabled;
+    flag_events_stages_history_long=       param->m_consumer_events_stages_history_long_enabled;
+    flag_events_statements_current=        param->m_consumer_events_statements_current_enabled;
+    flag_events_statements_history=        param->m_consumer_events_statements_history_enabled;
+    flag_events_statements_history_long=   param->m_consumer_events_statements_history_long_enabled;
+    flag_events_transactions_current=      param->m_consumer_events_transactions_current_enabled;
+    flag_events_transactions_history=      param->m_consumer_events_transactions_history_enabled;
+    flag_events_transactions_history_long= param->m_consumer_events_transactions_history_long_enabled;
+    flag_events_waits_current=             param->m_consumer_events_waits_current_enabled;
+    flag_events_waits_history=             param->m_consumer_events_waits_history_enabled;
+    flag_events_waits_history_long=        param->m_consumer_events_waits_history_long_enabled;
+    flag_global_instrumentation=           param->m_consumer_global_instrumentation_enabled;
+    flag_thread_instrumentation=           param->m_consumer_thread_instrumentation_enabled;
+    flag_statements_digest=                param->m_consumer_statement_digest_enabled;
+  }
+  else
+  {
+    flag_events_stages_current= false;
+    flag_events_stages_history= false;
+    flag_events_stages_history_long= false;
+    flag_events_statements_current= false;
+    flag_events_statements_history= false;
+    flag_events_statements_history_long= false;
+    flag_events_transactions_current= false;
+    flag_events_transactions_history= false;
+    flag_events_transactions_history_long= false;
+    flag_events_waits_current= false;
+    flag_events_waits_history= false;
+    flag_events_waits_history_long= false;
+    flag_global_instrumentation= false;
+    flag_thread_instrumentation= false;
+    flag_statements_digest= false;
+  }
+
   pfs_initialized= true;
 
-  /** Default values for SETUP_CONSUMERS */
-  flag_events_stages_current=            param->m_consumer_events_stages_current_enabled;
-  flag_events_stages_history=            param->m_consumer_events_stages_history_enabled;
-  flag_events_stages_history_long=       param->m_consumer_events_stages_history_long_enabled;
-  flag_events_statements_current=        param->m_consumer_events_statements_current_enabled;
-  flag_events_statements_history=        param->m_consumer_events_statements_history_enabled;
-  flag_events_statements_history_long=   param->m_consumer_events_statements_history_long_enabled;
-  flag_events_transactions_current=      param->m_consumer_events_transactions_current_enabled;
-  flag_events_transactions_history=      param->m_consumer_events_transactions_history_enabled;
-  flag_events_transactions_history_long= param->m_consumer_events_transactions_history_long_enabled;
-  flag_events_waits_current=             param->m_consumer_events_waits_current_enabled;
-  flag_events_waits_history=             param->m_consumer_events_waits_history_enabled;
-  flag_events_waits_history_long=        param->m_consumer_events_waits_history_long_enabled;
-  flag_global_instrumentation=           param->m_consumer_global_instrumentation_enabled;
-  flag_thread_instrumentation=           param->m_consumer_thread_instrumentation_enabled;
-  flag_statements_digest=                param->m_consumer_statement_digest_enabled;
+  if (param->m_enabled)
+  {
+    install_default_setup(&PFS_bootstrap);
+    return &PFS_bootstrap;
+  }
 
-  install_default_setup(&PFS_bootstrap);
-  return &PFS_bootstrap;
+  return NULL;
 }
 
 static void destroy_pfs_thread(void *key)

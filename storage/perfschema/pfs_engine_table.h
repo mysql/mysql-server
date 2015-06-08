@@ -247,7 +247,6 @@ protected:
   */
   virtual int delete_row_values(TABLE *table, const unsigned char *buf,
                                 Field **fields);
-
   /**
     Constructor.
     @param share            table share
@@ -313,6 +312,8 @@ struct PFS_engine_table_share
   TABLE_FIELD_DEF *m_field_def;
   /** Schema integrity flag. */
   bool m_checked;
+  /** Table is available even if the Performance Schema is disabled. */
+  bool m_perpetual;
 };
 
 /**

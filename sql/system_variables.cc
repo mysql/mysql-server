@@ -23,7 +23,6 @@
    add_to_status()
    to_var       add to this array
    from_var     from this array
-   add_com_vars if true, then add COM variables
    reset_from_var if true, then memset from_var variable with 0
 
   NOTES
@@ -33,7 +32,7 @@
 */
 
 void add_to_status(System_status_var *to_var, System_status_var *from_var,
-                   bool add_com_vars, bool reset_from_var)
+                   bool reset_from_var)
 {
   int        c;
   ulonglong *end= (ulonglong*) ((uchar*) to_var +
@@ -44,13 +43,11 @@ void add_to_status(System_status_var *to_var, System_status_var *from_var,
   while (to != end)
     *(to++)+= *(from++);
 
-  if (add_com_vars)
-  {
-    to_var->com_other+= from_var->com_other;
+  to_var->com_other+= from_var->com_other;
 
-    for (c= 0; c< SQLCOM_END; c++)
-      to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
-  }
+  for (c= 0; c< SQLCOM_END; c++)
+    to_var->com_stat[(uint) c] += from_var->com_stat[(uint) c];
+
   if (reset_from_var)
   {
     memset (from_var, 0, sizeof(*from_var));

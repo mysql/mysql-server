@@ -129,7 +129,12 @@ SET @@global.slave_parallel_workers=5;
 --replace_result $MASTER_MYPORT MASTER_MYPORT
 --eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_trunk'
 --enable_warnings
-START SLAVE;
+
+# make sure that the IO thread related part for the
+# existing channel is indeed started (on slow systems
+# START SLAVE is asynchronous and thus the server
+# could shutdown without having the structures initialized).
+--source include/start_slave.inc
 
 --echo === RESTART SLAVE SERVER ===
 --let $rpl_server_number= 2

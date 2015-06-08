@@ -979,7 +979,7 @@ void THD::set_new_thread_id()
 void THD::cleanup_connection(void)
 {
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true, true);
+  add_to_status(&global_status_var, &status_var, true);
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1113,7 +1113,7 @@ void THD::release_resources()
   Global_THD_manager::get_instance()->release_thread_id(m_thread_id);
 
   mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var, true, false);
+  add_to_status(&global_status_var, &status_var, false);
   /*
     Status queries after this point should not aggregate THD::status_var
     since the values has been added to global_status_var.
@@ -1801,6 +1801,18 @@ int THD::send_explain_fields(Query_result *result)
   item->maybe_null= 1;
   return (result->send_result_set_metadata(field_list, Protocol::SEND_NUM_ROWS |
                                            Protocol::SEND_EOF));
+}
+
+enum_vio_type THD::get_vio_type()
+{
+#ifndef EMBEDDED_LIBRARY
+  Vio *vio= get_protocol_classic()->get_vio();
+  if (vio != NULL)
+    return vio_type(vio);
+  return NO_VIO_TYPE;
+#else
+  return NO_VIO_TYPE;
+#endif
 }
 
 void THD::shutdown_active_vio()

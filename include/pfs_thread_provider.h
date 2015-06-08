@@ -92,6 +92,8 @@ void pfs_set_thread_start_time_v1(time_t start_time);
 
 void pfs_set_thread_state_v1(const char* state);
 
+void pfs_set_connection_type_v1(opaque_vio_type conn_type);
+
 void pfs_set_thread_info_v1(const char* info, uint info_len);
 
 void pfs_set_thread_v1(PSI_thread* thread);

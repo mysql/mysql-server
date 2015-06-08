@@ -8604,8 +8604,6 @@ i_s_files_table_fill(
 				space()->id);
 			space_name = file_per_table_name;
 		} else {
-			/* No other kind of space name contains a "/" */
-			ut_ad(NULL == strchr(space()->name, '/'));
 			space_name = space()->name;
 		}
 

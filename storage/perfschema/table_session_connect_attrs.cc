@@ -29,7 +29,8 @@ table_session_connect_attrs::m_share=
   sizeof(pos_connect_attr_by_thread_by_attr), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 PFS_engine_table* table_session_connect_attrs::create()

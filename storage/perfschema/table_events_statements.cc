@@ -257,7 +257,8 @@ table_events_statements_current::m_share=
   sizeof(pos_events_statements_current), /* ref length */
   &m_table_lock,
   &m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_statements_history::m_table_lock;
@@ -274,7 +275,8 @@ table_events_statements_history::m_share=
   sizeof(pos_events_statements_history), /* ref length */
   &m_table_lock,
   &table_events_statements_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 THR_LOCK table_events_statements_history_long::m_table_lock;
@@ -291,7 +293,8 @@ table_events_statements_history_long::m_share=
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_statements_current::m_field_def,
-  false /* checked */
+  false, /* checked */
+  false  /* perpetual */
 };
 
 table_events_statements_common::table_events_statements_common
@@ -309,6 +312,7 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
 {
   const char *base;
   const char *safe_source_file;
+  ulonglong timer_end;
 
   m_row_exists= false;
 
@@ -324,7 +328,16 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   m_row.m_nesting_event_type= statement->m_nesting_event_type;
   m_row.m_nesting_event_level= statement->m_nesting_event_level;
 
-  m_normalizer->to_pico(statement->m_timer_start, statement->m_timer_end,
+  if (m_row.m_end_event_id == 0)
+  {
+    timer_end= get_timer_raw_value(statement_timer);
+  }
+  else
+  {
+    timer_end= statement->m_timer_end;
+  }
+
+  m_normalizer->to_pico(statement->m_timer_start, timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
   m_row.m_lock_time= statement->m_lock_time * MICROSEC_TO_PICOSEC;
 

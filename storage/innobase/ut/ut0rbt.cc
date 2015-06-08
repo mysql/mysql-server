@@ -92,7 +92,6 @@ rbt_check_ordering(
 
 	return(TRUE);
 }
-#endif /* UNIV_DEBUG || IB_RBT_TESTING */
 
 /**********************************************************************//**
 Check that every path from the root to the leaves has the same count.
@@ -141,6 +140,7 @@ rbt_count_black_nodes(
 
 	return(result);
 }
+#endif /* UNIV_DEBUG || IB_RBT_TESTING */
 
 /**********************************************************************//**
 Turn the node's right child's left sub-tree into node's right sub-tree.
