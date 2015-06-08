@@ -13,6 +13,7 @@ set global server_audit_incl_users=null;
 set global server_audit_file_path='server_audit.log';
 set global server_audit_output_type=file;
 set global server_audit_logging=on;
+--sleep 2
 connect (con1,localhost,root,,mysql);
 connection default;
 disconnect con1;
