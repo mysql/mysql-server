@@ -417,7 +417,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_
       CHARSET_INFO *cs= str->charset();
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "decimal(%d,?)", metadata);
+                           "decimal(%d,?)/*old*/", metadata);
       str->length(length);
     }
     break;
