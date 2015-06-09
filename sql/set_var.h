@@ -350,8 +350,8 @@ ulonglong get_system_variable_hash_version(void);
 
 bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
                         bool sort, enum enum_var_type type, bool strict);
-void lock_plugin_mutex();
-void unlock_plugin_mutex();
+void rdlock_plugin_mutex(THD *thd);
+void rdunlock_plugin_mutex(THD *thd);
 sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);

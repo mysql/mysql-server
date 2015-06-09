@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/psi/mysql_thread.h"
+#include <partitioned_lock.h>
 
 /**
   Implementation of read-write lock partitioned by thread id.
@@ -35,7 +36,7 @@
   significant.
 */
 
-class Partitioned_rwlock
+class Partitioned_rwlock : public Partitioned_lock
 {
 public:
   Partitioned_rwlock() {}
@@ -74,18 +75,26 @@ public:
     for (uint i= 0 ; i < m_parts; ++i)
       mysql_rwlock_unlock(&m_locks_array[i]);
   }
-  void rdlock(uint thread_id)
+  int rdlock(uint part_id)
   {
-    mysql_rwlock_rdlock(&m_locks_array[thread_id%m_parts]);
+    return mysql_rwlock_rdlock(&m_locks_array[part_id%m_parts]);
   }
   /*
-    One should use the same thread number for releasing read lock
-    as was used for acquiring it,
+    One should use the same partition id for releasing read lock
+    as was used for acquiring it.
   */
-  void rdunlock(uint thread_id)
+  int rdunlock(uint part_id)
   {
-    mysql_rwlock_unlock(&m_locks_array[thread_id%m_parts]);
+    return mysql_rwlock_unlock(&m_locks_array[part_id%m_parts]);
   }
+
+  /** not applicable to this type of locks */
+  virtual void assert_not_owner() { };
+  /** not applicable to this type of locks */
+  virtual void assert_rdlock_owner(uint part_id) {};
+  /** not applicable to this type of locks */
+  virtual void assert_wrlock_owner() {};
+
 
 private:
   mysql_rwlock_t* m_locks_array;
@@ -93,99 +102,6 @@ private:
 
   Partitioned_rwlock(const Partitioned_rwlock&);            // Non-copyable
   Partitioned_rwlock& operator=(const Partitioned_rwlock&); // Non-copyable
-};
-
-
-/**
-  Read lock guard class for Partitioned_rwlock. Supports early unlocking.
-*/
-
-class Partitioned_rwlock_read_guard
-{
-public:
-  /**
-    Acquires read lock on partitioned rwlock on behalf of thread.
-    Automatically release lock in destructor.
-  */
-  Partitioned_rwlock_read_guard(Partitioned_rwlock *rwlock, uint thread_id)
-    : m_rwlock(rwlock), m_thread_id(thread_id)
-  {
-    m_rwlock->rdlock(m_thread_id);
-  }
-
-  ~Partitioned_rwlock_read_guard()
-  {
-    if (m_rwlock)
-      m_rwlock->rdunlock(m_thread_id);
-  }
-
-  /** Release read lock. Optional method for early unlocking. */
-  void unlock()
-  {
-    m_rwlock->rdunlock(m_thread_id);
-    m_rwlock= NULL;
-  }
-
-private:
-  /**
-    Pointer to partitioned rwlock which was acquired. NULL if lock was
-    released early so destructor should not do anything.
-  */
-  Partitioned_rwlock *m_rwlock;
-  /**
-    Id of thread on which behalf lock was acquired and which is to be used for
-    unlocking.
-  */
-  uint m_thread_id;
-
-  // Non-copyable
-  Partitioned_rwlock_read_guard(const Partitioned_rwlock_read_guard&);
-  Partitioned_rwlock_read_guard& operator=(const
-                                           Partitioned_rwlock_read_guard&);
-};
-
-
-/**
-  Write lock guard class for Partitioned_rwlock. Supports early unlocking.
-*/
-
-class Partitioned_rwlock_write_guard
-{
-public:
-  /**
-    Acquires write lock on partitioned rwlock.
-    Automatically release it in destructor.
-  */
-  explicit Partitioned_rwlock_write_guard(Partitioned_rwlock *rwlock)
-    : m_rwlock(rwlock)
-  {
-    m_rwlock->wrlock();
-  }
-
-  ~Partitioned_rwlock_write_guard()
-  {
-    if (m_rwlock)
-      m_rwlock->wrunlock();
-  }
-
-  /** Release write lock. Optional method for early unlocking. */
-  void unlock()
-  {
-    m_rwlock->wrunlock();
-    m_rwlock= NULL;
-  }
-
-private:
-  /**
-    Pointer to partitioned rwlock which was acquired. NULL if lock was
-    released early so destructor should not do anything.
-  */
-  Partitioned_rwlock *m_rwlock;
-
-  // Non-copyable
-  Partitioned_rwlock_write_guard(const Partitioned_rwlock_write_guard&);
-  Partitioned_rwlock_write_guard& operator=(const
-                                            Partitioned_rwlock_write_guard&);
 };
 
 #endif /* PARTITIONED_RWLOCK_INCLUDED */
