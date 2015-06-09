@@ -3444,6 +3444,11 @@ end:
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
+  /* If an error occurred we can return failure after freeing the memroot. */
+  if (thd->is_error())
+  {
+    DBUG_RETURN(true);
+  }
   /*
     Must be a subset of the locked partitions.
     lock_partitions contains the partitions marked by explicit partition
@@ -6570,6 +6575,8 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
                             new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
     param->thd->mem_root= tmp_root;
+    if (param->statement_should_be_aborted())
+      DBUG_RETURN(NULL);
     dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
