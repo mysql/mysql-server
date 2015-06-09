@@ -1,0 +1,21 @@
+source include/have_ssl_communication.inc;
+
+let $mysql_ssl_cert=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+let $mysql_ssl_no_cert=$MYSQL --ssl -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+let $mysql_ssl_no_cert_ver=$MYSQL --ssl --ssl-verify-server-cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+let $mysql_ssl_cert_ver=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-verify-server-cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+
+--echo $mysql_ssl_cert;
+--exec $mysql_ssl_cert;
+--echo #
+--echo $mysql_ssl_no_cert;
+--exec $mysql_ssl_no_cert;
+--echo #
+--echo $mysql_ssl_no_cert_ver;
+--error 1
+--exec $mysql_ssl_no_cert_ver;
+--echo #
+--echo $mysql_ssl_cert_ver;
+--error 1
+--exec $mysql_ssl_cert_ver;
+

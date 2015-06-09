@@ -1,0 +1,13 @@
+/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl-key=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-key.pem --ssl-cert=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-GCM-SHA384
+#
+/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-GCM-SHA384
+#
+/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl --ssl-verify-server-cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+ERROR 2026 (HY000): SSL connection error: Failed to verify the server certificate
+#
+/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl-key=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-key.pem --ssl-cert=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-cert.pem --ssl-verify-server-cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+ERROR 2026 (HY000): SSL connection error: Failed to verify the server certificate
