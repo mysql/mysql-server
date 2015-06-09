@@ -4,19 +4,15 @@ source include/have_ssl_disabled.inc;
 let $mysql_ssl_cert=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
 # SSL mandatory with verify server cert
 let $mysql_ssl_cert_ver=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl_verify_server_cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
---echo $mysql_ssl_cert;
 --exec $mysql_ssl_cert;
---echo $mysql_ssl_cert_ver;
 --error 1
 --exec $mysql_ssl_cert_ver;
 
 # SSL not mandatory again
 let $mysql_no_ssl_but_ver=$MYSQL --ssl_verify_server_cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
---echo $mysql_no_ssl_but_ver;
 --exec $mysql_no_ssl_but_ver;
 
 # SSL mandatory but no specifications for ssl parameters
 let $mysql_ssl_no_spec_ver=$MYSQL --ssl --ssl_verify_server_cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
---echo $mysql_ssl_no_spec_ver
 --error 1
 --exec $mysql_ssl_no_spec_ver

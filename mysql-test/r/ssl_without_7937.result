@@ -1,10 +1,6 @@
-/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl-key=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-key.pem --ssl-cert=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
 Variable_name	Value
 Ssl_cipher	
-/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl-key=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-key.pem --ssl-cert=/home/vicentiu/Workspace/MariaDB/server/mysql-test/std_data/client-cert.pem --ssl_verify_server_cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
 ERROR 2026 (HY000): SSL connection error: SSL is required, but the server does not support it
-/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl_verify_server_cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
 Variable_name	Value
 Ssl_cipher	
-/home/vicentiu/Workspace/MariaDB/server/client/mysql --defaults-file=/home/vicentiu/Workspace/MariaDB/server/mysql-test/var/my.cnf --ssl --ssl_verify_server_cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 ERROR 2026 (HY000): SSL connection error: SSL is required, but the server does not support it

@@ -1,4 +1,4 @@
--- require r/have_ssl_disabled.require
-disable_query_log;
-show variables like 'have_ssl';
-enable_query_log;
+if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME like 'have_ssl' and VARIABLE_VALUE like 'DISABLED'`)
+{
+  --skip Test requires ssl to be disabled.
+}
