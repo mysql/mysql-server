@@ -1477,35 +1477,37 @@ dict_table_prevent_eviction(
 	}
 }
 
-/********************************************************************//**
-Check whether the table is corrupted.
-@return nonzero for corrupted table, zero for valid tables */
+/** Check whether the table is corrupted.
+@param[in]	table	table object
+@return true if the table is corrupted, otherwise false */
 UNIV_INLINE
-ulint
+bool
 dict_table_is_corrupted(
-/*====================*/
-	const dict_table_t*	table)	/*!< in: table */
+	const dict_table_t*	table)
 {
-	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
-	return(table->corrupted);
+	dict_index_t*		index = dict_table_get_first_index(table);
+
+	/* If we can't get the index, it must be a table in a half created
+        state, because we only load table with clustered index into memory.
+	And we don't consider it as a corrupted table */
+	ut_ad(index == NULL || dict_index_is_clust(index));
+
+	return(index != NULL && index->type & DICT_CORRUPT);
 }
 
-/********************************************************************//**
-Check whether the index is corrupted.
-@return nonzero for corrupted index, zero for valid indexes */
+/** Check whether the index is corrupted.
+@param[in]	index	index object
+@return true if index is corrupted, otherwise false */
 UNIV_INLINE
-ulint
+bool
 dict_index_is_corrupted(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
+	const dict_index_t*	index)
 {
-	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	return((index->type & DICT_CORRUPT)
-	       || (index->table && index->table->corrupted));
+	return(index->type & DICT_CORRUPT);
 }
 
 /********************************************************************//**
@@ -1557,9 +1559,23 @@ dict_table_is_intrinsic(
 	return(false);
 }
 
+/** Check whether the table is DDTableBuffer. See class DDTableBuffer
+@param[in]	table	table to check
+@return true if this is a DDTableBuffer table. */
+UNIV_INLINE
+bool
+dict_table_is_table_buffer(
+	const dict_table_t*	table)
+{
+	const dict_index_t*	index = dict_table_get_first_index(table);
+
+	return(index != NULL && index->id == DICT_TBL_BUFFER_ID);
+}
+
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
-to the connection only.
+to the connection and the DDTableBuffer as it's protected by
+dict_persist->mutex.
 
 @param[in]	table	table to check
 @return true if locking is disabled. */
@@ -1568,7 +1584,8 @@ bool
 dict_table_is_locking_disabled(
 	const dict_table_t*	table)
 {
-	return(dict_table_is_intrinsic(table));
+	return(dict_table_is_intrinsic(table)
+	       || dict_table_is_table_buffer(table));
 }
 
 /********************************************************************//**

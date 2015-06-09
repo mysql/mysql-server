@@ -3779,7 +3779,11 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -3806,10 +3810,10 @@ btr_cur_update_in_place(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(thr_get_trx(thr)->id == trx_id
-	      || (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
+	ut_ad((flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
+	      || thr_get_trx(thr)->id == trx_id);
 	ut_ad(fil_page_index_page_check(btr_cur_get_page(cursor)));
 	ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
 
@@ -3935,7 +3939,11 @@ btr_cur_optimistic_update(
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; if this
 				is a secondary index, the caller must
@@ -3972,10 +3980,10 @@ btr_cur_optimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(thr_get_trx(thr)->id == trx_id
-	      || (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
+	ut_ad((flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
+	      || thr_get_trx(thr)->id == trx_id);
 	ut_ad(fil_page_index_page_check(page));
 	ut_ad(btr_page_get_index_id(page) == index->id);
 
@@ -3983,6 +3991,9 @@ btr_cur_optimistic_update(
 				   ULINT_UNDEFINED, heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	ut_a(!rec_offs_any_null_extern(rec, *offsets)
+	     || (flags & ~(BTR_KEEP_POS_FLAG | BTR_KEEP_IBUF_BITMAP))
+		== (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		    | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
 	     || trx_is_recv(thr_get_trx(thr)));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
@@ -4248,7 +4259,11 @@ btr_cur_pessimistic_update(
 				be appended to this. */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG
+				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be
 				committed before latching any further pages */
@@ -4292,10 +4307,10 @@ btr_cur_pessimistic_update(
 	      || dict_table_is_intrinsic(index->table));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(thr_get_trx(thr)->id == trx_id
-	      || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad((flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
+	      || thr_get_trx(thr)->id == trx_id);
 
 	err = optim_err = btr_cur_optimistic_update(
 		flags | BTR_KEEP_IBUF_BITMAP,
@@ -4366,7 +4381,11 @@ btr_cur_pessimistic_update(
 
 		ut_ad(big_rec_vec == NULL);
 		ut_ad(dict_index_is_clust(index));
-		ut_ad(thr_get_trx(thr)->in_rollback);
+		ut_ad((flags & ~BTR_KEEP_POS_FLAG)
+		      == (BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG
+			  | BTR_KEEP_SYS_FLAG)
+		      || thr_get_trx(thr)->id == trx_id);
+
 
 		DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
 		RECOVERY_CRASH(99);

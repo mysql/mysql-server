@@ -421,6 +421,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(buf_pool_zip_mutex),
 	PSI_KEY(cache_last_read_mutex),
 	PSI_KEY(dict_foreign_err_mutex),
+	PSI_KEY(dict_persist_dirty_tables_mutex),
 	PSI_KEY(dict_sys_mutex),
 	PSI_KEY(recalc_pool_mutex),
 	PSI_KEY(fil_system_mutex),
@@ -5310,8 +5311,12 @@ ha_innobase::open(
 			" issue.";
 
 		/* Mark this table as corrupted, so the drop table
-		or force recovery can still use it, but not others. */
-		ib_table->corrupted = true;
+		or force recovery can still use it, but not others.
+		This would be removed in the future(WL#7141-7488),
+		so I would set the in-memory clustered index as corrupted
+		instead of calling dict_set_corrupted to make test case
+		pass */
+		dict_table_get_first_index(ib_table)->type |= DICT_CORRUPT;
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
@@ -7966,7 +7971,8 @@ ha_innobase::change_active_index(
 				m_prebuilt->index->table->name.m_name);
 
 			if (dict_index_is_clust(m_prebuilt->index)) {
-				ut_ad(m_prebuilt->index->table->corrupted);
+				ut_ad(dict_table_is_corrupted(
+					m_prebuilt->table));
 				push_warning_printf(
 					m_user_thd, Sql_condition::SL_WARNING,
 					HA_ERR_TABLE_CORRUPT,
@@ -7979,8 +7985,9 @@ ha_innobase::change_active_index(
 					HA_ERR_INDEX_CORRUPT,
 					"InnoDB: Index %s for table %s is"
 					" marked as corrupted",
-					m_prebuilt->index->name(),
-					table_name);
+					m_prebuilt->index->name(), table_name);
+				my_error(ER_INDEX_CORRUPT, MYF(0),
+					 m_prebuilt->index->name());
 				DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 			}
 		} else {
@@ -11985,7 +11992,7 @@ ha_innobase::records(
 		*num_rows = HA_POS_ERROR;
 		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
 
-	} else if (m_prebuilt->table->corrupted) {
+	} else if (dict_table_is_corrupted(m_prebuilt->table)) {
 		ib_errf(m_user_thd, IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
 			"Table '%s' is corrupt.",
@@ -13120,24 +13127,7 @@ ha_innobase::check(
 
 	m_prebuilt->trx->op_info = "checking table";
 
-	if (m_prebuilt->table->corrupted) {
-		/* If some previous oeration has marked the table as
-		corrupted in memory, and has not propagated such to
-		clustered index, we will do so here */
-		index = dict_table_get_first_index(m_prebuilt->table);
-
-		if (!dict_index_is_corrupted(index)) {
-			dict_set_corrupted(
-				index, m_prebuilt->trx, "CHECK TABLE");
-		}
-
-		push_warning_printf(m_user_thd,
-				    Sql_condition::SL_WARNING,
-				    HA_ERR_INDEX_CORRUPT,
-				    "InnoDB: Index %s is marked as"
-				    " corrupted",
-				    index->name());
-
+	if (dict_table_is_corrupted(m_prebuilt->table)) {
 		/* Now that the table is already marked as corrupted,
 		there is no need to check any index of this table */
 		m_prebuilt->trx->op_info = "";
@@ -13156,7 +13146,7 @@ ha_innobase::check(
 	REPEATABLE READ here */
 	m_prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	ut_ad(!m_prebuilt->table->corrupted);
+	ut_ad(!dict_table_is_corrupted(m_prebuilt->table));
 
 	for (index = dict_table_get_first_index(m_prebuilt->table);
 	     index != NULL;
@@ -13245,6 +13235,12 @@ ha_innobase::check(
 		}
 
 		DBUG_EXECUTE_IF(
+			"dict_set_clust_index_corrupted",
+			if (dict_index_is_clust(index)) {
+				ret = DB_CORRUPTION;
+			});
+
+		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
 			if (!dict_index_is_clust(index)) {
 				ret = DB_CORRUPTION;
@@ -13264,8 +13260,7 @@ ha_innobase::check(
 				" index %s is corrupted.",
 				index->name());
 			is_ok = false;
-			dict_set_corrupted(
-				index, m_prebuilt->trx, "CHECK TABLE-check index");
+			dict_set_corrupted(index);
 		}
 
 		if (index == dict_table_get_first_index(m_prebuilt->table)) {
@@ -13281,9 +13276,7 @@ ha_innobase::check(
 				(ulong) n_rows,
 				(ulong) n_rows_in_table);
 			is_ok = false;
-			dict_set_corrupted(
-				index, m_prebuilt->trx,
-				"CHECK TABLE; Wrong count");
+			dict_set_corrupted(index);
 		}
 	}
 

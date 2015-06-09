@@ -422,8 +422,6 @@ dict_stats_table_clone_create(
 
 	t->name.m_name = mem_heap_strdup(heap, table->name.m_name);
 
-	t->corrupted = table->corrupted;
-
 	/* This private object "t" is not shared with other threads, so
 	we do not need the stats_latch (thus we pass false below). The
 	dict_table_stats_lock()/unlock() routines will do nothing. */

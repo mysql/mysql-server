@@ -192,6 +192,15 @@ dict_hdr_create(
 
 	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
 
+	/* We create the root page for DDTableBuffer here, right after
+	all dict_header things have been created. Because
+	FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO is right after
+	FSP_DICT_HDR_PAGE_NO */
+	root_page_no = btr_create(DICT_CLUSTERED, 0, univ_page_size,
+				  DICT_TBL_BUFFER_ID, dict_ind_redundant,
+				  NULL, mtr);
+	ut_ad(root_page_no == FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO);
+
 	dict_header = dict_hdr_get(mtr);
 
 	/* Start counting row, table, index, and tree ids from
@@ -487,9 +496,11 @@ dict_boot(void)
 
 	/*-------------------------*/
 
-	/* Initialize the insert buffer table and index for each tablespace */
+	/* Initialize the insert buffer table, table buffer and indexes */
 
 	ibuf_init_at_db_start();
+
+	dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
 
 	dberr_t	err = DB_SUCCESS;
 

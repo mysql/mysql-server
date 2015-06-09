@@ -1135,7 +1135,7 @@ row_truncate_rollback(
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			dict_set_corrupted(index, trx, "TRUNCATE TABLE");
+			dict_set_corrupted(index);
 		}
 
 		if (has_internal_doc_id) {
@@ -1168,10 +1168,10 @@ row_truncate_rollback(
 			index->page = FIL_NULL;
 		}
 
+		dict_set_corrupted(dict_table_get_first_index(table));
+
 		dict_table_x_unlock_indexes(table);
 	}
-
-	table->corrupted = corrupted;
 }
 
 /**

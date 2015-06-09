@@ -3978,10 +3978,7 @@ ha_innobase::prepare_inplace_alter_table(
 
 	indexed_table = m_prebuilt->table;
 
-	if (indexed_table->corrupted
-	    || dict_table_get_first_index(indexed_table) == NULL
-	    || dict_index_is_corrupted(
-		    dict_table_get_first_index(indexed_table))) {
+	if (dict_table_is_corrupted(indexed_table)) {
 		/* The clustered index is corrupted. */
 		my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
 		DBUG_RETURN(true);
@@ -4164,7 +4161,7 @@ check_if_ok_to_rename:
 	     index = dict_table_get_next_index(index)) {
 		if (index->type & DICT_FTS) {
 			DBUG_ASSERT(index->type == DICT_FTS
-				    || (index->type & DICT_CORRUPT));
+				    || dict_index_is_corrupted(index));
 
 			/* We need to drop any corrupted fts indexes
 			before we add a new fts index. */
@@ -6101,9 +6098,9 @@ commit_cache_norebuild(
 			DBUG_ASSERT(index->table == ctx->new_table);
 
 			if (index->type & DICT_FTS) {
-				DBUG_ASSERT(index->type == DICT_FTS
-					    || (index->type
-						& DICT_CORRUPT));
+				DBUG_ASSERT(
+					index->type == DICT_FTS
+					|| dict_index_is_corrupted(index));
 				DBUG_ASSERT(index->table->fts);
 				fts_drop_index(index->table, index, trx);
 			}
@@ -6497,6 +6494,18 @@ ha_innobase::commit_inplace_alter_table(
 			fail = commit_try_rebuild(
 				ha_alter_info, ctx, altered_table, table,
 				trx, table_share->table_name.str);
+
+			if (!fail) {
+				/* Also check the DDTableBuffer and delete
+				the corresponding row for old table */
+				dberr_t		error;
+
+				mutex_enter(&dict_persist->mutex);
+				error = dict_persist->table_buffer->remove(
+					ctx->old_table->id);
+				ut_a(error = DB_SUCCESS);
+				mutex_exit(&dict_persist->mutex);
+			}
 		} else {
 			fail = commit_try_norebuild(
 				ha_alter_info, ctx, table, trx,

@@ -112,6 +112,7 @@ ut_new_boot()
 		"buf0dump",
 		"buf0flu",
 		"buf0lru",
+		"dict0boot",
 		"dict0dict",
 		"dict0mem",
 		"dict0stats",

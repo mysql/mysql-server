@@ -888,9 +888,8 @@ get_parent:
 			/* There must be a rec in the path, if the path
 			is run out, the spatial index is corrupted. */
 			if (!ret) {
-				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(index);
-				mutex_exit(&dict_sys->mutex);
+
+				dict_set_corrupted(index);
 
 				ib::info() << "InnoDB: Corruption of a"
 					" spatial index " << index->name

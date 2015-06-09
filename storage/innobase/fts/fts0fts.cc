@@ -6222,53 +6222,41 @@ fts_check_aux_table_parent_id_cmp(
 }
 
 /** Mark all the fts index associated with the parent table as corrupted.
-@param[in]	trx		transaction
-@param[in, out] parent_table	fts index associated with this parent table
+@param[in,out] parent_table	fts index associated with this parent table
 				will be marked as corrupted. */
 static
 void
 fts_parent_all_index_set_corrupt(
-	trx_t*		trx,
 	dict_table_t*	parent_table)
 {
 	fts_t*	fts = parent_table->fts;
 
-	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-	}
-
 	for (ulint j = 0; j < ib_vector_size(fts->indexes); j++) {
 		dict_index_t*	index = static_cast<dict_index_t*>(
 			ib_vector_getp_const(fts->indexes, j));
-		dict_set_corrupted(index,
-				   trx, "DROP ORPHANED TABLE");
+		dict_set_corrupted(index);
 	}
 }
 
 /** Mark the fts index which index id matches the id as corrupted.
-@param[in]	trx		transaction
 @param[in]	id		index id to search
-@param[in, out]	parent_table	parent table to check with all
-				the index. */
+@param[in,out]	parent_table	parent table to check with all the index. */
 static
 void
 fts_set_index_corrupt(
-	trx_t*		trx,
 	space_index_t	id,
 	dict_table_t*	table)
 {
 	fts_t*	fts = table->fts;
 
-	if (trx_get_dict_operation(trx) == TRX_DICT_OP_NONE) {
-		trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
-	}
-
 	for (ulint j = 0; j < ib_vector_size(fts->indexes); j++) {
 		dict_index_t*	index = static_cast<dict_index_t*>(
 			ib_vector_getp_const(fts->indexes, j));
+
 		if (index->id == id) {
-			dict_set_corrupted(index, trx,
-					   "DROP ORPHANED TABLE");
+			ut_ad(index->space == table->space);
+
+			dict_set_corrupted(index);
 			break;
 		}
 	}
@@ -6379,7 +6367,7 @@ fts_rename_aux_tables_to_hex_format(
 		trx_corrupt = trx_allocate_for_background();
 		trx_corrupt->dict_operation_lock_mode = RW_X_LATCH;
 		trx_start_for_ddl(trx_corrupt, TRX_DICT_OP_TABLE);
-		fts_parent_all_index_set_corrupt(trx_corrupt, parent_table);
+		fts_parent_all_index_set_corrupt(parent_table);
 		trx_corrupt->dict_operation_lock_mode = 0;
 		fts_sql_commit(trx_corrupt);
 		trx_free_for_background(trx_corrupt);
@@ -6803,7 +6791,7 @@ fts_check_and_drop_orphaned_tables(
 						<< table->name << " to hex "
 						"format failed.";
 					fts_set_index_corrupt(
-						trx, aux_table->index_id,
+						aux_table->index_id,
 						parent_table);
 						goto table_exit;);
 
@@ -6816,7 +6804,7 @@ fts_check_and_drop_orphaned_tables(
 						"format failed.";
 
 					fts_set_index_corrupt(
-						trx, aux_table->index_id,
+						aux_table->index_id,
 						parent_table);
 				} else {
 					DICT_TF2_FLAG_SET(table,

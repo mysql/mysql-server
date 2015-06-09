@@ -172,6 +172,11 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 						page, in tablespace 0 */
 #define FSP_DICT_HDR_PAGE_NO		7	/*!< data dictionary header
 						page, in tablespace 0 */
+#define FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO	\
+					8	/*< DDTableBuffer table's
+						B-tree root page in tablespace
+						0 */
+
 /*--------------------------------------*/
 /* @} */
 

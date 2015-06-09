@@ -230,8 +230,11 @@ enum mlog_id_t {
 	We use it to replace MLOG_INIT_FILE_PAGE. */
 	MLOG_INIT_FILE_PAGE2 = 59,
 
+	/** log for some persistent dynamic metadata change */
+	MLOG_TABLE_DYNAMIC_META = 60,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 59
+	MLOG_BIGGEST_TYPE = 60
 };
 
 /* @} */

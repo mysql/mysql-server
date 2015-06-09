@@ -1646,7 +1646,7 @@ row_insert_for_mysql_using_ins_graph(
 		/* Mark the table corrupted for the clustered index */
 		dict_index_t*	index = dict_table_get_first_index(table);
 		ut_ad(dict_index_is_clust(index));
-		dict_set_corrupted(index, trx, "INSERT TABLE"); });
+		dict_set_corrupted(index); });
 
 	if (dict_table_is_corrupted(table)) {
 
@@ -4519,14 +4519,16 @@ row_drop_table_for_mysql(
 	}
 
 	switch (err) {
-		ulint	space_id;
-		bool	is_temp;
-		bool	ibd_file_missing;
-		bool	is_discarded;
-		bool	shared_tablespace;
+		ulint		space_id;
+		bool		is_temp;
+		bool		ibd_file_missing;
+		bool		is_discarded;
+		bool		shared_tablespace;
+		table_id_t	table_id;
 
 	case DB_SUCCESS:
 		space_id = table->space;
+		table_id = table->id;
 		ibd_file_missing = table->ibd_file_missing;
 		is_discarded = dict_table_is_discarded(table);
 		is_temp = dict_table_is_temporary(table);
@@ -4572,6 +4574,16 @@ row_drop_table_for_mysql(
 		/* We can now drop the single-table tablespace. */
 		err = row_drop_single_table_tablespace(
 			space_id, tablename, filepath);
+
+		/* Finally, if it's not a temporary table,
+		let's try to delete the row in DDTableBuffer if exists */
+		if (!is_temp) {
+			mutex_enter(&dict_persist->mutex);
+			err = dict_persist->table_buffer->remove(table_id);
+			ut_ad(err == DB_SUCCESS);
+			mutex_exit(&dict_persist->mutex);
+		}
+
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
@@ -4621,11 +4633,10 @@ row_drop_table_for_mysql(
 		unwarranted follow-up action on this table that can result
 		in more serious issues. */
 
-		table->corrupted = true;
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
-			dict_set_corrupted(index, trx, "DROP TABLE");
+			dict_set_corrupted(index);
 		}
 	}
 

@@ -4973,21 +4973,16 @@ buf_page_monitor(
 	MONITOR_INC_NOCHECK(counter);
 }
 
-/********************************************************************//**
-Mark a table with the specified space pointed by bpage->id.space() corrupted.
-Also remove the bpage from LRU list.
-@return TRUE if successful */
-static
-ibool
-buf_mark_space_corrupt(
-/*===================*/
-	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
+/** Unfixes the page, unlatches the page,
+removes it from page_hash and removes it from LRU.
+@param[in,out]	bpage	pointer to the block */
+void
+buf_read_page_handle_error(
+	buf_page_t*	bpage)
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
-	ib_uint32_t	space = bpage->id.space();
-	ibool		ret = TRUE;
 
 	/* First unfix and release lock on the bpage */
 	buf_pool_mutex_enter(buf_pool);
@@ -5006,19 +5001,13 @@ buf_mark_space_corrupt(
 
 	mutex_exit(buf_page_get_mutex(bpage));
 
-	/* Find the table with specified space id, and mark it corrupted */
-	if (dict_set_corrupted_by_space(space)) {
-		buf_LRU_free_one_page(bpage);
-	} else {
-		ret = FALSE;
-	}
+	/* remove the block from LRU list */
+	buf_LRU_free_one_page(bpage);
 
 	ut_ad(buf_pool->n_pend_reads > 0);
 	buf_pool->n_pend_reads--;
 
 	buf_pool_mutex_exit(buf_pool);
-
-	return(ret);
 }
 
 /********************************************************************//**
@@ -5135,16 +5124,8 @@ buf_page_io_complete(
 			error injection */
 			DBUG_EXECUTE_IF(
 				"buf_page_import_corrupt_failure",
-				if (bpage->id.space() > TRX_SYS_SPACE
-				    && !Tablespace::is_undo_tablespace(
-					    bpage->id.space())
-				    && buf_mark_space_corrupt(bpage)) {
-					ib::info() << "Simulated IMPORT "
-						"corruption";
-					return(true);
-				}
-				goto page_not_corrupt;
-				;);
+				goto page_not_corrupt; );
+
 corrupt:
 			/* Compressed pages are basically gibberish avoid
 			printing the contents. */
@@ -5176,24 +5157,14 @@ corrupt:
 			}
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
+				/* We do not have to mark any index as
+				corrupted here, since we only know the space
+				id but not the exact index id. There could
+				be multiple tables/indexes in the same space,
+				so we will mark it later in upper layer */
 
-				/* If page space id is larger than TRX_SYS_SPACE
-				(0), we will attempt to mark the corresponding
-				table as corrupted instead of crashing server */
-
-				if (bpage->id.space() > TRX_SYS_SPACE
-				    && buf_mark_space_corrupt(bpage)) {
-
-					return(false);
-				} else {
-					ib::fatal()
-						<< "Aborting because of a"
-						" corrupt database page in"
-						" the system tablespace. Or, "
-						" there was a failure in"
-						" tagging the tablespace "
-						" as corrupt.";
-				}
+				buf_read_page_handle_error(bpage);
+				return(false);
 			}
 		}
 

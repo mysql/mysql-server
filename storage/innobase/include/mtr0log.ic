@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -163,6 +163,32 @@ mlog_catenate_ull_compressed(
 	log_ptr += mach_u64_write_compressed(log_ptr, val);
 
 	mlog_close(mtr, log_ptr);
+}
+
+/** Writes a log record about a dictionary operation.
+@param[in]	type		redo log record type
+@param[in]	id		table id
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return end of mini-transaction log */
+UNIV_INLINE
+byte*
+mlog_write_initial_dict_log_record(
+	mlog_id_t	type,
+	table_id_t	id,
+	byte*		log_ptr,
+	mtr_t*		mtr)
+{
+	ut_ad(type <= MLOG_BIGGEST_TYPE);
+	ut_ad(type == MLOG_TABLE_DYNAMIC_META);
+
+	mach_write_to_1(log_ptr, type);
+	log_ptr++;
+
+	log_ptr += mach_u64_write_much_compressed(log_ptr, id);
+
+	mtr->added_rec();
+	return(log_ptr);
 }
 
 /** Writes a log record about an operation.

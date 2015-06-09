@@ -145,6 +145,14 @@ Inits the data dictionary module. */
 void
 dict_init(void);
 
+/** Inits the structure for persisting dynamic metadata */
+void
+dict_persist_init(void);
+
+/** Clear the structure */
+void
+dict_persist_close(void);
+
 /*********************************************************************//**
 Gets the minimum number of bytes per character.
 @return minimum multi-byte char size, in bytes */
@@ -338,15 +346,19 @@ dict_table_add_system_columns(
 @param[in,out]	table	table handler */
 void
 dict_table_set_big_rows(
-	dict_table_t*	table);
-/**********************************************************************//**
-Adds a table object to the dictionary cache. */
+	dict_table_t*	table)
+	__attribute__((nonnull));
+/** Adds a table object to the dictionary cache.
+@param[in]	table		table
+@param[in]	can_be_evicted	true if can be evicted
+@param[in]	heap		temporary heap
+*/
 void
 dict_table_add_to_cache(
-/*====================*/
-	dict_table_t*	table,		/*!< in: table */
-	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted*/
-	mem_heap_t*	heap);		/*!< in: temporary heap */
+	dict_table_t*	table,
+	ibool		can_be_evicted,
+	mem_heap_t*	heap);
+
 /**********************************************************************//**
 Removes a table object from the dictionary cache. */
 void
@@ -1489,6 +1501,13 @@ extern dict_sys_t*	dict_sys;
 /** the data dictionary rw-latch protecting dict_sys */
 extern rw_lock_t	dict_operation_lock;
 
+/** Forward declaration */
+class DDTableBuffer;
+struct dict_persist_t;
+
+/** the dictionary persisting structure */
+extern dict_persist_t*	dict_persist;
+
 /* Dictionary system struct */
 struct dict_sys_t{
 	DictSysMutex	mutex;		/*!< mutex protecting the data
@@ -1523,6 +1542,43 @@ struct dict_sys_t{
 	UT_LIST_BASE_NODE_T(dict_table_t)
 			table_non_LRU;	/*!< List of tables that can't be
 					evicted from the cache */
+};
+
+/** Clustered index id of DDTableBuffer */
+#define	DICT_TBL_BUFFER_ID	0xFFFFFFFFFF000000ULL
+
+/** Structure for persisting dynamic metadata of data dictionary */
+struct dict_persist_t {
+	/** We have an rw-lock and a mutex here. We should always make sure
+	the rw-lock is acquired first and then the mutex according to their
+	latch levels. These two should be low-level latch/lock so that
+	we can use them widely when necessary. */
+
+	/** rw-lock which is used to protect write-back on checkpoint.
+	We will write back persistent metadata before holding log mutex
+	on checkpoint, and we have to make sure that during the period
+	between write-back and acquiring log mutex, no one can persist
+	metadata by writing new redo logs. So checkpoint should first
+	hold this lock in X mode and release after log mutex granted,
+	and persisting metadata threads should hold this lock in S mode
+	before writing the redo logs */
+	rw_lock_t	lock;
+
+	/** Mutex to protect data in this structure, also the
+	dict_table_t::dirty_status and
+	dict_table_t::in_dirty_dict_tables_list */
+	ib_mutex_t	mutex;
+
+	/** List of tables whose dirty_status are marked as METADATA_DIRTY,
+	or METADATA_BUFFERED. It's protected by the mutex */
+	UT_LIST_BASE_NODE_T(dict_table_t)
+			dirty_dict_tables;
+
+	/** DDTableBuffer table for persistent dynamic metadata */
+	DDTableBuffer*	table_buffer;
+
+	/** Collection of instances to persist dynamic metadata */
+	Persisters*	persisters;
 };
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1616,54 +1672,153 @@ void
 dict_close(void);
 /*============*/
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Check whether the table is corrupted.
-@return nonzero for corrupted table, zero for valid tables */
+/** Check whether the table is corrupted.
+@param[in]	table	table object
+@return true if the table is corrupted, otherwise false */
 UNIV_INLINE
-ulint
+bool
 dict_table_is_corrupted(
-/*====================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((warn_unused_result));
+	const dict_table_t*	table);
 
-/**********************************************************************//**
-Check whether the index is corrupted.
-@return nonzero for corrupted index, zero for valid indexes */
+/** Check whether the index is corrupted.
+@param[in]	index	index object
+@return true if index is corrupted, otherwise false */
 UNIV_INLINE
-ulint
+bool
 dict_index_is_corrupted(
-/*====================*/
-	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((warn_unused_result));
+	const dict_index_t*	index);
 
 #endif /* !UNIV_HOTBACKUP */
-/**********************************************************************//**
-Flags an index and table corrupted both in the data dictionary cache
-and in the system table SYS_INDEXES. */
-void
-dict_set_corrupted(
-/*===============*/
-	dict_index_t*	index,	/*!< in/out: index */
-	trx_t*		trx,	/*!< in/out: transaction */
-	const char*	ctx)	/*!< in: context */
-	UNIV_COLD;
+
+/** Wrapper for the system table used to buffer the persistent dynamic
+metadata.
+This should be a table with only clustered index, no delete-marked records,
+no locking, no undo logging, no purge, no adaptive hash index.
+We should always use low level btr functions to access and modify the table.
+Accessing this table should be protected by dict_sys->mutex */
+class DDTableBuffer {
+public:
+
+	/** Default constructor */
+	DDTableBuffer();
+
+	/** Destructor */
+	~DDTableBuffer();
+
+	/** Replace the dynamic metadata for a specific table
+	@param[in]	id		table id
+	@param[in]	metadata	the metadata we want to replace
+	@param[in]	len		the metadata length
+	@return DB_SUCCESS or error code */
+	dberr_t	replace(
+		table_id_t	id,
+		const byte*	metadata,
+		ulint		len);
+
+	/** Remove the whole row for a specific table
+	@param[in]	id	table id
+	@return DB_SUCCESS or error code */
+	dberr_t remove(
+		table_id_t	id);
+
+	/** Truncate the table. We can call it after all the dynamic
+	metadata has been written back to DD table */
+	void truncate(void);
+
+	/** Get the buffered metadata for a specific table, the caller
+	has to delete the returned std::string object by UT_DELETE
+	@param[in]	id	table id
+	@return the metadata saved in a string object, if nothing, the
+	string would be of length 0 */
+	std::string* get(
+		table_id_t	id);
+
+private:
+
+	/** Initialize m_index, the in-memory clustered index of the table
+	and two tuples used in this class */
+	void init();
+
+	/** Create the search and replace tuples */
+	void create_tuples();
+
+	/** Initialize the id field of tuple
+	@param[out]	tuple	the tuple to be initialized
+	@param[in]	id	table id */
+	void init_tuple_with_id(
+		dtuple_t*	tuple,
+		table_id_t	id);
+
+	/** Free the things initialized in init() */
+	void close();
+
+	/** Prepare for a update on METADATA field
+	@param[in]	entry	entry to insert
+	@param[in]	rec	clustered index record
+	@return update vector of differing fields without system columns */
+	upd_t* update_set_metadata(
+		const dtuple_t*	entry,
+		const rec_t*	rec);
+
+private:
+
+	/** the clustered index of this system table */
+	dict_index_t*		m_index;
+
+	/** the heap used in replace() method only, which should be
+	freed by replace() before return. This is actually protected
+	by dict_persist->mutex */
+	mem_heap_t*		m_replace_heap;
+
+	/** the heap used to create the search tuple and replace tuple */
+	mem_heap_t*		m_heap;
+
+	/** the tuple used to search for specified table, it's protected
+	by dict_persist->mutex */
+	dtuple_t*		m_search_tuple;
+
+	/** the tuple used to replace for specified table, it's protected
+	by dict_persist->mutex */
+	dtuple_t*		m_replace_tuple;
+};
 
 /** Flags an index corrupted in the data dictionary cache only. This
-is used mostly to mark a corrupted index when index's own dictionary
-is corrupted, and we force to load such index for repair purpose
-@param[in,out]	index	index that is corrupted */
+is used to mark a corrupted index when index's own dictionary
+is corrupted, and we would force to load such index for repair purpose.
+Besides, we have to write a redo log.
+We don't want to hold dict_sys->mutex here, so that we can set index as
+corrupted in some low-level functions. We would only set the flags from
+not corrupted to corrupted when server is running, so it should be safe
+to set it directly.
+@param[in,out]	index		index, must not be NULL */
 void
-dict_set_corrupted_index_cache_only(
-	dict_index_t*	index);
+dict_set_corrupted(
+	dict_index_t*	index)
+	UNIV_COLD;
 
-/**********************************************************************//**
-Flags a table with specified space_id corrupted in the table dictionary
-cache.
-@return TRUE if successful */
-ibool
-dict_set_corrupted_by_space(
-/*========================*/
-	ulint		space_id);	/*!< in: space ID */
+/** Check if there is any latest persistent dynamic metadata recorded
+in DDTableBuffer table of the specific table. If so, read the metadata and
+update the table object accordingly
+@param[in]	table		table object */
+void
+dict_table_load_dynamic_metadata(
+	dict_table_t*	table);
+
+/** Check if any table has any dirty persistent data, if so
+write dirty persistent data of table to DD TABLE BUFFER table accordingly */
+void
+dict_persist_to_dd_table_buffer(void);
+
+/** Apply the persistent dynamic metadata read from redo logs or
+DDTableBuffer to corresponding table during recovery.
+@param[in,out]	table		table
+@param[in]	metadata	structure of persistent metadata
+@return true if we do apply something to the in-memory table object,
+otherwise false */
+bool
+dict_table_apply_dynamic_metadata(
+	dict_table_t*			table,
+	const PersistentTableMetadata*	metadata);
 
 /** Sets merge_threshold in the SYS_INDEXES
 @param[in,out]	index		index
@@ -1738,9 +1893,18 @@ dict_table_is_intrinsic(
 	const dict_table_t*	table)
 	__attribute__((warn_unused_result));
 
+/** Check whether the table is DDTableBuffer. See class DDTableBuffer
+@param[in]	table	table to check
+@return true if this is a DDTableBuffer table. */
+UNIV_INLINE
+bool
+dict_table_is_table_buffer(
+	const dict_table_t*	table);
+
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
-to the connection only.
+to the connection and the DDTableBuffer as it's protected by
+dict_persist->mutex.
 
 @param[in]	table	table to check
 @return true if locking is disabled. */

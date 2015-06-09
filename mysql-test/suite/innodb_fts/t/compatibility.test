@@ -80,8 +80,6 @@ DROP TABLE t1;
 call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table .* not found.");
 call mtr.add_suppression("\\[Warning\\] InnoDB: Setting aux table .* to hex format failed.");
 
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Index .* of table .* is corrupted");
-
 SET GLOBAL DEBUG='+d,innodb_test_wrong_fts_aux_table_name';
 CREATE TABLE t1(a TEXT, b TEXT, c TEXT, FULLTEXT `AB` (a, b), FULLTEXT `C1` (c));
 INSERT INTO t1 VALUES('TEST1', 'TEST2', 'TEXT3');

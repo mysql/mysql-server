@@ -807,13 +807,8 @@ row_undo_mod_sec_flag_corrupted(
 
 	switch (trx->dict_operation_lock_mode) {
 	case RW_S_LATCH:
-		/* Because row_undo() is holding an S-latch
-		on the data dictionary during normal rollback,
-		we can only mark the index corrupted in the
-		data dictionary cache. TODO: fix this somehow.*/
-		mutex_enter(&dict_sys->mutex);
-		dict_set_corrupted_index_cache_only(index);
-		mutex_exit(&dict_sys->mutex);
+		/* This should be the normal rollback */
+		dict_set_corrupted(index);
 		break;
 	default:
 		ut_ad(0);
@@ -821,7 +816,7 @@ row_undo_mod_sec_flag_corrupted(
 	case RW_X_LATCH:
 		/* This should be the rollback of a data dictionary
 		transaction. */
-		dict_set_corrupted(index, trx, "rollback");
+		dict_set_corrupted(index);
 	}
 }
 

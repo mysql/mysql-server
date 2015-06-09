@@ -352,6 +352,23 @@ btr_free(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size);
 
+/** Truncate an index tree. We just free all except the root.
+Currently, this function is only specific for clustered indexes and the only
+caller is DDTableBuffer which manages a table with only a clustered index.
+It is up to the caller to ensure atomicity and to implement recovery by
+calling btr_truncate_recover().
+@param[in]	index		clustered index */
+void
+btr_truncate(
+	const dict_index_t*	index);
+
+/** Recovery function for btr_truncate. We will check if there is a
+crash during btr_truncate, if so, do recover it, if not, do nothing.
+@param[in]	index		clustered index */
+void
+btr_truncate_recover(
+	const dict_index_t*	index);
+
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.
