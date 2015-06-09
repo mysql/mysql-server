@@ -137,7 +137,9 @@ public:
 
 #define CHRONO_PRINT(type, tvp)						\
 		fprintf(stderr, "%s: %s% 5ld.%06ld sec\n",		\
-			m_name, type, (tvp)->tv_sec, (tvp)->tv_usec)
+			m_name, type,					\
+			static_cast<long>((tvp)->tv_sec),		\
+			static_cast<long>((tvp)->tv_usec))
 
 		timersub(&tv_now, &m_tv, &tv_diff);
 		CHRONO_PRINT("real", &tv_diff);

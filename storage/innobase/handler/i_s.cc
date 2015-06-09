@@ -8643,7 +8643,7 @@ i_s_files_table_fill(
 	for (const fil_node_t* node = fil_node_next(NULL);
 	     node != NULL;
 	     node = fil_node_next(node)) {
-		const char*	type;
+		const char*	type = "TABLESPACE";
 		const char*	space_name;
 		/** Buffer to build file-per-table tablespace names.
 		Even though a space_id is often stored in a ulint, it cannot
@@ -8670,7 +8670,6 @@ i_s_files_table_fill(
 			} /* else fall through for TABLESPACE */
 		case FIL_TYPE_IMPORT:
 			/* 'IMPORTING'is a status. The type is TABLESPACE. */
-			type = "TABLESPACE";
 			break;
 		case FIL_TYPE_TEMPORARY:
 			type = "TEMPORARY";
