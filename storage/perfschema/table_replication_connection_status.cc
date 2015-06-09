@@ -192,7 +192,7 @@ int table_replication_connection_status::rnd_next(void)
   Master_info *mi= NULL;
   int res= HA_ERR_END_OF_FILE;
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels() && res != 0;
@@ -219,7 +219,7 @@ int table_replication_connection_status::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {

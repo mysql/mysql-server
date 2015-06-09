@@ -186,7 +186,7 @@ int table_replication_connection_configuration::rnd_next(void)
   Master_info *mi;
   int res= HA_ERR_END_OF_FILE;
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels() && res != 0;
@@ -211,7 +211,7 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
   Master_info *mi;
   int res= HA_ERR_RECORD_DELETED;
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   set_position(pos);
 
