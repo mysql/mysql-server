@@ -49,6 +49,8 @@ protected:
 public:
   uint arg_count;
   //bool const_item_cache;
+  // When updating Functype with new spatial functions,
+  // is_spatial_operator() should also be updated.
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
