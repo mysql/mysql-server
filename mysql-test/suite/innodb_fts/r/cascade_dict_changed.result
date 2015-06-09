@@ -1,0 +1,47 @@
+#
+# Bug #20953265 INNODB: FAILING ASSERTION: RESULT != FTS_INVALID
+#
+CREATE TABLE t1 (
+f1 int(11) NOT NULL,
+f2 varchar(40) NOT NULL,
+PRIMARY KEY (f1,f2),
+KEY k1 (f1),
+KEY k2 (f2),
+FULLTEXT KEY ftsic (f2)
+) ENGINE=InnoDB;
+CREATE TABLE t1_fk (
+f1 int(11) NOT NULL,
+f2 varchar(40) NOT NULL,
+PRIMARY KEY (f1, f2),
+KEY k1 (f1),
+KEY k2 (f2),
+FULLTEXT KEY ftsic (f2),
+CONSTRAINT fk1 FOREIGN KEY (f2) REFERENCES t1(f2) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+insert into t1 values(1, 'mysql');
+insert into t1 values(2, 'opensource');
+insert into t1 values(3, 'oracle');
+insert into t1_fk values(1, 'opensource');
+insert into t1_fk values(2, 'mysql');
+SET DEBUG='+d,row_ins_dict_change_err';
+select f1, f2 from t1;
+f1	f2
+1	mysql
+2	opensource
+3	oracle
+select f1, f2 from t1_fk;
+f1	f2
+1	opensource
+2	mysql
+delete from t1 where f1 = 1;
+ERROR HY000: Got error 168 from storage engine
+select f1, f2 from t1;
+f1	f2
+1	mysql
+2	opensource
+3	oracle
+select f1, f2 from t1_fk;
+f1	f2
+1	opensource
+2	mysql
+drop table t1_fk, t1;

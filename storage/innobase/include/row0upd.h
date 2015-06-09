@@ -486,6 +486,14 @@ struct upd_node_t{
 				nodes are allocated in heap pointed to by
 				upd_node_t::cascade_heap. */
 
+	upd_cascade_t*	new_upd_nodes;
+				/*!< Intermediate list of update nodes in a
+				cascading update/delete operation.  After
+				processing one update node, this will be
+				concatenated to cascade_upd_nodes.  This extra
+				list is needed so that retry because of
+				DB_LOCK_WAIT works corrrectly. */
+
 	upd_cascade_t*	processed_cascades;
 				/*!< List of processed update nodes in a
 				cascading update/delete operation.  All the
@@ -543,7 +551,25 @@ struct upd_node_t{
 	sym_node_t*	table_sym;/* table node in symbol table */
 	que_node_t*	col_assign_list;
 				/* column assignment list */
+
+	doc_id_t	fts_doc_id;
+				/* The FTS doc id of the row that is now
+				pointed to by the pcur. */
+
+	doc_id_t	fts_next_doc_id;
+				/* The new fts doc id that will be used
+				in update operation */
+
 	ulint		magic_n;
+
+#ifndef DBUG_OFF
+	/** Print information about this object into the trace log file. */
+	void dbug_trace();
+
+	/** Ensure that the member cascade_upd_nodes has only one update node
+	for each of the tables.  This is useful for testing purposes. */
+	void check_cascade_only_once();
+#endif /* !DBUG_OFF */
 };
 
 #define	UPD_NODE_MAGIC_N	1579975

@@ -1,0 +1,42 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #20953265 INNODB: FAILING ASSERTION: RESULT != FTS_INVALID
+--echo #
+
+CREATE TABLE t1 (
+  f1 int(11) NOT NULL,
+  f2 varchar(40) NOT NULL,
+  PRIMARY KEY (f1,f2),
+  KEY k1 (f1),
+  KEY k2 (f2),
+  FULLTEXT KEY ftsic (f2)
+) ENGINE=InnoDB;
+
+CREATE TABLE t1_fk (
+  f1 int(11) NOT NULL,
+  f2 varchar(40) NOT NULL,
+  PRIMARY KEY (f1, f2),
+  KEY k1 (f1),
+  KEY k2 (f2),
+  FULLTEXT KEY ftsic (f2),
+  CONSTRAINT fk1 FOREIGN KEY (f2) REFERENCES t1(f2) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+insert into t1 values(1, 'mysql');
+insert into t1 values(2, 'opensource');
+insert into t1 values(3, 'oracle');
+insert into t1_fk values(1, 'opensource');
+insert into t1_fk values(2, 'mysql');
+
+SET DEBUG='+d,row_ins_dict_change_err';
+select f1, f2 from t1;
+select f1, f2 from t1_fk;
+--error ER_GET_ERRNO
+delete from t1 where f1 = 1;
+select f1, f2 from t1;
+select f1, f2 from t1_fk;
+
+drop table t1_fk, t1;
+

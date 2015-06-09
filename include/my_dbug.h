@@ -153,4 +153,29 @@ extern void _db_flush_gcov_();
 }
 #endif
 
+#ifdef __cplusplus
+#if !defined(DBUG_OFF)
+#include <sstream>
+
+/*
+  A C++ interface to the DBUG_PRINT macro.  The DBUG_LOG macro takes two
+  arguments.  The first argument is the keyword, as that of the
+  DBUG_PRINT.  The 2nd argument 'v' will be passed to a C++ output stream.
+  This enables the use of C++ style output stream operator.  In the code, it
+  will be used as follows:
+
+  DBUG_LOG("blob", "space: " << space_id);
+
+  Note: DBUG_PRINT() has a limitation of 1024 bytes for a single
+  print out.  So, this limitation is there for DBUG_LOG macro also.
+*/
+
+#define DBUG_LOG(keyword, v) do { \
+	std::ostringstream		sout; \
+	sout << v; \
+	DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
+} while(0)
+#endif /* DBUG_OFF */
+#endif /* __cplusplus */
+
 #endif /* MY_DBUG_INCLUDED */
