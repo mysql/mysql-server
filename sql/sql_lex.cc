@@ -3144,6 +3144,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
       Item::val*() don't have an error status). In this case the query block
       may be broken and printing it may crash.
     */
+    DBUG_ASSERT(0);
     str->append(STRING_WITH_LEN("had some error"));
     return;
   }
