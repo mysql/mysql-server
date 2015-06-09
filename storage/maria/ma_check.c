@@ -3119,10 +3119,8 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
   for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
        key++,keyinfo++)
   {
-    if (! maria_is_key_active(share->state.key_map, key))
-      continue;
-
-    if (share->state.key_root[key] != HA_OFFSET_ERROR)
+    if (maria_is_key_active(share->state.key_map, key) &&
+        share->state.key_root[key] != HA_OFFSET_ERROR)
     {
       index_pos[key]=param->new_file_pos;	/* Write first block here */
       if (sort_one_index(param,info,keyinfo,share->state.key_root[key],

@@ -160,3 +160,13 @@ INSERT /*! IGNORE */ INTO t1 VALUES  ('urxjxqvwabikpugvexxbxdpxjkeqiuhhuadbcuhoz
 check table t1;
 OPTIMIZE TABLE t1;
 drop table t1;
+
+--echo #
+--echo # MDEV-3870 - Valgrind warnings on OPTIMIZE MyISAM or Aria TABLE with
+--echo #             disabled keys
+--echo #
+CREATE TABLE t1 (a INT, KEY(a)) ENGINE=Aria;
+INSERT INTO t1 VALUES (4),(3),(1),(0);
+ALTER TABLE t1 DISABLE KEYS;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;

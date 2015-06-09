@@ -2522,6 +2522,17 @@ test.t1	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1	check	warning	Size of datafile is: 14       Should be: 7
 test.t1	check	error	Corrupt
 DROP TABLE t1;
+#
+# MDEV-3870 - Valgrind warnings on OPTIMIZE MyISAM or Aria TABLE with
+#             disabled keys
+#
+CREATE TABLE t1 (a INT, KEY(a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(3),(1),(0);
+ALTER TABLE t1 DISABLE KEYS;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
 show variables like 'myisam_block_size';
 Variable_name	Value
 myisam_block_size	1024
