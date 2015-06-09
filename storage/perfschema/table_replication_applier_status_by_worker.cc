@@ -140,7 +140,7 @@ int table_replication_applier_status_by_worker::rnd_next(void)
   Master_info *mi;
   int res= HA_ERR_END_OF_FILE;
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   /*
     For each SQL Thread in all channels get the respective Master_info and
@@ -194,7 +194,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 

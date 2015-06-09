@@ -756,7 +756,7 @@ bool stop_slave_cmd(THD *thd)
   LEX *lex= thd->lex;
   bool res= true;    /*default, an error */
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   if (!is_slave_configured())
   {
@@ -3916,7 +3916,7 @@ bool show_slave_status_cmd(THD *thd)
 
   DBUG_ENTER("show_slave_status_cmd");
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   if (!lex->mi.for_channel)
     res= show_slave_status(thd);

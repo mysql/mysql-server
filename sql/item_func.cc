@@ -4758,7 +4758,7 @@ longlong Item_master_pos_wait::val_int()
   longlong pos = (ulong)args[1]->val_int();
   longlong timeout = (arg_count>=3) ? args[2]->val_int() : 0 ;
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   if (arg_count == 4)
   {
@@ -4913,7 +4913,7 @@ longlong Item_master_gtid_set_wait::val_int()
     DBUG_RETURN(0);
   }
 
-  channel_map.wrlock();
+  channel_map.rdlock();
 
   /* If replication channel is mentioned */
   if (arg_count == 3)
