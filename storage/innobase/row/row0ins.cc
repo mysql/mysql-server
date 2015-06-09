@@ -705,13 +705,13 @@ row_ins_cascade_calc_update_vec(
 			fts_get_next_doc_id(table, next_doc_id);
 			doc_id = fts_update_doc_id(table, ufield, next_doc_id);
 			n_fields_updated++;
-			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
+			cascade->fts_next_doc_id = doc_id;
 		} else  {
 			if (doc_id_updated) {
 				ut_ad(new_doc_id);
-				fts_trx_add_op(trx, table, new_doc_id,
-					       FTS_INSERT, NULL);
+				cascade->fts_next_doc_id = new_doc_id;
 			} else {
+				cascade->fts_next_doc_id = FTS_NULL_DOC_ID;
 				ib::error() << "FTS Doc ID must be updated"
 					" along with FTS indexed column for"
 					" table " << table->name;
@@ -1010,6 +1010,7 @@ row_ins_foreign_check_on_constraint(
 	only in the first update node */
 	cascade->cascade_heap = node->cascade_heap;
 	cascade->cascade_upd_nodes = node->cascade_upd_nodes;
+	cascade->new_upd_nodes = node->new_upd_nodes;
 	cascade->processed_cascades = node->processed_cascades;
 
 	cascade->table = table;
@@ -1159,6 +1160,14 @@ row_ins_foreign_check_on_constraint(
 
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
+		if (table->fts) {
+
+			/* For the clause ON DELETE SET NULL, the cascade
+			operation is actually an update operation with the new
+			values being null.  For FTS, this means that the old
+			values be deleted and no new values to be added.*/
+			cascade->fts_next_doc_id = FTS_NULL_DOC_ID;
+		}
 
 		update = cascade->update;
 
@@ -1186,7 +1195,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		if (fts_col_affacted) {
-			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
+			cascade->fts_doc_id = doc_id;
 		}
 	} else if (table->fts && cascade->is_delete) {
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
@@ -1200,7 +1209,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		if (fts_col_affacted) {
-			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
+			cascade->fts_doc_id = doc_id;
 		}
 	}
 
@@ -1243,7 +1252,7 @@ row_ins_foreign_check_on_constraint(
 		/* Mark the old Doc ID as deleted */
 		if (fts_col_affacted) {
 			ut_ad(table->fts);
-			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
+			cascade->fts_doc_id = doc_id;
 		}
 	}
 
@@ -1264,7 +1273,7 @@ row_ins_foreign_check_on_constraint(
 
 	cascade->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	node->cascade_upd_nodes->push_back(cascade);
+	node->new_upd_nodes->push_back(cascade);
 
 	os_atomic_increment_ulint(&table->n_foreign_key_checks_running, 1);
 
@@ -1420,7 +1429,6 @@ row_ins_check_foreign_constraint(
 
 	rec_offs_init(offsets_);
 
-run_again:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
@@ -1730,17 +1738,16 @@ do_possible_lock_wait:
 
 		if (!verified) {
 			err = DB_DICT_CHANGED;
-		} else if (trx->error_state == DB_SUCCESS) {
-			goto run_again;
-		} else {
-			err = trx->error_state;
+			trx->error_state = err;
 		}
 	}
+
 
 exit_func:
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
+
 	DBUG_RETURN(err);
 }
 
