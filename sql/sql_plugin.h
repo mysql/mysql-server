@@ -175,7 +175,8 @@ typedef my_bool (plugin_foreach_func)(THD *thd,
 #define plugin_foreach(A,B,C,D) plugin_foreach_with_mask(A,B,C,PLUGIN_IS_READY,D)
 extern bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
                                      int type, uint state_mask, void *arg);
-int lock_plugin_data();
-int unlock_plugin_data();
+int rdlock_plugin_data(THD *thd);
+int rdunlock_plugin_data(THD *thd);
+st_plugin_int *plugin_find_by_type(THD *thd, const LEX_CSTRING &plugin, int type);
 
 #endif
