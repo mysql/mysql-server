@@ -310,8 +310,6 @@ static void plugin_vars_free_values(sys_var *vars);
 static void restore_pluginvar_names(sys_var *first);
 static void plugin_opt_set_limits(struct my_option *,
                                   const struct st_mysql_sys_var *);
-#define my_intern_plugin_lock(A,B) intern_plugin_lock(A,B)
-#define my_intern_plugin_lock_ci(A,B) intern_plugin_lock(A,B)
 static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin);
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
@@ -990,7 +988,7 @@ plugin_ref plugin_lock(THD *thd, plugin_ref ptr)
 #endif
   mysql_mutex_lock(&LOCK_plugin);
   plugin_ref_to_int(ptr)->locks_total++;
-  rc= my_intern_plugin_lock_ci(lex, ptr);
+  rc= intern_plugin_lock(lex, ptr);
   mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }
@@ -1004,7 +1002,7 @@ plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name, int type)
   DBUG_ENTER("plugin_lock_by_name");
   mysql_mutex_lock(&LOCK_plugin);
   if ((plugin= plugin_find_internal(name, type)))
-    rc= my_intern_plugin_lock_ci(lex, plugin_int_to_ref(plugin));
+    rc= intern_plugin_lock(lex, plugin_int_to_ref(plugin));
   mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }
@@ -1625,7 +1623,7 @@ int plugin_init(int *argc, char **argv, int flags)
       {
         DBUG_ASSERT(!global_system_variables.table_plugin);
         global_system_variables.table_plugin=
-          my_intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
+          intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
         DBUG_ASSERT(plugin_ptr->ref_count == 1);
       }
     }
@@ -2711,7 +2709,7 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length)
   {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     LEX *lex= thd ? thd->lex : 0;
-    if (!(plugin= my_intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin))))
+    if (!(plugin= intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin))))
       var= NULL; /* failed to lock it, it must be uninstalling */
     else
     if (!(plugin_state(plugin) & PLUGIN_IS_READY))
@@ -3046,7 +3044,7 @@ void plugin_thdvar_init(THD *thd)
 
   mysql_mutex_lock(&LOCK_plugin);
   thd->variables.table_plugin=
-        my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
+        intern_plugin_lock(NULL, global_system_variables.table_plugin);
   intern_plugin_unlock(NULL, old_table_plugin);
   mysql_mutex_unlock(&LOCK_plugin);
   DBUG_VOID_RETURN;
