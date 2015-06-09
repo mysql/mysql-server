@@ -2372,7 +2372,10 @@ row_ins_clust_index_entry_low(
 	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	que_thr_t*	thr,	/*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread, or NULL if
+				flags & (BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG) and a duplicate
+				can't occur */
 	bool		dup_chk_only)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
@@ -2393,7 +2396,9 @@ row_ins_clust_index_entry_low(
 	ut_ad(!dict_index_is_unique(index)
 	      || n_uniq == dict_index_get_n_unique(index));
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
-	ut_ad(!thr_get_trx(thr)->in_rollback);
+	ut_ad((flags & (BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG))
+	      || !thr_get_trx(thr)->in_rollback);
+	ut_ad(thr != NULL || !dup_chk_only);
 
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
@@ -2465,7 +2470,10 @@ row_ins_clust_index_entry_low(
 				/* fall through */
 			case DB_SUCCESS_LOCKED_REC:
 			case DB_DUPLICATE_KEY:
-				thr_get_trx(thr)->error_info = cursor->index;
+				if (thr != NULL) {
+					thr_get_trx(thr)->error_info =
+						cursor->index;
+				}
 			}
 		} else {
 			/* Note that the following may return also
@@ -2502,6 +2510,7 @@ err_exit:
 		cursor that we have cached for SELECT is now invalid. */
 		index->last_sel_cur->invalid = true;
 
+		ut_ad(thr != NULL);
 		err = row_ins_clust_index_entry_by_modify(
 			&pcur, flags, mode, &offsets, &offsets_heap,
 			entry_heap, entry, thr, &mtr);
@@ -2958,9 +2967,8 @@ row_ins_sec_index_entry_low(
 			if (!index->is_committed()) {
 				ut_ad(!thr_get_trx(thr)
 				      ->dict_operation_lock_mode);
-				mutex_enter(&dict_sys->mutex);
-				dict_set_corrupted_index_cache_only(index);
-				mutex_exit(&dict_sys->mutex);
+
+				dict_set_corrupted(index);
 				/* Do not return any error to the
 				caller. The duplicate will be reported
 				by ALTER TABLE or CREATE UNIQUE INDEX.

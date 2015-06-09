@@ -1628,6 +1628,8 @@ srv_start(
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
+	dict_persist_init();
+
 #ifdef UNIV_SYNC_DEBUG
 	/* Switch latching order checks on in sync0debug.cc */
 	sync_check_enable();
@@ -1956,6 +1958,11 @@ files_checked:
 		}
 
 		purge_queue = trx_sys_init_at_db_start();
+
+		/* We should apply the table persistent metadata immediately
+		after the trx initialization, so that all tables are in the
+		latest status. */
+		recv_apply_table_dynamic_metadata();
 
 		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 			/* Apply the hashed log records to the
@@ -2450,7 +2457,6 @@ innobase_shutdown_for_mysql(void)
 	/* 2. Make all threads created by InnoDB to exit */
 	srv_shutdown_all_bg_threads();
 
-
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
@@ -2488,6 +2494,7 @@ innobase_shutdown_for_mysql(void)
 	trx_pool_close();
 
 	dict_close();
+	dict_persist_close();
 	btr_search_sys_free();
 
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside

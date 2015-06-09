@@ -498,7 +498,8 @@ mach_u64_write_much_compressed(
 
 /*********************************************************//**
 Reads a 64-bit integer in a compressed form.
-@return the value read */
+@return the value read
+@see mach_parse_u64_much_compressed() */
 UNIV_INLINE
 ib_uint64_t
 mach_u64_read_much_compressed(

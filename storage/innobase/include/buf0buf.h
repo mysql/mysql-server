@@ -650,6 +650,13 @@ ulint
 buf_block_unfix(
 	buf_block_t*	block);
 
+/** Unfixes the page, unlatches the page,
+removes it from page_hash and removes it from LRU.
+@param[in,out]	bpage	pointer to the block */
+void
+buf_read_page_handle_error(
+	buf_page_t*	bpage);
+
 # ifdef UNIV_SYNC_DEBUG
 /** Increments the bufferfix count.
 @param[in,out]	b	block to bufferfix

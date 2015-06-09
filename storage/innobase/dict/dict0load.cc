@@ -2312,13 +2312,8 @@ dict_load_indexes(
 				/* If caller can tolerate this error,
 				we will continue to load the index and
 				let caller deal with this error. However
-				mark the index and table corrupted. We
-				only need to mark such in the index
-				dictionary cache for such metadata corruption,
-				since we would always be able to set it
-				when loading the dictionary cache */
-				ut_ad(index->table == table);
-				dict_set_corrupted_index_cache_only(index);
+				mark the index as corrupted. */
+				dict_set_corrupted(index);
 
 				ib::info() << "Index is corrupt but forcing"
 					" load into data dictionary";
@@ -2868,26 +2863,32 @@ err_exit:
 		: ignore_err;
 	err = dict_load_indexes(table, heap, index_load_err);
 
+	/* Load the corrupted index bits from DDTableBuffer */
+	if (!is_system_tablespace(table->space)
+	    && !dict_table_is_temporary(table)) {
+
+		dict_table_load_dynamic_metadata(table);
+
+		/* Re-check like we do in dict_load_indexes() */
+		if (!srv_load_corrupted
+		    && !(index_load_err & DICT_ERR_IGNORE_CORRUPT)
+		    && dict_table_is_corrupted(table)) {
+			err = DB_INDEX_CORRUPT;
+		}
+	}
+
 	if (err == DB_INDEX_CORRUPT) {
 		/* Refuse to load the table if the table has a corrupted
-		cluster index */
-		if (!srv_load_corrupted) {
+		clustered index */
+		ut_ad(!srv_load_corrupted);
 
-			ib::error() << "Load table " << table->name
-				<< " failed, the table has"
-				" corrupted clustered indexes. Turn on"
-				" 'innodb_force_load_corrupted' to drop it";
-			dict_table_remove_from_cache(table);
-			table = NULL;
-			goto func_exit;
-		} else {
-			dict_index_t*	clust_index;
-			clust_index = dict_table_get_first_index(table);
-
-			if (dict_index_is_corrupted(clust_index)) {
-				table->corrupted = TRUE;
-			}
-		}
+		ib::error() << "Load table " << table->name
+			<< " failed, the table contains a"
+			" corrupted clustered index. Turn on"
+			" 'innodb_force_load_corrupted' to drop it";
+		dict_table_remove_from_cache(table);
+		table = NULL;
+		goto func_exit;
 	}
 
 	/* Initialize table foreign_child value. Its value could be
@@ -2930,13 +2931,6 @@ err_exit:
 			dict_table_remove_from_cache(table);
 			table = NULL;
 
-		} else if (dict_index_is_corrupted(index)
-			   && !table->ibd_file_missing) {
-
-			/* It is possible we force to load a corrupted
-			clustered index if srv_load_corrupted is set.
-			Mark the table as corrupted in this case */
-			table->corrupted = TRUE;
 		}
 	}
 
@@ -2946,7 +2940,7 @@ func_exit:
 	ut_ad(!table
 	      || ignore_err != DICT_ERR_IGNORE_NONE
 	      || table->ibd_file_missing
-	      || !table->corrupted);
+	      || !dict_table_is_corrupted(table));
 
 	if (table && table->fts) {
 		if (!(dict_table_has_fts_index(table)

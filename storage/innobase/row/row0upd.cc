@@ -1220,7 +1220,7 @@ row_upd_changes_ord_field_binary_func(
 				field numbers in this MUST be clustered index
 				positions! */
 #ifdef UNIV_DEBUG
-	const que_thr_t*thr,	/*!< in: query thread */
+	const que_thr_t*thr,	/*!< in: query thread, or NULL */
 #endif /* UNIV_DEBUG */
 	const dtuple_t*	row,	/*!< in: old value of row, or NULL if the
 				row and the data values in update are not
@@ -1235,9 +1235,6 @@ row_upd_changes_ord_field_binary_func(
 
 	ut_ad(index);
 	ut_ad(update);
-	ut_ad(thr);
-	ut_ad(thr->graph);
-	ut_ad(thr->graph->trx);
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1296,8 +1293,10 @@ row_upd_changes_ord_field_binary_func(
 					trx_rollback_or_clean_all_recovered(),
 					when the server had crashed before
 					storing the field. */
-					ut_ad(thr->graph->trx->is_recovered);
-					ut_ad(trx_is_recv(thr->graph->trx));
+					ut_ad(thr == NULL
+					      || thr->graph->trx->is_recovered);
+					ut_ad(thr == NULL
+					      || trx_is_recv(thr->graph->trx));
 					return(TRUE);
 				}
 

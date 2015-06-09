@@ -382,8 +382,8 @@ row_log_online_op(
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
-			/* We set the flag directly instead of invoking
-			dict_set_corrupted_index_cache_only(index) here,
+			/* We set the flag directly instead of
+			invoking dict_set_corrupted() here,
 			because the index is not "public" yet. */
 			index->type |= DICT_CORRUPT;
 		}
@@ -3689,8 +3689,8 @@ func_exit:
 		}
 		/* fall through */
 	default:
-		/* We set the flag directly instead of invoking
-		dict_set_corrupted_index_cache_only(index) here,
+		/* We set the flag directly instead of
+		invoking dict_set_corrupted() here,
 		because the index is not "public" yet. */
 		index->type |= DICT_CORRUPT;
 	}
@@ -3740,8 +3740,8 @@ row_log_apply(
 
 	if (error != DB_SUCCESS) {
 		ut_a(!dict_table_is_discarded(index->table));
-		/* We set the flag directly instead of invoking
-		dict_set_corrupted_index_cache_only(index) here,
+		/* We set the flag directly instead of
+		invoking dict_set_corrupted() here,
 		because the index is not "public" yet. */
 		index->type |= DICT_CORRUPT;
 		index->table->drop_aborted = TRUE;

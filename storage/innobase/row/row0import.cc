@@ -1401,7 +1401,7 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
 		if (index->type & DICT_FTS) {
-			index->type |= DICT_CORRUPT;
+			dict_set_corrupted(index);
 			ib::warn() << "Skipping FTS index: " << index->name;
 		} else if (i < m_n_indexes) {
 
@@ -2224,7 +2224,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 	while ((index = dict_table_get_next_index(index)) != NULL) {
 		ut_a(!dict_index_is_clust(index));
 
-		if (!(index->type & DICT_CORRUPT)
+		if (!dict_index_is_corrupted(index)
 		    && index->space != FIL_NULL
 		    && index->page != FIL_NULL) {
 
@@ -2256,7 +2256,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			can be recovered. */
 
 			err = DB_SUCCESS;
-			index->type |= DICT_CORRUPT;
+			dict_set_corrupted(index);
 			continue;
 		}
 
@@ -2291,7 +2291,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 				(ulong) purge.get_n_rows(),
 				(ulong) n_rows_in_table);
 
-			index->type |= DICT_CORRUPT;
+			dict_set_corrupted(index);
 
 			/* Do not bail out, so that the data
 			can be recovered. */

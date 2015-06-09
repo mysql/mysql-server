@@ -51,6 +51,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0new.h"
 
 #include <set>
+#include <vector>
 #include <algorithm>
 #include <iterator>
 
@@ -1145,6 +1146,23 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
+/** The dirty status of tables, used to indicate if a table has some
+dynamic metadata changed to be written back */
+enum table_dirty_status {
+	/** Some persistent metadata is now dirty in memory, need to be
+	written back to DDTableBuffer table and(or directly to)
+	DD table. There could be either one row or no row for this table in
+	DDTableBuffer table */
+	METADATA_DIRTY = 0,
+	/** Some persistent metadata is buffered in DDTableBuffer table,
+	need to be written back to DD table. There is must be one row in
+	DDTableBuffer table for this table */
+	METADATA_BUFFERED,
+	/** All persistent metadata are up to date. There is no row
+	for this table in DDTableBuffer table */
+	METADATA_CLEAN
+};
+
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1232,9 +1250,6 @@ struct dict_table_t {
 	relationships. */
 	unsigned				can_be_evicted:1;
 
-	/** TRUE if table is corrupted. */
-	unsigned				corrupted:1;
-
 	/** TRUE if some indexes should be dropped after ONLINE_INDEX_ABORTED
 	or ONLINE_INDEX_ABORTED_DROPPED. */
 	unsigned				drop_aborted:1;
@@ -1270,6 +1285,21 @@ struct dict_table_t {
 
 	/** Node of the LRU list of tables. */
 	UT_LIST_NODE_T(dict_table_t)		table_LRU;
+
+	/** table dirty_status, which is protected by dict_persist->mutex */
+	table_dirty_status			dirty_status;
+
+	/** Node of the dirty table list of tables, which is protected
+	by dict_persist->mutex */
+	UT_LIST_NODE_T(dict_table_t)		dirty_dict_tables;
+
+#ifdef UNIV_DEBUG
+	/** This field is used to mark if a table is in the
+	dirty_dict_tables_list. if the dirty_status is not of
+	METADATA_CLEAN, the table should be in the list, otherwise not.
+	This field should be protected by dict_persist->mutex too. */
+	bool					in_dirty_dict_tables_list;
+#endif /* UNIV_DEBUG */
 
 	/** Maximum recursive level we support when loading tables chained
 	together with FK constraints. If exceeds this level, we will stop
@@ -1510,6 +1540,218 @@ public:
 	/** Magic number. */
 	ulint					magic_n;
 #endif /* UNIV_DEBUG */
+};
+
+/** Persistent dynamic metadata type, there should be 1 to 1
+relationship between the metadata and the type. Please keep them in order
+so that we can iterate over it */
+enum persistent_type_t {
+	/** The smallest type, which should be 1 less than the first
+	true type */
+	PM_SMALLEST_TYPE = 0,
+
+	/** Persistent Metadata type for corrupted indexes */
+	PM_INDEX_CORRUPTED = 1,
+
+	/* TODO: Will add following types
+	PM_TABLE_AUTO_INC = 2,
+	PM_TABLE_UPDATE_TIME = 3,
+	Maybe something tablespace related
+	PM_TABLESPACE_SIZE = 4,
+	PM_TABLESPACE_MAX_TRX_ID = 5, */
+
+	/** The biggest type, which should be 1 bigger than the last
+	true type */
+	PM_BIGGEST_TYPE = 2
+};
+
+typedef std::vector<index_id_t, ut_allocator<index_id_t > >
+corrupted_ids_t;
+
+/** Persistent dynamic metadata for a table */
+class PersistentTableMetadata {
+public:
+	/** Constructor
+	@param[in]	id	table id */
+	explicit PersistentTableMetadata(
+		table_id_t	id)
+	: m_id(id), m_corrupted_ids()
+	{}
+
+	/** Get the corrupted indexes' IDs
+	@return the vector of indexes' IDs */
+	const corrupted_ids_t& get_corrupted_indexes() const
+	{
+		return(m_corrupted_ids);
+	}
+
+	/** Add a corrupted index id and space id
+	@param[in]	id	corrupted index id */
+	void add_corrupted_index(
+		const index_id_t	id)
+	{
+		m_corrupted_ids.push_back(id);
+	}
+
+	/** Reset all the metadata, after it has been written to
+	the buffer table */
+	void reset()
+	{
+		m_corrupted_ids.clear();
+	}
+
+	/** Get the table id of the metadata
+	@return table id */
+	table_id_t get_table_id() const {
+		return(m_id);
+	}
+
+private:
+	/** Table ID which this metadata belongs to */
+	table_id_t		m_id;
+
+	/** Storing the corrupted indexes' ID if exist, or else empty */
+	corrupted_ids_t		m_corrupted_ids;
+
+	/* TODO: We will add update_time, auto_inc, etc. here and APIs
+	accordingly */
+};
+
+/** Interface for persistent dynamic table metadata. */
+class Persister {
+public:
+	/** Virtual desctructor */
+	virtual ~Persister() {}
+
+	/** Write the dynamic metadata of a table, we can pre-calculate
+	the size by calling get_write_size()
+	@param[in]	metadata	persistent data
+	@param[out]	buffer		write buffer
+	@param[in]	size		size of write buffer, should be
+					at least get_write_size()
+	@return the length of bytes written */
+	virtual ulint write(
+		const PersistentTableMetadata&	metadata,
+		byte*				buffer,
+		ulint				size) = 0;
+
+	/** Pre-calculate the size of metadata to be written
+	@param[in]	metadata	metadata to be written
+	@return the size of metadata */
+	virtual ulint get_write_size(
+		const PersistentTableMetadata&	metadata) = 0;
+
+	/** Read the dynamic metadata from buffer, and store them to
+	metadata object
+	@param[out]	metadata	metadata where we store the read data
+	@param[in]	buffer		buffer to read
+	@param[in]	size		size of buffer
+        @param[out]	corrupt		true if we found something wrong in
+					the buffer except incomplete buffer,
+					otherwise false
+	@return the bytes we read from the buffer if the buffer data
+	is complete and we get everything, 0 if the buffer is incompleted */
+	virtual ulint read(
+		PersistentTableMetadata&metadata,
+		const byte*		buffer,
+		ulint			size,
+		bool*			corrupt) = 0;
+
+	/** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic
+	metadata of table
+	@param[in]	id		table id
+	@param[in]	metadata	metadata used to write the log
+	@param[in,out]	mtr		mini-transaction */
+	void write_log(
+		table_id_t			id,
+		const PersistentTableMetadata&	metadata,
+		mtr_t*				mtr);
+};
+
+/** Persister used for corrupted indexes */
+class CorruptedIndexPersister : public Persister {
+public:
+	/** Write the corrupted indexes of a table, we can pre-calculate
+	the size by calling get_write_size()
+	@param[in]	metadata	persistent metadata
+	@param[out]	buffer		write buffer
+	@param[in]	size		size of write buffer, should be
+					at least get_write_size()
+	@return the length of bytes written */
+	ulint write(
+		const PersistentTableMetadata&	metadata,
+		byte*				buffer,
+		ulint				size);
+
+	/** Pre-calculate the size of metadata to be written
+	@param[in]	metadata	metadata to be written
+	@return the size of metadata */
+	ulint get_write_size(
+		const PersistentTableMetadata&	metadata);
+
+	/** Read the corrupted indexes from buffer, and store them to
+	metadata object
+	@param[out]	metadata	metadata where we store the read data
+	@param[in]	buffer		buffer to read
+	@param[in]	size		size of buffer
+	@param[out]	corrupt		true if we found something wrong in
+					the buffer except incomplete buffer,
+					otherwise false
+	@return the bytes we read from the buffer if the buffer data
+	is complete and we get everything, 0 if the buffer is incomplete */
+	ulint read(
+		PersistentTableMetadata&metadata,
+		const byte*		buffer,
+		ulint			size,
+		bool*			corrupt);
+
+private:
+	/** The length of index_id_t we will write */
+	static const size_t		INDEX_ID_LENGTH = 12;
+};
+
+/** Container of persisters used in the system. Currently we don't need
+to protect this object since we only initialize it at very beginning and
+destroy it in the end. During the server running, we only get the persisters */
+class Persisters {
+
+	typedef std::map<persistent_type_t, Persister*,
+			 std::less<persistent_type_t>,
+			 ut_allocator<std::pair<const persistent_type_t,
+						Persister*> > >
+	persisters_t;
+
+public:
+	/** Constructor */
+	Persisters()
+		: m_persisters()
+	{}
+
+	/** Destructor */
+	~Persisters();
+
+	/** Get the persister object with specified type
+	@param[in]	type	persister type
+	@return Persister object required or NULL if not found */
+	Persister* get(
+		persistent_type_t	type) const;
+
+	/** Add a specified persister of type, we will allocate the Persister
+	if there is no such persister exist, otherwise do nothing and return
+	the existing one
+	@param[in]	type	persister type
+	@return the persister of type */
+	Persister* add(
+		persistent_type_t	type);
+
+	/** Remove a specified persister of type, we will free the Persister
+	@param[in]	type	persister type */
+	void remove(
+		persistent_type_t	type);
+
+private:
+	/** A map to store all persisters needed */
+	persisters_t	m_persisters;
 };
 
 /*******************************************************************//**

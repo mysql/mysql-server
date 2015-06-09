@@ -298,7 +298,7 @@ row_upd_changes_ord_field_binary_func(
 				field numbers in this MUST be clustered index
 				positions! */
 #ifdef UNIV_DEBUG
-	const que_thr_t*thr,	/*!< in: query thread */
+	const que_thr_t*thr,	/*!< in: query thread, or NULL */
 #endif /* UNIV_DEBUG */
 	const dtuple_t*	row,	/*!< in: old value of row, or NULL if the
 				row and the data values in update are not

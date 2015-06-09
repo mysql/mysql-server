@@ -644,6 +644,9 @@ SyncDebug::check_order(const latch_t* latch)
 	case SYNC_POOL:
 	case SYNC_POOL_MANAGER:
 	case SYNC_RECV_WRITER:
+	case SYNC_PERSIST_METADATA_BUFFER:
+	case SYNC_PERSIST_DIRTY_TABLES:
+	case SYNC_PERSIST_CHECKPOINT:
 
 		basic_check(latches, latch->m_level);
 		break;
@@ -923,6 +926,14 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "dict_foreign_err",
 		  SYNC_NO_ORDER_CHECK,
 		  dict_foreign_err_mutex_key);
+
+	LATCH_ADD(SrvLatches, "dict_persist_dirty_tables",
+		  SYNC_PERSIST_DIRTY_TABLES,
+		  dict_persist_dirty_tables_mutex_key);
+
+	LATCH_ADD(SrvLatches, "dict_persist_checkpoint",
+		  SYNC_PERSIST_CHECKPOINT,
+		  dict_persist_checkpoint_key);
 
 	LATCH_ADD(SrvLatches, "dict_sys",
 		  SYNC_DICT,

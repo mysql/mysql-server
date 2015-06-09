@@ -1718,6 +1718,10 @@ log_checkpoint(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
+	rw_lock_x_lock(&dict_persist->lock);
+
+	dict_persist_to_dd_table_buffer();
+
 #ifndef _WIN32
 	switch (srv_unix_file_flush_method) {
 	case SRV_UNIX_NOSYNC:
@@ -1732,6 +1736,8 @@ log_checkpoint(
 #endif /* !_WIN32 */
 
 	log_mutex_enter();
+
+	rw_lock_x_unlock(&dict_persist->lock);
 
 	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();

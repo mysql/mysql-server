@@ -34,11 +34,15 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "fil0fil.h"
 #include <algorithm>
+#include <string>
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
 #include "dict0priv.ic"
 #endif
+
+#include "row0sel.h"
+#include "que0types.h"
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -81,6 +85,7 @@ ib_warn_row_too_big(const dict_table_t*	table);
 #include "row0merge.h"
 #include "row0mysql.h"
 #include "row0upd.h"
+#include "row0ins.h"
 #include "srv0mon.h"
 #include "srv0start.h"
 #include "sync0sync.h"
@@ -92,6 +97,9 @@ ib_warn_row_too_big(const dict_table_t*	table);
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
+
+/** the dictionary persisting structure */
+dict_persist_t*	dict_persist	= NULL;
 
 /** @brief the data dictionary rw-latch protecting dict_sys
 
@@ -178,9 +186,17 @@ Removes a table object from the dictionary cache. */
 static
 void
 dict_table_remove_from_cache_low(
-/*=============================*/
 	dict_table_t*	table,		/*!< in, own: table */
 	ibool		lru_evict);	/*!< in: TRUE if evicting from LRU */
+
+/** Write back the dirty persistent dynamic metadata of the table
+to DDTableBuffer
+@param[in,out]	table	table object */
+static
+void
+dict_table_persist_to_dd_table_buffer(
+	dict_table_t*	table);
+
 #ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
@@ -1106,11 +1122,8 @@ dict_table_open_on_name(
 	ut_ad(!table || table->cached);
 
 	if (table != NULL) {
-
-		/* If table is corrupted, return NULL */
 		if (ignore_err == DICT_ERR_IGNORE_NONE
-		    && table->corrupted) {
-
+		    && dict_table_is_corrupted(table)) {
 			/* Make life easy for drop table. */
 			dict_table_prevent_eviction(table);
 
@@ -1226,14 +1239,16 @@ dict_table_set_big_rows(
 	table->big_rows = (row_len >= BIG_ROW_SIZE) ? TRUE : FALSE;
 }
 
-/**********************************************************************//**
-Adds a table object to the dictionary cache. */
+/** Adds a table object to the dictionary cache.
+@param[in,out]	table		table
+@param[in]	can_be_evicted	true if can be evicted
+@param[in,out]	heap		temporary heap
+*/
 void
 dict_table_add_to_cache(
-/*====================*/
-	dict_table_t*	table,		/*!< in: table */
-	ibool		can_be_evicted,	/*!< in: TRUE if can be evicted */
-	mem_heap_t*	heap)		/*!< in: temporary heap */
+	dict_table_t*	table,
+	ibool		can_be_evicted,
+	mem_heap_t*	heap)
 {
 	ulint	fold;
 	ulint	id_fold;
@@ -1243,7 +1258,7 @@ dict_table_add_to_cache(
 
 	dict_table_add_system_columns(table, heap);
 
-	table->cached = TRUE;
+	table->cached = true;
 
 	fold = ut_fold_string(table->name.m_name);
 	id_fold = ut_fold_ull(table->id);
@@ -1301,6 +1316,8 @@ dict_table_add_to_cache(
 	}
 
 	ut_ad(dict_lru_validate());
+
+	table->dirty_status = METADATA_CLEAN;
 
 	dict_sys->size += mem_heap_get_size(table->heap)
 		+ strlen(table->name.m_name) + 1;
@@ -1952,7 +1969,6 @@ Removes a table object from the dictionary cache. */
 static
 void
 dict_table_remove_from_cache_low(
-/*=============================*/
 	dict_table_t*	table,		/*!< in, own: table */
 	ibool		lru_evict)	/*!< in: TRUE if table being evicted
 					to make room in the table LRU list */
@@ -1967,6 +1983,27 @@ dict_table_remove_from_cache_low(
 	ut_a(table->n_rec_locks == 0);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	/* We first dirty read the status which could be changed from
+	METADATA_DIRTY to METADATA_BUFFERED by checkpoint, and check again
+	when persistence is necessary */
+	switch (table->dirty_status) {
+	case METADATA_DIRTY:
+		/* Write back the dirty metadata to DDTableBuffer */
+		dict_table_persist_to_dd_table_buffer(table);
+		ut_ad(table->dirty_status != METADATA_DIRTY);
+		/* Fall through */
+	case METADATA_BUFFERED:
+		/* We have to remove it away here, since it's evicted.
+		And we will add it again once it's re-loaded if possible */
+		mutex_enter(&dict_persist->mutex);
+		ut_ad(table->in_dirty_dict_tables_list);
+		UT_LIST_REMOVE(dict_persist->dirty_dict_tables, table);
+		mutex_exit(&dict_persist->mutex);
+		break;
+	case METADATA_CLEAN:
+		break;
+	}
 
 	/* Remove the foreign constraints from the cache */
 	std::for_each(table->foreign_set.begin(), table->foreign_set.end(),
@@ -5489,197 +5526,415 @@ dict_print_info_on_foreign_keys(
 	mutex_exit(&dict_sys->mutex);
 }
 
-/** Given a space_id of a file-per-table tablespace, search the
-dict_sys->table_LRU list and return the dict_table_t* pointer for it.
-@param	space_id	Tablespace ID
-@return table if found, NULL if not */
-static
-dict_table_t*
-dict_find_single_table_by_space(
-	ulint	space_id)
-{
-	dict_table_t*	table;
-	ulint		num_item;
-	ulint		count = 0;
-
-	ut_ad(space_id > 0);
-
-	if (dict_sys == NULL) {
-		/* This could happen when it's in redo processing. */
-		return(NULL);
-	}
-
-	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	num_item =  UT_LIST_GET_LEN(dict_sys->table_LRU);
-
-	/* This function intentionally does not acquire mutex as it is used
-	by error handling code in deep call stack as last means to avoid
-	killing the server, so it worth to risk some consequences for
-	the action. */
-	while (table && count < num_item) {
-		if (table->space == space_id) {
-			if (dict_table_is_file_per_table(table)) {
-				return(table);
-			}
-			return(NULL);
-		}
-
-		table = UT_LIST_GET_NEXT(table_LRU, table);
-		count++;
-	}
-
-	return(NULL);
-}
-
-/**********************************************************************//**
-Flags a table with specified space_id corrupted in the data dictionary
-cache
-@return TRUE if successful */
-ibool
-dict_set_corrupted_by_space(
-/*========================*/
-	ulint	space_id)		/*!< in: space ID */
-{
-	dict_table_t*   table;
-
-	table = dict_find_single_table_by_space(space_id);
-
-	if (!table) {
-		return(FALSE);
-	}
-
-	/* mark the table->corrupted bit only, since the caller
-	could be too deep in the stack for SYS_INDEXES update */
-	table->corrupted = TRUE;
-
-	return(TRUE);
-}
-
-/**********************************************************************//**
-Flags an index corrupted both in the data dictionary cache
-and in the SYS_INDEXES */
+/** Inits the structure for persisting dynamic metadata */
 void
-dict_set_corrupted(
-/*===============*/
-	dict_index_t*	index,	/*!< in/out: index */
-	trx_t*		trx,	/*!< in/out: transaction */
-	const char*	ctx)	/*!< in: context */
+dict_persist_init(void)
 {
-	mem_heap_t*	heap;
-	mtr_t		mtr;
-	dict_index_t*	sys_index;
-	dtuple_t*	tuple;
-	dfield_t*	dfield;
-	byte*		buf;
-	const char*	status;
-	btr_cur_t	cursor;
-	bool		locked	= RW_X_LATCH == trx->dict_operation_lock_mode;
+	dict_persist = static_cast<dict_persist_t*>(
+		ut_zalloc_nokey(sizeof(*dict_persist)));
 
-	if (!locked) {
-		row_mysql_lock_data_dictionary(trx);
-	}
+	mutex_create("dict_persist_dirty_tables", &dict_persist->mutex);
 
-	ut_ad(index);
-	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
-	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
+	rw_lock_create(dict_persist_checkpoint_key, &dict_persist->lock,
+		       SYNC_PERSIST_CHECKPOINT);
 
-	{
-		dict_sync_check	check(true);
+	UT_LIST_INIT(dict_persist->dirty_dict_tables,
+                     &dict_table_t::dirty_dict_tables);
 
-		ut_ad(!sync_check_iterate(check));
-	}
+	dict_persist->persisters = UT_NEW_NOKEY(Persisters());
+	dict_persist->persisters->add(PM_INDEX_CORRUPTED);
+}
 
-	/* Mark the table as corrupted only if the clustered index
-	is corrupted */
-	if (dict_index_is_clust(index)) {
-		index->table->corrupted = TRUE;
-	}
+/** Clear the structure */
+void
+dict_persist_close(void)
+{
+	UT_DELETE(dict_persist->persisters);
 
-	if (index->type & DICT_CORRUPT) {
-		/* The index was already flagged corrupted. */
-		ut_ad(!dict_index_is_clust(index) || index->table->corrupted);
-		goto func_exit;
-	}
+	UT_DELETE(dict_persist->table_buffer);
 
-	heap = mem_heap_create(sizeof(dtuple_t) + 2 * (sizeof(dfield_t)
-			       + sizeof(que_fork_t) + sizeof(upd_node_t)
-			       + sizeof(upd_t) + 12));
-	mtr_start(&mtr);
-	mtr.set_sys_modified();
-	index->type |= DICT_CORRUPT;
+	mutex_free(&dict_persist->mutex);
 
-	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);
+	rw_lock_free(&dict_persist->lock);
 
-	/* Find the index row in SYS_INDEXES */
-	tuple = dtuple_create(heap, 2);
+	ut_free(dict_persist);
+}
 
-	dfield = dtuple_get_nth_field(tuple, 0);
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(buf, index->table->id);
-	dfield_set_data(dfield, buf, 8);
+/** Initialize the dynamic metadata according to the table object
+@param[in]	table		table object
+@param[in,out]	metadata	metadata to be initialized */
+static
+void
+dict_init_dynamic_metadata(
+	const dict_table_t*	table,
+	PersistentTableMetadata*metadata)
+{
+	ut_ad(metadata->get_table_id() == table->id);
 
-	dfield = dtuple_get_nth_field(tuple, 1);
-	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-	mach_write_to_8(buf, index->id);
-	dfield_set_data(dfield, buf, 8);
+	metadata->reset();
 
-	dict_index_copy_types(tuple, sys_index, 2);
+	for (const dict_index_t* index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
 
-	btr_cur_search_to_nth_level(sys_index, 0, tuple, PAGE_CUR_LE,
-				    BTR_MODIFY_LEAF,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
-
-	if (cursor.low_match == dtuple_get_n_fields(tuple)) {
-		/* UPDATE SYS_INDEXES SET TYPE=index->type
-		WHERE TABLE_ID=index->table->id AND INDEX_ID=index->id */
-		ulint	len;
-		byte*	field	= rec_get_nth_field_old(
-			btr_cur_get_rec(&cursor),
-			DICT_FLD__SYS_INDEXES__TYPE, &len);
-		if (len != 4) {
-			goto fail;
+		if (dict_index_is_corrupted(index)) {
+			metadata->add_corrupted_index(
+				index_id_t(index->space, index->id));
 		}
-		mlog_write_ulint(field, index->type, MLOG_4BYTES, &mtr);
-		status = "Flagged";
-	} else {
-fail:
-		status = "Unable to flag";
 	}
 
-	mtr_commit(&mtr);
-	mem_heap_empty(heap);
-	ib::error() << status << " corruption of " << index->name
-		<< " in table " << index->table->name << " in " << ctx;
-	mem_heap_free(heap);
+	/* Will initialize other metadata here */
+}
 
-func_exit:
-	if (!locked) {
-		row_mysql_unlock_data_dictionary(trx);
+/** Apply the persistent dynamic metadata read from redo logs or
+DDTableBuffer to corresponding table during recovery.
+@param[in,out]	table		table
+@param[in]	metadata	structure of persistent metadata
+@return true if we do apply something to the in-memory table object,
+otherwise false */
+bool
+dict_table_apply_dynamic_metadata(
+	dict_table_t*			table,
+	const PersistentTableMetadata*	metadata)
+{
+	bool	get_dirty = false;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* Apply corrupted index ids first */
+	const corrupted_ids_t corrupted_ids =
+		metadata->get_corrupted_indexes();
+
+	for (corrupted_ids_t::const_iterator iter = corrupted_ids.begin();
+	     iter != corrupted_ids.end();
+	     ++iter) {
+
+		const index_id_t	index_id = *iter;
+		dict_index_t*		index;
+
+		index = const_cast<dict_index_t*>(
+			dict_table_find_index_on_id(table, index_id));
+
+		if (index != NULL) {
+			ut_ad(index->space == index_id.m_space_id);
+
+			if (!dict_index_is_corrupted(index)) {
+				index->type |= DICT_CORRUPT;
+				get_dirty = true;
+			}
+
+		} else {
+			/* In some cases, we could only load some indexes
+			of a table but not all(See dict_load_indexes()).
+			So we might not find it here */
+			ib::info() << "Failed to find the index: "
+				<< index_id.m_index_id << " in space: "
+				<< index_id.m_space_id << " of table: "
+				<< table->name << "(table id: " << table->id
+				<< "). The index should have been dropped"
+				<< " or couldn't be loaded.";
+		}
 	}
+
+	/* Will apply other persistent metadata here */
+
+	return(get_dirty);
+}
+
+/** Read persistent dynamic metadata stored in a buffer
+@param[in]	buffer		buffer to read
+@param[in]	size		size of data in buffer
+@param[in]	metadata	where we store the metadata from buffer */
+static
+void
+dict_table_read_dynamic_metadata(
+	const byte*		buffer,
+	ulint			size,
+	PersistentTableMetadata*metadata)
+{
+	const byte*		pos = buffer;
+	persistent_type_t	type;
+	Persister*		persister;
+	ulint			consumed;
+	bool			corrupt;
+
+	while (size > 0) {
+		type = static_cast<persistent_type_t>(pos[0]);
+		ut_ad(type > PM_SMALLEST_TYPE
+		      && type < PM_BIGGEST_TYPE);
+
+		persister = dict_persist->persisters->get(type);
+		ut_ad(persister != NULL);
+
+		consumed = persister->read(*metadata, pos, size, &corrupt);
+		ut_ad(consumed != 0);
+		ut_ad(size >= consumed);
+		ut_ad(!corrupt);
+
+		size -= consumed;
+		pos += consumed;
+	}
+
+	ut_ad(size == 0);
+}
+
+/** Check if there is any latest persistent dynamic metadata recorded
+in DDTableBuffer table of the specific table. If so, read the metadata and
+update the table object accordingly. It's used when loading table.
+@param[in]	table		table object */
+void
+dict_table_load_dynamic_metadata(
+	dict_table_t*	table)
+{
+	DDTableBuffer*	table_buffer;
+
+	ut_ad(dict_sys != NULL);
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_ad(!dict_table_is_temporary(table));
+	ut_ad(!is_system_tablespace(table->space));
+
+	table_buffer = dict_persist->table_buffer;
+
+	mutex_enter(&dict_persist->mutex);
+
+	std::string*	readmeta;
+	readmeta = table_buffer->get(table->id);
+
+	if (readmeta->length() != 0) {
+		/* Persistent dynamic metadata of this table have changed
+		recently, we need to update them to in-memory table */
+		PersistentTableMetadata	metadata(table->id);
+
+		dict_table_read_dynamic_metadata(
+			reinterpret_cast<const byte*>(readmeta->data()),
+			readmeta->length(), &metadata);
+
+		bool is_dirty = dict_table_apply_dynamic_metadata(
+			table, &metadata);
+
+		if (is_dirty) {
+			UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables,
+					 table);
+			table->dirty_status = METADATA_BUFFERED;
+			ut_d(table->in_dirty_dict_tables_list = true);
+		} else {
+			/* The row in DDTableBuffer is invalid, which
+			is due to the corrupted index marked has been dropped.
+			We can remove it, but this is in load table,
+			it should be in read only mode, so we just keep it */
+			table->dirty_status = METADATA_CLEAN;
+		}
+	}
+
+	mutex_exit(&dict_persist->mutex);
+
+	UT_DELETE(readmeta);
 }
 
 /** Flags an index corrupted in the data dictionary cache only. This
-is used mostly to mark a corrupted index when index's own dictionary
-is corrupted, and we force to load such index for repair purpose
-@param[in,out]	index	index which is corrupted */
+is used to mark a corrupted index when index's own dictionary
+is corrupted, and we would force to load such index for repair purpose.
+Besides, we have to write a redo log.
+We don't want to hold dict_sys->mutex here, so that we can set index as
+corrupted in some low-level functions. We would only set the flags from
+not corrupted to corrupted when server is running, so it should be safe
+to set it directly.
+@param[in,out]	index		index, must not be NULL */
 void
-dict_set_corrupted_index_cache_only(
+dict_set_corrupted(
 	dict_index_t*	index)
 {
-	ut_ad(index != NULL);
-	ut_ad(index->table != NULL);
-	ut_ad(mutex_own(&dict_sys->mutex));
+	dict_table_t*	table = index->table;
+
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
 
-	/* Mark the table as corrupted only if the clustered index
-	is corrupted */
-	if (dict_index_is_clust(index)) {
-		index->table->corrupted = TRUE;
+	/* Acquire lock at first, so that setting index as corrupted would be
+	protected, in case that some checkpoint would flush the table to
+	DDTableBuffer right after setting corrupted and mark the table as
+	METADATA_BUFFERED, but here we would set it to METADATA_DIRTY again. */
+	rw_lock_s_lock(&dict_persist->lock);
+
+	if (!(index->type & DICT_CORRUPT)) {
+
+		index->type |= DICT_CORRUPT;
+
+		if (!srv_read_only_mode
+		    && !dict_table_is_temporary(table)) {
+			/* In RO mode, we should be able to mark the
+			in memory indexes as corrupted but do not log it.
+			Also, no need to log for temporary table */
+			PersistentTableMetadata	metadata(table->id);
+			metadata.add_corrupted_index(
+				index_id_t(index->space, index->id));
+
+			Persister*	persister =
+				dict_persist->persisters->get(
+					PM_INDEX_CORRUPTED);
+			ut_ad(persister != NULL);
+
+			mtr_t		mtr;
+
+			mtr.start();
+			persister->write_log(table->id, metadata, &mtr);
+			mtr.commit();
+
+			/* Try to flush the log immediately, so that
+			in most cases the corrupted bit would be
+			persisted in redo log */
+			log_write_up_to(mtr.commit_lsn(), true);
+
+			DBUG_EXECUTE_IF("meta_log_corrupted",
+					DBUG_SUICIDE(););
+
+			mutex_enter(&dict_persist->mutex);
+
+			switch (table->dirty_status) {
+			case METADATA_DIRTY:
+				break;
+			case METADATA_CLEAN:
+				/* Not in dirty_tables list, add it now */
+				UT_LIST_ADD_LAST(
+					dict_persist->dirty_dict_tables,
+					table);
+				ut_d(table->in_dirty_dict_tables_list = true);
+				/* Fall through */
+			case METADATA_BUFFERED:
+				table->dirty_status = METADATA_DIRTY;
+			}
+
+			ut_ad(table->in_dirty_dict_tables_list);
+
+			mutex_exit(&dict_persist->mutex);
+		}
 	}
 
-	index->type |= DICT_CORRUPT;
+	/* Release the lock after adding the table to dirty table list, so
+	a checkpoint happens after the mtr commits could always write back
+	the table's metadata. Otherwise, checkpoint could not find the table
+	in dirty table's list and not write it back, after the checkpoint
+	finishes and then a crash, the corrupted bit written here would
+	get lost. */
+	rw_lock_s_unlock(&dict_persist->lock);
+}
+
+/** Write the dirty persistent dynamic metadata for a table to
+DD TABLE BUFFER table
+@param[in,out]	table	table to write */
+static
+void
+dict_table_persist_to_dd_table_buffer_low(
+	dict_table_t*	table)
+{
+	ut_ad(dict_sys != NULL);
+	ut_ad(mutex_own(&dict_persist->mutex));
+	ut_ad(table->dirty_status == METADATA_DIRTY);
+	ut_ad(table->in_dirty_dict_tables_list);
+	ut_ad(!dict_table_is_temporary(table));
+
+	DDTableBuffer*		table_buffer = dict_persist->table_buffer;
+	PersistentTableMetadata	metadata(table->id);
+	byte			buffer[REC_MAX_DATA_SIZE];
+	ulint			size = 0;
+	byte*			pos = buffer;
+	persistent_type_t	type;
+
+	dict_init_dynamic_metadata(table, &metadata);
+
+	/* Write all the persistent metadata of the table as a blob */
+	for (type = static_cast<persistent_type_t>(PM_SMALLEST_TYPE + 1);
+	     type < PM_BIGGEST_TYPE;
+	     type = static_cast<persistent_type_t>(type + 1)) {
+
+		ut_ad(size <= REC_MAX_DATA_SIZE);
+
+		Persister*	persister =
+			dict_persist->persisters->get(type);
+		ulint		consumed =
+			persister->write(metadata, pos,
+					 REC_MAX_DATA_SIZE - size);
+
+		pos += consumed;
+		size += consumed;
+	}
+
+	dberr_t error = table_buffer->replace(table->id, buffer, size);
+	ut_a(error == DB_SUCCESS);
+
+	table->dirty_status = METADATA_BUFFERED;
+}
+
+/** Write back the dirty persistent dynamic metadata of the table
+to DDTableBuffer
+@param[in,out]	table	table object */
+static
+void
+dict_table_persist_to_dd_table_buffer(
+	dict_table_t*	table)
+{
+	ut_ad(dict_sys != NULL);
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	mutex_enter(&dict_persist->mutex);
+
+	if (table->dirty_status != METADATA_DIRTY) {
+		/* This is a double check, since we call this function
+		without holding dict_sys->mutex by
+		dict_index_remove_from_cache_low() and the dirty_status
+		maybe changed by checkpoint etc. */
+		mutex_exit(&dict_persist->mutex);
+		return;
+	}
+
+	ut_ad(table->in_dirty_dict_tables_list);
+
+	dict_table_persist_to_dd_table_buffer_low(table);
+
+	mutex_exit(&dict_persist->mutex);
+}
+
+/** Check if any table has any dirty persistent data, if so
+write dirty persistent data of table to DD TABLE BUFFER table accordingly */
+void
+dict_persist_to_dd_table_buffer(void)
+{
+	if (dict_sys == NULL) {
+		/* We don't have dict_sys now, so just return.
+		This only happen during recovery.
+		TODO: remove in WL#7488 */
+		return;
+	}
+
+	mutex_enter(&dict_persist->mutex);
+
+	if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
+
+		mutex_exit(&dict_persist->mutex);
+		return;
+	}
+
+	for (dict_table_t* table = UT_LIST_GET_FIRST(
+			dict_persist->dirty_dict_tables);
+	     table != NULL; ) {
+
+		ut_ad(table->dirty_status == METADATA_DIRTY
+		      || table->dirty_status == METADATA_BUFFERED);
+
+		dict_table_t*	next = UT_LIST_GET_NEXT(
+			dirty_dict_tables, table);
+
+#ifdef UNIV_DEBUG
+		ut_a(next == NULL || next->magic_n == DICT_TABLE_MAGIC_N);
+#endif /* UNIV_DEBUG */
+
+		if (table->dirty_status == METADATA_DIRTY) {
+			dict_table_persist_to_dd_table_buffer_low(table);
+		}
+
+		table = next;
+	}
+
+	mutex_exit(&dict_persist->mutex);
 }
 
 /** Sets merge_threshold in the SYS_INDEXES
@@ -6779,7 +7034,7 @@ dict_table_extent_size(
 
 	if (page_size.is_compressed()) {
 
-		ulint	disk_page_size	= page_size.physical();
+		ulint	disk_page_size  = page_size.physical();
 
 		switch (disk_page_size) {
 		case 1024:
@@ -6809,4 +7064,612 @@ dict_table_extent_size(
 	}
 
 	return(pages_in_extent);
+}
+
+/** Default constructor */
+DDTableBuffer::DDTableBuffer()
+{
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	init();
+
+	/* Check if we need to recover it, in case of crash */
+	btr_truncate_recover(m_index);
+}
+
+/** Destructor */
+DDTableBuffer::~DDTableBuffer()
+{
+	close();
+}
+
+/* Create the search and replace tuples */
+void
+DDTableBuffer::create_tuples()
+{
+	const dict_col_t*	col;
+	dfield_t*		dfield;
+	byte*			sys_buf;
+	byte*			id_buf;
+
+	id_buf = static_cast<byte*>(mem_heap_alloc(m_heap, 8));
+	memset(id_buf, 0, sizeof *id_buf);
+
+	m_search_tuple = dtuple_create(m_heap, 1);
+	dict_index_copy_types(m_search_tuple, m_index, 1);
+
+	dfield = dtuple_get_nth_field(m_search_tuple, 0);
+	dfield_set_data(dfield, id_buf, 8);
+
+	/* Allocate another memory for this tuple */
+	id_buf = static_cast<byte*>(mem_heap_alloc(m_heap, 8));
+	memset(id_buf, 0, sizeof *id_buf);
+
+	m_replace_tuple = dtuple_create(m_heap, 2 + DATA_N_SYS_COLS);
+	dict_table_copy_types(m_replace_tuple, m_index->table);
+
+	dfield = dtuple_get_nth_field(m_replace_tuple, 0);
+	dfield_set_data(dfield, id_buf, 8);
+
+	/* Initialize system fields, we always write fake value 0. */
+	sys_buf = static_cast<byte*>(mem_heap_alloc(m_heap, 8));
+	memset(sys_buf, 0, sizeof *sys_buf);
+
+	col = dict_table_get_sys_col(m_index->table, DATA_ROW_ID);
+	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
+	dfield_set_data(dfield, sys_buf, DATA_ROW_ID_LEN);
+
+	col = dict_table_get_sys_col(m_index->table, DATA_TRX_ID);
+	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
+	dfield_set_data(dfield, sys_buf, DATA_TRX_ID_LEN);
+
+	col = dict_table_get_sys_col(m_index->table, DATA_ROLL_PTR);
+	dfield = dtuple_get_nth_field(m_replace_tuple, dict_col_get_no(col));
+	dfield_set_data(dfield, sys_buf, DATA_ROLL_PTR_LEN);
+}
+
+/** Initialize the in-memory index */
+void
+DDTableBuffer::init()
+{
+	dict_table_t*	table;
+	const char*	table_name = "SYS_TABLE_INFO_BUFFER";
+
+	table = dict_mem_table_create(table_name, DICT_HDR_SPACE, 2, 0, 0);
+
+	dict_mem_table_add_col(table, table->heap, "TABLE_ID",
+			       DATA_BINARY, DATA_NOT_NULL, 8);
+	dict_mem_table_add_col(table, table->heap, "METADATA",
+			       DATA_BLOB, DATA_NOT_NULL, 0);
+
+	/* This table doesn't need system fields in fact, but we still
+	add them so that we don't break the rule that system fields exist
+	in tables. */
+	dict_table_add_system_columns(table, table->heap);
+
+	m_index = dict_mem_index_create(table_name, "CLUST_IND",
+					DICT_HDR_SPACE,
+					DICT_CLUSTERED | DICT_UNIQUE, 2);
+
+	dict_mem_index_add_field(m_index, "TABLE_ID", 0);
+
+	dict_mem_index_add_field(m_index, "METADATA", 0);
+
+	bool	found;
+	found = dict_index_find_cols(table, m_index);
+	ut_a(found);
+
+	m_index->id = DICT_TBL_BUFFER_ID;
+	m_index->table = table;
+	m_index->n_uniq = 1;
+
+	/* Accessing this table would be protected by dict_persist->mutex,
+	and this table should be a very low-level table, we won't acquire
+	other latches/locks higher than SYS_LOG and we can disable the locking
+	when we access this table. So we set it with the level of
+	SYNC_PERSIST_METADATA_BUFFER, which is right above SYNC_LOG, instead of
+	SYNC_INDEX_TREE */
+	rw_lock_create(index_tree_rw_lock_key, &m_index->lock,
+		       SYNC_PERSIST_METADATA_BUFFER);
+
+	m_index->page = FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO;
+	m_index->search_info = btr_search_info_create(m_index->heap);
+	/* We don't need AHI for this table */
+	m_index->disable_ahi = true;
+	m_index->cached = true;
+
+	/* We would check the clustered index id of the table to see if
+	it's the DDTableBuffer table */
+	UT_LIST_ADD_LAST(table->indexes, m_index);
+
+	m_heap = mem_heap_create(500);
+	m_replace_heap = mem_heap_create(1000);
+
+	create_tuples();
+}
+
+/** Initialize the id field of tuple
+@param[out]	tuple	the tuple to be initialized
+@param[in]	id	table id */
+void
+DDTableBuffer::init_tuple_with_id(
+	dtuple_t*	tuple,
+	table_id_t	id)
+{
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+	void*		data = dfield->data;
+
+	mach_write_to_8(data, id);
+	dfield_set_data(dfield, data, 8);
+}
+
+/** Free the things initialized in init() */
+void
+DDTableBuffer::close()
+{
+	dict_table_t*	table = m_index->table;
+
+	rw_lock_free(&m_index->lock);
+
+	UT_LIST_REMOVE(table->indexes, m_index);
+	dict_mem_index_free(m_index);
+	m_index = NULL;
+
+	dict_mem_table_free(table);
+
+	mem_heap_free(m_heap);
+	mem_heap_free(m_replace_heap);
+
+	m_search_tuple = NULL;
+	m_replace_tuple = NULL;
+}
+
+/** Prepare for a update on METADATA field
+@param[in]	entry	entry to insert
+@param[in]	rec	clustered index record
+@return update vector of differing fields without system columns */
+upd_t*
+DDTableBuffer::update_set_metadata(
+	const dtuple_t*	entry,
+	const rec_t*	rec)
+{
+	upd_field_t*	upd_field;
+	const dfield_t*	dfield;
+	const byte*	data;
+	ulint		len;
+	upd_t*		update;
+
+	update = upd_create(dtuple_get_n_fields(entry), m_replace_heap);
+
+	/* There are only 2 fields in one row. Since the first field
+	TABLE_ID should be equal, we can set the second METADATA field
+	as diff directly */
+	data = rec_get_nth_field_old(rec, 1, &len);
+	dfield = dtuple_get_nth_field(entry, 1);
+	/* There must be something different so we have to update */
+	ut_a(!dfield_data_is_binary_equal(dfield, len, data));
+
+	upd_field = upd_get_nth_field(update, 0);
+	dfield_copy(&upd_field->new_val, dfield);
+	upd_field_set_field_no(upd_field, 1, m_index, NULL);
+	update->n_fields = 1;
+	ut_ad(update->validate());
+
+	return(update);
+}
+
+/** Replace the dynamic metadata for a specific table
+@param[in]	id		table id
+@param[in]	metadata	the metadata we want to replace
+@param[in]	len		the metadata length
+@return DB_SUCCESS or error code */
+dberr_t
+DDTableBuffer::replace(
+	table_id_t	id,
+	const byte*	metadata,
+	ulint		len)
+{
+	dtuple_t*	entry;
+	dfield_t*	dfield;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+	dberr_t		error;
+
+	ut_ad(mutex_own(&dict_persist->mutex));
+
+	init_tuple_with_id(m_search_tuple, id);
+
+	init_tuple_with_id(m_replace_tuple, id);
+	dfield = dtuple_get_nth_field(m_replace_tuple, 1);
+	dfield_set_data(dfield, metadata, len);
+	/* Other system fields have been initialized */
+
+	entry = row_build_index_entry(m_replace_tuple, NULL, m_index,
+				      m_replace_heap);
+
+	/* Start to search for the to-be-replaced tuple */
+	mtr.start();
+	mtr.set_named_space(m_index->space);
+
+	btr_pcur_open(m_index, m_search_tuple, PAGE_CUR_LE,
+		      BTR_MODIFY_TREE, &pcur, &mtr);
+
+	if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
+	    || btr_pcur_get_low_match(&pcur) < m_index->n_uniq) {
+
+		/* The record was not found, so it's the first time we
+		add the row for this table of id, we need to insert it */
+		static const ulint      flags = (BTR_CREATE_FLAG
+						 | BTR_NO_LOCKING_FLAG
+						 | BTR_NO_UNDO_LOG_FLAG
+						 | BTR_KEEP_SYS_FLAG);
+
+		mtr.commit();
+
+		error = row_ins_clust_index_entry_low(
+			flags, BTR_MODIFY_TREE, m_index, m_index->n_uniq,
+			entry, 0, NULL, false);
+		ut_a(error == DB_SUCCESS);
+
+		mem_heap_empty(m_replace_heap);
+
+		return(DB_SUCCESS);
+	}
+
+	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(&pcur), 0));
+
+	/* Prepare to update the record. */
+	ulint*		cur_offsets = NULL;
+
+	upd_t*	update = update_set_metadata(entry,  btr_pcur_get_rec(&pcur));
+
+	big_rec_t*		big_rec;
+	static const ulint	flags = (BTR_CREATE_FLAG
+					 | BTR_NO_LOCKING_FLAG
+					 | BTR_NO_UNDO_LOG_FLAG
+					 | BTR_KEEP_POS_FLAG
+					 | BTR_KEEP_SYS_FLAG);
+
+	error = btr_cur_pessimistic_update(flags, btr_pcur_get_btr_cur(&pcur),
+					   &cur_offsets, &m_replace_heap,
+					   m_replace_heap, &big_rec, update,
+					   0, NULL, 0, &mtr);
+	ut_a(error == DB_SUCCESS);
+	/* We don't have big rec in this table */
+	ut_ad(!big_rec);
+
+	mtr.commit();
+	mem_heap_empty(m_replace_heap);
+
+	return(DB_SUCCESS);
+}
+
+/** Remove the whole row for a specific table
+@param[in]	id	table id
+@return DB_SUCCESS or error code */
+dberr_t
+DDTableBuffer::remove(
+	table_id_t	id)
+{
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+	dberr_t		error;
+
+	ut_ad(mutex_own(&dict_persist->mutex));
+
+	init_tuple_with_id(m_search_tuple, id);
+
+	mtr.start();
+
+	btr_pcur_open(m_index, m_search_tuple, PAGE_CUR_LE,
+		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
+		      &pcur, &mtr);
+
+	if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
+	    || btr_pcur_get_low_match(&pcur) < m_index->n_uniq) {
+
+		/* The record was not found, no need to delete */
+		mtr.commit();
+
+		return(DB_SUCCESS);
+	}
+
+	mtr.set_named_space(m_index->space);
+
+	btr_cur_pessimistic_delete(&error, false, btr_pcur_get_btr_cur(&pcur),
+				   BTR_CREATE_FLAG, false, &mtr);
+	ut_ad(error == DB_SUCCESS);
+
+	mtr.commit();
+
+	return(DB_SUCCESS);
+}
+
+/** Truncate the table. We can call it after all the dynamic metadata
+has been written back to DD table */
+void
+DDTableBuffer::truncate()
+{
+	ut_ad(mutex_own(&dict_persist->mutex));
+
+	btr_truncate(m_index);
+}
+
+/** Get the buffered metadata for a specific table, the caller
+has to delete the returned std::string object by UT_DELETE
+@param[in]	id	table id
+@return the metadata got in a string object, if nothing, the
+string would be of length 0 */
+std::string*
+DDTableBuffer::get(
+	table_id_t	id)
+{
+	btr_cur_t	cursor;
+	mtr_t		mtr;
+	ulint		len;
+	byte*		field = NULL;
+
+	ut_ad(mutex_own(&dict_persist->mutex));
+
+	init_tuple_with_id(m_search_tuple, id);
+
+	mtr.start();
+
+	btr_cur_search_to_nth_level(m_index, 0, m_search_tuple, PAGE_CUR_LE,
+				    BTR_SEARCH_LEAF, &cursor, 0,
+				    __FILE__, __LINE__, &mtr);
+
+	if (cursor.low_match == dtuple_get_n_fields(m_search_tuple)) {
+		ut_ad(!rec_get_deleted_flag(btr_cur_get_rec(&cursor), 0));
+
+		/* Get the METADATA field */
+		field = rec_get_nth_field_old(
+				btr_cur_get_rec(&cursor), 1, &len);
+
+		ut_ad(len != UNIV_SQL_NULL);
+	} else {
+		len = 0;
+	}
+
+	std::string* metadata = UT_NEW_NOKEY(
+		std::string(reinterpret_cast<const char*>(field), len));
+
+	mtr.commit();
+
+	return(metadata);
+}
+
+/** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
+@param[in]	id		table id
+@param[in]	metadata	metadata used to write the log
+@param[in,out]	mtr		mini-transaction */
+void
+Persister::write_log(
+	table_id_t			id,
+	const PersistentTableMetadata&	metadata,
+	mtr_t*				mtr)
+{
+	byte*		log_ptr;
+	ulint		size = get_write_size(metadata);
+
+	ut_ad(size > 0);
+
+	/* We will write the id in a much compressed format, which costs
+	1..11 bytes, and the MLOG_TABLE_DYNAMIC_META costs 1 byte,
+	refer to mlog_write_initial_dict_log_record() as well */
+	log_ptr = mlog_open(mtr, 12 + size);
+	ut_ad(log_ptr != NULL);
+
+	log_ptr = mlog_write_initial_dict_log_record(
+		MLOG_TABLE_DYNAMIC_META, id, log_ptr, mtr);
+
+	ulint consumed = write(metadata, log_ptr, size);
+	ut_ad(consumed == size);
+	log_ptr += consumed;
+
+        mlog_close(mtr, log_ptr);
+}
+
+/** Write the corrupted indexes of a table, we can pre-calculate the size
+by calling get_write_size()
+@param[in]	metadata	persistent data
+@param[out]	buffer		write buffer
+@param[in]	size		size of write buffer, should be at least
+				get_write_size()
+@return the length of bytes written */
+ulint
+CorruptedIndexPersister::write(
+	const PersistentTableMetadata&	metadata,
+	byte*				buffer,
+	ulint				size)
+{
+	ulint		length = 0;
+	corrupted_ids_t	corrupted_ids = metadata.get_corrupted_indexes();
+	ulint		num = corrupted_ids.size();
+
+	ut_ad(num < MAX_INDEXES);
+
+	if (corrupted_ids.empty()) {
+		return(0);
+	}
+
+	/* Write the PM_INDEX_CORRUPTED mark first */
+	mach_write_to_1(buffer, static_cast<byte>(PM_INDEX_CORRUPTED));
+	++length;
+	++buffer;
+
+	mach_write_to_1(buffer, num);
+	DBUG_EXECUTE_IF("meta_log_corrupted",
+			mach_write_to_1(buffer,100););
+	++length;
+	++buffer;
+
+	for (ulint i = 0; i < num; ++i) {
+		mach_write_to_4(buffer, corrupted_ids[i].m_space_id);
+		mach_write_to_8(buffer + 4, corrupted_ids[i].m_index_id);
+		length += INDEX_ID_LENGTH;
+		buffer += INDEX_ID_LENGTH;
+		ut_ad(length <= size);
+	}
+
+	return(length);
+}
+
+/** Pre-calculate the size of metadata to be written
+@param[in]	metadata	metadata to be written
+@return the size of metadata */
+ulint
+CorruptedIndexPersister::get_write_size(
+	const PersistentTableMetadata&	metadata)
+{
+	ulint		length = 0;
+	corrupted_ids_t	corrupted_ids = metadata.get_corrupted_indexes();
+
+	ut_ad(corrupted_ids.size() < MAX_INDEXES);
+
+	if (corrupted_ids.empty()) {
+		return(0);
+	}
+
+	/* PM_INDEX_CORRUPTED mark and number of corrupted indexes' ids */
+	length += 1 + 1;
+	length += corrupted_ids.size() * INDEX_ID_LENGTH;
+
+	return(length);
+}
+
+/** Read the corrupted indexes from buffer, and store them to
+metadata object
+@param[out]	metadata	metadata where we store the read data
+@param[in]	buffer		buffer to read
+@param[in]	size		size of buffer
+@param[out]	corrupt		true if we found something wrong in
+				the buffer except incomplete buffer,
+				otherwise false
+@return the bytes we read from the buffer if the buffer data
+is complete and we get everything, 0 if the buffer is incompleted */
+ulint
+CorruptedIndexPersister::read(
+	PersistentTableMetadata&metadata,
+	const byte*		buffer,
+	ulint			size,
+	bool*			corrupt)
+{
+	const byte*	end = buffer + size;
+	ulint		consumed = 0;
+	byte		type;
+	ulint		num;
+
+	*corrupt = false;
+
+	/* It should contain PM_INDEX_CORRUPTED and number at least */
+	if (size <= 2) {
+		return(0);
+	}
+
+	type = mach_read_from_1(buffer);
+	++consumed;
+	++buffer;
+
+	if (type != PM_INDEX_CORRUPTED) {
+		*corrupt = true;
+		return(consumed);
+	}
+
+	num = mach_read_from_1(buffer);
+	DBUG_EXECUTE_IF("meta_log_corrupted",
+			num = 1;);
+	++consumed;
+	++buffer;
+
+	if (num == 0 || num > MAX_INDEXES) {
+		*corrupt = true;
+		return(consumed);
+	}
+
+	if (buffer + num * INDEX_ID_LENGTH > end) {
+		return(0);
+	}
+
+	for (ulint i = 0; i < num; ++i) {
+		ulint		space_id = mach_read_from_4(buffer);
+		space_index_t	index_id = mach_read_from_8(buffer + 4);
+		metadata.add_corrupted_index(index_id_t(space_id, index_id));
+
+		buffer += INDEX_ID_LENGTH;
+		consumed += INDEX_ID_LENGTH;
+	}
+
+	return(consumed);
+}
+
+/** Destructor */
+Persisters::~Persisters()
+{
+	persisters_t::iterator	iter;
+	for (iter = m_persisters.begin(); iter != m_persisters.end();
+	     ++iter) {
+		UT_DELETE(iter->second);
+	}
+}
+
+/** Get the persister object with specified type
+@param[in]	type	persister type
+@return Persister object required or NULL if not found */
+Persister*
+Persisters::get(
+	persistent_type_t	type) const
+{
+	ut_ad(type > PM_SMALLEST_TYPE);
+	ut_ad(type < PM_BIGGEST_TYPE);
+
+	persisters_t::const_iterator	iter = m_persisters.find(type);
+
+	return(iter == m_persisters.end() ? NULL : iter->second);
+}
+
+/** Add a specified persister of type, we will allocate the Persister
+if there is no such persister exist, otherwise do nothing and return
+the existing one
+@param[in]	type	persister type
+@return the persister of type */
+Persister*
+Persisters::add(
+	persistent_type_t	type)
+{
+	ut_ad(type > PM_SMALLEST_TYPE);
+	ut_ad(type < PM_BIGGEST_TYPE);
+
+	Persister*	persister = get(type);
+
+	if (persister != NULL) {
+		return(persister);
+	}
+
+	switch (type) {
+	case PM_INDEX_CORRUPTED:
+		persister = UT_NEW_NOKEY(CorruptedIndexPersister());
+		break;
+	default:
+		ut_ad(0);
+		break;
+	}
+
+	m_persisters.insert(std::make_pair(type, persister));
+
+	return(persister);
+}
+
+/** Remove a specified persister of type, we will free the Persister
+@param[in]	type	persister type */
+void
+Persisters::remove(
+	persistent_type_t	type)
+{
+	persisters_t::iterator	iter = m_persisters.find(type);
+
+	if (iter != m_persisters.end()) {
+		UT_DELETE(iter->second);
+		m_persisters.erase(iter);
+	}
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,47 @@ Created 11/28/1995 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "mach0data.ic"
 #endif
+
+/** Read a 64-bit integer in a much compressed form.
+@param[in,out]	ptr	pointer to memory where to read,
+advanced by the number of bytes consumed, or set NULL if out of space
+@param[in]	end_ptr	end of the buffer
+@return unsigned 64-bit integer
+@see mach_u64_read_much_compressed() */
+ib_uint64_t
+mach_parse_u64_much_compressed(
+	const byte**	ptr,
+	const byte*	end_ptr)
+{
+	ulint	val;
+
+	if (*ptr >= end_ptr) {
+		*ptr = NULL;
+		return(0);
+	}
+
+	val = mach_read_from_1(*ptr);
+
+	if (val != 0xFF) {
+		return(mach_parse_compressed(ptr, end_ptr));
+	}
+
+	++*ptr;
+
+	ib_uint64_t n = mach_parse_compressed(ptr, end_ptr);
+	if (*ptr == NULL) {
+		return(0);
+	}
+
+	n <<= 32;
+
+	n |= mach_parse_compressed(ptr, end_ptr);
+	if (*ptr == NULL) {
+		return(0);
+	}
+
+	return(n);
+}
 
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	ptr	pointer to memory where to read;

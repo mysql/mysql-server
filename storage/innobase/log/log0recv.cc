@@ -480,6 +480,153 @@ fil_name_parse(
 	return(end_ptr);
 }
 
+/** Destructor */
+MetadataRecover::~MetadataRecover()
+{
+	PersistentTables::iterator	iter;
+
+	for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
+
+		UT_DELETE(iter->second);
+	}
+}
+
+/** Get the dynamic metadata of a specified table, create a new one
+if not exist
+@param[in]	id	table id
+@return the metadata of the specified table */
+PersistentTableMetadata*
+MetadataRecover::getMetadata(
+	table_id_t	id)
+{
+	PersistentTableMetadata*	metadata = NULL;
+	PersistentTables::iterator	iter = m_tables.find(id);
+
+	if (iter == m_tables.end()) {
+		PersistentTableMetadata* mem =
+			static_cast<PersistentTableMetadata*>(
+				ut_zalloc_nokey(sizeof *metadata));
+
+		metadata = new (mem) PersistentTableMetadata(id);
+
+		m_tables.insert(std::make_pair(id, metadata));
+	} else {
+		metadata = iter->second;
+		ut_ad(metadata->get_table_id() == id);
+	}
+
+	ut_ad(metadata != NULL);
+	return(metadata);
+}
+
+/** Parse a dynamic metadata redo log of a table and store
+the metadata locally
+@param[in]	id	table id
+@param[in]	ptr	redo log start
+@param[in]	end	end of redo log
+@retval ptr to next redo log record, NULL if this log record
+was truncated */
+byte*
+MetadataRecover::parseMetadataLog(
+	table_id_t	id,
+	byte*		ptr,
+	byte*		end)
+{
+	if (ptr + 2 > end) {
+		/* At least we should get type byte and another one byte
+		for data, if not, it's an incompleted log */
+		return(NULL);
+	}
+
+	persistent_type_t	type = static_cast<persistent_type_t>(ptr[0]);
+
+	ut_ad(dict_persist->persisters != NULL);
+
+	Persister*		persister = dict_persist->persisters->get(
+		type);
+	PersistentTableMetadata*metadata = getMetadata(id);
+	bool			corrupt;
+	ulint			consumed = persister->read(
+		*metadata, ptr, end - ptr, &corrupt);
+
+	if (corrupt) {
+		recv_sys->found_corrupt_log = true;
+	}
+
+	if (consumed == 0) {
+		return(NULL);
+	} else {
+		return(ptr + consumed);
+	}
+}
+
+/** Apply the collected persistent dynamic metadata to in-memory
+table objects */
+void
+MetadataRecover::apply()
+{
+	PersistentTables::iterator	iter;
+
+	mutex_enter(&dict_sys->mutex);
+
+	for (iter = m_tables.begin();
+	     iter != m_tables.end();
+	     ++iter) {
+
+		table_id_t		table_id = iter->first;
+		PersistentTableMetadata*metadata = iter->second;
+		dict_table_t*		table;
+
+		table = dict_table_open_on_id(
+			table_id, true, DICT_TABLE_OP_NORMAL);
+
+		/* If the table is NULL, it might be already dropped */
+		if (table == NULL) {
+			continue;
+		}
+
+		/* At this time, the metadata in DDTableBuffer has
+		already been applied to table object, we can apply
+		the latest status of metadata read from redo logs to
+		the table now. We can read the dirty_status directly
+		since it's in recovery phase */
+
+		/* The table should be either CLEAN or applied BUFFERED
+		metadata from DDTableBuffer just now */
+		ut_ad(table->dirty_status == METADATA_CLEAN
+		      || table->dirty_status == METADATA_BUFFERED);
+		bool buffered = (table->dirty_status == METADATA_BUFFERED);
+
+		mutex_enter(&dict_persist->mutex);
+
+		bool is_dirty = dict_table_apply_dynamic_metadata(
+			table, metadata);
+
+		if (is_dirty) {
+			/* This table was not marked as METADATA_BUFFERED
+			before the redo logs are applied, so it's not in
+			the list */
+			if (!buffered) {
+				ut_ad(!table->in_dirty_dict_tables_list);
+
+				UT_LIST_ADD_LAST(
+					dict_persist->dirty_dict_tables,
+					table);
+			}
+
+			table->dirty_status = METADATA_DIRTY;
+
+			ut_d(table->in_dirty_dict_tables_list = true);
+		}
+
+		mutex_exit(&dict_persist->mutex);
+
+		dict_table_close(table, true, false);
+	}
+
+	mutex_exit(&dict_sys->mutex);
+}
+
 /********************************************************//**
 Creates the recovery system. */
 void
@@ -703,6 +850,8 @@ recv_sys_init(
 
 	/* Call the constructor for recv_sys_t::dblwr member */
 	new (&recv_sys->dblwr) recv_dblwr_t();
+
+	recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
 
 	mutex_exit(&(recv_sys->mutex));
 }
@@ -2393,7 +2542,7 @@ recv_apply_log_recs_for_backup(void)
 				error = fil_io(
 					IORequestRead, true,
 					page_id,
-					page_size, 0, page_size.bytes(),
+					page_size, 0, page_size.physical(),
 					block->page.zip.data, NULL);
 
 				if (error == DB_SUCCESS
@@ -2405,7 +2554,7 @@ recv_apply_log_recs_for_backup(void)
 				error = fil_io(
 					IORequestRead, true,
 					page_id, page_size, 0,
-					page_size.bytes(),
+					page_size.logical(),
 					block->frame, NULL);
 			}
 
@@ -2431,12 +2580,12 @@ recv_apply_log_recs_for_backup(void)
 
 				error = fil_io(
 					IORequestWrite, true, page_id,
-					0, page_size.bytes(),
+					page_size, 0, page_size.physical(),
 					block->page.zip.data, NULL);
 			} else {
 				error = fil_io(
-					IORequestWrite, true,
-					page_id, 0, page_size.bytes(),
+					IORequestWrite, true, page_id,
+					page_size, 0, page_size.logical(),
 					block->frame, NULL);
 			}
 skip_this_recv_addr:
@@ -2454,6 +2603,20 @@ skip_this_recv_addr:
 	recv_sys_empty_hash();
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/** Apply the table persistent dynamic metadata collected during redo
+to in-memory tables */
+void
+recv_apply_table_dynamic_metadata(void)
+{
+	ut_ad(recv_sys->metadata_recover != NULL);
+
+	recv_sys->metadata_recover->apply();
+
+	/* We don't need the followings any more */
+	UT_DELETE(recv_sys->metadata_recover);
+	recv_sys->metadata_recover = NULL;
+}
 
 /** Tries to parse a single log record.
 @param[out]	type		log record type
@@ -2516,6 +2679,19 @@ recv_parse_log_rec(
 	case MLOG_CHECKPOINT | MLOG_SINGLE_REC_FLAG:
 		recv_sys->found_corrupt_log = true;
 		return(0);
+	case MLOG_TABLE_DYNAMIC_META:
+	case MLOG_TABLE_DYNAMIC_META | MLOG_SINGLE_REC_FLAG:
+		table_id_t	id;
+
+		new_ptr = mlog_parse_initial_dict_log_record(
+			ptr, end_ptr, type, &id);
+
+		if (new_ptr != NULL) {
+			new_ptr = recv_sys->metadata_recover->parseMetadataLog(
+				id, new_ptr, end_ptr);
+		}
+
+		return(new_ptr == NULL ? 0 : new_ptr - ptr);
 	}
 
 	new_ptr = mlog_parse_initial_log_record(ptr, end_ptr, type, space,
@@ -2764,6 +2940,7 @@ loop:
 		case MLOG_FILE_NAME:
 		case MLOG_FILE_RENAME2:
 		case MLOG_FILE_DELETE:
+		case MLOG_TABLE_DYNAMIC_META:
 			/* These were already handled by
 			recv_parse_log_rec() and
 			recv_parse_or_apply_log_rec_body(). */
@@ -2912,6 +3089,7 @@ loop:
 			case MLOG_FILE_NAME:
 			case MLOG_FILE_RENAME2:
 			case MLOG_FILE_DELETE:
+			case MLOG_TABLE_DYNAMIC_META:
 				/* These were already handled by
 				recv_parse_log_rec() and
 				recv_parse_or_apply_log_rec_body(). */

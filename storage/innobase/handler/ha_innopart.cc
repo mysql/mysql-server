@@ -179,9 +179,11 @@ Ha_innopart_share::open_one_table_part(
 		/* Mark this partition as corrupted, so the drop table
 		or force recovery can still use it, but not others.
 		TODO: persist table->corrupted so it will be retained on
-		restart and out-of-bounds operations will see it. */
+		restart and out-of-bounds operations will see it. But if
+		this would be removed in WL#7141-7488, we don't need to
+		persist it */
 
-		ib_table->corrupted = true;
+		dict_table_get_first_index(ib_table)->type |= DICT_CORRUPT;
 		dict_table_close(ib_table, FALSE, FALSE);
 	}
 
