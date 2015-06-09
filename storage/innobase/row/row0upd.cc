@@ -52,6 +52,8 @@ Created 12/27/1996 Heikki Tuuri
 #include "pars0sym.h"
 #include "eval0eval.h"
 #include "buf0lru.h"
+#include "fts0fts.h"
+#include "fts0types.h"
 #include <algorithm>
 
 /* What kind of latch and lock can we assume when the control comes to
@@ -220,8 +222,6 @@ row_upd_check_references_constraints(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
-run_again:
-
 	for (dict_foreign_set::iterator it = table->referenced_set.begin();
 	     it != table->referenced_set.end();
 	     ++it) {
@@ -257,14 +257,14 @@ run_again:
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
 
+			DBUG_EXECUTE_IF("row_ins_dict_change_err",
+					err = DB_DICT_CHANGED;);
+
 			if (ref_table != NULL) {
 				dict_table_close(ref_table, FALSE, FALSE);
 			}
 
-			/* Some table foreign key dropped, try again */
-			if (err == DB_DICT_CHANGED) {
-				goto run_again;
-			} else if (err != DB_SUCCESS) {
+			if (err != DB_SUCCESS) {
 				goto func_exit;
 			}
 		}
@@ -280,6 +280,10 @@ func_exit:
 	mem_heap_free(heap);
 
 	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
+
+	DBUG_EXECUTE_IF("row_upd_cascade_lock_wait_err",
+		err = DB_LOCK_WAIT;
+		DBUG_SET("-d,row_upd_cascade_lock_wait_err"););
 
 	DBUG_RETURN(err);
 }
@@ -2718,4 +2722,61 @@ error_handling:
 
 	DBUG_RETURN(thr);
 }
+
+#ifndef DBUG_OFF
+
+/** Ensure that the member cascade_upd_nodes has only one update node
+for each of the tables.  This is useful for testing purposes. */
+void upd_node_t::check_cascade_only_once()
+{
+	DBUG_ENTER("upd_node_t::check_cascade_only_once");
+
+	dbug_trace();
+
+	for (upd_cascade_t::const_iterator i = cascade_upd_nodes->begin();
+	     i != cascade_upd_nodes->end(); ++i) {
+
+		const upd_node_t*	update_node = *i;
+		std::string	table_name(update_node->table->name.m_name);
+		ulint	count = 0;
+
+		for (upd_cascade_t::const_iterator j
+			= cascade_upd_nodes->begin();
+		     j != cascade_upd_nodes->end(); ++j) {
+
+			const upd_node_t*	node = *j;
+
+			if (table_name == node->table->name.m_name) {
+				DBUG_ASSERT(count++ == 0);
+			}
+		}
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/** Print information about this object into the trace log file. */
+void upd_node_t::dbug_trace()
+{
+	DBUG_ENTER("upd_node_t::dbug_trace");
+
+	for (upd_cascade_t::const_iterator i = cascade_upd_nodes->begin();
+	     i != cascade_upd_nodes->end(); ++i) {
+
+		const upd_node_t*	update_node = *i;
+		DBUG_LOG("upd_node_t", "cascade_upd_nodes: Cascade to table: "
+			 << update_node->table->name);
+	}
+
+	for (upd_cascade_t::const_iterator j = new_upd_nodes->begin();
+	     j != new_upd_nodes->end(); ++j) {
+
+		const upd_node_t*	update_node = *j;
+		DBUG_LOG("upd_node_t", "new_upd_nodes: Cascade to table: "
+			 << update_node->table->name);
+	}
+
+	DBUG_VOID_RETURN;
+}
+#endif /* !DBUG_OFF */
 #endif /* !UNIV_HOTBACKUP */

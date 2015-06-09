@@ -632,15 +632,23 @@ fts_get_doc_id_from_rec(
         const dict_index_t*     index,
         mem_heap_t*             heap);
 
-/******************************************************************//**
-Update the query graph with a new document id.
-@return Doc ID used */
+/** Add new fts doc id to the update vector.
+@param[in]	table		the table that contains the FTS index.
+@param[in,out]	ufield		the fts doc id field in the update vector.
+				No new memory is allocated for this in this
+				function.
+@param[in,out]	next_doc_id	the fts doc id that has been added to the
+				update vector.  If 0, a new fts doc id is
+				automatically generated.  The memory provided
+				for this argument will be used by the update
+				vector. Ensure that the life time of this
+				memory matches that of the update vector.
+@return the fts doc id used in the update vector */
 doc_id_t
 fts_update_doc_id(
-/*==============*/
-	dict_table_t*	table,			/*!< in: table */
-	upd_field_t*	ufield,			/*!< out: update node */
-	doc_id_t*	next_doc_id);		/*!< out: buffer for writing */
+	dict_table_t*	table,
+	upd_field_t*	ufield,
+	doc_id_t*	next_doc_id);
 
 /******************************************************************//**
 FTS initialize. */

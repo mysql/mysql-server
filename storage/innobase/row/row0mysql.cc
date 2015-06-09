@@ -1859,6 +1859,8 @@ row_create_update_node_for_mysql(
 
 	node->table_sym = NULL;
 	node->col_assign_list = NULL;
+	node->fts_doc_id = FTS_NULL_DOC_ID;
+	node->fts_next_doc_id = UINT64_UNDEFINED;
 
 	DBUG_RETURN(node);
 }
@@ -1911,8 +1913,9 @@ row_fts_do_update(
 	doc_id_t	old_doc_id,	/* in: old document id */
 	doc_id_t	new_doc_id)	/* in: new document id */
 {
-	if (trx->fts_next_doc_id) {
-		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
+	fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
+
+	if (new_doc_id != FTS_NULL_DOC_ID) {
 		fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);
 	}
 }
@@ -1924,34 +1927,28 @@ static
 dberr_t
 row_fts_update_or_delete(
 /*=====================*/
-	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct in MySQL
+	trx_t*		trx,
+	upd_node_t*	node)	/* in: prebuilt struct in MySQL
 					handle */
 {
-	trx_t*		trx = prebuilt->trx;
-	dict_table_t*	table = prebuilt->table;
-	upd_node_t*	node = prebuilt->upd_node;
-	doc_id_t	old_doc_id = prebuilt->fts_doc_id;
+	dict_table_t*	table = node->table;
+	doc_id_t	old_doc_id = node->fts_doc_id;
+	DBUG_ENTER("row_fts_update_or_delete");
 
-	ut_a(dict_table_has_fts_index(prebuilt->table));
+	ut_a(dict_table_has_fts_index(node->table));
 
 	/* Deletes are simple; get them out of the way first. */
 	if (node->is_delete) {
 		/* A delete affects all FTS indexes, so we pass NULL */
 		fts_trx_add_op(trx, table, old_doc_id, FTS_DELETE, NULL);
 	} else {
-		doc_id_t	new_doc_id;
-
-		new_doc_id = fts_read_doc_id((byte*) &trx->fts_next_doc_id);
-
-		if (new_doc_id == 0) {
-			ib::error() << "InnoDB FTS: Doc ID cannot be 0";
-			return(DB_FTS_INVALID_DOCID);
-		}
+		doc_id_t	new_doc_id = node->fts_next_doc_id;
+		ut_ad(new_doc_id != UINT64_UNDEFINED);
 
 		row_fts_do_update(trx, table, old_doc_id, new_doc_id);
 	}
 
-	return(DB_SUCCESS);
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 /*********************************************************************//**
@@ -2331,6 +2328,7 @@ row_update_for_mysql_using_upd_graph(
 	trx_t*		trx		= prebuilt->trx;
 	ulint		fk_depth	= 0;
 	upd_cascade_t*	cascade_upd_nodes;
+	upd_cascade_t*	new_upd_nodes;
 	upd_cascade_t*	processed_cascades;
 	bool		got_s_lock	= false;
 
@@ -2392,6 +2390,10 @@ row_update_for_mysql_using_upd_graph(
 		(mem_heap_ator.allocate(sizeof(upd_cascade_t)))
 		upd_cascade_t(deque_mem_heap_t(mem_heap_ator));
 
+	new_upd_nodes = new
+		(mem_heap_ator.allocate(sizeof(upd_cascade_t)))
+		upd_cascade_t(deque_mem_heap_t(mem_heap_ator));
+
 	processed_cascades = new
 		(mem_heap_ator.allocate(sizeof(upd_cascade_t)))
 		upd_cascade_t(deque_mem_heap_t(mem_heap_ator));
@@ -2422,7 +2424,16 @@ row_update_for_mysql_using_upd_graph(
 
 	node->cascade_top = true;
 	node->cascade_upd_nodes = cascade_upd_nodes;
+	node->new_upd_nodes = new_upd_nodes;
 	node->processed_cascades = processed_cascades;
+	node->fts_doc_id = prebuilt->fts_doc_id;
+
+	if (trx->fts_next_doc_id != UINT64_UNDEFINED) {
+		node->fts_next_doc_id = fts_read_doc_id(
+			(byte*) &trx->fts_next_doc_id);
+	} else {
+		node->fts_next_doc_id = UINT64_UNDEFINED;
+	}
 
 	ut_ad(!prebuilt->sql_stat_start);
 
@@ -2441,9 +2452,12 @@ run_again:
 
 	row_upd_step(thr);
 
+	DBUG_EXECUTE_IF("dml_cascade_only_once", node->check_cascade_only_once(););
+
 	err = trx->error_state;
 
 	if (err != DB_SUCCESS) {
+
 		que_thr_stop_for_mysql(thr);
 
 		if (err == DB_RECORD_NOT_FOUND) {
@@ -2475,6 +2489,10 @@ run_again:
 		thr->lock_state= QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
+			std::for_each(new_upd_nodes->begin(),
+				      new_upd_nodes->end(),
+				      ib_dec_counter());
+			node->new_upd_nodes->clear();
 			goto run_again;
 		}
 
@@ -2484,8 +2502,21 @@ run_again:
 			que_graph_free_recursive(node);
 		}
 		goto error;
+	} else {
+
+		std::copy(node->new_upd_nodes->begin(),
+			  node->new_upd_nodes->end(),
+			  std::back_inserter(*node->cascade_upd_nodes));
+
+		node->new_upd_nodes->clear();
 	}
 
+	if (dict_table_has_fts_index(node->table)
+	    && node->fts_doc_id != FTS_NULL_DOC_ID
+	    && node->fts_next_doc_id != UINT64_UNDEFINED) {
+		err = row_fts_update_or_delete(trx, node);
+		ut_a(err == DB_SUCCESS);
+	}
 
 	if (thr->fk_cascade_depth > 0) {
 		/* Processing cascade operation */
@@ -2511,15 +2542,6 @@ run_again:
 	}
 
 	thr->fk_cascade_depth = 0;
-
-	if (dict_table_has_fts_index(table)
-	    && trx->fts_next_doc_id != UINT64_UNDEFINED) {
-		err = row_fts_update_or_delete(prebuilt);
-		if (err != DB_SUCCESS) {
-			trx->op_info = "";
-			DBUG_RETURN(err);
-		}
-	}
 
 	/* Update the statistics only after completing all cascaded
 	operations */
@@ -2589,8 +2611,16 @@ error:
 		      cascade_upd_nodes->end(),
 		      ib_dec_counter());
 
+	std::for_each(new_upd_nodes->begin(),
+		      new_upd_nodes->end(),
+		      ib_dec_counter());
+
 	std::for_each(cascade_upd_nodes->begin(),
 		      cascade_upd_nodes->end(),
+		      que_graph_free_recursive);
+
+	std::for_each(new_upd_nodes->begin(),
+		      new_upd_nodes->end(),
 		      que_graph_free_recursive);
 
 	std::for_each(processed_cascades->begin(),
