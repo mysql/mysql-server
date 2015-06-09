@@ -1665,6 +1665,8 @@ ha_innopart::index_init(
 	int	error;
 	uint	part_id = m_part_info->get_first_used_partition();
 	DBUG_ENTER("ha_innopart::index_init");
+
+	active_index = keynr;
 	if (part_id == MY_BIT_NONE) {
 		DBUG_RETURN(0);
 	}
