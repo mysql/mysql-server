@@ -1801,6 +1801,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
   mysql->options.ssl_ca=     strdup_if_not_null(ca);
   mysql->options.ssl_capath= strdup_if_not_null(capath);
   mysql->options.ssl_cipher= strdup_if_not_null(cipher);
+  mysql->options.use_ssl= TRUE;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
   DBUG_RETURN(0);
 }
@@ -2491,13 +2492,10 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     mysql->client_flag|= CLIENT_MULTI_RESULTS;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (mysql->options.ssl_key || mysql->options.ssl_cert ||
-      mysql->options.ssl_ca || mysql->options.ssl_capath ||
-      mysql->options.ssl_cipher)
-    mysql->options.use_ssl= 1;
   if (mysql->options.use_ssl)
     mysql->client_flag|= CLIENT_SSL;
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
+
   if (mpvio->db)
     mysql->client_flag|= CLIENT_CONNECT_WITH_DB;
 
@@ -2526,6 +2524,23 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     end= buff+5;
   }
 #ifdef HAVE_OPENSSL
+
+  /*
+     If client uses ssl and client also has to verify the server
+     certificate, a ssl connection is required.
+     If the server does not support ssl, we abort the connection.
+  */
+  if (mysql->options.use_ssl &&
+      (mysql->client_flag & CLIENT_SSL_VERIFY_SERVER_CERT) &&
+      !(mysql->server_capabilities & CLIENT_SSL))
+  {
+    set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
+                             ER(CR_SSL_CONNECTION_ERROR),
+                             "SSL is required, but the server does not "
+                             "support it");
+    goto error;
+  }
+
   if (mysql->client_flag & CLIENT_SSL)
   {
     /* Do the SSL layering. */
