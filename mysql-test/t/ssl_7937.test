@@ -1,17 +1,35 @@
-source include/have_ssl_communication.inc;
+#
+# MDEV-7937: Enforce SSL when --ssl client option is used
+#
 
-let $mysql_ssl_cert=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
-let $mysql_ssl_no_cert=$MYSQL --ssl -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
-let $mysql_ssl_no_cert_ver=$MYSQL --ssl --ssl-verify-server-cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
-let $mysql_ssl_cert_ver=$MYSQL --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --ssl-verify-server-cert -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1;
+source include/have_ssl_crypto_functs.inc;
 
---exec $mysql_ssl_cert;
---echo #
---exec $mysql_ssl_no_cert;
---echo #
---error 1
---exec $mysql_ssl_no_cert_ver;
---echo #
---error 1
---exec $mysql_ssl_cert_ver;
+# create a procedure instead of SHOW STATUS LIKE 'ssl_cipher'
+# because the cipher depends on openssl (or yassl) version,
+# and it's actual value doesn't matter here anyway
+create procedure have_ssl()
+  select if(variable_value > '','yes','no') as 'have_ssl'
+  from information_schema.session_status
+  where variable_name='ssl_cipher';
 
+--disable_abort_on_error
+--echo mysql --ssl-ca=cacert.pem -e "call test.have_ssl()"
+--exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem -e "call test.have_ssl()" 2>&1
+--echo mysql --ssl -e "call test.have_ssl()"
+--exec $MYSQL --ssl -e "call test.have_ssl()" 2>&1
+--echo mysql --ssl-ca=cacert.pem --ssl-verify-server-cert -e "call test.have_ssl()"
+--exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem --ssl-verify-server-cert -e "call test.have_ssl()" 2>&1
+
+--echo mysql --ssl --ssl-verify-server-cert -e "call test.have_ssl()"
+# this is the test where certificate verification fails.
+# but yassl doesn't support certificate verification, so
+# we fake the test result for yassl
+let yassl=`select variable_value='Unknown' from information_schema.session_status where variable_name='Ssl_session_cache_mode'`;
+if (!$yassl) {
+  --exec $MYSQL --ssl --ssl-verify-server-cert -e "call test.have_ssl()" 2>&1
+}
+if ($yassl) {
+  --echo ERROR 2026 (HY000): SSL connection error: Failed to verify the server certificate
+}
+
+drop procedure have_ssl;

@@ -4,13 +4,12 @@ select if(variable_value > '','yes','no') as 'have_ssl'
 where variable_name='ssl_cipher';
 mysql --ssl-ca=cacert.pem -e "call test.have_ssl()"
 have_ssl
-yes
+no
 mysql --ssl -e "call test.have_ssl()"
 have_ssl
-yes
+no
 mysql --ssl-ca=cacert.pem --ssl-verify-server-cert -e "call test.have_ssl()"
-have_ssl
-yes
+ERROR 2026 (HY000): SSL connection error: SSL is required, but the server does not support it
 mysql --ssl --ssl-verify-server-cert -e "call test.have_ssl()"
-ERROR 2026 (HY000): SSL connection error: Failed to verify the server certificate
+ERROR 2026 (HY000): SSL connection error: SSL is required, but the server does not support it
 drop procedure have_ssl;
