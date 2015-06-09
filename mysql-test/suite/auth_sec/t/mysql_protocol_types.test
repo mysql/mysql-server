@@ -46,29 +46,21 @@ SELECT connection_type FROM performance_schema.threads WHERE processlist_command
 connection default;
 disconnect socket_con1;
 
---echo
 connect(socket_con2,localhost,root,,,$MASTER_MYPORT);
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect socket_con2;
 
---echo
 connect(socket_con3,localhost,root,,,,$MASTER_MYSOCK);
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect socket_con3;
 
---echo
-connect(socket_con4,localhost,root,,,$MASTER_MYPORT,$MASTER_MYSOCK);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
 
-connection default;
-disconnect socket_con4;
-
---echo
---echo # MYSQLADMIN test
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
 --exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl ping
 --exec $MYSQLADMIN --host=localhost -S $MASTER_MYSOCK -uroot --ssl --protocol=SOCKET ping
@@ -81,6 +73,9 @@ disconnect socket_con4;
 # Skipping SSL
 --exec $MYSQL --host=localhost --user=root --socket=$MASTER_MYSOCK --skip-ssl --protocol=SOCKET -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
 --echo
 --echo # Connection type testing for TCP/IP  protocol.
 
@@ -91,28 +86,21 @@ SELECT connection_type FROM performance_schema.threads WHERE processlist_command
 connection default;
 disconnect tcp_con1;
 
---echo
 connect(tcp_con2,127.0.0.1,user_tcp,,,,$MASTER_MYSOCK);
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect tcp_con2;
 
---echo
-connect(tcp_con3,127.0.0.1,user_tcp,,,$MASTER_MYPORT);
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-
-connection default;
-disconnect tcp_con3;
-
---echo
 connect(tcp_con4,127.0.0.1,user_tcp,,,$MASTER_MYPORT,$MASTER_MYSOCK);
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 
 connection default;
 disconnect tcp_con4;
 
---echo
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
 --echo # MYSQLADMIN test
 # For SSL enabled server mysql and mysqladmin should connect using CONNECTION_TYPE: SSL/TLS.
 --exec $MYSQLADMIN --host=127.0.0.1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser_tcp --protocol=TCP ping
@@ -154,6 +142,9 @@ SELECT connection_type FROM performance_schema.threads WHERE processlist_command
 
 connection default;
 disconnect ssl_con4;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
 
 --echo
 --echo # MYSQLADMIN test

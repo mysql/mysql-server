@@ -17,20 +17,12 @@ GRANT ALL PRIVILEGES ON *.* TO 'user_ssl'@'127.0.0.1';
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Socket
-
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Socket
-
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 Socket
-
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-Socket
-
-# MYSQLADMIN test
 mysqld is alive
 mysqld is alive
 
@@ -45,19 +37,12 @@ Socket
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 TCP/IP
-
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 TCP/IP
-
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 TCP/IP
-
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-TCP/IP
-
 # MYSQLADMIN test
 mysqld is alive
 mysqld is alive
@@ -102,13 +87,11 @@ argument
 root@localhost on test using Socket
 root@localhost on test using Socket
 root@localhost on test using Socket
-root@localhost on test using Socket
 root@localhost on  using SSL/TLS
 root@localhost on  using SSL/TLS
 root@localhost on  using Socket
 root@localhost on  using SSL/TLS
 root@localhost on  using Socket
-user_tcp@localhost on test using TCP/IP
 user_tcp@localhost on test using TCP/IP
 user_tcp@localhost on test using TCP/IP
 user_tcp@localhost on test using TCP/IP
