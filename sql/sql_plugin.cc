@@ -271,13 +271,15 @@ public:
   { TRASH(ptr_arg, size); }
 
   sys_var_pluginvar(sys_var_chain *chain, const char *name_arg,
-                    struct st_mysql_sys_var *plugin_var_arg)
+                    struct st_mysql_sys_var *plugin_var_arg,
+                    struct st_plugin_int *plugin_arg)
     :sys_var(chain, name_arg, plugin_var_arg->comment,
              (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
              (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
              0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
              VARIABLE_NOT_IN_BINLOG, NULL, NULL, NULL),
-    plugin_var(plugin_var_arg), orig_pluginvar_name(plugin_var_arg->name)
+    plugin(plugin_arg), plugin_var(plugin_var_arg),
+    orig_pluginvar_name(plugin_var_arg->name)
   { plugin_var->name= name_arg; }
   sys_var_pluginvar *cast_pluginvar() { return this; }
   bool check_update_type(Item_result type);
@@ -1405,22 +1407,6 @@ static int plugin_initialize(MEM_ROOT *tmp_root, struct st_plugin_int *plugin,
     if (add_status_vars(plugin->plugin->status_vars))
       goto err;
 #endif /* FIX_LATER */
-  }
-
-  /*
-    set the plugin attribute of plugin's sys vars so they are pointing
-    to the active plugin
-  */
-  if (plugin->system_vars)
-  {
-    sys_var_pluginvar *var= plugin->system_vars->cast_pluginvar();
-    for (;;)
-    {
-      var->plugin= plugin;
-      if (!var->next)
-        break;
-      var= var->next->cast_pluginvar();
-    }
   }
 
   ret= 0;
@@ -3925,7 +3911,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     if (o->flags & PLUGIN_VAR_NOSYSVAR)
       continue;
     if ((var= find_bookmark(plugin_name.str, o->name, o->flags)))
-      v= new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
+      v= new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o, tmp);
     else
     {
       len= plugin_name.length + strlen(o->name) + 2;
@@ -3933,7 +3919,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       strxmov(varname, plugin_name.str, "-", o->name, NullS);
       my_casedn_str(&my_charset_latin1, varname);
       convert_dash_to_underscore(varname, len-1);
-      v= new (mem_root) sys_var_pluginvar(&chain, varname, o);
+      v= new (mem_root) sys_var_pluginvar(&chain, varname, o, tmp);
     }
     DBUG_ASSERT(v); /* check that an object was actually constructed */
   } /* end for */
