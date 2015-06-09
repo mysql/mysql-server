@@ -42,14 +42,16 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
 ENDIF(UNIX)
 
-MYSQL_ADD_EXECUTABLE(mysql_upgrade
-  upgrade/program.cc
-  upgrade/mysql_query_runner.cc
-  upgrade/show_variable_query_extractor.cc
-  ../sql-common/sql_string.cc
+IF(NOT WITHOUT_SERVER)
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade
+    upgrade/program.cc
+    upgrade/mysql_query_runner.cc
+    upgrade/show_variable_query_extractor.cc
+    ../sql-common/sql_string.cc
   )
-TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
+  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema)
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc COMPONENT Test)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
@@ -93,7 +95,7 @@ TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
-IF(UNIX)
+IF(UNIX AND NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_install_db
     mysql_install_db.cc auth_utils.cc path.cc logger.cc)
   TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
@@ -102,7 +104,7 @@ IF(UNIX)
     COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql/auth"
     )
   ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv GenSysSchema)
-ENDIF(UNIX)
+ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
 TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
@@ -115,7 +117,6 @@ ENDIF(WIN32)
 
 SET_TARGET_PROPERTIES (
   mysql_plugin
-  mysql_upgrade
   mysqlcheck
   mysqldump
   mysqlimport
