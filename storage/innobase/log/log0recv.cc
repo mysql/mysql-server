@@ -2327,7 +2327,7 @@ recv_apply_log_recs_for_backup(void)
 				error = fil_io(
 					IORequestRead, true,
 					page_id,
-					page_size, 0, page_size.bytes(),
+					page_size, 0, page_size.physical(),
 					block->page.zip.data, NULL);
 
 				if (error == DB_SUCCESS
@@ -2339,7 +2339,7 @@ recv_apply_log_recs_for_backup(void)
 				error = fil_io(
 					IORequestRead, true,
 					page_id, page_size, 0,
-					page_size.bytes(),
+					page_size.logical(),
 					block->frame, NULL);
 			}
 
@@ -2365,12 +2365,12 @@ recv_apply_log_recs_for_backup(void)
 
 				error = fil_io(
 					IORequestWrite, true, page_id,
-					0, page_size.bytes(),
+					0, page_size.physical(),
 					block->page.zip.data, NULL);
 			} else {
 				error = fil_io(
 					IORequestWrite, true,
-					page_id, 0, page_size.bytes(),
+					page_id, 0, page_size.logical(),
 					block->frame, NULL);
 			}
 skip_this_recv_addr:
