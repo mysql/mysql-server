@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -221,7 +221,9 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
 static void init_sym_table()
 {
   char buf[512];
-  if (my_init_dynamic_array(&sym_table, sizeof(SYM_ENTRY),
+  if (my_init_dynamic_array(&sym_table,
+                            PSI_NOT_INSTRUMENTED,
+                            sizeof(SYM_ENTRY),
                             NULL,
                             INIT_SYM_TABLE,
 			    INC_SYM_TABLE))

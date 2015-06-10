@@ -561,7 +561,8 @@ bool table_def_init(void)
 
   return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
                       0, 0, table_def_key,
-                      (my_hash_free_key) table_def_free_entry, 0) != 0;
+                      (my_hash_free_key) table_def_free_entry, 0,
+                      key_memory_table_share) != 0;
 }
 
 
@@ -5187,7 +5188,7 @@ lock_table_names(THD *thd,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
   MDL_request global_request;
-  Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
+  Hash_set<TABLE_LIST, schema_set_get_key> schema_set(PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection= false;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -5282,7 +5283,7 @@ lock_table_names(THD *thd,
     // The first step is to loop over the tables, make sure we have
     // locked the names, and then peek into the .FRM files to get hold of
     // the tablespace names.
-    Hash_set<char, tablespace_set_get_key> tablespace_set;
+    Hash_set<char, tablespace_set_get_key> tablespace_set(PSI_INSTRUMENT_ME);
     for (table= tables_start; table && table != tables_end;
          table= table->next_global)
     {

@@ -106,7 +106,9 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
-  if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+  if (my_init_dynamic_array(dir_entries_storage,
+                            key_memory_MY_DIR,
+                            sizeof(FILEINFO),
                             NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {
@@ -250,7 +252,9 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   names_storage= (MEM_ROOT*)(buffer + ALIGN_SIZE(sizeof(MY_DIR)) +
                              ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)));
   
-  if (my_init_dynamic_array(dir_entries_storage, sizeof(FILEINFO),
+  if (my_init_dynamic_array(dir_entries_storage,
+                            key_memory_MY_DIR,
+                            sizeof(FILEINFO),
                             NULL,               /* init_buffer */
                             ENTRIES_START_SIZE, ENTRIES_INCREMENT))
   {

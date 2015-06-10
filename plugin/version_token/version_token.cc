@@ -483,16 +483,17 @@ static struct st_mysql_audit version_token_descriptor=
 /** Plugin init. */
 static int version_tokens_init(void *arg __attribute__((unused)))
 {
+#ifdef HAVE_PSI_INTERFACE
+  // Initialize psi keys.
+  vtoken_init_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+
   // Initialize hash.
   my_hash_init(&version_tokens_hash,
 	       &my_charset_bin,
                4, 0, 0, (my_hash_get_key) version_token_get_key,
-               my_free, HASH_UNIQUE);
-
-#ifdef HAVE_PSI_INTERFACE
-  // Intialize psi keys.
-  vtoken_init_psi_keys();
-#endif /* HAVE_PSI_INTERFACE */
+               my_free, HASH_UNIQUE,
+               key_memory_vtoken);
 
   // Lock for hash.
   mysql_rwlock_init(key_LOCK_vtoken_hash, &LOCK_vtoken_hash);

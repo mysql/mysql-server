@@ -8990,7 +8990,8 @@ int main(int argc, char **argv)
   q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
 
   if (my_hash_init(&var_hash, charset_info,
-                   1024, 0, 0, get_var_key, var_free, MYF(0)))
+                   1024, 0, 0, get_var_key, var_free, MYF(0),
+                   PSI_NOT_INSTRUMENTED))
     die("Variable hash initialization failed");
 
   {

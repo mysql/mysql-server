@@ -142,7 +142,8 @@ bool hostname_cache_init(uint size)
   Host_entry tmp;
   uint key_offset= (uint) ((char*) (&tmp.ip_key) - (char*) &tmp);
 
-  if (!(hostname_cache= new hash_filo(size,
+  if (!(hostname_cache= new hash_filo(key_memory_host_cache_hostname,
+                                      size,
                                       key_offset, HOST_ENTRY_KEY_SIZE,
                                       NULL, (my_hash_free_key) free,
                                       &my_charset_bin)))

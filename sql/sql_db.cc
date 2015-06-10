@@ -167,7 +167,8 @@ bool my_dboptions_cache_init(void)
     error= my_hash_init(&dboptions, lower_case_table_names ?
                         system_charset_info : &my_charset_bin,
                         32, 0, 0, (my_hash_get_key) dboptions_get_key,
-                        free_dbopt,0);
+                        free_dbopt, 0,
+                        key_memory_dboptions_hash);
   }
   return error;
 }
@@ -204,7 +205,8 @@ void my_dbopt_cleanup(void)
   my_hash_init(&dboptions, lower_case_table_names ? 
                system_charset_info : &my_charset_bin,
                32, 0, 0, (my_hash_get_key) dboptions_get_key,
-               free_dbopt,0);
+               free_dbopt, 0,
+               key_memory_dboptions_hash);
   mysql_rwlock_unlock(&LOCK_dboptions);
 }
 

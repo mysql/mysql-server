@@ -99,7 +99,8 @@ void init_slave_list()
 
   my_hash_init(&slave_list, system_charset_info, SLAVE_LIST_CHUNK, 0, 0,
                (my_hash_get_key) slave_list_key,
-               (my_hash_free_key) slave_info_free, 0);
+               (my_hash_free_key) slave_info_free, 0,
+               key_memory_SLAVE_INFO);
   mysql_mutex_init(key_LOCK_slave_list, &LOCK_slave_list, MY_MUTEX_INIT_FAST);
 }
 

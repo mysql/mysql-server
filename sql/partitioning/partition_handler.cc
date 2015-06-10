@@ -207,7 +207,8 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
   if (my_hash_init(&partition_name_hash,
                    system_charset_info, tot_names, 0, 0,
                    (my_hash_get_key) get_part_name_from_def,
-                   my_free, HASH_UNIQUE))
+                   my_free, HASH_UNIQUE,
+                   key_memory_Partition_share))
   {
     my_free(partition_names);
     partition_names= NULL;
