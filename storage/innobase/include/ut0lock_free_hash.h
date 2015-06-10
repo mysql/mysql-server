@@ -32,7 +32,6 @@ Created Mar 16, 2015 Vasil Dimov
 
 #include <boost/atomic.hpp>
 
-#include "os0atomic.h" /* os_atomic_t */
 #include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
 #include "ut0rnd.h" /* ut_fold_ull() */
 
