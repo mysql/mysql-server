@@ -13,13 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-/*
-  Common tests for client/sql_string and sql/sql_string.
-  TODO: Why do we have two versions of String?
- */
 
-
+// With PFS: get it from pfs_server_stubs.cc
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 extern "C" CHARSET_INFO *system_charset_info;
+#else
+CHARSET_INFO *system_charset_info= NULL;
+#endif
 
 TEST(StringTest, EmptyString)
 {

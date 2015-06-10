@@ -93,10 +93,12 @@ ELSE()
   )
 ENDIF()
 
-ADD_CUSTOM_TARGET(GenSysSchema
-  ALL
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
-)
+IF(NOT WITHOUT_SERVER)
+  ADD_CUSTOM_TARGET(GenSysSchema
+    ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_sys_schema.h
+  )
+ENDIF()
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
@@ -132,12 +134,14 @@ ADD_CUSTOM_COMMAND(
 )
 
 # Add target for the above to be built
-ADD_CUSTOM_TARGET(GenBootstrapPriv
-  ALL
-  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
-)
+IF(NOT WITHOUT_SERVER)
+  ADD_CUSTOM_TARGET(GenBootstrapPriv
+    ALL
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
+  )
+ENDIF()
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
@@ -147,18 +151,19 @@ IF(UNIX)
 )
 ENDIF()
 
-INSTALL(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix_for_downgrade.sql
-  ${FIX_PRIVILEGES_SQL}
-  DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
-)
-
+IF(NOT WITHOUT_SERVER)
+  INSTALL(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix_for_downgrade.sql
+    ${FIX_PRIVILEGES_SQL}
+    DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
+  )
+ENDIF()
 
 # TCMalloc hacks
 IF(MALLOC_LIB)

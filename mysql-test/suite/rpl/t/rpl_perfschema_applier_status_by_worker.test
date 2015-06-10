@@ -280,6 +280,16 @@ source include/stop_slave.inc;
 replace_result $MASTER_UUID MASTER_UUID;
 query_vertical select Last_Seen_Transaction from performance_schema.replication_applier_status_by_worker;
 
+--echo #
+--echo # BUG#20513547 REPLICATION_APPLIER_STATUS_BY_WORKER SHOWS
+--echo #              WRONG WORKER_ID WHEN SLAVE STOPS
+--echo #
+SET @@GLOBAL.slave_parallel_workers = 3;
+--source include/start_slave.inc
+SELECT worker_id from performance_schema.replication_applier_status_by_worker;
+--source include/stop_slave.inc
+SELECT worker_id from performance_schema.replication_applier_status_by_worker;
+
 --echo
 --echo # Cleanup.
 --echo
