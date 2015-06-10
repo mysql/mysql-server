@@ -87,6 +87,7 @@ PSI_memory_key key_memory_XID;
 PSI_memory_key key_memory_XID_STATE;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
+PSI_memory_key key_memory_acl_cache;
 PSI_memory_key key_memory_binlog_cache_mngr;
 PSI_memory_key key_memory_binlog_pos;
 PSI_memory_key key_memory_binlog_recover_exec;
@@ -100,6 +101,7 @@ PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_fill_schema_schemata;
+PSI_memory_key key_memory_native_functions;
 PSI_memory_key key_memory_frm;
 PSI_memory_key key_memory_frm_extra_segment_buff;
 PSI_memory_key key_memory_frm_form_pos;
@@ -120,6 +122,7 @@ PSI_memory_key key_memory_my_str_malloc;
 PSI_memory_key key_memory_new_frm_mem;
 PSI_memory_key key_memory_opt_bin_logname;
 PSI_memory_key key_memory_partition_syntax_buffer;
+PSI_memory_key key_memory_prepared_statement_map;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
 PSI_memory_key key_memory_protocol_rset_root;
 PSI_memory_key key_memory_prune_partitions_exec;
@@ -151,6 +154,7 @@ PSI_memory_key key_memory_user_conn;
 PSI_memory_key key_memory_user_var_entry;
 PSI_memory_key key_memory_user_var_entry_value;
 PSI_memory_key key_memory_warning_info_warn_root;
+PSI_memory_key key_memory_sp_cache;
 PSI_memory_key key_memory_write_set_extraction;
 
 }
@@ -166,6 +170,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},
   { &key_memory_acl_memex, "sql_acl_memex", PSI_FLAG_GLOBAL},
+  { &key_memory_acl_cache, "acl_cache", PSI_FLAG_GLOBAL},
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},
@@ -173,9 +178,11 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_gdl, "gdl", 0},
   { &key_memory_table_triggers_list, "Table_triggers_list", 0},
   { &key_memory_servers, "servers", 0},
+  { &key_memory_prepared_statement_map, "Prepared_statement_map", PSI_FLAG_THREAD},
   { &key_memory_prepared_statement_main_mem_root, "Prepared_statement::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_protocol_rset_root, "Protocol_local::m_rset_root", PSI_FLAG_THREAD},
   { &key_memory_warning_info_warn_root, "Warning_info::m_warn_root", PSI_FLAG_THREAD},
+  { &key_memory_sp_cache, "THD::sp_cache", 0},
   { &key_memory_sp_head_main_root, "sp_head::main_mem_root", 0},
   { &key_memory_sp_head_execute_root, "sp_head::execute_mem_root", PSI_FLAG_THREAD},
   { &key_memory_sp_head_call_root, "sp_head::call_mem_root", PSI_FLAG_THREAD},
@@ -295,7 +302,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
   { &key_memory_write_set_extraction, "write_set_extraction", 0},
   { &key_memory_get_all_tables, "get_all_tables", 0},
-  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0}
+  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
+  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL}
 };
 
 void register_server_memory_keys()

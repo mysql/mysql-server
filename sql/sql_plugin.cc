@@ -69,6 +69,7 @@ static PSI_memory_key key_memory_plugin_init_tmp;
 static PSI_memory_key key_memory_plugin_int_mem_root;
 static PSI_memory_key key_memory_mysql_plugin;
 static PSI_memory_key key_memory_mysql_plugin_dl;
+static PSI_memory_key key_memory_plugin_bookmark;
 
 extern st_mysql_plugin *mysql_optional_plugins[];
 extern st_mysql_plugin *mysql_mandatory_plugins[];
@@ -1312,7 +1313,8 @@ static PSI_memory_info all_plugin_memory[]=
   { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0},
   { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0},
   { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0},
-  { &key_memory_mysql_plugin, "mysql_plugin", 0}
+  { &key_memory_mysql_plugin, "mysql_plugin", 0},
+  { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_GLOBAL}
 };
 
 static void init_plugin_psi_keys(void)
@@ -1358,11 +1360,13 @@ int plugin_init(int *argc, char **argv, int flags)
   init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
 
   if (my_hash_init(&bookmark_hash, &my_charset_bin, 16, 0, 0,
-                   get_bookmark_hash_key, NULL, HASH_UNIQUE))
+                   get_bookmark_hash_key, NULL, HASH_UNIQUE,
+                   key_memory_plugin_bookmark))
       goto err;
 
   if (my_hash_init(&malloced_string_type_sysvars_bookmark_hash, &my_charset_bin,
-                   16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE))
+                   16, 0, 0, get_bookmark_hash_key, NULL, HASH_UNIQUE,
+                   key_memory_plugin_bookmark))
       goto err;
 
   mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
@@ -1378,7 +1382,8 @@ int plugin_init(int *argc, char **argv, int flags)
   for (i= 0; i < MYSQL_MAX_PLUGIN_TYPE_NUM; i++)
   {
     if (my_hash_init(&plugin_hash[i], system_charset_info, 16, 0, 0,
-                     get_plugin_hash_key, NULL, HASH_UNIQUE))
+                     get_plugin_hash_key, NULL, HASH_UNIQUE,
+                     key_memory_plugin_mem_root))
       goto err;
   }
 

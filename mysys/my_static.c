@@ -21,7 +21,6 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 
-PSI_memory_key key_memory_array_buffer;
 PSI_memory_key key_memory_charset_file;
 PSI_memory_key key_memory_charset_loader;
 PSI_memory_key key_memory_lf_node;

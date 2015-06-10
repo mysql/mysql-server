@@ -1923,7 +1923,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 {
   my_hash_init_opt(&prelocking_ctx->sroutines, system_charset_info,
                    Query_tables_list::START_SROUTINES_HASH_SIZE,
-                   0, 0, sp_sroutine_key, 0, 0);
+                   0, 0, sp_sroutine_key, 0, 0,
+                   PSI_INSTRUMENT_ME);
 
   if (!my_hash_search(&prelocking_ctx->sroutines, key->ptr(), key->length()))
   {

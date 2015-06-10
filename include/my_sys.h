@@ -295,6 +295,7 @@ typedef struct st_dynamic_array
   uint elements,max_element;
   uint alloc_increment;
   uint size_of_element;
+  PSI_memory_key m_psi_key;
 } DYNAMIC_ARRAY;
 
 typedef struct st_my_tmpdir
@@ -727,8 +728,11 @@ File create_temp_file(char *to, const char *dir, const char *pfx,
 
 #else
 
-extern my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                                     void *init_buffer, uint init_alloc,
+extern my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                                     PSI_memory_key key,
+                                     uint element_size,
+                                     void *init_buffer,
+                                     uint init_alloc,
                                      uint alloc_increment);
 /* init_dynamic_array() function is deprecated */
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,

@@ -570,7 +570,8 @@ THD::THD(bool enable_plugins)
   m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
-               (my_hash_free_key) free_user_var, 0);
+               (my_hash_free_key) free_user_var, 0,
+               key_memory_user_var_entry);
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -993,7 +994,8 @@ void THD::cleanup_connection(void)
   stmt_map.reset();
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
-               (my_hash_free_key) free_user_var, 0);
+               (my_hash_free_key) free_user_var, 0,
+               key_memory_user_var_entry);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -2034,10 +2036,12 @@ Prepared_statement_map::Prepared_statement_map()
   };
   my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
                get_statement_id_as_hash_key,
-               delete_statement_as_hash_key, MYF(0));
+               delete_statement_as_hash_key, MYF(0),
+               key_memory_prepared_statement_map);
   my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_stmt_name_hash_key,
-               NULL,MYF(0));
+               NULL, MYF(0),
+               key_memory_prepared_statement_map);
 }
 
 

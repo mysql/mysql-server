@@ -978,7 +978,8 @@ bool Hash_slave_rows::init(void)
                    0,                              /* key length */
                    hash_slave_rows_get_key,                        /* get function pointer */
                    (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
-                   MYF(0)))                        /* flags */
+                   MYF(0),                         /* flags */
+                   key_memory_HASH_ROW_ENTRY))     /* memory instrumentation key */
     return true;
   return false;
 }

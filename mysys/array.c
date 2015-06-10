@@ -42,8 +42,11 @@
     FALSE	Ok
 */
 
-my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
-                              void *init_buffer, uint init_alloc, 
+my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
+                              PSI_memory_key psi_key,
+                              uint element_size,
+                              void *init_buffer,
+                              uint init_alloc,
                               uint alloc_increment)
 {
   DBUG_ENTER("init_dynamic_array");
@@ -63,13 +66,14 @@ my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
   array->max_element=init_alloc;
   array->alloc_increment=alloc_increment;
   array->size_of_element=element_size;
+  array->m_psi_key= psi_key;
   if ((array->buffer= init_buffer))
     DBUG_RETURN(FALSE);
   /* 
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
   */
-  if (!(array->buffer= (uchar*) my_malloc(key_memory_array_buffer,
+  if (!(array->buffer= (uchar*) my_malloc(psi_key,
                                           element_size*init_alloc, MYF(0))))
     array->max_element=0;
   DBUG_RETURN(FALSE);
@@ -79,7 +83,9 @@ my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
                            uint init_alloc, uint alloc_increment)
 {
   /* placeholder to preserve ABI */
-  return my_init_dynamic_array(array, element_size,
+  return my_init_dynamic_array(array,
+                               PSI_INSTRUMENT_ME,
+                               element_size,
                                NULL,              /* init_buffer */
                                init_alloc, 
                                alloc_increment);
@@ -143,7 +149,7 @@ void *alloc_dynamic(DYNAMIC_ARRAY *array)
         In this senerio, the buffer is statically preallocated,
         so we have to create an all-new malloc since we overflowed
       */
-      if (!(new_ptr= (char *) my_malloc(key_memory_array_buffer,
+      if (!(new_ptr= (char *) my_malloc(array->m_psi_key,
                                         (array->max_element+
                                          array->alloc_increment) *
                                         array->size_of_element,
@@ -153,7 +159,7 @@ void *alloc_dynamic(DYNAMIC_ARRAY *array)
              array->elements * array->size_of_element);
     }
     else
-    if (!(new_ptr=(char*) my_realloc(key_memory_array_buffer,
+    if (!(new_ptr=(char*) my_realloc(array->m_psi_key,
                                      array->buffer,(array->max_element+
                                      array->alloc_increment)*
                                      array->size_of_element,
@@ -267,7 +273,7 @@ void freeze_size(DYNAMIC_ARRAY *array)
     
   if (array->buffer && array->max_element != elements)
   {
-    array->buffer=(uchar*) my_realloc(key_memory_array_buffer,
+    array->buffer=(uchar*) my_realloc(array->m_psi_key,
                                       array->buffer,
                                      elements*array->size_of_element,
                                      MYF(MY_WME));

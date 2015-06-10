@@ -593,7 +593,8 @@ ignore_db_dirs_process_additions()
                      character_set_filesystem : &my_charset_bin,
                    0, 0, 0, db_dirs_hash_get_key,
                    my_free,
-                   HASH_UNIQUE))
+                   HASH_UNIQUE,
+                   key_memory_ignored_db))
     return true;
 
   /* len starts from 1 because of the terminating zero. */

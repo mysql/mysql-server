@@ -35,6 +35,7 @@
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "sql_class.h"           // THD
 #include "sql_time.h"            // str_to_datetime
+#include "psi_memory_key.h"
 
 /*
 =============================================================================
@@ -5988,7 +5989,8 @@ int item_create_init()
                    0,
                    (my_hash_get_key) get_native_fct_hash_key,
                    NULL,                          /* Nothing to free */
-                   MYF(0)))
+                   MYF(0),
+                   key_memory_native_functions))
     DBUG_RETURN(1);
 
   for (func= func_array; func->builder != NULL; func++)

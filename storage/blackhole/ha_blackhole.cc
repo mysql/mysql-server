@@ -434,7 +434,8 @@ static int blackhole_init(void *p)
                    &blackhole_mutex, MY_MUTEX_INIT_FAST);
   (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
                       (my_hash_get_key) blackhole_get_key,
-                      (my_hash_free_key) blackhole_free_key, 0);
+                      (my_hash_free_key) blackhole_free_key, 0,
+                      bh_key_memory_blackhole_share);
 
   return 0;
 }

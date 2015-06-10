@@ -665,7 +665,8 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
   :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0);
+                   0,0,0, (my_hash_get_key) get_key_column,0,0,
+                   key_memory_acl_memex);
 }
 
 
@@ -715,7 +716,8 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   cols =  fix_rights_for_column(cols);
 
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
-                   0,0,0, (my_hash_get_key) get_key_column,0,0);
+                   0,0,0, (my_hash_get_key) get_key_column,0,0,
+                   key_memory_acl_memex);
   if (cols)
   {
     uint key_prefix_len;
@@ -1014,7 +1016,9 @@ ulong acl_get(const char *host, const char *ip,
 exit:
   /* Save entry in cache for quick retrieval */
   if (!db_is_pattern &&
-      (entry= (acl_entry*) malloc(sizeof(acl_entry)+key_length)))
+      (entry= (acl_entry*) my_malloc(key_memory_acl_cache,
+                                     sizeof(acl_entry)+key_length,
+                                     MYF(0))))
   {
     entry->access=(db_access & host_access);
     entry->length=key_length;
@@ -1061,7 +1065,8 @@ static void init_check_host(void)
 
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
                       acl_users->size(), 0, 0,
-                      (my_hash_get_key) check_get_key, 0, 0);
+                      (my_hash_get_key) check_get_key, 0, 0,
+                      key_memory_acl_mem);
   if (!allow_all_hosts)
   {
     for (ACL_USER *acl_user= acl_users->begin();
@@ -1351,9 +1356,10 @@ my_bool acl_init(bool dont_read_acl_tables)
   my_bool return_val;
   DBUG_ENTER("acl_init");
 
-  acl_cache= new hash_filo(ACL_CACHE_SIZE, 0, 0,
+  acl_cache= new hash_filo(key_memory_acl_cache,
+                           ACL_CACHE_SIZE, 0, 0,
                            (my_hash_get_key) acl_entry_get_key,
-                           (my_hash_free_key) free,
+                           (my_hash_free_key) my_free,
                            &my_charset_utf8_bin);
 
   LOCK_grant.init(LOCK_GRANT_PARTITIONS
@@ -2193,10 +2199,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      0,0);
+                      0, 0, key_memory_acl_memex);
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      0,0);
+                      0, 0, key_memory_acl_memex);
   if (p_table->file->ha_index_init(0, 1))
     DBUG_RETURN(TRUE);
   p_table->use_all_columns();
@@ -2294,7 +2300,8 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   (void) my_hash_init(&column_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
-                      (my_hash_free_key) free_grant_table,0);
+                      (my_hash_free_key) free_grant_table,0,
+                      key_memory_acl_memex);
 
   t_table = tables[0].table;
   c_table = tables[1].table;

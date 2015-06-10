@@ -5129,7 +5129,8 @@ longlong Item_func_get_lock::val_int()
   /* HASH entries are of type User_level_lock. */
   if (! my_hash_inited(&thd->ull_hash) &&
       my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0))
+                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0,
+                   key_memory_User_level_lock))
   {
     DBUG_RETURN(0);
   }

@@ -715,7 +715,8 @@ bool init_hash_workers(Relay_log_info *rli)
   rli->inited_hash_workers=
     (my_hash_init(&rli->mapping_db_to_worker, &my_charset_bin,
                  0, 0, 0, get_key,
-                 (my_hash_free_key) free_entry, 0) == 0);
+                 (my_hash_free_key) free_entry, 0,
+                 key_memory_db_worker_hash_entry) == 0);
   if (rli->inited_hash_workers)
   {
     mysql_mutex_init(key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
