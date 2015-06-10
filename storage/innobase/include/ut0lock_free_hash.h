@@ -457,12 +457,7 @@ private:
 		uint64_t	key) const
 	{
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-		/* The atomic operation gives correct results, but has
-		a _huge_ performance impact. */
-		os_atomic_increment_ulint(&m_n_search, 1);
-		/* The unprotected operation gives a significant skew, but
-		has almost no performance impact. */
-		//++m_n_search;
+		++m_n_search;
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
 		const size_t	start = guess_position(key, arr_size);
@@ -471,8 +466,7 @@ private:
 		for (size_t i = start; i < end; i++) {
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-			os_atomic_increment_ulint(&m_n_search_iterations, 1);
-			//++m_n_search_iterations;
+			++m_n_search_iterations;
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
 			/* arr_size is a power of 2. */
@@ -543,8 +537,7 @@ private:
 		uint64_t	key)
 	{
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-		os_atomic_increment_ulint(&m_n_search, 1);
-		//++m_n_search;
+		++m_n_search;
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
 		const size_t	start = guess_position(key, arr_size);
@@ -553,8 +546,7 @@ private:
 		for (size_t i = start; i < end; i++) {
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-			os_atomic_increment_ulint(&m_n_search_iterations, 1);
-			//++m_n_search_iterations;
+			++m_n_search_iterations;
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
 			/* arr_size is a power of 2. */
@@ -641,11 +633,23 @@ private:
 	ut_lock_free_list_node_t<key_val_t>*	m_data;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	/* The atomic type gives correct results, but has a _huge_
+	performance impact. The unprotected operation gives a significant
+	skew, but has almost no performance impact. */
+
 	/** Number of searches performed in this hash. */
-	mutable ulint				m_n_search;
+#if 0
+	mutable uint64_t			m_n_search;
+#else
+	mutable boost::atomic_uint64_t		m_n_search;
+#endif
 
 	/** Number of elements processed for all searches. */
-	mutable ulint				m_n_search_iterations;
+#if 0
+	mutable uint64_t			m_n_search_iterations;
+#else
+	mutable boost::atomic_uint64_t		m_n_search_iterations;
+#endif
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 };
 
