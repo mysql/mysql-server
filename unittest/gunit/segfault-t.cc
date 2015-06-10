@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,7 +199,8 @@ TEST(PrintUtilities, Printf)
 TEST(HashFiloTest, TestHashFiloZeroSize)
 {
   hash_filo *t_cache;
-  t_cache= new hash_filo(5, 0, 0,
+  t_cache= new hash_filo(PSI_NOT_INSTRUMENTED,
+                         5, 0, 0,
                          (my_hash_get_key) NULL,
                          (my_hash_free_key) NULL,
                          NULL);
