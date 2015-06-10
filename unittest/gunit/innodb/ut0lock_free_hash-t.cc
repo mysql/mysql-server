@@ -346,7 +346,7 @@ os_thread_ret_t
 DECLARE_THREAD(thread)(
 	void*	arg)
 {
-	const uintptr_t	thread_id = reinterpret_cast<uintptr_t>(arg);
+	const uint64_t	thread_id = reinterpret_cast<uint64_t>(arg);
 	const uint64_t	key_extra_bits = thread_id << 32;
 
 	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
