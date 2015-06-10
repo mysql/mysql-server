@@ -40,9 +40,6 @@ TCP/IP
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
 TCP/IP
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-TCP/IP
 # MYSQLADMIN test
 mysqld is alive
 mysqld is alive
@@ -52,9 +49,6 @@ CONNECTION_TYPE
 TCP/IP
 
 # Testing TCP/IP connections over SSL/TLS.
-SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
-connection_type
-SSL/TLS
 
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 connection_type
@@ -94,17 +88,15 @@ root@localhost on  using SSL/TLS
 root@localhost on  using Socket
 user_tcp@localhost on test using TCP/IP
 user_tcp@localhost on test using TCP/IP
-user_tcp@localhost on test using TCP/IP
 user_tcp@localhost on  using SSL/TLS
 user_tcp@localhost on  using TCP/IP
 root@localhost on  using SSL/TLS
 user_tcp@localhost on  using TCP/IP
-root@localhost on test using SSL/TLS
 user_ssl@localhost on test using SSL/TLS
-user_ssl@localhost on test using SSL/TLS
+user_tcp@localhost on test using SSL/TLS
 user_ssl@localhost on test using SSL/TLS
 user_tcp@localhost on  using SSL/TLS
-user_tcp@localhost on  using SSL/TLS
+user_ssl@localhost on  using SSL/TLS
 root@localhost on  using SSL/TLS
 user_ssl@localhost on  using SSL/TLS
 ------ done ------
