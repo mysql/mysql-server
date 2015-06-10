@@ -5665,7 +5665,7 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
-  (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
+  MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
