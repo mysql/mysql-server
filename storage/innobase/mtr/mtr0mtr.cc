@@ -713,11 +713,14 @@ mtr_t::Command::prepare_write()
 
 	log_margin_checkpoint_age(len);
 
+	/* Note: we must invoke fil_names_write_if_was_clean()
+	on each tablespace. We are using the + operator instead of ||
+	because it avoids the short-circuit evaluation. */
 	if (fil_names_write_if_was_clean(m_impl->m_sys_space, m_impl->m_mtr)
-	    || fil_names_write_if_was_clean(m_impl->m_undo_space,
-					    m_impl->m_mtr)
-	    || fil_names_write_if_was_clean(m_impl->m_user_space,
-					    m_impl->m_mtr)) {
+	    + fil_names_write_if_was_clean(m_impl->m_undo_space,
+					   m_impl->m_mtr)
+	    + fil_names_write_if_was_clean(m_impl->m_user_space,
+					   m_impl->m_mtr)) {
 		/* This mini-transaction was the first one to modify
 		some tablespace since the latest checkpoint, so
 		some MLOG_FILE_NAME records were appended to m_log. */
