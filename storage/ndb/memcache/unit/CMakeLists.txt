@@ -1,3 +1,17 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 
 ######### run_unit_tests ##############
@@ -24,7 +38,7 @@ if(HAVE_SOLARIS_ATOMICS)
   set(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.c)
 endif()
 
-add_executable(test_workqueue ${TEST_WORKQUEUE_SOURCES})
+add_executable(test_workqueue-t ${TEST_WORKQUEUE_SOURCES})
 
 if(LIBRT) 
   target_link_libraries(test_workqueue rt)
