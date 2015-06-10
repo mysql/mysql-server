@@ -8978,7 +8978,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},
   { &key_memory_acl_memex, "sql_acl_memex", PSI_FLAG_GLOBAL},
-  { &key_memory_acl_memex, "acl_cache", PSI_FLAG_GLOBAL},
+  { &key_memory_acl_cache, "acl_cache", PSI_FLAG_GLOBAL},
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},
