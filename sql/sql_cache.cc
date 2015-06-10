@@ -2398,7 +2398,8 @@ ulong Query_cache::init_cache()
   DUMP(this);
 
   (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
-                      query_cache_query_get_key, 0, 0);
+                      query_cache_query_get_key, 0, 0,
+                      key_memory_Query_cache);
 #ifndef FN_NO_CASE_SENSE
   /*
     If lower_case_table_names!=0 then db and table names are already 
@@ -2409,7 +2410,8 @@ ulong Query_cache::init_cache()
     and MY_TABLE cases and so again can use binary collation.
   */
   (void) my_hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
-                      query_cache_table_get_key, 0, 0);
+                      query_cache_table_get_key, 0, 0,
+                      key_memory_Query_cache);
 #else
   /*
     On windows, OS/2, MacOS X with HFS+ or any other case insensitive
@@ -2423,7 +2425,8 @@ ulong Query_cache::init_cache()
                       lower_case_table_names ? &my_charset_bin :
                       files_charset_info,
                       def_table_hash_size, 0, 0,query_cache_table_get_key,
-                      0, 0);
+                      0, 0,
+                      key_memory_Query_cache);
 #endif
 
   queries_in_cache = 0;

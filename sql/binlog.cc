@@ -8705,7 +8705,8 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
 
   if (! fdle->is_valid() ||
       my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-                   sizeof(my_xid), 0, 0, MYF(0)))
+                   sizeof(my_xid), 0, 0, MYF(0),
+                   key_memory_binlog_recover_exec))
     goto err1;
 
   init_alloc_root(key_memory_binlog_recover_exec,

@@ -62,7 +62,6 @@ C_MODE_END
 
 C_MODE_START
 
-extern PSI_memory_key key_memory_array_buffer;
 extern PSI_memory_key key_memory_charset_file;
 extern PSI_memory_key key_memory_charset_loader;
 extern PSI_memory_key key_memory_lf_node;

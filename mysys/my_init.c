@@ -516,7 +516,6 @@ static PSI_memory_info all_mysys_memory[]=
 #endif
 
   { &key_memory_max_alloca, "max_alloca", 0},
-  { &key_memory_array_buffer, "array_buffer", 0},
   { &key_memory_charset_file, "charset_file", 0},
   { &key_memory_charset_loader, "charset_loader", 0},
   { &key_memory_lf_node, "lf_node", 0},

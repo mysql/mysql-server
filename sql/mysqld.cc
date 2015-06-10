@@ -8845,6 +8845,7 @@ PSI_memory_key key_memory_thd_transactions;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_acl_mem;
 PSI_memory_key key_memory_acl_memex;
+PSI_memory_key key_memory_acl_cache;
 PSI_memory_key key_memory_thd_main_mem_root;
 PSI_memory_key key_memory_help;
 PSI_memory_key key_memory_new_frm_mem;
@@ -8852,9 +8853,11 @@ PSI_memory_key key_memory_table_share;
 PSI_memory_key key_memory_gdl;
 PSI_memory_key key_memory_table_triggers_list;
 PSI_memory_key key_memory_servers;
+PSI_memory_key key_memory_prepared_statement_map;
 PSI_memory_key key_memory_prepared_statement_main_mem_root;
 PSI_memory_key key_memory_protocol_rset_root;
 PSI_memory_key key_memory_warning_info_warn_root;
+PSI_memory_key key_memory_sp_cache;
 PSI_memory_key key_memory_sp_head_main_root;
 PSI_memory_key key_memory_sp_head_execute_root;
 PSI_memory_key key_memory_sp_head_call_root;
@@ -8963,6 +8966,7 @@ PSI_memory_key key_memory_THD_Session_tracker;
 PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_fill_schema_schemata;
+PSI_memory_key key_memory_native_functions;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -8974,6 +8978,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},
   { &key_memory_acl_memex, "sql_acl_memex", PSI_FLAG_GLOBAL},
+  { &key_memory_acl_memex, "acl_cache", PSI_FLAG_GLOBAL},
   { &key_memory_thd_main_mem_root, "thd::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_help, "help", 0},
   { &key_memory_new_frm_mem, "new_frm_mem", 0},
@@ -8981,9 +8986,11 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_gdl, "gdl", 0},
   { &key_memory_table_triggers_list, "Table_triggers_list", 0},
   { &key_memory_servers, "servers", 0},
+  { &key_memory_prepared_statement_map, "Prepared_statement_map", PSI_FLAG_THREAD},
   { &key_memory_prepared_statement_main_mem_root, "Prepared_statement::main_mem_root", PSI_FLAG_THREAD},
   { &key_memory_protocol_rset_root, "Protocol_local::m_rset_root", PSI_FLAG_THREAD},
   { &key_memory_warning_info_warn_root, "Warning_info::m_warn_root", PSI_FLAG_THREAD},
+  { &key_memory_sp_cache, "THD::sp_cache", 0},
   { &key_memory_sp_head_main_root, "sp_head::main_mem_root", 0},
   { &key_memory_sp_head_execute_root, "sp_head::execute_mem_root", PSI_FLAG_THREAD},
   { &key_memory_sp_head_call_root, "sp_head::call_mem_root", PSI_FLAG_THREAD},
@@ -9103,7 +9110,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set", 0},
   { &key_memory_write_set_extraction, "write_set_extraction", 0},
   { &key_memory_get_all_tables, "get_all_tables", 0},
-  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0}
+  { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
+  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL}
 };
 
 /* TODO: find a good header */

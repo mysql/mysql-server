@@ -163,7 +163,9 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
                                        keys*(sort_length+sizeof(char*))+
 				       HA_FT_MAXBYTELEN, MYF(0))))
     {
-      if (my_init_dynamic_array(&buffpek, sizeof(BUFFPEK),
+      if (my_init_dynamic_array(&buffpek,
+                                PSI_NOT_INSTRUMENTED,
+                                sizeof(BUFFPEK),
                                 NULL,
                                 maxbuffer,
                                 maxbuffer/2))
@@ -387,7 +389,9 @@ void *thr_find_all_keys(void *arg)
                      ((sort_param->keyinfo->flag & HA_FULLTEXT) ?
                       HA_FT_MAXBYTELEN : 0), MYF(0))))
       {
-        if (my_init_dynamic_array(&sort_param->buffpek, sizeof(BUFFPEK),
+        if (my_init_dynamic_array(&sort_param->buffpek,
+                                  PSI_NOT_INSTRUMENTED,
+                                  sizeof(BUFFPEK),
                                   NULL,
                                   maxbuffer, maxbuffer/2))
         {

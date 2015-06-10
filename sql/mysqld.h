@@ -481,15 +481,18 @@ extern PSI_memory_key key_memory_thd_transactions;
 extern PSI_memory_key key_memory_delegate;
 extern PSI_memory_key key_memory_acl_mem;
 extern PSI_memory_key key_memory_acl_memex;
+extern PSI_memory_key key_memory_acl_cache;
 extern PSI_memory_key key_memory_thd_main_mem_root;
 extern PSI_memory_key key_memory_help;
 extern PSI_memory_key key_memory_frm;
 extern PSI_memory_key key_memory_table_share;
 extern PSI_memory_key key_memory_gdl;
 extern PSI_memory_key key_memory_table_triggers_list;
+extern PSI_memory_key key_memory_prepared_statement_map;
 extern PSI_memory_key key_memory_prepared_statement_main_mem_root;
 extern PSI_memory_key key_memory_protocol_rset_root;
 extern PSI_memory_key key_memory_warning_info_warn_root;
+extern PSI_memory_key key_memory_sp_cache;
 extern PSI_memory_key key_memory_sp_head_main_root;
 extern PSI_memory_key key_memory_sp_head_execute_root;
 extern PSI_memory_key key_memory_sp_head_call_root;
@@ -599,6 +602,7 @@ extern PSI_memory_key key_memory_THD_Session_tracker;
 extern PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 extern PSI_memory_key key_memory_get_all_tables;
 extern PSI_memory_key key_memory_fill_schema_schemata;
+extern PSI_memory_key key_memory_native_functions;
 
 C_MODE_END
 
