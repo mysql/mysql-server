@@ -1,7 +1,7 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 --source include/windows.inc
-
+--source include/no_protocol.inc
 # Only run this test if shared memory is avaliable
 let $shm= query_get_value("SHOW VARIABLES LIKE 'shared_memory'", Value, 1);
 if ($shm != ON){
