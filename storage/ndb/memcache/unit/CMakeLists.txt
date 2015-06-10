@@ -41,6 +41,6 @@ endif()
 add_executable(test_workqueue-t ${TEST_WORKQUEUE_SOURCES})
 
 if(LIBRT) 
-  target_link_libraries(test_workqueue rt)
+  target_link_libraries(test_workqueue-t rt)
 endif()
 ##########################################
