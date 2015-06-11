@@ -306,7 +306,10 @@ dict_table_stats_latch_alloc(
 {
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 
-	table->stats_latch = UT_NEW_NOKEY(rw_lock_t());
+	/* Note: rw_lock_create() will call the constructor */
+
+	table->stats_latch = static_cast<rw_lock_t*>(
+		ut_malloc_nokey(sizeof(rw_lock_t)));
 
 	ut_a(table->stats_latch != NULL);
 
@@ -323,7 +326,7 @@ dict_table_stats_latch_free(
 	dict_table_t*	table)
 {
 	rw_lock_free(table->stats_latch);
-	UT_DELETE(table->stats_latch);
+	ut_free(table->stats_latch);
 }
 
 /** Create a dict_table_t's stats latch or delay for lazy creation.
@@ -2503,7 +2506,7 @@ add_field_size:
 		rec_max_size += field_max_size;
 
 		/* Check the size limit on leaf pages. */
-		if (UNIV_UNLIKELY(rec_max_size >= page_rec_max)) {
+		if (rec_max_size >= page_rec_max) {
 			ib::error_or_warn(strict)
 				<< "Cannot add field " << field->name
 				<< " in table " << table->name
@@ -3884,7 +3887,7 @@ dict_scan_id(
 		len = ptr - s;
 	}
 
-	if (UNIV_UNLIKELY(!heap)) {
+	if (heap == NULL) {
 		/* no heap given: id will point to source string */
 		*id = s;
 		return(ptr);
