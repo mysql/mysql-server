@@ -11,6 +11,4 @@
 ##############################################################################
 innodb-wl5980-linux : WL#7816 disabled this on 2014-12-08, we will refactor our bootstrap in WL#7141 and WL#6394
 innodb-wl5980-windows : WL#7816 disabled this on 2015-05-27, we will refactor our bootstrap in WL#7141 and WL#6394
-innodb.log_file @windows  : Bug#19363615 2014-08-22 erlend innodb.log_file fails sporadically on PB2
-innodb.log_file @solaris  : Bug#19363615 2015-04-13 agopi innodb.log_file fails sporadically on PB2
 innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186
