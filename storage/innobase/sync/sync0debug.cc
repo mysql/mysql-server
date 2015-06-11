@@ -577,7 +577,7 @@ LatchDebug::crash(
 		<< "Thread " << os_thread_pf(os_thread_get_curr_id())
 		<< " already owns a latch "
 		<< sync_latch_get_name(latch->m_id) << " at level"
-		<< latched->m_level << " (" << latch_level_name
+		<< " " << latched->m_level << " (" << latch_level_name
 		<< " ), which is at a lower/same level than the"
 		<< " requested latch: "
 		<< level << " (" << in_level_name << "). "
