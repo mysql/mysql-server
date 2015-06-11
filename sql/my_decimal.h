@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -230,6 +230,12 @@ inline int check_result_and_overflow(uint mask, int result, my_decimal *val)
     max_internal_decimal(val);
     val->sign(sign);
   }
+  /*
+    Avoid returning negative zero, cfr. decimal_cmp()
+    For result == E_DEC_DIV_ZERO *val has not been assigned.
+  */
+  if (result != E_DEC_DIV_ZERO && val->sign() && decimal_is_zero(val))
+    val->sign(false);
   return result;
 }
 
