@@ -418,7 +418,7 @@ EXPLAIN SELECT COUNT(title)
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: rank > 0.000000
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: rank > 0
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where ((match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database')) > 0)
 SELECT COUNT(title) 
@@ -431,7 +431,7 @@ EXPLAIN SELECT COUNT(title)
 FROM wp 
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: rank > 0.000000
+1	SIMPLE	wp	NULL	fulltext	idx	idx	0	const	1	100.00	Using where; Ft_hints: rank > 0
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`wp`.`title`) AS `COUNT(title)` from `test`.`wp` where ((match `test`.`wp`.`title`,`test`.`wp`.`text` against ('database')) > 0)
 SELECT COUNT(title) 
@@ -1208,7 +1208,7 @@ FTS_DOC_ID	rank
 EXPLAIN SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) > 0.1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0.100000; Using index
+1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0.1; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `test`.`t1` where ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) > 0.1)
 SELECT FTS_DOC_ID FROM t1
@@ -1543,4 +1543,53 @@ DROP TABLE t1;
 CREATE TABLE t1(a TEXT CHARSET LATIN1, FULLTEXT KEY(a)) ENGINE=INNODB;
 SELECT MATCH(a) AGAINST ('') FROM (SELECT a FROM t1 LIMIT 1) q;
 ERROR HY000: Can't find FULLTEXT index matching the column list
+DROP TABLE t1;
+#
+# Bug#21140067 EXPLAIN .. MATCH AGAINST: ASSERTION FAILED: TO <= END
+#
+CREATE TABLE t1(f1 CHAR(1) CHARSET latin1, FULLTEXT(f1)) ENGINE=INNODB;
+EXPLAIN SELECT 1 FROM t1 WHERE 1.238585e+308 <= MATCH(f1) AGAINST ('1' IN BOOLEAN MODE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: rank >= 1e308; Using index
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (1.238585e+308 <= (match `test`.`t1`.`f1` against ('1' in boolean mode)))
+EXPLAIN FORMAT = JSON SELECT 1 FROM t1 WHERE 1.238585e+308 <= MATCH(f1) AGAINST ('1' IN BOOLEAN MODE);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.20"
+    },
+    "table": {
+      "table_name": "t1",
+      "access_type": "fulltext",
+      "possible_keys": [
+        "f1"
+      ],
+      "key": "f1",
+      "used_key_parts": [
+        "f1"
+      ],
+      "key_length": "0",
+      "ref": [
+        "const"
+      ],
+      "rows_examined_per_scan": 1,
+      "rows_produced_per_join": 1,
+      "filtered": "100.00",
+      "ft_hints": "rank >= 1e308",
+      "using_index": true,
+      "cost_info": {
+        "read_cost": "1.00",
+        "eval_cost": "0.20",
+        "prefix_cost": "1.20",
+        "data_read_per_join": "8"
+      },
+      "attached_condition": "(1.238585e+308 <= (match `test`.`t1`.`f1` against ('1' in boolean mode)))"
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (1.238585e+308 <= (match `test`.`t1`.`f1` against ('1' in boolean mode)))
 DROP TABLE t1;
