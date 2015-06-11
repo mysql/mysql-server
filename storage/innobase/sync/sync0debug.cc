@@ -1572,9 +1572,13 @@ sync_latch_meta_init()
 
 		const latch_meta_t*	meta = *it;
 
-		/* There should not be any gaps */
-		ut_a(meta != NULL && meta->get_id() != LATCH_ID_NONE);
+		/* Debug latches will be missing */
 
+		if (meta == NULL) {
+			continue;
+		}
+
+		ut_a(meta->get_id() != LATCH_ID_NONE);
 		ut_a(id < meta->get_id());
 
 		id = meta->get_id();
