@@ -1997,7 +1997,8 @@ create table t2 (a int, b int);
 # that the outer query's ORDER BY depends on a non-aggregated column,
 # which itself is not in GROUP BY.
 --error ER_WRONG_FIELD_WITH_GROUP
-select a from t2 group by a order by (select a from t1 order by t2.b);
+select a from t2 group by a
+                 order by (select a from t1 order by t2.b limit 1);
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1,t2;
 

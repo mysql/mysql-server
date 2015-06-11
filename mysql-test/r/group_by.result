@@ -2809,7 +2809,8 @@ create table t1 (a int, b int);
 select count(*) > 3 from t1 group by a order by b;
 ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 create table t2 (a int, b int);
-select a from t2 group by a order by (select a from t1 order by t2.b);
+select a from t2 group by a
+order by (select a from t1 order by t2.b limit 1);
 ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t2.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SET @@sql_mode = @old_sql_mode;
 Warnings:

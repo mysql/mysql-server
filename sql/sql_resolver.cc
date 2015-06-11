@@ -2909,13 +2909,15 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
 
 
 /**
-   Since LIMIT is not supported for table subquery predicates
-   (IN/ALL/EXISTS/etc), the following clauses are redundant for
-   subqueries:
+   For a table subquery predicate (IN/ANY/ALL/EXISTS/etc):
+   since it does not support LIMIT the following clauses are redundant:
 
    ORDER BY
    DISTINCT
    GROUP BY   if there are no aggregate functions and no HAVING clause
+
+   For a scalar subquery without LIMIT:
+   ORDER BY is redundant, as the number of rows to order must be 1.
 
    This removal is permanent. Thus, it only makes sense to call this function
    for regular queries and on first execution of SP/PS
@@ -2933,22 +2935,6 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
                                                    int hidden_order_field_count)
 {
   Item_subselect *subq_predicate= master_unit()->item;
-  /*
-    The removal should happen for IN, ALL, ANY and EXISTS subqueries,
-    which means all but single row subqueries. Example single row
-    subqueries: 
-       a) SELECT * FROM t1 WHERE t1.a = (<single row subquery>) 
-       b) SELECT a, (<single row subquery) FROM t1
-   */
-  if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
-    return;
-
-  // A subquery that is not single row should be one of IN/ALL/ANY/EXISTS.
-  DBUG_ASSERT (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
-               subq_predicate->substype() == Item_subselect::IN_SUBS     ||
-               subq_predicate->substype() == Item_subselect::ALL_SUBS    ||
-               subq_predicate->substype() == Item_subselect::ANY_SUBS);
-
   enum change
   {
     REMOVE_NONE=0,
@@ -2956,16 +2942,32 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
     REMOVE_DISTINCT= 1 << 1,
     REMOVE_GROUP= 1 << 2
   };
+  uint possible_changes;
+
+ if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
+  {
+    if (explicit_limit)
+      return;
+    possible_changes= REMOVE_ORDER;
+  }
+  else
+  {
+    DBUG_ASSERT (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+                 subq_predicate->substype() == Item_subselect::IN_SUBS     ||
+                 subq_predicate->substype() == Item_subselect::ALL_SUBS    ||
+                 subq_predicate->substype() == Item_subselect::ANY_SUBS);
+    possible_changes= REMOVE_ORDER | REMOVE_DISTINCT | REMOVE_GROUP;
+  }
 
   uint changelog= 0;
 
-  if (order_list.elements)
+  if ((possible_changes & REMOVE_ORDER) && order_list.elements)
   {
     changelog|= REMOVE_ORDER;
     empty_order_list(hidden_order_field_count);
   }
 
-  if (is_distinct())
+  if ((possible_changes & REMOVE_DISTINCT) && is_distinct())
   {
     changelog|= REMOVE_DISTINCT;
     remove_base_options(SELECT_DISTINCT);
@@ -2973,7 +2975,8 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
 
   // Remove GROUP BY if there are no aggregate functions and no HAVING clause
 
-  if (group_list.elements && !agg_func_used() && !having_cond())
+  if ((possible_changes & REMOVE_GROUP) &&
+      group_list.elements && !agg_func_used() && !having_cond())
   {
     changelog|= REMOVE_GROUP;
     for (ORDER *g= group_list.first; g != NULL; g= g->next)
