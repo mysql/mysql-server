@@ -28,7 +28,7 @@ class Cost_constant_cache;
 namespace {
 
 my_bool opt_use_tap= true;
-my_bool opt_help= false;
+my_bool opt_unit_help= false;
 
 struct my_option unittest_options[] =
 {
@@ -39,9 +39,9 @@ struct my_option unittest_options[] =
     0, NULL
   },
   { "help", 2, "Help.",
-    &opt_help, &opt_help, NULL,
+    &opt_unit_help, &opt_unit_help, NULL,
     GET_BOOL, NO_ARG,
-    opt_help, 0, 1, 0,
+    opt_unit_help, 0, 1, 0,
     0, NULL
   },
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     return EXIT_FAILURE;
   if (opt_use_tap)
     install_tap_listener();
-  if (opt_help)
+  if (opt_unit_help)
     printf("\n\nTest options: [--[disable-]tap-output]\n");
 
   return RUN_ALL_TESTS();
