@@ -3664,6 +3664,18 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 3;
   }
 
+  if (charset_inited)
+  {
+    *start++= Q_CHARSET_CODE;
+    memcpy(start, charset, 6);
+    start+= 6;
+  }
+
+  if (thd && thd->binlog_need_explicit_defaults_ts == true)
+  {
+    *start++= Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP;
+    *start++= thd->variables.explicit_defaults_for_timestamp;
+  }
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -4217,6 +4229,10 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                   print_event_info->delimiter);
     print_event_info->charset_database_number= charset_database_number;
   }
+  if (explicit_defaults_ts != TERNARY_UNSET)
+    my_b_printf(file, "SET @@session.explicit_defaults_for_timestamp=%d%s\n",
+                explicit_defaults_ts == TERNARY_OFF? 0 : 1,
+                print_event_info->delimiter);
 }
 
 
@@ -4354,6 +4370,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     thd->db_charset= db_options.default_table_charset;
   thd->variables.auto_increment_increment= auto_increment_increment;
   thd->variables.auto_increment_offset=    auto_increment_offset;
+  if (explicit_defaults_ts != TERNARY_UNSET)
+    thd->variables.explicit_defaults_for_timestamp=
+      explicit_defaults_ts == TERNARY_OFF? 0 : 1;
 
   /*
     todo: such cleanup should not be specific to Query event and therefore
