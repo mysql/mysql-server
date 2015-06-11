@@ -163,6 +163,12 @@ public:
 		     it != end;
 		     ++it) {
 
+			/* Some of the slots will be null in non-debug mode */
+
+			if (*it == NULL) {
+				continue;
+			}
+
 			latch_meta_t*	latch_meta = *it;
 
 			bool	ret = callback(*latch_meta);
