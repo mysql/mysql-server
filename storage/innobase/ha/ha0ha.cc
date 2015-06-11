@@ -43,7 +43,7 @@ hash_table_t*
 ib_create(
 /*======*/
 	ulint		n,	/*!< in: number of array cells */
-	const char*	name,	/*!< in: mutex name */
+	latch_id_t	id,	/*!< in: latch ID */
 	ulint		n_sync_obj,
 				/*!< in: number of mutexes to protect the
 				hash table: must be a power of 2, or 0 */
@@ -76,10 +76,10 @@ ib_create(
 		/* We create a hash table protected by rw_locks for
 		buf_pool->page_hash. */
 		hash_create_sync_obj(
-			table, HASH_TABLE_SYNC_RW_LOCK, name, n_sync_obj);
+			table, HASH_TABLE_SYNC_RW_LOCK, id, n_sync_obj);
 	} else {
 		hash_create_sync_obj(
-			table, HASH_TABLE_SYNC_MUTEX, name, n_sync_obj);
+			table, HASH_TABLE_SYNC_MUTEX, id, n_sync_obj);
 	}
 
 	table->heaps = static_cast<mem_heap_t**>(
@@ -147,9 +147,7 @@ ha_clear(
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!table->adaptive || btr_search_own_all(RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	for (ulint i = 0; i < table->n_sync_obj; i++) {
 		mem_heap_free(table->heaps[i]);
@@ -298,7 +296,7 @@ ha_insert_for_fold_func(
 	return(TRUE);
 }
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /** Verify if latch corresponding to the hash table is x-latched
 @param[in]	table		hash table */
 static
@@ -315,7 +313,7 @@ ha_btr_search_latch_x_locked(const hash_table_t* table)
 	ut_ad(i < btr_ahi_parts);
 	ut_ad(rw_lock_own(btr_search_latches[i], RW_LOCK_X));
 }
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 /***********************************************************//**
 Deletes a hash node. */
@@ -327,9 +325,7 @@ ha_delete_hash_node(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-#ifdef UNIV_SYNC_DEBUG
-	ha_btr_search_latch_x_locked(table);
-#endif /* UNIV_SYNC_DEBUG */
+	ut_d(ha_btr_search_latch_x_locked(table));
 	ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (table->adaptive) {
@@ -365,9 +361,8 @@ ha_search_and_update_if_found_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(new_block->frame == page_align(new_data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-#ifdef UNIV_SYNC_DEBUG
-	ha_btr_search_latch_x_locked(table);
-#endif /* UNIV_SYNC_DEBUG */
+
+	ut_d(ha_btr_search_latch_x_locked(table));
 
 	if (!btr_search_enabled) {
 		return(FALSE);
@@ -438,7 +433,7 @@ ha_remove_all_nodes_to_page(
 
 		node = ha_chain_get_next(node);
 	}
-#endif
+#endif /* UNIV_DEBUG */
 }
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG

@@ -253,8 +253,8 @@ struct TrxFactory {
 			trx->trx_savepoints,
 			&trx_named_savept_t::trx_savepoints);
 
-		mutex_create("trx", &trx->mutex);
-		mutex_create("trx_undo", &trx->undo_mutex);
+		mutex_create(LATCH_ID_TRX, &trx->mutex);
+		mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -367,7 +367,7 @@ struct TrxPoolLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create("trx_pool", &m_mutex);
+		mutex_create(LATCH_ID_TRX_POOL, &m_mutex);
 	}
 
 	/** Acquire the mutex */
@@ -390,7 +390,7 @@ struct TrxPoolManagerLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create("trx_pool_manager", &m_mutex);
+		mutex_create(LATCH_ID_TRX_POOL_MANAGER, &m_mutex);
 	}
 
 	/** Acquire the mutex */

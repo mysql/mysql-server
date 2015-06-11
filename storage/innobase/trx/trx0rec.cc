@@ -1605,9 +1605,8 @@ trx_undo_prev_version_build(
 	ulint		cmpl_info;
 	bool		dummy_extern;
 	byte*		buf;
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mtr_memo_contains_page(index_mtr, index_rec, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(index_mtr, index_rec,
 					MTR_MEMO_PAGE_X_FIX));

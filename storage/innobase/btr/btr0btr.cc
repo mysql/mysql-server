@@ -230,9 +230,7 @@ btr_height_get(
 	/* Release the S latch on the root page. */
 	mtr->memo_release(root_block, MTR_MEMO_PAGE_S_FIX);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_d(sync_check_unlock(&root_block->lock));
-#endif /* UNIV_SYNC_DEBUG */
 
 	return(height);
 }
@@ -2567,11 +2565,9 @@ func_start:
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(dict_index_get_lock(cursor->index),
 				  RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX)
 	      || dict_table_is_intrinsic(cursor->index->table));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);

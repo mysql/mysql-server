@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -206,9 +206,9 @@ trx_rseg_mem_create(
 	rseg->skip_allocation = false;
 
 	if (fsp_is_system_temporary(space)) {
-		mutex_create("noredo_rseg", &rseg->mutex);
+		mutex_create(LATCH_ID_NOREDO_RSEG, &rseg->mutex);
 	} else {
-		mutex_create("redo_rseg", &rseg->mutex);
+		mutex_create(LATCH_ID_REDO_RSEG, &rseg->mutex);
 	}
 
 	UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);

@@ -31,7 +31,6 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 #include "ut0rnd.h"
-#include "sync0mutex.h"
 #include "sync0rw.h"
 #include "hash0hash.h"
 #include "os0event.h"
@@ -814,11 +813,10 @@ scan_again:
 		}
 
 		ut_ad(!mutex_own(block_mutex));
-#ifdef UNIV_SYNC_DEBUG
+
 		/* buf_LRU_block_remove_hashed() releases the hash_lock */
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 next_page:
 		bpage = prev_bpage;
@@ -1030,7 +1028,7 @@ buf_LRU_free_from_common_LRU_list(
 	     ++scanned, bpage = buf_pool->lru_scan_itr.get()) {
 
 		buf_page_t*	prev = UT_LIST_GET_PREV(LRU, bpage);
-		ib_mutex_t*	mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	mutex = buf_page_get_mutex(bpage);
 
 		buf_pool->lru_scan_itr.set(prev);
 
@@ -1882,20 +1880,16 @@ func_exit:
 	DBUG_PRINT("ib_buf", ("free page " UINT32PF ":" UINT32PF,
 			      bpage->id.space(), bpage->id.page_no()));
 
-#ifdef UNIV_SYNC_DEBUG
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
 	if (!buf_LRU_block_remove_hashed(bpage, zip)) {
 		return(true);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	/* buf_LRU_block_remove_hashed() releases the hash_lock */
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
 	      && !rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* We have just freed a BUF_BLOCK_FILE_PAGE. If b != NULL
 	then it was a compressed page with an uncompressed frame and
@@ -2177,9 +2171,8 @@ buf_LRU_block_remove_hashed(
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
-#ifdef UNIV_SYNC_DEBUG
+
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
@@ -2433,10 +2426,9 @@ buf_LRU_free_one_page(
 	}
 
 	/* buf_LRU_block_remove_hashed() releases hash_lock and block_mutex */
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
 	      && !rw_lock_own(hash_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_ad(!mutex_own(block_mutex));
 }
 

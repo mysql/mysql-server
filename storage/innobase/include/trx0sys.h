@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,7 +36,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
-#include "sync0mutex.h"
 #include "ut0lst.h"
 #include "read0types.h"
 #include "page0types.h"

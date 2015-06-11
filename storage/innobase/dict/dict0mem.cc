@@ -518,12 +518,12 @@ dict_mem_index_create(
 	dict_index_zip_pad_mutex_create_lazy(index);
 
 	if (type & DICT_SPATIAL) {
-		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
+		mutex_create(LATCH_ID_RTR_SSN_MUTEX, &index->rtr_ssn.mutex);
 		index->rtr_track = static_cast<rtr_info_track_t*>(
 					mem_heap_alloc(
 						heap,
 						sizeof(*index->rtr_track)));
-		mutex_create("rtr_active_mutex",
+		mutex_create(LATCH_ID_RTR_ACTIVE_MUTEX,
 			     &index->rtr_track->rtr_active_mutex);
 		index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
 	}

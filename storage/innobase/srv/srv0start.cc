@@ -77,7 +77,6 @@ Created 2/16/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
-# include "sync0mutex.h"
 # include "buf0flu.h"
 # include "buf0rea.h"
 # include "dict0boot.h"
@@ -1457,10 +1456,6 @@ innobase_start_or_create_for_mysql(void)
 # endif
 #endif
 
-#ifdef UNIV_SYNC_DEBUG
-	ib::info() << "!!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!";
-#endif
-
 #ifdef UNIV_LOG_LSN_DEBUG
 	ib::info() << "!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!";
 #endif /* UNIV_LOG_LSN_DEBUG */
@@ -1667,7 +1662,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (!srv_read_only_mode) {
 
-		mutex_create("srv_monitor_file", &srv_monitor_file_mutex);
+		mutex_create(LATCH_ID_SRV_MONITOR_FILE,
+			     &srv_monitor_file_mutex);
 
 		if (srv_innodb_status) {
 
@@ -1698,7 +1694,8 @@ innobase_start_or_create_for_mysql(void)
 			}
 		}
 
-		mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
+		mutex_create(LATCH_ID_SRV_DICT_TMPFILE,
+			     &srv_dict_tmpfile_mutex);
 
 		srv_dict_tmpfile = os_file_create_tmpfile();
 
@@ -1706,7 +1703,8 @@ innobase_start_or_create_for_mysql(void)
 			return(srv_init_abort(DB_ERROR));
 		}
 
-		mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
+		mutex_create(LATCH_ID_SRV_MISC_TMPFILE,
+			     &srv_misc_tmpfile_mutex);
 
 		srv_misc_tmpfile = os_file_create_tmpfile();
 
@@ -1796,11 +1794,6 @@ innobase_start_or_create_for_mysql(void)
 	recv_sys_init(buf_pool_get_curr_size());
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
-
-#ifdef UNIV_SYNC_DEBUG
-	/* Switch latching order checks on in sync0debug.cc */
-	sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Create i/o-handler threads: */
 

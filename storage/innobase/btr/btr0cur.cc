@@ -794,7 +794,7 @@ btr_cur_search_to_nth_level(
 
 #ifdef BTR_CUR_ADAPT
 	btr_search_t*	info;
-#endif
+#endif /* BTR_CUR_ADAPT */
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
@@ -818,7 +818,7 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_DEBUG
 	cursor->up_match = ULINT_UNDEFINED;
 	cursor->low_match = ULINT_UNDEFINED;
-#endif
+#endif /* UNIV_DEBUG */
 
 	ibool	s_latch_by_caller;
 
@@ -994,10 +994,8 @@ btr_cur_search_to_nth_level(
 	default:
 		if (!srv_read_only_mode) {
 			if (s_latch_by_caller) {
-#ifdef UNIV_SYNC_DEBUG
 				ut_ad(rw_lock_own(dict_index_get_lock(index),
 				              RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 			} else if (!modify_external) {
 				/* BTR_SEARCH_TREE is intended to be used with
 				BTR_ALREADY_S_LATCHED */
@@ -5190,7 +5188,7 @@ btr_cur_pessimistic_delete(
 	ulint*		offsets;
 #ifdef UNIV_DEBUG
 	bool		parent_latched	= false;
-#endif
+#endif /* UNIV_DEBUG */
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
@@ -7306,9 +7304,9 @@ btr_free_externally_stored_field(
 	}
 
 	for (;;) {
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 		buf_block_t*	rec_block;
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
@@ -7323,9 +7321,9 @@ btr_free_externally_stored_field(
 		const page_id_t	page_id(page_get_space_id(p),
 					page_get_page_no(p));
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 		rec_block =
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 		buf_page_get(page_id, rec_page_size, RW_X_LATCH, &mtr);
 
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);

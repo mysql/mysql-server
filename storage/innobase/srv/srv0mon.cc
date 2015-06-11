@@ -1316,6 +1316,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_ICP_MATCH},
 
+	/* ========== Mutex monitoring on/off ========== */
+	{"latch_status", "Latch counters",
+	 "Collect latch counters to display via SHOW ENGING INNODB MUTEX",
+	 MONITOR_MODULE,
+	 MONITOR_DEFAULT_START, MONITOR_MODULE_LATCHES},
+
+	{"latch", "sync", "Latch monitoring control",
+	 MONITOR_HIDDEN,
+	 MONITOR_DEFAULT_START, MONITOR_LATCHES},
+
 	/* ========== To turn on/off reset all counters ========== */
 	{"all", "All Counters", "Turn on/off and reset all counters",
 	 MONITOR_MODULE,

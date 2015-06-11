@@ -1050,10 +1050,8 @@ sel_set_rtr_rec_lock(
 	rw_lock_x_lock(&(match->block.lock));
 retry:
 	cur_block = btr_pcur_get_block(pcur);
-#ifdef UNIV_SYNC_DEBUG
         ut_ad(rw_lock_own(&(match->block.lock), RW_LOCK_X)
               || rw_lock_own(&(match->block.lock), RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_is_leaf(buf_block_get_frame(cur_block)));
 
 	err = lock_sec_rec_read_check_and_lock(
@@ -1449,11 +1447,11 @@ row_sel_try_search_shortcut(
 	ut_ad(node->read_view);
 	ut_ad(plan->unique_search);
 	ut_ad(!plan->must_get_clust);
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	if (search_latch_locked) {
 		ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	}
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 	row_sel_open_pcur(plan, search_latch_locked, mtr);
 
@@ -2204,11 +2202,13 @@ stop_for_a_while:
 
 	mtr_commit(&mtr);
 
+#ifdef UNIV_DEBUG
 	{
 		btrsea_sync_check	check(true);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 
 	err = DB_SUCCESS;
 	goto func_exit;
@@ -2227,13 +2227,13 @@ commit_mtr_for_a_while:
 
 	mtr_has_extra_clust_latch = FALSE;
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	{
 		dict_sync_check	check(true);
 
 		ut_ad(!sync_check_iterate(check));
 	}
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 	goto table_loop;
 
@@ -2248,13 +2248,13 @@ lock_wait_or_error:
 
 	mtr_commit(&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	{
 		dict_sync_check	check(true);
 
 		ut_ad(!sync_check_iterate(check));
 	}
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 func_exit:
 	if (search_latch_locked) {
@@ -3024,7 +3024,7 @@ row_sel_store_mysql_field_func(
 						a page latch */
 #ifdef UNIV_DEBUG
 	const dict_index_t*	index,		/*!< in: index of rec */
-#endif
+#endif /* UNIV_DEBUG */
 	const ulint*		offsets,	/*!< in: array returned by
 						rec_get_offsets() */
 	ulint			field_no,	/*!< in: templ->rec_field_no or
@@ -3567,7 +3567,7 @@ sel_restore_position_for_mysql(
 		ut_ad((pcur->rel_pos == BTR_PCUR_ON)
 		      == btr_pcur_is_on_user_rec(pcur));
 	}
-#endif
+#endif /* UNIV_DEBUG */
 
 	/* The position may need be adjusted for rel_pos and moves_up. */
 
@@ -4352,10 +4352,12 @@ row_search_mvcc(
 		DBUG_RETURN(DB_END_OF_INDEX);
 	}
 
+#ifdef UNIV_DEBUG
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 
@@ -5848,11 +5850,13 @@ func_exit:
 		}
 	}
 
+#ifdef UNIV_DEBUG
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 
 		ut_ad(!sync_check_iterate(check));
 	}
+#endif /* UNIV_DEBUG */
 
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
 

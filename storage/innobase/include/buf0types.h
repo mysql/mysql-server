@@ -27,7 +27,6 @@ Created 11/17/1995 Heikki Tuuri
 #define buf0types_h
 
 #include "os0event.h"
-#include "ut0mutex.h"
 #include "ut0ut.h"
 
 /** Buffer page (uncompressed or compressed) */
@@ -138,9 +137,15 @@ this must be equal to UNIV_PAGE_SIZE */
 /* @} */
 
 #ifndef UNIV_INNOCHECKSUM
-typedef ib_mutex_t BPageMutex;
+
+#include "ut0mutex.h"
+#include "sync0rw.h"
+
+typedef ib_bpmutex_t BPageMutex;
 typedef ib_mutex_t BufPoolMutex;
 typedef ib_mutex_t FlushListMutex;
+typedef BPageMutex BufPoolZipMutex;
+typedef rw_lock_t BPageLock;
 #endif /* !UNIV_INNOCHECKSUM */
 
 #endif /* buf0types.h */

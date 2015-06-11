@@ -120,10 +120,8 @@ btr_search_check_free_space_in_heap(dict_index_t* index)
 	hash_table_t*	table;
 	mem_heap_t*	heap;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	table = btr_get_search_table(index);
 
@@ -182,7 +180,7 @@ btr_search_sys_create(ulint hash_size)
 
 		btr_search_sys->hash_tables[i] =
 			ib_create((hash_size / btr_ahi_parts),
-				  "hash_table_mutex",
+				  LATCH_ID_HASH_TABLE_MUTEX,
 				  0, MEM_HEAP_FOR_BTR_SEARCH);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -217,7 +215,7 @@ btr_search_sys_resize(ulint hash_size)
 
 		btr_search_sys->hash_tables[i] =
 			ib_create((hash_size / btr_ahi_parts),
-				  "hash_table_mutex",
+				  LATCH_ID_HASH_TABLE_MUTEX,
 				  0, MEM_HEAP_FOR_BTR_SEARCH);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -269,12 +267,11 @@ btr_search_disable_ref_count(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	for (index = dict_table_get_first_index(table); index;
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+		ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
 		index->search_info->ref_count = 0;
 	}
@@ -352,9 +349,7 @@ btr_search_info_create(mem_heap_t* heap)
 
 	info = (btr_search_t*) mem_heap_alloc(heap, sizeof(btr_search_t));
 
-#ifdef UNIV_DEBUG
-	info->magic_n = BTR_SEARCH_MAGIC_N;
-#endif /* UNIV_DEBUG */
+	ut_d(info->magic_n = BTR_SEARCH_MAGIC_N);
 
 	info->ref_count = 0;
 	info->root_guess = NULL;
@@ -393,10 +388,8 @@ btr_search_info_get_ref_count(
 
 	ut_ad(info);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_lock(btr_get_search_latch(index));
 	ret = info->ref_count;
@@ -419,10 +412,8 @@ btr_search_info_update_hash(
 	dict_index_t*	index = cursor->index;
 	ulint		n_unique;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_ibuf(index)) {
 		/* So many deletes are performed on an insert buffer tree
@@ -516,14 +507,10 @@ btr_search_update_block_hash_info(
 	buf_block_t*		block,
 	const btr_cur_t*	cursor)
 {
-	ut_ad(cursor);
-
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
 	ut_ad(rw_lock_own(&block->lock, RW_LOCK_S)
 	      || rw_lock_own(&block->lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	info->last_hash_succ = FALSE;
 
@@ -599,11 +586,9 @@ btr_search_update_hash_ref(
 	const rec_t*	rec;
 
 	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_align(btr_cur_get_rec(cursor))
 	      == buf_block_get_frame(block));
 
@@ -639,9 +624,7 @@ btr_search_update_hash_ref(
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 		ha_insert_for_fold(btr_get_search_table(index), fold,
 				   block, rec);
@@ -661,10 +644,8 @@ btr_search_info_update_slow(
 	buf_block_t*	block;
 	ibool		build_index;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);
 
@@ -1119,10 +1100,8 @@ btr_search_drop_page_hash_index(buf_block_t* block)
 		return;
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(block->index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(block->index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 retry:
 	index = block->index;
@@ -1160,12 +1139,10 @@ retry:
 
 	table = btr_get_search_table(index);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X)
 	      || block->page.buf_fix_count == 0
 	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
-#endif /* UNIV_SYNC_DEBUG */
 
 	n_fields = block->curr_n_fields;
 
@@ -1356,11 +1333,9 @@ btr_search_build_page_hash_index(
 	ut_ad(block->page.id.space() == index->space);
 	ut_a(!dict_index_is_ibuf(index));
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_lock(btr_get_search_latch(index));
 
@@ -1535,10 +1510,8 @@ btr_search_move_or_delete_hash_entries(
 
 	ut_ad(!dict_table_is_intrinsic(index->table));
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_lock(btr_get_search_latch(index));
 
@@ -1598,9 +1571,7 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor)
 
 	block = btr_cur_get_block(cursor);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	index = block->index;
 
@@ -1661,9 +1632,7 @@ btr_search_update_hash_node_on_insert(btr_cur_t* cursor)
 
 	block = btr_cur_get_block(cursor);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	index = block->index;
 
@@ -1736,9 +1705,7 @@ btr_search_update_hash_on_insert(btr_cur_t* cursor)
 
 	block = btr_cur_get_block(cursor);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	index = block->index;
 

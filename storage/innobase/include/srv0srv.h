@@ -49,7 +49,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
-#include "sync0mutex.h"
 #include "os0event.h"
 #include "que0types.h"
 #include "trx0types.h"
@@ -407,6 +406,7 @@ extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_DEBUG
+extern my_bool	srv_sync_debug;
 extern my_bool	srv_purge_view_update_only_debug;
 #endif /* UNIV_DEBUG */
 

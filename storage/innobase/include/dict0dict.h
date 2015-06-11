@@ -46,7 +46,6 @@ Created 1/8/1996 Heikki Tuuri
 #include <deque>
 
 #ifndef UNIV_HOTBACKUP
-# include "sync0mutex.h"
 # include "sync0rw.h"
 /********************************************************************//**
 Get the database name length in a table name.
