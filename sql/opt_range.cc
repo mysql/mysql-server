@@ -10790,8 +10790,6 @@ int QUICK_RANGE_SELECT::reset()
 
   if (!file->inited)
   {
-    if (in_ror_merged_scan)
-      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2",
                     DBUG_SET("+d,ha_index_init_fail"););
