@@ -807,8 +807,8 @@ rec_copy_prefix_to_buf(
 /** Compute a hash value of a prefix of a leaf page record.
 @param[in]	rec		leaf page record
 @param[in]	offsets		rec_get_offsets(rec)
-@param[in]	n_fields	number of fields to include;
-will be clamped to the number of fields in the record
+@param[in]	n_fields	number of complete fields to fold
+@param[in]	n_bytes		number of bytes to fold in the last field
 @param[in]	fold		fold value of the index identifier
 @return the folded value */
 UNIV_INLINE
@@ -817,6 +817,7 @@ rec_fold(
 	const rec_t*	rec,
 	const ulint*	offsets,
 	ulint		n_fields,
+	ulint		n_bytes,
 	ulint		fold)
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */

@@ -1568,9 +1568,12 @@ struct buf_block_t{
 
 	ulint		n_hash_helps;	/*!< counter which controls building
 					of a new hash index for the page */
+	volatile ulint	n_bytes;	/*!< recommended prefix length for hash
+					search: number of bytes in
+					an incomplete last field */
 	volatile ulint	n_fields;	/*!< recommended prefix length for hash
 					search: number of full fields */
-	volatile bool	left_side;	/*!< TRUE or FALSE, depending on
+	volatile bool	left_side;	/*!< true or false, depending on
 					whether the leftmost record of several
 					records with the same prefix should be
 					indexed in the hash index */
@@ -1597,6 +1600,8 @@ struct buf_block_t{
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
 					number of full fields */
+	unsigned	curr_n_bytes:15;/*!< number of bytes in hash
+					indexing */
 	unsigned	curr_left_side:1;/*!< TRUE or FALSE in hash indexing */
 	dict_index_t*	index;		/*!< Index for which the
 					adaptive hash index has been
