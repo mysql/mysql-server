@@ -300,8 +300,6 @@ protected:
   my_off_t master_log_pos;
 
 public:
-  void clear_in_memory_info(bool all);
-
   inline const char* get_master_log_name() { return master_log_name; }
   inline ulonglong get_master_log_pos() { return master_log_pos; }
   inline void set_master_log_name(const char *log_file_name)
@@ -377,8 +375,8 @@ public:
                                           : for_channel_str);
   }
 
-private:
   void init_master_log_pos();
+private:
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);

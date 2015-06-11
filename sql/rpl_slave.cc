@@ -5036,6 +5036,12 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         if (rli->trans_retries < slave_trans_retries)
         {
           /*
+            The transactions has to be rolled back before global_init_info is
+            called. Because global_init_info will starts a new transaction if
+            master_info_repository is TABLE.
+          */
+          rli->cleanup_context(thd, 1);
+          /*
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
           */
@@ -5051,7 +5057,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK;
-            rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
@@ -9770,29 +9775,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel)
 }
 
 /**
-  Delete slave info objects (mi, rli and workers) corresponding to a channel.
-
-  @param[in]       mi        master_info corresponding to a channel
-
-  @return
-    @retval   0                           OK.
-    @retval   ER_SLAVE_CHANNEL_DELETE     The channel is not present
-*/
-int delete_slave_info_object(Master_info *mi)
-{
-
-  if (msr_map.delete_mi(mi->get_channel()))
-  {
-    sql_print_error("Slave%s: Couldn't delete slave info objects",
-                    mi->get_for_channel_str());
-    my_error(ER_SLAVE_CHANNEL_DELETE, MYF(0), mi->get_channel());
-
-    return ER_SLAVE_CHANNEL_DELETE;
-  }
-  return 0;
-}
-
-/**
   Execute a RESET SLAVE (for all channels), used in Multisource replication.
   If resetting of a particular channel fails, it exits out.
 
@@ -9808,7 +9790,7 @@ int reset_slave(THD *thd)
 
   Master_info *mi= 0;
   int result= 0;
-  mi_map::iterator it= msr_map.begin();
+  mi_map::iterator it;
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
@@ -9816,7 +9798,8 @@ int reset_slave(THD *thd)
     if (mi && reset_slave(thd, mi, thd->lex->reset_slave_info.all))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
-    while (it!= msr_map.end())
+    it= msr_map.begin();
+    while (it != msr_map.end())
     {
       if (!it->first.compare(msr_map.get_default_channel()))
       {
@@ -9832,6 +9815,7 @@ int reset_slave(THD *thd)
   }
   else
   {
+    it= msr_map.begin();
     while (it!= msr_map.end())
     {
       mi= it->second;
@@ -9904,8 +9888,6 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
   /* Clear master's log coordinates and associated information */
   DBUG_ASSERT(!mi->rli || !mi->rli->slave_running); // none writes in rli table
-  mi->clear_in_memory_info(reset_all);
-
   if (remove_info(mi))
   {
     error= ER_UNKNOWN_ERROR;
@@ -9913,19 +9895,36 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
     unlock_slave_threads(mi);
     goto err;
   }
+  if (!reset_all)
+    mi->init_master_log_pos();
 
   unlock_slave_threads(mi);
 
   (void) RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 
   /*
-     delete the channel if reset_slave_info.all is set,
-     except the default channel
+     RESET SLAVE ALL deletes the channels(except default channel), so their mi
+     and rli objects are removed. For default channel, its mi and rli are
+     deleted and recreated to keep in clear status.
   */
-  if (!error && reset_all &&
-      strcmp(mi->get_channel(), msr_map.get_default_channel()))
+  if (reset_all)
   {
-    error= delete_slave_info_object(mi);
+    bool is_default= !strcmp(mi->get_channel(), msr_map.get_default_channel());
+
+    msr_map.delete_mi(mi->get_channel());
+
+    if (is_default)
+    {
+      if (Rpl_info_factory::
+          create_slave_per_channel(opt_mi_repository_id, opt_rli_repository_id,
+                                   msr_map.get_default_channel(),
+                                   true, &msr_map, SLAVE_REPLICATION_CHANNEL)
+          == NULL)
+      {
+        error= ER_MASTER_INFO;
+        my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+      }
+    }
   }
 
 err:
