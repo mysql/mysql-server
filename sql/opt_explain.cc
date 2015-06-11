@@ -1086,11 +1086,11 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       {
         case FT_OP_GT:
           len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank > %f", ft_hints->get_op_value());
+                           "rank > %g", ft_hints->get_op_value());
           break;
         case FT_OP_GE:
           len= my_snprintf(buf, sizeof(buf) - 1,
-                           "rank >= %f", ft_hints->get_op_value());
+                           "rank >= %g", ft_hints->get_op_value());
           break;
         default:
           DBUG_ASSERT(0);
