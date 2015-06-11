@@ -1585,6 +1585,21 @@ sync_latch_meta_init()
 	}
 }
 
+/** Destroy the latch meta data */
+static
+void
+sync_latch_meta_destroy()
+{
+	for (LatchMetaData::iterator it = latch_meta.begin();
+	     it != latch_meta.end();
+	     ++it) {
+
+		UT_DELETE(*it);
+	}
+
+	latch_meta.clear();
+}
+
 /** Track mutex file creation name and line number. This is to avoid storing
 { const char* name; uint16_t line; } in every instance. This results in the
 sizeof(Mutex) > 64. We use a lookup table to store it separately. Fetching
@@ -1796,5 +1811,7 @@ sync_check_close()
 	UT_DELETE(create_tracker);
 
 	create_tracker = NULL;
+
+	sync_latch_meta_destroy();
 }
 
