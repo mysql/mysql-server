@@ -436,9 +436,9 @@ lock_sys_create(
 
 	lock_sys->last_slot = lock_sys->waiting_threads;
 
-	mutex_create("lock_sys", &lock_sys->mutex);
+	mutex_create(LATCH_ID_LOCK_SYS, &lock_sys->mutex);
 
-	mutex_create("lock_sys_wait", &lock_sys->wait_mutex);
+	mutex_create(LATCH_ID_LOCK_SYS_WAIT, &lock_sys->wait_mutex);
 
 	lock_sys->timeout_event = os_event_create(0);
 
@@ -5338,7 +5338,8 @@ lock_rec_queue_validate(
 
 	if (!page_rec_is_user_rec(rec)) {
 
-		for (lock = lock_rec_get_first(lock_sys->rec_hash, block, heap_no);
+		for (lock = lock_rec_get_first(lock_sys->rec_hash,
+					       block, heap_no);
 		     lock != NULL;
 		     lock = lock_rec_get_next_const(heap_no, lock)) {
 
@@ -5348,7 +5349,7 @@ lock_rec_queue_validate(
 				ut_a(lock_rec_has_to_wait_in_queue(lock));
 			}
 
-			if (index) {
+			if (index != NULL) {
 				ut_a(lock->index == index);
 			}
 		}
@@ -5356,8 +5357,11 @@ lock_rec_queue_validate(
 		goto func_exit;
 	}
 
-	if (!index);
-	else if (dict_index_is_clust(index)) {
+	if (index == NULL) {
+
+		/* Nothing we can do */
+
+	} else if (dict_index_is_clust(index)) {
 		trx_id_t	trx_id;
 
 		/* Unlike the non-debug code, this invariant can only succeed
@@ -5448,9 +5452,7 @@ loop:
 		goto function_exit;
 	}
 
-#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	ut_a(!block->page.file_page_was_freed);
-#endif
+	ut_ad(!block->page.file_page_was_freed);
 
 	for (i = 0; i < nth_lock; i++) {
 
@@ -5463,13 +5465,13 @@ loop:
 
 	ut_ad(!trx_is_ac_nl_ro(lock->trx));
 
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 	/* Only validate the record queues when this thread is not
 	holding a space->latch.  Deadlocks are possible due to
 	latching order violation when UNIV_DEBUG is defined while
-	UNIV_SYNC_DEBUG is not. */
+	UNIV_DEBUG is not. */
 	if (!sync_check_find(SYNC_FSP))
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
 		if (i == 1 || lock_rec_get_nth_bit(lock, i)) {

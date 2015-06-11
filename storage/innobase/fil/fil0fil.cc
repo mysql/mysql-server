@@ -1332,6 +1332,10 @@ fil_space_create(
 
 	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
+	if (space->purpose == FIL_TYPE_TEMPORARY) {
+		ut_d(space->latch.set_temp_fsp());
+	}
+
 	HASH_INSERT(fil_space_t, hash, fil_system->spaces, id, space);
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
@@ -1669,7 +1673,7 @@ fil_init(
 	fil_system = static_cast<fil_system_t*>(
 		ut_zalloc_nokey(sizeof(*fil_system)));
 
-	mutex_create("fil_system", &fil_system->mutex);
+	mutex_create(LATCH_ID_FIL_SYSTEM, &fil_system->mutex);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -3678,9 +3682,7 @@ fil_ibd_open(
 	ulint		tablespaces_found = 0;
 	ulint		valid_tablespaces_found = 0;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(!fix_dict || mutex_own(&dict_sys->mutex));
 	ut_ad(fil_type_is_data(purpose));
@@ -6042,7 +6044,7 @@ fil_tablespace_iterate(
 
 	block = reinterpret_cast<buf_block_t*>(ut_zalloc_nokey(sizeof(*block)));
 
-	mutex_create("buf_block_mutex", &block->mutex);
+	mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
 	/* Allocate a page to read in the tablespace header, so that we
 	can determine the page size and zip size (if it is compressed).

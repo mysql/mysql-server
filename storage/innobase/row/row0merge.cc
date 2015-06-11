@@ -1227,14 +1227,13 @@ err_exit:
 	avail_size = &block[srv_sort_buf_size] - b;
 	memcpy(*buf, b, avail_size);
 	*mrec = *buf + extra_size;
-#ifdef UNIV_DEBUG
+
 	/* We cannot invoke rec_offs_make_valid() here, because there
 	are no REC_N_NEW_EXTRA_BYTES between extra_size and data_size.
 	Similarly, rec_offs_validate() would fail, because it invokes
 	rec_get_status(). */
-	offsets[2] = (ulint) *mrec;
-	offsets[3] = (ulint) index;
-#endif /* UNIV_DEBUG */
+	ut_d(offsets[2] = (ulint) *mrec);
+	ut_d(offsets[3] = (ulint) index);
 
 	if (!row_merge_read(fd, ++(*foffs), block)) {
 
@@ -3367,9 +3366,7 @@ row_merge_drop_index_dict(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	info = pars_info_create();
 	pars_info_add_ull_literal(info, "indexid", index_id);
@@ -3432,9 +3429,7 @@ row_merge_drop_indexes_dict(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* It is possible that table->n_ref_count > 1 when
 	locked=TRUE. In this case, all code that should have an open
@@ -3484,9 +3479,7 @@ row_merge_drop_indexes(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	index = dict_table_get_first_index(table);
 	ut_ad(dict_index_is_clust(index));

@@ -29,7 +29,13 @@ Created 12/15/2009	Jimmy Yang
 #define srv0mon_h
 
 #include "univ.i"
-#include "sync0mutex.h"
+
+#ifndef __STDC_LIMIT_MACROS
+/* Required for FreeBSD so that INT64_MAX is defined. */
+#define __STDC_LIMIT_MACROS
+#endif /* __STDC_LIMIT_MACROS */
+
+#include <stdint.h>
 
 #ifndef UNIV_HOTBACKUP
 
@@ -409,6 +415,10 @@ enum monitor_id_t {
 	MONITOR_ICP_NO_MATCH,
 	MONITOR_ICP_OUT_OF_RANGE,
 	MONITOR_ICP_MATCH,
+
+	/* Mutex/RW-Lock related counters */
+	MONITOR_MODULE_LATCHES,
+	MONITOR_LATCHES,
 
 	/* This is used only for control system to turn
 	on/off and reset all monitor counters */

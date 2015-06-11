@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -124,10 +124,8 @@ hash_lock_s(
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_lock(lock);
 }
@@ -146,10 +144,8 @@ hash_lock_x(
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_x_lock(lock);
 }
@@ -169,9 +165,7 @@ hash_unlock_s(
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_unlock(lock);
 }
@@ -189,9 +183,7 @@ hash_unlock_x(
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
 	ut_ad(lock);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_x_unlock(lock);
 }
@@ -208,10 +200,9 @@ hash_lock_x_all(
 	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
-#ifdef UNIV_SYNC_DEBUG
+
 		ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 		ut_ad(!rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 		rw_lock_x_lock(lock);
 	}
@@ -229,9 +220,8 @@ hash_unlock_x_all(
 	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
-#ifdef UNIV_SYNC_DEBUG
+
 		ut_ad(rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 		rw_lock_x_unlock(lock);
 	}
@@ -250,9 +240,8 @@ hash_unlock_x_all_but(
 	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
-#ifdef UNIV_SYNC_DEBUG
+
 		ut_ad(rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 		if (keep_lock != lock) {
 			rw_lock_x_unlock(lock);
@@ -329,7 +318,7 @@ hash_create_sync_obj(
 	hash_table_t*		table,	/*!< in: hash table */
 	enum hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
 					or HASH_TABLE_SYNC_RW_LOCK */
-	const char*		name,/*!< in: mutex/rw_lock name */
+	latch_id_t		id,	/*!< in: latch ID */
 	ulint			n_sync_obj)/*!< in: number of sync objects,
 					must be a power of 2 */
 {
@@ -345,14 +334,14 @@ hash_create_sync_obj(
 			ut_malloc_nokey(n_sync_obj * sizeof(ib_mutex_t)));
 
 		for (ulint i = 0; i < n_sync_obj; i++) {
-			mutex_create(name, table->sync_obj.mutexes + i);
+			mutex_create(id, table->sync_obj.mutexes + i);
 		}
 
 		break;
 
 	case HASH_TABLE_SYNC_RW_LOCK: {
 
-		latch_level_t	level = sync_latch_get_level(name);
+		latch_level_t	level = sync_latch_get_level(id);
 
 		ut_a(level != SYNC_UNKNOWN);
 

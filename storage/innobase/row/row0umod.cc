@@ -264,10 +264,8 @@ row_undo_mod_clust(
 	ut_ad(thr_get_trx(thr) == node->trx);
 	ut_ad(node->trx->dict_operation_lock_mode);
 	ut_ad(node->trx->in_rollback);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S)
 	      || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	log_free_check();
 	pcur = &node->pcur;
@@ -320,12 +318,12 @@ row_undo_mod_clust(
 	ut_ad(online || !dict_index_is_online_ddl(index));
 
 	if (err == DB_SUCCESS && online) {
-#ifdef UNIV_SYNC_DEBUG
+
 		ut_ad(rw_lock_own_flagged(
 				&index->lock,
 				RW_LOCK_FLAG_S | RW_LOCK_FLAG_X
 				| RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
+
 		switch (node->rec_type) {
 		case TRX_UNDO_DEL_MARK_REC:
 			row_log_table_insert(

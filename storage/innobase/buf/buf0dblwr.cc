@@ -137,7 +137,7 @@ buf_dblwr_init(
 	ut_a(srv_doublewrite_batch_size > 0
 	     && srv_doublewrite_batch_size < buf_size);
 
-	mutex_create("buf_dblwr", &buf_dblwr->mutex);
+	mutex_create(LATCH_ID_BUF_DBLWR, &buf_dblwr->mutex);
 
 	buf_dblwr->b_event = os_event_create("dblwr_batch_event");
 	buf_dblwr->s_event = os_event_create("dblwr_single_event");

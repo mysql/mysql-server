@@ -57,7 +57,6 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0start.h"
 # include "trx0roll.h"
 # include "row0merge.h"
-# include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the
 mysqlbackup --include regexp option: then we do not want to create tables in
@@ -447,8 +446,8 @@ recv_sys_create(void)
 
 	recv_sys = static_cast<recv_sys_t*>(ut_zalloc_nokey(sizeof(*recv_sys)));
 
-	mutex_create("recv_sys", &recv_sys->mutex);
-	mutex_create("recv_writer", &recv_sys->writer_mutex);
+	mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
+	mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -3760,6 +3759,10 @@ recv_recovery_rollback_active(void)
 /*===============================*/
 {
 	ut_ad(!recv_writer_thread_active);
+
+	/* Switch latching order checks on in sync0debug.cc, if
+	--innodb-sync-debug=true (default) */
+	ut_d(sync_check_enable());
 
 	/* We can't start any (DDL) transactions if UNDO logging
 	has been disabled, additionally disable ROLLBACK of recovered

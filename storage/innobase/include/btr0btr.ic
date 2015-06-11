@@ -52,9 +52,9 @@ btr_block_get_func(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 	const dict_index_t*	index,
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 	mtr_t*		mtr)
 {
 	buf_block_t*	block;

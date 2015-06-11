@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -175,7 +175,7 @@ Usage: $0 [options]
   --with-debug            Build debug version
   --extra-debug-flag flag Add -Dflag to compiler flags
                           InnoDB supports the following debug flags,
-                          UNIV_DEBUG, UNIV_SYNC_DEBUG, UNIV_MEM_DEBUG,
+                          UNIV_DEBUG, UNIV_MEM_DEBUG,
                           UNIV_DEBUG_THREAD_CREATION, UNIV_DEBUG_LOCK_VALIDATE,
                           UNIV_DEBUG_PRINT, UNIV_DEBUG_FILE_ACCESS,
                           UNIV_LIGHT_MEM_DEBUG, UNIV_LOG_DEBUG,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -72,6 +72,7 @@ extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_cmdq_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
+extern mysql_pfs_key_t	mutex_list_mutex_key;
 extern mysql_pfs_key_t	recalc_pool_mutex_key;
 extern mysql_pfs_key_t	page_cleaner_mutex_key;
 extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
@@ -84,18 +85,18 @@ extern mysql_pfs_key_t	rtr_ssn_mutex_key;
 extern mysql_pfs_key_t	redo_rseg_mutex_key;
 extern mysql_pfs_key_t	noredo_rseg_mutex_key;
 extern mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 extern mysql_pfs_key_t	rw_lock_debug_mutex_key;
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 extern mysql_pfs_key_t	rw_lock_list_mutex_key;
 extern mysql_pfs_key_t	rw_lock_mutex_key;
 extern mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 extern mysql_pfs_key_t	sync_thread_mutex_key;
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 extern mysql_pfs_key_t	buf_dblwr_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
 extern mysql_pfs_key_t	trx_mutex_key;
@@ -119,9 +120,9 @@ extern mysql_pfs_key_t  row_drop_list_mutex_key;
 performance schema */
 extern	mysql_pfs_key_t btr_search_latch_key;
 extern	mysql_pfs_key_t	buf_block_lock_key;
-# ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_DEBUG
 extern	mysql_pfs_key_t	buf_block_debug_latch_key;
-# endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
 extern	mysql_pfs_key_t	dict_operation_lock_key;
 extern	mysql_pfs_key_t	checkpoint_lock_key;
 extern	mysql_pfs_key_t	fil_space_latch_key;
@@ -139,9 +140,8 @@ extern	mysql_pfs_key_t buf_chunk_map_latch_key;
 # endif /* UNIV_DEBUG */
 #endif /* UNIV_PFS_RWLOCK */
 
-/**
-Prints info of the sync system.
-@param file - where to print */
+/** Prints info of the sync system.
+@param[in]	file	where to print */
 void
 sync_print(FILE* file);
 

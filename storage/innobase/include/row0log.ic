@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,9 +33,7 @@ row_log_abort_sec(
 /*===============*/
 	dict_index_t*	index)	/*!< in/out: index (x-latched) */
 {
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(!dict_index_is_clust(index));
 	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
@@ -56,13 +54,10 @@ row_log_online_op_try(
 	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
 				or 0 for delete */
 {
-#ifdef UNIV_SYNC_DEBUG
 
 	ut_ad(rw_lock_own_flagged(
 			dict_index_get_lock(index),
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-
-#endif /* UNIV_SYNC_DEBUG */
 
 	switch (dict_index_get_online_status(index)) {
 	case ONLINE_INDEX_COMPLETE:

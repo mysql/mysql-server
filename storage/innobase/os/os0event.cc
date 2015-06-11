@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,23 +62,25 @@ struct os_event {
 		int	ret = pthread_cond_destroy(&cond_var);
 		ut_a(ret == 0);
 #endif /* !_WIN32 */
+
+		mutex.destroy();
 	}
 
 	/** Set the event */
 	void set() UNIV_NOTHROW
 	{
-		mutex_enter(&mutex);
+		mutex.enter();
 
 		if (!m_set) {
 			broadcast();
 		}
 
-		mutex_exit(&mutex);
+		mutex.exit();
 	}
 
 	int64_t reset() UNIV_NOTHROW
 	{
-		mutex_enter(&mutex);
+		mutex.enter();
 
 		if (m_set) {
 			m_set = false;
@@ -86,7 +88,7 @@ struct os_event {
 
 		int64_t	ret = signal_count;
 
-		mutex_exit(&mutex);
+		mutex.exit();
 
 		return(ret);
 	}
@@ -133,6 +135,9 @@ private:
 	Initialize a condition variable */
 	void init() UNIV_NOTHROW
 	{
+
+		mutex.init();
+
 #ifdef _WIN32
 		InitializeConditionVariable(&cond_var);
 #else
@@ -320,7 +325,7 @@ void
 os_event::wait_low(
 	int64_t		reset_sig_count) UNIV_NOTHROW
 {
-	mutex_enter(&mutex);
+	mutex.enter();
 
 	if (!reset_sig_count) {
 		reset_sig_count = signal_count;
@@ -334,7 +339,7 @@ os_event::wait_low(
 		event really has been signaled after we came here to wait. */
 	}
 
-	mutex_exit(&mutex);
+	mutex.exit();
 }
 
 /**
@@ -392,7 +397,7 @@ os_event::wait_time_low(
 
 #endif /* _WIN32 */
 
-	mutex_enter(&mutex);
+	mutex.enter();
 
 	if (!reset_sig_count) {
 		reset_sig_count = signal_count;
@@ -412,7 +417,7 @@ os_event::wait_time_low(
 
 	} while (!timed_out);
 
-	mutex_exit(&mutex);
+	mutex.exit();
 
 	return(timed_out ? OS_SYNC_TIME_EXCEEDED : 0);
 }
@@ -420,8 +425,6 @@ os_event::wait_time_low(
 /** Constructor */
 os_event::os_event(const char* name) UNIV_NOTHROW
 {
-	mutex_create("event_mutex", &mutex);
-
 	init();
 
 	m_set = false;
@@ -442,7 +445,6 @@ os_event::os_event(const char* name) UNIV_NOTHROW
 os_event::~os_event() UNIV_NOTHROW
 {
 	destroy();
-	mutex_destroy(&mutex);
 }
 
 /**

@@ -37,10 +37,10 @@ Created 9/5/1995 Heikki Tuuri
 #include "sync0arr.ic"
 #endif
 
-#include "sync0mutex.h"
 #include "sync0sync.h"
 #include "lock0lock.h"
 #include "sync0rw.h"
+#include "sync0debug.h"
 #include "os0event.h"
 #include "os0file.h"
 #include "srv0srv.h"
@@ -119,6 +119,19 @@ the event must be made while owning the mutex. */
 
 /** Synchronization array */
 struct sync_array_t {
+
+	/** Constructor
+	Creates a synchronization wait array. It is protected by a mutex
+	which is automatically reserved when the functions operating on it
+	are called.
+	@param[in]	num_cells	Number of cells to create */
+	sync_array_t(ulint num_cells)
+		UNIV_NOTHROW;
+
+	/** Destructor */
+	~sync_array_t()
+		UNIV_NOTHROW;
+
 	ulint		n_reserved;	/*!< number of currently reserved
 					cells in the wait array */
 	ulint		n_cells;	/*!< number of cells in the
@@ -152,7 +165,7 @@ static ulint			sg_count;
 #define sync_array_exit(a)	mutex_exit(&(a)->mutex)
 #define sync_array_enter(a)	mutex_enter(&(a)->mutex)
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
 of one or more threads because of waits of semaphores.
@@ -166,7 +179,54 @@ sync_array_detect_deadlock(
 	sync_cell_t*	start,	/*!< in: cell where recursive search started */
 	sync_cell_t*	cell,	/*!< in: cell to search */
 	ulint		depth);	/*!< in: recursion depth */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
+
+/** Constructor
+Creates a synchronization wait array. It is protected by a mutex
+which is automatically reserved when the functions operating on it
+are called.
+@param[in]	num_cells		Number of cells to create */
+sync_array_t::sync_array_t(ulint num_cells)
+	UNIV_NOTHROW
+	:
+	n_reserved(),
+	n_cells(),
+	array(),
+	mutex(),
+	res_count(),
+	next_free_slot(),
+	first_free_slot()
+{
+	ut_a(num_cells > 0);
+
+	array = UT_NEW_ARRAY_NOKEY(sync_cell_t, num_cells);
+
+	ulint	sz = sizeof(sync_cell_t) * num_cells;
+
+	memset(array, 0x0, sz);
+
+	n_cells = num_cells;
+
+	first_free_slot = ULINT_UNDEFINED;
+
+	/* Then create the mutex to protect the wait array */
+	mutex_create(LATCH_ID_SYNC_ARRAY_MUTEX, &mutex);
+}
+
+/** Destructor */
+sync_array_t::~sync_array_t()
+	UNIV_NOTHROW
+{
+	ut_a(n_reserved == 0);
+
+	sync_array_validate(this);
+
+	/* Release the mutex protecting the wait array */
+
+	mutex_free(&mutex);
+
+	UT_DELETE_ARRAY(array);
+}
 
 /*****************************************************************//**
 Gets the nth cell in array.
@@ -183,41 +243,6 @@ sync_array_get_nth_cell(
 	return(arr->array + n);
 }
 
-/*******************************************************************//**
-Creates a synchronization wait array. It is protected by a mutex
-which is automatically reserved when the functions operating on it
-are called.
-@return own: created wait array */
-static
-sync_array_t*
-sync_array_create(
-/*==============*/
-	ulint	n_cells)	/*!< in: number of cells in the array
-				to create */
-{
-	ut_a(n_cells > 0);
-
-	/* Allocate memory for the data structures */
-	sync_array_t*	arr = UT_NEW_NOKEY(sync_array_t());
-
-	memset(arr, 0x0, sizeof(*arr));
-
-	arr->array = UT_NEW_ARRAY_NOKEY(sync_cell_t, n_cells);
-
-	ulint	sz = sizeof(sync_cell_t) * n_cells;
-
-	memset(arr->array, 0x0, sz);
-
-	arr->n_cells = n_cells;
-
-	arr->first_free_slot = ULINT_UNDEFINED;
-
-	/* Then create the mutex to protect the wait array complex */
-	mutex_create("sync_array_mutex", &arr->mutex);
-
-	return(arr);
-}
-
 /******************************************************************//**
 Frees the resources in a wait array. */
 static
@@ -226,15 +251,6 @@ sync_array_free(
 /*============*/
 	sync_array_t*	arr)	/*!< in, own: sync wait array */
 {
-	ut_a(arr->n_reserved == 0);
-
-	sync_array_validate(arr);
-
-	/* Release the mutex protecting the wait array complex */
-
-	mutex_free(&arr->mutex);
-
-	UT_DELETE_ARRAY(arr->array);
 	UT_DELETE(arr);
 }
 
@@ -418,7 +434,7 @@ sync_array_wait_event(
 
 	cell->waiting = true;
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 
 	/* We use simple enter to the mutex below, because if
 	we cannot acquire it at once, mutex_enter would call
@@ -434,7 +450,7 @@ sync_array_wait_event(
 	}
 
 	rw_lock_debug_mutex_exit();
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	sync_array_exit(arr);
 
 	os_event_wait_low(sync_cell_get_event(cell), cell->signal_count);
@@ -470,7 +486,7 @@ sync_array_cell_print(
 		WaitMutex*	mutex = cell->latch.mutex;
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
 #ifdef UNIV_DEBUG
-		const char*	name = policy.m_file_name;
+		const char*	name = policy.get_enter_filename();
 		if (name == NULL) {
 			/* The mutex might have been released. */
 			name = "NULL";
@@ -484,12 +500,12 @@ sync_array_cell_print(
 #endif /* UNIV_DEBUG */
 			"\n",
 			(void*) mutex,
-			innobase_basename(policy.m_cfile_name),
-			(ulong) policy.m_cline,
+			innobase_basename(policy.get_create_filename()),
+			(ulong) policy.get_create_line(),
 			(ulong) mutex->state()
 #ifdef UNIV_DEBUG
 			,name,
-			(ulong) policy.m_line
+			(ulong) policy.get_enter_line()
 #endif /* UNIV_DEBUG */
 		       );
 	} else if (type == RW_LOCK_X
@@ -543,7 +559,7 @@ sync_array_cell_print(
 	}
 }
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 Looks for a cell with the given thread id.
 @return pointer to cell or NULL if not found */
@@ -668,7 +684,7 @@ sync_array_detect_deadlock(
 		const WaitMutex::MutexPolicy&	policy = mutex->policy();
 
 		if (mutex->state() != MUTEX_STATE_UNLOCKED) {
-			thread = policy.m_thread_id;
+			thread = policy.get_thread_id();
 
 			/* Note that mutex->thread_id above may be
 			also OS_THREAD_ID_UNDEFINED, because the
@@ -681,16 +697,21 @@ sync_array_detect_deadlock(
 				arr, start, thread, 0, depth);
 
 			if (ret) {
-				const char*	name = policy.m_file_name;
+				const char*	name;
+
+				name = policy.get_enter_filename();
+
 				if (name == NULL) {
 					/* The mutex might have been
 					released. */
 					name = "NULL";
 				}
-				ib::info() << "Mutex " << mutex << " owned by"
+
+				ib::info()
+					<< "Mutex " << mutex << " owned by"
 					" thread " << os_thread_pf(thread)
 					<< " file " << name << " line "
-					<< policy.m_line;
+					<< policy.get_enter_line();
 
 				sync_array_cell_print(stderr, cell);
 
@@ -820,7 +841,7 @@ sync_array_detect_deadlock(
 
 	return(true);
 }
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 /******************************************************************//**
 Determines if we can wake up the thread waiting for a sempahore. */
@@ -1144,7 +1165,7 @@ sync_array_init(
 
 	for (ulint i = 0; i < sync_array_size; ++i) {
 
-		sync_wait_array[i] = sync_array_create(n_slots);
+		sync_wait_array[i] = UT_NEW_NOKEY(sync_array_t(n_slots));
 	}
 }
 
