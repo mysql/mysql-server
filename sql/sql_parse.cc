@@ -5019,6 +5019,7 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+  thd->binlog_need_explicit_defaults_ts= false;
 
   thd->m_trans_end_pos= 0;
   thd->m_trans_log_file= NULL;
