@@ -1248,9 +1248,10 @@ srv_shutdown_all_bg_threads()
 					os_event_set(recv_sys->flush_end);
 				}
 			}
+
 			os_event_set(buf_flush_event);
-			if (!buf_page_cleaner_is_active
-			    && os_aio_all_slots_free()) {
+
+			if (!buf_page_cleaner_is_active) {
 				os_aio_wake_all_threads_at_shutdown();
 			}
 		}
