@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -107,6 +107,22 @@ do {								\
 #define ut_max	std::max
 #define ut_min	std::min
 
+/** Calculate the minimum of two pairs.
+@param[out]	min_hi	MSB of the minimum pair
+@param[out]	min_lo	LSB of the minimum pair
+@param[in]	a_hi	MSB of the first pair
+@param[in]	a_lo	LSB of the first pair
+@param[in]	b_hi	MSB of the second pair
+@param[in]	b_lo	LSB of the second pair */
+UNIV_INLINE
+void
+ut_pair_min(
+	ulint*	min_hi,
+	ulint*	min_lo,
+	ulint	a_hi,
+	ulint	a_lo,
+	ulint	b_hi,
+	ulint	b_lo);
 /******************************************************//**
 Compares two ulints.
 @return 1 if a > b, 0 if a == b, -1 if a < b */
@@ -116,6 +132,24 @@ ut_ulint_cmp(
 /*=========*/
 	ulint	a,	/*!< in: ulint */
 	ulint	b);	/*!< in: ulint */
+/** Compare two pairs of integers.
+@param[in]	a_h	more significant part of first pair
+@param[in]	a_l	less significant part of first pair
+@param[in]	b_h	more significant part of second pair
+@param[in]	b_l	less significant part of second pair
+@return comparison result of (a_h,a_l) and (b_h,b_l)
+@retval -1 if (a_h,a_l) is less than (b_h,b_l)
+@retval 0 if (a_h,a_l) is equal to (b_h,b_l)
+@retval 1 if (a_h,a_l) is greater than (b_h,b_l) */
+UNIV_INLINE
+int
+ut_pair_cmp(
+	ulint	a_h,
+	ulint	a_l,
+	ulint	b_h,
+	ulint	b_l)
+	__attribute__((warn_unused_result));
+
 /*************************************************************//**
 Calculates fast the remainder of n/m when m is a power of two.
 @param n in: numerator

@@ -3635,6 +3635,7 @@ buf_block_init_low(
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
+	block->n_bytes		= 0;
 	block->left_side	= TRUE;
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -351,16 +351,19 @@ dtuple_coll_cmp(
 	const dtuple_t*	tuple1,
 	const dtuple_t*	tuple2)
 	__attribute__((warn_unused_result));
-/************************************************************//**
-Folds a prefix given as the number of fields of a tuple.
+/** Fold a prefix given as the number of fields of a tuple.
+@param[in]	tuple		index record
+@param[in]	n_fields	number of complete fields to fold
+@param[in]	n_bytes		number of bytes to fold in the last field
+@param[in]	index_id	index tree ID
 @return the folded value */
 UNIV_INLINE
 ulint
 dtuple_fold(
-/*========*/
-	const dtuple_t*	tuple,	/*!< in: the tuple */
-	ulint		n_fields,/*!< in: number of complete fields to fold */
-	index_id_t	tree_id)/*!< in: index tree id */
+	const dtuple_t*	tuple,
+	ulint		n_fields,
+	ulint		n_bytes,
+	index_id_t	tree_id)
 	__attribute__((warn_unused_result));
 /*******************************************************************//**
 Sets types of fields binary in a tuple. */
