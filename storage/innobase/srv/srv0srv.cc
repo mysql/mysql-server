@@ -65,7 +65,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "sync0mutex.h"
 #include "sync0sync.h"
 #include "trx0i_s.h"
 #include "trx0purge.h"
@@ -911,7 +910,7 @@ srv_init(void)
 	ulint	n_sys_threads = 0;
 	ulint	srv_sys_sz = sizeof(*srv_sys);
 
-	mutex_create("srv_innodb_monitor", &srv_innodb_monitor_mutex);
+	mutex_create(LATCH_ID_SRV_INNODB_MONITOR, &srv_innodb_monitor_mutex);
 
 	if (!srv_read_only_mode) {
 
@@ -929,9 +928,9 @@ srv_init(void)
 	and so mutex creation is needed. */
 	{
 
-		mutex_create("srv_sys", &srv_sys->mutex);
+		mutex_create(LATCH_ID_SRV_SYS, &srv_sys->mutex);
 
-		mutex_create("srv_sys_tasks", &srv_sys->tasks_mutex);
+		mutex_create(LATCH_ID_SRV_SYS_TASKS, &srv_sys->tasks_mutex);
 
 		srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
@@ -963,7 +962,8 @@ srv_init(void)
 	4. innodb_cmp_per_index_update(), no other latches
 	since we do not acquire any other latches while holding this mutex,
 	it can have very low level. We pick SYNC_ANY_LATCH for it. */
-	mutex_create("page_zip_stat_per_index", &page_zip_stat_per_index_mutex);
+	mutex_create(LATCH_ID_PAGE_ZIP_STAT_PER_INDEX,
+		     &page_zip_stat_per_index_mutex);
 
 	/* Create dummy indexes for infimum and supremum records */
 
@@ -1126,7 +1126,7 @@ srv_printf_innodb_monitor(
 	sync_print(file);
 
 	/* Conceptually, srv_innodb_monitor_mutex has a very high latching
-	order level in sync0mutex.h, while dict_foreign_err_mutex has a very
+	order level in sync0sync.h, while dict_foreign_err_mutex has a very
 	low level 135. Therefore we can reserve the latter mutex here without
 	a danger of a deadlock of threads. */
 

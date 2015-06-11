@@ -238,7 +238,7 @@ dict_stats_thread_init()
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
 
-	mutex_create("recalc_pool", &recalc_pool_mutex);
+	mutex_create(LATCH_ID_RECALC_POOL, &recalc_pool_mutex);
 
 	dict_stats_recalc_pool_init();
 }

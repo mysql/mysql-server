@@ -970,7 +970,7 @@ row_ins_foreign_check_on_constraint(
 	/* Since we are going to delete or update a row, we have to invalidate
 	the MySQL query cache for table. A deadlock of threads is not possible
 	here because the caller of this function does not hold any latches with
-	the sync0mutex.h rank above the lock_sys_t::mutex. The query cache mutex
+	the mutex rank above the lock_sys_t::mutex. The query cache mutex
 	has a rank just above the lock_sys_t::mutex. */
 
 	row_ins_invalidate_query_cache(thr, table->name.m_name);
@@ -1429,9 +1429,7 @@ row_ins_check_foreign_constraint(
 
 	rec_offs_init(offsets_);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 	err = DB_SUCCESS;
 
@@ -1906,10 +1904,8 @@ row_ins_scan_sec_index_for_duplicate(
 	DBUG_ENTER("row_ins_scan_sec_index_for_duplicate");
 
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(s_latch == rw_lock_own_flagged(
 			&index->lock, RW_LOCK_FLAG_S | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -2447,7 +2443,7 @@ row_ins_clust_index_entry_low(
 		ut_ad(page_rec_is_supremum(first_rec)
 		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
-#endif
+#endif /* UNIV_DEBUG */
 
 	/* Allowing duplicates in clustered index is currently enabled
 	only for intrinsic table and caller understand the limited
@@ -2947,7 +2943,7 @@ row_ins_sec_index_entry_low(
 		ut_ad(page_rec_is_supremum(first_rec)
 		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
-#endif
+#endif /* UNIV_DEBUG */
 
 	n_unique = dict_index_get_n_unique(index);
 

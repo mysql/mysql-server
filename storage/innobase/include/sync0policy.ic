@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,102 +23,78 @@ Policy for mutexes.
 Created 2012-08-21 Sunny Bains.
 ***********************************************************************/
 
-#include "sync0mutex.h"
 #include "sync0debug.h"
 
 template <typename Mutex>
-void TrackPolicy<Mutex>::print(FILE* stream) const
+std::string GenericPolicy<Mutex>::to_string() const
 {
-	const char*	ptr = m_cfile_name + strlen(m_cfile_name) - 1;
+	return(sync_mutex_to_string(get_id(), sync_file_created_get(this)));
+}
 
-	while (ptr > m_cfile_name && *ptr != '/' && *ptr != '\\') {
-		--ptr;
-	}
-
-	++ptr;
-
-	fprintf(stream, "Mutex \"%s\" created at %s:%lu ",
-		m_name, ptr, m_cline);
+template <typename Mutex>
+std::string BlockMutexPolicy<Mutex>::to_string() const
+{
+	/* I don't think it makes sense to keep track of the file name
+	and line number for each block mutex. Too much of overhead. Use the
+	latch id to figure out the location from the source. */
+	return(sync_mutex_to_string(get_id(), "buf0buf.cc:0"));
 }
 
 #ifdef UNIV_DEBUG
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::init(
-	const Mutex&	mutex,
-	const char*	name,
-	const char*	filename,
-	ulint		line) UNIV_NOTHROW
+void MutexDebug<Mutex>::init(latch_id_t id)
+	UNIV_NOTHROW
 {
-	TrackPolicy<Mutex>::init(mutex, name, filename, line);
+	m_context.m_id = id;
+
+	m_context.release();
 
 	m_magic_n = MUTEX_MAGIC_N;
-	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
-
-	m_latch.m_name = name;
-	m_latch.m_level = sync_latch_get_level(name);
-
-	ut_ad(m_latch.m_level != SYNC_UNKNOWN);
-
-	m_file_name = 0;
-
-	m_line = ULINT_UNDEFINED;
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::enter(
-	const Mutex&		mutex,
-	const char*		name,
-	ulint			line) UNIV_NOTHROW
+void MutexDebug<Mutex>::enter(
+	const Mutex*	mutex,
+	const char*	name,
+	ulint		line)
+	UNIV_NOTHROW
 {
-	if (!m_track) {
-		return;
-	}
-
 	ut_ad(!is_owned());
-	ut_ad(m_latch.m_mutex == 0 || m_latch.m_mutex == &mutex);
 
-	if (m_latch.m_mutex == 0) {
-		m_latch.m_mutex = &mutex;
-	}
+	Context	context(m_context.get_id());
 
-	m_line = line;
-	m_file_name = name;
+	context.locked(mutex, name, line);
 
-	ut_a(m_file_name);
+	/* Check for latch order violation. */
 
-	/* Check latch order violation. */
-	sync_check_lock(&m_latch);
+	sync_check_lock_validate(&context);
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::locked(const Mutex& mutex) UNIV_NOTHROW
+void MutexDebug<Mutex>::locked(
+	const Mutex*	mutex,
+	const char*	name,
+	ulint		line)
+	UNIV_NOTHROW
 {
-	if (!m_track) {
-		return;
-	}
-
 	ut_ad(!is_owned());
-	ut_ad(m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
+	ut_ad(m_context.m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
 
-	m_thread_id = os_thread_get_curr_id();
+	m_context.locked(mutex, name, line);
+
+	sync_check_lock_granted(&m_context);
 }
 
 template <typename Mutex>
-void DebugPolicy<Mutex>::release(const Mutex& mutex) UNIV_NOTHROW
+void MutexDebug<Mutex>::release(const Mutex* mutex)
+	UNIV_NOTHROW
 {
-	if (!m_track) {
-		return;
-	}
-
 	ut_ad(is_owned());
 
-	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
+	m_context.release();
 
-	m_file_name = NULL;
-	m_line = ULINT_UNDEFINED;
-
-	sync_check_unlock(&m_latch);
+	sync_check_unlock(&m_context);
 }
 
 #endif /* UNIV_DEBUG */

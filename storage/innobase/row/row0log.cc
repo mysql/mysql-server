@@ -281,10 +281,8 @@ row_log_online_op(
 
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)) {
 		return;
@@ -551,11 +549,9 @@ row_log_table_delete(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)
 	    || !dict_index_is_online_ddl(index)
@@ -845,19 +841,19 @@ row_log_table_low(
 	ulint			extra_size;
 	ulint			mrec_size;
 	ulint			avail_size;
-	const dict_index_t*	new_index = dict_table_get_first_index(
-		index->online_log->table);
+	const dict_index_t*	new_index;
+
+	new_index = dict_table_get_first_index(index->online_log->table);
+
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_clust(new_index));
 	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
 	ut_ad(page_is_leaf(page_align(rec)));
 	ut_ad(!page_is_comp(page_align(rec)) == !rec_offs_comp(offsets));
@@ -1059,11 +1055,9 @@ row_log_table_get_pk(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
 			RW_LOCK_FLAG_S | RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(log);
 	ut_ad(log->table);
@@ -1256,11 +1250,9 @@ row_log_table_blob_free(
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
 			RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_no != FIL_NULL);
 
 	if (index->online_log->error != DB_SUCCESS) {
@@ -1302,11 +1294,11 @@ row_log_table_blob_alloc(
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
 			RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX));
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_ad(page_no != FIL_NULL);
 
 	if (index->online_log->error != DB_SUCCESS) {
@@ -2565,9 +2557,7 @@ row_log_table_apply_ops(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(trx->mysql_thd);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!dict_index_is_online_ddl(new_index));
 	ut_ad(trx_id_col > 0);
 	ut_ad(trx_id_col != ULINT_UNDEFINED);
@@ -2586,9 +2576,7 @@ row_log_table_apply_ops(
 
 next_block:
 	ut_ad(has_index_lock);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
 
 	stage->inc(row_log_progress_inc_per_block());
@@ -2896,9 +2884,7 @@ row_log_table_apply(
 
 	stage->begin_phase_log_table();
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 	clust_index = dict_table_get_first_index(old_table);
 
 	rw_lock_x_lock(dict_index_get_lock(clust_index));
@@ -2958,16 +2944,16 @@ row_log_allocate(
 	ut_ad(same_pk || table);
 	ut_ad(!table || col_map);
 	ut_ad(!add_cols || col_map);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
-	log = (row_log_t*) ut_malloc_nokey(sizeof *log);
-	if (!log) {
+
+	log = static_cast<row_log_t*>(ut_malloc_nokey(sizeof *log));
+
+	if (log == NULL) {
 		DBUG_RETURN(false);
 	}
 
 	log->fd = -1;
-	mutex_create("index_online_log", &log->mutex);
+	mutex_create(LATCH_ID_INDEX_ONLINE_LOG, &log->mutex);
 
 	log->blobs = NULL;
 	log->table = table;
@@ -3020,11 +3006,11 @@ row_log_get_max_trx(
 	dict_index_t*	index)	/*!< in: index, must be locked */
 {
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad((rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	       && mutex_own(&index->online_log->mutex))
 	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+
 	return(index->online_log->max_trx);
 }
 
@@ -3051,10 +3037,10 @@ row_log_apply_op_low(
 	ulint*		offsets = NULL;
 
 	ut_ad(!dict_index_is_clust(index));
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
-#endif /* UNIV_SYNC_DEBUG */
+
 	ut_ad(!dict_index_is_corrupted(index));
 	ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
 
@@ -3296,10 +3282,9 @@ row_log_apply_op(
 
 	/* Online index creation is only used for secondary indexes. */
 	ut_ad(!dict_index_is_clust(index));
-#ifdef UNIV_SYNC_DEBUG
+
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == has_index_lock);
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)) {
 		*error = DB_INDEX_CORRUPT;
@@ -3410,9 +3395,7 @@ row_log_apply_ops(
 
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!index->is_committed());
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log);
 	UNIV_MEM_INVALID(&mrec_end, sizeof mrec_end);
 
@@ -3426,9 +3409,7 @@ row_log_apply_ops(
 
 next_block:
 	ut_ad(has_index_lock);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(index->online_log->head.bytes == 0);
 
 	stage->inc(row_log_progress_inc_per_block());

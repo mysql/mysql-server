@@ -1357,9 +1357,8 @@ dict_index_set_online_status(
 	enum online_index_status	status)	/*!< in: status */
 {
 	ut_ad(!(index->type & DICT_FTS));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+
 #ifdef UNIV_DEBUG
 	switch (dict_index_get_online_status(index)) {
 	case ONLINE_INDEX_COMPLETE:

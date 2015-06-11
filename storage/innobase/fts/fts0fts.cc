@@ -629,11 +629,11 @@ fts_cache_create(
 		fts_cache_init_rw_lock_key, &cache->init_lock,
 		SYNC_FTS_CACHE_INIT);
 
-	mutex_create("fts_delete", &cache->deleted_lock);
+	mutex_create(LATCH_ID_FTS_DELETE, &cache->deleted_lock);
 
-	mutex_create("fts_optimize", &cache->optimize_lock);
+	mutex_create(LATCH_ID_FTS_OPTIMIZE, &cache->optimize_lock);
 
-	mutex_create("fts_doc_id", &cache->doc_id_lock);
+	mutex_create(LATCH_ID_FTS_DOC_ID, &cache->doc_id_lock);
 
 	/* This is the heap used to create the cache itself. */
 	cache->self_heap = ib_heap_allocator_create(heap);
@@ -703,9 +703,8 @@ fts_reset_get_doc(
 	fts_get_doc_t*  get_doc;
 	ulint		i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
-#endif
+
 	ib_vector_reset(cache->get_docs);
 
 	for (i = 0; i < ib_vector_size(cache->indexes); i++) {
@@ -985,9 +984,7 @@ fts_cache_index_cache_create(
 
 	ut_a(cache != NULL);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
-#endif
 
 	/* Must not already exist in the cache vector. */
 	ut_a(fts_find_index_cache(cache, index) == NULL);
@@ -1125,10 +1122,8 @@ fts_get_index_cache(
 {
 	ulint			i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X)
 	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
-#endif
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		fts_index_cache_t*	index_cache;
@@ -1158,9 +1153,7 @@ fts_get_index_get_doc(
 {
 	ulint			i;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
-#endif
 
 	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
 		fts_get_doc_t*	get_doc;
@@ -1193,9 +1186,7 @@ fts_tokenizer_word_get(
 	fts_tokenizer_word_t*	word;
 	ib_rbt_bound_t		parent;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
-#endif
 
 	/* If it is a stopword, do not index it */
 	if (!fts_check_token(text,
@@ -1254,11 +1245,12 @@ fts_cache_node_add_positions(
 	byte*		ptr_start;
 	ulint		doc_id_delta;
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	if (cache) {
 		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 	}
-#endif
+#endif /* UNIV_DEBUG */
+
 	ut_ad(doc_id >= node->last_doc_id);
 
 	/* Calculate the space required to store the ilist. */
@@ -1368,9 +1360,7 @@ fts_cache_add_doc(
 		return;
 	}
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
-#endif
 
 	n_words = rbt_size(tokens);
 
@@ -3201,9 +3191,7 @@ fts_doc_free(
 		rbt_free(doc->tokens);
 	}
 
-#ifdef UNIV_DEBUG
-	memset(doc, 0, sizeof(*doc));
-#endif /* UNIV_DEBUG */
+	ut_d(memset(doc, 0, sizeof(*doc)));
 
 	mem_heap_free(heap);
 }
@@ -4623,19 +4611,16 @@ ib_vector_t*
 fts_get_docs_create(
 	fts_cache_t*	cache)
 {
-	ulint		i;
 	ib_vector_t*	get_docs;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
-#endif
+
 	/* We need one instance of fts_get_doc_t per index. */
-	get_docs = ib_vector_create(
-		cache->self_heap, sizeof(fts_get_doc_t), 4);
+	get_docs = ib_vector_create(cache->self_heap, sizeof(fts_get_doc_t), 4);
 
 	/* Create the get_doc instance, we need one of these
 	per FTS index. */
-	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+	for (ulint i = 0; i < ib_vector_size(cache->indexes); ++i) {
 
 		dict_index_t**	index;
 		fts_get_doc_t*	get_doc;
@@ -5078,12 +5063,12 @@ fts_cache_find_word(
 {
 	ib_rbt_bound_t		parent;
 	const ib_vector_t*	nodes = NULL;
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	dict_table_t*		table = index_cache->index->table;
 	fts_cache_t*		cache = table->fts->cache;
 
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X));
-#endif
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
+#endif /* UNIV_DEBUG */
 
 	/* Lookup the word in the rb tree */
 	if (rbt_search(index_cache->words, &parent, text) == 0) {
@@ -5105,9 +5090,7 @@ fts_cache_append_deleted_doc_ids(
 	const fts_cache_t*	cache,		/*!< in: cache to use */
 	ib_vector_t*		vector)		/*!< in: append to this vector */
 {
-	ulint			i;
-
-	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
+	mutex_enter(const_cast<ib_mutex_t*>(&cache->deleted_lock));
 
 	if (cache->deleted_doc_ids == NULL) {
 		mutex_exit((ib_mutex_t*) &cache->deleted_lock);
@@ -5115,7 +5098,7 @@ fts_cache_append_deleted_doc_ids(
 	}
 
 
-	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
+	for (ulint i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		fts_update_t*	update;
 
 		update = static_cast<fts_update_t*>(
@@ -5277,7 +5260,7 @@ fts_t::fts_t(
 {
 	ut_a(table->fts == NULL);
 
-	mutex_create("fts_bg_threads", &bg_threads_mutex);
+	mutex_create(LATCH_ID_FTS_BG_THREADS, &bg_threads_mutex);
 
 	ib_alloc_t*	heap_alloc = ib_heap_allocator_create(fts_heap);
 
@@ -6197,12 +6180,12 @@ fts_fake_hex_to_dec(
 
 #ifdef UNIV_DEBUG
 	int		ret =
-#endif
+#endif /* UNIV_DEBUG */
 	sprintf(tmp_id, UINT64PFx, id);
 	ut_ad(ret == 16);
 #ifdef UNIV_DEBUG
 	ret =
-#endif
+#endif /* UNIV_DEBUG */
 #ifdef _WIN32
 	sscanf(tmp_id, "%016llu", &dec_id);
 #else

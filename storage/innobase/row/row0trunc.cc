@@ -1657,7 +1657,7 @@ row_truncate_table_for_mysql(
 	dberr_t		err;
 #ifdef UNIV_DEBUG
 	ulint		old_space = table->space;
-#endif
+#endif /* UNIV_DEBUG */
 	TruncateLogger*	logger = NULL;
 
 	/* Understanding the truncate flow.
@@ -1765,9 +1765,7 @@ row_truncate_table_for_mysql(
 	ut_a(trx->dict_operation_lock_mode == 0);
 	row_mysql_lock_data_dictionary(trx);
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	/* Step-4: Stop all the background process associated with table. */
 	dict_stats_wait_bg_to_stop_using_table(table, trx);

@@ -461,7 +461,7 @@ trx_sys_create(void)
 
 	trx_sys = static_cast<trx_sys_t*>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
-	mutex_create("trx_sys", &trx_sys->mutex);
+	mutex_create(LATCH_ID_TRX_SYS, &trx_sys->mutex);
 
 	UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);

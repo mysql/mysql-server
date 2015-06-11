@@ -36,7 +36,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
-#include "sync0mutex.h"
 #include "ut0lst.h"
 #include "read0types.h"
 #include "page0types.h"

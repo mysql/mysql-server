@@ -481,6 +481,7 @@ void
 log_free_check(void)
 /*================*/
 {
+#ifdef UNIV_DEBUG
 	/* During row_log_table_apply(), this function will be called while we
 	are holding some latches. This is OK, as long as we are not holding
 	any latches on buffer blocks. */
@@ -493,10 +494,11 @@ log_free_check(void)
 		SYNC_INDEX_TREE		/* index->lock */
 	};
 
-	sync_allowed_latches check(latches,
-				   latches + sizeof(latches)/sizeof(*latches));
+	sync_allowed_latches check(
+		latches, latches + sizeof(latches)/sizeof(*latches));
 
         ut_ad(!sync_check_iterate(check));
+#endif /* UNIV_DEBUG */
 
 	if (log_sys->check_flush_or_checkpoint) {
 

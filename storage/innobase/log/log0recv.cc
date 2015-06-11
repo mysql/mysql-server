@@ -55,7 +55,6 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0srv.h"
 # include "srv0start.h"
 # include "row0merge.h"
-# include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the
 mysqlbackup --include regexp option: then we do not want to create tables in
@@ -640,8 +639,8 @@ recv_sys_create(void)
 
 	recv_sys = static_cast<recv_sys_t*>(ut_zalloc_nokey(sizeof(*recv_sys)));
 
-	mutex_create("recv_sys", &recv_sys->mutex);
-	mutex_create("recv_writer", &recv_sys->writer_mutex);
+	mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
+	mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;

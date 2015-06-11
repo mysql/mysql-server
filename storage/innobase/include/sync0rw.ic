@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -45,7 +45,7 @@ rw_lock_s_lock_spin(
 				be passed to another thread to unlock */
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /******************************************************************//**
 Inserts the debug information for an rw-lock. */
 void
@@ -64,7 +64,7 @@ rw_lock_remove_debug_info(
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		pass,		/*!< in: pass value */
 	ulint		lock_type);	/*!< in: lock type */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 
 /********************************************************************//**
 Check if there are threads waiting for the rw-lock.
@@ -191,7 +191,7 @@ rw_lock_get_mutex(
 {
 	return(&(lock->mutex));
 }
-#endif
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 /******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
@@ -244,8 +244,7 @@ rw_lock_get_sx_lock_count(
 		lock_copy += X_LOCK_DECR;
 	}
 
-	if (lock_copy > 0
-	    && lock_copy <= X_LOCK_HALF_DECR) {
+	if (lock_copy > 0 && lock_copy <= X_LOCK_HALF_DECR) {
 		return(lock->sx_recursive);
 	}
 
@@ -387,9 +386,8 @@ rw_lock_s_lock_low(
 		return(FALSE);
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, pass, RW_LOCK_S, file_name, line);
-#endif
+	ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_S, file_name, line));
+
 	/* These debugging values are not set safely: they may be incorrect
 	or even refer to a line that is invalid for the file name. */
 	lock->last_s_file_name = file_name;
@@ -425,10 +423,8 @@ rw_lock_s_lock_func(
 	the threads which have s-locked a latch. This would use some CPU
 	time. */
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(lock, RW_LOCK_S)); /* see NOTE above */
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (!rw_lock_s_lock_low(lock, pass, file_name, line)) {
 
@@ -493,9 +489,8 @@ rw_lock_x_lock_func_nowait(
 		/* Failure */
 		return(FALSE);
 	}
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, 0, RW_LOCK_X, file_name, line);
-#endif
+
+	ut_d(rw_lock_add_debug_info(lock, 0, RW_LOCK_X, file_name, line));
 
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = line;
@@ -511,19 +506,17 @@ UNIV_INLINE
 void
 rw_lock_s_unlock_func(
 /*==================*/
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
-#endif
+#endif /* UNIV_DEBUG */
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	ut_ad(lock->lock_word > -X_LOCK_DECR);
 	ut_ad(lock->lock_word != 0);
 	ut_ad(lock->lock_word < X_LOCK_DECR);
 
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, pass, RW_LOCK_S);
-#endif
+	ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_S));
 
 	/* Increment lock_word to indicate 1 less reader */
 	lint	lock_word = rw_lock_lock_word_incr(lock, 1);
@@ -538,10 +531,6 @@ rw_lock_s_unlock_func(
 	}
 
 	ut_ad(rw_lock_validate(lock));
-
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_lock_stats.rw_s_exit_count.inc();
-#endif
 }
 
 /******************************************************************//**
@@ -550,10 +539,10 @@ UNIV_INLINE
 void
 rw_lock_x_unlock_func(
 /*==================*/
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	ut_ad(lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR
@@ -570,9 +559,7 @@ rw_lock_x_unlock_func(
 		lock->recursive = FALSE;
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, pass, RW_LOCK_X);
-#endif /* UNIV_SYNC_DEBUG */
+	ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_X));
 
 	if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
 		/* There is 1 x-lock */
@@ -602,10 +589,6 @@ rw_lock_x_unlock_func(
 	}
 
 	ut_ad(rw_lock_validate(lock));
-
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_lock_stats.rw_x_exit_count.inc();
-#endif /* UNIV_SYNC_DEBUG */
 }
 
 /******************************************************************//**
@@ -614,20 +597,18 @@ UNIV_INLINE
 void
 rw_lock_sx_unlock_func(
 /*===================*/
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the lock may have
 				been passed to another thread to unlock */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	ut_ad(rw_lock_get_sx_lock_count(lock));
-	ut_a(lock->sx_recursive > 0);
+	ut_ad(lock->sx_recursive > 0);
 
-	lock->sx_recursive -= 1;
+	--lock->sx_recursive;
 
-#ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SX);
-#endif /* UNIV_SYNC_DEBUG */
+	ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_SX));
 
 	if (lock->sx_recursive == 0) {
 		/* Last caller in a possible recursive chain. */
@@ -659,10 +640,6 @@ rw_lock_sx_unlock_func(
 	}
 
 	ut_ad(rw_lock_validate(lock));
-
-#ifdef UNIV_SYNC_PERF_STAT
-	rw_lock_stats.rw_sx_exit_count.inc();
-#endif /* UNIV_SYNC_PERF_STAT */
 }
 
 #ifdef UNIV_PFS_RWLOCK
@@ -677,27 +654,25 @@ pfs_rw_lock_create_func(
 /*====================*/
 	mysql_pfs_key_t	key,		/*!< in: key registered with
 					performance schema */
-	rw_lock_t*	lock,		/*!< in: pointer to memory */
+	rw_lock_t*	lock,		/*!< in/out: pointer to memory */
 # ifdef UNIV_DEBUG
-# ifdef UNIV_SYNC_DEBUG
 	latch_level_t	level,		/*!< in: level */
-# endif /* UNIV_SYNC_DEBUG */
 	const char*	cmutex_name,	/*!< in: mutex name */
 # endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
 {
+	ut_d(new(lock) rw_lock_t());
+
 	/* Initialize the rwlock for performance schema */
 	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key, lock);
 
 	/* The actual function to initialize an rwlock */
 	rw_lock_create_func(lock,
-# ifdef UNIV_DEBUG
-#  ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 			    level,
-#  endif /* UNIV_SYNC_DEBUG */
 			    cmutex_name,
-# endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
 			    cfile_name,
 			    cline);
 }
@@ -922,9 +897,11 @@ pfs_rw_lock_sx_lock_low(
 		PSI_rwlock_locker*	locker;
 		PSI_rwlock_locker_state	state;
 
-		/* Instrumented to inform we are aquiring a shared exclusive rwlock */
+		/* Instrumented to inform we are aquiring a shared
+		exclusive rwlock */
 		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-			&state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK,
+			&state, lock->pfs_psi,
+			PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK,
 			file_name, static_cast<uint>(line));
 
 		ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
@@ -947,21 +924,22 @@ UNIV_INLINE
 void
 pfs_rw_lock_x_unlock_func(
 /*======================*/
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the
 				lock may have been passed to another
 				thread to unlock */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	/* Inform performance schema we are unlocking the lock */
-	if (lock->pfs_psi != NULL)
+	if (lock->pfs_psi != NULL) {
 		PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+	}
 
 	rw_lock_x_unlock_func(
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 		pass,
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 		lock);
 }
 
@@ -973,21 +951,22 @@ UNIV_INLINE
 void
 pfs_rw_lock_sx_unlock_func(
 /*======================*/
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the
 				lock may have been passed to another
 				thread to unlock */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	/* Inform performance schema we are unlocking the lock */
-	if (lock->pfs_psi != NULL)
+	if (lock->pfs_psi != NULL) {
 		PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+	}
 
 	rw_lock_sx_unlock_func(
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 		pass,
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 		lock);
 }
 
@@ -999,21 +978,22 @@ UNIV_INLINE
 void
 pfs_rw_lock_s_unlock_func(
 /*======================*/
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 	ulint		pass,	/*!< in: pass value; != 0, if the
 				lock may have been passed to another
 				thread to unlock */
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 	/* Inform performance schema we are unlocking the lock */
-	if (lock->pfs_psi != NULL)
+	if (lock->pfs_psi != NULL) {
 		PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi);
+	}
 
 	rw_lock_s_unlock_func(
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 		pass,
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 		lock);
 
 }

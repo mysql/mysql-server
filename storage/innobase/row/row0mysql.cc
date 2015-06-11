@@ -2919,9 +2919,7 @@ row_create_table_for_mysql(
 	que_thr_t*	thr;
 	dberr_t		err;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
@@ -3128,9 +3126,7 @@ row_create_index_for_mysql(
 
 	if (table == NULL) {
 
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 		ut_ad(mutex_own(&dict_sys->mutex));
 
 		table = dict_table_open_on_name(table_name, TRUE, TRUE,
@@ -3307,9 +3303,7 @@ row_table_add_foreign_constraints(
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
@@ -4162,9 +4156,7 @@ row_drop_table_for_mysql(
 		}
 
 		ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 		table = dict_table_open_on_name(
 			name, TRUE, FALSE,
@@ -5648,7 +5640,7 @@ void
 row_mysql_init(void)
 /*================*/
 {
-	mutex_create("row_drop_list", &row_drop_list_mutex);
+	mutex_create(LATCH_ID_ROW_DROP_LIST, &row_drop_list_mutex);
 
 	UT_LIST_INIT(
 		row_mysql_drop_list,

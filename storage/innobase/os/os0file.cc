@@ -269,9 +269,10 @@ struct Slot {
 class AIO {
 public:
 	/** Constructor
+	@param[in]	id		Latch ID
 	@param[in]	n_slots		Number of slots to configure
 	@param[in]	segments	Number of segments to configure */
-	AIO(ulint n_slots, ulint segments);
+	AIO(latch_id_t id, ulint n_slots, ulint segments);
 
 	/** Destructor */
 	~AIO();
@@ -491,10 +492,14 @@ public:
 #endif /* _WIN32 */
 
 	/** Create an instance using new(std::nothrow)
+	@param[in]	id		Latch ID
 	@param[in]	n_slots		The number of AIO request slots
 	@param[in]	segments	The number of segments
 	@return a new AIO instance */
-	static AIO* create(ulint n_slots, ulint segments)
+	static AIO* create(
+		latch_id_t	id,
+		ulint		n_slots,
+		ulint		segments)
 		__attribute__((warn_unused_result));
 
 	/** Initializes the asynchronous io system. Creates one array each
@@ -5996,9 +6001,13 @@ os_aio_handler(
 }
 
 /** Constructor
+@param[in]	id		The latch ID
 @param[in]	n		Number of AIO slots
 @param[in]	segments	Number of segments */
-AIO::AIO(ulint n, ulint segments)
+AIO::AIO(
+	latch_id_t	id,
+	ulint		n,
+	ulint		segments)
 	:
 	m_slots(n),
 	m_n_segments(segments),
@@ -6013,7 +6022,7 @@ AIO::AIO(ulint n, ulint segments)
 	ut_a(n > 0);
 	ut_a(m_n_segments > 0);
 
-	mutex_create("os_aio_mutex", &m_mutex);
+	mutex_create(id, &m_mutex);
 
 	m_not_full = os_event_create("aio_not_full");
 	m_is_empty = os_event_create("aio_is_empty");
@@ -6137,12 +6146,16 @@ AIO::init()
 /** Creates an aio wait array. Note that we return NULL in case of failure.
 We don't care about freeing memory here because we assume that a
 failure will result in server refusing to start up.
+@param[in]	id		Latch ID
 @param[in]	n		maximum number of pending AIO operations
 				allowed; n must be divisible by m_n_segments
 @param[in]	n_segments	number of segments in the AIO array
 @return own: AIO array, NULL on failure */
 AIO*
-AIO::create(ulint n, ulint n_segments)
+AIO::create(
+	latch_id_t	id,
+	ulint		n,
+	ulint		n_segments)
 {
 	if ((n % n_segments)) {
 
@@ -6153,7 +6166,7 @@ AIO::create(ulint n, ulint n_segments)
 		return(NULL);
 	}
 
-	AIO*	array = UT_NEW_NOKEY(AIO(n, n_segments));
+	AIO*	array = UT_NEW_NOKEY(AIO(id, n, n_segments));
 
 	if (array != NULL && array->init() != DB_SUCCESS) {
 
@@ -6234,7 +6247,8 @@ AIO::start(
 
 	srv_reset_io_thread_op_info();
 
-	s_reads = create(n_readers * n_per_seg, n_readers);
+	s_reads = create(
+		LATCH_ID_OS_AIO_READ_MUTEX, n_readers * n_per_seg, n_readers);
 
 	if (s_reads == NULL) {
 		return(false);
@@ -6253,7 +6267,7 @@ AIO::start(
 
 	if (!srv_read_only_mode) {
 
-		s_ibuf = create(n_per_seg, 1);
+		s_ibuf = create(LATCH_ID_OS_AIO_IBUF_MUTEX, n_per_seg, 1);
 
 		if (s_ibuf == NULL) {
 			return(false);
@@ -6263,7 +6277,7 @@ AIO::start(
 
 		srv_io_thread_function[0] = "insert buffer thread";
 
-		s_log = create(n_per_seg, 1);
+		s_log = create(LATCH_ID_OS_AIO_LOG_MUTEX, n_per_seg, 1);
 
 		if (s_log == NULL) {
 			return(false);
@@ -6277,7 +6291,8 @@ AIO::start(
 		s_ibuf = s_log = NULL;
 	}
 
-	s_writes = create(n_writers * n_per_seg, n_writers);
+	s_writes = create(
+		LATCH_ID_OS_AIO_WRITE_MUTEX, n_writers * n_per_seg, n_writers);
 
 	if (s_writes == NULL) {
 		return(false);
@@ -6292,7 +6307,7 @@ AIO::start(
 
 	ut_ad(n_segments >= static_cast<ulint>(srv_read_only_mode ? 2 : 4));
 
-	s_sync = create(n_slots_sync, 1);
+	s_sync = create(LATCH_ID_OS_AIO_SYNC_MUTEX, n_slots_sync, 1);
 
 	if (s_sync == NULL) {
 

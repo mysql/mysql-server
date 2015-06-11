@@ -582,9 +582,7 @@ dict_table_close_and_drop(
 	dict_table_t*	table)		/*!< in/out: table */
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
 	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 
@@ -676,7 +674,7 @@ dict_table_autoinc_alloc(
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 	table->autoinc_mutex = UT_NEW_NOKEY(ib_mutex_t());
 	ut_a(table->autoinc_mutex != NULL);
-	mutex_create("autoinc", table->autoinc_mutex);
+	mutex_create(LATCH_ID_AUTOINC, table->autoinc_mutex);
 }
 
 /** Allocate and init the zip_pad_mutex of a given index.
@@ -690,7 +688,7 @@ dict_index_zip_pad_alloc(
 	dict_index_t*	index = static_cast<dict_index_t*>(index_void);
 	index->zip_pad.mutex = UT_NEW_NOKEY(SysMutex());
 	ut_a(index->zip_pad.mutex != NULL);
-	mutex_create("zip_pad_mutex", index->zip_pad.mutex);
+	mutex_create(LATCH_ID_ZIP_PAD_MUTEX, index->zip_pad.mutex);
 }
 
 
@@ -1042,7 +1040,7 @@ dict_init(void)
 	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
 	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
 
-	mutex_create("dict_sys", &dict_sys->mutex);
+	mutex_create(LATCH_ID_DICT_SYS, &dict_sys->mutex);
 
 	dict_sys->table_hash = hash_create(
 		buf_pool_get_curr_size()
@@ -1060,7 +1058,7 @@ dict_init(void)
 		ut_a(dict_foreign_err_file);
 	}
 
-	mutex_create("dict_foreign_err", &dict_foreign_err_mutex);
+	mutex_create(LATCH_ID_DICT_FOREIGN_ERR, &dict_foreign_err_mutex);
 }
 
 /**********************************************************************//**
@@ -1332,9 +1330,7 @@ dict_table_can_be_evicted(
 	const dict_table_t*	table)		/*!< in: table to test */
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(table->can_be_evicted);
 	ut_a(table->foreign_set.empty());
@@ -1402,9 +1398,7 @@ dict_make_room_in_cache(
 	ut_a(pct_check > 0);
 	ut_a(pct_check <= 100);
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(dict_lru_validate());
 
 	i = len = UT_LIST_GET_LEN(dict_sys->table_LRU);
@@ -2053,9 +2047,8 @@ dict_table_remove_from_cache_low(
 		trx_t* trx = trx_allocate_for_background();
 
 		ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
+
 		/* Mimic row_mysql_lock_data_dictionary(). */
 		trx->dict_operation_lock_mode = RW_X_LATCH;
 
@@ -3074,9 +3067,7 @@ dict_table_wait_for_bg_threads_to_exit(
 {
 	fts_t*		fts = table->fts;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&fts->bg_threads_mutex));
-#endif /* UNIV_SYNC_DEBUG */
 
 	while (fts->bg_threads > 0) {
 		mutex_exit(&fts->bg_threads_mutex);
@@ -3368,9 +3359,7 @@ dict_index_build_internal_fts(
 
 	ut_ad(table && index);
 	ut_ad(index->type == DICT_FTS);
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&dict_sys->mutex));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Create a new index */
@@ -5523,7 +5512,7 @@ dict_persist_init(void)
 	dict_persist = static_cast<dict_persist_t*>(
 		ut_zalloc_nokey(sizeof(*dict_persist)));
 
-	mutex_create("dict_persist_dirty_tables", &dict_persist->mutex);
+	mutex_create(LATCH_ID_DICT_PERSIST_DIRTY_TABLES, &dict_persist->mutex);
 
 	rw_lock_create(dict_persist_checkpoint_key, &dict_persist->lock,
 		       SYNC_PERSIST_CHECKPOINT);

@@ -136,9 +136,7 @@ row_purge_remove_clust_if_poss_low(
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	rec_offs_init(offsets_);
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 	index = dict_table_get_first_index(node->table);
 
@@ -502,7 +500,9 @@ row_purge_remove_sec_if_poss_leaf(
 			}
 
 			if (dict_index_is_spatial(index)) {
-				const page_t*   page = btr_cur_get_page(btr_cur);
+				const page_t*   page;
+
+				page = btr_cur_get_page(btr_cur);
 
 				if (!lock_test_prdt_page_lock(
 					page_get_space_id(page),
@@ -519,7 +519,7 @@ row_purge_remove_sec_if_poss_leaf(
 						" record on page "
 						<< page_get_page_no(page)
 						<< ".";
-#endif
+#endif /* UNIV_DEBUG */
 
 					btr_pcur_close(&pcur);
 					mtr_commit(&mtr);
@@ -649,9 +649,7 @@ row_purge_upd_exist_or_extern_func(
 {
 	mem_heap_t*	heap;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
-#endif /* UNIV_SYNC_DEBUG */
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
