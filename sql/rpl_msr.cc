@@ -98,7 +98,7 @@ Master_info* Multisource_info::get_mi(const char* channel_name)
   DBUG_RETURN(it->second);
 }
 
-bool Multisource_info::delete_mi(const char* channel_name)
+void Multisource_info::delete_mi(const char* channel_name)
 {
   DBUG_ENTER("Multisource_info::delete_mi");
 
@@ -118,15 +118,10 @@ bool Multisource_info::delete_mi(const char* channel_name)
       it == map_it->second.end())
   {
     map_it= rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
-    if (map_it == rep_channel_map.end())
-    {
-      DBUG_RETURN(true);
-    }
+    DBUG_ASSERT(map_it != rep_channel_map.end());
+
     it= map_it->second.find(channel_name);
-    if (it == map_it->second.end())
-    {
-      DBUG_RETURN(true);
-    }
+    DBUG_ASSERT(it != map_it->second.end());
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -157,8 +152,7 @@ bool Multisource_info::delete_mi(const char* channel_name)
     delete mi;
   }
 
-  DBUG_RETURN(false);
-
+  DBUG_VOID_RETURN;
 }
 
 
