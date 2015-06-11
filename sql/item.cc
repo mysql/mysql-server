@@ -1146,18 +1146,24 @@ Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
   because Item_singlerow_subselect later calls Item_cache-specific methods,
   e.g. row[i]->store() and row[i]->cache_value().
 
-  Let's wrap Item_func_conv_charset to a new Item_cache,
+  Let's wrap Item_func_conv_charset in a new Item_cache,
   so the Item_cache-specific methods can still be used for
   Item_singlerow_subselect::row[i] safely.
+
+  As a bonus we cache the converted value, instead of converting every time
 
   TODO: we should eventually check all other use cases of change_item_tree().
   Perhaps some more potentially dangerous substitution examples exist.
 */
 Item *Item_cache::safe_charset_converter(CHARSET_INFO *tocs)
 {
-  Item_func_conv_charset *conv= new Item_func_conv_charset(example, tocs, 1);
+  if (!example)
+    return Item::safe_charset_converter(tocs);
+  Item *conv= example->safe_charset_converter(tocs);
+  if (conv == example)
+    return this;
   Item_cache *cache;
-  if (!conv || !conv->safe || !(cache= new Item_cache_str(conv)))
+  if (!conv || !(cache= new Item_cache_str(conv)))
     return NULL; // Safe conversion is not possible, or OEM
   cache->setup(conv);
   cache->fixed= false; // Make Item::fix_fields() happy
