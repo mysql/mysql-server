@@ -164,6 +164,7 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 32K
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
 --source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
@@ -227,6 +228,7 @@ DROP DATABASE test;
 --source include/wait_until_disconnected.inc
 
 # Remove residue files and data folder of page size 16K
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
 --source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
