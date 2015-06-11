@@ -826,19 +826,21 @@ rec_copy_prefix_to_buf(
 						or NULL */
 	ulint*			buf_size)	/*!< in/out: buffer size */
 	__attribute__((nonnull));
-/************************************************************//**
-Folds a prefix of a physical record to a ulint.
+/** Fold a prefix of a physical record.
+@param[in]	rec		index record
+@param[in]	offsets		return value of rec_get_offsets()
+@param[in]	n_fields	number of complete fields to fold
+@param[in]	n_bytes		number of bytes to fold in the last field
+@param[in]	index_id	index tree ID
 @return the folded value */
 UNIV_INLINE
 ulint
 rec_fold(
-/*=====*/
-	const rec_t*	rec,		/*!< in: the physical record */
-	const ulint*	offsets,	/*!< in: array returned by
-					rec_get_offsets() */
-	ulint		n_fields,	/*!< in: number of complete
-					fields to fold */
-	index_id_t	tree_id)	/*!< in: index tree id */
+	const rec_t*	rec,
+	const ulint*	offsets,
+	ulint		n_fields,
+	ulint		n_bytes,
+	index_id_t	tree_id)
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************//**

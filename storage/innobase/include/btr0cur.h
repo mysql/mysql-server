@@ -949,6 +949,10 @@ struct btr_cur_t {
 					record if that record is on a
 					different leaf page! (See the note in
 					row_ins_duplicate_error_in_clust.) */
+	ulint		up_bytes;	/*!< number of matched bytes to the
+					right at the time cursor positioned;
+					only used internally in searches: not
+					defined after the search */
 	ulint		low_match;	/*!< if search mode was PAGE_CUR_LE,
 					the number of matched fields to the
 					first user record AT THE CURSOR or
@@ -957,6 +961,10 @@ struct btr_cur_t {
 					NOT defined for PAGE_CUR_GE or any
 					other search modes; see also the NOTE
 					in up_match! */
+	ulint		low_bytes;	/*!< number of matched bytes to the
+					left at the time cursor positioned;
+					only used internally in searches: not
+					defined after the search */
 	ulint		n_fields;	/*!< prefix length used in a hash
 					search if hash_node != NULL */
 	ulint		n_bytes;	/*!< hash prefix bytes if hash_node !=

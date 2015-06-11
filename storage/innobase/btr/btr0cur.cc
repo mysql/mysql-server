@@ -758,7 +758,9 @@ btr_cur_search_to_nth_level(
 	buf_block_t*	guess;
 	ulint		height;
 	ulint		up_match;
+	ulint		up_bytes;
 	ulint		low_match;
+	ulint		low_bytes;
 	ulint		savepoint;
 	ulint		rw_latch;
 	page_cur_mode_t	page_mode;
@@ -814,7 +816,9 @@ btr_cur_search_to_nth_level(
 	ut_ad(index->page != FIL_NULL);
 
 	UNIV_MEM_INVALID(&cursor->up_match, sizeof cursor->up_match);
+	UNIV_MEM_INVALID(&cursor->up_bytes, sizeof cursor->up_bytes);
 	UNIV_MEM_INVALID(&cursor->low_match, sizeof cursor->low_match);
+	UNIV_MEM_INVALID(&cursor->low_bytes, sizeof cursor->low_bytes);
 #ifdef UNIV_DEBUG
 	cursor->up_match = ULINT_UNDEFINED;
 	cursor->low_match = ULINT_UNDEFINED;
@@ -1026,7 +1030,9 @@ btr_cur_search_to_nth_level(
 	}
 
 	up_match = 0;
+	up_bytes = 0;
 	low_match = 0;
+	low_bytes = 0;
 
 	height = ULINT_UNDEFINED;
 
@@ -1391,9 +1397,10 @@ retry_page_get:
         }
 
 	if (dict_index_is_spatial(index) && page_mode >= PAGE_CUR_CONTAIN) {
+		ut_ad(need_path);
 		found = rtr_cur_search_with_match(
 			block, index, tuple, page_mode, page_cursor,
-			need_path ? cursor->rtr_info : NULL);
+			cursor->rtr_info);
 
 		/* Need to use BTR_MODIFY_TREE to do the MBR adjustment */
 		if (search_mode == PAGE_CUR_RTREE_INSERT
@@ -1410,7 +1417,18 @@ retry_page_get:
 				ut_ad(0);
 			}
 		}
+	} else if (height == 0 && btr_search_enabled
+		   && !dict_index_is_spatial(index)) {
+		/* The adaptive hash index is only used when searching
+		for leaf pages (height==0), but not in r-trees.
+		We only need the byte prefix comparison for the purpose
+		of updating the adaptive hash index. */
+		page_cur_search_with_match_bytes(
+			block, index, tuple, page_mode, &up_match, &up_bytes,
+			&low_match, &low_bytes, page_cursor);
 	} else {
+		/* Search for complete index fields. */
+		up_bytes = low_bytes = 0;
 		page_cur_search_with_match(
 			block, index, tuple, page_mode, &up_match,
 			&low_match, page_cursor,
@@ -1732,13 +1750,15 @@ need_opposite_intention:
 				/* replay up_match, low_match */
 				up_match = 0;
 				low_match = 0;
+				rtr_info_t*	rtr_info	= need_path
+					? cursor->rtr_info : NULL;
+
 				for (ulint i = 0; i < n_blocks; i++) {
 					page_cur_search_with_match(
 						tree_blocks[i], index, tuple,
 						page_mode, &up_match,
 						&low_match, page_cursor,
-						need_path ? cursor->rtr_info
-							  : NULL);
+						rtr_info);
 				}
 
 				goto search_loop;
@@ -1763,8 +1783,10 @@ need_opposite_intention:
 			goto retry_page_get;
 		}
 
-		if (dict_index_is_spatial(index) && need_path
+		if (dict_index_is_spatial(index)
+		    && page_mode >= PAGE_CUR_CONTAIN
 		    && page_mode != PAGE_CUR_RTREE_INSERT) {
+			ut_ad(need_path);
 			rtr_node_path_t* path =
 				cursor->rtr_info->path;
 
@@ -1873,7 +1895,9 @@ need_opposite_intention:
 		}
 	} else {
 		cursor->low_match = low_match;
+		cursor->low_bytes = low_bytes;
 		cursor->up_match = up_match;
+		cursor->up_bytes = up_bytes;
 
 #ifdef BTR_CUR_ADAPT
 		/* We do a dirty read of btr_search_enabled here.  We
