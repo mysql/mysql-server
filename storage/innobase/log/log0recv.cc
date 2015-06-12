@@ -671,6 +671,7 @@ recv_sys_close(void)
 
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
+		UT_DELETE(recv_sys->metadata_recover);
 
 #ifndef UNIV_HOTBACKUP
 		ut_ad(!recv_writer_thread_active);
@@ -711,6 +712,7 @@ recv_sys_mem_free(void)
 
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
+		UT_DELETE(recv_sys->metadata_recover);
 		ut_free(recv_sys);
 		recv_sys = NULL;
 	}
@@ -889,11 +891,13 @@ recv_sys_debug_free(void)
 	mem_heap_free(recv_sys->heap);
 	ut_free(recv_sys->buf);
 	ut_free(recv_sys->last_block_buf_start);
+	UT_DELETE(recv_sys->metadata_recover);
 
 	recv_sys->buf = NULL;
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
 	recv_sys->last_block_buf_start = NULL;
+	recv_sys->metadata_recover = NULL;
 
 	/* wake page cleaner up to progress */
 	if (!srv_read_only_mode) {
