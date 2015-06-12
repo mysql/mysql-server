@@ -8906,7 +8906,6 @@ PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_Gcalc_dyn_list_block;
 PSI_memory_key key_memory_Gis_read_stream_err_msg;
 PSI_memory_key key_memory_Geometry_objects_data;
-PSI_memory_key key_memory_KEY_CACHE;
 PSI_memory_key key_memory_MYSQL_LOCK;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
@@ -9048,7 +9047,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0},
   { &key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0},
   { &key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0},
-  { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
   { &key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0},
   { &key_memory_NET_buff, "NET::buff", 0},
   { &key_memory_NET_compress_packet, "NET::compress_packet", 0},
