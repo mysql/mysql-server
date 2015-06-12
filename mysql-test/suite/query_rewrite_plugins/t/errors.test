@@ -198,7 +198,7 @@ SELECT c1 FROM test.t1;
 
 --echo # Fix rule 1 (error in the replacement.)
 UPDATE query_rewrite.rewrite_rules
-SET replacement = 'SELECT c1 FROM test.t2 WHERE c1 = ?', enabled = 'Y'
+SET replacement = 'SELECT c1 FROM test.t2 WHERE c1 = ?', enabled = 'YES'
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c1 = ?';
 
 --error ER_SIGNAL_EXCEPTION

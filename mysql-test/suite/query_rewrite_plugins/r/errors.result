@@ -110,7 +110,7 @@ c1
 abc
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
 # 2. No error.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c1 FROM test.t1', 'SELECT * FROM test.t1' );
@@ -124,8 +124,8 @@ Variable_name	Value
 Rewriter_number_loaded_rules	1
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
 # 3. Syntax error in the pattern.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?',
@@ -140,9 +140,9 @@ Variable_name	Value
 Rewriter_number_loaded_rules	1
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
 # 4 Empty/NULL replacement/pattern
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c1 FROM test.t1 WHERE c2 = ?', '' );
@@ -156,10 +156,10 @@ Variable_name	Value
 Rewriter_number_loaded_rules	1
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
-4	SELECT c1 FROM test.t1 WHERE c2 = ?	NULL		Y	Parse error in replacement: >>Query was empty<<
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+4	SELECT c1 FROM test.t1 WHERE c2 = ?	NULL		YES	Parse error in replacement: >>Query was empty<<
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c2 = ?';
 ALTER TABLE query_rewrite.rewrite_rules
@@ -176,10 +176,10 @@ Variable_name	Value
 Rewriter_number_loaded_rules	1
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
-5	SELECT c1 FROM test.t1 WHERE c2 = ?	NULL	NULL	Y	Replacement is NULL.
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+5	SELECT c1 FROM test.t1 WHERE c2 = ?	NULL	NULL	YES	Replacement is NULL.
 DELETE FROM query_rewrite.rewrite_rules
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c2 = ?';
 ALTER TABLE query_rewrite.rewrite_rules
@@ -196,10 +196,10 @@ Variable_name	Value
 Rewriter_number_loaded_rules	1
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
-6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	Y	Pattern is NULL.
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	YES	Pattern is NULL.
 # 5 More parameters in the replacement than the pattern
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES
@@ -217,11 +217,11 @@ c1	c2
 abc	def
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
-6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	Y	Pattern is NULL.
-7	SELECT * FROM test.t1 WHERE c1 = ?	NULL	SELECT * FROM test.t2 WHERE c2 = ? AND c1 = ?	Y	Replacement has more parameter markers than pattern.
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	YES	Pattern is NULL.
+7	SELECT * FROM test.t1 WHERE c1 = ?	NULL	SELECT * FROM test.t2 WHERE c2 = ? AND c1 = ?	YES	Replacement has more parameter markers than pattern.
 # 6 A replacement that does not have syntax errors in itself, but the
 # rewritten query does.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
@@ -230,12 +230,12 @@ CALL query_rewrite.flush_rewrite_rules();
 ERROR 45000: Loading of some rule(s) failed.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	Y	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
-6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	Y	Pattern is NULL.
-7	SELECT * FROM test.t1 WHERE c1 = ?	NULL	SELECT * FROM test.t2 WHERE c2 = ? AND c1 = ?	Y	Replacement has more parameter markers than pattern.
-8	SELECT "Fail, please", ?	NULL	SELECT 1 LIMIT ?	Y	NULL
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE q c1 = ?	YES	Parse error in replacement: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ?' at line 1<<
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	YES	Pattern is NULL.
+7	SELECT * FROM test.t1 WHERE c1 = ?	NULL	SELECT * FROM test.t2 WHERE c2 = ? AND c1 = ?	YES	Replacement has more parameter markers than pattern.
+8	SELECT "Fail, please", ?	NULL	SELECT 1 LIMIT ?	YES	NULL
 SHOW STATUS LIKE 'Rewriter_reload_error';
 Variable_name	Value
 Rewriter_reload_error	ON
@@ -255,7 +255,7 @@ Warnings:
 Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by plugin: Rewriter.
 # Fix rule 1 (error in the replacement.)
 UPDATE query_rewrite.rewrite_rules
-SET replacement = 'SELECT c1 FROM test.t2 WHERE c1 = ?', enabled = 'Y'
+SET replacement = 'SELECT c1 FROM test.t2 WHERE c1 = ?', enabled = 'YES'
 WHERE pattern = 'SELECT c1 FROM test.t1 WHERE c1 = ?';
 CALL query_rewrite.flush_rewrite_rules();
 ERROR 45000: Loading of some rule(s) failed.
@@ -271,12 +271,12 @@ c1
 tuv
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE c1 = ?	Y	NULL
-2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	Y	NULL
-3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
-6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	Y	Pattern is NULL.
-7	SELECT * FROM test.t1 WHERE c1 = ?	NULL	SELECT * FROM test.t2 WHERE c2 = ? AND c1 = ?	Y	Replacement has more parameter markers than pattern.
-8	SELECT "Fail, please", ?	NULL	SELECT 1 LIMIT ?	Y	NULL
+1	SELECT c1 FROM test.t1 WHERE c1 = ?	NULL	SELECT c1 FROM test.t2 WHERE c1 = ?	YES	NULL
+2	SELECT c1 FROM test.t1	NULL	SELECT * FROM test.t1	YES	NULL
+3	SELECT c1 FROM test.t1 WHERE dqdq c1 = ? OR c2 = ?	NULL	SELECT * FROM test.t1 WHERE c2 = ? OR c1 = ?	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'c1 = ? OR c2 = ?' at line 1<<
+6	NULL	NULL	SELECT c1 FROM test.t1 WHERE c2 = ?	YES	Pattern is NULL.
+7	SELECT * FROM test.t1 WHERE c1 = ?	NULL	SELECT * FROM test.t2 WHERE c2 = ? AND c1 = ?	YES	Replacement has more parameter markers than pattern.
+8	SELECT "Fail, please", ?	NULL	SELECT 1 LIMIT ?	YES	NULL
 # Check that the rule without error is still executed and rewritten.
 SELECT c1 FROM test.t1;
 c1	c2
@@ -320,8 +320,8 @@ CALL query_rewrite.flush_rewrite_rules();
 ERROR 45000: Loading of some rule(s) failed.
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-9	error	NULL	error	Y	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'error' at line 1<<
-10	select 1	NULL	select 2	Y	NULL
+9	error	NULL	error	YES	Parse error in pattern: >>You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'error' at line 1<<
+10	select 1	NULL	select 2	YES	NULL
 SHOW STATUS LIKE 'Rewriter_reload_error';
 Variable_name	Value
 Rewriter_reload_error	ON

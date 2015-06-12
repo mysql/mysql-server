@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS query_rewrite.rewrite_rules (
   pattern VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   pattern_database VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin,
   replacement VARCHAR(10000) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  enabled CHAR(1) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT 'Y',
+  enabled ENUM('YES', 'NO') CHARACTER SET utf8 COLLATE utf8_bin NOT NULL
+    DEFAULT 'YES',
   message VARCHAR(1000) CHARACTER SET utf8 COLLATE utf8_bin
 ) DEFAULT CHARSET = utf8 ENGINE = INNODB;
 

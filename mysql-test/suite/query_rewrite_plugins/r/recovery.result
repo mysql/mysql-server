@@ -14,7 +14,7 @@ VALUES ( 'SELECT "Rewrite"', 'SELECT "Rewritten"' );
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT "Rewrite"	NULL	SELECT "Rewritten"	Y	NULL
+1	SELECT "Rewrite"	NULL	SELECT "Rewritten"	YES	NULL
 SELECT 'Rewrite';
 Rewritten
 Rewritten
