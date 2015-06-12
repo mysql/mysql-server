@@ -11,7 +11,7 @@ let datadir= $MYSQL_TMP_DIR/help_verbose/data;
 --mkdir $datadir
 
 let SEARCH_FILE = $bugdir/mysqld.log;
-let $args=--no-defaults --lc_messages_dir=$MYSQL_SHAREDIR --datadir=$datadir --skip-grant-tables >$SEARCH_FILE 2>&1 ;
+let $args=--no-defaults --lc_messages_dir=$MYSQL_SHAREDIR --datadir=$datadir --skip-grant-tables --secure-file-priv=$bugdir>$SEARCH_FILE 2>&1 ;
 
 --echo # Initialize
 --exec $MYSQLD $args --initialize
