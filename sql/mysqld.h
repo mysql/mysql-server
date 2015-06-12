@@ -532,7 +532,6 @@ extern PSI_memory_key key_memory_Filesort_buffer_sort_keys;
 extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;
 extern PSI_memory_key key_memory_XID;
-extern PSI_memory_key key_memory_KEY_CACHE;
 extern PSI_memory_key key_memory_MYSQL_LOCK;
 extern PSI_memory_key key_memory_MYSQL_LOG_name;
 extern PSI_memory_key key_memory_TC_LOG_MMAP_pages;
