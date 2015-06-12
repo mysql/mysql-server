@@ -3654,9 +3654,10 @@ static Sys_var_ulong Sys_thread_cache_size(
 
 static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
+  if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
+                                   thd->in_sub_stmt))
   {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return TRUE;
   }
@@ -3668,7 +3669,8 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
     return TRUE;
-  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
+                                    thd->in_sub_stmt))
   {
     /*
       Update the isolation level of the next transaction.
@@ -3682,6 +3684,12 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
       SET SESSION ISOLATION LEVEL ...
       BEGIN; <-- the session isolation level is used, not the
       result of SET TRANSACTION statement.
+
+      When we are in a trigger/function the transaction is already
+      started. Adhering to above behavior, the SET TRANSACTION would
+      fail when run from within trigger/function. And SET SESSION
+      TRANSACTION would always succeed making the characteristics
+      effective for the next transaction that starts.
      */
     thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
   }
@@ -3704,9 +3712,10 @@ static Sys_var_tx_isolation Sys_tx_isolation(
 
 static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
 {
-  if (var->type == OPT_DEFAULT && thd->in_active_multi_stmt_transaction())
+  if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
+                                   thd->in_sub_stmt))
   {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode());
+    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return true;
   }
@@ -3718,7 +3727,8 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_mybool::session_update(thd, var))
     return true;
-  if (var->type == OPT_DEFAULT || !thd->in_active_multi_stmt_transaction())
+  if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
+                                    thd->in_sub_stmt))
   {
     // @see Sys_var_tx_isolation::session_update() above for the rules.
     thd->tx_read_only= var->save_result.ulonglong_value;
