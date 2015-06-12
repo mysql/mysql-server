@@ -61,7 +61,6 @@ extern PSI_memory_key key_memory_Geometry_objects_data;
 extern PSI_memory_key key_memory_Gis_read_stream_err_msg;
 extern PSI_memory_key key_memory_HASH_ROW_ENTRY;
 extern PSI_memory_key key_memory_JOIN_CACHE;
-extern PSI_memory_key key_memory_KEY_CACHE;
 extern PSI_memory_key key_memory_LOG_POS_COORD;
 extern PSI_memory_key key_memory_LOG_name;
 extern PSI_memory_key key_memory_MPVIO_EXT_auth_info;

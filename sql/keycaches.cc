@@ -14,7 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "keycaches.h"
-#include "psi_memory_key.h"
+#include "../mysys/mysys_priv.h"
 
 
 /****************************************************************************
