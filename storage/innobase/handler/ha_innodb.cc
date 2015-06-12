@@ -1541,7 +1541,7 @@ thd_is_ins_sel_stmt(THD* user_thd)
 	Why is this needed ?
 	Use of AHI is blocked if statement is insert .... select statement. */
 	innodb_session_t*	innodb_priv = thd_to_innodb_session(user_thd);
-	return (innodb_priv->count_register_table_handler() > 0 ? true : false);
+	return(innodb_priv->count_register_table_handler() > 0 ? true : false);
 }
 
 /** Add the table handler to thread cache.
@@ -1959,13 +1959,12 @@ innobase_wildcasecmp(
 	return(wild_case_compare(system_charset_info, a, b));
 }
 
-/******************************************************************//**
-Strip dir name from a full path name and return only the file name
+/** Strip dir name from a full path name and return only the file name
+@param[in]	path_name	full path name
 @return file name or "null" if no file name */
 const char*
 innobase_basename(
-/*==============*/
-	const char*	path_name)	/*!< in: full path name */
+	const char*	path_name)
 {
 	const char*	name = base_name(path_name);
 
@@ -11382,7 +11381,7 @@ validate_create_tablespace_info(
 
 	/* From this point forward, push a warning for each problem found
 	instead of returning immediately*/
-	int	err = validate_tablespace_name(
+	int	error = validate_tablespace_name(
 			alter_info->tablespace_name, false);
 
 	/* Make sure the tablespace is not already open. */
@@ -11391,7 +11390,7 @@ validate_create_tablespace_info(
 		my_printf_error(ER_TABLESPACE_EXISTS,
 			"InnoDB: A tablespace named `%s` already exists.",
 			MYF(0), alter_info->tablespace_name);
-		err = HA_ERR_TABLESPACE_EXISTS;
+		error = HA_ERR_TABLESPACE_EXISTS;
 	}
 
 	if (alter_info->file_block_size) {
@@ -11403,7 +11402,7 @@ validate_create_tablespace_info(
 				"InnoDB does not support"
 				" FILE_BLOCK_SIZE=%llu", MYF(0),
 				alter_info->file_block_size);
-			err = HA_WRONG_CREATE_OPTION;
+			error = HA_WRONG_CREATE_OPTION;
 
 		/* Don't allow a file block size larger than UNIV_PAGE_SIZE. */
 		} else if (alter_info->file_block_size > UNIV_PAGE_SIZE) {
@@ -11412,7 +11411,7 @@ validate_create_tablespace_info(
 				"FILE_BLOCK_SIZE=%llu because "
 				"INNODB_PAGE_SIZE=%lu.", MYF(0),
 				alter_info->file_block_size, UNIV_PAGE_SIZE);
-			err = HA_WRONG_CREATE_OPTION;
+			error = HA_WRONG_CREATE_OPTION;
 
 		/* Don't allow a compressed tablespace when page size > 16k. */
 		} else if (UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF
@@ -11420,7 +11419,7 @@ validate_create_tablespace_info(
 			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: Cannot create a COMPRESSED tablespace"
 				" when innodb_page_size > 16k.", MYF(0));
-			err = HA_WRONG_CREATE_OPTION;
+			error = HA_WRONG_CREATE_OPTION;
 		}
 	}
 
@@ -11434,7 +11433,7 @@ validate_create_tablespace_info(
 			"InnoDB requires that ADD DATAFILE has a filename"
 			" ending in `%s`, the filename `%s` is invalid.",
 			MYF(0), DOT_IBD, alter_info->data_file_name);
-		err = HA_ERR_WRONG_FILE_NAME;
+		error = HA_ERR_WRONG_FILE_NAME;
 	}
 
 	const char* colon = strchr(alter_info->data_file_name, ':');
@@ -11453,10 +11452,10 @@ validate_create_tablespace_info(
 #endif /* _WIN32 */
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
-		err = HA_ERR_WRONG_FILE_NAME;
+		error = HA_ERR_WRONG_FILE_NAME;
 	}
 
-	return(err);
+	return(error);
 }
 
 /** CREATE a tablespace.

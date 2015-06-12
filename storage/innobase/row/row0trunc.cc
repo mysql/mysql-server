@@ -749,7 +749,7 @@ public:
 	/**
 	Constructor
 
-	@param[in/out]	table	Table to truncate
+	@param[in,out]	table	Table to truncate
 	@param[in]	noredo	whether to disable redo logging */
 	DropIndex(dict_table_t* table, bool noredo)
 		:
@@ -777,7 +777,7 @@ public:
 	/**
 	Constructor
 
-	@param[in/out]	table	Table to truncate
+	@param[in,out]	table	Table to truncate
 	@param[in]	noredo	whether to disable redo logging */
 	CreateIndex(dict_table_t* table, bool noredo)
 		:
@@ -2863,7 +2863,7 @@ truncate_t::write(
 	/* Include the NUL in the log record. */
 	ulint len = strlen(tablename) + 1;
 	if (end_ptr < (start_ptr + (len + 2))) {
-		return (DB_FAIL);
+		return(DB_FAIL);
 	}
 
 	mach_write_to_2(start_ptr, len);

@@ -5931,7 +5931,7 @@ fts_update_hex_format_flag(
 
 	ut_a(flags2 != ULINT32_UNDEFINED);
 
-	return (err);
+	return(err);
 }
 
 /*********************************************************************//**
@@ -6012,7 +6012,7 @@ fts_rename_one_aux_table_to_hex_format(
 			<< "' to '" << new_name << "'.";
 	}
 
-	return (error);
+	return(error);
 }
 
 /**********************************************************************//**
@@ -6044,7 +6044,7 @@ fts_rename_aux_tables_to_hex_format_low(
 		ib::warn() << "Setting parent table " << parent_table->name
 			<< " to hex format failed.";
 		fts_sql_rollback(trx);
-		return (error);
+		return(error);
 	}
 
 	DICT_TF2_FLAG_SET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
@@ -6163,7 +6163,7 @@ fts_rename_aux_tables_to_hex_format_low(
 		DICT_TF2_FLAG_UNSET(parent_table, DICT_TF2_FTS_AUX_HEX_NAME);
 	}
 
-	return (error);
+	return(error);
 }
 
 /**********************************************************************//**

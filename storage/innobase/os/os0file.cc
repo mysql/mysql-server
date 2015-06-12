@@ -3040,7 +3040,7 @@ os_file_create_directory(
 		return(false);
 	}
 
-	return (true);
+	return(true);
 }
 
 /**
@@ -5905,7 +5905,7 @@ os_is_sparse_file_supported(const char* path, os_file_t fh)
 
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
-@param[in]	stat_info	information of a file in a directory
+@param[out]	stat_info	information of a file in a directory
 @param[in]	check_rw_perm	for testing whether the file can be opened
 				in RW mode
 @param[in]	read_only	true if file is opened in read-only mode

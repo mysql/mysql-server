@@ -1390,7 +1390,7 @@ row_explicit_rollback(
 
 /** Convert a row in the MySQL format to a row in the Innobase format.
 This is specialized function used for intrinsic table with reduce branching.
-@param[in/out]	row		row where field values are copied.
+@param[in,out]	row		row where field values are copied.
 @param[in]	prebuilt	prebuilt handler
 @param[in]	mysql_rec	row in mysql format. */
 static
@@ -2677,7 +2677,7 @@ row_delete_all_rows(
 		ut_ad(err == DB_SUCCESS);
 	}
 
-	return (err);
+	return(err);
 }
 
 /** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
@@ -2911,9 +2911,9 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
-        const char*     compression,
-                                /*!< in: compression algorithm to use,
-                                can be NULL */
+	const char*	compression,
+				/*!< in: compression algorithm to use,
+				can be NULL */
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
@@ -3002,16 +3002,16 @@ err_exit:
 
 		} else if (compression != NULL) {
 
-		        ut_ad(!is_shared_tablespace(table->space));
+			ut_ad(!is_shared_tablespace(table->space));
 
-                        ut_ad(Compression::validate(compression) == DB_SUCCESS);
+			ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-                        err = fil_set_compression(table->space, compression);
+			err = fil_set_compression(table->space, compression);
 
-                        /* The tablespace must be found and we have already
-                        done the check for the system tablespace and the
-                        temporary tablespace. Compression must be a valid
-                        and supported algorithm. */
+			/* The tablespace must be found and we have already
+			done the check for the system tablespace and the
+			temporary tablespace. Compression must be a valid
+			and supported algorithm. */
 
 			/* However, we can check for file system punch hole
 			support only after creating the tablespace. On Windows

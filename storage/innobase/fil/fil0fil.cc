@@ -3760,14 +3760,14 @@ a remote tablespace is found it will be changed to true.
 If the fix_dict boolean is set, then it is safe to use an internal SQL
 statement to update the dictionary tables if they are incorrect.
 
-@param[in]	validate	True if we should validate the tablespace.
-@param[in]	fix_dict	True if the dictionary is available to be fixed.
+@param[in]	validate	true if we should validate the tablespace
+@param[in]	fix_dict	true if the dictionary is available to be fixed
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in]	id		Tablespace ID
-@param[in]	flags		Tablespace flags
-@param[in]	space_name	Tablespace name of the datafile.
-If file-per-table, it is the table name in the databasename/tablename format.
-@param[in]	path_in		Tablespace filepath if found in SYS_DATAFILES
+@param[in]	id		tablespace ID
+@param[in]	flags		tablespace flags
+@param[in]	space_name	tablespace name of the datafile
+If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	path_in		expected filepath, usually read from dictionary
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
