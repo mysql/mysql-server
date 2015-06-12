@@ -1045,7 +1045,7 @@ struct latch_t {
 /** Subclass this to iterate over a thread's acquired latch levels. */
 struct sync_check_functor_t {
 	virtual ~sync_check_functor_t() { }
-	virtual bool operator()(latch_level_t) = 0;
+	virtual bool operator()(const latch_level_t) = 0;
 	virtual bool result() const = 0;
 };
 
@@ -1127,7 +1127,7 @@ struct dict_sync_check : public sync_check_functor_t {
 
 	/** Check the latching constraints
 	@param[in]	level		The level held by the thread */
-	virtual bool operator()(latch_level_t level)
+	virtual bool operator()(const latch_level_t level)
 	{
 		if (!m_dict_mutex_allowed
 		    || (level != SYNC_DICT
@@ -1179,7 +1179,7 @@ struct sync_allowed_latches : public sync_check_functor_t {
 
 	@param[in]	latch	The latch level to check
 	@return true if there is a latch ordering violation */
-	virtual bool operator()(latch_level_t level)
+	virtual bool operator()(const latch_level_t level)
 	{
 		for (latches_t::const_iterator it = m_latches.begin();
 		     it != m_latches.end();
