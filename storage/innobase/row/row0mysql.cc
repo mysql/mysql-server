@@ -2493,6 +2493,9 @@ run_again:
 			std::for_each(new_upd_nodes->begin(),
 				      new_upd_nodes->end(),
 				      ib_dec_counter());
+			std::for_each(new_upd_nodes->begin(),
+				      new_upd_nodes->end(),
+				      que_graph_free_recursive);
 			node->new_upd_nodes->clear();
 			goto run_again;
 		}
