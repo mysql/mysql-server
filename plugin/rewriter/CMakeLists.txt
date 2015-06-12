@@ -51,7 +51,6 @@ ENDIF()
 #
 FOREACH(file
     install_rewriter
-    install_rewriter_with_optional_columns
     uninstall_rewriter)
 
   CONFIGURE_FILE(
