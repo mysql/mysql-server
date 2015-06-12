@@ -329,8 +329,8 @@ public:
 			return;
 		}
 
-		m_count->m_spins += n_spins;
-		m_count->m_waits += n_waits;
+		m_count->m_spins += static_cast<uint32_t>(n_spins);
+		m_count->m_waits += static_cast<uint32_t>(n_waits);
 
 		++m_count->m_calls;
 	}
@@ -492,8 +492,8 @@ public:
 			return;
 		}
 
-		m_count->m_spins += n_spins;
-		m_count->m_waits += n_waits;
+		m_count->m_spins += static_cast<uint32_t>(n_spins);
+		m_count->m_waits += static_cast<uint32_t>(n_waits);
 
 		++m_count->m_calls;
 	}
