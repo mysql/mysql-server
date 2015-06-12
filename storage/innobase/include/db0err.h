@@ -158,6 +158,7 @@ enum dberr_t {
 
 	DB_TABLE_CORRUPT,		/*!< Table/clustered index is
 					corrupted */
+
 	DB_WRONG_FILE_NAME,		/*!< Invalid Filename */
 
 	/* The following are partial failure codes */

@@ -1522,14 +1522,12 @@ This function manipulates that path in place.
 
 If the path format is not as expected, just return.  The result is used
 to inform a SHOW CREATE TABLE command.
-
-@praam[out]	data_dir_path	full path/data_dir_path */
+@param[in,out]	data_dir_path	full path/data_dir_path */
 void
 os_file_make_data_dir_path(
 	char*	data_dir_path);
 
-/**
-Creates all missing subdirectories along the given path.
+/** Create all missing subdirectories along the given path.
 @return DB_SUCCESS if OK, otherwise error code. */
 dberr_t
 os_file_create_subdirs_if_needed(
@@ -1609,8 +1607,7 @@ are not left sleeping! */
 void
 os_aio_simulated_put_read_threads_to_sleep();
 
-/**
-This is the generic AIO handler interface function.
+/** This is the generic AIO handler interface function.
 Waits for an aio operation to complete. This function is used to wait the
 for completed requests. The AIO array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
