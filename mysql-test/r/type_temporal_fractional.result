@@ -17585,3 +17585,17 @@ key1	col
 DROP TABLE t;
 SET sql_mode = default;
 # End of 5.6 tests
+#
+# Bug#19900900 ASSERTION `!CHECK_DATETIME_RANGE(LTIME)' FAILED
+#              TIME_TO_LONGLONG_DATETIME_PACKED
+#
+SET @@session.sql_buffer_result=TRUE;
+CREATE TABLE t1(a DATETIME) engine=innodb;
+INSERT INTO t1 VALUES('9999-12-31 23:59:58.000015');
+SELECT ADDTIME(a, 100000) FROM t1;
+ADDTIME(a, 100000)
+NULL
+Warnings:
+Warning	1441	Datetime function: add_time field overflow
+SET @@session.sql_buffer_result=default;
+DROP TABLE t1;
