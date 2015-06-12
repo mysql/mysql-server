@@ -45,3 +45,15 @@ ERROR HY000: Variable 'skip_name_resolve' is a read only variable
 SET @@GLOBAL.skip_name_resolve=0;
 ERROR HY000: Variable 'skip_name_resolve' is a read only variable
 End of 5.1 tests
+#
+# Bug #20438524: 5.7.5 SKIP_NAME_RESOLVE STOPS ALL CONNECTION ATTEMPTS
+#
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+# set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+# cleanup
+DELETE FROM mysql.user WHERE user='b20438524';
+FLUSH PRIVILEGES;
+# must find the pattern
+End of 5.7 tests
