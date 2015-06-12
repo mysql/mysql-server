@@ -7842,3 +7842,16 @@ DROP TABLE t;
 SET sql_mode = default;
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # Bug#19900900 ASSERTION `!CHECK_DATETIME_RANGE(LTIME)' FAILED
+--echo #              TIME_TO_LONGLONG_DATETIME_PACKED
+--echo #
+
+SET @@session.sql_buffer_result=TRUE;
+CREATE TABLE t1(a DATETIME) engine=innodb;
+INSERT INTO t1 VALUES('9999-12-31 23:59:58.000015');
+SELECT ADDTIME(a, 100000) FROM t1;
+SET @@session.sql_buffer_result=default;
+
+DROP TABLE t1;
