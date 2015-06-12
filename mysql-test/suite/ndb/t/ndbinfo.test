@@ -686,7 +686,8 @@ drop table t2;
 
 ## Check that the new tables return data and exists.
 select count(*) > 10 from ndb$blocks;
-select param_number, param_name from ndb$config_params
+select param_number, param_name, param_description, param_default,
+       param_min, param_max from ndb$config_params
   where param_name = "DataMemory";
 select * from ndb$dict_obj_types where type_id < 3;
 --disable_result_log
