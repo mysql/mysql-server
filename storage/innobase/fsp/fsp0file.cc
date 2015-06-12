@@ -53,7 +53,6 @@ Datafile::init(
 }
 
 /** Release the resources. */
-
 void
 Datafile::shutdown()
 {
@@ -161,7 +160,6 @@ Datafile::open_read_write(bool read_only_mode)
 
 /** Close a data file.
 @return DB_SUCCESS or error code */
-
 dberr_t
 Datafile::close()
 {
@@ -212,7 +210,6 @@ Datafile::make_filepath_no_ext(
 /** Set the filepath by duplicating the filepath sent in. This is the
 name of the file with its extension and absolute or relative path.
 @param[in]	filepath	filepath to set */
-
 void
 Datafile::set_filepath(const char* filepath)
 {
@@ -223,7 +220,6 @@ Datafile::set_filepath(const char* filepath)
 }
 
 /** Free the filepath buffer. */
-
 void
 Datafile::free_filepath()
 {
@@ -239,7 +235,7 @@ If a name is provided, use it; else if the datafile is file-per-table,
 extract a file-per-table tablespace name from m_filepath; else it is a
 general tablespace, so just call it that for now. The value of m_name
 will be freed in the destructor.
-@param[in]	name	Tablespace Name if known, NULL if not */
+@param[in]	name	tablespace name if known, NULL if not */
 void
 Datafile::set_name(const char*	name)
 {
@@ -258,7 +254,7 @@ Datafile::set_name(const char*	name)
 
 /** Reads a few significant fields from the first page of the first
 datafile.  The Datafile must already be open.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
 @return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
 dberr_t
 Datafile::read_first_page(bool read_only_mode)
@@ -326,7 +322,6 @@ Datafile::read_first_page(bool read_only_mode)
 }
 
 /** Free the first page from memory when it is no longer needed. */
-
 void
 Datafile::free_first_page()
 {
@@ -344,7 +339,6 @@ in order for this function to validate it.
 @param[in]	flags	The expected tablespace flags.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
-
 dberr_t
 Datafile::validate_to_dd(
 	ulint	space_id,
@@ -395,7 +389,6 @@ corrupt and needs to be restored from the doublewrite buffer, we will
 reopen it in write mode and ry to restore that page.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
-
 dberr_t
 Datafile::validate_for_recovery()
 {
@@ -576,7 +569,6 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 /** Determine the space id of the given file descriptor by reading a few
 pages from the beginning of the .ibd file.
 @return DB_SUCCESS if space id was successfully identified, else DB_ERROR. */
-
 dberr_t
 Datafile::find_space_id()
 {
@@ -753,7 +745,6 @@ Datafile::find_space_id()
 and copies it to the corresponding .ibd file.
 @param[in]	page_no		Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
-
 dberr_t
 Datafile::restore_from_doublewrite(
 	ulint	restore_page_no)
@@ -806,7 +797,6 @@ Datafile::restore_from_doublewrite(
 in read-only mode so that it can be validated.
 @param[in]	strict	whether to issue error messages
 @return DB_SUCCESS if remote linked tablespace file is found and opened. */
-
 dberr_t
 RemoteDatafile::open_read_only(bool strict)
 {
@@ -834,9 +824,8 @@ RemoteDatafile::open_read_only(bool strict)
 
 /** Opens a handle to the file linked to in an InnoDB Symbolic Link file
 in read-write mode so that it can be restored from doublewrite and validated.
-@param[in]	read_only_mode	if true, then readonly mode checks are enforced.
+@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
 @return DB_SUCCESS if remote linked tablespace file is found and opened. */
-
 dberr_t
 RemoteDatafile::open_read_write(bool read_only_mode)
 {
@@ -863,7 +852,6 @@ RemoteDatafile::open_read_write(bool read_only_mode)
 }
 
 /** Release the resources. */
-
 void
 RemoteDatafile::shutdown()
 {
@@ -878,10 +866,9 @@ RemoteDatafile::shutdown()
 /** Creates a new InnoDB Symbolic Link (ISL) file.  It is always created
 under the 'datadir' of MySQL. The datadir is the directory of a
 running mysqld program. We can refer to it by simply using the path ".".
-@param[in] name Tablespace Name
-@param[in] filepath Remote filepath of tablespace datafile
+@param[in]	name		tablespace name
+@param[in]	filepath	remote filepath of tablespace datafile
 @return DB_SUCCESS or error code */
-
 dberr_t
 RemoteDatafile::create_link_file(
 	const char*	name,
@@ -920,6 +907,7 @@ RemoteDatafile::create_link_file(
 	if (!success) {
 		/* The following call will print an error message */
 		ulint	error = os_file_get_last_error(true);
+
 		ib::error() << "Cannot create file " << link_filepath << ".";
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
@@ -957,9 +945,8 @@ RemoteDatafile::create_link_file(
 	return(err);
 }
 
-/** Deletes an InnoDB Symbolic Link (ISL) file.
-@param[in] name Tablespace name */
-
+/** Delete an InnoDB Symbolic Link (ISL) file by name.
+@param[in]	name	tablespace name */
 void
 RemoteDatafile::delete_link_file(
 	const char*	name)
@@ -979,9 +966,10 @@ It is always created under the 'datadir' of MySQL.  The name is of the
 form {databasename}/{tablename}. and the isl file is expected to be in a
 '{databasename}' directory called '{tablename}.isl'. The caller must free
 the memory of the null-terminated path returned if it is not null.
-@param[in] name  The tablespace name
-@param[out] link_filepath Filepath of the ISL file
-@param[out] ibd_filepath Filepath of the IBD file read from the ISL file */
+@param[in]	name		tablespace name
+@param[out]	link_filepath	filepath of the ISL file
+@param[out]	ibd_filepath	filepath of the IBD file read from
+				the ISL file */
 
 void
 RemoteDatafile::read_link_file(

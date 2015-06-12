@@ -377,7 +377,7 @@ private:
 		m_open_flags = open_flags;
 	};
 
-	/**
+	/** Determine if this datafile is on a Raw Device
 	@return true if it is a RAW device. */
 	bool is_raw_device()
 	{
@@ -422,7 +422,7 @@ private:
 	/** size in database pages */
 	ulint			m_size;
 
-	/** ordinal position or this datafile in the tablespace */
+	/** ordinal position of this datafile in the tablespace */
 	ulint			m_order;
 
 	/** The type of the data file */
@@ -507,7 +507,7 @@ public:
 	/** Opens a handle to the file linked to in an InnoDB Symbolic Link
 	file in read-write mode so that it can be restored from doublewrite
 	and validated.
-	@param[in]	read_only_mode	if true, then readonly mode checks
+	@param[in]	read_only_mode	If true, then readonly mode checks
 					are enforced.
 	@return DB_SUCCESS or error code */
 	dberr_t open_read_write(bool read_only_mode)
@@ -521,15 +521,15 @@ public:
 	created under the 'datadir' of MySQL. The datadir is the directory
 	of a running mysqld program. We can refer to it by simply using
 	the path ".".
-	@param[in] name Tablespace Name
-	@param[in] filepath Remote filepath of tablespace datafile
+	@param[in]	name		tablespace name
+	@param[in]	filepath	remote filepath of tablespace datafile
 	@return DB_SUCCESS or error code */
 	static dberr_t create_link_file(
 		const char*	name,
 		const char*	filepath);
 
-	/** Deletes an InnoDB Symbolic Link (ISL) file.
-	@param[in] name Tablespace name */
+	/** Delete an InnoDB Symbolic Link (ISL) file by name.
+	@param[in]	name	tablespace name */
 	static void delete_link_file(const char* name);
 
 	/** Reads an InnoDB Symbolic Link (ISL) file.
@@ -538,9 +538,10 @@ public:
 	to be in a '{databasename}' directory called '{tablename}.isl'.
 	The caller must free the memory of the null-terminated path returned
 	if it is not null.
-	@param[in] name  The tablespace name
-	@param[out] link_filepath Filepath of the ISL file
-	@param[out] ibd_filepath Filepath of the IBD file read from the ISL file */
+	@param[in]	name		tablespace name
+	@param[out]	link_filepath	filepath of the ISL file
+	@param[out]	ibd_filepath	filepath of the IBD file read from
+					the ISL file */
 	static void read_link_file(
 		const char*	name,
 		char**		link_filepath,

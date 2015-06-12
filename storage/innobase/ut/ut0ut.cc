@@ -808,7 +808,7 @@ ut_strerr(
 	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		return("Can't create specificed geometry data object");
 	case DB_CANNOT_OPEN_FILE:
-		return ("Cannot open a file");
+		return("Cannot open a file");
 	case DB_TABLE_CORRUPT:
 		return("Table is corrupted");
 	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:

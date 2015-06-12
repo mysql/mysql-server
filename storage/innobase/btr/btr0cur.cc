@@ -5039,7 +5039,7 @@ btr_cur_compress_if_useful(
 	/* Avoid applying compression as we don't accept lot of page garbage
 	given the workload of intrinsic table. */
 	if (dict_table_is_intrinsic(cursor->index->table)) {
-		return (FALSE);
+		return(FALSE);
 	}
 
 	ut_ad(mtr_memo_contains_flagged(
