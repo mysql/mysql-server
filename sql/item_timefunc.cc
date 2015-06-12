@@ -2832,6 +2832,17 @@ bool Item_func_add_time::val_datetime(MYSQL_TIME *time,
   {
     get_date_from_daynr(days, &time->year, &time->month, &time->day);
     time->time_type= MYSQL_TIMESTAMP_DATETIME;
+
+    if (check_datetime_range(time))
+    {
+      // Value is out of range, cannot use our printing functions to output it.
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_DATETIME_FUNCTION_OVERFLOW,
+                          ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
+                          func_name());
+      goto null_date;
+    }
+
     if (time->day)
       return false;
     goto null_date;
