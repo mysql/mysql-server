@@ -500,7 +500,7 @@ static void
 copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr)
 {
   for (; func_ptr != end_ptr ; func_ptr++)
-    (void) (*func_ptr)->save_in_result_field(1);
+    (*func_ptr)->save_in_result_field(1);
   return;
 }
 
@@ -527,7 +527,7 @@ static bool
 update_sum_func(Item_sum **func_ptr)
 {
   Item_sum *func;
-  for (; (func= (Item_sum*) *func_ptr) ; func_ptr++)
+  for (; (func= *func_ptr) ; func_ptr++)
     if (func->aggregator_add())
       return 1;
   return 0;
@@ -1980,7 +1980,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     else
     {
       error=table->file->ha_index_read_idx_map(table->record[0],ref->key,
-                                               (uchar*) ref->key_buff,
+                                               ref->key_buff,
                                                make_prev_keypart_map(ref->key_parts),
                                                HA_READ_KEY_EXACT);
     }
@@ -3267,7 +3267,7 @@ bool check_unique_constraint(TABLE *table)
     hash= unique_hash_fields(table);
   table->hash_field->store(hash, true);
   int res= table->file->ha_index_read_map(table->record[1],
-                                          (uchar*)table->hash_field->ptr,
+                                          table->hash_field->ptr,
                                           HA_WHOLE_KEY,
                                           HA_READ_KEY_EXACT);
   while (!res)
@@ -3278,7 +3278,7 @@ bool check_unique_constraint(TABLE *table)
           group_rec_cmp(table->group, table->record[0], table->record[1])))
       return false; // skip it
     res= table->file->ha_index_next_same(table->record[1],
-                                         (uchar*)table->hash_field->ptr,
+                                         table->hash_field->ptr,
                                          sizeof(hash));
   }
   return true;

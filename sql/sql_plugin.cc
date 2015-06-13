@@ -280,7 +280,7 @@ public:
   const char *orig_pluginvar_name;
 
   static void *operator new(size_t size, MEM_ROOT *mem_root)
-  { return (void*) alloc_root(mem_root, size); }
+  { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr_arg,size_t size)
   { TRASH(ptr_arg, size); }
 
@@ -1217,7 +1217,7 @@ static int plugin_initialize(st_plugin_int *plugin)
   else if (plugin->plugin->init)
   {
     if (strcmp(plugin->name.str, "daemon_memcached") == 0) {
-       plugin->data = (void*)innodb_callback_data;
+       plugin->data = innodb_callback_data;
     }
 
     if (plugin->plugin->init(plugin))
@@ -2374,7 +2374,7 @@ static int check_func_int(THD *thd, st_mysql_sys_var *var,
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
-                              value->is_unsigned(value), (longlong) orig);
+                              value->is_unsigned(value), orig);
 }
 
 
@@ -2403,7 +2403,7 @@ static int check_func_long(THD *thd, st_mysql_sys_var *var,
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
-                              value->is_unsigned(value), (longlong) orig);
+                              value->is_unsigned(value), orig);
 }
 
 
@@ -2432,7 +2432,7 @@ static int check_func_longlong(THD *thd, st_mysql_sys_var *var,
   }
 
   return throw_bounds_warning(thd, var->name, fixed1 || fixed2,
-                              value->is_unsigned(value), (longlong) orig);
+                              value->is_unsigned(value), orig);
 }
 
 static int check_func_str(THD *thd, st_mysql_sys_var *var,

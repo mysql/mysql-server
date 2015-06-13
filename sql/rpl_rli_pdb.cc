@@ -60,8 +60,7 @@ bool handle_slave_worker_stop(Slave_worker *worker,
     group's one when the  queue is empty.
   */
   group_index= (job_item->data)?
-    rli->gaq->get_job_group(((Log_event*)
-                             (job_item->data))->mts_group_idx)->total_seqno:
+    rli->gaq->get_job_group(job_item->data->mts_group_idx)->total_seqno:
     worker->last_groups_assigned_index;
 
   /*
@@ -443,30 +442,30 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
   if (from->prepare_info_for_read())
     DBUG_RETURN(TRUE);
 
-  if (from->get_info((int *) &temp_internal_id, (int) 0) ||
+  if (from->get_info(&temp_internal_id, 0) ||
       from->get_info(group_relay_log_name,
                      sizeof(group_relay_log_name),
                      (char *) "") ||
-      from->get_info((ulong *) &temp_group_relay_log_pos,
-                     (ulong) 0) ||
+      from->get_info(&temp_group_relay_log_pos,
+                     0UL) ||
       from->get_info(group_master_log_name,
                      sizeof(group_master_log_name),
                      (char *) "") ||
-      from->get_info((ulong *) &temp_group_master_log_pos,
-                     (ulong) 0) ||
+      from->get_info(&temp_group_master_log_pos,
+                     0UL) ||
       from->get_info(checkpoint_relay_log_name,
                      sizeof(checkpoint_relay_log_name),
                      (char *) "") ||
-      from->get_info((ulong *) &temp_checkpoint_relay_log_pos,
-                     (ulong) 0) ||
+      from->get_info(&temp_checkpoint_relay_log_pos,
+                     0UL) ||
       from->get_info(checkpoint_master_log_name,
                      sizeof(checkpoint_master_log_name),
                      (char *) "") ||
-      from->get_info((ulong *) &temp_checkpoint_master_log_pos,
-                     (ulong) 0) ||
-      from->get_info((ulong *) &temp_checkpoint_seqno,
-                     (ulong) 0) ||
-      from->get_info(&nbytes, (ulong) 0) ||
+      from->get_info(&temp_checkpoint_master_log_pos,
+                     0UL) ||
+      from->get_info(&temp_checkpoint_seqno,
+                     0UL) ||
+      from->get_info(&nbytes, 0UL) ||
       from->get_info(buffer, (size_t) nbytes,
                      (uchar *) 0) ||
       /* default is empty string */
@@ -2229,7 +2228,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 {
   THD *thd= rli->info_thd;
   int ret= -1;
-  size_t ev_size= ((Log_event*) (job_item->data))->common_header->data_written;
+  size_t ev_size= job_item->data->common_header->data_written;
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
 
@@ -2241,7 +2240,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     char llbuff[22];
     llstr(rli->get_event_relay_log_pos(), llbuff);
     my_error(ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX, MYF(0),
-             ((Log_event*) (job_item->data))->get_type_str(),
+             job_item->data->get_type_str(),
              rli->get_event_relay_log_name(), llbuff, ev_size,
              rli->mts_pending_jobs_size_max);
     /* Waiting in slave_stop_workers() avoidance */
@@ -2357,7 +2356,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 static void remove_item_from_jobs(slave_job_item *job_item,
                                   Slave_worker *worker, Relay_log_info *rli)
 {
-  Log_event *ev= static_cast<Log_event *>(job_item->data);
+  Log_event *ev= job_item->data;
 
   mysql_mutex_lock(&worker->jobs_lock);
   de_queue(&worker->jobs, job_item);
@@ -2535,7 +2534,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
       goto err;
     }
 
-    ev= static_cast<Log_event*>(job_item->data);
+    ev= job_item->data;
     DBUG_ASSERT(ev != NULL);
     DBUG_PRINT("info", ("W_%lu <- job item: %p data: %p thd: %p",
                         worker->id, job_item, ev, thd));

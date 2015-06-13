@@ -1092,7 +1092,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
     was reallocated to a larger buffer to be able to fit.
   */
   DBUG_ASSERT(buffer != NULL);
-  length= min(static_cast<size_t>(str.length()), length-1);
+  length= min(str.length(), length-1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
   buffer[length]= '\0';
@@ -2523,7 +2523,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     to->length= 0;				// Safety fix
     DBUG_RETURN(1);				// EOM
   }
-  to->length= copy_and_convert((char*) to->str, new_length, to_cs,
+  to->length= copy_and_convert(to->str, new_length, to_cs,
 			       from, from_length, from_cs, &dummy_errors);
   to->str[to->length]=0;			// Safety
   DBUG_RETURN(0);
@@ -3570,7 +3570,7 @@ get_statement_id_as_hash_key(const uchar *record, size_t *key_length,
 {
   const Prepared_statement *statement= (const Prepared_statement *) record;
   *key_length= sizeof(statement->id);
-  return (uchar *) &((const Prepared_statement *) statement)->id;
+  return (uchar *) &(statement)->id;
 }
 
 static void delete_statement_as_hash_key(void *key)

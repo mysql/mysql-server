@@ -506,7 +506,7 @@ bool mysql_update(THD *thd,
 
       char buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
-                  (ulong) thd->get_stmt_da()->current_statement_cond_count());
+                  (long) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
       DBUG_PRINT("info",("0 records updated"));
@@ -1064,9 +1064,9 @@ bool mysql_update(THD *thd,
   if (error < 0)
   {
     char buff[MYSQL_ERRMSG_SIZE];
-    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
-                (ulong) updated,
-                (ulong) thd->get_stmt_da()->current_statement_cond_count());
+    my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (long) found,
+                (long) updated,
+                (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
           found : updated, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -2139,7 +2139,7 @@ loop_end:
     /* Make an unique key over the first field to avoid duplicated updates */
     memset(&group, 0, sizeof(group));
     group.direction= ORDER::ORDER_ASC;
-    group.item= (Item**) temp_fields.head_ref();
+    group.item= temp_fields.head_ref();
 
     tmp_param->quick_group=1;
     tmp_param->field_count=temp_fields.elements;
@@ -2149,7 +2149,7 @@ loop_end:
     my_bool save_big_tables= thd->variables.big_tables; 
     thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
-                                     (ORDER*) &group, 0, 0,
+                                     &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
     /*
       Pass a table triggers pointer (Table_trigger_dispatcher *) from
@@ -2760,8 +2760,8 @@ bool Query_result_update::send_eof()
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
-              (ulong) found, (ulong) updated,
-              (ulong) thd->get_stmt_da()->current_statement_cond_count());
+              (long) found, (long) updated,
+              (long) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
           found : updated, id, buff);
   DBUG_RETURN(FALSE);

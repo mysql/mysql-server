@@ -11795,13 +11795,13 @@ show_param:
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW WARNINGS doesn't clear them.
             Parse_context pc(YYTHD, Select);
-            (void) create_select_for_variable(&pc, "warning_count");
+            create_select_for_variable(&pc, "warning_count");
           }
         | COUNT_SYM '(' '*' ')' ERRORS
           {
             Lex->keep_diagnostics= DA_KEEP_DIAGNOSTICS; // SHOW ERRORS doesn't clear them.
             Parse_context pc(YYTHD, Select);
-            (void) create_select_for_variable(&pc, "error_count");
+            create_select_for_variable(&pc, "error_count");
           }
         | WARNINGS opt_limit_clause
           {

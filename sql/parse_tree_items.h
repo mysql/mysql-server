@@ -592,7 +592,7 @@ class PTI_num_literal_num : public Item_int
 public:
   PTI_num_literal_num(const POS &pos,
                        const LEX_STRING &num, int dummy_error= 0)
-  : super(pos, num, (longlong) my_strtoll10(num.str, NULL, &dummy_error),
+  : super(pos, num, my_strtoll10(num.str, NULL, &dummy_error),
           static_cast<uint>(num.length))
   {}
 };
@@ -1030,7 +1030,7 @@ public:
     */
     DBUG_ASSERT(tmp_param == param_marker);
 
-    static_cast<Item_param *>(param_marker)->limit_clause_param= true;
+    param_marker->limit_clause_param= true;
     *res= param_marker;
     return false;
   }

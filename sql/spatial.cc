@@ -4028,7 +4028,7 @@ int Gis_geometry_collection::geometry_n(uint32 num, String *result) const
   if (result->reserve(1 + 4 + length, 512))
     return 1;
   result->q_append((char) wkb_ndr);
-  result->q_append((uint32) header.wkb_type);
+  result->q_append(header.wkb_type);
   result->q_append(wkb.data() - length, length); // data-length= start_of_data
   return 0;
 }

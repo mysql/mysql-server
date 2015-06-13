@@ -121,8 +121,8 @@ Event_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Event '%s'.'%s': invalid value "
                       "in column mysql.event.character_set_client.",
-                      (const char *) db_name,
-                      (const char *) event_name);
+                      db_name,
+                      event_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -134,8 +134,8 @@ Event_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Event '%s'.'%s': invalid value "
                       "in column mysql.event.collation_connection.",
-                      (const char *) db_name,
-                      (const char *) event_name);
+                      db_name,
+                      event_name);
 
     invalid_creation_ctx= TRUE;
   }
@@ -147,8 +147,8 @@ Event_creation_ctx::load_from_db(THD *thd,
   {
     sql_print_warning("Event '%s'.'%s': invalid value "
                       "in column mysql.event.db_collation.",
-                      (const char *) db_name,
-                      (const char *) event_name);
+                      db_name,
+                      event_name);
 
     invalid_creation_ctx= TRUE;
   }

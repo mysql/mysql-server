@@ -3571,7 +3571,7 @@ int flush_auto_options(const char* fname)
   IO_CACHE io_cache;
   int result= 0;
 
-  if ((fd= my_open((const char *)fname, O_CREAT|O_RDWR, MYF(MY_WME))) < 0)
+  if ((fd= my_open(fname, O_CREAT|O_RDWR, MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to create file(file: '%s', errno %d)", fname, my_errno);
     return 1;
@@ -4921,7 +4921,7 @@ int mysqld_main(int argc, char **argv)
   if (opt_daemonize)
     mysqld::runtime::signal_parent(pipe_write_fd,1);
 
-  (void) mysqld_socket_acceptor->connection_event_loop();
+  mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 

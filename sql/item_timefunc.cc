@@ -3405,7 +3405,7 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
     */
     ltime->time_type= MYSQL_TIMESTAMP_DATE;
     ErrConvString str(ltime, 0);
-    make_truncated_value_warning(ErrConvString(str), MYSQL_TIMESTAMP_ERROR);
+    make_truncated_value_warning(str, MYSQL_TIMESTAMP_ERROR);
     return (null_value= true);
   }
 

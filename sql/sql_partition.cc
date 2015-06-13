@@ -1040,7 +1040,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     const nesting_map saved_allow_sum_func= thd->lex->allow_sum_func;
     thd->lex->allow_sum_func= 0;
 
-    error= func_expr->fix_fields(thd, (Item**)&func_expr);
+    error= func_expr->fix_fields(thd, &func_expr);
 
     /*
       Restore agg_func and allow_sum_func,
@@ -2380,7 +2380,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
           if (get_cs_converted_part_value_from_string(current_thd,
                                                       item_expr, res,
                                                       &val_conv, field_cs,
-                                                   (bool)(alter_info != NULL)))
+                                                      (alter_info != NULL)))
             return 1;
           err+= add_string_object(fptr, &val_conv);
         }
@@ -4222,7 +4222,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
         else if (part_info->all_fields_in_PPF.is_set(index))
         {
           if (get_part_id_from_key(table,buf,key_info,
-                                   key_spec,(uint32*)&part_part))
+                                   key_spec,&part_part))
           {
             /*
               The value of the RANGE or LIST partitioning was outside of
@@ -4598,9 +4598,9 @@ static void fast_end_partition(THD *thd, ulonglong copied,
   query_cache.invalidate(thd, table_list, FALSE);
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
-              (ulong) (copied + deleted),
-              (ulong) deleted,
-              (ulong) 0);
+              (long) (copied + deleted),
+              (long) deleted,
+              0L);
   my_ok(thd, (ha_rows) (copied+deleted),0L, tmp_name);
   DBUG_VOID_RETURN;
 }
@@ -8296,11 +8296,11 @@ bool set_up_table_before_create(THD *thd,
   partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
   if ((part_elem->index_file_name &&
       (error= append_file_to_dir(thd,
-                                 (const char**)&part_elem->index_file_name,
+                                 &part_elem->index_file_name,
                                  partition_name+1))) ||
       (part_elem->data_file_name &&
       (error= append_file_to_dir(thd,
-                                 (const char**)&part_elem->data_file_name,
+                                 &part_elem->data_file_name,
                                  partition_name+1))))
   {
     DBUG_RETURN(error);

@@ -191,7 +191,7 @@ bool MY_LOCALE_ERRMSGS::read_texts()
   my_free(errmsgs);
   if (!(errmsgs= (const char**)
 	my_malloc(key_memory_errmsgs,
-                  (size_t) (length+no_of_errmsgs*sizeof(char*)), MYF(0))))
+                  length+no_of_errmsgs*sizeof(char*), MYF(0))))
   {
     sql_print_error("Not enough memory for messagefile '%s'", name);
     (void) mysql_file_close(file, MYF(MY_WME));

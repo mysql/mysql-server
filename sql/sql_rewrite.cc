@@ -188,7 +188,7 @@ void rewrite_account_lock(LEX *lex, String *rlb)
 void mysql_rewrite_grant(THD *thd, String *rlb)
 {
   LEX        *lex= thd->lex;
-  TABLE_LIST *first_table= (TABLE_LIST*) lex->select_lex->table_list.first;
+  TABLE_LIST *first_table= lex->select_lex->table_list.first;
   bool        comma= FALSE, comma_inner;
   String      cols(1024);
   int         c;

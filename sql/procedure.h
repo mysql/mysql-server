@@ -100,7 +100,7 @@ public:
   }
   String *val_str(String*)
   {
-    return null_value ? (String*) 0 : (String*) &str_value;
+    return null_value ? (String*) 0 : &str_value;
   }
   my_decimal *val_decimal(my_decimal *);
   unsigned int size_of() { return sizeof(*this);}  

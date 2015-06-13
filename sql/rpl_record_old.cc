@@ -96,7 +96,7 @@ unpack_row_old(Relay_log_info *rli,
                MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
   DBUG_ASSERT(record && row);
-  my_ptrdiff_t const offset= record - (uchar*) table->record[0];
+  my_ptrdiff_t const offset= record - table->record[0];
   size_t master_null_bytes= table->s->null_bytes;
 
   if (colcnt != table->s->fields)

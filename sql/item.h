@@ -3262,7 +3262,7 @@ public:
   Item_uint(const POS &pos, const char *str_arg, uint length)
     :Item_int(pos, str_arg, length) { unsigned_flag= 1; }
 
-  Item_uint(ulonglong i) :Item_int((ulonglong) i, 10) {}
+  Item_uint(ulonglong i) :Item_int(i, 10) {}
   Item_uint(const Name_string &name_arg, longlong i, uint length)
     :Item_int(name_arg, i, length) { unsigned_flag= 1; }
   double val_real()
@@ -3546,7 +3546,7 @@ public:
   String *val_str(String*)
   {
     DBUG_ASSERT(fixed == 1);
-    return (String*) &str_value;
+    return &str_value;
   }
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
