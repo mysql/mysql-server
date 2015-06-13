@@ -1128,13 +1128,13 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
       {
         cache->store((*a), const_value);
         a_cache= cache;
-        a= (Item **)&a_cache;
+        a= &a_cache;
       }
       else
       {
         cache->store((*b), const_value);
         b_cache= cache;
-        b= (Item **)&b_cache;
+        b= &b_cache;
       }
     }
     is_nulls_eq= is_owner_equal_func();
@@ -5915,18 +5915,18 @@ longlong Item_cond_or::val_int()
 Item *and_expressions(Item *a, Item *b, Item **org_item)
 {
   if (!a)
-    return (*org_item= (Item*) b);
+    return (*org_item= b);
   if (a == *org_item)
   {
     Item_cond *res;
-    if ((res= new Item_cond_and(a, (Item*) b)))
+    if ((res= new Item_cond_and(a, b)))
     {
       res->set_used_tables(a->used_tables() | b->used_tables());
       res->set_not_null_tables(a->not_null_tables() | b->not_null_tables());
     }
     return res;
   }
-  if (((Item_cond_and*) a)->add((Item*) b))
+  if (((Item_cond_and*) a)->add(b))
     return 0;
   ((Item_cond_and*) a)->set_used_tables(a->used_tables() | b->used_tables());
   ((Item_cond_and*) a)->set_not_null_tables(a->not_null_tables() |

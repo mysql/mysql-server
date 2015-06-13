@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -267,7 +267,7 @@ my_crypt_genhash(char *ctbuffer,
   salt = (char *)switchsalt;
 
   /* skip our magic string */
-  if (strncmp((char *)salt, crypt_alg_magic, crypt_alg_magic_len) == 0)
+  if (strncmp(salt, crypt_alg_magic, crypt_alg_magic_len) == 0)
   {
           salt += crypt_alg_magic_len + 1;
   }

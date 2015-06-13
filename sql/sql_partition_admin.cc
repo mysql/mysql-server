@@ -32,7 +32,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
   SELECT_LEX *select_lex= lex->select_lex;
   /* first table of first SELECT_LEX */
-  TABLE_LIST *first_table= (TABLE_LIST*) select_lex->table_list.first;
+  TABLE_LIST *first_table= select_lex->table_list.first;
   /*
     Code in mysql_alter_table() may modify its HA_CREATE_INFO argument,
     so we have to use a copy of this structure to make execution
@@ -423,10 +423,10 @@ err_rename:
   /* mark the execute log entry done */
   (void) write_execute_ddl_log_entry(0, TRUE, &exec_log_entry);
   /* release the execute log entry */
-  (void) release_ddl_log_memory_entry(exec_log_entry);
+  release_ddl_log_memory_entry(exec_log_entry);
 err_no_execute_written:
   /* release the action log entry */
-  (void) release_ddl_log_memory_entry(log_entry);
+  release_ddl_log_memory_entry(log_entry);
 err_no_action_written:
   mysql_mutex_unlock(&LOCK_gdl);
   delete file;

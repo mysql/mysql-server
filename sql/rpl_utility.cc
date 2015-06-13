@@ -1022,8 +1022,8 @@ HASH_ROW_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uchar* 
   /**
      Filling in the positions.
    */
-  pos->bi_start= (const uchar *) bi_start;
-  pos->bi_ends= (const uchar *) bi_ends;
+  pos->bi_start= bi_start;
+  pos->bi_ends=  bi_ends;
 
   /**
     Filling in the entry

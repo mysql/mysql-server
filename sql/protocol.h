@@ -205,7 +205,7 @@ public:
   inline  bool store(uint32 from)
   { return store_long((longlong) from); }
   inline  bool store(longlong from)
-  { return store_longlong((longlong) from, 0); }
+  { return store_longlong(from, 0); }
   inline  bool store(ulonglong from)
   { return store_longlong((longlong) from, 1); }
   /**

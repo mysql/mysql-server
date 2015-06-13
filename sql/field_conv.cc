@@ -603,7 +603,7 @@ void Copy_field::set(uchar *to,Field *from)
     from_null_ptr=from->get_null_ptr();
     from_bit=	  from->null_bit;
     to_ptr[0]=	  1;				// Null as default value
-    to_null_ptr=  (uchar*) to_ptr++;
+    to_null_ptr=  to_ptr++;
     to_bit=	  1;
     m_do_copy=    do_field_to_null_str;
   }

@@ -1696,7 +1696,7 @@ longlong Item_sum_count::val_int()
   DBUG_ASSERT(fixed == 1);
   if (aggr)
     aggr->endup();
-  return (longlong) count;
+  return count;
 }
 
 

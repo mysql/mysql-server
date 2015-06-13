@@ -327,7 +327,7 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
     uchar topic_id_buff[8];
     longlong topic_id= rtopic_id->val_int();
     Field *field= find_fields[help_topic_help_topic_id].field;
-    field->store((longlong) topic_id, TRUE);
+    field->store(topic_id, TRUE);
     field->get_key_image(topic_id_buff, field->pack_length(), Field::itRAW);
 
     if (!topics->file->ha_index_read_map(topics->record[0], topic_id_buff,

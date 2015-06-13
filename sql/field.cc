@@ -2525,7 +2525,7 @@ type_conversion_status Field_decimal::store(double nr)
   uchar fyllchar,*to;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
 
-  fyllchar = zerofill ? (char) '0' : (char) ' ';
+  fyllchar = zerofill ? '0' : ' ';
   length= my_fcvt(nr, dec, buff, NULL);
 
   if (length > field_length)
@@ -2566,7 +2566,7 @@ type_conversion_status Field_decimal::store(longlong nr, bool unsigned_val)
     return TYPE_WARN_OUT_OF_RANGE;
   }
 
-  fyllchar = zerofill ? (char) '0' : (char) ' ';
+  fyllchar = zerofill ? '0' : ' ';
   to= ptr;
   for (uint i=int_part-length ; i-- > 0 ;)
     *to++ = fyllchar;
@@ -2862,7 +2862,7 @@ Field_new_decimal::store_value(const my_decimal *decimal_value)
     set_value_on_overflow(&buff, decimal_value->sign());
     my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, precision, dec);
   }
-  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (uchar *) ptr,
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr,
                                           bin_size););
   DBUG_RETURN((err != E_DEC_OK) ? decimal_err_to_type_conv_status(err)
                                 : error);
@@ -3007,7 +3007,7 @@ my_decimal* Field_new_decimal::val_decimal(my_decimal *decimal_value)
   DBUG_ENTER("Field_new_decimal::val_decimal");
   binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value,
                     precision, dec);
-  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, (uchar *) ptr,
+  DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr,
                                           bin_size););
   DBUG_RETURN(decimal_value);
 }
@@ -4844,7 +4844,7 @@ bool Field_double::send_binary(Protocol *protocol)
   if (is_null())
     return protocol->store_null();
   String buf;
-  return protocol->store((double) Field_double::val_real(), dec, &buf);
+  return protocol->store(Field_double::val_real(), dec, &buf);
 }
 
 
@@ -6041,8 +6041,8 @@ bool Field_time::get_time(MYSQL_TIME *ltime)
 int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   int32 a,b;
-  a=(int32) sint3korr(a_ptr);
-  b=(int32) sint3korr(b_ptr);
+  a= sint3korr(a_ptr);
+  b= sint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -6352,7 +6352,7 @@ Field_newdate::store_internal(const MYSQL_TIME *ltime, int *warnings)
 
 bool Field_newdate::get_date_internal(MYSQL_TIME *ltime)
 {
-  uint32 tmp= (uint32) uint3korr(ptr);
+  uint32 tmp= uint3korr(ptr);
   ltime->day=   tmp & 31;
   ltime->month= (tmp >> 5) & 15;
   ltime->year=  (tmp >> 9);
@@ -6411,7 +6411,7 @@ String *Field_newdate::val_str(String *val_buffer,
   ASSERT_COLUMN_MARKED_FOR_READ;
   val_buffer->alloc(field_length);
   val_buffer->length(field_length);
-  uint32 tmp=(uint32) uint3korr(ptr);
+  uint32 tmp= uint3korr(ptr);
   int part;
   char *pos=(char*) val_buffer->ptr()+10;
 
@@ -6445,8 +6445,8 @@ bool Field_newdate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 {
   uint32 a,b;
-  a=(uint32) uint3korr(a_ptr);
-  b=(uint32) uint3korr(b_ptr);
+  a= uint3korr(a_ptr);
+  b= uint3korr(b_ptr);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
@@ -7878,7 +7878,7 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
       return (uint32) tmp;
     }
   case 3:
-    return (uint32) uint3korr(pos);
+    return uint3korr(pos);
   case 4:
     {
       uint32 tmp;
@@ -7888,7 +7888,7 @@ uint32 Field_blob::get_length(const uchar *pos, uint packlength_arg, bool low_by
       else
 #endif
 	ulongget(&tmp, pos);
-      return (uint32) tmp;
+      return tmp;
     }
   }
   /* When expanding this, see also MAX_FIELD_BLOBLENGTH. */
@@ -8774,7 +8774,7 @@ String *Field_enum::val_str(String *val_buffer __attribute__((unused)),
   if (!tmp || tmp > typelib->count)
     val_ptr->set("", 0, field_charset);
   else
-    val_ptr->set((const char*) typelib->type_names[tmp-1],
+    val_ptr->set(typelib->type_names[tmp-1],
 		 typelib->type_lengths[tmp-1],
 		 field_charset);
   return val_ptr;
@@ -8930,7 +8930,7 @@ String *Field_set::val_str(String *val_buffer,
   val_buffer->set_charset(field_charset);
   val_buffer->length(0);
 
-  while (tmp && bitnr < (uint) typelib->count)
+  while (tmp && bitnr < typelib->count)
   {
     if (tmp & 1)
     {
@@ -10761,7 +10761,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
         char buff[MAX_FIELD_WIDTH], *pos;
         String tmp(buff, sizeof(buff), charset), *res;
         res= orig_field->val_str(&tmp);
-        pos= (char*) sql_strmake(res->ptr(), res->length());
+        pos= sql_strmake(res->ptr(), res->length());
         def= new Item_string(pos, res->length(), charset);
       }
       orig_field->move_field_offset(-diff);	// Back to record[0]

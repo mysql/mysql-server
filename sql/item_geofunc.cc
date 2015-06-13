@@ -1574,7 +1574,7 @@ String *Item_func_make_envelope::val_str(String *str)
   if (str->reserve(GEOM_HEADER_SIZE + 4 + 4 + 5 * POINT_DATA_SIZE, 128))
     return error_str();
 
-  str->q_append(static_cast<uint32>(srid));
+  str->q_append(srid);
   str->q_append(static_cast<char>(Geometry::wkb_ndr));
 
   if (dim == 0)

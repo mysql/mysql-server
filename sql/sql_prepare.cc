@@ -501,7 +501,7 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-  value= (longlong) sint8korr(*pos);
+  value= sint8korr(*pos);
 #else
   longlongget(&value, *pos);
 #endif
@@ -533,7 +533,7 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
 #else
   doubleget(&data, *pos);
 #endif
-  param->set_double((double) data);
+  param->set_double(data);
   *pos+= 8;
 }
 
@@ -2266,7 +2266,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   size_t query_len= 0;
   DBUG_ENTER("mysql_sql_stmt_prepare");
 
-  if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
+  if ((stmt= thd->stmt_map.find_by_name(name)))
   {
     /*
       If there is a statement with the same name, remove it. It is ok to
@@ -2440,8 +2440,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
   }
 
   /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt=
-         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
        rt; rt= rt->next)
     rt->mdl_request.ticket= NULL;
 
@@ -2600,7 +2599,7 @@ void mysql_sql_stmt_execute(THD *thd)
   DBUG_ENTER("mysql_sql_stmt_execute");
   DBUG_PRINT("info", ("EXECUTE: %.*s\n", (int) name.length, name.str));
 
-  if (!(stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
+  if (!(stmt= thd->stmt_map.find_by_name(name)))
   {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
              static_cast<int>(name.length), name.str, "EXECUTE");
@@ -2774,7 +2773,7 @@ void mysql_sql_stmt_close(THD *thd)
   DBUG_PRINT("info", ("DEALLOCATE PREPARE: %.*s\n", (int) name.length,
                       name.str));
 
-  if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
+  if (! (stmt= thd->stmt_map.find_by_name(name)))
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
              static_cast<int>(name.length), name.str, "DEALLOCATE PREPARE");
   else if (stmt->is_in_use())

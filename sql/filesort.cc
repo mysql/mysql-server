@@ -729,7 +729,7 @@ static void dbug_print_record(TABLE *table, bool print_rowid)
     fprintf(DBUG_FILE, " rowid ");
     for (uint i=0; i < table->file->ref_length; i++)
     {
-      fprintf(DBUG_FILE, "%x", (uchar)table->file->ref[i]);
+      fprintf(DBUG_FILE, "%x", table->file->ref[i]);
     }
   }
   fprintf(DBUG_FILE, "\n");
@@ -1223,7 +1223,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
                          sort_field->suffix_length);
           }
 
-          my_strnxfrm(cs,(uchar*)to,length,(const uchar*)res->ptr(),length);
+          my_strnxfrm(cs, to,length,(const uchar*)res->ptr(),length);
           cs->cset->fill(cs, (char *)to+length,diff,fill_char);
         }
         break;
@@ -1305,7 +1305,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           }
           else
           {
-            change_double_for_sort(value, (uchar*) to);
+            change_double_for_sort(value, to);
           }
 	  break;
 	}
@@ -2068,7 +2068,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
 
   do
   {
-    if ((ha_rows) merge_chunk->mem_count() > max_rows)
+    if (merge_chunk->mem_count() > max_rows)
     {
       merge_chunk->set_mem_count(max_rows); /* Don't write too many records */
       merge_chunk->set_rowcount(0);         /* Don't read more */
@@ -2392,7 +2392,7 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
 
 void change_double_for_sort(double nr,uchar *to)
 {
-  uchar *tmp=(uchar*) to;
+  uchar *tmp= to;
   if (nr == 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;

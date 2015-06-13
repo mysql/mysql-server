@@ -75,7 +75,7 @@ public:
   ~hash_filo()
   {
     if (cache.array.buffer)	/* Avoid problems with thread library */
-      (void) my_hash_free(&cache);
+      my_hash_free(&cache);
     mysql_mutex_destroy(&lock);
   }
   void clear(bool locked=0)
@@ -84,7 +84,7 @@ public:
       mysql_mutex_lock(&lock);
     first_link= NULL;
     last_link= NULL;
-    (void) my_hash_free(&cache);
+    my_hash_free(&cache);
     (void) my_hash_init(&cache, hash_charset, m_size, key_offset,
                         key_length, get_key, free_element, 0, m_psi_key);
     if (!locked)
@@ -108,7 +108,7 @@ public:
     mysql_mutex_assert_owner(&lock);
 
     hash_filo_element *entry=(hash_filo_element*)
-      my_hash_search(&cache,(uchar*) key,length);
+      my_hash_search(&cache, key, length);
     if (entry)
     {						// Found; link it first
       DBUG_ASSERT(first_link != NULL);

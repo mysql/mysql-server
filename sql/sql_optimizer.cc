@@ -3014,7 +3014,7 @@ class COND_CMP :public ilink<COND_CMP> {
 public:
   static void *operator new(size_t size)
   {
-    return (void*) sql_alloc((uint) size);
+    return sql_alloc(size);
   }
   static void operator delete(void *ptr __attribute__((unused)),
                               size_t size __attribute__((unused)))
@@ -7252,8 +7252,8 @@ add_ft_keys(Key_use_array *keyuse_array,
     }
     else if (func->arg_count == 2)
     {
-      Item *arg0=(Item *)(func->arguments()[0]),
-           *arg1=(Item *)(func->arguments()[1]);
+      Item *arg0=(func->arguments()[0]),
+           *arg1=(func->arguments()[1]);
       if (arg1->const_item() &&
            arg0->type() == Item::FUNC_ITEM &&
            ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&

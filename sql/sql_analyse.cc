@@ -975,7 +975,7 @@ String *field_decimal::avg(String *s, ha_rows rows)
 {
   if (!(rows - nulls))
   {
-    s->set_real((double) 0.0, 1,my_thd_charset);
+    s->set_real(0.0, 1,my_thd_charset);
     return s;
   }
   my_decimal num, avg_val, rounded_avg;
@@ -996,7 +996,7 @@ String *field_decimal::std(String *s, ha_rows rows)
 {
   if (!(rows - nulls))
   {
-    s->set_real((double) 0.0, 1,my_thd_charset);
+    s->set_real(0.0, 1,my_thd_charset);
     return s;
   }
   my_decimal num, tmp, sum2, sum2d;
@@ -1009,7 +1009,7 @@ String *field_decimal::std(String *s, ha_rows rows)
   my_decimal_sub(E_DEC_FATAL_ERROR, &sum2, sum_sqr+cur_sum, &tmp);
   my_decimal_div(E_DEC_FATAL_ERROR, &tmp, &sum2, &num, prec_increment);
   my_decimal2double(E_DEC_FATAL_ERROR, &tmp, &std_sqr);
-  s->set_real(((double) std_sqr <= 0.0 ? 0.0 : sqrt(std_sqr)),
+  s->set_real((std_sqr <= 0.0 ? 0.0 : sqrt(std_sqr)),
          min(item->decimals + prec_increment, NOT_FIXED_DEC), my_thd_charset);
 
   return s;

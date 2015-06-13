@@ -381,7 +381,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
                                  strlen(channel_name),
                                  &my_charset_bin);
     uint key_len= key_info->key_part[0].store_length;
-    uchar *key_buf= (uchar*) table->field[fieldnr]->ptr;
+    uchar *key_buf= table->field[fieldnr]->ptr;
 
     if (!(handler_error= table->file->ha_index_read_map(table->record[0],
                                                         key_buf,
@@ -674,7 +674,7 @@ bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
                                  const uchar *default_value __attribute__((unused)))
 {
   if (field_values->value[pos].length() == size)
-    return (!memcpy((char *) value, (char *)
+    return (!memcpy((char *) value,
             field_values->value[pos].c_ptr_safe(), size));
   return TRUE;
 }

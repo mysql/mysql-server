@@ -427,7 +427,7 @@ bool Rpl_info_file::do_get_info(const int pos, ulong *value,
 bool Rpl_info_file::do_get_info(const int pos, int *value,
                                 const int default_value)
 {
-  return (init_intvar_from_file((int *) value, &info_file, 
+  return (init_intvar_from_file(value, &info_file,
                                 (int) default_value));
 }
 

@@ -102,7 +102,7 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
   else
   {
     uint dummy_errors;
-    new_length= copy_and_convert((char*) pos, new_length, to_cs, str,
+    new_length= copy_and_convert(pos, new_length, to_cs, str,
 				 arg_length, from_cs, &dummy_errors);
   }
   pos[new_length]= 0;

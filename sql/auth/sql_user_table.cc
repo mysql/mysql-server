@@ -1530,7 +1530,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   store_record(table,record[1]);                        // store at pos 1
 
   error= table->file->ha_index_read_idx_map(table->record[0], 0,
-                                            (uchar*) table->field[0]->ptr,
+                                            table->field[0]->ptr,
                                             HA_WHOLE_KEY,
                                             HA_READ_KEY_EXACT);
 

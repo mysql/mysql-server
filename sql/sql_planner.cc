@@ -1868,7 +1868,7 @@ bool Optimize_table_order::choose_table_order()
       best_access_path() et al. when no filtering effect is possible.
     */
     join->where_cond->walk(&Item::add_field_to_cond_set_processor,
-                           Item::enum_walk(Item::WALK_POSTFIX), NULL);
+                           Item::WALK_POSTFIX, NULL);
   }
 
   if (straight_join)
