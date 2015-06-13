@@ -902,6 +902,7 @@ sync_latch_get_level(latch_id_t id)
 	return(meta.get_level());
 }
 
+#ifdef HAVE_PSI_INTERFACE
 /** Get the latch PFS key from the latch ID
 @param[in]	id		Latch ID
 @return the PFS key */
@@ -913,6 +914,7 @@ sync_latch_get_pfs_key(latch_id_t id)
 
 	return(meta.get_pfs_key());
 }
+#endif
 
 /** String representation of the filename and line number where the
 latch was created

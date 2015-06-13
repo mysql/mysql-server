@@ -1413,12 +1413,9 @@ sync_latch_meta_init()
 	/* Mutex names starting with '.' are not tracked. They are assumed
 	to be diagnostic mutexes used in debugging. */
 	latch_meta[LATCH_ID_RW_LOCK_DEBUG] =
-		UT_NEW_NOKEY(latch_meta_t(
-			LATCH_ID_RW_LOCK_DEBUG,
-			".rw_lock_debug",
+		LATCH_ADD(RW_LOCK_DEBUG,
 			SYNC_NO_ORDER_CHECK,
-			"SYNC_NO_ORDER_CHECK",
-			rw_lock_debug_mutex_key));
+			rw_lock_debug_mutex_key);
 #endif /* UNIV_DEBUG */
 
 	LATCH_ADD(RTR_SSN_MUTEX, SYNC_ANY_LATCH, rtr_ssn_mutex_key);
