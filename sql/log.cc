@@ -1708,7 +1708,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->start_utime=                thd->current_utime() - print_exec_time;
   thd->utime_after_lock=           thd->start_utime + print_lock_time;
-  thd->set_security_context((Security_context *) &aggregate_sctx);
+  thd->set_security_context(&aggregate_sctx);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   (*log_summary)(thd, buf, strlen(buf));

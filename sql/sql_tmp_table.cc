@@ -1267,7 +1267,7 @@ update_hidden:
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo=param->start_recinfo;
-  null_flags=(uchar*) table->record[0];
+  null_flags= table->record[0];
   pos= table->record[0] + null_pack_length;
   if (null_pack_length)
   {
@@ -1277,7 +1277,7 @@ update_hidden:
     recinfo++;
     memset(null_flags, 255, null_pack_length);	// Set null fields
 
-    table->null_flags= (uchar*) table->record[0];
+    table->null_flags= table->record[0];
     share->null_fields= null_count+ hidden_null_count;
     share->null_bytes= null_pack_length;
   }
@@ -1747,7 +1747,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   recinfo= start_recinfo;
-  null_flags=(uchar*) table->record[0];
+  null_flags= table->record[0];
 
   pos= table->record[0] + null_pack_length;
   if (null_pack_length)
@@ -1758,7 +1758,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     recinfo++;
     memset(null_flags, 255, null_pack_length);	// Set null fields
 
-    table->null_flags= (uchar*) table->record[0];
+    table->null_flags= table->record[0];
     share->null_fields= null_count;
     share->null_bytes= null_pack_length;
   }
@@ -1984,7 +1984,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
 
   if (null_pack_length)
   {
-    table->null_flags= (uchar*) table->record[0];
+    table->null_flags= table->record[0];
     share->null_fields= null_count;
     share->null_bytes= null_pack_length;
   }
@@ -2003,7 +2003,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
         cur_field->move_field(field_pos);
       else
       {
-        cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
+        cur_field->move_field(field_pos, null_pos, null_bit);
         null_bit<<= 1;
         if (null_bit == (uint8)1 << 8)
         {

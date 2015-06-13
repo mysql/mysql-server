@@ -237,7 +237,7 @@ void hash_map_info::add_struct_to_map(hash_lex_struct *st)
 {
   st->ithis= size_hash_map/4;
   size_hash_map+= 4;
-  hash_map= (char*)realloc((char*)hash_map,size_hash_map);
+  hash_map= (char*)realloc(hash_map,size_hash_map);
   hash_map[size_hash_map-4]= (char) (st->first_char == -1 ? 0 :
 				     st->first_char);
   hash_map[size_hash_map-3]= (char) (st->first_char == -1 ||

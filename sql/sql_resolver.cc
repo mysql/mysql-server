@@ -323,7 +323,7 @@ bool SELECT_LEX::prepare(THD *thd)
       converted to a LONG field. Original field will remain of the
       BIT type and will be returned to a client.
     */
-    for (ORDER *ord= (ORDER *)group_list.first; ord; ord= ord->next)
+    for (ORDER *ord= group_list.first; ord; ord= ord->next)
     {
       if ((*ord->item)->type() == Item::FIELD_ITEM &&
           (*ord->item)->field_type() == MYSQL_TYPE_BIT)
@@ -3125,7 +3125,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
 
     /* Lookup the current GROUP field in the FROM clause. */
     order_item_type= order_item->type();
-    from_field= (Field*) not_found_field;
+    from_field= not_found_field;
     if ((is_group_field &&
         order_item_type == Item::FIELD_ITEM) ||
         order_item_type == Item::REF_ITEM)
@@ -3137,7 +3137,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array,
         return true;
 
       if (!from_field)
-        from_field= (Field*) not_found_field;
+        from_field= not_found_field;
     }
 
     if (from_field == not_found_field ||
@@ -3385,7 +3385,7 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
     return false;
   }
 
-  for (ORDER *ord= (ORDER *)order_list.first; ord; ord= ord->next)
+  for (ORDER *ord= order_list.first; ord; ord= ord->next)
   {
     Item *const item= *ord->item;
 
@@ -3482,7 +3482,7 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
     Item *const item= *arg;
     if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
     {
-      for (ORDER *group= (ORDER *)group_list.first; group; group= group->next)
+      for (ORDER *group= group_list.first; group; group= group->next)
       {
         if (item->eq(*group->item, 0))
         {
@@ -3526,7 +3526,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
   {
     bool found_in_group= false;
 
-    for (ORDER *group= (ORDER *)group_list.first; group; group= group->next)
+    for (ORDER *group= group_list.first; group; group= group->next)
     {
       if (*group->item == item)
       {

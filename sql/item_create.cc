@@ -3238,8 +3238,8 @@ Item*
 Create_func_bin::create(THD *thd, Item *arg1)
 {
   POS pos;
-  Item *i10= new (thd->mem_root) Item_int(pos, (int32) 10, 2);
-  Item *i2= new (thd->mem_root) Item_int(pos, (int32) 2, 1);
+  Item *i10= new (thd->mem_root) Item_int(pos, 10, 2);
+  Item *i2= new (thd->mem_root) Item_int(pos, 2, 1);
   return new (thd->mem_root) Item_func_conv(pos, arg1, i10, i2);
 }
 
@@ -5007,8 +5007,8 @@ Create_func_oct Create_func_oct::s_singleton;
 Item*
 Create_func_oct::create(THD *thd, Item *arg1)
 {
-  Item *i10= new (thd->mem_root) Item_int(POS(), (int32) 10,2);
-  Item *i8= new (thd->mem_root) Item_int(POS(), (int32) 8,1);
+  Item *i10= new (thd->mem_root) Item_int(POS(), 10,2);
+  Item *i8= new (thd->mem_root) Item_int(POS(), 8,1);
   return new (thd->mem_root) Item_func_conv(POS(), arg1, i10, i8);
 }
 

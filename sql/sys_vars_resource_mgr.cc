@@ -126,7 +126,7 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
   if (val && *var)
   {
     /* Free the existing one & update the current address. */
-    element->data= (char *) ptr;
+    element->data= ptr;
     my_hash_update(&m_sysvar_string_alloc_hash, (uchar *) element,
 	           (uchar *)old_key, strlen(old_key));
     if (old_key)
@@ -157,7 +157,7 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
           (sys_var_ptr*) my_malloc(key_memory_THD_Session_sysvar_resource_manager,
 				   sizeof(sys_var_ptr), MYF(MY_WME))))
       return true;                            /* Error */
-    element->data= (char *) ptr;
+    element->data= ptr;
     my_hash_insert(&m_sysvar_string_alloc_hash, (uchar *) element);
   }
 

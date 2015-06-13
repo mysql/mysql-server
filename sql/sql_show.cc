@@ -755,7 +755,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     *root_ptr= tmp_mem_root;
   }
 
-  for (i=0 ; i < (uint) dirp->number_off_files  ; i++)
+  for (i=0 ; i < dirp->number_off_files  ; i++)
   {
     char uname[NAME_LEN + 1];                   /* Unencoded name */
     FILEINFO *file;
@@ -5077,7 +5077,7 @@ static void store_column_type(THD *thd, TABLE *table, Field *field,
       field->real_type() == MYSQL_TYPE_STRING)     // For binary type
   {
     uint32 octet_max_length= field->max_display_length();
-    if (is_blob && octet_max_length != (uint32) 4294967295U)
+    if (is_blob && octet_max_length != 4294967295U)
       octet_max_length /= field->charset()->mbmaxlen;
     longlong char_max_len= is_blob ? 
       (longlong) octet_max_length / field->charset()->mbminlen :
@@ -6332,7 +6332,7 @@ static void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
   table->field[4]->store(db_name->str, db_name->length, cs);
   table->field[5]->store(table_name->str, table_name->length, cs);
   table->field[6]->store(con_type, con_len, cs);
-  table->field[7]->store((longlong) idx, TRUE);
+  table->field[7]->store(idx, TRUE);
 }
 
 
@@ -6779,7 +6779,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
         else
         {
           if (part_elem->range_value != LLONG_MAX)
-            table->field[11]->store((longlong) part_elem->range_value, FALSE);
+            table->field[11]->store(part_elem->range_value, FALSE);
           else
             table->field[11]->store(partition_keywords[PKW_MAXVALUE].str,
                                  partition_keywords[PKW_MAXVALUE].length, cs);
@@ -7543,7 +7543,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(0);
   my_bitmap_map* bitmaps=
     (my_bitmap_map*) thd->alloc(bitmap_buffer_size(field_count));
-  bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
+  bitmap_init(&table->def_read_set, bitmaps, field_count,
               FALSE);
   table->read_set= &table->def_read_set;
   bitmap_clear_all(table->read_set);
@@ -9116,8 +9116,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),
-             (const char *) trg_name->m_db.str,
-             (const char *) lst->table_name);
+             trg_name->m_db.str,
+             lst->table_name);
 
     goto exit;
 
@@ -9137,8 +9137,8 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   if (!trigger)
   {
     my_error(ER_TRG_CORRUPTED_FILE, MYF(0),
-             (const char *) trg_name->m_db.str,
-             (const char *) lst->table_name);
+             trg_name->m_db.str,
+             lst->table_name);
 
     goto exit;
   }

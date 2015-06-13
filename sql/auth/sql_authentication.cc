@@ -2941,7 +2941,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
                      CRYPT_MAX_PASSWORD_SIZE,
                      (char *) pkt,
                      pkt_len-1, 
-                     (char *) user_salt_begin,
+                     user_salt_begin,
                      (const char **) 0);
 
   /* Compare the newly created hash digest with the password record */

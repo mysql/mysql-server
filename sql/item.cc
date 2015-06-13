@@ -3662,7 +3662,7 @@ void Item_param::set_null()
 void Item_param::set_int(longlong i, uint32 max_length_arg)
 {
   DBUG_ENTER("Item_param::set_int");
-  value.integer= (longlong) i;
+  value.integer= i;
   state= INT_VALUE;
   max_length= max_length_arg;
   decimals= 0;
@@ -3868,7 +3868,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       */
       item_type= Item::STRING_ITEM;
 
-      if (set_str((const char *) entry->ptr(), entry->length()))
+      if (set_str(entry->ptr(), entry->length()))
         DBUG_RETURN(1);
       break;
     }
@@ -5199,7 +5199,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     return NULL; /* So there is no compiler warning. */
   }
 
-  return (Item**) not_found_item;
+  return not_found_item;
 }
 
 
@@ -5259,8 +5259,8 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     are searched starting from the innermost.
   */
   Name_resolution_context *last_checked_context= context;
-  Item **ref= (Item **) not_found_item;
-  SELECT_LEX *current_sel= (SELECT_LEX *) thd->lex->current_select();
+  Item **ref= not_found_item;
+  SELECT_LEX *current_sel= thd->lex->current_select();
   Name_resolution_context *outer_context= NULL;
   SELECT_LEX *select= NULL;
   /* Currently derived tables cannot be correlated */
@@ -5554,7 +5554,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
 bool Item_field::fix_fields(THD *thd, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
-  Field *from_field= (Field *)not_found_field;
+  Field *from_field= not_found_field;
   bool outer_fixed= false;
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
@@ -5595,7 +5595,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
           return 1;
         if (resolution == RESOLVED_AGAINST_ALIAS)
           set_alias_of_expr();
-        if (res != (Item **)not_found_item)
+        if (res != not_found_item)
         {
           if ((*res)->type() == Item::FIELD_ITEM)
           {
@@ -5889,7 +5889,7 @@ static void convert_zerofill_number_to_string(Item **item, Field_num *field)
   else
   {
     field->prepend_zeros(res);
-    pos= (char *) sql_strmake (res->ptr(), res->length());
+    pos= sql_strmake (res->ptr(), res->length());
     *item= new Item_string(pos, res->length(), field->charset());
   }
 }
@@ -7587,7 +7587,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         subselects may contain columns with the same names. The subselects are
         searched starting from the innermost.
       */
-      from_field= (Field*) not_found_field;
+      from_field= not_found_field;
 
       do
       {

@@ -160,7 +160,7 @@ String *Item_func_md5::val_str_ascii(String *str)
     uchar digest[MD5_HASH_SIZE];
 
     null_value=0;
-    compute_md5_hash((char *) digest, (const char *) sptr->ptr(), sptr->length());
+    compute_md5_hash((char *) digest, sptr->ptr(), sptr->length());
     if (str->alloc(32))				// Ensure that memory is free
     {
       null_value=1;
@@ -209,7 +209,7 @@ String *Item_func_sha::val_str_ascii(String *str)
   {
     /* Temporary buffer to store 160bit digest */
     uint8 digest[SHA1_HASH_SIZE];
-    compute_sha1_hash(digest, (const char *) sptr->ptr(), sptr->length());
+    compute_sha1_hash(digest, sptr->ptr(), sptr->length());
     /* Ensure that memory is free */
     if (!(str->alloc(SHA1_HASH_SIZE * 2)))
     {
@@ -304,13 +304,13 @@ String *Item_func_sha2::val_str_ascii(String *str)
     Since we're subverting the usual String methods, we must make sure that
     the destination has space for the bytes we're about to write.
   */
-  str->mem_realloc((uint) digest_length*2 + 1); /* Each byte as two nybbles */
+  str->mem_realloc(digest_length*2 + 1); /* Each byte as two nybbles */
 
   /* Convert the large number to a string-hex representation. */
   array_to_hex((char *) str->ptr(), digest_buf, digest_length);
 
   /* We poked raw bytes in.  We must inform the the String of its length. */
-  str->length((uint) digest_length*2); /* Each byte as two nybbles */
+  str->length(digest_length*2); /* Each byte as two nybbles */
 
   null_value= FALSE;
   return str;
@@ -1331,7 +1331,7 @@ String *Item_func_to_base64::val_str_ascii(String *str)
   if (!res ||
       res->length() > (uint) base64_encode_max_arg_length() ||
       (too_long=
-       ((uint64) (length= base64_needed_encoded_length((uint64) res->length())) >
+       ((length= base64_needed_encoded_length((uint64) res->length())) >
         current_thd->variables.max_allowed_packet)) ||
       tmp_value.alloc((uint) length))
   {
@@ -5070,7 +5070,7 @@ String *Item_char_typecast::val_str(String *str)
                           ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                           char_type,
                           err.ptr());
-      res->length((uint) length);
+      res->length(length);
     }
     else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)
     {

@@ -964,10 +964,10 @@ ulong acl_get(const char *host, const char *ip,
   acl_entry *entry;
   DBUG_ENTER("acl_get");
 
-  copy_length= (size_t) (strlen(ip ? ip : "") +
-                 strlen(user ? user : "") +
-                 strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid  
-                                               buffer overflow at strmov()*/
+  copy_length= (strlen(ip ? ip : "") +
+                strlen(user ? user : "") +
+                strlen(db ? db : "")) + 2; /* Added 2 at the end to avoid
+                                              buffer overflow at strmov()*/
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
   */
@@ -1697,7 +1697,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (plugin)
         {
           st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-          if (auth->validate_authentication_string((char*)user.auth_string.str,
+          if (auth->validate_authentication_string(user.auth_string.str,
                                                    user.auth_string.length))
           {
             sql_print_warning("Found invalid password for user: '%s@%s'; "

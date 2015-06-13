@@ -991,7 +991,7 @@ int Protocol_classic::get_command(COM_DATA *com_data, enum_server_command *cmd)
   /* Do not rely on my_net_read, extra safety against programming errors. */
   raw_packet[packet_length]= '\0';                  /* safety */
 
-  *cmd= (enum enum_server_command) (uchar) raw_packet[0];
+  *cmd= (enum enum_server_command) raw_packet[0];
 
   if (*cmd >= COM_END)
     *cmd= COM_END;				// Wrong command

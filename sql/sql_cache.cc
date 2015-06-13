@@ -779,7 +779,7 @@ uchar *query_cache_table_get_key(const uchar *record, size_t *length,
   Query_cache_block* table_block = (Query_cache_block*) record;
   *length = (table_block->used - table_block->headers_len() -
 	     ALIGN_SIZE(sizeof(Query_cache_table)));
-  return (((uchar *) table_block->data()) +
+  return (table_block->data() +
 	  ALIGN_SIZE(sizeof(Query_cache_table)));
 }
 }
@@ -877,7 +877,7 @@ uchar *query_cache_query_get_key(const uchar *record, size_t *length,
   Query_cache_block *query_block = (Query_cache_block*) record;
   *length = (query_block->used - query_block->headers_len() -
 	     ALIGN_SIZE(sizeof(Query_cache_query)));
-  return (((uchar *) query_block->data()) +
+  return (query_block->data() +
 	  ALIGN_SIZE(sizeof(Query_cache_query)));
 }
 }
@@ -2732,7 +2732,7 @@ Query_cache::append_result_data(THD *thd, Query_cache_block **current_block,
 			data_len-last_block_free_space));
     Query_cache_block *new_block = 0;
     success = write_result_data(thd, &new_block, data_len-last_block_free_space,
-				(uchar*)(((uchar*)data)+last_block_free_space),
+				(uchar*)(data+last_block_free_space),
 				query_block,
 				Query_cache_block::RES_CONT);
     /*
@@ -3996,7 +3996,7 @@ my_bool Query_cache::move_by_type(uchar **border,
     uchar *key;
     size_t key_length;
     key=query_cache_table_get_key((uchar*) block, &key_length, 0);
-    my_hash_first(&tables, (uchar*) key, key_length, &record_idx);
+    my_hash_first(&tables, key, key_length, &record_idx);
 
     block->destroy();
     new_block->init(len);
@@ -4056,7 +4056,7 @@ my_bool Query_cache::move_by_type(uchar **border,
     uchar *key;
     size_t key_length;
     key=query_cache_query_get_key((uchar*) block, &key_length, 0);
-    my_hash_first(&queries, (uchar*) key, key_length, &record_idx);
+    my_hash_first(&queries, key, key_length, &record_idx);
     // Move table of used tables 
     memmove((char*) new_block->table(0), (char*) block->table(0),
 	   ALIGN_SIZE(n_tables*sizeof(Query_cache_block_table)));
@@ -4258,7 +4258,7 @@ my_bool Query_cache::join_results(ulong join_limit)
 
 	  Query_cache_result *new_result = new_result_block->result();
 	  new_result->parent(block);
-	  uchar *write_to = (uchar*) new_result->data();
+	  uchar *write_to = new_result->data();
 	  Query_cache_block *result_block = first_result;
 	  do
 	  {

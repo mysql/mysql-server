@@ -876,7 +876,7 @@ void check_binlog_cache_size(THD *thd)
     else
     {
       sql_print_warning(ER_DEFAULT(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
-                        (ulong) binlog_cache_size,
+                        binlog_cache_size,
                         (ulong) max_binlog_cache_size);
     }
     binlog_cache_size= static_cast<ulong>(max_binlog_cache_size);
@@ -902,7 +902,7 @@ void check_binlog_stmt_cache_size(THD *thd)
     else
     {
       sql_print_warning(ER_DEFAULT(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
-                        (ulong) binlog_stmt_cache_size,
+                        binlog_stmt_cache_size,
                         (ulong) max_binlog_stmt_cache_size);
     }
     binlog_stmt_cache_size= static_cast<ulong>(max_binlog_stmt_cache_size);
@@ -3136,7 +3136,7 @@ static int find_uniq_filename(char *name)
     if (strncmp(file_info->name, start, length) == 0 &&
 	is_number(file_info->name+length, &number,0))
     {
-      set_if_bigger(max_found,(ulong) number);
+      set_if_bigger(max_found, number);
     }
   }
   my_dirend(dir_info);
@@ -4502,8 +4502,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       /* inherit master's A descriptor if one has been received */
       if (opt_slave_sql_verify_checksum == 0)
         /* otherwise use slave's local preference of RL events verification */
-        relay_log_checksum_alg=static_cast<enum_binlog_checksum_alg>
-                               (binary_log::BINLOG_CHECKSUM_ALG_OFF);
+        relay_log_checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
       else
         relay_log_checksum_alg= static_cast<enum_binlog_checksum_alg>
                                 (binlog_checksum_options);

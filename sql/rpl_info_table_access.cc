@@ -109,7 +109,7 @@ enum enum_return_id Rpl_info_table_access::find_info(Rpl_info_values *field_valu
     DBUG_RETURN(ERROR_ID);
   }
 
-  keyinfo= table->s->key_info + (uint) table->s->primary_key;
+  keyinfo= table->s->key_info + table->s->primary_key;
   for (uint idx= 0; idx < keyinfo->user_defined_key_parts; idx++)
   {
     uint fieldnr= keyinfo->key_part[idx].fieldnr - 1;

@@ -499,8 +499,8 @@ Open files:    %10lu\n\
 Open streams:  %10lu\n",
 	 (ulong) current_global_status_var.opened_tables,
 	 (ulong) table_cache_manager.cached_tables(),
-	 (ulong) my_file_opened,
-	 (ulong) my_stream_opened);
+	 my_file_opened,
+	 my_stream_opened);
   display_table_locks();
 #ifdef HAVE_MALLOC_INFO
   printf("\nMemory status:\n");

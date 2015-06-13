@@ -3284,7 +3284,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
     binlog_checksum_options=
       static_cast<ulong>(var->save_result.ulonglong_value);
   }
-  DBUG_ASSERT((ulong) binlog_checksum_options == var->save_result.ulonglong_value);
+  DBUG_ASSERT(binlog_checksum_options == var->save_result.ulonglong_value);
   DBUG_ASSERT(mysql_bin_log.checksum_alg_reset ==
               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
@@ -4505,7 +4505,7 @@ static bool update_last_insert_id(THD *thd, set_var *var)
 }
 static ulonglong read_last_insert_id(THD *thd)
 {
-  return (ulonglong) thd->read_first_successful_insert_id_in_prev_stmt();
+  return thd->read_first_successful_insert_id_in_prev_stmt();
 }
 static Sys_var_session_special Sys_last_insert_id(
        "last_insert_id", "The value to be returned from LAST_INSERT_ID()",

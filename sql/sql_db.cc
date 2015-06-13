@@ -1020,7 +1020,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
   tot_list_next_local= tot_list_next_global= &tot_list;
 
   for (uint idx=0 ;
-       idx < (uint) dirp->number_off_files && !thd->killed ;
+       idx < dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;
@@ -1201,7 +1201,7 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
   DBUG_PRINT("enter", ("path: %s", org_path));
 
   for (uint idx=0 ;
-       idx < (uint) dirp->number_off_files && !thd->killed ;
+       idx < dirp->number_off_files && !thd->killed ;
        idx++)
   {
     FILEINFO *file=dirp->dir_entry+idx;

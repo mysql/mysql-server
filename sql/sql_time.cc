@@ -1096,7 +1096,7 @@ Date_time_format *date_time_format_copy(THD *thd, Date_time_format *format)
 	   sizeof(format->positions));
     new_format->time_separator= format->time_separator;
     /* We make the string null terminated for easy printf in SHOW VARIABLES */
-    memcpy((char*) new_format->format.str, format->format.str,
+    memcpy(new_format->format.str, format->format.str,
 	   format->format.length);
     new_format->format.str[format->format.length]= 0;
     new_format->format.length= format->format.length;
@@ -1240,7 +1240,7 @@ void make_truncated_value_warning(THD *thd,
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, val.ptr(), field_name,
-                       (ulong) thd->get_stmt_da()->current_row_for_condition());
+                       (long) thd->get_stmt_da()->current_row_for_condition());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)

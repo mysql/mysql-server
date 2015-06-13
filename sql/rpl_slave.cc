@@ -4501,7 +4501,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
             if (!append_item_to_jobs_error)
               append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
             if (append_item_to_jobs_error)
-              delete static_cast<Log_event*>(da_item.data);
+              delete da_item.data;
           }
           rli->curr_group_da.clear();
         }
@@ -4509,7 +4509,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
 
         DBUG_PRINT("mts", ("Assigning job %llu to worker %lu\n",
-                   ((Log_event* )job_item->data)->common_header->log_pos, w->id));
+                   job_item->data->common_header->log_pos, w->id));
 
         /* Notice `ev' instance can be destoyed after `append()' */
         if (append_item_to_jobs(job_item, w, rli))
@@ -5850,9 +5850,9 @@ extern "C" void *handle_slave_worker(void *arg)
   while(de_queue(&w->jobs, job_item))
   {
     purge_cnt++;
-    purge_size += ((Log_event*) (job_item->data))->common_header->data_written;
+    purge_size += job_item->data->common_header->data_written;
     DBUG_ASSERT(job_item->data);
-    delete static_cast<Log_event*>(job_item->data);
+    delete job_item->data;
   }
 
   DBUG_ASSERT(w->jobs.len == 0);
@@ -7418,7 +7418,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf);
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
   /* 3.23 events don't contain log_pos */
@@ -7452,7 +7452,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     delete ev;
     mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
     DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
-    my_free((char*)tmp_buf);
+    my_free(tmp_buf);
     DBUG_RETURN(error);
   }
   default:
@@ -7507,7 +7507,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     sql_print_error("Read invalid event from master: '%s',\
  master could be corrupt but a more likely cause of this is a bug",
                     errmsg);
-    my_free((char*) tmp_buf);
+    my_free(tmp_buf);
     DBUG_RETURN(1);
   }
   switch (ev->get_type_code()) {

@@ -432,7 +432,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER_THD(current_thd, ER_OLD_FILE_FORMAT),
-                        (char *)path, "TRIGGER");
+                        path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {
@@ -477,7 +477,7 @@ bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER_THD(current_thd, ER_OLD_FILE_FORMAT),
-                        (char *)path, "TRIGGER");
+                        path, "TRIGGER");
 
     if (!(ptr= parse_escaped_string(ptr, end, mem_root, trigger_table_value)))
     {
@@ -625,8 +625,8 @@ bool Trigger_loader::load_triggers(THD *thd,
         !trg.db_cl_names.is_empty())
     {
       my_error(ER_TRG_CORRUPTED_FILE, MYF(0),
-               (const char *) db_name,
-               (const char *) table_name);
+               db_name,
+               table_name);
 
       DBUG_RETURN(true);
     }
@@ -634,8 +634,8 @@ bool Trigger_loader::load_triggers(THD *thd,
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TRG_NO_CREATION_CTX,
                         ER_THD(thd, ER_TRG_NO_CREATION_CTX),
-                        (const char*) db_name,
-                        (const char*) table_name);
+                        db_name,
+                        table_name);
 
 
     /*

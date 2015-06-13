@@ -228,7 +228,7 @@ pre_init_event_thread(THD* thd)
 extern "C" void *event_scheduler_thread(void *arg)
 {
   /* needs to be first for thread_stack */
-  THD *thd= (THD *) ((struct scheduler_param *) arg)->thd;
+  THD *thd= ((struct scheduler_param *) arg)->thd;
   Event_scheduler *scheduler= ((struct scheduler_param *) arg)->scheduler;
   bool res;
 

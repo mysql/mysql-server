@@ -1022,8 +1022,7 @@ send_result_message:
       @todo: have a method to reset a prelocking context, or use separate
       contexts for each open.
     */
-    for (Sroutine_hash_entry *rt=
-           (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+    for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
          rt; rt= rt->next)
       rt->mdl_request.ticket= NULL;
 

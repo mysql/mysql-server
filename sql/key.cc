@@ -302,8 +302,8 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
         set_if_smaller(char_length, length);
       }
       if (cs->coll->strnncollsp(cs,
-                                (const uchar*) key, length,
-                                (const uchar*) pos, char_length, 0))
+                                key, length,
+                                pos, char_length, 0))
         return 1;
       continue;
     }

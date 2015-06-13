@@ -489,7 +489,7 @@ sp_head::~sp_head()
     THD::lex. It is safe to not update LEX::ptr because further query
     string parsing and execution will be stopped anyway.
   */
-  while ((lex= (LEX *) m_parser_data.pop_lex()))
+  while ((lex= m_parser_data.pop_lex()))
   {
     THD *thd= lex->thd;
     thd->lex->sphead= NULL;
@@ -1636,7 +1636,7 @@ bool sp_head::restore_lex(THD *thd)
 
   sublex->set_trg_event_type_for_tables();
 
-  LEX *oldlex= (LEX *) m_parser_data.pop_lex();
+  LEX *oldlex= m_parser_data.pop_lex();
 
   if (!oldlex)
     return false; // Nothing to restore

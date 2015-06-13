@@ -415,7 +415,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT)
   { 
-    if (from->get_info(&temp_ssl_verify_server_cert, (int) 0))
+    if (from->get_info(&temp_ssl_verify_server_cert, 0))
       DBUG_RETURN(true);
   }
 
@@ -473,7 +473,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
 
   if (lines >= LINE_FOR_AUTO_POSITION)
   {
-    if (from->get_info(&temp_auto_position, (int) 0))
+    if (from->get_info(&temp_auto_position, 0))
       DBUG_RETURN(true);
   }
 

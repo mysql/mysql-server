@@ -78,7 +78,7 @@ private:
 
     uchar* search(const uchar* token, size_t length)
     {
-      return (my_hash_search(&m_registered_sysvars, (const uchar *) token,
+      return (my_hash_search(&m_registered_sysvars, token,
 			     length));
     }
 
@@ -307,13 +307,13 @@ public:
       *to= (uchar) SESSION_TRACK_GTIDS; to++;
 
       /* Length of the overall entity. */
-      to= net_store_length((uchar *) to, entity_len);
+      to= net_store_length(to, entity_len);
 
       /* encoding specification */
       *to= (uchar) encoding_specification(); to++;
 
       /* the length of the gtid set string*/
-      to= net_store_length((uchar*) to, gtids_string_len);
+      to= net_store_length(to, gtids_string_len);
 
       /* the actual gtid set string */
       state->to_string((char*)to);
@@ -834,10 +834,10 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
                                        EXTRA_ALLOC);
 
   /* Session state type (SESSION_TRACK_SCHEMA) */
-  to= net_store_length((uchar *) to, (ulonglong)SESSION_TRACK_SCHEMA);
+  to= net_store_length(to, (ulonglong)SESSION_TRACK_SCHEMA);
 
   /* Length of the overall entity. */
-  to= net_store_length((uchar *) to, length);
+  to= net_store_length(to, length);
 
   /* Length of the changed current schema name. */
   net_store_length(to, db_length);
@@ -940,10 +940,10 @@ bool Session_state_change_tracker::store(THD *thd, String &buf)
      [ tracker type] [length] [1 byte flag] */
 
   /* Session state type (SESSION_TRACK_STATE_CHANGE) */
-  to= net_store_length((uchar *) to, (ulonglong)SESSION_TRACK_STATE_CHANGE);
+  to= net_store_length(to, (ulonglong)SESSION_TRACK_STATE_CHANGE);
 
   /* Length of the overall entity it is always 1 byte */
-  to= net_store_length((uchar *) to, length);
+  to= net_store_length(to, length);
 
   /* boolean tracker will go here */
   *to= (is_state_changed(thd) ? '1' : '0');

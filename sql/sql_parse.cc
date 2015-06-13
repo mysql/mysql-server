@@ -2474,7 +2474,7 @@ case SQLCOM_PREPARE:
     if (check_global_access(thd, SUPER_ACL))
       goto error;
     /* PURGE MASTER LOGS BEFORE 'data' */
-    it= (Item *)lex->purge_value_list.head();
+    it= lex->purge_value_list.head();
     if ((!it->fixed && it->fix_fields(lex->thd, &it)) ||
         it->check_cols(1))
     {
@@ -3229,7 +3229,7 @@ end_with_restore_list:
     }
   case SQLCOM_CHANGE_DB:
   {
-    const LEX_CSTRING db_str= { (char *) select_lex->db,
+    const LEX_CSTRING db_str= { select_lex->db,
                                 strlen(select_lex->db) };
 
     if (!mysql_change_db(thd, db_str, FALSE))
@@ -3268,7 +3268,7 @@ end_with_restore_list:
 
     res= mysql_load(thd, lex->exchange, first_table, lex->load_field_list,
                     lex->load_update_list, lex->load_value_list, lex->duplicates,
-                    (bool) lex->local_file);
+                    lex->local_file);
 
     /* Pop ignore / strict error handler */
     if (thd->lex->is_ignore() || thd->is_strict_mode())
@@ -3778,7 +3778,7 @@ end_with_restore_list:
   }
   case SQLCOM_KILL:
   {
-    Item *it= (Item *)lex->kill_value_list.head();
+    Item *it= lex->kill_value_list.head();
 
     if (lex->table_or_sp_used())
     {

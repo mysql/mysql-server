@@ -1000,7 +1000,7 @@ bool Explain_table_base::explain_extra_common(int quick_type,
       StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);
       /* 4 bits per 1 hex digit + terminating '\0' */
       char buf[MAX_KEY / 4 + 1];
-      str.append(const_cast<QEP_TAB*>(tab)->keys().print(buf));
+      str.append(tab->keys().print(buf));
       if (push_extra(ET_RANGE_CHECKED_FOR_EACH_RECORD, str))
         return true;
     }

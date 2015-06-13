@@ -271,7 +271,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
 
     for (i= 0; i < sp->timecnt; i++)
     {
-      sp->types[i]= (uchar) *p++;
+      sp->types[i]= *p++;
       if (sp->types[i] >= sp->typecnt)
         return 1;
     }
@@ -282,10 +282,10 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
       ttisp= &sp->ttis[i];
       ttisp->tt_gmtoff= int4net(p);
       p+= 4;
-      ttisp->tt_isdst= (uchar) *p++;
+      ttisp->tt_isdst= *p++;
       if (ttisp->tt_isdst != 0 && ttisp->tt_isdst != 1)
         return 1;
-      ttisp->tt_abbrind= (uchar) *p++;
+      ttisp->tt_abbrind= *p++;
       if (ttisp->tt_abbrind > sp->charcnt)
         return 1;
     }

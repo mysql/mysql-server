@@ -1384,15 +1384,15 @@ bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
   DBUG_PRINT("ddl_log",
              ("write type %c next %u name '%s' from_name '%s' handler '%s'"
               " tmp_name '%s'",
-             (char) global_ddl_log.file_entry_buf[DDL_LOG_ACTION_TYPE_POS],
+             global_ddl_log.file_entry_buf[DDL_LOG_ACTION_TYPE_POS],
              ddl_log_entry->next_entry,
-             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
-             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
-                                                    + FN_REFLEN],
-             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
-                                                    + (2*FN_REFLEN)],
-             (char*) &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
-                                                    + (3*FN_REFLEN)]));
+             &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
+             &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
+                                            + FN_REFLEN],
+             &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
+                                            + (2*FN_REFLEN)],
+             &global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS
+                                            + (3*FN_REFLEN)]));
   if (write_ddl_log_file_entry((*active_entry)->entry_pos))
   {
     error= TRUE;
@@ -1921,9 +1921,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       if (share->partition_info_buffer_size < syntax_len + 1)
       {
         share->partition_info_buffer_size= syntax_len+1;
-        if (!(tmp_part_syntax_str= (char*) strmake_root(&share->mem_root,
-                                                        part_syntax_buf,
-                                                        syntax_len)))
+        if (!(tmp_part_syntax_str= strmake_root(&share->mem_root,
+                                                part_syntax_buf,
+                                                syntax_len)))
         {
           error= 1;
           goto err;
@@ -1931,7 +1931,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         share->partition_info_str= tmp_part_syntax_str;
       }
       else
-        memcpy((char*) share->partition_info_str, part_syntax_buf,
+        memcpy(share->partition_info_str, part_syntax_buf,
                syntax_len + 1);
       share->partition_info_str_len= part_info->part_info_len= syntax_len;
       part_info->part_info_string= part_syntax_buf;
@@ -2846,7 +2846,7 @@ static bool check_duplicates_in_interval(THD *thd,
     tmp.type_names++;
     tmp.type_lengths++;
     tmp.count--;
-    if (find_type2(&tmp, (const char*)*cur_value, *cur_length, cs))
+    if (find_type2(&tmp, *cur_value, *cur_length, cs))
     {
       ErrConvString err(*cur_value, *cur_length, cs);
       if (thd->is_strict_mode())
@@ -3091,8 +3091,8 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root,
       conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
 
       length= conv.length();
-      result->type_names[i]= (char*) strmake_root(mem_root, conv.ptr(),
-                                                  length);
+      result->type_names[i]= strmake_root(mem_root, conv.ptr(),
+                                          length);
     }
     else
     {
@@ -9220,8 +9220,8 @@ end_inplace:
 end_temporary:
   my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER_THD(thd, ER_INSERT_INFO),
-	      (ulong) (copied + deleted), (ulong) deleted,
-	      (ulong) thd->get_stmt_da()->current_statement_cond_count());
+	      (long) (copied + deleted), (long) deleted,
+	      (long) thd->get_stmt_da()->current_statement_cond_count());
   my_ok(thd, copied + deleted, 0L, alter_ctx.tmp_name);
   DBUG_RETURN(false);
 

@@ -268,7 +268,7 @@ my_crypt_genhash(char *ctbuffer,
   salt = (char *)switchsalt;
 
   /* skip our magic string */
-  if (strncmp((char *)salt, crypt_alg_magic, crypt_alg_magic_len) == 0)
+  if (strncmp(salt, crypt_alg_magic, crypt_alg_magic_len) == 0)
   {
           salt += crypt_alg_magic_len + 1;
   }

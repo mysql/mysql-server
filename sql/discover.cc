@@ -83,7 +83,7 @@ int readfrm(const char *name, uchar **frmdata, size_t *len)
     goto err;
 
   // Setup return data
-  *frmdata= (uchar*) read_data;
+  *frmdata= read_data;
   *len= read_len;
   error= 0;
   

@@ -128,7 +128,7 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
       s->set_real((ulonglong2double(sum) / ulonglong2double(rows - nulls)),
 	     DEC_IN_AVG,my_thd_charset);
@@ -203,21 +203,21 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
-      s->set_real(((double)sum / (double) (rows - nulls)), item->decimals,my_thd_charset);
+      s->set_real((sum / (double) (rows - nulls)), item->decimals,my_thd_charset);
     return s;
   }
   String *std(String *s, ha_rows rows)
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
     {
       double tmp2 = ((sum_sqr - sum * sum / (tmp - nulls)) /
 		     (tmp - nulls));
-      s->set_real(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), item->decimals,my_thd_charset);
+      s->set_real((tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), item->decimals,my_thd_charset);
     }
     return s;
   }
@@ -249,7 +249,7 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
       s->set_real(((double) sum / (double) (rows - nulls)), DEC_IN_AVG,my_thd_charset);
     return s;
@@ -258,12 +258,12 @@ public:
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
     {
       double tmp2 = ((sum_sqr - sum * sum / (tmp - nulls)) /
 		    (tmp - nulls));
-      s->set_real(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
+      s->set_real((tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
     }
     return s;
   }
@@ -293,7 +293,7 @@ public:
   String *avg(String *s, ha_rows rows)
   {
     if (!(rows - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
       s->set_real((ulonglong2double(sum) / ulonglong2double(rows - nulls)),
 	     DEC_IN_AVG,my_thd_charset);
@@ -303,13 +303,13 @@ public:
   {
     double tmp = ulonglong2double(rows);
     if (!(tmp - nulls))
-      s->set_real((double) 0.0, 1,my_thd_charset);
+      s->set_real(0.0, 1,my_thd_charset);
     else
     {
       double tmp2 = ((ulonglong2double(sum_sqr) - 
 		     ulonglong2double(sum * sum) / (tmp - nulls)) /
 		     (tmp - nulls));
-      s->set_real(((double) tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
+      s->set_real((tmp2 <= 0.0 ? 0.0 : sqrt(tmp2)), DEC_IN_AVG,my_thd_charset);
     }
     return s;
   }

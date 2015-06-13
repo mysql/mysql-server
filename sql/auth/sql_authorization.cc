@@ -2389,8 +2389,8 @@ bool check_grant_db(THD *thd,const char *db)
   size_t copy_length;
 
   /* Added 1 at the end to avoid buffer overflow at strmov()*/
-  copy_length= size_t((priv_user.str ? strlen(priv_user.str) : 0) +
-                      (db ? strlen(db) : 0)) + 1;
+  copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
+                (db ? strlen(db) : 0)) + 1;
 
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
