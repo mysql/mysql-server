@@ -1118,8 +1118,8 @@ const bool Is_big_endian= true;
 #else
 const bool Is_big_endian= false;
 #endif
-void copy_native_longlong(uchar *to, size_t to_length,
-                          longlong val, bool is_unsigned)
+static void copy_native_longlong(uchar *to, size_t to_length,
+                                 longlong val, bool is_unsigned)
 {
   copy_integer<Is_big_endian>(to, to_length,
                               static_cast<uchar*>(static_cast<void*>(&val)),

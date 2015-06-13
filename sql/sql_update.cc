@@ -249,12 +249,12 @@ bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select)
     true  - error
 */
 
-bool mysql_update(THD *thd,
-                  List<Item> &fields,
-                  List<Item> &values,
-                  ha_rows limit,
-                  enum enum_duplicates handle_duplicates,
-                  ha_rows *found_return, ha_rows *updated_return)
+static bool mysql_update(THD *thd,
+                         List<Item> &fields,
+                         List<Item> &values,
+                         ha_rows limit,
+                         enum enum_duplicates handle_duplicates,
+                         ha_rows *found_return, ha_rows *updated_return)
 {
   DBUG_ENTER("mysql_update");
 

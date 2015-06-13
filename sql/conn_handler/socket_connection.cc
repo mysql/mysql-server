@@ -48,7 +48,8 @@ ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */)
+static void net_before_header_psi(struct st_net *net, void *user_data,
+                                  size_t /* unused: count */)
 {
   THD *thd;
   thd= static_cast<THD*> (user_data);
@@ -68,7 +69,8 @@ void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused
   }
 }
 
-void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused: count */, my_bool rc)
+static void net_after_header_psi(struct st_net *net, void *user_data,
+                                 size_t /* unused: count */, my_bool rc)
 {
   THD *thd;
   thd= static_cast<THD*> (user_data);

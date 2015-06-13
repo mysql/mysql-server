@@ -3049,8 +3049,9 @@ public:
     - NULL otherwise.
 */
 
-Item_equal *find_item_equal(COND_EQUAL *cond_equal, Item_field *item_field,
-                            bool *inherited_fl)
+static Item_equal *find_item_equal(COND_EQUAL *cond_equal,
+                                   Item_field *item_field,
+                                   bool *inherited_fl)
 {
   Item_equal *item= 0;
   bool in_upper_level= FALSE;

@@ -1288,7 +1288,7 @@ longlong Item_func_second::val_int()
 }
 
 
-uint week_mode(uint mode)
+static uint week_mode(uint mode)
 {
   uint week_format= (mode & 7);
   if (!(week_format & WEEK_MONDAY_FIRST))

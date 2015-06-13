@@ -614,8 +614,8 @@ static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
 }
 
 
-uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
-                       my_bool not_used __attribute__((unused)))
+static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
+                              my_bool not_used __attribute__((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->hash_key;
@@ -1251,7 +1251,7 @@ public:
     @retval true Hash is of wrong length or format
 */
 
-bool set_user_salt(ACL_USER *acl_user)
+static bool set_user_salt(ACL_USER *acl_user)
 {
   bool result= false;
   plugin_ref plugin= NULL;

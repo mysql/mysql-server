@@ -2422,7 +2422,7 @@ static bool validate_generated_expr(Field *field)
   @return
     FALSE                Ok, generated expression is fixed sucessfully 
  */
-bool fix_fields_gcol_func(THD *thd, Field *field)
+static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -2527,11 +2527,11 @@ end:
     FALSE           Success
  */
 
-bool unpack_gcol_info_from_frm(THD *thd,
-                               TABLE *table,
-                               Field *field,
-                               bool is_create_table,
-                               bool *error_reported)
+static bool unpack_gcol_info_from_frm(THD *thd,
+                                      TABLE *table,
+                                      Field *field,
+                                      bool is_create_table,
+                                      bool *error_reported)
 {
   DBUG_ENTER("unpack_gcol_info_from_frm");
   DBUG_ASSERT(field->table == table);

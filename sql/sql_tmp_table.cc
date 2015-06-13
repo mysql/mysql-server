@@ -2036,7 +2036,7 @@ error:
 }
 
 
-bool open_tmp_table(TABLE *table)
+static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
@@ -2084,10 +2084,10 @@ bool open_tmp_table(TABLE *table)
      TRUE  - Error
 */
 
-bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo, 
-                             MI_COLUMNDEF *start_recinfo,
-                             MI_COLUMNDEF **recinfo, 
-                             ulonglong options, my_bool big_tables)
+static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
+                                    MI_COLUMNDEF *start_recinfo,
+                                    MI_COLUMNDEF **recinfo,
+                                    ulonglong options, my_bool big_tables)
 {
   int error;
   MI_KEYDEF keydef;
@@ -2212,7 +2212,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
      FALSE - OK
      TRUE  - Error
 */
-bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
+static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
 {
   TABLE_SHARE *share= table->s;
 

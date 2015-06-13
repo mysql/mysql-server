@@ -581,35 +581,6 @@ bool transaction_cache_init();
 
 
 /**
-  Search information about XA transaction by a XID value.
-
-  @param xid    Pointer to a XID structure that identifies a XA transaction.
-
-  @return  pointer to a Transaction_ctx that describes the whole transaction
-           including XA-specific information (XID_STATE).
-    @retval  NULL     failure
-    @retval  != NULL  success
-*/
-
-Transaction_ctx *transaction_cache_search(XID *xid);
-
-
-/**
-  Insert information about XA transaction into a cache indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-  @param transaction
-                 Pointer to Transaction object that is inserted.
-
-  @return  operation result
-    @retval  false   success or a cache already contains XID_STATE
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
-
-/**
   Transaction is marked in the cache as if it's recovered.
   The method allows to sustain prepared transaction disconnection.
 
@@ -623,21 +594,6 @@ bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 */
 
 bool transaction_cache_detach(Transaction_ctx *transaction);
-
-
-/**
-  Insert information about XA transaction being recovered into a cache
-  indexed by XID.
-
-  @param xid     Pointer to a XID structure that identifies a XA transaction.
-
-  @return  operation result
-    @retval  false   success or a cache already contains Transaction_ctx
-                     for this XID value
-    @retval  true    failure
-*/
-
-bool transaction_cache_insert_recovery(XID *xid);
 
 
 /**
@@ -690,13 +646,4 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 
 my_bool detach_native_trx(THD *thd, plugin_ref plugin,
                                       void *unused);
-
-
-/**
-  The function restores previously saved storage engine transaction context.
-
-  @param     thd     Thread context
-*/
-
-void attach_native_trx(THD *thd);
 #endif

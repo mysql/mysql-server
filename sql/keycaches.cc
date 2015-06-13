@@ -23,8 +23,8 @@
 
 NAMED_ILIST key_caches;
 
-uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, size_t length,
-                NAMED_ILINK **found)
+static uchar* find_named(I_List<NAMED_ILINK> *list, const char *name,
+                         size_t length, NAMED_ILINK **found)
 {
   I_List_iterator<NAMED_ILINK> it(*list);
   NAMED_ILINK *element;

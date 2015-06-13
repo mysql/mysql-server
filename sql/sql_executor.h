@@ -324,7 +324,6 @@ bool change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 				      List<Item> &new_list1,
 				      List<Item> &new_list2,
 				      uint elements, List<Item> &items);
-bool alloc_group_fields(JOIN *join, ORDER *group);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);

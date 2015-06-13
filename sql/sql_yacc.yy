@@ -197,7 +197,7 @@ int yylex(void *yylval, void *yythd);
   to abort from the parser.
 */
 
-void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
+static void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
 {
   /*
     Restore the original LEX if it was replaced when parsing
@@ -289,7 +289,7 @@ Pos     Instruction
   @param thd thread handler
 */
 
-void case_stmt_action_case(THD *thd)
+static void case_stmt_action_case(THD *thd)
 {
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
@@ -312,7 +312,7 @@ void case_stmt_action_case(THD *thd)
   @param lex the parser lex context
 */
 
-bool case_stmt_action_then(THD *thd, LEX *lex)
+static bool case_stmt_action_then(THD *thd, LEX *lex)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
@@ -347,7 +347,7 @@ bool case_stmt_action_then(THD *thd, LEX *lex)
   @param simple true for simple cases, false for searched cases
 */
 
-void case_stmt_action_end_case(LEX *lex, bool simple)
+static void case_stmt_action_end_case(LEX *lex, bool simple)
 {
   sp_head *sp= lex->sphead;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
@@ -395,41 +395,6 @@ static bool add_create_index (LEX *lex, keytype type,
   lex->alter_info.key_list.push_back(key);
   lex->col_list.empty();
   return FALSE;
-}
-
-/**
-  Compare a LEX_USER against the current user as defined by the exact user and
-  host used during authentication.
-
-  @param user A pointer to a user which needs to be matched against the
-              current.
-
-  @see SET PASSWORD rules
-
-  @retval true The specified user is the authorized user
-  @retval false The user doesn't match
-*/
-
-bool match_authorized_user(Security_context *ctx, LEX_USER *user)
-{
-  if(user->user.str && my_strcasecmp(system_charset_info,
-                                     ctx->priv_user().str,
-                                     user->user.str) == 0)
-  {
-    /*
-      users match; let's compare hosts.
-      1. first compare with the host we actually authorized,
-      2. then see if we match the host mask of the priv_host
-    */
-    if (user->host.str && my_strcasecmp(system_charset_info,
-                                        user->host.str,
-                                        ctx->priv_host().str) == 0)
-    {
-      /* specified user exactly match the authorized user */
-      return true;
-    }
-  }
-  return false;
 }
 
 static void init_index_hints(List<Index_hint> *hints, index_hint_type type,

@@ -2358,8 +2358,8 @@ void my_coll_agg_error(Item** args, uint count, const char *fname,
 }
 
 
-bool agg_item_collations(DTCollation &c, const char *fname,
-                         Item **av, uint count, uint flags, int item_sep)
+static bool agg_item_collations(DTCollation &c, const char *fname,
+                                Item **av, uint count, uint flags, int item_sep)
 {
   uint i;
   Item **arg;

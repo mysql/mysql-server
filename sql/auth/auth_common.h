@@ -613,8 +613,6 @@ bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access,
                          TABLE_LIST *procs, bool is_proc, bool no_error);
-bool check_routine_level_acl(THD *thd, const char *db, const char *name,
-                             bool is_proc);
 bool check_grant_db(THD *thd,const char *db);
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);

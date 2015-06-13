@@ -57,8 +57,8 @@
   @retval          false if any subsequent key/value pair would be the first
 */
 
-bool append_int(String *str, bool comma, const char *txt, size_t len,
-                long val, int cond)
+static bool append_int(String *str, bool comma, const char *txt, size_t len,
+                       long val, int cond)
 {
   if (cond)
   {
@@ -86,7 +86,8 @@ bool append_int(String *str, bool comma, const char *txt, size_t len,
   @retval          false if any subsequent key/value pair would be the first
 */
 
-bool append_str(String *str, bool comma, const char *key, const char *val)
+static bool append_str(String *str, bool comma, const char *key,
+                       const char *val)
 {
   if (val)
   {

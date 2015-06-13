@@ -258,9 +258,9 @@ static PSI_cond_key key_COND_socket_listener_active;
 static PSI_mutex_key key_LOCK_start_signal_handler;
 static PSI_cond_key key_COND_start_signal_handler;
 #endif // _WIN32
-#endif // !EMBEDDED_LIBRARY
 static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
+#endif // !EMBEDDED_LIBRARY
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1013,6 +1013,9 @@ static void clean_up_mutexes(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
 static void delete_pid_file(myf flags);
+#ifdef HAVE_PSI_INTERFACE
+static void init_server_psi_keys();
+#endif
 #endif // !EMBEDDED_LIBRARY
 
 
@@ -3326,7 +3329,7 @@ static int init_thread_environment()
 }
 
 #ifndef EMBEDDED_LIBRARY
-ssl_artifacts_status auto_detect_ssl()
+static ssl_artifacts_status auto_detect_ssl()
 {
   MY_STAT cert_stat, cert_key, ca_stat;
   uint result= 1;
@@ -3365,7 +3368,7 @@ ssl_artifacts_status auto_detect_ssl()
   return ret_status;
 }
 
-int warn_one(const char *file_name)
+static int warn_one(const char *file_name)
 {
   FILE *fp;
   char *issuer= NULL;
@@ -3402,7 +3405,7 @@ int warn_one(const char *file_name)
 
 }
 
-int warn_self_signed_ca()
+static int warn_self_signed_ca()
 {
   int ret_val= 0;
   if (opt_ssl_ca && opt_ssl_ca[0])
@@ -3582,7 +3585,7 @@ static int generate_server_uuid()
 
   @return Return 0 or 1 if an error occurred.
  */
-int flush_auto_options(const char* fname)
+static int flush_auto_options(const char* fname)
 {
   File fd;
   IO_CACHE io_cache;
@@ -7477,7 +7480,7 @@ C_MODE_END
   @retval true error in the values set
   @retval false all checked
 */
-bool check_ghost_options()
+static bool check_ghost_options()
 {
   if (global_system_variables.old_passwords == 1)
   {
@@ -7882,7 +7885,7 @@ bool is_secure_file_path(char *path)
     @retval false : Validation failed. Error is raised.
 */
 
-bool check_secure_file_priv_path()
+static bool check_secure_file_priv_path()
 {
   char datadir_buffer[FN_REFLEN+1]={0};
   char plugindir_buffer[FN_REFLEN+1]={0};
@@ -8387,6 +8390,7 @@ PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
+#ifndef EMBEDDED_LIBRARY
 static PSI_mutex_info all_server_mutexes[]=
 {
   { &key_LOCK_tc, "TC_LOG_MMAP::LOCK_tc", 0},
@@ -8478,6 +8482,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_GLOBAL}
 };
+#endif // !EMBEDDED_LIBRARY
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -8492,6 +8497,7 @@ PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
 #endif
 
+#ifndef EMBEDDED_LIBRARY
 static PSI_rwlock_info all_server_rwlocks[]=
 {
 #ifdef HAVE_REPLICATION
@@ -8510,6 +8516,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}
 };
+#endif // !EMBEDDED_LIBRARY
 
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 PSI_cond_key key_BINLOG_update_cond,
@@ -8535,6 +8542,7 @@ PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_cond_slave_worker_hash;
 #endif
 
+#ifndef EMBEDDED_LIBRARY
 static PSI_cond_info all_server_conds[]=
 {
   { &key_PAGE_cond, "PAGE::cond", 0},
@@ -8579,12 +8587,14 @@ static PSI_cond_info all_server_conds[]=
   { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0}
 #endif
 };
+#endif // !EMBEDDED_LIBRARY
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
 PSI_thread_key key_thread_timer_notifier;
 
+#ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
 {
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -8602,6 +8612,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL}
 };
+#endif // !EMBEDDED_LIBRARY
 
 PSI_file_key key_file_map;
 PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
@@ -8614,6 +8625,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
 PSI_file_key key_file_general_log, key_file_slow_log;
 PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
+#ifndef EMBEDDED_LIBRARY
 static PSI_file_info all_server_files[]=
 {
   { &key_file_map, "map", 0},
@@ -8646,6 +8658,7 @@ static PSI_file_info all_server_files[]=
   { &key_file_trn, "trigger", 0},
   { &key_file_init, "init", 0}
 };
+#endif /* !EMBEDDED_LIBRARY */
 #endif /* HAVE_PSI_INTERFACE */
 
 PSI_stage_info stage_after_create= { 0, "After create", 0};
@@ -8858,16 +8871,14 @@ PSI_stage_info *all_server_stages[]=
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
+#ifndef EMBEDDED_LIBRARY
 static PSI_socket_info all_server_sockets[]=
 {
   { &key_socket_tcpip, "server_tcpip_socket", PSI_FLAG_GLOBAL},
   { &key_socket_unix, "server_unix_socket", PSI_FLAG_GLOBAL},
   { &key_socket_client_connection, "client_connection", 0}
 };
-#endif /* HAVE_PSI_INTERFACE */
-
-
-#ifdef HAVE_PSI_INTERFACE
+#endif // !EMBEDDED_LIBRARY
 
 /* TODO: find a good header */
 extern "C" void init_client_psi_keys(void);
@@ -8876,7 +8887,8 @@ extern "C" void init_client_psi_keys(void);
   Initialise all the performance schema instrumentation points
   used by the server.
 */
-void init_server_psi_keys(void)
+#ifndef EMBEDDED_LIBRARY
+static void init_server_psi_keys(void)
 {
   const char* category= "sql";
   int count;
@@ -8965,6 +8977,6 @@ void init_server_psi_keys(void)
   /* Vio */
   init_vio_psi_keys();
 }
-
+#endif /* !EMBEDDED_LIBRARY */
 #endif /* HAVE_PSI_INTERFACE */
 

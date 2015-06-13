@@ -1306,7 +1306,7 @@ static MY_XPATH_FUNC my_func_names[] =
     0 - on failure.
 
 */
-MY_XPATH_FUNC *
+static MY_XPATH_FUNC *
 my_xpath_function(const char *beg, const char *end)
 {
   MY_XPATH_FUNC *k, *function_names;

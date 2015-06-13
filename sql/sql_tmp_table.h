@@ -54,14 +54,6 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
 		 const char *table_alias);
-/**
-  General routine to change field->ptr of a NULL-terminated array of Field
-  objects. Useful when needed to call val_int, val_str or similar and the
-  field data is not in table->record[0] but in some other structure.
-  set_key_field_ptr changes all fields of an index using a key_info object.
-  All methods presume that there is at least one field to change.
-*/
-
 TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
 bool create_ondisk_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,

@@ -1118,7 +1118,6 @@ static inline Item * and_items(Item* cond, Item *item)
 }
 
 uint actual_key_parts(const KEY *key_info);
-uint actual_key_flags(KEY *key_info);
 
 int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                          uint *used_key_parts= NULL);

@@ -2205,7 +2205,7 @@ end:
     0 - Ok
     1 - String doesn't contain valid time zone offset
 */
-my_bool
+static my_bool
 str_to_offset(const char *str, size_t length, long *offset)
 {
   const char *end= str + length;

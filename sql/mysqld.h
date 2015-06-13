@@ -456,8 +456,6 @@ extern PSI_file_key key_file_general_log, key_file_slow_log;
 extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
 extern PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
-void init_server_psi_keys();
-
 C_MODE_END
 
 #endif /* HAVE_PSI_INTERFACE */

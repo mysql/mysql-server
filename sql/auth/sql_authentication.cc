@@ -718,8 +718,8 @@ bool acl_check_host(const char *host, const char *ip)
   authentication protocol.
 */
 
-ACL_USER *decoy_user(const LEX_STRING &username,
-                      MEM_ROOT *mem)
+static ACL_USER *decoy_user(const LEX_STRING &username,
+                            MEM_ROOT *mem)
 {
   ACL_USER *user= (ACL_USER *) alloc_root(mem, sizeof(ACL_USER));
   user->can_authenticate= false;
@@ -2459,8 +2459,8 @@ acl_authenticate(THD *thd, enum_server_command command)
   DBUG_RETURN(0);
 }
 
-int generate_native_password(char *outbuf, unsigned int *buflen,
-                             const char *inbuf, unsigned int inbuflen)
+static int generate_native_password(char *outbuf, unsigned int *buflen,
+                                    const char *inbuf, unsigned int inbuflen)
 {
   if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
@@ -2491,7 +2491,7 @@ int generate_native_password(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-int validate_native_password_hash(char* const inbuf, unsigned int buflen)
+static int validate_native_password_hash(char* const inbuf, unsigned int buflen)
 {
   /* empty password is also valid */
   if ((buflen &&
@@ -2501,8 +2501,8 @@ int validate_native_password_hash(char* const inbuf, unsigned int buflen)
   return 1;
 }
 
-int set_native_salt(const char* password, unsigned int password_len,
-                    unsigned char* salt, unsigned char *salt_len)
+static int set_native_salt(const char* password, unsigned int password_len,
+                           unsigned char* salt, unsigned char *salt_len)
 {
   /* for empty passwords salt_len is 0 */
   if (password_len == 0)
@@ -2519,8 +2519,8 @@ int set_native_salt(const char* password, unsigned int password_len,
 }
 
 #if defined(HAVE_OPENSSL)
-int generate_sha256_password(char *outbuf, unsigned int *buflen,
-                             const char *inbuf, unsigned int inbuflen)
+static int generate_sha256_password(char *outbuf, unsigned int *buflen,
+                                    const char *inbuf, unsigned int inbuflen)
 {
   if (my_validate_password_policy(inbuf, inbuflen))
     return 1;
@@ -2550,7 +2550,7 @@ int generate_sha256_password(char *outbuf, unsigned int *buflen,
   return 0;
 }
 
-int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
+static int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
 {
   if ((inbuf && inbuf[0] == '$' &&
       inbuf[1] == '5' && inbuf[2] == '$' &&
@@ -2560,10 +2560,10 @@ int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
   return 1;
 }
 
-int set_sha256_salt(const char* password __attribute__((unused)),
-                    unsigned int password_len __attribute__((unused)),
-                    unsigned char* salt __attribute__((unused)),
-                    unsigned char *salt_len)
+static int set_sha256_salt(const char* password __attribute__((unused)),
+                           unsigned int password_len __attribute__((unused)),
+                           unsigned char* salt __attribute__((unused)),
+                           unsigned char *salt_len)
 {
   *salt_len= 0;
   return 0;
@@ -2731,7 +2731,7 @@ bool init_rsa_keys(void)
 
 static MYSQL_PLUGIN plugin_info_ptr;
 
-int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
+static int init_sha256_password_handler(MYSQL_PLUGIN plugin_ref)
 {
   plugin_info_ptr= plugin_ref;
   return 0;

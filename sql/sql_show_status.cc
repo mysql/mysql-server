@@ -44,7 +44,7 @@
            FROM performance_schema.global_status
            WHERE Variable_name LIKE "<value>"
 */
-SELECT_LEX*
+static SELECT_LEX*
 build_query(const POS &pos,
             THD *thd,
             enum_sql_command command,

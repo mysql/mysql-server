@@ -34,6 +34,10 @@
 using std::min;
 using std::max;
 
+static int compare_double(const double *s, const double *t);
+static int compare_longlong(const longlong *s, const longlong *t);
+static  int compare_ulonglong(const ulonglong *s, const ulonglong *t);
+
 int sortcmp2(void* cmp_arg __attribute__((unused)),
 	     const String *a,const String *b)
 {
@@ -219,7 +223,7 @@ bool test_if_number(NUM_INFO *info, const char *str, uint str_len)
   and is marked as negative, function will return 0, else 1.
 */
 
-bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
+static bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num)
 {
   if (info->negative)
   {
@@ -1170,17 +1174,17 @@ void Query_result_analyse::abort_result_set()
 }
 
 
-int compare_double(const double *s, const double *t)
+static int compare_double(const double *s, const double *t)
 {
   return ((*s < *t) ? -1 : *s > *t ? 1 : 0);
 } /* compare_double */
 
-int compare_longlong(const longlong *s, const longlong *t)
+static int compare_longlong(const longlong *s, const longlong *t)
 {
   return ((*s < *t) ? -1 : *s > *t ? 1 : 0);
 } /* compare_longlong */
 
- int compare_ulonglong(const ulonglong *s, const ulonglong *t)
+static  int compare_ulonglong(const ulonglong *s, const ulonglong *t)
 {
   return ((*s < *t) ? -1 : *s > *t ? 1 : 0);
 } /* compare_ulonglong */

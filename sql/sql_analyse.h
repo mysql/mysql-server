@@ -55,15 +55,11 @@ typedef struct st_tree_info
 } TREE_INFO;
 
 uint check_ulonglong(const char *str, uint length);
-bool get_ev_num_info(EV_NUM_INFO *ev_info, NUM_INFO *info, const char *num);
 bool test_if_number(NUM_INFO *info, const char *str, uint str_len);
-int compare_double(const double *s, const double *t);
 int compare_double2(void* cmp_arg __attribute__((unused)),
 		    const double *s, const double *t);
-int compare_longlong(const longlong *s, const longlong *t);
 int compare_longlong2(void* cmp_arg __attribute__((unused)),
 		      const longlong *s, const longlong *t);
-int compare_ulonglong(const ulonglong *s, const ulonglong *t);
 int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
 		       const ulonglong *s, const ulonglong *t);
 int compare_decimal2(int* len, const char *s, const char *t);

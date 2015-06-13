@@ -86,6 +86,7 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
+static bool alloc_group_fields(JOIN *join, ORDER *group);
 
 
 void Temp_table_param::cleanup(void)
@@ -3132,7 +3133,7 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     false records are the same
 */
 
-bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
+static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
 {
   my_ptrdiff_t diff= rec1 - rec0;
 
@@ -3155,7 +3156,7 @@ bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
     false records are the same
 */
 
-bool table_rec_cmp(TABLE *table)
+static bool table_rec_cmp(TABLE *table)
 {
   my_ptrdiff_t diff= table->record[1] - table->record[0];
   Field **fields= table->visible_field_ptr();
@@ -3217,7 +3218,7 @@ finish:
 
 /* Generate hash for unique constraint according to group-by list */
 
-ulonglong unique_hash_group(ORDER *group)
+static ulonglong unique_hash_group(ORDER *group)
 {
   ulonglong crc= 0;
   Field *field;
@@ -3236,7 +3237,7 @@ ulonglong unique_hash_group(ORDER *group)
 
 /* Generate hash for unique_constraint for all visible fields of a table */
 
-ulonglong unique_hash_fields(TABLE *table)
+static ulonglong unique_hash_fields(TABLE *table)
 {
   ulonglong crc= 0;
   Field **fields= table->visible_field_ptr();
@@ -4076,7 +4077,7 @@ make_group_fields(JOIN *main_join, JOIN *curr_join)
   Groups are saved in reverse order for easyer check loop.
 */
 
-bool
+static bool
 alloc_group_fields(JOIN *join, ORDER *group)
 {
   if (group)

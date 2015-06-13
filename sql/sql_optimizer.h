@@ -876,8 +876,6 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
-Item_equal *find_item_equal(COND_EQUAL *cond_equal, Item_field *item_field,
-                            bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *
 make_cond_for_table(THD *thd, Item *cond, table_map tables,
