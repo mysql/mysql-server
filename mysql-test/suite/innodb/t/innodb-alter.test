@@ -374,15 +374,25 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 
 CREATE TABLE t (t TEXT, FULLTEXT(t)) ENGINE=InnoDB;
 DROP INDEX t ON t;
+LET $regexp=/FTS_([0-9a-f_]+)([A-Z_]+)/FTS_AUX_\2/;
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
 
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
 ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t';
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
-ALTER TABLE t ROW_FORMAT=REDUNDANT;
+
+--replace_regex $regexp
+SELECT SUBSTRING(name, LOCATE('_', name) - 3, 5) AS prefix, name
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE name LIKE '%FTS_%' ORDER BY 1, 2;
+
+ALTER TABLE t ADD FULLTEXT INDEX(t);
 
 SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
