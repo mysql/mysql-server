@@ -86,6 +86,7 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
+static bool alloc_group_fields(JOIN *join, ORDER *group);
 
 
 void Temp_table_param::cleanup(void)
@@ -514,7 +515,7 @@ static void
 copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr)
 {
   for (; func_ptr != end_ptr ; func_ptr++)
-    (void) (*func_ptr)->save_in_result_field(1);
+    (*func_ptr)->save_in_result_field(1);
   return;
 }
 
@@ -541,7 +542,7 @@ static bool
 update_sum_func(Item_sum **func_ptr)
 {
   Item_sum *func;
-  for (; (func= (Item_sum*) *func_ptr) ; func_ptr++)
+  for (; (func= *func_ptr) ; func_ptr++)
     if (func->aggregator_add())
       return 1;
   return 0;
@@ -1994,7 +1995,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     else
     {
       error=table->file->ha_index_read_idx_map(table->record[0],ref->key,
-                                               (uchar*) ref->key_buff,
+                                               ref->key_buff,
                                                make_prev_keypart_map(ref->key_parts),
                                                HA_READ_KEY_EXACT);
     }
@@ -3132,7 +3133,7 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     false records are the same
 */
 
-bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
+static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
 {
   my_ptrdiff_t diff= rec1 - rec0;
 
@@ -3155,7 +3156,7 @@ bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
     false records are the same
 */
 
-bool table_rec_cmp(TABLE *table)
+static bool table_rec_cmp(TABLE *table)
 {
   my_ptrdiff_t diff= table->record[1] - table->record[0];
   Field **fields= table->visible_field_ptr();
@@ -3217,7 +3218,7 @@ finish:
 
 /* Generate hash for unique constraint according to group-by list */
 
-ulonglong unique_hash_group(ORDER *group)
+static ulonglong unique_hash_group(ORDER *group)
 {
   ulonglong crc= 0;
   Field *field;
@@ -3236,7 +3237,7 @@ ulonglong unique_hash_group(ORDER *group)
 
 /* Generate hash for unique_constraint for all visible fields of a table */
 
-ulonglong unique_hash_fields(TABLE *table)
+static ulonglong unique_hash_fields(TABLE *table)
 {
   ulonglong crc= 0;
   Field **fields= table->visible_field_ptr();
@@ -3281,7 +3282,7 @@ bool check_unique_constraint(TABLE *table)
     hash= unique_hash_fields(table);
   table->hash_field->store(hash, true);
   int res= table->file->ha_index_read_map(table->record[1],
-                                          (uchar*)table->hash_field->ptr,
+                                          table->hash_field->ptr,
                                           HA_WHOLE_KEY,
                                           HA_READ_KEY_EXACT);
   while (!res)
@@ -3292,7 +3293,7 @@ bool check_unique_constraint(TABLE *table)
           group_rec_cmp(table->group, table->record[0], table->record[1])))
       return false; // skip it
     res= table->file->ha_index_next_same(table->record[1],
-                                         (uchar*)table->hash_field->ptr,
+                                         table->hash_field->ptr,
                                          sizeof(hash));
   }
   return true;
@@ -3892,7 +3893,8 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   }
 
   if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records, 0, 
-                   key_length, (my_hash_get_key) 0, 0, 0))
+                   key_length, (my_hash_get_key) 0, 0, 0,
+                   key_memory_hash_index_key_buffer))
   {
     my_free(key_buffer);
     DBUG_RETURN(true);
@@ -4075,7 +4077,7 @@ make_group_fields(JOIN *main_join, JOIN *curr_join)
   Groups are saved in reverse order for easyer check loop.
 */
 
-bool
+static bool
 alloc_group_fields(JOIN *join, ORDER *group)
 {
   if (group)

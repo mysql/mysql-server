@@ -54,7 +54,8 @@ int sys_var_init()
   DBUG_ASSERT(system_charset_info != NULL);
 
   if (my_hash_init(&system_variable_hash, system_charset_info, 100, 0,
-                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
+                   0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE,
+                   PSI_INSTRUMENT_ME))
     goto error;
 
   if (mysql_add_sys_var_chain(all_sys_vars.first))

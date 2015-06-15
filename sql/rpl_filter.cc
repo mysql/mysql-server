@@ -748,7 +748,8 @@ void
 Rpl_filter::init_table_rule_hash(HASH* h, bool* h_inited)
 {
   my_hash_init(h, table_alias_charset, TABLE_RULE_HASH_SIZE,0,0,
-               get_table_key, free_table_ent, 0);
+               get_table_key, free_table_ent, 0,
+               key_memory_TABLE_RULE_ENT);
   *h_inited = 1;
 }
 

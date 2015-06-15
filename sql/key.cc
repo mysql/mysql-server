@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -144,29 +144,6 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
     }
     to_key+= length;
     key_length-= length;
-  }
-}
-
-
-/**
-  Zero the null components of key tuple
-  SYNOPSIS
-    key_zero_nulls()
-      tuple
-      key_info
-
-  DESCRIPTION
-*/
-
-void key_zero_nulls(uchar *tuple, KEY *key_info)
-{
-  KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *key_part_end= key_part + key_info->user_defined_key_parts;
-  for (; key_part != key_part_end; key_part++)
-  {
-    if (key_part->null_bit && *tuple)
-      memset(tuple+1, 0, key_part->store_length-1);
-    tuple+= key_part->store_length;
   }
 }
 
@@ -325,8 +302,8 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
         set_if_smaller(char_length, length);
       }
       if (cs->coll->strnncollsp(cs,
-                                (const uchar*) key, length,
-                                (const uchar*) pos, char_length, 0))
+                                key, length,
+                                pos, char_length, 0))
         return 1;
       continue;
     }
@@ -556,8 +533,8 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
   key1_length, key2_length are non zero value.
 */
 int key_cmp2(KEY_PART_INFO *key_part,
-                 const uchar *key1, uint key1_length,
-                 const uchar *key2, uint key2_length)
+             const uchar *key1, uint key1_length,
+             const uchar *key2, uint key2_length)
 {
   DBUG_ASSERT(key_part && key1 && key2);
   DBUG_ASSERT((key1_length == key2_length) && key1_length != 0 );

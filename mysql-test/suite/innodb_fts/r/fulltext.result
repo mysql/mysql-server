@@ -66,12 +66,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections'))
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) > 0)
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 1.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) > 1)
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=0;
@@ -81,17 +81,17 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) >= 0)
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank >= 1.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank >= 1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) >= 1)
 explain select * from t1 where 0<MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 < (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where 1<MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 1.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (1 < (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where 0<=MATCH(a,b) AGAINST ("collections");
@@ -101,12 +101,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <= (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where 1<=MATCH(a,b) AGAINST ("collections");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank >= 1.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank >= 1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (1 <= (match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')))
 explain select * from t1 where MATCH(a,b) AGAINST ("collections")>0 and a like '%ll%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0.000000
+1	SIMPLE	t1	NULL	fulltext	a	a	0	const	1	100.00	Using where; Ft_hints: sorted, rank > 0
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((match `test`.`t1`.`a`,`test`.`t1`.`b` against ('collections')) > 0) and (`test`.`t1`.`a` like '%ll%'))
 select * from t1 where MATCH(a,b) AGAINST("support -collections" IN BOOLEAN MODE);
@@ -526,7 +526,7 @@ MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE)
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT) ENGINE = InnoDB;
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
-ERROR HY000: Incorrect arguments to AGAINST
+ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE t1;
 CREATE TABLE t1(a VARCHAR(64), FULLTEXT(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('awrd bwrd cwrd'),('awrd bwrd cwrd'),('awrd bwrd cwrd');

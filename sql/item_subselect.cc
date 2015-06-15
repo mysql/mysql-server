@@ -191,7 +191,7 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex)
     Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
     working optimally (Bug#14215895).
   */
-  unit->global_parameters()->select_limit= new Item_int((int32) 1);
+  unit->global_parameters()->select_limit= new Item_int(1);
   unit->set_limit(unit->global_parameters());
 
   select_lex->join->allow_outer_refs= true;   // for JOIN::set_prefix_tables()
@@ -631,12 +631,12 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
 
     /* Re-resolve ORDER BY and GROUP BY fields */
 
-    for (ORDER *order= (ORDER*) sel->order_list.first;
+    for (ORDER *order= sel->order_list.first;
          order;
          order= order->next)
       (*order->item)->fix_after_pullout(parent_select, removed_select);
 
-    for (ORDER *group= (ORDER*) sel->group_list.first;
+    for (ORDER *group= sel->group_list.first;
          group;
          group= group->next)
       (*group->item)->fix_after_pullout(parent_select, removed_select);
@@ -720,7 +720,7 @@ void Item_subselect::fix_length_and_dec()
 
 table_map Item_subselect::used_tables() const
 {
-  return (table_map) (engine->uncacheable() ? used_tables_cache : 0L);
+  return (engine->uncacheable() ? used_tables_cache : 0ULL);
 }
 
 
@@ -1462,7 +1462,7 @@ void Item_exists_subselect::fix_length_and_dec()
        Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
        working optimally (Bug#14215895).
      */
-     unit->global_parameters()->select_limit= new Item_int((int32) 1);
+     unit->global_parameters()->select_limit= new Item_int(1);
    }
 }
 

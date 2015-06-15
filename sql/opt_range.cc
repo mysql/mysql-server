@@ -139,6 +139,10 @@ using std::max;
 #define double2rows(x) ((ha_rows)(x))
 
 static int sel_cmp(Field *f,uchar *a,uchar *b,uint8 a_flag,uint8 b_flag);
+static SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par);
+#ifndef DBUG_OFF
+static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
+#endif
 
 static uchar is_null_string[2]= {1,0};
 
@@ -1093,7 +1097,8 @@ static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count,
 static SEL_ARG null_element(SEL_ARG::IMPOSSIBLE);
 static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
                              uint length);
-bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, RANGE_OPT_PARAM* param);
+static bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
+                                  RANGE_OPT_PARAM* param);
 
 
 /*
@@ -1347,9 +1352,9 @@ inline void imerge_list_and_list(List<SEL_IMERGE> *im1, List<SEL_IMERGE> *im2)
     other Error, both passed lists are unusable
 */
 
-int imerge_list_or_list(RANGE_OPT_PARAM *param,
-                        List<SEL_IMERGE> *im1,
-                        List<SEL_IMERGE> *im2)
+static int imerge_list_or_list(RANGE_OPT_PARAM *param,
+                               List<SEL_IMERGE> *im1,
+                               List<SEL_IMERGE> *im2)
 {
   SEL_IMERGE *imerge= im1->head();
   im1->empty();
@@ -2224,7 +2229,7 @@ public:
 
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
   static void *operator new(size_t size, MEM_ROOT *mem_root)
-  { return (void*) alloc_root(mem_root, (uint) size); }
+  { return alloc_root(mem_root, size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) { /* Never called */ }
   virtual ~TABLE_READ_PLAN() {}               /* Remove gcc warning */
@@ -5016,7 +5021,8 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
   return info;
 }
 
-void ror_intersect_cpy(ROR_INTERSECT_INFO *dst, const ROR_INTERSECT_INFO *src)
+static void ror_intersect_cpy(ROR_INTERSECT_INFO *dst,
+                              const ROR_INTERSECT_INFO *src)
 {
   dst->param= src->param;
   memcpy(dst->covered_fields.bitmap, src->covered_fields.bitmap, 
@@ -7618,8 +7624,8 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   using index_merge.
 */
 
-bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2, 
-                           RANGE_OPT_PARAM* param)
+static bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
+                                  RANGE_OPT_PARAM* param)
 {
   Key_map common_keys= tree1->keys_map;
   DBUG_ENTER("sel_trees_can_be_ored");
@@ -9012,7 +9018,7 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
 }
 
 
-SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
+static SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 {
   SEL_ARG *x,*w;
   root->parent=0;
@@ -9094,7 +9100,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 #ifndef DBUG_OFF
 	/* Test that the properties for a red-black tree hold */
 
-int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
+static int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 {
   int count_l,count_r;
 
@@ -9391,7 +9397,8 @@ public:
     Value of init_param
 */
 
-range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges, uint flags)
+static range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges,
+                                          uint flags)
 {
   Sel_arg_range_sequence *seq= 
     static_cast<Sel_arg_range_sequence*>(init_param);
@@ -9488,7 +9495,7 @@ void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
 */
 
 //psergey-merge-todo: support check_quick_keys:max_keypart
-uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+static uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   SEL_ARG *key_tree;
   Sel_arg_range_sequence *seq= static_cast<Sel_arg_range_sequence*>(rseq);
@@ -10790,8 +10797,6 @@ int QUICK_RANGE_SELECT::reset()
 
   if (!file->inited)
   {
-    if (in_ror_merged_scan)
-      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
     DBUG_EXECUTE_IF("bug14365043_2",
                     DBUG_SET("+d,ha_index_init_fail"););
@@ -10900,65 +10905,6 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   range->range_flag= cur->flag;
   ctx->cur++;
   return 0;
-}
-
-
-/*
-  MRR range sequence interface: array<QUICK_RANGE> impl: utility func for NDB
-
-  SYNOPSIS
-    mrr_persistent_flag_storage()
-      seq  Range sequence being traversed
-      idx  Number of range
-
-  DESCRIPTION
-    MRR/NDB implementation needs to store some bits for each range. This
-    function returns a reference to the "range_flag" associated with the
-    range number idx.
-
-    This function should be removed when we get a proper MRR/NDB 
-    implementation.
-
-  RETURN
-    Reference to range_flag associated with range number #idx
-*/
-
-uint16 &mrr_persistent_flag_storage(range_seq_t seq, uint idx)
-{
-  QUICK_RANGE_SEQ_CTX *ctx= (QUICK_RANGE_SEQ_CTX*)seq;
-  return ctx->first[idx]->flag;
-}
-
-
-/*
-  MRR range sequence interface: array<QUICK_RANGE> impl: utility func for NDB
-
-  SYNOPSIS
-    mrr_get_ptr_by_idx()
-      seq  Range sequence bening traversed
-      idx  Number of the range
-
-  DESCRIPTION
-    An extension of MRR range sequence interface needed by NDB: return the
-    data associated with the given range.
-
-    A proper MRR interface implementer is supposed to store and return
-    range-associated data. NDB stores number of the range instead. So this
-    is a helper function that translates range number to range associated
-    data.
-
-    This function does nothing, as currrently there is only one user of the
-    MRR interface - the quick range select code, and this user doesn't need
-    to use range-associated data.
-
-  RETURN
-    Reference to range-associated data
-*/
-
-char* &mrr_get_ptr_by_idx(range_seq_t seq, uint idx)
-{
-  static char *dummy;
-  return dummy;
 }
 
 

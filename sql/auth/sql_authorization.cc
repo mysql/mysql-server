@@ -54,6 +54,10 @@ const char *any_db="*any*";	// Special symbol for check_access
 
 
 static bool check_show_access(THD *thd, TABLE_LIST *table);
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+static bool check_routine_level_acl(THD *thd, const char *db,
+                                    const char *name, bool is_proc);
+#endif
 
 /**
   Get a cached internal schema access.
@@ -2385,8 +2389,8 @@ bool check_grant_db(THD *thd,const char *db)
   size_t copy_length;
 
   /* Added 1 at the end to avoid buffer overflow at strmov()*/
-  copy_length= size_t((priv_user.str ? strlen(priv_user.str) : 0) +
-                      (db ? strlen(db) : 0)) + 1;
+  copy_length= ((priv_user.str ? strlen(priv_user.str) : 0) +
+                (db ? strlen(db) : 0)) + 1;
 
   /*
     Make sure that my_stpcpy() operations do not result in buffer overflow.
@@ -2505,8 +2509,8 @@ err:
    1            error
 */
 
-bool check_routine_level_acl(THD *thd, const char *db, const char *name, 
-                             bool is_proc)
+static bool check_routine_level_acl(THD *thd, const char *db,
+                                    const char *name, bool is_proc)
 {
   bool no_routine_acl= 1;
   GRANT_NAME *grant_proc;
@@ -3687,13 +3691,6 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 /****************************************************************************
  Dummy wrappers when we don't have any access checks
 ****************************************************************************/
-
-bool check_routine_level_acl(THD *thd, const char *db, const char *name,
-                             bool is_proc)
-{
-  return FALSE;
-}
-
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
 

@@ -5729,7 +5729,8 @@ mysql_options4(MYSQL *mysql,enum mysql_option option,
       {
         if (my_hash_init(&mysql->options.extension->connection_attributes,
                      &my_charset_bin, 0, 0, 0, (my_hash_get_key) get_attr_key,
-                     my_free, HASH_UNIQUE))
+                     my_free, HASH_UNIQUE,
+                     key_memory_mysql_options))
         {
           set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
           DBUG_RETURN(1);

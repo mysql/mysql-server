@@ -1333,6 +1333,10 @@ fil_space_create(
 
 	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
+	if (space->purpose == FIL_TYPE_TEMPORARY) {
+		ut_d(space->latch.set_temp_fsp());
+	}
+
 	HASH_INSERT(fil_space_t, hash, fil_system->spaces, id, space);
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
@@ -1671,7 +1675,7 @@ fil_init(
 	fil_system = static_cast<fil_system_t*>(
 		ut_zalloc_nokey(sizeof(*fil_system)));
 
-	mutex_create("fil_system", &fil_system->mutex);
+	mutex_create(LATCH_ID_FIL_SYSTEM, &fil_system->mutex);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -3756,14 +3760,14 @@ a remote tablespace is found it will be changed to true.
 If the fix_dict boolean is set, then it is safe to use an internal SQL
 statement to update the dictionary tables if they are incorrect.
 
-@param[in]	validate	True if we should validate the tablespace.
-@param[in]	fix_dict	True if the dictionary is available to be fixed.
+@param[in]	validate	true if we should validate the tablespace
+@param[in]	fix_dict	true if the dictionary is available to be fixed
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in]	id		Tablespace ID
-@param[in]	flags		Tablespace flags
-@param[in]	space_name	Tablespace name of the datafile.
-If file-per-table, it is the table name in the databasename/tablename format.
-@param[in]	path_in		Tablespace filepath if found in SYS_DATAFILES
+@param[in]	id		tablespace ID
+@param[in]	flags		tablespace flags
+@param[in]	space_name	tablespace name of the datafile
+If file-per-table, it is the table name in the databasename/tablename format
+@param[in]	path_in		expected filepath, usually read from dictionary
 @return DB_SUCCESS or error code */
 dberr_t
 fil_ibd_open(
@@ -3785,9 +3789,7 @@ fil_ibd_open(
 	ulint		tablespaces_found = 0;
 	ulint		valid_tablespaces_found = 0;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(!fix_dict || mutex_own(&dict_sys->mutex));
 	ut_ad(fil_type_is_data(purpose));
@@ -6154,7 +6156,7 @@ fil_tablespace_iterate(
 
 	block = reinterpret_cast<buf_block_t*>(ut_zalloc_nokey(sizeof(*block)));
 
-	mutex_create("buf_block_mutex", &block->mutex);
+	mutex_create(LATCH_ID_BUF_BLOCK_MUTEX, &block->mutex);
 
 	/* Allocate a page to read in the tablespace header, so that we
 	can determine the page size and zip size (if it is compressed).

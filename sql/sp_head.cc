@@ -287,9 +287,11 @@ sp_head::sp_head(enum_sp_type type)
   m_body= NULL_STR;
   m_body_utf8= NULL_STR;
 
-  my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0);
+  my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0,
+               key_memory_sp_head_main_root);
   my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
-               0, 0);
+               0, 0,
+               key_memory_sp_head_main_root);
 
   m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
   m_trg_chistics.anchor_trigger_name.str= NULL;
@@ -487,7 +489,7 @@ sp_head::~sp_head()
     THD::lex. It is safe to not update LEX::ptr because further query
     string parsing and execution will be stopped anyway.
   */
-  while ((lex= (LEX *) m_parser_data.pop_lex()))
+  while ((lex= m_parser_data.pop_lex()))
   {
     THD *thd= lex->thd;
     thd->lex->sphead= NULL;
@@ -1634,7 +1636,7 @@ bool sp_head::restore_lex(THD *thd)
 
   sublex->set_trg_event_type_for_tables();
 
-  LEX *oldlex= (LEX *) m_parser_data.pop_lex();
+  LEX *oldlex= m_parser_data.pop_lex();
 
   if (!oldlex)
     return false; // Nothing to restore

@@ -167,13 +167,12 @@ innobase_strcasecmp(
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b);	/*!< in: second string to compare */
 
-/******************************************************************//**
-Strip dir name from a full path name and return only its file name.
+/** Strip dir name from a full path name and return only the file name
+@param[in]	path_name	full path name
 @return file name or "null" if no file name */
 const char*
 innobase_basename(
-/*==============*/
-	const char*	path_name);	/*!< in: full path name */
+	const char*	path_name);
 
 /******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
@@ -478,9 +477,9 @@ Converts an identifier from my_charset_filename to UTF-8 charset. */
 uint
 innobase_convert_to_system_charset(
 /*===============================*/
-	char*           to,		/* out: converted identifier */
-	const char*     from,		/* in: identifier to convert */
-	ulint           len,		/* in: length of 'to', in bytes */
+	char*		to,		/* out: converted identifier */
+	const char*	from,		/* in: identifier to convert */
+	ulint		len,		/* in: length of 'to', in bytes */
 	uint*		errors);	/* out: error return */
 
 /**********************************************************************
@@ -488,9 +487,9 @@ Converts an identifier from my_charset_filename to UTF-8 charset. */
 uint
 innobase_convert_to_filename_charset(
 /*=================================*/
-	char*           to,     /* out: converted identifier */
-	const char*     from,   /* in: identifier to convert */
-	ulint           len);   /* in: length of 'to', in bytes */
+	char*		to,	/* out: converted identifier */
+	const char*	from,	/* in: identifier to convert */
+	ulint		len);	/* in: length of 'to', in bytes */
 
 /*************************************************************//**
 InnoDB index push-down condition check defined in ha_innodb.cc

@@ -1306,7 +1306,8 @@ static inline uint int_token(const char *str,uint length)
 
   @retval  Whether EOF reached before comment is closed.
 */
-bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
+static bool consume_comment(Lex_input_stream *lip,
+                            int remaining_recursions_permitted)
 {
   uchar c;
   while (! lip->eof())
@@ -3307,7 +3308,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 }
 
 
-Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor)
+static Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor)
 {
   if (visitor->visits_in_prefix_order())
     return Item::WALK_SUBQUERY_PREFIX;
@@ -3316,7 +3317,7 @@ Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor)
 }
 
 
-bool walk_item(Item *item, Select_lex_visitor *visitor)
+static bool walk_item(Item *item, Select_lex_visitor *visitor)
 {
   if (item == NULL)
     return false;

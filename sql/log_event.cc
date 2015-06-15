@@ -249,7 +249,7 @@ int rewrite_buffer(char **buf, int event_len,
   char* temp_ptr=temp_rewrite_buf + temp_length_l + 0;
 
   *temp_ptr++= strlen(rewrite_to_db);
-  strncpy(temp_ptr, (const char*)rewrite_to_db, rewrite_db_len + 1);
+  strncpy(temp_ptr, rewrite_to_db, rewrite_db_len + 1);
   char* temp_ptr_tbllen= temp_ptr + rewrite_db_len + 1;
   size_t temp_length= event_len - (temp_length_l + old_db_len +2);
   memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
@@ -641,7 +641,7 @@ static void cleanup_load_tmpdir()
   p= strmake(prefbuf, STRING_WITH_LEN(PREFIX_SQL_LOAD));
   sprintf(p,"%s-",server_uuid);
 
-  for (i=0 ; i < (uint)dirp->number_off_files; i++)
+  for (i=0 ; i < dirp->number_off_files; i++)
   {
     file=dirp->dir_entry+i;
     if (is_prefix(file->name, prefbuf))
@@ -908,8 +908,7 @@ Log_event::Log_event(Log_event_header *header,
 */
 void* Log_event::operator new(size_t size)
 {
-  return (void*) my_malloc(key_memory_log_event,
-                           (uint)size, MYF(MY_WME|MY_FAE));
+  return my_malloc(key_memory_log_event, size, MYF(MY_WME|MY_FAE));
 }
 
 #ifndef MYSQL_CLIENT
@@ -1108,7 +1107,7 @@ my_bool Log_event::need_checksum()
   if (common_footer->checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
     common_footer->checksum_alg= ret ? // calculated value stored
       static_cast<enum_binlog_checksum_alg>(binlog_checksum_options) :
-      static_cast<enum_binlog_checksum_alg>(binary_log::BINLOG_CHECKSUM_ALG_OFF);
+      binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
   DBUG_ASSERT(!ret ||
               ((common_footer->checksum_alg ==
@@ -1577,7 +1576,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
-      (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
+      event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
     DBUG_PRINT("error", ("event_len=%u EVENT_LEN_OFFSET=%d "
                          "buf[EVENT_TYPE_OFFSET]=%d ENUM_END_EVENT=%d "
@@ -3876,7 +3875,7 @@ bool Query_log_event::write(IO_CACHE* file)
   return (write_header(file, event_length) ||
           wrapper_my_b_safe_write(file, (uchar*) buf, Binary_log_event::QUERY_HEADER_LEN) ||
           write_post_header_for_derived(file) ||
-          wrapper_my_b_safe_write(file, (uchar*) start_of_status,
+          wrapper_my_b_safe_write(file, start_of_status,
                           (uint) (start-start_of_status)) ||
           wrapper_my_b_safe_write(file, db ? (uchar*) db : (uchar*)"", db_len + 1) ||
           wrapper_my_b_safe_write(file, (uchar*) query, q_len) ||
@@ -7869,7 +7868,7 @@ bool Create_file_log_event::write_data_body(IO_CACHE* file)
   if ((res= Load_log_event::write_data_body(file)) || fake_base)
     return res;
   return (my_b_safe_write(file, (uchar*) "", 1) ||
-          my_b_safe_write(file, (uchar*) block, block_len));
+          my_b_safe_write(file, block, block_len));
 }
 
 
@@ -8094,7 +8093,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
                   {
                   mysql_file_close(fd, MYF(0));
                   });
-  if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
+  if (mysql_file_write(fd, block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Create_file event: write to '%s' failed, '%s'",
@@ -8180,7 +8179,7 @@ bool Append_block_log_event::write(IO_CACHE* file)
                        block_len) ||
           wrapper_my_b_safe_write(file, buf,
                                   Binary_log_event::APPEND_BLOCK_HEADER_LEN) ||
-	  wrapper_my_b_safe_write(file, (uchar*) block, block_len) ||
+	  wrapper_my_b_safe_write(file, block, block_len) ||
 	  write_footer(file));
 }
 #endif
@@ -8286,7 +8285,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                   {
                     mysql_file_close(fd, MYF(0));
                   });
-  if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
+  if (mysql_file_write(fd, block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: write to '%s' failed, '%s'",
@@ -9464,7 +9463,7 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       (table->s->primary_key < MAX_KEY))
   {
     DBUG_PRINT("debug", ("Searching for PK"));
-    keyinfo= table->s->key_info + (uint) table->s->primary_key;
+    keyinfo= table->s->key_info + table->s->primary_key;
     if (are_all_columns_signaled_for_key(keyinfo, bi_cols))
       DBUG_RETURN(table->s->primary_key);
   }

@@ -702,9 +702,9 @@ log_init(void)
 {
 	log_sys = static_cast<log_t*>(ut_zalloc_nokey(sizeof(log_t)));
 
-	mutex_create("log_sys", &log_sys->mutex);
+	mutex_create(LATCH_ID_LOG_SYS, &log_sys->mutex);
 
-	mutex_create("log_flush_order", &log_sys->log_flush_order_mutex);
+	mutex_create(LATCH_ID_LOG_FLUSH_ORDER, &log_sys->log_flush_order_mutex);
 
 	/* Start the lsn from one log block from zero: this way every
 	log record has a start lsn != zero, a fact which we will use */

@@ -38,7 +38,6 @@
 #include "psi_memory_key.h"
 #include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
-#include "rpl_rli_pdb.h"                     // Slave_worker
 #include "sp_cache.h"                        // sp_cache_clear
 #include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_audit.h"                       // mysql_audit_free_thd
@@ -52,6 +51,10 @@
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
 #include "transaction.h"                     // trans_rollback
+#ifdef HAVE_REPLICATION
+#include "rpl_rli_pdb.h"                     // Slave_worker
+#include "rpl_slave_commit_order_manager.h"
+#endif
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -570,7 +573,8 @@ THD::THD(bool enable_plugins)
   m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
-               (my_hash_free_key) free_user_var, 0);
+               (my_hash_free_key) free_user_var, 0,
+               key_memory_user_var_entry);
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
@@ -993,7 +997,8 @@ void THD::cleanup_connection(void)
   stmt_map.reset();
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
-               (my_hash_free_key) free_user_var, 0);
+               (my_hash_free_key) free_user_var, 0,
+               key_memory_user_var_entry);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
@@ -1677,7 +1682,7 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
     to->length= 0;				// Safety fix
     DBUG_RETURN(1);				// EOM
   }
-  to->length= copy_and_convert((char*) to->str, new_length, to_cs,
+  to->length= copy_and_convert(to->str, new_length, to_cs,
 			       from, from_length, from_cs, &dummy_errors);
   to->str[to->length]=0;			// Safety
   DBUG_RETURN(0);
@@ -2007,7 +2012,7 @@ get_statement_id_as_hash_key(const uchar *record, size_t *key_length,
 {
   const Prepared_statement *statement= (const Prepared_statement *) record;
   *key_length= sizeof(statement->id);
-  return (uchar *) &((const Prepared_statement *) statement)->id;
+  return (uchar *) &(statement)->id;
 }
 
 static void delete_statement_as_hash_key(void *key)
@@ -2034,10 +2039,12 @@ Prepared_statement_map::Prepared_statement_map()
   };
   my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
                get_statement_id_as_hash_key,
-               delete_statement_as_hash_key, MYF(0));
+               delete_statement_as_hash_key, MYF(0),
+               key_memory_prepared_statement_map);
   my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_stmt_name_hash_key,
-               NULL,MYF(0));
+               NULL, MYF(0),
+               key_memory_prepared_statement_map);
 }
 
 
@@ -2499,6 +2506,31 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
 }
 #endif
 
+
+#ifndef EMBEDDED_LIBRARY
+/**
+   Interface for Engine to report row lock conflict.
+   The caller should guarantee thd_wait_for does not be freed, when it is
+   called.
+*/
+extern "C"
+void thd_report_row_lock_wait(THD* self, THD *wait_for)
+{
+  DBUG_ENTER("thd_report_row_lock_wait");
+
+  if (self != NULL && wait_for != NULL &&
+      is_mts_worker(self) && is_mts_worker(wait_for))
+    commit_order_manager_check_deadlock(self, wait_for);
+
+  DBUG_VOID_RETURN;
+}
+#else
+extern "C"
+void thd_report_row_lock_wait(THD *thd_wait_for)
+{
+  return;
+}
+#endif
 
 /****************************************************************************
   Handling of statement states in functions and triggers.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ public:
 class hash_filo
 {
 private:
+  PSI_memory_key m_psi_key;
   const uint key_offset, key_length;
   const my_hash_get_key get_key;
   /** Size of this hash table. */
@@ -55,10 +56,12 @@ public:
   mysql_mutex_t lock;
   HASH cache;
 
-  hash_filo(uint size, uint key_offset_arg , uint key_length_arg,
+  hash_filo(PSI_memory_key psi_key,
+            uint size, uint key_offset_arg , uint key_length_arg,
 	    my_hash_get_key get_key_arg, my_hash_free_key free_element_arg,
 	    CHARSET_INFO *hash_charset_arg)
-    : key_offset(key_offset_arg), key_length(key_length_arg),
+    : m_psi_key(psi_key),
+    key_offset(key_offset_arg), key_length(key_length_arg),
     get_key(get_key_arg), m_size(size),
     free_element(free_element_arg),
     hash_charset(hash_charset_arg),
@@ -72,7 +75,7 @@ public:
   ~hash_filo()
   {
     if (cache.array.buffer)	/* Avoid problems with thread library */
-      (void) my_hash_free(&cache);
+      my_hash_free(&cache);
     mysql_mutex_destroy(&lock);
   }
   void clear(bool locked=0)
@@ -81,9 +84,9 @@ public:
       mysql_mutex_lock(&lock);
     first_link= NULL;
     last_link= NULL;
-    (void) my_hash_free(&cache);
-    (void) my_hash_init(&cache, hash_charset, m_size, key_offset, 
-                        key_length, get_key, free_element,0);
+    my_hash_free(&cache);
+    (void) my_hash_init(&cache, hash_charset, m_size, key_offset,
+                        key_length, get_key, free_element, 0, m_psi_key);
     if (!locked)
       mysql_mutex_unlock(&lock);
   }
@@ -105,7 +108,7 @@ public:
     mysql_mutex_assert_owner(&lock);
 
     hash_filo_element *entry=(hash_filo_element*)
-      my_hash_search(&cache,(uchar*) key,length);
+      my_hash_search(&cache, key, length);
     if (entry)
     {						// Found; link it first
       DBUG_ASSERT(first_link != NULL);

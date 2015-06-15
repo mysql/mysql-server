@@ -795,7 +795,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
         and protect against user's input error :
         if the names do not match up to '.' included, return error
       */
-      char *q= (char*)(fn_ext(basename)+1);
+      char *q= (fn_ext(basename)+1);
       if (strncmp(basename, log_name_tmp, (int)(q-basename)))
       {
         error= -2;
@@ -2420,30 +2420,30 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   else
      DBUG_PRINT("info", ("relay_log_info file is in old format."));
 
-  if (from->get_info((ulong *) &temp_group_relay_log_pos,
+  if (from->get_info(&temp_group_relay_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
       from->get_info(group_master_log_name,
                      sizeof(group_relay_log_name),
                      (char *) "") ||
-      from->get_info((ulong *) &temp_group_master_log_pos,
-                     (ulong) 0))
+      from->get_info(&temp_group_master_log_pos,
+                     0UL))
     DBUG_RETURN(TRUE);
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
-    if (from->get_info((int *) &temp_sql_delay, (int) 0))
+    if (from->get_info(&temp_sql_delay, 0))
       DBUG_RETURN(TRUE);
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS)
   {
-    if (from->get_info(&recovery_parallel_workers,(ulong) 0))
+    if (from->get_info(&recovery_parallel_workers, 0UL))
       DBUG_RETURN(TRUE);
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID)
   {
-    if (from->get_info(&temp_internal_id, (int) 1))
+    if (from->get_info(&temp_internal_id, 1))
       DBUG_RETURN(TRUE);
   }
 

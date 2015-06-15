@@ -449,7 +449,7 @@ static int intersection_found(const Gcalc_scan_iterator::point *sp0,
 
 
 #ifndef DBUG_OFF
-const char *Gcalc_scan_event_name(enum Gcalc_scan_events event)
+static const char *Gcalc_scan_event_name(enum Gcalc_scan_events event)
 {
   switch (event)
   {

@@ -363,7 +363,8 @@ void init_max_user_conn(void)
   (void)
     my_hash_init(&hash_user_connections,system_charset_info,max_connections,
                  0,0, (my_hash_get_key) get_key_conn,
-                 (my_hash_free_key) free_user, 0);
+                 (my_hash_free_key) free_user, 0,
+                 key_memory_user_conn);
 #endif
 }
 

@@ -35,6 +35,7 @@
 #include "parse_tree_helpers.h"  // PT_item_list
 #include "sql_class.h"           // THD
 #include "sql_time.h"            // str_to_datetime
+#include "psi_memory_key.h"
 
 /*
 =============================================================================
@@ -3237,8 +3238,8 @@ Item*
 Create_func_bin::create(THD *thd, Item *arg1)
 {
   POS pos;
-  Item *i10= new (thd->mem_root) Item_int(pos, (int32) 10, 2);
-  Item *i2= new (thd->mem_root) Item_int(pos, (int32) 2, 1);
+  Item *i10= new (thd->mem_root) Item_int(pos, 10, 2);
+  Item *i2= new (thd->mem_root) Item_int(pos, 2, 1);
   return new (thd->mem_root) Item_func_conv(pos, arg1, i10, i2);
 }
 
@@ -5006,8 +5007,8 @@ Create_func_oct Create_func_oct::s_singleton;
 Item*
 Create_func_oct::create(THD *thd, Item *arg1)
 {
-  Item *i10= new (thd->mem_root) Item_int(POS(), (int32) 10,2);
-  Item *i8= new (thd->mem_root) Item_int(POS(), (int32) 8,1);
+  Item *i10= new (thd->mem_root) Item_int(POS(), 10,2);
+  Item *i8= new (thd->mem_root) Item_int(POS(), 8,1);
   return new (thd->mem_root) Item_func_conv(POS(), arg1, i10, i8);
 }
 
@@ -5988,7 +5989,8 @@ int item_create_init()
                    0,
                    (my_hash_get_key) get_native_fct_hash_key,
                    NULL,                          /* Nothing to free */
-                   MYF(0)))
+                   MYF(0),
+                   key_memory_native_functions))
     DBUG_RETURN(1);
 
   for (func= func_array; func->builder != NULL; func++)

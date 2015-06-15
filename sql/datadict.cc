@@ -81,8 +81,9 @@ frm_type_enum dd_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
   @return FALSE if FRMTYPE_TABLE and storage engine found. TRUE otherwise.
 */
 
-bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
-                           handlerton **table_type)
+static bool dd_frm_storage_engine(THD *thd, const char *db,
+                                  const char *table_name,
+                                  handlerton **table_type)
 {
   char path[FN_REFLEN + 1];
   enum legacy_db_type db_type;

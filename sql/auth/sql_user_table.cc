@@ -319,7 +319,7 @@ void acl_notify_htons(THD* thd, const char* query, size_t query_length)
 }
 
 
-void get_grantor(THD *thd, char *grantor)
+static void get_grantor(THD *thd, char *grantor)
 {
   const char *user= thd->security_context()->user().str;
   const char *host= thd->security_context()->host_or_ip().str;
@@ -342,7 +342,7 @@ void get_grantor(THD *thd, char *grantor)
 
 */
 
-void update_ssl_properties(THD *thd, TABLE *table)
+static void update_ssl_properties(THD *thd, TABLE *table)
 {
   LEX *lex= thd->lex;
   switch (lex->ssl_type)
@@ -398,7 +398,7 @@ void update_ssl_properties(THD *thd, TABLE *table)
 
 */
 
-void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
+static void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
 {
   if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
@@ -1368,7 +1368,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   store_record(table,record[1]);                        // store at pos 1
 
   if (table->file->ha_index_read_idx_map(table->record[0], 0,
-                                         (uchar*) table->field[0]->ptr,
+                                         table->field[0]->ptr,
                                          HA_WHOLE_KEY,
                                          HA_READ_KEY_EXACT))
   {

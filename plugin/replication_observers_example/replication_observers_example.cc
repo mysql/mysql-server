@@ -704,7 +704,7 @@ int test_channel_service_interface()
     error= channel_queue_packet(dummy_channel, empty_event, 0);
     DBUG_ASSERT(error);
 
-    return 0;
+    return (error && exists && running && gno);
 }
 
 /*

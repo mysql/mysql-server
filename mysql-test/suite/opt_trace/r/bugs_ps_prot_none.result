@@ -2015,13 +2015,13 @@ SELECT 1 FROM t1 WHERE 1 LIKE
               "select#": 2,
               "steps": [
                 {
-                  "expanded_query": "/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1) order by `t1`.`c`"
+                  "expanded_query": "/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)"
                 }
               ] /* steps */
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from `t1` where (1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1) order by `t1`.`c`))"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from `t1` where (1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -2033,19 +2033,19 @@ SELECT 1 FROM t1 WHERE 1 LIKE
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1) order by `t1`.`c`))",
+              "original_condition": "(1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1) order by `t1`.`c`))"
+                  "resulting_condition": "(1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1) order by `t1`.`c`))"
+                  "resulting_condition": "(1 like (/* select#2 */ select `t1`.`a` from `t1` where (`t1`.`a` = 1)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -2132,7 +2132,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                           }
                                         ] /* potential_range_indexes */,
                                         "best_covering_index_scan": {
-                                          "index": "a_2",
+                                          "index": "a",
                                           "cost": 1.2,
                                           "chosen": true
                                         } /* best_covering_index_scan */,
@@ -2152,9 +2152,9 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "index_dives_for_eq_ranges": true,
                                               "rowid_ordered": true,
                                               "using_mrr": false,
-                                              "index_only": false,
+                                              "index_only": true,
                                               "rows": 1,
-                                              "cost": 2.21,
+                                              "cost": 1.21,
                                               "chosen": false,
                                               "cause": "cost"
                                             },
@@ -2230,35 +2230,6 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       }
                                     ] /* attached_conditions_summary */
                                   } /* attaching_conditions_to_tables */
-                                },
-                                {
-                                  "clause_processing": {
-                                    "clause": "ORDER BY",
-                                    "original_clause": "`t1`.`c`",
-                                    "items": [
-                                      {
-                                        "item": "`t1`.`c`"
-                                      }
-                                    ] /* items */,
-                                    "resulting_clause_is_simple": true,
-                                    "resulting_clause": "`t1`.`c`"
-                                  } /* clause_processing */
-                                },
-                                {
-                                  "added_back_ref_condition": "((`t1`.`a` <=> 1))"
-                                },
-                                {
-                                  "reconsidering_access_paths_for_index_ordering": {
-                                    "clause": "ORDER BY",
-                                    "index_order_summary": {
-                                      "table": "`t1`",
-                                      "index_provides_order": true,
-                                      "order_direction": "asc",
-                                      "index": "a_2",
-                                      "plan_changed": true,
-                                      "access_type": "ref"
-                                    } /* index_order_summary */
-                                  } /* reconsidering_access_paths_for_index_ordering */
                                 },
                                 {
                                   "refine_plan": [

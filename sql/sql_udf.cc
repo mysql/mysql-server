@@ -163,7 +163,8 @@ void udf_init()
   init_sql_alloc(key_memory_udf_mem, &mem, UDF_ALLOC_BLOCK_SIZE, 0);
   THD *new_thd = new THD;
   if (!new_thd ||
-      my_hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0))
+      my_hash_init(&udf_hash,system_charset_info,32,0,0,get_hash_key, NULL, 0,
+                   key_memory_udf_mem))
   {
     sql_print_error("Can't allocate memory for udf structures");
     my_hash_free(&udf_hash);
@@ -630,7 +631,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
   if (!table->file->ha_index_read_idx_map(table->record[0], 0,
-                                          (uchar*) table->field[0]->ptr,
+                                          table->field[0]->ptr,
                                           HA_WHOLE_KEY,
                                           HA_READ_KEY_EXACT))
   {

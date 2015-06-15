@@ -425,7 +425,7 @@ Trans_delegate::prepare_table_info(THD* thd,
   @param[in]   THD       the current execution thread
   @param[out]  ctx_info  Trans_context_info in which the result is stored.
  */
-void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)
+static void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)
 {
   //Extracting the session value of SQL binlogging
   ctx_info.binlog_enabled= thd->variables.sql_log_bin;

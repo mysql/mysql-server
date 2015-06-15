@@ -2133,3 +2133,19 @@ DROP TABLE t1;
 SELECT CAST(-0.0e0 AS DECIMAL) = 0;
 CAST(-0.0e0 AS DECIMAL) = 0
 1
+#
+# Bug#21139707 ASSERTION FAILED: !(DECIMAL_IS_ZERO(FROM1) && FROM1->SIGN)
+#
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(a time);
+INSERT INTO t1 VALUES('00:00:01');
+SELECT 1 FROM t1 WHERE EXISTS
+(SELECT 1 FROM t1 HAVING (a / -7777777777) in ("a"));
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'a'
+DROP TABLE t1;
+SET sql_mode=default;

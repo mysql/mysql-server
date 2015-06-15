@@ -994,7 +994,8 @@ static int get_options(int *argc, char ***argv)
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
-                   (my_hash_get_key) get_table_key, my_free, 0))
+                   (my_hash_get_key) get_table_key, my_free, 0,
+                   PSI_NOT_INSTRUMENTED))
     return(EX_EOM);
   /* Don't copy internal log tables */
   if (my_hash_insert(&ignore_table,
@@ -1553,7 +1554,9 @@ int parse_ignore_error()
 
   DBUG_ENTER("parse_ignore_error");
 
-  if (my_init_dynamic_array(&ignore_error, sizeof(uint), NULL, 12, 12))
+  if (my_init_dynamic_array(&ignore_error,
+                           PSI_NOT_INSTRUMENTED,
+                           sizeof(uint), NULL, 12, 12))
     goto error;
 
   token= strtok(opt_ignore_error, search);

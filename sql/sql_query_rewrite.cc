@@ -27,10 +27,11 @@
 
 class THD;
 
-void raise_query_rewritten_note(THD *thd,
-                                const char *original_query,
-                                const char *rewritten_query,
-                                const char *plugin_name)
+#ifndef EMBEDDED_LIBRARY
+static void raise_query_rewritten_note(THD *thd,
+                                       const char *original_query,
+                                       const char *rewritten_query,
+                                       const char *plugin_name)
 {
   Sql_condition::enum_severity_level sl= Sql_condition::SL_NOTE;
   const char *message= "Query '%s' rewritten to '%s' by plugin: %s.";
@@ -39,7 +40,6 @@ void raise_query_rewritten_note(THD *thd,
                       plugin_name);
 };
 
-#ifndef EMBEDDED_LIBRARY
 
 /**
   Rewrites a text query by calling the plugin's rewrite method.

@@ -161,8 +161,7 @@ ENGINE = innodb ROW_FORMAT=COMPRESSED;
 
 --echo # Stop DB server with page size 32k
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Check Server startup failure when page sizes are mismatch
 let NEW_CMD = $MYSQLD --no-defaults --lc_messages_dir=$MYSQL_SHAREDIR --innodb_page_size=64K --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --skip-grant-tables</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
@@ -181,16 +180,17 @@ let SEARCH_PATTERN= \[Warning\] InnoDB: innodb-page-size has been changed from t
 --exec echo "restart: --innodb_page_size=32K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+--disable_reconnect
 
 # Check page size
 SELECT @@innodb_page_size;
 
 --echo # Stop DB server which was created by page size 32k
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 
---source include/wait_until_disconnected.inc
+--source include/shutdown_mysqld.inc
 
 # Remove residue files and data folder of page size 32K
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
 --source ../include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
@@ -207,6 +207,7 @@ let NEW_CMD = $MYSQLD --no-defaults --bootstrap --lc_messages_dir=$MYSQL_SHAREDI
 --exec echo "restart: --innodb_page_size=64K --datadir=$MYSQLD_DATADIR1 --skip-grant-tables" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+--disable_reconnect
 
 # Check page size
 SELECT @@innodb_page_size;

@@ -64,7 +64,8 @@ Rewriter::Rewriter()
   my_hash_init(&m_digests, &my_charset_bin, 10, 0,
                PARSER_SERVICE_DIGEST_LENGTH,
                get_rule_hash_code,
-               free_rule, 0);
+               free_rule, 0,
+               PSI_INSTRUMENT_ME);
 }
 
 

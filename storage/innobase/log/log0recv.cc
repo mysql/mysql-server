@@ -55,7 +55,6 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0srv.h"
 # include "srv0start.h"
 # include "row0merge.h"
-# include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 /** This is set to FALSE if the backup was originally taken with the
 mysqlbackup --include regexp option: then we do not want to create tables in
@@ -640,8 +639,8 @@ recv_sys_create(void)
 
 	recv_sys = static_cast<recv_sys_t*>(ut_zalloc_nokey(sizeof(*recv_sys)));
 
-	mutex_create("recv_sys", &recv_sys->mutex);
-	mutex_create("recv_writer", &recv_sys->writer_mutex);
+	mutex_create(LATCH_ID_RECV_SYS, &recv_sys->mutex);
+	mutex_create(LATCH_ID_RECV_WRITER, &recv_sys->writer_mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -672,6 +671,7 @@ recv_sys_close(void)
 
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
+		UT_DELETE(recv_sys->metadata_recover);
 
 #ifndef UNIV_HOTBACKUP
 		ut_ad(!recv_writer_thread_active);
@@ -712,6 +712,7 @@ recv_sys_mem_free(void)
 
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
+		UT_DELETE(recv_sys->metadata_recover);
 		ut_free(recv_sys);
 		recv_sys = NULL;
 	}
@@ -890,11 +891,13 @@ recv_sys_debug_free(void)
 	mem_heap_free(recv_sys->heap);
 	ut_free(recv_sys->buf);
 	ut_free(recv_sys->last_block_buf_start);
+	UT_DELETE(recv_sys->metadata_recover);
 
 	recv_sys->buf = NULL;
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
 	recv_sys->last_block_buf_start = NULL;
+	recv_sys->metadata_recover = NULL;
 
 	/* wake page cleaner up to progress */
 	if (!srv_read_only_mode) {

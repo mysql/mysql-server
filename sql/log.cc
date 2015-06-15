@@ -1708,7 +1708,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->start_utime=                thd->current_utime() - print_exec_time;
   thd->utime_after_lock=           thd->start_utime + print_lock_time;
-  thd->set_security_context((Security_context *) &aggregate_sctx);
+  thd->set_security_context(&aggregate_sctx);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   (*log_summary)(thd, buf, strlen(buf));
@@ -2562,7 +2562,8 @@ int TC_LOG_MMAP::recover()
   }
 
   if (my_hash_init(&xids, &my_charset_bin, tc_log_page_size/3, 0,
-                   sizeof(my_xid), 0, 0, MYF(0)))
+                   sizeof(my_xid), 0, 0, MYF(0),
+                   PSI_INSTRUMENT_ME))
     goto err1;
 
   for ( ; p < end_p ; p++)

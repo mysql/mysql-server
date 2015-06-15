@@ -28,172 +28,18 @@ Created 2013-03-26 Sunny Bains.
 
 #include "ut0ut.h"
 #include "ut0rnd.h"
-#include "thr_mutex.h"
+#include "os0event.h"
 
-#ifdef UNIV_DEBUG
-/** Set when InnoDB has invoked exit(). */
-extern bool	innodb_calling_exit;
-#endif /* UNIV_DEBUG */
-
-/** OS event mutex. We can't track the locking because this mutex is used
-by the events code. The mutex can be released by the condition variable
-and therefore we lose the tracking information. */
+/** OS mutex for tracking lock/unlock for debugging */
 template <template <typename> class Policy = NoPolicy>
-struct OSBasicMutex {
+struct OSTrackMutex {
 
-	typedef Policy<OSBasicMutex> MutexPolicy;
-
-	OSBasicMutex(bool track = false)
-		:
-		m_policy(track) UNIV_NOTHROW
-	{
-		ut_d(m_freed = true);
-	}
-
-	~OSBasicMutex() UNIV_NOTHROW { }
-
-	/** Required for os_event_t */
-	operator sys_mutex_t*() UNIV_NOTHROW
-	{
-		return(&m_mutex);
-	}
-
-	/** Initialise the mutex. */
-	void init(
-		const char*	name,
-		const char*	filename,
-		ulint		line) UNIV_NOTHROW
-	{
-		ut_ad(m_freed);
-#ifdef _WIN32
-		InitializeCriticalSection((LPCRITICAL_SECTION) &m_mutex);
-#else
-		{
-			int	ret;
-
-			ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
-			ut_a(ret == 0);
-		}
-#endif /* _WIN32 */
-		ut_d(m_freed = false);
-
-		m_policy.init(*this, name, filename, line);
-	}
-
-	/** Destroy the mutex */
-	void destroy() UNIV_NOTHROW
-	{
-		ut_ad(innodb_calling_exit || !m_freed);
-#ifdef _WIN32
-		DeleteCriticalSection((LPCRITICAL_SECTION) &m_mutex);
-#else
-		int	ret;
-
-		ret = pthread_mutex_destroy(&m_mutex);
-
-		if (ret != 0) {
-
-			fprintf(stderr,
-				" InnoDB: Return value %lu when calling"
-				" pthread_mutex_destroy(). Byte contents of the"
-				" pthread mutex at %p:",
-				(ulint) ret, (void*) &m_mutex);
-
-			ut_print_buf(stderr, &m_mutex, sizeof(m_mutex));
-			putc('\n', stderr);
-		}
-#endif /* _WIN32 */
-
-		m_policy.destroy();
-
-		ut_d(m_freed = true);
-	}
-
-	/** Release the mutex. */
-	void exit() UNIV_NOTHROW
-	{
-		ut_ad(innodb_calling_exit || !m_freed);
-#ifdef _WIN32
-		LeaveCriticalSection(&m_mutex);
-#else
-		int	ret = pthread_mutex_unlock(&m_mutex);
-		ut_a(ret == 0);
-#endif /* _WIN32 */
-	}
-
-	/** Acquire the mutex.
-	@param max_spins	max number of spins
-	@param max_delay	max delay per spin
-	@param filename		from where called
-	@param line		within filenname */
-	void enter(
-		ulint		max_spins,
-		ulint		max_delay,
-		const char*	filename,
-		ulint		line) UNIV_NOTHROW
-	{
-		ut_ad(innodb_calling_exit || !m_freed);
-#ifdef _WIN32
-		EnterCriticalSection((LPCRITICAL_SECTION) &m_mutex);
-#else
-		int	ret = pthread_mutex_lock(&m_mutex);
-		ut_a(ret == 0);
-#endif /* _WIN32 */
-	}
-
-	/** @return true if locking succeeded */
-	bool try_lock() UNIV_NOTHROW
-	{
-		ut_ad(innodb_calling_exit || !m_freed);
-#ifdef _WIN32
-		return(TryEnterCriticalSection(&m_mutex) != 0);
-#else
-		return(pthread_mutex_trylock(&m_mutex) == 0);
-#endif /* _WIN32 */
-	}
-
-#ifdef UNIV_DEBUG
-	/** @return true if some thread owns the mutex. Because these are
-	used by os_event_t we cannot track the ownership reliably. */
-	bool is_owned() const UNIV_NOTHROW
-	{
-		return(m_policy.is_owned());
-	}
-#endif /* UNIV_DEBUG */
-
-	/** @return non-const version of the policy */
-	MutexPolicy& policy() UNIV_NOTHROW
-	{
-		return(m_policy);
-	}
-
-	/** @return the const version of the policy */
-	const MutexPolicy& policy() const UNIV_NOTHROW
-	{
-		return(m_policy);
-	}
-private:
-#ifdef UNIV_DEBUG
-	/** true if the mutex has been freed/destroyed. */
-	bool			m_freed;
-#endif /* UNIV_DEBUG */
-
-	sys_mutex_t		m_mutex;
-
-protected:
-	MutexPolicy		m_policy;
-};
-
-/** OS debug mutex. */
-template <template <typename> class Policy = NoPolicy>
-struct OSTrackMutex : public OSBasicMutex<Policy> {
-
-	typedef typename OSBasicMutex<Policy>::MutexPolicy MutexPolicy;
+	typedef Policy<OSTrackMutex> MutexPolicy;
 
 	explicit OSTrackMutex(bool destroy_mutex_at_exit = true)
-		:
-		OSBasicMutex<Policy>(true) UNIV_NOTHROW
+		UNIV_NOTHROW
 	{
+		ut_d(m_freed = true);
 		ut_d(m_locked = false);
 		ut_d(m_destroy_at_exit = destroy_mutex_at_exit);
 	}
@@ -203,21 +49,37 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		ut_ad(!m_destroy_at_exit || !m_locked);
 	}
 
-	/** Initialise the mutex. */
+	/** Initialise the mutex.
+	@param[in]	id              Mutex ID
+	@param[in]	filename	File where mutex was created
+	@param[in]	line		Line in filename */
 	void init(
-		const char*	name,
+		latch_id_t	id,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line)
+		UNIV_NOTHROW
 	{
+		ut_ad(m_freed);
 		ut_ad(!m_locked);
-		OSBasicMutex<Policy>::init(name, filename, line);
+
+		m_mutex.init();
+
+		ut_d(m_freed = false);
+
+		m_policy.init(*this, id, filename, line);
 	}
 
 	/** Destroy the mutex */
 	void destroy() UNIV_NOTHROW
 	{
 		ut_ad(!m_locked);
-		OSBasicMutex<Policy>::destroy();
+		ut_ad(innodb_calling_exit || !m_freed);
+
+		m_mutex.destroy();
+
+		ut_d(m_freed = true);
+
+		m_policy.destroy();
 	}
 
 	/** Release the mutex. */
@@ -225,37 +87,26 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 	{
 		ut_ad(m_locked);
 		ut_d(m_locked = false);
+		ut_ad(innodb_calling_exit || !m_freed);
 
-		OSBasicMutex<Policy>::exit();
+		m_mutex.exit();
 	}
 
 	/** Acquire the mutex.
-	@param max_spins	max number of spins
-	@param max_delay	max delay per spin
-	@param filename		from where called
-	@param line		within filenname */
+	@param[in]	max_spins	max number of spins
+	@param[in]	max_delay	max delay per spin
+	@param[in]	filename	from where called
+	@param[in]	line		within filename */
 	void enter(
 		ulint		max_spins,
 		ulint		max_delay,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		ulint		line)
+		UNIV_NOTHROW
 	{
-#ifndef _WIN32
-		bool	locked = try_lock();
+		ut_ad(innodb_calling_exit || !m_freed);
 
-		for (ulint i = 0; !locked && i < max_spins; ++i) {
-
-			ut_delay(ut_rnd_interval(0, max_delay));
-
-			locked = try_lock();
-		}
-
-		if (locked) {
-			return;
-		}
-#endif /* _WIN32 */
-		OSBasicMutex<Policy>::enter(
-			max_spins, max_delay, filename, line);
+		m_mutex.enter();
 
 		ut_ad(!m_locked);
 		ut_d(m_locked = true);
@@ -264,7 +115,9 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 	/** @return true if locking succeeded */
 	bool try_lock() UNIV_NOTHROW
 	{
-		bool	locked = OSBasicMutex<Policy>::try_lock();
+		ut_ad(innodb_calling_exit || !m_freed);
+
+		bool	locked = m_mutex.try_lock();
 
 		if (locked) {
 			ut_ad(!m_locked);
@@ -276,31 +129,44 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 
 #ifdef UNIV_DEBUG
 	/** @return true if the thread owns the mutex. */
-	bool is_owned() const UNIV_NOTHROW
+	bool is_owned() const
+		UNIV_NOTHROW
 	{
-		return(m_locked && OSBasicMutex<Policy>::is_owned());
+		return(m_locked && m_policy.is_owned());
 	}
 #endif /* UNIV_DEBUG */
 
 	/** @return non-const version of the policy */
-	MutexPolicy& policy() UNIV_NOTHROW
+	MutexPolicy& policy()
+		UNIV_NOTHROW
 	{
-		return(OSBasicMutex<Policy>::m_policy);
+		return(m_policy);
 	}
 
-	/** @return const version of the policy */
-	const MutexPolicy& policy() const UNIV_NOTHROW
+	/** @return the const version of the policy */
+	const MutexPolicy& policy() const
+		UNIV_NOTHROW
 	{
-		return(OSBasicMutex<Policy>::m_policy);
+		return(m_policy);
 	}
 
 private:
 #ifdef UNIV_DEBUG
+	/** true if the mutex has not be initialized */
+	bool			m_freed;
+
 	/** true if the mutex has been locked. */
 	bool			m_locked;
+
 	/** Do/Dont destroy mutex at exit */
 	bool			m_destroy_at_exit;
 #endif /* UNIV_DEBUG */
+
+	/** OS Mutex instance */
+	OSMutex			m_mutex;
+
+	/** Policy data */
+	MutexPolicy		m_policy;
 };
 
 
@@ -328,14 +194,19 @@ struct TTASFutexMutex {
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
 
-	/** Initialise the mutex. */
+	/** Called when the mutex is "created". Note: Not from the constructor
+	but when the mutex is initialised.
+	@param[in]	id		Mutex ID
+	@param[in]	filename	File where mutex was created
+	@param[in]	line		Line in filename */
 	void init(
-		const char*	name,
+		latch_id_t	id,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line)
+		UNIV_NOTHROW
 	{
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
-		m_policy.init(*this, name, filename, line);
+		m_policy.init(*this, id, filename, line);
 	}
 
 	/** Destroy the mutex. */
@@ -347,17 +218,18 @@ struct TTASFutexMutex {
 	}
 
 	/** Acquire the mutex.
-	@param max_spins	max number of spins
-	@param max_delay	max delay per spin
-	@param filename		from where called
-	@param line		within filenname */
+	@param[in]	max_spins	max number of spins
+	@param[in]	max_delay	max delay per spin
+	@param[in]	filename	from where called
+	@param[in]	line		within filename */
 	void enter(
 		ulint		max_spins,
 		ulint		max_delay,
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW
 	{
-		lock_word_t	lock = ttas(max_spins, max_delay);
+		ulint		n_spins;
+		lock_word_t	lock = ttas(max_spins, max_delay, n_spins);
 
 		/* If there were no waiters when this thread tried
 		to acquire the mutex then set the waiters flag now.
@@ -366,11 +238,19 @@ struct TTASFutexMutex {
 		by then. In this case the thread can assume it
 		was granted the mutex. */
 
-		if (lock != MUTEX_STATE_UNLOCKED
-		    && (lock != MUTEX_STATE_LOCKED || !set_waiters())) {
+		if (lock != MUTEX_STATE_UNLOCKED) {
 
-			wait();
+			if ((lock != MUTEX_STATE_LOCKED || !set_waiters())) {
+
+				ulint	n_waits = wait();
+
+				m_policy.add(n_spins, n_waits);
+
+				return;
+			}
 		}
+
+		m_policy.add(n_spins, 0);
 	}
 
 	/** Release the mutex. */
@@ -469,13 +349,18 @@ private:
 		       != MUTEX_STATE_UNLOCKED);
 	}
 
-	/** Wait if the lock is contended. */
-	void wait() UNIV_NOTHROW
+	/** Wait if the lock is contended.
+	@return the number of waits */
+	ulint wait() UNIV_NOTHROW
 	{
+		ulint	n_waits = 0;
+
 		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
 		not shared between processes. */
 
 		do {
+			++n_waits;
+
 			syscall(SYS_futex, &m_lock_word,
 				FUTEX_WAIT_PRIVATE, MUTEX_STATE_WAITERS,
 				0, 0, 0);
@@ -484,26 +369,33 @@ private:
 			// value doesn't matter.
 
 		} while (!set_waiters());
+
+		return(n_waits);
 	}
 
 	/** Wakeup a waiting thread */
-	void signal () UNIV_NOTHROW
+	void signal() UNIV_NOTHROW
 	{
 		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE,
 			MUTEX_STATE_LOCKED, 0, 0, 0);
 	}
 
 	/** Poll waiting for mutex to be unlocked.
-	@param max_spins	max spins
-	@param max_delay	max delay per spin
+	@param[in]	max_spins	max spins
+	@param[in]	max_delay	max delay per spin
+	@param[out]	n_spins		retries before acquire
 	@return value of lock word before locking. */
-	lock_word_t ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
+	lock_word_t ttas(
+		ulint		max_spins,
+		ulint		max_delay,
+		ulint&		n_spins) UNIV_NOTHROW
 	{
 		os_rmb;
 
-		for (ulint i = 0; i < max_spins; ++i) {
+		for (n_spins = 0; n_spins < max_spins; ++n_spins) {
 
 			if (!is_locked()) {
+
 				lock_word_t	lock = trylock();
 
 				if (lock == MUTEX_STATE_UNLOCKED) {
@@ -544,14 +436,19 @@ struct TTASMutex {
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
 
-	/** Initialise the mutex. */
+	/** Called when the mutex is "created". Note: Not from the constructor
+	but when the mutex is initialised.
+	@param[in]	id		Mutex ID
+	@param[in]	filename	File where mutex was created
+	@param[in]	line		Line in filename */
 	void init(
-		const char*	name,
+		latch_id_t	id,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line)
+		UNIV_NOTHROW
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
-		m_policy.init(*this, name, filename, line);
+		m_policy.init(*this, id, filename, line);
 	}
 
 	/** Destroy the mutex. */
@@ -604,7 +501,7 @@ struct TTASMutex {
 	@param max_spins	max number of spins
 	@param max_delay	max delay per spin
 	@param filename		from where called
-	@param line		within filenname */
+	@param line		within filename */
 	void enter(
 		ulint		max_spins,
 		ulint		max_delay,
@@ -612,7 +509,11 @@ struct TTASMutex {
 		ulint		line) UNIV_NOTHROW
 	{
 		if (!try_lock()) {
-			ttas(max_spins, max_delay);
+
+			ulint	n_spins = ttas(max_spins, max_delay);
+
+			/* No OS waits for spin mutexes */
+			m_policy.add(n_spins, 0);
 		}
 	}
 
@@ -653,25 +554,40 @@ struct TTASMutex {
 
 private:
 	/** Spin and try to acquire the lock.
-	@param max_spins	max spins
-	@param max_delay	max delay per spin */
-	void ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
+	@param[in]	max_spins	max spins
+	@param[in]	max_delay	max delay per spin
+	@return number spins before acquire */
+	ulint ttas(
+		ulint		max_spins,
+		ulint		max_delay)
+		UNIV_NOTHROW
 	{
+		ulint		i = 0;
+		const ulint	step = max_spins;
+
 		os_rmb;
 
 		do {
-			ulint	i;
-
-			for (i = 0; !is_locked() && i < max_spins; ++i) {
+			while (is_locked()) {
 
 				ut_delay(ut_rnd_interval(0, max_delay));
+
+				++i;
+
+				if (i >= max_spins) {
+
+					max_spins += step;
+
+					os_thread_yield();
+
+					break;
+				}
 			}
 
-			if (i == max_spins) {
-				os_thread_yield();
-			}
 
 		} while (!try_lock());
+
+		return(i);
 	}
 
 private:
@@ -687,12 +603,13 @@ private:
 	volatile lock_word_t	m_lock_word;
 };
 
-template <template <typename> class Policy = TrackPolicy>
+template <template <typename> class Policy = NoPolicy>
 struct TTASEventMutex {
 
 	typedef Policy<TTASEventMutex> MutexPolicy;
 
-	TTASEventMutex() UNIV_NOTHROW
+	TTASEventMutex()
+		UNIV_NOTHROW
 		:
 		m_event(),
 		m_waiters(),
@@ -703,29 +620,35 @@ struct TTASEventMutex {
 	}
 
 	~TTASEventMutex()
+		UNIV_NOTHROW
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
 
-	/** Initialise the mutex. */
+	/** Called when the mutex is "created". Note: Not from the constructor
+	but when the mutex is initialised.
+	@param[in]	id		Mutex ID
+	@param[in]	filename	File where mutex was created
+	@param[in]	line		Line in filename */
 	void init(
-		const char*	name,
+		latch_id_t	id,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		uint32_t	line)
+		UNIV_NOTHROW
 	{
 		ut_a(m_event == 0);
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
 
-		m_event = os_event_create(name);
+		m_event = os_event_create(sync_latch_get_name(id));
 
-		m_policy.init(*this, name, filename, line);
+		m_policy.init(*this, id, filename, line);
 	}
 
-	/**
-	This is the real desctructor. This mutex can be created in BSS and
+	/** This is the real desctructor. This mutex can be created in BSS and
 	its desctructor will be called on exit(). We can't call
 	os_event_destroy() at that stage. */
 	void destroy()
+		UNIV_NOTHROW
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 
@@ -738,13 +661,15 @@ struct TTASEventMutex {
 
 	/** Try and lock the mutex. Note: POSIX returns 0 on success.
 	@return true on success */
-	bool try_lock() UNIV_NOTHROW
+	bool try_lock()
+		UNIV_NOTHROW
 	{
 		return(tas_lock());
 	}
 
 	/** Release the mutex. */
-	void exit() UNIV_NOTHROW
+	void exit()
+		UNIV_NOTHROW
 	{
 		/* A problem: we assume that mutex_reset_lock word
 		is a memory barrier, that is when we read the waiters
@@ -766,28 +691,37 @@ struct TTASEventMutex {
 	}
 
 	/** Acquire the mutex.
-	@param max_spins	max number of spins
-	@param max_delay	max delay per spin
-	@param filename		from where called
-	@param line		within filenname */
+	@param[in]	max_spins	max number of spins
+	@param[in]	max_delay	max delay per spin
+	@param[in]	filename	from where called
+	@param[in]	line		within filename */
 	void enter(
 		ulint		max_spins,
 		ulint		max_delay,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		ulint		line)
+		UNIV_NOTHROW
 	{
 		/* Note that we do not peek at the value of m_lock_word
 		before trying the atomic test_and_set; we could peek,
 		and possibly save time. */
 
 		if (!try_lock()) {
-			spin_and_wait(max_spins, max_delay, filename, line);
+			ulint	n_spins;
+
+			ulint	n_waits = spin_and_wait(
+				max_spins, max_delay, filename, line, n_spins);
+
+			/* waits and yields will be the same number
+			in our mutex design */
+
+			m_policy.add(n_spins, n_waits);
 		}
 	}
 
-	/**
-	@return the lock state. */
-	lock_word_t state() const UNIV_NOTHROW
+	/** @return the lock state. */
+	lock_word_t state() const
+		UNIV_NOTHROW
 	{
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
@@ -797,47 +731,52 @@ struct TTASEventMutex {
 
 	/** The event that the mutex will wait in sync0arr.cc
 	@return even instance */
-	os_event_t event() UNIV_NOTHROW
+	os_event_t event()
+		UNIV_NOTHROW
 	{
 		return(m_event);
 	}
 
 	/** @return true if locked by some thread */
-	bool is_locked() const UNIV_NOTHROW
+	bool is_locked() const
+		UNIV_NOTHROW
 	{
 		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
 #ifdef UNIV_DEBUG
 	/** @return true if the calling thread owns the mutex. */
-	bool is_owned() const UNIV_NOTHROW
+	bool is_owned() const
+		UNIV_NOTHROW
 	{
 		return(is_locked() && m_policy.is_owned());
 	}
 #endif /* UNIV_DEBUG */
 
 	/** @return non-const version of the policy */
-	MutexPolicy& policy() UNIV_NOTHROW
+	MutexPolicy& policy()
+		UNIV_NOTHROW
 	{
 		return(m_policy);
 	}
 
 	/** @return const version of the policy */
-	const MutexPolicy& policy() const UNIV_NOTHROW
+	const MutexPolicy& policy() const
+		UNIV_NOTHROW
 	{
 		return(m_policy);
 	}
 
 private:
-	/**
-	Spin and wait for the mutex to become free.
-	@param max_spins	max spins
-	@param max_delay	max delay per spin
-	@param i		spin start index
+	/** Spin and wait for the mutex to become free.
+	@param[in]	max_spins	max spins
+	@param[in]	max_delay	max delay per spin
+	@param[in,out]	n_spins		spin start index
 	@return number of spins */
-	ulint ttas(ulint max_spins, ulint max_delay, ulint i) const UNIV_NOTHROW
+	void ttas(ulint max_spins, ulint max_delay, ulint& n_spins) const
+		UNIV_NOTHROW
 	{
-		ut_ad(i <= max_spins);
+		ut_ad(n_spins <= max_spins);
 
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
@@ -845,60 +784,86 @@ private:
 		committed with atomic test-and-set. In reality, however,
 		all processors probably have an atomic read of a memory word. */
 
-		while (is_locked() && i < max_spins) {
+		while (is_locked() && n_spins < max_spins) {
 
 			ut_delay(ut_rnd_interval(0, max_delay));
 
-			++i;
+			++n_spins;
 		}
-
-		return(i);
 	}
 
-	/**
-	Wait in the sync array.
+	/** Wait in the sync array.
+	@param[in]	filename	from where it was called
+	@param[in]	line		line number in file
+	@param[in]	spin		retry this many times again
 	@return true if the mutex acquisition was successful. */
-	bool wait(const char* filename, ulint line) UNIV_NOTHROW;
+	bool wait(
+		const char*	filename,
+		ulint		line,
+		ulint		spin)
+		UNIV_NOTHROW;
 
-	/**
-	Reserves a mutex for the current thread. If the mutex is reserved,
+	/** Reserves a mutex for the current thread. If the mutex is reserved,
 	the function spins a preset time (controlled by srv_n_spin_wait_rounds),
 	waiting for the mutex before suspending the thread.
-	@param max_spins	max number of spins
-	@param max_delay	max delay per spin
-	@param filename		from where called
-	@param line		within filenname */
-	void spin_and_wait(
+	@param[in]	max_spins	max number of spins
+	@param[in]	max_delay	max delay per spin
+	@param[in]	filename	from where called
+	@param[in]	line		within filename
+	@param[out]	n_spins		spins before acquire
+	@return number of waits/yields before acquire */
+	ulint spin_and_wait(
 		ulint		max_spins,
 		ulint		max_delay,
 		const char*	filename,
-		ulint		line) UNIV_NOTHROW
+		ulint		line,
+		ulint&		n_spins)
+		UNIV_NOTHROW
 	{
-		ulint	n_spins = 0;
+		ulint		n_waits = 0;
+		const ulint	step = max_spins;
+
+		n_spins = 0;
 
 		os_rmb;
 
 		for (;;) {
 
-			n_spins = ttas(max_spins, max_delay, n_spins);
+			ttas(max_spins, max_delay, n_spins);
 
 			if (n_spins < max_spins) {
 
 				if (try_lock()) {
-					return;
+					return(n_waits);
 				} else {
 					continue;
 				}
+			} else {
+				max_spins = n_spins + step;
 			}
+
+			++n_waits;
 
 			os_thread_yield();
 
-			if (wait(filename, line)) {
+			/* The 4 below is a heuristic that has existed for a
+			very long time now. It is unclear if changing this
+			value will make a difference.
+
+			NOTE: There is a delay that happens before the retry,
+			finding a free slot in the sync arary and the yield
+			above. Otherwise we could have simply done the extra
+			spin above. */
+
+			if (wait(filename, line, 4)) {
+
+				n_spins += 4;
+
 				break;
 			}
-
-			n_spins = 0;
 		}
+
+		return(n_waits);
 	}
 
 	/**
@@ -1033,12 +998,12 @@ struct PolicyMutex
 
 		locker = pfs_begin_lock(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
-		m_impl.enter(n_spins, n_delay, name, line);
 
 		policy().enter(m_impl, name, line);
 
-		policy().locked(m_impl);
+		m_impl.enter(n_spins, n_delay, name, line);
 
+		policy().locked(m_impl, name, line);
 #ifdef UNIV_PFS_MUTEX
 		pfs_end(locker, 0);
 #endif /* UNIV_PFS_MUTEX */
@@ -1069,7 +1034,7 @@ struct PolicyMutex
 
 			policy().enter(m_impl, name, line);
 
-			policy().locked(m_impl);
+			policy().locked(m_impl, name, line);
 		}
 
 #ifdef UNIV_PFS_MUTEX
@@ -1090,19 +1055,20 @@ struct PolicyMutex
 	/**
 	Initialise the mutex.
 
-	@param name - mutex name
-	@param filename - file where created
-	@param line - line number in file where created */
-	void init(const char* name, const char* filename, ulint line)
+	@param[in]	id              Mutex ID
+	@param[in]	filename	file where created
+	@param[in]	line		line number in file where created */
+	void init(
+		latch_id_t      id,
+		const char*	filename,
+		uint32_t	line)
 		UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
-		extern mysql_pfs_key_t sync_latch_get_pfs_key(const char*);
-
-		pfs_add(sync_latch_get_pfs_key(name));
+		pfs_add(sync_latch_get_pfs_key(id));
 #endif /* UNIV_PFS_MUTEX */
 
-		m_impl.init(name, filename, line);
+		m_impl.init(id, filename, line);
 	}
 
 	/** Free resources (if any) */

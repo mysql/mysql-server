@@ -62,6 +62,7 @@ static store_key *get_store_key(THD *thd,
 				Key_use *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
+static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 /**
@@ -4333,7 +4334,7 @@ uint actual_key_parts(const KEY *key_info)
   @return key flags.
 */
 
-uint actual_key_flags(KEY *key_info)
+static uint actual_key_flags(KEY *key_info)
 {
   return key_info->table->in_use->
     optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?

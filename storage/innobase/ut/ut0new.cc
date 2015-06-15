@@ -43,7 +43,6 @@ PSI_memory_key	mem_key_partitioning;
 PSI_memory_key	mem_key_row_log_buf;
 PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
-PSI_memory_key	mem_key_sync_debug_latches;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
 /* Please obey alphabetical order in the definitions above. */
 
@@ -73,7 +72,6 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_row_log_buf, "row_log_buf", 0},
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
-	{&mem_key_sync_debug_latches, "sync_debug_latches", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
 	/* Please obey alphabetical order in the definitions above. */
 };
@@ -118,6 +116,7 @@ ut_new_boot()
 		"dict0dict",
 		"dict0mem",
 		"dict0stats",
+		"dict0stats_bg",
 		"eval0eval",
 		"fil0fil",
 		"fsp0file",
@@ -162,6 +161,7 @@ ut_new_boot()
 		"sync0arr",
 		"sync0debug",
 		"sync0rw",
+		"sync0types",
 		"trx0i_s",
 		"trx0purge",
 		"trx0roll",
@@ -172,6 +172,7 @@ ut_new_boot()
 		"usr0sess",
 		"ut0list",
 		"ut0mem",
+		"ut0mutex",
 		"ut0pool",
 		"ut0rbt",
 		"ut0wqueue",

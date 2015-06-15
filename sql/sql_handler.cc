@@ -196,7 +196,8 @@ bool Sql_cmd_handler_open::execute(THD *thd)
     if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
                      HANDLER_TABLES_HASH_SIZE, 0, 0,
                      (my_hash_get_key) mysql_ha_hash_get_key,
-                     (my_hash_free_key) mysql_ha_hash_free, 0))
+                     (my_hash_free_key) mysql_ha_hash_free, 0,
+                     key_memory_THD_handler_tables_hash))
     {
       DBUG_PRINT("exit",("ERROR"));
       DBUG_RETURN(TRUE);

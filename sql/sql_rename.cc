@@ -232,7 +232,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
     true      rename failed
 */
 
-bool
+static bool
 do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
           const char *new_table_alias, bool skip_error)

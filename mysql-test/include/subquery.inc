@@ -6403,3 +6403,24 @@ EXECUTE s;
 EXECUTE s;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21038929 SINGLE-TABLE SCALAR SUBQUERY WITH LIMIT AND ORDER BY GIVES WRONG RESULTS
+--echo #
+
+CREATE TABLE t1 (t1_id INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1),(2),(3);
+let $query= SELECT * FROM t1 GROUP BY t1_id ORDER BY t1_id DESC LIMIT 1;
+eval EXPLAIN $query;
+eval $query;
+eval EXPLAIN SELECT ($query) AS C FROM DUAL;
+eval SELECT ($query) AS C FROM DUAL;
+
+--echo # Without LIMIT, ORDER BY is removed from subquery
+let $query= SELECT * FROM t1 GROUP BY t1_id ORDER BY t1_id DESC;
+eval EXPLAIN $query;
+eval $query;
+eval EXPLAIN SELECT ($query) AS C FROM DUAL;
+--error ER_SUBQUERY_NO_1_ROW
+eval SELECT ($query) AS C FROM DUAL;
+DROP TABLE t1;

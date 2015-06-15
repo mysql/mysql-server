@@ -383,7 +383,8 @@ bool table_def_init(void)
 
   return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
                       0, 0, table_def_key,
-                      (my_hash_free_key) table_def_free_entry, 0) != 0;
+                      (my_hash_free_key) table_def_free_entry, 0,
+                      key_memory_table_share) != 0;
 }
 
 
@@ -892,8 +893,8 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
       continue;
 
     /* Check if user has SELECT privilege for any column in the table */
-    table_list.db=         const_cast<char*>(share->db.str);
-    table_list.table_name= const_cast<char*>(share->table_name.str);
+    table_list.db=         share->db.str;
+    table_list.table_name= share->table_name.str;
     table_list.grant.privilege=0;
 
     if (check_table_access(thd,SELECT_ACL,&table_list, TRUE, 1, TRUE))
@@ -4539,7 +4540,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         the binlog as only the statements in the called procedure show
         up there, not the CALL itself.
       */
-      if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+      if (rt != prelocking_ctx->sroutines_list.first ||
           mdl_type != MDL_key::PROCEDURE)
       {
         /*
@@ -5017,7 +5018,7 @@ lock_table_names(THD *thd,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
   MDL_request global_request;
-  Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
+  Hash_set<TABLE_LIST, schema_set_get_key> schema_set(PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection= false;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -5112,7 +5113,7 @@ lock_table_names(THD *thd,
     // The first step is to loop over the tables, make sure we have
     // locked the names, and then peek into the .FRM files to get hold of
     // the tablespace names.
-    Hash_set<char, tablespace_set_get_key> tablespace_set;
+    Hash_set<char, tablespace_set_get_key> tablespace_set(PSI_INSTRUMENT_ME);
     for (table= tables_start; table && table != tables_end;
          table= table->next_global)
     {
@@ -5329,7 +5330,7 @@ restart:
 
   has_prelocking_list= thd->lex->requires_prelocking();
   table_to_open= start;
-  sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
+  sroutine_to_open= &thd->lex->sroutines_list.first;
   *counter= 0;
   THD_STAGE_INFO(thd, stage_opening_tables);
 
@@ -5623,7 +5624,7 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
     parser.
   */
 
-  if (rt != (Sroutine_hash_entry*)prelocking_ctx->sroutines_list.first ||
+  if (rt != prelocking_ctx->sroutines_list.first ||
       rt->mdl_request.key.mdl_namespace() != MDL_key::PROCEDURE)
   {
     *need_prelocking= TRUE;
@@ -6461,8 +6462,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
     *tables= 0;
   thd->lex->chop_off_not_own_tables();
   /* Reset MDL tickets for procedures/functions */
-  for (Sroutine_hash_entry *rt=
-         (Sroutine_hash_entry*)thd->lex->sroutines_list.first;
+  for (Sroutine_hash_entry *rt= thd->lex->sroutines_list.first;
        rt; rt= rt->next)
     rt->mdl_request.ticket= NULL;
   sp_remove_not_own_routines(thd->lex);
@@ -6870,7 +6870,7 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
         thd->change_item_tree(ref, item);
       else
         *ref= item;
-      DBUG_RETURN((Field*) view_ref_found);
+      DBUG_RETURN(view_ref_found);
     }
   }
   DBUG_RETURN(0);
@@ -6984,7 +6984,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       thd->change_item_tree(ref, item);
     else
       *ref= item;
-    found_field= (Field*) view_ref_found;
+    found_field= view_ref_found;
   }
   else
   {
@@ -7812,7 +7812,7 @@ find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
     return (Item **) 0;
   }
   else
-    return (Item **) not_found_item;
+    return not_found_item;
 }
 
 
@@ -9328,7 +9328,7 @@ my_bool mysql_rm_tmp_tables(void)
 
     /* Remove all SQLxxx tables from directory */
 
-    for (idx=0 ; idx < (uint) dirp->number_off_files ; idx++)
+    for (idx=0 ; idx < dirp->number_off_files ; idx++)
     {
       file=dirp->dir_entry+idx;
 

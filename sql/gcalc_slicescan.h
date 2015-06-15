@@ -296,10 +296,6 @@ enum Gcalc_scan_events
   scev_single_point= 64  /* Got single point */
 };
 
-#ifndef DBUG_OFF
-const char *Gcalc_scan_event_name(enum Gcalc_scan_events event);
-#endif
-
 typedef int sc_thread_id;
 
 /* 

@@ -1456,8 +1456,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     }
   }
 
-  if (!(view_ref->view_tables=
-      (List<TABLE_LIST>*) new(thd->mem_root) List<TABLE_LIST>))
+  if (!(view_ref->view_tables= new(thd->mem_root) List<TABLE_LIST>))
   {
     result= true;
     DBUG_RETURN(true);

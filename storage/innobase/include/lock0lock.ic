@@ -23,7 +23,6 @@ The transaction lock system
 Created 5/7/1996 Heikki Tuuri
 *******************************************************/
 
-#include "sync0mutex.h"
 #include "srv0srv.h"
 #include "dict0dict.h"
 #include "row0row.h"

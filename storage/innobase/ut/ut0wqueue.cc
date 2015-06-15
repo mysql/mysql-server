@@ -18,8 +18,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0list.h"
 #include "mem0mem.h"
-#include "sync0mutex.h"
-#include "sync0mutex.h"
 #include "ut0wqueue.h"
 
 /*******************************************************************//**
@@ -43,12 +41,13 @@ ib_wqueue_t*
 ib_wqueue_create(void)
 /*===================*/
 {
-	ib_wqueue_t*	wq = static_cast<ib_wqueue_t*>(ut_malloc_nokey(sizeof(*wq)));
+	ib_wqueue_t*	wq = static_cast<ib_wqueue_t*>(
+		ut_malloc_nokey(sizeof(*wq)));
 
 	/* Function ib_wqueue_create() has not been used anywhere,
 	not necessary to instrument this mutex */
 
-	mutex_create("work_queue", &wq->mutex);
+	mutex_create(LATCH_ID_WORK_QUEUE, &wq->mutex);
 
 	wq->items = ib_list_create();
 	wq->event = os_event_create(0);

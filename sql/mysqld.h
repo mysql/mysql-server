@@ -116,6 +116,8 @@ extern my_bool opt_log_queries_not_using_indexes;
 extern ulong opt_log_throttle_queries_not_using_indexes;
 extern bool opt_disable_networking, opt_skip_show_db;
 extern bool opt_skip_name_resolve;
+extern my_bool opt_help;
+extern my_bool opt_verbose;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
@@ -453,8 +455,6 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
 extern PSI_file_key key_file_general_log, key_file_slow_log;
 extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
 extern PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
-
-void init_server_psi_keys();
 
 C_MODE_END
 

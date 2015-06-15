@@ -1390,7 +1390,7 @@ row_explicit_rollback(
 
 /** Convert a row in the MySQL format to a row in the Innobase format.
 This is specialized function used for intrinsic table with reduce branching.
-@param[in/out]	row		row where field values are copied.
+@param[in,out]	row		row where field values are copied.
 @param[in]	prebuilt	prebuilt handler
 @param[in]	mysql_rec	row in mysql format. */
 static
@@ -2493,6 +2493,9 @@ run_again:
 			std::for_each(new_upd_nodes->begin(),
 				      new_upd_nodes->end(),
 				      ib_dec_counter());
+			std::for_each(new_upd_nodes->begin(),
+				      new_upd_nodes->end(),
+				      que_graph_free_recursive);
 			node->new_upd_nodes->clear();
 			goto run_again;
 		}
@@ -2674,7 +2677,7 @@ row_delete_all_rows(
 		ut_ad(err == DB_SUCCESS);
 	}
 
-	return (err);
+	return(err);
 }
 
 /** This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
@@ -2908,9 +2911,9 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
-        const char*     compression,
-                                /*!< in: compression algorithm to use,
-                                can be NULL */
+	const char*	compression,
+				/*!< in: compression algorithm to use,
+				can be NULL */
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
 {
@@ -2919,9 +2922,7 @@ row_create_table_for_mysql(
 	que_thr_t*	thr;
 	dberr_t		err;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
@@ -3001,16 +3002,16 @@ err_exit:
 
 		} else if (compression != NULL) {
 
-		        ut_ad(!is_shared_tablespace(table->space));
+			ut_ad(!is_shared_tablespace(table->space));
 
-                        ut_ad(Compression::validate(compression) == DB_SUCCESS);
+			ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-                        err = fil_set_compression(table->space, compression);
+			err = fil_set_compression(table->space, compression);
 
-                        /* The tablespace must be found and we have already
-                        done the check for the system tablespace and the
-                        temporary tablespace. Compression must be a valid
-                        and supported algorithm. */
+			/* The tablespace must be found and we have already
+			done the check for the system tablespace and the
+			temporary tablespace. Compression must be a valid
+			and supported algorithm. */
 
 			/* However, we can check for file system punch hole
 			support only after creating the tablespace. On Windows
@@ -3128,9 +3129,7 @@ row_create_index_for_mysql(
 
 	if (table == NULL) {
 
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 		ut_ad(mutex_own(&dict_sys->mutex));
 
 		table = dict_table_open_on_name(table_name, TRUE, TRUE,
@@ -3307,9 +3306,7 @@ row_table_add_foreign_constraints(
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
@@ -4162,9 +4159,7 @@ row_drop_table_for_mysql(
 		}
 
 		ut_ad(mutex_own(&dict_sys->mutex));
-#ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 
 		table = dict_table_open_on_name(
 			name, TRUE, FALSE,
@@ -5648,7 +5643,7 @@ void
 row_mysql_init(void)
 /*================*/
 {
-	mutex_create("row_drop_list", &row_drop_list_mutex);
+	mutex_create(LATCH_ID_ROW_DROP_LIST, &row_drop_list_mutex);
 
 	UT_LIST_INIT(
 		row_mysql_drop_list,

@@ -49,7 +49,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
 #include "log0log.h"
-#include "sync0mutex.h"
 #include "os0event.h"
 #include "que0types.h"
 #include "trx0types.h"
@@ -273,6 +272,8 @@ extern my_bool	srv_load_corrupted;
 extern ulint		srv_buf_pool_size;
 /** Minimum pool size in bytes */
 extern const ulint	srv_buf_pool_min_size;
+/** Default pool size in bytes */
+extern const ulint	srv_buf_pool_def_size;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
 extern ulong		srv_buf_pool_chunk_unit;
@@ -396,6 +397,7 @@ extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 #ifdef UNIV_DEBUG
+extern my_bool	srv_sync_debug;
 extern my_bool	srv_purge_view_update_only_debug;
 #endif /* UNIV_DEBUG */
 

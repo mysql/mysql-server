@@ -1237,7 +1237,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_error= FALSE;
   options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
-                      (my_hash_get_key)thd_ndb_share_get_key, 0, 0);
+                      (my_hash_get_key)thd_ndb_share_get_key, 0, 0,
+                      PSI_INSTRUMENT_ME);
   m_unsent_bytes= 0;
   m_execute_count= 0;
   m_scan_count= 0;
@@ -12433,14 +12434,16 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     ERR_RETURN(dict->getNdbError());
 
   if (my_hash_init(&ndb_tables, table_alias_charset,list.count,0,0,
-                   (my_hash_get_key)tables_get_key,0,0))
+                   (my_hash_get_key)tables_get_key,0,0,
+                   PSI_INSTRUMENT_ME))
   {
     DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
     DBUG_RETURN(-1);
   }
 
   if (my_hash_init(&ok_tables, system_charset_info,32,0,0,
-                   (my_hash_get_key)tables_get_key,0,0))
+                   (my_hash_get_key)tables_get_key,0,0,
+                   PSI_INSTRUMENT_ME))
   {
     DBUG_PRINT("error", ("Failed to init HASH ok_tables"));
     my_hash_free(&ndb_tables);
@@ -12951,9 +12954,11 @@ int ndbcluster_init(void* p)
   }
 
   (void) my_hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,0,
-                      (my_hash_get_key) ndbcluster_get_key,0,0);
+                      (my_hash_get_key) ndbcluster_get_key,0,0,
+                      PSI_INSTRUMENT_ME);
   (void) my_hash_init(&ndbcluster_dropped_tables,table_alias_charset,32,0,0,
-                      (my_hash_get_key) ndbcluster_get_key,0,0);
+                      (my_hash_get_key) ndbcluster_get_key,0,0,
+                      PSI_INSTRUMENT_ME);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
   {

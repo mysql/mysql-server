@@ -101,7 +101,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "srv0srv.h"
 #include "srv0start.h"
-#include "sync0mutex.h"
 #ifdef UNIV_DEBUG
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
@@ -437,24 +436,25 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(ibuf_mutex),
 	PSI_KEY(ibuf_pessimistic_insert_mutex),
 	PSI_KEY(log_sys_mutex),
+	PSI_KEY(mutex_list_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
 	PSI_KEY(recv_sys_mutex),
 	PSI_KEY(recv_writer_mutex),
 	PSI_KEY(redo_rseg_mutex),
 	PSI_KEY(noredo_rseg_mutex),
-#  ifdef UNIV_SYNC_DEBUG
+#  ifdef UNIV_DEBUG
 	PSI_KEY(rw_lock_debug_mutex),
-#  endif /* UNIV_SYNC_DEBUG */
+#  endif /* UNIV_DEBUG */
 	PSI_KEY(rw_lock_list_mutex),
 	PSI_KEY(rw_lock_mutex),
 	PSI_KEY(srv_dict_tmpfile_mutex),
 	PSI_KEY(srv_innodb_monitor_mutex),
 	PSI_KEY(srv_misc_tmpfile_mutex),
 	PSI_KEY(srv_monitor_file_mutex),
-#  ifdef UNIV_SYNC_DEBUG
+#  ifdef UNIV_DEBUG
 	PSI_KEY(sync_thread_mutex),
-#  endif /* UNIV_SYNC_DEBUG */
+#  endif /* UNIV_DEBUG */
 	PSI_KEY(buf_dblwr_mutex),
 	PSI_KEY(trx_undo_mutex),
 	PSI_KEY(trx_pool_mutex),
@@ -485,9 +485,9 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	PSI_RWLOCK_KEY(buf_block_lock),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-#  ifdef UNIV_SYNC_DEBUG
+#  ifdef UNIV_DEBUG
 	PSI_RWLOCK_KEY(buf_block_debug_latch),
-#  endif /* UNIV_SYNC_DEBUG */
+#  endif /* UNIV_DEBUG */
 	PSI_RWLOCK_KEY(dict_operation_lock),
 	PSI_RWLOCK_KEY(fil_space_latch),
 	PSI_RWLOCK_KEY(checkpoint_lock),
@@ -1381,9 +1381,11 @@ innobase_srv_conc_exit_innodb(
 	}
 
 	trx_t*			trx = prebuilt->trx;
+#ifdef UNIV_DEBUG
 	btrsea_sync_check	check(trx->has_search_latch);
 
 	ut_ad(!sync_check_iterate(check));
+#endif /* UNIV_DEBUG */
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb
@@ -1401,9 +1403,11 @@ innobase_srv_conc_force_exit_innodb(
 /*================================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
+#ifdef UNIV_DEBUG
 	btrsea_sync_check	check(trx->has_search_latch);
 
 	ut_ad(!sync_check_iterate(check));
+#endif /* UNIV_DEBUG */
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb) {
@@ -1538,7 +1542,7 @@ thd_is_ins_sel_stmt(THD* user_thd)
 	Why is this needed ?
 	Use of AHI is blocked if statement is insert .... select statement. */
 	innodb_session_t*	innodb_priv = thd_to_innodb_session(user_thd);
-	return (innodb_priv->count_register_table_handler() > 0 ? true : false);
+	return(innodb_priv->count_register_table_handler() > 0 ? true : false);
 }
 
 /** Add the table handler to thread cache.
@@ -1956,13 +1960,12 @@ innobase_wildcasecmp(
 	return(wild_case_compare(system_charset_info, a, b));
 }
 
-/******************************************************************//**
-Strip dir name from a full path name and return only the file name
+/** Strip dir name from a full path name and return only the file name
+@param[in]	path_name	full path name
 @return file name or "null" if no file name */
 const char*
 innobase_basename(
-/*==============*/
-	const char*	path_name)	/*!< in: full path name */
+	const char*	path_name)
 {
 	const char*	name = base_name(path_name);
 
@@ -3586,7 +3589,27 @@ innodb_init_params()
 		univ_page_size, false, false, false, true);
 	srv_tmp_space.set_flags(fsp_flags);
 
+	/* Set buffer pool size to default for fast startup when mysqld is
+	run with --help --verbose options. */
+	ulint	srv_buf_pool_size_org = 0;
+	if (opt_help && opt_verbose
+	    && srv_buf_pool_size > srv_buf_pool_def_size) {
+		ib::warn() << "Setting innodb_buf_pool_size to "
+			<< srv_buf_pool_def_size << " for fast startup, "
+			<< "when running with --help --verbose options.";
+		srv_buf_pool_size_org = srv_buf_pool_size;
+		srv_buf_pool_size = srv_buf_pool_def_size;
+	}
+
 	innodb_buffer_pool_size_init();
+
+	/* Set the original value back to show in help. */
+	if (srv_buf_pool_size_org != 0) {
+		srv_buf_pool_size_org =
+			buf_pool_size_align(srv_buf_pool_size_org);
+		innobase_buffer_pool_size =
+			static_cast<long long>(srv_buf_pool_size_org);
+	}
 
 	if (srv_n_page_cleaners > srv_buf_pool_instances) {
 		/* limit of page_cleaner parallelizability
@@ -3735,6 +3758,11 @@ innodb_init(
 	}
 
 	srv_dict_recover_on_restart();
+
+	/* Switch latching order checks on in sync0debug.cc, if
+	--innodb-sync-debug=false (default) */
+	ut_d(sync_check_enable());
+
 	srv_start_threads();
 
 	/* Adjust the innodb_undo_logs config object */
@@ -6957,7 +6985,7 @@ calc_row_difference(
 	ulint		n_changed = 0;
 	dfield_t	dfield;
 	dict_index_t*	clust_index;
-  uint            i;
+	uint		i;
 	ibool		changes_fts_column = FALSE;
 	ibool		changes_fts_doc_col = FALSE;
 	trx_t*          trx = thd_to_trx(thd);
@@ -7106,7 +7134,7 @@ calc_row_difference(
 			note which columns have been updated and do
 			selective processing. */
 			if (prebuilt->table->fts != NULL) {
-				ulint           offset;
+				ulint		offset;
 				dict_table_t*   innodb_table;
 
 				innodb_table = prebuilt->table;
@@ -8862,13 +8890,23 @@ create_table_info_t::create_table_def()
 
 	/* MySQL does the name length check. But we do additional check
 	on the name length here */
-	if (strlen(m_table_name) > MAX_FULL_NAME_LEN) {
+	const size_t	table_name_len = strlen(m_table_name);
+	if (table_name_len > MAX_FULL_NAME_LEN) {
 		push_warning_printf(
 			m_thd, Sql_condition::SL_WARNING,
 			ER_TABLE_NAME,
 			"InnoDB: Table Name or Database Name is too long");
 
 		DBUG_RETURN(ER_TABLE_NAME);
+	}
+
+	if (m_table_name[table_name_len - 1] == '/') {
+		push_warning_printf(
+			m_thd, Sql_condition::SL_WARNING,
+			ER_TABLE_NAME,
+			"InnoDB: Table name is empty");
+
+		DBUG_RETURN(ER_WRONG_TABLE_NAME);
 	}
 
 	n_cols = m_form->s->fields;
@@ -9524,7 +9562,7 @@ create_table_info_t::create_option_tablespace_is_valid()
 	}
 
 	/* Look up the tablespace name in the fil_system. */
-	ulint space_id = fil_space_get_id_by_name(
+	ulint	space_id = fil_space_get_id_by_name(
 		m_create_info->tablespace);
 
 	if (space_id == ULINT_UNDEFINED) {
@@ -10053,8 +10091,8 @@ index_bad:
 		is given in kilobytes. If it is a valid number, store
 		that value as the number of log2 shifts from 512 in
 		zip_ssize. Zero means it is not compressed. */
-		ulint zssize;		/* Zip Shift Size */
-		ulint kbsize;		/* Key Block Size */
+		ulint	zssize;		/* Zip Shift Size */
+		ulint	kbsize;		/* Key Block Size */
 		for (zssize = kbsize = 1;
 		     zssize <= zip_ssize_max;
 		     zssize++, kbsize <<= 1) {
@@ -11254,8 +11292,8 @@ ha_innobase::delete_table(
 		and table name must have length > 0. User tables cannot have
 		'#' since it would be translated to @0023. Therefor this should
 		only match partitions. */
-		uint len = (uint) strlen(norm_name);
-		ulint num_partitions;
+		uint	len = (uint) strlen(norm_name);
+		ulint	num_partitions;
 		ut_a(len < FN_REFLEN);
 		norm_name[len] = '#';
 		norm_name[len + 1] = 0;
@@ -11342,7 +11380,7 @@ validate_create_tablespace_info(
 	THD*			thd,
 	st_alter_tablespace*	alter_info)
 {
-	ulint space_id;
+	ulint	space_id;
 
 	/* The parser ensures that these fields are provided. */
 	ut_a(alter_info->tablespace_name);
@@ -11354,7 +11392,7 @@ validate_create_tablespace_info(
 
 	/* From this point forward, push a warning for each problem found
 	instead of returning immediately*/
-	int	err = validate_tablespace_name(
+	int	error = validate_tablespace_name(
 			alter_info->tablespace_name, false);
 
 	/* Make sure the tablespace is not already open. */
@@ -11363,7 +11401,7 @@ validate_create_tablespace_info(
 		my_printf_error(ER_TABLESPACE_EXISTS,
 			"InnoDB: A tablespace named `%s` already exists.",
 			MYF(0), alter_info->tablespace_name);
-		err = HA_ERR_TABLESPACE_EXISTS;
+		error = HA_ERR_TABLESPACE_EXISTS;
 	}
 
 	if (alter_info->file_block_size) {
@@ -11375,7 +11413,7 @@ validate_create_tablespace_info(
 				"InnoDB does not support"
 				" FILE_BLOCK_SIZE=%llu", MYF(0),
 				alter_info->file_block_size);
-			err = HA_WRONG_CREATE_OPTION;
+			error = HA_WRONG_CREATE_OPTION;
 
 		/* Don't allow a file block size larger than UNIV_PAGE_SIZE. */
 		} else if (alter_info->file_block_size > UNIV_PAGE_SIZE) {
@@ -11384,7 +11422,7 @@ validate_create_tablespace_info(
 				"FILE_BLOCK_SIZE=%llu because "
 				"INNODB_PAGE_SIZE=%lu.", MYF(0),
 				alter_info->file_block_size, UNIV_PAGE_SIZE);
-			err = HA_WRONG_CREATE_OPTION;
+			error = HA_WRONG_CREATE_OPTION;
 
 		/* Don't allow a compressed tablespace when page size > 16k. */
 		} else if (UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF
@@ -11392,7 +11430,7 @@ validate_create_tablespace_info(
 			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: Cannot create a COMPRESSED tablespace"
 				" when innodb_page_size > 16k.", MYF(0));
-			err = HA_WRONG_CREATE_OPTION;
+			error = HA_WRONG_CREATE_OPTION;
 		}
 	}
 
@@ -11406,7 +11444,7 @@ validate_create_tablespace_info(
 			"InnoDB requires that ADD DATAFILE has a filename"
 			" ending in `%s`, the filename `%s` is invalid.",
 			MYF(0), DOT_IBD, alter_info->data_file_name);
-		err = HA_ERR_WRONG_FILE_NAME;
+		error = HA_ERR_WRONG_FILE_NAME;
 	}
 
 	const char* colon = strchr(alter_info->data_file_name, ':');
@@ -11425,10 +11463,10 @@ validate_create_tablespace_info(
 #endif /* _WIN32 */
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
-		err = HA_ERR_WRONG_FILE_NAME;
+		error = HA_ERR_WRONG_FILE_NAME;
 	}
 
-	return(err);
+	return(error);
 }
 
 /** CREATE a tablespace.
@@ -11483,7 +11521,7 @@ innobase_create_tablespace(
 	/* In FSP_FLAGS, a zip_ssize of zero means that the tablespace
 	holds non-compresssed tables.  A non-zero zip_ssize means that
 	the general tablespace can ONLY contain compressed tables. */
-	ulint zip_size = static_cast<ulint>(alter_info->file_block_size);
+	ulint	zip_size = static_cast<ulint>(alter_info->file_block_size);
 	ut_ad(zip_size <= UNIV_PAGE_SIZE_MAX);
 	if (zip_size == 0) {
 		zip_size = UNIV_PAGE_SIZE;
@@ -11493,7 +11531,7 @@ innobase_create_tablespace(
 	bool atomic_blobs = page_size.is_compressed();
 
 	/* Create the filespace flags */
-	ulint fsp_flags = fsp_flags_init(
+	ulint	fsp_flags = fsp_flags_init(
 		page_size,	/* page sizes and a flag if compressed */
 		atomic_blobs,	/* needed only for compressed tables */
 		false,		/* This is not a file-per-table tablespace */
@@ -11730,7 +11768,8 @@ innobase_drop_database(
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
 
-	ulint dummy;
+	ulint	dummy;
+
 	row_drop_database_for_mysql(namebuf, trx, &dummy);
 
 	my_free(namebuf);
@@ -12989,9 +13028,9 @@ ha_innobase::info(
 @return HA_ERR_* error code or 0 */
 int
 ha_innobase::enable_indexes(
-	uint mode)
+	uint	mode)
 {
-	int error = HA_ERR_WRONG_COMMAND;
+	int	error = HA_ERR_WRONG_COMMAND;
 
 	/* Enable index only for intrinsic table. Behavior for all other
 	table continue to remain same. */
@@ -13022,9 +13061,9 @@ ha_innobase::enable_indexes(
 @return HA_ERR_* error code or 0 */
 int
 ha_innobase::disable_indexes(
-	uint mode)
+	uint	mode)
 {
-	int error = HA_ERR_WRONG_COMMAND;
+	int	error = HA_ERR_WRONG_COMMAND;
 
 	/* Disable index only for intrinsic table. Behavior for all other
 	table continue to remain same. */
@@ -13842,7 +13881,7 @@ ha_innobase::start_stmt(
 			error = row_lock_table_for_mysql(m_prebuilt, NULL, 1);
 
 			if (error != DB_SUCCESS) {
-				int st = convert_error_code_to_mysql(
+				int	st = convert_error_code_to_mysql(
 					error, 0, thd);
 				DBUG_RETURN(st);
 			}
@@ -14311,6 +14350,339 @@ innodb_show_status(
 	DBUG_RETURN(ret_val);
 }
 
+/** Callback for collecting mutex statistics */
+struct ShowStatus {
+
+	/** For tracking the mutex metrics */
+	struct Value {
+
+		/** Constructor
+		@param[in]	name		Name of the mutex
+		@param[in]	spins		Number of spins
+		@param[in]	os_waits	OS waits so far
+		@param[in]	calls		Number of calls to enter() */
+		Value(const char*	name,
+		      ulint		spins,
+		      uint64_t		waits,
+		      ulint		calls)
+			:
+			m_name(name),
+			m_spins(spins),
+			m_waits(waits),
+			m_calls(calls)
+		{
+			/* No op */
+		}
+
+		/** Mutex name */
+		std::string		m_name;
+
+		/** Spins so far */
+		ulint			m_spins;
+
+		/** Waits so far */
+		ulint			m_waits;
+
+		/** Number of calls so far */
+		uint64_t		m_calls;
+	};
+
+	/** Order by m_waits, in descending order. */
+	struct OrderByWaits: public std::binary_function<Value, Value, bool>
+	{
+		/** @return true if rhs < lhs */
+		bool operator()(
+			const Value& lhs,
+			const Value& rhs) const
+			UNIV_NOTHROW
+		{
+			return(rhs.m_waits < lhs.m_waits);
+		}
+	};
+
+	typedef std::vector<Value, ut_allocator<Value> > Values;
+
+	/** Collect the individual latch counts */
+	struct GetCount {
+		typedef latch_meta_t::CounterType::Count Count;
+
+		/** Constructor
+		@param[in]	name		Latch name
+		@param[in,out]	values		Put the values here */
+		GetCount(
+			const char*	name,
+			Values*		values)
+			UNIV_NOTHROW
+			:
+			m_name(name),
+			m_values(values)
+		{
+			/* No op */
+		}
+
+		/** Collect the latch metrics. Ignore entries where the
+		spins and waits are zero.
+		@param[in]	count		The latch metrics */
+		void operator()(Count* count)
+			UNIV_NOTHROW
+		{
+			if (count->m_spins > 0 || count->m_waits > 0) {
+
+				m_values->push_back(Value(
+					m_name,
+					count->m_spins,
+					count->m_waits,
+					count->m_calls));
+			}
+		}
+
+		/** The latch name */
+		const char*	m_name;
+
+		/** For collecting the active mutex stats. */
+		Values*		m_values;
+	};
+
+	/** Constructor */
+	ShowStatus() { }
+
+	/** Callback for collecting the stats
+	@param[in]	latch_meta		Latch meta data
+	@return always returns true */
+	bool operator()(latch_meta_t& latch_meta)
+		UNIV_NOTHROW
+	{
+		latch_meta_t::CounterType*	counter;
+
+		counter = latch_meta.get_counter();
+
+		GetCount	get_count(latch_meta.get_name(), &m_values);
+
+		counter->iterate(get_count);
+
+		return(true);
+	}
+
+	/** Implements the SHOW MUTEX STATUS command, for mutexes.
+	The table structure is like so: Engine | Mutex Name | Status
+	We store the metrics  in the "Status" column as:
+
+		spins=N,waits=N,calls=N"
+
+	The user has to parse the dataunfortunately
+	@param[in,out]	hton		the innodb handlerton
+	@param[in,out]	thd		the MySQL query thread of the caller
+	@param[in,out]	stat_print	function for printing statistics
+	@return true on success. */
+	bool to_string(
+		handlerton*	hton,
+		THD*		thd,
+		stat_print_fn*	stat_print)
+		UNIV_NOTHROW;
+
+	/** For collecting the active mutex stats. */
+	Values		m_values;
+};
+
+/** Implements the SHOW MUTEX STATUS command, for mutexes.
+The table structure is like so: Engine | Mutex Name | Status
+We store the metrics  in the "Status" column as:
+
+	spins=N,waits=N,calls=N"
+
+The user has to parse the dataunfortunately
+@param[in,out]	hton		the innodb handlerton
+@param[in,out]	thd		the MySQL query thread of the caller
+@param[in,out]	stat_print	function for printing statistics
+@return true on success. */
+bool
+ShowStatus::to_string(
+	handlerton*	hton,
+	THD*		thd,
+	stat_print_fn*	stat_print)
+	UNIV_NOTHROW
+{
+	uint		hton_name_len = (uint) strlen(innobase_hton_name);
+
+	std::sort(m_values.begin(), m_values.end(), OrderByWaits());
+
+	Values::iterator	end = m_values.end();
+
+	for (Values::iterator it = m_values.begin(); it != end; ++it) {
+
+		int	name_len;
+		char	name_buf[IO_SIZE];
+
+		name_len = ut_snprintf(
+			name_buf, sizeof(name_buf), "%s", it->m_name.c_str());
+
+		int	status_len;
+		char	status_buf[IO_SIZE];
+
+		status_len = ut_snprintf(
+			status_buf, sizeof(status_buf),
+			"spins=%lu,waits=%lu,calls=" TRX_ID_FMT,
+			static_cast<ulong>(it->m_spins),
+			static_cast<long>(it->m_waits),
+			it->m_calls);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len,
+			       name_buf, static_cast<uint>(name_len),
+			       status_buf, static_cast<uint>(status_len))) {
+
+			return(false);
+		}
+	}
+
+	return(true);
+}
+
+/** Implements the SHOW MUTEX STATUS command, for mutexes.
+@param[in,out]	hton		the innodb handlerton
+@param[in,out]	thd		the MySQL query thread of the caller
+@param[in,out]	stat_print	function for printing statistics
+@return 0 on success. */
+static
+int
+innodb_show_mutex_status(
+	handlerton*	hton,
+	THD*		thd,
+	stat_print_fn*	stat_print)
+{
+	DBUG_ENTER("innodb_show_mutex_status");
+
+	ShowStatus	collector;
+
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	mutex_monitor->iterate(collector);
+
+	if (!collector.to_string(hton, thd, stat_print)) {
+		DBUG_RETURN(1);
+	}
+
+	DBUG_RETURN(0);
+}
+
+/** Implements the SHOW MUTEX STATUS command.
+@param[in,out]	hton		the innodb handlerton
+@param[in,out]	thd		the MySQL query thread of the caller
+@param[in,out]	stat_print	function for printing statistics
+@return 0 on success. */
+static
+int
+innodb_show_rwlock_status(
+	handlerton*	hton,
+	THD*		thd,
+	stat_print_fn*	stat_print)
+{
+	DBUG_ENTER("innodb_show_rwlock_status");
+
+	rw_lock_t*	block_rwlock = NULL;
+	ulint		block_rwlock_oswait_count = 0;
+	uint		hton_name_len = (uint) strlen(innobase_hton_name);
+
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	mutex_enter(&rw_lock_list_mutex);
+
+	for (rw_lock_t* rw_lock = UT_LIST_GET_FIRST(rw_lock_list);
+	     rw_lock != NULL;
+	     rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
+
+		if (rw_lock->count_os_wait == 0) {
+			continue;
+		}
+
+		int		buf1len;
+		char		buf1[IO_SIZE];
+
+		if (rw_lock->is_block_lock) {
+
+			block_rwlock = rw_lock;
+			block_rwlock_oswait_count += rw_lock->count_os_wait;
+
+			continue;
+		}
+
+		buf1len = ut_snprintf(
+			buf1, sizeof buf1, "rwlock: %s:%lu",
+			innobase_basename(rw_lock->cfile_name),
+			static_cast<ulong>(rw_lock->cline));
+
+		int		buf2len;
+		char		buf2[IO_SIZE];
+
+		buf2len = ut_snprintf(
+			buf2, sizeof buf2, "waits=%lu",
+			static_cast<ulong>(rw_lock->count_os_wait));
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len,
+			       buf1, static_cast<uint>(buf1len),
+			       buf2, static_cast<uint>(buf2len))) {
+
+			mutex_exit(&rw_lock_list_mutex);
+
+			DBUG_RETURN(1);
+		}
+	}
+
+	if (block_rwlock != NULL) {
+
+		int		buf1len;
+		char		buf1[IO_SIZE];
+
+		buf1len = ut_snprintf(
+			buf1, sizeof buf1, "sum rwlock: %s:%lu",
+			innobase_basename(block_rwlock->cfile_name),
+			static_cast<ulong>(block_rwlock->cline));
+
+		int		buf2len;
+		char		buf2[IO_SIZE];
+
+		buf2len = ut_snprintf(
+			buf2, sizeof buf2, "waits=%lu",
+			static_cast<ulong>(block_rwlock_oswait_count));
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len,
+			       buf1, static_cast<uint>(buf1len),
+			       buf2, static_cast<uint>(buf2len))) {
+
+			mutex_exit(&rw_lock_list_mutex);
+
+			DBUG_RETURN(1);
+		}
+	}
+
+	mutex_exit(&rw_lock_list_mutex);
+
+	DBUG_RETURN(0);
+}
+
+/** Implements the SHOW MUTEX STATUS command.
+@param[in,out]	hton		the innodb handlerton
+@param[in,out]	thd		the MySQL query thread of the caller
+@param[in,out]	stat_print	function for printing statistics
+@return 0 on success. */
+static
+int
+innodb_show_latch_status(
+	handlerton*	hton,
+	THD*		thd,
+	stat_print_fn*	stat_print)
+{
+	int	ret = innodb_show_mutex_status(hton, thd, stat_print);
+
+	if (ret != 0) {
+		return(ret);
+	}
+
+	return(innodb_show_rwlock_status(hton, thd, stat_print));
+}
+
 /************************************************************************//**
 Return 0 on success and non-zero on failure. Note: the bool return type
 seems to be abused here, should be an int. */
@@ -14332,11 +14704,7 @@ innobase_show_status(
 		return(innodb_show_status(hton, thd, stat_print) != 0);
 
 	case HA_ENGINE_MUTEX:
-		/* After WL#6044 we no longer support reporting of mutex
-		statistics via this interface. All mutex related counters
-		should be accessed via the Performance Schema Engine. */
-		/* Not handled */
-		break;
+		return(innodb_show_latch_status(hton, thd, stat_print) != 0);
 
 	case HA_ENGINE_LOGS:
 		/* Not handled */
@@ -15817,6 +16185,11 @@ innodb_monitor_set_option(
 			srv_mon_process_existing_counter(
 				monitor_id, MONITOR_TURN_ON);
 		}
+
+		if (MONITOR_IS_ON(MONITOR_LATCHES)) {
+
+			mutex_monitor->enable();
+		}
 		break;
 
 	case MONITOR_TURN_OFF:
@@ -15827,14 +16200,25 @@ innodb_monitor_set_option(
 
 		MONITOR_OFF(monitor_id);
 		MONITOR_SET_OFF(monitor_id);
+
+		if (!MONITOR_IS_ON(MONITOR_LATCHES)) {
+
+			mutex_monitor->disable();
+		}
 		break;
 
 	case MONITOR_RESET_VALUE:
 		srv_mon_reset(monitor_id);
+
+		if (monitor_id == (MONITOR_LATCHES)) {
+
+			mutex_monitor->reset();
+		}
 		break;
 
 	case MONITOR_RESET_ALL_VALUE:
 		srv_mon_reset_all(monitor_id);
+		mutex_monitor->reset();
 		break;
 
 	default:
@@ -17210,7 +17594,8 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, innodb_buffer_pool_size_update,
-  128*1024*1024L, static_cast<longlong>(srv_buf_pool_min_size),
+  static_cast<longlong>(srv_buf_pool_def_size),
+  static_cast<longlong>(srv_buf_pool_min_size),
   LLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
@@ -17731,6 +18116,11 @@ static MYSQL_SYSVAR_BOOL(disable_resize_buffer_pool_debug,
   buf_disable_resize_buffer_pool_debug, PLUGIN_VAR_NOCMDARG,
   "Disable resizing buffer pool to make assertion code not expensive.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Enable the sync debug checks",
+  NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -17888,6 +18278,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(saved_page_number_debug),
   MYSQL_SYSVAR(compress_debug),
   MYSQL_SYSVAR(disable_resize_buffer_pool_debug),
+  MYSQL_SYSVAR(sync_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };

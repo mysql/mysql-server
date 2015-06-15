@@ -180,8 +180,8 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
                         ER_THD(thd, ER_VIEW_NO_CREATION_CTX),
-                        (const char *) view->db,
-                        (const char *) view->table_name);
+                        view->db,
+                        view->table_name);
 
     ctx->m_client_cs= system_charset_info;
     ctx->m_connection_cl= system_charset_info;
@@ -206,16 +206,16 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   {
     sql_print_warning("View '%s'.'%s': there is unknown charset/collation "
                       "names (client: '%s'; connection: '%s').",
-                      (const char *) view->db,
-                      (const char *) view->table_name,
-                      (const char *) view->view_client_cs_name.str,
-                      (const char *) view->view_connection_cl_name.str);
+                      view->db,
+                      view->table_name,
+                      view->view_client_cs_name.str,
+                      view->view_connection_cl_name.str);
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
                         ER_THD(thd, ER_VIEW_INVALID_CREATION_CTX),
-                        (const char *) view->db,
-                        (const char *) view->table_name);
+                        view->db,
+                        view->table_name);
   }
 
   return ctx;
@@ -1308,7 +1308,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Read keyinformation */
   key_info_length= (uint) uint2korr(head+28);
   mysql_file_seek(file, (ulong) uint2korr(head+6), MY_SEEK_SET, MYF(0));
-  if (read_string(file,(uchar**) &disk_buff,key_info_length))
+  if (read_string(file, &disk_buff,key_info_length))
     goto err;                                   /* purecov: inspected */
   if (disk_buff[0] & 0x80)
   {
@@ -1747,7 +1747,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length+
 		                   gcol_screen_length));
-  if (read_string(file,(uchar**) &disk_buff,read_length))
+  if (read_string(file, &disk_buff,read_length))
     goto err;                                   /* purecov: inspected */
 
   strpos= disk_buff+pos;
@@ -1757,7 +1757,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   names= (char*) (interval_array+share->fields+interval_parts+keys+3);
   if (!interval_count)
     share->intervals= 0;			// For better debugging
-  memcpy((char*) names, strpos+(share->fields*field_pack_length),
+  memcpy(names, strpos+(share->fields*field_pack_length),
 	 (uint) (n_length+int_length));
   comment_pos= names+(n_length+int_length);
   memcpy(comment_pos, disk_buff+read_length-com_length-gcol_screen_length, 
@@ -1806,7 +1806,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
   {
-    null_flags= null_pos= (uchar*) record+1;
+    null_flags= null_pos= record+1;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
     /*
       null_bytes below is only correct under the condition that
@@ -1828,7 +1828,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     use_hash= !my_hash_init(&share->name_hash,
                             system_charset_info,
                             share->fields,0,0,
-                            (my_hash_get_key) get_field_name,0,0);
+                            (my_hash_get_key) get_field_name,0,0,
+                            PSI_INSTRUMENT_ME);
 
   for (i=0 ; i < share->fields; i++, strpos+=field_pack_length, field_ptr++)
   {
@@ -1878,7 +1879,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       else
       {
-	comment.str=    (char*) comment_pos;
+	comment.str=    comment_pos;
 	comment.length= comment_length;
 	comment_pos+=   comment_length;
       }
@@ -2275,7 +2276,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     /* Old file format with default as not null */
     uint null_length= (share->null_fields+7)/8;
-    memset(share->default_values + (null_flags - (uchar*) record), 255,
+    memset(share->default_values + (null_flags - record), 255,
            null_length);
   }
 
@@ -2317,7 +2318,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     the correct null_bytes can now be set, since bitfields have been taken
     into account
   */
-  share->null_bytes= (null_pos - (uchar*) null_flags +
+  share->null_bytes= (null_pos - null_flags +
                       (null_bit_pos + 7) / 8);
   share->last_null_bit_pos= null_bit_pos;
 
@@ -2421,7 +2422,7 @@ static bool validate_generated_expr(Field *field)
   @return
     FALSE                Ok, generated expression is fixed sucessfully 
  */
-bool fix_fields_gcol_func(THD *thd, Field *field)
+static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -2446,7 +2447,7 @@ bool fix_fields_gcol_func(THD *thd, Field *field)
   */
 
   memset((void*)&tables, 0, sizeof(TABLE_LIST));
-  tables.alias= tables.table_name= (char*) table->s->table_name.str;
+  tables.alias= tables.table_name= table->s->table_name.str;
   tables.table= table;
   tables.next_local= 0;
   tables.next_name_resolution_table= 0;
@@ -2526,11 +2527,11 @@ end:
     FALSE           Success
  */
 
-bool unpack_gcol_info_from_frm(THD *thd,
-                               TABLE *table,
-                               Field *field,
-                               bool is_create_table,
-                               bool *error_reported)
+static bool unpack_gcol_info_from_frm(THD *thd,
+                                      TABLE *table,
+                                      Field *field,
+                                      bool is_create_table,
+                                      bool *error_reported)
 {
   DBUG_ENTER("unpack_gcol_info_from_frm");
   DBUG_ASSERT(field->table == table);
@@ -2552,13 +2553,13 @@ bool unpack_gcol_info_from_frm(THD *thd,
     DBUG_RETURN(TRUE);
   }
   memcpy(gcol_expr_str,
-         (char*) PARSE_GCOL_KEYWORD.str,
+         PARSE_GCOL_KEYWORD.str,
          PARSE_GCOL_KEYWORD.length);
   str_len= PARSE_GCOL_KEYWORD.length;
   memcpy(gcol_expr_str + str_len, "(", 1);
   str_len++;
   memcpy(gcol_expr_str + str_len,
-         (char*) gcol_expr->str,
+         gcol_expr->str,
          gcol_expr->length);
   str_len+= gcol_expr->length;
   memcpy(gcol_expr_str + str_len, ")", 1);
@@ -2745,12 +2746,12 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   outparam->field= field_ptr;
 
-  record= (uchar*) outparam->record[0]-1;	/* Fieldstart = 1 */
+  record= outparam->record[0]-1;	/* Fieldstart = 1 */
   if (share->null_field_first)
-    outparam->null_flags= (uchar*) record+1;
+    outparam->null_flags= record+1;
   else
-    outparam->null_flags= (uchar*) (record+ 1+ share->reclength -
-                                    share->null_bytes);
+    outparam->null_flags= (record+ 1+ share->reclength -
+                           share->null_bytes);
 
   /* Setup copy of fields from share, but use the right alias and record */
   for (i=0 ; i < share->fields; i++, field_ptr++)
@@ -4456,7 +4457,7 @@ void  TABLE_LIST::calc_md5(char *buffer)
   uchar digest[MD5_HASH_SIZE];
   compute_md5_hash((char *) digest, (const char *) select_stmt.str,
                    select_stmt.length);
-  array_to_hex((char *) buffer, digest, MD5_HASH_SIZE);
+  array_to_hex(buffer, digest, MD5_HASH_SIZE);
 }
 
 
@@ -6665,8 +6666,7 @@ size_t max_row_length(TABLE *table, const uchar *data)
   for (uint *ptr= beg ; ptr != end ; ++ptr)
   {
     Field_blob* const blob= (Field_blob*) table->field[*ptr];
-    length+= blob->get_length((const uchar*)
-                              (data + blob->offset(table->record[0]))) +
+    length+= blob->get_length((data + blob->offset(table->record[0]))) +
       HA_KEY_BLOB_LENGTH;
   }
   return length;

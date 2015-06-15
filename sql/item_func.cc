@@ -1227,7 +1227,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
   }
   case REAL_RESULT:
   {
-    double result= (double)real_op();
+    double result= real_op();
     double2my_decimal(E_DEC_FATAL_ERROR, result, decimal_value);
     break;
   }
@@ -4171,7 +4171,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       f_args.args[i]= NULL;         /* Non-const unless updated below. */
 
       f_args.lengths[i]= arguments[i]->max_length;
-      f_args.maybe_null[i]= (char) arguments[i]->maybe_null;
+      f_args.maybe_null[i]= arguments[i]->maybe_null;
       f_args.attributes[i]= (char*) arguments[i]->item_name.ptr();
       f_args.attribute_lengths[i]= arguments[i]->item_name.length();
 
@@ -4185,7 +4185,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
           String *res= arguments[i]->val_str(&buffers[i]);
           if (arguments[i]->null_value)
             continue;
-          f_args.args[i]= (char*) res->c_ptr_safe();
+          f_args.args[i]= res->c_ptr_safe();
           f_args.lengths[i]= res->length();
           break;
         }
@@ -5129,7 +5129,8 @@ longlong Item_func_get_lock::val_int()
   /* HASH entries are of type User_level_lock. */
   if (! my_hash_inited(&thd->ull_hash) &&
       my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0))
+                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0,
+                   key_memory_User_level_lock))
   {
     DBUG_RETURN(0);
   }
@@ -5880,8 +5881,7 @@ bool user_var_entry::store(const void *from, size_t length, Item_result type)
   if (type == DECIMAL_RESULT)
   {
     DBUG_ASSERT(length == sizeof(my_decimal));
-    const my_decimal* dec=
-      static_cast<const my_decimal*>(static_cast<const void*>(from));
+    const my_decimal* dec= static_cast<const my_decimal*>(from);
     dec->sanity_check();
     new (m_ptr) my_decimal(*dec);
   }
@@ -7537,12 +7537,12 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   const_item_cache=0;
   for (uint i= 0 ; i < arg_count ; i++)
   {
-    item=args[i];
-    if (item->type() == Item::REF_ITEM)
-      args[i]= item= *((Item_ref *)item)->ref;
-    if (item->type() != Item::FIELD_ITEM)
+    item= args[i]= args[i]->real_item(); 
+    if (item->type() != Item::FIELD_ITEM ||
+        /* Cannot use FTS index with outer table field */
+        (item->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
       return TRUE;
     }
     allows_multi_table_search &= 

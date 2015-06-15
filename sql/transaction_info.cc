@@ -74,7 +74,7 @@ bool Transaction_ctx::add_changed_table(const char *key, long key_length)
 
   for (; curr; prev_changed = &(curr->next), curr = curr->next)
   {
-    int cmp =  (long)curr->key_length - (long)key_length;
+    int cmp =  (long)curr->key_length - key_length;
     if (cmp < 0)
     {
       if (list_include(prev_changed, curr,

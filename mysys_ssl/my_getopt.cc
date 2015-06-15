@@ -1152,7 +1152,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   const ulonglong max_of_type=
     max_of_int_range(optp->var_type & GET_TYPE_MASK);
 
-  if ((ulonglong) num > (ulonglong) optp->max_value &&
+  if (num > (ulonglong) optp->max_value &&
       optp->max_value) /* if max value is not set -> no upper limit */
   {
     num= (ulonglong) optp->max_value;
@@ -1277,10 +1277,10 @@ static void init_one_value(const struct my_option *option, void *variable,
     *((ulong*) variable)= (ulong) getopt_ull_limit_value((ulong) value, option, NULL);
     break;
   case GET_LL:
-    *((longlong*) variable)= (longlong) getopt_ll_limit_value((longlong) value, option, NULL);
+    *((longlong*) variable)= getopt_ll_limit_value(value, option, NULL);
     break;
   case GET_ULL:
-    *((ulonglong*) variable)= (ulonglong) getopt_ull_limit_value((ulonglong) value, option, NULL);
+    *((ulonglong*) variable)= getopt_ull_limit_value((ulonglong) value, option, NULL);
     break;
   case GET_SET:
   case GET_FLAGSET:

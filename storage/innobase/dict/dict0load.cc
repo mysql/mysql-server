@@ -1322,9 +1322,7 @@ dict_update_filepath(
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	trx = trx_allocate_for_background();
@@ -1392,9 +1390,7 @@ dict_replace_tablespace_and_filepath(
 	DBUG_EXECUTE_IF("innodb_fail_to_update_tablespace_dict",
 			return(DB_INTERRUPTED););
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(filepath);
 
@@ -1563,9 +1559,7 @@ dict_check_sys_tablespaces(
 
 	DBUG_ENTER("dict_check_sys_tablespaces");
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Before traversing it, let's make sure we have
@@ -1760,9 +1754,7 @@ dict_check_sys_tables(
 
 	DBUG_ENTER("dict_check_sys_tables");
 
-#ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);

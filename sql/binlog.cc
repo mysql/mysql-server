@@ -876,7 +876,7 @@ void check_binlog_cache_size(THD *thd)
     else
     {
       sql_print_warning(ER_DEFAULT(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
-                        (ulong) binlog_cache_size,
+                        binlog_cache_size,
                         (ulong) max_binlog_cache_size);
     }
     binlog_cache_size= static_cast<ulong>(max_binlog_cache_size);
@@ -902,7 +902,7 @@ void check_binlog_stmt_cache_size(THD *thd)
     else
     {
       sql_print_warning(ER_DEFAULT(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
-                        (ulong) binlog_stmt_cache_size,
+                        binlog_stmt_cache_size,
                         (ulong) max_binlog_stmt_cache_size);
     }
     binlog_stmt_cache_size= static_cast<ulong>(max_binlog_stmt_cache_size);
@@ -3136,7 +3136,7 @@ static int find_uniq_filename(char *name)
     if (strncmp(file_info->name, start, length) == 0 &&
 	is_number(file_info->name+length, &number,0))
     {
-      set_if_bigger(max_found,(ulong) number);
+      set_if_bigger(max_found, number);
     }
   }
   my_dirend(dir_info);
@@ -4502,8 +4502,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       /* inherit master's A descriptor if one has been received */
       if (opt_slave_sql_verify_checksum == 0)
         /* otherwise use slave's local preference of RL events verification */
-        relay_log_checksum_alg=static_cast<enum_binlog_checksum_alg>
-                               (binary_log::BINLOG_CHECKSUM_ALG_OFF);
+        relay_log_checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
       else
         relay_log_checksum_alg= static_cast<enum_binlog_checksum_alg>
                                 (binlog_checksum_options);
@@ -8575,10 +8574,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
     if (mngr->wait_for_its_turn(worker, all))
     {
-      DBUG_PRINT("info", ("thd has seen an error signal from old thread"));
-
-      thd->get_stmt_da()->set_overwrite_status(true);
-      my_error(ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR, MYF(0));
       thd->commit_error= THD::CE_COMMIT_ERROR;
       DBUG_RETURN(thd->commit_error);
     }
@@ -8791,7 +8786,8 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
 
   if (! fdle->is_valid() ||
       my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
-                   sizeof(my_xid), 0, 0, MYF(0)))
+                   sizeof(my_xid), 0, 0, MYF(0),
+                   key_memory_binlog_recover_exec))
     goto err1;
 
   init_alloc_root(key_memory_binlog_recover_exec,

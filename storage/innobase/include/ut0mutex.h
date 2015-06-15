@@ -33,47 +33,189 @@ extern ulong	srv_force_recovery_crash;
 #include "os0atomic.h"
 #include "sync0policy.h"
 #include "ib0mutex.h"
+#include <set>
+
+/** Create a typedef using the MutexType<PolicyType>
+@param[in]	M		Mutex type
+@param[in[	P		Policy type
+@param[in]	T		The resulting typedef alias */
+#define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P> > T;
+
+typedef OSMutex EventMutex;
 
 #ifndef UNIV_DEBUG
 
 # ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
+UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex);
+UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex);
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<TTASMutex<NoPolicy> > SpinMutex;
-typedef PolicyMutex<TTASEventMutex<TrackPolicy> > SyncArrayMutex;
+UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex);
+UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex);
 
-typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
-typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
+
+UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex);
+UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex);
+
+UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex);
+UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex);
 
 #else /* !UNIV_DEBUG */
 
 # ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
+UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex);
+UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex);
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
-typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
+UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex);
+UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex);
 
-typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;
-typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
+UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex);
+UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex);
+
+UT_MUTEX_TYPE(TTASEventMutex, GenericPolicy, SyncArrayMutex);
+UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex);
 
 #endif /* !UNIV_DEBUG */
 
 #ifdef MUTEX_FUTEX
 /** The default mutex type. */
 typedef FutexMutex ib_mutex_t;
+typedef BlockFutexMutex ib_bpmutex_t;
 #define MUTEX_TYPE	"Uses futexes"
 #elif defined(MUTEX_SYS)
 typedef SysMutex ib_mutex_t;
+typedef BlockSysMutex ib_bpmutex_t;
 #define MUTEX_TYPE	"Uses system mutexes"
 #elif defined(MUTEX_EVENT)
 typedef SyncArrayMutex ib_mutex_t;
+typedef BlockSyncArrayMutex ib_bpmutex_t;
 #define MUTEX_TYPE	"Uses event mutexes"
 #else
 #error "ib_mutex_t type is unknown"
 #endif /* MUTEX_FUTEX */
 
 #include "ut0mutex.ic"
+
+extern ulong	srv_spin_wait_delay;
+extern ulong	srv_n_spin_wait_rounds;
+
+#define mutex_create(I, M)		mutex_init((M), (I), __FILE__, __LINE__)
+
+#define mutex_enter(M)			(M)->enter(			\
+					srv_n_spin_wait_rounds,		\
+					srv_spin_wait_delay,		\
+					__FILE__, __LINE__)
+
+#define mutex_enter_nospin(M)		(M)->enter(			\
+					0,				\
+					0,				\
+					__FILE__, __LINE__)
+
+#define mutex_enter_nowait(M)		(M)->trylock(__FILE__, __LINE__)
+
+#define mutex_exit(M)			(M)->exit()
+
+#define mutex_free(M)			mutex_destroy(M)
+
+#ifdef UNIV_DEBUG
+/**
+Checks that the mutex has been initialized. */
+#define mutex_validate(M)		(M)->validate()
+
+/**
+Checks that the current thread owns the mutex. Works only
+in the debug version. */
+#define mutex_own(M)			(M)->is_owned()
+#else
+#define mutex_own(M)			/* No op */
+#define mutex_validate(M)		/* No op */
+#endif /* UNIV_DEBUG */
+
+/** Iterate over the mutex meta data */
+class MutexMonitor {
+public:
+	/** Constructor */
+	MutexMonitor() { }
+
+	/** Destructor */
+	~MutexMonitor() { }
+
+	/** Enable the mutex monitoring */
+	void enable();
+
+	/** Disable the mutex monitoring */
+	void disable();
+
+	/** Reset the mutex monitoring values */
+	void reset();
+
+	/** Invoke the callback for each active mutex collection
+	@param[in,out]	callback	Functor to call
+	@return false if callback returned false */
+	template<typename Callback>
+	bool iterate(Callback& callback) const
+		UNIV_NOTHROW
+	{
+		LatchMetaData::iterator	end = latch_meta.end();
+
+		for (LatchMetaData::iterator it = latch_meta.begin();
+		     it != end;
+		     ++it) {
+
+			/* Some of the slots will be null in non-debug mode */
+
+			if (*it == NULL) {
+				continue;
+			}
+
+			latch_meta_t*	latch_meta = *it;
+
+			bool	ret = callback(*latch_meta);
+
+			if (!ret) {
+				return(ret);
+			}
+		}
+
+		return(true);
+	}
+};
+
+/** Defined in sync0sync.cc */
+extern MutexMonitor*	mutex_monitor;
+
+/**
+Creates, or rather, initializes a mutex object in a specified memory
+location (which must be appropriately aligned). The mutex is initialized
+in the reset state. Explicit freeing of the mutex with mutex_free is
+necessary only if the memory block containing it is freed.
+Add the mutex instance to the global mutex list.
+@param[in,out]	mutex		mutex to initialise
+@param[in]	id		The mutex ID (Latch ID)
+@param[in]	filename	Filename from where it was called
+@param[in]	line		Line number in filename from where called */
+template <typename Mutex>
+void mutex_init(
+	Mutex*		mutex,
+	latch_id_t	id,
+	const char*	file_name,
+	uint32_t	line)
+{
+	new(mutex) Mutex();
+
+	mutex->init(id, file_name, line);
+}
+
+/**
+Removes a mutex instance from the mutex list. The mutex is checked to
+be in the reset state.
+@param[in,out]	 mutex		mutex instance to destroy */
+template <typename Mutex>
+void mutex_destroy(
+	Mutex*		mutex)
+{
+	mutex->destroy();
+}
 
 #endif /* ut0mutex_h */

@@ -724,7 +724,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
   res[my_args.size() + *argc + args_sep]= 0;  /* last null */
 
   (*argc)+= my_args.size() + args_sep;
-  *argv= (char**) res;
+  *argv= res;
   *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
 
   if (default_directories)
@@ -954,7 +954,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
         if (!(search_dir= my_dir(ptr, MYF(MY_WME))))
           goto err;
 
-        for (i= 0; i < (uint) search_dir->number_off_files; i++)
+        for (i= 0; i < search_dir->number_off_files; i++)
         {
           search_file= search_dir->dir_entry + i;
           ext= fn_ext(search_file->name);
@@ -996,7 +996,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     if (*ptr == '[')				/* Group name */
     {
       found_group=1;
-      if (!(end=(char *) strchr(++ptr,']')))
+      if (!(end= strchr(++ptr,']')))
       {
         my_message_local(ERROR_LEVEL,
                          "Wrong group definition in config file %s at line %d!",

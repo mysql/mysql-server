@@ -468,7 +468,7 @@ copy_extra_record_fields(TABLE *table,
         Set the null bit according to the values in record[1]
        */
       if ((*field_ptr)->maybe_null() &&
-          (*field_ptr)->is_null_in_record(reinterpret_cast<uchar*>(table->record[1])))
+          (*field_ptr)->is_null_in_record(table->record[1]))
         (*field_ptr)->set_null();
       else
         (*field_ptr)->set_notnull();
@@ -1035,7 +1035,7 @@ int Delete_rows_log_event_old::do_before_row_operations(TABLE *table)
   {
     m_after_image= (uchar*) my_malloc(key_memory_log_event_old,
                                       table->s->reclength, MYF(MY_WME));
-    m_memory= (uchar*)m_after_image;
+    m_memory= m_after_image;
     m_key= NULL;
   }
   if (!m_memory)
@@ -1457,7 +1457,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
     uchar* const new_buf= (uchar*)my_realloc(key_memory_log_event_old,
-                                             (uchar*)m_rows_buf, (uint) new_alloc,
+                                             m_rows_buf, (uint) new_alloc,
                                            MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);

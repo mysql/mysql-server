@@ -46,6 +46,12 @@ static const uint MYSQL_XID_PREFIX_LEN= 8; // must be a multiple of 8
 static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
 static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
 
+static void attach_native_trx(THD *thd);
+static Transaction_ctx *transaction_cache_search(XID *xid);
+static bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
+static bool transaction_cache_insert_recovery(XID *xid);
+
+
 my_xid xid_t::get_my_xid() const
 {
   // Verifies that our #define matches the one in plugin.h
@@ -1012,7 +1018,8 @@ bool transaction_cache_init()
   mysql_mutex_init(key_LOCK_transaction_cache, &LOCK_transaction_cache,
                    MY_MUTEX_INIT_FAST);
   return my_hash_init(&transaction_cache, &my_charset_bin, 100, 0, 0,
-                      transaction_get_hash_key, transaction_free_hash, 0) != 0;
+                      transaction_get_hash_key, transaction_free_hash, 0,
+                      key_memory_XID) != 0;
 }
 
 void transaction_cache_free()
@@ -1025,7 +1032,18 @@ void transaction_cache_free()
 }
 
 
-Transaction_ctx *transaction_cache_search(XID *xid)
+/**
+  Search information about XA transaction by a XID value.
+
+  @param xid    Pointer to a XID structure that identifies a XA transaction.
+
+  @return  pointer to a Transaction_ctx that describes the whole transaction
+           including XA-specific information (XID_STATE).
+    @retval  NULL     failure
+    @retval  != NULL  success
+*/
+
+static Transaction_ctx *transaction_cache_search(XID *xid)
 {
   mysql_mutex_lock(&LOCK_transaction_cache);
 
@@ -1037,6 +1055,19 @@ Transaction_ctx *transaction_cache_search(XID *xid)
   return res;
 }
 
+
+/**
+  Insert information about XA transaction into a cache indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+  @param transaction
+                 Pointer to Transaction object that is inserted.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
+*/
 
 bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction)
 {
@@ -1094,6 +1125,18 @@ bool transaction_cache_detach(Transaction_ctx *transaction)
   return res;
 }
 
+
+/**
+  Insert information about XA transaction being recovered into a cache
+  indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains Transaction_ctx
+                     for this XID value
+    @retval  true    failure
+*/
 
 bool transaction_cache_insert_recovery(XID *xid)
 {
@@ -1202,7 +1245,7 @@ my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
 
   @param     thd     Thread context
 */
-void attach_native_trx(THD *thd)
+static void attach_native_trx(THD *thd)
 {
   Ha_trx_info *ha_info=
     thd->get_transaction()->ha_trx_info(Transaction_ctx::SESSION);

@@ -222,7 +222,9 @@ static int init_sym_entry(SYM_ENTRY* se, char* buf)
 static void init_sym_table()
 {
   char buf[512];
-  if (my_init_dynamic_array(&sym_table, sizeof(SYM_ENTRY),
+  if (my_init_dynamic_array(&sym_table,
+                            PSI_NOT_INSTRUMENTED,
+                            sizeof(SYM_ENTRY),
                             NULL,
                             INIT_SYM_TABLE,
 			    INC_SYM_TABLE))

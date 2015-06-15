@@ -664,7 +664,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     was reallocated to a larger buffer to be able to fit.
   */
   DBUG_ASSERT(buffer != NULL);
-  length= min(static_cast<size_t>(str.length()), length-1);
+  length= min(str.length(), length-1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
   buffer[length]= '\0';
