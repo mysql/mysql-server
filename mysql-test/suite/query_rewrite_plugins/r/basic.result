@@ -17,11 +17,11 @@ INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT ?', 'SELECT "literal"' );
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT ?	NULL	SELECT "literal"	Y	NULL
+1	SELECT ?	NULL	SELECT "literal"	YES	NULL
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-1	SELECT ?	NULL	SELECT "literal"	Y	NULL
+1	SELECT ?	NULL	SELECT "literal"	YES	NULL
 SELECT NULL;
 literal
 literal
@@ -68,19 +68,19 @@ VALUES ( 'SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?',
 'SELECT * FROM test.t1 WHERE b = ? OR a = ?' );
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL
-3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL
-4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL
-5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL
-6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL
+2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	YES	NULL
+3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	YES	NULL
+4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	YES	NULL
+5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	YES	NULL
+6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	YES	NULL
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	Y	NULL
-3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	Y	NULL
-4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	Y	NULL
-5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	Y	NULL
-6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	Y	NULL
+2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	YES	NULL
+3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	YES	NULL
+4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	YES	NULL
+5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	YES	NULL
+6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	YES	NULL
 # Check a query that doesn't have a rewrite rule doesn't get rewritten.
 SELECT b FROM test.t1;
 b
@@ -175,15 +175,15 @@ VALUES ( 'SELECT 1, ?', 'SELECT "rewritten w/rule 1"' ),
 ( 'SELECT "The_original_query"', 'SELECT "The_rewritten_query"');
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-7	SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL
-8	SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL
-9	SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL
+7	SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	YES	NULL
+8	SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	YES	NULL
+9	SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	YES	NULL
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message
-7	SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	Y	NULL
-8	SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	Y	NULL
-9	SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	Y	NULL
+7	SELECT 1, ?	NULL	SELECT "rewritten w/rule 1"	YES	NULL
+8	SELECT 2, ?	NULL	SELECT "rewritten w/rule 2"	YES	NULL
+9	SELECT "The_original_query"	NULL	SELECT "The_rewritten_query"	YES	NULL
 SELECT 1, 1;
 rewritten w/rule 1
 rewritten w/rule 1
