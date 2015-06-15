@@ -54,6 +54,7 @@ or std::unordered_map instead of the InnoDB lock free hash. */
 #include "srv0conc.h" /* srv_max_n_threads */
 #include "sync0debug.h" /* sync_check_init(), sync_check_close() */
 #include "sync0mutex.h" /* mutex_enter() */
+#include "ut0dbg.h" /* ut_chrono_t */
 #include "ut0lock_free_hash.h"
 
 extern SysMutex	thread_mutex;
@@ -265,8 +266,29 @@ hash_check_deleted(
 	}
 }
 
+void
+init()
+{
+	static bool	initialized = false;
+
+	if (!initialized) {
+		srv_max_n_threads = 1024;
+
+		sync_check_init();
+		os_thread_init();
+
+		initialized = true;
+	}
+}
+
 TEST(ut0lock_free_hash, single_threaded)
 {
+	init();
+
+#ifdef HAVE_UT_CHRONO_T
+	ut_chrono_t	chrono("single threaded");
+#endif /* HAVE_UT_CHRONO_T */
+
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	ut_hash_interface_t*	hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
@@ -394,10 +416,11 @@ DECLARE_THREAD(thread)(
 
 TEST(ut0lock_free_hash, multi_threaded)
 {
-	srv_max_n_threads = 1024;
+	init();
 
-	sync_check_init();
-	os_thread_init();
+#ifdef HAVE_UT_CHRONO_T
+	ut_chrono_t	chrono("multi threaded");
+#endif /* HAVE_UT_CHRONO_T */
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	global_hash = new std_hash_t();
