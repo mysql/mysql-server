@@ -6416,3 +6416,33 @@ eval $query;
 eval EXPLAIN SELECT ($query) AS C FROM DUAL;
 eval SELECT ($query) AS C FROM DUAL;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21251627 ASSERT `ORDER == __NULL && !SELECT_DISTINCT' AT JOIN::REPLACE_INDEX_SUBQUERY
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL PRIMARY KEY,
+  col_varchar VARCHAR(1)
+) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1, 'v');
+
+let $base_query=
+  SELECT
+    col_varchar AS field1,
+    pk AS field2
+  FROM t1
+  WHERE col_varchar = col_varchar
+  GROUP BY field2
+  HAVING field1 >= 'nw';
+
+eval CREATE TABLE t2 ENGINE=INNODB $base_query;
+
+SELECT * FROM t2;
+
+eval SELECT * FROM t2 WHERE (field1, field2) IN (
+$base_query
+);
+
+DROP TABLE t1,t2;
