@@ -7899,4 +7899,34 @@ SELECT (SELECT * FROM t1 GROUP BY t1_id ORDER BY t1_id DESC LIMIT 1) AS C FROM D
 C
 3
 DROP TABLE t1;
+#
+# Bug#21251627 ASSERT `ORDER == __NULL && !SELECT_DISTINCT' AT JOIN::REPLACE_INDEX_SUBQUERY
+#
+CREATE TABLE t1 (
+pk INT NOT NULL PRIMARY KEY,
+col_varchar VARCHAR(1)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1, 'v');
+CREATE TABLE t2 ENGINE=INNODB SELECT
+col_varchar AS field1,
+pk AS field2
+FROM t1
+WHERE col_varchar = col_varchar
+GROUP BY field2
+HAVING field1 >= 'nw';
+SELECT * FROM t2;
+field1	field2
+v	1
+SELECT * FROM t2 WHERE (field1, field2) IN (
+SELECT
+col_varchar AS field1,
+pk AS field2
+FROM t1
+WHERE col_varchar = col_varchar
+GROUP BY field2
+HAVING field1 >= 'nw'
+);
+field1	field2
+v	1
+DROP TABLE t1,t2;
 set optimizer_switch=default;
