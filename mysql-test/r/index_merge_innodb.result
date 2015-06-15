@@ -1999,11 +1999,6 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	index_merge	col_int_key,col_time_key	col_int_key,col_time_key	4,3	NULL	3	100.00	Using intersect(col_int_key,col_time_key); Using where; Using index
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'a'
-Warning	1292	Truncated incorrect INTEGER value: 'm'
-Warning	1292	Truncated incorrect INTEGER value: 'n'
-Warning	1292	Incorrect time value: 's' for column 'col_time_key' at row 1
 UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
 SELECT col_int_key, col_int_key
@@ -2012,11 +2007,6 @@ WHERE (col_time_key, col_int_key, col_int_key) IN (
 ('s','a', 'm'), (0, 'n', 7)
 )
 );
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'a'
-Warning	1292	Truncated incorrect INTEGER value: 'm'
-Warning	1292	Truncated incorrect INTEGER value: 'n'
-Warning	1292	Incorrect time value: 's' for column 'col_time_key' at row 1
 DROP TABLE t1, t2;
 SET sql_mode = default;
 #
