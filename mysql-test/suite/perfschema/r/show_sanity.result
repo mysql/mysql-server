@@ -781,49 +781,6 @@ where show_mode = "JUNK"
 order by variable_name;
 HOST	VARIABLE_NAME	VARIABLE_VALUE
 
-set @@global.show_compatibility_56 = @show_compatibility_56_save;
-
-================================================================================
-# Restart the server with the account events disabled, forcing a slightly
-# different path through the user and host code.
-================================================================================
-# Write file to make mysql-test-run.pl wait for the server to stop
-# Restarting the server
-#
-# Stop server...
-# Restart server with accounts disabled
-# Enable reconnect
-# Wait until connected again
-# Disable reconnect
-
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-
-================================================================================
-TEST 23
-Status variables that should NOT be present in 5.7 P_S.STATUS_BY_USER
-EXPECT NOTHING WHEN SELECTING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
-================================================================================
-select * from performance_schema.status_by_user
-where upper(variable_name) in (
-select upper(variable_name) from test.sanity
-where show_mode = "JUNK"
-    and source = "NO AGGREGATE")
-order by variable_name;
-USER	VARIABLE_NAME	VARIABLE_VALUE
-
-================================================================================
-TEST 24
-Status variables that should NOT be present in 5.7 P_S.STATUS_BY_HOST
-EXPECT NOTHING WHEN SELECTING STATUS VARS THAT CAN'T BE AGGREGATED (2-17)
-================================================================================
-select * from performance_schema.status_by_host
-where upper(variable_name) in (
-select upper(variable_name) from test.sanity
-where show_mode = "JUNK"
-    and source = "NO AGGREGATE")
-order by variable_name;
-HOST	VARIABLE_NAME	VARIABLE_VALUE
-
 ================================================================================
 CLEAN UP
 ================================================================================
