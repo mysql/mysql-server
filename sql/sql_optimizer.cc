@@ -7310,11 +7310,6 @@ add_ft_keys(Key_use_array *keyuse_array,
       !(usable_tables & cond_func->table_ref->map()))
     return FALSE;
 
-  // Cannot do index lookup into outer table:
-  for (uint i= 0; i < cond_func->arg_count ; ++i)
-    if (!is_local_field(cond_func->arguments()[i]))
-      return false;
-
   cond_func->set_simple_expression(simple_match_expr);
 
   const Key_use keyuse(cond_func->table_ref,
