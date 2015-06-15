@@ -1386,7 +1386,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
     m_fixed2dynamic[fixed_index]= r;
   }
 
-  DBUG_RETURN(numberToRef(r, (theOwnId >= 0 ? theOwnId : 0)));
+  DBUG_RETURN(numberToRef(r, theOwnId));
 }
 
 TransporterFacade::~TransporterFacade()
