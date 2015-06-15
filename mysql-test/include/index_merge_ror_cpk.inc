@@ -325,6 +325,7 @@ analyze table t1;
 analyze table t2;
 -- enable_result_log
 
+--disable_warnings
 EXPLAIN UPDATE t1 SET col_time_nokey = 25
 WHERE (col_varchar_key, col_varchar_nokey) IN (
   SELECT col_int_key, col_int_key
@@ -342,7 +343,7 @@ WHERE (col_varchar_key, col_varchar_nokey) IN (
     ('s','a', 'm'), (0, 'n', 7)
   )
 );
-
+--enable_warnings
 
 DROP TABLE t1, t2;
 SET sql_mode = default;
