@@ -4690,7 +4690,7 @@ fts_check_token(
 }
 
 /** Add the token and its start position to the token's list of positions.
-@param[in/out]	result_doc	result doc rb tree
+@param[in,out]	result_doc	result doc rb tree
 @param[in]	str		token string
 @param[in]	position	token position */
 static
