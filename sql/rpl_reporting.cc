@@ -58,13 +58,10 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
                   });
 
   /*
-    The state of the slave thread can't be regarded as
-    experiencing a temporary failure in cases of @c is_slave_error was set TRUE,
-    or if there is no message in THD, we can't say if it's a temporary
-    error or not. This is currently the case for Incident_log_event,
-    which sets no message.
+    The slave can't be regarded as experiencing a temporary failure in cases of
+    is_fatal_error is TRUE, or if no error is in THD and error_arg is not set.
   */
-  if (thd->is_fatal_error || !thd->is_error())
+  if (thd->is_fatal_error || (!thd->is_error() && error_arg == 0))
     DBUG_RETURN(0);
 
   error= (error_arg == 0)? thd->get_stmt_da()->mysql_errno() : error_arg;

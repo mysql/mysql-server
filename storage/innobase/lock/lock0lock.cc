@@ -25,7 +25,9 @@ Created 5/7/1996 Heikki Tuuri
 
 #define LOCK_MODULE_IMPLEMENTATION
 
+#include <mysql/service_thd_engine_lock.h>
 #include "ha_prototypes.h"
+#include "current_thd.h"
 
 #include "lock0lock.h"
 #include "lock0priv.h"
@@ -2012,6 +2014,10 @@ RecLock::add_to_waitq(const lock_t* wait_for, const lock_prdt_t* prdt)
 
 	ut_ad(trx_mutex_own(m_trx));
 
+	/* m_trx->mysql_thd is NULL if it's an internal trx. So current_thd is used */
+	if (err == DB_LOCK_WAIT) {
+		thd_report_row_lock_wait(current_thd, wait_for->trx->mysql_thd);
+	}
 	return(err);
 }
 

@@ -307,6 +307,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
        (Mts_submode*) new Mts_submode_database():
        (Mts_submode*) new Mts_submode_logical_clock();
 
+  m_order_commit_deadlock= false;
   DBUG_RETURN(0);
 }
 
@@ -1806,6 +1807,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
 {
   Relay_log_info *rli= c_rli;
   THD *thd= info_thd;
+  int ret= 0;
 
   DBUG_ENTER("slave_worker_exec_event");
 
@@ -1889,7 +1891,8 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
   set_master_log_pos(static_cast<ulong>(ev->common_header->log_pos));
   set_gaq_index(ev->mts_group_idx);
-  DBUG_RETURN(ev->do_apply_event_worker(this));
+  ret= ev->do_apply_event_worker(this);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -1956,7 +1959,13 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
 
   do
   {
-    if (!has_temporary_error(thd, 0, &silent) ||
+    /* Simulate a lock deadlock error */
+    uint error= 0;
+
+    if (found_order_commit_deadlock())
+      error= ER_LOCK_DEADLOCK;
+
+    if (!has_temporary_error(thd, error, &silent) ||
         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION))
       DBUG_RETURN(true);
 
@@ -1978,6 +1987,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     mysql_mutex_unlock(&c_rli->data_lock);
 
     cleanup_context(thd, 1);
+    reset_order_commit_deadlock();
     worker_sleep(min<ulong>(trans_retries, MAX_SLAVE_RETRY_PAUSE));
 
   } while (read_and_apply_events(start_relay_number, start_relay_pos,
@@ -2577,10 +2587,14 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     set_timespec_nsec(&worker->ts_exec[1], 0); // pre-exec
     worker->stats_exec_time += diff_timespec(&worker->ts_exec[1],
                                              &worker->ts_exec[0]);
-    if (error &&
-        worker->retry_transaction(start_relay_number, start_relay_pos,
-                                  job_item->relay_number, job_item->relay_pos))
-      goto err;
+    if (error || worker->found_order_commit_deadlock())
+    {
+      error= worker->retry_transaction(start_relay_number, start_relay_pos,
+                                       job_item->relay_number,
+                                       job_item->relay_pos);
+      if (error)
+        goto err;
+    }
     /*
       p-event or any other event of B-free (malformed) group can
       "commit" with logical clock scheduler. In that case worker id
@@ -2610,7 +2624,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 
   DBUG_PRINT("info", (" commits GAQ index %lu, last committed  %lu",
                       ev->mts_group_idx, worker->last_group_done_index));
-  worker->slave_worker_ends_group(ev, error); /* last done sets post exec */
+  /* The group is applied successfully, so error should be 0 */
+  worker->slave_worker_ends_group(ev, 0);
 
 #ifndef DBUG_OFF
   DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"
