@@ -316,22 +316,22 @@ cmd: testSystemRestart
 args: -n SR_DD_1 D1
 
 # Bug18401499 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b D1
 
 # Bug18401521 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b D2
 
 # Bug18401529 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D1
 
 # Bug18401375 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D2
 
