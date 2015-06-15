@@ -6863,7 +6863,7 @@ setupTestVariant(NdbRestarter& res,
     int dumpCommand[3] = {DumpStateOrd::DihSetGcpStopVals, 0, 10000};
     if (res.dumpStateAllNodes(&dumpCommand[0], 3) != 0)
     {
-      g_err << "Error dumping state" << endl;
+      g_err << "Error setting dump state 'GcpStopVals'" << endl;
       return NDBT_FAILED;
     }
   }
@@ -6872,11 +6872,19 @@ setupTestVariant(NdbRestarter& res,
     int dumpCommand[3] = {DumpStateOrd::DihSetGcpStopVals, 1, 15000};
     if (res.dumpStateAllNodes(&dumpCommand[0], 3) != 0)
     {
-      g_err << "Error dumping state" << endl;
+      g_err << "Error setting dump state 'GcpStopVals'" << endl;
       return NDBT_FAILED;
     }   
   }
-  
+
+  // Setting 'RestartOnErrorInsert = 2' will auto restart 'victim'
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 2};
+  if (res.dumpStateAllNodes(val2, 2))
+  {
+    g_err << "Error setting dump state 'RestartOnErrorInsert'" << endl;
+    return NDBT_FAILED;
+  }
+    
   if (res.insertErrorInAllNodes(0) != 0)
   {
     g_err << "Failed clearing errors" << endl;
