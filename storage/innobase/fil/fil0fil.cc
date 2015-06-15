@@ -3770,8 +3770,8 @@ fil_ibd_open(
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 	/*  We have now checked all possible tablespace locations and
-	have a count of how many we found.  If things are normal, we
-	only found 1. */
+	have a count of how many unique files we found.  If things are
+	normal, we only found 1. */
 	if (!validate && tablespaces_found == 1) {
 		goto skip_validate;
 	}
