@@ -652,7 +652,7 @@ let $query=
 SELECT 1 FROM q
 WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
 
---error ER_PARSE_ERROR
+--error ER_WRONG_ARGUMENTS
 eval explain format=json $query;
 
 DROP TABLE z, q;

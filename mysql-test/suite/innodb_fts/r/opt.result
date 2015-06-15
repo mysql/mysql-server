@@ -1593,3 +1593,22 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (1.238585e+308 <= (match `test`.`t1`.`f1` against ('1' in boolean mode)))
 DROP TABLE t1;
+#
+# Bug#21140088 MATCH AGAINST: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || BITMAP_IS_SET
+#
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+CREATE TABLE t2(b TEXT CHARSET LATIN1, FULLTEXT(b), PRIMARY KEY(b(10))) ENGINE=INNODB;
+INSERT INTO t2 VALUES ('a'),('b');
+SELECT NOT EXISTS (SELECT MATCH(b) AGAINST ('1') FROM t1) FROM t2 GROUP BY "a";
+ERROR HY000: Incorrect arguments to MATCH
+DROP TABLE t1, t2;
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+CREATE TABLE t2(b TEXT CHARSET LATIN1, FULLTEXT(b), PRIMARY KEY(b(10))) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('a'),('b');
+SELECT NOT EXISTS (SELECT MATCH(b) AGAINST ('1' in BOOLEAN MODE) FROM t1) FROM t2 GROUP BY "a";
+ERROR HY000: Incorrect arguments to MATCH
+DROP TABLE t1, t2;
+SET sql_mode=default;
