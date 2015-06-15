@@ -40,13 +40,13 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     { C_STRING_WITH_LEN("events_stages_history") },
     &flag_events_stages_history,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_stages_history_long") },
     &flag_events_stages_history_long,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_statements_current") },
@@ -58,13 +58,13 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     { C_STRING_WITH_LEN("events_statements_history") },
     &flag_events_statements_history,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_statements_history_long") },
     &flag_events_statements_history_long,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_transactions_current") },
@@ -76,13 +76,13 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     { C_STRING_WITH_LEN("events_transactions_history") },
     &flag_events_transactions_history,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_transactions_history_long") },
     &flag_events_transactions_history_long,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_waits_current") },
@@ -94,13 +94,13 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     { C_STRING_WITH_LEN("events_waits_history") },
     &flag_events_waits_history,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("events_waits_history_long") },
     &flag_events_waits_history_long,
     false,
-    false
+    true
   },
   {
     { C_STRING_WITH_LEN("global_instrumentation") },
