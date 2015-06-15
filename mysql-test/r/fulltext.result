@@ -579,7 +579,7 @@ MATCH(a) AGAINST('aaa1* aaa14 aaa15 aaa16' IN BOOLEAN MODE)
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT);
 SELECT GROUP_CONCAT(a) AS st FROM t1 HAVING MATCH(st) AGAINST('test' IN BOOLEAN MODE);
-ERROR HY000: Incorrect arguments to AGAINST
+ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE t1;
 CREATE TABLE t1(a VARCHAR(64), FULLTEXT(a));
 INSERT INTO t1 VALUES('awrd bwrd cwrd'),('awrd bwrd cwrd'),('awrd bwrd cwrd');
@@ -735,5 +735,5 @@ CREATE TABLE z(a INTEGER) engine=innodb;
 CREATE TABLE q(b TEXT CHARSET latin1, fulltext(b)) engine=innodb;
 explain format=json SELECT 1 FROM q
 WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
-ERROR 42000: syntax error, unexpected $end, expecting FTS_TERM or FTS_NUMB or '*'
+ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE z, q;

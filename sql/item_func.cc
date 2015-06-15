@@ -7467,12 +7467,12 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   const_item_cache=0;
   for (uint i= 0 ; i < arg_count ; i++)
   {
-    item=args[i];
-    if (item->type() == Item::REF_ITEM)
-      args[i]= item= *((Item_ref *)item)->ref;
-    if (item->type() != Item::FIELD_ITEM)
+    item= args[i]= args[i]->real_item(); 
+    if (item->type() != Item::FIELD_ITEM ||
+        /* Cannot use FTS index with outer table field */
+        (item->used_tables() & OUTER_REF_TABLE_BIT))
     {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
       return TRUE;
     }
     allows_multi_table_search &= 
