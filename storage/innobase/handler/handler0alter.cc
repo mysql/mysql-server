@@ -27,6 +27,7 @@ Smart ALTER TABLE
 #include <log.h>
 #include <sql_lex.h>
 #include <sql_class.h>
+#include <sql_table.h>
 #include <mysql/plugin.h>
 #include <key_spec.h>
 
@@ -991,10 +992,8 @@ innobase_get_foreign_key_info(
 		char*		tbl_namep = NULL;
 		ulint		db_name_len = 0;
 		ulint		tbl_name_len = 0;
-#ifdef _WIN32
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
-#endif
 
 		fk_key = static_cast<Foreign_key_spec*>(key);
 
@@ -1047,24 +1046,29 @@ innobase_get_foreign_key_info(
 		add_fk[num_fk] = dict_mem_foreign_create();
 
 #ifndef _WIN32
-		tbl_namep = const_cast<char*>(fk_key->ref_table.str);
-		tbl_name_len = fk_key->ref_table.length;
-		db_namep = const_cast<char*>(fk_key->ref_db.str);
-		db_name_len = fk_key->ref_db.length;
+		if(fk_key->ref_db.str) {
+			tablename_to_filename(fk_key->ref_db.str, db_name,
+					      MAX_DATABASE_NAME_LEN);
+			db_namep = db_name;
+			db_name_len = strlen(db_name);
+		}
+		if (fk_key->ref_table.str) {
+			tablename_to_filename(fk_key->ref_table.str, tbl_name,
+					      MAX_TABLE_NAME_LEN);
+			tbl_namep = tbl_name;
+			tbl_name_len = strlen(tbl_name);
+		}
 #else
 		ut_ad(fk_key->ref_table.str);
-
-		memcpy(tbl_name, fk_key->ref_table.str,
-		       fk_key->ref_table.length);
-		tbl_name[fk_key->ref_table.length] = 0;
+		tablename_to_filename(fk_key->ref_table.str, tbl_name,
+				      MAX_TABLE_NAME_LEN);
 		innobase_casedn_str(tbl_name);
 		tbl_name_len = strlen(tbl_name);
 		tbl_namep = &tbl_name[0];
 
 		if (fk_key->ref_db.str != NULL) {
-			memcpy(db_name, fk_key->ref_db.str,
-			       fk_key->ref_db.length);
-			db_name[fk_key->ref_db.length] = 0;
+			tablename_to_filename(fk_key->ref_db.str, db_name,
+					      MAX_DATABASE_NAME_LEN);
 			innobase_casedn_str(db_name);
 			db_name_len = strlen(db_name);
 			db_namep = &db_name[0];
