@@ -18120,7 +18120,7 @@ static MYSQL_SYSVAR_BOOL(disable_resize_buffer_pool_debug,
 static MYSQL_SYSVAR_BOOL(sync_debug, srv_sync_debug,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Enable the sync debug checks",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {

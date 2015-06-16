@@ -339,13 +339,69 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   /** Thread history instrumentation flag. */
   bool m_history;
 
+  /**
+    Derived flag flag_events_waits_history, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_WAITS_HISTORY].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_waits_history;
+  /**
+    Derived flag flag_events_waits_history_long, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_WAITS_HISTORY_LONG].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_waits_history_long;
+  /**
+    Derived flag flag_events_stages_history, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_STAGES_HISTORY].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_stages_history;
+  /**
+    Derived flag flag_events_stages_history_long, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_STAGES_HISTORY_LONG].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_stages_history_long;
+  /**
+    Derived flag flag_events_statements_history, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_STATEMENTS_HISTORY].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_statements_history;
+  /**
+    Derived flag flag_events_statements_history_long, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_STATEMENTS_HISTORY_LONG].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_statements_history_long;
+  /**
+    Derived flag flag_events_transactions_history, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_TRANSACTIONS_HISTORY].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_transactions_history;
+  /**
+    Derived flag flag_events_transactions_history_long, per thread.
+    Cached computation of
+      TABLE SETUP_CONSUMERS[EVENTS_TRANSACTIONS_HISTORY_LONG].ENABLED == 'YES'
+    AND
+      TABLE THREADS[THREAD_ID].HISTORY == 'YES'
+  */
   bool m_flag_events_transactions_history_long;
 
   /** Current wait event in the event stack. */

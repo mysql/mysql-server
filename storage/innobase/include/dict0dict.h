@@ -1551,7 +1551,12 @@ struct dict_persist_t {
 	/** We have an rw-lock and a mutex here. We should always make sure
 	the rw-lock is acquired first and then the mutex according to their
 	latch levels. These two should be low-level latch/lock so that
-	we can use them widely when necessary. */
+	we can use them widely when necessary. However, we will access
+	B-tree and require tree latch after them, the levels good for
+	them would be right before the SYNC_INDEX_TREE and since we
+	want to acquire these two in low-level, we won't check the latching
+	order for these against others above SYNC_LOG, only the order between
+	the two themselves. */
 
 	/** rw-lock which is used to protect write-back on checkpoint.
 	We will write back persistent metadata before holding log mutex

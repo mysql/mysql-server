@@ -914,13 +914,13 @@ RemoteDatafile::create_link_file(
 		srv_read_only_mode, &success);
 
 	if (!success) {
-		/* The following call will print an error message */
+		/* This call will print its own error message */
 		ulint	error = os_file_get_last_error(true);
 
 		ib::error() << "Cannot create file " << link_filepath << ".";
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
-			ib::error() << "The link file: " << filepath
+			ib::error() << "The link file: " << link_filepath
 				<< " already exists.";
 			err = DB_TABLESPACE_EXISTS;
 

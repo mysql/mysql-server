@@ -1,5 +1,9 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
+#
+
+auth_sec.mysql_protocol_types            # Bug#21252802 2015-06-16 anitha Test unstable on PB2
+
 
 
 main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
@@ -15,6 +19,9 @@ rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-0
 rpl.rpl_get_master_version_and_clock     # Bug#18949165 2014-07-22 agopi Failes very frequently on PB2
 
 perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails several times each day in PB2 
+perf_schema.connection_type_win          # Bug#21252802 2015-06-16 anitha Test unstable on PB2
+perf_schema.connection_type_notwin       # Bug#21252802 2015-06-16 anitha Test unstable on PB2
+
 main.ssl-big @windows                    # Bug#18200216 2014-03-14 horst Fails too often in daily in PB2.
 rpl.rpl_gtid_stress_failover             # Bug#20630589  2015-03-19 agopi Originally made experimental due to bug#16409537 which was closed as not reproducible.
 

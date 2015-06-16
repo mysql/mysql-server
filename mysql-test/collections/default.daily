@@ -60,4 +60,3 @@ perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --
 # Run some tests that use no_parallel.inc
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --comment=serial_tests  --vardir=serial-tests main.blackhole_plugin main.archive_plugin innodb.mysqldump_max_recordsize innodb.innodb_pagesize_max_recordsize innodb.log_based_discovery
 
-#Test

@@ -279,8 +279,11 @@ struct LatchDebug {
 				Latched(latch, level));
 
 			ut_a(latches->empty()
+			     || level == SYNC_PERSIST_CHECKPOINT
 			     || level == SYNC_LEVEL_VARYING
 			     || level == SYNC_NO_ORDER_CHECK
+			     || latches->back().m_latch->get_level()
+			     || SYNC_PERSIST_CHECKPOINT
 			     || latches->back().m_latch->get_level()
 			     == SYNC_LEVEL_VARYING
 			     || latches->back().m_latch->get_level()
@@ -485,9 +488,6 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_RECV);
 	LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_ORDER);
 	LEVEL_MAP_INSERT(SYNC_LOG);
-	LEVEL_MAP_INSERT(SYNC_PERSIST_METADATA_BUFFER);
-	LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
-	LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
 	LEVEL_MAP_INSERT(SYNC_PAGE_CLEANER);
 	LEVEL_MAP_INSERT(SYNC_PURGE_QUEUE);
 	LEVEL_MAP_INSERT(SYNC_TRX_SYS_HEADER);
@@ -518,6 +518,9 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
 	LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_METADATA_BUFFER);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
 	LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
 	LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
@@ -792,9 +795,6 @@ LatchDebug::check_order(
 	case SYNC_POOL:
 	case SYNC_POOL_MANAGER:
 	case SYNC_RECV_WRITER:
-	case SYNC_PERSIST_METADATA_BUFFER:
-	case SYNC_PERSIST_DIRTY_TABLES:
-	case SYNC_PERSIST_CHECKPOINT:
 
 		basic_check(latches, level, level);
 		break;
@@ -989,6 +989,25 @@ LatchDebug::check_order(
 		basic_check(latches, level, SYNC_FSP - 1);
 		ut_a(find(latches, SYNC_IBUF_MUTEX) == NULL);
 		ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) == NULL);
+		break;
+
+	case SYNC_PERSIST_METADATA_BUFFER:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) != NULL);
+		break;
+
+	case SYNC_PERSIST_DIRTY_TABLES:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
+		break;
+
+	case SYNC_PERSIST_CHECKPOINT:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
+		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
 		break;
 
 	case SYNC_DICT:
