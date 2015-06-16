@@ -283,7 +283,7 @@ struct LatchDebug {
 			     || level == SYNC_LEVEL_VARYING
 			     || level == SYNC_NO_ORDER_CHECK
 			     || latches->back().m_latch->get_level()
-			     || SYNC_PERSIST_CHECKPOINT
+			     == SYNC_PERSIST_CHECKPOINT
 			     || latches->back().m_latch->get_level()
 			     == SYNC_LEVEL_VARYING
 			     || latches->back().m_latch->get_level()
