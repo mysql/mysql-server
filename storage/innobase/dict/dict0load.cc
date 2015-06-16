@@ -769,6 +769,10 @@ dict_get_first_path(
 					reinterpret_cast<const char*>(field),
 					len);
 				ut_ad(filepath != NULL);
+
+				/* The dictionary may have been written on
+				another OS. */
+				os_normalize_path(filepath);
 			}
 		}
 	}
@@ -1163,29 +1167,17 @@ dict_check_sys_tablespaces(
 			continue;
 		}
 
-		/* Use the filepath from the data dictionary if this is a
-		remote file-per-table or shared general tablespace. The
-		mysql system tables are file-per-table and are found using
-		datadir. MTR can sometimes switch the datadir between
-		relative and absolute paths.  Until we can recognize two
-		paths pointing to the same file, we cannot consult the
-		dictionary for these paths */
-		char*	filepath = NULL;
-		if (FSP_FLAGS_HAS_DATA_DIR(fsp_flags)
-		    || FSP_FLAGS_GET_SHARED(fsp_flags)) {
-			filepath = dict_get_first_path(space_id);
-		}
+		/* Set the expected filepath from the data dictionary.
+		If the file is found elsewhere (from an ISL or the default
+		location) or this path is the same file but looks different,
+		fil_ibd_open() will update the dictionary with what is
+		opened. */
+		char*	filepath = dict_get_first_path(space_id);
 
-		/* Check that the .ibd file exists. The second parameter
-		is whether to update the dictionary, SYS_DATAFILES and
-		possibly SYS_TABLESPACES, with newly discovered tablespaces.
-		But that can only happen when traversing SYS_TABLES.
-		Since we are traversing SYS_TABLESPACES with an mtr that
-		holds read locks on pages, do not allow fil_ibd_open() to
-		update the dictionary.*/
+		/* Check that the .ibd file exists. */
 		dberr_t	err = fil_ibd_open(
 			validate,
-			false,
+			!srv_read_only_mode,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1413,18 +1405,12 @@ dict_check_sys_tables(
 			continue;
 		}
 
-		/* Use the filepath from the data dictionary if this is a
-		remote file-per-table or shared general tablespace. The
-		mysql system tables are file-per-table and are found using
-		datadir. MTR can sometimes switch the datadir between
-		relative and absolute paths.  Until we can recognize two
-		paths pointing to the same file, we cannot consult the
-		dictionary for these paths */
-		char*	filepath = NULL;
-		if (DICT_TF_HAS_DATA_DIR(flags)
-		    || DICT_TF_HAS_SHARED_SPACE(flags)) {
-			filepath = dict_get_first_path(space_id);
-		}
+		/* Set the expected filepath from the data dictionary.
+		If the file is found elsewhere (from an ISL or the default
+		location) or this path is the same file but looks different,
+		fil_ibd_open() will update the dictionary with what is
+		opened. */
+		char*	filepath = dict_get_first_path(space_id);
 
 		/* Check that the .ibd file exists. */
 		bool	is_temp = flags2 & DICT_TF2_TEMPORARY;
