@@ -78,6 +78,23 @@ enum exit_codes
   EXIT_UPGRADING_QUERIES_ERROR = 5,
 };
 
+
+class Mysql_connection_holder
+{
+  MYSQL* m_mysql_connection;
+
+public:
+  explicit Mysql_connection_holder(MYSQL *mysql_connection)
+    : m_mysql_connection(mysql_connection)
+  { }
+
+  ~Mysql_connection_holder()
+  {
+    mysql_close(this->m_mysql_connection);
+  }
+};
+
+
 class Program : public Base::Abstract_connection_program
 {
 public:
@@ -119,6 +136,8 @@ public:
     setbuf(stdout, NULL);
 
     this->m_mysql_connection= this->create_connection();
+    // Remember to call mysql_close()
+    Mysql_connection_holder connection_holder(m_mysql_connection);
     this->m_query_runner= new Mysql_query_runner(this->m_mysql_connection);
     this->m_query_runner->add_message_callback(new Instance_callback
       <int, Mysql_message, Program>(this, &Program::print_error));
@@ -434,8 +453,6 @@ public:
     /* Create a file indicating upgrade has been performed */
     this->create_mysql_upgrade_info_file();
 
-    mysql_close(this->m_mysql_connection);
-
     return 0;
   }
 
@@ -525,13 +542,13 @@ private:
     const char **query_ptr;
     int result;
 
+    Instance_callback<int, vector<string>, Program>
+      result_callback(this, &Program::result_callback);
+    Instance_callback<int, Mysql_message, Program>
+      message_callback(this, &Program::fix_privilage_tables_error);
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int, vector<string>, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int, Mysql_message, Program>(
-      this, &Program::fix_privilage_tables_error));
+    runner.add_result_callback(&result_callback);
+    runner.add_message_callback(&message_callback);
 
     this->print_verbose_message("Running queries to upgrade MySQL server.");
 
@@ -565,13 +582,13 @@ private:
     const char **query_ptr;
     int result;
 
+    Instance_callback<int, vector<string>, Program>
+      result_callback(this, &Program::result_callback);
+    Instance_callback<int, Mysql_message, Program>
+      message_callback(this, &Program::fix_privilage_tables_error);
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int, vector<string>, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int, Mysql_message, Program>(
-      this, &Program::fix_privilage_tables_error));
+    runner.add_result_callback(&result_callback);
+    runner.add_message_callback(&message_callback);
 
     this->print_verbose_message("Upgrading the sys schema.");
 
@@ -744,13 +761,8 @@ private:
    */
   int fix_privilage_tables_error(Mysql_message message)
   {
-    String error;
-    uint dummy_errors;
-    error.copy("error", 5, &my_charset_latin1,
-      this->m_mysql_connection->charset, &dummy_errors);
-
     bool is_error = my_strcasecmp(this->m_mysql_connection->charset,
-      message.severity.c_str(), error.c_ptr()) == 0;
+                                  message.severity.c_str(), "error") == 0;
 
     // This if it is error message and if it is not expected one.
     if (this->m_temporary_verbose ||
