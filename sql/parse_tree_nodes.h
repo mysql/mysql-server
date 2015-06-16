@@ -783,54 +783,54 @@ public:
 };
 
 
-class PT_select_derived_union_union : public PT_table_list
-{
-  typedef PT_table_list super;
+// class PT_select_derived_union_union : public PT_table_list
+// {
+//   typedef PT_table_list super;
 
-  PT_table_list *select_derived_union;
-  POS union_pos;
-  bool is_distinct;
-  PT_select_lex *query_specification;
+//   PT_table_list *select_derived_union;
+//   POS union_pos;
+//   bool is_distinct;
+//   PT_select_lex *query_specification;
 
-public:
+// public:
   
-  PT_select_derived_union_union(PT_table_list *select_derived_union_arg,
-                                const POS &union_pos_arg,
-                                bool is_distinct_arg,
-                                PT_select_lex *query_specification_arg)
-  : select_derived_union(select_derived_union_arg),
-    union_pos(union_pos_arg),
-    is_distinct(is_distinct_arg),
-    query_specification(query_specification_arg)
-  {}
+//   PT_select_derived_union_union(PT_table_list *select_derived_union_arg,
+//                                 const POS &union_pos_arg,
+//                                 bool is_distinct_arg,
+//                                 PT_select_lex *query_specification_arg)
+//   : select_derived_union(select_derived_union_arg),
+//     union_pos(union_pos_arg),
+//     is_distinct(is_distinct_arg),
+//     query_specification(query_specification_arg)
+//   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc) || select_derived_union->contextualize(pc))
-      return true;
+//   virtual bool contextualize(Parse_context *pc)
+//   {
+//     if (super::contextualize(pc) || select_derived_union->contextualize(pc))
+//       return true;
 
-    pc->select= pc->thd->lex->new_union_query(pc->select, is_distinct);
-    if (pc->select == NULL)
-      return true;
+//     pc->select= pc->thd->lex->new_union_query(pc->select, is_distinct);
+//     if (pc->select == NULL)
+//       return true;
 
-    if (query_specification->contextualize(pc))
-      return true;
+//     if (query_specification->contextualize(pc))
+//       return true;
 
-    /*
-      Remove from the name resolution context stack the context of the
-      last query block in the union.
-     */
-    pc->thd->lex->pop_context();
+//     /*
+//       Remove from the name resolution context stack the context of the
+//       last query block in the union.
+//      */
+//     pc->thd->lex->pop_context();
 
-    if (select_derived_union->value != NULL)
-    {
-      error(pc, union_pos);
-      return true;
-    }
-    value= NULL;
-    return false;
-  }
-};
+//     if (select_derived_union->value != NULL)
+//     {
+//       error(pc, union_pos);
+//       return true;
+//     }
+//     value= NULL;
+//     return false;
+//   }
+// };
 
 
 class PT_table_factor_parenthesis : public PT_table_list
@@ -958,43 +958,43 @@ public:
 };
 
 
-class PT_query_specification_select : public PT_select_lex
-{
-  typedef Parse_tree_node super;
+// class PT_query_specification_select : public PT_select_lex
+// {
+//   typedef Parse_tree_node super;
 
-  PT_hint_list *opt_hint_list;
-  PT_select_part2_derived *select_part2_derived;
-  PT_table_expression *table_expression;
+//   PT_hint_list *opt_hint_list;
+//   PT_select_part2_derived *select_part2_derived;
+//   PT_table_expression *table_expression;
 
-public:
-  PT_query_specification_select(
-    PT_hint_list *opt_hint_list_arg,
-    PT_select_part2_derived *select_part2_derived_arg,
-    PT_table_expression *table_expression_arg)
-  : opt_hint_list(opt_hint_list_arg),
-    select_part2_derived(select_part2_derived_arg),
-    table_expression(table_expression_arg)
-  {}
+// public:
+//   PT_query_specification_select(
+//     PT_hint_list *opt_hint_list_arg,
+//     PT_select_part2_derived *select_part2_derived_arg,
+//     PT_table_expression *table_expression_arg)
+//   : opt_hint_list(opt_hint_list_arg),
+//     select_part2_derived(select_part2_derived_arg),
+//     table_expression(table_expression_arg)
+//   {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc) || select_part2_derived->contextualize(pc))
-      return true;
+//   virtual bool contextualize(Parse_context *pc)
+//   {
+//     if (super::contextualize(pc) || select_part2_derived->contextualize(pc))
+//       return true;
 
-    // Parentheses carry no meaning here.
-    pc->select->set_braces(false);
+//     // Parentheses carry no meaning here.
+//     pc->select->set_braces(false);
 
-    if (table_expression->contextualize(pc))
-      return true;
+//     if (table_expression->contextualize(pc))
+//       return true;
 
-    value= pc->select->master_unit()->first_select();
+//     value= pc->select->master_unit()->first_select();
 
-    if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
-      return true;
+//     if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
+//       return true;
 
-    return false;
-  }
-};
+//     return false;
+//   }
+// };
 
 
 class PT_select_paren_derived : public Parse_tree_node
@@ -1036,80 +1036,83 @@ public:
 };
 
 
-class PT_query_specification_parenthesis : public PT_select_lex
+// class PT_query_specification_parenthesis : public PT_select_lex
+// {
+//   typedef PT_select_lex super;
+
+//   PT_select_paren_derived *select_paren_derived;
+//   Parse_tree_node *opt_union_order_or_limit;
+
+// public:
+//   PT_query_specification_parenthesis(
+//     PT_select_paren_derived *select_paren_derived_arg,
+//     Parse_tree_node *opt_union_order_or_limit_arg)
+//   : select_paren_derived(select_paren_derived_arg),
+//     opt_union_order_or_limit(opt_union_order_or_limit_arg)
+//   {}
+
+
+//   virtual bool contextualize(Parse_context *pc)
+//   {
+//     if (super::contextualize(pc) ||
+//         select_paren_derived->contextualize(pc) ||
+//         (opt_union_order_or_limit != NULL &&
+//          opt_union_order_or_limit->contextualize(pc)))
+//       return true;
+
+//     value= pc->select->master_unit()->first_select();
+//     return false;
+//   }
+// };
+
+class PT_query_expression_body : public Parse_tree_node
 {
-  typedef PT_select_lex super;
-
-  PT_select_paren_derived *select_paren_derived;
-  Parse_tree_node *opt_union_order_or_limit;
-
-public:
-  PT_query_specification_parenthesis(
-    PT_select_paren_derived *select_paren_derived_arg,
-    Parse_tree_node *opt_union_order_or_limit_arg)
-  : select_paren_derived(select_paren_derived_arg),
-    opt_union_order_or_limit(opt_union_order_or_limit_arg)
-  {}
-
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc) ||
-        select_paren_derived->contextualize(pc) ||
-        (opt_union_order_or_limit != NULL &&
-         opt_union_order_or_limit->contextualize(pc)))
-      return true;
-
-    value= pc->select->master_unit()->first_select();
-    return false;
-  }
 };
 
+// class PT_query_expression_body_union : public PT_query_expression_body
+// {
+//   typedef PT_select_lex super;
 
-class PT_query_expression_body_union : public PT_select_lex
-{
-  typedef PT_select_lex super;
+//   POS pos;
+//   PT_select_lex *query_expression_body;
+//   bool is_distinct;
+//   PT_select_lex *query_specification;
 
-  POS pos;
-  PT_select_lex *query_expression_body;
-  bool is_distinct;
-  PT_select_lex *query_specification;
+// public:
+//   PT_query_expression_body_union(const POS &pos,
+//                                  PT_select_lex *query_expression_body_arg,
+//                                  bool is_distinct_arg,
+//                                  PT_select_lex *query_specification_arg)
+//   : pos(pos),
+//     query_expression_body(query_expression_body_arg),
+//     is_distinct(is_distinct_arg),
+//     query_specification(query_specification_arg)
+//   {}
 
-public:
-  PT_query_expression_body_union(const POS &pos,
-                                 PT_select_lex *query_expression_body_arg,
-                                 bool is_distinct_arg,
-                                 PT_select_lex *query_specification_arg)
-  : pos(pos),
-    query_expression_body(query_expression_body_arg),
-    is_distinct(is_distinct_arg),
-    query_specification(query_specification_arg)
-  {}
+//   virtual bool contextualize(Parse_context *pc)
+//   {
+//     if (PT_query_expression_body::contextualize(pc))
+//       return true;
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc) || query_expression_body->contextualize(pc))
-      return true;
+//     LEX *lex= pc->thd->lex;
 
-    LEX *lex= pc->thd->lex;
+//     if (pc->select->linkage == GLOBAL_OPTIONS_TYPE)
+//     {
+//       error(pc, pos);
+//       return true;
+//     }
+//     pc->select= lex->new_union_query(pc->select, is_distinct);
+//     if (pc->select == NULL)
+//       return true;
 
-    if (pc->select->linkage == GLOBAL_OPTIONS_TYPE)
-    {
-      error(pc, pos);
-      return true;
-    }
-    pc->select= lex->new_union_query(pc->select, is_distinct);
-    if (pc->select == NULL)
-      return true;
+//     if (query_specification->contextualize(pc))
+//       return true;
 
-    if (query_specification->contextualize(pc))
-      return true;
-
-    lex->pop_context();
-    value= query_expression_body->value;
-    return false;
-  }
-};
+//     lex->pop_context();
+// //    value= query_expression_body->value;
+//     return false;
+//   }
+// };
 
 
 class PT_internal_variable_name : public Parse_tree_node
@@ -2135,15 +2138,29 @@ class PT_query_expression : public Parse_tree_node
 {
 public:
 
-  PT_query_expression(PT_order *order, PT_limit_clause *limit) :
-    contextualized(false),
-    m_order(order),
-    m_limit(limit)
+  // PT_query_expression(PT_order *order, PT_limit_clause *limit) :
+  //   contextualized(false),
+  //   m_order(order),
+  //   m_limit(limit)
+  // {}
+
+  PT_query_expression(PT_query_expression_body *body,
+                      PT_order *order,
+                      PT_limit_clause *limit)
+    : contextualized(false),
+      m_body(body),
+      m_order(order),
+      m_limit(limit)
+  {}
+
+  PT_query_expression(PT_query_expression_body *body)
+    : contextualized(false)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (Parse_tree_node::contextualize(pc))
+    if (Parse_tree_node::contextualize(pc) ||
+        m_body->contextualize(pc))
       return true;
     return false;
   }
@@ -2166,9 +2183,9 @@ public:
     True if this query expression is a union query, i.e. contains more than
     one query term.
   */
-  virtual bool is_union() const = 0;
+  // virtual bool is_union() const = 0;
 
-  virtual bool is_nested() const = 0;
+  // virtual bool is_nested() const = 0;
 
   /**
     Called by the parser when it has decided that this query expression may
@@ -2188,21 +2205,22 @@ public:
 
 private:
   bool contextualized;
+  PT_query_expression_body *m_body;
   PT_order *m_order;
   PT_limit_clause *m_limit;
 };
 
 
-class PT_query_term: public Parse_tree_node
-{
-public:
-  virtual PT_order *order_clause() = 0;
-  virtual PT_limit_clause *limit_clause() = 0;
-  virtual bool is_union() const = 0;
-  virtual PT_order *remove_order_clause() = 0;
-  virtual PT_limit_clause *remove_limit_clause() = 0;
-  virtual bool is_nested() const = 0;
-};
+// class PT_query_term: public Parse_tree_node
+// {
+// public:
+//   virtual PT_order *order_clause() = 0;
+//   virtual PT_limit_clause *limit_clause() = 0;
+//   virtual bool is_union() const = 0;
+//   virtual PT_order *remove_order_clause() = 0;
+//   virtual PT_limit_clause *remove_limit_clause() = 0;
+//   virtual bool is_nested() const = 0;
+// };
 
 
 class PT_derived_table : public PT_table_list
@@ -2221,106 +2239,20 @@ private:
   LEX_STRING *m_table_alias;
 };
 
-
-class PT_union : public PT_query_expression
-{
-public:
-  PT_union(PT_query_expression *lhs, bool is_distinct, PT_query_term *rhs,
-           PT_into_destination *into) :
-    PT_query_expression(rhs->remove_order_clause(),
-                        rhs->remove_limit_clause()),
-    m_lhs(lhs),
-    m_is_distinct(is_distinct),
-    m_rhs(rhs),
-    m_into(into)
-  {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (PT_query_expression::contextualize(pc))
-      return true;
-
-    if (m_lhs->contextualize(pc))
-      return true;
-
-    pc->select=
-      pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
-
-    if (pc->select == NULL || m_rhs->contextualize(pc))
-      return true;
-
-    THD *thd= pc->thd;
-
-    SELECT_LEX_UNIT *unit= pc->select->master_unit();
-    if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
-      return true;
-
-    SELECT_LEX *select_lex= pc->select;
-    pc->select= unit->fake_select_lex;
-    pc->select->no_table_names_allowed= true;
-
-    if (contextualize_order_and_limit(pc))
-      return true;
-
-    pc->select->no_table_names_allowed= false;
-    pc->select= select_lex;
-
-    pc->thd->lex->pop_context();
-
-    return ::contextualize(m_into, pc);
-  }
-
-  virtual bool is_union() const { return true; }
-
-  virtual bool is_nested() const { return false; }
-
-private:
-  PT_query_expression *m_lhs;
-  bool m_is_distinct;
-  PT_query_term *m_rhs;
-  PT_into_destination *m_into;
-};
-
-
-/// A query expression without union.
-class PT_query_expression_single : public PT_query_expression
-{
-public:
-  PT_query_expression_single(PT_query_term *term) :
-    PT_query_expression(term->remove_order_clause(),
-                        term->remove_limit_clause()),
-    m_query_term(term)
- {}
-
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (PT_query_expression::contextualize(pc))
-      return true;
-
-    bool res= m_query_term->contextualize(pc) ||
-      contextualize_order_and_limit(pc);
-
-    return res;
-  }
-
-  virtual bool is_union() const { return m_query_term->is_union(); }
-
-  virtual bool is_nested() const { return m_query_term->is_nested(); }
-
-private:
-  PT_query_term *m_query_term;
-};
-
 class PT_query_primary : public Parse_tree_node
 {
+};
+
+class PT_query_specification : public PT_query_primary
+{
 public:
-  PT_query_primary(PT_hint_list *opt_hint_list_arg,
-                   PT_select_part2 *select_part2_arg)
+  PT_query_specification(PT_hint_list *opt_hint_list_arg,
+                         PT_select_part2 *select_part2_arg)
     : m_hints(opt_hint_list_arg),
       m_select_part2(select_part2_arg)
   {}
 
-  PT_query_primary(PT_select_part2 *select_part2_arg)
+  PT_query_specification(PT_select_part2 *select_part2_arg)
     : m_hints(NULL),
       m_select_part2(select_part2_arg)
   {}
@@ -2350,60 +2282,171 @@ private:
   PT_select_part2 *m_select_part2;
 };
 
-
-class PT_query_term_primary: public PT_query_term
+class PT_query_expression_body_primary : public PT_query_expression_body
 {
 public:
-  PT_query_term_primary(PT_query_primary *query_primary) :
-    m_query_primary(query_primary)
+  PT_query_expression_body_primary(PT_query_primary *query_primary)
+    : m_query_primary(query_primary)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (PT_query_term::contextualize(pc))
+    if (PT_query_expression_body::contextualize(pc) ||
+        m_query_primary->contextualize(pc))
       return true;
-
-    return m_query_primary->contextualize(pc);
+    return false;
   }
-
-  virtual PT_order *order_clause() { return m_query_primary->order_clause(); }
-  virtual PT_limit_clause *limit_clause() { return m_query_primary->limit_clause(); }
-  virtual PT_order *remove_order_clause()
-  {
-    return m_query_primary->remove_order_clause();
-  }
-  virtual PT_limit_clause *remove_limit_clause()
-  {
-    return m_query_primary->remove_limit_clause();
-  }
-  virtual bool is_union() const { return false; }
-
-  virtual bool is_nested() const { return false; }
 
 private:
   PT_query_primary *m_query_primary;
 };
 
-
-class PT_nested_query_expression: public PT_query_term
+class PT_union : public PT_query_expression_body
 {
 public:
-  PT_nested_query_expression(PT_query_expression *query_expression,
+  PT_union(PT_query_expression_body *lhs, bool is_distinct,
+           PT_query_primary *rhs/*, PT_into_destination *into*/) :
+    // PT_query_expression(rhs->remove_order_clause(),
+    //                     rhs->remove_limit_clause()),
+    m_lhs(lhs),
+    m_is_distinct(is_distinct),
+    m_rhs(rhs)
+//    m_into(into)
+  {}
+
+  virtual bool contextualize(Parse_context *pc)
+  {
+    if (PT_query_expression_body::contextualize(pc))
+      return true;
+
+    if (m_lhs->contextualize(pc))
+      return true;
+
+    pc->select=
+      pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
+
+    if (pc->select == NULL || m_rhs->contextualize(pc))
+      return true;
+
+    THD *thd= pc->thd;
+
+    SELECT_LEX_UNIT *unit= pc->select->master_unit();
+    if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
+      return true;
+
+    SELECT_LEX *select_lex= pc->select;
+    pc->select= unit->fake_select_lex;
+    pc->select->no_table_names_allowed= true;
+
+    // if (contextualize_order_and_limit(pc))
+    //   return true;
+
+    pc->select->no_table_names_allowed= false;
+    pc->select= select_lex;
+
+    pc->thd->lex->pop_context();
+
+//    return ::contextualize(m_into, pc);
+    return false;
+  }
+
+  virtual bool is_union() const { return true; }
+
+  virtual bool is_nested() const { return false; }
+
+private:
+  PT_query_expression_body *m_lhs;
+  bool m_is_distinct;
+  PT_query_primary *m_rhs;
+  PT_into_destination *m_into;
+};
+
+
+/// A query expression body_without union.
+// class PT_query_expression_body_single : public PT_query_expression
+// {
+// public:
+//   PT_query_expression_body_single(PT_query_primary *term) :
+//     // PT_query_expression(term->remove_order_clause(),
+//     //                     term->remove_limit_clause()),
+//     m_query_primary(term)
+//  {}
+
+//   virtual bool contextualzifae(Parse_context *pc)
+//   {
+//     if (PT_query_expression::contextualize(pc))
+//       return true;
+
+//     bool res= m_query_primary->contextualize(pc) ||
+//       contextualize_order_and_limit(pc);
+
+//     return res;
+//   }
+
+//   // virtual bool is_union() const { return m_query_primary->is_union(); }
+
+//   // virtual bool is_nested() const { return m_query_primary->is_nested(); }
+
+// private:
+//   PT_query_primary *m_query_primary;
+// }
+//  ;
+
+
+
+// class PT_query_term_primary: public PT_query_term
+// {
+// public:
+//   PT_query_term_primary(PT_query_primary *query_primary) :
+//     m_query_primary(query_primary)
+//   {}
+
+//   virtual bool contextualize(Parse_context *pc)
+//   {
+//     if (PT_query_term::contextualize(pc))
+//       return true;
+
+//     return m_query_primary->contextualize(pc);
+//   }
+
+//   virtual PT_order *order_clause() { return m_query_primary->order_clause(); }
+//   virtual PT_limit_clause *limit_clause() { return m_query_primary->limit_clause(); }
+//   virtual PT_order *remove_order_clause()
+//   {
+//     return m_query_primary->remove_order_clause();
+//   }
+//   virtual PT_limit_clause *remove_limit_clause()
+//   {
+//     return m_query_primary->remove_limit_clause();
+//   }
+//   virtual bool is_union() const { return false; }
+
+//   virtual bool is_nested() const { return false; }
+
+// private:
+//   PT_query_primary *m_query_primary;
+// };
+
+
+class PT_nested_query_expression: public PT_query_primary
+{
+public:
+  PT_nested_query_expression(PT_query_expression_body *body,
                              PT_order *order,
                              PT_limit_clause *limit) :
-    m_query_expression(query_expression),
+    m_body(body),
     m_order_clause(order),
     m_limit_clause(limit)
   {}
 
   virtual bool contextualize(Parse_context *pc)
   {
-    if (PT_query_term::contextualize(pc))
+    if (PT_query_primary::contextualize(pc))
       return true;
 
     pc->select->set_braces(true);
 
-    return m_query_expression->contextualize(pc) ||
+    return m_body->contextualize(pc) ||
       ::contextualize(m_order_clause, pc) ||
       ::contextualize(m_limit_clause, pc);
   }
@@ -2424,12 +2467,12 @@ public:
     return limit;
   }
 
-  virtual bool is_union() const { return m_query_expression->is_union(); }
+  // virtual bool is_union() const { return m_body->is_union(); }
 
-  virtual bool is_nested() const { return true; }
+  // virtual bool is_nested() const { return true; }
 
 private:
-  PT_query_expression *m_query_expression;
+  PT_query_expression_body *m_body;
   PT_order *m_order_clause;
   PT_limit_clause *m_limit_clause;
 };

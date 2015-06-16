@@ -457,7 +457,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /* We should not introduce new conflicts any more. */
-%expect 135
+%expect 137
 
 /*
    Comments for TOKENS.
@@ -1413,8 +1413,6 @@ END_OF_INPUT
         index_hints_list opt_index_hints_list opt_key_definition
         cache_key_list_or_empty cache_keys_spec
 
-%type <subselect> subselect
-
 %type <order_expr> order_expr
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
@@ -1431,17 +1429,14 @@ END_OF_INPUT
 
 %type <limit_clause> limit_clause opt_limit_clause
 
-%type <ulonglong_number> query_spec_option query_spec_option_list
-        opt_query_spec_options
+%type <ulonglong_number> query_spec_option 
 
 %type <select_options> select_option select_option_list select_options
 
 %type <node> join_table join_table_parens order_or_limit
-        opt_union_order_or_limit option_value union_opt
+          option_value union_opt
 
 %type <table_reference_list> table_reference_list from_clause opt_from_clause
-
-%type <select_part2_derived> select_part2_derived
 
 %type <olap_type> olap_opt
 
@@ -1466,9 +1461,7 @@ END_OF_INPUT
 
 %type <join_table_list> join_table_list
 
-%type <select_paren_derived> select_paren_derived
-
-%type <select_lex2> query_specification query_expression_body
+%type <query_expression_body> query_expression_body
 
 %type <internal_variable_name> internal_variable_name
 
@@ -1498,7 +1491,7 @@ END_OF_INPUT
 
 %type <field_separators> field_term field_term_list opt_field_term
 
-%type <into_destination> into_destination into opt_into
+%type <into_destination> into_destination into
 
 %type <select_var_ident> select_var_ident
 
@@ -1514,9 +1507,11 @@ END_OF_INPUT
 
 %type <select_init> select_init
 
-%type <query_expression> query_expression derived_table
+%type <query_expression> query_expression subquery
 
-%type <query_term> query_term
+%type <derived_table> derived_table
+
+%type <query_expression> row_subquery table_subquery
 
 %type <select> select
 
@@ -8897,9 +8892,9 @@ select:
         | select_statement_single_row
           {
             $$= NEW_PTN PT_select
-              (NEW_PTN PT_query_expression_single
-               (NEW_PTN PT_query_term_primary
-                (NEW_PTN PT_query_primary($1))));
+              (NEW_PTN PT_query_expression
+               (NEW_PTN PT_query_expression_body_primary
+                (NEW_PTN PT_query_specification($1))));
           }
         ;
 
@@ -8980,50 +8975,31 @@ select_init:
         ;
 
 query_expression:
-          query_term
+          query_expression_body opt_order_clause opt_limit_clause
           {
-            $$= NEW_PTN PT_query_expression_single($1);
-          }
-        | query_expression UNION_SYM union_option query_term opt_into
-          {
-            // This is for compatibility with legacy syntax.  (SELECT UNION
-            // SELECT) UNION SELECT really means the same thing with or
-            // without parentheses.
-            if ($1->is_nested() && $1->is_union())
-              YYTHD->parse_error_at(@2, ER_DEFAULT(ER_SYNTAX_ERROR));
-            if ($4->is_union())
-              YYTHD->parse_error_at(@2, ER_DEFAULT(ER_SYNTAX_ERROR));
-            PT_union *pt_union= NEW_PTN PT_union($1, $3, $4, $5);
-            $1->ban_order_and_limit();
-            $$= pt_union;
-          }
+            $$= NEW_PTN PT_query_expression($1, $2, $3);
+          } 
         ;
 
-/*
-  We have to produce the order and limit clauses here, because normally they
-  belong to the <query primary>, which in our case is implemented in
-  select_part2. This rule can't be changed without breaking the currently
-  allowed syntax. But since they syntactically belong to the <query
-  expression>, we have to explicitly add them here as well in order to be able
-  to parse proper syntax.
-*/
-query_term:
+query_expression_body:
           query_primary
           {
-            $$= NEW_PTN PT_query_term_primary($1);
+            $$= NEW_PTN PT_query_expression_body_primary($1);
           }
-        | '(' query_expression ')' opt_order_clause opt_limit_clause
+        | query_expression_body UNION_SYM union_option query_primary
           {
-            if ($2->is_union() && ($4 != NULL || $5 != NULL))
-              my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER");
-            $$= NEW_PTN PT_nested_query_expression($2, $4, $5);
+            $$= NEW_PTN PT_union(/*@$,*/ $1, $3, $4);
           }
         ;
 
 query_primary:
           SELECT_SYM select_part2
           {
-            $$= NEW_PTN PT_query_primary($1, $2);
+            $$= NEW_PTN PT_query_specification($1, $2);
+          }
+        | '(' query_expression_body opt_order_clause opt_limit_clause ')'
+          {
+            $$= NEW_PTN PT_nested_query_expression($2, $3, $4);
           }
         ;
 
@@ -9033,15 +9009,6 @@ select_paren:
             $$= NEW_PTN PT_select_paren($1, $2);
           }
         | '(' select_paren ')' { $$= $2; }
-        ;
-
-/* The equivalent of select_paren for nested queries. */
-select_paren_derived:
-          SELECT_SYM select_part2_derived table_expression
-          {
-            $$= NEW_PTN PT_select_paren_derived($1, $2, $3);
-          }
-        | '(' select_paren_derived ')' { $$= $2; }
         ;
 
 /*
@@ -9303,7 +9270,7 @@ bool_pri:
           {
             $$= NEW_PTN PTI_comp_op(@$, $1, $2, $3);
           }
-        | bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
+        | bool_pri comp_op all_or_any table_subquery %prec EQ
           {
             if ($2 == &comp_equal_creator)
               /*
@@ -9314,19 +9281,19 @@ bool_pri:
                 we still don't want the count to go up.
               */
               YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-            $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $5);
+            $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $4);
           }
         | predicate
         ;
 
 predicate:
-          bit_expr IN_SYM '(' subselect ')'
+          bit_expr IN_SYM table_subquery
           {
-            $$= NEW_PTN Item_in_subselect(@$, $1, $4);
+            $$= NEW_PTN Item_in_subselect(@$, $1, $3);
           }
-        | bit_expr not IN_SYM '(' subselect ')'
+        | bit_expr not IN_SYM table_subquery
           {
-            Item *item= NEW_PTN Item_in_subselect(@$, $1, $5);
+            Item *item= NEW_PTN Item_in_subselect(@$, $1, $4);
             $$= NEW_PTN PTI_negate_expression(@$, item);
           }
         | bit_expr IN_SYM '(' expr ')'
@@ -9519,9 +9486,10 @@ simple_expr:
           {
             $$= NEW_PTN PTI_negate_expression(@$, $2);
           }
-        | '(' subselect ')'
+        | row_subquery
           {
-            $$= NEW_PTN PTI_singlerow_subselect(@$, $2);
+            $$= NEW_PTN PTI_singlerow_subselect(@$,
+                                                NEW_PTN PT_subselect(@$, $1));
           }
         | '(' expr ')'
           { $$= $2; }
@@ -9533,9 +9501,9 @@ simple_expr:
           {
             $$= NEW_PTN Item_row(@$, $3, $5->value);
           }
-        | EXISTS '(' subselect ')'
+        | EXISTS subquery
           {
-            $$= NEW_PTN PTI_exists_subselect(@$, $3);
+            $$= NEW_PTN PTI_exists_subselect(@$, $2);
           }
         | '{' ident expr '}'
           {
@@ -10543,24 +10511,7 @@ table_factor:
             $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
           }
         | named_table_parens
-        | derived_table opt_table_alias
-          {
-            /*
-              The alias is actually not optional at all, but being MySQL we
-              are friendly and give an informative error message instead of
-              just 'syntax error'.
-            */
-            if ($2 == NULL)
-              my_message(ER_DERIVED_MUST_HAVE_ALIAS,
-                         ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
-
-            // Legacy compatibility.
-            if (!$1->is_union())
-              $1->remove_parentheses();
-
-            $$= NEW_PTN PT_derived_table($1, $2);
-
-          }
+        | derived_table
         | join_table_parens
           {
             $$= NEW_PTN PT_table_factor_joined_table($1);
@@ -10585,24 +10536,23 @@ join_table_parens:
         | '(' join_table ')' { $$= $2; }
         ;
 
-derived_table:
-          '(' query_expression ')' { $$= $2; }
-        ;
-
-
-/* The equivalent of select_part2 for nested queries. */
-select_part2_derived:
+derived_table: subquery opt_table_alias
           {
             /*
-              TODO: remove this semantic action (currently this removal
-              adds shift/reduce conflict)
+              The alias is actually not optional at all, but being MySQL we
+              are friendly and give an informative error message instead of
+              just 'syntax error'.
             */
+            if ($2 == NULL)
+              my_message(ER_DERIVED_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
+
+            // Legacy compatibility.
+            // if (!$1->is_union())
+            //   $1->remove_parentheses();
+
+            $$= NEW_PTN PT_derived_table($1, $2);
           }
-          opt_query_spec_options select_item_list
-          {
-            $$= NEW_PTN PT_select_part2_derived($2, $3);
-          }
-        ;
 
 opt_outer:
           /* empty */ {}
@@ -11076,11 +11026,6 @@ select_var_ident:
           {
             $$= NEW_PTN PT_select_sp_var($1);
           }
-        ;
-
-opt_into:
-          /* empty */ { $$= NULL; }
-        | into
         ;
 
 into:
@@ -14668,11 +14613,6 @@ union_opt:
         | union_order_or_limit { $$= $1; }
         ;
 
-opt_union_order_or_limit:
-          /* Empty */          { $$= NULL; }
-        | union_order_or_limit { $$= $1; }
-        ;
-
 union_order_or_limit:
           order_or_limit
           {
@@ -14694,51 +14634,15 @@ union_option:
         | ALL       { $$=0; }
         ;
 
-query_specification:
-          SELECT_SYM select_part2_derived table_expression
-          {
-            $$= NEW_PTN PT_query_specification_select($1, $2, $3);
-          }
-        | '(' select_paren_derived ')'
-          opt_union_order_or_limit
-          {
-            $$= NEW_PTN PT_query_specification_parenthesis($2, $4);
-          }
+subquery:
+          '(' query_expression ')' { $$= $2; }
+
+row_subquery:
+          subquery
         ;
 
-query_expression_body:
-          query_specification
-        | query_expression_body UNION_SYM union_option query_specification
-          {
-            $$= NEW_PTN PT_query_expression_body_union(@$, $1, $3, $4);
-          }
-        ;
-
-/* Corresponds to <query expression> in the SQL:2003 standard. */
-subselect:
-          {
-            /*
-              TODO: remove this semantic action (currently this removal
-              adds reduce/reduce conflict)
-            */
-          }
-          query_expression_body
-          {
-            $$= NEW_PTN PT_subselect(@$, $2);
-          }
-        ;
-
-opt_query_spec_options:
-          /* empty */ { $$= 0; }
-        | query_spec_option_list
-        ;
-
-query_spec_option_list:
-          query_spec_option_list query_spec_option
-          {
-            $$= $1 | $2;
-          }
-        | query_spec_option
+table_subquery:
+          subquery
         ;
 
 query_spec_option:

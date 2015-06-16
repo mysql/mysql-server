@@ -31,6 +31,7 @@ class Item_bool_func2;
 class Cached_item;
 class Comp_creator;
 class PT_subselect;
+class PT_query_expression;
 class Item_in_optimizer;
 class Item_func_not_all;
 
@@ -467,6 +468,9 @@ public:
   explicit
   Item_in_subselect(Item * left_expr, SELECT_LEX *select_lex);
   Item_in_subselect(const POS &pos, Item * left_expr, PT_subselect *pt_subselect_arg);
+  Item_in_subselect(const POS &pos, Item *left_expr,
+                    PT_query_expression *qe)
+  {}
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),

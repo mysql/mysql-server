@@ -213,39 +213,41 @@ build_query(const POS &pos,
   if (select_part2 == NULL)
     return NULL;
 
-  PT_query_primary *query_primary=
-    new (thd->mem_root) PT_query_primary(select_part2);
-  if (query_primary == NULL)
-    return NULL;
+  return NULL;
 
-  PT_query_term_primary *query_term_primary=
-    new (thd->mem_root) PT_query_term_primary(query_primary);
-  if (query_primary == NULL)
-    return NULL;
+  // PT_query_primary *query_primary=
+  //   new (thd->mem_root) PT_query_primary(select_part2);
+  // if (query_primary == NULL)
+  //   return NULL;
 
-  PT_query_expression_single *query_expression_single=
-    new (thd->mem_root) PT_query_expression_single(query_term_primary);
-  if (query_expression_single == NULL)
-    return NULL;
+  // PT_query_term_primary *query_term_primary=
+  //   new (thd->mem_root) PT_query_term_primary(query_primary);
+  // if (query_primary == NULL)
+  //   return NULL;
 
-  PT_select *select;
-  select= new (thd->mem_root) PT_select(query_expression_single);
-  if (select == NULL)
-    return NULL;
+  // PT_query_expression_single *query_expression_single=
+  //   new (thd->mem_root) PT_query_expression_single(query_term_primary);
+  // if (query_expression_single == NULL)
+  //   return NULL;
 
-  LEX *lex= thd->lex;
-  SELECT_LEX *current_select= lex->current_select();
-  Parse_context pc(thd, current_select);
-  if (thd->is_error())
-    return NULL;
+  // PT_select *select;
+  // select= new (thd->mem_root) PT_select(query_expression_single);
+  // if (select == NULL)
+  //   return NULL;
 
-  if (select->contextualize(&pc))
-    return NULL;
+  // LEX *lex= thd->lex;
+  // SELECT_LEX *current_select= lex->current_select();
+  // Parse_context pc(thd, current_select);
+  // if (thd->is_error())
+  //   return NULL;
 
-  /* contextualize sets to COM_SELECT */
-  lex->sql_command= command;
+  // if (select->contextualize(&pc))
+  //   return NULL;
 
-  return current_select;
+  // /* contextualize sets to COM_SELECT */
+  // lex->sql_command= command;
+
+  // return current_select;
 }
 
 SELECT_LEX*
