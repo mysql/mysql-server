@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -282,6 +282,10 @@ void MultiNdbWakeupHandler::ignore_wakeups()
     attempts to wake us up until we're ready to be woken.
   */
   minNdbsToWake = ~Uint32(0);
+  /**
+    We also reset woken, which may have been set in notifyWakeup
+  */
+  woken = false;
 }
 
 bool MultiNdbWakeupHandler::is_wakeups_ignored()
