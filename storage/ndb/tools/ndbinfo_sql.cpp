@@ -387,6 +387,10 @@ struct view {
     "param_min, param_max, param_mandatory, param_status "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_params`"
   },
+  { "config_values",
+    "SELECT node_id, config_param, config_value "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_values`"
+  },
 };
 
 size_t num_views = sizeof(views)/sizeof(views[0]);

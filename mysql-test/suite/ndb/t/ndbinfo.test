@@ -738,3 +738,24 @@ UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
 --error ER_OPEN_AS_READONLY
 UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
 
+
+#
+# WL#8703 ndbinfo config parameter tables
+#
+select node_id, param_name, config_param, config_value
+  from ndbinfo.config_values cv, ndbinfo.config_params cp
+  where cv.config_param = cp.param_number and
+        cp.param_name = 'MaxNoOfConcurrentTransactions'
+  order by node_id;
+
+select node_id, param_name, config_value
+  from ndbinfo.config_values cv, ndbinfo.config_params cp
+  where cv.config_param = cp.param_number and
+        cp.param_name = 'NodeId'
+  order by node_id;
+
+select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
+  from ndbinfo.config_values
+  where config_param = 112 /* DataMemory */
+  order by node_id;
+
