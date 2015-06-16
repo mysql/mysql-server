@@ -1502,7 +1502,7 @@ sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
-table-open-cache-instances 1
+table-open-cache-instances 16
 tc-heuristic-recover OFF
 thread-cache-size 9
 thread-handling one-thread-per-connection

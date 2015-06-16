@@ -117,6 +117,7 @@ DROP SERVER s;
 SET DEBUG_SYNC= 'now SIGNAL cont_master';
 connection master;
 ERROR HY000: server name: 's' doesn't exist!
+SET DEBUG_SYNC= 'RESET';
 #
 connection default;
 # Then, we show open tables to verify that tb is left opened,
