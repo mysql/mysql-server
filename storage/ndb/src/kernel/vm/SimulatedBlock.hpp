@@ -384,7 +384,9 @@ struct PackedWordsContainer
    live system.
 */
 
-class SimulatedBlock {
+class SimulatedBlock :
+  public SegmentUtils  /* SimulatedBlock implements the Interface */
+{
   friend class TraceLCP;
   friend class SafeCounter;
   friend class SafeCounterManager;
@@ -1361,6 +1363,18 @@ public:
                               DbinfoScanReq& req,
                               const Ndbinfo::Ratelimit& rl) const;
 
+
+protected:
+  /**
+   * SegmentUtils methods
+   */
+  virtual SectionSegment* getSegmentPtr(Uint32 iVal);
+  virtual bool seizeSegment(Ptr<SectionSegment>& p);
+  virtual void releaseSegment(Uint32 iVal);
+
+  virtual void releaseSegmentList(Uint32 firstSegmentIVal);
+
+  /** End of SegmentUtils methods */
 };
 
 // outside blocks e.g. within a struct
