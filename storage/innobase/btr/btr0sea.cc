@@ -1150,24 +1150,27 @@ btr_search_drop_page_hash_index(buf_block_t* block)
 	ulint*			offsets;
 	btr_search_t*		info;
 
+retry:
 	/* Do a dirty check on block->index, return if the block is
 	not in the adaptive hash index. */
-	if (!block->index || block->index->disable_ahi) {
+	index = block->index;
+
+	if (index == NULL || index->disable_ahi) {
 		return;
 	}
 
-	ut_ad(!rw_lock_own(btr_get_search_latch(block->index), RW_LOCK_S));
-	ut_ad(!rw_lock_own(btr_get_search_latch(block->index), RW_LOCK_X));
+	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
+	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
-retry:
-	index = block->index;
 	rw_lock_s_lock(btr_get_search_latch(index));
 
-	if (UNIV_LIKELY(!index)) {
+	/* Since we cached it some other thread have updated the block->index
+	re-check it before proceeding. */
+	if (index != block->index) {
 
 		rw_lock_s_unlock(btr_get_search_latch(index));
 
-		return;
+		goto retry;
 	}
 
 	ut_ad(block->page.id.space() == index->space);
