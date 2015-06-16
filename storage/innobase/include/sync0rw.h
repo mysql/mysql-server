@@ -680,8 +680,22 @@ struct rw_lock_t
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 #ifdef UNIV_DEBUG
-	rw_lock_t() { }
-	virtual ~rw_lock_t() { }
+/** Value of rw_lock_t::magic_n */
+# define RW_LOCK_MAGIC_N	22643
+
+	/** Constructor */
+	rw_lock_t()
+	{
+		magic_n = RW_LOCK_MAGIC_N;
+	}
+
+	/** Destructor */
+	virtual ~rw_lock_t()
+	{
+		ut_ad(magic_n == RW_LOCK_MAGIC_N);
+		magic_n = 0;
+	}
+
 	virtual std::string to_string() const;
 	virtual std::string locked_from() const;
 
@@ -693,9 +707,6 @@ struct rw_lock_t
 
 	/** Level in the global latching order. */
 	latch_level_t	level;
-
-/** Value of rw_lock_t::magic_n */
-# define RW_LOCK_MAGIC_N	22643
 
 #endif /* UNIV_DEBUG */
 

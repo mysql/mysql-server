@@ -147,7 +147,7 @@ struct i_s_table_cache_t {
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-	rw_lock_t	rw_lock;	/*!< read-write lock protecting
+	rw_lock_t*	rw_lock;	/*!< read-write lock protecting
 					the rest of this structure */
 	uintmax_t	last_read;	/*!< last time the cache was read;
 					measured in microseconds since
@@ -1221,7 +1221,7 @@ can_cache_be_updated(
 	So it is not possible for last_read to be updated while we are
 	reading it. */
 
-	ut_ad(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
 	now = ut_time_us(NULL);
 	if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
@@ -1404,7 +1404,10 @@ trx_i_s_cache_init(
 	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
-	rw_lock_create(trx_i_s_cache_lock_key, &cache->rw_lock,
+	cache->rw_lock = static_cast<rw_lock_t*>(
+		ut_malloc_nokey(sizeof(*cache->rw_lock)));
+
+	rw_lock_create(trx_i_s_cache_lock_key, cache->rw_lock,
 		       SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
@@ -1433,7 +1436,10 @@ trx_i_s_cache_free(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/*!< in, own: cache to free */
 {
-	rw_lock_free(&cache->rw_lock);
+	rw_lock_free(cache->rw_lock);
+	ut_free(cache->rw_lock);
+	cache->rw_lock = NULL;
+
 	mutex_free(&cache->last_read_mutex);
 
 	hash_table_free(cache->locks_hash);
@@ -1450,7 +1456,7 @@ trx_i_s_cache_start_read(
 /*=====================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	rw_lock_s_lock(&cache->rw_lock);
+	rw_lock_s_lock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1462,7 +1468,7 @@ trx_i_s_cache_end_read(
 {
 	uintmax_t	now;
 
-	ut_ad(rw_lock_own(&cache->rw_lock, RW_LOCK_S));
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S));
 
 	/* update cache last read time */
 	now = ut_time_us(NULL);
@@ -1470,7 +1476,7 @@ trx_i_s_cache_end_read(
 	cache->last_read = now;
 	mutex_exit(&cache->last_read_mutex);
 
-	rw_lock_s_unlock(&cache->rw_lock);
+	rw_lock_s_unlock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1480,7 +1486,7 @@ trx_i_s_cache_start_write(
 /*======================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	rw_lock_x_lock(&cache->rw_lock);
+	rw_lock_x_lock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1490,9 +1496,9 @@ trx_i_s_cache_end_write(
 /*====================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ut_ad(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
-	rw_lock_x_unlock(&cache->rw_lock);
+	rw_lock_x_unlock(cache->rw_lock);
 }
 
 /*******************************************************************//**
@@ -1507,8 +1513,8 @@ cache_select_table(
 {
 	i_s_table_cache_t*	table_cache;
 
-	ut_ad(rw_lock_own(&cache->rw_lock, RW_LOCK_S)
-	      || rw_lock_own(&cache->rw_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S)
+	      || rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
 	switch (table) {
 	case I_S_INNODB_TRX:
