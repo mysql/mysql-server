@@ -350,9 +350,14 @@ public:
 		it is some real value in which case we should increment it
 		with 1. We know that m_val will never move from some real value
 		to NOT_FOUND. */
-		int64_t	not_found = NOT_FOUND;
-		if (!tuple->m_val.compare_exchange_strong(not_found, 1)) {
-			const int64_t	prev_val = tuple->m_val.fetch_add(1);
+		int64_t	expected = NOT_FOUND;
+
+		if (!tuple->m_val.compare_exchange_strong(
+				expected, 1, boost::memory_order_relaxed)) {
+
+			const int64_t	prev_val = tuple->m_val.fetch_add(
+				1, boost::memory_order_relaxed);
+
 			ut_a(prev_val + 1 != NOT_FOUND);
 		}
 	}
@@ -378,9 +383,14 @@ public:
 		it is some real value in which case we should decrement it
 		with 1. We know that m_val will never move from some real value
 		to NOT_FOUND. */
-		int64_t	not_found = NOT_FOUND;
-		if (!tuple->m_val.compare_exchange_strong(not_found, -1)) {
-			const int64_t	prev_val = tuple->m_val.fetch_sub(1);
+		int64_t	expected = NOT_FOUND;
+
+		if (!tuple->m_val.compare_exchange_strong(
+				expected, -1, boost::memory_order_relaxed)) {
+
+			const int64_t	prev_val = tuple->m_val.fetch_sub(
+				1, boost::memory_order_relaxed);
+
 			ut_a(prev_val - 1 != NOT_FOUND);
 		}
 	}
