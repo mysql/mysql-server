@@ -7197,6 +7197,170 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+static const Uint32 numTables = 20;
+
+int CMT_createTableHook(Ndb* ndb,
+                        NdbDictionary::Table& table,
+                        int when,
+                        void* arg)
+{
+  if (when == 0)
+  {
+    Uint32 num = ((Uint32*) arg)[0];
+
+    /* Substitute a unique name */
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf),
+                         "%s_%u",
+                         table.getName(),
+                         num);
+    table.setName(buf);
+
+    ndbout << "Creating " << buf << endl;
+  }
+  return 0;
+}
+
+int createManyTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  for (Uint32 tn = 0; tn < numTables; tn++)
+  {
+    Uint32 args[1];
+    args[0] = tn;
+
+    if (NDBT_Tables::createTable(pNdb,
+                                 ctx->getTab()->getName(),
+                                 false,
+                                 false,
+                                 CMT_createTableHook,
+                                 &args) != 0)
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  return NDBT_OK;
+}
+
+int dropManyTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  char buf[100];
+
+  for (Uint32 tn = 0; tn < numTables; tn++)
+  {
+    BaseString::snprintf(buf, sizeof(buf),
+                         "%s_%u",
+                         ctx->getTab()->getName(),
+                         tn);
+    ndbout << "Dropping " << buf << endl;
+    pNdb->getDictionary()->dropTable(buf);
+  }
+
+  return NDBT_OK;
+}
+
+int runGetTabInfo(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* dict = pNdb->getDictionary();
+
+  Uint32 stepNum = step->getStepNo();
+
+  char buf[100];
+  BaseString::snprintf(buf, sizeof(buf),
+                       "%s_%u",
+                       ctx->getTab()->getName(),
+                       stepNum - 1);
+
+  ndbout << "runGetTabInfo() Step num " << stepNum
+         << " accessing table " << buf << endl;
+
+  Uint32 success = 0;
+  Uint32 failure = 0;
+  NDB_TICKS periodStart = NdbTick_getCurrentTicks();
+  Uint32 periodSnap = 0;
+  while (!ctx->isTestStopped())
+  {
+    dict->invalidateTable(buf);
+    const NdbDictionary::Table* pTab = dict->getTable(buf);
+
+    if (pTab == NULL)
+    {
+      ndbout << "Step num " << stepNum
+             << " got error "
+             << dict->getNdbError().code
+             << " "
+             << dict->getNdbError().message
+             << " when getting table " << buf << endl;
+      failure++;
+    }
+    else
+    {
+      success++;
+    }
+
+    Uint64 millisPassed = NdbTick_Elapsed(periodStart, NdbTick_getCurrentTicks()).milliSec();
+
+    if (millisPassed > 10000)
+    {
+      ndbout << "Step num " << stepNum << " completed "
+             << (success - periodSnap) << " lookups "
+             << " in " << millisPassed << " millis.  "
+             << "Rate is " << (success - periodSnap) * 1000 / millisPassed
+             << " lookups/s" << endl;
+      periodSnap = success;
+      periodStart = NdbTick_getCurrentTicks();
+    }
+  }
+
+  ndbout << "Step num " << stepNum
+         << " ok : " << success
+         << " failed : " << failure << endl;
+
+  return NDBT_OK;
+}
+
+
+int runLCPandRestart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  NdbSleep_MilliSleep(6000);
+
+  for (int i=0; i < 4; i++)
+  {
+    ndbout << "Triggering LCP..." << endl;
+    int lcpDumpCode = 7099;
+    restarter.dumpStateAllNodes(&lcpDumpCode, 1);
+
+    /* TODO : Proper 'wait for LCP completion' here */
+    NdbSleep_MilliSleep(20000);
+  }
+
+  int node = restarter.getNode(NdbRestarter::NS_RANDOM);
+  ndbout << "Triggering node restart " << node << endl;
+  restarter.restartOneDbNode2(node, 0);
+
+  ndbout << "Wait for node recovery..." << endl;
+  if (restarter.waitNodesStarted(&node, 1) != 0)
+  {
+    ndbout << "Failed waiting for node to restart" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Done." << endl;
+
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
+
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -7359,6 +7523,14 @@ TESTCASE("RestartMasterNodeError",
   FINALIZER(runScanReadVerify);
   FINALIZER(runClearTable);
 }
+TESTCASE("GetTabInfoOverload",
+         "Test behaviour of GET_TABINFOREQ overload + LCP + restart")
+{
+  INITIALIZER(createManyTables);
+  STEPS(runGetTabInfo, (int) numTables);
+  STEP(runLCPandRestart);
+  FINALIZER(dropManyTables);
+};
 
 TESTCASE("TwoNodeFailure", 
 	 "Test that we can execute the restart TwoNodeFailure\n"\
