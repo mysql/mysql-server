@@ -1115,6 +1115,10 @@ The following options may be given as the first argument:
  --stored-program-cache=# 
  The soft upper limit for number of cached stored routines
  for one connection.
+ --super-read-only   Make all non-temporary tables read-only, with the
+ exception for replication (slave) threads.  Users with
+ the SUPER privilege are affected, unlike read_only. 
+ Setting super_read_only to ON also sets read_only to ON.
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
@@ -1495,6 +1499,7 @@ sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
 sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
+super-read-only FALSE
 symbolic-links FALSE
 sync-binlog 1
 sync-frm TRUE
