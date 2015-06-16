@@ -1559,7 +1559,7 @@ extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the
 /** the dictionary system */
 extern dict_sys_t*	dict_sys;
 /** the data dictionary rw-latch protecting dict_sys */
-extern rw_lock_t	dict_operation_lock;
+extern rw_lock_t*	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_t{

@@ -2132,7 +2132,7 @@ dict_delete_tablespace_and_datafiles(
 {
 	dberr_t		err = DB_SUCCESS;
 
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(srv_sys_tablespaces_open);
 

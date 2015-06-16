@@ -1762,7 +1762,7 @@ row_truncate_table_for_mysql(
 	ut_a(trx->dict_operation_lock_mode == 0);
 	row_mysql_lock_data_dictionary(trx);
 	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	/* Step-4: Stop all the background process associated with table. */
 	dict_stats_wait_bg_to_stop_using_table(table, trx);
