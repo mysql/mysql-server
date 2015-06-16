@@ -45,7 +45,7 @@ DiskIOThreadPool=1
 #
 # (Option is ignored for non-MT'ed NDB)
 #
-ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=0}
+ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1},recv={count=2},send={count=2}
 
 
 [ENV]
