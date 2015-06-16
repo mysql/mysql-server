@@ -645,6 +645,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_readonly(THD *thd, bool err_if_readonly);
+void err_readonly(THD *thd);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 

@@ -490,6 +490,64 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+  @brief Performs standardized check whether to prohibit (TRUE)
+    or allow (FALSE) operations based on read_only and super_read_only
+    state.
+  @param thd              Thread handler
+  @param err_if_readonly  Boolean indicating whether or not
+    to add the error to the thread context if read-only is
+    violated.
+
+  @returns Status code
+    @retval TRUE The operation should be prohibited.
+@   retval FALSE The operation should be allowed.
+*/
+bool check_readonly(THD *thd, bool err_if_readonly)
+{
+  DBUG_ENTER("check_readonly");
+
+  /* read_only=OFF, do not prohibit operation: */
+  if (!opt_readonly)
+    DBUG_RETURN(FALSE);
+
+  /* thread is replication slave, do not prohibit operation: */
+  if (thd->slave_thread)
+    DBUG_RETURN(FALSE);
+
+  bool is_super = thd->security_context()->check_access(SUPER_ACL);
+
+  /* super_read_only=OFF and user has SUPER privilege,
+  do not prohibit operation:
+  */
+  if (is_super && !opt_super_readonly)
+
+    DBUG_RETURN(FALSE);
+
+  /* throw error in standardized way if requested: */
+  if (err_if_readonly)
+    err_readonly(thd);
+
+
+  /* in all other cases, prohibit operation: */
+  DBUG_RETURN(TRUE);
+}
+
+/**
+  @brief Generates appropriate error messages for read-only state
+    depending on whether user has SUPER privilege or not.
+
+  @param thd              Thread handler
+
+*/
+void err_readonly(THD *thd)
+{
+  my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
+    thd->security_context()->check_access(SUPER_ACL) ?
+    "--super-read-only" : "--read-only");
+
+}
+
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -701,6 +759,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
     return FALSE;
   return check_routine_level_acl(thd, db, name, is_proc);
 }
+
 
 
 /**

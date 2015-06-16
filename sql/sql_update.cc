@@ -2904,11 +2904,10 @@ bool Sql_cmd_update::execute_multi_table_update(THD *thd)
 #endif /* HAVE_REPLICATION */
     if (res)
       return res;
-    if (opt_readonly &&
-        !(thd->security_context()->check_access(SUPER_ACL)) &&
+    if (check_readonly(thd, false) &&
         some_non_temp_table_to_be_updated(thd, all_tables))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      err_readonly(thd);
       return res;
     }
 #ifdef HAVE_REPLICATION

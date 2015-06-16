@@ -118,13 +118,8 @@ bool trans_begin(THD *thd, uint flags)
       Implicitly starting a RW transaction is allowed for backward
       compatibility.
     */
-    const bool user_is_super=
-      MY_TEST(thd->security_context()->check_access(SUPER_ACL));
-    if (opt_readonly && !user_is_super)
-    {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+    if (check_readonly(thd, true))
       DBUG_RETURN(true);
-    }
     thd->tx_read_only= false;
   }
 
