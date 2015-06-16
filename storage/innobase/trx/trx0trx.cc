@@ -680,7 +680,6 @@ trx_disconnect_from_mysql(
 		ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 
 		trx->is_recovered = true;
-		trx_sys->n_prepared_recovered_trx++;
 	        trx->mysql_thd = NULL;
 		/* todo/fixme: suggest to do it at innodb prepare */
 		trx->will_lock = 0;
@@ -880,7 +879,6 @@ trx_resurrect_insert(
 
 				trx->state = TRX_STATE_PREPARED;
 				++trx_sys->n_prepared_trx;
-				++trx_sys->n_prepared_recovered_trx;
 			} else {
 
 				ib::info() << "Since innodb_force_recovery"
@@ -953,7 +951,6 @@ trx_resurrect_update_in_prepared_state(
 
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 				++trx_sys->n_prepared_trx;
-				++trx_sys->n_prepared_recovered_trx;
 			} else {
 				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 			}

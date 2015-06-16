@@ -466,23 +466,23 @@ trx_sys_get_max_trx_id(void)
 #endif /* UNIV_WORD_SIZE < DATA_TRX_ID_LEN */
 }
 
-/*****************************************************************//**
-Get the number of transaction in the system, independent of their state.
-@return count of transactions in trx_sys_t::rw_trx_list */
+/** Determine if there are incomplete transactions in the system.
+@return whether incomplete transactions need rollback */
 UNIV_INLINE
-ulint
-trx_sys_get_n_rw_trx(void)
-/*======================*/
+bool
+trx_sys_need_rollback()
 {
 	ulint	n_trx;
 
 	trx_sys_mutex_enter();
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+	ut_ad(n_trx >= trx_sys->n_prepared_trx);
+	n_trx -= trx_sys->n_prepared_trx;
 
 	trx_sys_mutex_exit();
 
-	return(n_trx);
+	return(n_trx > 0);
 }
 
 /**
