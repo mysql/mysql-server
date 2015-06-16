@@ -246,7 +246,7 @@ yield(struct thr_wait* wait, const Uint32 nsec,
       bool (*check_callback)(T*), T* check_arg)
 {
   struct timespec end;
-  NdbCondition_ComputeAbsTime(&end, nsec/1000000);
+  NdbCondition_ComputeAbsTime(&end, (nsec >= 1000000) ? nsec/1000000 : 1);
   NdbMutex_Lock(wait->m_mutex);
 
   Uint32 waits = 0;
@@ -552,8 +552,8 @@ public:
   void set_pool(thr_safe_pool<T> * pool) { m_global_pool = pool; }
 
 private:
-  unsigned m_max_free;
-  unsigned m_alloc_size;
+  const unsigned m_max_free;
+  const unsigned m_alloc_size;
   unsigned m_free;
   T *m_freelist;
   thr_safe_pool<T> *m_global_pool;
@@ -1187,8 +1187,8 @@ struct thr_repository
      *
      * If two threads need to send to the same node at the same time, the
      * second thread, rather than wait for the first to finish, will just
-     * set this flag, and the first thread will do an extra send when done
-     * with the first.
+     * set this flag. The first thread will will then take responsibility 
+     * for sending to this node when done with its own sending.
      */
     Uint32 m_force_send;   //Check after release of m_send_lock
 
@@ -1197,6 +1197,10 @@ struct thr_repository
      */
     Uint32 m_send_thread;  //Protected by m_send_lock
 
+    /**
+     * Bytes sent in last performSend().
+     */
+    Uint32 m_bytes_sent;
 
     /* read index(es) in thr_send_queue */
     Uint32 m_read_index[MAX_BLOCK_THREADS];
@@ -3282,6 +3286,7 @@ fill_iovec:
   Uint32 tot = 0;
   Uint32 pos = 0;
   thr_send_page * p = sb->m_sending.m_first_page;
+  sb->m_bytes_sent = 0;
 
   do {
     dst[pos].iov_len = p->m_bytes;
@@ -3346,6 +3351,8 @@ bytes_sent(thread_local_pool<thr_send_page>* pool,
 {
   Uint64 node_total_send_buffer_size = sb->m_node_total_send_buffer_size;
   assert(bytes);
+
+  sb->m_bytes_sent = bytes;
 
   Uint32 remain = bytes;
   thr_send_page * prev = NULL;
@@ -3626,7 +3633,6 @@ mt_send_handle::forceSend(NodeId nodeId)
   struct thr_data *selfptr = m_selfptr;
   struct thr_repository::send_buffer * sb = rep->m_send_buffers + nodeId;
 
-  do
   {
     /**
      * NOTE: we don't need a memory barrier after clearing
@@ -3652,7 +3658,11 @@ mt_send_handle::forceSend(NodeId nodeId)
      *   CPU can reorder the load to before the clear of the lock
      */
     mb();
-  } while (sb->m_force_send);
+    if (unlikely(sb->m_force_send))
+    {
+      register_pending_send(selfptr, nodeId);
+    } 
+  }
 
   return true;
 }
@@ -3667,13 +3677,8 @@ try_send(thr_data * selfptr, Uint32 node)
   struct thr_repository *rep = g_thr_repository;
   struct thr_repository::send_buffer * sb = rep->m_send_buffers + node;
 
-  do
+  if (trylock(&sb->m_send_lock) == 0)
   {
-    if (trylock(&sb->m_send_lock) != 0)
-    {
-      return;
-    }
-
     /**
      * Now clear the flag, and start sending all data available to this node.
      *
@@ -3704,7 +3709,11 @@ try_send(thr_data * selfptr, Uint32 node)
      *   CPU can reorder the load to before the clear of the lock
      */
     mb();
-  } while (sb->m_force_send);
+    if (unlikely(sb->m_force_send))
+    {
+      register_pending_send(selfptr, node);
+    } 
+  }
 }
 
 /**
@@ -3735,57 +3744,72 @@ do_flush(struct thr_data* selfptr)
  * If MUST_SEND is false, will only try to lock the send lock, but if it would
  * block, that node is skipped, to be tried again next time round.
  *
- * If MUST_SEND is true, will always take the lock, waiting on it if needed.
+ * If MUST_SEND is true, we still only try to lock, but if it would block,
+ * we will force the thread holding the lock, to do the sending on our behalf.
  *
  * The list of pending nodes to send to is thread-local, but the per-node send
  * buffer is shared by all threads. Thus we might skip a node for which
  * another thread has pending send data, and we might send pending data also
  * for another thread without clearing the node from the pending list of that
  * other thread (but we will never loose signals due to this).
+ *
+ * Return number of nodes which still has pending data to be sent.
+ * These will be retried again in the next round. 'Pending' is 
+ * returned as a negative number if nothing was sent in this round.
+ *
+ * (Likely due to receivers consuming too slow, and receive and send buffers
+ *  already being filled up)
  */
 static
-Uint32
+Int32
 do_send(struct thr_data* selfptr, bool must_send)
 {
-  Uint32 i;
-  NDB_TICKS now;
   Uint32 count = selfptr->m_pending_send_count;
   Uint8 *nodes = selfptr->m_pending_send_nodes;
-  struct thr_repository* rep = g_thr_repository;
 
   if (count == 0)
   {
     return 0; // send-buffers empty
   }
 
-  if (g_send_threads)
-  {
-    now = NdbTick_getCurrentTicks();
-  }
   /* Clear the pending list. */
   selfptr->m_pending_send_mask.clear();
   selfptr->m_pending_send_count = 0;
 
-  for (i = 0; i < count; i++)
+  if (g_send_threads)
+  {
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+
+    /**
+     * We're using send threads, in this case we simply alert any send
+     * thread to take over the actual sending of the signals. In this case
+     * we will never have any failures. So we simply need to flush buffers
+     * leave over to the send thread
+     */
+    for (Uint32 i = 0; i < count; i++)
+    {
+      Uint32 node = nodes[i];
+      selfptr->m_watchdog_counter = 6;
+
+      flush_send_buffer(selfptr, node);
+      g_send_threads->alert_send_thread(node, now);
+    }
+    return 0;
+  }
+
+  /**
+   * We're not using send threads.
+   */
+  Uint32 made_progress = 0;
+  struct thr_repository* rep = g_thr_repository;
+
+  for (Uint32 i = 0; i < count; i++)
   {
     Uint32 node = nodes[i];
-    selfptr->m_watchdog_counter = 6;
-
-    flush_send_buffer(selfptr, node);
-
-    if (g_send_threads)
-    {
-      /**
-       * We're using send threads, in this case we simply alert any send
-       * thread to take over the actual sending of the signals. In this case
-       * we will never have any failures. So we simply need to flush buffers
-       * leave over to the send thread
-       */
-      g_send_threads->alert_send_thread(node, now);
-      continue;
-    }
-    /* We're not using send threads */
     thr_repository::send_buffer * sb = rep->m_send_buffers + node;
+
+    selfptr->m_watchdog_counter = 6;
+    flush_send_buffer(selfptr, node);
 
     /**
      * If we must send now, set the force_send flag.
@@ -3802,27 +3826,25 @@ do_send(struct thr_data* selfptr, bool must_send)
       sb->m_force_send = 1;
     }
 
-    do
+    if (trylock(&sb->m_send_lock) != 0)
     {
-      if (trylock(&sb->m_send_lock) != 0)
+      if (!must_send)
       {
-        if (!must_send)
-        {
-          /**
-           * Not doing this node now, re-add to pending list.
-           *
-           * As we only add from the start of an empty list, we are safe from
-           * overwriting the list while we are iterating over it.
-           */
-          register_pending_send(selfptr, node);
-        }
-        else
-        {
-          /* Other thread will send for us as we set m_force_send. */
-        }
-        break;
+        /**
+         * Not doing this node now, re-add to pending list.
+         *
+         * As we only add from the start of an empty list, we are safe from
+         * overwriting the list while we are iterating over it.
+         */
+        register_pending_send(selfptr, node);
       }
-
+      else
+      {
+        /* Other thread will send for us as we set m_force_send. */
+      }
+    }
+    else  //Got send_lock
+    {
       /**
        * Now clear the flag, and start sending all data available to this node.
        *
@@ -3842,33 +3864,36 @@ do_send(struct thr_data* selfptr, bool must_send)
        */
       sb->m_send_thread = selfptr->m_thr_no;
       const bool more = globalTransporterRegistry.performSend(node);
+      made_progress += sb->m_bytes_sent;
       sb->m_send_thread = NO_SEND_THREAD;
       unlock(&sb->m_send_lock);
-      if (more)
+
+      if (more)   //Didn't complete all my send work 
       {
         register_pending_send(selfptr, node);
       }
-
-      /**
-       * We need a memory barrier here to prevent race between clearing lock
-       *   and reading of m_force_send.
-       *   CPU can reorder the load to before the clear of the lock
-       */
-      mb();
-      if (sb->m_force_send)
+      else
       {
         /**
-         * release buffers prior to looping on sb->m_force_send
+         * We need a memory barrier here to prevent race between clearing lock
+         *   and reading of m_force_send.
+         *   CPU can reorder the load to before the clear of the lock
          */
-        selfptr->m_send_buffer_pool.release_global(rep->m_mm,
-                                                   RG_TRANSPORTER_BUFFERS);
+        mb();
+        if (sb->m_force_send) //Other thread forced us to do more send
+        {
+          made_progress++;    //Avoid false 'no progres' handling
+          register_pending_send(selfptr, node);
+        }
       }
-    } while (sb->m_force_send);
-  }
+    }
+  } //for all nodes
 
   selfptr->m_send_buffer_pool.release_global(rep->m_mm, RG_TRANSPORTER_BUFFERS);
 
-  return selfptr->m_pending_send_count;
+  return (made_progress)               // Had some progress?
+    ?  selfptr->m_pending_send_count   // More do_send is required
+    : -selfptr->m_pending_send_count;  // All busy, or didn't find any work (-> -0)
 }
 
 /**
@@ -4759,7 +4784,7 @@ mt_receiver_thread_main(void *thr_arg)
       flush_jbb_write_state(selfptr);
     }
 
-    do_send(selfptr, TRUE);
+    const Int32 pending_send = do_send(selfptr, TRUE);
 
     watchDogCounter = 7;
 
@@ -4774,17 +4799,19 @@ mt_receiver_thread_main(void *thr_arg)
     /**
      * Only allow to sleep in pollReceive when:
      * 1) We are not lagging behind in handling timer events.
-     * 2) There are no 'min_spin' configured or min_spin has elapsed
+     * 2) No more pending sends, or no send progress.
+     * 3) There are no 'min_spin' configured or min_spin has elapsed
      */
     Uint32 delay = 0;
 
     if (lagging_timers == 0 &&       // 1)
-        (min_spin_timer == 0 ||      // 2)
+        pending_send   <= 0 &&       // 2)
+        (min_spin_timer == 0 ||      // 3)
          check_yield(now,
                      &start_spin_ticks,
                      min_spin_timer)))
     {
-      delay = 1;
+      delay = 1; // 1ms
     }
 
     has_received = false;
@@ -4942,7 +4969,7 @@ has_full_in_queues(struct thr_data* selfptr)
  */
 static
 bool
-update_sched_config(struct thr_data* selfptr, Uint32 pending_send)
+update_sched_config(struct thr_data* selfptr, Int32 pending_send)
 {
   Uint32 sleeploop = 0;
   Uint32 thr_no = selfptr->m_thr_no;
@@ -5024,7 +5051,6 @@ mt_job_thread_main(void *thr_arg)
 {
   unsigned char signal_buf[SIGBUF_SIZE];
   Signal *signal;
-  const Uint32 nowait = 10 * 1000000;    /* 10 ms */
 
   struct thr_data* selfptr = (struct thr_data *)thr_arg;
   init_thread(selfptr);
@@ -5036,7 +5062,7 @@ mt_job_thread_main(void *thr_arg)
   /* Avoid false watchdog alarms caused by race condition. */
   watchDogCounter = 1;
 
-  Uint32 pending_send = 0;
+  Int32 pending_send = 0;
   Uint32 send_sum = 0;
   Uint32 loops = 0;
   Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
@@ -5108,22 +5134,36 @@ mt_job_thread_main(void *thr_arg)
     else if (lagging_timers == 0)
     {
       /* No signals processed, prepare to sleep to wait for more */
-      if ((pending_send + send_sum) > 0)
+      if (send_sum > 0 || pending_send != 0)
       {
         /* About to sleep, _must_ send now. */
         pending_send = do_send(selfptr, TRUE);
         send_sum = 0;
       }
 
-      if (pending_send == 0)
+      /**
+       * No more incoming signals to process yet, and we have 
+       * either completed all pending sends, or had no progress
+       * due to full transporters in last do_send(). Wait for
+       * more signals, use a shorter timeout if pending_send.
+       */
+      if (pending_send <= 0) /* Nothing pending, or no progress made */
       {
         if (min_spin_timer == 0 ||
             check_yield(now,
                         &start_spin_ticks,
                         min_spin_timer))
         {
+          /**
+           * Sleep, either a short nap if send failed due to send overload,
+           * or a longer sleep if there are no more work waiting.
+           */
+          const Uint32 maxwait = (pending_send)
+                                    ?  1 * 1000000   // Retry busy send after 1ms
+                                    : 10 * 1000000;  // No more work -> 10ms 
+
           bool waited = yield(&selfptr->m_waiter,
-                              nowait,
+                              maxwait,
                               check_queues_empty,
                               selfptr);
           if (waited)
@@ -5147,7 +5187,7 @@ mt_job_thread_main(void *thr_arg)
      */
     if (sum >= selfptr->m_max_exec_signals)
     {
-      if (update_sched_config(selfptr, pending_send + send_sum))
+      if (update_sched_config(selfptr, send_sum + abs(pending_send)))
       {
         /* Update current time after sleeping */
         now = NdbTick_getCurrentTicks();
@@ -5601,6 +5641,7 @@ send_buffer_init(Uint32 node, thr_repository::send_buffer * sb)
   BaseString::snprintf(buf, sizeof(buf), "send_buffer lock node %d", node);
   register_lock(&sb->m_buffer_lock, buf);
   sb->m_force_send = 0;
+  sb->m_bytes_sent = 0;
   sb->m_send_thread = NO_SEND_THREAD;
   bzero(&sb->m_buffer, sizeof(sb->m_buffer));
   bzero(&sb->m_sending, sizeof(sb->m_sending));
