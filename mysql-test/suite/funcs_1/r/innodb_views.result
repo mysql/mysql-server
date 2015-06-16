@@ -22203,7 +22203,7 @@ SELECT * from t1;
 f1	f2	f3	f4
 DELETE FROM t1;
 INSERT INTO v1 SET f1 = 1, my_greeting = 'HELLO';
-ERROR HY000: The target table v1 of the INSERT is not insertable-into
+ERROR HY000: Column 'my_greeting' is not updatable
 SELECT * from t1;
 f1	f2	f3	f4
 DELETE FROM t1;

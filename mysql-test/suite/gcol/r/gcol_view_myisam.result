@@ -158,7 +158,7 @@ a	e	f	g
 select * from t1;
 a	b	c	d
 insert into v1 (a,e) values (60,15);
-ERROR HY000: The target table v1 of the INSERT is not insertable-into
+ERROR HY000: Column 'e' is not updatable
 drop table t1;
 drop view v1;
 create table t1 (a int, 

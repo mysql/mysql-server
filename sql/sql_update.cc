@@ -142,13 +142,6 @@ static bool check_fields(THD *thd, List<Item> &items,
 
   while ((item= it++))
   {
-    Item_field *const base_table_field= item->field_for_view_update();
-    if (!base_table_field)
-    {
-      // item has name, because it comes from VIEW SELECT list
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
-      return true;
-    }
     // Save original item for later privilege checking
     if (original_columns && original_columns->push_back(item))
       return true;                   /* purecov: inspected */
@@ -157,6 +150,9 @@ static bool check_fields(THD *thd, List<Item> &items,
       we make temporary copy of Item_field, to avoid influence of changing
       result_field on Item_ref which refer on this field
     */
+    Item_field *const base_table_field= item->field_for_view_update();
+    DBUG_ASSERT(base_table_field != NULL);
+
     Item_field *const cloned_field= new Item_field(thd, base_table_field);
     if (!cloned_field)
       return true;                  /* purecov: inspected */
@@ -1144,7 +1140,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->set_want_privilege(UPDATE_ACL);
 #endif
-  if (setup_fields(thd, Ref_ptr_array(), select->item_list, UPDATE_ACL, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), select->item_list, UPDATE_ACL, NULL,
+                   false, true))
     DBUG_RETURN(true);                     /* purecov: inspected */
 
   if (check_fields(thd, select->item_list, NULL))
@@ -1160,8 +1157,8 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
 
   table_list->set_want_privilege(SELECT_ACL);
 
-  if (setup_fields(thd, Ref_ptr_array(), update_value_list,
-                   SELECT_ACL, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL, NULL,
+                   false, false))
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   thd->mark_used_columns= mark_used_columns_saved;
@@ -1454,10 +1451,15 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
     DBUG_RETURN(true);
 
   /*
-    Proper table privileges have not been determined yet, so do not perform
-    column checking yet.
+    In multi-table UPDATE, tables to be updated are determined based on
+    which fields are updated. Hence, tables that need to be checked
+    for update have not been established yet, and thus 0 is supplied
+    for want_privilege argument below.
+    Later, the combined used_tables information for these columns are used
+    to determine updatable tables, those tables are prepared for update,
+    and finally the columns can be checked for proper update privileges.
   */
-  if (setup_fields(thd, Ref_ptr_array(), *fields, 0, 0, 0))
+  if (setup_fields(thd, Ref_ptr_array(), *fields, 0, NULL, false, true))
     DBUG_RETURN(true);
 
   List<Item> original_update_fields;
@@ -1555,7 +1557,7 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
   if (thd->stmt_arena->is_stmt_prepare())
   {
     if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL,
-                     NULL, false))
+                     NULL, false, false))
       DBUG_RETURN(true);
   }
 
@@ -1734,8 +1736,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     reference tables
   */
 
-  int error= setup_fields(thd, Ref_ptr_array(),
-                          *values, SELECT_ACL, 0, 0);
+  int error= setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+                          false, false);
 
   for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
   {
