@@ -32,6 +32,14 @@ Created Mar 16, 2015 Vasil Dimov
 
 #include <boost/atomic.hpp>
 
+/* http://www.boost.org/doc/libs/1_58_0/doc/html/atomic/interface.html#atomic.interface.feature_macros */
+#if BOOST_ATOMIC_INT64_LOCK_FREE != 2
+#error BOOST_ATOMIC_INT64_LOCK_FREE is not 2
+#endif
+#if BOOST_ATOMIC_ADDRESS_LOCK_FREE != 2
+#error BOOST_ATOMIC_ADDRESS_LOCK_FREE is not 2
+#endif
+
 #include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
 #include "ut0rnd.h" /* ut_fold_ull() */
 
