@@ -879,7 +879,24 @@ FROM t1 WHERE MATCH(title, text) AGAINST ("data*" IN BOOLEAN MODE) * 100;
 # Run query returning null record
 SELECT * FROM t1 WHERE title IS NULL AND text IS NULL;
 
-DROP TABLE t1;
+# More testing of index only access by non-FTS index
+
+CREATE TABLE t2 SELECT FTS_DOC_ID as doc_id, title, text FROM t1;
+ALTER TABLE t2 ADD PRIMARY KEY (doc_id);
+ALTER TABLE t2 ADD FULLTEXT KEY ft_idx (title,text);
+
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+
+# No index access
+EXPLAIN SELECT DOC_ID FROM t2 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) * 100;
+SELECT DOC_ID FROM t2 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) * 100;
+# Index access
+EXPLAIN SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) * 100;
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) * 100;
+
+DROP TABLE t1, t2;
 
 --echo "Check hints with uft8 charset for 2 cases"
 set names utf8;
@@ -992,3 +1009,18 @@ SELECT NOT EXISTS (SELECT MATCH(b) AGAINST ('1' in BOOLEAN MODE) FROM t1) FROM t
 DROP TABLE t1, t2;
 
 SET sql_mode=default;
+
+--echo #
+--echo # Bug#21140039 ASSERTION FAILED: !FIRST_QEP_TAB->TABLE()->NO_KEYREAD MATCH AGAINST.....
+--echo #
+
+CREATE TABLE t1
+(
+ a INT,
+ b INT,
+ c CHAR(1) CHARSET latin1,
+ PRIMARY KEY (b,a),
+ FULLTEXT KEY (c)
+) ENGINE=INNODB;
+SELECT "a" NOT IN(SELECT b FROM t1 WHERE MATCH(c) AGAINST ('a' IN BOOLEAN MODE));
+DROP TABLE t1;
