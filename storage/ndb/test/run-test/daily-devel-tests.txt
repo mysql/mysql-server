@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -314,4 +314,8 @@ args: -n Bug34702 T1
 max-time: 3600
 cmd: testNodeRestart
 args: -n RestartNodeDuringLCP T6
+
+max-time : 600
+cmd: testNodeRestart
+args: -n GetTabInfoOverload T1
 

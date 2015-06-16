@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -619,7 +619,12 @@ static const char* const jamFileNames[] =
    "ErrorHandlingMacros.hpp",            // 489
    "ErrorReporter.cpp",                  // 490
    "angel.hpp",                          // 491
-   "SimBlockList.cpp"                    // 492
+   "SimBlockList.cpp",                   // 492
+   "CopyTab.hpp",                        // 493
+   "IsolateOrd.hpp",                     // 494
+   "IsolateOrd.cpp",                     // 495
+   "SegmentList.hpp",                    // 496
+   "SegmentList.cpp"                     // 497
    };
 
 bool 

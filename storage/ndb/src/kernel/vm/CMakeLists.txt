@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     Configuration.cpp
     WatchDog.cpp
     SectionReader.cpp
+    SegmentList.cpp
     Mutex.cpp
     SafeCounter.cpp
     Rope.cpp
@@ -70,7 +71,7 @@ SET_TARGET_PROPERTIES(mt_thr_config-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
 TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 
-FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel)
+FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel SegmentList)
   ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
   SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
   TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror

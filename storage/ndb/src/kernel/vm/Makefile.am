@@ -1,4 +1,4 @@
-# Copyright (c) 2004-2006 MySQL AB
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 
 # This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@ libkernel_a_SOURCES = VMSignal.cpp \
                       Configuration.cpp \
                       WatchDog.cpp \
                       SectionReader.cpp \
+                      SegmentList.cpp \
                       Mutex.cpp \
                       SafeCounter.cpp \
                       Rope.cpp \
@@ -109,6 +110,11 @@ CountingPool_t_SOURCES = CountingPool.cpp
 CountingPool_t_LDFLAGS = @ndb_bin_am_ldflags@
 CountingPool_t_LDADD = $(test_ldadd)
 
+SegmentList_t_CXXFLAGS = -DTAP_TEST
+SegmentList_t_SOURCES = SegmentList.cpp
+SegmentList_t_LDFLAGS =  @ndb_bin_am_ldflags@
+SegmentList_t_LDADD = $(test_ldadd)
+
 DynArr256_t_CXXFLAGS = -DTAP_TEST
 DynArr256_t_SOURCES = DynArr256.cpp
 DynArr256_t_LDFLAGS = @ndb_bin_am_ldflags@
@@ -154,7 +160,8 @@ mt_thr_config_t_LDADD = \
 	$(top_builddir)/storage/ndb/src/common/util/libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
-noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t IntrusiveList-t LHLevel-t
+noinst_PROGRAMS = mt_thr_config-t CountingPool-t SegmentList-t DynArr256-t IntrusiveList-t LHLevel-t
+#noinst_PROGRAMS = mt_thr_config-t CountingPool-t DynArr256-t IntrusiveList-t LHLevel-t
 
 mt_send_t_CXXFLAGS = -DTAP_TEST
 mt_send_t_SOURCES = mt-send-t.cpp
