@@ -5649,6 +5649,14 @@ runTestScanFragWatchdog(NDBT_Context* ctx, NDBT_Step* step)
       otherNode = restarter.getNode(NdbRestarter::NS_RANDOM);
     } while (otherNode == victim);
 
+    // Setting 'RestartOnErrorInsert = 2' will auto restart 'victim'
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 2};
+    if (restarter.dumpStateOneNode(victim, val2, 2) != 0)
+    {
+      g_err << "Failed setting dump state 'RestartOnErrorInsert'" << endl;
+      break;
+    }
+   
     if (restarter.insertErrorInNode(victim, 10039) != 0) /* Cause LCP/backup frag scan to halt */
     {
       g_err << "Error insert failed." << endl;
@@ -5998,6 +6006,14 @@ runTestLcpFsErr(NDBT_Context* ctx, NDBT_Step* step)
       otherNode = restarter.getNode(NdbRestarter::NS_RANDOM);
     } while (otherNode == victim);
 
+    // Setting 'RestartOnErrorInsert = 2' will auto restart 'victim'
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 2};
+    if (restarter.dumpStateOneNode(victim, val2, 2) != 0)
+    {
+      g_err << "Failed setting dump state 'RestartOnErrorInsert'" << endl;
+      break;
+    }
+   
     bool failed = false;
     Uint32 lcpsRequired = 2;
     switch (scenario)
