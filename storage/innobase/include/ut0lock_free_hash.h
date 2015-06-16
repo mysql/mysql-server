@@ -115,6 +115,8 @@ atomically set (CAS) when a next element is allocated. */
 template <typename T>
 class ut_lock_free_list_node_t {
 public:
+	typedef ut_lock_free_list_node_t<T>*	next_t;
+
 	/** Constructor.
 	@param[in]	n_elements	number of elements to create */
 	explicit
@@ -139,29 +141,32 @@ public:
 	attempt this at the same time and only one will succeed. When this
 	method returns, the caller can be sure that the job is done (either
 	by this or another thread). */
-	void
+	next_t
 	grow()
 	{
-		if (m_next.load(boost::memory_order_relaxed) != NULL) {
-			/* Somebody already appended. */
-			return;
-		}
-
-		const size_t	n_next_elements = m_n_base_elements * 2;
-
-		next_t		next = UT_NEW(
-			ut_lock_free_list_node_t<T>(n_next_elements),
+		next_t	new_arr = UT_NEW(
+			ut_lock_free_list_node_t<T>(m_n_base_elements * 2),
 			mem_key_buf_stat_per_index_t);
-
-		next_t		expected = NULL;
 
 		/* Publish the allocated entry. If somebody did this in the
 		meantime then just discard the allocated entry and do
 		nothing. */
-		if (!m_next.compare_exchange_strong(expected, next)) {
+		next_t	expected = NULL;
+		if (!m_next.compare_exchange_strong(
+				expected,
+				new_arr,
+				boost::memory_order_relaxed)) {
 			/* Somebody just did that. */
-			UT_DELETE(next);
+			UT_DELETE(new_arr);
+
+			/* 'expected' has the previous value which
+			must be != NULL because the CAS failed. */
+			ut_ad(expected != NULL);
+
+			return(expected);
 		}
+
+		return(new_arr);
 	}
 
 	/** Base array. */
@@ -171,7 +176,6 @@ public:
 	size_t					m_n_base_elements;
 
 	/** Pointer to the next node if any or NULL. */
-	typedef ut_lock_free_list_node_t<T>*	next_t;
 	boost::atomic<next_t>			m_next;
 };
 
@@ -612,14 +616,10 @@ private:
 	insert_or_get_position(
 		uint64_t	key)
 	{
-		for (ut_lock_free_list_node_t<key_val_t>* cur_arr = m_data;
-		     ;
-		     cur_arr = cur_arr->m_next.load(
-			     boost::memory_order_relaxed)) {
+		ut_lock_free_list_node_t<key_val_t>*	cur_arr = m_data;
 
-			key_val_t*	t;
-
-			t = insert_or_get_position_in_array(
+		for (;;) {
+			key_val_t*	t = insert_or_get_position_in_array(
 				cur_arr->m_base,
 				cur_arr->m_n_base_elements,
 				key);
@@ -628,10 +628,14 @@ private:
 				return(t);
 			}
 
-			if (cur_arr->m_next.load(boost::memory_order_relaxed)
-			    == NULL) {
+			ut_lock_free_list_node_t<key_val_t>*	next;
 
-				cur_arr->grow();
+			next = cur_arr->m_next.load(boost::memory_order_relaxed);
+
+			if (next == NULL) {
+				cur_arr = cur_arr->grow();
+			} else {
+				cur_arr = next;
 			}
 		}
 	}
