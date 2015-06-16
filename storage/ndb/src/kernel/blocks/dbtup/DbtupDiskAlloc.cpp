@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1959,6 +1959,24 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
 	ndbassert(old.p->m_free_matrix_pos == RNIL);
 	Uint32 pos= alloc.calc_extent_pos(old.p);
 	Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
+#if defined VM_TRACE || defined ERROR_INSERT
+        ndbrequire(!"Bug17665497: debugging suspect code path.");
+        /**
+         * old is already in list with head alloc.m_extent_list.
+         * Before adding it to new_list it should be removed from
+         * previous list.  Otherwise that list will become corrupt
+         * and Dbtup::disk_page_get_allocated() will eventually
+         * calculate wrong free value.  Possibly it could also end
+         * up with derefering a released Extent_info.
+         *
+         * Something like below should be added, but since list is
+         * single linked remove is harder, might need to make list
+         * double linked.
+         *
+         *   Local_fragment_extent_list list1(c_extent_pool, alloc.m_extent_list);
+         *   list1.remove(old);
+         */
+#endif
         new_list.addFirst(old);
 	old.p->m_free_matrix_pos= pos;
       }
@@ -2023,6 +2041,9 @@ Dbtup::disk_page_get_allocated(const Tablerec* tabPtrP,
       Ptr<Extent_info> extentPtr;
       for (list.first(extentPtr); !extentPtr.isNull(); list.next(extentPtr))
       {
+#if defined VM_TRACE || defined ERROR_INSERT
+        ndbrequire(extentPtr.p->m_free_matrix_pos == RNIL);
+#endif
         cnt++;
         free += extentPtr.p->m_free_space;
       }
