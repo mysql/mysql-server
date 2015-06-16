@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ MultiNdbWakeupHandler::MultiNdbWakeupHandler(Ndb* _wakeNdb)
   ignore_wakeups();
   bool rc = wakeNdb->theImpl->m_transporter_facade->registerForWakeup(wakeNdb->theImpl);
   assert(rc);
+  (void) rc;  // prove that rc is used even if asserts are disabled
   wakeNdb->theImpl->wakeHandler = this;
 }
 
@@ -69,6 +70,7 @@ MultiNdbWakeupHandler::~MultiNdbWakeupHandler()
   bool rc = wakeNdb->theImpl->m_transporter_facade->
     unregisterForWakeup(wakeNdb->theImpl);
   assert(rc);
+  (void) rc;  // prove that rc is used even if asserts are disabled
 }
 
 
@@ -276,6 +278,10 @@ void MultiNdbWakeupHandler::ignore_wakeups()
     attempts to wake us up until we're ready to be woken.
   */
   minNdbsToWake = ~Uint32(0);
+  /**
+    We also reset woken, which may have been set in notifyWakeup
+  */
+  woken = false;
 }
 
 bool MultiNdbWakeupHandler::is_wakeups_ignored()
