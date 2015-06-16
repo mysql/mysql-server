@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
