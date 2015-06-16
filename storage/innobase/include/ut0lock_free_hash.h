@@ -95,8 +95,8 @@ public:
 	inc(
 		uint64_t	key) = 0;
 
-	/** Decrement the value of a given key with 1 or do nothing if a
-	tuple with the given key is not found.
+	/** Decrement the value of a given key with 1 or insert a new tuple
+	(key, -1).
 	@param[in]	key	key whose value to decrement */
 	virtual
 	void
