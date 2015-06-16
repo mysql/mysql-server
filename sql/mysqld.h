@@ -133,6 +133,7 @@ extern my_bool opt_slave_compressed_protocol, use_temp_pool;
 extern ulong slave_exec_mode_options;
 extern ulonglong slave_type_conversions_options;
 extern my_bool read_only, opt_readonly;
+extern my_bool super_read_only, opt_super_readonly;
 extern my_bool lower_case_file_system;
 extern ulonglong slave_rows_search_algorithms_options;
 
@@ -168,7 +169,7 @@ extern ulong max_long_data_size;
 extern ulong current_pid;
 extern ulong expire_logs_days;
 extern my_bool relay_log_recovery;
-extern uint sync_binlog_period, sync_relaylog_period, 
+extern uint sync_binlog_period, sync_relaylog_period,
             sync_relayloginfo_period, sync_masterinfo_period,
             opt_mts_checkpoint_period, opt_mts_checkpoint_group;
 extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
