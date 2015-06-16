@@ -38,7 +38,7 @@ static void raise_query_rewritten_note(THD *thd,
   push_warning_printf(thd, sl, ER_UNKNOWN_ERROR, message,
                       original_query, rewritten_query,
                       plugin_name);
-};
+}
 
 
 /**

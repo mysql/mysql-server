@@ -2927,7 +2927,7 @@ void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
   filename[ FN_REFLEN ]= 0;
 
   binlog_next_event_pos.pos= _pos;
-};
+}
 
 void THD::clear_next_event_pos()
 {
@@ -2937,7 +2937,7 @@ void THD::clear_next_event_pos()
   }
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
-};
+}
 
 #ifdef HAVE_REPLICATION
 void THD::set_currently_executing_gtid_for_slave_thread()

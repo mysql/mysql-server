@@ -208,6 +208,11 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
 IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-compare-distinct-pointer-types")
 ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-c++11-extra-semi"
+                           HAVE_NO_CPP11_EXTRA_SEMI)
+IF(HAVE_NO_CPP11_EXTRA_SEMI)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++11-extra-semi")
+ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)

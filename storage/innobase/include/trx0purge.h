@@ -382,7 +382,7 @@ namespace undo {
 		static undo_spaces_t	s_fix_up_spaces;
 	};	/* class Truncate */
 
-};	/* namespace undo */
+}	/* namespace undo */
 
 /** The control structure used in the purge operation */
 struct trx_purge_t{

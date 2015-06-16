@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -116,8 +116,7 @@ size_t my_lengthsp_binary(const CHARSET_INFO *cs __attribute__((unused)),
   > 0	s > t
 */
 
-static int my_strnncollsp_binary(const CHARSET_INFO *cs
-                                 __attribute__((unused)),
+static int my_strnncollsp_binary(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
                                  const uchar *t, size_t tlen,
                                  my_bool diff_if_only_endspace_difference
@@ -248,7 +247,7 @@ uint my_mbcharlen_8bit(const CHARSET_INFO *cs __attribute__((unused)),
 static int my_mb_wc_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			my_wc_t *wc,
 			const uchar *str,
-			const uchar *end __attribute__((unused)))
+			const uchar *end)
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -261,7 +260,7 @@ static int my_mb_wc_bin(const CHARSET_INFO *cs __attribute__((unused)),
 static int my_wc_mb_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			my_wc_t wc,
 			uchar *s,
-			uchar *e __attribute__((unused)))
+			uchar *e)
 {
   if (s >= e)
     return MY_CS_TOOSMALL;

@@ -411,7 +411,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
     mysql_mutex_unlock(&rli->mts_gaq_LOCK);
 
   return last_lwm_timestamp;
-};
+}
 
 /**
    The method implements logical timestamp conflict detection

@@ -2497,7 +2497,7 @@ Modification_plan::Modification_plan(THD *thd_arg,
   DBUG_ASSERT(current_thd == thd);
   if (!thd->in_sub_stmt)
     register_in_thd();
-};
+}
 
 
 Modification_plan::~Modification_plan()

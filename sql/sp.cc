@@ -389,7 +389,7 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
     m_print_once= FALSE;
     sql_print_error("%s", buf);
   }
-};
+}
 
 
 /** Single instance used to control printing to the error log. */

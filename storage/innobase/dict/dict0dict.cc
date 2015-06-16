@@ -118,12 +118,8 @@ ulong	zip_failure_threshold_pct = 5;
 compression failures */
 ulong	zip_pad_max = 50;
 
-#define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
-					creating a table or index object */
 #define DICT_POOL_PER_TABLE_HASH 512	/*!< buffer pool max size per table
 					hash table fixed size in bytes */
-#define DICT_POOL_PER_VARYING	4	/*!< buffer pool max size per data
-					dictionary varying size in bytes */
 
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";

@@ -421,7 +421,6 @@ current_time % 60 == 0 and no tasks will be performed when
 current_time % 5 != 0. */
 
 # define	SRV_MASTER_CHECKPOINT_INTERVAL		(7)
-# define	SRV_MASTER_PURGE_INTERVAL		(10)
 # define	SRV_MASTER_DICT_LRU_INTERVAL		(47)
 
 /** Acquire the system_mutex. */
@@ -437,11 +436,6 @@ current_time % 5 != 0. */
 #define srv_sys_mutex_exit() do {			\
 	mutex_exit(&srv_sys->mutex);			\
 } while (0)
-
-#define fetch_lock_wait_timeout(trx)			\
-	((trx)->lock.allowed_to_wait			\
-	 ? thd_lock_wait_timeout((trx)->mysql_thd)	\
-	 : 0)
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM

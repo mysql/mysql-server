@@ -126,8 +126,6 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
 
-#define INSIDE_HA_INNOBASE_CC
-
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 
 static struct handlerton* innodb_hton_ptr;

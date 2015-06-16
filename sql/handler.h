@@ -62,7 +62,7 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
 
 namespace AQP {
   class Join_plan;
-};
+}
 
 extern ulong savepoint_alloc_size;
 extern KEY_CREATE_INFO default_key_create_info;

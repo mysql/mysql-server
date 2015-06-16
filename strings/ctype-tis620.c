@@ -841,9 +841,9 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,plFF
 
 static
 int my_mb_wc_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
-		  my_wc_t *wc,
-		  const uchar *str,
-		  const uchar *end __attribute__((unused)))
+                    my_wc_t *wc,
+                    const uchar *str,
+                    const uchar *end)
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -854,9 +854,9 @@ int my_mb_wc_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
 
 static
 int my_wc_mb_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
-		  my_wc_t wc,
-		  uchar *str,
-		  uchar *end __attribute__((unused)))
+                    my_wc_t wc,
+                    uchar *str,
+                    uchar *end)
 {
   const uchar *pl;
 

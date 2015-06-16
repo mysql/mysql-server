@@ -512,5 +512,5 @@ namespace AQP
     qep_tab->set_pushed_table_access_method();
   }
 
-};
+}
 // namespace AQP

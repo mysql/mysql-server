@@ -261,7 +261,7 @@ int my_strcasecmp_8bit(const CHARSET_INFO *cs,const char *s, const char *t)
 
 int my_mb_wc_8bit(const CHARSET_INFO *cs,my_wc_t *wc,
 		  const uchar *str,
-		  const uchar *end __attribute__((unused)))
+		  const uchar *end)
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -299,8 +299,8 @@ int my_wc_mb_8bit(const CHARSET_INFO *cs,my_wc_t wc,
 */
 
 size_t my_snprintf_8bit(const CHARSET_INFO *cs  __attribute__((unused)),
-                        char* to, size_t n  __attribute__((unused)),
-		     const char* fmt, ...)
+                        char* to, size_t n,
+                        const char* fmt, ...)
 {
   va_list args;
   size_t result;
@@ -524,7 +524,7 @@ noconv:
 }
 
 
-longlong my_strntoll_8bit(const CHARSET_INFO *cs __attribute__((unused)),
+longlong my_strntoll_8bit(const CHARSET_INFO *cs,
 			  const char *nptr, size_t l, int base,
 			  char **endptr,int *err)
 {

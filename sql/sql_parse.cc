@@ -4971,7 +4971,7 @@ void mysql_init_multi_delete(LEX *lex)
 
 void mysql_parse(THD *thd, Parser_state *parser_state)
 {
-  int error __attribute__((unused));
+  int error;
   DBUG_ENTER("mysql_parse");
   DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 

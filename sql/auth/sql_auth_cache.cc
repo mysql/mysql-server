@@ -80,8 +80,6 @@ bool rwlocks_initialized= false;
 const uint LOCK_GRANT_PARTITIONS= 32;
 Partitioned_rwlock LOCK_grant;
 
-#define FIRST_NON_YN_FIELD 26
-
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
                         1 + USERNAME_LENGTH + 1)

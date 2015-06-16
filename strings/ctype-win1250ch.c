@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -614,7 +614,7 @@ static const uchar like_range_prefix_max_win1250ch[]=
 */
 
 static my_bool
-my_like_range_win1250ch(const CHARSET_INFO *cs __attribute__((unused)),
+my_like_range_win1250ch(const CHARSET_INFO *cs,
 			const char *ptr, size_t ptr_length,
 			pbool escape, pbool w_one, pbool w_many,
 			size_t res_length,

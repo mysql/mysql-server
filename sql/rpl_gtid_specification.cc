@@ -44,7 +44,7 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map, const char *text)
     type= GTID_GROUP;
   }
   RETURN_OK;
-};
+}
 
 
 bool Gtid_specification::is_valid(const char *text)

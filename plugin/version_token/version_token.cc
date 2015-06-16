@@ -413,7 +413,7 @@ static int parse_vtokens(char *input, enum command type)
 // TODO: Release locks in MYSQL_AUDIT_GENERAL_STATUS subclass.
 static void version_token_check(MYSQL_THD thd,
                                 unsigned int event_class,
-                                const void *event __attribute__((unused)))
+                                const void *event)
 {
   char *sess_var;
 

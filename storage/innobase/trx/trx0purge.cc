@@ -876,7 +876,7 @@ namespace undo {
 
 		return(exist);
 	}
-};
+}
 
 /** Iterate over all the UNDO tablespaces and check if any of the UNDO
 tablespace qualifies for TRUNCATE (size > threshold).

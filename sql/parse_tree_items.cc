@@ -187,7 +187,7 @@ bool PTI_udf_expr::itemize(Parse_context *pc, Item **res)
     expr->item_name.copy(expr_loc.start, expr_loc.length(), pc->thd->charset());
   *res= expr;
   return false;
-};
+}
 
 
 bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc, Item **res)
