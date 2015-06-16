@@ -972,6 +972,7 @@ bool JOIN::optimize_distinct_group_order()
         <fields> to ORDER BY <fields>. There are three exceptions:
         - if skip_sort_order is set (see above), then we can simply skip
           GROUP BY;
+        - if IN(subquery), likewise (see remove_redundant_subquery_clauses())
         - we can only rewrite ORDER BY if the ORDER BY fields are 'compatible'
           with the GROUP BY ones, i.e. either one is a prefix of another.
           We only check if the ORDER BY is a prefix of GROUP BY. In this case
@@ -981,7 +982,9 @@ bool JOIN::optimize_distinct_group_order()
           'order' as is.
        */
       if (!order || test_if_subpart(group_list, order))
-        order= skip_sort_order ? NULL : group_list;
+        order= (skip_sort_order ||
+                (unit->item && unit->item->substype() ==
+                 Item_subselect::IN_SUBS)) ? NULL : group_list;
 
       /*
         If we have an IGNORE INDEX FOR GROUP BY(fields) clause, this must be 
