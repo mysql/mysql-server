@@ -2762,6 +2762,11 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 
   if (read_only == FALSE || read_only == opt_readonly)
   {
+    if (opt_super_readonly && !read_only)
+    {
+      opt_super_readonly= FALSE;
+      super_read_only= FALSE;
+    }
     opt_readonly= read_only;
     DBUG_RETURN(false);
   }
@@ -2777,6 +2782,11 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
       - FLUSH TABLES WITH READ LOCK
       - SET GLOBAL READ_ONLY = 1
     */
+    if (opt_super_readonly && !read_only)
+    {
+      opt_super_readonly= FALSE;
+      super_read_only= FALSE;
+    }
     opt_readonly= read_only;
     DBUG_RETURN(false);
   }
@@ -2804,6 +2814,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 
   /* Change the opt_readonly system variable, safe because the lock is held */
   opt_readonly= new_read_only;
+
   result= false;
 
  end_with_read_lock:
@@ -2816,6 +2827,63 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   DBUG_RETURN(result);
 }
 
+static bool fix_super_read_only(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("sys_var_opt_super_readonly::update");
+
+  /* return if no changes: */
+  if (super_read_only == opt_super_readonly)
+    DBUG_RETURN(false);
+
+  /* return immediately if turning super_read_only OFF: */
+  if (super_read_only == FALSE)
+  {
+    opt_super_readonly= FALSE;
+    DBUG_RETURN(false);
+  }
+  bool result= true;
+  my_bool new_super_read_only = super_read_only; /* make a copy before releasing a mutex */
+
+  /* set read_only to ON if it is OFF, letting fix_read_only()
+     handle its own locking needs
+  */
+  if (!opt_readonly)
+  {
+    read_only= TRUE;
+    if ((result = fix_read_only(NULL, thd, type)))
+      goto end;
+  }
+
+  /* if we already have global read lock, set super_read_only
+     and return immediately:
+  */
+  if (thd->global_read_lock.is_acquired())
+  {
+    opt_super_readonly= super_read_only;
+    DBUG_RETURN(false);
+  }
+
+  /* now we're turning ON super_read_only: */
+  super_read_only = opt_super_readonly;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  if (thd->global_read_lock.lock_global_read_lock(thd))
+    goto end_with_mutex_unlock;
+
+  if ((result = thd->global_read_lock.make_global_read_lock_block_commit(thd)))
+    goto end_with_read_lock;
+  opt_super_readonly= new_super_read_only;
+  result= false;
+
+  end_with_read_lock:
+    /* Release the lock */
+    thd->global_read_lock.unlock_global_read_lock(thd);
+  end_with_mutex_unlock:
+    mysql_mutex_lock(&LOCK_global_system_variables);
+  end:
+    super_read_only= opt_super_readonly;
+    DBUG_RETURN(result);
+}
 
 /**
   The read_only boolean is always equal to the opt_readonly boolean except
@@ -2832,6 +2900,21 @@ static Sys_var_mybool Sys_readonly(
        GLOBAL_VAR(read_only), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_read_only), ON_UPDATE(fix_read_only));
+
+/**
+Setting super_read_only to ON triggers read_only to also be set to ON.
+*/
+static Sys_var_mybool Sys_super_readonly(
+  "super_read_only",
+  "Make all non-temporary tables read-only, with the exception for "
+  "replication (slave) threads.  Users with the SUPER privilege are "
+  "affected, unlike read_only.  Setting super_read_only to ON "
+  "also sets read_only to ON.",
+  GLOBAL_VAR(super_read_only), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG,
+  ON_CHECK(0), ON_UPDATE(fix_super_read_only));
+
+
 
 // Small lower limit to be able to test MRR
 static Sys_var_ulong Sys_read_rnd_buff_size(

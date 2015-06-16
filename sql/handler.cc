@@ -46,6 +46,8 @@
 #include "trigger_def.h"              // TRG_EXT
 #include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
+#include "auth_common.h"              // check_readonly() and SUPER_ACL
+
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -1539,12 +1541,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
-    if (rw_trans &&
-        opt_readonly &&
-        !(thd->security_context()->check_access(SUPER_ACL)) &&
-        !thd->slave_thread)
+    if (rw_trans && check_readonly(thd, true))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       ha_rollback_trans(thd, all);
       error= 1;
       goto end;

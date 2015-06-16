@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
@@ -581,7 +582,7 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
-my_bool acl_reload(THD *thd); 
+my_bool acl_reload(THD *thd);
 my_bool grant_init();
 void grant_free(void);
 my_bool grant_reload(THD *thd);
@@ -609,7 +610,7 @@ bool check_grant_column (THD *thd, GRANT_INFO *grant,
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
                                      const char *name, size_t length,
                                      ulong want_privilege);
-bool check_grant_all_columns(THD *thd, ulong want_access, 
+bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access,
                          TABLE_LIST *procs, bool is_proc, bool no_error);
@@ -649,6 +650,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
+bool check_readonly(THD *thd, bool err_if_readonly);
+void err_readonly(THD *thd);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -723,3 +726,4 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
 
 #endif /* AUTH_COMMON_INCLUDED */
+
