@@ -870,6 +870,15 @@
 }
 
 {
+   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:my_b_flush_io_cache
+   fun:_Z8filesortP3THDP7QEP_TABP8FilesortbPyS5_
+}
+
+{
    OpenSSL still reachable.
    Memcheck:Leak
    fun:malloc
