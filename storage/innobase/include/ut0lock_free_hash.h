@@ -44,8 +44,10 @@ Created Mar 16, 2015 Vasil Dimov
 #include "ut0rnd.h" /* ut_fold_ull() */
 
 /* Enable this to implement a stats gathering inside ut_lock_free_hash_t.
-It may cause significant performance slowdown. */
+It causes significant performance slowdown. */
+#if 0
 #define UT_HASH_IMPLEMENT_PRINT_STATS
+#endif
 
 /** An interface class to a basic hash table, that ut_lock_free_hash_t is. */
 class ut_hash_interface_t {

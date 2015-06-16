@@ -349,10 +349,10 @@ TEST(ut0lock_free_hash, single_threaded)
 ut_hash_interface_t*	global_hash;
 
 /** Number of common tuples (edited by all threads) to insert into the hash. */
-static const size_t	N_COMMON = 512;
+static const size_t	N_COMMON = 4096;
 
 /** Number of private, per-thread tuples to insert by each thread. */
-static const size_t	N_PRIV_PER_THREAD = 128;
+static const size_t	N_PRIV_PER_THREAD = 256;
 
 /** Number of threads to start. Overall the hash will be filled with
 N_COMMON + N_THREADS * N_PRIV_PER_THREAD tuples. */
