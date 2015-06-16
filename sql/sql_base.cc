@@ -4233,7 +4233,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
 
   /*
     If we are here, there was no fatal error (but error may be still
-    unitialized).
+    uninitialized).
   */
   if (unlikely(entry->file->implicit_emptied))
   {

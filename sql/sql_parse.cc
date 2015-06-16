@@ -1497,7 +1497,7 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
 
     /*
       Initialize thd->lex since it's used in many base functions, such as
-      open_tables(). Otherwise, it remains unitialized and may cause crash
+      open_tables(). Otherwise, it remains uninitialized and may cause crash
       during execution of COM_REFRESH.
     */
     lex_start(thd);
