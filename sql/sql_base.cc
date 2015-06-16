@@ -8513,13 +8513,16 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                                 will also decide inclusion in read/write maps.
   @param sum_func_list
   @param allow_sum_func         true if set operations are allowed in context.
+  @param column_update          if true, reject expressions that do not resolve
+                                to a base table column
 
   @returns false if success, true if error
 */
 
 bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, ulong want_privilege,
-                  List<Item> *sum_func_list, bool allow_sum_func)
+                  List<Item> *sum_func_list,
+                  bool allow_sum_func, bool column_update)
 {
   DBUG_ENTER("setup_fields");
 
@@ -8533,13 +8536,13 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
               want_privilege == SELECT_ACL ||
               want_privilege == INSERT_ACL ||
               want_privilege == UPDATE_ACL);
+  DBUG_ASSERT(! (column_update && (want_privilege & SELECT_ACL)));
   if (want_privilege & SELECT_ACL)
     thd->mark_used_columns= MARK_COLUMNS_READ;
   else if (want_privilege & (INSERT_ACL | UPDATE_ACL))
     thd->mark_used_columns= MARK_COLUMNS_WRITE;
   else
     thd->mark_used_columns= MARK_COLUMNS_NONE;
-
 
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
   if (allow_sum_func)
@@ -8598,6 +8601,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     {
       ref[0]= item;
       ref.pop_front();
+    }
+    if (column_update && item->field_for_view_update() == NULL)
+    {
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+      DBUG_RETURN(true);
     }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
@@ -8872,8 +8880,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
             MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
-  Item *value, *fld;
-  Item_field *field;
+  Item *fld;
   TABLE *table= 0;
   TABLE *tbl_set[MAX_TABLES];
   uint tab_count= 0;
@@ -8891,24 +8898,19 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       thus we safely can take table from the first field.
     */
     fld= (Item_field*)f++;
-    if (!(field= fld->field_for_view_update()))
-    {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
-      goto err;
-    }
+    Item_field *const field= fld->field_for_view_update();
+    DBUG_ASSERT(field != NULL);
     table= field->field->table;
     table->auto_increment_field_not_null= FALSE;
     f.rewind();
   }
   while ((fld= f++))
   {
-    if (!(field= fld->field_for_view_update()))
-    {
-      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), fld->item_name.ptr());
-      goto err;
-    }
-    value=v++;
-    Field *rfield= field->field;
+    Item_field *const field= fld->field_for_view_update();
+    DBUG_ASSERT(field != NULL);
+
+    Field *const rfield= field->field;
+    Item *const value= v++;
     /* If bitmap over wanted fields are set, skip non marked fields. */
     if (bitmap && !bitmap_is_set(bitmap, rfield->field_index))
       continue;
@@ -8939,10 +8941,11 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       goto err;
   }
   DBUG_RETURN(thd->is_error());
+
 err:
   if (table)
     table->auto_increment_field_not_null= FALSE;
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 

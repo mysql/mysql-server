@@ -319,23 +319,45 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, Ref_ptr_array(),
-                     set_fields, INSERT_ACL, 0, 0) ||
-        setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_fields, INSERT_ACL, NULL,
+                     false, true) ||
+        setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, NULL,
+                     false, false))
       DBUG_RETURN(TRUE);
   }
   else
   {						// Part field list
-    /* TODO: use this conds for 'WITH CHECK OPTIONS' */
-    if (setup_fields(thd, Ref_ptr_array(),
-                     fields_vars, INSERT_ACL, 0, 0) ||
-        setup_fields(thd, Ref_ptr_array(),
-                     set_fields, INSERT_ACL, 0, 0))
+    /*
+      Because fields_vars may contain user variables,
+      pass false for column_update in first call below.
+    */
+    if (setup_fields(thd, Ref_ptr_array(), fields_vars, INSERT_ACL, NULL,
+                     false, false) ||
+        setup_fields(thd, Ref_ptr_array(), set_fields, INSERT_ACL, NULL,
+                     false, true))
       DBUG_RETURN(TRUE);
+
+    /*
+      Special updatability test is needed because fields_vars may contain
+      a mix of column references and user variables.
+    */
+    Item *item;
+    List_iterator<Item> it(fields_vars);
+    while ((item= it++))
+    {
+      if ((item->type() == Item::FIELD_ITEM ||
+           item->type() == Item::REF_ITEM) &&
+          item->field_for_view_update() == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
+    }
     /* We explicitly ignore the return value */
     (void)check_that_all_fields_are_given_values(thd, table, table_list);
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, NULL,
+                     false, false))
       DBUG_RETURN(TRUE);
   }
 
@@ -1083,11 +1105,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
-        else
-        {
-          my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
-          DBUG_RETURN(1);
-        }
 
 	continue;
       }
@@ -1106,11 +1123,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
                                                         read_info.read_charset);
-      }
-      else
-      {
-        my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
-        DBUG_RETURN(1);
       }
     }
 
@@ -1165,11 +1177,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
-        }
-        else
-        {
-          my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
-          DBUG_RETURN(1);
         }
       }
     }

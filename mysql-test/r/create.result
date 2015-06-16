@@ -1637,7 +1637,7 @@ drop temporary table t1;
 drop view t1;
 create view t1 as select a + 5 as a from t2;
 insert into t1 (a) values (1);
-ERROR HY000: The target table t1 of the INSERT is not insertable-into
+ERROR HY000: Column 'a' is not updatable
 update t1 set a=3 where a=2;
 ERROR HY000: Column 'a' is not updatable
 create table t1 (a int);

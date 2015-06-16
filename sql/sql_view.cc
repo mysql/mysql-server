@@ -1980,21 +1980,21 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   trans_end= view->field_translation_end;
 
   for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
-    Item_field *fld;
-    if ((fld= entry->item->field_for_view_update()))
-      list->push_back(fld);
-    else
+    Item_field *fld= entry->item->field_for_view_update();
+    if (fld == NULL)
     {
-      my_error(ER_NON_INSERTABLE_TABLE, MYF(0), view->alias, "INSERT");
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->item->item_name.ptr());
       DBUG_RETURN(TRUE);
     }
+
+    list->push_back(fld);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /*

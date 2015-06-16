@@ -507,7 +507,7 @@ create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
 insert into v3 values (-60,4,30);
 ERROR HY000: The target table v3 of the INSERT is not insertable-into
 insert into v4 values (-60,4,30);
-ERROR HY000: The target table v4 of the INSERT is not insertable-into
+ERROR HY000: Column 'x' is not updatable
 insert into v5 values (-60,4,30);
 ERROR HY000: The target table v5 of the INSERT is not insertable-into
 insert into v1 values (-60,4,30);
@@ -534,7 +534,7 @@ create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
 insert into v3 select c, b, a from t2;
 ERROR HY000: The target table v3 of the INSERT is not insertable-into
 insert into v4 select c, b, a from t2;
-ERROR HY000: The target table v4 of the INSERT is not insertable-into
+ERROR HY000: Column 'x' is not updatable
 insert into v5 select c, b, a from t2;
 ERROR HY000: The target table v5 of the INSERT is not insertable-into
 insert into v1 select c, b, a from t2;
@@ -6294,4 +6294,12 @@ PREPARE s FROM "set @a:=(SELECT 1 FROM t1,v2);";
 EXECUTE s;
 EXECUTE s;
 DROP VIEW  v2,v3;
+DROP TABLE t1;
+# Bug#21097485 *insert_table_ref && (*insert_table_ref)->is_insertable
+CREATE TABLE t1 (r INTEGER) engine=innodb;
+CREATE VIEW v1 AS
+SELECT 1 AS z from t1;
+INSERT INTO v1(z) VALUES(1);
+ERROR HY000: Column 'z' is not updatable
+DROP VIEW  v1;
 DROP TABLE t1;

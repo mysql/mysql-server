@@ -6165,7 +6165,7 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
   ger "Beschädigtes Replikationsereignis entdeckt"
-ER_LOAD_DATA_INVALID_COLUMN
+ER_LOAD_DATA_INVALID_COLUMN_UNUSED
   eng "Invalid column reference (%-.64s) in LOAD DATA"
   ger "Ungültige Spaltenreferenz (%-.64s) bei LOAD DATA"
 ER_LOG_PURGE_NO_FILE
