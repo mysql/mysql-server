@@ -1849,7 +1849,7 @@ innobase_start_or_create_for_mysql(void)
 		return(srv_init_abort(DB_ERROR));
 	}
 
-	os_normalize_path_for_win(srv_data_home);
+	os_normalize_path(srv_data_home);
 
 	/* Check if the data files exist or not. */
 	err = srv_sys_space.check_file_spec(

@@ -5040,18 +5040,6 @@ os_file_close_no_error_handling(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/** Normalizes a directory path for Windows: converts slashes to backslashes.
-@param[in,out] str A null-terminated Windows directory and file path */
-void
-os_normalize_path_for_win(char* str)
-{
-	for (; *str; str++) {
-		if (*str == '/') {
-			*str = '\\';
-		}
-	}
-}
-
 /** This function can be called if one wants to post a batch of reads and
 prefers an i/o-handler thread to handle them all at once later. You must
 call os_aio_simulated_wake_handler_threads later to ensure the threads
@@ -8290,4 +8278,20 @@ os_file_decompress_page(
 	ulint		dst_len)
 {
 	return(Compression::deserialize(dblwr_recover, src, dst, dst_len));
+}
+
+/** Normalizes a directory path for the current OS:
+On Windows, we convert '/' to '\', else we convert '\' to '/'.
+@param[in,out] str A null-terminated directory and file path */
+void
+os_normalize_path(
+	char*	str)
+{
+	if (str != NULL) {
+		for (; *str; str++) {
+			if (*str == OS_PATH_SEPARATOR_ALT) {
+				*str = OS_PATH_SEPARATOR;
+			}
+		}
+	}
 }
