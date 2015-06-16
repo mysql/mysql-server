@@ -84,6 +84,7 @@
 #include <signaldata/CreateNodegroupImpl.hpp>
 #include <signaldata/DropNodegroupImpl.hpp>
 #include <Mutex.hpp>
+#include <SegmentList.hpp>
 
 #include <signaldata/CreateFK.hpp>
 #include <signaldata/CreateFKImpl.hpp>
@@ -107,6 +108,7 @@
 #define ZCOMMIT_WAIT_GCI   6
 #define ZINDEX_STAT_BG_PROCESS 7
 #define ZGET_TABINFO_RETRY 8
+#define ZNEXT_GET_TAB_REQ 9
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -1195,15 +1197,11 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RetrieveRecord {
-    RetrieveRecord(){ noOfWaiters = 0;}
+    RetrieveRecord():
+      busyState(false) {};
 
     /**    Only one retrieve table definition at a time       */
     bool busyState;
-
-    /**
-     * No of waiting in time queue
-     */
-    Uint32 noOfWaiters;
 
     /**    Block Reference of retriever       */
     BlockReference blockRef;
@@ -1237,6 +1235,245 @@ private:
     Uint32 requestType;
   };
   RetrieveRecord c_retrieveRecord;
+
+  class GetTabInfoReqQueue
+  {
+  public:
+    /**
+     * GetTabInfoReqQueue
+     *
+     * This is a queue of GetTabInfoReq signals
+     * It queues signals from internal (other data nodes)
+     * and external (NdbApi clients) sources.
+     * It gives preference to internal requests, but avoids
+     * starvation.
+     * Signals are queued using SegmentLists - using
+     * SegmentedSections to implement a FIFO queue.
+     * There is an internal requests list and an
+     * external requests lists.
+     * To ensure that internal requests can proceed
+     * during overload, the internal segment list uses
+     * Segments from a reserved sub pool.
+     * The external requests use segments from the
+     * global pool, which may not be able to provide
+     * segments when the system is overloaded.
+     * For this reason, an external request can fail
+     * to be enqueued, resulting in a BUSY response,
+     * whereas an internal request should never encounter
+     * this.
+     * Internal requests are fully catered for as they have
+     * bounded concurrency, and probably higher priority.
+     * External requests currently have almost unbounded
+     * concurrency.
+     */
+    explicit GetTabInfoReqQueue(SegmentUtils& pool):
+      m_internalSegmentPool(pool),
+      m_internalQueue(m_internalQueueHead,
+                      m_internalSegmentPool),
+      m_consecutiveInternalReqCount(0),
+      m_externalSegmentPool(pool),
+      m_externalQueue(m_externalQueueHead,
+                      m_externalSegmentPool),
+      m_jamBuffer(0)
+      {};
+
+    bool init(EmulatedJamBuffer* jamBuff)
+    {
+      m_jamBuffer = jamBuff;
+      return m_internalSegmentPool.init(InternalSegmentPoolSize,
+                                        InternalSegmentPoolSize);
+    }
+
+    /**
+     * isEmpty
+     *
+     * Are both queues empty
+     */
+    bool isEmpty() const
+    {
+      return (m_internalQueue.isEmpty() &&
+              m_externalQueue.isEmpty());
+    };
+
+    /**
+     * tryEnqReq
+     *
+     * Try to enqueue a request on the indicated queue
+     * Returns false if this was not possible
+     */
+    bool tryEnqReq(bool internal,
+                   Signal* signal)
+    {
+      thrjam(m_jamBuffer);
+      /* Put data inline in signal buffer for atomic enq */
+      signal->theData[GetTabInfoReq::SignalLength] =
+        signal->header.m_noOfSections;
+
+      memcpy(&signal->theData[GetTabInfoReq::SignalLength+1],
+             signal->m_sectionPtrI,
+             3 * sizeof(Uint32));
+
+      LocalSegmentList& reqQueue = internal?
+        m_internalQueue:
+        m_externalQueue;
+
+      /* Check that we are allowed to queue another req */
+      Uint32 maxReqs = 0;
+
+      if (internal)
+        maxReqs = MaxInternalReqs;
+      else
+        maxReqs = MaxExternalReqs;
+
+      if (getNumReqs(reqQueue) >= maxReqs)
+      {
+        thrjam(m_jamBuffer);
+        return false;
+      }
+
+      assert(ElementLen == 9);   /* Just in case someone adds words...*/
+
+      if (reqQueue.enqWords(signal->theData,
+                            ElementLen))
+      {
+        thrjam(m_jamBuffer);
+        /* Detach section(s) */
+        signal->header.m_noOfSections = 0;
+        return true;
+      }
+
+      /* Enqueue failed */
+      return false;
+    }
+
+    /**
+     * deqReq
+     *
+     * Dequeue the next request to work on, setting up the Signal
+     * object with signal data (and sections if appropriate)
+     * Assumes that there is some next request to be processed.
+     */
+    bool deqReq(Signal* signal)
+    {
+      assert(signal->header.m_noOfSections == 0);
+      assert(!isEmpty());
+
+      LocalSegmentList& reqQueue = isInternalQueueNext()?
+        m_internalQueue :
+        m_externalQueue;
+
+      assert(getNumReqs(reqQueue) > 0);
+
+      Uint32 noOfSections;
+
+      /* Restore signal context from queue...*/
+      if (reqQueue.deqWords(signal->theData, GetTabInfoReq::SignalLength) &&
+          reqQueue.deqWords(&noOfSections, 1) &&
+          reqQueue.deqWords(signal->m_sectionPtrI, 3))
+      {
+        signal->header.m_noOfSections = (Uint8) noOfSections;
+        return true;
+      }
+      return false;
+    }
+
+  private:
+    /**
+     * isInternalQueueNext
+     *
+     * Which queue should provide the next request
+     * to work on
+     */
+    bool isInternalQueueNext()
+    {
+      thrjam(m_jamBuffer);
+      /**
+       * Prefer the internal request queue, unless we've already
+       * had a number of those requests consecutively and an
+       * external request is waiting.
+       */
+      if (!m_internalQueue.isEmpty())
+      {
+        thrjam(m_jamBuffer);
+        if (m_externalQueue.isEmpty() ||
+            m_consecutiveInternalReqCount <= MaxInternalPerExternal)
+        {
+          thrjam(m_jamBuffer);
+          m_consecutiveInternalReqCount++;
+          return true;  /* Use internal */
+        }
+      }
+      m_consecutiveInternalReqCount = 0;
+      return false;  /* Use external */
+    }
+
+    /**
+     * getNumReqs
+     *
+     * Get the number of requests in the given queue
+     */
+    Uint32 getNumReqs(const LocalSegmentList& queue) const
+    {
+      Uint32 qWordLen = queue.getLen();
+      assert((qWordLen % ElementLen) == 0);
+      return qWordLen / ElementLen;
+    };
+
+    /* Length of GetTabInfoReq queue elements */
+    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3;
+
+    /**
+     * Pessimistic estimate of worst-case internally sourced
+     * GET_TABINFOREQ concurrency.
+     * Needs updated if more concurrency or use cases are added
+     */
+    static const uint MaxInternalReqs =
+                  MAX_NDB_NODES +                   /* restartCreateObj() forward to Master */
+                  1 +                               /* SUMA SUB_CREATE_REQ */
+                  (2 * MAX_NDBMT_LQH_THREADS) +     /* Backup - 1 LCP + 1 Backup per LDM instance */
+                  1;                                /* Trix Index stat */
+
+    /**
+     * InternalSegmentPoolSize
+     * Enough segments to take MaxInternalReqs,
+     * + 1 to handle max offset within the first segment
+     */
+    static const Uint32 InternalSegmentPoolSize =
+      (((MaxInternalReqs * ElementLen) + SectionSegment::DataLength - 1)/
+       SectionSegment::DataLength ) + 1;
+
+    /**
+     * Internal waiters queue
+     * Uses a reserved segment sub pool.
+     * We keep a LocalSegmentList around permanently
+     */
+    SegmentSubPool m_internalSegmentPool;
+    SegmentListHead m_internalQueueHead;
+    LocalSegmentList m_internalQueue;
+
+    /**
+     * Avoid external request starvation
+     */
+    static const Uint32 MaxInternalPerExternal = 10;
+    Uint32 m_consecutiveInternalReqCount;
+
+    /**
+     * External waiters queue
+     * Uses global segment pool.
+     *
+     * Max of 1 req per node on average, can be
+     * less in overload.
+     */
+    static const Uint32 MaxExternalReqs = MAX_NODES;
+    SegmentUtils& m_externalSegmentPool;
+    SegmentListHead m_externalQueueHead;
+    LocalSegmentList m_externalQueue;
+
+
+    EmulatedJamBuffer* m_jamBuffer;
+  };
+
+  GetTabInfoReqQueue c_gettabinforeq_q;
 
   /**
    * This record stores all the information needed
@@ -4420,6 +4657,8 @@ public:
                   Uint32 id,
                   Uint32 version,
                   Uint32 type);
+
+  void startNextGetTabInfoReq(Signal*);
 
 protected:
   virtual bool getParam(const char * param, Uint32 * retVal);

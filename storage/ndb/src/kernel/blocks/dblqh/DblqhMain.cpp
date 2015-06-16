@@ -14788,6 +14788,27 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
   ndbrequire(refToMain(signal->getSendersBlockRef()) == BACKUP);
   lcpPtr.p->m_error = ref->errorCode;
 
+  /**
+   * Only table no longer present is acceptable - anything
+   * else is a hard error.
+   * This sometimes manifests as error 785 - 'Schema object is busy with another...'
+   * which we treat in the same way.
+   */
+  if (ref->errorCode != 723 &&
+      ref->errorCode != 785)
+  {
+    g_eventLogger->critical("Fatal : LCP_PREPARE_REF t%uf%u errorCode %u",
+                            ref->tableId,
+                            ref->fragmentId,
+                            ref->errorCode);
+    ndbrequire(false);
+  };
+
+  ndbrequire(ref->errorCode == 723 || /* No such table existed */
+             ref->errorCode == 785);  /* Table dropping */
+
+  /* Carry on with the next table... */
+
   stopLcpFragWatchdog();
 
   if (lcpPtr.p->m_outstanding == 0)
