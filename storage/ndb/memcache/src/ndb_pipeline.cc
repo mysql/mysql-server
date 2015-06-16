@@ -43,7 +43,7 @@
 
 #include "ndb_error_logger.h"
 
-#define DEFAULT_SCHEDULER Trondheim::Worker
+#define DEFAULT_SCHEDULER Scheduler73::Worker
 
 /* globals (exported; also used by workitem.c) */
 int workitem_class_id;
