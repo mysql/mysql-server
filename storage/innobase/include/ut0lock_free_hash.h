@@ -583,23 +583,24 @@ private:
 			}
 
 			if (cur_key == UNUSED) {
-				uint64_t	unused = UNUSED;
+				uint64_t	expected = UNUSED;
 				if (cur_tuple->m_key.compare_exchange_strong(
-						unused, key)) {
+						expected,
+						key,
+						boost::memory_order_relaxed)) {
 					/* Here cur_tuple->m_val is either
 					NOT_FOUND (as it was initialized) or
 					some real value. */
 					return(cur_tuple);
 				}
 
+				ut_ad(expected != UNUSED);
+
 				/* CAS failed, which means that some other
 				thread just changed the current key from UNUSED
-				to something else. See if the new value is
-				'key'. */
-				if (cur_tuple->m_key.load(
-						boost::memory_order_relaxed)
-					== key) {
-
+				to something else (which is stored in
+				'expected'). See if the new value is 'key'. */
+				if (expected == key) {
 					return(cur_tuple);
 				}
 
