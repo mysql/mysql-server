@@ -7148,9 +7148,9 @@ DDTableBuffer::init()
 	/* Accessing this table would be protected by dict_persist->mutex,
 	and this table should be a very low-level table, we won't acquire
 	other latches/locks higher than SYS_LOG and we can disable the locking
-	when we access this table. So we set it with the level of
-	SYNC_PERSIST_METADATA_BUFFER, which is right above SYNC_LOG, instead of
-	SYNC_INDEX_TREE */
+	when we access this table. We set it with the level of
+	SYNC_PERSIST_METADATA_BUFFER, which is right above SYNC_INDEX_TREE,
+	as commented in dict_persist_t. */
 	rw_lock_create(index_tree_rw_lock_key, &m_index->lock,
 		       SYNC_PERSIST_METADATA_BUFFER);
 
