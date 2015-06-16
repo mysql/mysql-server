@@ -917,6 +917,12 @@ i
 Warnings:
 Warning	3126	Hint NO_ICP(`t1`@`q1` `PRIMARY` ) is ignored as conflicting/duplicated
 DROP TABLE t1;
+#
+# Bug#21192857 ASSERTION FAILED: KEYINFO_ARRAY.SIZE() == 0, FILE OPT_HINTS.CC:280
+#
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1(a) SELECT /*+ NO_RANGE_OPTIMIZATION(t1 a)*/ 1 FROM t1;
+DROP TABLE t1;
 # WL#8016 Parser for optimizer hints
 CREATE TABLE t1 (i INT, j INT);
 CREATE INDEX i1 ON t1(i);
