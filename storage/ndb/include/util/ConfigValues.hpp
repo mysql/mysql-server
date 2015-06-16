@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,14 @@ public:
   Uint32 getPackedSize() const; // get size in bytes needed to pack
   Uint32 pack(UtilBuffer&) const;
   Uint32 pack(void * dst, Uint32 len) const;// pack into dst(of len %d);
-  
+
+  /*
+     Iterate the entries of ConfigValues by index.
+
+     @return: next index or 0 when no more entries
+  */
+  Uint32 getNextEntryByIndex(Uint32 index, Entry* const entry) const;
+
 private:
   friend class Iterator;
   friend class ConstIterator;

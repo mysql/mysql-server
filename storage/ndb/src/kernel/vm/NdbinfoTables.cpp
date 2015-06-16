@@ -490,6 +490,15 @@ DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(CONFIG_VALUES,12) =
+{ { "config_values", 3, 0, "Configuration parameter values" },
+  {
+    {"node_id",           Ndbinfo::Number, ""},
+    {"config_param",      Ndbinfo::Number, "Parameter number"},
+    {"config_value",      Ndbinfo::String, "Parameter value"},
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -520,7 +529,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(DISK_WRITE_SPEED_BASE),
   DBINFOTBL(DISK_WRITE_SPEED_AGGREGATE),
   DBINFOTBL(FRAG_OPERATIONS),
-  DBINFOTBL(RESTART_INFO)
+  DBINFOTBL(RESTART_INFO),
+  DBINFOTBL(CONFIG_VALUES)
 };
 
 static int no_ndbinfo_tables =
