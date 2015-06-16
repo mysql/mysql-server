@@ -121,6 +121,15 @@ SET DEBUG_SYNC= 'now SIGNAL cont_master';
 --connection master
 --error ER_FOREIGN_DATA_STRING_INVALID_CANT_CREATE
 --reap
+# Not resetting DEBUG_SYNC for "master" was resulting in failure of subsequent
+# statement execution.
+# Reason is, when table_open_cache_instances <> 1 then tables accessed including
+# mysql.* may not exists in the table open cache instance of "master". So while
+# opening those tables DEBUG_SYNC='get_share_found_share HIT_LIMIT 1' was hit
+# more than once and subsequent statements execution was failing. 
+# This worked well with table_open_cache_instances=1 as tables opened by other
+# connections also exists in the single cache.
+SET DEBUG_SYNC= 'RESET';
 
 --echo #
 --connection default
