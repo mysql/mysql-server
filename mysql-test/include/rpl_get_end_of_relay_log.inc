@@ -4,7 +4,7 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_channel_name= CHANNEL]
+# [--let $rpl_channel_name= NAME]
 # --source include/rpl_get_end_of_relay_log.inc
 # --echo Last relay log: $relay_log_file
 # --echo Size of last relay log: $relay_log_size
@@ -16,6 +16,13 @@
 --let _RGEORL_OUTPUT_FILE= `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/_end_of_relay_log-', UUID(), '.txt')`
 --let _RGEORL_INDEX_FILE= `SELECT @@GLOBAL.RELAY_LOG_INDEX`
 --let _RGEORL_DATADIR= `SELECT @@GLOBAL.DATADIR`
+if ($rpl_debug)
+{
+  --echo _RGEORL_OUTPUT_FILE='$_RGEORL_OUTPUT_FILE'
+  --echo _RGEORL_INDEX_FILE='$_RGEORL_INDEX_FILE'
+  --echo _RGEORL_DATADIR='$_RGEORL_DATADIR'
+}
+
 perl;
   # Compute relay log filename.
   my $index_file= $ENV{'_RGEORL_INDEX_FILE'};

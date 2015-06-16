@@ -163,6 +163,7 @@ int Rpl_info_table::do_flush_info(const bool force)
   sync_counter= 0;
   saved_mode= thd->variables.sql_mode;
   tmp_disable_binlog(thd);
+  thd->is_operating_substatement_implicitly= true;
 
   /*
     Opens and locks the rpl_info table before accessing it.
@@ -247,6 +248,7 @@ end:
     Unlocks and closes the rpl_info table.
   */
   access->close_table(thd, table, &backup, error);
+  thd->is_operating_substatement_implicitly= false;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);

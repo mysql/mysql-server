@@ -1619,6 +1619,20 @@ public:
     slave SQL thread/workers.
   */
   bool is_operating_gtid_table_implicitly;
+  /*
+    Indicate that a sub-statement is being operated implicitly
+    within current transaction.
+    As we don't want that this implicit sub-statement to consume the
+    GTID of the actual transaction, we set it true at the beginning of
+    the sub-statement and set it false again after "committing" the
+    sub-statement.
+    When it is true, the applier will not save the transaction owned
+    gtid into mysql.gtid_executed table before transaction prepare, as
+    it does when binlog is disabled, or binlog is enabled and
+    log_slave_updates is disabled.
+    Rpl_info_table::do_flush_info() uses this flag.
+  */
+  bool is_operating_substatement_implicitly;
 
 private:
   /**
