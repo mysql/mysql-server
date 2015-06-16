@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,7 +112,9 @@ struct PackedWordsContainer
   Uint32 noOfPackedWords;
   Uint32 packedWords[30];
 }; // 128 bytes
-class SimulatedBlock {
+class SimulatedBlock :
+  public SegmentUtils  /* SimulatedBlock implements the Interface */
+{
   friend class TraceLCP;
   friend class SafeCounter;
   friend class SafeCounterManager;
@@ -1038,6 +1040,18 @@ public:
                               DbinfoScanReq& req,
                               const Ndbinfo::Ratelimit& rl) const;
 
+
+protected:
+  /**
+   * SegmentUtils methods
+   */
+  virtual SectionSegment* getSegmentPtr(Uint32 iVal);
+  virtual bool seizeSegment(Ptr<SectionSegment>& p);
+  virtual void releaseSegment(Uint32 iVal);
+
+  virtual void releaseSegmentList(Uint32 firstSegmentIVal);
+
+  /** End of SegmentUtils methods */
 };
 
 // outside blocks e.g. within a struct
