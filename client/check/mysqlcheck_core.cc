@@ -81,6 +81,7 @@ static int process_all_databases()
     if (process_one_db(row[0]))
       result = 1;
   }
+  mysql_free_result(tableres);
   return result;
 }
 /* process_all_databases */
