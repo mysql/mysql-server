@@ -1059,7 +1059,7 @@ fil_page_set_type(
 /** Reset the page type.
 Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1084,7 +1084,7 @@ fil_page_get_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1108,7 +1108,7 @@ fil_page_check_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in,out]	block	block with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
 @param[in,out]	mtr	mini-transaction */
