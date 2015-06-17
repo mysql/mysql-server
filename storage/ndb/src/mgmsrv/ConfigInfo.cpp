@@ -3633,6 +3633,7 @@ ConfigInfo::ConfigInfo()
 
     pinfo.put("Type",        param._type);
 
+    // Check that status is an enum and not used as a bitmask
     const Status status = param._status;
     require(status == CI_USED ||
             status == CI_EXPERIMENTAL ||
@@ -4159,7 +4160,13 @@ public:
   virtual void parameter(const char* section_name,
                          const Properties* section,
                          const char* param_name,
-                         const ConfigInfo& info){
+                         const ConfigInfo& info)
+  {
+    // Don't print deprecated parameters
+    const Uint32 status = info.getStatus(section, param_name);
+    if (status == ConfigInfo::CI_DEPRECATED)
+      return;
+
     switch (info.getType(section, param_name)) {
     case ConfigInfo::CI_BOOL:
       fprintf(m_out, "%s (Boolean value)\n", param_name);
@@ -4392,13 +4399,16 @@ public:
       pairs.put("initial", "true");
 
     // Get "supported" flag
-    Uint32 status = info.getStatus(section, param_name);
+    const Uint32 status = info.getStatus(section, param_name);
     buf.clear();
-    if (status & ConfigInfo::CI_EXPERIMENTAL)
+    if (status == ConfigInfo::CI_EXPERIMENTAL)
       buf.append("experimental");
 
     if (buf.length())
       pairs.put("supported", buf.c_str());
+
+    if (status == ConfigInfo::CI_DEPRECATED)
+      pairs.put("deprecated", "true");
 
     print_xml("param", pairs);
   }
@@ -4451,7 +4461,6 @@ void ConfigInfo::print_impl(const char* section_filter,
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       // Skip entries with different F- and P-names
       if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-      if (getStatus(sec, n) == ConfigInfo::CI_DEPRECATED) continue;
       if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
       printer.parameter(s, sec, n, *this);
     }
@@ -4471,7 +4480,6 @@ void ConfigInfo::print_impl(const char* section_filter,
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       // Skip entries with different F- and P-names
       if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-      if (getStatus(sec, n) == ConfigInfo::CI_DEPRECATED) continue;
       if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
       printer.parameter(s, sec, n, *this);
     }
