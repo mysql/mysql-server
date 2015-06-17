@@ -18,7 +18,7 @@ current_user()
 second_user@localhost
 show grants for current_user();
 Grants for second_user@localhost
-GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
+GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD <secret>
 GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 prepare s_t9 from 'select c1 as my_col 
                                  from t9 where c1= 1' ;
@@ -42,7 +42,7 @@ GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
 show grants for second_user@localhost ;
 Grants for second_user@localhost
-GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
+GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD <secret>
 GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 GRANT SELECT ON `mysqltest`.`t1` TO 'second_user'@'localhost'
 prepare s_t1 from 'select a as my_col from t1' ;
@@ -63,7 +63,7 @@ GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE
 GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 show grants for second_user@localhost ;
 Grants for second_user@localhost
-GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD '*13843FE600B19A81E32AF50D4A6FED25875FF1F3'
+GRANT USAGE ON *.* TO 'second_user'@'localhost' IDENTIFIED BY PASSWORD <secret>
 GRANT SELECT ON `mysqltest`.`t9` TO 'second_user'@'localhost'
 execute s_t1 ;
 ERROR 42000: SELECT command denied to user 'second_user'@'localhost' for table 't1'

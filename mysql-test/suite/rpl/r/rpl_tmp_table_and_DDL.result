@@ -182,6 +182,11 @@ DROP USER test_3@localhost;
 ERROR HY000: Table 'user' was not locked with LOCK TABLES
 INSERT INTO t2 VALUES ("DROP USER test_3@localhost with table locked");
 UNLOCK TABLE;
+CREATE DATABASE db;
+CREATE TABLE db.t1 LIKE t2;
+CREATE TABLE t3 LIKE t2;
+DROP TABLE t3;
+DROP DATABASE db;
 DROP USER test_3@localhost;
 DROP FUNCTION f2;
 DROP PROCEDURE p2;
