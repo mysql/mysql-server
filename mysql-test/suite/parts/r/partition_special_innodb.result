@@ -221,6 +221,7 @@ DROP TABLE t1;
 #            ADD PARTITION and LOCK TABLE
 CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
 ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+INSERT INTO t1 VALUES (2, 2), (3, 3), (4, 4), (5, 5);
 SET lock_wait_timeout = 2;
 #Connection 1 locks the table
 LOCK TABLE t1 READ;
@@ -231,6 +232,19 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # Second attempt: says that partition already exists
 ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Check that we only can select, not insert/update/delete.
+INSERT INTO t1 VALUES (NULL, 6), (NULL, 7), (10, 10), (11, 11);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET i = 5 WHERE f = 2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t1 WHERE i = 10;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+i	f
+2	2
+3	3
+4	4
+5	5
 # Connection 1 unlocks the table and locks it again:
 UNLOCK TABLES;
 LOCK TABLE t1 READ;
@@ -283,3 +297,22 @@ t4
 SELECT * FROM t3;
 ERROR 42S02: Table 'test.t3' doesn't exist
 DROP TABLE t4;
+# Test WRITE LOCK.
+CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
+ENGINE = InnoDB PARTITION BY HASH(i) PARTITIONS 2;
+INSERT INTO t1 VALUES (3, 3), (4, 4);
+SET lock_wait_timeout = 2;
+#Connection 1 locks the table
+LOCK TABLE t1 WRITE;
+# Check that we still can SELECT, but not insert/update/delete.
+# Check that we only can select, not insert/update/delete.
+INSERT INTO t1 VALUES (NULL, 1), (NULL, 2), (10, 10), (11, 11);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UPDATE t1 SET i = 5 WHERE f = 2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+DELETE FROM t1 WHERE i = 10;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+UNLOCK TABLES;
+DROP TABLE t1;

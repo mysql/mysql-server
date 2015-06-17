@@ -1,0 +1,24 @@
+#
+# Bug #20031570 INNODB_CHECKSUM_ALGORITHM VARIABLE LEADS TO CRASHING
+#
+set global innodb_checksum_algorithm=crc32;
+create table t1(f1 int not null primary key)engine=innodb;
+# Restart the server with --log-error
+set global innodb_checksum_algorithm=strict_innodb;
+set global innodb_limit_optimistic_insert_debug = 2;
+call mtr.add_suppression("\\[Warning\\] InnoDB: innodb_checksum_algorithm is set to .* but the page .* contains a valid checksum .*.");
+select count(*) from t1;
+count(*)
+0
+insert into t1 values(2),(3),(4);
+# Restart the server with --log-error
+set global innodb_checksum_algorithm=strict_none;
+set global innodb_limit_optimistic_insert_debug = 2;
+select count(*) from t1;
+count(*)
+3
+insert into t1 values(5),(6),(7);
+select count(*) from t1;
+count(*)
+6
+drop table t1;

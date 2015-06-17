@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -221,6 +221,8 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DERRMSG_DIR="${PROJECT_BINARY_DIR}/sql/share")
+ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
@@ -324,12 +326,19 @@ IF (MERGE_UNITTESTS)
   ADD_TEST(merge_large_tests merge_large_tests-t)
   ADD_TEST(merge_small_tests merge_small_tests-t)
 
-ELSE()
+ENDIF(MERGE_UNITTESTS)
 
   FOREACH(test ${TESTS})
     ADD_EXECUTABLE(${test}-t ${test}-t.cc)
     TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-    ADD_TEST(${test} ${test}-t)
+    IF(MERGE_UNITTESTS)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+      IF(WIN32)
+        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+      ENDIF()
+    ELSE()
+      ADD_TEST(${test} ${test}-t)
+    ENDIF()
   ENDFOREACH()
   
   FOREACH(test ${SERVER_TESTS})
@@ -348,10 +357,15 @@ ELSE()
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
     TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-    ADD_TEST(${test} ${test}-t)
+    IF(MERGE_UNITTESTS)
+      SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+      IF(WIN32)
+        SET_PROPERTY(TARGET ${test}-t PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
+      ENDIF()
+    ELSE()
+      ADD_TEST(${test} ${test}-t)
+    ENDIF()
   ENDFOREACH()
-
-ENDIF()
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 COPY_OPENSSL_DLLS(copy_openssl_gunit)

@@ -2503,7 +2503,7 @@ void Log_event::print_base64(IO_CACHE* file,
   uint32 size= uint4korr(ptr + EVENT_LEN_OFFSET);
   DBUG_ENTER("Log_event::print_base64");
 
-  size_t const tmp_str_sz= base64_needed_encoded_length((int) size);
+  uint64 const tmp_str_sz= base64_needed_encoded_length((uint64) size);
   char *const tmp_str= (char *) my_malloc(tmp_str_sz, MYF(MY_WME));
   if (!tmp_str) {
     fprintf(stderr, "\nError: Out of memory. "
@@ -3411,7 +3411,7 @@ bool Query_log_event::write(IO_CACHE* file)
       user= thd->get_invoker_user();
       host= thd->get_invoker_host();
     }
-    else if (thd->security_ctx->priv_user)
+    else
     {
       Security_context *ctx= thd->security_ctx;
 
@@ -10732,7 +10732,7 @@ end:
   {
     /* we need to unpack the AI so that positions get updated */
     m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols);
+    unpack_current_row(rli, &m_cols_ai);
   }
   m_table->default_column_bitmaps();
   DBUG_RETURN(error);
@@ -13781,7 +13781,7 @@ st_print_event_info::st_print_event_info()
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
-   thread_id(0), thread_id_printed(false),
+   thread_id(0), thread_id_printed(false),server_id_from_fd_event(0),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
    have_unflushed_events(false), skipped_event_in_transaction(false),
    is_gtid_next_set(false), is_gtid_next_valid(true)
