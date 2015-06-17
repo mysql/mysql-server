@@ -595,6 +595,21 @@ ib_trx_begin(
 	return(static_cast<ib_trx_t>(trx));
 }
 
+
+/*****************************************************************//**
+Check if transaction is read_only
+@return transaction read_only status */
+UNIV_INTERN
+ib_u32_t
+ib_trx_read_only(
+/*=============*/
+	ib_trx_t	ib_trx)		/*!< in: trx handle */
+{
+	trx_t*		trx = (trx_t*) ib_trx;
+
+	return(trx->read_only);
+}
+
 /*****************************************************************//**
 Get the transaction's state.
 @return	transaction state */

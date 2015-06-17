@@ -140,6 +140,10 @@ word32 RSA_BlockType2::UnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
 void RSA_BlockType1::Pad(const byte* input, word32 inputLen, byte* pkcsBlock,
                          word32 pkcsBlockLen, RandomNumberGenerator&) const
 {
+    // sanity checks
+    if (input == NULL || pkcsBlock == NULL)
+        return;
+
     // convert from bit length to byte length
     if (pkcsBlockLen % 8 != 0)
     {

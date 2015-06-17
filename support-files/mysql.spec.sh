@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -416,7 +416,7 @@ Obsoletes:      mysql-embedded mysql-embedded-advanced
 Obsoletes:      MySQL-embedded-pro
 Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
 Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
-Provides:       mysql-emdedded
+Provides:       mysql-embedded
 
 %description -n MySQL-Cluster-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.

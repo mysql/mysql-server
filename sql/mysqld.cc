@@ -2398,7 +2398,7 @@ static void network_init(void)
       returned by getaddrinfo();
     */
 
-    struct addrinfo *a;
+    struct addrinfo *a = NULL;
     ip_sock= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)
@@ -4100,17 +4100,11 @@ int init_common_variables()
                       "--slow-query-log-file option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
-#define FIX_LOG_VAR(VAR, ALT)                                   \
-  if (!VAR || !*VAR)                                            \
-  {                                                             \
-    my_free(VAR); /* it could be an allocated empty string "" */ \
-    VAR= ALT;                                                    \
-  }
+  if (!opt_logname || !*opt_logname)
+    opt_logname= make_default_log_name(logname_path, ".log");
 
-  FIX_LOG_VAR(opt_logname,
-              make_default_log_name(logname_path, ".log"));
-  FIX_LOG_VAR(opt_slow_logname,
-              make_default_log_name(slow_logname_path, "-slow.log"));
+  if (!opt_slow_logname || !*opt_slow_logname)
+    opt_slow_logname= make_default_log_name(slow_logname_path, "-slow.log");
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
@@ -5681,6 +5675,8 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+
+  (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
