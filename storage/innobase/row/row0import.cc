@@ -3431,7 +3431,7 @@ row_import_for_mysql(
 
 	/* Prevent DDL operations while we are checking. */
 
-	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
+	rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
 
 	row_import	cfg;
 
@@ -3458,14 +3458,14 @@ row_import_for_mysql(
 			autoinc = cfg.m_autoinc;
 		}
 
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 
 		DBUG_EXECUTE_IF("ib_import_set_index_root_failure",
 				err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
 	} else if (cfg.m_missing) {
 
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 
 		/* We don't have a schema file, we will have to discover
 		the index root pages from the .ibd file and skip the schema
@@ -3497,7 +3497,7 @@ row_import_for_mysql(
 		}
 
 	} else {
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 	}
 
 	if (err != DB_SUCCESS) {

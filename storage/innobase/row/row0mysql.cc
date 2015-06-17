@@ -2838,7 +2838,7 @@ row_mysql_freeze_data_dictionary_func(
 {
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	rw_lock_s_lock_inline(&dict_operation_lock, 0, file, line);
+	rw_lock_s_lock_inline(dict_operation_lock, 0, file, line);
 
 	trx->dict_operation_lock_mode = RW_S_LATCH;
 }
@@ -2854,7 +2854,7 @@ row_mysql_unfreeze_data_dictionary(
 
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
-	rw_lock_s_unlock(&dict_operation_lock);
+	rw_lock_s_unlock(dict_operation_lock);
 
 	trx->dict_operation_lock_mode = 0;
 }
@@ -2875,7 +2875,7 @@ row_mysql_lock_data_dictionary_func(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
-	rw_lock_x_lock_inline(&dict_operation_lock, 0, file, line);
+	rw_lock_x_lock_inline(dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
 	mutex_enter(&dict_sys->mutex);
@@ -2896,7 +2896,7 @@ row_mysql_unlock_data_dictionary(
 	no deadlocks can occur then in these operations */
 
 	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	trx->dict_operation_lock_mode = 0;
 }
@@ -2922,7 +2922,7 @@ row_create_table_for_mysql(
 	que_thr_t*	thr;
 	dberr_t		err;
 
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
@@ -3129,7 +3129,7 @@ row_create_index_for_mysql(
 
 	if (table == NULL) {
 
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 		ut_ad(mutex_own(&dict_sys->mutex));
 
 		table = dict_table_open_on_name(table_name, TRUE, TRUE,
@@ -3306,7 +3306,7 @@ row_table_add_foreign_constraints(
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
 	ut_ad(mutex_own(&dict_sys->mutex));
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_a(sql_string);
 
 	trx->op_info = "adding foreign keys";
@@ -4159,7 +4159,7 @@ row_drop_table_for_mysql(
 		}
 
 		ut_ad(mutex_own(&dict_sys->mutex));
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+		ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 		table = dict_table_open_on_name(
 			name, TRUE, FALSE,

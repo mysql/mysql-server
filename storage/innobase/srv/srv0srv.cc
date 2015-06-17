@@ -1889,7 +1889,7 @@ srv_master_evict_from_table_cache(
 {
 	ulint	n_tables_evicted = 0;
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock(dict_operation_lock);
 
 	dict_mutex_enter_for_mysql();
 
@@ -1898,7 +1898,7 @@ srv_master_evict_from_table_cache(
 
 	dict_mutex_exit_for_mysql();
 
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	return(n_tables_evicted);
 }
