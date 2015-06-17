@@ -70,11 +70,7 @@ Warnings:
 Warning	1292	Truncated incorrect transaction_alloc_block_size value: '135217728'
 SELECT @@global.transaction_alloc_block_size;
 @@global.transaction_alloc_block_size
-<<<<<<< HEAD
-134217728
-=======
 131072
->>>>>>> mysql-5.5.44
 SET @@global.transaction_alloc_block_size = ON;
 ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
 SET @@global.transaction_alloc_block_size = OFF;
@@ -106,11 +102,7 @@ Warnings:
 Warning	1292	Truncated incorrect transaction_alloc_block_size value: '135217728'
 SELECT @@session.transaction_alloc_block_size;
 @@session.transaction_alloc_block_size
-<<<<<<< HEAD
-134217728
-=======
 131072
->>>>>>> mysql-5.5.44
 SET @@session.transaction_alloc_block_size = ON;
 ERROR 42000: Incorrect argument type to variable 'transaction_alloc_block_size'
 SET @@session.transaction_alloc_block_size = OFF;
@@ -146,11 +138,8 @@ WHERE VARIABLE_NAME='transaction_alloc_block_size';
 '#---------------------FN_DYNVARS_001_08----------------------#'
 SET @@transaction_alloc_block_size = 1024;
 SET @@global.transaction_alloc_block_size = 134217728;
-<<<<<<< HEAD
-=======
 Warnings:
 Warning	1292	Truncated incorrect transaction_alloc_block_size value: '134217728'
->>>>>>> mysql-5.5.44
 SELECT @@transaction_alloc_block_size = @@global.transaction_alloc_block_size;
 @@transaction_alloc_block_size = @@global.transaction_alloc_block_size
 0
