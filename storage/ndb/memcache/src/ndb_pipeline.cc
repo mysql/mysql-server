@@ -160,7 +160,6 @@ void pipeline_add_stats(ndb_pipeline *self,
                         const void *cookie) {
   char key[128];
 
-  DEBUG_ENTER();
   const Configuration & conf = get_Configuration();
 
   if(strncasecmp(stat_key,"ndb",3) == 0) {
