@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
-  Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
-=======
   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-5.5.44
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1178,7 +1174,8 @@ typedef struct st_lookup_field_values
 
 int make_db_list(THD *thd, List<LEX_STRING> *files,
                  LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema);
+                 bool *with_i_schema,
+                 MEM_ROOT *tmp_mem_root);
 #endif
 
 /*
@@ -1200,7 +1197,7 @@ static void clean_away_stray_files(THD *thd)
  
   DBUG_ENTER("clean_away_stray_files");
   memset(&lookup_field_values, 0, sizeof(LOOKUP_FIELD_VALUES));
-  if (make_db_list(thd, &db_names, &lookup_field_values, &with_i_schema))
+  if (make_db_list(thd, &db_names, &lookup_field_values, &with_i_schema, NULL))
   {
     thd->clear_error();
     DBUG_PRINT("info", ("Failed to find databases"));
@@ -1223,7 +1220,7 @@ static void clean_away_stray_files(THD *thd)
 
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
       thd_ndb->set_skip_binlog_setup_in_find_files(true);
-      if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
+      if (find_files(thd, &tab_names, db_name->str, path, NullS, 0, NULL)
           != FIND_FILES_OK)
       {
         thd->clear_error();
@@ -2858,7 +2855,7 @@ class Ndb_schema_event_handler {
     thd->col_access&= TABLE_ACLS;
 
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
-    if (find_files(m_thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
+    if (find_files(m_thd, &files, dbname, path, NullS, 0, NULL) != FIND_FILES_OK)
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));
@@ -5320,35 +5317,6 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
-<<<<<<< HEAD
-=======
-bool
-ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
-{
-  DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
-  DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
-  LEX_STRING *tabname;
-  List<LEX_STRING> files;
-  char path[FN_REFLEN + 1];
-
-  build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
-  if (find_files(thd, &files, dbname, path, NullS, 0, NULL) !=
-      FIND_FILES_OK)
-  {
-    DBUG_PRINT("info", ("Failed to find files"));
-    DBUG_RETURN(true);
-  }
-  DBUG_PRINT("info",("found: %d files", files.elements));
-  while ((tabname= files.pop()))
-  {
-    DBUG_PRINT("info", ("Found table %s", tabname->str));
-    if (ndbcluster_check_if_local_table(dbname, tabname->str))
-      DBUG_RETURN(true);
-  }
-  
-  DBUG_RETURN(false);
-}
->>>>>>> mysql-5.5.44
 
 /*
   Common function for setting up everything for logging a table at

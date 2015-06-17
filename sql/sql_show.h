@@ -92,7 +92,8 @@ enum find_files_result {
 #ifndef MCP_WL1735
 int make_db_list(THD *thd, List<LEX_STRING> *files,
                  LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema);
+                 bool *with_i_schema,
+                 MEM_ROOT *tmp_mem_root);
 #endif
 
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
