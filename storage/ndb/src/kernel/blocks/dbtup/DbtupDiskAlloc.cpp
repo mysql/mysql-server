@@ -1960,7 +1960,7 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
 	Uint32 pos= alloc.calc_extent_pos(old.p);
 	Local_extent_info_list new_list(c_extent_pool, alloc.m_free_extents[pos]);
 #if defined VM_TRACE || defined ERROR_INSERT
-        ndbrequire(!"Bug17665497: debugging suspect code path.");
+        // ndbrequire(!"Bug17665497: debugging suspect code path.");
         /**
          * old is already in list with head alloc.m_extent_list.
          * Before adding it to new_list it should be removed from
@@ -2042,6 +2042,7 @@ Dbtup::disk_page_get_allocated(const Tablerec* tabPtrP,
       for (list.first(extentPtr); !extentPtr.isNull(); list.next(extentPtr))
       {
 #if defined VM_TRACE || defined ERROR_INSERT
+        // Bug17665497: debugging suspect code path in disk_restart_alloc_extent()
         ndbrequire(extentPtr.p->m_free_matrix_pos == RNIL);
 #endif
         cnt++;
