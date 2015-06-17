@@ -72,7 +72,7 @@ public:
 	/** Constructor. */
 	std_hash_t()
 	{
-		m_map_latch.init("std_hash_t latch", __FILE__, __LINE__);
+		m_map_latch.init(LATCH_ID_NONE, __FILE__, __LINE__);
 	}
 
 	/** Destructor. */
@@ -168,7 +168,7 @@ public:
 
 private:
 	map_t				m_map;
-	mutable OSBasicMutex<NoPolicy>	m_map_latch;
+	mutable OSTrackMutex<NoPolicy>	m_map_latch;
 };
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
