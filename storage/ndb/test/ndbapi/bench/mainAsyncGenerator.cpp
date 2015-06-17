@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbHost.h>
 #include <NdbSleep.h>
 #include <NdbThread.h>
 #include <NdbMain.h>
@@ -264,16 +263,11 @@ print_stats(const char       *title,
 {
   int    i;
   char buf[10];
-  char name[MAXHOSTNAMELEN];
-  
-  name[0] = 0;
-  NdbHost_GetHostName(name);
   
   ndbout_c("\n------ %s ------",title);
   ndbout_c("Length        : %d %s",
 	 length,
 	 transactionFlag ? "Transactions" : "sec");
-  ndbout_c("Processor     : %s", name);
   ndbout_c("Number of Proc: %d",numProc);
   ndbout_c("Parallellism  : %d", parallellism);
   ndbout_c("UseNdbRecord  : %u", useNdbRecord);

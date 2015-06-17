@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,20 +18,10 @@
 #ifndef NDB_HOST_H
 #define NDB_HOST_H
 
-#ifndef NDB_WIN32
-#include <sys/param.h>
-#include <netdb.h>
-#endif
-
-#ifndef MAXHOSTNAMELEN
-#define MAXHOSTNAMELEN 255
-#endif
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
 
-  int NdbHost_GetHostName(char*);
   int NdbHost_GetProcessId();
 
 #ifdef	__cplusplus
