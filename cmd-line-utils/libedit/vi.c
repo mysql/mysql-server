@@ -1,7 +1,7 @@
 /*	$NetBSD: vi.c,v 1.41 2011/10/04 15:27:04 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 2015
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -607,8 +607,10 @@ vi_list_or_eof(EditLine *el, Int c)
 
 	if (el->el_line.cursor == el->el_line.lastchar) {
 		if (el->el_line.cursor == el->el_line.buffer) {
-			terminal_writec(el, c);	/* then do a EOF */
-			return CC_EOF;
+			if(!(terminal_writec(el, c)))	/* then do a EOF */
+				return CC_EOF;
+			else
+				return CC_ERROR;
 		} else {
 			/*
 			 * Here we could list completions, but it is an

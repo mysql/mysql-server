@@ -1,3 +1,12 @@
+mysql-community (5.6.25-1ubuntu14.10) utopic; urgency=low
+
+  * new upstream release
+  * mysql-community-server now depends on perl, psmisc
+    mysql-community-test now depends on python, libmysqlclient-dev
+    (Closes: #20561621)
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 25 Feb 2014 22:52:19 +0530
+
 mysql-community (5.6.24-1ubuntu14.10) utopic; urgency=low
 
   * new upstream release

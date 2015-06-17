@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -675,6 +675,7 @@ private:
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 const POSITION *inner_pos,
                                 POSITION *sjm_pos);
+  bool add_having_as_tmp_table_cond(uint curr_tmp_table);
   bool make_tmp_tables_info();
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
