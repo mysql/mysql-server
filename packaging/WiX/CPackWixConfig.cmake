@@ -23,7 +23,6 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-<<<<<<< HEAD
     "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts")
 
   IF("${VERSION}" MATCHES "-ndb-")
@@ -31,10 +30,6 @@ ELSE()
     SET(CPACK_COMPONENTS_USED
       "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
   ENDIF()
-=======
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
-ENDIF()
->>>>>>> mysql-5.6-cluster-7.3
 
 
 # Some components like Embedded are optional

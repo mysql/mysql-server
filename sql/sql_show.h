@@ -155,15 +155,6 @@ enum find_files_result {
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
 
-<<<<<<< HEAD
-=======
-#ifndef MCP_WL1735
-int make_db_list(THD *thd, List<LEX_STRING> *files,
-                 LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema,
-                 MEM_ROOT *tmp_mem_root);
-#endif
->>>>>>> mysql-5.6-cluster-7.3
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir,
                              MEM_ROOT *tmp_mem_root);
