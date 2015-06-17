@@ -417,12 +417,7 @@ Obsoletes:      mysql-embedded mysql-embedded-advanced
 Obsoletes:      MySQL-embedded-pro
 Obsoletes:      MySQL-embedded-classic MySQL-embedded-community MySQL-embedded-enterprise
 Obsoletes:      MySQL-embedded-advanced-gpl MySQL-embedded-enterprise-gpl
-<<<<<<< HEAD
-Provides:       mysql-emdedded
-=======
-Provides:       mysql-embedded = %{version}-%{release}
-Provides:       mysql-embedded%{?_isa} = %{version}-%{release}
->>>>>>> mysql-5.5.44
+Provides:       mysql-embedded
 
 %description -n MySQL-Cluster-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
