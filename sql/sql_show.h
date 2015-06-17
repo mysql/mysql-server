@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,10 +166,11 @@ enum find_files_result {
 #ifndef MCP_WL1735
 int make_db_list(THD *thd, List<LEX_STRING> *files,
                  LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema);
+                 bool *with_i_schema, MEM_ROOT *tmp_mem_root);
 #endif
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
-                             const char *path, const char *wild, bool dir);
+                             const char *path, const char *wild, bool dir,
+                             MEM_ROOT *tmp_mem_root);
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO  *create_info_arg, bool show_database);
