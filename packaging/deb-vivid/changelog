@@ -22,8 +22,15 @@ mysql-community (5.7.7-rc-3ubuntu15.04) vivid; urgency=low
   * new /etc/mysql/my.cnf management scheme added for Ubuntu 15.04
     as discussed in Dec 2014 for native packaging source
   * added dh "--with systemd" for enabling systemd
+  * mysql-common now conflicts with
+    mysql-server-5.6, mysql-server-core-5.6
+    mysql-client-5.6, mysql-client-core-5.6
+  * mysql-*-server no more provides
+    mysql-server-5.6, mysql-server-core-5.6
+  * mysql-*-client no more provides
+    mysql-client-5.6, mysql-client-core-5.6
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 27 May 2015 11:35:35 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 15 Jun 2015 16:48:05 +0530
 
 mysql-community (5.7.7-rc-2ubuntu15.04) vivid; urgency=low
 
