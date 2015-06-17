@@ -1354,5 +1354,23 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select /*+ QB_NAME(`1a`) BKA(`t1`@`1a`) */ 1 AS `1` from `test`.`t1`
 DROP TABLE t1;
+#
+# Bug #21148405: OPTIMIZER HINTS: READ OF FREE MEMORY FOR INVALID HINTS
+#
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE cur1 CURSOR FOR  SELECT /*+ NO_MRR(q w)*/1;
+OPEN cur1;
+END|
+CALL p1();
+Warnings:
+Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
+CALL p1();
+Warnings:
+Warning	3128	Unresolved name `q`@`select#1` `w` for NO_MRR hint
+DROP PROCEDURE p1;
+#
+# Unbalanced commentary test
+#
 SELECT /*+ 10;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*+ 10' at line 1
