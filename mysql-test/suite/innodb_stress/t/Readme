@@ -1,0 +1,5 @@
+The hugestress* testcase takes lot of time , hence run with the following options
+
+./mtr  --suite=innodb_stress --force --big-test --testcase-timeout=5000 --suite-timeout=500 innodb_hugestress*.test
+
+For remaining testcases , no need to pass any options while running.

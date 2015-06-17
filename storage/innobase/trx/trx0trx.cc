@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -303,11 +303,10 @@ trx_free_prepared(
 /*==============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
-
 	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 
+	lock_trx_release_locks(trx);
 	trx_undo_free_prepared(trx);
 
 	assert_trx_in_rw_list(trx);

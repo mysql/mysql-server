@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -222,8 +222,8 @@ srv_file_check_mode(
 
 		/* Note: stat.rw_perm is only valid of files */
 
-		if (stat.type == OS_FILE_TYPE_FILE
-		    || stat.type == OS_FILE_TYPE_BLOCK) {
+		if (stat.type == OS_FILE_TYPE_FILE) {
+
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
@@ -420,14 +420,18 @@ srv_parse_data_file_paths_and_sizes(
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
 			str += 3;
-			(srv_data_file_is_raw_partition)[i] = SRV_NEW_RAW;
+			/* Initialize new raw device only during bootstrap */
+			(srv_data_file_is_raw_partition)[i] =
+			opt_bootstrap ? SRV_NEW_RAW : SRV_OLD_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 			str += 3;
 
+			/* Initialize new raw device only during bootstrap */
 			if ((srv_data_file_is_raw_partition)[i] == 0) {
-				(srv_data_file_is_raw_partition)[i] = SRV_OLD_RAW;
+				(srv_data_file_is_raw_partition)[i] =
+				opt_bootstrap ? SRV_NEW_RAW : SRV_OLD_RAW;
 			}
 		}
 
@@ -880,6 +884,24 @@ open_or_create_data_files(
 
 				return(DB_ERROR);
 			}
+
+			const char*	check_msg;
+			check_msg = fil_read_first_page(
+				files[i], FALSE, &flags, &space,
+#ifdef UNIV_LOG_ARCHIVE
+				min_arch_log_no, max_arch_log_no,
+#endif /* UNIV_LOG_ARCHIVE */
+				min_flushed_lsn, max_flushed_lsn);
+
+			/* If first page is valid, don't overwrite DB.
+			It prevents overwriting DB when mysql_install_db
+			starts mysqld multiple times during bootstrap. */
+			if (check_msg == NULL) {
+
+				srv_created_new_raw = FALSE;
+				ret = FALSE;
+			}
+
 		} else if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
 			srv_start_raw_disk_in_use = TRUE;
 
@@ -3025,9 +3047,9 @@ innobase_shutdown_for_mysql(void)
 
 	ibuf_close();
 	log_shutdown();
-	lock_sys_close();
 	trx_sys_file_format_close();
 	trx_sys_close();
+	lock_sys_close();
 
 	/* We don't create these mutexes in RO mode because we don't create
 	the temp files that the cover. */

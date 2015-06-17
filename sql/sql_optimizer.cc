@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6757,6 +6757,8 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
   parent_join->tables+= subq_lex->join->tables;
   parent_join->primary_tables+= subq_lex->join->tables;
 
+  parent_lex->between_count+= subq_lex->between_count;
+  parent_lex->cond_count+= subq_lex->cond_count;
   parent_lex->derived_table_count+= subq_lex->derived_table_count;
   parent_lex->materialized_table_count+= subq_lex->materialized_table_count;
   parent_lex->partitioned_table_count+= subq_lex->partitioned_table_count;
