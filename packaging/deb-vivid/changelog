@@ -1,8 +1,15 @@
-mysql-community (5.6.25-2ubuntu15.04) vivid; urgency=low
+mysql-community (5.6.25-3ubuntu15.04) vivid; urgency=low
 
   * new upstream release
+  * mysql-common now conflicts with
+    mysql-server-5.6, mysql-server-core-5.6
+    mysql-client-5.6, mysql-client-core-5.6
+  * mysql-*-server no more provides
+    mysql-server-5.6, mysql-server-core-5.6
+  * mysql-*-client no more provides
+    mysql-client-5.6, mysql-client-core-5.6
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Fri, 29 May 2015 17:07:34 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 15 Jun 2015 16:48:05 +0530
 
 mysql-community (5.6.24-3ubuntu15.04) vivid; urgency=low
 
