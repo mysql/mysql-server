@@ -181,7 +181,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
         if (isReadyToWake())  // already enough
         {
           pg.wait_for_input(0);
-          woken = false;
+          // woken = false;
           ignore_wakeups();
           ret = 0;
           break;
@@ -196,7 +196,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
  
       if (isReadyToWake())
       {
-        woken = false;
+        // woken = false;
         ignore_wakeups();
         ret = 0;
         break;
