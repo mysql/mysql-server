@@ -78,7 +78,7 @@ PROJECT_BRIEF          = "Source Code Documentation"
 # and the maximum width should not exceed 200 pixels. Doxygen will copy the logo
 # to the output directory.
 
-PROJECT_LOGO           = logo-mysql-110x55.png
+PROJECT_LOGO           = doxygen_ressources/logo-mysql-110x55.png
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) path
 # into which the generated documentation will be written. If a relative path is

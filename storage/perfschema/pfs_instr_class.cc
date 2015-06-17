@@ -596,8 +596,8 @@ PFS_table_share::find_index_stat(uint index) const
 
 /**
   Find or create a table share index instrumentation.
-  @param server_share
-  @index index
+  @param server_share the server TABLE_SHARE structure
+  @param index the index
   @return a table share index, or NULL
 */
 PFS_table_share_index*

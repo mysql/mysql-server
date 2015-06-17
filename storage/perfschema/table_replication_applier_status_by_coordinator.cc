@@ -15,7 +15,7 @@
       Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file storage/perfschema/table_replication_applier_status_by_cordinator.cc
+  @file storage/perfschema/table_replication_applier_status_by_coordinator.cc
   Table replication_applier_status_by_coordinator (implementation).
 */
 
