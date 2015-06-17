@@ -24,7 +24,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 
 --disable_query_log
 

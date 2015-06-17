@@ -12,6 +12,10 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Patch notes, version 2.3.7b (3/18/2015)
+    This release of yaSSL fixes a potential crash with corrupted private keys.
+    Also detects bad keys earlier for user.
+
 yaSSL Release notes, version 2.3.7 (12/10/2014)
     This release of yaSSL fixes the potential to process duplicate handshake
     messages by explicitly marking/checking received handshake messages.

@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
    Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+=======
+  Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+>>>>>>> mysql-5.6.25
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5364,6 +5368,36 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
+<<<<<<< HEAD
+=======
+bool
+ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
+{
+  DBUG_ENTER("ndbcluster_check_if_local_tables_in_db");
+  DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
+  LEX_STRING *tabname;
+  List<LEX_STRING> files;
+  char path[FN_REFLEN + 1];
+
+  build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
+  if (find_files(thd, &files, dbname, path, NullS, 0, NULL) !=
+      FIND_FILES_OK)
+  {
+    thd->clear_error();
+    DBUG_PRINT("info", ("Failed to find files"));
+    DBUG_RETURN(true);
+  }
+  DBUG_PRINT("info",("found: %d files", files.elements));
+  while ((tabname= files.pop()))
+  {
+    DBUG_PRINT("info", ("Found table %s", tabname->str));
+    if (ndbcluster_check_if_local_table(dbname, tabname->str))
+      DBUG_RETURN(true);
+  }
+  
+  DBUG_RETURN(false);
+}
+>>>>>>> mysql-5.6.25
 
 /*
   Common function for setting up everything for logging a table at

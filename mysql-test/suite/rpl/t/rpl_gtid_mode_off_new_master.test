@@ -1,0 +1,63 @@
+# ==== Purpose ====
+#
+# MySQL 5.7 introduced two new values for GTID_MODE: OFF_PERMISSIVE
+# and ON_PERMISSIVE. In order for 5.6 to replicate from such a master,
+# a slave that uses GTID_MODE=OFF accepts any master GTID_MODE that
+# begins with OFF (i.e., regex /OFF.*/), and a slave that uses
+# GTID_MODE=ON accepts any master GTID_MODE that begins with ON.
+#
+# This test verifies that the slave accepts such values for GTID_MODE.
+#
+# ==== Implementation ====
+#
+# Use debug symbols to simulate that the master uses unknown values
+# for GTID_MODE.
+#
+# ==== Related bugs and worklogs ====
+#
+# WL#7083: GTIDs: set gtid_mode=ON online
+# - OFF_PERMISSIVE and ON_PERMISSIVE were introduced in 5.7 in this worklog.
+# BUG#20471216: 5.6 WITH GTID_MODE=X CANT CONNECT TO 5.7.6 WITH GTID_MODE=X_PERMISSIVE
+# - 5.6 was fixed to accept ON_PERMISSIVE and OFF_PERMISSIVE in this bug.
+
+--source include/have_debug.inc
+--source include/not_gtid_enabled.inc
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--connection slave
+CALL mtr.add_suppression('Slave I/O: The master uses an unknown GTID_MODE');
+CALL mtr.add_suppression('The slave IO thread stops because the master has an unknown');
+
+SET @save_debug= @@GLOBAL.DEBUG;
+
+--source include/stop_slave.inc
+SET @@GLOBAL.DEBUG = 'd,simulate_master_has_gtid_mode_off_permissive';
+--source include/start_slave.inc
+--let $assert_text= Receiver thread should report that off_permissive is unknown
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= Slave I/O thread: connected to master
+--let $assert_select= Slave I/O: The master uses an unknown GTID_MODE 'off_permissive'. Treating it as 'OFF'.
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--source include/stop_slave.inc
+SET @@GLOBAL.DEBUG = 'd,simulate_master_has_gtid_mode_off_something';
+--source include/start_slave.inc
+--let $assert_text= Receiver thread should report that off_something is unknown
+--let $assert_select= Slave I/O: The master uses an unknown GTID_MODE 'off_something'. Treating it as 'OFF'.
+--source include/assert_grep.inc
+
+--source include/stop_slave.inc
+SET @@GLOBAL.DEBUG = 'd,simulate_master_has_unknown_gtid_mode';
+START SLAVE;
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--source include/wait_for_slave_io_error.inc
+
+SET @@GLOBAL.DEBUG= @save_debug;
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc
