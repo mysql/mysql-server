@@ -1,7 +1,7 @@
 /*	$NetBSD: terminal.h,v 1.3 2011/07/29 23:44:45 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 2015
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -103,7 +103,7 @@ protected int	terminal_settc(EditLine *, int, const Char **);
 protected int	terminal_gettc(EditLine *, int, char **);
 protected int	terminal_telltc(EditLine *, int, const Char **);
 protected int	terminal_echotc(EditLine *, int, const Char **);
-protected void	terminal_writec(EditLine *, Int);
+protected int	terminal_writec(EditLine *, Int);
 protected int	terminal__putc(EditLine *, Int);
 protected void	terminal__flush(EditLine *);
 

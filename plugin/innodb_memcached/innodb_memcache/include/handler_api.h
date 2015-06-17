@@ -137,6 +137,14 @@ handler_rec_setup_uint64(
 	bool		unsigned_flag,	/*!< in: whether it is unsigned */
 	bool		is_null);	/*!< in: whether it is null value */
 
+
+
+/**********************************************************************//**
+Check if global read lock is active */
+bool
+handler_check_global_read_lock_active();
+/*====================================*/
+
 /**********************************************************************//**
 Unlock a table and commit the transaction
 return 0 if fail to commit the transaction */

@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
 ENDIF()
 
 
@@ -62,10 +62,10 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  SET(CPACK_COMPONENT_CLIENT_DESCRIPTION 
    "Various helpful (commandline) tools including the mysql command line client" )
  # Subfeature "Debug binaries" 
- SET(CPACK_COMPONENT_DEBUGBINARIES_GROUP "MySQLServer")
- SET(CPACK_COMPONENT_DEBUGBINARIES_DISPLAY_NAME "Debug binaries")
- SET(CPACK_COMPONENT_DEBUGBINARIES_DESCRIPTION 
-   "Debug/trace versions of executables and libraries" )
+ #SET(CPACK_COMPONENT_DEBUGBINARIES_GROUP "MySQLServer")
+ #SET(CPACK_COMPONENT_DEBUGBINARIES_DISPLAY_NAME "Debug binaries")
+ #SET(CPACK_COMPONENT_DEBUGBINARIES_DESCRIPTION 
+ #  "Debug/trace versions of executables and libraries" )
  #SET(CPACK_COMPONENT_DEBUGBINARIES_WIX_LEVEL 2)
   
    

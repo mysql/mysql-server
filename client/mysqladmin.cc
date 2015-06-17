@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -963,11 +963,12 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_OLD_PASSWORD:
     case ADMIN_PASSWORD:
     {
-      char buff[128],crypted_pw[64];
+      char crypted_pw[64];
       time_t start_time;
-      char *typed_password= NULL, *verified= NULL;
+      char *buffer= NULL, *typed_password= NULL, *verified= NULL;
       bool log_off= true, err= false;
       int retry_count= 0;                       /* Attempts to SET PASSWORD */
+      unsigned long version= 0;
 
       bool old= (option == ADMIN_OLD_PASSWORD);
 
@@ -975,10 +976,18 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
       start_time=time((time_t*) 0);
       randominit(&rand_st,(ulong) start_time,(ulong) start_time/2);
 
+      version = mysql_get_server_version(mysql);
+
       if (argc < 1)
       {
 	my_printf_error(0, "Too few arguments to change password", error_flags);
 	return 1;
+      }
+      else if (version >= 50700 && old)
+      {
+        my_printf_error(0, "old-password command is not supported by the "
+                           "server version 5.7 and above", error_flags);
+        return 1;
       }
       else if (argc == 1)
       {
@@ -997,6 +1006,18 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
         print_cmdline_password_warning();
         typed_password= argv[1];
       }
+
+      /* Allocate a buffer containing a query and a password (char * 2). */
+      buffer= (char *)my_malloc(strlen(typed_password) * 2 + 64, MYF(MY_WME));
+
+      if (!buffer)
+      {
+        err= true;
+        goto error;
+      }
+
+      /* Default set password query if no password is provided. */
+      sprintf(buffer, "set password=''");
 
       if (typed_password[0])
       {
@@ -1064,16 +1085,38 @@ retry:
           we will give one more try with old format.
         */
         if (old)
+        {
           make_scrambled_password_323(crypted_pw, typed_password);
-        else
+          sprintf(buffer, "set password='%s'", crypted_pw);
+        }
+        else if (version < 50700)
+        {
           make_scrambled_password(crypted_pw, typed_password);
+          sprintf(buffer, "set password='%s'", crypted_pw);
+        }
+        else
+        {
+          printf("Warning: Server version is 5.7 or greater. "
+                 "The password will be sent to server in plain text. "
+                 "Upgrade the mysqladmin to a version "
+                 "that matches the server's version.\n");
+
+          int offset= sprintf(buffer, "ALTER USER USER() IDENTIFIED BY '");
+          int length= (int)mysql_real_escape_string(mysql, buffer + offset,
+                                                    typed_password,
+                                                    strlen(typed_password));
+          if (length == -1)
+          {
+            /* Should never fail. Buffer should be long enough.*/
+            err= true;
+            goto error;
+          }
+
+          sprintf(buffer + offset + length, "'");
+        }
       }
-      else
-	crypted_pw[0]=0;			/* No password */
 
-      sprintf(buff, "set password='%s'", crypted_pw);
-
-      if (mysql_query(mysql,buff))
+      if (mysql_query(mysql,buffer))
       {
         if ((mysql_errno(mysql) == ER_PASSWD_LENGTH) &&
             !(option == ADMIN_OLD_PASSWORD) && !retry_count)
@@ -1114,6 +1157,9 @@ retry:
           fprintf(stderr, "Note: Can't turn on logging; '%s'", mysql_error(mysql));
       }
 error:
+
+      my_free(buffer);
+
       /* free up memory from prompted password */
       if (typed_password != argv[1]) 
       {
