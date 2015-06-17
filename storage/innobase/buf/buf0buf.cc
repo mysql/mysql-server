@@ -3824,10 +3824,23 @@ retry:
 # endif /* UNIV_DEBUG_VALGRIND */
 			break;
 		case BUF_BLOCK_FILE_PAGE:
-			ut_ad(block->page.id.space()
-			      == page_get_space_id(page_align(ptr)));
-			ut_ad(block->page.id.page_no()
-			      == page_get_page_no(page_align(ptr)));
+			const ulint	space_id1 = block->page.id.space();
+			const ulint	page_no1 = block->page.id.page_no();
+			const ulint	space_id2 = page_get_space_id(
+							page_align(ptr));
+			const ulint	page_no2 = page_get_page_no(
+							page_align(ptr));
+
+			if (space_id1 != space_id2 || page_no1 != page_no2) {
+
+				ib::error() << "Found a mismatch page,"
+					<< " expect page "
+					<< page_id_t(space_id1, page_no1)
+					<< " but found "
+					<< page_id_t(space_id2, page_no2);
+
+				ut_ad(0);
+			}
 			break;
 		}
 
