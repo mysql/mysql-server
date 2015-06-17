@@ -1795,25 +1795,3 @@ eval $query_ba;
 
 --echo
 DROP TABLE t1,t2;
-
---echo #Bug #20229614: OR CONDITIONS ON MULTI-COLUMN INDEX
---echo #               MAY NOT USE ALL INDEX COLUMNS TO
---echo #               FILTER ROWS
-
-CREATE TABLE t1 (c1 INT, c2 INT, c3 INT,
-                 PRIMARY KEY(c1, c2, c3)) ENGINE=INNODB;
-
-INSERT INTO t1 VALUES (1, 1, 1), (1, 1, 2), (1, 1, 3),
-                      (1, 1, 4), (1, 1, 5);
-INSERT INTO t1 SELECT c1, 2, c3 FROM t1;
-INSERT INTO t1 SELECT c1, 3, c3 FROM t1 WHERE c2 = 1;
-
-SELECT COUNT(*) FROM t1;
-
-# Rows considered should be 3.
-EXPLAIN SELECT c1, c2, c3
-        FROM t1
-        WHERE (c1 = 1 AND c2 = 1 AND c3 = 1) OR
-              (c1 = 1 AND c2 = 2 AND c3 = 2) OR
-              (c1 = 1 AND c2 = 2 AND c3 = 3);
-DROP TABLE t1;
