@@ -2778,8 +2778,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "MaxNoOfSavedEvents",
     MGM_TOKEN,
-    "",
-    ConfigInfo::CI_USED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "100",
