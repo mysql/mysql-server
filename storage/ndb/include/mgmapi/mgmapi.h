@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1405,7 +1405,7 @@ extern "C" {
   /**
    *   Struct containing array of ndb_logevents
    *   of the requested type, describing for example
-   *   memoryusage or baclupstatus for the whole cluster,
+   *   memoryusage or backupstatus for the whole cluster,
    *   returned from ndb_mgm_dump_events()
    */
   struct ndb_mgm_events {
