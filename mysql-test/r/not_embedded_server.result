@@ -17,6 +17,7 @@ LOCK TABLES t1 READ;
 FLUSH PRIVILEGES;
 ERROR HY000: Table 'user' was not locked with LOCK TABLES
 UNLOCK TABLES;
+FLUSH PRIVILEGES;
 DROP TABLE t1;
 #
 # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN

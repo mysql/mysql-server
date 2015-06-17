@@ -2063,6 +2063,13 @@ engine may include the filename.
 static int add_keyword_path(File fptr, const char *keyword,
                             const char *path)
 {
+
+  if (strlen(path) >= FN_REFLEN)
+  {
+    my_error(ER_PATH_LENGTH, MYF(0), "data/index directory (>=512 bytes)");
+    return 1;
+  }
+
   int err= add_string(fptr, keyword);
 
   err+= add_space(fptr);
@@ -2070,7 +2077,8 @@ static int add_keyword_path(File fptr, const char *keyword,
   err+= add_space(fptr);
 
   char temp_path[FN_REFLEN];
-  strcpy(temp_path, path);
+  strncpy(temp_path, path, FN_REFLEN-1);
+  temp_path[FN_REFLEN-1] = '\0';
 #ifdef __WIN__
   /* Convert \ to / to be able to create table on unix */
   char *pos, *end;
@@ -6703,45 +6711,35 @@ static int alter_close_table(ALTER_PARTITION_PARAM_TYPE *lpt)
   @param action_completed   The action must be completed, NOT reverted
   @param drop_partition     Partitions has not been dropped yet
   @param frm_install        The shadow frm-file has not yet been installed
-  @param close_table        Table is still open, close it before reverting
 */
 
 void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
                              bool action_completed,
                              bool drop_partition,
-                             bool frm_install,
-                             bool close_table)
+                             bool frm_install)
 {
-  partition_info *part_info= lpt->part_info;
+  partition_info *part_info= lpt->part_info->get_clone();
   THD *thd= lpt->thd;
   TABLE *table= lpt->table;
   DBUG_ENTER("handle_alter_part_error");
   DBUG_ASSERT(table->m_needs_reopen);
 
-  if (close_table)
+  /*
+    All instances of this table needs to be closed.
+    Better to do that here, than leave the cleaning up to others.
+    Acquire EXCLUSIVE mdl lock if not already acquired.
+  */
+  if (!thd->mdl_context.is_lock_owner(MDL_key::TABLE, lpt->db,
+                                      lpt->table_name,
+                                      MDL_EXCLUSIVE) &&
+      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
   {
     /*
-      All instances of this table needs to be closed.
-      Better to do that here, than leave the cleaning up to others.
-      Aquire EXCLUSIVE mdl lock if not already aquired.
-    */
-    if (!thd->mdl_context.is_lock_owner(MDL_key::TABLE, lpt->db,
-                                        lpt->table_name,
-                                        MDL_EXCLUSIVE))
-    {
-      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
-      {
-        /* At least remove this instance on failure */
-        goto err_exclusive_lock;
-      }
-    }
-    /* Ensure the share is destroyed and reopened. */
-    close_all_tables_for_name(thd, table->s, false, NULL);
-  }
-  else
-  {
-err_exclusive_lock:
-    /*
+      Did not succeed in getting exclusive access to the table.
+
+      Since we have altered a cached table object (and its part_info) we need
+      at least to remove this instance so it will not be reused.
+
       Temporarily remove it from the locked table list, so that it will get
       reopened.
     */
@@ -6755,6 +6753,11 @@ err_exclusive_lock:
     mysql_lock_remove(thd, thd->lock, table);
     close_thread_table(thd, &thd->open_tables);
     lpt->table_list->table= NULL;
+  }
+  else
+  {
+    /* Ensure the share is destroyed and reopened. */
+    close_all_tables_for_name(thd, table->s, false, NULL);
   }
 
   if (part_info->first_log_entry &&
@@ -6929,7 +6932,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   ALTER_PARTITION_PARAM_TYPE lpt_obj;
   ALTER_PARTITION_PARAM_TYPE *lpt= &lpt_obj;
   bool action_completed= FALSE;
-  bool close_table_on_failure= FALSE;
   bool frm_install= FALSE;
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   DBUG_ENTER("fast_alter_partition_table");
@@ -7070,13 +7072,11 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         ERROR_INJECT_ERROR("fail_drop_partition_3") ||
-        (close_table_on_failure= TRUE, FALSE) ||
         write_log_drop_partition(lpt) ||
         (action_completed= TRUE, FALSE) ||
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
         ERROR_INJECT_ERROR("fail_drop_partition_4") ||
         alter_close_table(lpt) ||
-        (close_table_on_failure= FALSE, FALSE) ||
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ERROR_INJECT_ERROR("fail_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
@@ -7097,8 +7097,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_drop_partition_9") ||
         (alter_partition_lock_handling(lpt), FALSE)) 
     {
-      handle_alter_part_error(lpt, action_completed, TRUE, frm_install,
-                              close_table_on_failure);
+      handle_alter_part_error(lpt, action_completed, TRUE, frm_install);
       goto err;
     }
   }
@@ -7144,14 +7143,12 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         ERROR_INJECT_ERROR("fail_add_partition_3") ||
-        (close_table_on_failure= TRUE, FALSE) ||
         write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         ERROR_INJECT_ERROR("fail_add_partition_4") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ERROR_INJECT_ERROR("fail_add_partition_5") ||
-        (close_table_on_failure= FALSE, FALSE) ||
         alter_close_table(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_6") ||
         ERROR_INJECT_ERROR("fail_add_partition_6") ||
@@ -7174,8 +7171,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_add_partition_10") ||
         (alter_partition_lock_handling(lpt), FALSE))
     {
-      handle_alter_part_error(lpt, action_completed, FALSE, frm_install,
-                              close_table_on_failure);
+      handle_alter_part_error(lpt, action_completed, FALSE, frm_install);
       goto err;
     }
   }
@@ -7240,7 +7236,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_write_frm(lpt, WFRM_WRITE_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_2") ||
         ERROR_INJECT_ERROR("fail_change_partition_2") ||
-        (close_table_on_failure= TRUE, FALSE) ||
         write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_3") ||
         ERROR_INJECT_ERROR("fail_change_partition_3") ||
@@ -7251,7 +7246,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
         ERROR_INJECT_ERROR("fail_change_partition_5") ||
         alter_close_table(lpt) ||
-        (close_table_on_failure= FALSE, FALSE) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ERROR_INJECT_ERROR("fail_change_partition_6") ||
         write_log_final_change_partition(lpt) ||
@@ -7279,8 +7273,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_change_partition_12") ||
         (alter_partition_lock_handling(lpt), FALSE))
     {
-      handle_alter_part_error(lpt, action_completed, FALSE, frm_install,
-                              close_table_on_failure);
+      handle_alter_part_error(lpt, action_completed, FALSE, frm_install);
       goto err;
     }
   }
