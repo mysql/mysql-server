@@ -417,6 +417,9 @@ LocalSegmentList::verify() const
     Uint32 offset = firstSeg->m_ownerRef;
     assert(sz >= offset);
     assert(offset < SectionSegment::DataLength);
+    /* Suppress warnings in release */
+    (void) sz;
+    (void) offset;
   }
 
   return true;
