@@ -1,7 +1,7 @@
 /*	$NetBSD: terminal.c,v 1.10 2011/10/04 15:27:04 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 2015
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -1271,14 +1271,19 @@ terminal__flush(EditLine *el)
 /* terminal_writec():
  *	Write the given character out, in a human readable form
  */
-protected void
+protected int
 terminal_writec(EditLine *el, Int c)
 {
 	Char visbuf[VISUAL_WIDTH_MAX +1];
 	ssize_t vcnt = ct_visual_char(visbuf, VISUAL_WIDTH_MAX, c);
-	visbuf[vcnt] = '\0';
-	terminal_overwrite(el, visbuf, (size_t)vcnt);
-	terminal__flush(el);
+	if(vcnt == -1)
+		return 1;   /* Error due to insufficient space */
+	else {
+		visbuf[vcnt] = '\0';
+		terminal_overwrite(el, visbuf, (size_t)vcnt);
+		terminal__flush(el);
+		return 0;
+	}
 }
 
 
