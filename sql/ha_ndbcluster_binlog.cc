@@ -1118,14 +1118,39 @@ static void ndb_notify_tables_writable()
     can then be deleted from disk to get in synch with
     what's in NDB.
 */
+<<<<<<< HEAD
 static
 void clean_away_stray_files(THD *thd)
+=======
+typedef struct st_lookup_field_values
+{
+  LEX_STRING db_value, table_value;
+  bool wild_db_value, wild_table_value;
+} LOOKUP_FIELD_VALUES;
+
+int make_db_list(THD *thd, List<LEX_STRING> *files,
+                 LOOKUP_FIELD_VALUES *lookup_field_vals,
+                 bool *with_i_schema,
+                 MEM_ROOT *tmp_mem_root);
+#endif
+
+/*
+
+ */
+
+static void clean_away_stray_files(THD *thd)
+>>>>>>> mysql-5.6-cluster-7.3
 {
   DBUG_ENTER("clean_away_stray_files");
+<<<<<<< HEAD
   // Populate list of databases
   List<LEX_STRING> db_names;
   if (find_files(thd, &db_names, NULL,
                  mysql_data_home, NULL, 1, NULL) != FIND_FILES_OK)
+=======
+  memset(&lookup_field_values, 0, sizeof(LOOKUP_FIELD_VALUES));
+  if (make_db_list(thd, &db_names, &lookup_field_values, &with_i_schema, NULL))
+>>>>>>> mysql-5.6-cluster-7.3
   {
     thd->clear_error();
     DBUG_PRINT("info", ("Failed to find databases"));
@@ -1152,7 +1177,10 @@ void clean_away_stray_files(THD *thd)
 
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
       thd_ndb->set_skip_binlog_setup_in_find_files(true);
+<<<<<<< HEAD
       List<LEX_STRING> tab_names;
+=======
+>>>>>>> mysql-5.6-cluster-7.3
       if (find_files(thd, &tab_names, db_name->str, path, NullS, 0, NULL)
           != FIND_FILES_OK)
       {
