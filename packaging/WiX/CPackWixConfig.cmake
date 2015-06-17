@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
-=======
 # Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
->>>>>>> mysql-5.6.25
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,11 +23,7 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-<<<<<<< HEAD
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
-=======
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts")
->>>>>>> mysql-5.6.25
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
 ENDIF()
 
 
