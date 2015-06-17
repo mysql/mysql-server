@@ -21,14 +21,14 @@
 /* Enable TEST_STD_MAP or TEST_STD_UNORDERED_MAP below to perf test std::map
 or std::unordered_map instead of the InnoDB lock free hash. */
 
-/*
+#if 0
 #define TEST_STD_MAP
-*/
+#endif
 
 /* To test this, compile with -std=c++11 */
-/*
+#if 0
 #define TEST_STD_UNORDERED_MAP
-*/
+#endif
 
 #if defined(TEST_STD_MAP) && defined(TEST_STD_UNORDERED_MAP)
 #error Both TEST_STD_MAP and TEST_STD_UNORDERED_MAP are defined.
