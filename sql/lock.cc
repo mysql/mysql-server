@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@
 #include "sql_acl.h"                       // SUPER_ACL
 #include <hash.h>
 #include <assert.h>
-
+#include "my_atomic.h"
 /**
   @defgroup Locking Locking
   @{
@@ -895,6 +895,7 @@ static void print_lock_error(int error, const char *table)
   DBUG_VOID_RETURN;
 }
 
+volatile int32 Global_read_lock::m_active_requests;
 
 /****************************************************************************
   Handling of global read locks
@@ -975,9 +976,15 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
                                                  MDL_SHARED));
     mdl_request.init(MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 
+    /* Increment static variable first to signal innodb memcached server
+       to release mdl locks held by it */
+    my_atomic_add32(&Global_read_lock::m_active_requests, 1);
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
+    {
+      my_atomic_add32(&Global_read_lock::m_active_requests, -1);
       DBUG_RETURN(1);
+    }
 
     m_mdl_global_shared_lock= mdl_request.ticket;
     m_state= GRL_ACQUIRED;
@@ -1016,9 +1023,9 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
     m_mdl_blocks_commits_lock= NULL;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
+  my_atomic_add32(&Global_read_lock::m_active_requests, -1);
   m_mdl_global_shared_lock= NULL;
   m_state= GRL_NONE;
-
   DBUG_VOID_RETURN;
 }
 

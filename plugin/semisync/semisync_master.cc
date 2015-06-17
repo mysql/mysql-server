@@ -1,6 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -224,6 +223,54 @@ bool ActiveTranx::is_tranx_end_pos(const char *log_file_name,
   return (entry != NULL);
 }
 
+int ActiveTranx::signal_waiting_sessions_all()
+{
+  const char *kWho = "ActiveTranx::signal_waiting_sessions_all";
+  function_enter(kWho);
+  for (TranxNode* entry= trx_front_; entry; entry=entry->next_)
+    mysql_cond_broadcast(&entry->cond);
+
+  return function_exit(kWho, 0);
+}
+
+int ActiveTranx::signal_waiting_sessions_up_to(const char *log_file_name,
+                                               my_off_t log_file_pos)
+{
+  const char *kWho = "ActiveTranx::signal_waiting_sessions_up_to";
+  function_enter(kWho);
+
+  TranxNode* entry= trx_front_;
+  int cmp= ActiveTranx::compare(entry->log_name_, entry->log_pos_, log_file_name, log_file_pos) ;
+  while (entry && cmp <= 0)
+  {
+    mysql_cond_broadcast(&entry->cond);
+    entry= entry->next_;
+    if (entry)
+      cmp= ActiveTranx::compare(entry->log_name_, entry->log_pos_, log_file_name, log_file_pos) ;
+  }
+
+  return function_exit(kWho, (entry != NULL));
+}
+
+TranxNode * ActiveTranx::find_active_tranx_node(const char *log_file_name,
+                                                my_off_t log_file_pos)
+{
+  const char *kWho = "ActiveTranx::find_active_tranx_node";
+  function_enter(kWho);
+
+  TranxNode* entry= trx_front_;
+
+  while (entry)
+  {
+    if (ActiveTranx::compare(log_file_name, log_file_pos, entry->log_name_,
+                             entry->log_pos_) <= 0)
+      break;
+    entry= entry->next_;
+  }
+  function_exit(kWho, 0);
+  return entry;
+}
+
 int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
 					  my_off_t log_file_pos)
 {
@@ -238,7 +285,8 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
 
     while (new_front)
     {
-      if (compare(new_front, log_file_name, log_file_pos) > 0)
+      if (compare(new_front, log_file_name, log_file_pos) > 0 ||
+          new_front->n_waiters > 0)
         break;
       new_front = new_front->next_;
     }
@@ -365,8 +413,6 @@ int ReplSemiSyncMaster::initObject()
   /* Mutex initialization can only be done after MY_INIT(). */
   mysql_mutex_init(key_ss_mutex_LOCK_binlog_,
                    &LOCK_binlog_, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_ss_cond_COND_binlog_send_,
-                  &COND_binlog_send_, NULL);
 
   if (rpl_semi_sync_master_enabled)
     result = enableMaster();
@@ -385,7 +431,9 @@ int ReplSemiSyncMaster::enableMaster()
 
   if (!getMasterEnabled())
   {
-    active_tranxs_ = new ActiveTranx(&LOCK_binlog_, trace_level_);
+    if (active_tranxs_ == NULL)
+      active_tranxs_ = new ActiveTranx(&LOCK_binlog_, trace_level_);
+
     if (active_tranxs_ != NULL)
     {
       commit_file_name_inited_ = false;
@@ -420,9 +468,11 @@ int ReplSemiSyncMaster::disableMaster()
      */
     switch_off();
 
-    assert(active_tranxs_ != NULL);
-    delete active_tranxs_;
-    active_tranxs_ = NULL;
+    if ( active_tranxs_ && active_tranxs_->is_empty())
+    {
+      delete active_tranxs_;
+      active_tranxs_ = NULL;
+    }
 
     reply_file_name_inited_ = false;
     wait_file_name_inited_  = false;
@@ -442,7 +492,6 @@ ReplSemiSyncMaster::~ReplSemiSyncMaster()
   if (init_done_)
   {
     mysql_mutex_destroy(&LOCK_binlog_);
-    mysql_cond_destroy(&COND_binlog_send_);
   }
 
   delete active_tranxs_;
@@ -456,22 +505,6 @@ void ReplSemiSyncMaster::lock()
 void ReplSemiSyncMaster::unlock()
 {
   mysql_mutex_unlock(&LOCK_binlog_);
-}
-
-void ReplSemiSyncMaster::cond_broadcast()
-{
-  mysql_cond_broadcast(&COND_binlog_send_);
-}
-
-int ReplSemiSyncMaster::cond_timewait(struct timespec *wait_time)
-{
-  const char *kWho = "ReplSemiSyncMaster::cond_timewait()";
-  int wait_res;
-
-  function_enter(kWho);
-  wait_res= mysql_cond_timedwait(&COND_binlog_send_,
-                                 &LOCK_binlog_, wait_time);
-  return function_exit(kWho, wait_res);
 }
 
 void ReplSemiSyncMaster::add_slave()
@@ -579,10 +612,6 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
     reply_file_pos_ = log_file_pos;
     reply_file_name_inited_ = true;
 
-    /* Remove all active transaction nodes before this point. */
-    assert(active_tranxs_ != NULL);
-    active_tranxs_->clear_active_tranx_nodes(log_file_name, log_file_pos);
-
     if (trace_level_ & kTraceDetail)
     {
       if(!skipped_event)
@@ -612,16 +641,14 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
   }
 
  l_end:
-  unlock();
 
   if (can_release_threads)
   {
     if (trace_level_ & kTraceDetail)
       sql_print_information("%s: signal all waiting threads.", kWho);
-
-    cond_broadcast();
+    active_tranxs_->signal_waiting_sessions_up_to(reply_file_name_, reply_file_pos_);
   }
-
+  unlock();
   return function_exit(kWho, 0);
 }
 
@@ -631,28 +658,38 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
   const char *kWho = "ReplSemiSyncMaster::commitTrx";
 
   function_enter(kWho);
+  PSI_stage_info old_stage;
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* debug sync may not be initialized for a master */
+  if (current_thd->debug_sync_control)
+    DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
+#endif
+  /* Acquire the mutex. */
+  lock();
+
+  TranxNode* entry= NULL;
+  mysql_cond_t* thd_cond= NULL;
+  if (active_tranxs_ != NULL && trx_wait_binlog_name)
+  {
+    entry=
+      active_tranxs_->find_active_tranx_node(trx_wait_binlog_name,
+                                             trx_wait_binlog_pos);
+    if (entry)
+      thd_cond= &entry->cond;
+  }
+  /* This must be called after acquired the lock */
+  THD_ENTER_COND(NULL, thd_cond, &LOCK_binlog_,
+                 & stage_waiting_for_semi_sync_ack_from_slave,
+                 & old_stage);
 
   if (getMasterEnabled() && trx_wait_binlog_name)
   {
     struct timespec start_ts;
     struct timespec abstime;
     int wait_result;
-    PSI_stage_info old_stage;
 
     set_timespec(start_ts, 0);
-#if defined(ENABLED_DEBUG_SYNC)
-    /* debug sync may not be initialized for a master */
-    if (current_thd->debug_sync_control)
-      DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
-#endif
-    /* Acquire the mutex. */
-    lock();
-
-    /* This must be called after acquired the lock */
-    THD_ENTER_COND(NULL, &COND_binlog_send_, &LOCK_binlog_,
-                   & stage_waiting_for_semi_sync_ack_from_slave,
-                   & old_stage);
-
     /* This is the real check inside the mutex. */
     if (!getMasterEnabled() || !is_on())
       goto l_end;
@@ -751,7 +788,11 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                               kWho, wait_timeout_,
                               wait_file_name_, (unsigned long)wait_file_pos_);
       
-      wait_result = cond_timewait(&abstime);
+      /* wait for the position to be ACK'ed back */
+      assert(entry);
+      entry->n_waiters++;
+      wait_result= mysql_cond_timedwait(&entry->cond, &LOCK_binlog_, &abstime);
+      entry->n_waiters--;
       rpl_semi_sync_master_wait_sessions--;
       
       if (wait_result != 0)
@@ -790,25 +831,24 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
     }
 
-    /*
-      At this point, the binlog file and position of this transaction
-      must have been removed from ActiveTranx.
-    */
-    assert(!getMasterEnabled() ||
-           !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
-                                             trx_wait_binlog_pos));
-  l_end:
+l_end:
     /* Update the status counter. */
     if (is_on())
       rpl_semi_sync_master_yes_transactions++;
     else
       rpl_semi_sync_master_no_transactions++;
 
-    /* The lock held will be released by thd_exit_cond, so no need to
-       call unlock() here */
-    THD_EXIT_COND(NULL, & old_stage);
   }
 
+  /* Last waiter removes the TranxNode */
+  if (trx_wait_binlog_name && active_tranxs_
+      && entry && entry->n_waiters == 0)
+    active_tranxs_->clear_active_tranx_nodes(trx_wait_binlog_name,
+                                             trx_wait_binlog_pos);
+
+  /* The lock held will be released by thd_exit_cond, so no need to
+    call unlock() here */
+  THD_EXIT_COND(NULL, & old_stage);
   return function_exit(kWho, 0);
 }
 
@@ -825,30 +865,27 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
  *
  * If semi-sync is disabled, all transactions still update the wait
  * position with the last position in binlog.  But no transactions will
- * wait for confirmations and the active transaction list would not be
- * maintained.  In binlog dump thread, updateSyncHeader() checks whether
- * the current sending event catches up with last wait position.  If it
- * does match, semi-sync will be switched on again.
+ * wait for confirmations maintained.  In binlog dump thread,
+ * updateSyncHeader() checks whether the current sending event catches
+ * up with last wait position.  If it does match, semi-sync will be
+ * switched on again.
  */
 int ReplSemiSyncMaster::switch_off()
 {
   const char *kWho = "ReplSemiSyncMaster::switch_off";
-  int result;
 
   function_enter(kWho);
   state_ = false;
-
-  /* Clear the active transaction list. */
-  assert(active_tranxs_ != NULL);
-  result = active_tranxs_->clear_active_tranx_nodes(NULL, 0);
 
   rpl_semi_sync_master_off_times++;
   wait_file_name_inited_   = false;
   reply_file_name_inited_  = false;
   sql_print_information("Semi-sync replication switched OFF.");
-  cond_broadcast();                            /* wake up all waiting threads */
 
-  return function_exit(kWho, result);
+  /* signal waiting sessions */
+  active_tranxs_->signal_waiting_sessions_all();
+
+  return function_exit(kWho, 0);
 }
 
 int ReplSemiSyncMaster::try_switch_on(int server_id,
