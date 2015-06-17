@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,6 +152,10 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL *ssl;
   my_bool unused;
   my_bool was_blocking;
+  /* Declared here to make compiler happy */
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+  int j, n;
+#endif
 
   DBUG_ENTER("ssl_do");
   DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
@@ -171,8 +175,27 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, vio->sd);
-#ifndef HAVE_YASSL
-  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
+#if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
+  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
+#elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */
+  sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
+#endif
+
+#if !defined(HAVE_YASSL) && !defined(DBUG_OFF)
+  {
+    STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
+    ssl_comp_methods = SSL_COMP_get_compression_methods();
+    n= sk_SSL_COMP_num(ssl_comp_methods);
+    DBUG_PRINT("info", ("Available compression methods:\n"));
+    if (n == 0)
+      DBUG_PRINT("info", ("NONE\n"));
+    else
+      for (j = 0; j < n; j++)
+      {
+        SSL_COMP *c = sk_SSL_COMP_value(ssl_comp_methods, j);
+        DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
+      }
+  }
 #endif
 
   if ((r= connect_accept_func(ssl)) < 1)

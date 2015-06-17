@@ -1,7 +1,7 @@
 /*	$NetBSD: emacs.c,v 1.25 2011/07/29 15:16:33 christos Exp $	*/
 
 /*-
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 2015
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -58,8 +58,10 @@ em_delete_or_list(EditLine *el, Int c)
 					/* if I'm at the end */
 		if (el->el_line.cursor == el->el_line.buffer) {
 					/* and the beginning */
-			terminal_writec(el, c);	/* then do an EOF */
-			return CC_EOF;
+			if(!(terminal_writec(el, c)))	/* then do an EOF */
+				return CC_EOF;
+			else
+				return CC_ERROR;
 		} else {
 			/*
 			 * Here we could list completions, but it is an

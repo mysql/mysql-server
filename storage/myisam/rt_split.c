@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,6 +68,10 @@ static double mbr_join_square(const double *a, const double *b, int n_dim)
     b += 2;
   }while (a != end);
 
+   /* Check for infinity or NaN */
+  if (my_isinf(square) || isnan(square))
+    square = DBL_MAX;
+
   return square;
 }
 
@@ -101,6 +105,9 @@ static void pick_seeds(SplitStruct *node, int n_entries,
 
   double max_d = -DBL_MAX;
   double d;
+
+  *seed_a = node;
+  *seed_b = node + 1;
 
   for (cur1 = node; cur1 < lim1; ++cur1)
   {

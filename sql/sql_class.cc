@@ -802,6 +802,7 @@ THD::THD()
    rli_fake(0), rli_slave(NULL),
    user_time(0), in_sub_stmt(0),
    fill_status_recursion_level(0),
+   fill_variables_recursion_level(0),
 #ifndef MCP_WL5353
    binlog_row_event_extra_data(NULL),
 #endif

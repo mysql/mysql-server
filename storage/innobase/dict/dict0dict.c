@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2530,7 +2530,7 @@ dict_foreign_remove_from_cache(
 
 		rbt = foreign->referenced_table->referenced_rbt;
 
-		if (rbt != NULL) {
+		if (rbt != NULL && foreign->id != NULL) {
 			const ib_rbt_node_t*	node
 				= rbt_lookup(rbt, foreign->id);
 			dict_foreign_t*	val = *(dict_foreign_t**) node->value;
@@ -2549,7 +2549,7 @@ dict_foreign_remove_from_cache(
 			       foreign);
 		rbt = foreign->foreign_table->foreign_rbt;
 
-		if (rbt != NULL) {
+		if (rbt != NULL && foreign->id != NULL) {
 			const ib_rbt_node_t*	node
 				= rbt_lookup(rbt, foreign->id);
 			dict_foreign_t*	val = *(dict_foreign_t**) node->value;
