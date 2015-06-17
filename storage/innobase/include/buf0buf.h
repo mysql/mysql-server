@@ -1717,6 +1717,8 @@ struct buf_block_t{
 					aligned to an address divisible by
 					UNIV_PAGE_SIZE */
 #ifndef UNIV_HOTBACKUP
+	BPageLock	lock;		/*!< read-write lock of the buffer
+					frame */
 	UT_LIST_NODE_T(buf_block_t) unzip_LRU;
 					/*!< node of the decompressed LRU list;
 					a block is in the unzip_LRU list
@@ -1728,14 +1730,6 @@ struct buf_block_t{
 					used in debugging */
 	ibool		in_withdraw_list;
 #endif /* UNIV_DEBUG */
-	BPageLock	lock;		/*!< read-write lock of the buffer
-					frame */
-	BPageMutex	mutex;		/*!< mutex protecting this block:
-					state (also protected by the buffer
-					pool mutex), io_fix, buf_fix_count,
-					and accessed; we introduce this new
-					mutex in InnoDB-5.1 to relieve
-					contention on the buffer pool mutex */
 	unsigned	lock_hash_val:32;/*!< hashed value of the page address
 					in the record lock hash table;
 					protected by buf_block_t::lock
@@ -1828,6 +1822,12 @@ struct buf_block_t{
 					debug utilities in sync0rw */
 	/* @} */
 # endif
+	BPageMutex	mutex;		/*!< mutex protecting this block:
+					state (also protected by the buffer
+					pool mutex), io_fix, buf_fix_count,
+					and accessed; we introduce this new
+					mutex in InnoDB-5.1 to relieve
+					contention on the buffer pool mutex */
 #endif /* !UNIV_HOTBACKUP */
 };
 
