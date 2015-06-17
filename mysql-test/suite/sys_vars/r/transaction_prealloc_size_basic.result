@@ -114,7 +114,11 @@ Warnings:
 Warning	1292	Truncated incorrect transaction_prealloc_size value: '135217728'
 SELECT @@session.transaction_prealloc_size;
 @@session.transaction_prealloc_size
+<<<<<<< HEAD
 134217728
+=======
+131072
+>>>>>>> mysql-5.5.44
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.transaction_prealloc_size = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
