@@ -50,7 +50,6 @@ MultiNdbWakeupHandler::MultiNdbWakeupHandler(Ndb* _wakeNdb)
   assert(localWakeupMutexPtr);
   /* Register the waiter Ndb to receive wakeups for all Ndbs in the group */
   PollGuard pg(* wakeNdb->theImpl);
-  woken = false;
   ignore_wakeups();
   bool rc = wakeNdb->theImpl->m_transporter_facade->registerForWakeup(wakeNdb->theImpl);
   assert(rc);
@@ -182,6 +181,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
         if (isReadyToWake())  // already enough
         {
           pg.wait_for_input(0);
+          woken = false;
           ignore_wakeups();
           ret = 0;
           break;
@@ -196,6 +196,7 @@ int MultiNdbWakeupHandler::waitForInput(Ndb** _objs,
  
       if (isReadyToWake())
       {
+        woken = false;
         ignore_wakeups();
         ret = 0;
         break;
@@ -278,10 +279,6 @@ void MultiNdbWakeupHandler::ignore_wakeups()
     attempts to wake us up until we're ready to be woken.
   */
   minNdbsToWake = ~Uint32(0);
-  /**
-    We also reset woken, which may have been set in notifyWakeup
-  */
-  woken = false;
 }
 
 bool MultiNdbWakeupHandler::is_wakeups_ignored()
