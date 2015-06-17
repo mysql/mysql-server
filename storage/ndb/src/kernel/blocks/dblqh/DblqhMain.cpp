@@ -10824,7 +10824,7 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
   {
     for (Uint32 i = 1 + scanP->scan_acc_segments; i <= segments; i++)
     {
-      Uint32 seg= seizeSegment();
+      Uint32 seg= seizeSingleSegment();
       if (unlikely(seg == RNIL))
       {
         jam();
@@ -10854,7 +10854,7 @@ Dblqh::release_acc_ptr_list(ScanRecord* scanP)
 }
 
 Uint32
-Dblqh::seizeSegment()
+Dblqh::seizeSingleSegment()
 {
   Uint32 junk= 0;
   Uint32 iVal= RNIL;
