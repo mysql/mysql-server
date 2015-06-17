@@ -252,10 +252,7 @@ extern "C" {
      *  management server
      */
     int connect_count;
-    /** IP address of node when it connected to the management server.
-     *  @note This value will be empty if the management server has restarted
-     *        since the node last connected.
-     */
+    /** IP address of node as seen by the other nodes in the cluster. */
     char connect_address[
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 			 sizeof("000.000.000.000")+1
