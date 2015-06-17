@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 4096                                                         #
-# Range: 1024-134217728                                                       #
+# Range: 1024-131072                                                          #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-14                                                   #

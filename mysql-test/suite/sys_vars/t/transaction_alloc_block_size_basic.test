@@ -5,7 +5,7 @@
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
 # Default Value: 8192                                                         #
-# Range: 1024-134217728                                                       #
+# Range: 1024-131072                                                          #
 #                                                                             #
 #                                                                             #
 # Creation Date: 2008-02-14                                                   #
@@ -84,7 +84,11 @@ SELECT @@global.transaction_alloc_block_size;
 ###################################################################
 # Change the value of variable to a valid value for SESSION Scope #
 ###################################################################
+<<<<<<< HEAD
  
+=======
+
+>>>>>>> mysql-5.5.44
 SET @@session.transaction_alloc_block_size = 1024;
 SELECT @@session.transaction_alloc_block_size;
 
