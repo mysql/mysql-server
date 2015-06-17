@@ -345,23 +345,7 @@ public:
 		ut_ad(key != UNUSED);
 		ut_ad(key != DELETED);
 
-		key_val_t*	tuple = insert_or_get_position(key);
-
-		/* Here tuple->m_val is either NOT_FOUND or some real value.
-		Try to replace NOT_FOUND with 1. If that fails, then this means
-		it is some real value in which case we should increment it
-		with 1. We know that m_val will never move from some real value
-		to NOT_FOUND. */
-		int64_t	expected = NOT_FOUND;
-
-		if (!tuple->m_val.compare_exchange_strong(
-				expected, 1, boost::memory_order_relaxed)) {
-
-			const int64_t	prev_val = tuple->m_val.fetch_add(
-				1, boost::memory_order_relaxed);
-
-			ut_a(prev_val + 1 != NOT_FOUND);
-		}
+		delta(key, 1);
 	}
 
 	/** Decrement the value of a given key with 1 or insert a new tuple
@@ -378,23 +362,7 @@ public:
 		ut_ad(key != UNUSED);
 		ut_ad(key != DELETED);
 
-		key_val_t*	tuple = insert_or_get_position(key);
-
-		/* Here tuple->m_val is either NOT_FOUND or some real value.
-		Try to replace NOT_FOUND with -1. If that fails, then this means
-		it is some real value in which case we should decrement it
-		with 1. We know that m_val will never move from some real value
-		to NOT_FOUND. */
-		int64_t	expected = NOT_FOUND;
-
-		if (!tuple->m_val.compare_exchange_strong(
-				expected, -1, boost::memory_order_relaxed)) {
-
-			const int64_t	prev_val = tuple->m_val.fetch_sub(
-				1, boost::memory_order_relaxed);
-
-			ut_a(prev_val - 1 != NOT_FOUND);
-		}
+		delta(key, -1);
 	}
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -650,6 +618,54 @@ private:
 			} else {
 				cur_arr = next;
 			}
+		}
+	}
+
+	/** Apply a given delta to the value for a given key or insert a
+	new tuple (key, delta).
+	@param[in]	key	key whose value change
+	@param[in]	delta	delta to apply */
+	void
+	delta(
+		uint64_t	key,
+		int64_t		delta)
+	{
+		ut_ad(key != UNUSED);
+		ut_ad(key != DELETED);
+
+		key_val_t*	tuple = insert_or_get_position(key);
+
+		/* Here tuple->m_val is either NOT_FOUND or some real value.
+		Try to replace NOT_FOUND with 'delta'. If that fails, then
+		this means it is some real value in which case we should
+		apply the delta. We know that m_val will never move from
+		some real value to NOT_FOUND. */
+		int64_t	expected = NOT_FOUND;
+
+		if (!tuple->m_val.compare_exchange_strong(
+				expected,
+				delta,
+				boost::memory_order_relaxed)) {
+#if 0
+			const int64_t	prev_val = tuple->m_val.fetch_add(
+				delta, boost::memory_order_relaxed);
+
+			ut_a(prev_val + delta != NOT_FOUND);
+#else
+			/* 'expected' now has the current value, which is not
+			NOT_FOUND because the CAS failed. */
+			ut_ad(expected != NOT_FOUND);
+
+			for (;;) {
+				// if expected == GOTO_NEW_ARRAY ...
+				if (tuple->m_val.compare_exchange_strong(
+						expected,
+						expected + delta,
+						boost::memory_order_relaxed)) {
+					break;
+				}
+			}
+#endif
 		}
 	}
 
