@@ -265,25 +265,29 @@ hash_check_deleted(
 	}
 }
 
-void
-init()
-{
-	static bool	initialized = false;
-
-	if (!initialized) {
+class ut0lock_free_hash : public ::testing::Test {
+public:
+	static
+	void
+	SetUpTestCase()
+	{
 		srv_max_n_threads = 1024;
 
 		sync_check_init();
 		os_thread_init();
-
-		initialized = true;
 	}
-}
 
-TEST(ut0lock_free_hash, single_threaded)
+	static
+	void
+	TearDownTestCase()
+	{
+		os_thread_free();
+		sync_check_close();
+	}
+};
+
+TEST_F(ut0lock_free_hash, single_threaded)
 {
-	init();
-
 #ifdef HAVE_UT_CHRONO_T
 	ut_chrono_t	chrono("single threaded");
 #endif /* HAVE_UT_CHRONO_T */
@@ -345,94 +349,117 @@ TEST(ut0lock_free_hash, single_threaded)
 	delete hash;
 }
 
-/** Global hash, edited from many threads concurrently. */
-ut_hash_interface_t*	global_hash;
+struct thread_params_t {
+	/** Common hash, accessed by many threads concurrently. */
+	ut_hash_interface_t*	hash;
 
-/** Number of common tuples (edited by all threads) to insert into the hash. */
-static const size_t	N_COMMON = 4096;
+	/** Thread id. Used to derive keys that are private to a given
+	thread, whose tuples are accessed only by that thread. */
+	uint64_t		thread_id;
 
-/** Number of private, per-thread tuples to insert by each thread. */
-static const size_t	N_PRIV_PER_THREAD = 256;
+	/** Number of common tuples (accessed by all threads) that are inserted
+	into the hash before starting the threads. */
+	size_t			n_common;
 
-/** Number of threads to start. Overall the hash will be filled with
-N_COMMON + N_THREADS * N_PRIV_PER_THREAD tuples. */
-static const size_t	N_THREADS = 32;
+	/** Number of private, per-thread tuples to insert by each thread. */
+	size_t			n_priv_per_thread;
+};
 
-/** Hammer the global hash with inc(), dec() and set(). The inc()/dec()
-performed on the common keys will net to 0 when this thread ends. It also
-inserts some tuples with keys that are unique to this thread.
-@param[in]	arg	thread id, used to generate thread-private keys */
+/** Hammer a common hash with inc(), dec() and set(), 100% writes.
+The inc()/dec() performed on the common keys will net to 0 when this thread
+ends. It also inserts some tuples with keys that are unique to this thread.
+@param[in]	arg	thread arguments */
 extern "C"
 os_thread_ret_t
-DECLARE_THREAD(thread)(
+DECLARE_THREAD(thread_0r100w)(
 	void*	arg)
 {
-	const uint64_t	thread_id = reinterpret_cast<uint64_t>(arg);
-	const uint64_t	key_extra_bits = thread_id << 32;
+	const thread_params_t*	p = static_cast<const thread_params_t*>(arg);
+	const uint64_t		key_extra_bits = p->thread_id << 32;
 
-	hash_insert(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+	hash_insert(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	hash_check_inserted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
 	const size_t	n_iter = 512;
 
 	for (size_t i = 0; i < n_iter; i++) {
-		for (size_t j = 0; j < N_COMMON; j++) {
+		for (size_t j = 0; j < p->n_common; j++) {
 			const uint64_t	key = key_gen(j, 0);
 
-			global_hash->inc(key);
-			global_hash->inc(key);
-			global_hash->inc(key);
+			p->hash->inc(key);
+			p->hash->inc(key);
+			p->hash->inc(key);
 
-			global_hash->dec(key);
-			global_hash->inc(key);
+			p->hash->dec(key);
+			p->hash->inc(key);
 
-			global_hash->dec(key);
-			global_hash->dec(key);
-			global_hash->dec(key);
+			p->hash->dec(key);
+			p->hash->dec(key);
+			p->hash->dec(key);
 		}
 
-		for (size_t j = 0; j < N_PRIV_PER_THREAD; j++) {
+		for (size_t j = 0; j < p->n_priv_per_thread; j++) {
 			const uint64_t	key = key_gen(j, key_extra_bits);
 
 			for (size_t k = 0; k < 4; k++) {
-				global_hash->inc(key);
-				global_hash->dec(key);
+				p->hash->inc(key);
+				p->hash->dec(key);
+				p->hash->inc(key);
+				p->hash->dec(key);
 			}
 		}
 	}
 
-	hash_check_inserted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	hash_delete(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+	hash_delete(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	hash_check_deleted(global_hash, N_PRIV_PER_THREAD, key_extra_bits);
+	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
 }
 
-TEST(ut0lock_free_hash, multi_threaded)
+TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
 {
-	init();
-
 #ifdef HAVE_UT_CHRONO_T
-	ut_chrono_t	chrono("multi threaded");
+	ut_chrono_t		chrono("multi threaded,   0% read, 100% write");
 #endif /* HAVE_UT_CHRONO_T */
 
+	ut_hash_interface_t*	hash;
+
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-	global_hash = new std_hash_t();
+	hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	global_hash = new ut_lock_free_hash_t(1024 * 16);
+	hash = new ut_lock_free_hash_t(1024 * 16);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
-	hash_insert(global_hash, N_COMMON, 0);
+	/** Number of common tuples (accessed by all threads) to insert into
+	the hash. */
+	const size_t		n_common = 4096;
 
-	for (uintptr_t i = 0; i < N_THREADS; i++) {
+	/** Number of private, per-thread tuples to insert by each thread. */
+	const size_t		n_priv_per_thread = 256;
+
+	/** Number of threads to start. Overall the hash will be filled with
+	n_common + n_threads * n_priv_per_thread tuples. */
+	const size_t		n_threads = 32;
+
+	thread_params_t		params[n_threads];
+
+	hash_insert(hash, n_common, 0);
+
+	for (uintptr_t i = 0; i < n_threads; i++) {
+		params[i].hash = hash;
 		/* Avoid thread_id == 0 because that will collide with the
 		shared tuples, thus use 'i + 1' instead of 'i'. */
-		os_thread_create(thread, reinterpret_cast<void*>(i + 1), NULL);
+		params[i].thread_id = i + 1;
+		params[i].n_common = n_common;
+		params[i].n_priv_per_thread = n_priv_per_thread;
+
+		os_thread_create(thread_0r100w, &params[i], NULL);
 	}
 
 	/* Wait for all threads to exit. */
@@ -444,16 +471,255 @@ TEST(ut0lock_free_hash, multi_threaded)
 	}
 	mutex_exit(&thread_mutex);
 
-	hash_check_inserted(global_hash, N_COMMON, 0);
+	hash_check_inserted(hash, n_common, 0);
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	global_hash->print_stats();
+	hash->print_stats();
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 
-	delete global_hash;
+	delete hash;
+}
 
-	os_thread_free();
-	sync_check_close();
+/** Hammer a common hash with get(), inc(), dec() and set(), 50% reads and
+50% writes. The inc()/dec() performed on the common keys will net to 0 when
+this thread ends. It also inserts some tuples with keys that are unique to
+this thread.
+@param[in]	arg	thread arguments */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(thread_50r50w)(
+	void*	arg)
+{
+	const thread_params_t*	p = static_cast<const thread_params_t*>(arg);
+	const uint64_t		key_extra_bits = p->thread_id << 32;
+
+	hash_insert(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	const size_t	n_iter = 512;
+
+	for (size_t i = 0; i < n_iter; i++) {
+		for (size_t j = 0; j < p->n_common; j++) {
+			const uint64_t	key_write = key_gen(j, 0);
+			/* Make 1/4 of the reads access possibly nonexisting
+			tuples. */
+			const uint64_t	key_read = key_gen(j + p->n_common / 4,
+							   0);
+
+			p->hash->get(key_read);
+
+			p->hash->inc(key_write);
+			p->hash->get(key_read);
+			p->hash->inc(key_write);
+
+			p->hash->dec(key_write);
+			p->hash->get(key_read);
+			p->hash->dec(key_write);
+
+			p->hash->get(key_read);
+		}
+
+		for (size_t j = 0; j < p->n_priv_per_thread; j++) {
+			const uint64_t	key_write = key_gen(j, key_extra_bits);
+			/* Make 1/4 of the reads access possibly nonexisting
+			tuples. */
+			const uint64_t	key_read = key_gen(
+				j + p->n_priv_per_thread / 4, key_extra_bits);
+
+			for (size_t k = 0; k < 4; k++) {
+				p->hash->inc(key_write);
+				p->hash->get(key_read);
+				p->hash->dec(key_write);
+				p->hash->get(key_read);
+			}
+		}
+	}
+
+	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	hash_delete(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
+{
+#ifdef HAVE_UT_CHRONO_T
+	ut_chrono_t		chrono("multi threaded,  50% read,  50% write");
+#endif /* HAVE_UT_CHRONO_T */
+
+	ut_hash_interface_t*	hash;
+
+#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
+	hash = new std_hash_t();
+#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+	hash = new ut_lock_free_hash_t(1024 * 16);
+#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+
+	/** Number of common tuples (accessed by all threads) to insert into
+	the hash. */
+	const size_t		n_common = 4096;
+
+	/** Number of private, per-thread tuples to insert by each thread. */
+	const size_t		n_priv_per_thread = 256;
+
+	/** Number of threads to start. Overall the hash will be filled with
+	n_common + n_threads * n_priv_per_thread tuples. */
+	const size_t		n_threads = 32;
+
+	thread_params_t		params[n_threads];
+
+	hash_insert(hash, n_common, 0);
+
+	for (uintptr_t i = 0; i < n_threads; i++) {
+		params[i].hash = hash;
+		/* Avoid thread_id == 0 because that will collide with the
+		shared tuples, thus use 'i + 1' instead of 'i'. */
+		params[i].thread_id = i + 1;
+		params[i].n_common = n_common;
+		params[i].n_priv_per_thread = n_priv_per_thread;
+
+		os_thread_create(thread_50r50w, &params[i], NULL);
+	}
+
+	/* Wait for all threads to exit. */
+	mutex_enter(&thread_mutex);
+	while (os_thread_count > 0) {
+		mutex_exit(&thread_mutex);
+		os_thread_sleep(100000 /* 0.1 sec */);
+		mutex_enter(&thread_mutex);
+	}
+	mutex_exit(&thread_mutex);
+
+	hash_check_inserted(hash, n_common, 0);
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	hash->print_stats();
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+	delete hash;
+}
+
+/** Hammer a commmon hash with get()s, 100% reads.
+@param[in]	arg	thread arguments */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(thread_100r0w)(
+	void*	arg)
+{
+	const thread_params_t*	p = static_cast<const thread_params_t*>(arg);
+	const uint64_t		key_extra_bits = p->thread_id << 32;
+
+	hash_insert(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	const size_t	n_iter = 512;
+
+	for (size_t i = 0; i < n_iter; i++) {
+		for (size_t j = 0; j < p->n_common; j++) {
+			/* Make 1/4 of the reads access possibly nonexisting
+			tuples. */
+			const uint64_t	key_read = key_gen(j + p->n_common / 4,
+							   0);
+
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+			p->hash->get(key_read);
+		}
+
+		for (size_t j = 0; j < p->n_priv_per_thread; j++) {
+			/* Make 1/4 of the reads access possibly nonexisting
+			tuples. */
+			const uint64_t	key_read = key_gen(
+				j + p->n_priv_per_thread / 4, key_extra_bits);
+
+			for (size_t k = 0; k < 4; k++) {
+				p->hash->get(key_read);
+				p->hash->get(key_read);
+				p->hash->get(key_read);
+				p->hash->get(key_read);
+			}
+		}
+	}
+
+	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	hash_delete(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
+
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
+TEST_F(ut0lock_free_hash, multi_threaded_100r0w)
+{
+#ifdef HAVE_UT_CHRONO_T
+	ut_chrono_t		chrono("multi threaded, 100% read,   0% write");
+#endif /* HAVE_UT_CHRONO_T */
+
+	ut_hash_interface_t*	hash;
+
+#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
+	hash = new std_hash_t();
+#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+	hash = new ut_lock_free_hash_t(1024 * 16);
+#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+
+	/** Number of common tuples (accessed by all threads) to insert into
+	the hash. */
+	const size_t		n_common = 4096;
+
+	/** Number of private, per-thread tuples to insert by each thread. */
+	const size_t		n_priv_per_thread = 256;
+
+	/** Number of threads to start. Overall the hash will be filled with
+	n_common + n_threads * n_priv_per_thread tuples. */
+	const size_t		n_threads = 32;
+
+	thread_params_t		params[n_threads];
+
+	hash_insert(hash, n_common, 0);
+
+	for (uintptr_t i = 0; i < n_threads; i++) {
+		params[i].hash = hash;
+		/* Avoid thread_id == 0 because that will collide with the
+		shared tuples, thus use 'i + 1' instead of 'i'. */
+		params[i].thread_id = i + 1;
+		params[i].n_common = n_common;
+		params[i].n_priv_per_thread = n_priv_per_thread;
+
+		os_thread_create(thread_100r0w, &params[i], NULL);
+	}
+
+	/* Wait for all threads to exit. */
+	mutex_enter(&thread_mutex);
+	while (os_thread_count > 0) {
+		mutex_exit(&thread_mutex);
+		os_thread_sleep(100000 /* 0.1 sec */);
+		mutex_enter(&thread_mutex);
+	}
+	mutex_exit(&thread_mutex);
+
+	hash_check_inserted(hash, n_common, 0);
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	hash->print_stats();
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+	delete hash;
 }
 
 }
