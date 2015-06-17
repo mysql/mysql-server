@@ -43,8 +43,7 @@ Replaces: mysql,
  mysql-server-5.7, mysql-server-core-5.7,
  mysql-commercial-server,
  mysql-community-client
-Provides: virtual-mysql-server, virtual-mysql-server-core,
- mysql-server-5.7, mysql-server-core-5.7
+Provides: virtual-mysql-server, virtual-mysql-server-core
 Description: MySQL Server and server tools
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
@@ -82,8 +81,7 @@ Replaces: mysql,
  mysql-client-5.6, mysql-client-core-5.6,
  mysql-client-5.7, mysql-client-core-5.7,
  mysql-commercial-client
-Provides: virtual-mysql-client, virtual-mysql-client-core,
- mysql-client-5.7, mysql-client-core-5.7
+Provides: virtual-mysql-client, virtual-mysql-client-core
 Description: MySQL Client and client tools
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
@@ -112,7 +110,9 @@ Architecture: any
 Pre-depends: debconf (>= 0.2.17), ${misc:Pre-Depends}
 Multi-Arch: foreign
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: mysql, mariadb-server-5.5, percona-xtradb-cluster-common-5.5
+Conflicts: mysql, mysql-server-5.6, mysql-server-core-5.6,
+ mysql-client-5.6, mysql-client-core-5.6,
+ mariadb-server-5.5, percona-xtradb-cluster-common-5.5
 Replaces: mysql, mysql-server-5.5, mysql-server-core-5.5, libmysqlclient-dev,
  mysql-server-5.6, mysql-server-core-5.6,
  mariadb-server-5.5, percona-xtradb-cluster-common-5.5
