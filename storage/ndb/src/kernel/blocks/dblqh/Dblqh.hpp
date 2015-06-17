@@ -2707,7 +2707,7 @@ private:
   Uint32 returnExecLog(Signal* signal);
   int saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len);
   void seizeAddfragrec(Signal* signal);
-  Uint32 seizeSegment();
+  Uint32 seizeSingleSegment();
   Uint32 copyNextRange(Uint32 * dst, TcConnectionrec*);
 
   void seizeFragmentrec(Signal* signal);
