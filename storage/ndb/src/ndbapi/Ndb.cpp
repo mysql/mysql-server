@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2126,7 +2126,41 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 {
-  return theEventBuffer->pollEvents(aMillisecondNumber, latestGCI);
+  Uint32 elapsed = 0;
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
+
+  if (unlikely(aMillisecondNumber < 0))
+  {
+    g_eventLogger->error("Ndb::pollEvents: negative aMillisecondNumber %d 0x%x %s",
+                         aMillisecondNumber,
+                         getReference(),
+                         getNdbObjectName());
+    return -1;
+  }
+
+  /**
+   * We need to poll the receiver to make sure that arrived events
+   * are delivered to their clients as soon as possible.
+   * ::trp_deliver_signal() will wakeup the client as soon as
+   * some event arrives, possible before its epoch is complete such
+   * that move_data() can make the events available.
+   * Thus we need to recheck the pollEvent condition, and possibly
+   * continue polling if there is wait time left.
+   */
+  int found = theEventBuffer->pollEvents(latestGCI);
+  while (!found)
+  {
+    theImpl->start_poll();
+    theImpl->do_poll((unsigned)aMillisecondNumber-elapsed);
+    theImpl->complete_poll();
+    found = theEventBuffer->pollEvents(latestGCI);
+
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    elapsed = Uint32(NdbTick_Elapsed(start,now).milliSec());
+    if (elapsed >= (unsigned)aMillisecondNumber)
+      break;
+  }
+  return found;
 }
 
 int
