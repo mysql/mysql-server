@@ -373,6 +373,18 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM dual))' at line 1
 DROP TABLE t1;
+# Bug#21142905: PARTITIONED GENERATED COLS -
+#  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+# 
+CREATE TABLE t1 (
+a int,
+b int generated always as (a) virtual,
+c int generated always as (b+a) virtual,
+d int generated always as (b+a) virtual
+) PARTITION BY LINEAR HASH (b);
+INSERT INTO t1(a) VALUES(0);
+DELETE FROM t1 WHERE c=1;
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

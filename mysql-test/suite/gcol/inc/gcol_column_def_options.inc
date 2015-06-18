@@ -244,3 +244,16 @@ CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM t1 WHERE not_exist_col)
 --error 1064
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 DROP TABLE t1;
+
+--echo # Bug#21142905: PARTITIONED GENERATED COLS -
+--echo #  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+--echo # 
+CREATE TABLE t1 (
+a int,
+b int generated always as (a) virtual,
+c int generated always as (b+a) virtual,
+d int generated always as (b+a) virtual
+) PARTITION BY LINEAR HASH (b);
+INSERT INTO t1(a) VALUES(0);
+DELETE FROM t1 WHERE c=1;
+DROP TABLE t1;
