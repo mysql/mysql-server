@@ -16632,6 +16632,12 @@ Dblqh::execFSWRITEREQ(Signal* signal)
   /**
    * This is currently run in other thread -> no jam
    *   and no global variables
+   *
+   * This method is called from NDB file system while initialising a REDO log
+   * file, so we need to ensure that we don't touch any block variables other
+   * than to read stable variables. This is only called during initial
+   * restart. The pages are allocated by NDBFS from DataMemory, so these can
+   * be written to safely since they are owned by the file system thread.
    */
   Ptr<GlobalPage> page_ptr;
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
