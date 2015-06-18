@@ -3418,7 +3418,7 @@ private:
   Dbtup::Apply_undo f_undo;
   Uint32 c_proxy_undo_data[20 + MAX_TUPLE_SIZE_IN_WORDS];
 
-  void disk_restart_undo_next(Signal*);
+  void disk_restart_undo_next(Signal*, Uint32 applied = 0);
   void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
