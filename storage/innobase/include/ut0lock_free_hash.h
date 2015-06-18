@@ -142,7 +142,9 @@ public:
 	to it in 'm_next'. This is done in a way that multiple threads can
 	attempt this at the same time and only one will succeed. When this
 	method returns, the caller can be sure that the job is done (either
-	by this or another thread). */
+	by this or another thread).
+	@return the next array, created and appended by this or another
+	thread */
 	next_t
 	grow()
 	{
