@@ -349,6 +349,7 @@ TEST_F(ut0lock_free_hash, single_threaded)
 	delete hash;
 }
 
+/** A thread's parameters. */
 struct thread_params_t {
 	/** Common hash, accessed by many threads concurrently. */
 	ut_hash_interface_t*	hash;
@@ -364,6 +365,73 @@ struct thread_params_t {
 	/** Number of private, per-thread tuples to insert by each thread. */
 	size_t			n_priv_per_thread;
 };
+
+/** Run a multi threaded test.
+@param[in]	label			label used when printing the timing
+@param[in]	initial_hash_size	initial number of cells in the hash
+@param[in]	n_common		number of common tuples (accessed by
+all threads) to insert into the hash before starting up all threads
+@param[in]	n_priv_per_thread	number of private, per-thread tuples
+to insert by each thread.
+@param[in]	n_threads		number of threads to start. Overall
+the hash will be filled with n_common + n_threads * n_priv_per_thread tuples
+@param[in]	thread_func		function to fire up as a new thread */
+static
+void
+run_multi_threaded(
+	const char*		label,
+	size_t			initial_hash_size,
+	size_t			n_common,
+	size_t			n_priv_per_thread,
+	size_t			n_threads,
+	os_thread_func_t	thread_func)
+{
+#ifdef HAVE_UT_CHRONO_T
+	ut_chrono_t		chrono(label);
+#endif /* HAVE_UT_CHRONO_T */
+
+	ut_hash_interface_t*	hash;
+
+#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
+	hash = new std_hash_t();
+#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+	hash = new ut_lock_free_hash_t(initial_hash_size);
+#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+
+	thread_params_t*	params = new thread_params_t[n_threads];
+
+	hash_insert(hash, n_common, 0);
+
+	for (uintptr_t i = 0; i < n_threads; i++) {
+		params[i].hash = hash;
+		/* Avoid thread_id == 0 because that will collide with the
+		shared tuples, thus use 'i + 1' instead of 'i'. */
+		params[i].thread_id = i + 1;
+		params[i].n_common = n_common;
+		params[i].n_priv_per_thread = n_priv_per_thread;
+
+		os_thread_create(thread_func, &params[i], NULL);
+	}
+
+	/* Wait for all threads to exit. */
+	mutex_enter(&thread_mutex);
+	while (os_thread_count > 0) {
+		mutex_exit(&thread_mutex);
+		os_thread_sleep(100000 /* 0.1 sec */);
+		mutex_enter(&thread_mutex);
+	}
+	mutex_exit(&thread_mutex);
+
+	hash_check_inserted(hash, n_common, 0);
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	hash->print_stats();
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+	delete[] params;
+
+	delete hash;
+}
 
 /** Hammer a common hash with inc(), dec() and set(), 100% writes.
 The inc()/dec() performed on the common keys will net to 0 when this thread
@@ -381,7 +449,7 @@ DECLARE_THREAD(thread_0r100w)(
 
 	hash_check_inserted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	const size_t	n_iter = 512;
+	const size_t	n_iter = 512 * 4096 / p->n_common;
 
 	for (size_t i = 0; i < n_iter; i++) {
 		for (size_t j = 0; j < p->n_common; j++) {
@@ -424,60 +492,26 @@ DECLARE_THREAD(thread_0r100w)(
 
 TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
 {
-#ifdef HAVE_UT_CHRONO_T
-	ut_chrono_t		chrono("multi threaded,   0% read, 100% write");
-#endif /* HAVE_UT_CHRONO_T */
+	run_multi_threaded(
+		"multi threaded,   0% read, 100% write" /* label */,
+		1024 * 32 /* initial hash size */,
+		4096 /* n_common */,
+		256 /* n_priv_per_thread */,
+		64, /* n_threads */
+		thread_0r100w /* thread function */
+	);
+}
 
-	ut_hash_interface_t*	hash;
-
-#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-	hash = new std_hash_t();
-#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	hash = new ut_lock_free_hash_t(1024 * 16);
-#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-
-	/** Number of common tuples (accessed by all threads) to insert into
-	the hash. */
-	const size_t		n_common = 4096;
-
-	/** Number of private, per-thread tuples to insert by each thread. */
-	const size_t		n_priv_per_thread = 256;
-
-	/** Number of threads to start. Overall the hash will be filled with
-	n_common + n_threads * n_priv_per_thread tuples. */
-	const size_t		n_threads = 32;
-
-	thread_params_t		params[n_threads];
-
-	hash_insert(hash, n_common, 0);
-
-	for (uintptr_t i = 0; i < n_threads; i++) {
-		params[i].hash = hash;
-		/* Avoid thread_id == 0 because that will collide with the
-		shared tuples, thus use 'i + 1' instead of 'i'. */
-		params[i].thread_id = i + 1;
-		params[i].n_common = n_common;
-		params[i].n_priv_per_thread = n_priv_per_thread;
-
-		os_thread_create(thread_0r100w, &params[i], NULL);
-	}
-
-	/* Wait for all threads to exit. */
-	mutex_enter(&thread_mutex);
-	while (os_thread_count > 0) {
-		mutex_exit(&thread_mutex);
-		os_thread_sleep(100000 /* 0.1 sec */);
-		mutex_enter(&thread_mutex);
-	}
-	mutex_exit(&thread_mutex);
-
-	hash_check_inserted(hash, n_common, 0);
-
-#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	hash->print_stats();
-#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
-
-	delete hash;
+TEST_F(ut0lock_free_hash, multi_threaded_0r100w_few_keys)
+{
+	run_multi_threaded(
+		"multi threaded,   0% read, 100% write, few keys" /* label */,
+		1024 * 32 /* initial hash size */,
+		16 /* n_common */,
+		0 /* n_priv_per_thread */,
+		64, /* n_threads */
+		thread_0r100w /* thread function */
+	);
 }
 
 /** Hammer a common hash with get(), inc(), dec() and set(), 50% reads and
@@ -549,60 +583,14 @@ DECLARE_THREAD(thread_50r50w)(
 
 TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
 {
-#ifdef HAVE_UT_CHRONO_T
-	ut_chrono_t		chrono("multi threaded,  50% read,  50% write");
-#endif /* HAVE_UT_CHRONO_T */
-
-	ut_hash_interface_t*	hash;
-
-#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-	hash = new std_hash_t();
-#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	hash = new ut_lock_free_hash_t(1024 * 16);
-#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-
-	/** Number of common tuples (accessed by all threads) to insert into
-	the hash. */
-	const size_t		n_common = 4096;
-
-	/** Number of private, per-thread tuples to insert by each thread. */
-	const size_t		n_priv_per_thread = 256;
-
-	/** Number of threads to start. Overall the hash will be filled with
-	n_common + n_threads * n_priv_per_thread tuples. */
-	const size_t		n_threads = 32;
-
-	thread_params_t		params[n_threads];
-
-	hash_insert(hash, n_common, 0);
-
-	for (uintptr_t i = 0; i < n_threads; i++) {
-		params[i].hash = hash;
-		/* Avoid thread_id == 0 because that will collide with the
-		shared tuples, thus use 'i + 1' instead of 'i'. */
-		params[i].thread_id = i + 1;
-		params[i].n_common = n_common;
-		params[i].n_priv_per_thread = n_priv_per_thread;
-
-		os_thread_create(thread_50r50w, &params[i], NULL);
-	}
-
-	/* Wait for all threads to exit. */
-	mutex_enter(&thread_mutex);
-	while (os_thread_count > 0) {
-		mutex_exit(&thread_mutex);
-		os_thread_sleep(100000 /* 0.1 sec */);
-		mutex_enter(&thread_mutex);
-	}
-	mutex_exit(&thread_mutex);
-
-	hash_check_inserted(hash, n_common, 0);
-
-#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	hash->print_stats();
-#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
-
-	delete hash;
+	run_multi_threaded(
+		"multi threaded,  50% read,  50% write" /* label */,
+		1024 * 32 /* initial hash size */,
+		4096 /* n_common */,
+		256 /* n_priv_per_thread */,
+		64, /* n_threads */
+		thread_50r50w /* thread function */
+	);
 }
 
 /** Hammer a commmon hash with get()s, 100% reads.
@@ -666,60 +654,14 @@ DECLARE_THREAD(thread_100r0w)(
 
 TEST_F(ut0lock_free_hash, multi_threaded_100r0w)
 {
-#ifdef HAVE_UT_CHRONO_T
-	ut_chrono_t		chrono("multi threaded, 100% read,   0% write");
-#endif /* HAVE_UT_CHRONO_T */
-
-	ut_hash_interface_t*	hash;
-
-#if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
-	hash = new std_hash_t();
-#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	hash = new ut_lock_free_hash_t(1024 * 16);
-#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-
-	/** Number of common tuples (accessed by all threads) to insert into
-	the hash. */
-	const size_t		n_common = 4096;
-
-	/** Number of private, per-thread tuples to insert by each thread. */
-	const size_t		n_priv_per_thread = 256;
-
-	/** Number of threads to start. Overall the hash will be filled with
-	n_common + n_threads * n_priv_per_thread tuples. */
-	const size_t		n_threads = 32;
-
-	thread_params_t		params[n_threads];
-
-	hash_insert(hash, n_common, 0);
-
-	for (uintptr_t i = 0; i < n_threads; i++) {
-		params[i].hash = hash;
-		/* Avoid thread_id == 0 because that will collide with the
-		shared tuples, thus use 'i + 1' instead of 'i'. */
-		params[i].thread_id = i + 1;
-		params[i].n_common = n_common;
-		params[i].n_priv_per_thread = n_priv_per_thread;
-
-		os_thread_create(thread_100r0w, &params[i], NULL);
-	}
-
-	/* Wait for all threads to exit. */
-	mutex_enter(&thread_mutex);
-	while (os_thread_count > 0) {
-		mutex_exit(&thread_mutex);
-		os_thread_sleep(100000 /* 0.1 sec */);
-		mutex_enter(&thread_mutex);
-	}
-	mutex_exit(&thread_mutex);
-
-	hash_check_inserted(hash, n_common, 0);
-
-#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	hash->print_stats();
-#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
-
-	delete hash;
+	run_multi_threaded(
+		"multi threaded, 100% read,   0% write" /* label */,
+		1024 * 32 /* initial hash size */,
+		4096 /* n_common */,
+		256 /* n_priv_per_thread */,
+		64, /* n_threads */
+		thread_100r0w /* thread function */
+	);
 }
 
 }
