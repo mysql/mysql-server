@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,11 @@ public:
   bool get_next_word(LEX_STRING *);
   bool get_next_number(double *);
   bool check_next_symbol(char);
+
+  bool is_end_of_stream()
+  {
+    return get_next_toc_type() == eostream;
+  }
 
   inline void skip_space()
   {

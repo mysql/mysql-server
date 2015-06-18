@@ -44,9 +44,9 @@ ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(10 10, 20 20, 50 50, 100 100))"))
 {"type":"MultiLineString","coordinates":[[[10,10],[20,20],[10,40]],[[40,40],[30,30],[40,20],[30,10]],[[10,10],[20,20],[50,50],[100,100]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
-                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35))),"));
+                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"));
 ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
-                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35))),"))
+                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))
 {"type":"MultiPolygon","coordinates":[[[[40,40],[20,45],[45,30],[40,40]]],[[[20,35],[10,30],[10,10],[30,5],[45,20],[20,35]]]]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
@@ -3230,9 +3230,9 @@ ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 1
                                     "(10 10, 20 20, 50 50, 100 100))"))))
 MULTILINESTRING((10 10,20 20,10 40),(40 40,30 30,40 20,30 10),(10 10,20 20,50 50,100 100))
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
-                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35))),"))));
+                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))));
 ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
-                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35))),"))))
+                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))))
 MULTIPOLYGON(((40 40,20 45,45 30,40 40)),((20 35,10 30,10 10,30 5,45 20,20 35)))
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
