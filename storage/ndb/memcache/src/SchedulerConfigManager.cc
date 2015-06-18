@@ -93,6 +93,7 @@ void SchedulerConfigManager::add_stats(const char *stat_key,
     int gen = current_plans->getConfiguration()->generation;
     int value_len = snprintf(buffer, 16, "%d", gen);
     add_stat(key, strlen(key), buffer, value_len, cookie);
+    DEBUG_PRINT("stats reconf: running %d", gen);
   }
 }
 
