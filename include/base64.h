@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,22 +23,22 @@ extern "C" {
 /*
   Calculate how much memory needed for dst of base64_encode()
 */
-int base64_needed_encoded_length(int length_of_data);
+uint64 base64_needed_encoded_length(uint64 length_of_data);
 
 /*
   Maximum length base64_encode_needed_length() can accept with no overflow.
 */
-int base64_encode_max_arg_length(void);
+uint64 base64_encode_max_arg_length(void);
 
 /*
   Calculate how much memory needed for dst of base64_decode()
 */
-int base64_needed_decoded_length(int length_of_encoded_data);
+uint64 base64_needed_decoded_length(uint64 length_of_encoded_data);
 
 /*
   Maximum length base64_decode_needed_length() can accept with no overflow.
 */
-int base64_decode_max_arg_length();
+uint64 base64_decode_max_arg_length();
 
 /*
   Encode data as a base64 string
@@ -48,7 +48,7 @@ int base64_encode(const void *src, size_t src_len, char *dst);
 /*
   Decode a base64 string into data
 */
-int base64_decode(const char *src, size_t src_len,
+int64 base64_decode(const char *src, size_t src_len,
                   void *dst, const char **end_ptr, int flags);
 
 /* Allow multuple chunks 'AAA= AA== AA==', binlog uses this */

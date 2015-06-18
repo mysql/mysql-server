@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -80,7 +80,7 @@ IF(CMAKE_BUILD_TYPE)
   ENDIF()
 ENDIF()
 
-# On windows do: 'devenv mysql.sln /build Debug /project test-mtr'
+# On windows do: 'cmake --build . --config debug --target test-mtr'
 # On unix do: 'make test-mtr'
 ADD_CUSTOM_TARGET(test-mtr
   COMMAND perl ./mysql-test-run.pl --force --parallel=4 --suite=main

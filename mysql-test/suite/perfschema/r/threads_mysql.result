@@ -13,7 +13,7 @@ processlist_user	NULL
 processlist_host	NULL
 processlist_db	NULL
 processlist_command	NULL
-processlist_info	INTERNAL DDL LOG RECOVER IN PROGRESS
+processlist_info	NULL
 unified_parent_thread_id	NULL
 role	NULL
 instrumented	YES

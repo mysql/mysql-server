@@ -75,6 +75,9 @@ struct innodb_conn_data_struct {
 	bool		is_stale;	/*!< connection closed, this is
 					stale */
 	bool		is_flushing;	/*!< if flush is running. */
+	bool            is_waiting_for_mdl;
+					/*!< Used to detrmine if the connection is
+					locked and waiting on MDL */
 	void*		conn_cookie;	/*!< connection cookie */
 	uint64_t	n_total_reads;	/*!< number of reads */
 	uint64_t	n_reads_since_commit;

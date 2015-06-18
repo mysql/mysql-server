@@ -3,7 +3,7 @@
  *  memcached - memory caching daemon
  *
  *       http://www.danga.com/memcached/
- *
+ *  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
  *
  *  Use and distribution licensed under the BSD license.  See
@@ -4244,6 +4244,13 @@ static void process_update_command(conn *c, token_t *tokens, const size_t ntoken
            && safe_strtol(tokens[3].value, &exptime_int)
            && safe_strtol(tokens[4].value, (int32_t *)&vlen))) {
         out_string(c, "CLIENT_ERROR bad command line format");
+        return;
+    }
+
+    /* Negative expire values not allowed */
+
+    if (exptime_int < 0) {
+        out_string(c, "CLIENT_ERROR Invalid expire time");
         return;
     }
 

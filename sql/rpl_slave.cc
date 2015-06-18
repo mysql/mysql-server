@@ -1904,6 +1904,25 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   return ret;
 }
 
+
+/**
+  Determine, case-sensitively, if short_string is equal to
+  long_string, or a true prefix of long_string, or not a prefix.
+
+  @retval 0 short_string is not a prefix of long_string.
+  @retval 1 short_string is a true prefix of long_string (not equal).
+  @retval 2 short_string is equal to long_string.
+*/
+static int is_str_prefix_case(const char *short_string, const char *long_string)
+{
+  int i;
+  for (i= 0; short_string[i]; i++)
+    if (my_toupper(system_charset_info, short_string[i]) !=
+        my_toupper(system_charset_info, long_string[i]))
+      return 0;
+  return long_string[i] ? 1 : 2;
+}
+
 /*
   Note that we rely on the master's version (3.23, 4.0.14 etc) instead of
   relying on the binlog's version. This is not perfect: imagine an upgrade
@@ -2471,16 +2490,48 @@ when it try to get the value of TIME_ZONE global variable from master.";
       mi->master_gtid_mode= 0;
       break;
     case COMMAND_STATUS_OK:
-      int typelib_index= find_type(master_row[0], &gtid_mode_typelib, 1);
-      mysql_free_result(master_res);
-      if (typelib_index == 0)
+      const char *master_gtid_mode_string= master_row[0];
+      bool found_valid_mode= false;
+      DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_on_permissive",
+                      { master_gtid_mode_string= "on_permissive"; });
+      DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_off_permissive",
+                      { master_gtid_mode_string= "off_permissive"; });
+      DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_on_something",
+                      { master_gtid_mode_string= "on_something"; });
+      DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_off_something",
+                      { master_gtid_mode_string= "off_something"; });
+      DBUG_EXECUTE_IF("simulate_master_has_unknown_gtid_mode",
+                      { master_gtid_mode_string= "Krakel Spektakel"; });
+      for (int mode= 0; mode <= 3 && !found_valid_mode; mode+= 3)
+      {
+        switch (is_str_prefix_case(gtid_mode_typelib.type_names[mode],
+                                   master_gtid_mode_string))
+        {
+        case 0: // is not a prefix
+          break;
+        case 1: // is a true prefix, i.e. not equal
+          mi->report(WARNING_LEVEL, ER_UNKNOWN_ERROR,
+                     "The master uses an unknown GTID_MODE '%s'. "
+                     "Treating it as '%s'.",
+                     master_gtid_mode_string,
+                     gtid_mode_typelib.type_names[mode]);
+          // fall through
+        case 2: // is equal
+          found_valid_mode= true;
+          mi->master_gtid_mode= mode;
+          break;
+        }
+      }
+      if (!found_valid_mode)
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
-                   "an unknown @@GLOBAL.GTID_MODE.");
+                   "an unknown @@GLOBAL.GTID_MODE '%s'.",
+                   master_gtid_mode_string);
+        mysql_free_result(master_res);
         DBUG_RETURN(1);
       }
-      mi->master_gtid_mode= typelib_index - 1;
+      mysql_free_result(master_res);
       break;
     }
     if (mi->master_gtid_mode > gtid_mode + 1 ||
@@ -4814,6 +4865,14 @@ log space");
         if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
+      /*
+        After event is flushed to relay log file, memory used
+        by thread's mem_root is not required any more.
+        Hence adding free_root(thd->mem_root,...) to do the
+        cleanup, otherwise a long running IO thread can
+        cause OOM error.
+      */
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
     }
   }
 
@@ -7065,7 +7124,10 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
           rli->set_last_retrieved_gtid(gtid);
         global_sid_lock->unlock();
         if (ret != 0)
+        {
+          mysql_mutex_unlock(log_lock);
           goto err;
+        }
       }
     }
     else

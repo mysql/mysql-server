@@ -2163,7 +2163,7 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  return theEventBuffer->pollEvents2(aMillisecondNumber, highestQueuedEpoch);
+  return theEventBuffer->pollEvents(aMillisecondNumber, highestQueuedEpoch);
 }
 
 bool
