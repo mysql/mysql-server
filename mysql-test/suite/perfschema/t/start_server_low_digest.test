@@ -4,7 +4,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source ../include/no_protocol.inc
+--source include/no_protocol.inc
 
 USE performance_schema;
 truncate table events_statements_history_long;

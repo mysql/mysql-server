@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -47,6 +47,9 @@ connection specific operations */
 	if (!(has_lock)) {					\
 		pthread_mutex_lock(&(conn)->curr_conn_mutex);	\
 	}
+
+#define LOCK_CURRENT_CONN_TRYLOCK(conn)				\
+               pthread_mutex_trylock(&(conn)->curr_conn_mutex); \
 
 #define UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn)	\
 	if (!(has_lock)) {					\

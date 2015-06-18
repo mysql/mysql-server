@@ -689,7 +689,7 @@ public:
   Uint32 getEventId(int bufferId);
   Uint64 getHighestQueuedEpoch();
 
-  int pollEvents2(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
+  int pollEvents(int aMillisecondNumber, Uint64 *HighestQueuedEpoch= 0);
   int flushIncompleteEvents(Uint64 gci);
 
   void free_consumed_event_data();
