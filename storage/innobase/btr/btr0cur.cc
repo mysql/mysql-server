@@ -3215,6 +3215,8 @@ fail_err:
 			      : 0,
 			      rec_printer(entry).str().c_str()));
 
+	DBUG_EXECUTE_IF("do_page_reorganize",
+			btr_page_reorganize(page_cursor, index, mtr););
 
 	/* Now, try the insert */
 	{
