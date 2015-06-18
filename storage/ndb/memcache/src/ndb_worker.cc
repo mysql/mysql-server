@@ -580,7 +580,7 @@ bool WorkerStep1::setKeyForReading(Operation &op) {
   }
   logger->log(LOG_WARNING, 0, "tx: %s \n", 
               wqitem->ndb_instance->db->getNdbError().message);
-  return tx ? true : false;
+  return false;
 }
 
 
