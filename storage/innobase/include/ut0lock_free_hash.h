@@ -648,12 +648,7 @@ private:
 				expected,
 				delta,
 				boost::memory_order_relaxed)) {
-#if 0
-			const int64_t	prev_val = tuple->m_val.fetch_add(
-				delta, boost::memory_order_relaxed);
 
-			ut_a(prev_val + delta != NOT_FOUND);
-#else
 			/* 'expected' now has the current value, which is not
 			NOT_FOUND because the CAS failed. */
 			ut_ad(expected != NOT_FOUND);
@@ -667,7 +662,6 @@ private:
 					break;
 				}
 			}
-#endif
 		}
 	}
 
