@@ -883,6 +883,14 @@ Tsman::execFSWRITEREQ(Signal* signal)
 {
   /**
    * This is currently run in other thread -> no jam
+   *
+   * We only run this code when initialising a datafile during its creation.
+   * This method is called from NDBFS file system thread to initialise the
+   * content in the original pages in the datafile when the datafile is
+   * first created. The pages used in this creation is allocated from the
+   * DataMemory and is owned by the file system thread, so these can be
+   * safely written to. Other than that we can only read stable variables
+   * that won't change during the execution in the file system thread.
    */
   //jamEntry();
   Ptr<Datafile> ptr;
