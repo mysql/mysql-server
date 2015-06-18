@@ -42,7 +42,7 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRING((10 10, 20 20, 10 40),"
                                     "(10 10, 20 20, 50 50, 100 100))"));
 
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
-                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35))),"));
+                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"));
 
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"
@@ -3087,7 +3087,7 @@ SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTILINESTRIN
                                     "(10 10, 20 20, 50 50, 100 100))"))));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
-                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35))),"))));
+                                    "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35)))"))));
 
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(ST_ASGEOJSON(ST_GEOMFROMTEXT("MULTIPOLYGON(((40 40, 20 45, 45 30, 40 40)),"
                                     "((20 35, 10 30, 10 10, 30 5, 45 20, 20 35),"

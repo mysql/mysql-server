@@ -1360,7 +1360,7 @@ tab	CREATE TABLE `tab` (
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 tab	1	idx1	1	c1	A	0	32	NULL		SPATIAL		
-set @g1 = ST_GeomFromText('POINT(-1 -2))');
+set @g1 = ST_GeomFromText('POINT(-1 -2)');
 SELECT ST_AsText(c1) FROM tab;
 ST_AsText(c1)
 DROP table tab;

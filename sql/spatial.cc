@@ -433,7 +433,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
  */
 Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
 				    Gis_read_stream *trs, String *wkt,
-				    bool init_stream)
+				    bool init_stream, bool check_trailing)
 {
   LEX_STRING name;
   Class_info *ci;
@@ -451,7 +451,8 @@ Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
   wkt->q_append((uint32) result->get_class_info()->m_type_id);
   if (trs->check_next_symbol('(') ||
       result->init_from_wkt(trs, wkt) ||
-      trs->check_next_symbol(')'))
+      trs->check_next_symbol(')') ||
+      (check_trailing && !trs->is_end_of_stream()))
     return NULL;
 
   if (init_stream)
@@ -1027,6 +1028,11 @@ Geometry *Geometry::create_from_wkb(Geometry_buffer *buffer,
 
   uint tret= geom->init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                                  ::get_byte_order(wkb), res);
+
+  // The WKB string is invalid if it has trailing trash bytes.
+  if (tret != len - WKB_HEADER_SIZE)
+    return NULL;
+
   if (init_stream)
     geom->set_data_ptr(res->ptr() + WKB_HEADER_SIZE,
                        res->length() - WKB_HEADER_SIZE);
@@ -3875,7 +3881,8 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb)
      */
     if (n_objects == 0 && trs->get_next_toc_type() == Gis_read_stream::r_bra)
       break;
-    if (!(g= create_from_wkt(&buffer, trs, wkb)))
+    if (!(g= create_from_wkt(&buffer, trs, wkb, true,
+                             false/* Allow trailing bytes. */)))
       return true;
     /*
       Allow g to be a nested geometry collection, nested ones are flatterned

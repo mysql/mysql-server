@@ -682,8 +682,9 @@ public:
                      static_cast<uint32>(str->length()), has_srid);
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
-				   Gis_read_stream *trs, String *wkt,
-				   bool init_stream=1);
+                                   Gis_read_stream *trs, String *wkt,
+                                   bool init_stream= true,
+                                   bool check_trailing= true);
   static Geometry *create_from_wkb(Geometry_buffer *buffer, const char *wkb,
                                    uint32 len, String *res, bool init);
   static int create_from_opresult(Geometry_buffer *g_buf,
