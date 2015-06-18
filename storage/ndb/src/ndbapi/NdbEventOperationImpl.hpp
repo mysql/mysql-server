@@ -522,7 +522,7 @@ public:
   Uint64 getLatestGCI();
   Uint32 getEventId(int bufferId);
 
-  int pollEvents(int aMillisecondNumber, Uint64 *latestGCI= 0);
+  int pollEvents(Uint64 *latestGCI= NULL);
   int flushIncompleteEvents(Uint64 gci);
 
   void free_consumed_event_data();
@@ -592,7 +592,6 @@ public:
   bool m_startup_hack;
 
   NdbMutex *m_mutex;
-  struct NdbCondition *p_cond;
 
   // receive thread
   Gci_container m_complete_data;
