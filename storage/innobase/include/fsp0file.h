@@ -123,7 +123,7 @@ public:
 		}
 	}
 
-	virtual ~Datafile()
+	~Datafile()
 	{
 		shutdown();
 	}
@@ -180,13 +180,13 @@ public:
 	void init(const char* name, ulint size, ulint order);
 
 	/** Release the resources. */
-	virtual void shutdown();
+	void shutdown();
 
 	/** Open a data file in read-only mode to check if it exists
 	so that it can be validated.
 	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_only(bool strict)
+	dberr_t open_read_only(bool strict)
 		__attribute__((warn_unused_result));
 
 	/** Open a data file in read-write mode during start-up so that
@@ -194,7 +194,7 @@ public:
 	@param[in]	read_only_mode	if true, then readonly mode checks
 					are enforced.
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_write(bool read_only_mode)
+	dberr_t open_read_write(bool read_only_mode)
 		__attribute__((warn_unused_result));
 
 	/** Close a data file.
@@ -271,19 +271,6 @@ public:
 	const char*	filepath()	const
 	{
 		return(m_filepath);
-	}
-
-	/** Test if the filepath provided is the same as this object.
-	When lower_case_table_names != 0 we store the filename as it is given,
-	but compare it case insensitive.
-	@return true if it is the same file, else false */
-	bool	same_filepath_as(const char* other_filepath)
-	{
-		if (innobase_get_lower_case_table_names() == 0) {
-			return(0 == strcmp(m_filepath, other_filepath));
-		}
-
-		return(0 == innobase_strcasecmp(m_filepath, other_filepath));
 	}
 
 	/** Get Datafile::m_handle.
@@ -457,96 +444,5 @@ private:
 protected:
 	/** Last OS error received so it can be reported if needed. */
 	ulint			m_last_os_error;
-};
-
-
-/** Data file control information. */
-class RemoteDatafile : public Datafile
-{
-private:
-	/** Link filename (full path) */
-	char*			m_link_filepath;
-
-public:
-
-	RemoteDatafile()
-		:
-		m_link_filepath()
-	{
-		/* No op - base constructor is called. */
-	}
-
-	RemoteDatafile(const char* name, ulint size, ulint order)
-		:
-		m_link_filepath()
-	{
-		/* No op - base constructor is called. */
-	}
-
-	~RemoteDatafile()
-	{
-		shutdown();
-	}
-
-	/** Release the resources. */
-	void shutdown();
-
-	/** Get the link filepath.
-	@return m_link_filepath */
-	const char*	link_filepath()	const
-	{
-		return(m_link_filepath);
-	}
-
-	/** Open a handle to the file linked to in an InnoDB Symbolic Link file
-	in read-only mode so that it can be validated.
-	@param[in]	strict	whether to issue error messages
-	@return DB_SUCCESS or error code */
-	dberr_t open_read_only(bool strict)
-		__attribute__((warn_unused_result));
-
-	/** Opens a handle to the file linked to in an InnoDB Symbolic Link
-	file in read-write mode so that it can be restored from doublewrite
-	and validated.
-	@param[in]	read_only_mode	If true, then readonly mode checks
-					are enforced.
-	@return DB_SUCCESS or error code */
-	dberr_t open_read_write(bool read_only_mode)
-		__attribute__((warn_unused_result));
-
-	/******************************************************************
-	Global Static Functions;  Cannot refer to data members.
-	******************************************************************/
-
-	/** Creates a new InnoDB Symbolic Link (ISL) file.  It is always
-	created under the 'datadir' of MySQL. The datadir is the directory
-	of a running mysqld program. We can refer to it by simply using
-	the path ".".
-	@param[in]	name		tablespace name
-	@param[in]	filepath	remote filepath of tablespace datafile
-	@return DB_SUCCESS or error code */
-	static dberr_t create_link_file(
-		const char*	name,
-		const char*	filepath);
-
-	/** Delete an InnoDB Symbolic Link (ISL) file by name.
-	@param[in]	name	tablespace name */
-	static void delete_link_file(const char* name);
-
-	/** Reads an InnoDB Symbolic Link (ISL) file.
-	It is always created under the 'datadir' of MySQL.  The name is of
-	the form {databasename}/{tablename}. and the isl file is expected
-	to be in a '{databasename}' directory called '{tablename}.isl'.
-	The caller must free the memory of the null-terminated path returned
-	if it is not null.
-	@param[in]	name		tablespace name
-	@param[out]	link_filepath	filepath of the ISL file
-	@param[out]	ibd_filepath	filepath of the IBD file read from
-					the ISL file */
-	static void read_link_file(
-		const char*	name,
-		char**		link_filepath,
-		char**		ibd_filepath);
-
 };
 #endif /* fsp0file_h */

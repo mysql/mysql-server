@@ -121,7 +121,7 @@ directory, and we must set the base file path explicitly */
 const char*	fil_path_to_mysql_datadir	= ".";
 
 /** Common InnoDB file extentions */
-const char* dot_ext[] = { "", ".ibd", ".isl", ".cfg" };
+const char* dot_ext[] = { "", ".ibd", ".cfg" };
 
 /** The number of fsyncs done to the log */
 ulint	fil_n_log_flushes			= 0;
@@ -2881,11 +2881,6 @@ fil_delete_tablespace(
 		}
 	}
 
-	/* Delete the link file pointing to the ibd file we are deleting. */
-	if (FSP_FLAGS_HAS_DATA_DIR(space->flags)) {
-		RemoteDatafile::delete_link_file(space->name);
-	}
-
 	mutex_enter(&fil_system->mutex);
 
 	/* Double check the sanity of pending ops after reacquiring
@@ -3210,20 +3205,19 @@ fil_rename_tablespace_in_mem(
 	return(true);
 }
 
-/*******************************************************************//**
-Allocates and builds a file name from a path, a table or tablespace name
-and a suffix. The string must be freed by caller with ut_free().
-@param[in] path NULL or the direcory path or the full path and filename.
-@param[in] name NULL if path is full, or Table/Tablespace name
-@param[in] suffix NULL or the file extention to use.
-@param[in] trim_name true if the last name on the path should be trimmed.
-@return own: file name */
+/** Allocate and build a file name from a path, a table or tablespace name
+and a suffix.
+@param[in]	path	NULL or the direcory path or the full path and filename
+@param[in]	name	NULL if path is full, or Table/Tablespace name
+@param[in]	ext	the file extension to use
+@param[in]	trim	whether last name on the path should be trimmed
+@return own: file name; must be freed by ut_free() */
 char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
 	ib_extention	ext,
-	bool		trim_name)
+	bool		trim)
 {
 	/* The path may contain the basename of the file, if so we do not
 	need the name.  If the path is NULL, we can use the default path,
@@ -3232,7 +3226,7 @@ fil_make_filepath(
 
 	/* If we are going to strip a name off the path, there better be a
 	path and a new name to put back on. */
-	ut_ad(!trim_name || (path != NULL && name != NULL));
+	ut_ad(!trim || (path != NULL && name != NULL));
 
 	ulint	len		= 0;	/* current length */
 	ulint	path_len	= (path ? ::strlen(path)
@@ -3254,7 +3248,7 @@ fil_make_filepath(
 
 	os_normalize_path_for_win(full_name);
 
-	if (trim_name) {
+	if (trim) {
 		/* Find the offset of the last DIR separator and set it to
 		null in order to strip off the old basename from this path. */
 		char* last_dir_sep = strrchr(full_name, OS_PATH_SEPARATOR);
@@ -3486,8 +3480,6 @@ fil_ibd_create(
 	byte*		buf2;
 	byte*		page;
 	bool		success;
-	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
-	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
 	ut_ad(!is_system_tablespace(space_id));
@@ -3692,27 +3684,14 @@ fil_ibd_create(
 		return(DB_ERROR);
 	}
 
-	if (has_data_dir) {
-		/* Now that the IBD file is created, make the ISL file. */
-		err = RemoteDatafile::create_link_file(name, path);
-		if (err != DB_SUCCESS) {
-			os_file_close(file);
-			os_file_delete(innodb_data_file_key, path);
-			return(err);
-		}
-	}
-
 	space = fil_space_create(name, space_id, flags, FIL_TYPE_TABLESPACE);
 
-	if (!fil_node_create_low(
-			path, size, space, false, punch_hole, atomic_write)) {
-
-		err = DB_ERROR;
-		goto error_exit_1;
-	}
-
+	err = fil_node_create_low(
+		path, size, space, false, punch_hole, atomic_write)
+		? DB_SUCCESS
+		: DB_ERROR;
 #ifndef UNIV_HOTBACKUP
-	{
+	if (err == DB_SUCCESS) {
 		mtr_t		mtr;
 
 		mtr_start(&mtr);
@@ -3721,15 +3700,6 @@ fil_ibd_create(
 		mtr_commit(&mtr);
 	}
 #endif
-	err = DB_SUCCESS;
-
-	/* Error code is set.  Cleanup the various variables used.
-	These labels reflect the order in which variables are assigned or
-	actions are done. */
-error_exit_1:
-	if (err != DB_SUCCESS && (has_data_dir || has_shared_space)) {
-		RemoteDatafile::delete_link_file(name);
-	}
 
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
@@ -3740,28 +3710,19 @@ error_exit_1:
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Try to open a single-table tablespace and optionally check that the
-space id in it is correct. If this does not succeed, print an error message
-to the .err log. This function is used to open a tablespace when we start
-mysqld after the dictionary has been booted, and also in IMPORT TABLESPACE.
-
+/** Open a single-table tablespace and optionally check the space id is
+right in it. If not successful, print an error message to the error log. This
+function is used to open a tablespace when we start up mysqld, and also in
+IMPORT TABLESPACE.
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
-race here. This operation does not leave the file associated with the
-tablespace open, but closes it after we have looked at the space id in it.
+race here.
 
-If the validate boolean is set, we read the first page of the file and
-check that the space id in the file is what we expect. We assume that
-this function runs much faster if no check is made, since accessing the
-file inode probably is much faster (the OS caches them) than accessing
-the first page of the file.  This boolean may be initially false, but if
-a remote tablespace is found it will be changed to true.
+The fil_node_t::handle will not be left open.
 
-If the fix_dict boolean is set, then it is safe to use an internal SQL
-statement to update the dictionary tables if they are incorrect.
-
-@param[in]	validate	true if we should validate the tablespace
-@param[in]	fix_dict	true if the dictionary is available to be fixed
+@param[in]	validate	whether we should validate the tablespace
+				(read the first page of the file and
+				check that the space id in it matches id)
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @param[in]	id		tablespace ID
 @param[in]	flags		tablespace flags
@@ -3772,131 +3733,43 @@ If file-per-table, it is the table name in the databasename/tablename format
 dberr_t
 fil_ibd_open(
 	bool		validate,
-	bool		fix_dict,
 	fil_type_t	purpose,
 	ulint		id,
 	ulint		flags,
 	const char*	space_name,
 	const char*	path_in)
 {
-	dberr_t		err = DB_SUCCESS;
-	bool		dict_filepath_same_as_default = false;
-	bool		link_file_found = false;
-	bool		link_file_is_bad = false;
-	Datafile	df_default;	/* default location */
-	Datafile	df_dict;	/* dictionary location */
-	RemoteDatafile	df_remote;	/* remote location */
-	ulint		tablespaces_found = 0;
-	ulint		valid_tablespaces_found = 0;
+	Datafile	df;
 
-	ut_ad(!fix_dict || rw_lock_own(dict_operation_lock, RW_LOCK_X));
-
-	ut_ad(!fix_dict || mutex_own(&dict_sys->mutex));
 	ut_ad(fil_type_is_data(purpose));
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
 	}
 
-	df_default.init(space_name, 0, 0);
-	df_dict.init(space_name, 0, 0);
-	df_remote.init(space_name, 0, 0);
+	df.init(space_name, 0, 0);
+	df.make_filepath(NULL);
 
-	/* Discover the correct filepath.  We will always look for an ibd
-	in the default location. If it is remote, it should not be here. */
-	df_default.make_filepath(NULL);
-
-	/* The path_in was read from SYS_DATAFILES. */
 	if (path_in) {
-		if (df_default.same_filepath_as(path_in)) {
-			dict_filepath_same_as_default = true;
-		} else {
-			df_dict.set_filepath(path_in);
-			/* possibility of multiple files. */
-			validate = true;
-		}
-	}
-
-	if (df_remote.open_read_only(true) == DB_SUCCESS) {
-		ut_ad(df_remote.is_open());
-
-		/* A link file was found. MySQL does not allow a DATA
-		DIRECTORY to be the same as the default filepath.
-		This could happen if the link file was edited directly.*/
-		if (df_default.same_filepath_as(df_remote.filepath())) {
-			ib::error() << "Link files should not refer to"
-				" files in the default location. Please"
-				" delete " << df_remote.link_filepath()
-				<< " or change the remote file it refers to.";
-			return(DB_CORRUPTION);
-		}
-
-		validate = true;	/* possibility of multiple files. */
-		tablespaces_found++;
-		link_file_found = true;
-
-		/* If there was a filepath found in SYS_DATAFILES,
-		we hope it was the same as this remote.filepath found
-		in the ISL file. */
-		if (df_dict.filepath()
-		    && 0 == strcmp(df_dict.filepath(), df_remote.filepath())) {
-			df_remote.close();
-			tablespaces_found--;
-		}
+		df.set_filepath(path_in);
 	}
 
 	/* Attempt to open the tablespace at the dictionary filepath. */
-	if (df_dict.open_read_only(true) == DB_SUCCESS) {
-		ut_ad(df_dict.is_open());
-		validate = true;	/* possibility of multiple files. */
-		tablespaces_found++;
+	if (df.open_read_only(true) == DB_SUCCESS) {
+		ut_ad(df.is_open());
+	} else {
+		ut_ad(!df.is_open());
+		return(DB_CORRUPTION);
 	}
-
-	/* Always look for a file at the default location. But don't log
-	an error if the tablespace is already open in remote or dict. */
-	ut_a(df_default.filepath());
-	const bool	strict = (tablespaces_found == 0);
-	if (df_default.open_read_only(strict) == DB_SUCCESS) {
-		ut_ad(df_default.is_open());
-		tablespaces_found++;
-	}
-
-	bool	atomic_write;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-	if (!srv_use_doublewrite_buf && df_default.is_open()) {
-
-		atomic_write = fil_fusionio_enable_atomic_write(
-			df_default.handle());
-
-	} else {
-		atomic_write = false;
-	}
+	const bool	atomic_write = !srv_use_doublewrite_buf
+		&& fil_fusionio_enable_atomic_write(df.handle());
 #else
-	atomic_write = false;
+	const bool	atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
-	/*  We have now checked all possible tablespace locations and
-	have a count of how many unique files we found.  If things are
-	normal, we only found 1. */
-	if (!validate && tablespaces_found == 1) {
-		goto skip_validate;
-	}
-
-	/* Read and validate the first page of these three tablespace
-	locations, if found. */
-	valid_tablespaces_found +=
-		(df_remote.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
-
-	valid_tablespaces_found +=
-		(df_default.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
-
-	valid_tablespaces_found +=
-		(df_dict.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
-
-	/* Make sense of these three possible locations.
-	First, bail out if no tablespace files were found. */
-	if (valid_tablespaces_found == 0) {
+	if (validate && df.validate_to_dd(id, flags) != DB_SUCCESS) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 		ib::error() << "Could not find a valid tablespace file for `"
@@ -3905,155 +3778,19 @@ fil_ibd_open(
 		return(DB_CORRUPTION);
 	}
 
-	/* Do not open any tablespaces if more than one tablespace with
-	the correct space ID and flags were found. */
-	if (tablespaces_found > 1) {
-		ib::error() << "A tablespace for `" << space_name
-			<< "` has been found in multiple places;";
+	fil_space_t*	space = fil_space_create(
+		space_name, id, flags, purpose);
 
-		if (df_default.is_open()) {
-			ib::error() << "Default location: "
-				<< df_default.filepath()
-				<< ", Space ID=" << df_default.space_id()
-				<< ", Flags=" << df_default.flags();
-		}
-		if (df_remote.is_open()) {
-			ib::error() << "Remote location: "
-				<< df_remote.filepath()
-				<< ", Space ID=" << df_remote.space_id()
-				<< ", Flags=" << df_remote.flags();
-		}
-		if (df_dict.is_open()) {
-			ib::error() << "Dictionary location: "
-				<< df_dict.filepath()
-				<< ", Space ID=" << df_dict.space_id()
-				<< ", Flags=" << df_dict.flags();
-		}
+	/* We do not measure the size of the file, that is why
+	we pass the 0 below */
 
-		/* Force-recovery will allow some tablespaces to be
-		skipped by REDO if there was more than one file found.
-		Unlike during the REDO phase of recovery, we now know
-		if the tablespace is valid according to the dictionary,
-		which was not available then. So if we did not force
-		recovery and there is only one good tablespace, ignore
-		any bad tablespaces. */
-		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
-			ib::error() << "Will not open tablespace `"
-				<< space_name << "`";
+	if (NULL == fil_node_create_low(
+		    df.filepath(), 0, space, false, true, atomic_write)) {
 
-			/* If the file is not open it cannot be valid. */
-			ut_ad(df_default.is_open() || !df_default.is_valid());
-			ut_ad(df_dict.is_open()    || !df_dict.is_valid());
-			ut_ad(df_remote.is_open()  || !df_remote.is_valid());
-
-			/* Having established that, this is an easy way to
-			look for corrupted data files. */
-			if (df_default.is_open() != df_default.is_valid()
-			    || df_dict.is_open() != df_dict.is_valid()
-			    || df_remote.is_open() != df_remote.is_valid()) {
-				return(DB_CORRUPTION);
-			}
-			return(DB_ERROR);
-		}
-
-		/* There is only one valid tablespace found and we did
-		not use srv_force_recovery during REDO.  Use this one
-		tablespace and clean up invalid tablespace pointers */
-		if (df_default.is_open() && !df_default.is_valid()) {
-			df_default.close();
-			tablespaces_found--;
-		}
-		if (df_dict.is_open() && !df_dict.is_valid()) {
-			df_dict.close();
-			/* Leave dict.filepath so that SYS_DATAFILES
-			can be corrected below. */
-			tablespaces_found--;
-		}
-		if (df_remote.is_open() && !df_remote.is_valid()) {
-			df_remote.close();
-			tablespaces_found--;
-			link_file_is_bad = true;
-		}
+		return(DB_ERROR);
 	}
 
-	/* At this point, there should be only one filepath. */
-	ut_a(tablespaces_found == 1);
-	ut_a(valid_tablespaces_found == 1);
-
-	/* Only fix the dictionary at startup when there is only one thread.
-	Calls to dict_load_table() can be done while holding other latches. */
-	if (!fix_dict) {
-		goto skip_validate;
-	}
-
-	/* We may need to update what is stored in SYS_DATAFILES or
-	SYS_TABLESPACES or adjust the link file.  Since a failure to
-	update SYS_TABLESPACES or SYS_DATAFILES does not prevent opening
-	and using the tablespace either this time or the next, we do not
-	check the return code or fail to open the tablespace. But if it
-	fails, dict_update_filepath() will issue a warning to the log. */
-	if (df_dict.filepath()) {
-		if (df_remote.is_open()) {
-			dict_update_filepath(id, df_remote.filepath());
-
-		} else if (df_default.is_open()) {
-			dict_update_filepath(id, df_default.filepath());
-			if (link_file_is_bad) {
-				RemoteDatafile::delete_link_file(space_name);
-			}
-
-		} else if (!link_file_found || link_file_is_bad) {
-			ut_ad(df_dict.is_open());
-			/* Fix the link file if we got our filepath
-			from the dictionary but a link file did not
-			exist or it did not point to a valid file. */
-			RemoteDatafile::delete_link_file(space_name);
-			RemoteDatafile::create_link_file(
-				space_name, df_dict.filepath());
-		}
-
-	} else if (df_remote.is_open()) {
-		if (dict_filepath_same_as_default) {
-			dict_update_filepath(id, df_remote.filepath());
-
-		} else if (path_in == NULL) {
-			/* SYS_DATAFILES record for this space ID
-			was not found. */
-			dict_replace_tablespace_and_filepath(
-				id, space_name, df_remote.filepath(), flags);
-		}
-
-	} else if (df_default.is_open()
-		   && path_in == NULL
-		   && (DICT_TF_HAS_DATA_DIR(flags)
-		       || DICT_TF_HAS_SHARED_SPACE(flags))) {
-		/* SYS_DATAFILES record for this tablespace ID
-		was not supplied and it should have been.
-		Replace whatever was there with this filepath,
-		name and flags. */
-		dict_replace_tablespace_and_filepath(
-			id, space_name, df_default.filepath(), flags);
-	}
-
-skip_validate:
-	if (err == DB_SUCCESS) {
-		fil_space_t*	space = fil_space_create(
-			space_name, id, flags, purpose);
-
-		/* We do not measure the size of the file, that is why
-		we pass the 0 below */
-
-		if (fil_node_create_low(
-			    df_remote.is_open() ? df_remote.filepath() :
-			    df_dict.is_open() ? df_dict.filepath() :
-			    df_default.filepath(), 0, space, false,
-			    true, atomic_write) == NULL) {
-
-			err = DB_ERROR;
-		}
-	}
-
-	return(err);
+	return(DB_SUCCESS);
 }
 #endif /* !UNIV_HOTBACKUP */
 

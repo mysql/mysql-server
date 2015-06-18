@@ -81,7 +81,6 @@ a	b
 #
 ---- MYSQLD_DATADIR/test
 t1.frm
-t1.isl
 # Check if tablespace file exists where we specified in DATA DIRECTORY
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
@@ -142,7 +141,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 t1.frm
-t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 #
@@ -164,7 +162,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 t1.frm
-t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 #
@@ -187,7 +184,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 ---- MYSQLD_DATADIR/test
 t2.frm
-t2.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 t2.ibd
 #
@@ -212,7 +208,6 @@ test/t2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/
 test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
 ---- MYSQLD_DATADIR/test
 t2.frm
-t2.isl
 t3.frm
 t3.ibd
 #
@@ -305,7 +300,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ---- MYSQLD_DATADIR/test
 t1.frm
-t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 DROP PROCEDURE static_proc;
@@ -339,7 +333,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 t1.frm
-t1.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd
 DROP PROCEDURE dynamic_proc;
@@ -398,9 +391,6 @@ test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 ---- MYSQLD_DATADIR/test
-emp#p#east.isl
-emp#p#north.isl
-emp#p#west.isl
 emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
@@ -440,8 +430,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 ---- MYSQLD_DATADIR/test
-emp#p#east.isl
-emp#p#north.isl
 emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
@@ -476,9 +464,6 @@ test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 ---- MYSQLD_DATADIR/test
-emp#p#east.isl
-emp#p#north.isl
-emp#p#west.isl
 emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd
@@ -524,9 +509,6 @@ test/emp#p#east	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/
 test/emp#p#north	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 test/emp#p#west	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
 ---- MYSQLD_DATADIR/test
-emp#p#east.isl
-emp#p#north.isl
-emp#p#west.isl
 emp.frm
 ---- MYSQL_TMP_DIR/alt_dir_east/test
 emp#p#east.ibd

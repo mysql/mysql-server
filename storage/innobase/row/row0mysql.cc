@@ -2993,14 +2993,9 @@ err_exit:
 			fil_space_get_flags(table->space),
 			path, trx, commit);
 
-			ut_free(path);
+		ut_free(path);
 
-		if (err != DB_SUCCESS) {
-
-			/* We must delete the link file. */
-			RemoteDatafile::delete_link_file(table->name.m_name);
-
-		} else if (compression != NULL) {
+		if (err == DB_SUCCESS && compression != NULL) {
 
 			ut_ad(!is_shared_tablespace(table->space));
 
@@ -4214,11 +4209,6 @@ row_drop_table_for_mysql(
 
 	/* make sure background stats thread is not running on the table */
 	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
-
-	/* Delete the link file if used. */
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		RemoteDatafile::delete_link_file(name);
-	}
 
 	if (!dict_table_is_temporary(table)) {
 

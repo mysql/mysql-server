@@ -75,9 +75,7 @@ PARTITION BY HASH (c1) (
 SHOW WARNINGS;
 
 --echo #
---echo # InnoDB is different from MyISAM in that it uses a text file
---echo # with an '.isl' extension instead of a symbolic link so that
---echo # the tablespace can be re-located on any OS. Also, instead of
+--echo # InnoDB is different from MyISAM in that instead of
 --echo # putting the file directly into the DATA DIRECTORY,
 --echo # it adds a folder under it with the name of the database.
 --echo # Since strict mode is off, InnoDB ignores the INDEX DIRECTORY
@@ -97,7 +95,7 @@ PARTITION BY HASH (c1)
 );
 SHOW WARNINGS;
 
---echo # Verifying .frm, .par, .isl & .ibd files
+--echo # Verifying .frm, .par and InnoDB .ibd files
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
@@ -135,7 +133,7 @@ SET SESSION innodb_strict_mode = ON;
 ALTER TABLE t1 engine=InnoDB;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
---echo # Verifying .frm, .par, .isl and InnoDB .ibd files
+--echo # Verifying .frm, .par and InnoDB .ibd files
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir

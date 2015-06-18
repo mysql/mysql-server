@@ -1578,8 +1578,8 @@ dict_table_rename_in_cache(
 		return(DB_ERROR);
 	}
 
-	/* If the table is stored in a single-table tablespace, rename the
-	.ibd file and rebuild the .isl file if needed. */
+	/* If the table is stored in a single-table tablespace,
+	rename the tablespace file. */
 
 	if (dict_table_is_discarded(table)) {
 		os_file_type_t	type;
@@ -1629,29 +1629,13 @@ dict_table_rename_in_cache(
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
-
-			dberr_t	err = RemoteDatafile::create_link_file(
-				new_name, new_path);
-
-			if (err != DB_SUCCESS) {
-				ut_free(new_path);
-				ut_free(old_path);
-				return(DB_TABLESPACE_EXISTS);
-			}
 		}
 
 		bool	success = fil_rename_tablespace(
 			table->space, old_path, new_name, new_path);
 
 		ut_free(old_path);
-
-		/* If the tablespace is remote, a new .isl file was created
-		If success, delete the old one. If not, delete the new one.  */
-		if (new_path) {
-
-			ut_free(new_path);
-			RemoteDatafile::delete_link_file(success ? old_name : new_name);
-		}
+		ut_free(new_path);
 
 		if (!success) {
 			return(DB_ERROR);

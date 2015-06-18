@@ -4559,8 +4559,7 @@ ha_innobase::table_flags() const
 /****************************************************************//**
 Gives the file extension of an InnoDB single-table tablespace. */
 static const char* ha_innobase_exts[] = {
-	dot_ext[IBD],
-	dot_ext[ISL],
+	DOT_IBD,
 	NullS
 };
 
