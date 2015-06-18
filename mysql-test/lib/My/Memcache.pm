@@ -513,6 +513,7 @@ sub delete {
   my $response = $self->ascii_command("delete $key\r\n");
   return 1 if($response =~ "^DELETED");
   return 0 if($response =~ "^NOT_FOUND");
+  return 0 if($response =~ "^SERVER_ERROR");
   return $self->protocol_error("delete() got response: $response");
 }
 
@@ -537,6 +538,7 @@ sub store {
   return 0 if($response =~ "^NOT_STORED");
   return 0 if($response =~ "^EXISTS");
   return 0 if($response =~ "^NOT_FOUND");
+  return 0 if($response =~ "^SERVER_ERROR");
   return $self->protocol_error("store() got response: $response");
 }
  
