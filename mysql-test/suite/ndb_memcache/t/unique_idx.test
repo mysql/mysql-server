@@ -65,6 +65,10 @@ $mc->set("tur:key1", "1\tQuotidien")  || $mc->fail("Failed test 8.A");
 ($mc->set("tur:key3", "5\tJamais!") == 0) || $mc->fail("Test 9 SET should fail.");
 ($mc->{error} =~ "NOT_STORED")         || $mc->fail("Test 9 expected NOT_STORED");
 
+# 10. This is the final test in the ndb_memcache suite; send a "stats errors"
+# request so that the server will flush its log file.
+$mc->stats("errors");
+
 EOF
 
 # At the end of the test the values should be
