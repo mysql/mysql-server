@@ -197,7 +197,7 @@ void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {
     did_inc = atomic_cmp_swap_int(& p->engine->cas_lo, cas_lo, cas_lo + 1);
   } while(! did_inc);
   *cas = uint64_t(cas_lo) | (uint64_t(cas_hi) << 32);
-  DEBUG_PRINT("hi:%lx lo:%lx cas:%llx (%llu)", cas_hi, cas_lo, *cas, *cas);
+  DEBUG_PRINT_DETAIL("hi:%lx lo:%lx cas:%llx (%llu)", cas_hi, cas_lo, *cas, *cas);
 }
 
 
@@ -224,7 +224,7 @@ void worker_set_ext_flag(workitem *item) {
     }
   }
   item->base.use_ext_val = result;
-  DEBUG_PRINT(" %d.%d: %s", item->pipeline->id, item->id, result ? "T" : "F");
+  DEBUG_PRINT_DETAIL(" %d.%d: %s", item->pipeline->id, item->id, result ? "T" : "F");
 }
 
 
@@ -308,7 +308,7 @@ WorkerStep1::WorkerStep1(workitem *newitem) :
 
 
 op_status_t WorkerStep1::do_delete() {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
 
   if(wqitem->base.use_ext_val) {
     return ExternalValue::do_delete(wqitem);
@@ -347,7 +347,7 @@ op_status_t WorkerStep1::do_delete() {
 
 
 op_status_t WorkerStep1::do_write() {
-  DEBUG_PRINT("%s", workitem_get_operation(wqitem));
+  DEBUG_PRINT_DETAIL("%s", workitem_get_operation(wqitem));
 
   if(wqitem->base.use_ext_val) {
     return ExternalValue::do_write(wqitem);
@@ -419,11 +419,11 @@ op_status_t WorkerStep1::do_write() {
         value[i] = * (hash_item_get_data(wqitem->cache_item) + i); 
       value[len] = 0;
       if(safe_strtoull(value, &number)) { // numeric: set the math column
-        DEBUG_PRINT(" dup_numbers -- %d", (int) number );
+        DEBUG_PRINT_DETAIL(" dup_numbers -- %d", (int) number );
         op.setColumnBigUnsigned(COL_STORE_MATH, number);
       }
       else {  // non-numeric
-        DEBUG_PRINT(" dup_numbers but non-numeric: %.*s *** ", len, value);
+        DEBUG_PRINT_DETAIL(" dup_numbers but non-numeric: %.*s *** ", len, value);
         op.setColumnNull(COL_STORE_MATH);
       }
     }
@@ -447,7 +447,7 @@ op_status_t WorkerStep1::do_write() {
   /* Start the transaction */
   tx = op.startTransaction(wqitem->ndb_instance->db);
   if(! tx) {
-    logger->log(LOG_WARNING, 0, "tx: %s \n", 
+    logger->log(LOG_WARNING, 0, "startTransaction: %s \n",
                 wqitem->ndb_instance->db->getNdbError().message);
     return op_failed;
   }
@@ -498,7 +498,7 @@ op_status_t WorkerStep1::do_write() {
 
 
 op_status_t WorkerStep1::do_read() {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
   
   Operation op(plan, OP_READ);
   if(! setKeyForReading(op)) {
@@ -531,7 +531,7 @@ op_status_t WorkerStep1::do_read() {
 
 
 op_status_t WorkerStep1::do_append() {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
   
   /* APPEND/PREPEND is currently not supported for tsv */
   if(wqitem->plan->spec->nvaluecols > 1) {
@@ -557,8 +557,7 @@ op_status_t WorkerStep1::do_append() {
 
 
 bool WorkerStep1::setKeyForReading(Operation &op) {
-  DEBUG_ENTER();
-  
+
   /* Use the workitem's inline key buffer */
   op.key_buffer = wqitem->ndb_key_buffer;
   
@@ -578,7 +577,7 @@ bool WorkerStep1::setKeyForReading(Operation &op) {
   if(tx) {
     return true;
   }
-  logger->log(LOG_WARNING, 0, "tx: %s \n", 
+  logger->log(LOG_WARNING, 0, "startTransaction: %s \n",
               wqitem->ndb_instance->db->getNdbError().message);
   return false;
 }
@@ -586,8 +585,8 @@ bool WorkerStep1::setKeyForReading(Operation &op) {
 
 
 op_status_t WorkerStep1::do_math() {
-  DEBUG_PRINT("create: %d   retries: %d", 
-              wqitem->base.math_create, wqitem->base.retries);
+  DEBUG_PRINT_DETAIL("create: %d   retries: %d",
+                     wqitem->base.math_create, wqitem->base.retries);
   worker_set_cas(wqitem->pipeline, wqitem->cas);
   
   /*
@@ -848,7 +847,7 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
       r_update = ndbop3->getNdbError().code;
     }
   }
-  DEBUG_PRINT("r_read: %d   r_insert: %d   r_update: %d   create: %d",
+  DEBUG_PRINT_DETAIL("r_read: %d   r_insert: %d   r_update: %d   create: %d",
               r_read, r_insert, r_update, wqitem->base.math_create);
   
   if(r_read == 626 && ! wqitem->base.math_create) {
@@ -925,7 +924,7 @@ void worker_commit(NdbTransaction *tx, workitem *item) {
 
 
 void worker_close(NdbTransaction *tx, workitem *wqitem) {
-  DEBUG_PRINT("%d.%d", wqitem->pipeline->id, wqitem->id);
+  DEBUG_PRINT_DETAIL("%d.%d", wqitem->pipeline->id, wqitem->id);
   ndb_pipeline * & pipeline = wqitem->pipeline;
 
   if(wqitem->ext_val)
@@ -1035,8 +1034,6 @@ void delete_expired_item(workitem *wqitem, NdbTransaction *tx) {
 
 
 void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
-  DEBUG_PRINT("%d.%d",wqitem->pipeline->id, wqitem->id);
-  
   ExpireTime exp_time(wqitem);
   Operation op(wqitem->plan, OP_READ);
   op.buffer = wqitem->row_buffer_1;
@@ -1065,7 +1062,7 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
      && op.appendCRLF(COL_STORE_VALUE, wqitem->value_size))
   {
     /* The workitem's value_ptr and value_size were set above. */
-    DEBUG_PRINT("using no-copy buffer.");
+    DEBUG_PRINT("%d.%d using no-copy buffer.", wqitem->pipeline->id, wqitem->id);
     wqitem->base.has_value = true;
     /* "cache_item == workitem" is a sort of code, required because memcached
         expects us to return a non-zero item.  In ndb_release() we will look 
@@ -1074,6 +1071,7 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
   }
   else {
     /* Copy the value into a new buffer */
+    DEBUG_PRINT("%d.%d copying value.", wqitem->pipeline->id, wqitem->id);
     build_hash_item(wqitem, op, exp_time);
   }
 

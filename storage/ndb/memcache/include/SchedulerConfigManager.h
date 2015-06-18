@@ -39,6 +39,7 @@ protected:
 private:
   ConnQueryPlanSet * volatile current_plans;
   ConnQueryPlanSet * old_plans;
+  int nstatreq;
 };
 
 
