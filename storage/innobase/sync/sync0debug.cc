@@ -218,7 +218,7 @@ struct LatchDebug {
 		/* Ignore diagnostic latches, starting with '.' */
 
 		if (*latch->get_name() != '.'
-		    && level != SYNC_LEVEL_VARYING) {
+		    && latch->get_level() != SYNC_LEVEL_VARYING) {
 
 			ut_ad(level != SYNC_LEVEL_VARYING);
 
@@ -250,7 +250,7 @@ struct LatchDebug {
 		/* Ignore diagnostic latches, starting with '.' */
 
 		if (*latch->get_name() != '.'
-		    && level != SYNC_LEVEL_VARYING) {
+		    && latch->get_level() != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = thread_latches(true);
 
@@ -270,7 +270,7 @@ struct LatchDebug {
 		/* Ignore diagnostic latches, starting with '.' */
 
 		if (*latch->get_name() != '.'
-		    && level != SYNC_LEVEL_VARYING) {
+		    && latch->get_level() != SYNC_LEVEL_VARYING) {
 
 			Latches*	latches = thread_latches(true);
 
@@ -734,7 +734,7 @@ LatchDebug::check_order(
 	latch_level_t	level)
 	UNIV_NOTHROW
 {
-	ut_ad(level != SYNC_LEVEL_VARYING);
+	ut_ad(latch->get_level() != SYNC_LEVEL_VARYING);
 
 	Latches*	latches = thread_latches(true);
 
