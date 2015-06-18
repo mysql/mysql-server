@@ -603,6 +603,9 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	  case 0:
 	    break;
 	  case -1:
+            g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS"
+                                   " resource, increase config parameter"
+                                   " GlobalSharedMemory");
 	    ndbrequire("NOT YET IMPLEMENTED" == 0);
 	    break;
 	  default:
@@ -1619,10 +1622,12 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
 }
 
 void
-Dbtup::disk_restart_undo_next(Signal* signal)
+Dbtup::disk_restart_undo_next(Signal* signal, Uint32 applied)
 {
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+  /* Flag indicating whether UNDO log was applied. */
+  signal->theData[1] = applied;
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
 }
 
 void
@@ -1773,6 +1778,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 //  key.m_file_no = pagePtr.p->m_file_no;
   
   Uint64 lsn = 0;
+  Uint32 applied = 0;
   lsn += pagePtr.p->m_page_header.m_page_lsn_hi; lsn <<= 32;
   lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
 
@@ -1788,6 +1794,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     }
     
     update = true;
+    applied = 1;
     if (DBG_UNDO)
       ndbout_c("applying %lld", undo->m_lsn);
     /**
@@ -1830,7 +1837,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 	   << " tab: " << tableId << endl;
   }
 
-  disk_restart_undo_next(signal);
+  disk_restart_undo_next(signal, applied);
 }
 
 void
@@ -1882,8 +1889,17 @@ Dbtup::disk_restart_undo_free(Apply_undo* undo)
   {
     abort();
   }  
-  
-  ndbrequire(idx == undo->m_key.m_page_idx);
+
+  if (idx != undo->m_key.m_page_idx)
+  {
+    Uint64 lsn = undo->m_lsn;
+    jam();
+    jamLine(lsn & 0xFFFF);
+    jamLine((lsn >> 16) & 0xFFFF);
+    jamLine((lsn >> 32) & 0xFFFF);
+    jamLine((lsn >> 48) & 0xFFFF);
+    ndbrequire(false);
+  }
   const Disk_undo::Free *free = (const Disk_undo::Free*)undo->m_ptr;
   const Uint32* src= free->m_data;
   memcpy(ptr, src, 4 * len);
