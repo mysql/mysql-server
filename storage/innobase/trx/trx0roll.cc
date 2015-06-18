@@ -782,7 +782,7 @@ trx_rollback_or_clean_recovered(
 	trx_t*	trx;
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_TRX_UNDO);
-	ut_ad(!all || trx_sys_get_n_rw_trx() > 0);
+	ut_ad(!all || trx_sys_need_rollback());
 
 	if (all) {
 		ib::info() << "Starting in background the rollback"

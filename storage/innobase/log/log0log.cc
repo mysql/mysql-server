@@ -120,10 +120,6 @@ should be bigger than LOG_POOL_PREFLUSH_RATIO_SYNC */
 the previous */
 #define LOG_POOL_PREFLUSH_RATIO_ASYNC	8
 
-/* Codes used in unlocking flush latches */
-#define LOG_UNLOCK_NONE_FLUSHED_LOCK	1
-#define LOG_UNLOCK_FLUSH_LOCK		2
-
 /******************************************************//**
 Completes a checkpoint write i/o to a log file. */
 static

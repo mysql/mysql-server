@@ -442,6 +442,14 @@ SELECT /*+ QB_NAME(q1) NO_ICP(@q1 t1 PRIMARY) NO_ICP(@q1 t1 PRIMARY) */ * FROM t
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#21192857 ASSERTION FAILED: KEYINFO_ARRAY.SIZE() == 0, FILE OPT_HINTS.CC:280
+--echo #
+
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1(a) SELECT /*+ NO_RANGE_OPTIMIZATION(t1 a)*/ 1 FROM t1;
+DROP TABLE t1;
+
 --echo # WL#8016 Parser for optimizer hints
 
 

@@ -36,9 +36,9 @@ int Show_variable_query_extractor::get_variable_value(
   Show_variable_query_extractor extractor;
   Mysql_query_runner query_runner_to_use(*query_runner_to_copy);
 
-  query_runner_to_use.add_result_callback(
-    new Instance_callback<int, vector<string>, Show_variable_query_extractor>(
-      &extractor, &Show_variable_query_extractor::extract_variable));
+  Instance_callback<int, vector<string>, Show_variable_query_extractor>
+    callback(&extractor, &Show_variable_query_extractor::extract_variable);
+  query_runner_to_use.add_result_callback(&callback);
 
   if (query_runner_to_use.run_query("SELECT @@global." + variable))
     return 1;

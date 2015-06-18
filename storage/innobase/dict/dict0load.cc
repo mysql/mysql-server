@@ -1305,64 +1305,6 @@ dict_get_space_name(
 	return(space_name);
 }
 
-/** Update the record for space_id in SYS_TABLESPACES to this filepath.
-@param[in]	space_id	Tablespace ID
-@param[in]	filepath	Tablespace filepath
-@return DB_SUCCESS if OK, dberr_t if the insert failed */
-dberr_t
-dict_update_filepath(
-	ulint		space_id,
-	const char*	filepath)
-{
-	if (!srv_sys_tablespaces_open) {
-		/* Startup procedure is not yet ready for updates. */
-		return(DB_SUCCESS);
-	}
-
-	dberr_t		err = DB_SUCCESS;
-	trx_t*		trx;
-
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "update filepath";
-	trx->dict_operation_lock_mode = RW_X_LATCH;
-	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
-
-	pars_info_t*	info = pars_info_create();
-
-	pars_info_add_int4_literal(info, "space", space_id);
-	pars_info_add_str_literal(info, "path", filepath);
-
-	err = que_eval_sql(info,
-			   "PROCEDURE UPDATE_FILEPATH () IS\n"
-			   "BEGIN\n"
-			   "UPDATE SYS_DATAFILES"
-			   " SET PATH = :path\n"
-			   " WHERE SPACE = :space;\n"
-			   "END;\n", FALSE, trx);
-
-	trx_commit_for_mysql(trx);
-	trx->dict_operation_lock_mode = 0;
-	trx_free_for_background(trx);
-
-	if (err == DB_SUCCESS) {
-		/* We just updated SYS_DATAFILES due to the contents in
-		a link file.  Make a note that we did this. */
-		ib::info() << "The InnoDB data dictionary table SYS_DATAFILES"
-			" for tablespace ID " << space_id
-			<< " was updated to use file " << filepath << ".";
-	} else {
-		ib::warn() << "Error occurred while updating InnoDB data"
-			" dictionary table SYS_DATAFILES for tablespace ID "
-			<< space_id << " to file " << filepath << ": "
-			<< ut_strerr(err) << ".";
-	}
-
-	return(err);
-}
-
 /** Replace records in SYS_TABLESPACES and SYS_DATAFILES associated with
 the given space_id using an independent transaction.
 @param[in]	space_id	Tablespace ID
@@ -1390,7 +1332,7 @@ dict_replace_tablespace_and_filepath(
 	DBUG_EXECUTE_IF("innodb_fail_to_update_tablespace_dict",
 			return(DB_INTERRUPTED););
 
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(filepath);
 
@@ -1559,7 +1501,7 @@ dict_check_sys_tablespaces(
 
 	DBUG_ENTER("dict_check_sys_tablespaces");
 
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Before traversing it, let's make sure we have
@@ -1605,16 +1547,9 @@ dict_check_sys_tablespaces(
 			filepath = dict_get_first_path(space_id);
 		}
 
-		/* Check that the .ibd file exists. The second parameter
-		is whether to update the dictionary, SYS_DATAFILES and
-		possibly SYS_TABLESPACES, with newly discovered tablespaces.
-		But that can only happen when traversing SYS_TABLES.
-		Since we are traversing SYS_TABLESPACES with an mtr that
-		holds read locks on pages, do not allow fil_ibd_open() to
-		update the dictionary.*/
+		/* Check that the .ibd file exists. */
 		dberr_t	err = fil_ibd_open(
 			validate,
-			false,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1754,7 +1689,7 @@ dict_check_sys_tables(
 
 	DBUG_ENTER("dict_check_sys_tables");
 
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -1860,7 +1795,6 @@ dict_check_sys_tables(
 		ulint	fsp_flags = dict_tf_to_fsp_flags(flags);
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1907,7 +1841,7 @@ dict_check_tablespaces_and_store_max_id(
 
 	DBUG_ENTER("dict_check_tablespaces_and_store_max_id");
 
-	rw_lock_x_lock(&dict_operation_lock);
+	rw_lock_x_lock(dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	/* Initialize the max space_id from sys header */
@@ -1932,7 +1866,7 @@ dict_check_tablespaces_and_store_max_id(
 	fil_set_max_space_id_if_bigger(max_space_id);
 
 	mutex_exit(&dict_sys->mutex);
-	rw_lock_x_unlock(&dict_operation_lock);
+	rw_lock_x_unlock(dict_operation_lock);
 
 	DBUG_VOID_RETURN;
 }
@@ -2714,7 +2648,7 @@ dict_load_tablespace(
 	false because we do not have an x-lock on dict_operation_lock */
 	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
 	dberr_t err = fil_ibd_open(
-		true, false, FIL_TYPE_TABLESPACE, table->space,
+		true, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, filepath);
 
 	if (err != DB_SUCCESS) {

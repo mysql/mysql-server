@@ -175,7 +175,8 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
-    res= setup_fields(thd, Ref_ptr_array(), fields, INSERT_ACL, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), fields, INSERT_ACL, NULL,
+                      false, true);
 
     /* Restore the current context. */
     ctx_state.restore_state(context, table_list);
@@ -481,7 +482,8 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto exit_without_my_ok;
     }
-    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, 0, 0))
+    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+                     false, false))
       goto exit_without_my_ok;
 
     /*
@@ -1216,14 +1218,14 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        *values, SELECT_ACL, 0, 0);
+                        *values, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, *values, map);
 
     thd->lex->in_update_value_clause= true;
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(),
-                        insert_value_list, SELECT_ACL, 0, 0);
+                        insert_value_list, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, insert_value_list, map);
     if (!res && lex->insert_table_leaf->table->vfield)
@@ -1238,7 +1240,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 #endif
       // Setup the columns to be updated
       res= setup_fields(thd, Ref_ptr_array(),
-                        insert_update_list, UPDATE_ACL, 0, 0);
+                        insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
       if (!res && lex->insert_table_leaf->table->vfield)
@@ -1286,7 +1288,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 #endif
       // Setup the columns to be modified
       res= setup_fields(thd, Ref_ptr_array(),
-                        insert_update_list, UPDATE_ACL, 0, 0);
+                        insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
 
@@ -1308,7 +1310,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       thd->lex->in_update_value_clause= true;
       if (!res)
         res= setup_fields(thd, Ref_ptr_array(), insert_value_list,
-                          SELECT_ACL, 0, 0);
+                          SELECT_ACL, NULL, false, false);
       thd->lex->in_update_value_clause= false;
 
       /*
@@ -1918,7 +1920,8 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   res= check_insert_fields(thd, table_list, *fields, values.elements, true,
                            !insert_into_view);
   if (!res)
-    res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, 0, 0);
+    res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, NULL,
+                      false, false);
 
   if (duplicate_handling == DUP_UPDATE && !res)
   {
@@ -1935,8 +1938,9 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     table_list->set_want_privilege(UPDATE_ACL);
 #endif
-    res= res || setup_fields(thd, Ref_ptr_array(),
-                             *update.get_changed_columns(), UPDATE_ACL, 0, 0);
+    if (!res)
+      res= setup_fields(thd, Ref_ptr_array(), *update.get_changed_columns(),
+                        UPDATE_ACL, NULL, false, true);
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
       functions 
@@ -1958,8 +1962,9 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         ctx_state.get_first_name_resolution_table();
     }
     lex->in_update_value_clause= true;
-    res= res || setup_fields(thd, Ref_ptr_array(), *update.update_values,
-                             SELECT_ACL, 0, 0);
+    if (!res)
+      res= setup_fields(thd, Ref_ptr_array(), *update.update_values,
+                        SELECT_ACL, NULL, false, false);
     lex->in_update_value_clause= false;
     if (!res)
     {

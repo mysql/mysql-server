@@ -1515,8 +1515,15 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
     NOTE: It is important for UPDATE/INSERT/DELETE checks to have these
     tables just after view instead of at tail of list, to be able to check that
     table is unique. Also we store old next table for the same purpose.
+
+    If prelocking a view which has lock_type==TL_IGNORE we cannot add
+    the tables, as that would result in tables with
+    lock_type==TL_IGNORE being added to the prelocking set. That, in
+    turn, would lead to lock_external() being called on those tables,
+    which is not permitted (causes assert).
   */
-  if (view_tables)
+  if (view_tables && !(view_ref->prelocking_placeholder &&
+                       view_ref->lock_type == TL_IGNORE))
   {
     if (view_ref->next_global)
     {
@@ -1980,21 +1987,21 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
   DBUG_ENTER("insert_view_fields");
 
   if (!(trans= view->field_translation))
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   trans_end= view->field_translation_end;
 
   for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
-    Item_field *fld;
-    if ((fld= entry->item->field_for_view_update()))
-      list->push_back(fld);
-    else
+    Item_field *fld= entry->item->field_for_view_update();
+    if (fld == NULL)
     {
-      my_error(ER_NON_INSERTABLE_TABLE, MYF(0), view->alias, "INSERT");
+      my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->item->item_name.ptr());
       DBUG_RETURN(TRUE);
     }
+
+    list->push_back(fld);
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /*

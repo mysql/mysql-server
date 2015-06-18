@@ -21,8 +21,9 @@ MACRO(MY_ADD_C_WARNING_FLAG WARNING_FLAG)
 ENDMACRO()
 
 MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
-  MY_CHECK_CXX_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_FLAG})
-  IF(HAVE_${WARNING_FLAG})
+  STRING(REPLACE "c++" "cpp" WARNING_VAR ${WARNING_FLAG})
+  MY_CHECK_CXX_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_VAR})
+  IF(HAVE_${WARNING_VAR})
     SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -${WARNING_FLAG}")
   ENDIF()
 ENDMACRO()
@@ -61,6 +62,8 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
   # Turn on extra Clang++ warnings in maintainer mode
   IF(MYSQL_MAINTAINER_MODE)
+    MY_ADD_CXX_WARNING_FLAG("Wc++11-compat-reserved-user-defined-literal")
+    MY_ADD_CXX_WARNING_FLAG("Wc++11-extra-semi")
     MY_ADD_CXX_WARNING_FLAG("Wconditional-uninitialized")
     MY_ADD_CXX_WARNING_FLAG("Wheader-hygiene")
     MY_ADD_CXX_WARNING_FLAG("Wnon-virtual-dtor")
@@ -70,12 +73,11 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 # -Wold-style-cast -Wundef -Wc++11-long-long -Wconversion -Wsign-conversion -Wcast-align
 # -Wmissing-prototypes -Wdocumentation -Wweak-vtables -Wdocumentation-unknown-command
 # -Wreserved-id-macro -Wpadded -Wused-but-marked-unused -Wshadow -Wunreachable-code-return
-# -Wunused-macros -Wmissing-variable-declarations -Wc++11-extra-semi -Wswitch-enum
+# -Wunused-macros -Wmissing-variable-declarations -Wswitch-enum
 # -Wextra-semi -Wfloat-equal -Wmissing-noreturn -Wcovered-switch-default
 # -Wunreachable-code-break -Wglobal-constructors -Wc99-extensions -Wshift-sign-overflow
 # -Wformat-nonliteral -Wexit-time-destructors -Wpedantic
 # -Wunreachable-code-loop-increment -Wdisabled-macro-expansion -Wunreachable-code
-# -Wc++11-compat-reserved-user-defined-literal
 # -Wabstract-vbase-init -Wclass-varargs -Wover-aligned -Wunused-exception-parameter
 # -Wunused-member-function
 ENDIF()

@@ -360,7 +360,7 @@ trx_undo_free_prepared(
 /* Forward declaration. */
 namespace undo {
 	class Truncate;
-};
+}
 
 /** Truncate UNDO tablespace, reinitialize header and rseg.
 @param[in]	undo_trunc	UNDO tablespace handler

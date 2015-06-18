@@ -378,7 +378,7 @@ create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
 -- error ER_NON_INSERTABLE_TABLE
 insert into v3 values (-60,4,30);
 # try insert to VIEW with expression in SELECT list
--- error ER_NON_INSERTABLE_TABLE
+-- error ER_NONUPDATEABLE_COLUMN,
 insert into v4 values (-60,4,30);
 # try insert to VIEW using temporary table algorithm
 -- error ER_NON_INSERTABLE_TABLE
@@ -406,7 +406,7 @@ create algorithm=temptable view v5 (x,y,z) as select c, b, a from t1;
 -- error ER_NON_INSERTABLE_TABLE
 insert into v3 select c, b, a from t2;
 # try insert to VIEW with expression in SELECT list
--- error ER_NON_INSERTABLE_TABLE
+-- error ER_NONUPDATEABLE_COLUMN,
 insert into v4 select c, b, a from t2;
 # try insert to VIEW using temporary table algorithm
 -- error ER_NON_INSERTABLE_TABLE
@@ -5735,3 +5735,14 @@ EXECUTE s;
 DROP VIEW  v2,v3;
 DROP TABLE t1;
 
+--echo # Bug#21097485 *insert_table_ref && (*insert_table_ref)->is_insertable
+
+CREATE TABLE t1 (r INTEGER) engine=innodb;
+CREATE VIEW v1 AS
+SELECT 1 AS z from t1;
+
+--error ER_NONUPDATEABLE_COLUMN
+INSERT INTO v1(z) VALUES(1);
+
+DROP VIEW  v1;
+DROP TABLE t1;

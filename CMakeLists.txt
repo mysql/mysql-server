@@ -548,6 +548,7 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)
+  ADD_SUBDIRECTORY(packaging/rpm-docker)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

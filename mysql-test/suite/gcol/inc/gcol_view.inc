@@ -102,7 +102,7 @@ select * from t1;
 delete from v1;
 select * from v1;
 select * from t1;
---error 1471
+--error ER_NONUPDATEABLE_COLUMN,
 insert into v1 (a,e) values (60,15);
 drop table t1;
 drop view v1;

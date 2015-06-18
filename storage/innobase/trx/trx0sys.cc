@@ -777,7 +777,6 @@ trx_sys_any_active_transactions(void)
 					trx, trx->rsegs.m_noredo.update_undo);
 				trx->state = TRX_STATE_PREPARED;
 				trx_sys->n_prepared_trx++;
-				trx_sys->n_prepared_recovered_trx++;
 			}
 		}
 

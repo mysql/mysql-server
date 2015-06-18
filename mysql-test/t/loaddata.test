@@ -294,7 +294,7 @@ SELECT * FROM v2;
 DELETE FROM t1;
 
 --echo
---error ER_LOAD_DATA_INVALID_COLUMN
+--error ER_NONUPDATEABLE_COLUMN
 LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v2
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
@@ -694,3 +694,18 @@ SELECT HEX(val) FROM t1;
 DROP TABLE d1.t1, d2.t1;
 DROP DATABASE d1;
 DROP DATABASE d2;
+USE test;
+
+--echo # Bug#21097485 *insert_table_ref && (insert_table_ref)->is_insertable
+
+CREATE TABLE t(a INTEGER PRIMARY KEY, b INTEGER, c INTEGER);
+CREATE VIEW v AS SELECT a, b+c AS d FROM t;
+
+--error ER_NONUPDATEABLE_COLUMN
+LOAD DATA INFILE 'test.dat' INTO TABLE v(a, d);
+
+--error ER_NONUPDATEABLE_COLUMN
+LOAD DATA INFILE 'test.dat' INTO TABLE v(@a, @d) SET a= @a, d= @d;
+
+DROP VIEW v;
+DROP TABLE t;

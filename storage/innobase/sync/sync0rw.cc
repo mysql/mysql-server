@@ -233,7 +233,7 @@ rw_lock_create_func(
 	created, then the following call initializes the sync system. */
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_create("rw_lock_mutex", rw_lock_get_mutex(lock));
+	mutex_create(LATCH_ID_RW_LOCK_MUTEX, rw_lock_get_mutex(lock));
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 # ifdef UNIV_DEBUG
 	UT_NOT_USED(cmutex_name);
@@ -262,8 +262,6 @@ rw_lock_create_func(
 
 	lock->level = level;
 #endif /* UNIV_DEBUG */
-
-	ut_d(lock->magic_n = RW_LOCK_MAGIC_N);
 
 	lock->cfile_name = cfile_name;
 
@@ -319,8 +317,6 @@ rw_lock_free_func(
 	UT_LIST_REMOVE(rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
-
-	ut_d(lock->magic_n = 0);
 
 	/* We did an in-place new in rw_lock_create_func() */
 	ut_d(lock->~rw_lock_t());

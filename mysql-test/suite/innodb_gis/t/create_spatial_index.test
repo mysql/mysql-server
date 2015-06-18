@@ -1120,7 +1120,7 @@ SHOW CREATE TABLE tab;
 
 SHOW INDEX FROM tab;
 
-set @g1 = ST_GeomFromText('POINT(-1 -2))');
+set @g1 = ST_GeomFromText('POINT(-1 -2)');
 
 SELECT ST_AsText(c1) FROM tab;
 

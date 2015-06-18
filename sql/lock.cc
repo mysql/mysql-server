@@ -118,7 +118,6 @@ static int
 lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 {
   uint system_count= 0, i= 0;
-  bool is_superuser= false;
   /*
     Identifies if the executed sql command can updated either a log
     or rpl info table.
@@ -127,7 +126,6 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 
   DBUG_ENTER("lock_tables_check");
 
-  is_superuser= thd->security_context()->check_access(SUPER_ACL);
   log_table_write_query=
      is_log_table_write_query(thd->lex->sql_command);
 
@@ -193,11 +191,8 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
     if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) && !t->s->tmp_table)
     {
       if (t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE &&
-          !is_superuser && opt_readonly && !thd->slave_thread)
-      {
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-        DBUG_RETURN(1);
-      }
+        check_readonly(thd, true))
+          DBUG_RETURN(1);
     }
   }
 

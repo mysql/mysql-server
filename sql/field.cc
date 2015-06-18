@@ -4871,8 +4871,6 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-#define DBL_EXP_DIG (sizeof(double)*8-DBL_MANT_DIG)
-
 /* The following should work for IEEE */
 
 void Field_double::make_sort_key(uchar *to, size_t length)
@@ -7074,7 +7072,7 @@ check_field_for_37426(const void *param_arg)
 bool
 Field_string::compatible_field_size(uint field_metadata,
                                     Relay_log_info *rli_arg,
-                                    uint16 mflags __attribute__((unused)),
+                                    uint16 mflags,
                                     int *order_var)
 {
 #ifdef HAVE_REPLICATION

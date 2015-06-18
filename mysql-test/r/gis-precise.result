@@ -2070,6 +2070,33 @@ SELECT ST_ASTEXT(ST_ConvexHull(ST_GEOMFROMTEXT('MULTIPOINT(1 2, 1 2)')))
 AS result;
 result
 POINT(1 2)
+#
+# Bug#21198064 GEOMETRY CONSTRUCTION FUNCTIONS ALLOWS INVALID WKT
+#
+SELECT ST_AsText(ST_GeomFromText("POINT(10 11) POINT(11 12)")) as result;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_AsText(ST_PointFromText("POINT(10 11) POINT(11 12)")) as result;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_AsText(ST_GeomFromText("MULTIPOINT(10 11, 12 13), 14 15")) as result;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_AsText(ST_GeomFromText("POINT(10 11)FOOBAR")) as result;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT HEX(ST_AsWKB(ST_GeomFromText("POINT(10 10)    "))) as result;
+result
+010100000000000000000024400000000000002440
+SELECT HEX(ST_AsWKB(ST_GeomFromText("GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10)), LINESTRING(0 0, 1 1), GEOMETRYCOLLECTION())   "))) as result;
+result
+01070000000300000001070000000100000001010000000000000000002440000000000000244001020000000200000000000000000000000000000000000000000000000000F03F000000000000F03F010700000000000000
+SELECT ST_AsText(ST_GeomFromWKB(0x010100000000000000000024400000000000002440)) as result;
+result
+POINT(10 10)
+SELECT ST_AsText(ST_GeomFromWKB(0x01010000000000000000002440000000000000244011111111)) as result;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+SELECT ST_AsText(ST_GeomFromWKB(0x01070000000300000001070000000100000001010000000000000000002440000000000000244001020000000200000000000000000000000000000000000000000000000000F03F000000000000F03F010700000000000000)) as result;
+result
+GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10)),LINESTRING(0 0,1 1),GEOMETRYCOLLECTION())
+SELECT ST_AsText(ST_GeomFromWKB(0x01070000000300000001070000000100000001010000000000000000002440000000000000244001020000000200000000000000000000000000000000000000000000000000F03F000000000000F03F01070000000000000011111111)) as result;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
@@ -2081,12 +2108,14 @@ END|
 #
 # Testing ST_BUFFER with positive distance
 #
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-POINT(0 0))
+POINT(0 0)
 dist	buffer	buf_area
 1	POLYGON	3.12
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-LineString(0 1, 1 1))
+LineString(0 1, 1 1)
 dist	buffer	buf_area
 1	POLYGON	5.12
 -----
@@ -2141,12 +2170,14 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 1	POLYGON	3.12
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 1	POLYGON	8.78
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 1	POLYGON	63.12
 -----
@@ -2168,12 +2199,14 @@ dist	buffer	buf_area
 #
 # Testing ST_BUFFER with zero distance
 #
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-POINT(0 0))
+POINT(0 0)
 dist	buffer	buf_area
 0	POINT	0.00
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-LineString(0 1, 1 1))
+LineString(0 1, 1 1)
 dist	buffer	buf_area
 0	LINESTRING	0.00
 -----
@@ -2224,12 +2257,14 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 dist	buffer	buf_area
 0	POINT	0.00
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 dist	buffer	buf_area
 0	LINESTRING	0.00
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 0	POLYGON	36.00
 -----
@@ -2299,10 +2334,12 @@ dist	buffer	buf_area
 GeometryCollection(Point(0 0))
 ERROR HY000: Incorrect arguments to st_buffer
 -----
-GeometryCollection(LineString(0 0, 2 2)))
+GeometryCollection(LineString(0 0, 2 2))
 ERROR HY000: Incorrect arguments to st_buffer
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 -----
-GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
+GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
 -1	POLYGON	16.00
 -----

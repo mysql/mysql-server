@@ -286,13 +286,12 @@ trx_sys_create_rsegs(
 	ulint	n_rsegs,	/*!< number of rollback segments to create */
 	ulint	n_tmp_rsegs);	/*!< number of rollback segments reserved for
 				temp-tables. */
-/*****************************************************************//**
-Get the number of transaction in the system, independent of their state.
-@return count of transactions in trx_sys_t::trx_list */
+
+/** Determine if there are incomplete transactions in the system.
+@return whether incomplete transactions need rollback */
 UNIV_INLINE
-ulint
-trx_sys_get_n_rw_trx(void);
-/*======================*/
+bool
+trx_sys_need_rollback();
 
 /*********************************************************************
 Check if there are any active (non-prepared) transactions.
@@ -509,15 +508,6 @@ struct trx_sys_t {
 
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
-
-	ulint		n_prepared_recovered_trx; /*!< Number of transactions
-					currently in XA PREPARED state that are
-					also recovered. Such transactions cannot
-					be added during runtime. They can only
-					occur after recovery if mysqld crashed
-					while there were XA PREPARED
-					transactions. We disable query cache
-					if such transactions exist. */
 };
 
 /** When a trx id which is zero modulo this number (which must be a power of

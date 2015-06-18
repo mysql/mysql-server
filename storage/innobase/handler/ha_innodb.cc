@@ -127,8 +127,6 @@ static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
 
-#define INSIDE_HA_INNOBASE_CC
-
 #define EQ_CURRENT_THD(thd) ((thd) == current_thd)
 
 static struct handlerton* innodb_hton_ptr;
@@ -4562,8 +4560,7 @@ ha_innobase::table_flags() const
 /****************************************************************//**
 Gives the file extension of an InnoDB single-table tablespace. */
 static const char* ha_innobase_exts[] = {
-	dot_ext[IBD],
-	dot_ext[ISL],
+	DOT_IBD,
 	NullS
 };
 

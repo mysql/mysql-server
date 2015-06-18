@@ -824,6 +824,7 @@ out:
 }
 #endif  /* EMBEDDED_LIBRARY */
 
+
 /**
   @brief Determine if an attempt to update a non-temporary table while the
     read-only option was enabled has been made.
@@ -837,23 +838,15 @@ out:
     @retval TRUE The statement should be denied.
     @retval FALSE The statement isn't updating any relevant tables.
 */
-
 static my_bool deny_updates_if_read_only_option(THD *thd,
                                                 TABLE_LIST *all_tables)
 {
   DBUG_ENTER("deny_updates_if_read_only_option");
 
-  if (!opt_readonly)
+  if (!check_readonly(thd, false))
     DBUG_RETURN(FALSE);
 
-  LEX *lex= thd->lex;
-
-  const my_bool user_is_super=
-    (thd->security_context()->check_access(SUPER_ACL));
-
-  if (user_is_super)
-    DBUG_RETURN(FALSE);
-
+  LEX *lex = thd->lex;
   if (!(sql_command_flags[lex->sql_command] & CF_CHANGES_DATA))
     DBUG_RETURN(FALSE);
 
@@ -1464,7 +1457,7 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
 
     /*
       Initialize thd->lex since it's used in many base functions, such as
-      open_tables(). Otherwise, it remains unitialized and may cause crash
+      open_tables(). Otherwise, it remains uninitialized and may cause crash
       during execution of COM_REFRESH.
     */
     lex_start(thd);
@@ -2254,7 +2247,7 @@ mysql_execute_command(THD *thd)
     */
     if (deny_updates_if_read_only_option(thd, all_tables))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+      err_readonly(thd);
       DBUG_RETURN(-1);
     }
 #ifdef HAVE_REPLICATION
@@ -4971,7 +4964,7 @@ void mysql_init_multi_delete(LEX *lex)
 
 void mysql_parse(THD *thd, Parser_state *parser_state)
 {
-  int error __attribute__((unused));
+  int error;
   DBUG_ENTER("mysql_parse");
   DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 

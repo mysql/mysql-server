@@ -46,8 +46,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "eval0eval.h"
 #include "pars0types.h"
 
-#define QUE_MAX_LOOPS_WITHOUT_CHECK	16
-
 /* Short introduction to query graphs
    ==================================
 

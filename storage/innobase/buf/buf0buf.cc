@@ -302,7 +302,7 @@ static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
 #ifdef UNIV_DEBUG
 /** Protect reference for buf_chunk_map_ref from deleting map,
 because the reference can be caused by debug assertion code. */
-static rw_lock_t	buf_chunk_map_latch;
+static rw_lock_t*	buf_chunk_map_latch;
 
 /** Disable resizing buffer pool to make assertion code not expensive. */
 my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
@@ -1302,8 +1302,11 @@ buf_pool_init(
 
 	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
+	ut_d(buf_chunk_map_latch = static_cast<rw_lock_t*>(
+			ut_zalloc_nokey(sizeof(*buf_chunk_map_latch))));
+
 	ut_d(rw_lock_create(
-		buf_chunk_map_latch_key, &buf_chunk_map_latch, SYNC_ANY_LATCH));
+		buf_chunk_map_latch_key, buf_chunk_map_latch, SYNC_ANY_LATCH));
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
@@ -1344,7 +1347,9 @@ buf_pool_free(
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
-	ut_d(rw_lock_free(&buf_chunk_map_latch));
+	ut_d(rw_lock_free(buf_chunk_map_latch));
+	ut_d(ut_free(buf_chunk_map_latch));
+	ut_d(buf_chunk_map_latch = NULL);
 
 	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
@@ -2255,13 +2260,9 @@ withdraw_retry:
 		}
 	}
 
-#ifdef UNIV_DEBUG
-	rw_lock_x_lock(&buf_chunk_map_latch);
-#endif /* UNIV_DEBUG */
+	ut_d(rw_lock_x_lock(buf_chunk_map_latch));
 	UT_DELETE(chunk_map_old);
-#ifdef UNIV_DEBUG
-	rw_lock_x_unlock(&buf_chunk_map_latch);
-#endif /* UNIV_DEBUG */
+	ut_d(rw_lock_x_unlock(buf_chunk_map_latch));
 
 	buf_pool_resizing = false;
 
@@ -3199,7 +3200,7 @@ retry:
 #ifdef UNIV_DEBUG
 	bool resize_disabled = (buf_disable_resize_buffer_pool_debug != FALSE);
 	if (!resize_disabled) {
-		rw_lock_s_lock(&buf_chunk_map_latch);
+		rw_lock_s_lock(buf_chunk_map_latch);
 	}
 #endif /* UNIV_DEBUG */
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
@@ -3214,7 +3215,7 @@ retry:
 	if (it == chunk_map->end()) {
 #ifdef UNIV_DEBUG
 		if (!resize_disabled) {
-			rw_lock_s_unlock(&buf_chunk_map_latch);
+			rw_lock_s_unlock(buf_chunk_map_latch);
 		}
 #endif /* UNIV_DEBUG */
 		/* The block should always be found. */
@@ -3227,7 +3228,7 @@ retry:
 	buf_chunk_t*	chunk = it->second;
 #ifdef UNIV_DEBUG
 	if (!resize_disabled) {
-		rw_lock_s_unlock(&buf_chunk_map_latch);
+		rw_lock_s_unlock(buf_chunk_map_latch);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -3285,10 +3286,23 @@ retry:
 # endif /* UNIV_DEBUG_VALGRIND */
 			break;
 		case BUF_BLOCK_FILE_PAGE:
-			ut_ad(block->page.id.space()
-			      == page_get_space_id(page_align(ptr)));
-			ut_ad(block->page.id.page_no()
-			      == page_get_page_no(page_align(ptr)));
+			const ulint	space_id1 = block->page.id.space();
+			const ulint	page_no1 = block->page.id.page_no();
+			const ulint	space_id2 = page_get_space_id(
+							page_align(ptr));
+			const ulint	page_no2 = page_get_page_no(
+							page_align(ptr));
+
+			if (space_id1 != space_id2 || page_no1 != page_no2) {
+
+				ib::error() << "Found a mismatch page,"
+					<< " expect page "
+					<< page_id_t(space_id1, page_no1)
+					<< " but found "
+					<< page_id_t(space_id2, page_no2);
+
+				ut_ad(0);
+			}
 			break;
 		}
 

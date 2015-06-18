@@ -1429,7 +1429,7 @@ row_ins_check_foreign_constraint(
 
 	rec_offs_init(offsets_);
 
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
 
 	err = DB_SUCCESS;
 

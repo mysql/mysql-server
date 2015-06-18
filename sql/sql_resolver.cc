@@ -173,7 +173,7 @@ bool SELECT_LEX::prepare(THD *thd)
     DBUG_RETURN(true); /* purecov: inspected */
   
   if (setup_fields(thd, ref_ptrs, fields_list, thd->want_privilege,
-                   &all_fields, true))
+                   &all_fields, true, false))
     DBUG_RETURN(true);
 
   resolve_place= RESOLVE_NONE;

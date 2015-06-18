@@ -1252,7 +1252,8 @@ srv_shutdown_all_bg_threads()
 
 			os_event_set(buf_flush_event);
 
-			if (!buf_page_cleaner_is_active) {
+			if (!buf_page_cleaner_is_active
+			    && os_aio_all_slots_free()) {
 				os_aio_wake_all_threads_at_shutdown();
 			}
 		}
@@ -1648,6 +1649,11 @@ srv_start(
 	for (i = 1; i < srv_n_page_cleaners; ++i) {
 		os_thread_create(buf_flush_page_cleaner_worker,
 				 NULL, NULL);
+	}
+
+	/* Make sure page cleaner is active. */
+	while (!buf_page_cleaner_is_active) {
+		os_thread_sleep(10000);
 	}
 
 	srv_start_state_set(SRV_START_STATE_IO);
@@ -2331,7 +2337,7 @@ srv_start_threads()
 	}
 
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	    && trx_sys_get_n_rw_trx() > 0) {
+	    && trx_sys_need_rollback()) {
 		/* Rollback all recovered transactions that are
 		not in committed nor in XA PREPARE state. */
 		trx_rollback_or_clean_is_active = true;

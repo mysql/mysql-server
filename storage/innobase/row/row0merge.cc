@@ -3366,7 +3366,7 @@ row_merge_drop_index_dict(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	info = pars_info_create();
 	pars_info_add_ull_literal(info, "indexid", index_id);
@@ -3429,7 +3429,7 @@ row_merge_drop_indexes_dict(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	/* It is possible that table->n_ref_count > 1 when
 	locked=TRUE. In this case, all code that should have an open
@@ -3479,7 +3479,7 @@ row_merge_drop_indexes(
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	index = dict_table_get_first_index(table);
 	ut_ad(dict_index_is_clust(index));

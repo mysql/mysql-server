@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,13 +55,13 @@ unsigned char* SHA##size(const unsigned char *input_ptr, size_t input_length, \
   (Generate the functions.  See similar .h code for the prototypes.)
 */
 #  ifndef OPENSSL_NO_SHA512
-GEN_YASSL_SHA2_BRIDGE(512);
-GEN_YASSL_SHA2_BRIDGE(384);
+GEN_YASSL_SHA2_BRIDGE(512)
+GEN_YASSL_SHA2_BRIDGE(384)
 #  else
 #    warning Some SHA2 functionality is missing.  See OPENSSL_NO_SHA512.
 #  endif
-GEN_YASSL_SHA2_BRIDGE(256);
-GEN_YASSL_SHA2_BRIDGE(224);
+GEN_YASSL_SHA2_BRIDGE(256)
+GEN_YASSL_SHA2_BRIDGE(224)
 
 #  undef GEN_YASSL_SHA2_BRIDGE
 

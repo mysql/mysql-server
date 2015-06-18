@@ -1394,7 +1394,7 @@ static void *test_thread(void *arg)
 }
 
 
-int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
+int main(int argc,char **argv)
 {
   my_thread_handle tid;
   my_thread_attr_t thr_attr;

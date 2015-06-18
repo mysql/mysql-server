@@ -237,12 +237,10 @@ extern const char*	fil_path_to_mysql_datadir;
 enum ib_extention {
 	NO_EXT = 0,
 	IBD = 1,
-	ISL = 2,
-	CFG = 3
+	CFG = 2
 };
 extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
-#define DOT_ISL dot_ext[ISL]
 #define DOT_CFG dot_ext[CFG]
 
 /** Initial size of a single-table tablespace in pages */
@@ -792,19 +790,19 @@ fil_rename_tablespace(
 	const char*	new_name,
 	const char*	new_path_in);
 
-/*******************************************************************//**
-Allocates and builds a file name from a path, a table or tablespace name
-and a suffix. The string must be freed by caller with ut_free().
-@param[in] path NULL or the direcory path or the full path and filename.
-@param[in] name NULL if path is full, or Table/Tablespace name
-@param[in] suffix NULL or the file extention to use.
-@return own: file name */
+/** Allocate and build a file name from a path, a table or tablespace name
+and a suffix.
+@param[in]	path	NULL or the direcory path or the full path and filename
+@param[in]	name	NULL if path is full, or Table/Tablespace name
+@param[in]	ext	the file extension to use
+@param[in]	trim	whether last name on the path should be trimmed
+@return own: file name; must be freed by ut_free() */
 char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
 	ib_extention	suffix,
-	bool		strip_name);
+	bool		trim);
 
 /** Create a tablespace file.
 @param[in]	space_id	Tablespace ID
@@ -824,28 +822,19 @@ fil_ibd_create(
 	ulint		size)
 	__attribute__((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Tries to open a single-table tablespace and optionally checks the space id is
-right in it. If does not succeed, prints an error message to the .err log. This
+/** Open a single-table tablespace and optionally check the space id is
+right in it. If not successful, print an error message to the error log. This
 function is used to open a tablespace when we start up mysqld, and also in
 IMPORT TABLESPACE.
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
-race here. This operation does not leave the file associated with the
-tablespace open, but closes it after we have looked at the space id in it.
+race here.
 
-If the validate boolean is set, we read the first page of the file and
-check that the space id in the file is what we expect. We assume that
-this function runs much faster if no check is made, since accessing the
-file inode probably is much faster (the OS caches them) than accessing
-the first page of the file.  This boolean may be initially false, but if
-a remote tablespace is found it will be changed to true.
+The fil_node_t::handle will not be left open.
 
-If the fix_dict boolean is set, then it is safe to use an internal SQL
-statement to update the dictionary tables if they are incorrect.
-
-@param[in]	validate	true if we should validate the tablespace
-@param[in]	fix_dict	true if the dictionary is available to be fixed
+@param[in]	validate	whether we should validate the tablespace
+				(read the first page of the file and
+				check that the space id in it matches id)
 @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @param[in]	id		tablespace ID
 @param[in]	flags		tablespace flags
@@ -856,11 +845,10 @@ If file-per-table, it is the table name in the databasename/tablename format
 dberr_t
 fil_ibd_open(
 	bool		validate,
-	bool		fix_dict,
 	fil_type_t	purpose,
 	ulint		id,
 	ulint		flags,
-	const char*	tablename,
+	const char*	space_name,
 	const char*	path_in)
 	__attribute__((warn_unused_result));
 
@@ -1059,7 +1047,7 @@ fil_page_set_type(
 /** Reset the page type.
 Data files created before MySQL 5.1 may contain garbage in FIL_PAGE_TYPE.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1084,7 +1072,7 @@ fil_page_get_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in]	page_id	page number
 @param[in,out]	page	page with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
@@ -1108,7 +1096,7 @@ fil_page_check_type(
 Data files created before MySQL 5.1 may contain
 garbage in the FIL_PAGE_TYPE field.
 In MySQL 3.23.53, only undo log pages and index pages were tagged.
-Any other pages were written with unitialized bytes in FIL_PAGE_TYPE.
+Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in,out]	block	block with possibly invalid FIL_PAGE_TYPE
 @param[in]	type	expected page type
 @param[in,out]	mtr	mini-transaction */

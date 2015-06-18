@@ -28,7 +28,7 @@
 #include <sstream>
 #endif
 
-namespace priority_queue_unittest { class PriorityQueueTest; };
+namespace priority_queue_unittest { class PriorityQueueTest; }
 
 
 /**

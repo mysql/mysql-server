@@ -1225,7 +1225,7 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, Ref_ptr_array(), *values, 0, 0, 0))
+      if (setup_fields(thd, Ref_ptr_array(), *values, 0, NULL, false, false))
         goto error;
     }
   }

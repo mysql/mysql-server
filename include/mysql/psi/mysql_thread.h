@@ -250,16 +250,24 @@ typedef struct st_mysql_cond mysql_cond_t;
   Drop-in replacement
   for @c rw_pr_lock_assert_write_owner.
 */
+#ifdef SAFE_MUTEX
 #define mysql_prlock_assert_write_owner(M) \
   rw_pr_lock_assert_write_owner(&(M)->m_prlock)
+#else
+#define mysql_prlock_assert_write_owner(M) { }
+#endif
 
 /**
   @def mysql_prlock_assert_not_write_owner(M)
   Drop-in replacement
   for @c rw_pr_lock_assert_not_write_owner.
 */
+#ifdef SAFE_MUTEX
 #define mysql_prlock_assert_not_write_owner(M) \
   rw_pr_lock_assert_not_write_owner(&(M)->m_prlock)
+#else
+#define mysql_prlock_assert_not_write_owner(M) { }
+#endif
 
 /**
   @def mysql_mutex_register(P1, P2, P3)

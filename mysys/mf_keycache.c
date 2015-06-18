@@ -2502,7 +2502,7 @@ static void read_block(KEY_CACHE *keycache,
 uchar *key_cache_read(KEY_CACHE *keycache,
                       File file, my_off_t filepos, int level,
                       uchar *buff, uint length,
-                      uint block_length __attribute__((unused)),
+                      uint block_length,
                       int return_buffer __attribute__((unused)))
 {
   my_bool locked_and_incremented= FALSE;

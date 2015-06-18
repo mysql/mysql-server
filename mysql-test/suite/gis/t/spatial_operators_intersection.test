@@ -400,7 +400,7 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))
 --echo #====================================================================================
 --echo # linestring,multipolygon
 --echo #====================================================================================
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25))),((25 0,0 15,25 10))')));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)))')));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)));
 

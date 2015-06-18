@@ -2538,7 +2538,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 static void
-mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
+mysql_ssl_free(MYSQL *mysql)
 {
   struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");

@@ -46,6 +46,8 @@
 #include "trigger_def.h"              // TRG_EXT
 #include "sql_select.h"               // actual_key_parts
 #include "rpl_write_set_handler.h"    // add_pke
+#include "auth_common.h"              // check_readonly() and SUPER_ACL
+
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -194,8 +196,6 @@ const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 }
 
 static handlerton *installed_htons[128];
-
-#define BITMAP_STACKBUF_SIZE (128/8)
 
 KEY_CREATE_INFO default_key_create_info=
   { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
@@ -1434,7 +1434,9 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   */
   if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
       (all || !thd->in_multi_stmt_transaction_mode()) &&
-      thd->owned_gtid.sidno > 0 && !thd->is_operating_gtid_table_implicitly)
+      thd->owned_gtid.sidno > 0 &&
+      !thd->is_operating_gtid_table_implicitly &&
+      !thd->is_operating_substatement_implicitly)
   {
     error= gtid_state->save(thd);
     need_clear_owned_gtid= true;
@@ -1539,12 +1541,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
-    if (rw_trans &&
-        opt_readonly &&
-        !(thd->security_context()->check_access(SUPER_ACL)) &&
-        !thd->slave_thread)
+    if (rw_trans && check_readonly(thd, true))
     {
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
       ha_rollback_trans(thd, all);
       error= 1;
       goto end;

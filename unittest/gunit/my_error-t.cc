@@ -52,7 +52,7 @@ TEST(MyErrorTest, MyStrErrorHandlerPlugin)
   EXPECT_STREQ("Didn't find key on read or update", msg);
 }
 
-TEST(MyErrorTest, MyGetErrMsgUnitialized)
+TEST(MyErrorTest, MyGetErrMsgUninitialized)
 {
   const char *msg;
 

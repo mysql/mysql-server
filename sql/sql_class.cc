@@ -514,6 +514,7 @@ THD::THD(bool enable_plugins)
   m_sent_row_count= 0L;
   limit_found_rows= 0;
   is_operating_gtid_table_implicitly= false;
+  is_operating_substatement_implicitly= false;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
@@ -2927,7 +2928,7 @@ void THD::set_next_event_pos(const char* _filename, ulonglong _pos)
   filename[ FN_REFLEN ]= 0;
 
   binlog_next_event_pos.pos= _pos;
-};
+}
 
 void THD::clear_next_event_pos()
 {
@@ -2937,7 +2938,7 @@ void THD::clear_next_event_pos()
   }
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
-};
+}
 
 #ifdef HAVE_REPLICATION
 void THD::set_currently_executing_gtid_for_slave_thread()

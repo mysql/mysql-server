@@ -87,10 +87,6 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
 };
 
 
-/* Longest standard keyword name */
-
-#define TOCK_NAME_LENGTH 24
-
 /* 
   Names of the index hints (for error messages). Keep in sync with 
   index_hint_type 

@@ -54,8 +54,6 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "partition_info.h"
 #include "key.h"
 
-#define INSIDE_HA_INNOPART_CC
-
 /* To be backwards compatible we also fold partition separator on windows. */
 #ifdef _WIN32
 static const char* part_sep = "#p#";

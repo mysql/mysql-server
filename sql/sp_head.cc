@@ -2093,7 +2093,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
   {
     char *tab_buff, *key_buff;
     SP_TABLE *stab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
-    if (stab->temp)
+    if (stab->temp || stab->lock_type == TL_IGNORE)
       continue;
 
     if (!(tab_buff= (char *)thd->mem_calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *

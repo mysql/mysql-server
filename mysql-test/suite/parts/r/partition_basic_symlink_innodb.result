@@ -23,9 +23,7 @@ Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
 Error	1031	Table storage engine for 't1' doesn't have this option
 #
-# InnoDB is different from MyISAM in that it uses a text file
-# with an '.isl' extension instead of a symbolic link so that
-# the tablespace can be re-located on any OS. Also, instead of
+# InnoDB is different from MyISAM in that instead of
 # putting the file directly into the DATA DIRECTORY,
 # it adds a folder under it with the name of the database.
 # Since strict mode is off, InnoDB ignores the INDEX DIRECTORY
@@ -49,10 +47,8 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1618	<INDEX DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
-# Verifying .frm, .par, .isl & .ibd files
+# Verifying .frm, .par and InnoDB .ibd files
 ---- MYSQLD_DATADIR/test
-t1#P#p0.isl
-t1#P#p1.isl
 t1.frm
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
 t1#P#p0.ibd
@@ -110,10 +106,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (c1)
 (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB,
  PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = InnoDB) */
-# Verifying .frm, .par, .isl and InnoDB .ibd files
+# Verifying .frm, .par and InnoDB .ibd files
 ---- MYSQLD_DATADIR/test
-t1#P#p0.isl
-t1#P#p1.isl
 t1.frm
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 test

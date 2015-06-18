@@ -3431,7 +3431,7 @@ row_import_for_mysql(
 
 	/* Prevent DDL operations while we are checking. */
 
-	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
+	rw_lock_s_lock_func(dict_operation_lock, 0, __FILE__, __LINE__);
 
 	row_import	cfg;
 
@@ -3458,14 +3458,14 @@ row_import_for_mysql(
 			autoinc = cfg.m_autoinc;
 		}
 
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 
 		DBUG_EXECUTE_IF("ib_import_set_index_root_failure",
 				err = DB_TOO_MANY_CONCURRENT_TRXS;);
 
 	} else if (cfg.m_missing) {
 
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 
 		/* We don't have a schema file, we will have to discover
 		the index root pages from the .ibd file and skip the schema
@@ -3497,7 +3497,7 @@ row_import_for_mysql(
 		}
 
 	} else {
-		rw_lock_s_unlock_gen(&dict_operation_lock, 0);
+		rw_lock_s_unlock_gen(dict_operation_lock, 0);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -3566,15 +3566,13 @@ row_import_for_mysql(
 		return(row_import_cleanup(prebuilt, trx, DB_OUT_OF_MEMORY));
 	}
 
-	/* Open the tablespace so that we can access via the buffer pool.
-	We set the 2nd param (fix_dict = true) here because we already
-	have an x-lock on dict_operation_lock and dict_sys->mutex.
+	/* Open the etablespace so that we can access via the buffer pool.
 	The tablespace is initially opened as a temporary one, because
 	we will not be writing any redo log for it before we have invoked
 	fil_space_set_imported() to declare it a persistent tablespace. */
 
 	err = fil_ibd_open(
-		true, true, FIL_TYPE_IMPORT, table->space,
+		true, FIL_TYPE_IMPORT, table->space,
 		dict_tf_to_fsp_flags(table->flags),
 		table->name.m_name, filepath);
 

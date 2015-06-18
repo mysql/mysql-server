@@ -276,8 +276,13 @@ void Opt_hints_table::adjust_key_hints(TABLE *table)
     return;
   }
 
-  /* Make sure that adjustement is called only once. */
-  DBUG_ASSERT(keyinfo_array.size() == 0);
+  /*
+    Make sure that adjustement is done only once.
+    Table has already been processed if keyinfo_array is not empty.
+  */
+  if (keyinfo_array.size())
+    return;
+
   keyinfo_array.resize(table->s->keys, NULL);
 
   for (Opt_hints** hint= child_array_ptr()->begin();

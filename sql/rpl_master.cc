@@ -41,7 +41,6 @@ int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
 
 #define SLAVE_LIST_CHUNK 128
-#define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 HASH slave_list;
 extern TYPELIB binlog_checksum_typelib;
 

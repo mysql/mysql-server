@@ -54,6 +54,11 @@ public:
   bool get_next_number(double *);
   bool check_next_symbol(char);
 
+  bool is_end_of_stream()
+  {
+    return get_next_toc_type() == eostream;
+  }
+
   inline void skip_space()
   {
     while ((m_cur < m_limit) && my_isspace(&my_charset_latin1, *m_cur))

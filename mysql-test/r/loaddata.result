@@ -330,7 +330,7 @@ FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
   LINES TERMINATED BY '\n' (c0, c2);
-ERROR HY000: Invalid column reference (v2.c0) in LOAD DATA
+ERROR HY000: Column 'c0' is not updatable
 
 LOAD DATA INFILE '../../std_data/bug35469.dat' INTO TABLE v3
 FIELDS ESCAPED BY '\\'
@@ -591,3 +591,13 @@ HEX(val)
 DROP TABLE d1.t1, d2.t1;
 DROP DATABASE d1;
 DROP DATABASE d2;
+USE test;
+# Bug#21097485 *insert_table_ref && (insert_table_ref)->is_insertable
+CREATE TABLE t(a INTEGER PRIMARY KEY, b INTEGER, c INTEGER);
+CREATE VIEW v AS SELECT a, b+c AS d FROM t;
+LOAD DATA INFILE 'test.dat' INTO TABLE v(a, d);
+ERROR HY000: Column 'd' is not updatable
+LOAD DATA INFILE 'test.dat' INTO TABLE v(@a, @d) SET a= @a, d= @d;
+ERROR HY000: Column 'd' is not updatable
+DROP VIEW v;
+DROP TABLE t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1742,8 +1742,8 @@ static int my_strnncoll_cp932_internal(const CHARSET_INFO *cs,
 }
 
 
-static int my_strnncoll_cp932(const CHARSET_INFO *cs __attribute__((unused)),
-			      const uchar *a, size_t a_length, 
+static int my_strnncoll_cp932(const CHARSET_INFO *cs,
+			      const uchar *a, size_t a_length,
 			      const uchar *b, size_t b_length,
                               my_bool b_is_prefix)
 {
@@ -1754,12 +1754,10 @@ static int my_strnncoll_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_cp932(const CHARSET_INFO *cs
-                                __attribute__((unused)),
-                                const uchar *a, size_t a_length, 
+static int my_strnncollsp_cp932(const CHARSET_INFO *cs,
+                                const uchar *a, size_t a_length,
                                 const uchar *b, size_t b_length,
-                                my_bool diff_if_only_endspace_difference
-                                __attribute__((unused)))
+                                my_bool diff_if_only_endspace_difference)
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;

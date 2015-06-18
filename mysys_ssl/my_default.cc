@@ -130,10 +130,8 @@ static const char **default_directories = NULL;
 
 #ifdef _WIN32
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
-#define NEWLINE "\r\n"
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
-#define NEWLINE "\n"
 #endif
 
 extern "C" {

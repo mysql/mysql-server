@@ -60,7 +60,6 @@ using std::max;
 #include "psi_memory_key.h"
 #else
 #define key_memory_NET_buff 0
-#define key_memory_NET_buff 0
 #define key_memory_NET_compress_packet 0
 #endif
 
@@ -243,7 +242,7 @@ my_bool net_flush(NET *net)
 */
 
 static my_bool
-net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
+net_should_retry(NET *net, uint *retry_count)
 {
   my_bool retry;
 
