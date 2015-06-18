@@ -2163,41 +2163,7 @@ NdbEventOperation *Ndb::getEventOperation(NdbEventOperation* tOp)
 int
 Ndb::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  Uint32 elapsed = 0;
-  const NDB_TICKS start = NdbTick_getCurrentTicks();
-
-  if (unlikely(aMillisecondNumber < 0))
-  {
-    g_eventLogger->error("Ndb::pollEvents2: negative aMillisecondNumber %d 0x%x %s",
-                         aMillisecondNumber,
-                         getReference(),
-                         getNdbObjectName());
-    return -1;
-  }
-
-  /**
-   * We need to poll the receiver to make sure that arrived events
-   * are delivered to their clients as soon as possible.
-   * ::trp_deliver_signal() will wakeup the client as soon as
-   * some event arrives, possible before its epoch is complete such
-   * that move_data() can make the events available.
-   * Thus we need to recheck the pollEvent condition, and possibly
-   * continue polling if there is wait time left.
-   */
-  int found = theEventBuffer->pollEvents(highestQueuedEpoch);
-  while (!found)
-  {
-    theImpl->start_poll();
-    theImpl->do_poll((unsigned)aMillisecondNumber-elapsed);
-    theImpl->complete_poll();
-    found = theEventBuffer->pollEvents(highestQueuedEpoch);
-
-    const NDB_TICKS now = NdbTick_getCurrentTicks();
-    elapsed = Uint32(NdbTick_Elapsed(start,now).milliSec());
-    if (elapsed >= (unsigned)aMillisecondNumber)
-      break;
-  }
-  return found;
+  return theEventBuffer->pollEvents(aMillisecondNumber, highestQueuedEpoch);
 }
 
 bool
