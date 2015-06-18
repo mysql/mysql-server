@@ -33,15 +33,15 @@
 FILE *debug_outfile;
 int do_debug = 0;
 
-void ndbmc_debug_init(const char *filename, int enable) {
-  if(! enable) return;
-  
-  do_debug = 1;
-  if(filename) 
-    debug_outfile = fopen(filename, "w");
-  else 
-    debug_outfile = fdopen(STDERR_FILENO, "a");
-  assert(debug_outfile);
+void ndbmc_debug_init(const char *filename, int level) {
+  do_debug = level;
+  if(level) {
+    if(filename)
+      debug_outfile = fopen(filename, "w");
+    else
+      debug_outfile = fdopen(STDERR_FILENO, "a");
+    assert(debug_outfile);
+  }
 }
 
 

@@ -88,7 +88,7 @@ void Scheduler73::Global::init(const scheduler_options *sched_opts) {
     clusters[i]->startThreads();
   
   /* Log message for startup */
-  logger->log(LOG_WARNING, 0, "Scheduler: starting ...");
+  logger->log(LOG_WARNING, 0, "Scheduler 73: starting ...");
 
   /* Now Running */
   running = true;
@@ -128,7 +128,7 @@ void Scheduler73::Global::parse_config_string(const char *str) {
 
 void Scheduler73::Global::shutdown() {
   if(running) {
-    logger->log(LOG_INFO, 0, "Shutting down scheduler.");
+    logger->log(LOG_INFO, 0, "Shutting down scheduler 73.");
 
     /* Release each WorkerConnection */
     for(int i = 0; i < nclusters ; i++) {
@@ -145,7 +145,7 @@ void Scheduler73::Global::shutdown() {
     }
     
     /* Shutdown now */
-    logger->log(LOG_WARNING, 0, "Shutdown completed.");
+    logger->log(LOG_WARNING, 0, "Scheduler 73 shutdown completed.");
     running = false;
   }
 }
@@ -240,7 +240,6 @@ void Scheduler73::Worker::close(NdbTransaction *tx, workitem *item) {
    (or free it, if the scheduler is shutting down).
 */
 void Scheduler73::Worker::release(workitem *item) {
-  DEBUG_ENTER();
   NdbInstance *inst = item->ndb_instance;
   
   if(inst) {
@@ -465,11 +464,11 @@ void * Scheduler73::Cluster::run_wait_thread() {
     while(nwaiting-- > 0) {
       Ndb *db = pollgroup->pop();
       inst = (NdbInstance *) db->getCustomData();
-      DEBUG_PRINT("Polling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
+      DEBUG_PRINT_DETAIL("Polling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
       db->pollNdb(0, 1);
 
       if(inst->wqitem->base.reschedule) {
-        DEBUG_PRINT("Rescheduling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
+        DEBUG_PRINT_DETAIL("Rescheduling %d.%d", inst->wqitem->pipeline->id, inst->wqitem->id);
         inst->wqitem->base.reschedule = 0;
         if(s_global->options.separate_send) 
           db->sendPreparedTransactions(false);
