@@ -230,7 +230,7 @@ void scheduler_shutdown(ndb_pipeline *self) {
 ENGINE_ERROR_CODE scheduler_schedule(ndb_pipeline *self, struct workitem *item) {
   mc_server_handle->store_engine_specific(item->cookie, item);
   ENGINE_ERROR_CODE status = self->scheduler->schedule(item);
-  DEBUG_PRINT(" returning %d for workitem %d.%d", (int) status, self->id, item->id);
+  DEBUG_PRINT_DETAIL(" returning %d for workitem %d.%d", (int) status, self->id, item->id);
   return status;
 }
 
@@ -424,7 +424,7 @@ void init_allocator(ndb_pipeline *self) {
     size_t sz = self->alligator[workitem_class_id].size;
     workitem_actual_inline_buffer_size = 
       WORKITEM_MIN_INLINE_BUF + (sz - sizeof(struct workitem));
-    DEBUG_PRINT("workitem slab class: %d, inline buffer: %d", 
+    DEBUG_PRINT_DETAIL("workitem slab class: %d, inline buffer: %d",
                 workitem_class_id, workitem_actual_inline_buffer_size);
   }
   
