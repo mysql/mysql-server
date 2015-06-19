@@ -407,7 +407,7 @@ class SimulatedBlock :
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
-  
+
   static const Uint32 BOUNDED_DELAY = 0xFFFFFF00;
 protected:
   /**

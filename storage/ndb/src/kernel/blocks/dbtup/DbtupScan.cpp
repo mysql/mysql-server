@@ -1260,8 +1260,25 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   jam();
   signal->theData[0] = ZTUP_SCAN;
   signal->theData[1] = scanPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  if (!c_lqh->get_is_scan_prioritised(scanPtr.i))
+  {
+    jam();
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+  else
+  {
+    /**
+     * Sending with bounded delay means that we allow all signals in job buffer
+     * to be executed until the maximum is arrived at which is currently 100.
+     * So sending with bounded delay means that we get more predictable delay.
+     * It might be longer than with priority B, but it will never be longer
+     * than 100 signals.
+     */
+    jam();
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, BOUNDED_DELAY, 2);
+  }
   return false;
+
 }
 
 /**
