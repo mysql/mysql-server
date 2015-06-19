@@ -17,7 +17,9 @@
 #ifndef OPT_EXPLAIN_FORMAT_INCLUDED
 #define OPT_EXPLAIN_FORMAT_INCLUDED
 
-/** @file "EXPLAIN FORMAT=<format> <command>" 
+/**
+  @file sql/opt_explain_format.h
+  EXPLAIN FORMAT=\<format\> \<command\>.
 */
 
 #include "sql_alloc.h"

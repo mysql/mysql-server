@@ -654,8 +654,8 @@ bool Session_sysvars_tracker::update(THD *thd)
          Once the data is stored, we reset the flags related to state-change
          (see reset()).
 
-  @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param thd                The thd handle.
+  @param[in,out] buf        Buffer to store the information to.
 
   @return
     false                   Success
@@ -816,7 +816,7 @@ bool Current_schema_tracker::update(THD *thd)
 
 
   @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param [in,out] buf       Buffer to store the information to.
 
   @return
     false                   Success
@@ -870,8 +870,6 @@ void Current_schema_tracker::mark_as_changed(THD *thd,
 
 /**
   @brief Reset the m_changed flag for next statement.
-
-  @return                   void
 */
 
 void Current_schema_tracker::reset()
@@ -903,7 +901,7 @@ bool Session_state_change_tracker::enable(THD *thd)
 }
 
 /**
-  @Enable/disable the tracker based on @@session_track_state_change value.
+  Enable/disable the tracker based on @@session_track_state_change value.
 
   @param thd [IN]           The thd handle.
   @return                   false (always)
@@ -922,7 +920,7 @@ bool Session_state_change_tracker::update(THD *thd)
          there is no state change information.
 
   @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param [in,out] buf       Buffer to store the information to.
 
   @return
     false                   Success
@@ -1225,7 +1223,7 @@ bool Session_gtids_tracker::update(THD *thd)
 
 
   @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param [in,out] buf       Buffer to store the information to.
 
   @return
     false                   Success
@@ -1259,8 +1257,6 @@ void Session_gtids_tracker::mark_as_changed(THD *thd __attribute__((unused)),
 
 /**
   @brief Reset the m_changed flag for next statement.
-
-  @return                   void
 */
 
 void Session_gtids_tracker::reset()

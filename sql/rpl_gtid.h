@@ -3202,9 +3202,8 @@ struct Gtid_specification
     @param sid SID to use if the type of this Gtid_specification is
     GTID_GROUP.  Can be NULL if this Gtid_specification is
     ANONYMOUS_GROUP or AUTOMATIC_GROUP.
-    @param buf[out] The buffer
+    @param[out] buf The buffer
     @retval The number of characters written.
-    @buf[out]
   */
   int to_string(const rpl_sid *sid, char *buf) const;
 #ifndef DBUG_OFF

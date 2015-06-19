@@ -298,7 +298,7 @@ typedef struct st_position : public Sql_alloc
     index access, depending on the access method ('ref', 'range',
     etc.)
 
-    @Note that for index/table scans, rows_fetched may be less than
+    @note For index/table scans, rows_fetched may be less than
     the number of rows in the table because the cost of evaluating
     constant conditions is included in the scan cost, and the number
     of rows produced by these scans is the estimated number of rows
@@ -333,7 +333,7 @@ typedef struct st_position : public Sql_alloc
     It is used to calculate how many row combinations will be joined
     with the next table, @see prefix_rowcount below.
 
-    @Note that with condition filtering enabled, it is possible to get
+    @note With condition filtering enabled, it is possible to get
     a fanout = rows_fetched * filter_effect that is less than 1.0.
     Consider, e.g., a join between t1 and t2:
 
@@ -742,8 +742,8 @@ JOIN_TAB::JOIN_TAB() :
     (a < b) && (b < c) but (c < a). This is the case in the
     following example: 
 
-      a: dependent = <none>   found_records = 3
-      b: dependent = <none>   found_records = 4
+      a: dependent = \<none\> found_records = 3
+      b: dependent = \<none\> found_records = 4
       c: dependent = b        found_records = 2
 
         a < b: because a has fewer records

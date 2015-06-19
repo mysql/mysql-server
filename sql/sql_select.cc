@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file sql/sql_select.cc
 
   @brief Evaluate query expressions, throughout resolving, optimization and
          execution.
@@ -2460,8 +2460,10 @@ bool QEP_shared_owner::and_with_condition(Item *add_cond)
     - However, if this is a JOIN for a [sub]select, which is not
     a correlated subquery itself, but has subqueries, we can free it
     fully and also free JOINs of all its subqueries. The exception
-    is a subquery in SELECT list, e.g: @n
-    SELECT a, (select max(b) from t1) group by c @n
+    is a subquery in SELECT list, e.g:
+    @code
+    SELECT a, (select max(b) from t1) group by c
+    @endcode
     This subquery will not be evaluated at first sweep and its value will
     not be inserted into the temporary table. Instead, it's evaluated
     when selecting from the temporary table. Therefore, it can't be freed
@@ -3915,7 +3917,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 }
 
 /**
-  Find a cheaper access key than a given @a key
+  Find a cheaper access key than a given key.
 
   @param          tab                 NULL or JOIN_TAB of the accessed table
   @param          order               Linked list of ORDER BY arguments

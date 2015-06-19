@@ -306,7 +306,7 @@ err_w_file:
 /**
   Renames a frm file (including backups) in same schema.
 
-  @thd                     thread handler
+  @param thd               thread handler
   @param schema            name of given schema
   @param old_name          original file name
   @param new_db            new schema

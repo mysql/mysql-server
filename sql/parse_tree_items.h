@@ -613,7 +613,7 @@ public:
 /**
   Parse tree Item wrapper for 3-dimentional variable names
   
-  Example: @global.default.x
+  Example: \@global.default.x
 */
 class PTI_variable_aux_3d : public Parse_tree_item
 {

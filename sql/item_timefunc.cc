@@ -823,7 +823,7 @@ bool Item_temporal_func::check_precision()
   Appends function name with argument list or fractional seconds part
   to the String str.
 
-  @param[in/out]  str         String to which the func_name and decimals/
+  @param[in,out]  str         String to which the func_name and decimals/
                               argument list should be appended.
   @param[in]      query_type  Query type
 

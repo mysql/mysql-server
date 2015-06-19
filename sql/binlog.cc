@@ -1705,7 +1705,7 @@ static int binlog_xa_rollback(handlerton *hton,  XID *xid)
   @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
   @param all   This is @c true if this is a real transaction commit, and
-               @false otherwise.
+               @c false otherwise.
 
   @see handlerton::commit
 */
@@ -1971,7 +1971,7 @@ void Stage_manager::clear_preempt_status(THD *head)
 
   @param thd Session to commit
   @param all This is @c true if this is a real transaction rollback, and
-             @false otherwise.
+             @c false otherwise.
 
   @return Error code, or zero if there were no error.
  */
@@ -2583,7 +2583,7 @@ bool stmt_cannot_safely_rollback(const THD* thd)
 
 #ifndef EMBEDDED_LIBRARY
 /**
-  Execute a PURGE BINARY LOGS TO <log> command.
+  Execute a PURGE BINARY LOGS TO \<log\> command.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -2612,7 +2612,7 @@ bool purge_master_logs(THD* thd, const char* to_log)
 
 
 /**
-  Execute a PURGE BINARY LOGS BEFORE <date> command.
+  Execute a PURGE BINARY LOGS BEFORE \<date\> command.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -5092,7 +5092,7 @@ err:
 /**
   Find the relay log name following the given name from relay log index file.
 
-  @param[in|out] log_name  The name is full path name.
+  @param[in,out] log_name  The name is full path name.
 
   @return return 0 if it finds next relay log. Otherwise return the error code.
 */
@@ -6995,8 +6995,8 @@ uint MYSQL_BIN_LOG::next_file_id()
   length pointer to point to the end of it.
 
   @param cache IO_CACHE to read from
-  @param[OUT] buf_p Will be set to point to the beginning of the page.
-  @param[OUT] buf_len_p Will be set to the length of the buffer.
+  @param[out] buf_p Will be set to point to the beginning of the page.
+  @param[out] buf_len_p Will be set to the length of the buffer.
 
   @retval false Success
   @retval true Error reading from the cache.
@@ -7130,7 +7130,7 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   @param need_lock_log If true, will acquire LOCK_log; otherwise the
   caller should already have acquired LOCK_log.
   @param err_msg Error message written to log file for the incident.
-  @do_flush_and_sync If true, will call flush_and_sync(), rotate() and
+  @c do_flush_and_sync If true, will call flush_and_sync(), rotate() and
   purge().
 
   @retval false error
@@ -10678,10 +10678,9 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   thrown or suppressed. Details of the implementation can be found in the
   comments inline.
 
-  @params
-   buf         - buffer to hold the warning message text
-   unsafe_type - The type of unsafety.
-   query       - The actual query statement.
+  @param buf         Buffer to hold the warning message text
+  @param unsafe_type The type of unsafety.
+  @param query       The actual query statement.
 
   TODO: Remove this function and implement a general service for all warnings
   that would prevent flooding the error log. => switch to log_throttle class?
@@ -10816,7 +10815,6 @@ Logical_clock::Logical_clock()
 
 /**
   Atomically fetch the current state.
-  @parms: None
   @return  not subtracted "absolute" value.
  */
 inline int64 Logical_clock::get_timestamp()

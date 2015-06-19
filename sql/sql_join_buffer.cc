@@ -3440,6 +3440,9 @@ bool JOIN_CACHE_BKA_UNIQUE::check_match(uchar *rec_ptr)
   return JOIN_CACHE_BKA::check_match(rec_ptr);
 }
 
+/**
+  @} (end of group Query_Optimizer)
+*/
 
 /****************************************************************************
  * Join cache module end

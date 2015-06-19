@@ -1427,7 +1427,7 @@ cleanup:
 
 
 /**
-   @Returns a bitmap of bound semi-join equalities.
+   Returns a bitmap of bound semi-join equalities.
 
    If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
    called sj-equality. If ieK or oeK depends only on tables available before

@@ -42,7 +42,7 @@ public:
       - Disable binlog temporarily if we are going to modify the table
       - Open and lock a table.
 
-    @param[in/out] thd        Thread requesting to open the table
+    @param[in,out] thd        Thread requesting to open the table
     @param         lock_type  How to lock the table
     @param[out]    table      We will store the open table here
 

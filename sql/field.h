@@ -3248,8 +3248,8 @@ public:
 
      - TIMESTAMP_DN_FIELD - means DATETIME DEFAULT CURRENT_TIMESTAMP.
 
-     - TIMESTAMP_UN_FIELD - means DATETIME DEFAULT <default value> ON UPDATE
-     CURRENT_TIMESTAMP, where <default value> is an implicit or explicit
+     - TIMESTAMP_UN_FIELD - means DATETIME DEFAULT \<default value\> ON UPDATE
+     CURRENT_TIMESTAMP, where \<default value\> is an implicit or explicit
      expression other than CURRENT_TIMESTAMP or any synonym thereof
      (e.g. NOW().)
 

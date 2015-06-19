@@ -6097,7 +6097,7 @@ bool TABLE::alloc_keys(uint key_count)
   key.
   @see add_derived_key
 
-  @TODO somehow manage to create keys in tmp_table_param for unification
+  @todo somehow manage to create keys in tmp_table_param for unification
         purposes
 
   @return TRUE OOM error.
@@ -6963,12 +6963,12 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
 
 /**
   @brief
-  Generate keys for a materialized derived table/view
+  Generate keys for a materialized derived table/view.
 
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling the
-  TABLE::add_tmp_key to actually add keys. A name <auto_keyN>, where N is a
+  TABLE::add_tmp_key to actually add keys. A name \<auto_keyN\>, where N is a
   sequential number, is given to each key to ease debugging.
   @see add_derived_key
 

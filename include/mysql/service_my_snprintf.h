@@ -16,7 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file include/mysql/service_my_snprintf.h
   my_snprintf service
 
   Portable and limited vsnprintf() implementation.
@@ -40,8 +40,8 @@
 
   @post
   The syntax of a format string is generally the same:
-  % <flag> <width> <precision> <length modifier> <format>
-  where everithing but the format is optional.
+  % \<flag\> \<width\> \<precision\> \<length modifier\> \<format\>
+  where everything but the format is optional.
 
   Three one-character flags are recognized:
     '0' has the standard zero-padding semantics;
@@ -49,10 +49,10 @@
     '`' (backtick) is only supported for strings (%s) and means that the
         string will be quoted according to MySQL identifier quoting rules.
 
-  Both <width> and <precision> can be specified as numbers or '*'.
+  Both \<width\> and \<precision\> can be specified as numbers or '*'.
   If an asterisk is used, an argument of type int is consumed.
 
-  <length modifier> can be 'l', 'll', or 'z'.
+  \<length modifier\> can be 'l', 'll', or 'z'.
 
   Supported formats are 's' (null pointer is accepted, printed as
   "(null)"), 'b' (extension, see below), 'c', 'd', 'i', 'u', 'x', 'o',
@@ -64,7 +64,7 @@
 
   Flag '`' (backtick): see above.
 
-  Format 'b': binary buffer, prints exactly <precision> bytes from the
+  Format 'b': binary buffer, prints exactly \<precision\> bytes from the
   argument, without stopping at '\0'.
 */
 

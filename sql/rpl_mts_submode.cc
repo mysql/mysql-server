@@ -26,8 +26,7 @@
 
 /**
  Does necessary arrangement before scheduling next event.
- @param:  Relay_log_info rli
- @return: 1  if  error
+ @return 1  if  error
           0 no error
 */
 int
@@ -39,10 +38,6 @@ Mts_submode_database::schedule_next_event(Relay_log_info *rli, Log_event *ev)
 
 /**
   Logic to attach temporary tables.
-  @param: THD thd
-          Relay_log_info rli
-          Query_log_event ev
-  @return: void
 */
 void
 Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
@@ -172,12 +167,11 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
 
 /**
  Logic to detach the temporary tables from the worker threads upon
- event execution
- @param: thd THD instance
-         rli Relay_log_info instance
-         ev  Query_log_event that is being applied
- @return: void
- */
+ event execution.
+ @param thd THD instance
+ @param rli Relay_log_info instance
+ @param ev  Query_log_event that is being applied
+*/
 void
 Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                          Query_log_event *ev)
@@ -512,9 +506,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
  The current being assigned group descriptor gets associated with
  the group's logical timestamp aka sequence_number.
 
- @param:  Relay_log_info* rli
-          Log_event *ev
- @return: ER_MTS_CANT_PARALLEL, ER_MTS_INCONSISTENT_DATA
+ @return ER_MTS_CANT_PARALLEL, ER_MTS_INCONSISTENT_DATA
           0 if no error or slave has been killed gracefully
  */
 int
@@ -727,12 +719,11 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
 
 /**
  Logic to attach the temporary tables from the worker threads upon
- event execution
- @param: thd THD instance
-         rli Relay_log_info instance
-         ev  Query_log_event that is being applied
- @return: void
- */
+ event execution.
+ @param thd THD instance
+ @param rli Relay_log_info instance
+ @param ev  Query_log_event that is being applied
+*/
 void
 Mts_submode_logical_clock::attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                        Query_log_event * ev)
@@ -789,12 +780,11 @@ Mts_submode_logical_clock::attach_temp_tables(THD *thd, const Relay_log_info* rl
 
 /**
  Logic to detach the temporary tables from the worker threads upon
- event execution
- @param: thd THD instance
-         rli Relay_log_info instance
-         ev  Query_log_event that is being applied
- @return: void
- */
+ event execution.
+ @param thd THD instance
+ @param rli Relay_log_info instance
+ @param ev  Query_log_event that is being applied
+*/
 void
 Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* rli,
                                         Query_log_event * ev)
@@ -981,10 +971,10 @@ Mts_submode_logical_clock::
 /**
   Protected method to fetch the server_id and pseudo_thread_id from a
   temporary table
-  @param  : instance pointer of TABLE structure.
-  @return : std:pair<uint, my_thread_id>
-  @Note   : It is the caller's responsibility to make sure we call this
-            function only for temp tables.
+  @param  table instance pointer of TABLE structure.
+  @return std:pair<uint, my_thread_id>
+  @note   It is the caller's responsibility to make sure we call this
+          function only for temp tables.
  */
 std::pair<uint, my_thread_id>
 Mts_submode_logical_clock::get_server_and_thread_id(TABLE* table)

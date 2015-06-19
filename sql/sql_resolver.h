@@ -29,7 +29,10 @@ template <typename Element_type> class Bounds_checked_array;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
 template <class T> class List;
 
-/** @file Name resolution functions */
+/**
+  @file sql/sql_resolver.h
+  Name resolution functions.
+*/
 
 bool setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
                  List<Item> &fields, List <Item> &all_fields, ORDER *order);

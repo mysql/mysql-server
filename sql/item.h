@@ -1316,11 +1316,11 @@ protected:
   /**
     Get the value to return from val_bool() in case of errors.
 
-    This function is called from val_bool() when an error has occured
+    This function is called from val_bool() when an error has occurred
     and we need to return something to abort evaluation of the
     item. The expected pattern in val_bool() is
 
-      if (<error condition>)
+      if (\<error condition\>)
       {
         my_error(...)
         return error_bool();
@@ -1346,7 +1346,7 @@ protected:
       my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
       {
         ...
-        if (<error condition>)
+        if (\<error condition\>)
         {
           my_error(...)
           return error_decimal(decimal_buffer);
@@ -1779,7 +1779,7 @@ public:
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
-     this expression tree from a bitmap. @See walk()
+     this expression tree from a bitmap. @see walk()
 
      @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
                  Field::field_index values.
@@ -1914,16 +1914,14 @@ public:
   virtual bool check_valid_arguments_processor(uchar *arg) { return false; }
 
   /**
-    Find a function of a given type
+    Find a function of a given type.
+    This function can be used (together with Item::walk()) to find functions
+    in an item tree fragment.
 
     @param   arg     the function type to search (enum Item_func::Functype)
     @return
       @retval TRUE   the function type we're searching for is found
       @retval FALSE  the function type wasn't found
-
-    @description
-      This function can be used (together with Item::walk()) to find functions
-      in an item tree fragment.
   */
   virtual bool find_function_processor (uchar *arg)
   {

@@ -3565,7 +3565,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd)
     @retval false   OK
     @retval true    Error occured
 
-  @Note: This function must be called after table->write_set has been
+  @note  This function must be called after table->write_set has been
          filled.
 */
 bool

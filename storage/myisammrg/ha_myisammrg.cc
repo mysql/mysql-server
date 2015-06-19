@@ -201,7 +201,7 @@ const char *ha_myisammrg::index_type(uint key_number)
     @retval     0               OK
     @retval     != 0            Error
 
-  @detail
+  @details
 
     This function adds a TABLE_LIST object for a MERGE child table to a
     list of tables in the parent handler object. It is called for each
@@ -342,7 +342,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   @retval     0                    OK
   @retval     -1                   Error, my_errno gives reason
 
-  @detail
+  @details
   This function initializes the MERGE storage engine structures
   and adds a child list of TABLE_LIST to the parent handler.
 */
@@ -417,7 +417,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
     @retval     0               OK
     @retval     != 0            Error
 
-  @detail
+  @details
     When a MERGE parent table has just been opened, insert the
     TABLE_LIST chain from the MERGE handler into the table list used for
     opening tables for this statement. This lets the children be opened
@@ -610,7 +610,7 @@ public:
     @retval     !=NULL                  OK, returning pointer
     @retval     NULL,                   Error.
 
-  @detail
+  @details
     This function retrieves the MyISAM table handle from the
     next child table. It is called for each child table.
 */
@@ -769,7 +769,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
     @retval     0               OK
     @retval     != 0            Error, my_errno gives reason
 
-  @detail
+  @details
     Let the storage engine attach its children through a callback
     function. Check table definitions for consistency.
 

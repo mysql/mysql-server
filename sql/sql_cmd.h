@@ -14,7 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file Representation of an SQL command.
+  @file sql/sql_cmd.h
+  Representation of an SQL command.
 */
 
 #ifndef SQL_CMD_INCLUDED
@@ -104,7 +105,7 @@ enum enum_sql_command {
 };
 
 /**
-  @class Sql_cmd - Representation of an SQL command.
+  Representation of an SQL command.
 
   This class is an interface between the parser and the runtime.
   The parser builds the appropriate derived classes of Sql_cmd
@@ -150,7 +151,7 @@ public:
 
     @see reinit_stmt_before_use()
 
-    @node Currently this function is overloaded for INSERT/REPLACE stmts only.
+    @note Currently this function is overloaded for INSERT/REPLACE stmts only.
 
     @param thd  Current THD.
   */

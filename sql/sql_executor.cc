@@ -3257,7 +3257,7 @@ static ulonglong unique_hash_fields(TABLE *table)
 
   @param tab JOIN_TAB of tmp table to check
 
-  @notes This function assumes record[0] is already filled by the caller.
+  @note This function assumes record[0] is already filled by the caller.
   Depending on presence of table->group, it's or full list of table's fields
   are used to calculate hash.
 

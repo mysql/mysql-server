@@ -17,7 +17,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/** @file Classes used for query optimizations */
+/**
+  @file sql/sql_optimizer.h
+  Classes used for query optimizations.
+*/
 
 /*
    This structure is used to collect info on potentially sargable

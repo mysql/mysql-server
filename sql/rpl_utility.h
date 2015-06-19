@@ -204,13 +204,13 @@ private:
   HASH m_hash;
 
   /**
-     Auxiliar and internal method used to create an hash key, based on
+     Auxiliary and internal method used to create an hash key, based on
      the data in table->record[0] buffer and signaled as used in cols.
 
      @param table  The table that is being scanned
      @param cols   The read_set bitmap signaling which columns are used.
 
-     @retuns the hash key created.
+     @returns the hash key created.
    */
   my_hash_value_type make_hash_key(TABLE *table, MY_BITMAP* cols);
 };

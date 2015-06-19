@@ -1231,9 +1231,9 @@ public:
    code line. This produces
    {
      "transformation": {
-       "select#": <select_number>,
-       "from": <from>,
-       "to": <to>
+       "select#": \<select_number\>,
+       "from": \<from\>,
+       "to": \<to\>
    The objects are left open, so that one can add more to them (often a
    "chosen" property after making some computation). Objects get closed when
    going out of scope as usual.

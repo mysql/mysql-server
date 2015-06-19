@@ -802,7 +802,7 @@ static my_bool net_read_packet_header(NET *net)
   @remark Long packets are handled by my_net_read().
   @remark The network buffer is expanded if necessary.
 
-  @return The length of the packet, or @packet_error on error.
+  @return The length of the packet, or @c packet_error on error.
 */
 
 static size_t net_read_packet(NET *net, size_t *complen)

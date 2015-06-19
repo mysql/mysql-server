@@ -815,6 +815,7 @@ EXCLUDE                = internal \
                          libevent \
                          mysql-test \
                          storage/ndb \
+                         source_downloads \
                          support-files \
                          unittest \
                          zlib \
@@ -1983,6 +1984,7 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
+                         HAVE_REPLICATION \
                          HAVE_PSI_INTERFACE \
                          HAVE_PSI_1 \
                          HAVE_PSI_2 \
