@@ -4706,8 +4706,6 @@ Backup::parseTableDescription(Signal* signal,
   tabPtr.p->maxRecordSize = 1; // LEN word
   bzero(tabPtr.p->attrInfo, sizeof(tabPtr.p->attrInfo));
 
-  Uint32 *list = tabPtr.p->attrInfo + 1;
-
   if (lcp)
   {
     jam();
@@ -4760,7 +4758,7 @@ Backup::parseTableDescription(Signal* signal,
     }
   }
 
-  tabPtr.p->attrInfoLen = Uint32(list - tabPtr.p->attrInfo);
+  tabPtr.p->attrInfoLen = 1;
 
   if (lcp)
   {
@@ -5466,6 +5464,7 @@ Backup::sendScanFragReq(Signal* signal,
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
     ScanFragReq::setTupScanFlag(req->requestInfo, 1);
+    ScanFragReq::setNotInterpretedFlag(req->requestInfo, 1);
     if (ptr.p->is_lcp())
     {
       ScanFragReq::setScanPrio(req->requestInfo, 1);
@@ -5503,15 +5502,10 @@ Backup::sendScanFragReq(Signal* signal,
     }
 
     Uint32 attrInfo[25];
-    attrInfo[0] = table.attrInfoLen;
-    attrInfo[1] = 0;
-    attrInfo[2] = 0;
-    attrInfo[3] = 0;
-    attrInfo[4] = 0;
-    memcpy(attrInfo + 5, table.attrInfo, 4*table.attrInfoLen);
+    memcpy(attrInfo, table.attrInfo, 4*table.attrInfoLen);
     LinearSectionPtr ptr[3];
     ptr[0].p = attrInfo;
-    ptr[0].sz = 5 + table.attrInfoLen;
+    ptr[0].sz = table.attrInfoLen;
     if (delay_possible)
     {
       SectionHandle handle(this);

@@ -56,6 +56,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
           ScanFragReq::getCorrFactorFlag(sig->requestInfo));
   fprintf(output, " stat: %u",
           ScanFragReq::getStatScanFlag(sig->requestInfo));
+  fprintf(output, " ni: %u",
+          ScanFragReq::getNotInterpretedFlag(sig->requestInfo));
   fprintf(output, "\n");
 
   fprintf(output, " tableId: %u\n", sig->tableId);

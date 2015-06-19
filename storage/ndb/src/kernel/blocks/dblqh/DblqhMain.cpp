@@ -11324,6 +11324,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
                ZNIL,
                senderHi);
 
+    regTcPtr->opExec =
+      (1 ^ ScanFragReq::getNotInterpretedFlag(reqinfo));
     {
       const Uint32 applRef = scanFragReq->resultRef;
 

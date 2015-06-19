@@ -84,6 +84,15 @@ public:
   static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
   static Uint32 getStatScanFlag(const Uint32 & requestInfo);
   static Uint32 getPrioAFlag(const Uint32 & requestInfo);
+  /**
+   * To ensure backwards compatibility we set the flag when NOT using
+   * interpreted mode, previously scans always used interpreted mode. Now
+   * it is possible to perform scans (especially LCP scans and Backup
+   * scans) without using the interpreted programs. This way the code will
+   * interact nicely with old code that always set this flag to 0 and want
+   * to use interpreted execution based on that.
+   */
+  static Uint32 getNotInterpretedFlag(const Uint32 & requestInfo);
 
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
@@ -99,6 +108,7 @@ public:
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
   static void setStatScanFlag(Uint32 & requestInfo, Uint32 val);
   static void setPrioAFlag(Uint32 & requestInfo, Uint32 val);
+  static void setNotInterpretedFlag(Uint32 & requestInfo, Uint32 val);
 
   static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getReorgFlag(const Uint32 & requestInfo);
@@ -280,6 +290,8 @@ public:
  * r = Reorg flag            - 2  Bits (1-2)
  * C = corr value flag       - 1  Bit  (16)
  * s = Stat scan             - 1  Bit 17
+ * a = Prio A scan           - 1  Bit 18
+ * i = Not interpreted flag  - 1  Bit 19
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -311,6 +323,7 @@ public:
 
 #define SF_STAT_SCAN_SHIFT  (17)
 #define SF_PRIO_A_SHIFT     (18)
+#define SF_NOT_INTERPRETED_SHIFT (19)
 
 inline 
 Uint32
@@ -532,6 +545,21 @@ void
 ScanFragReq::setPrioAFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setPrioAFlag");
   requestInfo |= (val << SF_PRIO_A_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getNotInterpretedFlag(const Uint32 & requestInfo)
+{
+  return (requestInfo >> SF_NOT_INTERPRETED_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setNotInterpretedFlag(UintR & requestInfo, UintR val)
+{
+  ASSERT_BOOL(val, "ScanFragReq::setStatScanFlag");
+  requestInfo |= (val << SF_NOT_INTERPRETED_SHIFT);
 }
 
 /**
