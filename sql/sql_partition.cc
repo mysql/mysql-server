@@ -6702,6 +6702,9 @@ bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
     thd->locked_tables_list.unlink_from_list(thd,
                                              table->pos_in_locked_tables,
                                              false);
+    /* Assert that the current table is the first in list of open tables */
+    DBUG_ASSERT(thd->open_tables == table);
+
     /*
       Make sure that the table is unlocked, closed and removed from
       the table cache.
