@@ -3094,7 +3094,8 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       inner_fanout * outer_fanout is still the same (dups weedout runs
       a complete join internally).
     */
-    inner_fanout*= outer_fanout / max_outer_fanout;
+    if (max_outer_fanout > 0.0)
+      inner_fanout*= outer_fanout / max_outer_fanout;
     outer_fanout= max_outer_fanout;
   }
 

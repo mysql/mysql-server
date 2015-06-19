@@ -10531,6 +10531,33 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 DROP TABLE t1,t2,t3,t4;
 # End of test for Bug#18194196
+#
+# Bug#21184091 ASSERT `READ_ROWS >= 0.0' AT 
+#              COST_MODEL_SERVER::TMPTABLE_READWRITE_COST()
+#
+CREATE TABLE t1 (
+col_int int(11),
+pk int(11) NOT NULL,
+col_int_key int(11) ,
+col_varchar varchar(1),
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+col_int int(11),
+col_varchar varchar(1)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (19,'x');
+INSERT INTO t2 VALUES (20,'z');
+SELECT table1.col_varchar
+FROM (t2 AS table1 RIGHT JOIN
+((t2 STRAIGHT_JOIN t1 ON (t1.col_varchar = t2.col_varchar)))
+ON (t1.pk = t2.col_int))
+WHERE (t1.pk IN (SELECT t1.col_int_key
+FROM (t1 INNER JOIN t2 ON (t2.col_int = t1.col_int))))
+AND table1.col_varchar != 'q';
+col_varchar
+DROP TABLE t1,t2;
+# End of test for Bug#21184091
 set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
 set optimizer_switch=default;
