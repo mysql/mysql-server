@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,6 +83,7 @@ public:
   static Uint32 getNoDiskFlag(const Uint32 & requestInfo);
   static Uint32 getLcpScanFlag(const Uint32 & requestInfo);
   static Uint32 getStatScanFlag(const Uint32 & requestInfo);
+  static Uint32 getPrioAFlag(const Uint32 & requestInfo);
 
   static void setLockMode(Uint32 & requestInfo, Uint32 lockMode);
   static void setHoldLockFlag(Uint32 & requestInfo, Uint32 holdLock);
@@ -97,6 +98,7 @@ public:
   static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
   static void setStatScanFlag(Uint32 & requestInfo, Uint32 val);
+  static void setPrioAFlag(Uint32 & requestInfo, Uint32 val);
 
   static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getReorgFlag(const Uint32 & requestInfo);
@@ -244,17 +246,18 @@ public:
 
 public:
   Uint32 senderData;
-  Uint32 requestInfo; // 1 == close
+  Uint32 requestInfo;
   Uint32 transId1;
   Uint32 transId2;
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
   Uint32 variableData[1];
 
-  STATIC_CONST( ZCLOSE = 1 );
-
   static Uint32 getCloseFlag(const Uint32&);
   static void setCloseFlag(Uint32&, Uint32);
+
+  static Uint32 getPrioAFlag(const Uint32&);
+  static void setPrioAFlag(Uint32&, Uint32);
 
   static Uint32 getCorrFactorFlag(const Uint32&);
   static void setCorrFactorFlag(Uint32&);
@@ -307,6 +310,7 @@ public:
 #define SF_CORR_FACTOR_SHIFT  (16)
 
 #define SF_STAT_SCAN_SHIFT  (17)
+#define SF_PRIO_A_SHIFT     (18)
 
 inline 
 Uint32
@@ -517,6 +521,19 @@ ScanFragReq::setStatScanFlag(UintR & requestInfo, UintR val){
   requestInfo |= (val << SF_STAT_SCAN_SHIFT);
 }
 
+inline
+Uint32
+ScanFragReq::getPrioAFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_PRIO_A_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setPrioAFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setPrioAFlag");
+  requestInfo |= (val << SF_PRIO_A_SHIFT);
+}
+
 /**
  * Request Info (SCAN_NEXTREQ)
  *
@@ -529,6 +546,7 @@ ScanFragReq::setStatScanFlag(UintR & requestInfo, UintR val){
  */
 #define SFN_CLOSE_SHIFT 0
 #define SFN_CORR_SHIFT  1
+#define SFN_PRIO_A_SHIFT 2
 
 inline
 Uint32
@@ -544,6 +562,31 @@ ScanFragNextReq::setCorrFactorFlag(Uint32 & ri)
   ri |= (1 << SFN_CORR_SHIFT);
 }
 
+inline
+Uint32
+ScanFragNextReq::getCloseFlag(const Uint32 & requestInfo){
+  return requestInfo & 1;
+}
+
+inline
+void
+ScanFragNextReq::setCloseFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setCloseFlag");
+  requestInfo |= val;
+}
+
+inline
+Uint32
+ScanFragNextReq::getPrioAFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SFN_PRIO_A_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragNextReq::setPrioAFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setPrioAFlag");
+  requestInfo |= (val << SFN_PRIO_A_SHIFT);
+}
 
 #undef JAM_FILE_ID
 

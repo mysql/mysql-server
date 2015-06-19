@@ -10245,6 +10245,14 @@ Dblqh::scanMarkers(Signal* signal,
  *  directly if OK.
  */
 
+Uint32 Dblqh::get_is_scan_prioritised(Uint32 scan_ptr_i)
+{
+  ScanRecordPtr scanPtr;
+  scanPtr.i = scan_ptr_i;
+  c_scanRecordPool.getPtr(scanPtr);
+  return is_prioritised_scan(scanPtr.p->scanApiBlockref);
+}
+
 /* ************>> */
 /*  ACC_SCANREF > */
 /* ************>> */
@@ -10398,7 +10406,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
-    ndbrequire(nextReq->requestInfo == ScanFragNextReq::ZCLOSE);
+    ndbrequire(ScanFragNextReq::getCloseFlag(nextReq->requestInfo));
     return;
   }
 
@@ -10462,7 +10470,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * continue execution else set flags and wait until the scan 
    * completes itself
    * ------------------------------------------------------------------ */
-  if (nextReq->requestInfo == ScanFragNextReq::ZCLOSE)
+  if (ScanFragNextReq::getCloseFlag(nextReq->requestInfo))
   {
     jam();
     if(ERROR_INSERTED(5034)){
@@ -10475,6 +10483,8 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     closeScanRequestLab(signal);
     return;
   }//if
+  scanptr.p->prioAFlag = ScanFragNextReq::getPrioAFlag(nextReq->requestInfo);
+  scanptr.p->m_exec_direct_batch_size_words = 0;
 
   fragptr.i = tcConnectptr.p->fragmentptr;
   c_fragment_pool.getPtr(fragptr);
@@ -11995,6 +12005,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   const Uint32 fragPtr = fragPtrP->tupFragptr;
   Uint32 reqinfo = 0;
   TupKeyReq::setDirtyFlag(reqinfo, (scanPtr->scanLockHold == ZFALSE));
+  TupKeyReq::setPrioAFlag(reqinfo, scanPtr->prioAFlag);
   TupKeyReq::setOperation(reqinfo, regTcPtr->operation);
   TupKeyReq::setInterpretedFlag(reqinfo, regTcPtr->opExec);
   TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
@@ -12224,6 +12235,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
     tdata4 += sendKeyinfo20(signal, scanPtr, tcConnectptr.p);
   }//if
   ndbrequire(scanPtr->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
+  scanPtr->m_exec_direct_batch_size_words += tdata4;
   scanPtr->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
   scanPtr->m_curr_batch_size_rows = rows + 1;
   scanPtr->m_last_row = tdata5;
@@ -12535,7 +12547,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->copyPtr = RNIL;
   scanPtr->scanStoredProcId = RNIL;
   scanPtr->scanNumber = ~0;
-  scanPtr->scan_direct_count = ZSCAN_DIRECT_INITIAL;
+  scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
   scanPtr->scanType = ScanRecord::SCAN;
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanCompletedStatus = ZFALSE;
@@ -12544,6 +12556,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->m_stop_batch = 0;
   scanPtr->m_curr_batch_size_rows = 0;
   scanPtr->m_curr_batch_size_bytes= 0;
+  scanPtr->m_exec_direct_batch_size_words = 0;
   scanPtr->m_last_row = 0;
   scanptr.p->scan_acc_segments = 0;
   scanPtr->m_row_id.setNull();
@@ -12554,10 +12567,12 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
   const Uint32 readCommitted = ScanFragReq::getReadCommittedFlag(reqinfo);
   const Uint32 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
+  const Uint32 prioAFlag = ScanFragReq::getPrioAFlag(reqinfo);
 
   scanPtr->scanLockMode = scanLockMode;
   scanPtr->readCommitted = readCommitted;
   scanPtr->rangeScan = rangeScan;
+  scanPtr->prioAFlag = prioAFlag;
 
   const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
   Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
@@ -13078,7 +13093,134 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 	     KeyInfo20::HeaderLength+1, JBB, ptr, 1);
   return keyLen;
 }
-  
+
+/**
+ * Function used to send NEXT_SCANREQ, we need to decide whether to
+ * continue in the same signal or sending a new signal and if sending
+ * a new signal we need to decide whether B-level, Bounded delay or
+ * even A-level signal.
+ *
+ * We need to ensure that we keep track of how many outstanding NEXT_SCANREQ
+ * we have, each time we send a NEXT_SCANREQ with ZSCAN_NEXT we need to
+ * increment this counter to ensure that we don't end up in calling too
+ * deep into the stack which otherwise can happen when we use multiple
+ * ranges.
+ */
+void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
+                                   SimulatedBlock* block,
+                                   ExecFunction f,
+                                   ScanRecord * const scanPtr)
+{
+  /**
+   * We have a number of different cases here. There are normal
+   * scan operations, these always execute at B-level such that
+   * they are scheduled among the other user level transactions.
+   *
+   * We also have prioritised scans, these could be scans for
+   * LCPs, Backups, Node recovery or various ALTER TABLE activities.
+   *
+   * All internal scan activities are treated as prioritised scans.
+   * These need to operate with a bounded delay. Therefore we send
+   * these signals with a bounded delay signal (implemented through
+   * a delayed signal with delay 0). These signals can also set the
+   * priority flag to A-level to ensure that they process more rows
+   * per scheduling slot than otherwise. This can be necessary at
+   * very high loads when we scan for rather small rows.
+   *
+   * For efficiency reasons we try to execute a number of rows before
+   * we send a new signal. We will never go beyond ZMAX_SCAN_DIRECT_COUNT
+   * to avoid using too much of the CPU stack and also to avoid executing
+   * for too long without putting ourselves back in the job buffer.
+   *
+   * We try to maintain the coding rule of NDB to never execute for more
+   * than about 5-10 microseconds. Executing a 100 byte row scan on normal
+   * CPUs in 2015 will take about 1 microsecond. If we instead scan 1000
+   * bytes we estimate the time to be about 3 microseconds. So we use the
+   * formula 750 ns of fixed cost per row + 8 ns per word. With this formula
+   * we want to avoid that current cost has exceeded 5000 ns. If it has we
+   * we will schedule a signal rather than execute directly again. Given that
+   * the exactness of the formula isn't perfect and that we want scheduling
+   * to happen at least before 10 microseconds we will use a simplified
+   * formula. We know that scan_direct_count must be between 0 and 3 when
+   * coming here and not being immediately decided to send signal, so the
+   * fixed part of the cost here is between 750 ns and 3000 ns. So we will
+   * allow for up to 4000 ns of words before we decide to send a signal.
+   * This means that when the number of words sent exceeds 500, then we
+   * we will send a signal.
+   *
+   * These calculations are valid for HW of 2015. Future HW is likely to be
+   * faster and also we're likely to improve the efficiency of creating
+   * LCPs by optimising the code. The coding rules for how long a signal
+   * can execute should stay more or less constant over time. We had the
+   * same coding rules also in the 1990s as we have now. However if we
+   * can execute 300 MByte per second in a CPU rather than 150 MByte per
+   * second then we can increase those limits. So effectively we should
+   * not change the coding rules, but we should adapt our algorithms to
+   * make use of the coding rules in an optimal manner. Not fixing this
+   * when HW gets faster means isn't likely to cause much problems given
+   * that also signals from user transactions are likely to execute faster.
+   * So mainly when we optimise the LCP code we should consider changing
+   * those values and when we start allowing more computations due to
+   * higher CPU throughput also in signals part of user transactions.
+   */
+#define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 500
+#define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 4000
+
+  Uint32 prioAFlag = scanPtr->prioAFlag;
+  const Uint32 scan_direct_count = scanPtr->scan_direct_count;
+  const Uint32 exec_direct_batch_size_words =
+              scanPtr->m_exec_direct_batch_size_words;
+  const Uint32 exec_direct_limit = prioAFlag ?
+                            ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO :
+                            ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO;
+
+  if (scan_direct_count >= ZMAX_SCAN_DIRECT_COUNT ||
+      exec_direct_batch_size_words > exec_direct_limit)
+  {
+    BlockReference blockRef = scanPtr->scanBlockref;
+    BlockReference resultRef = scanPtr->scanApiBlockref;
+    scanPtr->scan_direct_count = 0;
+
+    if (!is_prioritised_scan(resultRef))
+    {
+      /* Normal user scans */
+      jam();
+      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
+      return;
+    }
+    if (exec_direct_batch_size_words > ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO)
+    {
+      /**
+       * See Backup.cpp for explanation of this limit and how it is derived */
+      jam();
+      prioAFlag = false;
+    }
+    scanPtr->m_exec_direct_batch_size_words = 0;
+    if (prioAFlag)
+    {
+      /* Prioritised scan at high load situation */
+      jam();
+      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBA);
+      return;
+    }
+    else
+    {
+      /* Prioritised scan operation */
+      jam();
+      sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
+                          signal, BOUNDED_DELAY, 3);
+      return;
+    }
+  }
+  else
+  {
+    scanPtr->scan_direct_count = scan_direct_count + 1;
+    jam();
+    block->EXECUTE_DIRECT(f, signal);
+    return;
+  }
+}
+
 /* ------------------------------------------------------------------------
  * -------        SEND SCAN_FRAGCONF TO TC THAT CONTROLS THE SCAN   ------- 
  *
@@ -13134,8 +13276,15 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   conf->transId1 = trans_id1;
   conf->transId2 = trans_id2;
   conf->total_len= total_len;
+
+  JobBufferLevel prio_level = JBB;
+  if (scanPtr->prioAFlag)
+  {
+    jam();
+    prio_level = JBA;
+  }
   sendSignal(blockRef, GSN_SCAN_FRAGCONF, 
-             signal, ScanFragConf::SignalLength, JBB);
+             signal, ScanFragConf::SignalLength, prio_level);
 }//Dblqh::sendScanFragConf()
 
 /* ######################################################################### */
@@ -13366,8 +13515,9 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->scanLockHold = ZFALSE;
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
+    scanPtr->m_exec_direct_batch_size_words = 0;
     scanPtr->readCommitted = 0;
-    scanPtr->scan_direct_count = ZSCAN_DIRECT_INITIAL;
+    scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
   }
   
@@ -13878,6 +14028,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
   UintR TnoOfWords = readLength + len;
   scanP->m_curr_batch_size_bytes += 4 * TnoOfWords;
+  scanP->m_exec_direct_batch_size_words += readLength;
   TnoOfWords = TnoOfWords + MAGIC_CONSTANT;
   TnoOfWords = TnoOfWords + (TnoOfWords >> 2);
 
@@ -14472,7 +14623,6 @@ void Dblqh::initCopyTc(Signal* signal, Operation_t op)
   tcConnectptr.p->tcBlockref = cownref;
   tcConnectptr.p->readlenAi = 0;
   tcConnectptr.p->storedProcId = ZNIL;
-  tcConnectptr.p->opExec = 0;
   tcConnectptr.p->nextSeqNoReplica = 0;
   tcConnectptr.p->dirtyOp = ZFALSE;
   tcConnectptr.p->lastReplicaNo = 0;

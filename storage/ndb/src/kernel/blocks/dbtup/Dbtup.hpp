@@ -1571,6 +1571,7 @@ struct KeyReqStruct {
   bool            last_row;
   bool            m_use_rowid;
   Uint8           m_reorg;
+  Uint8           m_prio_a_flag;
   bool            m_deferred_constraints;
   bool            m_disable_fk_checks;
 

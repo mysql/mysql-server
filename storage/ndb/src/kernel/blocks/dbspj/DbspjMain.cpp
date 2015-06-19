@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2711,7 +2711,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   if (unlikely(!m_scan_request_hash.find(requestPtr, key)))
   {
     jam();
-    ndbrequire(req->requestInfo == ScanFragNextReq::ZCLOSE);
+    ndbrequire(ScanFragNextReq::getCloseFlag(req->requestInfo));
     return;
   }
   DEBUG("execSCAN_NEXTREQ, request: " << requestPtr.i);
@@ -2744,7 +2744,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
     return;
   }
 
-  if (req->requestInfo == ScanFragNextReq::ZCLOSE)  // Requested close scan
+  if (ScanFragNextReq::getCloseFlag(req->requestInfo)) // Requested close scan
   {
     jam();
     abort(signal, requestPtr, 0);
@@ -5302,7 +5302,8 @@ Dbspj::scanFrag_abort(Signal* signal,
     ScanFragNextReq* req =
       reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
     req->senderData = treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI;
-    req->requestInfo = ScanFragNextReq::ZCLOSE;
+    req->requestInfo = 0;
+    ScanFragNextReq::setCloseFlag(req->requestInfo, 1);
     req->transId1 = requestPtr.p->m_transId[0];
     req->transId2 = requestPtr.p->m_transId[1];
     req->batch_size_rows = 0;
@@ -7202,7 +7203,8 @@ Dbspj::scanIndex_abort(Signal* signal,
   }
 
   ScanFragNextReq* req = CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
-  req->requestInfo = ScanFragNextReq::ZCLOSE;
+  req->requestInfo = 0;
+  ScanFragNextReq::setCloseFlag(req->requestInfo, 1);
   req->transId1 = requestPtr.p->m_transId[0];
   req->transId2 = requestPtr.p->m_transId[1];
   req->batch_size_rows = 0;
