@@ -509,7 +509,7 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
   struct default_engine *def_eng = default_handle(ndb_eng);
   ndb_pipeline *pipeline = get_my_pipeline_config(ndb_eng); 
     
-  DEBUG_ENTER(); 
+  DEBUG_ENTER_DETAIL();
   
   if(stat_key) { 
     if(strncasecmp(stat_key, "menu", 4) == 0)

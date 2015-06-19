@@ -91,7 +91,8 @@ private:
   QueryPlan * &plan;
 
   /* Private methods*/
-  bool setKeyForReading(Operation &op);
+  bool setKeyForReading(Operation &);
+  bool startTransaction(Operation &);
 };
 
 
@@ -295,6 +296,18 @@ op_status_t worker_prepare_operation(workitem *newitem) {
 
 /***************** STEP ONE OPERATIONS ***************************************/
 
+bool WorkerStep1::startTransaction(Operation & op) {
+  tx = op.startTransaction(wqitem->ndb_instance->db);
+  if(tx) {
+    return true;
+  }
+  logger->log(LOG_WARNING, 0, "startTransaction: %s %d\n",
+              wqitem->ndb_instance->db->getNdbError().message,
+              wqitem->ndb_instance->db->getNdbError().code);
+  return false;
+}
+
+
 WorkerStep1::WorkerStep1(workitem *newitem) :
   wqitem(newitem), 
   tx(0),
@@ -323,8 +336,9 @@ op_status_t WorkerStep1::do_delete() {
     return op_overflow;
   }
 
-  tx = op.startTransaction(wqitem->ndb_instance->db);
-  
+  if(! startTransaction(op))
+    return op_failed;
+
   /* Here we could also support op.deleteTupleCAS(tx, & options)
      but the protocol is ambiguous about whether this is allowed.
   */ 
@@ -445,13 +459,9 @@ op_status_t WorkerStep1::do_write() {
   }
   
   /* Start the transaction */
-  tx = op.startTransaction(wqitem->ndb_instance->db);
-  if(! tx) {
-    logger->log(LOG_WARNING, 0, "startTransaction: %s \n",
-                wqitem->ndb_instance->db->getNdbError().message);
+  if(! startTransaction(op))
     return op_failed;
-  }
-  
+
   if(wqitem->base.verb == OPERATION_REPLACE) {
     DEBUG_PRINT(" [REPLACE] \"%.*s\"", wqitem->base.nkey, wqitem->key);
     ndb_op = op.updateTuple(tx);
@@ -573,13 +583,7 @@ bool WorkerStep1::setKeyForReading(Operation &op) {
     return false;
   
   /* Start a transaction */
-  tx = op.startTransaction(wqitem->ndb_instance->db);
-  if(tx) {
-    return true;
-  }
-  logger->log(LOG_WARNING, 0, "startTransaction: %s \n",
-              wqitem->ndb_instance->db->getNdbError().message);
-  return false;
+  return startTransaction(op);
 }
 
 
@@ -656,8 +660,9 @@ op_status_t WorkerStep1::do_math() {
   } 
   
   /* Use an op (either one) to start the transaction */
-  tx = op1.startTransaction(wqitem->ndb_instance->db);
-  
+  if(! startTransaction(op1))
+    return op_failed;
+
   /* NdbOperation #1: READ */
   {
     ndbop1 = op1.readTuple(tx, NdbOperation::LM_Exclusive);
@@ -984,8 +989,8 @@ void worker_append(NdbTransaction *tx, workitem *item) {
     memcpy(current_val, affix_val, affix_len); 
   }
   * (current_val + total_len) = 0;
-  DEBUG_PRINT("New value: %.*s%s", total_len < 100 ? total_len : 100, 
-              current_val, total_len > 100 ? " ..." : "");
+  DEBUG_PRINT_DETAIL("New value: %.*s%s", total_len < 100 ? total_len : 100,
+                     current_val, total_len > 100 ? " ..." : "");
   
   /* Set the row */
   op.setNullBits();
