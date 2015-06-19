@@ -12188,5 +12188,28 @@ Handler_read_rnd	0
 Handler_read_rnd_next	12
 DROP TABLE t1,t2,t3,t4;
 # End of test for Bug#18194196
+#
+# Bug#21184091 ASSERT `READ_ROWS >= 0.0' AT 
+#              COST_MODEL_SERVER::TMPTABLE_READWRITE_COST()
+#
+CREATE TABLE t1 (
+pk INTEGER,
+col_varchar varchar(1),
+col_int INTEGER,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+col_int INTEGER,
+col_varchar varchar(1)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7,'x');
+INSERT INTO t2 VALUES (4,'z');
+SELECT t2.col_varchar
+FROM t2 STRAIGHT_JOIN t1 ON t2.col_varchar = t1.col_varchar
+JOIN t2 AS table3 ON t1.pk = table3.col_int
+WHERE t1.pk IN (SELECT col_int FROM t1);
+col_varchar
+DROP TABLE t1,t2;
+# End of test for Bug#21184091
 set optimizer_switch=default;
 set optimizer_switch=default;
