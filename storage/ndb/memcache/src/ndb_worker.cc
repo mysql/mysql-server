@@ -989,8 +989,8 @@ void worker_append(NdbTransaction *tx, workitem *item) {
     memcpy(current_val, affix_val, affix_len); 
   }
   * (current_val + total_len) = 0;
-  DEBUG_PRINT("New value: %.*s%s", total_len < 100 ? total_len : 100, 
-              current_val, total_len > 100 ? " ..." : "");
+  DEBUG_PRINT_DETAIL("New value: %.*s%s", total_len < 100 ? total_len : 100,
+                     current_val, total_len > 100 ? " ..." : "");
   
   /* Set the row */
   op.setNullBits();
