@@ -72,23 +72,6 @@ PSI_memory_key key_memory_Rows_query_log_event_rows_query;
 using std::min;
 using std::max;
 
-#if defined(MYSQL_CLIENT)
-
-/*
-  A I_List variable to store the string pair for rewriting the database
-  name for an event that is read from the binlog using mysqlbinlog, so
-  it can be applied to the new database.
- */
-I_List<i_string_pair> binlog_rewrite_db;
-/*
-  A constant character pointer to store the to_db name from the
-  "from_db->to_db" during the transformation of the database name
-  of the event read from the binlog.
-*/
-const char* rewrite_to_db= 0;
-
-#endif
-
 /**
   BINLOG_CHECKSUM variable.
 */
@@ -121,139 +104,6 @@ TYPELIB binlog_checksum_typelib=
   exponent digits + '\0'
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
-
-#if defined(MYSQL_CLIENT)
-
-/*
-  Function to check whether the database name provided as an input
-  parameter is a part of the list of database that needs to be
-  rewritten.
-
-  @param[in] db   The database that needs to be checked in the list.
-
-  @retval   true  The database mentioned as input is in the list of
-                  database that needs to be rewriten.
-  @retval   false The database mentioned as input is not in the list
-                  of databases the needs to be rewritten.
-*/
-bool is_binlog_rewrite_db(const char* db)
-{
-  if (binlog_rewrite_db.is_empty() || !db)
-    return false;
-  I_List_iterator<i_string_pair> it(binlog_rewrite_db);
-  i_string_pair* tmp;
-  while ((tmp= it++))
-  {
-    if (!strncmp(tmp->key, db, NAME_LEN+1))
-      return true;
-  }
-  return false;
-}
-
-/**
-  Function to extract the to_db name from the list of the
-  from_db and to_db pairs.
-
-  from_db1 -> to_db1
-  from_db2 -> to_db2
-
-  stored in the I_List (binlog_rewrite_db).
-
-  At the same time it also sets the option_rewrite_db to 1
-  if the to_db value is found for the supplied from_db name.
-
-  @param[in] db     The database name to be replaced.
-
-  @retval    true   success that a the to_db name is found from the list.
-  @retval    false  the to_db name for the corresponding db is not found.
-
-*/
-bool get_binlog_rewrite_db(const char* db)
-{
-  if (binlog_rewrite_db.is_empty() || !db)
-    return false;
-  I_List_iterator<i_string_pair> it(binlog_rewrite_db);
-  i_string_pair* tmp;
-
-  while ((tmp=it++))
-  {
-    if (!strncmp(tmp->key, db, NAME_LEN+1))
-    {
-      rewrite_to_db= (const char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                             strlen(tmp->val)+1, MYF(MY_WME));
-      strncpy(const_cast<char*>(rewrite_to_db), tmp->val, strlen(tmp->val)+1);
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
-  Function to rewrite the buffer to a new temorary buffer so that the ROW event can
-  be written on to the new database.
-
-  The TABLE_MAP event buffer structure :
-
-  Before Rewriting :
-
-    +-------------+-----------+-------------+----------+----------+
-    |common_header|post_header|database_info|table_info|extra_info|
-    +-------------+-----------+-------------+----------+----------+
-
-  After Rewriting :
-
-    +-------------+-----------+-----------------+----------+----------+
-    |common_header|post_header|new_database_info|table_info|extra_info|
-    +-------------+-----------+-----------------+----------+----------+
-
-    @param[in,out] buf                event buffer to be processes
-    @param[in]     event_len          length of the event
-    @param[in]     description_event  error, warning or info
-
-    @retval        0                  incase of no change to the event length
-    @retval        -1                 incase of memory full error.
-    @retval        >0                 return the new length of the event.
-
-*/
-int rewrite_buffer(char **buf, int event_len,
-                   const Format_description_log_event *description_event)
-{
-  uint8 common_header_len= description_event->common_header_len;
-  uint8 post_header_len= description_event->post_header_len[
-                                            binary_log::TABLE_MAP_EVENT - 1];
-  char* temp_rewrite_buf= 0;
-  const char *const temp_vpart= *buf + common_header_len + post_header_len;
-  uchar const *const ptr_dblen= (uchar const*)temp_vpart + 0;
-
-  if(!(get_binlog_rewrite_db((const char*)ptr_dblen + 1)))
-    return 0;
-  int temp_length_l= common_header_len + post_header_len;
-  size_t old_db_len= *(uchar*) ptr_dblen;
-  size_t rewrite_db_len= strlen(rewrite_to_db);
-
-  uchar const *const ptr_tbllen= ptr_dblen + old_db_len + 2;
-  ssize_t replace_segment= rewrite_db_len - old_db_len;
-  if (!(temp_rewrite_buf= (char*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                            event_len + replace_segment,
-                                            MYF(MY_WME))))
-    return -1;
-
-  memcpy(temp_rewrite_buf, *buf, temp_length_l);
-  char* temp_ptr=temp_rewrite_buf + temp_length_l + 0;
-
-  *temp_ptr++= strlen(rewrite_to_db);
-  strncpy(temp_ptr, rewrite_to_db, rewrite_db_len + 1);
-  char* temp_ptr_tbllen= temp_ptr + rewrite_db_len + 1;
-  size_t temp_length= event_len - (temp_length_l + old_db_len +2);
-  memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
-
-  my_free(*buf);
-  *buf= temp_rewrite_buf;
-  my_free((void*)rewrite_to_db);
-  return (event_len + replace_segment);
-}
-
-#endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD* thd);
@@ -1417,7 +1267,8 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
 Log_event* Log_event::read_log_event(IO_CACHE* file,
                                      const Format_description_log_event
                                      *description_event,
-                                     my_bool crc_check)
+                                     my_bool crc_check,
+                                     read_log_event_filter_function f)
 #endif
 {
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *[, mysql_mutex_t *], Format_description_log_event *, my_bool)");
@@ -1488,22 +1339,12 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   }
 
 #if defined(MYSQL_CLIENT)
-  if(option_rewrite_set && buf[EVENT_TYPE_OFFSET] == binary_log::TABLE_MAP_EVENT)
+  if (f && f(&buf, &data_len, description_event))
   {
-    int rewrite= rewrite_buffer(&buf, data_len, description_event);
-    if(rewrite == -1)
-    {
-      error= "Out of memory";
-      goto err;
-    }
-    else if(rewrite > 0)
-    {
-      *(buf+EVENT_LEN_OFFSET)= rewrite;
-      data_len= uint4korr(buf+EVENT_LEN_OFFSET);
-    }
+    error = "Error applying filter while reading event";
+    goto err;
   }
 #endif
-
   if ((res= read_log_event(buf, data_len, &error, description_event, crc_check)))
     res->register_temp_buf(buf);
 
@@ -4218,20 +4059,12 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
-  bool suppress_use_flag= is_binlog_rewrite_db(db);
   if ((common_header->flags & LOG_EVENT_SUPPRESS_USE_F))
   {
     if (!is_trans_keyword())
       print_event_info->db[0]= '\0';
   }
-
-/*
-  option_rewrite_set is used to check whether the USE DATABASE command needs
-  to be suppressed or not.
-  Suppress if the database being processed is in the list of database that
-  needs to be rewritten. Skip otherwise.
-*/
-  else if (db && !suppress_use_flag)
+  else if (db)
   {
 #ifdef MYSQL_SERVER
     quoted_len= my_strmov_quoted_identifier(this->thd, (char*)quoted_id, db, 0);

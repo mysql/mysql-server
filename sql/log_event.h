@@ -51,12 +51,10 @@
 #include <string>
 
 #ifdef MYSQL_CLIENT
-/*
-  Variable to suppress the USE <DATABASE> command when using the
-  new mysqlbinlog option
-*/
-bool option_rewrite_set= FALSE;
-extern I_List<i_string_pair> binlog_rewrite_db;
+class Format_description_log_event;
+typedef bool (*read_log_event_filter_function)(char** buf,
+                                               ulong*,
+                                               const Format_description_log_event*);
 #endif
 
 extern PSI_memory_key key_memory_Incident_log_event_message;
@@ -798,7 +796,8 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check);
+                                   *description_event, my_bool crc_check,
+                                   read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t* ts);
@@ -1414,6 +1413,8 @@ public:
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
 
   Query_log_event();
@@ -2720,6 +2721,8 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
   const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam.c_str(); }
