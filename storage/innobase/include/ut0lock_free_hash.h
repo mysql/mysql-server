@@ -138,6 +138,31 @@ public:
 		UT_DELETE(m_base);
 	}
 
+	/** Get the next array in the chain, creating it if it does not exist.
+	@return the next array. */
+	next_t
+	get_next_grow_if_necessary()
+	{
+		next_t	next = m_next.load(boost::memory_order_relaxed);
+
+		if (next == NULL) {
+			next = grow();
+		}
+
+		return(next);
+	}
+
+	/** Base array. */
+	T*			m_base;
+
+	/** Number of elements in 'm_base'. */
+	size_t			m_n_base_elements;
+
+	/** Pointer to the next node if any or NULL. */
+	boost::atomic<next_t>	m_next;
+
+private:
+
 	/** Create and append a new array to this one and store a pointer
 	to it in 'm_next'. This is done in a way that multiple threads can
 	attempt this at the same time and only one will succeed. When this
@@ -163,7 +188,7 @@ public:
 			/* Somebody just did that. */
 			UT_DELETE(new_arr);
 
-			/* 'expected' has the previous value which
+			/* 'expected' has the current value which
 			must be != NULL because the CAS failed. */
 			ut_ad(expected != NULL);
 
@@ -172,15 +197,6 @@ public:
 
 		return(new_arr);
 	}
-
-	/** Base array. */
-	T*					m_base;
-
-	/** Number of elements in 'm_base'. */
-	size_t					m_n_base_elements;
-
-	/** Pointer to the next node if any or NULL. */
-	boost::atomic<next_t>			m_next;
 };
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
@@ -280,10 +296,40 @@ public:
 		ut_ad(key != UNUSED);
 		ut_ad(key != DELETED);
 		ut_ad(val != NOT_FOUND);
+		ut_ad(val != GOTO_NEXT_ARRAY);
 
-		key_val_t*	tuple = insert_or_get_position(key);
+		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
 
-		tuple->m_val.store(val, boost::memory_order_relaxed);
+		/* Loop through arrays as long as m_val == GOTO_NEXT_ARRAY. */
+		for (;;) {
+			key_val_t*	tuple = insert_or_get_position(key,
+								       &arr);
+
+			int64_t		cur_val = tuple->m_val.load(
+				boost::memory_order_relaxed);
+
+			/* Busy loop trying to CAS cur_val with val, provided
+			cur_val is not GOTO_NEXT_ARRAY. */
+			for (;;) {
+				if (cur_val == GOTO_NEXT_ARRAY) {
+					arr = arr->get_next_grow_if_necessary();
+					break;
+				}
+
+				if (tuple->m_val.compare_exchange_strong(
+						cur_val,
+						val,
+						boost::memory_order_relaxed)) {
+					/* We just replaced something that
+					is not GOTO_NEXT_ARRAY with 'val'. */
+					return;
+				}
+
+				/* CAS failed which means that m_val was just
+				changed and was different than 'cur_val'. Now we
+				have its current value in 'cur_val', retry. */
+			}
+		}
 	}
 
 	/** Delete a (key, val) pair from the hash.
@@ -399,6 +445,11 @@ private:
 	set to DELETED could still be lurking to execute or be executing right
 	now. */
 	static const uint64_t	DELETED = UINT64_MAX - 1;
+
+	/** A val == GOTO_NEXT_ARRAY designates that this tuple (key, whatever)
+	has been moved to the next array. The search for it should continue
+	there. */
+	static const int64_t	GOTO_NEXT_ARRAY = NOT_FOUND - 1;
 
 	/** (key, val) tuple type. */
 	struct key_val_t {
@@ -594,32 +645,26 @@ private:
 	already present. This method will try expanding the storage (appending
 	new arrays) as long as there is no free slot to insert.
 	@param[in]	key	key to insert or whose cell to retrieve
-	@return a pointer to the inserted or previously existent tuple */
+	@return a pointer to the inserted or previously existent tuple
+	@param[in,out]	arr	start the search from this array; when this
+	method ends, *arr will point to the array in which the search
+	ended (in which the returned key_val resides) */
 	key_val_t*
 	insert_or_get_position(
-		uint64_t	key)
+		uint64_t				key,
+		ut_lock_free_list_node_t<key_val_t>**	arr)
 	{
-		ut_lock_free_list_node_t<key_val_t>*	cur_arr = m_data;
-
 		for (;;) {
 			key_val_t*	t = insert_or_get_position_in_array(
-				cur_arr->m_base,
-				cur_arr->m_n_base_elements,
+				(*arr)->m_base,
+				(*arr)->m_n_base_elements,
 				key);
 
 			if (t != NULL) {
 				return(t);
 			}
 
-			ut_lock_free_list_node_t<key_val_t>*	next;
-
-			next = cur_arr->m_next.load(boost::memory_order_relaxed);
-
-			if (next == NULL) {
-				cur_arr = cur_arr->grow();
-			} else {
-				cur_arr = next;
-			}
+			*arr = (*arr)->get_next_grow_if_necessary();
 		}
 	}
 
@@ -635,34 +680,63 @@ private:
 		ut_ad(key != UNUSED);
 		ut_ad(key != DELETED);
 
-		key_val_t*	tuple = insert_or_get_position(key);
+		/* The value which we expect to be in m_val when calling
+		compare_exchange_strong(). If it fails, then it will write
+		the current value of m_val into this variable. */
+		int64_t					v;
 
-		/* Here tuple->m_val is either NOT_FOUND or some real value.
-		Try to replace NOT_FOUND with 'delta'. If that fails, then
-		this means it is some real value in which case we should
-		apply the delta. We know that m_val will never move from
-		some real value to NOT_FOUND. */
-		int64_t	expected = NOT_FOUND;
+		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
 
-		if (!tuple->m_val.compare_exchange_strong(
-				expected,
-				delta,
-				boost::memory_order_relaxed)) {
+		do {
+			key_val_t*	tuple = insert_or_get_position(key,
+								       &arr);
 
-			/* 'expected' now has the current value, which is not
-			NOT_FOUND because the CAS failed. */
-			ut_ad(expected != NOT_FOUND);
+			/* Here tuple->m_val is either NOT_FOUND,
+			GOTO_NEXT_ARRAY or some real value. Peek at it and
+			if it is NOT_FOUND, then try to CAS NOT_FOUND with
+			'delta'. The load() is much cheaper than the CAS
+			and we know that if m_val is != NOT_FOUND, then it
+			will never become NOT_FOUND again. */
 
+			v = tuple->m_val.load(boost::memory_order_relaxed);
+
+			if (v == NOT_FOUND
+			    && tuple->m_val.compare_exchange_strong(
+				    v,
+				    delta,
+				    boost::memory_order_relaxed)) {
+
+				/* Done, now we have a tuple (key, delta). */
+				return;
+			}
+
+			/* 'v' now has the current (maybe outdated) value, which
+			is != NOT_FOUND because either it was != NOT_FOUND as
+			returned by load() or the CAS failed because m_val was
+			changed between the load() and the CAS, in this case
+			CAS will write the value of m_val into 'v'. */
+			ut_ad(v != NOT_FOUND);
+
+			/* Busy loop trying to CAS v with v + delta, provided
+			that v is not GOTO_NEXT_ARRAY. */
 			for (;;) {
-				// if expected == GOTO_NEW_ARRAY ...
-				if (tuple->m_val.compare_exchange_strong(
-						expected,
-						expected + delta,
-						boost::memory_order_relaxed)) {
+				if (v == GOTO_NEXT_ARRAY) {
+					arr = arr->get_next_grow_if_necessary();
 					break;
 				}
+
+				if (tuple->m_val.compare_exchange_strong(
+						v,
+						v + delta,
+						boost::memory_order_relaxed)) {
+					return;
+				}
+
+				/* CAS failed which means that m_val was just
+				changed and was different than 'v'. Now we
+				have its current value in 'v', retry. */
 			}
-		}
+		} while (v == GOTO_NEXT_ARRAY);
 	}
 
 	/** Storage for the (key, val) tuples. */
