@@ -493,7 +493,7 @@ DECLARE_THREAD(thread_0r100w)(
 TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
 {
 	run_multi_threaded(
-		"multi threaded,   0% read, 100% write" /* label */,
+		"multi threaded,   0% read, 100% write, many keys" /* label */,
 		1024 * 32 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
@@ -505,7 +505,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
 TEST_F(ut0lock_free_hash, multi_threaded_0r100w_few_keys)
 {
 	run_multi_threaded(
-		"multi threaded,   0% read, 100% write, few keys" /* label */,
+		"multi threaded,   0% read, 100% write,  few keys" /* label */,
 		1024 * 32 /* initial hash size */,
 		16 /* n_common */,
 		0 /* n_priv_per_thread */,
@@ -584,7 +584,7 @@ DECLARE_THREAD(thread_50r50w)(
 TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
 {
 	run_multi_threaded(
-		"multi threaded,  50% read,  50% write" /* label */,
+		"multi threaded,  50% read,  50% write, many keys" /* label */,
 		1024 * 32 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
@@ -655,7 +655,7 @@ DECLARE_THREAD(thread_100r0w)(
 TEST_F(ut0lock_free_hash, multi_threaded_100r0w)
 {
 	run_multi_threaded(
-		"multi threaded, 100% read,   0% write" /* label */,
+		"multi threaded, 100% read,   0% write, many keys" /* label */,
 		1024 * 32 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
