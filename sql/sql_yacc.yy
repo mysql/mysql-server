@@ -1286,6 +1286,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <charset>
         opt_collate
+        opt_collate_explicit
         charset_name
         charset_name_or_default
         old_or_new_charset_name
@@ -6300,9 +6301,19 @@ field_spec:
 
 field_def:
           type opt_attribute {}
-        | type opt_generated_always AS '(' generated_column_func ')' opt_stored_attribute opt_gcol_attribute_list
+        | type opt_collate_explicit opt_generated_always
+          AS '(' generated_column_func ')' opt_stored_attribute
+          opt_gcol_attribute_list
           {
             $$= $1;
+            if (Lex->charset)
+            {
+              Lex->charset= merge_charset_and_collation(Lex->charset, $2);
+              if (Lex->charset == NULL)
+                MYSQL_YYABORT;
+            }
+            else
+              Lex->charset= $2;
             Lex->gcol_info->set_field_type((enum enum_field_types) $$);
           }
         ;
@@ -6970,6 +6981,11 @@ collation_name:
 opt_collate:
           /* empty */ { $$=NULL; }
         | COLLATE_SYM collation_name_or_default { $$=$2; }
+        ;
+
+opt_collate_explicit:
+          /* empty */ { $$= NULL; }
+        | COLLATE_SYM collation_name { $$= $2; }
         ;
 
 collation_name_or_default:

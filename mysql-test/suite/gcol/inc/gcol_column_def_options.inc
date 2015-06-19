@@ -257,3 +257,46 @@ d int generated always as (b+a) virtual
 INSERT INTO t1(a) VALUES(0);
 DELETE FROM t1 WHERE c=1;
 DROP TABLE t1;
+
+--echo # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
+--echo #                DEFINITION
+--echo #
+
+--echo # Check for a valid syntax:
+
+CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar"));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (i INT);
+ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # Check for a charset mismatch processing:
+
+--error ER_COLLATION_CHARSET_MISMATCH
+CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));
+
+
+--echo # Check for a sorting order support:
+
+CREATE TABLE t1 (c CHAR(10) CHARSET latin1 COLLATE latin1_bin,
+                 c_ci CHAR(10) CHARSET latin1 COLLATE latin1_general_ci GENERATED ALWAYS AS (c),
+                 c_cs CHAR(10) CHARSET latin1 COLLATE latin1_general_cs GENERATED ALWAYS AS (c));
+
+INSERT INTO t1 (c) VALUES ('a'), ('A');
+
+SELECT * FROM t1 ORDER BY c;
+SELECT * FROM t1 ORDER BY c_ci;
+SELECT * FROM t1 ORDER BY c_cs;
+
+SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
+
+DROP TABLE t1;
+
+--echo #
