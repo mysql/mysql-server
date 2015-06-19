@@ -1514,7 +1514,7 @@ int dth_encode_decimal(const NdbDictionary::Column *col, size_t len,
     return len;
   }
   else {
-    DEBUG_PRINT("deicmal_str2bin() returns %d", r);
+    DEBUG_PRINT_DETAIL("deicmal_str2bin() returns %d", r);
     return DTH_NUMERIC_OVERFLOW;
   }
 }

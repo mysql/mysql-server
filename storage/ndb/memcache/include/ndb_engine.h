@@ -58,6 +58,7 @@ struct ndb_engine {
     const char * server_role;
     const char * scheduler;
     bool debug_enable;
+    bool debug_detail;
     bool reconf_enable;
   } startup_options;
   
