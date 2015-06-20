@@ -11383,7 +11383,7 @@ validate_create_tablespace_info(
 	ut_a(alter_info->data_file_name);
 
 	if (srv_read_only_mode) {
-		return(HA_ERR_TABLE_READONLY);
+		return(HA_ERR_INNODB_READ_ONLY);
 	}
 
 	/* From this point forward, push a warning for each problem found
@@ -11572,7 +11572,7 @@ innobase_drop_tablespace(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	if (srv_read_only_mode) {
-		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
 	}
 
 	error = validate_tablespace_name(alter_info->tablespace_name, false);
