@@ -379,7 +379,7 @@ static int free_share(TOKUDB_SHARE * share) {
     }
 
 const char *ha_tokudb::table_type() const {
-    extern const char * const tokudb_hton_name;
+    extern const char *tokudb_hton_name;
     return tokudb_hton_name;
 } 
 
