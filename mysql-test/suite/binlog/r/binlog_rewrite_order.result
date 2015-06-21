@@ -1,7 +1,7 @@
 call mtr.add_suppression("WARNING: The option --database has been used. It may filter parts of transactions,");
 RESET MASTER;
-CREATE SCHEMA schemaA;
-USE schemaA;
+CREATE SCHEMA schemaa;
+USE schemaa;
 FLUSH LOGS;
 CREATE TABLE test (id int);
 CREATE TABLE tload (c1 TEXT);
@@ -25,8 +25,8 @@ FLUSH LOGS;
 CREATE SCHEMA db1;
 RESET MASTER;
 TRUNCATE _other_.t1;
-include/diff_tables.inc [schemaA.test,db1.test]
-include/diff_tables.inc [schemaA.tload,db1.tload]
+include/diff_tables.inc [schemaa.test,db1.test]
+include/diff_tables.inc [schemaa.tload,db1.tload]
 TRUNCATE db1.test;
 TRUNCATE db1.tload;
 TRUNCATE _other_.t1;
@@ -45,12 +45,12 @@ include/assert.inc [Verify that other database was not rewritten]
 SET SQL_LOG_BIN=1;
 SET BINLOG_FORMAT=MIXED;
 DROP SCHEMA db1;
-DROP SCHEMA schemaA;
+DROP SCHEMA schemaa;
 DROP SCHEMA _other_;
 RESET MASTER;
 RESET MASTER;
-CREATE SCHEMA schemaA;
-USE schemaA;
+CREATE SCHEMA schemaa;
+USE schemaa;
 FLUSH LOGS;
 CREATE TABLE test (id int);
 CREATE TABLE tload (c1 TEXT);
@@ -71,35 +71,35 @@ SET SESSION BINLOG_FORMAT=ROW;
 INSERT INTO t1 VALUES (2);
 SET SQL_LOG_BIN=0;
 FLUSH LOGS;
-CREATE SCHEMA schemaB;
+CREATE SCHEMA schemab;
 RESET MASTER;
 TRUNCATE _other_.t1;
-include/diff_tables.inc [schemaA.test,schemaB.test]
-include/diff_tables.inc [schemaA.tload,schemaB.tload]
-TRUNCATE schemaB.test;
-TRUNCATE schemaB.tload;
+include/diff_tables.inc [schemaa.test,schemab.test]
+include/diff_tables.inc [schemaa.tload,schemab.tload]
+TRUNCATE schemab.test;
+TRUNCATE schemab.tload;
 TRUNCATE _other_.t1;
 RESET MASTER;
-USE schemaB;
-include/assert.inc [Zero records on schemaB.test]
+USE schemab;
+include/assert.inc [Zero records on schemab.test]
 include/assert.inc [There is NO data in 'tload' table]
-TRUNCATE schemaB.test;
-TRUNCATE schemaB.tload;
+TRUNCATE schemab.test;
+TRUNCATE schemab.tload;
 TRUNCATE _other_.t1;
 RESET MASTER;
-DROP TABLE schemaB.test;
-DROP TABLE schemaB.tload;
+DROP TABLE schemab.test;
+DROP TABLE schemab.tload;
 DROP TABLE _other_.t1;
 include/assert.inc [Verify that other database was not rewritten]
 SET SQL_LOG_BIN=1;
 SET BINLOG_FORMAT=MIXED;
-DROP SCHEMA schemaB;
-DROP SCHEMA schemaA;
+DROP SCHEMA schemab;
+DROP SCHEMA schemaa;
 DROP SCHEMA _other_;
 RESET MASTER;
 RESET MASTER;
-CREATE SCHEMA schemaA;
-USE schemaA;
+CREATE SCHEMA schemaa;
+USE schemaa;
 FLUSH LOGS;
 CREATE TABLE test (id int);
 CREATE TABLE tload (c1 TEXT);
@@ -123,8 +123,8 @@ FLUSH LOGS;
 CREATE SCHEMA my_new_fancy_and_very_long_schema_name;
 RESET MASTER;
 TRUNCATE _other_.t1;
-include/diff_tables.inc [schemaA.test,my_new_fancy_and_very_long_schema_name.test]
-include/diff_tables.inc [schemaA.tload,my_new_fancy_and_very_long_schema_name.tload]
+include/diff_tables.inc [schemaa.test,my_new_fancy_and_very_long_schema_name.test]
+include/diff_tables.inc [schemaa.tload,my_new_fancy_and_very_long_schema_name.tload]
 TRUNCATE my_new_fancy_and_very_long_schema_name.test;
 TRUNCATE my_new_fancy_and_very_long_schema_name.tload;
 TRUNCATE _other_.t1;
@@ -143,7 +143,7 @@ include/assert.inc [Verify that other database was not rewritten]
 SET SQL_LOG_BIN=1;
 SET BINLOG_FORMAT=MIXED;
 DROP SCHEMA my_new_fancy_and_very_long_schema_name;
-DROP SCHEMA schemaA;
+DROP SCHEMA schemaa;
 DROP SCHEMA _other_;
 RESET MASTER;
 SET BINLOG_FORMAT=MIXED;

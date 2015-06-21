@@ -15,17 +15,17 @@ call mtr.add_suppression("WARNING: The option --database has been used. It may f
 --let $saved_binlog_format=`SELECT @@binlog_format`
 
 # new db name is smaller than the original one
---let $rewrite_from_db=schemaA
+--let $rewrite_from_db=schemaa
 --let $rewrite_to_db=db1
 --source extra/binlog_tests/mysqlbinlog_rewrite_db.test
 
 # new db name is the same size as the original one
---let $rewrite_from_db=schemaA
---let $rewrite_to_db=schemaB
+--let $rewrite_from_db=schemaa
+--let $rewrite_to_db=schemab
 --source extra/binlog_tests/mysqlbinlog_rewrite_db.test
 
 # new db name is the larger than the original one
---let $rewrite_from_db=schemaA
+--let $rewrite_from_db=schemaa
 --let $rewrite_to_db=my_new_fancy_and_very_long_schema_name
 --source extra/binlog_tests/mysqlbinlog_rewrite_db.test
 
