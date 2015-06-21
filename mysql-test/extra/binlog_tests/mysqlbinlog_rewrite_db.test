@@ -65,7 +65,7 @@ RESET MASTER;
 # database name and also filter only those changes that affect
 # the database with the new name
 #
---exec $MYSQL_BINLOG --database=$rewrite_to_db --rewrite-db='$rewrite_from_db->$rewrite_to_db' --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --database=$rewrite_to_db --rewrite-db="$rewrite_from_db->$rewrite_to_db" --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
 
 --let $diff_tables=$rewrite_from_db.test,$rewrite_to_db.test
 --source include/diff_tables.inc
@@ -85,7 +85,7 @@ RESET MASTER;
 # with the old name
 #
 
---exec $MYSQL_BINLOG --database=$rewrite_from_db --rewrite-db='$rewrite_from_db->$rewrite_to_db' --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --database=$rewrite_from_db --rewrite-db="$rewrite_from_db->$rewrite_to_db" --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
 
 --eval USE $rewrite_to_db
 --let $assert_text= Zero records on $rewrite_to_db.test
@@ -111,7 +111,7 @@ RESET MASTER;
 --eval DROP TABLE $rewrite_to_db.tload
 --eval DROP TABLE $other.t1
 
---exec $MYSQL_BINLOG --rewrite-db='$rewrite_from_db->$rewrite_to_db' --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --rewrite-db="$rewrite_from_db->$rewrite_to_db" --force-if-open $datadir/backup_$binlog_file | $MYSQL --local-infile=1
 
 --let $assert_cond= COUNT(*) = 2 FROM $other.t1
 --let $assert_text= Verify that other database was not rewritten
