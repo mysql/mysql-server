@@ -35,17 +35,18 @@ public:
   
 protected:
   void define_tablespecs();
-  int get_server_role_id();
-  bool get_connections();
-  bool get_policies();
-  bool get_prefixes(int role_id);
+  int get_server_role_id(NdbTransaction *);
+  bool get_connections(NdbTransaction *);
+  bool get_policies(NdbTransaction *);
+  bool get_prefixes(int role_id, NdbTransaction *);
   bool store_prefix(const char *, TableSpec *, int, char *);
-  TableSpec * get_container(char *name);
-  virtual TableSpec * get_container_record(char *name);
-  void log_signon();
+  TableSpec * get_container(char *name, NdbTransaction *);
+  virtual TableSpec * get_container_record(char *name, NdbTransaction *);
+  void log_signon(NdbTransaction *);
   void set_initial_cas();
   
   /* Private instance variables */
+  Ndb db;
   Configuration &conf;
   int server_role_id;
   Uint64 signon_gci;  
@@ -73,7 +74,7 @@ public:
 class config_v1_2 : public config_v1 { 
 public:
   config_v1_2(Configuration * cf) : config_v1(cf) {};
-  virtual TableSpec * get_container_record(char *name);
+  virtual TableSpec * get_container_record(char *name, NdbTransaction *);
   virtual void minor_version_config();
 };
 
