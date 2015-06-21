@@ -47,12 +47,15 @@ extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
 
 config_v1::config_v1(Configuration * cf) :
+  db(cf->primary_conn),
   conf(*cf),
   server_role_id(-1), 
   nclusters(0),
   policies_map(0),
   containers_map(0)
-{};
+{
+  db.init(2);
+};
 
 config_v1::~config_v1() {
   DEBUG_ENTER_METHOD("config_v1 destructor");
@@ -74,19 +77,25 @@ bool config_v1::read_configuration() {
   policies_map    = new LookupTable<prefix_info_t>();
  
   bool success = false;  
-  server_role_id = get_server_role_id();
-  if(! (server_role_id < 0)) success = get_policies();
-  if(success) success = get_connections();
-  if(success) success = get_prefixes(server_role_id);
+  NdbTransaction *tx = db.startTransaction();
+
+  server_role_id = get_server_role_id(tx);
+  if(! (server_role_id < 0)) success = get_policies(tx);
+  if(success) success = get_connections(tx);
+  if(success) success = get_prefixes(server_role_id, tx);
   if(success) {
-    log_signon();
+    log_signon(tx);
     set_initial_cas();
+    tx->execute(NdbTransaction::Commit);
     minor_version_config();
-    return true;
   }
-  
-  logger->log(LOG_WARNING, 0, "Configuration failed.\n");
-  return false;
+  else {
+    logger->log(LOG_WARNING, 0, "Configuration failed.\n");
+    tx->execute(NdbTransaction::Rollback);
+  }
+
+  tx->close();
+  return success;
 }
 
 
@@ -96,11 +105,9 @@ bool config_v1::read_configuration() {
  WHERE role_name = conf.server_role;
  Returns the integer ID, or -1 if the record was not found.
  */
-int config_v1::get_server_role_id() {
+int config_v1::get_server_role_id(NdbTransaction *tx) {
   uint32_t val = -1;
   
-  Ndb db(conf.primary_conn);
-  db.init(2);
   TableSpec spec("ndbmemcache.memcache_server_roles",
                  "role_name", "role_id,max_tps");
   QueryPlan plan(&db, &spec);
@@ -108,12 +115,11 @@ int config_v1::get_server_role_id() {
   
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.buffer =     (char *) malloc(op.requiredBuffer());
-  NdbTransaction *tx = db.startTransaction();
-  
+
   op.clearKeyNullBits();
   op.setKeyPart(COL_STORE_KEY, conf.server_role, strlen(conf.server_role));
   op.readTuple(tx);
-  tx->execute(NdbTransaction::Commit);
+  tx->execute(NdbTransaction::NoCommit);
   
   if(tx->getNdbError().classification == NdbError::NoError) {
     val = op.getIntValue(COL_STORE_VALUE+0);
@@ -124,7 +130,6 @@ int config_v1::get_server_role_id() {
                 "configuration database.\n\n", conf.server_role);
   }
   
-  tx->close();
   free(op.key_buffer);
   free(op.buffer);
   
@@ -142,19 +147,16 @@ int config_v1::get_server_role_id() {
  `delete_policy` ENUM('cache_only','ndb_only','caching','disabled') NOT NULL ,
  `flush_from_db` ENUM('false', 'true') NOT NULL DEFAULT 'false' 
  */
-bool config_v1::get_policies() {
+bool config_v1::get_policies(NdbTransaction *tx) {
   DEBUG_ENTER_METHOD("config_v1::get_policies");
   bool success = true;
   int res;
-  Ndb db(conf.primary_conn);
-  db.init(4);
   TableSpec spec("ndbmemcache.cache_policies",
                  "policy_name",                 
                  "get_policy,set_policy,delete_policy,flush_from_db");
   QueryPlan plan(&db, &spec); 
   Operation op(&plan, OP_SCAN);
   
-  NdbTransaction *tx = db.startTransaction();
   NdbScanOperation *scan = op.scanTable(tx);
   if(! scan) {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
@@ -164,7 +166,9 @@ bool config_v1::get_policies() {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
     success = false;
   }
-  while((res = scan->nextResult((const char **) &op.buffer, true, false) == 0)) {
+
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  while((res == 0) || (res == 2)) {
     prefix_info_t * info = (prefix_info_t *) calloc(1, sizeof(prefix_info_t));
     
     char name[41];          //   `policy_name` VARCHAR(40) NOT NULL
@@ -198,15 +202,13 @@ bool config_v1::get_policies() {
                 name, get_policy, set_policy, del_policy, flush_policy, info);
     
     policies_map->insert(name, info);
-    
+    res = scan->nextResult((const char **) &op.buffer, true, false);
   }
   if(res == -1) {
     logger->log(LOG_WARNING, 0, scan->getNdbError().message);
     success = false;
   }
-  
-  tx->close();
-  
+
   return success;
 }
 
@@ -215,12 +217,10 @@ bool config_v1::get_policies() {
  Creates the cluster_ids map <cfg_data_cluster_id => connections_index>.
  Returns true on success.
  */
-bool config_v1::get_connections() {
+bool config_v1::get_connections(NdbTransaction *tx) {
   DEBUG_ENTER_METHOD("config_v1::get_connections");
   bool success = true;
   int res;
-  Ndb db(conf.primary_conn);
-  db.init(4);
   TableSpec spec("ndbmemcache.ndb_clusters",
                  "cluster_id",
                  "ndb_connectstring,microsec_rtt");  
@@ -228,7 +228,6 @@ bool config_v1::get_connections() {
   QueryPlan plan(&db, &spec); 
   Operation op(&plan, OP_SCAN);
   
-  NdbTransaction *tx = db.startTransaction();
   NdbScanOperation *scan = op.scanTable(tx);
   if(! scan) {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
@@ -238,7 +237,9 @@ bool config_v1::get_connections() {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
     success = false;
   }
-  while((res = scan->nextResult((const char **) &op.buffer, true, false) == 0)) {   
+
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  while((res == 0) || (res == 2)) {
     bool str_is_null;
     char connectstring[129];
     unsigned int rtt;
@@ -264,22 +265,22 @@ bool config_v1::get_connections() {
     
     nclusters++;
     cluster_ids[connection_idx] = cfg_data_id;
+    res = scan->nextResult((const char **) &op.buffer, true, false);
   }
   if(res == -1) {
     logger->log(LOG_WARNING, 0, scan->getNdbError().message);
     success = false;
   }
   DEBUG_PRINT("clusters: %d", nclusters);
-  tx->close();
   return success;
 }
 
 
-TableSpec * config_v1::get_container(char *name) {
+TableSpec * config_v1::get_container(char *name, NdbTransaction *tx) {
   TableSpec *c = containers_map->find(name);
 
   if(c == NULL) {
-    c = get_container_record(name);
+    c = get_container_record(name, tx);
     containers_map->insert(name, c);
   }
   else {
@@ -290,10 +291,8 @@ TableSpec * config_v1::get_container(char *name) {
 }
 
 
-TableSpec * config_v1::get_container_record(char *name) {
+TableSpec * config_v1::get_container_record(char *name, NdbTransaction *tx) {
   TableSpec *container;
-  Ndb db(conf.primary_conn);
-  db.init(1);
   TableSpec spec("ndbmemcache.containers",
                  "name",  
                  "db_schema,db_table,key_columns,value_columns,flags,"
@@ -303,12 +302,11 @@ TableSpec * config_v1::get_container_record(char *name) {
   
   op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
   op.buffer     = (char *) malloc(op.requiredBuffer());
-  NdbTransaction *tx = db.startTransaction();
-  
+
   op.clearKeyNullBits();
   op.setKeyPart(COL_STORE_KEY, name, strlen(name));
   op.readTuple(tx);
-  tx->execute(NdbTransaction::Commit);
+  tx->execute(NdbTransaction::NoCommit);
   
   if(tx->getNdbError().classification == NdbError::NoError) {
     char val[256];
@@ -371,7 +369,6 @@ TableSpec * config_v1::get_container_record(char *name) {
     logger->log(LOG_WARNING, 0, "\"%s\" NOT FOUND in database.\n", name);
   }
   
-  tx->close();
   free(op.key_buffer);
   free(op.buffer);
   
@@ -385,16 +382,14 @@ TableSpec * config_v1::get_container_record(char *name) {
  configuration metadata and passes them on to store_prefix().
  Returns true on success. 
  */
-bool config_v1::get_prefixes(int role_id) {
+bool config_v1::get_prefixes(int role_id, NdbTransaction *tx) {
   DEBUG_ENTER_METHOD("config_v1::get_prefixes");
   bool success = true;
   int res;
   TableSpec spec("ndbmemcache.key_prefixes",
                  "server_role_id,key_prefix", 
                  "cluster_id,policy,container");
-  Ndb db(conf.primary_conn);
-  db.init(4);
-  QueryPlan plan(&db, &spec, PKScan); 
+  QueryPlan plan(&db, &spec, PKScan);
   Operation op(&plan, OP_SCAN);
   
   // `server_role_id` INT UNSIGNED NOT NULL DEFAULT 0,
@@ -408,7 +403,6 @@ bool config_v1::get_prefixes(int role_id) {
   bound.low_inclusive = bound.high_inclusive = true;
   bound.range_no = 0;
   
-  NdbTransaction *tx = db.startTransaction();
   NdbIndexScanOperation *scan = op.scanIndex(tx, &bound);
   if(! scan) {
     logger->log(LOG_WARNING, 0, "scanIndex(): %s\n", tx->getNdbError().message);
@@ -418,7 +412,9 @@ bool config_v1::get_prefixes(int role_id) {
     logger->log(LOG_WARNING, 0, "execute(): %s\n", tx->getNdbError().message);
     success = false;
   }
-  while((res = scan->nextResult((const char **) &op.buffer, true, false) == 0)) {
+
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  while((res == 0) || (res == 2)) {
     char key_prefix[251], policy_name[41], container[51];
     int cluster_id = 0;
     TableSpec * container_spec;
@@ -436,7 +432,7 @@ bool config_v1::get_prefixes(int role_id) {
     if(op.isNull(COL_STORE_VALUE + 2)) container_spec = 0;
     else {
       op.copyValue(COL_STORE_VALUE + 2, container);
-      container_spec = get_container(container);
+      container_spec = get_container(container, tx);
       if(! container_spec) {
         logger->log(LOG_WARNING, 0, "Cannot find container \"%s\" for "
                     "key prefix \"%s\".\n", container, key_prefix);
@@ -449,9 +445,15 @@ bool config_v1::get_prefixes(int role_id) {
       delete[] op.key_buffer;
       return false;  
     }
-  } /* while(res=scan->nextResult()) */
-  
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  }
+
   free(op.key_buffer);
+
+  if(res == -1) {
+    logger->log(LOG_WARNING, 0, scan->getNdbError().message);
+    return false;
+  }
   return true;
 }
 
@@ -527,8 +529,7 @@ bool config_v1::store_prefix(const char * name,
    and fill in the prefix_id of the copy.
    */
   prefix.info.prefix_id = conf.storePrefix(prefix);
-  
-  
+
   return true;
 }
 
@@ -539,12 +540,10 @@ bool config_v1::store_prefix(const char * name,
  This has the side effect of providing us with the global checkpoint ID
  for server startup.
  */
-void config_v1::log_signon() {
+void config_v1::log_signon(NdbTransaction *tx) {
   DEBUG_ENTER_METHOD("config_v1::log_signon");
   char my_hostname[256];
   gethostname(my_hostname, 256);  
-  Ndb db(conf.primary_conn);
-  db.init(1);
   TableSpec spec("ndbmemcache.last_memcached_signon",
                  "ndb_node_id", "hostname,server_role,signon_time");
   QueryPlan plan(&db, &spec);
@@ -558,12 +557,10 @@ void config_v1::log_signon() {
   op.setColumn(COL_STORE_VALUE+1,   conf.server_role, strlen(conf.server_role)); // role
   op.setColumnInt(COL_STORE_VALUE+2,time(NULL));                                 // timestamp
   
-  NdbTransaction *tx = db.startTransaction();   // TODO: node selection
   op.writeTuple(tx);
-  tx->execute(NdbTransaction::Commit);
+  tx->execute(NdbTransaction::NoCommit);
   tx->getGCI(&signon_gci);
 
-  tx->close();  
   free(op.key_buffer);
   free(op.buffer);
   return;
@@ -582,9 +579,7 @@ void config_v1::set_initial_cas() {
    |                          | + 8bit |                            | 
    |                          | NodeId |                            |
    ----------------------------------------------------------------   */
-  Ndb db(conf.primary_conn);
-  db.init(1);
-  const uint64_t MASK_GCI   = 0x07FFFFFF00000000LLU; // Use these 27 bits of GCI 
+  const uint64_t MASK_GCI   = 0x07FFFFFF00000000LLU; // Use these 27 bits of GCI
   const uint64_t ENGINE_BIT = 0x0000001000000000LLU; // bit 36
   
   uint64_t node_id = ((uint64_t) db.getNodeId()) << 28;  
@@ -723,23 +718,20 @@ void config_v1_2::minor_version_config() {
 }
 
 
-TableSpec * config_v1_2::get_container_record(char *name) {
-  TableSpec * cont = config_v1::get_container_record(name);
+TableSpec * config_v1_2::get_container_record(char *name, NdbTransaction *tx) {
+  TableSpec * cont = config_v1::get_container_record(name, tx);
   if(cont) {
-    Ndb db(conf.primary_conn);
-    db.init(1);
     TableSpec spec("ndbmemcache.containers", "name", "large_values_table");
     QueryPlan plan(&db, &spec);
     Operation op(&plan, OP_READ);
     
     op.key_buffer = (char *) malloc(op.requiredKeyBuffer());
     op.buffer     = (char *) malloc(op.requiredBuffer());
-    NdbTransaction *tx = db.startTransaction();
-    
+
     op.clearKeyNullBits();
     op.setKeyPart(COL_STORE_KEY, name, strlen(name));
     op.readTuple(tx);
-    tx->execute(NdbTransaction::Commit);
+    tx->execute(NdbTransaction::NoCommit);
     
     if(tx->getNdbError().classification == NdbError::NoError) {
       char val[256];
@@ -749,7 +741,6 @@ TableSpec * config_v1_2::get_container_record(char *name) {
       }
     }
 
-    tx->close();
     free(op.key_buffer);
     free(op.buffer);
   }
