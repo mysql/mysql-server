@@ -182,18 +182,21 @@ void reconfigure(Scheduler *s) {
   DEBUG_ENTER();
 
   next_config = new Configuration(active_config);
-  read_configuration(next_config);
-  if(s->global_reconfigure(next_config)) {
+
+  if(! read_configuration(next_config)) {
+    logger->log(LOG_WARNING, 0, "Online reconfiguration failed.");
+  }
+  else if(! s->global_reconfigure(next_config)) {
+    logger->log(LOG_WARNING, 0, 
+                "Online configuration aborted -- not supported by scheduler.");
+  }
+  else {
     /* There is no garbage collection here, but there could be if Configuration
        had a carefully-written destructor. */
     stale_config = active_config;
     active_config = next_config;
     next_config = 0;
     logger->log(LOG_WARNING, 0, "ONLINE RECONFIGURATION COMPLETE");
-  }
-  else {
-    logger->log(LOG_WARNING, 0, 
-                "Online configuration aborted -- not supported by scheduler.");
   }
 }
 
