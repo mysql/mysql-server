@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -164,7 +164,9 @@ bool config_v1::get_policies() {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
     success = false;
   }
-  while((res = scan->nextResult((const char **) &op.buffer, true, false) == 0)) {
+
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  while((res == 0) || (res == 2)) {
     prefix_info_t * info = (prefix_info_t *) calloc(1, sizeof(prefix_info_t));
     
     char name[41];          //   `policy_name` VARCHAR(40) NOT NULL
@@ -198,7 +200,7 @@ bool config_v1::get_policies() {
                 name, get_policy, set_policy, del_policy, flush_policy, info);
     
     policies_map->insert(name, info);
-    
+    res = scan->nextResult((const char **) &op.buffer, true, false);
   }
   if(res == -1) {
     logger->log(LOG_WARNING, 0, scan->getNdbError().message);
@@ -238,7 +240,9 @@ bool config_v1::get_connections() {
     logger->log(LOG_WARNING, 0, tx->getNdbError().message);
     success = false;
   }
-  while((res = scan->nextResult((const char **) &op.buffer, true, false) == 0)) {   
+
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  while((res == 0) || (res == 2)) {
     bool str_is_null;
     char connectstring[129];
     unsigned int rtt;
@@ -264,6 +268,7 @@ bool config_v1::get_connections() {
     
     nclusters++;
     cluster_ids[connection_idx] = cfg_data_id;
+    res = scan->nextResult((const char **) &op.buffer, true, false);
   }
   if(res == -1) {
     logger->log(LOG_WARNING, 0, scan->getNdbError().message);
@@ -418,7 +423,9 @@ bool config_v1::get_prefixes(int role_id) {
     logger->log(LOG_WARNING, 0, "execute(): %s\n", tx->getNdbError().message);
     success = false;
   }
-  while((res = scan->nextResult((const char **) &op.buffer, true, false) == 0)) {
+
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  while((res == 0) || (res == 2)) {
     char key_prefix[251], policy_name[41], container[51];
     int cluster_id = 0;
     TableSpec * container_spec;
@@ -449,9 +456,15 @@ bool config_v1::get_prefixes(int role_id) {
       delete[] op.key_buffer;
       return false;  
     }
-  } /* while(res=scan->nextResult()) */
-  
+  res = scan->nextResult((const char **) &op.buffer, true, false);
+  }
+
   free(op.key_buffer);
+
+  if(res == -1) {
+    logger->log(LOG_WARNING, 0, scan->getNdbError().message);
+    return false;
+  }
   return true;
 }
 
@@ -527,8 +540,7 @@ bool config_v1::store_prefix(const char * name,
    and fill in the prefix_id of the copy.
    */
   prefix.info.prefix_id = conf.storePrefix(prefix);
-  
-  
+
   return true;
 }
 
