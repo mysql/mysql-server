@@ -28,6 +28,7 @@
 #include "DataTypeHandler.h"
 #include "Record.h"
 #include "debug.h"
+#include "ndb_error_logger.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
@@ -142,8 +143,7 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
   ndb_record = dict->createRecord(table, specs, ncolumns, sizeof(specs[0]));
 
   if(!ndb_record) {
-    logger->log(LOG_WARNING, 0, "createRecord() failure: %s\n",
-               dict->getNdbError().message);  
+    log_ndb_error(dict->getNdbError());
     return false;
   }
   assert(NdbDictionary::getRecordRowLength(ndb_record) == rec_size);
@@ -158,8 +158,7 @@ bool Record::complete(NdbDictionary::Dictionary *dict,
   ndb_record = dict->createRecord(ndb_index, specs, ncolumns, sizeof(specs[0]));
 
   if(!ndb_record) {
-    logger->log(LOG_WARNING, 0, "createRecord() failure: %s\n",
-                dict->getNdbError().message);  
+    log_ndb_error(dict->getNdbError());
     return false;
   }
   assert(NdbDictionary::getRecordRowLength(ndb_record) == rec_size);

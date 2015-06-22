@@ -301,9 +301,7 @@ bool WorkerStep1::startTransaction(Operation & op) {
   if(tx) {
     return true;
   }
-  logger->log(LOG_WARNING, 0, "startTransaction: %s %d\n",
-              wqitem->ndb_instance->db->getNdbError().message,
-              wqitem->ndb_instance->db->getNdbError().code);
+  log_ndb_error(wqitem->ndb_instance->db->getNdbError());
   return false;
 }
 
@@ -348,7 +346,7 @@ op_status_t WorkerStep1::do_delete() {
   if(ndb_op == 0) {
     const NdbError & err = tx->getNdbError();
     if(err.status != NdbError::Success) {
-      logger->log(LOG_WARNING, 0, "deleteTuple(): %s\n", err.message);
+      log_ndb_error(err);
       tx->close();
       return op_failed;
     }
@@ -493,8 +491,7 @@ op_status_t WorkerStep1::do_write() {
   
   /* Error case; operation has not been built */
   if(! ndb_op) {
-    logger->log(LOG_WARNING, 0, "error building NDB operation: %s\n", 
-                tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     DEBUG_PRINT("NDB operation failed.  workitem %d.%d", wqitem->pipeline->id,
                 wqitem->id);
     tx->close();
@@ -527,7 +524,7 @@ op_status_t WorkerStep1::do_read() {
   }
   
   if(! op.readTuple(tx, lockmode)) {
-    logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     tx->close();
     return op_failed;
   }
@@ -554,7 +551,7 @@ op_status_t WorkerStep1::do_append() {
   
   /* Read with an exculsive lock */
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
-    logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     tx->close();
     return op_failed;
   }
@@ -667,7 +664,7 @@ op_status_t WorkerStep1::do_math() {
   {
     ndbop1 = op1.readTuple(tx, NdbOperation::LM_Exclusive);
     if(! ndbop1) {
-      logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
+      log_ndb_error(tx->getNdbError());
       tx->close();
       return op_failed; 
     }
@@ -690,7 +687,7 @@ op_status_t WorkerStep1::do_math() {
     
     ndbop2 = op2.insertTuple(tx, & options); 
     if(! ndbop2) {
-      logger->log(LOG_WARNING, 0, "insertTuple(): %s\n", tx->getNdbError().message);
+      log_ndb_error(tx->getNdbError());
       tx->close();
       return op_failed;
     }
@@ -730,7 +727,7 @@ op_status_t WorkerStep1::do_math() {
     
     ndbop3 = op3.updateTuple(tx, & options);
     if(! ndbop3) {
-      logger->log(LOG_WARNING, 0, "updateInterpreted(): %s\n", tx->getNdbError().message);
+      log_ndb_error(tx->getNdbError());
       tx->close();
       return op_failed;
     }
@@ -908,8 +905,7 @@ void callback_incr(int result, NdbTransaction *tx, void *itemptr) {
 
 
 void callback_close(int result, NdbTransaction *tx, void *itemptr) {
-  if(result) 
-    DEBUG_PRINT("%d %s !!", result, tx->getNdbError().message);
+  if(result) log_ndb_error(tx->getNdbError());
   workitem *wqitem = (workitem *) itemptr;
   worker_close(tx, wqitem);
 }
