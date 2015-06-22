@@ -7,5 +7,5 @@
 create database `b`;
 use `b`;
 --error ER_GET_ERRNO
-create table `#mysql50#q.q` select 1;
+create table `#mysql50#q.q` (f1 int primary key) engine=innodb;
 drop database `b`;
