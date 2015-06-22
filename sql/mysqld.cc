@@ -3564,10 +3564,33 @@ static int generate_server_uuid()
   }
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+
+  /*
+    Initialize the variables which are used during "uuid generator
+    initialization" with values that should normally differ between
+    mysqlds on the same host. This avoids that another mysqld started
+    at the same time on the same host get the same "server_uuid".
+  */
+  sql_print_information("Salting uuid generator variables, current_pid: %lu, "
+                        "server_start_time: %lu, bytes_sent: %llu, ",
+                        current_pid,
+                        (ulong)server_start_time, thd->status_var.bytes_sent);
+
+  const time_t save_server_start_time= server_start_time;
+  server_start_time+= ((ulonglong)current_pid << 48) + current_pid;
+  thd->status_var.bytes_sent= (ulonglong)thd;
+
   lex_start(thd);
   func_uuid= new (thd->mem_root) Item_func_uuid();
   func_uuid->fixed= 1;
   func_uuid->val_str(&uuid);
+
+  sql_print_information("Generated uuid: '%s', "
+                        "server_start_time: %lu, bytes_sent: %llu",
+                        uuid.c_ptr(),
+                        (ulong)server_start_time, thd->status_var.bytes_sent);
+  // Restore global variables used for salting
+  server_start_time = save_server_start_time;
 
   delete thd;
 

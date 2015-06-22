@@ -6140,11 +6140,6 @@ sub start_servers($) {
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
 
-      # Wait until server's uuid is generated. This avoids that master and
-      # slave generate the same UUID sporadically.
-      sleep_until_file_created("$datadir/auto.cnf", $opt_start_timeout,
-                               $mysqld->{'proc'});
-
     }
 
   }
