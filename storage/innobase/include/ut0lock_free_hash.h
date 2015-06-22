@@ -201,19 +201,27 @@ private:
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
 and the value are of integer type.
-* Transitions for keys (a real key is anything other than UNUSED and DELETED):
+* Transitions for keys (a real key is anything other than UNUSED):
   * UNUSED -> real key -- allowed
-  * real key -> DELETED -- allowed
-  anything else is not allowed, for example:
+  anything else is not allowed:
   * real key -> UNUSED -- not allowed
   * real key -> another real key -- not allowed
-  * UNUSED -> DELETED -- not allowed
-  * DELETED -> real key -- not allowed
-  * DELETED -> UNUSED -- not allowed
-* Transitions for values (a real value is anything other than NOT_FOUND):
+* Transitions for values (a real value is anything other than NOT_FOUND,
+  DELETED and GOTO_NEXT_ARRAY):
   * NOT_FOUND -> real value -- allowed
+  * NOT_FOUND -> DELETED -- allowed
   * real value -> another real value -- allowed
+  * real value -> DELETED -- allowed
+  * real value -> GOTO_NEXT_ARRAY -- allowed
+  * DELETED -> real value -- allowed
+  * DELETED -> GOTO_NEXT_ARRAY -- allowed
+  anything else is not allowed:
+  * NOT_FOUND -> GOTO_NEXT_ARRAY -- not allowed
   * real value -> NOT_FOUND -- not allowed
+  * DELETED -> NOT_FOUND -- not allowed
+  * GOTO_NEXT_ARRAY -> real value -- not allowed
+  * GOTO_NEXT_ARRAY -> NOT_FOUND -- not allowed
+  * GOTO_NEXT_ARRAY -> DELETED -- not allowed
 */
 class ut_lock_free_hash_t : public ut_hash_interface_t {
 public:
@@ -250,31 +258,37 @@ public:
 		uint64_t	key) const
 	{
 		ut_ad(key != UNUSED);
-		ut_ad(key != DELETED);
 
-		const key_val_t*	tuple = get_tuple(key);
+		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
 
-		if (tuple == NULL) {
-			return(NOT_FOUND);
+		for (;;) {
+			const key_val_t*	tuple = get_tuple(key, &arr);
+
+			if (tuple == NULL) {
+				return(NOT_FOUND);
+			}
+
+			/* Here if another thread is just setting this key
+			for the first time, then the tuple could be
+			(key, NOT_FOUND) (remember all vals are initialized
+			to NOT_FOUND initially) in which case we will return
+			NOT_FOUND below which is fine. */
+
+			int64_t	v = tuple->m_val.load(
+				boost::memory_order_relaxed);
+
+			if (v == DELETED) {
+				return(NOT_FOUND);
+			} else if (v != GOTO_NEXT_ARRAY) {
+				return(v);
+			}
+
+			arr = arr->m_next.load(boost::memory_order_relaxed);
+
+			if (arr == NULL) {
+				return(NOT_FOUND);
+			}
 		}
-
-		/* Here if another thread is just setting this key for the
-		first time, then the tuple could be (key, NOT_FOUND)
-		(remember all vals are initialized to NOT_FOUND initially)
-		in which case we will return NOT_FOUND below which is fine. */
-
-		/* Another acceptable thing that can happen here is if another
-		thread deletes this (key, val) tuple from the hash after
-		get_tuple() above has found it and returned != NULL. Then this
-		late get() will succeed and return the value even though at
-		the time of return the tuple may already be
-		(key == DELETED, val == some real value). It is up to the
-		caller to handle such a situation or prevent it from happening
-		altogether at a higher level in the code. It is acceptable
-		because it is the same as if get() completed before del()
-		started. */
-
-		return(tuple->m_val.load(boost::memory_order_relaxed));
 	}
 
 	/** Set the value for a given key, either inserting a new (key, val)
@@ -294,8 +308,8 @@ public:
 		int64_t		val)
 	{
 		ut_ad(key != UNUSED);
-		ut_ad(key != DELETED);
 		ut_ad(val != NOT_FOUND);
+		ut_ad(val != DELETED);
 		ut_ad(val != GOTO_NEXT_ARRAY);
 
 		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
@@ -342,10 +356,10 @@ public:
 	Thread 2: del(key == 5)
 	[1] If inc() executes first then the tuple will become
 	(key == 5, val == 11) and then del() will make it
-	(key == DELETED, val == 11). At the end the hash will not contain a
-	tuple for key == 5.
+	(key == 5, val == DELETED), which get()s for key == 5 will return as
+	NOT_FOUND.
 	[2] If del() executes first then the tuple will become
-	(key == DELETED, val == 10) and then inc() will insert a new tuple
+	(key == 5, val == DELETED) and then inc() will change it to
 	(key == 5, value == 1).
 	It is undefined which one of [1] or [2] will happen. It is up to the
 	caller to accept this behavior or prevent it at a higher level.
@@ -355,20 +369,42 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
-		ut_ad(key != DELETED);
 
-		key_val_t*	tuple = get_tuple(key);
+		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
 
-		if (tuple == NULL) {
-			/* Nothing to delete. */
-			return;
+		for (;;) {
+			key_val_t*	tuple = get_tuple(key, &arr);
+
+			if (tuple == NULL) {
+				/* Nothing to delete. */
+				return;
+			}
+
+			int64_t	v = tuple->m_val.load(
+				boost::memory_order_relaxed);
+
+			for (;;) {
+				if (v == GOTO_NEXT_ARRAY) {
+					break;
+				}
+
+				if (tuple->m_val.compare_exchange_strong(
+						v,
+						DELETED,
+						boost::memory_order_relaxed)) {
+					return;
+				}
+
+				/* CAS stored the most recent value of 'm_val'
+				into 'v'. */
+			}
+
+			arr = arr->m_next.load(boost::memory_order_relaxed);
+
+			if (arr == NULL) {
+				return;
+			}
 		}
-
-		/* There is no need for CAS(key -> DELETED) here because
-		key is not allowed to change to another key. It is only
-		allowed to change into DELETED. A concurrent execution of
-		to del(same key) is fine. */
-		tuple->m_key.store(DELETED, boost::memory_order_relaxed);
 	}
 
 	/** Increment the value for a given key with 1 or insert a new tuple
@@ -391,7 +427,6 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
-		ut_ad(key != DELETED);
 
 		delta(key, 1);
 	}
@@ -408,7 +443,6 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
-		ut_ad(key != DELETED);
 
 		delta(key, -1);
 	}
@@ -437,19 +471,15 @@ private:
 	/** A key == UNUSED designates that this cell in the array is empty. */
 	static const uint64_t	UNUSED = UINT64_MAX;
 
-	/** A key == DELETED designates that this cell in the array has been
-	used in the past, but it was deleted later. Searches should skip
-	through it and continue as if it was a real value != UNUSED. It is
-	important that such a cell is never reused for another tuple because
-	late get(), inc() or dec() operations from the time before the key was
-	set to DELETED could still be lurking to execute or be executing right
-	now. */
-	static const uint64_t	DELETED = UINT64_MAX - 1;
+	/** A val == DELETED designates that this cell in the array has been
+	used in the past, but it was deleted later. Searches should return
+	NOT_FOUND when they encounter it. */
+	static const int64_t	DELETED = NOT_FOUND - 1;
 
 	/** A val == GOTO_NEXT_ARRAY designates that this tuple (key, whatever)
 	has been moved to the next array. The search for it should continue
 	there. */
-	static const int64_t	GOTO_NEXT_ARRAY = NOT_FOUND - 1;
+	static const int64_t	GOTO_NEXT_ARRAY = DELETED - 1;
 
 	/** (key, val) tuple type. */
 	struct key_val_t {
@@ -522,18 +552,10 @@ private:
 				boost::memory_order_relaxed);
 
 			if (cur_key == key) {
-				/* cur_tuple->m_key could be changed to
-				DELETED just after we have read it above, this
-				is fine - let the current operation complete
-				like it could have completed before the key
-				was set to DELETED. */
 				return(cur_tuple);
 			} else if (cur_key == UNUSED) {
 				return(NULL);
 			}
-
-			/* cur_key could be == DELETED here, skip through it
-			and continue the search. */
 		}
 
 		return(NULL);
@@ -541,28 +563,31 @@ private:
 
 	/** Get the array cell of a key.
 	@param[in]	key	key to search for
+	@param[in,out]	arr	start the search from this array; when this
+	method ends, *arr will point to the array in which the search
+	ended (in which the returned key_val resides)
 	@return pointer to the array cell or NULL if not found */
 	key_val_t*
 	get_tuple(
-		uint64_t	key) const
+		uint64_t				key,
+		ut_lock_free_list_node_t<key_val_t>**	arr) const
 	{
-		for (ut_lock_free_list_node_t<key_val_t>* cur_arr = m_data;
-		     cur_arr != NULL;
-		     cur_arr = cur_arr->m_next.load(
-			     boost::memory_order_relaxed)) {
-
-			key_val_t*	t;
-
-			t = get_tuple_from_array(cur_arr->m_base,
-						 cur_arr->m_n_base_elements,
-						 key);
+		for (;;) {
+			key_val_t*	t = get_tuple_from_array(
+				(*arr)->m_base,
+				(*arr)->m_n_base_elements,
+				key);
 
 			if (t != NULL) {
 				return(t);
 			}
-		}
 
-		return(NULL);
+			*arr = (*arr)->m_next.load(boost::memory_order_relaxed);
+
+			if (*arr == NULL) {
+				return(NULL);
+			}
+		}
 	}
 
 	/** Insert the given key into a given array or return its cell if
@@ -632,10 +657,6 @@ private:
 				concurrently executing insert. Keep searching
 				for a free slot. */
 			}
-
-			/* cur_key could be DELETED here, just skip through it
-			like it was a normal key, other than UNUSED and the
-			searched for key. */
 		}
 
 		return(NULL);
@@ -645,10 +666,10 @@ private:
 	already present. This method will try expanding the storage (appending
 	new arrays) as long as there is no free slot to insert.
 	@param[in]	key	key to insert or whose cell to retrieve
-	@return a pointer to the inserted or previously existent tuple
 	@param[in,out]	arr	start the search from this array; when this
 	method ends, *arr will point to the array in which the search
-	ended (in which the returned key_val resides) */
+	ended (in which the returned key_val resides)
+	@return a pointer to the inserted or previously existent tuple */
 	key_val_t*
 	insert_or_get_position(
 		uint64_t				key,
@@ -678,7 +699,6 @@ private:
 		int64_t		delta)
 	{
 		ut_ad(key != UNUSED);
-		ut_ad(key != DELETED);
 
 		/* The value which we expect to be in m_val when calling
 		compare_exchange_strong(). If it fails, then it will write
@@ -691,7 +711,7 @@ private:
 			key_val_t*	tuple = insert_or_get_position(key,
 								       &arr);
 
-			/* Here tuple->m_val is either NOT_FOUND,
+			/* Here tuple->m_val is either NOT_FOUND, DELETED,
 			GOTO_NEXT_ARRAY or some real value. Peek at it and
 			if it is NOT_FOUND, then try to CAS NOT_FOUND with
 			'delta'. The load() is much cheaper than the CAS
@@ -717,17 +737,21 @@ private:
 			CAS will write the value of m_val into 'v'. */
 			ut_ad(v != NOT_FOUND);
 
-			/* Busy loop trying to CAS v with v + delta, provided
-			that v is not GOTO_NEXT_ARRAY. */
+			/* Busy loop trying to CAS the correct value into m_val,
+			provided m_val is not GOTO_NEXT_ARRAY. */
 			for (;;) {
 				if (v == GOTO_NEXT_ARRAY) {
 					arr = arr->get_next_grow_if_necessary();
 					break;
 				}
 
+				const int64_t	new_v = v != DELETED
+					? v + delta
+					: delta;
+
 				if (tuple->m_val.compare_exchange_strong(
 						v,
-						v + delta,
+						new_v,
 						boost::memory_order_relaxed)) {
 					return;
 				}
