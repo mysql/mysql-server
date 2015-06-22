@@ -14,6 +14,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
+#include "log.h"
 #include "rpl_channel_service_interface.h"
 #include "rpl_slave.h"
 #include "rpl_info_factory.h"

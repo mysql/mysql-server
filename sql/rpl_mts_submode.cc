@@ -16,6 +16,7 @@
 #include "rpl_mts_submode.h"
 
 #include "hash.h"                           // HASH
+#include "log.h"                            // sql_print_information
 #include "log_event.h"                      // Query_log_event
 #include "rpl_rli.h"                        // Relay_log_info
 #include "rpl_rli_pdb.h"                    // db_worker_hash_entry

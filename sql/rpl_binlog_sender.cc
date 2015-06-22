@@ -17,6 +17,7 @@
 #include "rpl_binlog_sender.h"
 
 #include "debug_sync.h"              // debug_sync_set_action
+#include "log.h"                     // sql_print_information
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK
 #include "rpl_handler.h"             // RUN_HOOK

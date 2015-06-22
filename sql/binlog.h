@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 #include "binlog_event.h"              // enum_binlog_checksum_alg
-#include "log.h"                       // TC_LOG
+#include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
 
 class Relay_log_info;

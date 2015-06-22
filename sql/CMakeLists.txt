@@ -227,6 +227,7 @@ SET(SQL_SHARED_SOURCES
   table.cc
   table_cache.cc
   table_trigger_dispatcher.cc
+  tc_log.cc
   thr_malloc.cc 
   transaction.cc
   transaction_info.cc

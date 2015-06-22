@@ -21,7 +21,7 @@
 #include "rpl_channel_service_interface.h"
 #include "rpl_info_factory.h"
 #include "rpl_slave.h"
-#include "log.h"
+#include "tc_log.h"
 #include "mysqld_thd_manager.h"
 
 

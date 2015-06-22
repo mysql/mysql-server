@@ -16,6 +16,7 @@
 #include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
 #include "sp_instr.h"
 #include "item.h"         // Item_splocal
+#include "log.h"          // query_logger
 #include "opt_trace.h"    // opt_trace_disable_etc
 #include "probes_mysql.h" // MYSQL_QUERY_EXEC_START
 #include "sp_head.h"      // sp_head
