@@ -264,7 +264,21 @@ protected:
       default:
         const SYMBOL *symbol=
             Lex_hash::hint_keywords.get_hash_symbol(yytext, yyleng);
-        return symbol ? symbol->tok : static_cast<int>(HINT_ARG_IDENT);
+        if (symbol) // keyword
+        {
+          /*
+            Override the yytext pointer to the short-living buffer with a
+            long-living pointer to the same text (don't need to allocate a
+            keyword string since symbol array is a global constant).
+          */
+          yytext= symbol->name;
+          DBUG_ASSERT(yyleng == symbol->length);
+
+          return symbol->tok;
+        }
+
+        yytext= thd->strmake(yytext, yyleng);
+        return HINT_ARG_IDENT;
       }
     }
   }
