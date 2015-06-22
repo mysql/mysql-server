@@ -46,6 +46,30 @@
 #include "pfs_prepared_stmt.h"
 
 /*
+  Exporting cmake compilation flags to doxygen,
+  so they get documented.
+*/
+#ifdef IN_DOXYGEN
+#define HAVE_PSI_2
+#define DISABLE_PSI_MUTEX
+#define DISABLE_PSI_RWLOCK
+#define DISABLE_PSI_COND
+#define DISABLE_PSI_FILE
+#define DISABLE_PSI_THREAD
+#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_STAGE
+#define DISABLE_PSI_STATEMENT
+#define DISABLE_PSI_SP
+#define DISABLE_PSI_PS
+#define DISABLE_PSI_STATEMENT_DIGEST
+#define DISABLE_PSI_SOCKET
+#define DISABLE_PSI_MEMORY
+#define DISABLE_PSI_IDLE
+#define DISABLE_PSI_METADATA
+#define DISABLE_PSI_TRANSACTION
+#endif /* IN_DOXYGEN */
+
+/*
   This is a development tool to investigate memory statistics,
   do not use in production.
 */

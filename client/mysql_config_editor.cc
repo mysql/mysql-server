@@ -519,8 +519,6 @@ done:
 /**
   Execute 'set' command.
 
-  @param void
-
   @return -1              Error
            0              Success
 */
@@ -668,8 +666,6 @@ error:
 /**
   Execute 'print' command.
 
-  @param void
-
   @return -1              Error
            0              Success
 */
@@ -704,8 +700,6 @@ error:
 /**
   Create the login file if it does not exist, check
   and set its permissions and modes.
-
-  @param void
 
   @return -1              Error
            0              Success

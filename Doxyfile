@@ -840,6 +840,8 @@ EXCLUDE_SYMLINKS       = NO
 # exclude all test directories for example use the pattern */test/*
 
 EXCLUDE_PATTERNS       = */include/boost*/boost/* \
+                         */sql/*ndb*.h \
+                         */sql/*ndb*.cc \
                          */unittest/*
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -1987,6 +1989,8 @@ INCLUDE_FILE_PATTERNS  =
 PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
                          HAVE_REPLICATION \
+                         MYSQL_CLIENT \
+                         MYSQL_SERVER \
                          HAVE_PSI_INTERFACE \
                          HAVE_PSI_1 \
                          HAVE_PSI_2 \

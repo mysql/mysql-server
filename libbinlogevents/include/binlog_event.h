@@ -661,8 +661,7 @@ public:
   @param buf                  the buffer containing the complete information
                               including the event and the header data
 
-  @param description_event    first constructor of Format_description_event,
-                              used to extract the binlog_version
+  @param binlog_version       the binary log version
   */
   Log_event_header(const char* buf, uint16_t binlog_version);
 

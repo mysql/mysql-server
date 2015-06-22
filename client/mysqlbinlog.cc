@@ -789,7 +789,7 @@ Exit_status  Load_log_processor::process(Create_file_log_event *ce)
 
   @see Load_log_processor::process_first_event(const char*,uint,const char*,uint,uint,Create_file_log_event*)
 
-  @param ce Begin_load_query_log_event to process.
+  @param blqe Begin_load_query_log_event to process.
 
   @retval ERROR_STOP An error occurred - the program should terminate.
   @retval OK_CONTINUE No error, the program should continue.
