@@ -188,7 +188,7 @@ void manage_error(int err_code, const char * err_mesg,
         { flood = true; break; }
   
   /* All errors go to the debug log */
-  DEBUG_PRINT("%s %d: %s %s\n", type_mesg, err_code, err_mesg, note);
+  DEBUG_PRINT("%s %d: %s", type_mesg, err_code, err_mesg);
 
   if(verbose_logging || first_ever || interval_passed || flood)
   {

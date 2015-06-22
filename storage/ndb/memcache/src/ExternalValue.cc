@@ -31,6 +31,7 @@
 #include "ExpireTime.h"
 #include "ExternalValue.h"
 #include "TabSeparatedValues.h"
+#include "ndb_error_logger.h"
 
 /* Externs */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -170,10 +171,11 @@ op_status_t ExternalValue::do_read_header(workitem *item,
   
   NdbTransaction *tx = op.startTransaction(item->ndb_instance->db);
   if(! tx) {
+    log_ndb_error(item->ndb_instance->db->getNdbError());
     return op_failed;
   }
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
-    logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     tx->close();
     return op_failed;
   }
@@ -364,7 +366,7 @@ void ExternalValue::insert_after_header_read() {
   if(r)
     finalize_write();
   else {
-    DEBUG_PRINT("%s", tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     wqitem->status = & status_block_misc_error;
     worker_commit(tx, wqitem);
   }
@@ -617,9 +619,7 @@ bool ExternalValue::startTransaction(Operation &op) {
     tx = op.startTransaction(wqitem->ndb_instance->db);
   }
   if(! tx) {
-    logger->log(LOG_WARNING, 0, "startTransaction(): %s %d\n", 
-                wqitem->ndb_instance->db->getNdbError().message,
-                wqitem->ndb_instance->db->getNdbError().code);
+    log_ndb_error(wqitem->ndb_instance->db->getNdbError());
   }
   return (bool) tx;
 }
@@ -898,8 +898,11 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
   else if(tx->getNdbError().classification == NdbError::NoDataFound) {
     wqitem->ext_val->warnMissingParts();
   }
+  else {
+    log_ndb_error(tx->getNdbError());
+  }
 
-  wqitem->status = & status_block_misc_error;  
+  wqitem->status = & status_block_misc_error;
   worker_commit(tx, wqitem);
 }
  
