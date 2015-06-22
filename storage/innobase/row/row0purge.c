@@ -43,6 +43,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0vers.h"
 #include "row0mysql.h"
 #include "log0log.h"
+#include "rem0cmp.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
