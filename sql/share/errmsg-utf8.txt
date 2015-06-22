@@ -7492,6 +7492,9 @@ ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
   eng "Version token %.*s not found."
   bg "Не е намерено клеймо за версия %.*s"
 
+ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+  eng "Variable %-.192s cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
+
 #
 #  End of 5.7 error messages.
 #
