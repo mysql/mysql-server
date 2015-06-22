@@ -265,7 +265,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
   One POSITION element contains information about:
    - Which table is accessed
    - Which access method was chosen
-      = Its cost and #of output records
+      = Its cost and \#of output records
    - Semi-join strategy choice. Note that there are two different
      representation formats:
       1. The one used during join optimization
@@ -279,7 +279,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
      strategy.  
      The variables are really a function of join prefix but they are too
      expensive to re-caclulate for every join prefix we consider, so we
-     maintain current state in join->positions[#tables_in_prefix]. See
+     maintain current state in join->positions[\#tables_in_prefix]. See
      advance_sj_state() for details.
 
   This class has to stay a POD, because it is memcpy'd in many places.
@@ -593,14 +593,15 @@ private:
   Key_use       *m_keyuse;        /**< pointer to first used key               */
 
   /**
-     Pointer to the associated join condition:
-     - if this is a table with position==NULL (e.g. internal sort/group
-     temporary table), pointer is NULL
-     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
-     Thus, TABLE_LIST::m_join_cond and *JOIN_TAB::m_join_cond_ref are the same
-     thing (changing one changes the other; thus, optimizations made on the
-     second are reflected in SELECT_LEX::print_table_array() which uses the
-     first).
+    Pointer to the associated join condition:
+
+    - if this is a table with position==NULL (e.g. internal sort/group
+      temporary table), pointer is NULL
+
+    - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
+      Thus, the pointee is the same as TABLE_LIST::m_join_cond (changing one
+      changes the other; thus, optimizations made on the second are reflected
+      in SELECT_LEX::print_table_array() which uses the first one).
   */
   Item          **m_join_cond_ref;
 public:

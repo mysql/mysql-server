@@ -2003,7 +2003,8 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          HAVE_PSI_IDLE_INTERFACE \
                          HAVE_PSI_STAGE_INTERFACE \
                          HAVE_PSI_STATEMENT_INTERFACE \
-                         HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+                         HAVE_PSI_STATEMENT_DIGEST_INTERFACE \
+                         MYSQL_SERVER
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

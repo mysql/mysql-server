@@ -329,124 +329,133 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   @retval FALSE  OK 
   @retval TRUE   Out of memory error
 
-  @details
     Setup the strategies to eliminate semi-join duplicates.
     At the moment there are 5 strategies:
 
-    1. DuplicateWeedout (use of temptable to remove duplicates based on rowids
+    -# DuplicateWeedout (use of temptable to remove duplicates based on rowids
                          of row combinations)
-    2. FirstMatch (pick only the 1st matching row combination of inner tables)
-    3. LooseScan (scanning the sj-inner table in a way that groups duplicates
+    -# FirstMatch (pick only the 1st matching row combination of inner tables)
+    -# LooseScan (scanning the sj-inner table in a way that groups duplicates
                   together and picking the 1st one)
-    4. MaterializeLookup (Materialize inner tables, then setup a scan over
+    -# MaterializeLookup (Materialize inner tables, then setup a scan over
                           outer correlated tables, lookup in materialized table)
-    5. MaterializeScan (Materialize inner tables, then setup a scan over
+    -# MaterializeScan (Materialize inner tables, then setup a scan over
                         materialized tables, perform lookup in outer tables)
-    
+
     The join order has "duplicate-generating ranges", and every range is
     served by one strategy or a combination of FirstMatch with with some
     other strategy.
-    
+
     "Duplicate-generating range" is defined as a range within the join order
     that contains all of the inner tables of a semi-join. All ranges must be
     disjoint, if tables of several semi-joins are interleaved, then the ranges
     are joined together, which is equivalent to converting
-      SELECT ... WHERE oe1 IN (SELECT ie1 ...) AND oe2 IN (SELECT ie2 )
+
+     `SELECT ... WHERE oe1 IN (SELECT ie1 ...) AND oe2 IN (SELECT ie2 )`
+
     to
-      SELECT ... WHERE (oe1, oe2) IN (SELECT ie1, ie2 ... ...)
-    .
+
+      `SELECT ... WHERE (oe1, oe2) IN (SELECT ie1, ie2 ... ...)`.
 
     Applicability conditions are as follows:
 
-    DuplicateWeedout strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~
+    @par DuplicateWeedout strategy
 
+    @code
       (ot|nt)*  [ it ((it|ot|nt)* (it|ot))]  (nt)*
       +------+  +=========================+  +---+
         (1)                 (2)               (3)
+    @endcode
 
-       (1) - Prefix of OuterTables (those that participate in 
-             IN-equality and/or are correlated with subquery) and outer 
-             Non-correlated tables.
-       (2) - The handled range. The range starts with the first sj-inner
-             table, and covers all sj-inner and outer tables 
-             Within the range,  Inner, Outer, outer non-correlated tables
-             may follow in any order.
-       (3) - The suffix of outer non-correlated tables.
-    
-    FirstMatch strategy
-    ~~~~~~~~~~~~~~~~~~~
+    -# Prefix of OuterTables (those that participate in IN-equality and/or are
+       correlated with subquery) and outer Non-correlated tables.
 
+    -# The handled range. The range starts with the first sj-inner table, and
+       covers all sj-inner and outer tables Within the range, Inner, Outer,
+       outer non-correlated tables may follow in any order.
+
+    -# The suffix of outer non-correlated tables.
+
+    @par FirstMatch strategy
+
+    @code
       (ot|nt)*  [ it ((it|nt)* it) ]  (nt)*
       +------+  +==================+  +---+
         (1)             (2)          (3)
 
-      (1) - Prefix of outer correlated and non-correlated tables
-      (2) - The handled range, which may contain only inner and
-            non-correlated tables.
-      (3) - The suffix of outer non-correlated tables.
+    @endcode
+    -# Prefix of outer correlated and non-correlated tables
 
-    LooseScan strategy 
-    ~~~~~~~~~~~~~~~~~~
+    -# The handled range, which may contain only inner and non-correlated
+       tables.
 
+    -# The suffix of outer non-correlated tables.
+
+    @par LooseScan strategy
+
+    @code
      (ot|ct|nt) [ loosescan_tbl (ot|nt|it)* it ]  (ot|nt)*
      +--------+   +===========+ +=============+   +------+
         (1)           (2)          (3)              (4)
-     
-      (1) - Prefix that may contain any outer tables. The prefix must contain
-            all the non-trivially correlated outer tables. (non-trivially means
-            that the correlation is not just through the IN-equality).
-      
-      (2) - Inner table for which the LooseScan scan is performed.
-            Notice that special requirements for existence of certain indexes
-            apply to this table, @see class Loose_scan_opt.
+    @endcode
 
-      (3) - The remainder of the duplicate-generating range. It is served by 
-            application of FirstMatch strategy. Outer IN-correlated tables
-            must be correlated to the LooseScan table but not to the inner
-            tables in this range. (Currently, there can be no outer tables
-            in this range because of implementation restrictions,
-            @see Optimize_table_order::advance_sj_state()).
+    -# Prefix that may contain any outer tables. The prefix must contain all
+       the non-trivially correlated outer tables. (non-trivially means that
+       the correlation is not just through the IN-equality).
 
-      (4) - The suffix of outer correlated and non-correlated tables.
+    -# Inner table for which the LooseScan scan is performed.  Notice that
+       special requirements for existence of certain indexes apply to this
+       table, @see class Loose_scan_opt.
 
-    MaterializeLookup strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    -# The remainder of the duplicate-generating range. It is served by
+       application of FirstMatch strategy. Outer IN-correlated tables must be
+       correlated to the LooseScan table but not to the inner tables in this
+       range. (Currently, there can be no outer tables in this range because
+       of implementation restrictions, @see
+       Optimize_table_order::advance_sj_state()).
 
+    -# The suffix of outer correlated and non-correlated tables.
+
+    @par MaterializeLookup strategy
+
+    @code
      (ot|nt)*  [ it (it)* ]  (nt)*
      +------+  +==========+  +---+
         (1)         (2)        (3)
+    @endcode
 
-      (1) - Prefix of outer correlated and non-correlated tables.
+    -# Prefix of outer correlated and non-correlated tables.
 
-      (2) - The handled range, which may contain only inner tables.
+    -# The handled range, which may contain only inner tables.
             The inner tables are materialized in a temporary table that is
             later used as a lookup structure for the outer correlated tables.
 
-      (3) - The suffix of outer non-correlated tables.
+    -# The suffix of outer non-correlated tables.
 
-    MaterializeScan strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    @par MaterializeScan strategy
 
+    @code
      (ot|nt)*  [ it (it)* ]  (ot|nt)*
      +------+  +==========+  +-----+
         (1)         (2)         (3)
+    @endcode
 
-      (1) - Prefix of outer correlated and non-correlated tables.
+    -# Prefix of outer correlated and non-correlated tables.
 
-      (2) - The handled range, which may contain only inner tables.
+    -# The handled range, which may contain only inner tables.
             The inner tables are materialized in a temporary table which is
             later used to setup a scan.
 
-      (3) - The suffix of outer correlated and non-correlated tables.
+    -# The suffix of outer correlated and non-correlated tables.
 
-  Note that MaterializeLookup and MaterializeScan has overlap in their patterns.
-  It may be possible to consolidate the materialization strategies into one.
-  
+  Note that MaterializeLookup and MaterializeScan has overlap in their
+  patterns. It may be possible to consolidate the materialization strategies
+  into one.
+
   The choice between the strategies is made by the join optimizer (see
-  advance_sj_state() and fix_semijoin_strategies()).
-  This function sets up all fields/structures/etc needed for execution except
-  for setup/initialization of semi-join materialization which is done in 
+  advance_sj_state() and fix_semijoin_strategies()).  This function sets up
+  all fields/structures/etc needed for execution except for
+  setup/initialization of semi-join materialization which is done in
   setup_materialized_table().
 */
 
@@ -1004,7 +1013,7 @@ void JOIN::cleanup_item_list(List<Item> &items) const
   @returns false if success, true if error
 */
 
-bool SELECT_LEX::optimize(THD *thd)
+bool st_select_lex::optimize(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::optimize");
 
@@ -1219,7 +1228,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 
   @param join          The join object being handled
   @param j             The join_tab which will have the ref access populated
-  @param first_keyuse  First key part of (possibly multi-part) key
+  @param org_keyuse  First key part of (possibly multi-part) key
   @param used_tables   Bitmap of available tables
 
   @return False if success, True if error
@@ -2534,10 +2543,6 @@ void JOIN::join_free()
 /**
   Free resources of given join.
 
-  @param fill   true if we should free all resources, call with full==1
-                should be last, before it this function can be called with
-                full==0
-
   @note
     With subquery this function definitely will be called several times,
     but even for simple query it can be called several times.
@@ -2604,8 +2609,8 @@ void JOIN::cleanup()
   with non-JOIN statements (i.e. single-table UPDATE and DELETE).
 
 
-  @param order            Linked list of ORDER BY arguments
-  @param cond             WHERE expression
+  @param order            Linked list of ORDER BY arguments.
+  @param where            Where condition.
 
   @return pointer to new filtered ORDER list or NULL if whole list eliminated
 
@@ -3293,6 +3298,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     TRUE on error  
 */
 
+__attribute__((warn_unused_result))
 bool JOIN::clear()
 {
   /* 
@@ -3331,7 +3337,7 @@ bool JOIN::clear()
   @retval true  Error
 */
 
-bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
+bool st_select_lex::change_query_result(Query_result_interceptor *new_result,
                                      Query_result_interceptor *old_result)
 {
   DBUG_ENTER("SELECT_LEX::change_query_result");
@@ -3859,7 +3865,9 @@ void JOIN::unplug_join_tabs()
 /**
   @brief Add Filesort object to the given table to sort if with filesort
 
-  @param tab        the JOIN_TAB object to attach created Filesort object to
+  @param idx        JOIN_TAB's position in the qep_tab array. The
+                    created Filesort object gets attached to this.
+
   @param sort_order List of expressions to sort the table by
 
   @note This function moves tab->select, if any, to filesort->select
@@ -4197,8 +4205,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   Find a key to apply single table UPDATE/DELETE by a given ORDER
 
   @param       order           Linked list of ORDER BY arguments
-  @param       table           Table to find a key
-  @param       select          Pointer to access/update select->quick (if any)
+  @param       tab             Table to find a key
   @param       limit           LIMIT clause parameter 
   @param [out] need_sort       TRUE if filesort needed
   @param [out] reverse
