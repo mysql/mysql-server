@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/pfs_buffer_container.cc
+  Generic buffer container.
+*/
+
 #include "my_global.h"
 #include "pfs_global.h"
 #include "pfs_lock.h"

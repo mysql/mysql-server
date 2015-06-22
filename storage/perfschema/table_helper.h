@@ -16,6 +16,11 @@
 #ifndef PFS_TABLE_HELPER_H
 #define PFS_TABLE_HELPER_H
 
+/**
+  @file storage/perfschema/table_helper.h
+  Helpers to implement a performance schema table.
+*/
+
 #include "pfs_column_types.h"
 #include "pfs_stat.h"
 #include "pfs_timer.h"

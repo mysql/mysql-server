@@ -2165,7 +2165,7 @@ typedef void (*start_transaction_v1_t)
   Set the transaction xid.
   @param locker the transaction locker for this event
   @param xid the id of the XA transaction
-  #param xa_state is the state of the XA transaction
+  @param xa_state the state of the XA transaction
 */
 typedef void (*set_transaction_xid_v1_t)
   (struct PSI_transaction_locker *locker,

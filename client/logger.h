@@ -17,11 +17,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/**
-  A trivial placeholder for inserting Time signatures into streams.
- @example cout << Datetime() << "[Info] Today was a sunny day" << endl;
-*/
-
 #include <ostream>
 #include <string>
 #include <sstream>

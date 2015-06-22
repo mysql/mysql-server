@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/cursor_by_thread_connect_attr.cc
+  Cursor on thread connect attributes.
+*/
+
 #include "my_global.h"
 #include "cursor_by_thread_connect_attr.h"
 #include "pfs_buffer_container.h"

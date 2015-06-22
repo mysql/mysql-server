@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file storage/perfschema/pfs_digest.h
+  @file storage/perfschema/pfs_digest.cc
   Statement Digest data structures (implementation).
 */
 
