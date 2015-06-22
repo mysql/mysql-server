@@ -33,3 +33,14 @@ ERROR HY000: Got error 4012 'Request ndbd time-out, maybe due to high load or co
 SET SESSION debug=@save_debug;
 drop table t4;
 # bulk update ignore is not possible because 'ignore' disables bulk updates
+# mysqld gets timeout error 4008 on CREATE TABLE
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_timeout_gettabinforeq";
+create table t4(id int primary key, val int)engine=ndb;
+ERROR HY000: Can't create table 'test.t4' (errno: 1625)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Unable to retrieve mysql.ndb_replication, logging and conflict r
+Error	1005	Can't create table 'test.t4' (errno: 1625)
+SET SESSION debug=@save_debug;
