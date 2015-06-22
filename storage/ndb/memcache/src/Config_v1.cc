@@ -39,6 +39,7 @@
 #include "QueryPlan.h"
 #include "Operation.h"
 #include "ExternalValue.h"
+#include "ndb_error_logger.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
@@ -78,23 +79,28 @@ bool config_v1::read_configuration() {
  
   bool success = false;  
   NdbTransaction *tx = db.startTransaction();
+  if(tx) {
+    server_role_id = get_server_role_id(tx);
+    if(! (server_role_id < 0)) success = get_policies(tx);
+    if(success) success = get_connections(tx);
+    if(success) success = get_prefixes(server_role_id, tx);
+    if(success) {
+      log_signon(tx);
+      set_initial_cas();
+      tx->execute(NdbTransaction::Commit);
+      minor_version_config();
+    }
+    else {
+      logger->log(LOG_WARNING, 0, "Configuration failed.\n");
+      tx->execute(NdbTransaction::Rollback);
+    }
 
-  server_role_id = get_server_role_id(tx);
-  if(! (server_role_id < 0)) success = get_policies(tx);
-  if(success) success = get_connections(tx);
-  if(success) success = get_prefixes(server_role_id, tx);
-  if(success) {
-    log_signon(tx);
-    set_initial_cas();
-    tx->execute(NdbTransaction::Commit);
-    minor_version_config();
+    tx->close();
   }
   else {
-    logger->log(LOG_WARNING, 0, "Configuration failed.\n");
-    tx->execute(NdbTransaction::Rollback);
+    log_ndb_error(db.getNdbError());
   }
 
-  tx->close();
   return success;
 }
 
@@ -159,11 +165,11 @@ bool config_v1::get_policies(NdbTransaction *tx) {
   
   NdbScanOperation *scan = op.scanTable(tx);
   if(! scan) {
-    logger->log(LOG_WARNING, 0, tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     success = false;
   }
   if(tx->execute(NdbTransaction::NoCommit)) {
-    logger->log(LOG_WARNING, 0, tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     success = false;
   }
 
@@ -205,7 +211,7 @@ bool config_v1::get_policies(NdbTransaction *tx) {
     res = scan->nextResult((const char **) &op.buffer, true, false);
   }
   if(res == -1) {
-    logger->log(LOG_WARNING, 0, scan->getNdbError().message);
+    log_ndb_error(scan->getNdbError());
     success = false;
   }
 
@@ -230,11 +236,11 @@ bool config_v1::get_connections(NdbTransaction *tx) {
   
   NdbScanOperation *scan = op.scanTable(tx);
   if(! scan) {
-    logger->log(LOG_WARNING, 0, tx->getNdbError().message);
+    log_ndb_error(scan->getNdbError());
     success = false;
   }
   if(tx->execute(NdbTransaction::NoCommit)) {
-    logger->log(LOG_WARNING, 0, tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     success = false;
   }
 
@@ -268,7 +274,7 @@ bool config_v1::get_connections(NdbTransaction *tx) {
     res = scan->nextResult((const char **) &op.buffer, true, false);
   }
   if(res == -1) {
-    logger->log(LOG_WARNING, 0, scan->getNdbError().message);
+    log_ndb_error(scan->getNdbError());
     success = false;
   }
   DEBUG_PRINT("clusters: %d", nclusters);
@@ -405,10 +411,12 @@ bool config_v1::get_prefixes(int role_id, NdbTransaction *tx) {
   
   NdbIndexScanOperation *scan = op.scanIndex(tx, &bound);
   if(! scan) {
+    record_ndb_error(tx->getNdbError());
     logger->log(LOG_WARNING, 0, "scanIndex(): %s\n", tx->getNdbError().message);
     success = false;
   }
   if(tx->execute(NdbTransaction::NoCommit)) {
+    record_ndb_error(tx->getNdbError());
     logger->log(LOG_WARNING, 0, "execute(): %s\n", tx->getNdbError().message);
     success = false;
   }
@@ -445,13 +453,13 @@ bool config_v1::get_prefixes(int role_id, NdbTransaction *tx) {
       delete[] op.key_buffer;
       return false;  
     }
-  res = scan->nextResult((const char **) &op.buffer, true, false);
+    res = scan->nextResult((const char **) &op.buffer, true, false);
   }
 
   free(op.key_buffer);
 
   if(res == -1) {
-    logger->log(LOG_WARNING, 0, scan->getNdbError().message);
+    log_ndb_error(scan->getNdbError());
     return false;
   }
   return true;
@@ -617,7 +625,7 @@ int create_event(NdbDictionary::Dictionary *dict, const char *event_name) {
   DEBUG_ENTER();
   const NdbDictionary::Table *tab = dict->getTable("memcache_server_roles");
   if(tab == 0) {
-    DEBUG_PRINT("getTable(): %s", dict->getNdbError().message);
+    log_ndb_error(dict->getNdbError());
     return -1;
   }
   
@@ -625,7 +633,7 @@ int create_event(NdbDictionary::Dictionary *dict, const char *event_name) {
   event.addTableEvent(NdbDictionary::Event::TE_UPDATE);
   event.addEventColumn("update_timestamp");
   if(dict->createEvent(event) != 0) {
-    DEBUG_PRINT("createEvent(): %s", dict->getNdbError().message);
+    log_ndb_error(dict->getNdbError());
     return -1;
   }
 
@@ -650,7 +658,7 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
     
   NdbEventOperation *wait_op = db.createEventOperation(event_name);
   if(wait_op == 0) { // error
-    DEBUG_PRINT("createEventOperation(): %s", db.getNdbError().message);
+    log_ndb_error(db.getNdbError());
     return -1;
   }
 
@@ -662,7 +670,7 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
   assert(recattr1 && recattr2 && recattr3 && recattr4);
   
   if(wait_op->execute() != 0) {
-    DEBUG_PRINT("execute(): %s", wait_op->getNdbError().message);
+    log_ndb_error(wait_op->getNdbError());
     return -1;
   }
 
@@ -673,6 +681,7 @@ int server_roles_reload_waiter(Ndb_cluster_connection *conn,
     if(waiting < 0) {
       /* error */
       db.dropEventOperation(wait_op);
+      log_ndb_error(db.getNdbError());
       return -1;
     }
     else if(waiting > 0) {
