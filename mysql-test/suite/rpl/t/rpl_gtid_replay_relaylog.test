@@ -59,7 +59,7 @@ SET GLOBAL DEBUG= @save_debug;
 # there are no issues.
 DROP TABLE t1;
 RESET MASTER;
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 | $MYSQL -uroot -S$SLAVE_MYSOCK
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 | $MYSQL -uroot -S$SLAVE_MYSOCK -P$SLAVE_MYPORT
 
 --let $assert_text= Check that there is one tuple in the table
 --let $assert_cond= [SELECT COUNT(*) AS Val FROM t1 where i=1, Val, 1] = 1
@@ -69,7 +69,7 @@ RESET MASTER;
 # that there are no issues.
 DROP TABLE t1;
 RESET MASTER;
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 $MYSQLD_DATADIR/$relay_file2 | $MYSQL -uroot -S$SLAVE_MYSOCK
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$relay_file1 $MYSQLD_DATADIR/$relay_file2 | $MYSQL -uroot -S$SLAVE_MYSOCK -P$SLAVE_MYPORT
 
 --let $assert_text= Check that there are two tuples in the table
 --let $assert_cond= [SELECT COUNT(*) AS Val FROM t1 where i=1 or i=2, Val, 1] = 2
