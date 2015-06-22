@@ -23,6 +23,24 @@
 #include "mysql/psi/mysql_file.h"
 
 
+TC_LOG::enum_result TC_LOG_DUMMY::commit(THD *thd, bool all)
+{
+  return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
+}
+
+
+int TC_LOG_DUMMY::rollback(THD *thd, bool all)
+{
+  return ha_rollback_low(thd, all);
+}
+
+
+int TC_LOG_DUMMY::prepare(THD *thd, bool all)
+{
+  return ha_prepare_low(thd, all);
+}
+
+
 /********* transaction coordinator log for 2pc - mmap() based solution *******/
 
 /*
@@ -289,6 +307,18 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
 }
 
 
+int TC_LOG_MMAP::rollback(THD *thd, bool all)
+{
+  return ha_rollback_low(thd, all);
+}
+
+
+int TC_LOG_MMAP::prepare(THD *thd, bool all)
+{
+  return ha_prepare_low(thd, all);
+}
+
+
 /**
   Record that transaction XID is committed on the persistent storage.
 
@@ -518,28 +548,15 @@ TC_LOG *tc_log;
 TC_LOG_DUMMY tc_log_dummy;
 TC_LOG_MMAP  tc_log_mmap;
 
-/**
-  Perform heuristic recovery, if --tc-heuristic-recover was used.
-
-  @note
-    no matter whether heuristic recovery was successful or not
-    mysqld must exit. So, return value is the same in both cases.
-
-  @retval
-    0	no heuristic recovery was requested
-  @retval
-    1   heuristic recovery was performed
-*/
-
-int TC_LOG::using_heuristic_recover()
+bool TC_LOG::using_heuristic_recover()
 {
   if (tc_heuristic_recover == TC_HEURISTIC_NOT_USED)
-    return 0;
+    return false;
 
   sql_print_information("Heuristic crash recovery mode");
   if (ha_recover(0))
     sql_print_error("Heuristic crash recovery failed");
   sql_print_information("Please restart mysqld without --tc-heuristic-recover");
-  return 1;
+  return true;
 }
 

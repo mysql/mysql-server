@@ -864,26 +864,46 @@ void sql_print_information(const char *format, ...)
   __attribute__((format(printf, 1, 2)));
 
 /**
-   Prints a printf style message to the error log and, under NT, to the
-   Windows event log.
-
-   This function prints the message into a buffer and then sends that buffer
-   to other functions to write that message to other logging sources.
+   Prints a printf style message to the error log.
+   The message is also sent to syslog and to the
+   Windows event log if appropriate.
 
    @param level          The level of the msg significance
    @param format         Printf style format of message
    @param args           va_list list of arguments for the message
 */
-void error_log_print(enum loglevel level, const char *format, va_list args);
+void error_log_print(enum loglevel level, const char *format, va_list args)
+  __attribute__((format(printf, 2, 0)));
 
 /**
-  Change the file associated with two output streams. Used to
-  redirect stdout and stderr to a file. The streams are reopened
-  only for appending (writing at end of file).
-*/
-bool reopen_fstreams(const char *filename, FILE *outstream, FILE *errstream);
+  Initialize structures (e.g. mutex) needed by the error log.
 
-bool flush_error_log();
+  @note This function accesses shared resources without protection, so
+  it should only be called while the server is running single-threaded.
+*/
+void init_error_log();
+
+/**
+  Open the error log and redirect stderr and optionally stdout
+  to the error log file. The streams are reopened only for
+  appending (writing at end of file).
+
+  @param filename        Name of error log file
+*/
+bool open_error_log(const char *filename);
+
+/**
+  Free any error log resources.
+
+  @note This function accesses shared resources without protection, so
+  it should only be called while the server is running single-threaded.
+*/
+void destroy_error_log();
+
+/**
+  Flush any pending data to disk and reopen the error log.
+*/
+bool reopen_error_log();
 
 ////////////////////////////////////////////////////////////
 //

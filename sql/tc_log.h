@@ -17,8 +17,10 @@
 #define TC_LOG_H
 
 #include "my_global.h"
-#include "handler.h"                // ha_commit_low
+#include "my_sys.h"                  // my_msync
+#include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
 
+class THD;
 typedef ulonglong my_xid;
 
 
@@ -35,8 +37,18 @@ typedef ulonglong my_xid;
 */
 class TC_LOG
 {
-  public:
-  int using_heuristic_recover();
+public:
+  /**
+    Perform heuristic recovery, if --tc-heuristic-recover was used.
+
+    @note no matter whether heuristic recovery was successful or not
+    mysqld must exit. So, return value is the same in both cases.
+
+    @retval false  no heuristic recovery was requested
+    @retval true   heuristic recovery was performed
+  */
+  bool using_heuristic_recover();
+
   TC_LOG() {}
   virtual ~TC_LOG() {}
 
@@ -46,7 +58,21 @@ class TC_LOG
     RESULT_INCONSISTENT
   };
 
+  /**
+    Initialize and open the coordinator log.
+    Do recovery if necessary. Called during server startup.
+
+    @param opt_name  Name of logfile.
+
+    @retval 0  sucess
+    @retval 1  failed
+  */
   virtual int open(const char *opt_name)=0;
+
+  /**
+    Close the transaction coordinator log and free any resources.
+    Called during server shutdown.
+  */
   virtual void close()=0;
 
   /**
@@ -79,6 +105,7 @@ class TC_LOG
      @return Error code on failure, zero on success.
    */
   virtual int rollback(THD *thd, bool all) = 0;
+
   /**
      Log a prepare record of the transaction to the storage engines.
 
@@ -99,15 +126,9 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  enum_result commit(THD *thd, bool all) {
-    return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
-  }
-  int rollback(THD *thd, bool all) {
-    return ha_rollback_low(thd, all);
-  }
-  int prepare(THD *thd, bool all) {
-    return ha_prepare_low(thd, all);
-  }
+  enum_result commit(THD *thd, bool all);
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
 };
 
 class TC_LOG_MMAP: public TC_LOG
@@ -162,8 +183,8 @@ public:
   int open(const char *opt_name);
   void close();
   enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
-  int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
   int recover();
   uint size() const;
 
@@ -187,7 +208,7 @@ private:
 
     @param   xid    value of xid to store in the page
     @param   p      pointer to the page where to store xid
-    @param   data   pointer to the top of the mapped to memory file
+    @param   data_arg   pointer to the top of the mapped to memory file
                     to calculate offset value (cookie)
 
     @return  offset value from the top of the page where the xid was stored.

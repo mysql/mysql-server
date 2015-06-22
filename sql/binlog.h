@@ -17,7 +17,9 @@
 #define BINLOG_H_INCLUDED
 
 #include "my_global.h"
+#include "m_string.h"                  // llstr
 #include "binlog_event.h"              // enum_binlog_checksum_alg
+#include "mysqld.h"                    // opt_relay_logname
 #include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
 
@@ -32,6 +34,8 @@ class Incident_log_event;
 class Log_event;
 class Gtid_set;
 struct Gtid;
+
+typedef int64 query_id_t;
 
 /**
   Logical timestamp generator for logical timestamping binlog transactions.
