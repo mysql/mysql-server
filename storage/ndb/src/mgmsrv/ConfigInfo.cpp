@@ -3642,6 +3642,11 @@ ConfigInfo::ConfigInfo()
             status == CI_INTERNAL);
     pinfo.put("Status", status);
 
+    // Check that description is not NULL unless this is a deprecated
+    // parameter(in such case it may be NULL or the name of another
+    // parameter to use instead of the deprecated one)
+    require(param._description || status == CI_DEPRECATED);
+
     switch (param._type) {
       case CI_BOOL:
       {
@@ -4324,7 +4329,13 @@ public:
     BaseString buf;
     Properties pairs;
     pairs.put("name", param_name);
-    pairs.put("comment", info.getDescription(section, param_name));
+    /*
+      Description of deprecated parameters may be a string indicating the
+      name of another parameter to use or NULL -> check for NULL and use
+      an empty string as comment in such case.
+    */
+    const char* desc = info.getDescription(section, param_name);
+    pairs.put("comment", desc ? desc : "");
 
     const ConfigInfo::Type param_type = info.getType(section, param_name);
     switch (param_type) {
