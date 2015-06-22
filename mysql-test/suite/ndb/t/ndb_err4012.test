@@ -45,3 +45,13 @@ SET SESSION debug=@save_debug;
 drop table t4;
 
 --echo # bulk update ignore is not possible because 'ignore' disables bulk updates
+
+--echo # mysqld gets timeout error 4008 on CREATE TABLE
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_timeout_gettabinforeq";
+--error 1296
+create table t4(id int primary key, val int)engine=ndb;
+show warnings;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug=@save_debug;

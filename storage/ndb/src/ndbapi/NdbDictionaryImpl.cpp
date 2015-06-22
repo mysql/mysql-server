@@ -2555,10 +2555,18 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_timeout_gettabinforeq", {
+    fprintf(stderr, "NdbDictInterface::getTable() times out in dictSignal WAIT_GET_TAB_INFO_REQ\n");
+    timeout = 1000; 
+  });
+
   int r = dictSignal(signal, ptr, noOfSections,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
+                     timeout,  // parse stage
+                     100, 
+                     errCodes); 
 
   if (r)
     return 0;
