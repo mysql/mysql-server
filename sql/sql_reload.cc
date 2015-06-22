@@ -30,6 +30,7 @@
 #include "debug_sync.h"
 #include "connection_handler_impl.h"
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
+#include "log.h"         // query_logger
 
 
 /**

@@ -15,6 +15,7 @@
 
 #include "rpl_rli_pdb.h"
 
+#include "log.h"                            // sql_print_error
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 
 #include "pfs_file_provider.h"
