@@ -3,6 +3,7 @@
 
 # default value
 
+RESET MASTER;
 SET @start_global_value = @@global.gtid_mode;
 SELECT @start_global_value;
 
@@ -109,10 +110,42 @@ set global gtid_mode = on_permissive;
 --error ER_CANT_SET_GTID_MODE
 set global gtid_mode = on;
 
-# Set back to default
-set global gtid_mode = ON_PERMISSIVE;
-set global gtid_mode = Off_Permissive;
-set global gtid_mode = off;
+
+# test gtid_mode changes with autocommit off
+
+CREATE TABLE t1 (a INT);
+SET AUTOCOMMIT = 0;
+
+## Confirm that gtid_mode cannot be changed when a transaction
+## is in progress and gtid_next is set to 'UUID:No'.
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (1);
+# transaction in progress, gtid_mode variable cannot be changed
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+SET GLOBAL GTID_MODE = 'off_permissive';
+COMMIT;
+
+## Confirm that gtid_mode cannot be changed when gtid_mode is
+## set to 'UUID:No'.
+SET SESSION GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+# GTID_NEXT was set, gtid_mode variable cannot be changed
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET GLOBAL GTID_MODE = 'off_permissive';
+COMMIT;
+
+## Confirm that gtid_mode cannot be changed during an anonymous
+## transaction.
+SET GTID_NEXT = 'ANONYMOUS';
+--error ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
+SET GLOBAL GTID_MODE = 'off_permissive';
+COMMIT;
+
+# Set back to default and cleanup
+SET AUTOCOMMIT = 1;
+SET SESSION GTID_NEXT = 'AUTOMATIC';
+DROP TABLE t1;
+SET GLOBAL GTID_MODE ='off_permissive';
+SET GLOBAL GTID_MODE = 'off';
 
 SET @@global.enforce_gtid_consistency = @start_enforce_gtid_consistency;
 
