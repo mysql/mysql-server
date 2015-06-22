@@ -260,25 +260,10 @@ struct recv_addr_t{
 	hash_node_t	addr_hash;/*!< hash node in the hash bucket chain */
 };
 
-template<typename F>
-struct ut_when_dtor {
-	ut_when_dtor(F& p) : f(p) {}
-	~ut_when_dtor() {
-		f();
-	}
-private:
-	F& f;
-};
-
 struct recv_dblwr_t {
 	/** Add a page frame to the doublewrite recovery buffer. */
 	void add(const byte* page) {
 		pages.push_back(page);
-	}
-
-	/** Clear the list of pages (invoked by ut_when_dtor) */
-	void operator() () {
-		pages.clear();
 	}
 
 	/** Find a doublewrite copy of a page.
