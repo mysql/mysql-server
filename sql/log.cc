@@ -459,7 +459,7 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
   @return          length of timestamp (excluding \0)
 */
 
-int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
+static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
 {
   struct tm  my_tm;
   char       tzinfo[7]="Z";  // max 6 chars plus \0
@@ -1809,19 +1809,43 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                                    "not used' warning(s) suppressed.");
 #endif // MYSQL_SERVER
 
+////////////////////////////////////////////////////////////
+//
+// Error Log
+//
+////////////////////////////////////////////////////////////
 
-bool reopen_fstreams(const char *filename,
-                     FILE *outstream, FILE *errstream)
+static bool error_log_initialized= false;
+// This mutex prevents fprintf from different threads from being interleaved.
+// It also prevents reopen while we are in the process of logging.
+static mysql_mutex_t LOCK_error_log;
+// This variable is different from log_error_dest.
+// E.g. log_error_dest is "stderr" if we are not logging to file.
+static const char *error_log_file= NULL;
+
+
+void init_error_log()
 {
+  DBUG_ASSERT(!error_log_initialized);
+  mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
+  error_log_initialized= true;
+}
+
+
+bool open_error_log(const char *filename)
+{
+  DBUG_ASSERT(filename);
   int retries= 2, errors= 0;
 
   do
   {
     errors= 0;
-    if (errstream && !my_freopen(filename, "a", errstream))
+    if (!my_freopen(filename, "a", stderr))
       errors++;
-    if (outstream && !my_freopen(filename, "a", outstream))
+#ifndef EMBEDDED_LIBRARY
+    if (!my_freopen(filename, "a", stdout))
       errors++;
+#endif
   }
   while (retries-- && errors);
 
@@ -1829,22 +1853,33 @@ bool reopen_fstreams(const char *filename,
     return true;
 
   /* The error stream must be unbuffered. */
-  if (errstream)
-    setbuf(errstream, NULL);
+  setbuf(stderr, NULL);
 
+  error_log_file= filename; // Remember name for later flushing
   return false;
 }
 
 
-bool flush_error_log()
+void destroy_error_log()
 {
-  bool result= false;
-  if (opt_error_log)
+  if (error_log_initialized)
   {
-    mysql_mutex_lock(&LOCK_error_log);
-    result= reopen_fstreams(log_error_file, stdout, stderr);
-    mysql_mutex_unlock(&LOCK_error_log);
+    error_log_initialized= false;
+    error_log_file= NULL;
+    mysql_mutex_destroy(&LOCK_error_log);
   }
+}
+
+
+bool reopen_error_log()
+{
+  if (!error_log_file)
+    return false;
+  mysql_mutex_lock(&LOCK_error_log);
+  bool result= open_error_log(error_log_file);
+  mysql_mutex_unlock(&LOCK_error_log);
+  if (result)
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
   return result;
 }
 
@@ -1869,7 +1904,13 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
 
   make_iso8601_timestamp(my_timestamp);
 
-  mysql_mutex_lock(&LOCK_error_log);
+  /*
+    This must work even if the mutex has not been initialized yet.
+    At that point we should still be single threaded so that it is
+    safe to write without mutex.
+  */
+  if (error_log_initialized)
+    mysql_mutex_lock(&LOCK_error_log);
 
   fprintf(stderr, "%s %u [%s] %.*s\n",
           my_timestamp,
@@ -1880,7 +1921,8 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
 
   fflush(stderr);
 
-  mysql_mutex_unlock(&LOCK_error_log);
+  if (error_log_initialized)
+    mysql_mutex_unlock(&LOCK_error_log);
   DBUG_VOID_RETURN;
 }
 
