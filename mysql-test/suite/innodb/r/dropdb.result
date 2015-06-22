@@ -3,6 +3,6 @@
 #
 create database `b`;
 use `b`;
-create table `#mysql50#q.q` select 1;
+create table `#mysql50#q.q` (f1 int primary key) engine=innodb;
 ERROR HY000: Got error 1103 from storage engine
 drop database `b`;
