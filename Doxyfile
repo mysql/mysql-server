@@ -716,7 +716,7 @@ WARNINGS               = YES
 # will automatically be disabled.
 # The default value is: YES.
 
-WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_UNDOCUMENTED   = NO
 
 # If the WARN_IF_DOC_ERROR tag is set to YES, doxygen will generate warnings for
 # potential errors in the documentation, such as not documenting some parameters
@@ -806,22 +806,24 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                = internal \
+## Please keep this list sorted alphabetically.
+
+EXCLUDE                = cmd-line-utils \
                          extra \
+                         include/mysqld_ername.h \
+                         include/sql_state.h \
+                         internal \
+                         libevent \
                          libmysql \
                          libmysql_r \
                          libmysqld \
-                         cmd-line-utils \
-                         libevent \
                          mysql-test \
-                         storage/ndb \
+                         plugin \
                          source_downloads \
+                         storage/ndb \
                          support-files \
                          unittest \
-                         zlib \
-                         plugin/innodb_memcached/daemon_memcached/include/memcached \
-                         include/mysqld_ername.h \
-                         include/sql_state.h
+                         zlib
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
