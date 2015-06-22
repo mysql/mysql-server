@@ -11356,7 +11356,12 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
           c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
         useStat.m_scanFragReqCount++;
         useStat.m_scanBoundWords+= keyLen;
-        useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+        if (!ScanFragReq::getNotInterpretedFlag(reqinfo))
+        {
+          /* Backup scans do not use interpreted mode. */
+          jam();
+          useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+        }
       }
     }
 

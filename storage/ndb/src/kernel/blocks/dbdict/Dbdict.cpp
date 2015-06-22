@@ -10549,6 +10549,15 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
 
   SectionHandle handle(this, signal);
 
+  if(ERROR_INSERTED(6216))
+  {
+    ndbout_c("Delaying GSN_GET_TABINFOREQ\n");
+    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 10000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
   const bool byName = (req->requestType & GetTabInfoReq::RequestByName);
   const Uint32 transId = req->schemaTransId;

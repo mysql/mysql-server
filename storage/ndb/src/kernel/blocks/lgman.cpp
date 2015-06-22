@@ -1780,7 +1780,13 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_next_reply_ptr_i = RNIL;
   
   m_applied = false;
-  m_next_lsn = 1;
+  /**
+   * We initialise this variable to 0 to indicate that we haven't received
+   * any log records yet, this is used in a number of checks, probably better
+   * to remove those checks and do the same work even when no LSNs have been
+   * produced, but keep it for now as it is easiest.
+   */
+  m_next_lsn = 0;
   m_last_synced_lsn = 0;
   m_last_sync_req_lsn = 0;
   m_max_sync_req_lsn = 0;
