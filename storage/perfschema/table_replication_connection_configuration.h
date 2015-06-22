@@ -54,7 +54,7 @@ enum enum_ssl_allowed {
 
 /**
   A row in the table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
+  length field denoted by \<field_name\>_length.
 */
 struct st_row_connect_config {
   char channel_name[CHANNEL_NAME_LENGTH];

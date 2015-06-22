@@ -24,7 +24,9 @@
 */
 
 /**
-   @page AGGREGATE_CHECKS ONLY_FULL_GROUP_BY Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
+   @page AGGREGATE_CHECKS Aggregate checks
+   
+   ONLY_FULL_GROUP_BY Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
 
 We call "aggregation" the operation of taking a group of rows and replacing
 it with a single row. There are three types of aggregation: DISTINCT,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,33 @@ struct lock_table_t {
 	UT_LIST_NODE_T(lock_t)
 			locks;		/*!< list of locks on the same
 					table */
+	/** Print the table lock into the given output stream
+	@param[in,out]	out	the output stream
+	@return the given output stream. */
+	std::ostream& print(std::ostream& out) const;
 };
+
+/** Print the table lock into the given output stream
+@param[in,out]	out	the output stream
+@return the given output stream. */
+inline
+std::ostream& lock_table_t::print(std::ostream& out) const
+{
+	out << "[lock_table_t: name=" << table->name << "]";
+	return(out);
+}
+
+/** The global output operator is overloaded to conveniently
+print the lock_table_t object into the given output stream.
+@param[in,out]	out	the output stream
+@param[in]	lock	the table lock
+@return the given output stream */
+inline
+std::ostream&
+operator<<(std::ostream& out, const lock_table_t& lock)
+{
+	return(lock.print(out));
+}
 
 /** Record lock for a page */
 struct lock_rec_t {
@@ -55,7 +81,30 @@ struct lock_rec_t {
 					bitmap; NOTE: the lock bitmap is
 					placed immediately after the
 					lock struct */
+
+	/** Print the record lock into the given output stream
+	@param[in,out]	out	the output stream
+	@return the given output stream. */
+	std::ostream& print(std::ostream& out) const;
 };
+
+/** Print the record lock into the given output stream
+@param[in,out]	out	the output stream
+@return the given output stream. */
+inline
+std::ostream& lock_rec_t::print(std::ostream& out) const
+{
+	out << "[lock_rec_t: space=" << space << ", page_no=" << page_no
+		<< ", n_bits=" << n_bits << "]";
+	return(out);
+}
+
+inline
+std::ostream&
+operator<<(std::ostream& out, const lock_rec_t& lock)
+{
+	return(lock.print(out));
+}
 
 /** Lock struct; protected by lock_sys->mutex */
 struct lock_t {
@@ -81,7 +130,115 @@ struct lock_t {
 					LOCK_INSERT_INTENTION,
 					wait flag, ORed */
 
+	/** Determine if the lock object is a record lock.
+	@return true if record lock, false otherwise. */
+	bool is_record_lock() const
+	{
+		return(type() == LOCK_REC);
+	}
+
+	bool is_waiting() const
+	{
+		return(type_mode & LOCK_WAIT);
+	}
+
+	bool is_gap() const
+	{
+		return(type_mode & LOCK_GAP);
+	}
+
+	bool is_record_not_gap() const
+	{
+		return(type_mode & LOCK_REC_NOT_GAP);
+	}
+
+	bool is_insert_intention() const
+	{
+		return(type_mode & LOCK_INSERT_INTENTION);
+	}
+
+	ulint type() const {
+		return(type_mode & LOCK_TYPE_MASK);
+	}
+
+	enum lock_mode mode() const
+	{
+		return(static_cast<enum lock_mode>(type_mode & LOCK_MODE_MASK));
+	}
+
+	/** Print the lock object into the given output stream.
+	@param[in,out]	out	the output stream
+	@return the given output stream. */
+	std::ostream& print(std::ostream& out) const;
+
+	/** Convert the member 'type_mode' into a human readable string.
+	@return human readable string */
+	std::string type_mode_string() const;
+
+	const char* type_string() const
+	{
+		switch (type_mode & LOCK_TYPE_MASK) {
+		case LOCK_REC:
+			return("LOCK_REC");
+		case LOCK_TABLE:
+			return("LOCK_TABLE");
+		default:
+			ut_error;
+		}
+	}
 };
+
+/** Convert the member 'type_mode' into a human readable string.
+@return human readable string */
+inline
+std::string
+lock_t::type_mode_string() const
+{
+	std::ostringstream sout;
+	sout << type_string();
+	sout << " | " << lock_mode_string(mode());
+
+	if (is_record_not_gap()) {
+		sout << " | LOCK_REC_NOT_GAP";
+	}
+
+	if (is_waiting()) {
+		sout << " | LOCK_WAIT";
+	}
+
+	if (is_gap()) {
+		sout << " | LOCK_GAP";
+	}
+
+	if (is_insert_intention()) {
+		sout << " | LOCK_INSERT_INTENTION";
+	}
+	return(sout.str());
+}
+
+inline
+std::ostream&
+lock_t::print(std::ostream& out) const
+{
+	out << "[lock_t: type_mode=" << type_mode << "("
+		<< type_mode_string() << ")";
+
+	if (is_record_lock()) {
+		out << un_member.rec_lock;
+	} else {
+		out << un_member.tab_lock;
+	}
+
+	out << "]";
+	return(out);
+}
+
+inline
+std::ostream&
+operator<<(std::ostream& out, const lock_t& lock)
+{
+	return(lock.print(out));
+}
 
 #ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;

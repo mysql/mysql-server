@@ -16,10 +16,8 @@
 
 
 /**
-  @file
-
-  @brief
-  Sorts a database
+  @file sql/filesort.cc
+  Sorts a database.
 */
 
 #include "filesort.h"
@@ -1522,10 +1520,10 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
     This function tests whether a priority queue should be used to keep
     the result. Necessary conditions are:
     - estimate that it is actually cheaper than merge-sort
-    - enough memory to store the <max_rows> records.
+    - enough memory to store the \<max_rows\> records.
 
-    If we don't have space for <max_rows> records, but we *do* have
-    space for <max_rows> keys, we may rewrite 'table' to sort with
+    If we don't have space for \<max_rows\> records, but we *do* have
+    space for \<max_rows\> keys, we may rewrite 'table' to sort with
     references to records instead of additional data.
     (again, based on estimates that it will actually be cheaper).
 

@@ -392,8 +392,10 @@ private:
 class sp_cursor
 {
 private:
-  /// An interceptor of cursor result set used to implement
-  /// FETCH <cname> INTO <varlist>.
+  /**
+    An interceptor of cursor result set used to implement
+    FETCH \<cname\> INTO \<varlist\>.
+  */
   class Query_fetch_into_spvars: public Query_result_interceptor
   {
     List<sp_variable> *spvar_list;

@@ -870,8 +870,8 @@ public:
      Creates a new Show_create_error_handler for the particular security
      context and view.
 
-     @thd Thread context, used for security context information if needed.
-     @top_view The view. We do not verify at this point that top_view is in
+     @param thd Thread context, used for security context information if needed.
+     @param top_view The view. We do not verify at this point that top_view is in
      fact a view since, alas, these things do not stay constant.
   */
   explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) :

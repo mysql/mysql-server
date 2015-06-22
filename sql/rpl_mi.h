@@ -160,8 +160,8 @@ public:
       strmake(user, user_arg, sizeof(user) - 1);
     }
   }
-  /*
-    Returns user's size name. See @code get_user().
+  /**
+    Returns user's size name. See @c get_user().
 
     @return user's size name.
   */

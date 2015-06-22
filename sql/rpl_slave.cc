@@ -18,7 +18,7 @@
   @addtogroup Replication
   @{
 
-  @file
+  @file sql/rpl_slave.cc
 
   @brief Code to run the io thread and the sql thread on the
   replication slave.
@@ -776,12 +776,12 @@ bool stop_slave_cmd(THD *thd)
    @param filename
           Relay log name which needs to be parsed.
 
-   @param[OUT] master_log_file
+   @param[out] master_log_file
           Set the master_log_file to the log file name that is extracted from
           rotate event. The master_log_file should contain string of len
           FN_REFLEN.
 
-   @param[OUT] master_log_pos
+   @param[out] master_log_pos
           Set the master_log_pos to the log position extracted from rotate
           event.
 
@@ -1916,7 +1916,7 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
    The function analyzes a possible killed status and makes
    a decision whether to accept it or not.
    Normally upon accepting the sql thread goes to shutdown.
-   In the event of deferring decision @rli->last_event_start_time waiting
+   In the event of deferring decision @c rli->last_event_start_time waiting
    timer is set to force the killed status be accepted upon its expiration.
 
    Notice Multi-Threaded-Slave behaves similarly in that when it's being
@@ -3257,8 +3257,8 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
      @param[in]      sql_gtid_set_size the size to be allocated to store
                                        the executed gtid set
 
-     @TODO: return a bool after adding catching the exceptions to the
-            push_back() methods for field_list
+     @todo  return a bool after adding catching the exceptions to the
+            push_back() methods for field_list.
 */
 
 void show_slave_status_metadata(List<Item> &field_list,
@@ -9997,7 +9997,7 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO* lex_mi)
   @param  lex_mi structure that holds all change master options given on the
           change master command.
 
-  @param[OUT] need_relay_log_purge
+  @param[out] need_relay_log_purge
               - If relay_log_file/relay_log_pos options are used,
                 we wont delete relaylogs. We set this boolean flag to false.
               - If relay_log_file/relay_log_pos options are NOT used,
@@ -11021,8 +11021,8 @@ bool is_any_slave_channel_running(int thread_mask,
   DBUG_RETURN(false);
 }
 
+#endif /* HAVE_REPLICATION */
 
 /**
   @} (end of group Replication)
 */
-#endif /* HAVE_REPLICATION */

@@ -179,7 +179,7 @@ public:
 /**
   This class handles the following function:
 
-    <string> = ST_ASGEOJSON(<geometry>[, <maxdecimaldigits>[, <options>]])
+    \<string\> = ST_ASGEOJSON(\<geometry\>[, \<maxdecimaldigits\>[, \<options\>]])
 
   It converts a GEOMETRY into a valid GeoJSON string. If maxdecimaldigits is
   specified, the coordinates written are rounded to the number of decimals
@@ -189,8 +189,8 @@ public:
     0  No options (default values).
     1  Add a bounding box to the output.
     2  Add a short CRS URN to the output. The default format is a
-       short format ("EPSG:<srid>").
-    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
+       short format ("EPSG:\<srid\>").
+    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::\<srid\>"). This
        implies 2. This means that, e.g., bitmask 5 and 7 mean the
        same: add a bounding box and a long format CRS URN.
 */
@@ -814,11 +814,11 @@ public:
 /**
   This class handles two forms of the same function:
 
-  <string> = ST_GEOHASH(<point>, <maxlength>);
-  <string> = ST_GEOHASH(<longitude>, <latitude>, <maxlength>)
+  \<string\> = ST_GEOHASH(\<point\>, \<maxlength\>);
+  \<string\> = ST_GEOHASH(\<longitude\>, \<latitude\>, \<maxlength\>)
 
-  It returns an encoded geohash string, no longer than <maxlength> characters
-  long. Note that it might be shorter than <maxlength>.
+  It returns an encoded geohash string, no longer than \<maxlength\> characters
+  long. Note that it might be shorter than \<maxlength\>.
 */
 class Item_func_geohash :public Item_str_ascii_func
 {

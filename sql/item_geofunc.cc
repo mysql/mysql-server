@@ -271,7 +271,7 @@ GEOMETRYCOLLECTION_TYPE= "GeometryCollection";
 
 
 /**
-  <geometry> = ST_GEOMFROMGEOJSON(<string>[, <options>[, <srid>]])
+  \<geometry\> = ST_GEOMFROMGEOJSON(\<string\>[, \<options\>[, \<srid\>]])
 
   Takes a GeoJSON input string and outputs a GEOMETRY.
   This function supports both single GeoJSON objects and geometry collections.

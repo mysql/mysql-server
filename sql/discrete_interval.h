@@ -172,7 +172,7 @@ public:
     Appends an interval to the list.
 
     @param start  start of interval
-    @val   how    many values it contains
+    @param val    how many values it contains
     @param incr   what increment between each value
     @retval true  error
     @retval false success

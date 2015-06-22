@@ -51,12 +51,10 @@
 #include <string>
 
 #ifdef MYSQL_CLIENT
-/*
-  Variable to suppress the USE <DATABASE> command when using the
-  new mysqlbinlog option
-*/
-bool option_rewrite_set= FALSE;
-extern I_List<i_string_pair> binlog_rewrite_db;
+class Format_description_log_event;
+typedef bool (*read_log_event_filter_function)(char** buf,
+                                               ulong*,
+                                               const Format_description_log_event*);
 #endif
 
 extern "C" {
@@ -802,7 +800,8 @@ public:
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
-                                   *description_event, my_bool crc_check);
+                                   *description_event, my_bool crc_check,
+                                   read_log_event_filter_function f);
   /* print*() functions are used by mysqlbinlog */
   virtual void print(FILE* file, PRINT_EVENT_INFO* print_event_info) = 0;
   void print_timestamp(IO_CACHE* file, time_t* ts);
@@ -1314,15 +1313,15 @@ protected:
 */
 
 /**
-  A @Query event is written to the binary log whenever the database is
+  A Query event is written to the binary log whenever the database is
   modified on the master, unless row based logging is used.
 
   Query_log_event is created for logging, and is called after an update to the
   database is done. It is used when the server acts as the master.
 
   Virtual inheritance is required here to handle the diamond problem in
-  the class Execute_load_query_log_event.
-  The diamond structure is explained in @Excecute_load_query_log_event
+  the class @c Execute_load_query_log_event.
+  The diamond structure is explained in @c Excecute_load_query_log_event
 
   @internal
   The inheritance structure is as follows:
@@ -1408,6 +1407,8 @@ public:
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
 
   Query_log_event();
@@ -1508,7 +1509,7 @@ public:        /* !!! Public in this patch to allow old usage */
 
   Virtual inheritance is required here to handle the diamond problem in
   the class Create_file_log_event.
-  The diamond structure is explained in @Create_file_log_event
+  The diamond structure is explained in @c Create_file_log_event
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
@@ -2714,6 +2715,8 @@ public:
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
+  static bool rewrite_db_in_buffer(char **buf, ulong *event_len,
+                                   const Format_description_log_event *fde);
 #endif
   const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam.c_str(); }
@@ -2793,9 +2796,9 @@ private:
   Virtual inheritance is required here to handle the diamond problem in
   the class Write_rows_log_event, Update_rows_log_event and
   Delete_rows_log_event.
-  The diamond structure is explained in @Write_rows_log_event,
-                                        @Update_rows_log_event,
-                                        @Delete_rows_log_event
+  The diamond structure is explained in @c Write_rows_log_event,
+                                        @c Update_rows_log_event,
+                                        @c Delete_rows_log_event
 
   @internal
   The inheritance structure in the current design for the classes is

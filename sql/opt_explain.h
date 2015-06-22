@@ -17,7 +17,9 @@
 #ifndef OPT_EXPLAIN_INCLUDED
 #define OPT_EXPLAIN_INCLUDED
 
-/** @file "EXPLAIN <command>" 
+/**
+  @file sql/opt_explain.h
+  EXPLAIN \<command\>.
 
 Single table UPDATE/DELETE commands are explained by the 
 explain_single_table_modification() function.

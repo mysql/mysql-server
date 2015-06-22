@@ -10033,21 +10033,21 @@ void convert_and_print(String *from_str, String *to_str,
    I.e. Item_field or Item_direct_view_ref resolved in 'sl'. Used for
    aggregate checks.
 
-   @Note that this returns false for an alias to a SELECT list expression,
+   @note This returns false for an alias to a SELECT list expression,
    even though the SELECT list expression might itself be a column of the
-   <table expression>; i.e. when the function runs on "foo" in HAVING of
-   "select t1.a as foo from t1 having foo>1", it returns false. First, it
+   \<table expression\>; i.e. when the function runs on "foo" in HAVING of
+   "select t1.a as foo from t1 having foo \> 1", it returns false. First, it
    pedantically makes sense: "foo" in HAVING is a reference to a column of the
-   <query expression>, not of the <table expression>. Second, this behaviour
+   \<query expression\>, not of the \<table expression\>. Second, this behaviour
    makes sense for our purpose:
      - This is an alias to a SELECT list expression.
      - If doing DISTINCT-related checks, this alias can be ignored.
      - If doing GROUP-BY-related checks, the aliased expression was already
    checked when we checked the SELECT list, so can be ignored.
 
-   @retval TRUE3: yes
-   @retval FALSE3: no
-   @retval UNKNOWN3: it's a non-direct-view Item_ref, we don't know if it
+   @retval TRUE3 yes
+   @retval FALSE3 no
+   @retval UNKNOWN3 it's a non-direct-view Item_ref, we don't know if it
    contains a column => caller please analyze "*ref"
 */
 Bool3 Item_ident::local_column(const SELECT_LEX *sl) const

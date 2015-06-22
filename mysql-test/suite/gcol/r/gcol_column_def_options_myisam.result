@@ -373,6 +373,72 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 CREATE TABLE t2(a int, b int as (1 NOT IN (SELECT 1 FROM dual)));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM dual))' at line 1
 DROP TABLE t1;
+# Bug#21142905: PARTITIONED GENERATED COLS -
+#  !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET
+# 
+CREATE TABLE t1 (
+a int,
+b int generated always as (a) virtual,
+c int generated always as (b+a) virtual,
+d int generated always as (b+a) virtual
+) PARTITION BY LINEAR HASH (b);
+INSERT INTO t1(a) VALUES(0);
+DELETE FROM t1 WHERE c=1;
+DROP TABLE t1;
+# Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
+#                DEFINITION
+#
+# Check for a valid syntax:
+CREATE TABLE t1 (c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar"));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar") VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (i INT);
+ALTER TABLE t1 ADD COLUMN c CHAR(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar");
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_bin GENERATED ALWAYS AS ("foo bar") VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (i INT COLLATE utf8_bin, c INT COLLATE utf8_bin GENERATED ALWAYS AS (10));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (10) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+# Check for a charset mismatch processing:
+CREATE TABLE t1 (t CHAR(10) CHARACTER SET utf8 COLLATE ascii_bin GENERATED ALWAYS AS ("foo bar"));
+ERROR 42000: COLLATION 'ascii_bin' is not valid for CHARACTER SET 'utf8'
+# Check for a sorting order support:
+CREATE TABLE t1 (c CHAR(10) CHARSET latin1 COLLATE latin1_bin,
+c_ci CHAR(10) CHARSET latin1 COLLATE latin1_general_ci GENERATED ALWAYS AS (c),
+c_cs CHAR(10) CHARSET latin1 COLLATE latin1_general_cs GENERATED ALWAYS AS (c));
+INSERT INTO t1 (c) VALUES ('a'), ('A');
+SELECT * FROM t1 ORDER BY c;
+c	c_ci	c_cs
+A	A	A
+a	a	a
+SELECT * FROM t1 ORDER BY c_ci;
+c	c_ci	c_cs
+a	a	a
+A	A	A
+SELECT * FROM t1 ORDER BY c_cs;
+c	c_ci	c_cs
+A	A	A
+a	a	a
+SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
+c	c_ci REGEXP 'A'	c_cs REGEXP 'A'
+a	1	0
+A	1	1
+DROP TABLE t1;
+#
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

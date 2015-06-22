@@ -188,6 +188,9 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       case HA_ADMIN_FAILED:
         my_error(ER_CANT_CREATE_FILE, MYF(0), ts_info->data_file_name, 0, "");
         break;
+      case HA_ERR_INNODB_READ_ONLY:
+        my_error(ER_INNODB_READ_ONLY, MYF(0));
+        break;
       default:
         my_error(error, MYF(0));
       }

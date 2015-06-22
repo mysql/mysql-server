@@ -1592,7 +1592,7 @@ public:
   plan will not be changed. Otherwise, if an index can be used, the
   JOIN_TAB / tab->select struct is changed to use the index.
 
-  The index must cover all fields in <order>, or it will not be considered.
+  The index must cover all fields in \<order\>, or it will not be considered.
 
   @param tab           NULL or JOIN_TAB of the accessed table
   @param order         Linked list of ORDER BY arguments
@@ -2263,8 +2263,8 @@ bool JOIN::prune_table_partitions()
      conditions of the form
 
       this_table.idx_col1 = other_table.col AND   <<- used by 'ref'
-      this_table.idx_col1 OP <const> AND          <<- used by 'range'
-      this_table.idx_col2 OP <const> AND ...      <<- used by 'range'
+      this_table.idx_col1 OP \<const\> AND        <<- used by 'range'
+      this_table.idx_col2 OP \<const\> AND ...    <<- used by 'range'
 
      and an index on (idx_col1,idx_col2,...). But the fact that
      'range' access uses more keyparts does not mean that it is
@@ -6248,7 +6248,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
 */  
 
 /**
-  A Key_field is a descriptor of a predicate of the form (column <op> val).
+  A Key_field is a descriptor of a predicate of the form (column \<op\> val).
   Currently 'op' is one of {'=', '<=>', 'IS [NOT] NULL', 'arg1 IN arg2'},
   and 'val' can be either another column or an expression (including constants).
 

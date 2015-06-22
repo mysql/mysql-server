@@ -902,8 +902,6 @@ done:
   password string.
 
   @param buf [in]         Buffer to be printed.
-
-  @raturn                 void
 */
 
 static void mask_password_and_print(char *buf)
@@ -1170,8 +1168,8 @@ static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   @note The contents of the file buffer are encrypted
         on a line-by-line basis with each line having
         the following format :
-        [<first 4 bytes store cipher-length>|<Next cipher-length
-        bytes store actual cipher>]
+        [\<first 4 bytes store cipher-length\>
+        |\<Next cipher-length bytes store actual cipher\>]
 */
 
 static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)

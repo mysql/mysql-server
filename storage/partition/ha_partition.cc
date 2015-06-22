@@ -1099,7 +1099,7 @@ bool ha_partition::check_and_repair(THD *thd)
 
 
 /**
-  @breif Check if the table can be automatically repaired
+  Check if the table can be automatically repaired.
 
   @retval TRUE  Can be auto repaired
   @retval FALSE Cannot be auto repaired
@@ -1118,7 +1118,7 @@ bool ha_partition::auto_repair() const
 
 
 /**
-  @breif Check if the table is crashed
+  Check if the table is crashed.
 
   @retval TRUE  Crashed
   @retval FALSE Not crashed
@@ -2828,15 +2828,14 @@ int ha_partition::start_stmt(THD *thd, thr_lock_type lock_type)
 
 
 /**
-  Get number of lock objects returned in store_lock
+  Get number of lock objects returned in store_lock.
+
+  Returns the number of store locks needed in call to store lock.
+  We return number of partitions we will lock multiplied with number of
+  locks needed by each partition. Assists the above functions in allocating
+  sufficient space for lock structures.
 
   @returns Number of locks returned in call to store_lock
-
-  @desc
-    Returns the number of store locks needed in call to store lock.
-    We return number of partitions we will lock multiplied with number of
-    locks needed by each partition. Assists the above functions in allocating
-    sufficient space for lock structures.
 */
 
 uint ha_partition::lock_count() const
@@ -4105,7 +4104,7 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
     @retval     0               success
     @retval     >0              error code
 
-  @detail
+  @details
 
   extra() is called whenever the server wishes to send a hint to
   the storage engine. The MyISAM engine implements the most hints.

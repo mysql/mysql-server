@@ -17,10 +17,8 @@
 
 
 /**
-  @file
-
-  @brief
-  This file implements classes defined in field.h
+  @file sql/field.cc
+  This file implements classes defined in field.h.
 */
 
 #include "field.h"
@@ -5504,8 +5502,8 @@ my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec_arg)
 
   - TIMESTAMP_DN_FIELD - means TIMESTAMP DEFAULT CURRENT_TIMESTAMP.
 
-  - TIMESTAMP_UN_FIELD - means TIMESTAMP DEFAULT <default value> ON UPDATE
-    CURRENT_TIMESTAMP, where <default value> is an implicit or explicit
+  - TIMESTAMP_UN_FIELD - means TIMESTAMP DEFAULT \<default value\> ON UPDATE
+    CURRENT_TIMESTAMP, where \<default value\> is an implicit or explicit
     expression other than CURRENT_TIMESTAMP or any synonym thereof
     (e.g. NOW().)
 

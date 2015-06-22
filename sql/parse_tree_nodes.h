@@ -1140,7 +1140,7 @@ public:
 
 
 /**
-  Parse tree node class for 2-dimentional variable names (example: @global.x)
+  Parse tree node class for 2-dimentional variable names (example: \@global.x)
 */
 class PT_internal_variable_name_2d : public PT_internal_variable_name
 {

@@ -1168,7 +1168,7 @@ lock_rec_other_has_expl_req(
 
 		if (lock->trx != trx
 		    && !lock_rec_get_gap(lock)
-		    && (!wait || !lock_get_wait(lock))
+		    && (wait || !lock_get_wait(lock))
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock), mode)) {
 
 			return(lock);
@@ -2816,6 +2816,39 @@ lock_rec_move_low(
 				 donator, donator_heap_no) == NULL);
 }
 
+/** Move all the granted locks to the front of the given lock list.
+All the waiting locks will be at the end of the list.
+@param[in,out]	lock_list	the given lock list.  */
+static
+void
+lock_move_granted_locks_to_front(
+	UT_LIST_BASE_NODE_T(lock_t)&	lock_list)
+{
+	lock_t*	lock;
+
+	bool seen_waiting_lock = false;
+
+	for (lock = UT_LIST_GET_FIRST(lock_list); lock;
+	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
+		if (!seen_waiting_lock) {
+			if (lock->is_waiting()) {
+				seen_waiting_lock = true;
+			}
+			continue;
+		}
+
+		ut_ad(seen_waiting_lock);
+
+		if (!lock->is_waiting()) {
+			lock_t* prev = UT_LIST_GET_PREV(trx_locks, lock);
+			ut_a(prev);
+			UT_LIST_MOVE_TO_FRONT(lock_list, lock);
+			lock = prev;
+		}
+	}
+}
+
 /*************************************************************//**
 Moves the locks of a record to another record and resets the lock bits of
 the donating record. */
@@ -2895,8 +2928,14 @@ lock_move_reorganize_page(
 	comp = page_is_comp(block->frame);
 	ut_ad(comp == page_is_comp(oblock->frame));
 
+	lock_move_granted_locks_to_front(old_locks);
+
+	DBUG_EXECUTE_IF("do_lock_reverse_page_reorganize",
+			UT_LIST_REVERSE(old_locks););
+
 	for (lock = UT_LIST_GET_FIRST(old_locks); lock;
 	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+
 		/* NOTE: we copy also the locks set on the infimum and
 		supremum of the page; the infimum may carry locks if an
 		update of a record is occurring on the page, and its locks
@@ -5407,12 +5446,24 @@ lock_rec_queue_validate(
 		/* impl_trx cannot be committed until lock_mutex_exit()
 		because lock_trx_release_locks() acquires lock_sys->mutex */
 
-		if (impl_trx != NULL
-		    && lock_rec_other_has_expl_req(
-			    LOCK_S, block, false, heap_no, impl_trx)) {
+		if (impl_trx != NULL) {
+			const lock_t*	other_lock
+				= lock_rec_other_has_expl_req(
+					LOCK_S, block, true, heap_no,
+					impl_trx);
 
-			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
-					       block, heap_no, impl_trx));
+			/* The impl_trx is holding an implicit lock on the
+			given record 'rec'. So there cannot be another
+			explicit granted lock.  Also, there can be another
+			explicit waiting lock only if the impl_trx has an
+			explicit granted lock. */
+
+			if (other_lock != NULL) {
+				ut_a(lock_get_wait(other_lock));
+				ut_a(lock_rec_has_expl(
+					LOCK_X | LOCK_REC_NOT_GAP,
+					block, heap_no, impl_trx));
+			}
 		}
 	}
 
@@ -5435,8 +5486,12 @@ lock_rec_queue_validate(
 			} else {
 				mode = LOCK_S;
 			}
-			ut_a(!lock_rec_other_has_expl_req(
-				     mode, block, true, heap_no, lock->trx));
+
+			const lock_t*	other_lock
+				= lock_rec_other_has_expl_req(
+					mode, block, false, heap_no,
+					lock->trx);
+			ut_a(!other_lock);
 
 		} else if (lock_get_wait(lock) && !lock_rec_get_gap(lock)) {
 

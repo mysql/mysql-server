@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/** @file Temporary tables implementation */
+/**
+  @file sql/sql_tmp_table.cc
+  Temporary tables implementation.
+*/
 
 #include "sql_tmp_table.h"
 
@@ -2410,7 +2413,7 @@ free_tmp_table(THD *thd, TABLE *entry)
                          return TRUE if last key was a duplicate,
                          and FALSE otherwise.
 
-  @detail
+  @details
     Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
     will be handled, all other errors cause a fatal error to be thrown.
     The function creates a disk-based temporary table, copies all records

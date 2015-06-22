@@ -172,7 +172,7 @@ static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
   @brief Aggregates field types from the array of items.
 
   @param[in] items  array of items to aggregate the type from
-  @paran[in] nitems number of items in the array
+  @param[in] nitems number of items in the array
 
   @details This function aggregates field types from the array of items.
     Found type is supposed to be used later as the result field type
@@ -262,7 +262,7 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
   P is either AND or OR, depending on the comparison operation, and this
   detail is left for combine().
 
-  The actual operator @i op is created by the concrete subclass in
+  The actual operator @c op is created by the concrete subclass in
   create_scalar_predicate().
 */
 Item_bool_func *Linear_comp_creator::create(Item *a, Item *b) const
@@ -2257,7 +2257,7 @@ bool Item_in_optimizer::is_null()
          nodes of the tree of the object
   @param parameter to be passed to the transformer
 
-  @detail
+  @details
     Recursively transform the left and the right operand of this Item. The
     Right operand is an Item_in_subselect or its subclass. To avoid the
     creation of new Items, we use the fact the the left operand of the

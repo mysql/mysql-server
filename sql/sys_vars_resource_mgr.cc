@@ -20,7 +20,7 @@
 /**
   Returns the member that contains the given key (address).
 
-  @parma key    [IN]        Key (address) to look for in the list.
+  @param key    [IN]        Key (address) to look for in the list.
   @param length [IN]        Length of the key.
 
   @return

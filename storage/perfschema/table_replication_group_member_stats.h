@@ -38,7 +38,7 @@
 
 /**
   A row in node status table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
+  length field denoted by \<field_name\>_length.
 */
 
 struct st_row_group_member_stats {

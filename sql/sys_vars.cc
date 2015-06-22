@@ -2365,7 +2365,7 @@ static Sys_var_ulong Sys_max_points_in_geometry(
        "max_points_in_geometry",
        "Maximum number of points in a geometry",
        SESSION_VAR(max_points_in_geometry), CMD_LINE(OPT_ARG),
-       VALID_RANGE(3, 64*1024*1024L), DEFAULT(65536), BLOCK_SIZE(1));
+       VALID_RANGE(3, 1024*1024L), DEFAULT(64*1024), BLOCK_SIZE(1));
 
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 

@@ -551,7 +551,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
    This worker won't contribute to recovery bitmap at future
    slave restart (see @c mts_recovery_groups).
 
-   @retrun FALSE as success TRUE as failure
+   @return FALSE as success TRUE as failure
 */
 bool Slave_worker::reset_recovery_info()
 {

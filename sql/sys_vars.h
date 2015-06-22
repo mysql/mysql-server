@@ -1144,7 +1144,7 @@ public:
 };
 
 /**
-  The class for @test_flags (core_file for now).
+  The class for @c test_flags (core_file for now).
   It's derived from Sys_var_mybool.
 
   Class specific constructor arguments:
@@ -1173,7 +1173,7 @@ public:
 };
 
 /**
-  The class for the @max_user_connections.
+  The class for the @c max_user_connections.
   It's derived from Sys_var_uint, but non-standard session value
   requires a new class.
 

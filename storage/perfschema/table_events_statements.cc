@@ -853,18 +853,19 @@ int table_events_statements_history::rnd_pos(const void *pos)
 
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)
-
-  DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
-
-  if ( ! pfs_thread->m_statements_history_full &&
-      (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
-    return HA_ERR_RECORD_DELETED;
-
-  statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
-  if (statement->m_class != NULL)
   {
-    make_row(pfs_thread, statement);
-    return 0;
+    DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
+
+    if ( ! pfs_thread->m_statements_history_full &&
+        (m_pos.m_index_2 >= pfs_thread->m_statements_history_index))
+      return HA_ERR_RECORD_DELETED;
+
+    statement= &pfs_thread->m_statements_history[m_pos.m_index_2];
+    if (statement->m_class != NULL)
+    {
+      make_row(pfs_thread, statement);
+      return 0;
+    }
   }
 
   return HA_ERR_RECORD_DELETED;

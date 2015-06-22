@@ -1438,8 +1438,8 @@ typedef struct st_field_info
   /**
      This is used to set column attributes. By default, columns are @c NOT
      @c NULL and @c SIGNED, and you can deviate from the default
-     by setting the appopriate flags. You can use either one of the flags
-     @c MY_I_S_MAYBE_NULL and @cMY_I_S_UNSIGNED or
+     by setting the appropriate flags. You can use either one of the flags
+     @c MY_I_S_MAYBE_NULL and @c MY_I_S_UNSIGNED or
      combine them using the bitwise or operator @c |. Both flags are
      defined in table.h.
    */
@@ -2296,7 +2296,7 @@ public:
       - VIEW_ALGORITHM_UNDEFINED
       - VIEW_ALGORITHM_TEMPTABLE
       - VIEW_ALGORITHM_MERGE
-      @to do Replace with an enum 
+      @todo Replace with an enum 
   */
   ulonglong     algorithm;
   ulonglong     view_suid;              ///< view is suid (TRUE by default)
@@ -2373,7 +2373,7 @@ public:
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
   /** TRUE if the table is referred to in the statement using a fully
-      qualified name (<db_name>.<table_name>).
+      qualified name (\<db_name\>.\<table_name\>).
   */
   bool          is_fqtn;
 
@@ -2385,7 +2385,7 @@ public:
   /*
     Attributes to save/load view creation context in/from frm-file.
 
-    Ther are required only to be able to use existing parser to load
+    They are required only to be able to use existing parser to load
     view-definition file. As soon as the parser parsed the file, view
     creation context is initialized and the attributes become redundant.
 

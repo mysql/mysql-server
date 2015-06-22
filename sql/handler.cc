@@ -6918,7 +6918,7 @@ void handler::set_end_range(const key_range* range,
 
   @param range		range to compare to row. May be 0 for no range
 
-  @seealso
+  @sa
     key.cc::key_cmp()
 
   @return

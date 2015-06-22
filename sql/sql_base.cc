@@ -2021,7 +2021,7 @@ TABLE_LIST *unique_table(THD *thd, const TABLE_LIST *table,
   @param operation   name of update operation
   @param duplicate   duplicate table which we found
 
-  @notw here we hide view underlying tables if we have them.
+  @note here we hide view underlying tables if we have them.
 */
 
 void update_non_unique_table_error(TABLE_LIST *update,
@@ -3930,7 +3930,7 @@ check_and_update_table_version(THD *thd,
   observer is never installed.
 
   @param[in]      thd         used to report errors
-  @param[in/out]  rt          pointer to stored routine entry in the
+  @param[in,out]  rt          pointer to stored routine entry in the
                               parse tree
   @param[in]      sp          pointer to stored routine cache entry.
                               Can be NULL if there is no such routine.
@@ -5889,7 +5889,7 @@ static bool check_lock_and_start_stmt(THD *thd,
     If table_l is a list, not a single table, the list is temporarily
     broken.
 
-  @detail
+  @details
     This function is meant as a replacement for open_ltable() when
     MERGE tables can be opened. open_ltable() cannot open MERGE tables.
 

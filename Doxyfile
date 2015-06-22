@@ -78,7 +78,7 @@ PROJECT_BRIEF          = "Source Code Documentation"
 # and the maximum width should not exceed 200 pixels. Doxygen will copy the logo
 # to the output directory.
 
-PROJECT_LOGO           = logo-mysql-110x55.png
+PROJECT_LOGO           = doxygen_ressources/logo-mysql-110x55.png
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) path
 # into which the generated documentation will be written. If a relative path is
@@ -716,7 +716,7 @@ WARNINGS               = YES
 # will automatically be disabled.
 # The default value is: YES.
 
-WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_UNDOCUMENTED   = NO
 
 # If the WARN_IF_DOC_ERROR tag is set to YES, doxygen will generate warnings for
 # potential errors in the documentation, such as not documenting some parameters
@@ -806,21 +806,24 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                = internal \
+## Please keep this list sorted alphabetically.
+
+EXCLUDE                = cmd-line-utils \
                          extra \
+                         include/mysqld_ername.h \
+                         include/sql_state.h \
+                         internal \
+                         libevent \
                          libmysql \
                          libmysql_r \
                          libmysqld \
-                         cmd-line-utils \
-                         libevent \
                          mysql-test \
+                         plugin \
+                         source_downloads \
                          storage/ndb \
                          support-files \
                          unittest \
-                         zlib \
-                         plugin/innodb_memcached/daemon_memcached/include/memcached \
-                         include/mysqld_ername.h \
-                         include/sql_state.h
+                         zlib
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -1983,6 +1986,7 @@ INCLUDE_FILE_PATTERNS  =
 
 PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
+                         HAVE_REPLICATION \
                          HAVE_PSI_INTERFACE \
                          HAVE_PSI_1 \
                          HAVE_PSI_2 \

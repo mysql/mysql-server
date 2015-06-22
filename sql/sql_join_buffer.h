@@ -20,7 +20,10 @@
 #include "sql_executor.h"  // QEP_operation
 
 
-/** @file Join buffer classes */
+/**
+  @file sql/sql_join_buffer.h
+  Join buffer classes.
+*/
 
 /* 
   Categories of data fields of variable length written into join cache buffers.

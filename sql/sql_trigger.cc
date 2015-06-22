@@ -375,7 +375,7 @@ bool add_table_for_trigger(THD *thd,
 /**
   Update .TRG and .TRN files after renaming triggers' subject table.
 
-  @param[i]] thd            Thread context
+  @param[in] thd            Thread context
   @param[in] db_name        Current database of subject table
   @param[in] table_alias    Current alias of subject table
   @param[in] table_name     Current name of subject table

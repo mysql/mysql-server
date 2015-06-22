@@ -32,7 +32,7 @@
   --with-example-storage-engine
 
   Once this is done, MySQL will let you create tables with:<br>
-  CREATE TABLE <table name> (...) ENGINE=EXAMPLE;
+  CREATE TABLE \<table name\> (...) ENGINE=EXAMPLE;
 
   The example storage engine is set up to use table locks. It
   implements an example "SHARE" that is inserted into a hash by table

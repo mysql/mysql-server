@@ -61,7 +61,8 @@ typedef std::map<int, mi_map> replication_channel_map;
   The two important data structures in this class are
   i) C++ std map to store the Master_info pointers with channel name as a key.
     These are the base channel maps.
-    @TODO: convert to boost after it's introduction.
+    @todo Convert to boost after it's introduction.
+
   ii) C++ std map to store the channel maps with a channel type as its key.
       This map stores slave channel maps, group replication channels or others
   iii) An array of Master_info pointers to access from performance schema
@@ -70,7 +71,7 @@ typedef std::map<int, mi_map> replication_channel_map;
       b) To avoid recalibration of data structure if master info is deleted.
          * Consider the following high level implementation of a pfs table
             to make a row.
-          <pseudo_code>
+          @code
           highlevel_pfs_funciton()
           {
            while(replication_table_xxxx.rnd_next())
@@ -78,7 +79,7 @@ typedef std::map<int, mi_map> replication_channel_map;
              do stuff;
            }
           }
-         </pseudo_code>
+          @endcode
          However, we lock LOCK_msr_map for every rnd_next(); There is a gap
          where an addition/deletion of a channel would rearrange the map
          making the integer indices of the pfs table point to a wrong value.
@@ -89,10 +90,10 @@ typedef std::map<int, mi_map> replication_channel_map;
          (i.e NULL). A new master info is added to this array at the
          first NULL always.
 
-  @todo: Make this class a singleton, so that only one object exists for an
+  @todo  Make this class a singleton, so that only one object exists for an
          instance.
 
-  @optional_todo: since every select * in replication pfs table depends on
+  @todo  Since every select * in replication pfs table depends on
          LOCK_msr_map, think of either splitting the lock into rw lock
          OR making a copy of all slave_info_objects for info display.
 */

@@ -986,7 +986,7 @@ void reset_statement_timer(THD *thd)
 
   @param thd             connection handle
   @param command         type of command to perform
-  @com_data              com_data union to store the generated command
+  @param com_data        com_data union to store the generated command
 
   @todo
     set thd->lex->sql_command to SQLCOM_END here.

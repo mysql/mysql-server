@@ -96,7 +96,7 @@ public:
      @li Otherwise it is:
 @verbatim
      INSERT INTO a_table [(columns1)] SELECT ...
-@verbatim
+@endverbatim
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */

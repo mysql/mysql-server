@@ -499,7 +499,7 @@ public:
   */
   sql_mode_t m_sql_mode;
 
-  /// Fully qualified name (<db name>.<sp name>).
+  /// Fully qualified name (\<db name\>.\<sp name\>).
   LEX_STRING m_qname;
 
   bool m_explicit_name;         ///< Prepend the db name? */

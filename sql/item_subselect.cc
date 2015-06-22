@@ -461,7 +461,8 @@ static bool walk_join_condition(List<TABLE_LIST> *tables,
 
 
 /**
-  Workaround for bug in gcc 4.1. @See Item_in_subselect::walk()
+  Workaround for bug in gcc 4.1.
+  @see Item_in_subselect::walk()
 */
 bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
                                uchar *arg)
@@ -1896,7 +1897,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
 
 
 /**
-  Transofrm an IN predicate into EXISTS via predicate injection.
+  Transform an IN predicate into EXISTS via predicate injection.
 
   @details The transformation injects additional predicates into the subquery
   (and makes the subquery correlated) as follows.
@@ -1920,7 +1921,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
 
       SELECT 1 FROM ...
         WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
-        HAVING trigcond(<is_not_null_test>(ie))
+        HAVING trigcond(\<is_not_null_test\>(ie))
 
   At JOIN::optimize() we will compare costs of materialization and EXISTS; if
   the former is cheaper we will switch to it.
@@ -2856,7 +2857,7 @@ subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
 /**
   Prepare the query expression underlying the subquery.
 
-  @detail
+  @details
   This function is called from Item_subselect::fix_fields. If the subquery is
   transformed with an Item_in_optimizer object, this function may be called
   twice, hence we need the check on 'is_prepared()' at the start, to avoid
@@ -3722,7 +3723,7 @@ bool subselect_indexsubquery_engine::no_tables() const
 /**
   Create all structures needed for subquery execution using hash semijoin.
 
-  @detail
+  @details
   - Create a temporary table to store the result of the IN subquery. The
     temporary table has one hash index on all its columns. If single-column,
     the index allows at most one NULL row.
@@ -3733,7 +3734,7 @@ bool subselect_indexsubquery_engine::no_tables() const
 
   @param tmp_columns  columns of temporary table
 
-  @notice:
+  @note
     Currently Item_subselect::init() already chooses and creates at parse
     time an engine with a corresponding JOIN to execute the subquery.
 
@@ -3950,7 +3951,7 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine()
 /**
   Cleanup performed after each PS execution.
 
-  @detail
+  @details
   Called in the end of SELECT_LEX::prepare for PS from
   Item_subselect::cleanup.
 */
@@ -3976,9 +3977,8 @@ void subselect_hash_sj_engine::cleanup()
 /**
   Execute a subquery IN predicate via materialization.
 
-  @detail
   If needed materialize the subquery into a temporary table, then
-  copmpute the predicate via a lookup into this table.
+  compute the predicate via a lookup into this table.
 
   @retval TRUE  if error
   @retval FALSE otherwise

@@ -1000,7 +1000,7 @@ public:
 
 
 /**
-  This handles the <double> = ST_LATFROMGEOHASH(<string>) funtion.
+  This handles the \<double\> = ST_LATFROMGEOHASH(<string>) function.
   It returns the latitude-part of a geohash, in the range of [-90, 90].
 */
 class Item_func_latfromgeohash :public Item_func_latlongfromgeohash
@@ -1015,7 +1015,7 @@ public:
 
 
 /**
-  This handles the <double> = ST_LONGFROMGEOHASH(<string>) funtion.
+  This handles the \<double\> = ST_LONGFROMGEOHASH(<string>) function.
   It returns the longitude-part of a geohash, in the range of [-180, 180].
 */
 class Item_func_longfromgeohash :public Item_func_latlongfromgeohash
@@ -2140,8 +2140,8 @@ class user_var_entry
 
   /**
     Initialize all members
-    @param name - Name of the user_var_entry instance.
-    @cs         - charset information of the user_var_entry instance.
+    @param name    Name of the user_var_entry instance.
+    @param cs      charset information of the user_var_entry instance.
   */
   void init(THD *thd, const Simple_cstring &name, const CHARSET_INFO *cs);
 

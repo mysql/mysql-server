@@ -44,7 +44,7 @@ Warnings:
 Warning	1292	Truncated incorrect max_points_in_geometry value: '67108865'
 SELECT @@max_points_in_geometry;
 @@max_points_in_geometry
-67108864
+1048576
 '#----------------------FN_DYNVARS_001_06------------------------#'
 SELECT @@max_points_in_geometry = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES

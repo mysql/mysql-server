@@ -1179,7 +1179,7 @@ void MDL_map::destroy()
 /**
   Find MDL_lock object corresponding to the key.
 
-  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+  @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
@@ -1237,7 +1237,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   Find MDL_lock object corresponding to the key, create it
   if it does not exist.
 
-  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+  @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
@@ -1312,7 +1312,7 @@ static int mdl_lock_match_unused(const uchar *arg)
                                unused object. Primarily needed to generate
                                random value to be used for random dive into
                                the hash in MDL_map.
-  @param[in/out] pins          Pins for the calling thread to be used for
+  @param[in,out] pins          Pins for the calling thread to be used for
                                hash lookup and deletion.
   @param[out]    unused_locks  Number of unused lock objects after operation.
 

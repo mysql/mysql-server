@@ -1930,6 +1930,8 @@ files_checked:
 
 		err = recv_recovery_from_checkpoint_start(flushed_lsn);
 
+		recv_sys->dblwr.pages.clear();
+
 		if (err == DB_SUCCESS) {
 			/* Initialize the change buffer. */
 			err = dict_boot();

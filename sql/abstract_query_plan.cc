@@ -65,7 +65,7 @@ namespace AQP
 
   /**
     Determine join type between this table access and some other table
-    access that preceeds it in the join plan..
+    access that preceeds it in the join plan.
   */
   enum_join_type 
   Table_access::get_join_type(const Table_access* predecessor) const

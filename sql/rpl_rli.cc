@@ -1141,9 +1141,9 @@ void Relay_log_info::close_temporary_tables()
   @param[in]   THD         connection,
   @param[in]   just_reset  if false, it tells that logs should be purged
                            and @c init_relay_log_pos() should be called,
-  @errmsg[out] errmsg      store pointer to an error message.
+  @param[out] errmsg      store pointer to an error message.
 
-  @retval 0 successfuly executed,
+  @retval 0 successfully executed,
   @retval 1 otherwise error, where errmsg is set to point to the error message.
 */
 

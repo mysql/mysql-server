@@ -368,7 +368,7 @@ public:
   Representation of IN subquery predicates of the form
   "left_expr IN (SELECT ...)".
 
-  @detail
+  @details
   This class has: 
    - A "subquery execution engine" (as a subclass of Item_subselect) that allows
      it to evaluate subqueries. (and this class participates in execution by

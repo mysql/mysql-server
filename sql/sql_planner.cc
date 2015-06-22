@@ -1427,7 +1427,7 @@ cleanup:
 
 
 /**
-   @Returns a bitmap of bound semi-join equalities.
+   Returns a bitmap of bound semi-join equalities.
 
    If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
    called sj-equality. If ieK or oeK depends only on tables available before
@@ -3923,7 +3923,8 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
       inner fanout so that inner_fanout * outer_fanout is still
       the same (dups weedout runs a complete join internally).
     */
-    inner_fanout*= outer_fanout / max_outer_fanout;
+    if (max_outer_fanout > 0.0)
+      inner_fanout*= outer_fanout / max_outer_fanout;
     outer_fanout= max_outer_fanout;
   }
 

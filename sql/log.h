@@ -345,7 +345,7 @@ class File_query_log
      Log given command to normal (not rotatable) log file.
 
      @param event_utime       Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user@host info
+     @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
      @param thread_id         Id of the thread that issued the query
@@ -367,7 +367,7 @@ class File_query_log
      @param thd               THD of the query
      @param current_utime     Current timestamp in micro seconds
      @param query_start_arg   Command start timestamp
-     @param user_host         The pointer to the string with user@host info
+     @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
      @param query_utime       Amount of time the query took to execute (in microseconds)
@@ -435,7 +435,7 @@ public:
      @param thd               THD of the query
      @param current_utime     Current timestamp in micro seconds
      @param query_start_arg   Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user@host info
+     @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
      @param query_time        Amount of time the query took to execute (in microseconds)
@@ -460,7 +460,7 @@ public:
      Log command to the general log.
 
      @param  event_utime       Command start timestamp in micro seconds
-     @param  user_host         The pointer to the string with user@host info
+     @param  user_host         The pointer to the string with user\@host info
      @param  user_host_len     Length of the user_host string. this is computed
                                once and passed to all general log event handlers
      @param  thread_id         Id of the thread, issued a query

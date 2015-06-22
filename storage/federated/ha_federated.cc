@@ -2981,7 +2981,7 @@ int ha_federated::extra(ha_extra_function operation)
 /**
   @brief Reset state of file to after 'open'.
 
-  @detail This function is called after every statement for all tables
+  @details This function is called after every statement for all tables
     used by that statement.
 
   @return Operation status

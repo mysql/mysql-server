@@ -17,7 +17,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file Classes for query execution */
+/**
+  @file sql/sql_executor.h
+  Classes for query execution.
+*/
 
 #include "my_global.h"
 #include "records.h"               // READ_RECORD
@@ -622,7 +625,7 @@ public:
   */
   bool quick_traced_before;
 
-  /// @See m_quick_optim
+  /// @see m_quick_optim
   Item          *m_condition_optim;
 
   /**

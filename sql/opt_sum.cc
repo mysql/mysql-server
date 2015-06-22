@@ -95,9 +95,9 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   
   @param table      Table object
   @param ref        Reference to the structure where we store the key value
-  @item_field       Field used in MIN()
-  @range_fl         Whether range endpoint is strict less than
-  @prefix_len       Length of common key part for the range
+  @param item_field Field used in MIN()
+  @param range_fl   Whether range endpoint is strict less than
+  @param prefix_len Length of common key part for the range
   
   @retval
     0               No errors
@@ -190,7 +190,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
   
   @param table      Table object
   @param ref        Reference to the structure where we store the key value
-  @range_fl         Whether range endpoint is strict greater than
+  @param range_fl   Whether range endpoint is strict greater than
   
   @retval
     0               No errors

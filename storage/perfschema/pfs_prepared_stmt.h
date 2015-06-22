@@ -17,7 +17,7 @@
 #define PFS_PS_H
 
 /**
-  @file storage/perfschema/pfs_prepared_statement.h
+  @file storage/perfschema/pfs_prepared_stmt.h
   Stored Program data structures (declarations).
 */
 

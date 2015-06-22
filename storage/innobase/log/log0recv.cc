@@ -3678,8 +3678,6 @@ recv_recovery_from_checkpoint_start(
 	flush_list during recovery process. */
 	buf_flush_init_flush_rbt();
 
-	ut_when_dtor<recv_dblwr_t> tmp(recv_sys->dblwr);
-
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
 
 		ib::info() << "The user has set SRV_FORCE_NO_LOG_REDO on,"

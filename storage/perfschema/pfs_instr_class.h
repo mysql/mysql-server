@@ -436,7 +436,7 @@ struct PFS_ALIGNED PFS_file_class : public PFS_instr_class
 struct PFS_ALIGNED PFS_stage_class : public PFS_instr_class
 {
   /**
-    Length of the 'stage/<component>/' prefix.
+    Length of the 'stage/\<component\>/' prefix.
     This is to extract 'foo' from 'stage/sql/foo'.
   */
   uint m_prefix_length;
