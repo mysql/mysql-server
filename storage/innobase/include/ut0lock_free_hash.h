@@ -239,15 +239,16 @@ public:
 	{
 		ut_a(ut_is_2pow(initial_size));
 
-		m_data = UT_NEW(
-			arr_node_t(initial_size),
-			mem_key_buf_stat_per_index_t);
+		m_data.store(
+			UT_NEW(arr_node_t(initial_size),
+			       mem_key_buf_stat_per_index_t),
+			boost::memory_order_relaxed);
 	}
 
 	/** Destructor. Not thread safe. */
 	~ut_lock_free_hash_t()
 	{
-		UT_DELETE(m_data);
+		UT_DELETE(m_data.load(boost::memory_order_relaxed));
 	}
 
 	/** Get the value mapped to a given key.
@@ -259,7 +260,7 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		arr_node_t*	arr = m_data;
+		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
 
 		for (;;) {
 			const key_val_t*	tuple = get_tuple(key, &arr);
@@ -312,7 +313,8 @@ public:
 		ut_ad(val != DELETED);
 		ut_ad(val != GOTO_NEXT_ARRAY);
 
-		insert_or_update(key, val, false, m_data);
+		insert_or_update(key, val, false,
+				 m_data.load(boost::memory_order_relaxed));
 	}
 
 	/** Delete a (key, val) pair from the hash.
@@ -339,7 +341,7 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		arr_node_t*	arr = m_data;
+		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
 
 		for (;;) {
 			key_val_t*	tuple = get_tuple(key, &arr);
@@ -397,7 +399,8 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		insert_or_update(key, 1, true, m_data);
+		insert_or_update(key, 1, true,
+				 m_data.load(boost::memory_order_relaxed));
 	}
 
 	/** Decrement the value of a given key with 1 or insert a new tuple
@@ -413,7 +416,8 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		insert_or_update(key, -1, true, m_data);
+		insert_or_update(key, -1, true,
+				 m_data.load(boost::memory_order_relaxed));
 	}
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -716,7 +720,7 @@ private:
 	}
 
 	/** Storage for the (key, val) tuples. */
-	arr_node_t*			m_data;
+	boost::atomic<arr_node_t*>	m_data;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
 	/* The atomic type gives correct results, but has a _huge_
