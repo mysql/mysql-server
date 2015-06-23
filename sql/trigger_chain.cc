@@ -150,7 +150,7 @@ bool Trigger_chain::execute_triggers(THD *thd)
   to the set of elements used by statement.
 
   @param [in]     thd               thread context
-  @param [in out] prelocking_ctx    prelocking context of the statement
+  @param [in,out] prelocking_ctx    prelocking context of the statement
   @param [in]     table_list        TABLE_LIST for the table
 */
 

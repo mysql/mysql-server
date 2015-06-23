@@ -1810,7 +1810,7 @@ public:
   /**
     Set Ft_hints limit.
 
-    @param Ft_hints limit
+    @param ft_limit limit
   */
   void set_hint_limit(ha_rows ft_limit)
   {
@@ -3701,7 +3701,7 @@ void ha_kill_connection(THD *thd);
 /**
   Flush the log(s) of storage engine(s).
 
-  @param hton Handlerton of storage engine.
+  @param db_type Handlerton of storage engine.
   @param binlog_group_flush true if we got invoked by binlog group
   commit during flush stage, false in other cases.
   @retval false Succeed

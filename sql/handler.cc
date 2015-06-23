@@ -5872,9 +5872,9 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
 
 /**
-  Initialize the MRR scan
+  Initialize the MRR scan.
 
-  Initialize the MRR scan. This function may do heavyweight scan 
+  This function may do heavyweight scan 
   initialization like row prefetching/sorting/etc (NOTE: but better not do
   it here as we may not need it, e.g. if we never satisfy WHERE clause on
   previous tables. For many implementations it would be natural to do such
@@ -5883,7 +5883,7 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
   mode is a combination of the following flags: HA_MRR_SORTED,
   HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION 
 
-  @param seq             Range sequence to be traversed
+  @param seq_funcs       Range sequence to be traversed
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges        Number of ranges in the sequence
   @param mode            Flags, see the description section for the details
@@ -7574,7 +7574,7 @@ Handler_share *handler::get_ha_share_ptr()
 /**
   Set ha_share to be used by all instances of the same table/partition.
 
-  @param ha_share    Handler_share to be shared.
+  @param arg_ha_share    Handler_share to be shared.
 
   @note
   If not a temp table, then LOCK_ha_data must be held.

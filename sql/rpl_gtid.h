@@ -857,8 +857,8 @@ public:
     during the wait and (atomically) re-acquired when the wait ends
     or the timeout is reached.
 
-    @param[in] n - Sidno to wait for.
-    @param[in] abstime - pointer to the absolute wating time
+    @param[in] sidno Sidno to wait for.
+    @param[in] abstime pointer to the absolute wating time
 
     @retval - 0 - success
              !=0 - failure
@@ -1234,7 +1234,7 @@ public:
   /**
     Decodes a Gtid_set from the given string.
 
-    @param string The string to parse.
+    @param encoded The string to parse.
     @param length The number of bytes.
     @param actual_length If this is not NULL, it is set to the number
     of bytes used by the encoding (which may be less than 'length').
@@ -1481,7 +1481,7 @@ public:
     number of intervals.
 
     @param n_intervals The number of intervals to add.
-    @param intervals Array of n_intervals intervals.
+    @param intervals_param Array of n_intervals intervals.
   */
   void add_interval_memory(int n_intervals, Interval *intervals_param)
   {
@@ -2040,7 +2040,7 @@ public:
   /**
     Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
-    @param Gtid The Gtid to query.
+    @param gtid The Gtid to query.
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
@@ -2663,7 +2663,7 @@ public:
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_PERMISSIVE) for the THD, and acquires ownership.
 
-    @param THD The thread.
+    @param thd The thread.
     @param specified_sidno Externaly generated sidno.
     @param specified_gno   Externaly generated gno.
 
@@ -2735,11 +2735,12 @@ public:
   */
   enum_return_status ensure_sidno();
 
+#ifdef MYSQL_SERVER
   /**
     This function is used to wait for a given gtid until it is logged.
 
     @param thd     - global thread pointer.
-    @param Gtid    - Pointer to the Gtid set which gets updated.
+    @param gtid    - Pointer to the Gtid set which gets updated.
     @param timeout - Timeout value for which wait should be done in
                      millisecond.
 
@@ -2750,7 +2751,6 @@ public:
     my_error(ER_*, MYF(0)) call and return with value of -1.
 
    */
-#ifdef MYSQL_SERVER
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
 #endif
   /**

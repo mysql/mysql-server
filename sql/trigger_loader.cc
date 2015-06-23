@@ -726,7 +726,6 @@ bool Trigger_loader::load_triggers(THD *thd,
 /**
   Store a table trigger into the data dictionary.
 
-  @param [in]  tables       pointer to trigger's table
   @param [in]  new_trigger  trigger to save
   @param [in]  triggers     pointer to the list where new trigger object has to
                             be added
@@ -791,7 +790,6 @@ bool Trigger_loader::store_trigger(const LEX_STRING &db_name,
 /**
   Drop trigger in the data dictionary.
 
-  @param [in]  tables         pointer to trigger's table
   @param [in]  trigger_name   name of the trigger to drop
   @param [in]  triggers       list of all table triggers
   @param [out] trigger_found  flag to store a result whether

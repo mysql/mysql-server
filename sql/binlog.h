@@ -592,11 +592,11 @@ public:
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
 
-    @param[out] binlog_file_name, the file name of oldest binary log found
-    @param[in]  gtid_set, the given gtid set
-    @param[out] first_gtid, the first GTID information from the binary log
+    @param[out] binlog_file_name the file name of oldest binary log found
+    @param[in]  gtid_set the given gtid set
+    @param[out] first_gtid the first GTID information from the binary log
                 file returned at binlog_file_name
-    @param[out] errmsg, the error message outputted, which is left untouched
+    @param[out] errmsg the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
@@ -800,7 +800,7 @@ public:
   int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+  bool write_cache(THD *thd, class binlog_cache_data *cache_data,
                    class Binlog_event_writer *writer);
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
@@ -840,7 +840,6 @@ public:
      variable 'sync_binlog'. If file is synchronized, @c synced will
      be set to 1, otherwise 0.
 
-     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
      @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success

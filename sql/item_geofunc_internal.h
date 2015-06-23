@@ -573,8 +573,6 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param ifso the Item_func_spatial_operation object, we here rely on it to
-         do union operation.
   @param[out] pnull_value takes back null_value set during the operation.
  */
 template<typename Coord_type, typename Coordsys>

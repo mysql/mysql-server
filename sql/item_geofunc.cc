@@ -445,7 +445,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   This is needed since the rapidjson library doesn't have a case insensitive
   variant of the method FindMember().
 
-  @param v The object to look for the member in.
+  @param value The object to look for the member in.
   @param member_name Name of the member to look after
 
   @return The member if one was found, NULL otherwise.
@@ -1057,13 +1057,12 @@ Geometry::wkbType Item_func_geomfromgeojson::get_wkbtype(const char *typestring)
 
   GeoJSON support two types of CRS objects; named and linked. Linked CRS will
   force us to download CRS parameters from the web, which we do not allow.
-  Thus, we will only parse named CRS URNs in the"urn:ogc:def:crs:EPSG::<srid>"
+  Thus, we will only parse named CRS URNs in the "urn:ogc:def:crs:EPSG::<srid>"
   and "EPSG:<srid>" namespaces. In addition, "urn:ogc:def:crs:OGC:1.3:CRS84"
   will be recognized as SRID 4326. Note that CRS object with value JSON null is
   valid.
 
   @param crs_object A GeoJSON CRS object to parse.
-  @param result The WKB string the result will be appended to.
 
   @return false if the parsing was successful, or true if it didn't understand
           the CRS object provided.

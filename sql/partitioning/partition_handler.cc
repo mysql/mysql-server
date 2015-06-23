@@ -1798,8 +1798,6 @@ err:
 
 /**
   Set table->read_set taking partitioning expressions into account.
-
-  @param[in]	rnd_init	True if called from rnd_init (else index_init).
 */
 
 inline

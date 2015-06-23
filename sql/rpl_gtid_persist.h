@@ -258,7 +258,7 @@ private:
 
     @param  fields   Reference to table fileds.
     @param  sid      The source id of the gtid interval.
-    @param  gno_star The first GNO of the gtid interval.
+    @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
     @return
@@ -272,7 +272,7 @@ private:
 
     @param  table    Reference to a table object.
     @param  sid      The source id of the gtid interval.
-    @param  gno_star The first GNO of the gtid interval.
+    @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
     @return
@@ -288,7 +288,7 @@ private:
 
     @param  table        Reference to a table object.
     @param  sid          The source id of the gtid interval.
-    @param  gno_star     The first GNO of the gtid interval.
+    @param  gno_start    The first GNO of the gtid interval.
     @param  new_gno_end  The new last GNO of the gtid interval.
 
     @return
@@ -328,7 +328,7 @@ private:
     Insert the gtid set into table.
 
     @param table          The gtid_executed table.
-    @param gtid_executed  Contains a set of gtid, which holds
+    @param gtid_set       Contains a set of gtid, which holds
                           the sidno and the gno.
 
     @retval

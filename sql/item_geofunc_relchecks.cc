@@ -427,9 +427,9 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 the 1st geometry collection parameter.
-  @param g2 the 2nd geometry collection parameter.
-  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+  @param gv1 the 1st geometry collection parameter.
+  @param gv2 the 2nd geometry collection parameter.
+  @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coord_type, typename Coordsys>
@@ -630,9 +630,9 @@ multipoint_within_geometry_collection(Gis_multi_point *pmpts,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 the 1st geometry collection parameter.
-  @param g2 the 2nd geometry collection parameter.
-  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+  @param gv1 the 1st geometry collection parameter.
+  @param gv2 the 2nd geometry collection parameter.
+  @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coord_type, typename Coordsys>
@@ -797,9 +797,9 @@ geocol_relcheck_within(const typename BG_geometry_collection::
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 the 1st geometry collection parameter.
-  @param g2 the 2nd geometry collection parameter.
-  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+  @param gv1 the 1st geometry collection parameter.
+  @param gv2 the 2nd geometry collection parameter.
+  @return whether @p gv1 and @p gv2 satisfy the specified relation, 0 for negative,
                 none 0 for positive.
  */
 template<typename Coord_type, typename Coordsys>

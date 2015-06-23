@@ -978,7 +978,6 @@ public:
     binlog.
 
     @param output_cache_arg IO_CACHE to write to.
-    @param have_checksum_al
   */
   Binlog_event_writer(IO_CACHE *output_cache_arg)
     : output_cache(output_cache_arg),
@@ -996,16 +995,16 @@ public:
   /**
     Write part of an event to disk.
 
-    @param buf_p[IN,OUT] Points to buffer with data to write.  The
+    @param [in,out] buf_p Points to buffer with data to write.  The
     caller must set this initially, and it will be increased by the
     number of bytes written.
 
-    @param buf_len_p[IN,OUT] Points to the remaining length of the
+    @param [in,out] buf_len_p Points to the remaining length of the
     buffer, i.e., from buf_p to the end of the buffer.  The caller
     must set this initially, and it will be decreased by the number of
     written bytes.
 
-    @param event_len_p[IN,OUT] Points to the remaining length of the
+    @param [in,out] event_len_p Points to the remaining length of the
     event, i.e., the size of the event minus what was already written.
     This must be initialized to zero by the caller, must be remembered
     by the caller between calls, and is updated by this function: when
@@ -1352,8 +1351,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   @see binlog_cache_data::flush
 
   @param thd                The thread whose transaction should be flushed
-  @param cache_data         Pointer to the cache
-  @param end_ev             The end event either commit/rollback
+  @param end_event          The end event either commit/rollback
 
   @return
     nonzero if an error pops up when flushing the cache.
@@ -1500,7 +1498,6 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
   back either a transaction or a statement.
 
   @param thd        The thread whose transaction should be flushed
-  @param cache_mngr Pointer to the cache data to be flushed
   @param all        @c true means truncate the transaction, otherwise the
                     statement must be truncated.
 
@@ -3437,7 +3434,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   update the IO thread transaction parser.
 
   @param filename Relaylog file to read from.
-  @param retrieved_set Gtid_set to store the GTIDs found on the relaylog file.
+  @param retrieved_gtids Gtid_set to store the GTIDs found on the relaylog file.
   @param verify_checksum Set to true to verify event checksums.
   @param trx_parser The transaction boundary parser to be used in order to
   only add a GTID to the gtid_set after ensuring the transaction is fully
@@ -5526,7 +5523,7 @@ err:
   crash safe index file firstly and then move the crash
   safe index file to index file.
 
-  @param linfo                  Store here the found log file name and
+  @param log_info               Store here the found log file name and
                                 position to the NEXT log file name in
                                 the index file.
 
@@ -5588,7 +5585,7 @@ err:
   @param need_lock_index
   @param need_update_threads If we want to update the log coordinates of
                              all threads. False for relay logs, true otherwise.
-  @param freed_log_space     If not null, decrement this variable of
+  @param decrease_log_space  If not null, decrement this variable of
                              the amount of log space freed
   @param auto_purge          True if this is an automatic purge.
 
@@ -6020,7 +6017,6 @@ err:
   Remove all logs before the given file date from disk and from the
   index file.
 
-  @param thd		Thread pointer
   @param purge_time	Delete all log files before given date.
   @param auto_purge     True if this is an automatic purge.
 
@@ -6472,9 +6468,6 @@ end:
   @note The caller must hold LOCK_log before invoking this function.
 
   @param mi Master_info for the IO thread.
-  @param need_data_lock If true, mi->data_lock will be acquired if a
-  rotation is needed.  Otherwise, mi->data_lock must be held by the
-  caller.
 
   @retval false success
   @retval true error
@@ -7184,9 +7177,8 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
   Creates an incident event and writes it to the binary log.
 
   @param thd  Thread variable
-  @param ev   Incident event to be written
+  @param need_lock_log If the binary lock should be locked or not
   @param err_msg Error message written to log file for the incident.
-  @param lock If the binary lock should be locked or not
 
   @retval
     0    error
@@ -8086,7 +8078,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   As a side effect, the transaction context's sequence_number
   is reset.
 
-  @param THD a pointer to THD instance
+  @param thd a pointer to THD instance
 */
 void MYSQL_BIN_LOG::update_max_committed(THD *thd)
 {
@@ -8242,7 +8234,6 @@ static const char* g_stage_name[] = {
   @param thd    Session structure
   @param stage  The stage to enter
   @param queue  Queue of threads to enqueue for the stage
-  @param stage_mutex Mutex for the stage
 
   @retval true  The thread should "bail out" and go waiting for the
                 commit to finish
@@ -9389,7 +9380,6 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
 
   @see THD::binlog_query
 
-  @param[in] thd    Client thread
   @param[in] tables Tables involved in the query
 
   @retval 0 No error; statement can be logged.

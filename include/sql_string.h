@@ -129,7 +129,7 @@ typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
-String *copy_if_not_alloced(String *a, String *b, size_t arg_length);
+String *copy_if_not_alloced(String *to, String *from, size_t from_length);
 inline size_t copy_and_convert(char *to, size_t to_length,
                                const CHARSET_INFO *to_cs,
                                const char *from, size_t from_length,

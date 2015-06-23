@@ -1006,9 +1006,6 @@ void Sql_cmd_change_repl_filter::set_filter_value(List<Item>* item_list,
 
   @param thd A pointer to the thread handler object.
 
-  @param mi Pointer to Master_info object belonging to the slave's IO
-  thread.
-
   @retval FALSE success
   @retval TRUE error
  */

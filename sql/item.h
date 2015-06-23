@@ -975,7 +975,7 @@ public:
     Save the item into a field but do not emit any warnings.
 
     @param field         field to save the item into
-    @param no_coversions whether or not to allow conversions of the value
+    @param no_conversions whether or not to allow conversions of the value
 
     @return the status from saving into the field
       @retval TYPE_OK    item saved without any issues

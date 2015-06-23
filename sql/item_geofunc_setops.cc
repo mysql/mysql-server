@@ -2534,7 +2534,7 @@ symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
           boost::geometry::cs.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param opdone takes back whether the set operation is successfully completed,
+  @param pdone takes back whether the set operation is successfully completed,
   failures include:
     1. boost geometry doesn't support a type combination for a set operation.
     2. gis computation(not mysql code) got error, null_value isn't set to true.
@@ -2727,7 +2727,7 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
   linestring, multilinestring, multipoint, or geometry collection.
 
   @param mls The multilinestring to simplify
-  @param[out] The GEOMETRY string (SRID+WKB) of the returned object
+  @param[out] result The GEOMETRY string (SRID+WKB) of the returned object
   @return The simplest geometry type representing the input.
 */
 Geometry *Item_func_spatial_operation::
@@ -3470,8 +3470,8 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @param[out] pdone Returns whether the set operation is performed for the
@@ -3583,8 +3583,8 @@ geocol_intersection(const BG_geometry_collection &bggc1,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @param[out] pdone Returns whether the set operation is performed for the
@@ -3628,8 +3628,8 @@ geocol_union(const BG_geometry_collection &bggc1,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @param[out] pdone Returns whether the set operation is performed for the
@@ -3746,8 +3746,8 @@ geocol_difference(const BG_geometry_collection &bggc1,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @param[out] pdone Returns whether the set operation is performed for the
