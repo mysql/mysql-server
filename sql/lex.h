@@ -363,7 +363,6 @@ static const SYMBOL symbols[] = {
   { SYM("MATCH",                    MATCH)},
   { SYM("MAX_CONNECTIONS_PER_HOUR", MAX_CONNECTIONS_PER_HOUR)},
   { SYM("MAX_QUERIES_PER_HOUR",     MAX_QUERIES_PER_HOUR)},
-  { SYM("MAX_STATEMENT_TIME",       MAX_STATEMENT_TIME_SYM)},
   { SYM("MAX_ROWS",                 MAX_ROWS)},
   { SYM("MAX_SIZE",                 MAX_SIZE_SYM)},
   { SYM("MAX_UPDATES_PER_HOUR",     MAX_UPDATES_PER_HOUR)},

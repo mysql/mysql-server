@@ -436,7 +436,7 @@ bool PT_hint_max_execution_time::contextualize(Parse_context *pc)
     return false;
   }
 
-  pc->thd->lex->max_statement_time= milliseconds;
+  pc->thd->lex->max_execution_time= milliseconds;
   global_hint->set_switch(switch_on(), type(), false);
   global_hint->max_exec_time= this;
   return false;

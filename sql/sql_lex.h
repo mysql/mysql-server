@@ -1469,7 +1469,6 @@ struct Limit_options
 struct Query_options {
   ulonglong query_spec_options;
   enum SELECT_LEX::e_sql_cache sql_cache;
-  ulong max_statement_time;
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
@@ -3291,7 +3290,7 @@ public:
   class Explain_format *explain_format;
 
   // Maximum execution time for a statement.
-  ulong max_statement_time;
+  ulong max_execution_time;
 
   LEX();
 
