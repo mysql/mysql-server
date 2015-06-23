@@ -739,6 +739,14 @@ op_status_t WorkerStep1::do_math() {
 
 
 /***************** NDB CALLBACKS *********************************************/
+void debug_workitem(workitem *item) {
+  DEBUG_PRINT("%d.%d %s %s %s",
+    item->pipeline->id,
+    item->id,
+    item->plan->table->getName(),
+    workitem_get_operation(item),
+    workitem_get_key_suffix(item));
+}
 
 void callback_main(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
@@ -798,16 +806,13 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
     log_ndb_error(tx->getNdbError());
     wqitem->status = & status_block_no_mem;
   }
-  /* 284: Table not defined in TC (stale definition) */
-  else if(tx->getNdbError().code == 284) {
-    /* TODO: find a way to handle this error, after an ALTER TABLE */
-    log_ndb_error(tx->getNdbError());
-    wqitem->status = & status_block_misc_error;
-  }
-  
-  /* Some other error */
+  /* Some other error.
+     The get("dummy") in mtr's memcached_wait_for_ready.inc script will often
+     get a 241 or 284 error here.
+  */
   else  {
     log_ndb_error(tx->getNdbError());
+    debug_workitem(wqitem);
     wqitem->status = & status_block_misc_error;
   }
 
