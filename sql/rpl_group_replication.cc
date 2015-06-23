@@ -333,7 +333,9 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
       RETURN_STATUS_OK)
     return NULL;
 
-  return set.to_string();
+  char *buf;
+  set.to_string(&buf);
+  return buf;
 }
 #endif
 

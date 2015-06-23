@@ -13118,9 +13118,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
 int Previous_gtids_log_event::pack_info(Protocol *protocol)
 {
   size_t length= 0;
-  global_sid_lock->rdlock();
   char *str= get_str(&length, &Gtid_set::default_string_format);
-  global_sid_lock->unlock();
   if (str == NULL)
     return 1;
   protocol->store(str, length, &my_charset_bin);
@@ -13134,10 +13132,7 @@ void Previous_gtids_log_event::print(FILE *file,
                                      PRINT_EVENT_INFO *print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
-
-  global_sid_lock->rdlock();
   char *str= get_str(NULL, &Gtid_set::commented_string_format);
-  global_sid_lock->unlock();
   if (str != NULL)
   {
     if (!print_event_info->short_form)
@@ -13167,7 +13162,7 @@ int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 char *Previous_gtids_log_event::get_str(
   size_t *length_p, const Gtid_set::String_format *string_format) const
 {
-  DBUG_ENTER("Previous_gtids_log_event::get_str(size_t *)");
+  DBUG_ENTER("Previous_gtids_log_event::get_str(size_t *, const Gtid_set::String_format *)");
   Sid_map sid_map(NULL);
   Gtid_set set(&sid_map, NULL);
   DBUG_PRINT("info", ("temp_buf=%p buf=%p", temp_buf, buf));
@@ -13180,7 +13175,7 @@ char *Previous_gtids_log_event::get_str(
                                length + 1, MYF(MY_WME));
   if (str != NULL)
   {
-    set.to_string(str, string_format);
+    set.to_string(str, false/*need_lock*/, string_format);
     if (length_p != NULL)
       *length_p= length;
   }
