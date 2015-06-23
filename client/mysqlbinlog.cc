@@ -77,37 +77,20 @@ using std::max;
 static
 std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
 
-/**
-  Return the new database after applying the filter specified by
-  mysqlbinlog --rewrite
-
-  @param[in] db The database name to be replaced. May not be null-terminated.
-  @param[in] db_len The length of 'db'.
-
-  @returns Pointer to the rewritten db (null-terminated), if any;
-  otherwise it returns db.
-*/
-static
-const char *get_mysqlbinlog_rewrite_db(const char *db, size_t db_len)
-{
-  std::map<std::string, std::string>::iterator it, end;
-  it= map_mysqlbinlog_rewrite_db.find(std::string(db, db_len));
-  end= map_mysqlbinlog_rewrite_db.end();
-
-  if (it != end)
-    return it->second.c_str();
-  else
-    return db;
-}
-
 static bool
 rewrite_db(char **buf, ulong *buf_size,
            uint offset_db, uint offset_len)
 {
   char* ptr= *buf;
-  uint old_db_len= (uint) ptr[offset_len];
   char* old_db= ptr + offset_db;
-  const char *new_db= get_mysqlbinlog_rewrite_db(old_db, old_db_len);
+  uint old_db_len= (uint) ptr[offset_len];
+  std::map<std::string, std::string>::iterator new_db_it=
+    map_mysqlbinlog_rewrite_db.find(std::string(old_db, old_db_len));
+  if (new_db_it == map_mysqlbinlog_rewrite_db.end())
+    return false;
+  const char *new_db=new_db_it->second.c_str();
+  DBUG_ASSERT(new_db && new_db != old_db);
+
   size_t new_db_len= strlen(new_db);
 
   // Reallocate buffer if needed.
