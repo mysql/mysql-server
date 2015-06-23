@@ -240,7 +240,7 @@ public:
 		ut_a(ut_is_2pow(initial_size));
 
 		m_data = UT_NEW(
-			ut_lock_free_list_node_t<key_val_t>(initial_size),
+			arr_node_t(initial_size),
 			mem_key_buf_stat_per_index_t);
 	}
 
@@ -259,7 +259,7 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
+		arr_node_t*	arr = m_data;
 
 		for (;;) {
 			const key_val_t*	tuple = get_tuple(key, &arr);
@@ -312,7 +312,7 @@ public:
 		ut_ad(val != DELETED);
 		ut_ad(val != GOTO_NEXT_ARRAY);
 
-		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
+		arr_node_t*	arr = m_data;
 
 		/* Loop through arrays as long as m_val == GOTO_NEXT_ARRAY. */
 		for (;;) {
@@ -370,7 +370,7 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
+		arr_node_t*	arr = m_data;
 
 		for (;;) {
 			key_val_t*	tuple = get_tuple(key, &arr);
@@ -497,6 +497,10 @@ private:
 		boost::atomic_int64_t	m_val;
 	};
 
+	/** An array node in the hash. The hash table consists of a linked
+	list of such nodes. */
+	typedef ut_lock_free_list_node_t<key_val_t>	arr_node_t;
+
 	/** A hash function used to map a key to its suggested position in the
 	array. A linear search to the right is done after this position to find
 	the tuple with the given key or find a tuple with key == UNUSED which
@@ -569,8 +573,8 @@ private:
 	@return pointer to the array cell or NULL if not found */
 	key_val_t*
 	get_tuple(
-		uint64_t				key,
-		ut_lock_free_list_node_t<key_val_t>**	arr) const
+		uint64_t	key,
+		arr_node_t**	arr) const
 	{
 		for (;;) {
 			key_val_t*	t = get_tuple_from_array(
@@ -672,8 +676,8 @@ private:
 	@return a pointer to the inserted or previously existent tuple */
 	key_val_t*
 	insert_or_get_position(
-		uint64_t				key,
-		ut_lock_free_list_node_t<key_val_t>**	arr)
+		uint64_t	key,
+		arr_node_t**	arr)
 	{
 		for (;;) {
 			key_val_t*	t = insert_or_get_position_in_array(
@@ -703,9 +707,9 @@ private:
 		/* The value which we expect to be in m_val when calling
 		compare_exchange_strong(). If it fails, then it will write
 		the current value of m_val into this variable. */
-		int64_t					v;
+		int64_t		v;
 
-		ut_lock_free_list_node_t<key_val_t>*	arr = m_data;
+		arr_node_t*	arr = m_data;
 
 		do {
 			key_val_t*	tuple = insert_or_get_position(key,
@@ -764,7 +768,7 @@ private:
 	}
 
 	/** Storage for the (key, val) tuples. */
-	ut_lock_free_list_node_t<key_val_t>*	m_data;
+	arr_node_t*			m_data;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
 	/* The atomic type gives correct results, but has a _huge_
@@ -773,16 +777,16 @@ private:
 
 	/** Number of searches performed in this hash. */
 #if 0
-	mutable uint64_t			m_n_search;
+	mutable uint64_t		m_n_search;
 #else
-	mutable boost::atomic_uint64_t		m_n_search;
+	mutable boost::atomic_uint64_t	m_n_search;
 #endif
 
 	/** Number of elements processed for all searches. */
 #if 0
-	mutable uint64_t			m_n_search_iterations;
+	mutable uint64_t		m_n_search_iterations;
 #else
-	mutable boost::atomic_uint64_t		m_n_search_iterations;
+	mutable boost::atomic_uint64_t	m_n_search_iterations;
 #endif
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 };
