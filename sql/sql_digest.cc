@@ -49,6 +49,12 @@
 
 #define SIZE_OF_A_TOKEN 2
 
+ulong max_digest_length= 0;
+ulong get_max_digest_length()
+{
+  return max_digest_length;
+}
+
 /**
   Read a single token from token array.
 */
