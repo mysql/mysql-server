@@ -473,10 +473,12 @@ class MYSQL_BIN_LOG: public TC_LOG
             PSI_file_key log_file_key,
 #endif
             const char *log_name,
-            const char *new_name);
+            const char *new_name,
+            ulong number);
   bool init_and_set_log_file_name(const char *log_name,
-                                  const char *new_name);
-  int generate_new_name(char *new_name, const char *log_name);
+                                  const char *new_name,
+                                  ulong number);
+  int generate_new_name(char *new_name, const char *log_name, ulong new_number);
 
 public:
   const char *generate_name(const char *log_name, const char *suffix,
@@ -777,7 +779,8 @@ public:
                    ulong max_size,
                    bool null_created,
                    bool need_lock_index, bool need_sid_lock,
-                   Format_description_log_event *extra_description_event);
+                   Format_description_log_event *extra_description_event,
+                   ulong new_number);
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_lock_index);
   /* Use this to start writing a new log file */

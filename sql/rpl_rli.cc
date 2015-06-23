@@ -2086,7 +2086,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
                                max_binlog_size), true,
                               true/*need_lock_index=true*/,
                               true/*need_sid_lock=true*/,
-                              mi->get_mi_description_event()))
+                              mi->get_mi_description_event(),
+                              0))
     {
       mysql_mutex_unlock(log_lock);
       sql_print_error("Failed in open_log() called from Relay_log_info::rli_init_info().");

@@ -3137,6 +3137,7 @@ public:
   bool is_set_password_sql;
   bool contains_plaintext_password;
   enum_keep_diagnostics keep_diagnostics;
+  ulong next_binlog_file_nr;
 
 private:
   bool m_broken; ///< see mark_broken()
