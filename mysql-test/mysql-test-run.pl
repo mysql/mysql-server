@@ -5761,7 +5761,7 @@ sub servers_need_restart($) {
   }
 
   # Check if any remaining servers need restart
-  foreach my $server (ndb_mgmds(), ndbds(), memcacheds())
+  foreach my $server (ndb_mgmds(), ndbds())
   {
     if (server_need_restart($tinfo, $server, $master_restarted))
     {
