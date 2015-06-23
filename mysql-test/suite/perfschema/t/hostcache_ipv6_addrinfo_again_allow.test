@@ -11,6 +11,10 @@
 --source include/have_ipv6.inc
 --source include/have_perfschema.inc
 
+# Start the server with --bind-address=::
+--let $restart_parameters = "--bind-address=::"
+--source include/restart_mysqld.inc
+
 # [Warning] Host name 'santa.claus.ipv6.example.com' could not be resolved:
 # Temporary failure in name resolution
 call mtr.add_suppression("santa.claus.ipv6.example.com");

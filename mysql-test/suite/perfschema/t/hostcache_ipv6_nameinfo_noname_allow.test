@@ -11,6 +11,10 @@
 --source include/have_ipv6.inc
 --source include/have_perfschema.inc
 
+# Start the server with --bind-address=::
+--let $restart_parameters = "--bind-address=::"
+--source include/restart_mysqld.inc
+
 # [Warning] IP address '2001:db8::6:6' could not be resolved:
 # Name or service not known
 call mtr.add_suppression("2001:db8::6:6");

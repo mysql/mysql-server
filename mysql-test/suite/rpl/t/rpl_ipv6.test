@@ -7,6 +7,17 @@
 --source include/not_windows.inc
 --source include/have_log_bin.inc
 
+# restart both master and slave with --bind-address=::
+--connect (master,localhost,root,,test,$MASTER_MYPORT)
+--let $restart_parameters = "--bind-address=::"
+--source include/restart_mysqld.inc
+--connect (slave,localhost,root,,test,$SLAVE_MYPORT)
+--let $restart_parameters = "--bind-address=::"
+--source include/restart_mysqld.inc
+
+--disconnect master
+--disconnect slave
+
 let $IPv6= ::1;
 --echo #################### IP: $IPv6 ###########################
 --source include/rpl_ipv6.inc
