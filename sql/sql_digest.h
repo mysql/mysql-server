@@ -22,6 +22,8 @@
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
 
+ulong get_max_digest_length();
+
 /**
   Structure to store token count/array for a statement
   on which digest is to be calculated.
