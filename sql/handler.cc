@@ -5691,15 +5691,15 @@ static bool key_uses_partial_cols(TABLE *table, uint keyno)
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
                          can't efficiently determine it
-  @param bufsz[in,out]   IN:  Size of the buffer available for use
+  @param [in,out] bufsz  IN:  Size of the buffer available for use
                          OUT: Size of the buffer that is expected to be actually
                               used, or 0 if buffer is not needed.
-  @param flags[in,out]   A combination of HA_MRR_* flags
-  @param cost[out]       Estimated cost of MRR access
+  @param [in,out] flags  A combination of HA_MRR_* flags
+  @param [out] cost      Estimated cost of MRR access
 
   @note
     This method (or an overriding one in a derived class) must check for
-    thd->killed and return HA_POS_ERROR if it is not zero. This is required
+    \c thd->killed and return HA_POS_ERROR if it is not zero. This is required
     for a user to be able to interrupt the calculation by killing the
     connection/query.
 
@@ -5838,11 +5838,11 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                          range sequence.
   @param n_rows          Estimated total number of records contained within all
                          of the ranges
-  @param bufsz[in,out]   IN:  Size of the buffer available for use
+  @param [in,out] bufsz  IN:  Size of the buffer available for use
                          OUT: Size of the buffer that will be actually used, or
                               0 if buffer is not needed.
-  @param flags[in,out]   A combination of HA_MRR_* flags
-  @param cost[out]       Estimated cost of MRR access
+  @param [in,out] flags  A combination of HA_MRR_* flags
+  @param [out] cost      Estimated cost of MRR access
 
   @retval
     0     OK, *cost contains cost of the scan, *bufsz and *flags contain scan

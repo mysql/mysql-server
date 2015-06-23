@@ -601,7 +601,7 @@ private:
   enum_trig_type trig_type;
 public:
   /**
-     @param a             the item for \<condition\>
+     @param a             the item for @<condition@>
      @param f             pointer to trigger variable
      @param join          if a table's property is the source of 'f', JOIN
      which owns this table; NULL otherwise.
@@ -616,7 +616,7 @@ public:
   {}
   longlong val_int();
   enum Functype functype() const { return TRIG_COND_FUNC; };
-  /// '\<if\>', to distinguish from the if() SQL function
+  /// '@<if@>', to distinguish from the if() SQL function
   const char *func_name() const { return "<if>"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
@@ -1604,7 +1604,7 @@ public:
   /// An array of values, created when the bisection lookup method is used
   in_vector *array;
   /**
-    If there is some NULL among \<in value list\>, during a val_int() call; for
+    If there is some NULL among @<in value list@>, during a val_int() call; for
     example
     IN ( (1,(3,'col')), ... ), where 'col' is a column which evaluates to
     NULL.
@@ -1661,7 +1661,7 @@ public:
                              double rows_in_table);
 private:
   /**
-     Usable if \<in value list\> is made only of constants. Returns true if one
+     Usable if @<in value list@> is made only of constants. Returns true if one
      of these constants contains a NULL. Example:
      IN ( (-5, (12,NULL)), ... ).
   */

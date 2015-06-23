@@ -46,7 +46,7 @@ public:
     - mask a warning/error and throw another one instead.
     When this method returns true, the sql condition is considered
     'handled', and will not be propagated to upper layers.
-    It is the responsability of the code installing an internal handler
+    It is the responsibility of the code installing an internal handler
     to then check for trapped conditions, and implement logic to recover
     from the anticipated conditions trapped during runtime.
 
@@ -59,7 +59,10 @@ public:
     <code>THD::pop_internal_handler()</code>.
 
     @param thd the calling thread
-    @param cond the condition raised.
+    @param sql_errno the error number for the condition raised.
+    @param sqlstate the SQLSTATE for the condition raised.
+    @param level the severity level for the condition raised.
+    @param msg the error message for the condition raised.
     @return true if the condition is handled
   */
   virtual bool handle_condition(THD *thd,

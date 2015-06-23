@@ -2583,7 +2583,7 @@ bool stmt_cannot_safely_rollback(const THD* thd)
 
 #ifndef EMBEDDED_LIBRARY
 /**
-  Execute a PURGE BINARY LOGS TO \<log\> command.
+  Execute a PURGE BINARY LOGS TO @<log@> command.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -2612,7 +2612,7 @@ bool purge_master_logs(THD* thd, const char* to_log)
 
 
 /**
-  Execute a PURGE BINARY LOGS BEFORE \<date\> command.
+  Execute a PURGE BINARY LOGS BEFORE @<date@> command.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.

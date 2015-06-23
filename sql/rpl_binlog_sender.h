@@ -437,14 +437,14 @@ private:
    */
   inline bool shrink_packet();
 
-  /*
+  /**
    * Helper function to recalculate a new size for the buffer.
    *
    * @param current_size The baseline (for instance, the current buffer size).
    * @param min_size The resulting buffer size, needs to be at least as large
    *                 as this parameter states.
    * @param factor The multiplier factor on the baseline.
-   * @param new_val[out] The placeholder where the new value will be stored.
+   * @param [out] new_val The placeholder where the new value will be stored.
    * @return true in case of an error.
    */
   inline bool calc_buffer_size(size_t current_size, size_t min_size,

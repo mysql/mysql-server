@@ -1921,7 +1921,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
 
       SELECT 1 FROM ...
         WHERE  subq_where AND trigcond((oe $cmp$ ie) OR (ie IS NULL))
-        HAVING trigcond(\<is_not_null_test\>(ie))
+        HAVING trigcond(@<is_not_null_test@>(ie))
 
   At JOIN::optimize() we will compare costs of materialization and EXISTS; if
   the former is cheaper we will switch to it.

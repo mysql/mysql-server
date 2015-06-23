@@ -571,7 +571,7 @@ public:
           |  INSERT    |   NULL            |    Inserted row      |
           |  UPDATE    |   Old     row     |    Updated row       |
           +-------------------------------------------------------+
-        @end verbatim
+        @endverbatim
     </td>
   </tr>
 
@@ -870,6 +870,7 @@ public:
     +------------------------------------+
     | The original query executed in RBR |
     +------------------------------------+
+    </pre>
 
     @param buf                Contains the serialized event.
     @param length             Length of the serialized event.

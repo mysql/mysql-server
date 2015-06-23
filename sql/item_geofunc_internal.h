@@ -270,7 +270,7 @@ struct Is_rtree_box_valid
 /**
   Build an rtree set using a geometry collection.
   @param gl geometry object pointers container.
-  @param vals[out] rtree entries which can be used to build an rtree.
+  @param [out] rtree entries which can be used to build an rtree.
  */
 inline void
 make_rtree(const BG_geometry_collection::Geometry_list &gl,

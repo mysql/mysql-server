@@ -18,10 +18,9 @@
 
 
 /**
-  @file
+  @file sql/sql_select.h
 
-  @brief
-  classes to use when handling where clause
+  Classes to use when handling where clause
 */
 
 
@@ -176,8 +175,8 @@ public:
             an Item_func_trig_cond. This means the equality (and validity of
             this Key_use element) can be turned on and off. The on/off state
             is indicted by the pointed value:
-              *cond_guard == TRUE <=> equality condition is on
-              *cond_guard == FALSE <=> equality condition is off
+              *cond_guard == TRUE @<=@> equality condition is on
+              *cond_guard == FALSE @<=@> equality condition is off
 
     NULL  - Otherwise (the source equality can't be turned off)
 
@@ -186,7 +185,7 @@ public:
   */
   bool *cond_guard;
   /**
-     0..63    <=> This was created from semi-join IN-equality # sj_pred_no.
+     0..63    @<=@> This was created from semi-join IN-equality # sj_pred_no.
      UINT_MAX  Otherwise
 
      Not used if the index is fulltext (such index cannot be used for
@@ -261,7 +260,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 
 /**
   A position of table within a join order. This structure is primarily used
-  as a part of join->positions and join->best_positions arrays.
+  as a part of @c join->positions and @c join->best_positions arrays.
 
   One POSITION element contains information about:
    - Which table is accessed
@@ -323,10 +322,10 @@ typedef struct st_position : public Sql_alloc
     The fraction of the 'rows_fetched' rows that will pass the table
     conditions that were NOT used by the access method. If, e.g.,
 
-      "SELECT ... WHERE t1.colx = 4 and t1.coly > 5"
+      "SELECT ... WHERE t1.colx = 4 and t1.coly @> 5"
 
     is resolved by ref access on t1.colx, filter_effect will be the
-    fraction of rows that will pass the "t1.coly > 5" predicate. The
+    fraction of rows that will pass the "t1.coly @> 5" predicate. The
     valid range is 0..1, where 0.0 means that no rows will pass the
     table conditions and 1.0 means that all rows will pass.
 
@@ -337,15 +336,15 @@ typedef struct st_position : public Sql_alloc
     a fanout = rows_fetched * filter_effect that is less than 1.0.
     Consider, e.g., a join between t1 and t2:
 
-       "SELECT ... WHERE t1.col1=t2.colx and t2.coly OP <something>"
+       "SELECT ... WHERE t1.col1=t2.colx and t2.coly OP @<something@>"
 
     where t1 is a prefix table and the optimizer currently calculates
     the cost of adding t2 to the join. Assume that the chosen access
     method on t2 is a 'ref' access on 'colx' that is estimated to
     produce 2 rows per row from t1 (i.e., rows_fetched = 2). It will
     in this case be perfectly fine to calculate a filtering effect
-    <0.5 (resulting in "rows_fetched * filter_effect < 1.0") from the
-    predicate "t2.coly OP <something>". If so, the number of row
+    @<0.5 (resulting in "rows_fetched * filter_effect @< 1.0") from the
+    predicate "t2.coly OP @<something@>". If so, the number of row
     combinations from (t1,t2) is lower than the prefix_rowcount of t1.
 
     The above is just an example of how the fanout of a table can
@@ -739,16 +738,16 @@ JOIN_TAB::JOIN_TAB() :
 
   @note The order relation implemented by Join_tab_compare_default is not
     transitive, i.e. it is possible to choose a, b and c such that 
-    (a < b) && (b < c) but (c < a). This is the case in the
+    (a @< b) && (b @< c) but (c @< a). This is the case in the
     following example: 
 
-      a: dependent = \<none\> found_records = 3
-      b: dependent = \<none\> found_records = 4
+      a: dependent = @<none@> found_records = 3
+      b: dependent = @<none@> found_records = 4
       c: dependent = b        found_records = 2
 
-        a < b: because a has fewer records
-        b < c: because c depends on b (e.g outer join dependency)
-        c < a: because c has fewer records
+        a @< b: because a has fewer records
+        b @< c: because c depends on b (e.g outer join dependency)
+        c @< a: because c has fewer records
 
     This implies that the result of a sort using the relation
     implemented by Join_tab_compare_default () depends on the order in

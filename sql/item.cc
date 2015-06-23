@@ -10035,10 +10035,10 @@ void convert_and_print(String *from_str, String *to_str,
 
    @note This returns false for an alias to a SELECT list expression,
    even though the SELECT list expression might itself be a column of the
-   \<table expression\>; i.e. when the function runs on "foo" in HAVING of
-   "select t1.a as foo from t1 having foo \> 1", it returns false. First, it
+   @<table expression@>; i.e. when the function runs on "foo" in HAVING of
+   "select t1.a as foo from t1 having foo @> 1", it returns false. First, it
    pedantically makes sense: "foo" in HAVING is a reference to a column of the
-   \<query expression\>, not of the \<table expression\>. Second, this behaviour
+   @<query expression@>, not of the @<table expression@>. Second, this behaviour
    makes sense for our purpose:
      - This is an alias to a SELECT list expression.
      - If doing DISTINCT-related checks, this alias can be ignored.

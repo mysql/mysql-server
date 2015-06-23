@@ -19,7 +19,7 @@
 
 /**
   @file sql/opt_explain_format.h
-  EXPLAIN FORMAT=\<format\> \<command\>.
+  EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
 #include "sql_alloc.h"

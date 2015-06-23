@@ -739,9 +739,9 @@ public:
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
 
-    @Note If mutex is 0, the read will proceed without mutex.
+    @note If mutex is 0, the read will proceed without mutex.
 
-    @Note If a log name is given than the method will check if the
+    @note If a log name is given than the method will check if the
     given binlog is still active.
 
     @param[in]  file                log file to be read
@@ -1075,7 +1075,7 @@ private:
   }
 
   /**
-     @return index  in \in [0, M] range to indicate
+     @return index  in [0, M] range to indicate
              to be assigned worker;
              M is the max index of the worker pool.
   */
@@ -3222,10 +3222,10 @@ private:
     the indexes are in non-contigous ranges it fetches record corresponding
     to the key value in the next range.
 
-    @parms: bool first_read : signifying if this is the first time we are reading a row
+    @param first_read  signifying if this is the first time we are reading a row
             over an index.
-    @return_value: -  error code when there are no more reeords to be fetched or some other
-                      error occured,
+    @return  error code when there are no more records to be fetched or some other
+                      error occurred,
                    -  0 otherwise.
   */
   int next_record_scan(bool first_read);
@@ -3233,8 +3233,7 @@ private:
   /**
     Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
-    @return_value -0 success
-                  -Err_code
+    @returns 0 success, or the error code.
   */
   int add_key_to_distinct_keyset();
 

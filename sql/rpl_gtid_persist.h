@@ -317,10 +317,10 @@ private:
   /**
     Get gtid interval from the the current row of the table.
 
-    @param  table         Reference to a table object.
-    @param  sid[out]      The source id of the gtid interval.
-    @param  gno_star[out] The first GNO of the gtid interval.
-    @param  gno_end[out]  The last GNO of the gtid interval.
+    @param table          Reference to a table object.
+    @param [out] sid      The source id of the gtid interval.
+    @param [out] gno_star The first GNO of the gtid interval.
+    @param [out] gno_end  The last GNO of the gtid interval.
   */
   void get_gtid_interval(TABLE *table, std::string &sid,
                          rpl_gno &gno_start, rpl_gno &gno_end);

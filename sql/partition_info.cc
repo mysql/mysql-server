@@ -900,7 +900,7 @@ char* partition_info::find_duplicate_field()
 
   @param partition_name Name of partition to search for.
   @param [out] file_name Partition file name (part after table name,
-                        #P#\<part\>[#SP#\<subpart\>]), skipped if NULL.
+                        #P#@<part@>[#SP#@<subpart@>]), skipped if NULL.
   @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL

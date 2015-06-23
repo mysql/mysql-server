@@ -1225,7 +1225,7 @@ public:
     short period when the lock is not held at all.
 
     @param text The string to parse.
-    @param anonymous[in,out] If this is NULL, ANONYMOUS is not
+    @param [in,out] anonymous If this is NULL, ANONYMOUS is not
     allowed.  If this is not NULL, it will be set to true if the
     anonymous group was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -3189,7 +3189,7 @@ struct Gtid_specification
 
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
-    @param buf[out] The buffer
+    @param [out] buf The buffer
     @param need_lock If true, this function acquires global_sid_lock
     before looking up the sidno in sid_map, and then releases it. If
     false, this function asserts that the lock is held by the caller.

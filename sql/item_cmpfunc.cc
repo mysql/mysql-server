@@ -2063,7 +2063,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
 
 
 /**
-   The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
+   The implementation of optimized @<outer expression@> [NOT] IN @<subquery@>
    predicates. It applies to predicates which have gone through the IN->EXISTS
    transformation in in_to_exists_transformer functions; not to subquery
    materialization (which has no triggered conditions).
@@ -2081,22 +2081,22 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
      transformation previously performed on the sub-query. The expression
 
      <tt>
-     ( oc_1, ..., oc_n ) 
-     \<in predicate\>
+     ( oc_1, ..., oc_n )
+     @<in predicate@>
      ( SELECT ic_1, ..., ic_n
-       FROM \<table\>
-       WHERE \<inner where\> 
+       FROM @<table@>
+       WHERE @<inner where@>
      )
      </tt>
 
      was transformed into
      
      <tt>
-     ( oc_1, ..., oc_n ) 
-     \<in predicate\>
+     ( oc_1, ..., oc_n )
+     \@in predicate@>
      ( SELECT ic_1, ..., ic_n 
-       FROM \<table\> 
-       WHERE \<inner where\> AND ... ( ic_k = oc_k OR ic_k IS NULL ) 
+       FROM @<table@>
+       WHERE @<inner where@> AND ... ( ic_k = oc_k OR ic_k IS NULL )
        HAVING ... NOT ic_k IS NULL
      )
      </tt>
@@ -2104,7 +2104,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
      The evaluation will now proceed according to special rules set up
      elsewhere. These rules include:
 
-     - The HAVING NOT \<inner column\> IS NULL conditions added by the
+     - The HAVING NOT @<inner column@> IS NULL conditions added by the
        aforementioned rewrite methods will detect whether they evaluated (and
        rejected) a NULL value and if so, will cause the subquery to evaluate
        to NULL. 

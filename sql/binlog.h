@@ -618,7 +618,7 @@ public:
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
-    @param trx_parser [out] This will be used to return the actual
+    @param [out] trx_parser  This will be used to return the actual
     relaylog transaction parser state because of the possibility
     of partial transactions.
     @param [out] gtid_partial_trx If a transaction was left incomplete

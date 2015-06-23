@@ -1800,7 +1800,7 @@ public:
   /**
     This counter is 32 bit because of the client protocol.
 
-    @note It is not meant to be used for my_thread_self(), see @real_id for this.
+    @note It is not meant to be used for my_thread_self(), see @c real_id for this.
 
     @note Set to reserved_thread_id on initialization. This is a magic
     value that is only to be used for temporary THDs not present in
@@ -2367,8 +2367,8 @@ public:
     Note: this doesn't tell you whether a transaction is active.
     A session can be in multi-statement transaction mode, and yet
     have no active transaction, e.g., in case of:
-    set @@autocommit=0;
-    set @a= 3;                                     <-- these statements don't
+    set \@\@autocommit=0;
+    set \@a= 3;                                    <-- these statements don't
     set transaction isolation level serializable;  <-- start an active
     flush tables;                                  <-- transaction
 

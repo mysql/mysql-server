@@ -998,9 +998,9 @@ Item_func_as_geojson::wkbtype_to_geojson_type(Geometry::wkbType type)
 /**
   Perform type checking on all arguments:
 
-    \<geometry\> argument must be a geometry.
-    \<maxdecimaldigits\> must be an integer value.
-    \<options\> must be an integer value.
+    @<geometry@> argument must be a geometry.
+    @<maxdecimaldigits@> must be an integer value.
+    @<options@> must be an integer value.
 
   Set maybe_null to the correct value.
 */
