@@ -1125,7 +1125,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
 
   @param dec_error         decimal library return code
                            (E_DEC_* see include/decimal.h)
-  @param dec_value[in,out] Decimal value returned by convertion function.
+  @param [in,out] dec_value Decimal value returned by conversion function.
   @param from              Value converted from
   @param length            Length of 'from'
   @param charset_arg       Charset of 'from'
@@ -1423,7 +1423,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   Check NOT NULL constraint on the field after temporary nullability is
   disabled.
 
-  @param warning_no Warning to report.
+  @param mysql_errno Warning to report.
 
   @return TYPE_OK if the value is Ok, or corresponding error code from
   the type_conversion_status enum.
@@ -5071,7 +5071,7 @@ type_conversion_status Field_temporal::store(double nr)
 /**
   Store string into a date/time/datetime field.
 
-  @param from     Date/time string
+  @param str      Date/time string
   @param  len     Length of the string
   @param  cs      Character set of the string
 

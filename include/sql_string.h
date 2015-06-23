@@ -485,7 +485,7 @@ public:
   void strip_sp();
   friend int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
-  friend String *copy_if_not_alloced(String *a,String *b, size_t arg_length);
+  friend String *copy_if_not_alloced(String *to, String *from, size_t from_length);
   size_t numchars() const;
   size_t charpos(size_t i, size_t offset=0);
 

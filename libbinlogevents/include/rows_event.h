@@ -873,8 +873,8 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param event_len          Length of the serialized event.
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version

@@ -729,7 +729,7 @@ public:
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf    Contains the serialized event.
-    @param fde    An FDE event, used to get the following information
+    @param description_event    An FDE event, used to get the following information
                      -binlog_version
                      -server_version
                      -post_header_len
@@ -737,7 +737,7 @@ public:
                      The content of this object
                      depends on the binlog-version currently in use.
   */
-  XA_prepare_event(const char *buf, const Format_description_event *fde);
+  XA_prepare_event(const char *buf, const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
   /*
     todo: we need to find way how to exploit server's code of
@@ -962,7 +962,7 @@ public:
 
     @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1059,9 +1059,9 @@ public:
     | Gtids executed in the last binary log file |
     +--------------------------------------------+
     </pre>
-    @param buffer             Contains the serialized event.
+    @param buf                Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
+    @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1156,9 +1156,9 @@ public:
     The buffer layout is as follows
     </pre>
 
-    @param buf                Contains the serialized event.
+    @param buffer             Contains the serialized event.
     @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
+    @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
                               -server_version
@@ -1167,8 +1167,8 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Transaction_context_event(const char *buf, unsigned int event_len,
-                            const Format_description_event *descr_event);
+  Transaction_context_event(const char *buffer, unsigned int event_len,
+                            const Format_description_event *description_event);
 
   Transaction_context_event(unsigned int thread_id_arg,
                             bool is_gtid_specified_arg)

@@ -299,7 +299,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -308,8 +308,6 @@ public:
                               -common_header_len
                               The content of this object
                               depends on the binlog-version currently in use.
-    @param event_type         Required to determine whether the event type is
-                              QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
   */
   Execute_load_query_event(const char* buf, unsigned int event_len,
                            const Format_description_event *description_event);
@@ -606,7 +604,7 @@ public:
     +----------------+
     </pre>
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -700,7 +698,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param len                Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -710,7 +708,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Create_file_event(const char* buf, unsigned int event_len,
+  Create_file_event(const char* buf, unsigned int len,
                     const Format_description_event* description_event);
 
 
@@ -782,7 +780,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -858,7 +856,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -974,7 +972,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version

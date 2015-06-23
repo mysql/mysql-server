@@ -493,7 +493,7 @@ longlong Item_func_nop_all::val_int()
     are converted to bigints).
 
   @param  thd             thread handle
-  @param  field           item will be converted using the type of this field
+  @param  field_item      item will be converted using the type of this field
   @param[in,out] item     reference to the item to convert
 
   @note
@@ -2255,7 +2255,7 @@ bool Item_in_optimizer::is_null()
 
   @param transformer the transformer callback function to be applied to the
          nodes of the tree of the object
-  @param parameter to be passed to the transformer
+  @param argument to be passed to the transformer
 
   @details
     Recursively transform the left and the right operand of this Item. The

@@ -3101,7 +3101,6 @@ void THD::Query_plan::set_modification_plan(Modification_plan *plan_arg)
 
   @note Parse-time only function!
 
-  @param thd            YYTHD
   @param location       YYSTYPE object: error position
   @param s              error message: NULL default means ER(ER_SYNTAX_ERROR)
 */

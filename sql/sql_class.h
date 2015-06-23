@@ -3098,8 +3098,7 @@ public:
   /**
     Set the current database; use deep copy of C-string.
 
-    @param new_db     a pointer to the new database name.
-    @param new_db_len length of the new database name.
+    @param new_db     the new database name.
 
     Initialize the current database from a NULL-terminated string with
     length. If we run out of memory, we free the current database and
@@ -3121,8 +3120,7 @@ public:
   /**
     Set the current database; use shallow copy of C-string.
 
-    @param new_db     a pointer to the new database name.
-    @param new_db_len length of the new database name.
+    @param new_db     the new database name.
 
     @note This operation just sets {db, db_length}. Switching the current
     database usually involves other actions, like switching other database
@@ -3527,7 +3525,7 @@ public:
     Sum fields has table name empty and field_name.
 
     @param list         List of items to send to client
-    @param flag         Bit mask with the following functions:
+    @param flags        Bit mask with the following functions:
                           - 1 send number of rows
                           - 2 send default values
                           - 4 don't write eof packet

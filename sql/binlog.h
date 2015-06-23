@@ -777,8 +777,8 @@ public:
     @param log_name Name of binlog
     @param new_name Name of binlog, too. todo: what's the difference
     between new_name and log_name?
-    @param max_size The size at which this binlog will be rotated.
-    @param null_created If false, and a Format_description_log_event
+    @param max_size_arg The size at which this binlog will be rotated.
+    @param null_created_arg If false, and a Format_description_log_event
     is written, then the Format_description_log_event will have the
     timestamp 0. Otherwise, it the timestamp will be the time when the
     event was written to the log.
@@ -790,8 +790,8 @@ public:
   */
   bool open_binlog(const char *log_name,
                    const char *new_name,
-                   ulong max_size,
-                   bool null_created,
+                   ulong max_size_arg,
+                   bool null_created_arg,
                    bool need_lock_index, bool need_sid_lock,
                    Format_description_log_event *extra_description_event);
   bool open_index_file(const char *index_file_name_arg,
