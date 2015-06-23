@@ -4262,7 +4262,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                   max_binlog_size, false,
                                   true/*need_lock_index=true*/,
                                   true/*need_sid_lock=true*/,
-                                  NULL))
+                                  NULL,
+                                  0))
     {
       mysql_mutex_unlock(log_lock);
       unireg_abort(MYSQLD_ABORT_EXIT);

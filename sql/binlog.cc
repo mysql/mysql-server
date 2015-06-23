@@ -3020,7 +3020,7 @@ static bool is_number(const char *str,
     nonzero if not possible to get unique filename.
 */
 
-static int find_uniq_filename(char *name)
+static int find_uniq_filename(char *name, ulong new_number)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
@@ -3066,7 +3066,12 @@ updating the index files.", max_found);
     goto end;
   }
 
-  next= max_found + 1;
+  if (new_number > 0)
+  {
+    next= new_number;
+  } else {
+    next= max_found + 1;
+  }
   if (sprintf(ext_buf, "%06lu", next)<0)
   {
     error= 1;
@@ -3105,12 +3110,13 @@ end:
 }
 
 
-int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name)
+int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name,
+                                     ulong new_number)
 {
   fn_format(new_name, log_name, mysql_data_home, "", 4);
   if (!fn_ext(log_name)[0])
   {
-    if (find_uniq_filename(new_name))
+    if (find_uniq_filename(new_name, new_number))
     {
       my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
                       MYF(ME_FATALERROR), log_name);
@@ -3147,11 +3153,12 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
 
 
 bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
-                                               const char *new_name)
+                                               const char *new_name,
+                                               ulong new_number)
 {
   if (new_name && !my_stpcpy(log_file_name, new_name))
     return TRUE;
-  else if (!new_name && generate_new_name(log_file_name, log_name))
+  else if (!new_name && generate_new_name(log_file_name, log_name, new_number))
     return TRUE;
 
   return FALSE;
@@ -3173,7 +3180,8 @@ bool MYSQL_BIN_LOG::open(
                      PSI_file_key log_file_key,
 #endif
                      const char *log_name,
-                     const char *new_name)
+                     const char *new_name,
+                     ulong new_number)
 {
   File file= -1;
   my_off_t pos= 0;
@@ -3189,7 +3197,7 @@ bool MYSQL_BIN_LOG::open(
     goto err;
   }
 
-  if (init_and_set_log_file_name(name, new_name) ||
+  if (init_and_set_log_file_name(name, new_name, new_number) ||
       DBUG_EVALUATE_IF("fault_injection_init_name", 1, 0))
     goto err;
 
@@ -4306,7 +4314,8 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 bool null_created_arg,
                                 bool need_lock_index,
                                 bool need_sid_lock,
-                                Format_description_log_event *extra_description_event)
+                                Format_description_log_event *extra_description_event,
+                                ulong new_number)
 {
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
@@ -4315,7 +4324,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 
   mysql_mutex_assert_owner(get_log_lock());
 
-  if (init_and_set_log_file_name(log_name, new_name))
+  if (init_and_set_log_file_name(log_name, new_name, new_number))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
@@ -4361,7 +4370,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, new_name))
+                      log_name, new_name, new_number))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -5183,7 +5192,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
                             max_size, false,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
-                            NULL)))
+                            NULL,
+                            thd->lex->next_binlog_file_nr)))
       goto err;
   }
   my_free((void *) save_name);
@@ -6217,7 +6227,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     We have to do this here and not in open as we want to store the
     new file name in the current binary log file.
   */
-  if ((error= generate_new_name(new_name, name)))
+  if ((error= generate_new_name(new_name, name, 0)))
     goto end;
   else
   {
@@ -6297,7 +6307,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
                        max_size, true/*null_created_arg=true*/,
                        false/*need_lock_index=false*/,
                        true/*need_sid_lock=true*/,
-                       extra_description_event);
+                       extra_description_event,
+                       0);
   }
 
   /* handle reopening errors */
@@ -7434,7 +7445,8 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     open_binlog(opt_name, 0, max_binlog_size, false,
                 true/*need_lock_index=true*/,
                 true/*need_sid_lock=true*/,
-                NULL);
+                NULL,
+                0);
     mysql_mutex_unlock(&LOCK_log);
     cleanup();
     return 1;
