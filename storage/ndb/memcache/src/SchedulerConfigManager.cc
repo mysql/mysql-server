@@ -35,11 +35,12 @@ SchedulerConfigManager::SchedulerConfigManager(int _thread, int _cluster) :
   old_plans(0),
   nstatreq(0)
 {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
 }
 
 
 SchedulerConfigManager::~SchedulerConfigManager() {
+  DEBUG_ENTER_DETAIL();
   if(current_plans) delete current_plans;
   if(old_plans) delete old_plans;
 }
