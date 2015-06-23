@@ -12,7 +12,7 @@ SELECT @start_global_value;
 SET @start_session_value = @@session.max_statement_time;
 SELECT @start_session_value;
 
---echo # Display the DEFAULT value of max_statement_time
+--echo # Display the DEFAULT value of max_execution_time
 
 SET @@session.max_statement_time = 20000;
 SET @@session.max_statement_time = DEFAULT;
