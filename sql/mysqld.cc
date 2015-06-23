@@ -4049,9 +4049,17 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   tc_log= &tc_log_dummy;
 
+  /*
+    Skip reading the plugin table when starting with --help in order
+    to also skip initializing InnoDB. This provides a simpler and more
+    uniform handling of various startup use cases, e.g. when the data
+    directory does not exist, exists but is empty, exists with InnoDB
+    system tablespaces present etc.
+  */
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-                  (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
+                  (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
+                               PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     sql_print_error("Failed to initialize plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
