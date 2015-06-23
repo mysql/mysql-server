@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/not_sha256_rsa_auth.inc
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -33,7 +32,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --copy_file std_data/server-cert.pem $DATADIR_LOCATION/server-cert.pem
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -79,7 +78,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo # Remove one of the certificates/keys.
 --remove_file $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -100,9 +99,41 @@ disconnect root_2;
 #------------------------------------------------------------------------------
 
 
+--echo #
+--echo # Bug#21108296 : --SSL-CIPHER OPTION CAUSES SSL INITIALIZATION FAILURE
+--echo #
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
+
+--exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA" > $restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # Restart completed.
+
+--echo # Search for : Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+let SEARCH_PATTERN= Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.;
+--source include/search_pattern_in_file.inc
+--echo # Search for : CA certificate is self signed.;
+let SEARCH_PATTERN= CA certificate .* is self signed.;
+--source include/search_pattern_in_file.inc
+
+--echo # Try creating SSL connection
+--exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher';"
+
+
+#------------------------------------------------------------------------------
+
+
 --echo # Global Cleanup
 --remove_file $DATADIR_LOCATION/ca.pem
 --remove_file $DATADIR_LOCATION/server-cert.pem
+--remove_file $DATADIR_LOCATION/server-key.pem
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

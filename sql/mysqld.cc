@@ -3321,8 +3321,7 @@ ssl_artifacts_status auto_detect_ssl()
       (!opt_ssl_ca || !opt_ssl_ca[0]) &&
       (!opt_ssl_capath || !opt_ssl_capath[0]) &&
       (!opt_ssl_crl || !opt_ssl_crl[0]) &&
-      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
-      (!opt_ssl_cipher || !opt_ssl_cipher[0]))
+      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]))
   {
     result= result << (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ? 1 : 0)
                    << (my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ? 1 : 0)
