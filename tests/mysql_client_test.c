@@ -514,6 +514,11 @@ static void test_wl4435()
 
   int exec_counter;
 
+  memset(str_data, 0, sizeof(str_data));
+  memset(dbl_data, 0, sizeof(dbl_data));
+  memset(dec_data, 0, sizeof(dec_data));
+  memset(int_data, 0, sizeof(int_data));
+
   myheader("test_wl4435");
   mct_start_logging("test_wl4435");
 
@@ -994,7 +999,7 @@ static void test_wl4435_2()
   MYSQL_RES *rs_metadata; \
   MYSQL_FIELD *fields; \
   c_type pspv c_type_ext; \
-  my_bool psp_null; \
+  my_bool psp_null= FALSE; \
   \
   memset(&pspv, 0, sizeof (pspv));                \
   \
@@ -1536,6 +1541,7 @@ static void test_double_compare()
 
   /* Always memset bind array because there can be internal members */
   memset(my_bind, 0, sizeof(my_bind));
+  memset(real_data, 0, sizeof(real_data));
 
   /* tinyint */
   my_bind[0].buffer_type= MYSQL_TYPE_TINY;
@@ -3705,7 +3711,7 @@ static void test_bind_result_ext1()
   short      i_data;
   uchar      b_data;
   int        f_data;
-  long       bData;
+  long       bData= 0;
   char       d_data[20];
   double     szData;
   MYSQL_BIND my_bind[8];
@@ -5189,6 +5195,7 @@ static void test_manual_sample()
     its members.
   */
   memset(my_bind, 0, sizeof(my_bind));
+  memset(str_data, 0, sizeof(str_data));
 
   /* INTEGER PART */
   my_bind[0].buffer_type= MYSQL_TYPE_LONG;
@@ -7493,6 +7500,7 @@ static void test_decimal_bug()
     its members.
   */
   memset(my_bind, 0, sizeof(my_bind));
+  memset(data, 0, sizeof(data));
 
   my_bind[0].buffer_type= MYSQL_TYPE_NEWDECIMAL;
   my_bind[0].buffer= (void *)data;
@@ -11494,6 +11502,7 @@ static void test_view_insert_fields()
                   " from t1 T0001");
 
   memset(my_bind, 0, sizeof(my_bind));
+  memset(parm, 0, sizeof(parm));
   for (i= 0; i < 11; i++)
   {
     l[i]= 20;
@@ -12989,6 +12998,7 @@ static void test_bug8330()
   myquery(rc);
 
   memset(my_bind, 0, sizeof(my_bind));
+  memset(lval, 0, sizeof(lval));
   for (i=0; i < 2; i++)
   {
     stmt[i]= mysql_stmt_init(mysql);
@@ -13446,6 +13456,7 @@ static void test_bug9478()
   stmt= open_cursor("select name from t1 where id=2");
 
   memset(my_bind, 0, sizeof(my_bind));
+  memset(a, 0, sizeof(a));
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
   my_bind[0].buffer= (char*) a;
   my_bind[0].buffer_length= (ulong)sizeof(a);
@@ -13482,6 +13493,7 @@ static void test_bug9478()
 
     {
       uchar buff[8];
+      memset(buff, 0, sizeof(buff));
       /* Fill in the fetch packet */
       int4store(buff, stmt->stmt_id);
       buff[4]= 1;                               /* prefetch rows */
@@ -18764,8 +18776,8 @@ static void test_bug49972()
 
   MYSQL_BIND in_param_bind;
   MYSQL_BIND out_param_bind;
-  int int_data;
-  my_bool is_null;
+  int int_data= 0;
+  my_bool is_null= FALSE;
 
   DBUG_ENTER("test_bug49972");
   myheader("test_bug49972");
@@ -19361,7 +19373,7 @@ static void test_wl5924()
 static void test_wl6587()
 {
   int rc;
-  MYSQL *l_mysql;
+  MYSQL *l_mysql, *r_mysql;
   my_bool can;
 
   myheader("test_wl6587");
@@ -19386,10 +19398,11 @@ static void test_wl6587()
   DIE_UNLESS(l_mysql != NULL);
 
   /* connect must fail : the flag is off by default */
-  l_mysql= mysql_real_connect(l_mysql, opt_host, "wl6587_cli",
+  r_mysql= mysql_real_connect(l_mysql, opt_host, "wl6587_cli",
                               "wl6587", "test", opt_port,
                               opt_unix_socket, 0);
-  DIE_UNLESS(l_mysql == 0);
+  DIE_UNLESS(r_mysql == 0);
+  mysql_close(l_mysql);
 
   l_mysql= mysql_client_init(NULL);
   DIE_UNLESS(l_mysql != NULL);
