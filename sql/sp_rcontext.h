@@ -202,7 +202,7 @@ public:
   /// stored routines.
   ///
   /// @param thd            Thread handle.
-  /// @param ip[out]        Instruction pointer to the first handler
+  /// @param [out] ip       Instruction pointer to the first handler
   ///                       instruction.
   /// @param cur_spi        Current SP instruction.
   ///
@@ -271,7 +271,7 @@ public:
   ///
   /// @param thd             Thread handler.
   /// @param case_expr_id    The CASE expression identifier.
-  /// @param case_expr_item  The CASE expression value
+  /// @param case_expr_item_ptr  The CASE expression value
   ///
   /// @return error flag.
   /// @retval false on success.

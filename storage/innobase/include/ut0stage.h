@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file ut/ut0stage.h
+@file include/ut0stage.h
 Supplementary code to performance schema stage instrumentation.
 
 Created Nov 12, 2014 Vasil Dimov

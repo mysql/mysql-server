@@ -147,8 +147,6 @@ public:
 
     @param com_data  out parameter
     @param cmd       out parameter
-    @param pkt       packet to be parsed
-    @param length    size of the packet
 
     @returns
       -1  fatal protcol error
@@ -357,8 +355,8 @@ public:
     Send error message to the client.
 
     @param sql_errno    The error code to send
-    @param err          A pointer to the error message
-    @param sqlstate     SQL state
+    @param err_msg      A pointer to the error message
+    @param sql_state    SQL state
 
     @return
       @retval false The message was successfully sent

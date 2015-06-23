@@ -527,7 +527,6 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
     decoding. So that we just update the position and continue.
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
     @param descr_event        An FDE event, used to get the
                               following information
                               -binlog_version

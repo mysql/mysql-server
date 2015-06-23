@@ -74,8 +74,8 @@ public:
   /**
     Sets the persistency component/handler.
 
-    @param[in] hanlder Pointer to the handler.
-  */ 
+    @param[in] param_handler Pointer to the handler.
+  */
   void set_rpl_info_handler(Rpl_info_handler * param_handler)
   {
     handler= param_handler;
@@ -85,7 +85,7 @@ public:
     Gets the persistency component/handler.
 
     @return the handler if there is one.
-  */ 
+  */
   Rpl_info_handler *get_rpl_info_handler()
   {
     return (handler);

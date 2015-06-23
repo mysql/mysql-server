@@ -1796,12 +1796,8 @@ static int64 get_sequence_number(Log_event *ev)
   The worker thread loops in waiting for an event, executing it and
   fixing statistics counters.
 
-  @param worker    a pointer to the assigned Worker struct
-  @param rli       a pointer to Relay_log_info of Coordinator
-                   to update statistics.
-
   @return 0 success
-         -1 got killed or an error happened during appying
+         -1 got killed or an error happened during applying
 */
 int Slave_worker::slave_worker_exec_event(Log_event *ev)
 {

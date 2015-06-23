@@ -505,7 +505,6 @@ public:
 
      @param  key    key
      @param  value  value
-     @param  val_length  length of string 'value'
      @returns a reference to the structure, useful for chaining like this:
      @verbatim add(x,y).add(z,t).add(u,v) @endverbatim
 

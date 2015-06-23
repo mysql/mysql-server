@@ -243,7 +243,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
   @param id                      Auto_increment id for first row (if used)
   @param message                 Message to send to the client
                                  (Used by mysql_status)
-  @param eof_indentifier         when true [FE] will be set in OK header
+  @param eof_identifier          when true [FE] will be set in OK header
                                  else [00] will be used
 
   @return

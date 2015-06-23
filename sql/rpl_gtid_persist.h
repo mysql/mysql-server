@@ -43,7 +43,6 @@ public:
       - Open and lock a table.
 
     @param[in,out] thd        Thread requesting to open the table
-    @param         lock_type  How to lock the table
     @param[out]    table      We will store the open table here
 
     @return
@@ -319,7 +318,7 @@ private:
 
     @param table          Reference to a table object.
     @param [out] sid      The source id of the gtid interval.
-    @param [out] gno_star The first GNO of the gtid interval.
+    @param [out] gno_start The first GNO of the gtid interval.
     @param [out] gno_end  The last GNO of the gtid interval.
   */
   void get_gtid_interval(TABLE *table, std::string &sid,

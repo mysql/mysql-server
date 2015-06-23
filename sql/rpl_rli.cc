@@ -431,15 +431,14 @@ void Relay_log_info::clear_until_condition()
   @todo check proper initialization of
   group_master_log_name/group_master_log_pos. /alfranio
 
-  @param rli[in] Relay information (will be initialized)
-  @param log[in] Name of relay log file to read from. NULL = First log
-  @param pos[in] Position in relay log file
-  @param need_data_lock[in] If true, this function will acquire the
+  @param [in] log Name of relay log file to read from. NULL = First log
+  @param [in] pos Position in relay log file
+  @param [in] need_data_lock If true, this function will acquire the
   relay_log.data_lock(); otherwise the caller should already have
   acquired it.
-  @param errmsg[out] On error, this function will store a pointer to
+  @param [out] errmsg On error, this function will store a pointer to
   an error message here
-  @param look_for_description_event[in] If true, this function will
+  @param [in] look_for_description_event If true, this function will
   look for a Format_description_log_event.  We only need this when the
   SQL thread starts and opens an existing relay log and has to execute
   it (possibly from an offset >4); then we need to read the first
@@ -1138,7 +1137,7 @@ void Relay_log_info::close_temporary_tables()
   Purges relay logs. It assumes to have a run lock on rli and that no
   slave thread are running.
 
-  @param[in]   THD         connection,
+  @param[in]   thd         connection,
   @param[in]   just_reset  if false, it tells that logs should be purged
                            and @c init_relay_log_pos() should be called,
   @param[out] errmsg      store pointer to an error message.
@@ -1319,10 +1318,6 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
      autoincrement or if we have transactions).
 
      Should be called ONLY if @c until_condition @c != @c UNTIL_NONE !
-
-     @param master_beg_pos    position of the beginning of to be executed event
-                              (not @c log_pos member of the event that points to
-                              the beginning of the following event)
 
      @retval true   condition met or error happened (condition seems to have
                     bad log file name),
@@ -2302,8 +2297,6 @@ void Relay_log_info::set_master_info(Master_info* info)
   - Error can happen if writing to file fails or if flushing the file
     fails.
 
-  @param rli The object representing the Relay_log_info.
-
   @todo Change the log file information to a binary format to avoid
   calling longlong2str.
 
@@ -2511,7 +2504,7 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
    once at its destruction time.
    todo: fix Slave_worker and Relay_log_info inheritance relation.
 
-   @param  a pointer to be installed into execution context 
+   @param  fe Pointer to be installed into execution context 
            FormatDescriptor event
 */
 

@@ -163,9 +163,10 @@ public:
     from replication_channel_map;
     Return if it exists, otherwise return 0
 
-    @param[in]  channel       channel name for the master info object.
+    @param[in]  channel_name  channel name for the master info object.
 
-    @retval                   pointer to the master info object if exists
+    @return
+      @retval                 pointer to the master info object if exists
                               in the map. Otherwise, NULL;
   */
   Master_info* get_mi(const char* channel_name);
@@ -315,9 +316,9 @@ private:
   bool add_mi_to_rpl_pfs_mi(Master_info *mi);
 
   /**
-     Get the index of the master info correposponding to channel name
+     Get the index of the master info corresponding to channel name
      from the rpl_pfs_mi array.
-     @param[in]       channe_name     Channel name to get the index from
+     @param[in]       channel_name     Channel name to get the index from
 
      @return         index of mi for the channel_name. Else -1;
   */

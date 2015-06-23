@@ -78,7 +78,7 @@ public:
      translating the minimum endpoint of the interval represented by this
      QUICK_RANGE into an index range endpoint specifier for the engine.
 
-     @param Pointer to an uninitialized key_range C struct.
+     @param kr Pointer to an uninitialized key_range C struct.
 
      @param prefix_length The length of the search key prefix to be used for
      lookup.
@@ -99,7 +99,7 @@ public:
      translating the minimum endpoint of the interval represented by this
      QUICK_RANGE into an index range endpoint specifier for the engine.
 
-     @param Pointer to an uninitialized key_range C struct.
+     @param kr Pointer to an uninitialized key_range C struct.
   */
   void make_min_endpoint(key_range *kr) {
     kr->key= (const uchar*)min_key;
@@ -116,7 +116,7 @@ public:
      translating the maximum endpoint of the interval represented by this
      QUICK_RANGE into an index range endpoint specifier for the engine.
 
-     @param Pointer to an uninitialized key_range C struct.
+     @param kr Pointer to an uninitialized key_range C struct.
 
      @param prefix_length The length of the search key prefix to be used for
      lookup.
@@ -137,7 +137,7 @@ public:
      translating the maximum endpoint of the interval represented by this
      QUICK_RANGE into an index range endpoint specifier for the engine.
 
-     @param Pointer to an uninitialized key_range C struct.
+     @param kr Pointer to an uninitialized key_range C struct.
   */
   void make_max_endpoint(key_range *kr) {
     kr->key= (const uchar*)max_key;

@@ -66,7 +66,7 @@ void
 trx_search_latch_release_if_reserved(trx_t* trx);
 
 /** Set flush observer for the transaction
-@param[in/out]	trx		transaction struct
+@param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
 void
 trx_set_flush_observer(
@@ -1292,7 +1292,7 @@ struct trx_t {
 /**
 Check if transaction is started.
 @param[in] trx		Transaction whose state we need to check
-@reutrn true if transaction is in state started */
+@return true if transaction is in state started */
 inline
 bool
 trx_is_started(

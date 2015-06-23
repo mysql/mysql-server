@@ -551,8 +551,6 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
   Then goes though all children subqueries and produces their EXPLAIN
   output, attached to the proper clause's context.
 
-  @param        result  result stream
-
   @retval       false   Ok
   @retval       true    Error (OOM)
 */
@@ -1933,7 +1931,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   thus we deal with this single table in a special way and then call
   explain_unit() for subqueries (if any).
 
-  @param thd            current THD
+  @param ethd           current THD
   @param plan           table modification plan
   @param select         Query's select lex
 
@@ -2291,7 +2289,7 @@ private:
 /**
    Entry point for EXPLAIN CONNECTION: locates the connection by its ID, takes
    proper locks, explains its current statement, releases locks.
-   @param  THD executing this function (== the explainer)
+   @param  thd THD executing this function (== the explainer)
 */
 void mysql_explain_other(THD *thd)
 {
@@ -2446,7 +2444,7 @@ void Modification_plan::register_in_thd()
                         string in the "extra" column.
   @param need_sort_arg  true if it requires filesort() -- "Using filesort"
                         string in the "extra" column.
-  @param used_key_is_modified   UPDATE updates used key column
+  @param used_key_is_modified_arg UPDATE updates used key column
   @param rows           How many rows we plan to modify in the table.
 */
 

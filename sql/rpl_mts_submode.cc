@@ -331,6 +331,7 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
 
    Formally, the undefined cached value of last_lwm_timestamp is also stale.
 
+   @verbatim
               the last time index containg lwm
                   +------+
                   | LWM  |
@@ -343,12 +344,13 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
                 +- tne new current_lwm
 
          <---- logical (commit) time ----
+   @endverbatim
 
    here `x' stands for committed, `X' for committed and discarded from
    the running range of the queue, `o' for not committed.
 
    @param  rli         Relay_log_info pointer
-   @param  need_look   Either the caller or the function must hold a mutex
+   @param  need_lock   Either the caller or the function must hold a mutex
                        to avoid race with concurrent GAQ update.
 
    @return possibly updated current_lwm
@@ -436,7 +438,6 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
          whose group assignment is in the GAQ front item.
 
    @param last_committed_arg  logical timestamp of a parent transaction
-   @param gaq_index           Index of the current transaction in GAQ
    @return false as success,
            true  when the error flag is raised or
                  the caller thread is found killed.
@@ -933,8 +934,8 @@ Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
   Waits for slave workers to finish off the pending tasks before returning.
   Used in this submode to make sure that all assigned jobs have been done.
 
-  @param Relay_log info *rli  coordinator rli.
-  @param Slave worker to ignore.
+  @param rli  coordinator rli.
+  @param ignore worker to ignore.
   @return -1 for error.
            0 no error.
  */

@@ -4320,8 +4320,8 @@ accompanied with indexes in bot participating tables. The indexes are allowed
 to contain more fields than mentioned in the constraint.
 
 @param[in]	trx		transaction
-@param[in[	heap		memory heap
-@param[in[	cs		the character set of sql_string
+@param[in]	heap		memory heap
+@param[in]	cs		the character set of sql_string
 @param[in]	sql_string	table create statement where
 				foreign keys are declared like:
 				FOREIGN KEY (a, b) REFERENCES table2(c, d),

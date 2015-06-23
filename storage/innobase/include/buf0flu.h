@@ -326,7 +326,7 @@ public:
 
 	/** Check pages have been flushed and removed from the flush list
 	in a buffer pool instance.
-	@pram[in]	instance_no	buffer pool instance no
+	@param[in]	instance_no	buffer pool instance no
 	@return true if the pages were removed from the flush list */
 	bool is_complete(ulint	instance_no)
 	{

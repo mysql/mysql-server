@@ -221,8 +221,6 @@ public:
   }
   /**
     Stores the DEFAULT_AUTH defined by START SLAVE.
-
-    @param DEFAULT_AUTH.
   */
   void set_plugin_auth(const char* src)
   {
@@ -231,8 +229,6 @@ public:
   }
   /**
     Stores the DEFAULT_AUTH defined by START SLAVE.
-
-    @param DEFAULT_AUTH.
   */
   void set_plugin_dir(const char* src)
   {

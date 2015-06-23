@@ -241,8 +241,6 @@ void Master_info::end_info()
   - Error can happen if writing to file fails or if flushing the file
     fails.
 
-  @param rli The object representing the Relay_log_info.
-
   @todo Change the log file information to a binary format to avoid
   calling longlong2str.
 */

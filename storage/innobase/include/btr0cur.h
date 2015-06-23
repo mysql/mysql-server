@@ -205,7 +205,7 @@ should be used only for cases where-in latching is not needed.
 			to search the position.
 @param[in,out]	cursor	tree cursor; points to record of interest.
 @param[in]	file	file name
-@param[in[	line	line where called from
+@param[in]	line	line where called from
 @param[in,out]	mtr	mtr
 @param[in]	mark_dirty
 			if true then mark the block as dirty */
