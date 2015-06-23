@@ -6420,7 +6420,9 @@ restart_cluster_failure:
       if (is_stop_requested())
         goto err;
 
+      pthread_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
+      pthread_mutex_unlock(&injector_mutex);
     } while (schema_gci == 0 || ndb_latest_received_binlog_epoch == schema_gci);
     if (ndb_binlog_running)
     {
@@ -6429,7 +6431,9 @@ restart_cluster_failure:
       {
         if (is_stop_requested())
           goto err;
+        pthread_mutex_lock(&injector_mutex);
         res= i_ndb->pollEvents(10, &gci);
+        pthread_mutex_unlock(&injector_mutex);
       }
       if (gci > schema_gci)
       {
@@ -6527,10 +6531,11 @@ restart_cluster_failure:
     thd->proc_info= "Waiting for event from ndbcluster";
     thd->set_time();
     
-    /* wait for event or 1000 ms */
+    /* wait for event or 10 ms */
     Uint64 gci= 0, schema_gci;
-    int res= 0, tot_poll_wait= 1000;
+    int res= 0, tot_poll_wait= 10;
 
+    pthread_mutex_lock(&injector_mutex);
     if (ndb_binlog_running)
     {
       // Capture any dynamic changes to max_alloc
@@ -6540,6 +6545,7 @@ restart_cluster_failure:
       tot_poll_wait= 0;
     }
     int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_gci);
+    pthread_mutex_unlock(&injector_mutex);
     ndb_latest_received_binlog_epoch= gci;
 
     while (gci > schema_gci && schema_res >= 0)
@@ -6552,7 +6558,9 @@ restart_cluster_failure:
                   (uint)(gci >> 32),
                   (uint)(gci));
       thd->proc_info= buf;
+      pthread_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(10, &schema_gci);
+      pthread_mutex_unlock(&injector_mutex);
     }
 
     if ((is_stop_requested() ||
@@ -6649,7 +6657,10 @@ restart_cluster_failure:
         e.g. node failure events
       */
       Uint64 tmp_gci;
-      if (i_ndb->pollEvents(0, &tmp_gci))
+      pthread_mutex_lock(&injector_mutex);
+      res = i_ndb->pollEvents(0, &tmp_gci);
+      pthread_mutex_unlock(&injector_mutex);
+      if (res != 0)
       {
         NdbEventOperation *pOp;
         while ((pOp= i_ndb->nextEvent()))
