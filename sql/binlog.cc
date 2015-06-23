@@ -1255,7 +1255,16 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
         DBUG_RETURN(1);
     }
   }
-  else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+  else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS ||
+           /*
+             A transaction with an empty owned gtid should call
+             end_gtid_violating_transaction(...) to clear the
+             flag thd->has_gtid_consistency_violatoin in case
+             it is set. It missed the clear in ordered_commit,
+             because its binlog transaction cache is empty.
+           */
+           thd->has_gtid_consistency_violation)
+
   {
     gtid_state->update_on_commit(thd);
   }
