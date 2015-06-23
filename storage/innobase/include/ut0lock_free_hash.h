@@ -312,38 +312,7 @@ public:
 		ut_ad(val != DELETED);
 		ut_ad(val != GOTO_NEXT_ARRAY);
 
-		arr_node_t*	arr = m_data;
-
-		/* Loop through arrays as long as m_val == GOTO_NEXT_ARRAY. */
-		for (;;) {
-			key_val_t*	tuple = insert_or_get_position(key,
-								       &arr);
-
-			int64_t		cur_val = tuple->m_val.load(
-				boost::memory_order_relaxed);
-
-			/* Busy loop trying to CAS cur_val with val, provided
-			cur_val is not GOTO_NEXT_ARRAY. */
-			for (;;) {
-				if (cur_val == GOTO_NEXT_ARRAY) {
-					arr = arr->get_next_grow_if_necessary();
-					break;
-				}
-
-				if (tuple->m_val.compare_exchange_strong(
-						cur_val,
-						val,
-						boost::memory_order_relaxed)) {
-					/* We just replaced something that
-					is not GOTO_NEXT_ARRAY with 'val'. */
-					return;
-				}
-
-				/* CAS failed which means that m_val was just
-				changed and was different than 'cur_val'. Now we
-				have its current value in 'cur_val', retry. */
-			}
-		}
+		insert_or_update(key, val, false, m_data);
 	}
 
 	/** Delete a (key, val) pair from the hash.
@@ -428,7 +397,7 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		delta(key, 1);
+		insert_or_update(key, 1, true, m_data);
 	}
 
 	/** Decrement the value of a given key with 1 or insert a new tuple
@@ -444,7 +413,7 @@ public:
 	{
 		ut_ad(key != UNUSED);
 
-		delta(key, -1);
+		insert_or_update(key, -1, true, m_data);
 	}
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
@@ -666,105 +635,84 @@ private:
 		return(NULL);
 	}
 
-	/** Insert the given key into the storage or return its cell if
-	already present. This method will try expanding the storage (appending
-	new arrays) as long as there is no free slot to insert.
-	@param[in]	key	key to insert or whose cell to retrieve
-	@param[in,out]	arr	start the search from this array; when this
-	method ends, *arr will point to the array in which the search
-	ended (in which the returned key_val resides)
-	@return a pointer to the inserted or previously existent tuple */
-	key_val_t*
-	insert_or_get_position(
-		uint64_t	key,
-		arr_node_t**	arr)
+	/** Update the value of a given tuple.
+	@param[in,out]	t		tuple whose value to update
+	@param[in]	val		value to set or delta to apply
+	@param[in]	is_delta	if true then set the new value to
+	old + val, otherwise just set to val
+	@retval		true		update succeeded
+	@retval		false		update failed due to GOTO_NEXT_ARRAY
+	@return whether the update succeeded or not */
+	bool
+	update_tuple(
+		key_val_t*	t,
+		int64_t		val,
+		bool		is_delta)
 	{
-		for (;;) {
-			key_val_t*	t = insert_or_get_position_in_array(
-				(*arr)->m_base,
-				(*arr)->m_n_base_elements,
-				key);
+		int64_t	v = t->m_val.load(boost::memory_order_relaxed);
 
-			if (t != NULL) {
-				return(t);
+		for (;;) {
+			if (v == GOTO_NEXT_ARRAY) {
+				return(false);
 			}
 
-			*arr = (*arr)->get_next_grow_if_necessary();
+			const int64_t	new_val
+				= is_delta && v != NOT_FOUND && v != DELETED
+				? v + val
+				: val;
+
+			if (t->m_val.compare_exchange_strong(
+					v,
+					new_val,
+					boost::memory_order_relaxed)) {
+				return(true);
+			}
+
+			/* When CAS fails it sets the value of m_val into v. */
 		}
 	}
 
-	/** Apply a given delta to the value for a given key or insert a
-	new tuple (key, delta).
-	@param[in]	key	key whose value change
-	@param[in]	delta	delta to apply */
+	/** Insert a new tuple or update an existent one. If a tuple with this
+	key does not exist then a new one is inserted (key, val) and is_delta
+	is ignored. If a tuple with this key exists and is_delta is true, then
+	the current value is changed to be current value + val, otherwise it
+	is overwritten to be val.
+	@param[in]	key		key to insert or whose value to update
+	@param[in]	val		value to set, if the tuple does not
+	exist or if is_delta is false, then the new value is set to val,
+	otherwise it is set to old + val
+	@param[in]	is_delta	if true then set the new value to
+	old + val, otherwise just set to val.
+	@param[in]	arr		array to start the search from */
 	void
-	delta(
+	insert_or_update(
 		uint64_t	key,
-		int64_t		delta)
+		int64_t		val,
+		bool		is_delta,
+		arr_node_t*	arr)
 	{
-		ut_ad(key != UNUSED);
+		/* Loop through the arrays until we find a free slot to insert
+		or until we find a tuple with the specified key and manage to
+		update it. */
+		for (;;) {
+			key_val_t*	t = insert_or_get_position_in_array(
+				arr->m_base,
+				arr->m_n_base_elements,
+				key);
 
-		/* The value which we expect to be in m_val when calling
-		compare_exchange_strong(). If it fails, then it will write
-		the current value of m_val into this variable. */
-		int64_t		v;
+			/* t == NULL means that the array is full, must expand
+			and go to the next array. */
 
-		arr_node_t*	arr = m_data;
+			/* update_tuple() returning false means that the value
+			of the tuple is GOTO_NEXT_ARRAY, so we must go to the
+			next array. */
 
-		do {
-			key_val_t*	tuple = insert_or_get_position(key,
-								       &arr);
-
-			/* Here tuple->m_val is either NOT_FOUND, DELETED,
-			GOTO_NEXT_ARRAY or some real value. Peek at it and
-			if it is NOT_FOUND, then try to CAS NOT_FOUND with
-			'delta'. The load() is much cheaper than the CAS
-			and we know that if m_val is != NOT_FOUND, then it
-			will never become NOT_FOUND again. */
-
-			v = tuple->m_val.load(boost::memory_order_relaxed);
-
-			if (v == NOT_FOUND
-			    && tuple->m_val.compare_exchange_strong(
-				    v,
-				    delta,
-				    boost::memory_order_relaxed)) {
-
-				/* Done, now we have a tuple (key, delta). */
+			if (t != NULL && update_tuple(t, val, is_delta)) {
 				return;
 			}
 
-			/* 'v' now has the current (maybe outdated) value, which
-			is != NOT_FOUND because either it was != NOT_FOUND as
-			returned by load() or the CAS failed because m_val was
-			changed between the load() and the CAS, in this case
-			CAS will write the value of m_val into 'v'. */
-			ut_ad(v != NOT_FOUND);
-
-			/* Busy loop trying to CAS the correct value into m_val,
-			provided m_val is not GOTO_NEXT_ARRAY. */
-			for (;;) {
-				if (v == GOTO_NEXT_ARRAY) {
-					arr = arr->get_next_grow_if_necessary();
-					break;
-				}
-
-				const int64_t	new_v = v != DELETED
-					? v + delta
-					: delta;
-
-				if (tuple->m_val.compare_exchange_strong(
-						v,
-						new_v,
-						boost::memory_order_relaxed)) {
-					return;
-				}
-
-				/* CAS failed which means that m_val was just
-				changed and was different than 'v'. Now we
-				have its current value in 'v', retry. */
-			}
-		} while (v == GOTO_NEXT_ARRAY);
+			arr = arr->get_next_grow_if_necessary();
+		}
 	}
 
 	/** Storage for the (key, val) tuples. */
