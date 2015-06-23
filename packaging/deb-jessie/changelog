@@ -14,6 +14,8 @@ mysql-community (5.7.8-rc-1debian8) jessie; urgency=low
     d/mysql-*-server.mysql.init
     d/extra/mysql-systemd-start
     (Closes: #20650118)
+  * removed pkg mysql-*-bench; sqlbench will not be packaged
+    (Closes: #21303289)
 
  -- Akhil Mohan <akhil.mohan@oracle.com>  Tue, 23 Jun 2015 16:11:26 +0530
 
