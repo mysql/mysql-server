@@ -2136,6 +2136,17 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (error)
     DBUG_RETURN(TRUE);
+
+  if (thd->lex->drop_temporary && thd->in_multi_stmt_transaction_mode())
+  {
+    /*
+      When autocommit is disabled, dropping temporary table sets this flag
+      to start transaction in any case (regardless of binlog=on/off,
+      binlog format and transactional/non-transactional engine) to make
+      behavior consistent.
+    */
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+  }
   my_ok(thd);
   DBUG_RETURN(FALSE);
 }
@@ -5108,6 +5119,17 @@ bool create_table_impl(THD *thd,
 err:
   THD_STAGE_INFO(thd, stage_after_create);
   delete file;
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      thd->in_multi_stmt_transaction_mode() && !error)
+  {
+    /*
+      When autocommit is disabled, creating temporary table sets this
+      flag to start transaction in any case (regardless of binlog=on/off,
+      binlog format and transactional/non-transactional engine) to make
+      behavior consistent.
+    */
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+  }
   DBUG_RETURN(error);
 
 warn:

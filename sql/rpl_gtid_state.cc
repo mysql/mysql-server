@@ -384,8 +384,14 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
         this.  Then, if GTID_NEXT=AUTOMATIC, nothing will be owned at
         this point.  Thus, to cover this case we add the
         '||thd->pending_gtid_state_update' clause.
+
+      - There is another corner case. A transaction with an empty gtid
+        should call gtid_end_transaction(...) to check a possible
+        violation of gtid consistency on commit, if it has set
+        has_gtid_consistency_violation to true.
     */
-    DBUG_ASSERT(!is_commit || thd->pending_gtid_state_update);
+    DBUG_ASSERT(!is_commit || thd->pending_gtid_state_update ||
+                thd->has_gtid_consistency_violation);
     DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   }
 
