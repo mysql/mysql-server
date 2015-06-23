@@ -12,7 +12,6 @@ log-bin=                 master-bin
 loose-innodb
 
 skip-name-resolve
-bind-address=               ::
 
 
 [mysqld.2]

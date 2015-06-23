@@ -1,5 +1,5 @@
 # Test of ipv6 format, especially "change master host=..."
-# Options: --skip-name-resolve, master: --bind-address=0.0.0.0, slave: --bind-address=::
+# Options: --skip-name-resolve, master: --bind-address=0.0.0.0
 # (see corresponding cnf file)
 #
 # Check if ipv6 is available. If not, server is crashing (see BUG#48915).
@@ -16,6 +16,12 @@ disconnect checkcon123456789;
 --enable_query_log
 # end check
 --source include/have_log_bin.inc
+
+# restart slave with --bind-address=::
+--connect (slave,localhost,root,,test,$SLAVE_MYPORT)
+--let $restart_parameters = "--bind-address=::"
+--source include/restart_mysqld.inc
+--disconnect slave
 
 let $IPv6= ::1;
 --echo #################### IP: $IPv6 ###########################
