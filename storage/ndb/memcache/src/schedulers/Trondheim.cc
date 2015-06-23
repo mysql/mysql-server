@@ -248,9 +248,9 @@ void Trondheim::WorkerConnection::close(NdbTransaction *tx, workitem *item) {
   tx->close();
   assert(pending_ops > 0);
   pending_ops--;
-  DEBUG_PRINT("notify io complete, status: %d [%s], item %d.%d [%d pending]",
-              (int) item->status->status, item->status->comment,
-              thread, item->id, pending_ops);
+  DEBUG_PRINT_DETAIL("notify io complete, status: %d [%s], item %d.%d [%d pending]",
+                     (int) item->status->status, item->status->comment,
+                     thread, item->id, pending_ops);
   item_io_complete(item);
 }
 
@@ -320,6 +320,8 @@ void * Trondheim::WorkerConnection::runNdbThread() {
   for(int n = 10; pending_ops && n; n--) {
     ndb->sendPollNdb(10, pending_ops, 1);
   }
+
+  DEBUG_PRINT("shut down with pending_ops = %d", pending_ops);
 
   workqueue_destroy(queue);
 
