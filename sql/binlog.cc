@@ -3895,6 +3895,21 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   mysql_file_close(file, MYF(MY_WME));
   end_io_cache(&log);
 
+  if (all_gtids)
+    all_gtids->dbug_print("all_gtids");
+  else
+    DBUG_PRINT("info", ("all_gtids==NULL"));
+  if (prev_gtids)
+    prev_gtids->dbug_print("prev_gtids");
+  else
+    DBUG_PRINT("info", ("prev_gtids==NULL"));
+  if (first_gtid == NULL)
+    DBUG_PRINT("info", ("first_gtid==NULL"));
+  else if (first_gtid->sidno == 0)
+    DBUG_PRINT("info", ("first_gtid.sidno==0"));
+  else
+    first_gtid->dbug_print(sid_map, "first_gtid");
+
   DBUG_PRINT("info", ("returning %d", ret));
   DBUG_RETURN(ret);
 }
@@ -4019,8 +4034,9 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                    bool is_server_starting)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
-  DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
-                      lost_gtids, lost_gtids == NULL ? "relay" : "binary"));
+  DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log; is_relay_log=%d",
+                      lost_gtids, lost_gtids == NULL ? "relay" : "binary",
+                      is_relay_log));
 
   /*
     If this is a relay log, we must have the IO thread Master_info trx_parser
@@ -4108,7 +4124,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     bool can_stop_reading= false;
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
-                        reached_first_file ? "" : rit->c_str(), reached_first_file));
+                        reached_first_file ? "" : rit->c_str(),
+                        reached_first_file));
     while (!can_stop_reading && !reached_first_file)
     {
       const char *filename= rit->c_str();
