@@ -305,14 +305,16 @@ Scheduler73::WorkerConnection::WorkerConnection(Global *global,
 
   // Open them all.
   for(NdbInstance *inst = freelist; inst != 0 ;inst=inst->next, i++) {
-    NdbTransaction *tx = inst->db->startTransaction();
-    if(! tx) logger->log(LOG_WARNING, 0, inst->db->getNdbError().message);
+    NdbTransaction *tx;
+    tx = inst->db->startTransaction();
+    if(! tx) log_ndb_error(inst->db->getNdbError());
     txlist[i] = tx;
   }
-    
+
   // Close them all.
   for(i = 0 ; i < instances.current ; i++) {
-    txlist[i]->close();
+    if(txlist[i])
+      txlist[i]->close();
   }
     
   // Free the list.
