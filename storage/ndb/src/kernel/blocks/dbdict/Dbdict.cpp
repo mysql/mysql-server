@@ -10487,6 +10487,11 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     return;
   }
 
+  /**
+   * First stage response / queueing handled here
+   * Actual processing is done in doGET_TABINFOREQ()
+   */
+
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
 
   if (ERROR_INSERTED(6215) &&
@@ -10547,6 +10552,18 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     return;
   }
 
+  /* Not busy, cannot be anything queued... */
+  ndbrequire(c_gettabinforeq_q.isEmpty());
+
+  doGET_TABINFOREQ(signal);
+} // execGET_TABINFOREQ()
+
+void
+Dbdict::doGET_TABINFOREQ(Signal* signal)
+{
+  jam();
+  GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
+
   SectionHandle handle(this, signal);
 
   if(ERROR_INSERTED(6216))
@@ -10606,7 +10623,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
 
   // If istable/index, allow ADD_STARTED (not to ref)
 
-  D("execGET_TABINFOREQ" << V(transId) << " " << *objEntry);
+  D("doGET_TABINFOREQ" << V(transId) << " " << *objEntry);
 
   if (transId != 0 && transId == objEntry->m_transId)
   {
@@ -10626,6 +10643,15 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       return;
     }
   }
+
+  /**
+   * From this point we agree to process this request
+   * and are 'busy' w.r.t. GETTABINFOREQ.
+   * Further incoming GETTABINFOREQ signals will
+   * be queued or rejected.
+   * When we finish processing this one, we must
+   * start any queued req.
+   */
 
   c_retrieveRecord.busyState = true;
   c_retrieveRecord.blockRef = req->senderRef;
@@ -10703,7 +10729,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   signal->theData[2] = objEntry->m_tableType;
   signal->theData[3] = c_retrieveRecord.retrievePage;
   sendSignal(reference(), GSN_CONTINUEB, signal, len, JBB);
-}//execGET_TABINFOREQ()
+}//doGET_TABINFOREQ()
 
 void Dbdict::sendGetTabResponse(Signal* signal)
 {
@@ -32545,11 +32571,39 @@ Dbdict::startNextGetTabInfoReq(Signal* signal)
    */
   ndbrequire(c_gettabinforeq_q.deqReq(signal));
 
+  signal->header.theLength = GetTabInfoReq::SignalLength;
+
   c_retrieveRecord.busyState = false;
 
-  /* Execute...using EXECUTE_DIRECT to get signal trace */
-  EXECUTE_DIRECT(number(),
-                 GSN_GET_TABINFOREQ,
-                 signal,
-                 GetTabInfoReq::SignalLength);
+  /**
+   * Todo : Queue + jam signal id to indicate which req
+   * we are starting in trace file
+   */
+  doGET_TABINFOREQ(signal);
+
+  if (!c_retrieveRecord.busyState)
+  {
+    jam();
+    /* That GET_TABINFOREQ is done with no
+     * blocking work.
+     * Any more on the queue?
+     */
+    if (!c_gettabinforeq_q.isEmpty())
+    {
+      jam();
+      /* We will trigger starting the next 
+       * entry.
+       */
+      /* TODO : Option to do immediate DIRECT 
+       * exec of next req up to limit of n
+       */
+
+      /* Stop queue-jumpers */
+      c_retrieveRecord.busyState = true;
+
+      signal->theData[0] = ZNEXT_GET_TAB_REQ;
+      sendSignal(reference(), GSN_CONTINUEB, signal,
+                 1, JBB);
+    }
+  }
 }
