@@ -49,12 +49,12 @@ or std::unordered_map instead of the InnoDB lock free hash. */
 #include "univ.i"
 
 #include "sync0policy.h" /* needed by ib0mutex.h, which is not self contained */
-#include "ib0mutex.h" /* SysMutex, mutex_enter() */
 #include "os0thread.h" /* os_thread_*() */
 #include "srv0conc.h" /* srv_max_n_threads */
 #include "sync0debug.h" /* sync_check_init(), sync_check_close() */
 #include "ut0dbg.h" /* ut_chrono_t */
 #include "ut0lock_free_hash.h"
+#include "ut0mutex.h" /* SysMutex, mutex_enter() */
 
 extern SysMutex	thread_mutex;
 
