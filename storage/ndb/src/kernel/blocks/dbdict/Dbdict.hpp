@@ -1520,6 +1520,8 @@ private:
 
   Uint32 computeChecksum(const Uint32 * src, Uint32 len);
 
+  void doGET_TABINFOREQ(Signal* signal);
+
 
   /* ----------------------------------------------------------------------- */
   // Node References
