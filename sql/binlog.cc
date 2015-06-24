@@ -1268,6 +1268,13 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   {
     gtid_state->update_on_commit(thd);
   }
+  else if (thd->variables.gtid_next.type == GTID_GROUP &&
+           thd->owned_gtid.is_empty())
+  {
+    DBUG_ASSERT(thd->has_gtid_consistency_violation == false);
+    gtid_state->update_gtids_impl(thd, true);
+  }
+
   DBUG_RETURN(0);
 }
 

@@ -1,3 +1,4 @@
+RESET MASTER;
 include/gtid_utils.inc
 include/gtid_step_reset.inc
 SET SESSION GTID_NEXT='MASTER_UUID:1';
