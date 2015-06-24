@@ -212,7 +212,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
   table->sort.sorted_result, or left in the main filesort buffer.
 
   @param      thd            Current thread
-  @param      table          Table to sort
+  @param      qep_tab        Table to sort
   @param      filesort       How to sort the table
   @param      sort_positions Set to TRUE if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
@@ -753,7 +753,7 @@ static const Item::enum_walk walk_subquery=
 
   @param thd               Thread handle
   @param param             Sorting parameter
-  @param select            Use this to get source data
+  @param qep_tab            Use this to get source data
   @param fs_info           Struct containing sort buffer etc.
   @param chunk_file        File to write Merge_chunks describing sorted segments
                            in tempfile.
@@ -1520,10 +1520,10 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
     This function tests whether a priority queue should be used to keep
     the result. Necessary conditions are:
     - estimate that it is actually cheaper than merge-sort
-    - enough memory to store the \<max_rows\> records.
+    - enough memory to store the @<max_rows@> records.
 
-    If we don't have space for \<max_rows\> records, but we *do* have
-    space for \<max_rows\> keys, we may rewrite 'table' to sort with
+    If we don't have space for @<max_rows@> records, but we *do* have
+    space for @<max_rows@> keys, we may rewrite 'table' to sort with
     references to records instead of additional data.
     (again, based on estimates that it will actually be cheaper).
 

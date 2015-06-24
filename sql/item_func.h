@@ -594,13 +594,13 @@ public:
      @brief Performs the operation that this functions implements when the
      result type is DECIMAL.
 
-     @param A pointer where the DECIMAL value will be allocated.
+     @param decimal_value A pointer where the DECIMAL value will be allocated.
      @return 
        - 0 If the result is NULL
        - The same pointer it was given, with the area initialized to the
          result of the operation.
   */
-  virtual my_decimal *decimal_op(my_decimal *)= 0;
+  virtual my_decimal *decimal_op(my_decimal *decimal_value)= 0;
 
   /**
      @brief Performs the operation that this functions implements when the
@@ -1000,7 +1000,7 @@ public:
 
 
 /**
-  This handles the \<double\> = ST_LATFROMGEOHASH(<string>) function.
+  This handles the @<double@> = ST_LATFROMGEOHASH(@<string@>) function.
   It returns the latitude-part of a geohash, in the range of [-90, 90].
 */
 class Item_func_latfromgeohash :public Item_func_latlongfromgeohash
@@ -1015,7 +1015,7 @@ public:
 
 
 /**
-  This handles the \<double\> = ST_LONGFROMGEOHASH(<string>) function.
+  This handles the @<double@> = ST_LONGFROMGEOHASH(@<string@>) function.
   It returns the longitude-part of a geohash, in the range of [-180, 180].
 */
 class Item_func_longfromgeohash :public Item_func_latlongfromgeohash
@@ -2183,17 +2183,17 @@ public:
   /**
     Store a value of the given type and attributes (collation, sign)
     into a user_var_entry instance.
-    @param from         Value
+    @param ptr          Value
     @param length       Size of the value
     @param type         type
     @param cs           Character set and collation of the value
-    @param dv           Collationd erivation of the value
+    @param dv           Collation derivation of the value
     @param unsigned_arg Signess of the value
     @return
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(const void *from, size_t length, Item_result type,
+  bool store(const void *ptr, size_t length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**
     Set type of to the given value.

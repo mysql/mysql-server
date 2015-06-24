@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file buf/buf0checksum.h
+@file include/buf0checksum.h
 Buffer pool checksum functions, also linked from /extra/innochecksum.cc
 
 Created Aug 11, 2011 Vasil Dimov

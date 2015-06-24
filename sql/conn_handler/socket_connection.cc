@@ -314,10 +314,10 @@ public:
     related parameters to set up listener tcp to listen for connection
     events.
 
-    @param  tcp_port  tcp port number.
     @param  bind_addr_str  ip address as string value.
-    @param  back_log backlog specifying length of pending connection queue.
-    @param  m_port_timeout port timeout value
+    @param  tcp_port  tcp port number.
+    @param  backlog backlog specifying length of pending connection queue.
+    @param  port_timeout port timeout value
   */
   TCP_socket(std::string bind_addr_str,
              uint tcp_port,

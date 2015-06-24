@@ -114,7 +114,7 @@ private:
     @param mysql_errno       MYSQL_ERRNO
     @param returned_sqlstate RETURNED_SQLSTATE
     @param severity          Severity level - error, warning or note.
-    @param message_Text      MESSAGE_TEXT
+    @param message_text      MESSAGE_TEXT
   */
   Sql_condition(MEM_ROOT *mem_root,
                 uint mysql_errno,

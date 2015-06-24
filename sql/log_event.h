@@ -739,14 +739,14 @@ public:
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
 
-    @Note If mutex is 0, the read will proceed without mutex.
+    @note If mutex is 0, the read will proceed without mutex.
 
-    @Note If a log name is given than the method will check if the
+    @note If a log name is given than the method will check if the
     given binlog is still active.
 
     @param[in]  file                log file to be read
     @param[out] packet              packet to hold the event
-    @param[in]  lock                the lock to be used upon read
+    @param[in]  log_lock            the lock to be used upon read
     @param[in]  checksum_alg_arg    the checksum algorithm
     @param[in]  log_file_name_arg   the log's file name
     @param[out] is_binlog_active    is the current log still active
@@ -1006,8 +1006,7 @@ private:
      @param slave_server_id   id of the server, extracted from event
      @param mts_in_group      the being group parsing status, true
                               means inside the group
-     @param  is_scheduler_dbname
-                              true when the current submode (scheduler)
+     @param is_dbname_type    true when the current submode (scheduler)
                               is of DB_NAME type.
 
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
@@ -1075,7 +1074,7 @@ private:
   }
 
   /**
-     @return index  in \in [0, M] range to indicate
+     @return index  in [0, M] range to indicate
              to be assigned worker;
              M is the max index of the worker pool.
   */
@@ -3156,7 +3155,7 @@ private:
   /**
     Private member function called while handling idempotent errors.
 
-    @param err[IN/OUT] the error to handle. If it is listed as
+    @param [in,out] err the error to handle. If it is listed as
                        idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
    */
@@ -3168,7 +3167,7 @@ private:
      m_curr_row so that the next row is processed during the row
      execution main loop (@c Rows_log_event::do_apply_event()).
 
-     @param err[IN] the current error code.
+     @param err the current error code.
    */
   void do_post_row_operations(Relay_log_info const *rli, int err);
 
@@ -3222,10 +3221,10 @@ private:
     the indexes are in non-contigous ranges it fetches record corresponding
     to the key value in the next range.
 
-    @parms: bool first_read : signifying if this is the first time we are reading a row
+    @param first_read  signifying if this is the first time we are reading a row
             over an index.
-    @return_value: -  error code when there are no more reeords to be fetched or some other
-                      error occured,
+    @return  error code when there are no more records to be fetched or some other
+                      error occurred,
                    -  0 otherwise.
   */
   int next_record_scan(bool first_read);
@@ -3233,8 +3232,7 @@ private:
   /**
     Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
-    @return_value -0 success
-                  -Err_code
+    @returns 0 success, or the error code.
   */
   int add_key_to_distinct_keyset();
 
@@ -4336,8 +4334,6 @@ public:
 
   /**
     Sets the certification info
-
-    @param db the database
   */
   void set_certification_info(std::map<std::string, std::string> *info);
 

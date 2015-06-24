@@ -759,11 +759,11 @@ public:
     For other field types the "dec" value does not matter and is ignored.
 
     @param ltime   Time, date or datetime value.
-    @param dec     Number of decimals in ltime.
+    @param dec_arg Number of decimals in ltime.
     @retval false  on success
     @retval true   on error
   */
-  virtual type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec);
+  virtual type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg);
   /**
     Store MYSQL_TYPE value into a field when the number of fractional
     digits is not important or is not know.
@@ -952,7 +952,7 @@ public:
      Interface for legacy code. Newer code uses the store_timestamp(const
      timeval*) interface.
 
-     @param timestamp A TIMESTAMP value in the my_time_t format.
+     @param sec A TIMESTAMP value in the my_time_t format.
   */
   void store_timestamp(my_time_t sec)
   {
@@ -2458,7 +2458,7 @@ protected:
     with rounding according to the field decimals() value.
 
     @param[in]  ltime   MYSQL_TIME value.
-    @param[out] error   Error flag vector, set in case of error.
+    @param[out] warnings   Error flag vector, set in case of error.
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
@@ -2500,7 +2500,7 @@ protected:
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[in]  nanoseconds   Fractional part in nanoseconds
     @param[out] ltime         The value is stored here
-    @param[out] status        Conversion status
+    @return Conversion status
     @retval     false         On success
     @retval     true          On error
   */
@@ -2562,13 +2562,13 @@ protected:
     
     @param[in] level           Warning level (error, warning, note)
     @param[in] code            Warning code
-    @param[in] str             Warning parameter
+    @param[in] val             Warning parameter
     @param[in] ts_type         Timestamp type (time, date, datetime, none)
-    @param[in] cuted_inctement Incrementing of cut field counter
+    @param[in] cut_increment   Incrementing of cut field counter
   */
   void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
-                            ErrConvString str,
-                            timestamp_type ts_type, int cuted_increment);
+                            ErrConvString val,
+                            timestamp_type ts_type, int cut_increment);
 public:
   /**
     Constructor for Field_temporal
@@ -2666,7 +2666,7 @@ public:
     @param null_bit_arg      See Field definition
     @param unireg_check_arg  See Field definition
     @param field_name_arg    See Field definition
-    @param len_arg           Number of characters in the integer part.
+    @param int_length_arg    Number of characters in the integer part.
     @param dec_arg           Number of second fraction digits, 0..6.
   */
   Field_temporal_with_date(uchar *ptr_arg, uchar *null_ptr_arg,
@@ -2682,7 +2682,7 @@ public:
     Constructor for Field_temporal
     @param maybe_null_arg    See Field definition
     @param field_name_arg    See Field definition
-    @param len_arg           Number of characters in the integer part.
+    @param int_length_arg    Number of characters in the integer part.
     @param dec_arg           Number of second fraction digits, 0..6.
   */
   Field_temporal_with_date(bool maybe_null_arg, const char *field_name_arg,
@@ -2895,7 +2895,6 @@ public:
     @param null_bit_arg      See Field definition
     @param unireg_check_arg  See Field definition
     @param field_name_arg    See Field definition
-    @param share             Table share.
     @param dec_arg           Number of fractional second digits, 0..6.
   */
   Field_timestampf(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
@@ -3248,8 +3247,8 @@ public:
 
      - TIMESTAMP_DN_FIELD - means DATETIME DEFAULT CURRENT_TIMESTAMP.
 
-     - TIMESTAMP_UN_FIELD - means DATETIME DEFAULT \<default value\> ON UPDATE
-     CURRENT_TIMESTAMP, where \<default value\> is an implicit or explicit
+     - TIMESTAMP_UN_FIELD - means DATETIME DEFAULT @<default value@> ON UPDATE
+     CURRENT_TIMESTAMP, where @<default value@> is an implicit or explicit
      expression other than CURRENT_TIMESTAMP or any synonym thereof
      (e.g. NOW().)
 
@@ -3342,7 +3341,6 @@ public:
     Constructor for Field_datetimef
     @param maybe_null_arg    See Field definition
     @param field_name_arg    See Field definition
-    @param len_arg           See Field definition
     @param dec_arg           Number of second fraction digits, 0..6.
   */
   Field_datetimef(bool maybe_null_arg, const char *field_name_arg,

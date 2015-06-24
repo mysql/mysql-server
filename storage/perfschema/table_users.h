@@ -16,6 +16,11 @@
 #ifndef TABLE_USERS_H
 #define TABLE_USERS_H
 
+/**
+  @file storage/perfschema/table_users.h
+  TABLE USERS.
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_user.h"
 #include "table_helper.h"
@@ -23,7 +28,7 @@
 struct PFS_user;
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 

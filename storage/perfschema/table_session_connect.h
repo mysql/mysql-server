@@ -16,6 +16,11 @@
 #ifndef TABLE_SESSION_CONNECT_H
 #define TABLE_SESSION_CONNECT_H
 
+/**
+  @file storage/perfschema/table_session_connect.h
+  TABLE SESSION_CONNECT (abstract)
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_thread_connect_attr.h"
 #include "table_helper.h"

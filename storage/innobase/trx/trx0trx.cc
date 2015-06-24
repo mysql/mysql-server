@@ -86,7 +86,7 @@ TrxVersion::TrxVersion(trx_t* trx)
 }
 
 /** Set flush observer for the transaction
-@param[in/out]	trx		transaction struct
+@param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
 void
 trx_set_flush_observer(

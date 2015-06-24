@@ -592,11 +592,11 @@ public:
     Find the oldest binary log that contains any GTID that
     is not in the given gtid set.
 
-    @param[out] binlog_file_name, the file name of oldest binary log found
-    @param[in]  gtid_set, the given gtid set
-    @param[out] first_gtid, the first GTID information from the binary log
+    @param[out] binlog_file_name the file name of oldest binary log found
+    @param[in]  gtid_set the given gtid set
+    @param[out] first_gtid the first GTID information from the binary log
                 file returned at binlog_file_name
-    @param[out] errmsg, the error message outputted, which is left untouched
+    @param[out] errmsg the error message outputted, which is left untouched
                 if the function returns false
     @return false on success, true on error.
   */
@@ -618,7 +618,7 @@ public:
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
-    @param trx_parser [out] This will be used to return the actual
+    @param [out] trx_parser  This will be used to return the actual
     relaylog transaction parser state because of the possibility
     of partial transactions.
     @param [out] gtid_partial_trx If a transaction was left incomplete
@@ -777,8 +777,8 @@ public:
     @param log_name Name of binlog
     @param new_name Name of binlog, too. todo: what's the difference
     between new_name and log_name?
-    @param max_size The size at which this binlog will be rotated.
-    @param null_created If false, and a Format_description_log_event
+    @param max_size_arg The size at which this binlog will be rotated.
+    @param null_created_arg If false, and a Format_description_log_event
     is written, then the Format_description_log_event will have the
     timestamp 0. Otherwise, it the timestamp will be the time when the
     event was written to the log.
@@ -790,8 +790,8 @@ public:
   */
   bool open_binlog(const char *log_name,
                    const char *new_name,
-                   ulong max_size,
-                   bool null_created,
+                   ulong max_size_arg,
+                   bool null_created_arg,
                    bool need_lock_index, bool need_sid_lock,
                    Format_description_log_event *extra_description_event);
   bool open_index_file(const char *index_file_name_arg,
@@ -800,7 +800,7 @@ public:
   int new_file(Format_description_log_event *extra_description_event);
 
   bool write_event(Log_event* event_info);
-  bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data,
+  bool write_cache(THD *thd, class binlog_cache_data *cache_data,
                    class Binlog_event_writer *writer);
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
@@ -840,7 +840,6 @@ public:
      variable 'sync_binlog'. If file is synchronized, @c synced will
      be set to 1, otherwise 0.
 
-     @param[out] synced if not NULL, set to 1 if file is synchronized, otherwise 0
      @param[in] force if TRUE, ignores the 'sync_binlog' and synchronizes the file.
 
      @retval 0 Success

@@ -2052,6 +2052,69 @@ err:
 
 
 /**
+  This is a wrapper for MYSQL_BIN_LOG::gtid_end_transaction. For normal
+  statements, the function gtid_end_transaction is called in the commit
+  handler. However, if the statement is filtered out or not written to
+  the binary log, the commit handler is not invoked. Therefore, this
+  wrapper calls gtid_end_transaction in case the current statement is
+  committing but was not written to the binary log.
+  (The function gtid_end_transaction ensures that gtid-related
+  end-of-transaction operations are performed; this includes
+  generating an empty transaction and calling
+  Gtid_state::update_gtids_impl.)
+
+  @param thd Thread (session) context.
+*/
+
+static inline void binlog_gtid_end_transaction(THD *thd)
+{
+  DBUG_ENTER("binlog_gtid_end_transaction");
+
+  /*
+    This performs end-of-transaction actions needed by GTIDs:
+    in particular, it generates an empty transaction if
+    needed (e.g., if the statement was filtered out).
+
+    It is executed at the end of an implicitly or explicitly
+    committing statement.
+
+    In addition, it is executed after CREATE TEMPORARY TABLE
+    or DROP TEMPORARY TABLE when they occur outside
+    transactional context.  When enforce_gtid_consistency is
+    enabled, these statements cannot occur in transactional
+    context, and then they behave exactly as implicitly
+    committing: they are written to the binary log
+    immediately, not wrapped in BEGIN/COMMIT, and cannot be
+    rolled back. However, they do not count as implicitly
+    committing according to stmt_causes_implicit_commit(), so
+    we need to add special cases in the condition below. Hence
+    the clauses for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE.
+
+    If enforce_gtid_consistency=off, CREATE TEMPORARY TABLE
+    and DROP TEMPORARY TABLE can occur in the middle of a
+    transaction.  Then they do not behave as DDL; they are
+    written to the binary log inside BEGIN/COMMIT.
+
+    (For base tables, SQLCOM_[CREATE|DROP]_TABLE match both
+    the stmt_causes_implicit_commit(...) clause and the
+    thd->lex->sql_command == SQLCOM_* clause; for temporary
+    tables they match only thd->lex->sql_command == SQLCOM_*.)
+  */
+  if ((thd->lex->sql_command == SQLCOM_COMMIT ||
+       (thd->slave_thread &&
+        (thd->lex->sql_command == SQLCOM_XA_COMMIT ||
+         thd->lex->sql_command == SQLCOM_XA_ROLLBACK)) ||
+       stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
+       ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+         thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
+        !thd->in_multi_stmt_transaction_mode())))
+    (void) mysql_bin_log.gtid_end_transaction(thd);
+
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
@@ -2143,7 +2206,10 @@ mysql_execute_command(THD *thd)
         lex->sql_command != SQLCOM_ROLLBACK &&
         lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
         !rpl_filter->db_ok(thd->db().str))
+    {
+      binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);
+    }
 
     if (lex->sql_command == SQLCOM_DROP_TRIGGER)
     {
@@ -2163,6 +2229,7 @@ mysql_execute_command(THD *thd)
           according to slave filtering rules.
           Returning success without producing any errors in this case.
         */
+        binlog_gtid_end_transaction(thd);
         DBUG_RETURN(0);
       }
       
@@ -2202,6 +2269,7 @@ mysql_execute_command(THD *thd)
       {
         /* we warn the slave SQL thread */
         my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+        binlog_gtid_end_transaction(thd);
         DBUG_RETURN(0);
       }
       
@@ -2230,6 +2298,7 @@ mysql_execute_command(THD *thd)
     {
       /* we warn the slave SQL thread */
       my_error(ER_SLAVE_IGNORED_TABLE, MYF(0));
+      binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);
     }
     /* 
@@ -2274,6 +2343,7 @@ mysql_execute_command(THD *thd)
     DBUG_RETURN(-1);
   case GTID_STATEMENT_SKIP:
     my_ok(thd);
+    binlog_gtid_end_transaction(thd);
     DBUG_RETURN(0);
   }
 
@@ -4642,6 +4712,10 @@ finish:
     total_leaked_bytes= leaked;
   }
 #endif
+
+  if (!(res || thd->is_error()))
+    binlog_gtid_end_transaction(thd);
+
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -5111,46 +5185,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
           else
             error= mysql_execute_command(thd);
 
-          /*
-            This performs end-of-transaction actions needed by GTIDs:
-            in particular, it generates an empty transaction if
-            needed (e.g., if the statement was filtered out).
-
-            It is executed at the end of an implicitly or explicitly
-            committing statement.
-
-            In addition, it is executed after CREATE TEMPORARY TABLE
-            or DROP TEMPORARY TABLE when they occur outside
-            transactional context.  When enforce_gtid_consistency is
-            enabled, these statements cannot occur in transactional
-            context, and then they behave exactly as implicitly
-            committing: they are written to the binary log
-            immediately, not wrapped in BEGIN/COMMIT, and cannot be
-            rolled back. However, they do not count as implicitly
-            committing according to stmt_causes_implicit_commit(), so
-            we need to add special cases in the condition below. Hence
-            the clauses for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE.
-
-            If enforce_gtid_consistency=off, CREATE TEMPORARY TABLE
-            and DROP TEMPORARY TABLE can occur in the middle of a
-            transaction.  Then they do not behave as DDL; they are
-            written to the binary log inside BEGIN/COMMIT.
-
-            (For base tables, SQLCOM_[CREATE|DROP]_TABLE match both
-            the stmt_causes_implicit_commit(...) clause and the
-            thd->lex->sql_command == SQLCOM_* clause; for temporary
-            tables they match only thd->lex->sql_command == SQLCOM_*.)
-          */
-          if (error == 0 &&
-              (thd->lex->sql_command == SQLCOM_COMMIT ||
-               (thd->slave_thread &&
-                (thd->lex->sql_command == SQLCOM_XA_COMMIT ||
-                 thd->lex->sql_command == SQLCOM_XA_ROLLBACK)) ||
-               stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END) ||
-               ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
-                 thd->lex->sql_command == SQLCOM_DROP_TABLE) &&
-                !thd->in_multi_stmt_transaction_mode())))
-            mysql_bin_log.gtid_end_transaction(thd);
           MYSQL_QUERY_EXEC_DONE(error);
 	}
       }

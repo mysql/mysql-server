@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/table_threads.cc
+  TABLE THREADS.
+*/
+
 #include "my_global.h"
 #include "my_thread.h"
 #include "table_threads.h"

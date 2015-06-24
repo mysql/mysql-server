@@ -2136,6 +2136,17 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (error)
     DBUG_RETURN(TRUE);
+
+  if (thd->lex->drop_temporary && thd->in_multi_stmt_transaction_mode())
+  {
+    /*
+      When autocommit is disabled, dropping temporary table sets this flag
+      to start transaction in any case (regardless of binlog=on/off,
+      binlog format and transactional/non-transactional engine) to make
+      behavior consistent.
+    */
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+  }
   my_ok(thd);
   DBUG_RETURN(FALSE);
 }
@@ -5088,6 +5099,12 @@ bool create_table_impl(THD *thd,
     bool result= (open_table_def(thd, &share, 0) ||
                   open_table_from_share(thd, &share, "", 0, (uint) READ_ALL,
                                         0, &table, true));
+    /*
+      Assert that the change list is empty as no partition function currently
+      needs to modify item tree. May need call THD::rollback_item_tree_changes
+      later before calling closefrm if the change list is not empty.
+    */
+    DBUG_ASSERT(thd->change_list.is_empty());
     if (!result)
       (void) closefrm(&table, 0);
 
@@ -5108,6 +5125,17 @@ bool create_table_impl(THD *thd,
 err:
   THD_STAGE_INFO(thd, stage_after_create);
   delete file;
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      thd->in_multi_stmt_transaction_mode() && !error)
+  {
+    /*
+      When autocommit is disabled, creating temporary table sets this
+      flag to start transaction in any case (regardless of binlog=on/off,
+      binlog format and transactional/non-transactional engine) to make
+      behavior consistent.
+    */
+    thd->server_status|= SERVER_STATUS_IN_TRANS;
+  }
   DBUG_RETURN(error);
 
 warn:

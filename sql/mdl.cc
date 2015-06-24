@@ -1517,9 +1517,9 @@ bool MDL_context::fix_pins()
   The MDL subsystem does not own or manage memory of lock requests.
 
   @param  mdl_namespace  Id of namespace of object to be locked
-  @param  db             Name of database to which the object belongs
-  @param  name           Name of of the object
-  @param  mdl_type       The MDL lock type for the request.
+  @param  db_arg         Name of database to which the object belongs
+  @param  name_arg       Name of of the object
+  @param  mdl_type_arg   The MDL lock type for the request.
 */
 
 void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
@@ -1868,8 +1868,6 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   Clear bit corresponding to the type of metadata lock in bitmap representing
   set of such types if list of tickets does not contain ticket with such type.
 
-  @param[in,out]  bitmap  Bitmap representing set of types of locks.
-  @param[in]      list    List to inspect.
   @param[in]      type    Type of metadata lock to look up in the list.
 */
 
@@ -4340,7 +4338,7 @@ void MDL_context::release_locks(MDL_release_locks_visitor *visitor)
 /**
   Downgrade an EXCLUSIVE or SHARED_NO_WRITE lock to shared metadata lock.
 
-  @param type  Type of lock to which exclusive lock should be downgraded.
+  @param new_type  Type of lock to which exclusive lock should be downgraded.
 */
 
 void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
@@ -4591,7 +4589,7 @@ bool MDL_context::has_lock(const MDL_savepoint &mdl_savepoint,
 /**
   Change lock duration for transactional lock.
 
-  @param ticket   Ticket representing lock.
+  @param mdl_ticket Ticket representing lock.
   @param duration Lock duration to be set.
 
   @note This method only supports changing duration of

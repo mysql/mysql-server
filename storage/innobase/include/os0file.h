@@ -498,7 +498,7 @@ public:
 	}
 
 	/** Compare two requests
-	@reutrn true if the are equal */
+	@return true if the are equal */
 	bool operator==(const IORequest& rhs) const
 	{
 		return(m_type == rhs.m_type);
@@ -1343,7 +1343,7 @@ os_file_set_size(
 	__attribute__((warn_unused_result));
 
 /** Truncates a file at its current position.
-@param[in/out]	file	file to be truncated
+@param[in,out]	file	file to be truncated
 @return true if success */
 bool
 os_file_set_eof(
@@ -1604,7 +1604,7 @@ os_aio_handler(
 	IORequest*	type);
 
 /** Prints info of the aio arrays.
-@param[in/out]	file		file where to print */
+@param[in,out]	file		file where to print */
 void
 os_aio_print(FILE* file);
 

@@ -37,7 +37,7 @@ extern ulong	srv_force_recovery_crash;
 
 /** Create a typedef using the MutexType<PolicyType>
 @param[in]	M		Mutex type
-@param[in[	P		Policy type
+@param[in]	P		Policy type
 @param[in]	T		The resulting typedef alias */
 #define UT_MUTEX_TYPE(M, P, T) typedef PolicyMutex<M<P> > T;
 

@@ -510,16 +510,16 @@ err:
 /**
    Function to start a slave for all channels.
    Used in Multisource replication.
-   @param[in]        THD           THD object of the client.
+   @param[in]        thd           THD object of the client.
 
    @return
     @retval           0            success
     @retval           !0           error
 
-    @todo: It is good to continue to start other channels
+    @todo  It is good to continue to start other channels
            when a slave start failed for other channels.
 
-    @todo: The problem with the below code is if the slave is already
+    @todo  The problem with the below code is if the slave is already
            stared, we would multple warnings called
            "Slave was already running" for each channel.
            A nice warning message  would be to add
@@ -599,13 +599,13 @@ err:
 /**
    Function to stop a slave for all channels.
    Used in Multisource replication.
-   @param[in]        THD           THD object of the client.
+   @param[in]        thd           THD object of the client.
 
    @return
     @retval           0            success
     @retval           1           error
 
-    @todo: It is good to continue to stop other channels
+    @todo  It is good to continue to stop other channels
            when a slave start failed for other channels.
 */
 int stop_slave(THD *thd)
@@ -9758,7 +9758,7 @@ int delete_slave_info_object(Master_info *mi)
   Execute a RESET SLAVE (for all channels), used in Multisource replication.
   If resetting of a particular channel fails, it exits out.
 
-  @param[in]  THD  THD object of the client.
+  @param[in]  thd  THD object of the client.
 
   @retval     0    success
   @retval     1    error

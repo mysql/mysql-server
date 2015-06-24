@@ -303,7 +303,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
   @param share              Table share object
   @param part_info_arg      partition_info to use
   @param clone_arg          ha_partition to clone
-  @param clme_mem_root_arg  MEM_ROOT to use
+  @param clone_mem_root_arg MEM_ROOT to use
 
   @return New partition handler
 */
@@ -1074,14 +1074,14 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
 
 
 /**
-  @brief Check and repair the table if neccesary
+  @brief Check and repair the table if necessary.
 
   @param thd    Thread object
 
   @retval TRUE  Error/Not supported
   @retval FALSE Success
 
-  @note Called if open_table_from_share fails and ::is_crashed().
+  @note Called if open_table_from_share fails and is_crashed().
 */
 
 bool ha_partition::check_and_repair(THD *thd)
@@ -1144,7 +1144,6 @@ bool ha_partition::is_crashed() const
   @param  num_partitions            Number of new partitions to be created.
   @param  only_create               True if only creating the partition
                                     (no open/lock is needed).
-  @param  disable_non_uniq_indexes  True if non unique indexes are disabled.
 
   @return Operation status.
     @retval    0  Success.
@@ -1176,7 +1175,7 @@ int ha_partition::prepare_for_new_partitions(uint num_partitions,
 
   Used during fast_alter_part_table (ALTER TABLE ... ADD/DROP... PARTITION).
 
-  @param  table        Table object.
+  @param  tbl          Table object.
   @param  create_info  Create info from CREATE TABLE.
   @param  part_name    Partition name.
   @param  new_part_id  Partition id in m_new_file array.
@@ -3471,7 +3470,7 @@ static int key_and_ref_cmp(KEY** key_info, uchar *a, uchar *b)
   Initialize partition before start of index scan.
 
   @param part    Partition to initialize the index in.
-  @param inx     Index number.
+  @param keynr   Index number.
   @param sorted  Is rows to be returned in sorted order.
 
   @return Operation status
@@ -3658,7 +3657,7 @@ int ha_partition::index_next_in_part(uint part, uchar *buf)
   @param[in]     part    Partition to read from.
   @param[in,out] buf     Read row in MySQL Row Format.
   @param[in]     key     Key.
-  @param[in]     keylen  Length of key.
+  @param[in]     length  Length of key.
 
   @return Operation status.
     @retval    0  Success

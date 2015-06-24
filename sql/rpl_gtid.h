@@ -857,8 +857,8 @@ public:
     during the wait and (atomically) re-acquired when the wait ends
     or the timeout is reached.
 
-    @param[in] n - Sidno to wait for.
-    @param[in] abstime - pointer to the absolute wating time
+    @param[in] sidno Sidno to wait for.
+    @param[in] abstime pointer to the absolute wating time
 
     @retval - 0 - success
              !=0 - failure
@@ -1225,7 +1225,7 @@ public:
     short period when the lock is not held at all.
 
     @param text The string to parse.
-    @param anonymous[in,out] If this is NULL, ANONYMOUS is not
+    @param [in,out] anonymous If this is NULL, ANONYMOUS is not
     allowed.  If this is not NULL, it will be set to true if the
     anonymous group was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -1234,7 +1234,7 @@ public:
   /**
     Decodes a Gtid_set from the given string.
 
-    @param string The string to parse.
+    @param encoded The string to parse.
     @param length The number of bytes.
     @param actual_length If this is not NULL, it is set to the number
     of bytes used by the encoding (which may be less than 'length').
@@ -1481,7 +1481,7 @@ public:
     number of intervals.
 
     @param n_intervals The number of intervals to add.
-    @param intervals Array of n_intervals intervals.
+    @param intervals_param Array of n_intervals intervals.
   */
   void add_interval_memory(int n_intervals, Interval *intervals_param)
   {
@@ -2040,7 +2040,7 @@ public:
   /**
     Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
-    @param Gtid The Gtid to query.
+    @param gtid The Gtid to query.
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
@@ -2663,7 +2663,7 @@ public:
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_PERMISSIVE) for the THD, and acquires ownership.
 
-    @param THD The thread.
+    @param thd The thread.
     @param specified_sidno Externaly generated sidno.
     @param specified_gno   Externaly generated gno.
 
@@ -2735,11 +2735,12 @@ public:
   */
   enum_return_status ensure_sidno();
 
+#ifdef MYSQL_SERVER
   /**
     This function is used to wait for a given gtid until it is logged.
 
     @param thd     - global thread pointer.
-    @param Gtid    - Pointer to the Gtid set which gets updated.
+    @param gtid    - Pointer to the Gtid set which gets updated.
     @param timeout - Timeout value for which wait should be done in
                      millisecond.
 
@@ -2750,7 +2751,6 @@ public:
     my_error(ER_*, MYF(0)) call and return with value of -1.
 
    */
-#ifdef MYSQL_SERVER
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
 #endif
   /**
@@ -2930,20 +2930,12 @@ public:
   */
   bool warn_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
-private:
-#ifdef HAVE_GTID_NEXT_LIST
-  /// Lock all SIDNOs owned by the given THD.
-  void lock_owned_sidnos(const THD *thd);
-#endif
-  /// Unlock all SIDNOs owned by the given THD.
-  void unlock_owned_sidnos(const THD *thd);
-  /// Broadcast the condition for all SIDNOs owned by the given THD.
-  void broadcast_owned_sidnos(const THD *thd);
   /**
     Remove the GTID owned by thread from owned GTIDs.
 
     This will:
 
+    - Clean up the thread state if the thread owned GTIDs is empty.
     - Release ownership of all GTIDs owned by the THD. This removes
       the GTID from Owned_gtids and clears the ownership status in the
       THD object.
@@ -2957,7 +2949,15 @@ private:
   */
   void update_gtids_impl(THD *thd, bool is_commit);
 
-
+private:
+#ifdef HAVE_GTID_NEXT_LIST
+  /// Lock all SIDNOs owned by the given THD.
+  void lock_owned_sidnos(const THD *thd);
+#endif
+  /// Unlock all SIDNOs owned by the given THD.
+  void unlock_owned_sidnos(const THD *thd);
+  /// Broadcast the condition for all SIDNOs owned by the given THD.
+  void broadcast_owned_sidnos(const THD *thd);
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
   /// The Sid_map used by this Gtid_state.
@@ -3189,7 +3189,7 @@ struct Gtid_specification
 
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
-    @param buf[out] The buffer
+    @param [out] buf The buffer
     @param need_lock If true, this function acquires global_sid_lock
     before looking up the sidno in sid_map, and then releases it. If
     false, this function asserts that the lock is held by the caller.
@@ -3318,14 +3318,6 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
   been reported by (a function called by) this function.
 */
 bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
-
-/**
-  Check if the current statement terminates a transaction, and if so
-  set GTID_NEXT.type to UNDEFINED_GROUP.
-
-  @param thd THD object for the session.
-*/
-void gtid_post_statement_checks(THD *thd);
 
 /**
   Acquire ownership of the given Gtid_specification.

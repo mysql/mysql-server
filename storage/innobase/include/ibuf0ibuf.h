@@ -425,7 +425,7 @@ ibuf_check_bitmap_on_import(
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
-@param]in]      reset   flag if reset free val */
+@param[in]      reset   flag if reset free val */
 void
 ibuf_set_bitmap_for_bulk_load(
 	buf_block_t*    block,

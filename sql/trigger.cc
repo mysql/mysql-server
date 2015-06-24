@@ -697,7 +697,7 @@ cleanup:
   used by statement.
 
   @param [in]     thd               thread handle
-  @param [in out] prelocking_ctx    prelocking context of the statement
+  @param [in,out] prelocking_ctx    prelocking context of the statement
   @param [in]     table_list        TABLE_LIST for the table
 */
 

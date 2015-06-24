@@ -104,7 +104,7 @@ public:
   double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked_arg);
   int add_children_list(void);
   int attach_children(void);
   int detach_children(void);

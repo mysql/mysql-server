@@ -268,7 +268,7 @@ protected:
     @param[in,out] cost_constant_is_default whether the current value has the
                                             default value or not
     @param new_value                        the new value for the cost constant
-    @param default_value_is_default         whether this is a new default value
+    @param new_value_is_default             whether this is a new default value
                                             or not
   */
 

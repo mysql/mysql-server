@@ -900,7 +900,7 @@ char* partition_info::find_duplicate_field()
 
   @param partition_name Name of partition to search for.
   @param [out] file_name Partition file name (part after table name,
-                        #P#\<part\>[#SP#\<subpart\>]), skipped if NULL.
+                        #P#@<part@>[#SP#@<subpart@>]), skipped if NULL.
   @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL
@@ -1648,15 +1648,22 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   {
     int err= 0;
 
+    /* Check for partition expression. */
     if (!list_of_part_fields)
     {
       DBUG_ASSERT(part_expr);
       err= part_expr->walk(&Item::check_partition_func_processor,
                            Item::WALK_POSTFIX, NULL);
-      if (!err && is_sub_partitioned() && !list_of_subpart_fields)
-        err= subpart_expr->walk(&Item::check_partition_func_processor,
-                                Item::WALK_POSTFIX, NULL);
     }
+
+    /* Check for sub partition expression. */
+    if (!err && is_sub_partitioned() && !list_of_subpart_fields)
+    {
+      DBUG_ASSERT(subpart_expr);
+      err= subpart_expr->walk(&Item::check_partition_func_processor,
+                              Item::WALK_POSTFIX, NULL);
+    }
+
     if (err)
     {
       my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));

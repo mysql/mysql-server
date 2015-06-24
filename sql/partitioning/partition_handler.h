@@ -831,7 +831,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int update_row_in_part(uint new_part_id,
+  virtual int update_row_in_part(uint part_id,
                                  const uchar *old_data,
                                  uchar *new_data) = 0;
   /**

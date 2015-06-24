@@ -398,7 +398,7 @@ is such that we must use the client code to compare them.
 
 @param col_meta column meta data
 @param p1 key
-@oaram p1_len		key length
+@param p1_len key length
 @param p2 second key
 @param p2_len second key length
 @return 1, 0, -1, if a is greater, equal, less than b, respectively */

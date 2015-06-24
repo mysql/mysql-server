@@ -16,6 +16,11 @@
 #ifndef TABLE_ACCOUNTS_H
 #define TABLE_ACCOUNTS_H
 
+/**
+  @file storage/perfschema/table_accounts.h
+  TABLE ACCOUNTS.
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_account.h"
 #include "table_helper.h"
@@ -23,7 +28,7 @@
 struct PFS_account;
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 

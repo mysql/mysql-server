@@ -1800,7 +1800,7 @@ public:
   /**
     This counter is 32 bit because of the client protocol.
 
-    @note It is not meant to be used for my_thread_self(), see @real_id for this.
+    @note It is not meant to be used for my_thread_self(), see @c real_id for this.
 
     @note Set to reserved_thread_id on initialization. This is a magic
     value that is only to be used for temporary THDs not present in
@@ -2367,8 +2367,8 @@ public:
     Note: this doesn't tell you whether a transaction is active.
     A session can be in multi-statement transaction mode, and yet
     have no active transaction, e.g., in case of:
-    set @@autocommit=0;
-    set @a= 3;                                     <-- these statements don't
+    set \@\@autocommit=0;
+    set \@a= 3;                                    <-- these statements don't
     set transaction isolation level serializable;  <-- start an active
     flush tables;                                  <-- transaction
 
@@ -3098,8 +3098,7 @@ public:
   /**
     Set the current database; use deep copy of C-string.
 
-    @param new_db     a pointer to the new database name.
-    @param new_db_len length of the new database name.
+    @param new_db     the new database name.
 
     Initialize the current database from a NULL-terminated string with
     length. If we run out of memory, we free the current database and
@@ -3121,8 +3120,7 @@ public:
   /**
     Set the current database; use shallow copy of C-string.
 
-    @param new_db     a pointer to the new database name.
-    @param new_db_len length of the new database name.
+    @param new_db     the new database name.
 
     @note This operation just sets {db, db_length}. Switching the current
     database usually involves other actions, like switching other database
@@ -3527,7 +3525,7 @@ public:
     Sum fields has table name empty and field_name.
 
     @param list         List of items to send to client
-    @param flag         Bit mask with the following functions:
+    @param flags        Bit mask with the following functions:
                           - 1 send number of rows
                           - 2 send default values
                           - 4 don't write eof packet

@@ -371,7 +371,7 @@ public:
   /// Retrieve full type information about SP-variables in this parsing
   /// context and its children.
   ///
-  /// @param field_def_lst[out] Container to store type information.
+  /// @param [out] field_def_lst Container to store type information.
   void retrieve_field_definitions(List<Create_field> *field_def_lst) const;
 
   /// Find SP-variable by name.
@@ -473,7 +473,7 @@ public:
   /// current scope only (during runtime, current and parent scopes
   /// should be checked according to the SQL-handler resolution rules).
   ///
-  /// @param condition_value the handler condition value
+  /// @param cond_value      the handler condition value
   ///                        (not SQL-condition!).
   ///
   /// @retval true if such SQL-handler exists.

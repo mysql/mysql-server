@@ -416,9 +416,6 @@ bool Table_trigger_dispatcher::prepare_record1_accessors()
   @note If table object is fake, only its memory root can be used.
 
   @param thd          current thread context
-  @param db_name      table's database name
-  @param table_name   table's name
-  @param table        pointer to table object
   @param names_only   stop after loading trigger names
 
   @return Operation status.

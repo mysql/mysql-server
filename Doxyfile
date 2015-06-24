@@ -820,6 +820,10 @@ EXCLUDE                = cmd-line-utils \
                          mysql-test \
                          plugin \
                          source_downloads \
+                         sql/sql_hints.cc \
+                         sql/sql_yacc.cc \
+                         storage/innobase/fts/fts0blex.cc \
+                         storage/innobase/fts/fts0tlex.cc \
                          storage/ndb \
                          support-files \
                          unittest \
@@ -840,6 +844,8 @@ EXCLUDE_SYMLINKS       = NO
 # exclude all test directories for example use the pattern */test/*
 
 EXCLUDE_PATTERNS       = */include/boost*/boost/* \
+                         */sql/*ndb*.h \
+                         */sql/*ndb*.cc \
                          */unittest/*
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -1941,7 +1947,7 @@ ENABLE_PREPROCESSING   = YES
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-MACRO_EXPANSION        = NO
+MACRO_EXPANSION        = YES
 
 # If the EXPAND_ONLY_PREDEF and MACRO_EXPANSION tags are both set to YES then
 # the macro expansion is limited to the macros specified with the PREDEFINED and
@@ -1949,7 +1955,7 @@ MACRO_EXPANSION        = NO
 # The default value is: NO.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-EXPAND_ONLY_PREDEF     = NO
+EXPAND_ONLY_PREDEF     = YES
 
 # If the SEARCH_INCLUDES tag is set to YES the includes files in the
 # INCLUDE_PATH will be searched if a #include is found.
@@ -1987,6 +1993,8 @@ INCLUDE_FILE_PATTERNS  =
 PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
                          HAVE_REPLICATION \
+                         MYSQL_CLIENT \
+                         MYSQL_SERVER \
                          HAVE_PSI_INTERFACE \
                          HAVE_PSI_1 \
                          HAVE_PSI_2 \
@@ -1999,7 +2007,8 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          HAVE_PSI_IDLE_INTERFACE \
                          HAVE_PSI_STAGE_INTERFACE \
                          HAVE_PSI_STATEMENT_INTERFACE \
-                         HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+                         HAVE_PSI_STATEMENT_DIGEST_INTERFACE \
+                         __attribute__(X)=
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

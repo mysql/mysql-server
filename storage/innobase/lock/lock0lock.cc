@@ -4968,7 +4968,7 @@ public:
 	}
 
 	/** Increment the ordinal value.
-	@retun the current index value */
+	@return the current index value */
 	ulint next()
 	{
 		return(++m_index);

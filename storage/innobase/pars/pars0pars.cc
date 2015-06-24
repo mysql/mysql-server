@@ -17,7 +17,7 @@ Fifth Floor, Boston, MA 02110-1301 USA
 *****************************************************************************/
 
 /**************************************************//**
-@file pars/pars0pars.c
+@file pars/pars0pars.cc
 SQL parser
 
 Created 11/19/1996 Heikki Tuuri
@@ -80,7 +80,7 @@ pars_res_word_t	pars_share_token = {PARS_SHARE_TOKEN};
 pars_res_word_t	pars_unique_token = {PARS_UNIQUE_TOKEN};
 pars_res_word_t	pars_clustered_token = {PARS_CLUSTERED_TOKEN};
 
-/** Global variable used to denote the '*' in SELECT * FROM.. */
+/** Global variable used to denote the '*' in SELECT * FROM. */
 ulint	pars_star_denoter	= 12345678;
 
 /********************************************************************

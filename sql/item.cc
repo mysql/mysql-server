@@ -3726,7 +3726,7 @@ void Item_param::set_decimal(const my_decimal *dv)
   Set parameter value from MYSQL_TIME value.
 
   @param tm              datetime value to set (time_type is ignored)
-  @param type            type of datetime value
+  @param time_type       type of datetime value
   @param max_length_arg  max length of datetime value as string
 
   @note
@@ -7827,7 +7827,7 @@ void Item_ref::cleanup()
 
   @param transformer   the transformer callback function to be applied to
                        the nodes of the tree of the object
-  @param argument      parameter to be passed to the transformer
+  @param arg           parameter to be passed to the transformer
 
   @return Item returned as the result of transformation of the Item_ref object
     @retval !NULL The transformation was successful
@@ -8583,7 +8583,6 @@ void Item_insert_value::print(String *str, enum_query_type query_type)
   representing field of row being changed in trigger.
 
   @param thd     current thread context
-  @param table   table of trigger (and where we looking for fields)
   @param table_triggers     Table_trigger_field_support instance. Do not use
                             TABLE::triggers as it might be not initialized at
                             the moment.
@@ -10035,10 +10034,10 @@ void convert_and_print(String *from_str, String *to_str,
 
    @note This returns false for an alias to a SELECT list expression,
    even though the SELECT list expression might itself be a column of the
-   \<table expression\>; i.e. when the function runs on "foo" in HAVING of
-   "select t1.a as foo from t1 having foo \> 1", it returns false. First, it
+   @<table expression@>; i.e. when the function runs on "foo" in HAVING of
+   "select t1.a as foo from t1 having foo @> 1", it returns false. First, it
    pedantically makes sense: "foo" in HAVING is a reference to a column of the
-   \<query expression\>, not of the \<table expression\>. Second, this behaviour
+   @<query expression@>, not of the @<table expression@>. Second, this behaviour
    makes sense for our purpose:
      - This is an alias to a SELECT list expression.
      - If doing DISTINCT-related checks, this alias can be ignored.

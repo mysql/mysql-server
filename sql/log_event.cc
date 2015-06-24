@@ -2343,7 +2343,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   
   @param[in] file              IO cache
   @param[in] td                Table definition
-  @param[in] print_event_into  Print parameters
+  @param[in] print_event_info  Print parameters
   @param[in] cols_bitmap       Column bitmaps.
   @param[in] value             Pointer to packed row
   @param[in] prefix            Row's SQL clause ("SET", "WHERE", etc)
@@ -2424,7 +2424,7 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   Print a row event into IO cache in human readable form (in SQL format)
   
   @param[in] file              IO cache
-  @param[in] print_event_into  Print parameters
+  @param[in] print_event_info  Print parameters
 */
 void Rows_log_event::print_verbose(IO_CACHE *file,
                                    PRINT_EVENT_INFO *print_event_info)
@@ -4871,7 +4871,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 
    @param buf               Pointer to the event buffer.
    @param length            The size of the event buffer.
-   @param description_event The description event of the master which logged
+   @param fd_event          The description event of the master which logged
                             the event.
    @param[out] query        The pointer to receive the query pointer.
 
@@ -5184,7 +5184,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     binlogs from MySQL 3.23 or 4.x.
     When in a client, only the 2nd use is possible.
 
-  @param binlog_version         the binlog version for which we want to build
+  @param binlog_ver             the binlog version for which we want to build
                                 an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
                                 x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
                                 old 4.0 (binlog version 2) is not supported;

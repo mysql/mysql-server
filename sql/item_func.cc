@@ -5859,7 +5859,7 @@ void user_var_entry::init(THD *thd, const Simple_cstring &name,
 
 /**
   Set value to user variable.
-  @param ptr            pointer to buffer with new value
+  @param from           pointer to buffer with new value
   @param length         length of new value
   @param type           type of new value
 

@@ -1,4 +1,6 @@
 #
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
 # This test is executed once after each test to check the servers
 # for unexpected warnings found in the servers error log
 #
@@ -27,6 +29,7 @@ create temporary table error_log (
   file_name varchar(255),
   line varchar(1024) default null
 ) engine=myisam;
+COMMIT;
 
 # Get the name of servers error log
 let $log_error= $MTR_LOG_ERROR;

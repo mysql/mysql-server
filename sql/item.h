@@ -975,7 +975,7 @@ public:
     Save the item into a field but do not emit any warnings.
 
     @param field         field to save the item into
-    @param no_coversions whether or not to allow conversions of the value
+    @param no_conversions whether or not to allow conversions of the value
 
     @return the status from saving into the field
       @retval TYPE_OK    item saved without any issues
@@ -1320,7 +1320,7 @@ protected:
     and we need to return something to abort evaluation of the
     item. The expected pattern in val_bool() is
 
-      if (\<error condition\>)
+      if (@<error condition@>)
       {
         my_error(...)
         return error_bool();
@@ -1346,7 +1346,7 @@ protected:
       my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
       {
         ...
-        if (\<error condition\>)
+        if (@<error condition@>)
         {
           my_error(...)
           return error_decimal(decimal_buffer);

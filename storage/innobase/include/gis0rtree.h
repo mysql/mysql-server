@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file include gis0rtree.h
+@file include/gis0rtree.h
 R-tree header file
 
 Created 2013/03/27 Jimmy Yang and Allen Lai

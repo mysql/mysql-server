@@ -471,7 +471,6 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
-ulong max_digest_length= 0;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
@@ -3341,8 +3340,7 @@ static ssl_artifacts_status auto_detect_ssl()
       (!opt_ssl_ca || !opt_ssl_ca[0]) &&
       (!opt_ssl_capath || !opt_ssl_capath[0]) &&
       (!opt_ssl_crl || !opt_ssl_crl[0]) &&
-      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]) &&
-      (!opt_ssl_cipher || !opt_ssl_cipher[0]))
+      (!opt_ssl_crlpath || !opt_ssl_crlpath[0]))
   {
     result= result << (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ? 1 : 0)
                    << (my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ? 1 : 0)
@@ -3564,10 +3562,33 @@ static int generate_server_uuid()
   }
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+
+  /*
+    Initialize the variables which are used during "uuid generator
+    initialization" with values that should normally differ between
+    mysqlds on the same host. This avoids that another mysqld started
+    at the same time on the same host get the same "server_uuid".
+  */
+  sql_print_information("Salting uuid generator variables, current_pid: %lu, "
+                        "server_start_time: %lu, bytes_sent: %llu, ",
+                        current_pid,
+                        (ulong)server_start_time, thd->status_var.bytes_sent);
+
+  const time_t save_server_start_time= server_start_time;
+  server_start_time+= ((ulonglong)current_pid << 48) + current_pid;
+  thd->status_var.bytes_sent= (ulonglong)thd;
+
   lex_start(thd);
   func_uuid= new (thd->mem_root) Item_func_uuid();
   func_uuid->fixed= 1;
   func_uuid->val_str(&uuid);
+
+  sql_print_information("Generated uuid: '%s', "
+                        "server_start_time: %lu, bytes_sent: %llu",
+                        uuid.c_ptr(),
+                        (ulong)server_start_time, thd->status_var.bytes_sent);
+  // Restore global variables used for salting
+  server_start_time = save_server_start_time;
 
   delete thd;
 

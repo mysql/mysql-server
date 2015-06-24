@@ -627,7 +627,7 @@ typedef struct st_mysql_cond mysql_cond_t;
 /**
   @def mysql_thread_set_psi_THD(T)
   Set the thread sql session for the instrumentation.
-  @param I The thread identifier
+  @param T The thread sql session
 */
 #ifdef HAVE_PSI_THREAD_INTERFACE
   #define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)

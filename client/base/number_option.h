@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ public:
     @param value Pointer to int32 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option(int32* value, string name, string description)
     : Abstract_integer_number_option<Number_option<int32>, int32>(
@@ -79,7 +79,7 @@ public:
     @param value Pointer to uint32 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option(uint32* value, string name, string description)
     : Abstract_integer_number_option<Number_option<uint32>, uint32>(
@@ -99,7 +99,7 @@ public:
     @param value Pointer to int64 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option(int64* value, string name, string description)
     : Abstract_integer_number_option<Number_option<int64>, int64>(
@@ -119,7 +119,7 @@ public:
     @param value Pointer to uint64 object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option(uint64* value, string name, string description)
     : Abstract_integer_number_option<Number_option<uint64>, uint64>(
@@ -139,7 +139,7 @@ public:
     @param value Pointer to double object to receive option value.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
    */
   Number_option(double* value, string name, string description)
     : Abstract_number_option<Number_option<double>, double>(

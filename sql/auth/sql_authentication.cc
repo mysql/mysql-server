@@ -87,6 +87,8 @@ my_bool disconnect_on_expired_password= TRUE;
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
 #define DEFAULT_SSL_CLIENT_KEY  "client-key.pem"
 
+#define MAX_CN_NAME_LENGTH 64
+
 my_bool opt_auto_generate_certs= TRUE;
 
 char *auth_rsa_private_key_path;
@@ -3330,6 +3332,7 @@ public:
                     EVP_PKEY *ca_pkey= NULL)
   {
     X509 *x509= X509_new();
+    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
     ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
     X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
     X509_gmtime_adj(X509_get_notAfter(x509), notafter);
@@ -3813,12 +3816,30 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
       Sql_string_t server_name= "MySQL_Server_";
       Sql_string_t client_name= "MySQL_Server_";
 
-      ca_name.append(server_version);
+      ca_name.append(MYSQL_SERVER_VERSION);
       ca_name.append("_Auto_Generated_CA_Certificate");
-      server_name.append(server_version);
+      server_name.append(MYSQL_SERVER_VERSION);
       server_name.append("_Auto_Generated_Server_Certificate");
-      client_name.append(server_version);
+      client_name.append(MYSQL_SERVER_VERSION);
       client_name.append("_Auto_Generated_Client_Certificate");
+
+      /*
+        Maximum length of X509 certificate subject is 64.
+        Make sure that constructed strings are within valid
+        bounds or change them to minimal default strings
+      */
+      if (ca_name.length() > MAX_CN_NAME_LENGTH ||
+          server_name.length() > MAX_CN_NAME_LENGTH ||
+          client_name.length() > MAX_CN_NAME_LENGTH)
+      {
+        ca_name.clear();
+        ca_name.append("MySQL_Server_Auto_Generated_CA_Certificate");
+        server_name.clear();
+        server_name.append("MySQL_Server_Auto_Generated_Server_Certificate");
+        client_name.clear();
+        client_name.append("MySQL_Server_Auto_Generated_Client_Certificate");
+      }
+
       /* Create and write the certa and keys on disk */
       if ((create_x509_certificate(rsa_gen, ca_name, 1, DEFAULT_SSL_CA_CERT,
                                    DEFAULT_SSL_CA_KEY, fcr) == false) ||

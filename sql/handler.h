@@ -1810,7 +1810,7 @@ public:
   /**
     Set Ft_hints limit.
 
-    @param Ft_hints limit
+    @param ft_limit limit
   */
   void set_hint_limit(ha_rows ft_limit)
   {
@@ -2220,10 +2220,10 @@ public:
     If any of the table or key name is not available this method will return
     false and will not change any of child_table_name or child_key_name.
 
-    @param child_table_name[out]    Table name
-    @param child_table_name_len[in] Table name buffer size
-    @param child_key_name[out]      Key name
-    @param child_key_name_len[in]   Key name buffer size
+    @param [out] child_table_name    Table name
+    @param [in] child_table_name_len Table name buffer size
+    @param [out] child_key_name      Key name
+    @param [in] child_key_name_len   Key name buffer size
 
     @retval  true                  table and key names were available
                                    and were written into the corresponding
@@ -2767,7 +2767,7 @@ public:
             dependent or child table.
 
     @param thd  The thread handle.
-    @param f_key_list[out]  The list of foreign keys.
+    @param [out] f_key_list  The list of foreign keys.
 
     @return The handler error code or zero for success.
   */
@@ -2781,7 +2781,7 @@ public:
             referenced or parent table.
 
     @param thd  The thread handle.
-    @param f_key_list[out]  The list of foreign keys.
+    @param [out] f_key_list  The list of foreign keys.
 
     @return The handler error code or zero for success.
   */
@@ -3701,7 +3701,7 @@ void ha_kill_connection(THD *thd);
 /**
   Flush the log(s) of storage engine(s).
 
-  @param hton Handlerton of storage engine.
+  @param db_type Handlerton of storage engine.
   @param binlog_group_flush true if we got invoked by binlog group
   commit during flush stage, false in other cases.
   @retval false Succeed

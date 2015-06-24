@@ -2291,8 +2291,8 @@ mysql_declare_plugin_end;
   @brief Register a named table with a call back function to the query cache.
 
   @param thd The thread handle
-  @param table_key A pointer to the table name in the table cache
-  @param key_length The length of the table name
+  @param table_name A pointer to the table name in the table cache
+  @param table_name_len The length of the table name
   @param[out] engine_callback The pointer to the storage engine call back
     function, currently 0
   @param[out] engine_data Engine data will be set to 0.

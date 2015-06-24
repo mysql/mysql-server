@@ -16,6 +16,10 @@
 #ifndef PFS_BUFFER_CONTAINER_H
 #define PFS_BUFFER_CONTAINER_H
 
+/**
+  @file storage/perfschema/pfs_buffer_container.h
+  Generic buffer container.
+*/
 #include "my_global.h"
 #include "pfs_lock.h"
 #include "pfs_instr.h"
