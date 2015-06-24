@@ -3576,10 +3576,10 @@ static Sys_var_set Sys_sql_mode(
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
-static Sys_var_ulong Sys_max_statement_time(
-       "max_statement_time",
+static Sys_var_ulong Sys_max_execution_time(
+       "max_execution_time",
        "Kill SELECT statement that takes over the specified number of milliseconds",
-       SESSION_VAR(max_statement_time), CMD_LINE(REQUIRED_ARG),
+       SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)

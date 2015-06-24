@@ -2165,7 +2165,7 @@ void THD::awake(THD::killed_state state_to_set)
     ha_kill_connection(this);
 
   if (state_to_set == THD::KILL_TIMEOUT)
-    status_var.max_statement_time_exceeded++;
+    status_var.max_execution_time_exceeded++;
 
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
