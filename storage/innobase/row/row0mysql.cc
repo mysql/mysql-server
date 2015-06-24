@@ -71,6 +71,12 @@ Created 9/17/2000 Heikki Tuuri
 #include <deque>
 #include <vector>
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 static const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
 	"innodb_force_recovery is on. We do not allow database modifications"
 	" by the user. Shut down mysqld and edit my.cnf to set"
@@ -4592,7 +4598,7 @@ row_drop_table_for_mysql(
 
 		/* Finally, if it's not a temporary table,
 		let's try to delete the row in DDTableBuffer if exists */
-		if (!is_temp) {
+		if (!is_temp && !srv_missing_dd_table_buffer) {
 			mutex_enter(&dict_persist->mutex);
 			err = dict_persist->table_buffer->remove(table_id);
 			ut_ad(err == DB_SUCCESS);

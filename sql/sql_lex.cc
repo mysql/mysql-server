@@ -2845,10 +2845,6 @@ void st_select_lex::print_limit(THD *thd,
 
   @param      thd         the current thread
   @param[out] str         appends the index hint here
-  @param      hint        what the hint is (as string : "USE INDEX"|
-                          "FORCE INDEX"|"IGNORE INDEX")
-  @param      hint_length the length of the string in 'hint'
-  @param      indexes     a list of index names for the hint
 */
 
 void 

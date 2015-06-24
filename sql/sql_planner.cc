@@ -2297,9 +2297,9 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
   Calculate a cost of given partial join order
  
   @param join              Join to use. ::positions holds the partial join order
-  @param n_tables          Number of tables in the partial join order
-  @param cost_arg[out]     Store read time here 
-  @param rowcount_arg[out] Store record count here
+  @param n_tables           Number of tables in the partial join order
+  @param [out] cost_arg     Store read time here 
+  @param [out] rowcount_arg Store record count here
 
     This is needed for semi-join materialization code. The idea is that 
     we detect sj-materialization after we've put all sj-inner tables into
@@ -3521,7 +3521,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   @param final            If true, use and update access path data in
                           join->best_positions, otherwise use join->positions
                           and update a local buffer.
-  @param[out] rowcount    New output row count
+  @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
   @return True if strategy selection successful, false otherwise.
@@ -3696,7 +3696,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   @param final             If true, use and update access path data in
                            join->best_positions, otherwise use join->positions
                            and update a local buffer.
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details
@@ -3782,7 +3782,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 
   @param last_inner        Index of the last inner table
   @param sjm_nest          Pointer to semi-join nest for inner tables
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details

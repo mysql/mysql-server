@@ -147,8 +147,6 @@ bool partition_info::add_named_partition(const char *part_name,
 
 /**
   Mark named [sub]partition to be used/locked.
-
-  @param part_elem  Partition element that matched.
 */
 
 bool partition_info::set_named_partition_bitmap(const char *part_name,
@@ -167,8 +165,6 @@ bool partition_info::set_named_partition_bitmap(const char *part_name,
 /**
   Prune away partitions not mentioned in the PARTITION () clause,
   if used.
-
-    @param table_list  Table list pointing to table to prune.
 
   @return Operation status
     @retval false Success
@@ -2574,7 +2570,7 @@ bool partition_info::reorganize_into_single_field_col_val()
   code.
 
   @param thd        Thread object
-  @param col_val    Array of one value
+  @param val        Array of one value
   @param part_elem  The partition instance
   @param part_id    Id of partition instance
 
@@ -2685,7 +2681,7 @@ Item* partition_info::get_column_item(Item *item, Field *field)
   Evaluate VALUES functions for column list values.
 
   @param thd      Thread object
-  @param col_val  List of column values
+  @param val      List of column values
   @param part_id  Partition id we are fixing
 
   @return Operation status

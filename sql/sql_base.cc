@@ -295,8 +295,8 @@ static size_t create_table_def_key(THD *thd, char *key,
 /**
   Get table cache key for a table list element.
 
-  @param table_list[in]  Table list element.
-  @param key[out]        On return points to table cache key for the table.
+  @param [in] table_list Table list element.
+  @param [out] key       On return points to table cache key for the table.
 
   @note Unlike create_table_def_key() call this function doesn't construct
         key in a buffer provider by caller. Instead it relies on the fact
@@ -2663,8 +2663,7 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
   cache and, if yes, wait until the flush is complete.
 
   @param thd             Thread context.
-  @param table_list      Table which share should be checked.
-  @param timeout         Timeout for waiting.
+  @param wait_timeout    Timeout for waiting.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
   @retval FALSE   Success. Share is up to date or has been flushed.
@@ -5654,7 +5653,6 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   @param[in]  thd              Thread context.
   @param[in]  prelocking_ctx   Prelocking context of the statement.
   @param[in]  table_list       Table list element for table.
-  @param[in]  sp               Routine body.
   @param[out] need_prelocking  Set to TRUE if method detects that prelocking
                                required, not changed otherwise.
 
@@ -5692,7 +5690,6 @@ handle_table(THD *thd, Query_tables_list *prelocking_ctx,
   @param[in]  thd              Thread context.
   @param[in]  prelocking_ctx   Prelocking context of the statement.
   @param[in]  table_list       Table list element for view.
-  @param[in]  sp               Routine body.
   @param[out] need_prelocking  Set to TRUE if method detects that prelocking
                                required, not changed otherwise.
 
@@ -5723,7 +5720,6 @@ handle_view(THD *thd, Query_tables_list *prelocking_ctx,
   @param[in]  thd              Thread context.
   @param[in]  prelocking_ctx   Prelocking context of the statement.
   @param[in]  table_list       Table list element for table.
-  @param[in]  sp               Routine body.
   @param[out] need_prelocking  Set to TRUE if method detects that prelocking
                                required, not changed otherwise.
 
@@ -5772,7 +5768,6 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
   @param[in]  thd              Thread context.
   @param[in]  prelocking_ctx   Prelocking context of the statement.
   @param[in]  table_list       Table list element for table.
-  @param[in]  sp               Routine body.
   @param[out] need_prelocking  Set to TRUE if method detects that prelocking
                                required, not changed otherwise.
 

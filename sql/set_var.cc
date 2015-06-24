@@ -113,7 +113,7 @@ void sys_var_end()
   @param def_val   default value, @sa my_option::def_value
   @param lock      mutex or rw_lock that protects the global variable
                    *in addition* to LOCK_global_system_variables.
-  @param binlog_status_enum @sa binlog_status_enum
+  @param binlog_status_arg @sa binlog_status_enum
   @param on_check_func a function to be called at the end of sys_var::check,
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
@@ -623,7 +623,7 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
   This should ensure that in all normal cases none all or variables are
   updated.
 
-  @param THD            Thread id
+  @param thd            Thread id
   @param var_list       List of variables to update
 
   @retval

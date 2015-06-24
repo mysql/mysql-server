@@ -95,6 +95,12 @@ static time_t	log_last_warning_time;
 static bool	log_has_printed_chkp_margine_warning = false;
 static time_t	log_last_margine_warning_time;
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /* A margin for free space in the log buffer before a log entry is catenated */
 #define LOG_BUF_WRITE_MARGIN	(4 * OS_FILE_LOG_BLOCK_SIZE)
 
@@ -1714,9 +1720,12 @@ log_checkpoint(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	rw_lock_x_lock(&dict_persist->lock);
+	if (!srv_missing_dd_table_buffer) {
 
-	dict_persist_to_dd_table_buffer();
+		rw_lock_x_lock(&dict_persist->lock);
+
+		dict_persist_to_dd_table_buffer();
+	}
 
 #ifndef _WIN32
 	switch (srv_unix_file_flush_method) {
@@ -1733,7 +1742,10 @@ log_checkpoint(
 
 	log_mutex_enter();
 
-	rw_lock_x_unlock(&dict_persist->lock);
+	if (!srv_missing_dd_table_buffer) {
+
+		rw_lock_x_unlock(&dict_persist->lock);
+	}
 
 	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();

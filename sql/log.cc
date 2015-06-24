@@ -466,7 +466,7 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
 
   @param buf       A buffer of at least 26 bytes to store the timestamp in
                    (19 + tzinfo tail + \0)
-  @param seconds   Seconds since the epoch, or 0 for "now"
+  @param utime     Seconds since the epoch, or 0 for "now"
 
   @return          length of timestamp (excluding \0)
 */

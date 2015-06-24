@@ -8600,7 +8600,7 @@ void run_explain(struct st_connection *cn, struct st_command *command,
 
     init_dynamic_string(&ds_warning_messages, "", 0, 2048);
     init_dynamic_string(&query_str, json ? "EXPLAIN FORMAT=JSON "
-                                         : "EXPLAIN EXTENDED ", 256, 256);
+                                         : "EXPLAIN ", 256, 256);
     dynstr_append_mem(&query_str, command->query,
                       command->end - command->query);
     

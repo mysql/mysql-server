@@ -659,8 +659,6 @@ protected:
   /**
     Set m_part_share, Allocate internal bitmaps etc. used by open tables.
 
-    @param mem_root  Memory root to allocate things from (not yet used).
-
     @return Operation status.
       @retval false success.
       @retval true  failure.
@@ -758,14 +756,14 @@ protected:
   /**
     Check/fix misplaced rows.
 
-    @param part_id  Partition to check/fix.
+    @param read_part_id  Partition to check/fix.
     @param repair   If true, move misplaced rows to correct partition.
 
     @return Operation status.
       @retval    0  Success
       @retval != 0  Error
   */
-  int check_misplaced_rows(uint part_id, bool repair);
+  int check_misplaced_rows(uint read_part_id, bool repair);
   /**
     Set used partitions bitmap from Alter_info.
 
@@ -1041,7 +1039,7 @@ private:
     perform any sort.
 
     @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  next_same  Called from index_next_same.
+    @param[in]  is_next_same  Called from index_next_same.
 
     @return Operation status.
       @retval HA_ERR_END_OF_FILE  End of scan
@@ -1103,7 +1101,7 @@ private:
     Common routine to handle index_next with ordered results.
 
     @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  next_same  Called from index_next_same.
+    @param[in]  is_next_same  Called from index_next_same.
 
     @return Operation status.
       @retval HA_ERR_END_OF_FILE  End of scan

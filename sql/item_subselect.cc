@@ -1497,7 +1497,7 @@ longlong Item_exists_subselect::val_int()
   Note that currently this cannot be NULL, so if the query exection fails
   it will return 0.
 
-  @param decimal_value[out]    buffer to hold the resulting string value
+  @param [out] str             buffer to hold the resulting string value
   @retval                      Pointer to the converted string.
                                Can't be a NULL pointer, as currently
                                EXISTS cannot return NULL.
@@ -1520,7 +1520,7 @@ String *Item_exists_subselect::val_str(String *str)
   Note that currently this cannot be NULL, so if the query exection fails
   it will return 0.
 
-  @param decimal_value[out]    Buffer to hold the resulting decimal value
+  @param [out] decimal_value   Buffer to hold the resulting decimal value
   @retval                      Pointer to the converted decimal.
                                Can't be a NULL pointer, as currently
                                EXISTS cannot return NULL.

@@ -97,7 +97,7 @@ bool Query_result_union::flush()
 /**
   Create a temporary table to store the result of Query_result_union.
 
-  @param thd                thread handle
+  @param thd_arg            thread handle
   @param column_types       a list of items used to define columns of the
                             temporary table
   @param is_union_distinct  if set, the temporary table will eliminate
@@ -348,7 +348,7 @@ bool Query_result_union_direct::send_eof()
 /**
   Prepare the fake_select_lex query block
 
-  @param thd		 Thread handler
+  @param thd_arg Thread handler
 
   @returns false if success, true if error
 */

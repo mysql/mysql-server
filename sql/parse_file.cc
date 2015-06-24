@@ -686,7 +686,6 @@ nlist_err:
                              then "required", non-existing parameters will
                              remain their values.
   @param hook                hook called for unknown keys
-  @param hook_data           some data specific for the hook
 
   @retval
     FALSE   OK

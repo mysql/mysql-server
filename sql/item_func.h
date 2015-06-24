@@ -2219,7 +2219,7 @@ public:
 
   /**
     Allocate and initialize a user variable instance.
-    @param namec  Name of the variable.
+    @param name   Name of the variable.
     @param cs     Charset of the variable.
     @return
     @retval  Address of the allocated and initialized user_var_entry instance.
@@ -2517,7 +2517,6 @@ public:
 
      @param a  List of arguments.
      @param b  FT Flags.
-     @param c  Parsing context.
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
@@ -2661,7 +2660,7 @@ public:
      Set comparison operation type and and value for master MATCH function.
 
      @param type   comparison operation type
-     @param value  comparison operation value
+     @param value_arg  comparison operation value
   */
   void set_hints_op(enum ft_operation type, double value_arg)
   {

@@ -752,7 +752,7 @@ public:
     An exception: this is the only function that needs to adjust
     explain_marker.
   */
-  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
                      bool open_view_no_parse);
 
 };

@@ -24,6 +24,7 @@
 #include <errmsg.h>
 #include <mysql/service_locking.h>
 #include <locking_service.h>
+#include <derror.h>
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -335,7 +336,8 @@ static int parse_vtokens(char *input, enum command type)
       case CHECK_VTOKEN:
       {
 	version_token_st *token_obj;
-	if (!mysql_acquire_locking_service_locks(NULL, "version_token_locks",
+        char error_str[MYSQL_ERRMSG_SIZE];
+        if (!mysql_acquire_locking_service_locks(NULL, "version_token_locks",
 	                                         (const char **) &(token_name.str), 1,
 					         LOCKING_SERVICE_READ, 1) && !vtokens_unchanged)
 	{
@@ -346,51 +348,34 @@ static int parse_vtokens(char *input, enum command type)
 	    if ((token_obj->token_val.length != token_val.length) ||
 		(memcmp(token_obj->token_val.str, token_val.str, token_val.length) != 0))
 	    {
-	      char *error_str;
-	      error_str= (char *)my_malloc(key_memory_vtoken,
-					   token_name.length +
-					   token_obj->token_val.length + 50,
-					   MYF(0));
-	      if (error_str)
-	      {
-		strcpy(error_str, "Version token mismatch for ");
-		strncat(error_str, token_name.str, token_name.length);
-		strcat(error_str, ". Correct value: ");
-		strncat(error_str, token_obj->token_val.str,
-			token_obj->token_val.length);
-		strcat(error_str, "\0");
-	      }
-	      else
-		error_str= (char *) "Version token mismatch.";
 
-	      if (!thd->get_stmt_da()->is_set())
-		thd->get_stmt_da()->set_error_status(ER_ACCESS_DENIED_ERROR,
-						     (const char *) error_str,
-						     "42000");
-	      my_free(error_str);
+              if (!thd->get_stmt_da()->is_set())
+              {
+                my_snprintf(error_str, sizeof(error_str),
+                            ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_MISMATCH),
+                            (int) token_name.length, token_name.str,
+                            (int) token_obj->token_val.length, 
+                            token_obj->token_val.str);
+
+                thd->get_stmt_da()->set_error_status(ER_VTOKEN_PLUGIN_TOKEN_MISMATCH,
+                                                     (const char *) error_str,
+                                                     "42000");
+              }
 	      return -1;
 	    }
 	  }
 	  else
 	  {
-	    char *error_str;
-	    error_str= (char *)my_malloc(key_memory_vtoken,
-					 token_name.length + 50,
-					 MYF(0));
-	    if (error_str)
-	    {
-	      strcpy(error_str, "Version token ");
-	      strncat(error_str, token_name.str, token_name.length);
-	      strcat(error_str, " not found\0");
-	    }
-	    else
-	      error_str= (char *) "Version token not found.";
+            if (!thd->get_stmt_da()->is_set())
+            {
+              my_snprintf(error_str, sizeof(error_str),
+                          ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND),
+                          (int) token_name.length, token_name.str);
 
-	    if (!thd->get_stmt_da()->is_set())
-	      thd->get_stmt_da()->set_error_status(ER_ACCESS_DENIED_ERROR,
-						   (const char *) error_str,
-						   "42000");
-	    my_free(error_str);
+              thd->get_stmt_da()->set_error_status(ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND,
+                                                   (const char *) error_str,
+                                                   "42000");
+            }
 	    return -1;
 	  }
 	}

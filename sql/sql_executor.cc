@@ -378,7 +378,7 @@ int JOIN::rollup_send_data(uint idx)
                                - 0 = Total sum level
                                - 1 = First group changed  (a)
                                - 2 = Second group changed (a,b)
-  @param table               reference to temp table
+  @param table_arg           Reference to temp table
 
   @retval
     0   ok
@@ -659,7 +659,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     the multiple equality appropriately.
 
   @param cond       condition whose multiple equalities are to be checked
-  @param table      constant table that has been read
+  @param tab        constant table that has been read
 */
 
 static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
@@ -784,7 +784,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
 /**
   @brief Setup write_func of QEP_tmp_table object
 
-  @param join_tab JOIN_TAB of a tmp table
+  @param tab QEP_TAB of a tmp table
 
   @details
   Function sets up write_func according to how QEP_tmp_table object that
@@ -1019,8 +1019,8 @@ do_select(JOIN *join)
   operation's result further.
 
   @param join  pointer to the structure providing all context info for the query
-  @param join_tab the JOIN_TAB object to which the operation is attached
-  @param end_records  TRUE <=> all records were accumulated, send them further
+  @param qep_tab the QEP_TAB object to which the operation is attached
+  @param end_of_records  TRUE <=> all records were accumulated, send them further
 
   @details
   This function accumulates records, one by one, in QEP operation's buffer by
@@ -1090,13 +1090,6 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 /**
   Retrieve records ends with a given beginning from the result of a join.
 
-  SYNPOSIS
-    sub_select()
-    join      pointer to the structure providing all context info for the query
-    join_tab  the first next table of the execution plan to be retrieved
-    end_records  true when we need to perform final steps of retrival   
-
-  DESCRIPTION
     For a given partial join record consisting of records from the tables 
     preceding the table join_tab in the execution plan, the function
     retrieves all matching full records from the result set and
@@ -1207,8 +1200,8 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
   @param join      pointer to the structure providing all context info for
                    the query
-  @param join_tab  the first next table of the execution plan to be retrieved
-  @param end_records  true when we need to perform final steps of retrival   
+  @param qep_tab  the first next table of the execution plan to be retrieved
+  @param end_of_records  true when we need to perform final steps of retreival   
 
   @return
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
@@ -1468,8 +1461,8 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
   join_tab->return_tab may be modified to cause a return to a previous
   join_tab.
 
-  @param  join     - The join object
-  @param  join_tab - The most inner join_tab being processed
+  @param  join     The join object
+  @param  qep_tab The most inner qep_tab being processed
 
   @return Nested loop state
 */
@@ -3255,7 +3248,7 @@ static ulonglong unique_hash_fields(TABLE *table)
   @details Calculates record's hash and checks whether the record given in
   table->record[0] is already present in the tmp table.
 
-  @param tab JOIN_TAB of tmp table to check
+  @param table JOIN_TAB of tmp table to check
 
   @note This function assumes record[0] is already filled by the caller.
   Depending on presence of table->group, it's or full list of table's fields
@@ -4601,7 +4594,7 @@ QEP_tmp_table::prepare_tmp_table()
 /**
   @brief Prepare table if necessary and call write_func to save record
 
-  @param end_of_record  the end_of_record signal to pass to the writer
+  @param end_of_records The end_of_record signal to pass to the writer
 
   @return return one of enum_nested_loop_state.
 */

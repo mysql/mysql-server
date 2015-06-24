@@ -1525,7 +1525,7 @@ class Plan_change_watchdog
 public:
   /**
     @param tab_arg     table whose access path is being determined
-    @param no_changes  whether a change to the access path is allowed
+    @param no_changes_arg whether a change to the access path is allowed
   */
   Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg)
   {
@@ -6483,12 +6483,12 @@ static uint get_semi_join_select_list_index(Item_field *item_field)
    SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
 
    @param thd                Thread for the connection that submitted the query
-   @param field              Field used in comparision
-   @param cant_use_indexes   Indexes that cannot be used for lookup
+   @param field              Field used in comparison
+   @param cant_use_index     Indexes that cannot be used for lookup
  */
-static void 
-warn_index_not_applicable(THD *thd, const Field *field, 
-                          const Key_map cant_use_index) 
+static void
+warn_index_not_applicable(THD *thd, const Field *field,
+                          const Key_map cant_use_index)
 {
   if (thd->lex->describe)
     for (uint j=0 ; j < field->table->s->keys ; j++)
@@ -6505,14 +6505,14 @@ warn_index_not_applicable(THD *thd, const Field *field,
 /**
   Add a possible key to array of possible keys if it's usable as a key
 
-  @param key_fields[in,out] Used as an input paramater in the sense that it is a
+  @param [in,out] key_fields Used as an input parameter in the sense that it is a
   pointer to a pointer to a memory area where an array of Key_field objects will
   stored. It is used as an out parameter in the sense that the pointer will be
   updated to point beyond the last Key_field written.
 
   @param and_level       And level, to be stored in Key_field
   @param cond            Condition predicate
-  @param field           Field used in comparision
+  @param item_field      Field used in comparison
   @param eq_func         True if we used =, <=> or IS NULL
   @param value           Array of values used for comparison with field
   @param num_values      Number of elements in the array of values
@@ -6815,11 +6815,11 @@ static bool is_row_of_local_columns(Item_row *item_row)
 
    @param join The query block involving the condition.
 
-   @param key_fields[in,out] Start of memory buffer, see below.
-   @param and_level[in, out] Current 'and level', see below.
+   @param [in,out] key_fields Start of memory buffer, see below.
+   @param [in,out] and_level Current 'and level', see below.
    @param cond The conditional expression to analyze.
    @param usable_tables Tables not in this bitmap will not be examined.
-   @param sargables [in,out] End of memory buffer, see below.
+   @param [in,out] sargables End of memory buffer, see below.
 
    This documentation is the result of reverse engineering and may
    therefore not capture the full gist of the procedure, but it is
@@ -8380,8 +8380,6 @@ void JOIN::remove_subq_pushed_predicates()
   @brief
   Add keys to derived tables'/views' result tables in a list
 
-  @param select_lex generate derived keys for select_lex's derived tables
-
   @details
   This function generates keys for all derived tables/views of the select_lex
   to which this join corresponds to with help of the TABLE_LIST:generate_keys
@@ -9210,7 +9208,7 @@ static bool make_join_select(JOIN *join, Item *cond)
   SELECT * FROM t1,t2 WHERE t1.a=t2.a ORDER BY t2.b,t1.a
   @endcode
 
-  @param  JOIN         join object
+  @param  join         join object
   @param  start_order  clause being analyzed (ORDER BY, GROUP BY...)
   @param  tab          table
   @param  cached_eq_ref_tables  bitmap: bit Z is set if the table of map Z
@@ -9511,8 +9509,6 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
         also applies to MEPs, so the MEP in a) will become 42=x=y=z.
      c) remove conditions that are impossible or always true
   
-  @param      join         pointer to the structure providing all context info
-                           for the query
   @param[out] conds        conditions to optimize
   @param      join_list    list of join tables to which the condition
                            refers to
@@ -10229,10 +10225,6 @@ static Item *remove_additional_cond(Item* conds)
   Update some values in keyuse for faster choose_table_order() loop.
 
   @todo Check if this is the real meaning of ref_table_rows.
-
-  @param keyuse_array  Array of Key_use elements being updated.
-
-  
 */
 
 void JOIN::optimize_keyuse()
