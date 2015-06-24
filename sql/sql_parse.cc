@@ -5038,7 +5038,6 @@ void mysql_init_multi_delete(LEX *lex)
 
 void mysql_parse(THD *thd, Parser_state *parser_state)
 {
-  int error;
   DBUG_ENTER("mysql_parse");
   DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 
@@ -5174,6 +5173,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             (char *) thd->security_context()->priv_user().str,
             (char *) thd->security_context()->host_or_ip().str,
             0);
+
+          int error __attribute__((unused));
           if (unlikely(thd->security_context()->password_expired() &&
                        !lex->is_set_password_sql &&
                        lex->sql_command != SQLCOM_SET_OPTION &&
