@@ -561,7 +561,7 @@ max-time: 500
 cmd: testScan
 args: -n ScanReadError5021 T1 D1 D2 
 
-max-time: 500
+max-time: 720
 cmd: testScan
 args: -n ScanReaderror5022 T1 D1 D2 
 
