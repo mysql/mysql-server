@@ -7,8 +7,13 @@ mysql-community (5.7.8-rc-1debian8) jessie; urgency=low
     libtest_services_threaded
     locking_service
     version_token
+  * removed pkg mysql-*-bench; sqlbench will not be packaged
+    (Closes: #21303289)
+  * added support for MECAB in
+    d/{control,rules,mysql-*-server.install,source/include-binaries}
+    (Closes: #20315007)
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 03 Jun 2015 12:39:28 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Tue, 23 Jun 2015 16:11:26 +0530
 
 mysql-community (5.7.7-rc-2debian8) jessie; urgency=low
 
