@@ -130,6 +130,8 @@ public:
 	{
 		m_base = UT_NEW_ARRAY(T, m_n_base_elements,
 				      mem_key_buf_stat_per_index_t);
+
+		ut_ad(n_elements > 0);
 	}
 
 	/** Destructor. */
