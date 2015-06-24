@@ -94,6 +94,12 @@ ib_warn_row_too_big(const dict_table_t*	table);
 #include <vector>
 #include <algorithm>
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
 
@@ -5495,6 +5501,10 @@ dict_print_info_on_foreign_keys(
 void
 dict_persist_init(void)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	dict_persist = static_cast<dict_persist_t*>(
 		ut_zalloc_nokey(sizeof(*dict_persist)));
 
@@ -5514,6 +5524,10 @@ dict_persist_init(void)
 void
 dict_persist_close(void)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	UT_DELETE(dict_persist->persisters);
 
 	UT_DELETE(dict_persist->table_buffer);
@@ -5534,6 +5548,10 @@ dict_init_dynamic_metadata(
 	const dict_table_t*	table,
 	PersistentTableMetadata*metadata)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	ut_ad(metadata->get_table_id() == table->id);
 
 	metadata->reset();
@@ -5562,6 +5580,10 @@ dict_table_apply_dynamic_metadata(
 	dict_table_t*			table,
 	const PersistentTableMetadata*	metadata)
 {
+	if (srv_missing_dd_table_buffer) {
+		return(false);
+	}
+
 	bool	get_dirty = false;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -5617,6 +5639,10 @@ dict_table_read_dynamic_metadata(
 	ulint			size,
 	PersistentTableMetadata*metadata)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	const byte*		pos = buffer;
 	persistent_type_t	type;
 	Persister*		persister;
@@ -5651,6 +5677,10 @@ void
 dict_table_load_dynamic_metadata(
 	dict_table_t*	table)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	DDTableBuffer*	table_buffer;
 
 	ut_ad(dict_sys != NULL);
@@ -5713,6 +5743,12 @@ dict_set_corrupted(
 
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
+
+	if (srv_missing_dd_table_buffer) {
+
+		index->type |= DICT_CORRUPT;
+		return;
+	}
 
 	/* Acquire lock at first, so that setting index as corrupted would be
 	protected, in case that some checkpoint would flush the table to
@@ -5791,6 +5827,10 @@ void
 dict_table_persist_to_dd_table_buffer_low(
 	dict_table_t*	table)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	ut_ad(dict_sys != NULL);
 	ut_ad(mutex_own(&dict_persist->mutex));
 	ut_ad(table->dirty_status == METADATA_DIRTY);
@@ -5837,6 +5877,10 @@ void
 dict_table_persist_to_dd_table_buffer(
 	dict_table_t*	table)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	ut_ad(dict_sys != NULL);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -5863,6 +5907,10 @@ write dirty persistent data of table to DD TABLE BUFFER table accordingly */
 void
 dict_persist_to_dd_table_buffer(void)
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	if (dict_sys == NULL) {
 		/* We don't have dict_sys now, so just return.
 		This only happen during recovery.

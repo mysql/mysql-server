@@ -41,6 +41,12 @@ Created 4/18/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool    srv_missing_dd_table_buffer;
+
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
@@ -500,7 +506,9 @@ dict_boot(void)
 
 	ibuf_init_at_db_start();
 
-	dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+	if (!srv_missing_dd_table_buffer) {
+		dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+	}
 
 	dberr_t	err = DB_SUCCESS;
 

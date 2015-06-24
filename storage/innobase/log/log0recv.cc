@@ -145,6 +145,12 @@ mysql_pfs_key_t	recv_writer_thread_key;
 volatile static bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
@@ -564,6 +570,10 @@ table objects */
 void
 MetadataRecover::apply()
 {
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
 	PersistentTables::iterator	iter;
 
 	mutex_enter(&dict_sys->mutex);

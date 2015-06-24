@@ -109,6 +109,12 @@ Created 2/16/1996 Heikki Tuuri
 extern bool srv_lzo_disabled;
 #endif /* HAVE_LZO1X */
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+bool	srv_missing_dd_table_buffer = true;
+
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
@@ -1628,8 +1634,6 @@ srv_start(
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
-	dict_persist_init();
-
 	/* Create i/o-handler threads: */
 
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
@@ -1675,6 +1679,10 @@ srv_start(
 
 	err = srv_sys_space.open_or_create(
 		false, create_new_db, &sum_of_new_sizes, &flushed_lsn);
+
+	/* FIXME: This can be done earlier, but we now have to wait for
+	checking of system tablespace. */
+	dict_persist_init();
 
 	switch (err) {
 	case DB_SUCCESS:

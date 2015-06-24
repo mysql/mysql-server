@@ -58,6 +58,12 @@ Smart ALTER TABLE
 #include "partition_info.h"
 #include "ha_innopart.h"
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
 	= Alter_inplace_info::ADD_INDEX
@@ -6476,7 +6482,7 @@ ha_innobase::commit_inplace_alter_table(
 				ha_alter_info, ctx, altered_table, table,
 				trx, table_share->table_name.str);
 
-			if (!fail) {
+			if (!fail && !srv_missing_dd_table_buffer) {
 				/* Also check the DDTableBuffer and delete
 				the corresponding row for old table */
 				dberr_t		error;
