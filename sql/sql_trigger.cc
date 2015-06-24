@@ -316,8 +316,8 @@ end:
   the statement table list.
 
   @param[in] thd       Thread context.
-  @param[in] trg_name  Trigger name.
-  @param[in] if_exists TRUE if SQL statement contains "IF EXISTS" clause.
+  @param[in] trigger_name  Trigger name.
+  @param[in] continue_if_not_exist TRUE if SQL statement contains "IF EXISTS" clause.
                        That means a warning instead of error should be
                        thrown if trigger with given name does not exist.
   @param[out] table    Pointer to TABLE_LIST object for the

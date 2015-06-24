@@ -3232,8 +3232,8 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, Sql_condition::enum_severity_level, uint,
-                           const char*);
+  friend void push_warning(THD* thd, Sql_condition::enum_severity_level severity,
+                           uint code, const char* message_text);
   friend void my_message_sql(uint, const char *, myf);
 
   /**

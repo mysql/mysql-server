@@ -184,7 +184,7 @@ private:
 
     @param   xid    value of xid to store in the page
     @param   p      pointer to the page where to store xid
-    @param   data   pointer to the top of the mapped to memory file
+    @param   data_arg   pointer to the top of the mapped to memory file
                     to calculate offset value (cookie)
 
     @return  offset value from the top of the page where the xid was stored.
@@ -438,8 +438,8 @@ public:
      @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
-     @param query_time        Amount of time the query took to execute (in microseconds)
-     @param lock_time         Amount of time the query was locked (in microseconds)
+     @param query_utime       Amount of time the query took to execute (in microseconds)
+     @param lock_utime        Amount of time the query was locked (in microseconds)
      @param is_command        The flag which determines whether the sql_text is a
                               query or an administrator command (these are treated
                               differently by the old logging routines)

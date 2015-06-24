@@ -5030,10 +5030,6 @@ void mysql_init_multi_delete(LEX *lex)
   Parse a query.
 
   @param       thd     Current thread
-  @param       rawbuf  Begining of the query text
-  @param       length  Length of the query text
-  @param[out]  found_semicolon For multi queries, position of the character of
-                               the next query in the query text.
 */
 
 void mysql_parse(THD *thd, Parser_state *parser_state)
@@ -5426,8 +5422,6 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
-  @param use_index	List of indexed used in USE INDEX
-  @param ignore_index	List of indexed used in IGNORE INDEX
 
   @retval
       0		Error
@@ -5788,8 +5782,6 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
     SELECT * FROM t1 LEFT JOIN t2 ON on_expr1 RIGHT JOIN t3  ON on_expr2 =>
       SELECT * FROM t3 LEFT JOIN (t1 LEFT JOIN t2 ON on_expr2) ON on_expr1
    @endverbatim
-
-  @param thd         current thread
 
   @return
     - Pointer to the table representing the inner table, if success
@@ -6424,7 +6416,7 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 
   @param str         string to be checked
   @param err_msg     error message to be displayed if the string is too long
-  @param max_length  max length
+  @param max_byte_length  max length
 
   @retval
     FALSE   the passed string is not longer than max_length

@@ -216,7 +216,7 @@ protected:
 
     @param name    name of cost constant
     @param value   new value
-    @param default specify whether the new value is a default value or
+    @param default_value specify whether the new value is a default value or
                    an engine specific value
 
     @return Status for updating the cost constant

@@ -484,7 +484,7 @@ public:
     it does not have to be less than value_count.  The corresponding
     alias will be used in mysqld --help to show the default value.
 
-    @param command_line_no_value The default value if a command line
+    @param command_line_no_value_arg The default value if a command line
     option is given without a value ('--command-line-option' without
     '=VALUE').  This must be less than value_count_arg.
   */

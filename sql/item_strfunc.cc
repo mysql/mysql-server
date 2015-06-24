@@ -3392,7 +3392,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
   type it is. Implemented as a whitelist of allowed types, where binary data is
   not allowed.
 
-  @param ref Item to check for valid latitude/longitude.
+  @param arg Item to check for valid latitude/longitude.
   @return false if item is not valid, true otherwise.
 */
 bool Item_func_geohash::check_valid_latlong_type(Item *arg)

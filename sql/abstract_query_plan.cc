@@ -24,11 +24,6 @@
 
 namespace AQP
 {
-
-  /**
-    @param join_tab Array of access methods constituting the nested loop join.
-    @param access_count Length of array.
-  */
   Join_plan::Join_plan(const JOIN* join)
    : m_qep_tabs(join->qep_tab),
      m_access_count(join->primary_tables),

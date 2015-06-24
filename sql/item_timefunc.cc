@@ -2885,7 +2885,6 @@ void Item_func_add_time::print(String *str, enum_query_type query_type)
 
   t and s: time_or_datetime_expression
   @param[out]  l_time3   Result is stored here.
-  @param[in]   flags     Not used in this class.
 
   @returns
   @retval   false  On succes

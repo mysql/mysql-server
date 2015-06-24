@@ -213,7 +213,7 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 /**
   Reset lock type in lock data
 
-  @param mysql_lock Lock structures to reset.
+  @param sql_lock Lock structures to reset.
 
   @note After a locking error we want to quit the locking of the table(s).
         The test case in the bug report for Bug #18544 has the following

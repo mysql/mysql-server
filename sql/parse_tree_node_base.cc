@@ -28,9 +28,9 @@ Parse_context::Parse_context(THD *thd, st_select_lex *select)
   my_syntax_error() function replacement for deferred reporting of syntax
   errors
 
-  @param      pc      current parse context
-  @param      pos     location of the error in lexical scanner buffers
-  @param      msg     error message: NULL default means ER(ER_SYNTAX_ERROR)
+  @param pc           current parse context
+  @param position     location of the error in lexical scanner buffers
+  @param msg          error message: NULL default means ER(ER_SYNTAX_ERROR)
 */
 void Parse_tree_node::error(Parse_context *pc,
                             const POS &position,

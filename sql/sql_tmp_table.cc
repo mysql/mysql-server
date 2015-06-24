@@ -2405,11 +2405,11 @@ free_tmp_table(THD *thd, TABLE *entry)
   @param thd             THD reference
   @param table           Table reference
   @param start_recinfo   Engine's column descriptions
-  @param recinfo[in,out] End of engine's column descriptions
+  @param [in,out] recinfo End of engine's column descriptions
   @param error           Reason why inserting into MEMORY table failed. 
   @param ignore_last_dup If true, ignore duplicate key error for last
                          inserted key (see detailed description below).
-  @param is_duplicate[out] if non-NULL and ignore_last_dup is TRUE,
+  @param [out] is_duplicate if non-NULL and ignore_last_dup is TRUE,
                          return TRUE if last key was a duplicate,
                          and FALSE otherwise.
 

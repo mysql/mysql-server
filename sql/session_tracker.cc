@@ -724,9 +724,7 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the system variable with the specified name as changed.
 
-  @param name [IN]          Name of the system variable which got changed.
-
-  @return                   void
+  @param tracked_item_name Name of the system variable which got changed.
 */
 
 void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name)
@@ -854,9 +852,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed.
 
-  @param name [IN]          Always null.
-
-  @return void
+  @param tracked_item_name Always null (unused).
 */
 
 void Current_schema_tracker::mark_as_changed(THD *thd,
@@ -954,9 +950,6 @@ bool Session_state_change_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed and associated session
          attributes accordingly.
-
-  @param name [IN]          Always null.
-  @return void
 */
 
 void Session_state_change_tracker::mark_as_changed(THD *thd,

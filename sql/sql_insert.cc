@@ -1114,8 +1114,6 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @param thd                   Thread handler
   @param table_list            Global/local table list
   @param values                List of values to be inserted
-  @param duplic                What to do on duplicate key error
-  @param where                 Where clause (for insert ... select)
   @param select_insert         TRUE if INSERT ... SELECT statement
 
   @todo (in far future)

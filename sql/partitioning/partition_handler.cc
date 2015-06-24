@@ -1489,7 +1489,7 @@ error:
 /**
   Check/fix misplaced rows.
 
-  @param part_id  Partition to check/fix.
+  @param read_part_id  Partition to check/fix.
   @param repair   If true, move misplaced rows to correct partition.
 
   @return Operation status.
@@ -3036,7 +3036,7 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
   perform any sort.
 
   @param[out] buf        Read row in MySQL Row Format.
-  @param[in]  next_same  Called from index_next_same.
+  @param[in]  is_next_same  Called from index_next_same.
 
   @return Operation status.
     @retval HA_ERR_END_OF_FILE  End of scan
@@ -3472,7 +3472,7 @@ int Partition_helper::handle_ordered_index_scan_key_not_found()
   Common routine to handle index_next with ordered results.
 
   @param[out] buf        Read row in MySQL Row Format.
-  @param[in]  next_same  Called from index_next_same.
+  @param[in]  is_next_same  Called from index_next_same.
 
   @return Operation status.
     @retval HA_ERR_END_OF_FILE  End of scan

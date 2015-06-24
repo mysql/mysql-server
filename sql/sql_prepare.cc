@@ -1170,8 +1170,7 @@ error:
 /**
   Validate INSERT statement.
 
-  @param stmt               prepared statement
-  @param tables             global/local table list
+  @param table_list             global/local table list
 
   @retval
     FALSE             success
@@ -1441,7 +1440,7 @@ error:
 
   @param stmt               prepared statement
   @param tables             list of tables used in this query
-  @param values             list of expressions
+  @param var_list           list of expressions
 
   @retval
     FALSE             success
@@ -1518,7 +1517,6 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
 /**
   Check internal SELECT of the prepared command.
 
-  @param stmt                      prepared statement
   @param thd                       current thread
   @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
 
@@ -1635,7 +1633,6 @@ select_like_stmt_cmd_test_with_open(THD *thd,
   Validate and prepare for execution CREATE TABLE statement.
 
   @param stmt               prepared statement
-  @param tables             list of tables used in this query
 
   @retval
     FALSE             success
@@ -1743,7 +1740,6 @@ err:
   Validate and prepare for execution a multi delete statement.
 
   @param thd                current thread
-  @param tables             list of tables used in this query
 
   @retval
     FALSE             success
