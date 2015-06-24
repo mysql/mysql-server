@@ -61,7 +61,7 @@ char * my_load_path(char * to, const char *path,
            !(path[0] == FN_HOMELIB && path[1] == FN_LIBCHAR) &&
            !test_if_hard_path(path))
   {
-    (void) strxnmov(buff, FN_REFLEN, own_path_prefix, path, NullS);
+    (void) strxnmov(buff, sizeof(buff)-1, own_path_prefix, path, NullS);
     buff_ptr= buff;
   }
 
