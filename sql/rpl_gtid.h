@@ -2930,20 +2930,12 @@ public:
   */
   bool warn_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
-private:
-#ifdef HAVE_GTID_NEXT_LIST
-  /// Lock all SIDNOs owned by the given THD.
-  void lock_owned_sidnos(const THD *thd);
-#endif
-  /// Unlock all SIDNOs owned by the given THD.
-  void unlock_owned_sidnos(const THD *thd);
-  /// Broadcast the condition for all SIDNOs owned by the given THD.
-  void broadcast_owned_sidnos(const THD *thd);
   /**
     Remove the GTID owned by thread from owned GTIDs.
 
     This will:
 
+    - Clean up the thread state if the thread owned GTIDs is empty.
     - Release ownership of all GTIDs owned by the THD. This removes
       the GTID from Owned_gtids and clears the ownership status in the
       THD object.
@@ -2957,7 +2949,15 @@ private:
   */
   void update_gtids_impl(THD *thd, bool is_commit);
 
-
+private:
+#ifdef HAVE_GTID_NEXT_LIST
+  /// Lock all SIDNOs owned by the given THD.
+  void lock_owned_sidnos(const THD *thd);
+#endif
+  /// Unlock all SIDNOs owned by the given THD.
+  void unlock_owned_sidnos(const THD *thd);
+  /// Broadcast the condition for all SIDNOs owned by the given THD.
+  void broadcast_owned_sidnos(const THD *thd);
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
   /// The Sid_map used by this Gtid_state.
@@ -3318,14 +3318,6 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
   been reported by (a function called by) this function.
 */
 bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
-
-/**
-  Check if the current statement terminates a transaction, and if so
-  set GTID_NEXT.type to UNDEFINED_GROUP.
-
-  @param thd THD object for the session.
-*/
-void gtid_post_statement_checks(THD *thd);
 
 /**
   Acquire ownership of the given Gtid_specification.

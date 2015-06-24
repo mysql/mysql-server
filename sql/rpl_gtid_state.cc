@@ -193,6 +193,8 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   */
   if (thd->owned_gtid.is_empty() && !thd->has_gtid_consistency_violation)
   {
+    if (thd->variables.gtid_next.type == GTID_GROUP)
+      thd->variables.gtid_next.set_undefined();
     thd->pending_gtid_state_update= false;
     DBUG_PRINT("info", ("skipping update_gtids_impl because "
                         "thread does not own anything and does not violate "

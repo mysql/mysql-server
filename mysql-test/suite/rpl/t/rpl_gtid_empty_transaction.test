@@ -32,9 +32,9 @@
 # (2B) we do an UPDATE on master that matches no rows on master, but
 # that would match a row on the second slave.
 #
-# For case 3, we just execute an explicit empty transaction on master
-# and verify that it gets assigned a GTID and gets replicated to the
-# slaves.
+# For case 3, we just execute an explicit empty transaction
+# inside/outside stored procedure on master and verify that it gets
+# assigned a GTID and gets replicated to the slaves.
 #
 # To verify nothing is logged for rollback transactions, we execute a
 # DDL statement that generates an error, a DML statement that
@@ -49,6 +49,8 @@
 # - Addressing the special cases for CREATE/ALTER/DROP TEMPORARY.
 # BUG#18095502 - RESTART OF SLAVE INSTANCE FAIL IN GTID REPLICATION IF WE USE REPLICATE-IGNORE-DB
 # - Addressing database filters in the applier thread.
+# BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
+# - Addressing gtid_next with empty transaction inside stored procedure.
 
 --let $rpl_topology= 1->2->3
 --let $rpl_gtid_utils= 1
@@ -255,6 +257,7 @@ SET @@global.binlog_format= @save.binlog_format;
 
 --echo ==== Case 3: explicit empty transaction on master ====
 
+SET @@SESSION.binlog_format= row;
 --source include/gtid_step_reset.inc
 eval SET @@SESSION.GTID_NEXT = '$uuida:1';
 COMMIT;
@@ -264,7 +267,48 @@ SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 --let $gtid_step_count= 1
 --let $gtid_step_only_count= 1
 --source include/gtid_step_assert.inc
+
+# ==== Purpose ====
+#
+# Verify that committing an empty transaction with specified gtid works fine
+# inside stored procedure when binlog is enabled.
+#
+# ==== References ====
+#
+# BUG#19774317 GTID_NEXT WITH EMPTY TRANSACTIONS DOES NOT WORK INSIDE STORED PROCEDURES
+# mysql-test/t/no_binlog_gtid_empty_transaction.test
+
+CREATE TABLE t1 (a INT);
+
+delimiter |;
+
+CREATE PROCEDURE p1()
+BEGIN
+  SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+  START TRANSACTION;
+  COMMIT;
+  SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+  START TRANSACTION;
+  COMMIT;
+END|
+
+delimiter ;|
+
+# Verify exactly two GTIDs were generated
+--let $gtid_step_count= 2
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
+
+CALL p1();
+
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+# Verify exactly four GTIDs were generated
+--let $gtid_step_count= 2
+--let $gtid_step_only_count= 1
+--source include/gtid_step_assert.inc
 --let $gtid_step_only_count= 0
+
+DROP TABLE t1;
 
 # Verify the GTID makes it to every slave.
 --source include/rpl_sync.inc
@@ -297,5 +341,6 @@ ROLLBACK;
 --echo ---- Clean Up ----
 
 DROP TABLE t1;
+DROP PROCEDURE p1;
 
 --source include/rpl_end.inc
