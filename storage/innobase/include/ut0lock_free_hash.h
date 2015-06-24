@@ -140,40 +140,19 @@ public:
 		UT_DELETE(m_base);
 	}
 
-	/** Get the next array in the chain, creating it if it does not exist.
-	@return the next array. */
-	next_t
-	get_next_grow_if_necessary()
-	{
-		next_t	next = m_next.load(boost::memory_order_relaxed);
-
-		if (next == NULL) {
-			next = grow();
-		}
-
-		return(next);
-	}
-
-	/** Base array. */
-	T*			m_base;
-
-	/** Number of elements in 'm_base'. */
-	size_t			m_n_base_elements;
-
-	/** Pointer to the next node if any or NULL. */
-	boost::atomic<next_t>	m_next;
-
-private:
-
 	/** Create and append a new array to this one and store a pointer
 	to it in 'm_next'. This is done in a way that multiple threads can
 	attempt this at the same time and only one will succeed. When this
 	method returns, the caller can be sure that the job is done (either
 	by this or another thread).
+	@param[out]	grown_by_this_thread	set to true if the next
+	array was created and appended by this thread; set to false if
+	created and appended by another thread.
 	@return the next array, created and appended by this or another
 	thread */
 	next_t
-	grow()
+	grow(
+		bool*	grown_by_this_thread)
 	{
 		next_t	new_arr = UT_NEW(
 			ut_lock_free_list_node_t<T>(m_n_base_elements * 2),
@@ -194,20 +173,37 @@ private:
 			must be != NULL because the CAS failed. */
 			ut_ad(expected != NULL);
 
+			*grown_by_this_thread = false;
+
 			return(expected);
 		}
 
+		*grown_by_this_thread = true;
+
 		return(new_arr);
 	}
+
+	/** Base array. */
+	T*			m_base;
+
+	/** Number of elements in 'm_base'. */
+	size_t			m_n_base_elements;
+
+	/** Pointer to the next node if any or NULL. */
+	boost::atomic<next_t>	m_next;
 };
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
 and the value are of integer type.
-* Transitions for keys (a real key is anything other than UNUSED):
+* Transitions for keys (a real key is anything other than UNUSED and AVOID):
   * UNUSED -> real key -- allowed
+  * UNUSED -> AVOID -- allowed
   anything else is not allowed:
   * real key -> UNUSED -- not allowed
+  * real key -> AVOID -- not allowed
   * real key -> another real key -- not allowed
+  * AVOID -> UNUSED -- not allowed
+  * AVOID -> real key -- not allowed
 * Transitions for values (a real value is anything other than NOT_FOUND,
   DELETED and GOTO_NEXT_ARRAY):
   * NOT_FOUND -> real value -- allowed
@@ -245,11 +241,15 @@ public:
 			UT_NEW(arr_node_t(initial_size),
 			       mem_key_buf_stat_per_index_t),
 			boost::memory_order_relaxed);
+
+		m_garbage.store(NULL, boost::memory_order_relaxed);
 	}
 
 	/** Destructor. Not thread safe. */
 	~ut_lock_free_hash_t()
 	{
+		garbage_collect();
+
 		UT_DELETE(m_data.load(boost::memory_order_relaxed));
 	}
 
@@ -261,6 +261,7 @@ public:
 		uint64_t	key) const
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != AVOID);
 
 		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
 
@@ -311,6 +312,7 @@ public:
 		int64_t		val)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != AVOID);
 		ut_ad(val != NOT_FOUND);
 		ut_ad(val != DELETED);
 		ut_ad(val != GOTO_NEXT_ARRAY);
@@ -342,6 +344,7 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != AVOID);
 
 		arr_node_t*	arr = m_data.load(boost::memory_order_relaxed);
 
@@ -400,6 +403,7 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != AVOID);
 
 		insert_or_update(key, 1, true,
 				 m_data.load(boost::memory_order_relaxed));
@@ -417,6 +421,7 @@ public:
 		uint64_t	key)
 	{
 		ut_ad(key != UNUSED);
+		ut_ad(key != AVOID);
 
 		insert_or_update(key, -1, true,
 				 m_data.load(boost::memory_order_relaxed));
@@ -445,6 +450,13 @@ public:
 private:
 	/** A key == UNUSED designates that this cell in the array is empty. */
 	static const uint64_t	UNUSED = UINT64_MAX;
+
+	/** A key == AVOID designates an unusable cell. This cell of the array
+	has been empty (key == UNUSED), but was then marked as AVOID in order
+	to prevent new inserts into it. Searches should treat this like
+	UNUSED (ie if they encounter it before the key they are searching for
+	then stop the search and declare 'not found'). */
+	static const uint64_t	AVOID = UNUSED - 1;
 
 	/** A val == DELETED designates that this cell in the array has been
 	used in the past, but it was deleted later. Searches should return
@@ -478,8 +490,8 @@ private:
 
 	/** A hash function used to map a key to its suggested position in the
 	array. A linear search to the right is done after this position to find
-	the tuple with the given key or find a tuple with key == UNUSED which
-	means that the key is not present in the array.
+	the tuple with the given key or find a tuple with key == UNUSED or AVOID
+	which means that the key is not present in the array.
 	@param[in]	key	key to map into a position
 	@return a position (index) in the array where the tuple is guessed
 	to be */
@@ -532,7 +544,7 @@ private:
 
 			if (cur_key == key) {
 				return(cur_tuple);
-			} else if (cur_key == UNUSED) {
+			} else if (cur_key == UNUSED || cur_key == AVOID) {
 				return(NULL);
 			}
 		}
@@ -615,13 +627,8 @@ private:
 						expected,
 						key,
 						boost::memory_order_relaxed)) {
-					/* Here cur_tuple->m_val is either
-					NOT_FOUND (as it was initialized) or
-					some real value. */
 					return(cur_tuple);
 				}
-
-				ut_ad(expected != UNUSED);
 
 				/* CAS failed, which means that some other
 				thread just changed the current key from UNUSED
@@ -636,9 +643,73 @@ private:
 				concurrently executing insert. Keep searching
 				for a free slot. */
 			}
+
+			/* Skip through tuples with key == AVOID. */
 		}
 
 		return(NULL);
+	}
+
+	/** Copy all used elements from one array to another. Flag the ones
+	in the old array as 'go to the next array'.
+	@param[in,out]	src_arr	array to copy from
+	@param[in,out]	dst_arr	array to copy to */
+	void
+	copy_to_another_array(
+		arr_node_t*	src_arr,
+		arr_node_t*	dst_arr)
+	{
+
+		for (size_t i = 0; i < src_arr->m_n_base_elements; i++) {
+			key_val_t*	t = &src_arr->m_base[i];
+
+			uint64_t	k = t->m_key.load(
+				boost::memory_order_relaxed);
+
+			/* Prevent further inserts into empty cells. */
+			if (k == UNUSED
+			    && t->m_key.compare_exchange_strong(
+				    k,
+				    AVOID,
+				    boost::memory_order_relaxed)) {
+				continue;
+			}
+
+			int64_t	v = t->m_val.load(boost::memory_order_relaxed);
+
+			/* Insert (k, v) into the destination array. We know
+			that nobody else will try this concurrently with this
+			thread because:
+			* this code is being executed by just one thread (the
+			  thread that managed to grow the list of arrays) and
+			* other normal inserts/updates with (key == k) will
+			  pick the entry in src_arr. */
+
+			for (;;) {
+				insert_or_update(k, v, false, dst_arr);
+
+				boost::atomic_thread_fence(boost::memory_order_acq_rel);
+
+				/* Now that we know (k, v) is present in some
+				of the next arrays, try to CAS the tuple
+				(k, v) to (k, GOTO_NEXT_ARRAY) in the current
+				array. */
+
+				if (t->m_val.compare_exchange_strong(
+						v,
+						GOTO_NEXT_ARRAY,
+						boost::memory_order_relaxed)) {
+					break;
+				}
+
+				/* If CAS fails, this means that m_val has been
+				changed in the meantime and the CAS will store
+				m_val's most recent value in 'v'. Retry both
+				operations (this time the insert_or_update()
+				call will be an update, rather than an insert
+				one). */
+			}
+		}
 	}
 
 	/** Update the value of a given tuple.
@@ -675,6 +746,109 @@ private:
 			}
 
 			/* When CAS fails it sets the value of m_val into v. */
+		}
+	}
+
+	/** Find the previous array to a given array.
+	@param[in]	arr	array whose previous to find, must be in the
+	list of arrays that starts at m_data.
+	@return the previous array or NULL if the passed in arr is the first
+	entry in the list (m_data). */
+	arr_node_t*
+	find_prev_arr(
+		const arr_node_t*	arr) const
+	{
+		arr_node_t*	a = m_data.load(boost::memory_order_relaxed);
+
+		/* No previous array because arr is m_data. */
+		if (a == arr) {
+			return(NULL);
+		}
+
+		for (;;) {
+			arr_node_t*	next = a->m_next.load(
+				boost::memory_order_relaxed);
+
+			/* Reached the end of the list without finding arr.
+			Should not happen because arr is supposed to be in
+			the list. */
+			if (next == NULL) {
+				ut_error;
+			}
+
+			if (next == arr) {
+				return(a);
+			}
+
+			a = next;
+		}
+	}
+
+	/** Add a given array for garbage collection.
+	@param[in]	arr	array to garbage collect */
+	void
+	add_array_for_garbage_collection(
+		arr_node_t*	arr)
+	{
+		garbage_t*	new_entry = UT_NEW(
+			garbage_t(), mem_key_buf_stat_per_index_t);
+
+		new_entry->m_arr = arr;
+		new_entry->m_next.store(NULL, boost::memory_order_relaxed);
+
+		garbage_t*	expected = NULL;
+
+		if (m_garbage.compare_exchange_strong(
+				expected,
+				new_entry,
+				boost::memory_order_relaxed)) {
+			return;
+		}
+
+		garbage_t*	a = expected;
+
+		for (;;) {
+			expected = NULL;
+			if (a->m_next.compare_exchange_strong(
+				expected,
+				new_entry,
+				boost::memory_order_relaxed)) {
+
+				return;
+			}
+
+			a = expected;
+		}
+	}
+
+	/** Free the memory occupied by arrays stored in the garbage bin.
+	This is not thread safe because other threads could still be using
+	some of the arrays to be freed, thus this is only called from
+	the destructor of the lock free hash. */
+	void
+	garbage_collect()
+	{
+		garbage_t*	g = m_garbage.load(
+			boost::memory_order_relaxed);
+
+		if (g == NULL) {
+			return;
+		}
+
+		m_garbage.store(NULL, boost::memory_order_relaxed);
+
+		for (;;) {
+			garbage_t*	next = g->m_next.load(
+				boost::memory_order_relaxed);
+
+			UT_DELETE(g->m_arr);
+			UT_DELETE(g);
+
+			if (next == NULL) {
+				break;
+			}
+
+			g = next;
 		}
 	}
 
@@ -717,12 +891,73 @@ private:
 				return;
 			}
 
-			arr = arr->get_next_grow_if_necessary();
+			arr_node_t*	next_arr = arr->m_next.load(
+				boost::memory_order_relaxed);
+
+			if (next_arr != NULL) {
+				arr = next_arr;
+				continue;
+			}
+
+			bool		grown_by_this_thread;
+
+			next_arr = arr->grow(&grown_by_this_thread);
+
+			if (!grown_by_this_thread) {
+				arr = next_arr;
+				continue;
+			}
+
+			copy_to_another_array(arr, next_arr);
+
+			boost::atomic_thread_fence(
+				boost::memory_order_acq_rel);
+
+			/* Now that we know that all the tuples from arr have
+			been migrated to the next array - remove 'arr' from the
+			list of arrays, so that new readers will never
+			encounter it. By now arr is filled with tuples like:
+			(k, GOTO_NEXT_ARRAY) or
+			(AVOID, NOT_FOUND). */
+
+			arr_node_t*	prev_arr = find_prev_arr(arr);
+
+			if (prev_arr != NULL) {
+				prev_arr->m_next.store(
+					next_arr, boost::memory_order_relaxed);
+			} else {
+				m_data.store(
+					next_arr, boost::memory_order_relaxed);
+			}
+
+			add_array_for_garbage_collection(arr);
+
+			arr = next_arr;
 		}
 	}
 
 	/** Storage for the (key, val) tuples. */
 	boost::atomic<arr_node_t*>	m_data;
+
+	/** A linked list of arr_node_t* elements that are not used anymore
+	and are to be garbage collected. */
+	struct garbage_t {
+		garbage_t()
+		:
+		m_arr(NULL),
+		m_next(NULL)
+		{
+		}
+
+		/** An old array, to be freed. */
+		arr_node_t*			m_arr;
+
+		/** Pointer to the next entry. */
+		boost::atomic<garbage_t*>	m_next;
+	};
+
+	/** Arrays that are not used anymore, to be garbage collected. */
+	boost::atomic<garbage_t*>	m_garbage;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
 	/* The atomic type gives correct results, but has a _huge_

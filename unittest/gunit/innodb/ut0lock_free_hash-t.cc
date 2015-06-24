@@ -514,6 +514,18 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_few_keys)
 	);
 }
 
+TEST_F(ut0lock_free_hash, multi_threaded_0r100w_grow)
+{
+	run_multi_threaded(
+		"multi threaded,   0% read, 100% write, arraygrow" /* label */,
+		1024 /* initial hash size */,
+		4096 /* n_common */,
+		256 /* n_priv_per_thread */,
+		64, /* n_threads */
+		thread_0r100w /* thread function */
+	);
+}
+
 /** Hammer a common hash with get(), inc(), dec() and set(), 50% reads and
 50% writes. The inc()/dec() performed on the common keys will net to 0 when
 this thread ends. It also inserts some tuples with keys that are unique to
