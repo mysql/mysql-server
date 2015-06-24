@@ -80,14 +80,14 @@ DROP TABLE t1, t2, t3, t4, t5;
 #
 # 2. Test MAX_EXECUTION_TIME value set at session level.
 #
-SELECT @@max_statement_time;
-@@max_statement_time
+SELECT @@max_execution_time;
+@@max_execution_time
 0
-SET @@SESSION.max_statement_time= 1;
-SELECT @@max_statement_time;
-@@max_statement_time
+SET @@SESSION.max_execution_time= 1;
+SELECT @@max_execution_time;
+@@max_execution_time
 1
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 #
 # 3. Test the MAX_EXECUTION_TIME option by setting value for it at,
 #        - STATEMENT
@@ -96,11 +96,11 @@ SET @@SESSION.max_statement_time= 0;
 SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(5);
 SLEEP(5)
 1
-SET @@SESSION.max_statement_time= 1;
+SET @@SESSION.max_execution_time= 1;
 SELECT SLEEP(5);
 SLEEP(5)
 1
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 # 
 # 4. Test statement timeout functionality.
 #
@@ -117,7 +117,7 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
-SET @@SESSION.max_statement_time= 2;
+SET @@SESSION.max_execution_time= 2;
 SELECT *, SLEEP(0.5) from t1;
 ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 LOCK TABLE t1 WRITE;
@@ -175,7 +175,7 @@ INSERT INTO t2 SELECT * FROM t2;
 RETURN 1;
 END|
 INSERT INTO t2 VALUES (1, 'string1', 'string2');
-SET @@SESSION.max_statement_time= 2;
+SET @@SESSION.max_execution_time= 2;
 SELECT f1();
 ERROR HY000: Query execution was interrupted, maximum statement execution time exceeded
 SELECT /*+ MAX_EXECUTION_TIME(60000) */ f2();
@@ -205,7 +205,7 @@ DROP PROCEDURE p1;
 DROP TABLE t2;
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
-SET @@global.max_statement_time= 1;
+SET @@global.max_execution_time= 1;
 CREATE TABLE t2 (f1 int);
 SELECT SLEEP(2) into @a;
 SELECT @a;
@@ -234,7 +234,7 @@ f1
 0
 DELETE FROM t2;
 SET @@global.event_scheduler= @global_event_scheduler_status;
-SET @@global.max_statement_time= 0;
+SET @@global.max_execution_time= 0;
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
 SELECT SLEEP(2) into @a;
@@ -264,23 +264,23 @@ DROP TABLE t1,t2;
 #
 # 8. Test MAX_EXECUTION_TIME precedence set at different levels.
 #
-SET @@SESSION.max_statement_time= 3;
+SET @@SESSION.max_execution_time= 3;
 SELECT sleep(5);
 sleep(5)
 1
 SELECT /*+ MAX_EXECUTION_TIME(2) */ sleep(5);
 sleep(5)
 1
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 #
 # 9. MAX_EXECUTION_TIME status variables.
 #
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set
 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET';
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET';
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_exceeded
 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED';
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED';
 SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SLEEP(1)
 1
@@ -289,46 +289,46 @@ SLEEP(1)
 # - statements that exceeded their maximum execution time
 # are incremented.
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET'
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set;
 STATUS
 1
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_EXCEEDED'
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_EXCEEDED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_exceeded;
 STATUS
 1
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 SET DEBUG= '+d,thd_timer_create_failure';
 SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SLEEP(1)
 0
 SET DEBUG= '-d,thd_timer_create_failure';
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 STATUS
 1
 SELECT CONVERT(VARIABLE_VALUE, UNSIGNED) INTO @time_set_failed
 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED';
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED';
 SET DEBUG= '+d,thd_timer_set_failure';
 SELECT /*+ MAX_EXECUTION_TIME(10) */ SLEEP(1);
 SLEEP(1)
 0
 SET DEBUG= '-d,thd_timer_set_failure';
 SELECT 1 AS STATUS FROM INFORMATION_SCHEMA.GLOBAL_STATUS
-WHERE VARIABLE_NAME= 'MAX_STATEMENT_TIME_SET_FAILED'
+WHERE VARIABLE_NAME= 'MAX_EXECUTION_TIME_SET_FAILED'
         AND CONVERT(VARIABLE_VALUE, UNSIGNED) > @time_set_failed;
 STATUS
 1
 # 
-# 10. Test Query cache behavior with max_statement_time.
+# 10. Test Query cache behavior with max_execution_time.
 #
 SET SESSION query_cache_type= 1;
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
 CREATE TABLE t1 (fld1 int);
 INSERT INTO t1 VALUES (1), (2), (3);
 INSERT INTO t1 SELECT * FROM t1;
@@ -413,4 +413,4 @@ WHERE VARIABLE_NAME= 'Qcache_inserts'
 STATUS
 FLUSH QUERY CACHE;
 DROP TABLE t1;
-SET @@SESSION.max_statement_time= 0;
+SET @@SESSION.max_execution_time= 0;
