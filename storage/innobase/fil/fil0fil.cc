@@ -1979,7 +1979,7 @@ fil_create_directory_for_tablename(
 	char*		path;
 	ulint		len;
 
-	len = ::strlen(fil_path_to_mysql_datadir);
+	len = strlen(fil_path_to_mysql_datadir);
 	namend = strchr(name, '/');
 	ut_a(namend);
 	path = static_cast<char*>(ut_malloc_nokey(len + (namend - name) + 2));
@@ -3229,11 +3229,11 @@ fil_make_filepath(
 	ut_ad(!trim || (path != NULL && name != NULL));
 
 	ulint	len		= 0;	/* current length */
-	ulint	path_len	= (path ? ::strlen(path)
-				  : ::strlen(fil_path_to_mysql_datadir));
-	ulint	name_len	= (name ? ::strlen(name) : 0);
+	ulint	path_len	= (path ? strlen(path)
+				  : strlen(fil_path_to_mysql_datadir));
+	ulint	name_len	= (name ? strlen(name) : 0);
 	const char* suffix	= dot_ext[ext];
-	ulint	suffix_len	= ::strlen(suffix);
+	ulint	suffix_len	= strlen(suffix);
 	ulint	full_len	= path_len + 1 + name_len + suffix_len + 1;
 
 	char*	full_name = static_cast<char*>(ut_malloc_nokey(full_len));
@@ -3254,7 +3254,7 @@ fil_make_filepath(
 		char* last_dir_sep = strrchr(full_name, OS_PATH_SEPARATOR);
 		if (last_dir_sep) {
 			last_dir_sep[0] = '\0';
-			len = ::strlen(full_name);
+			len = strlen(full_name);
 		}
 	}
 
@@ -3266,7 +3266,7 @@ fil_make_filepath(
 			len++;
 		}
 
-		::memcpy(&full_name[len], name, name_len);
+		memcpy(&full_name[len], name, name_len);
 		len += name_len;
 		full_name[len] = '\0';
 
