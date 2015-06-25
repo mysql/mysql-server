@@ -36,7 +36,7 @@
 %global license_type          GPLv2
 %endif
 
-Name:           mysql-%{product_suffix}
+Name:           mysql-%{product_suffix}-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @VERSION@
@@ -79,7 +79,7 @@ The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
 documentation and the manual for more information.
 
-%package        server-minimal
+%package -n     mysql-%{product_suffix}-server-minimal
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       shadow-utils
@@ -88,7 +88,7 @@ Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
 Provides:       mysql-compat-server%{?_isa} = %{version}-%{release}
 
-%description    server-minimal
+%description -n mysql-%{product_suffix}-server-minimal
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -209,17 +209,17 @@ pushd mysql-test
 rm -r $(readlink var) var
 %endif
 
-%pre server-minimal
+%pre -n mysql-%{product_suffix}-server-minimal
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
 
-%post server-minimal
+%post -n mysql-%{product_suffix}-server-minimal
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chmod 0640 /var/log/mysqld.log >/dev/null 2>&1 || :
 /bin/chown mysql:mysql /var/log/mysqld.log >/dev/null 2>&1 || :
 
-%files server-minimal
+%files -n mysql-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
@@ -276,6 +276,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
 %changelog
+* Thu Jun 25 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.45-1
+- Update package names
+
 * Mon Feb 16 2015 Terje Rosten <terje.rosten@oracle.com> - 5.5.42-1
 - Port to 5.5.
 
