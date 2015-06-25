@@ -930,7 +930,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     Set up temporary column read map for columns used by sort and verify
     it's not used
   */
-  DBUG_ASSERT(bitmap_is_clear_all(&sort_form->tmp_set));
+  DBUG_ASSERT(sort_form->tmp_set.n_bits == 0 ||
+              bitmap_is_clear_all(&sort_form->tmp_set));
 
   // Temporary set for register_used_fields and mark_field_in_map()
   sort_form->read_set= &sort_form->tmp_set;

@@ -630,6 +630,9 @@ static void register_hidden_field(TABLE *table,
           MAX_FIELDS columns. This prevents any MyISAM temp table
           made when materializing the view from hitting the 64k
           MyISAM header size limit.
+
+  @remark We may actually end up with a table without any columns at all.
+          See comment below: We don't have to store this.
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
