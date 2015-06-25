@@ -28,6 +28,7 @@ args=""
 defaults=""
 mysqld_opt=""
 user=""
+group=""
 
 force=0
 in_rpm=0
@@ -67,6 +68,11 @@ Usage: $0 [OPTIONS]
                        and directories created by mysqld will be owned by this
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
+                       directories that it creates will be owned by you.
+  --group=group_name   The login group to use for running mysqld.  Files and
+                       directories created by mysqld will be owned by this
+                       group. You must be root to use this option.  By default
+                       mysqld runs using your current group and files and
                        directories that it creates will be owned by you.
 
 All other options are passed to the mysqld program
@@ -108,11 +114,11 @@ parse_arguments()
       --builddir=*) builddir=`parse_arg "$arg"` ;;
       --srcdir=*)  srcdir=`parse_arg "$arg"` ;;
       --ldata=*|--datadir=*) ldata=`parse_arg "$arg"` ;;
-      --user=*)
         # Note that the user will be passed to mysqld so that it runs
         # as 'user' (crucial e.g. if log-bin=/some_other_path/
         # where a chown of datadir won't help)
-        user=`parse_arg "$arg"` ;;
+      --user=*) user=`parse_arg "$arg"` ;;
+      --group=*) group=`parse_arg "$arg"` ;;
       --skip-name-resolve) ip_only=1 ;;
       --verbose) verbose=1 ;; # Obsolete
       --rpm) in_rpm=1 ;;
@@ -365,7 +371,12 @@ do
   fi
   if test -n "$user"
   then
-    chown $user $dir
+    if test -z "$group"
+    then
+      chown $user $dir
+    else
+      chown $user:$group $dir
+    fi
     if test $? -ne 0
     then
       echo "Cannot change ownership of the database directories to the '$user'"
@@ -378,6 +389,11 @@ done
 if test -n "$user"
 then
   args="$args --user=$user"
+fi
+
+if test -n "$group"
+then
+  args="$args --group=$group"
 fi
 
 # When doing a "cross bootstrap" install, no reference to the current
