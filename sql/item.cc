@@ -4883,7 +4883,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
             non aggregated fields of the outer select.
           */
           marker= select->cur_pos_in_select_list;
-          select->non_agg_fields.push_back(this);
+          select->join->non_agg_fields.push_back(this);
         }
         if (*from_field != view_ref_found)
         {
@@ -5299,9 +5299,10 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   fixed= 1;
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
       !outer_fixed && !thd->lex->in_sum_func &&
-      thd->lex->current_select->cur_pos_in_select_list != UNDEF_POS)
+      thd->lex->current_select->cur_pos_in_select_list != UNDEF_POS &&
+      thd->lex->current_select->join)
   {
-    thd->lex->current_select->non_agg_fields.push_back(this);
+    thd->lex->current_select->join->non_agg_fields.push_back(this);
     marker= thd->lex->current_select->cur_pos_in_select_list;
   }
 mark_non_agg_field:

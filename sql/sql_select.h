@@ -922,6 +922,9 @@ public:
   Item *pre_sort_idx_pushed_cond;
   void clean_pre_sort_join_tab();
 
+  /* List of fields that aren't under an aggregate function */
+  List<Item_field> non_agg_fields;
+
   /*
     For "Using temporary+Using filesort" queries, JOIN::join_tab can point to
     either: 
@@ -1301,6 +1304,7 @@ public:
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
       fields_list= fields_arg;
+    non_agg_fields.empty();
     bzero((char*) &keyuse,sizeof(keyuse));
     tmp_table_param.init();
     tmp_table_param.end_write_records= HA_POS_ERROR;
