@@ -28,5 +28,5 @@ SET(MYSQLSERVICES_SOURCES
   rpl_transaction_ctx_service.c
   rpl_transaction_write_set_service.c)
 
-ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
+ADD_LIBRARY(mysqlservices STATIC ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)
