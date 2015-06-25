@@ -23,6 +23,7 @@ logging=init
 want_syslog=0
 syslog_tag=
 user='@MYSQLD_USER@'
+group='@MYSQLD_GROUP@'
 pid_file=
 err_log=
 
@@ -198,6 +199,7 @@ parse_arguments() {
       --pid-file=*) pid_file="$val" ;;
       --plugin-dir=*) PLUGIN_DIR="$val" ;;
       --user=*) user="$val"; SET_USER=1 ;;
+      --group=*) group="$val"; SET_USER=1 ;;
 
       # these might have been set in a [mysqld_safe] section of my.cnf
       # they are added to mysqld command line to override settings from my.cnf
@@ -592,11 +594,17 @@ then
   if test "$user" != "root" -o $SET_USER = 1
   then
     USER_OPTION="--user=$user"
+    GROUP_OPTION="--group=$group"
   fi
   # Change the err log to the right user, if it is in use
   if [ $want_syslog -eq 0 ]; then
     touch "$err_log"
-    chown $user "$err_log"
+    if [ "$user" -a "$group" ]; then
+      chown $user:$group $err_log
+    else
+      [ "$user" ] && chown $user $err_log
+      [ "$group" ] && chgrp $group $err_log
+    fi
   fi
   if test -n "$open_files"
   then
@@ -615,7 +623,12 @@ mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
   mkdir $mysql_unix_port_dir
-  chown $user $mysql_unix_port_dir
+  if [ "$user" -a "$group" ]; then
+    chown $user:$group $mysql_unix_port_dir
+  else
+    [ "$user" ] && chown $user $mysql_unix_port_dir
+    [ "$group" ] && chgrp $group $mysql_unix_port_dir
+  fi
   chmod 755 $mysql_unix_port_dir
 fi
 

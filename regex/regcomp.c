@@ -138,7 +138,15 @@ const CHARSET_INFO *charset;
 							(NC-1)*sizeof(cat_t));
 	if (g == NULL)
 		return(MY_REG_ESPACE);
-	p->ssize = (long) (len/(size_t)2*(size_t)3 + (size_t)1); /* ugh */
+	{
+	  /* Patched for CERT Vulnerability Note VU#695940, Feb 2015. */
+	  size_t new_ssize = len/(size_t)2*(size_t)3 + (size_t)1; /* ugh */
+	  if (new_ssize < len || new_ssize > LONG_MAX / sizeof(sop)) {
+	    free((char *) g);
+	    return MY_REG_INVARG;
+	  }
+	  p->ssize = (long) new_ssize;
+	}	
 	p->strip = (sop *)malloc(p->ssize * sizeof(sop));
 	p->slen = 0;
 	if (p->strip == NULL) {

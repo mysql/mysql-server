@@ -161,6 +161,7 @@ ENDIF()
 
 SET(HOSTNAME "hostname")
 SET(MYSQLD_USER "mysql")
+SET(MYSQLD_GROUP "mysql")
 
 # Required for mysqlbug until autotools are deprecated, once done remove these
 # and expand default cmake variables

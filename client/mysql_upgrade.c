@@ -583,21 +583,37 @@ static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
 
 static int get_upgrade_info_file_name(char* name)
 {
-  DYNAMIC_STRING ds_datadir;
+  static char *data_dir = NULL;
+  static size_t len;
+
   DBUG_ENTER("get_upgrade_info_file_name");
 
-  if (init_dynamic_string(&ds_datadir, NULL, 32, 32))
-    die("Out of memory");
-
-  if (run_query("show variables like 'datadir'",
-                &ds_datadir, FALSE) ||
-      extract_variable_from_show(&ds_datadir, name))
+  if(data_dir==NULL)
   {
-    dynstr_free(&ds_datadir);
-    DBUG_RETURN(1); /* Query failed */
-  }
+    DYNAMIC_STRING ds_datadir;
 
-  dynstr_free(&ds_datadir);
+    if (init_dynamic_string(&ds_datadir, NULL, 32, 32))
+      die("Out of memory");
+
+    if (run_query("show variables like 'datadir'",
+                  &ds_datadir, FALSE) ||
+        extract_variable_from_show(&ds_datadir, name)
+        )
+    {
+      dynstr_free(&ds_datadir);
+      DBUG_RETURN(1); /* Query failed */
+    }
+    dynstr_free(&ds_datadir);
+    len = strlen(name)+1;
+    if ((data_dir=(char*)malloc(sizeof(char)*len))==NULL)
+    {
+      die("Out of memory");
+    }
+    strncpy(data_dir,name,len);
+
+  } else {
+    strncpy(name, data_dir, len);
+  }
 
   fn_format(name, "mysql_upgrade_info", name, "", MYF(0));
   DBUG_PRINT("exit", ("name: %s", name));
@@ -1010,7 +1026,7 @@ int main(int argc, char **argv)
     Read the mysql_upgrade_info file to check if mysql_upgrade
     already has been run for this installation of MySQL
   */
-  if (!opt_force && upgrade_already_done())
+  if (upgrade_already_done() && !opt_force)
   {
     printf("This installation of MySQL is already upgraded to %s, "
            "use --force if you still need to run mysql_upgrade\n",
@@ -1029,9 +1045,9 @@ int main(int argc, char **argv)
   */
   if ((!opt_systables_only &&
        (run_mysqlcheck_mysql_db_fixnames() || run_mysqlcheck_mysql_db_upgrade())) ||
-      run_sql_fix_privilege_tables() ||
       (!opt_systables_only &&
-      (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())))
+      (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade()))
+      || run_sql_fix_privilege_tables())
   {
     /*
       The upgrade failed to complete in some way or another,
