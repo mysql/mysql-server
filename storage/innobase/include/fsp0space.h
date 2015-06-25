@@ -76,7 +76,7 @@ public:
 	Tablespace& operator=(const Tablespace&);
 
 	/** Set tablespace name
-	@param name	tablespace name */
+	@param[in]	name	tablespace name */
 	void set_name(const char* name)
 	{
 		ut_ad(m_name == NULL);
@@ -92,7 +92,7 @@ public:
 	}
 
 	/** Set tablespace path and filename members.
-	@param path	where tablespace file(s) resides */
+        @param[in]      path	where tablespace file(s) resides */
 	void set_path(const char* path)
 	{
 		ut_ad(m_path == NULL);
@@ -110,7 +110,7 @@ public:
 	}
 
 	/** Set the space id of the tablespace
-	@param space_id	 tablespace ID to set */
+	@param[in]	space_id	 tablespace ID to set */
 	void set_space_id(ulint space_id)
 	{
 		ut_ad(m_space_id == ULINT_UNDEFINED);
@@ -125,7 +125,7 @@ public:
 	}
 
 	/** Set the tablespace flags
-	@param fsp_flags	tablespace flags */
+	@param[in]	fsp_flags	tablespace flags */
 	void set_flags(ulint fsp_flags)
 	{
 		ut_ad(fsp_flags_is_valid(fsp_flags));
@@ -163,7 +163,7 @@ public:
 	void delete_files();
 
 	/** Check if two tablespaces have common data file names.
-	@param other_space	Tablespace to check against this.
+	@param[in]	other_space	Tablespace to check against this.
 	@return true if they have the same data filenames and paths */
 	bool intersection(const Tablespace* other_space);
 
@@ -191,12 +191,12 @@ public:
 	static bool is_undo_tablespace(ulint id);
 private:
 	/**
-	@param filename	Name to lookup in the data files.
+	@param[in]	filename	Name to lookup in the data files.
 	@return true if the filename exists in the data files */
 	bool find(const char* filename);
 
 	/** Note that the data file was found.
-	@param file	data file object */
+	@param[in]	file	data file object */
 	void file_found(Datafile& file);
 
 	/* DATA MEMBERS */

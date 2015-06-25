@@ -2608,8 +2608,7 @@ create_table_info_t::set_remote_path_flags()
 			m_remote_path[len] = OS_PATH_SEPARATOR;
 			m_remote_path[len + 1] = '\0';
 		}
-	}
-	else {
+	} else {
 		ut_ad(DICT_TF_HAS_DATA_DIR(m_flags) == 0);
 	}
 }

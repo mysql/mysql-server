@@ -9922,7 +9922,8 @@ create_table_info_t::parse_table_name(
 				"DATA DIRECTORY");
 			m_flags2 &= ~DICT_TF2_USE_FILE_PER_TABLE;
 		} else {
-			strncpy(m_remote_path, m_create_info->data_file_name,
+			strncpy(m_remote_path,
+				m_create_info->data_file_name,
 				FN_REFLEN - 1);
 		}
 	}
