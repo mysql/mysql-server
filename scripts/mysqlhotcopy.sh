@@ -845,7 +845,24 @@ sub get_list_of_tables {
         } || [];
     warn "Unable to retrieve list of tables in $db: $@" if $@;
 
-    return (map { $_->[0] } @$tables);
+    my @ignore_tables = ();
+
+    # Ignore tables for the mysql database
+    if ($db eq 'mysql') {
+        @ignore_tables = qw(general_log slow_log schema apply_status);
+    }
+
+    my @res = ();
+    if ($#ignore_tables > 1) {
+       my @tmp = (map { $_->[0] } @$tables);
+       for my $t (@tmp) {
+           push(@res, $t) if not exists { map { $_=>1 } @ignore_tables }->{$t};
+       }
+    } else {
+       @res = (map { $_->[0] } @$tables);
+    }
+
+    return @res;
 }
 
 sub get_list_of_views {
