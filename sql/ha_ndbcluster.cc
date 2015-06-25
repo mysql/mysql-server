@@ -12126,10 +12126,12 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   int database_exists= !my_access(key, F_OK);
   if (!database_exists)
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     DBUG_PRINT("info", ("Cound not find database"));
     sql_print_information("NDB: Could not find database '%s'", db);
     error= 1;
-    my_error(ER_FILE_NOT_FOUND, MYF(0), key);
+    my_error(ER_FILE_NOT_FOUND, MYF(0), key,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
     goto err;
   }
   build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
@@ -17552,11 +17554,13 @@ int ha_ndbcluster::alter_frm(const char *file,
   if (readfrm(file, &data, &length) ||
       packfrm(data, length, &pack_data, &pack_length))
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
     error= 1;
-    my_error(ER_FILE_NOT_FOUND, MYF(0), file); 
+    my_error(ER_FILE_NOT_FOUND, MYF(0), file,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno)); 
   }
   else
   {
@@ -17570,7 +17574,7 @@ int ha_ndbcluster::alter_frm(const char *file,
     {
       DBUG_PRINT("info", ("On-line alter of table %s failed", m_tabname));
       error= ndb_to_mysql_error(&dict->getNdbError());
-      my_error(error, MYF(0));
+      my_error(error, MYF(0), m_tabname);
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));

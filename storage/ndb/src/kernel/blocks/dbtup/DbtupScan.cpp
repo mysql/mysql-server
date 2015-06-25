@@ -1260,7 +1260,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
   jam();
   signal->theData[0] = ZTUP_SCAN;
   signal->theData[1] = scanPtr.i;
-  if (!c_lqh->get_is_scan_prioritised(scanPtr.i))
+  if (!c_lqh->get_is_scan_prioritised(scan.m_userPtr))
   {
     jam();
     sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
