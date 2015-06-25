@@ -44,6 +44,7 @@ PSI_memory_key	mem_key_row_log_buf;
 PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+PSI_memory_key	mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
 #ifdef UNIV_PFS_MEMORY
@@ -73,6 +74,7 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
+	{&mem_key_ut_lock_free_hash_t, "ut_lock_free_hash_t", 0},
 	/* Please obey alphabetical order in the definitions above. */
 };
 

@@ -129,7 +129,7 @@ public:
 		m_next(NULL)
 	{
 		m_base = UT_NEW_ARRAY(T, m_n_base_elements,
-				      mem_key_buf_stat_per_index_t);
+				      mem_key_ut_lock_free_hash_t);
 
 		ut_ad(n_elements > 0);
 	}
@@ -156,7 +156,7 @@ public:
 	{
 		next_t	new_arr = UT_NEW(
 			ut_lock_free_list_node_t<T>(m_n_base_elements * 2),
-			mem_key_buf_stat_per_index_t);
+			mem_key_ut_lock_free_hash_t);
 
 		/* Publish the allocated entry. If somebody did this in the
 		meantime then just discard the allocated entry and do
@@ -245,7 +245,7 @@ public:
 
 		m_data.store(
 			UT_NEW(arr_node_t(initial_size),
-			       mem_key_buf_stat_per_index_t),
+			       mem_key_ut_lock_free_hash_t),
 			boost::memory_order_relaxed);
 
 		m_garbage.store(NULL, boost::memory_order_relaxed);
@@ -804,7 +804,7 @@ private:
 		arr_node_t*	arr)
 	{
 		garbage_t*	new_entry = UT_NEW(
-			garbage_t(), mem_key_buf_stat_per_index_t);
+			garbage_t(), mem_key_ut_lock_free_hash_t);
 
 		new_entry->m_arr = arr;
 		new_entry->m_next.store(NULL, boost::memory_order_relaxed);
