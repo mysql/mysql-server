@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -533,15 +533,10 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
 
 
 NDBT_TESTSUITE(testNdbinfo);
-#ifndef NDB_WIN
-/**
- * TODO NdbRestarter does not work on windoze
- */
 TESTCASE("NodeRestart", "Scan NdbInfo tables while restarting nodes"){
   STEP(runRestarter);
   STEPS(runTestTableUntilStopped, 1);
 }
-#endif
 TESTCASE("Ndbinfo",
          "Test ndbapi interface to NDB$INFO"){
   INITIALIZER(runTestNdbInfo);
