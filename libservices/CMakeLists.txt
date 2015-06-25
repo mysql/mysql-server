@@ -23,5 +23,5 @@ SET(MYSQLSERVICES_SOURCES
   my_thread_scheduler_service.c
   mysql_string_service.c)
 
-ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
+ADD_LIBRARY(mysqlservices STATIC ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)

@@ -245,20 +245,20 @@ SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
 		   rpl_injector.cc)
-ADD_LIBRARY(binlog ${BINLOG_SOURCE})
+ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
-ADD_LIBRARY(rpl ${RPL_SOURCE})
+ADD_LIBRARY(rpl STATIC ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc)
 ADD_DEPENDENCIES(rpl GenError)
-ADD_LIBRARY(master ${MASTER_SOURCE})
+ADD_LIBRARY(master STATIC ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
 		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
 		  rpl_info_table_access.cc dynamic_ids.cc rpl_rli_pdb.cc
 		  rpl_info_dummy.cc)
-ADD_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_LIBRARY(slave STATIC ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 ADD_LIBRARY(sqlgunitlib
   filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc
