@@ -127,6 +127,7 @@ initialize_channel_creation_info(Channel_creation_info* channel_info)
   channel_info->port= 0;
   channel_info->user= 0;
   channel_info->password= 0;
+  channel_info->ssl_info= 0;
   channel_info->auto_position= RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_type= RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_workers= RPL_SERVICE_SERVER_DEFAULT;
@@ -139,12 +140,74 @@ initialize_channel_creation_info(Channel_creation_info* channel_info)
   channel_info->connect_retry= 0;
 }
 
+void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info)
+{
+  channel_ssl_info->use_ssl= 0;
+  channel_ssl_info->ssl_ca_file_name= 0;
+  channel_ssl_info->ssl_ca_directory= 0;
+  channel_ssl_info->ssl_cert_file_name= 0;
+  channel_ssl_info->ssl_crl_file_name= 0;
+  channel_ssl_info->ssl_crl_directory= 0;
+  channel_ssl_info->ssl_key= 0;
+  channel_ssl_info->ssl_cipher= 0;
+  channel_ssl_info->ssl_verify_server_cert= 0;
+}
+
 void
 initialize_channel_connection_info(Channel_connection_info* channel_info)
 {
   channel_info->until_condition= CHANNEL_NO_UNTIL_CONDITION;
   channel_info->gtid= 0;
   channel_info->view_id= 0;
+}
+
+void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
+{
+
+  if (channel_ssl_info->use_ssl)
+  {
+    lex_mi->ssl= LEX_MASTER_INFO::LEX_MI_ENABLE;
+  }
+
+  if (channel_ssl_info->ssl_ca_file_name != NULL)
+  {
+    lex_mi->ssl_ca= channel_ssl_info->ssl_ca_file_name;
+  }
+
+  if (channel_ssl_info->ssl_ca_directory != NULL)
+  {
+    lex_mi->ssl_capath= channel_ssl_info->ssl_ca_file_name;
+  }
+
+  if (channel_ssl_info->ssl_cert_file_name != NULL)
+  {
+    lex_mi->ssl_cert= channel_ssl_info->ssl_cert_file_name;
+  }
+
+  if (channel_ssl_info->ssl_crl_file_name != NULL)
+  {
+    lex_mi->ssl_crl= channel_ssl_info->ssl_crl_file_name;
+  }
+
+  if (channel_ssl_info->ssl_crl_directory != NULL)
+  {
+    lex_mi->ssl_crlpath= channel_ssl_info->ssl_crl_directory;
+  }
+
+  if (channel_ssl_info->ssl_key != NULL)
+  {
+    lex_mi->ssl_key= channel_ssl_info->ssl_key;
+  }
+
+  if (channel_ssl_info->ssl_cipher != NULL)
+  {
+    lex_mi->ssl_cipher= channel_ssl_info->ssl_cipher;
+  }
+
+  if (channel_ssl_info->ssl_verify_server_cert)
+  {
+    lex_mi->ssl_verify_server_cert= LEX_MASTER_INFO::LEX_MI_ENABLE;
+  }
 }
 
 int channel_create(const char* channel,
@@ -207,6 +270,11 @@ int channel_create(const char* channel,
       //So change master allows new configurations with a running SQL thread
       lex_mi->auto_position= LEX_MASTER_INFO::LEX_MI_UNCHANGED;
     }
+  }
+
+  if (channel_info->ssl_info != NULL)
+  {
+    set_mi_ssl_options(lex_mi, channel_info->ssl_info);
   }
 
   if (mi)
