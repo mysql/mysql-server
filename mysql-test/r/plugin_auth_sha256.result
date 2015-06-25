@@ -17,10 +17,10 @@ SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@%
 DROP USER 'kristofer';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
@@ -47,7 +47,7 @@ user()	current_user()
 kristofer@localhost	kristofer@localhost
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY '';
@@ -59,7 +59,7 @@ SHOW CREATE USER 'kristofer'@'localhost';
 CREATE USER for kristofer@localhost
 CREATE USER 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 DROP USER 'kristofer'@'localhost';
-GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED WITH 'sha256_password' BY '123';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 ALTER USER 'kristofer'@'33.33.33.33' IDENTIFIED BY '';

@@ -65,7 +65,10 @@ disconnect plug_con_rightp;
 
 --echo ## test no_auto_create_user sql mode with plugin users
 SET @@sql_mode=no_auto_create_user;
+--error 1133
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
+
+GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server' BY '123';
 SET @@sql_mode=default;
 DROP USER grant_user;
 --echo ## test utf-8 user name
