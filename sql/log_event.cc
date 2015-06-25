@@ -11221,7 +11221,7 @@ void Rows_log_event::print_helper(FILE *file,
 **************************************************************************/
 
 /**
-  @page How replication of field metadata works.
+  @page PAGE_RPL_FIELD_METADATA How replication of field metadata works.
   
   When a table map is created, the master first calls 
   Table_map_log_event::save_field_metadata() which calculates how many 
