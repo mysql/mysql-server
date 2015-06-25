@@ -1994,6 +1994,7 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
                          HAVE_REPLICATION \
                          HAVE_COMPRESS \
+                         OPTIMIZER_TRACE \
                          MYSQL_CLIENT \
                          MYSQL_SERVER \
                          HAVE_PSI_INTERFACE \
