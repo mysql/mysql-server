@@ -22,6 +22,7 @@
 
     * the internal size is a set of 32 bit words
     * the number of bits specified in creation can be any number > 0
+      a bitmap with zero bits can be created and initialized, but not used.
     * there are THREAD safe versions of most calls called bitmap_lock_*
 
   TODO:
@@ -58,7 +59,10 @@ void create_last_word_mask(MY_BITMAP *map)
   */
   unsigned char *ptr= (unsigned char*)&map->last_word_mask;
 
-  map->last_word_ptr= map->bitmap + no_words_in_map(map)-1;
+  /* Avoid out-of-bounds read/write if we have zero bits. */
+  map->last_word_ptr= map->n_bits == 0 ? map->bitmap :
+    map->bitmap + no_words_in_map(map) - 1;
+
   switch (no_bytes_in_map(map) & 3) {
   case 1:
     map->last_word_mask= ~0U;
@@ -326,6 +330,7 @@ my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
     if (*word_ptr != 0xFFFFFFFF)
       return FALSE;
 
+  DBUG_ASSERT(map->n_bits > 0);
   last_word= *map->last_word_ptr & ~map->last_word_mask;
 
   /* 2: Word which contains the end of the prefix (if any) */
@@ -361,6 +366,7 @@ my_bool bitmap_is_set_all(const MY_BITMAP *map)
   my_bitmap_map *data_ptr= map->bitmap;
   my_bitmap_map *end= map->last_word_ptr;
 
+  DBUG_ASSERT(map->n_bits > 0);
   for (; data_ptr < end; data_ptr++)
     if (*data_ptr != 0xFFFFFFFF)
       return FALSE;
@@ -375,6 +381,7 @@ my_bool bitmap_is_clear_all(const MY_BITMAP *map)
   my_bitmap_map *data_ptr= map->bitmap;
   my_bitmap_map *end= map->last_word_ptr;
 
+  DBUG_ASSERT(map->n_bits > 0);
   for (; data_ptr < end; data_ptr++)
     if (*data_ptr)
       return FALSE;
@@ -397,6 +404,9 @@ my_bool bitmap_is_subset(const MY_BITMAP *map1, const MY_BITMAP *map2)
     if (*m1 & ~(*m2))
       return FALSE;
 
+  DBUG_ASSERT(map1->n_bits > 0);
+  DBUG_ASSERT(map2->n_bits > 0);
+
   if ((*map1->last_word_ptr & ~map1->last_word_mask) &
       ~(*map2->last_word_ptr & ~map2->last_word_mask))
     return FALSE;
@@ -411,6 +421,9 @@ my_bool bitmap_is_overlapping(const MY_BITMAP *map1, const MY_BITMAP *map2)
 
   DBUG_ASSERT(map1->bitmap && map2->bitmap &&
               map1->n_bits==map2->n_bits);
+
+  DBUG_ASSERT(map1->n_bits > 0);
+  DBUG_ASSERT(map2->n_bits > 0);
 
   end= map1->last_word_ptr;
   for (; m1 < end; m1++, m2++)
@@ -483,6 +496,7 @@ void bitmap_subtract(MY_BITMAP *map, const MY_BITMAP *map2)
   my_bitmap_map *to= map->bitmap, *from= map2->bitmap, *end;
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
               map->n_bits==map2->n_bits);
+  DBUG_ASSERT(map->n_bits > 0);
   end= map->last_word_ptr;
 
   for (; to <= end; to++, from++)
@@ -495,6 +509,7 @@ void bitmap_union(MY_BITMAP *map, const MY_BITMAP *map2)
   my_bitmap_map *to= map->bitmap, *from= map2->bitmap, *end;
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
               map->n_bits==map2->n_bits);
+  DBUG_ASSERT(map->n_bits > 0);
   end= map->last_word_ptr;
 
   for (; to <= end; to++, from++)
@@ -507,6 +522,7 @@ void bitmap_xor(MY_BITMAP *map, const MY_BITMAP *map2)
   my_bitmap_map *to= map->bitmap, *from= map2->bitmap, *end;
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
               map->n_bits==map2->n_bits);
+  DBUG_ASSERT(map->n_bits > 0);
   end= map->last_word_ptr;
 
   for (; to <= end; to++, from++)
@@ -518,6 +534,7 @@ void bitmap_invert(MY_BITMAP *map)
 {
   my_bitmap_map *to= map->bitmap, *end;
   DBUG_ASSERT(map->bitmap);
+  DBUG_ASSERT(map->n_bits > 0);
   end= map->last_word_ptr;
 
   for (; to <= end; to++)
@@ -531,6 +548,7 @@ uint bitmap_bits_set(const MY_BITMAP *map)
   my_bitmap_map *end= map->last_word_ptr;
   uint res= 0;
   DBUG_ASSERT(map->bitmap);
+  DBUG_ASSERT(map->n_bits > 0);
 
   for (; data_ptr < end; data_ptr++)
     res+= my_count_bits_uint32(*data_ptr);
@@ -546,6 +564,7 @@ void bitmap_copy(MY_BITMAP *map, const MY_BITMAP *map2)
   my_bitmap_map *to= map->bitmap, *from= map2->bitmap, *end;
   DBUG_ASSERT(map->bitmap && map2->bitmap &&
               map->n_bits==map2->n_bits);
+  DBUG_ASSERT(map->n_bits > 0);
   end= map->last_word_ptr;
 
   for (; to <= end; to++, from++)
@@ -559,6 +578,7 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
   my_bitmap_map *data_ptr, *end= map->last_word_ptr;
 
   DBUG_ASSERT(map->bitmap);
+  DBUG_ASSERT(map->n_bits > 0);
   data_ptr= map->bitmap;
 
   for (word_pos=0; data_ptr < end; data_ptr++, word_pos++)
@@ -586,6 +606,7 @@ uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit)
   my_bitmap_map *data_ptr, *end= map->last_word_ptr;
 
   DBUG_ASSERT(map->bitmap);
+  DBUG_ASSERT(map->n_bits > 0);
 
   /* Look for the next bit */
   bitmap_bit++;
@@ -621,6 +642,7 @@ uint bitmap_get_first(const MY_BITMAP *map)
   my_bitmap_map *data_ptr, *end= map->last_word_ptr;
 
   DBUG_ASSERT(map->bitmap);
+  DBUG_ASSERT(map->n_bits > 0);
   data_ptr= map->bitmap;
 
   for (word_pos=0; data_ptr < end; data_ptr++, word_pos++)
