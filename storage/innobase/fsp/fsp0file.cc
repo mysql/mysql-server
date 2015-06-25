@@ -935,7 +935,7 @@ RemoteDatafile::create_link_file(
 	request.disable_compression();
 
 	err = os_file_write(
-		request, link_filepath, file, filepath, 0, ::strlen(filepath));
+		request, link_filepath, file, filepath, 0, strlen(filepath));
 
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
@@ -990,22 +990,24 @@ RemoteDatafile::read_link_file(
 	}
 
 	file = fopen(*link_filepath, "r+b");
-	if (file) {
-		filepath = static_cast<char*>(
-			ut_malloc_nokey(OS_FILE_MAX_PATH));
-
-		os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
-		fclose(file);
-
-		if (::strlen(filepath)) {
-			/* Trim whitespace from end of filepath */
-			ulint lastch = ::strlen(filepath) - 1;
-			while (lastch > 4 && filepath[lastch] <= 0x20) {
-				filepath[lastch--] = 0x00;
-			}
-			os_normalize_path_for_win(filepath);
-		}
-
-		*ibd_filepath = filepath;
+	if (file == NULL) {
+		return;
 	}
+
+	filepath = static_cast<char*>(
+		ut_malloc_nokey(OS_FILE_MAX_PATH));
+
+	os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
+	fclose(file);
+
+	if (filepath[0] != '\0') {
+		/* Trim whitespace from end of filepath */
+		ulint last_ch = strlen(filepath) - 1;
+		while (last_ch > 4 && filepath[last_ch] <= 0x20) {
+			filepath[last_ch--] = 0x00;
+		}
+		os_normalize_path_for_win(filepath);
+	}
+
+	*ibd_filepath = filepath;
 }
