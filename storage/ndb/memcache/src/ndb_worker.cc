@@ -187,6 +187,11 @@ status_block status_block_op_bad_key =
   { ENGINE_EINVAL,  "Invalid Key"                     };
 
 
+/*  valgrind will complain that setting "* wqitem->cas = x" is an invalid
+    write of 8 bytes.  But this is not a bug, just an artifact of the unorthodox
+    way memcached allocates the (optional) 8 byte CAS ID past the end of a
+    defined structure.
+*/
 void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {
   /* Be careful here --  atomic_int32_t might be a signed type.
      Shitfting of signed types behaves differently. */
@@ -767,14 +772,14 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
   /* CAS mismatch; interpreted code aborted with interpret_exit_nok() */
   else if(tx->getNdbError().code == 2010) {
     DEBUG_PRINT("CAS mismatch.");
-    * wqitem->cas = 0ULL;  // set cas=0 in the response
+    * wqitem->cas = 0ULL;  // set cas=0 in the response. see note re. valgrind.
     wqitem->status = & status_block_cas_mismatch;    
   }
   /* No Data Found */
   else if(tx->getNdbError().classification == NdbError::NoDataFound) {
     /* Error code should be 626 */
     DEBUG_PRINT("NoDataFound [%d].", tx->getNdbError().code);
-    if(wqitem->cas) * wqitem->cas = 0ULL;
+    if(wqitem->cas) * wqitem->cas = 0ULL;   // see note re. valgrind
     switch(wqitem->base.verb) {
       case OPERATION_REPLACE:
       case OPERATION_APPEND:
@@ -789,7 +794,7 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
   /* Duplicate key on insert */
   else if(tx->getNdbError().code == 630) {
     DEBUG_PRINT("Duplicate key on insert.");
-    if(wqitem->cas) * wqitem->cas = 0ULL;
+    if(wqitem->cas) * wqitem->cas = 0ULL;   // see note re. valgrind
     wqitem->status = & status_block_bad_add;    
   }
   /* Overload Error, e.g. 410 "REDO log files overloaded" */
