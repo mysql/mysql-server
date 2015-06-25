@@ -665,7 +665,6 @@ private:
 		arr_node_t*	src_arr,
 		arr_node_t*	dst_arr)
 	{
-
 		for (size_t i = 0; i < src_arr->m_n_base_elements; i++) {
 			key_val_t*	t = &src_arr->m_base[i];
 
@@ -694,7 +693,8 @@ private:
 			for (;;) {
 				insert_or_update(k, v, false, dst_arr);
 
-				boost::atomic_thread_fence(boost::memory_order_acq_rel);
+				boost::atomic_thread_fence(
+					boost::memory_order_acq_rel);
 
 				/* Now that we know (k, v) is present in some
 				of the next arrays, try to CAS the tuple
