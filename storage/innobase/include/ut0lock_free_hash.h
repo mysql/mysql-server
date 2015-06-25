@@ -225,16 +225,22 @@ class ut_lock_free_hash_t : public ut_hash_interface_t {
 public:
 	/** Constructor. Not thread safe.
 	@param[in]	initial_size	number of elements to allocate
-	initially. Must be a power of 2. */
+	initially. Must be a power of 2, greater than 0.
+	@param[in]	del_when_zero	if true then automatically delete a
+	tuple from the hash if due to increment or decrement its value becomes
+	zero. */
 	explicit
 	ut_lock_free_hash_t(
-		size_t	initial_size)
-#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+		size_t	initial_size,
+		bool	del_when_zero)
 	:
-	m_n_search(0),
-	m_n_search_iterations(0)
+	m_del_when_zero(del_when_zero)
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	, m_n_search(0)
+	, m_n_search_iterations(0)
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 	{
+		ut_a(initial_size > 0);
 		ut_a(ut_is_2pow(initial_size));
 
 		m_data.store(
@@ -733,10 +739,17 @@ private:
 				return(false);
 			}
 
-			const int64_t	new_val
-				= is_delta && v != NOT_FOUND && v != DELETED
-				? v + val
-				: val;
+			int64_t	new_val;
+
+			if (is_delta && v != NOT_FOUND && v != DELETED) {
+				if (m_del_when_zero && v + val == 0) {
+					new_val = DELETED;
+				} else {
+					new_val = v + val;
+				}
+			} else {
+				new_val = val;
+			}
 
 			if (t->m_val.compare_exchange_strong(
 					v,
@@ -958,6 +971,10 @@ private:
 
 	/** Arrays that are not used anymore, to be garbage collected. */
 	boost::atomic<garbage_t*>	m_garbage;
+
+	/** True if a tuple should be automatically deleted from the hash
+	if its value becomes 0 after an increment or decrement. */
+	bool				m_del_when_zero;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
 	/* The atomic type gives correct results, but has a _huge_

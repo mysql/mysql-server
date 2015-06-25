@@ -43,7 +43,7 @@ public:
 	/** Constructor. */
 	buf_stat_per_index_t()
 	{
-		m_store = UT_NEW(ut_lock_free_hash_t(1024),
+		m_store = UT_NEW(ut_lock_free_hash_t(1024, true),
 				 mem_key_buf_stat_per_index_t);
 	}
 
@@ -99,19 +99,6 @@ public:
 		}
 
 		return(ret);
-	}
-
-	/** Delete the stats for a given index.
-	@param[in]	id	id of the index whose stats to delete */
-	void
-	drop(
-		const index_id_t&	id)
-	{
-		if (should_skip(id)) {
-			return;
-		}
-
-		m_store->del(conv_index_id_to_int(id));
 	}
 
 private:

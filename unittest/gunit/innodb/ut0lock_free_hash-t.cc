@@ -295,7 +295,7 @@ TEST_F(ut0lock_free_hash, single_threaded)
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	ut_hash_interface_t*	hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	ut_hash_interface_t*	hash = new ut_lock_free_hash_t(1048576);
+	ut_hash_interface_t*	hash = new ut_lock_free_hash_t(1048576, true);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
 	const size_t	n_elements = 16 * 1024;
@@ -395,7 +395,7 @@ run_multi_threaded(
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	hash = new std_hash_t();
 #else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
-	hash = new ut_lock_free_hash_t(initial_hash_size);
+	hash = new ut_lock_free_hash_t(initial_hash_size, true);
 #endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
 
 	thread_params_t*	params = new thread_params_t[n_threads];
