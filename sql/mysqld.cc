@@ -13,6 +13,44 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file sql/mysqld.cc
+  MySQL server daemon.
+*/
+
+/**
+  @mainpage MySQL main page
+
+  @section INTRO Introduction
+
+  Welcome to the MySQL source code documentation.
+  For the user manual, see http://dev.mysql.com/doc/refman/5.7/en/
+
+  This present page is only an index, which lists the content available.
+
+  @section OPT Optimizer
+
+  See @ref PAGE_OPT_AGGREGATE_CHECKS
+
+  See @ref PAGE_OPT_TRACE
+
+  @section PFS Performance Schema
+
+  See @ref PAGE_PFS
+
+  See @ref PAGE_PFS_PSI
+
+  See @ref PAGE_PFS_AGGREGATES
+
+  @section RPL Replication
+
+  See @ref PAGE_RPL_FIELD_METADATA
+
+  @section INTERNAL Internals manual
+
+  For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+*/
+
 #include "mysqld.h"
 #include "mysqld_daemon.h"
 

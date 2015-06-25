@@ -101,7 +101,7 @@ static void report_memory_accounting_error(
 #endif /* PFS_PARANOID */
 
 /**
-  @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
+  @page PAGE_PFS The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
 
   @section INTRO Introduction
@@ -141,8 +141,7 @@ static void report_memory_accounting_error(
   - MySQL plugins, including storage engines,
   - third party plugins, including third party storage engines.
 
-  For details, see the @ref PAGE_INSTRUMENTATION_INTERFACE
-  "instrumentation interface page".
+  For details, see @ref PAGE_PFS_PSI
 
   @subsection INT_COMPILING Compiling interface
 
@@ -370,7 +369,7 @@ static void report_memory_accounting_error(
 */
 
 /**
-  @page PAGE_INSTRUMENTATION_INTERFACE Performance schema: instrumentation interface page.
+  @page PAGE_PFS_PSI Performance schema: instrumentation interface page.
   MySQL performance schema instrumentation interface.
 
   @section INTRO Introduction
@@ -531,7 +530,7 @@ static inline int mysql_mutex_lock(...)
 */
 
 /**
-  @page PAGE_AGGREGATES Performance schema: the aggregates page.
+  @page PAGE_PFS_AGGREGATES Performance schema: the aggregates page.
   Performance schema aggregates.
 
   @section INTRO Introduction
@@ -1343,8 +1342,7 @@ static inline int mysql_mutex_lock(...)
 /**
   @defgroup Performance_schema Performance Schema
   The performance schema component.
-  For details, see the
-  @ref PAGE_PERFORMANCE_SCHEMA "performance schema main page".
+  For details, see @ref PAGE_PFS
 
   @defgroup Performance_schema_implementation Performance Schema Implementation
   @ingroup Performance_schema

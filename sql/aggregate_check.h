@@ -24,7 +24,7 @@
 */
 
 /**
-   @page AGGREGATE_CHECKS Aggregate checks
+   @page PAGE_OPT_AGGREGATE_CHECKS Optimizer aggregate checks
    
    ONLY_FULL_GROUP_BY Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
 

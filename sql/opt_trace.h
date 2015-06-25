@@ -31,22 +31,14 @@ class Cost_estimate;
 class Item;
 
 /**
-   @file
-   API for the Optimizer trace (WL#5257)
-
-   Doxygen parses include files in order to find defined symbols, which in
-   turn influence what code is scanned. OPTIMIZER_TRACE must be defined for
-   the optimizer trace code to be documented. Doxygen searches for include
-   files in "INCLUDE_PATH". But in out-of-source builds, this path varies
-   accross builds. An alternative is to use
-   PREDEFINED             = OPTIMIZER_TRACE
+  @file sql/opt_trace.h
+  API for the Optimizer trace (WL#5257)
 */
-
 
 #ifdef OPTIMIZER_TRACE
 
 /**
-  @page OPTIMIZER_TRACE The Optimizer Trace
+  @page PAGE_OPT_TRACE The Optimizer Trace
 
   @section INTRODUCTION Introduction
 
