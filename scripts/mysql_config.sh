@@ -101,7 +101,7 @@ fi
 
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
-ldflags='@LDFLAGS@'
+ldflags='@SAVE_LDFLAGS@'
 
 if [ @MYSQL_TCP_PORT_DEFAULT@ -eq 0 ]; then
   port=0
