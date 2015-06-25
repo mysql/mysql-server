@@ -1841,5 +1841,24 @@ drop database mysqltest2;
 drop database mysqltest3;
 drop database mysqltest4;
 
---echo # End of 5.5 tests
+--echo #
+--echo # MDEV-7810 Wrong result on execution of a query as a PS
+--echo # (both 1st and further executions)
 
+CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0),(8);
+
+SELECT DISTINCT t9.* FROM t1 AS t9, t1 AS t2;
+SELECT MIN(t3.a) FROM ( t1 AS t3 INNER JOIN t1 AS t4 ON (t3.a = t4.a));
+SELECT a FROM ( SELECT DISTINCT t9.* FROM t1 AS t9, t1 AS t2 ) AS sq 
+WHERE a IN ( SELECT MIN(t3.a) FROM ( t1 AS t3 INNER JOIN t1 AS t4 ON (t3.a = t4.a) ) );
+PREPARE stmt FROM "
+SELECT a FROM ( SELECT DISTINCT t9.* FROM t1 AS t9, t1 AS t2 ) AS sq 
+WHERE a IN ( SELECT MIN(t3.a) FROM ( t1 AS t3 INNER JOIN t1 AS t4 ON (t3.a = t4.a) ) )
+";
+execute stmt;
+execute stmt;
+
+drop table t1;
+
+--echo # End of 5.5 tests

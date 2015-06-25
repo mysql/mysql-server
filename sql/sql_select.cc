@@ -4904,6 +4904,8 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   KEY_FIELD *key_fields, *end, *field;
   uint sz;
   uint m= max(select_lex->max_equal_elems,1);
+  DBUG_ENTER("update_ref_and_keys");
+  DBUG_PRINT("enter", ("normal_tables: %llx", normal_tables));
 
   SELECT_LEX *sel=thd->lex->current_select; 
   sel->cond_count= 0;
@@ -4950,7 +4952,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
     ((sel->cond_count*2 + sel->between_count)*m+1);
   if (!(key_fields=(KEY_FIELD*)	thd->alloc(sz)))
-    return TRUE; /* purecov: inspected */
+    DBUG_RETURN(TRUE); /* purecov: inspected */
   and_level= 0;
   field= end= key_fields;
   *sargables= (SARGABLE_PARAM *) key_fields + 
@@ -4959,7 +4961,7 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   (*sargables)[0].field= 0; 
 
   if (my_init_dynamic_array(keyuse,sizeof(KEYUSE),20,64))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   if (cond)
   {
@@ -5009,16 +5011,16 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   for ( ; field != end ; field++)
   {
     if (add_key_part(keyuse,field))
-      return TRUE;
+      DBUG_RETURN(TRUE);
   }
 
   if (select_lex->ftfunc_list->elements)
   {
     if (add_ft_keys(keyuse,join_tab,cond,normal_tables))
-      return TRUE;
+      DBUG_RETURN(TRUE);
   }
 
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
