@@ -464,6 +464,7 @@ void Item_subselect::recalc_used_tables(st_select_lex *new_parent,
 {
   List_iterator<Ref_to_outside> it(upper_refs);
   Ref_to_outside *upper;
+  DBUG_ENTER("recalc_used_tables");
   
   used_tables_cache= 0;
   while ((upper= it++))
@@ -523,6 +524,8 @@ void Item_subselect::recalc_used_tables(st_select_lex *new_parent,
     he has done const table detection, and that will be our chance to update
     const_tables_cache.
   */
+  DBUG_PRINT("exit", ("used_tables_cache: %llx", used_tables_cache));
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1989,7 +1992,7 @@ bool Item_allany_subselect::is_maxmin_applicable(JOIN *join)
 */
 
 bool
-Item_in_subselect::create_single_in_to_exists_cond(JOIN * join,
+Item_in_subselect::create_single_in_to_exists_cond(JOIN *join,
                                                    Item **where_item,
                                                    Item **having_item)
 {

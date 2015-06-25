@@ -248,7 +248,7 @@ TEST_join(JOIN *join)
 
 #define FT_KEYPART   (MAX_REF_PARTS+10)
 
-void print_keyuse(KEYUSE *keyuse)
+static void print_keyuse(KEYUSE *keyuse)
 {
   char buff[256];
   char buf2[64]; 
@@ -266,14 +266,11 @@ void print_keyuse(KEYUSE *keyuse)
   else
     fieldname= key_info->key_part[keyuse->keypart].field->field_name;
   ll2str(keyuse->used_tables, buf2, 16, 0); 
-  DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize: %u  used_tables: %s "
           "ref_table_rows: %lu  keypart_map: %0lx\n",
           keyuse->table->alias.c_ptr(), fieldname, str.ptr(),
           (uint) keyuse->optimize, buf2, (ulong) keyuse->ref_table_rows, 
           (ulong) keyuse->keypart_map);
-  DBUG_UNLOCK_FILE;
-  //key_part_map keypart_map; --?? there can be several? 
 }
 
 
@@ -282,9 +279,9 @@ void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array)
 {
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, "KEYUSE array (%d elements)\n", keyuse_array->elements);
-  DBUG_UNLOCK_FILE;
   for(uint i=0; i < keyuse_array->elements; i++)
     print_keyuse((KEYUSE*)dynamic_array_ptr(keyuse_array, i));
+  DBUG_UNLOCK_FILE;
 }
 
 
