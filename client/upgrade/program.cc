@@ -595,12 +595,14 @@ private:
    */
   int get_upgrade_info_file_name(char* name)
   {
-    string datadir;
-    int res= Show_variable_query_extractor::get_variable_value(
-      this->m_query_runner, "datadir", &datadir);
-    if (res != 0)
-    {
-      return res;
+    static string datadir;
+    if(datadir.empty()) {
+      int res= Show_variable_query_extractor::get_variable_value(
+        this->m_query_runner, "datadir", &datadir);
+      if (res != 0)
+      {
+        return res;
+      }
     }
 
     fn_format(name, "mysql_upgrade_info", datadir.c_str(), "", MYF(0));

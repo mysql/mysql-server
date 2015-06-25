@@ -203,6 +203,7 @@ ENDIF()
 
 SET(HOSTNAME "hostname")
 SET(MYSQLD_USER "mysql")
+SET(MYSQLD_GROUP "mysql")
 
 ENDIF(UNIX)
 
