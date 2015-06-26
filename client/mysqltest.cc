@@ -8658,27 +8658,19 @@ void init_re(void)
     "[[:space:]]*DELETE[[:space:]]|"
     "[[:space:]]*SELECT[[:space:]]|"
     "[[:space:]]*CREATE[[:space:]]+TABLE[[:space:]]|"
-    "[[:space:]]*ALTER[[:space:]]+TABLE[[:space:]]|"
     "[[:space:]]*CREATE[[:space:]]+INDEX[[:space:]]|"
     "[[:space:]]*DROP[[:space:]]+INDEX[[:space:]]|"
     "[[:space:]]*RENAME[[:space:]]+TABLE[[:space:]]|"
-    "[[:space:]]*DROP[[:space:]]+TABLE[[:space:]]|"
     "[[:space:]]*CREATE[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
     "[[:space:]]*DROP[[:space:]]+TEMPORARY[[:space:]]+TABLE[[:space:]]|"
-    "[[:space:]]*CREATE[[:space:]]+VIEW[[:space:]]|"
     "[[:space:]]*DROP[[:space:]]+VIEW[[:space:]]|"
-    "[[:space:]]*CREATE[[:space:]]+USER[[:space:]]|"
-    "[[:space:]]*ALTER[[:space:]]+USER[[:space:]]|"
-    "[[:space:]]*GRANT[[:space:]]+ALL[[:space:]]+ON[[:space:]]|"
     "[[:space:]]*REVOKE[[:space:]]+ALL[[:space:]]+PRIVILEGES[[:space:]]|"
     "[[:space:]]*DROP[[:space:]]+USER[[:space:]]|"
-    "[[:space:]]*CREATE[[:space:]]+DATABASE[[:space:]]|"
-    "[[:space:]]*DROP[[:space:]]+DATABASE[[:space:]]|"
     "[[:space:]]*DO[[:space:]]|"
     "[[:space:]]*SET[[:space:]]+OPTION[[:space:]]|"
     "[[:space:]]*DELETE[[:space:]]+MULTI[[:space:]]|"
     "[[:space:]]*UPDATE[[:space:]]+MULTI[[:space:]]|"
-    "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])";
+    "[[:space:]]*INSERT[[:space:]]+SELECT[[:space:]])[^;]*$";
 
   /*
     Filter for queries that can be run using the
