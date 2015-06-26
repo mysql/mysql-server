@@ -20,8 +20,7 @@ create temporary table server_counts_at_startup
        ('Ndb_pruned_scan_count',
         'Ndb_sorted_scan_count',
         'Ndb_pushed_queries_defined',
-        'Ndb_pushed_queries_dropped',
-        'Ndb_pushed_queries_executed');
+        'Ndb_pushed_queries_dropped');
 
 ##############
 # Test start
@@ -2909,7 +2908,6 @@ create temporary table server_counts
         'Ndb_sorted_scan_count',
         'Ndb_pushed_queries_defined',
         'Ndb_pushed_queries_dropped',
-        'Ndb_pushed_queries_executed',
 	'Ndb_pushed_reads');
 
 # Run some queries that should increment the counters.
