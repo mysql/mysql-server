@@ -232,8 +232,11 @@ enum mlog_id_t {
 	We use it to replace MLOG_INIT_FILE_PAGE. */
 	MLOG_INIT_FILE_PAGE2 = 59,
 
+	/** Table is being truncated. (Marked only for file-per-table) */
+	MLOG_TRUNCATE = 60,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 59
+	MLOG_BIGGEST_TYPE = MLOG_TRUNCATE
 };
 
 /* @} */
