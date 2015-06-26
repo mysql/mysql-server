@@ -1124,7 +1124,7 @@ btr_search_guess_on_hash(
 	return(TRUE);
 }
 
-/** Drops a page hash index.
+/** Drop any adaptive hash index entries that point to an index page.
 @param[in,out]	block	block containing index page, s- or x-latched, or an
 			index page for which we know that
 			block->buf_fix_count == 0 or it is an index page which
@@ -1133,14 +1133,12 @@ btr_search_guess_on_hash(
 void
 btr_search_drop_page_hash_index(buf_block_t* block)
 {
-	hash_table_t*		table;
 	ulint			n_fields;
 	ulint			n_bytes;
 	const page_t*		page;
 	const rec_t*		rec;
 	ulint			fold;
 	ulint			prev_fold;
-	index_id_t		index_id;
 	ulint			n_cached;
 	ulint			n_recs;
 	ulint*			folds;
@@ -1148,6 +1146,7 @@ btr_search_drop_page_hash_index(buf_block_t* block)
 	mem_heap_t*		heap;
 	const dict_index_t*	index;
 	ulint*			offsets;
+	rw_lock_t*		latch;
 	btr_search_t*		info;
 
 retry:
@@ -1155,25 +1154,47 @@ retry:
 	not in the adaptive hash index. */
 	index = block->index;
 
-	if (index == NULL || index->disable_ahi) {
+	if (index == NULL) {
 		return;
 	}
 
-	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
-	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
+	ut_ad(block->page.buf_fix_count == 0
+	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH
+	      || rw_lock_own(&block->lock, RW_LOCK_S)
+	      || rw_lock_own(&block->lock, RW_LOCK_X));
 
-	rw_lock_s_lock(btr_get_search_latch(index));
+	/* We must not dereference index here, because it could be freed
+	if (index->table->n_ref_count == 0 && !mutex_own(&dict_sys->mutex)).
+	Determine the ahi_slot based on the block contents. */
 
-	/* Since we cached it some other thread have updated the block->index
-	re-check it before proceeding. */
-	if (index != block->index) {
+	const index_id_t	index_id
+		= btr_page_get_index_id(block->frame);
+	const ulint		ahi_slot
+		= ut_fold_ulint_pair(index_id, block->page.id.space())
+		% btr_ahi_parts;
+	latch = btr_search_latches[ahi_slot];
 
-		rw_lock_s_unlock(btr_get_search_latch(index));
+	ut_ad(!btr_search_own_any(RW_LOCK_S));
+	ut_ad(!btr_search_own_any(RW_LOCK_X));
 
-		goto retry;
+	rw_lock_s_lock(latch);
+
+	if (block->index == NULL) {
+		rw_lock_s_unlock(latch);
+		return;
 	}
 
+	/* The index associated with a block must remain the
+	same, because we are holding block->lock or the block is
+	not accessible by other threads (BUF_BLOCK_REMOVE_HASH),
+	or the index is not accessible to other threads
+	(buf_fix_count == 0 when DROP TABLE or similar is executing
+	buf_LRU_drop_page_hash_for_tablespace()). */
+	ut_a(index == block->index);
+	ut_ad(!index->disable_ahi);
+
 	ut_ad(block->page.id.space() == index->space);
+	ut_a(index_id == index->id);
 	ut_a(!dict_index_is_ibuf(index));
 #ifdef UNIV_DEBUG
 	switch (dict_index_get_online_status(index)) {
@@ -1196,20 +1217,13 @@ retry:
 	}
 #endif /* UNIV_DEBUG */
 
-	table = btr_get_search_table(index);
-
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
-	      || rw_lock_own(&(block->lock), RW_LOCK_X)
-	      || block->page.buf_fix_count == 0
-	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
-
 	n_fields = block->curr_n_fields;
 	n_bytes = block->curr_n_bytes;
 
-	/* NOTE: The fields of block must not be accessed after
+	/* NOTE: The AHI fields of block must not be accessed after
 	releasing search latch, as the index page might only be s-latched! */
 
-	rw_lock_s_unlock(btr_get_search_latch(index));
+	rw_lock_s_unlock(latch);
 
 	ut_a(n_fields > 0 || n_bytes > 0);
 
@@ -1225,10 +1239,6 @@ retry:
 
 	rec = page_get_infimum_rec(page);
 	rec = page_rec_get_next_low(rec, page_is_comp(page));
-
-	index_id = btr_page_get_index_id(page);
-
-	ut_a(index_id == index->id);
 
 	prev_fold = 0;
 
@@ -1261,7 +1271,7 @@ next_rec:
 		mem_heap_free(heap);
 	}
 
-	rw_lock_x_lock(btr_get_search_latch(index));
+	rw_lock_x_lock(latch);
 
 	if (UNIV_UNLIKELY(!block->index)) {
 		/* Someone else has meanwhile dropped the hash index */
@@ -1277,7 +1287,7 @@ next_rec:
 		/* Someone else has meanwhile built a new hash index on the
 		page, with different parameters */
 
-		rw_lock_x_unlock(btr_get_search_latch(index));
+		rw_lock_x_unlock(latch);
 
 		ut_free(folds);
 		goto retry;
@@ -1285,7 +1295,9 @@ next_rec:
 
 	for (i = 0; i < n_cached; i++) {
 
-		ha_remove_all_nodes_to_page(table, folds[i], page);
+		ha_remove_all_nodes_to_page(
+			btr_search_sys->hash_tables[ahi_slot],
+			folds[i], page);
 	}
 
 	info = btr_search_get_info(block->index);
@@ -1306,20 +1318,21 @@ cleanup:
 			<< index->name
 			<< ", still " << block->n_pointers
 			<< " hash nodes remain.";
-		rw_lock_x_unlock(btr_get_search_latch(index));
+		rw_lock_x_unlock(latch);
 
 		ut_ad(btr_search_validate());
 	} else {
-		rw_lock_x_unlock(btr_get_search_latch(index));
+		rw_lock_x_unlock(latch);
 	}
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	rw_lock_x_unlock(btr_get_search_latch(index));
+	rw_lock_x_unlock(latch);
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	ut_free(folds);
 }
 
-/** Drops a possible page hash index when a page is evicted from the
+/** Drop any adaptive hash index entries that may point to an index
+page that may be in the buffer pool, when a page is evicted from the
 buffer pool or freed in a file segment.
 @param[in]	page_id		page id
 @param[in]	page_size	page size */
@@ -1345,11 +1358,18 @@ btr_search_drop_page_hash_when_freed(
 				 BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
 				 &mtr);
 
-	if (block && block->index) {
-
+	if (block) {
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 
-		btr_search_drop_page_hash_index(block);
+		dict_index_t*	index = block->index;
+		if (index != NULL) {
+			/* In all our callers, the table handle should
+			be open, or we should be in the process of
+			dropping the table (preventing eviction). */
+			ut_ad(index->table->n_ref_count > 0
+			      || mutex_own(&dict_sys->mutex));
+			btr_search_drop_page_hash_index(block);
+		}
 	}
 
 	mtr_commit(&mtr);

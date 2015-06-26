@@ -134,7 +134,7 @@ btr_search_move_or_delete_hash_entries(
 	buf_block_t*	block,
 	dict_index_t*	index);
 
-/** Drops a page hash index.
+/** Drop any adaptive hash index entries that point to an index page.
 @param[in,out]	block	block containing index page, s- or x-latched, or an
 			index page for which we know that
 			block->buf_fix_count == 0 or it is an index page which
@@ -143,7 +143,8 @@ btr_search_move_or_delete_hash_entries(
 void
 btr_search_drop_page_hash_index(buf_block_t* block);
 
-/** Drops a possible page hash index when a page is evicted from the
+/** Drop any adaptive hash index entries that may point to an index
+page that may be in the buffer pool, when a page is evicted from the
 buffer pool or freed in a file segment.
 @param[in]	page_id		page id
 @param[in]	page_size	page size */
@@ -193,14 +194,23 @@ UNIV_INLINE
 void
 btr_search_s_lock_all();
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 /** Check if thread owns all the search latches.
 @param[in]	mode	lock mode check
-@return true if owns all of them else false. */
+@retval true if owns all of them
+@retval false if does not own some of them */
 UNIV_INLINE
 bool
 btr_search_own_all(ulint mode);
-#endif /* UNIV_SYNC_DEBUG */
+
+/** Check if thread owns any of the search latches.
+@param[in]	mode	lock mode check
+@retval true if owns any of them
+@retval false if owns no search latch */
+UNIV_INLINE
+bool
+btr_search_own_any(ulint mode);
+#endif /* UNIV_DEBUG */
 
 /** Unlock all search latches from shared mode. */
 UNIV_INLINE
