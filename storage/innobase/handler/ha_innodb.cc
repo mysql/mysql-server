@@ -9920,7 +9920,7 @@ create_table_info_t::parse_table_name(
 				WARN_OPTION_IGNORED,
 				ER_DEFAULT(WARN_OPTION_IGNORED),
 				"DATA DIRECTORY");
-			m_flags2 &= ~DICT_TF2_USE_FILE_PER_TABLE;
+			m_flags &= ~DICT_TF_MASK_DATA_DIR;
 		} else {
 			strncpy(m_remote_path,
 				m_create_info->data_file_name,

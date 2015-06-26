@@ -192,15 +192,33 @@ eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '$MYSQLD_DATADIR/test';
 
 --echo # TEMPORARY tables are incompatible with DATA DIRECTORY
 SET SESSION innodb_strict_mode = ON;
+
+--echo # CREATE TEMPORARY TABLE with DATA DIRECTORY is rejected in strict mode.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
 SHOW WARNINGS;
+
+--echo # CREATE TEMPORARY compressed TABLE with DATA DIRECTORY is rejected in strict mode.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB row_format=compressed $data_directory_clause;
+SHOW WARNINGS;
+
 SET SESSION innodb_strict_mode = OFF;
+--echo # DATA DIRECTORY is ignored in CREATE TEMPORARY TABLE in non-strict mode.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--echo # DATA DIRECTORY is ignored in CREATE TEMPORARY compressed TABLE in non-strict mode.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB row_format=compressed $data_directory_clause;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
 --echo # Also a warning should be issued if DATA DIR and TEMP is used without
 --echo # innodb_file_per_table
 SET GLOBAL innodb_file_per_table=OFF;
