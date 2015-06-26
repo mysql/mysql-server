@@ -304,15 +304,17 @@ row_upd_changes_ord_field_binary_func(
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
-	const row_ext_t*ext)	/*!< NULL, or prefixes of the externally
+	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
 				stored columns in the old row */
+	ulint		flag)	/*!< in: ROW_BUILD_NORMAL,
+				ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
 	__attribute__((warn_unused_result));
 #ifdef UNIV_DEBUG
 # define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
-	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext)
+	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext,0)
 #else /* UNIV_DEBUG */
 # define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
-	row_upd_changes_ord_field_binary_func(index,update,row,ext)
+	row_upd_changes_ord_field_binary_func(index,update,row,ext,0)
 #endif /* UNIV_DEBUG */
 /***********************************************************//**
 Checks if an FTS indexed column is affected by an UPDATE.

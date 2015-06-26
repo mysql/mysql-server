@@ -607,14 +607,14 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	ulint			orig_mode = mode;
 
 	ut_ad(trx->id != 0);
-	/* For undel-mark spatial index rec after recovery,
-	we need to try to find a rec with no del mark first.
-	If not found, we will find a delete marked rec.
-	This is for avoiding undel-mark a wrong rec in rolling
-	back partial update.	*/
-	if (dict_index_is_spatial(index)
-	    && thr_get_trx(thr)->is_recovered) {
-		mode |= BTR_RTREE_DELETE_MARK;
+
+	/* FIXME: Currently we do a 2-pass search for the undo due to
+	avoid undel-mark a wrong rec in rolling back in partial update.
+	Later, we could log some info in secondary index updates to avoid
+	this. */
+	if (dict_index_is_spatial(index)) {
+		ut_ad(mode & BTR_MODIFY_LEAF);
+		mode |=  BTR_RTREE_DELETE_MARK;
 	}
 
 try_again:
@@ -661,11 +661,9 @@ try_again:
 		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
 		ut_error;
 	case ROW_NOT_FOUND:
-		/* For undel-mark spatial index rec after recovery,
-		if first search didn't find an undel-marked rec,
-		try to find a del-marked rec.	*/
-		if (dict_index_is_spatial(index)
-		    && thr_get_trx(thr)->is_recovered) {
+		/* For spatial index, if first search didn't find an
+		undel-marked rec, try to find a del-marked rec. */
+		if (dict_index_is_spatial(index) && btr_cur->rtr_info->fd_del) {
 			if (mode != orig_mode) {
 				mode = orig_mode;
 				btr_pcur_close(&pcur);
@@ -897,23 +895,10 @@ row_undo_mod_del_mark_sec(
 {
 	mem_heap_t*	heap;
 	dberr_t		err	= DB_SUCCESS;
-	const dict_index_t*
-			last_upd_sp_index;
-	const dict_index_t*
-			last_sp_index = NULL;
-	bool		skip_sp_index = false;
 
 	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
-
-	last_upd_sp_index = thr_get_trx(thr)->last_upd_sp_index;
-	/* If there's no updated spatial index in trx, we need
-	to skip undo on spatial index for avoiding undel-mark
-	wrong rec. */
-	if (last_upd_sp_index == NULL) {
-		skip_sp_index = TRUE;
-	}
 
 	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
@@ -922,22 +907,6 @@ row_undo_mod_del_mark_sec(
 		if (index->type == DICT_FTS) {
 			dict_table_next_uncorrupted_index(node->index);
 			continue;
-		}
-
-		/* Skip undo spatial index rec. This is for avoiding
-		set undel-mark on wrong rec in rollback. */
-		if (dict_index_is_spatial(index)) {
-			last_sp_index = index;
-
-			/* Note: we don't skip undo after recoered */
-			if (skip_sp_index && !thr_get_trx(thr)->is_recovered) {
-				dict_table_next_uncorrupted_index(node->index);
-				continue;
-			}
-
-			if (index == last_upd_sp_index) {
-				skip_sp_index = TRUE;
-			}
 		}
 
 		/* During online index creation,
@@ -977,8 +946,6 @@ row_undo_mod_del_mark_sec(
 		dict_table_next_uncorrupted_index(node->index);
 	}
 
-	thr_get_trx(thr)->last_upd_sp_index = last_sp_index;
-
 	mem_heap_free(heap);
 
 	return(err);
@@ -996,11 +963,6 @@ row_undo_mod_upd_exist_sec(
 {
 	mem_heap_t*	heap;
 	dberr_t		err	= DB_SUCCESS;
-	const dict_index_t*
-			last_upd_sp_index;
-	const dict_index_t*
-			last_sp_index = NULL;
-	bool		skip_sp_index = FALSE;
 
 	if (node->index == NULL
 	    || ((node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
@@ -1011,39 +973,27 @@ row_undo_mod_upd_exist_sec(
 
 	heap = mem_heap_create(1024);
 
-	last_upd_sp_index = thr_get_trx(thr)->last_upd_sp_index;
-	/* If there's no updated spatial index in trx, we need
-	to skip undo on spatial index for avoiding undel-mark
-	wrong rec. */
-	if (last_upd_sp_index == NULL) {
-		skip_sp_index = TRUE;
-	}
 
 	while (node->index != NULL) {
 		dict_index_t*	index	= node->index;
 		dtuple_t*	entry;
 
-		/* Skip un-modified spatial index. This is for avoiding
-		set undel-mark on wrong rec in rollback. */
 		if (dict_index_is_spatial(index)) {
-			last_sp_index = index;
-
-			/* Note: we don't skip undo after recoered */
-			if (skip_sp_index && !thr_get_trx(thr)->is_recovered) {
+			if (!row_upd_changes_ord_field_binary_func(
+				index, node->update, thr, node->row,
+				node->ext, ROW_BUILD_FOR_UNDO)) {
 				dict_table_next_uncorrupted_index(node->index);
 				continue;
 			}
-
-			if (index == last_upd_sp_index) {
-				skip_sp_index = TRUE;
+		} else {
+			if (index->type == DICT_FTS
+			    || !row_upd_changes_ord_field_binary(index,
+								 node->update,
+								 thr, node->row,
+								 node->ext)) {
+				dict_table_next_uncorrupted_index(node->index);
+				continue;
 			}
-		}
-
-		if (index->type == DICT_FTS
-		    || !row_upd_changes_ord_field_binary(
-			index, node->update, thr, node->row, node->ext)) {
-			dict_table_next_uncorrupted_index(node->index);
-			continue;
 		}
 
 		/* Build the newest version of the index entry */
@@ -1131,8 +1081,6 @@ row_undo_mod_upd_exist_sec(
 		mem_heap_empty(heap);
 		dict_table_next_uncorrupted_index(node->index);
 	}
-
-	thr_get_trx(thr)->last_upd_sp_index = last_sp_index;
 
 	mem_heap_free(heap);
 
