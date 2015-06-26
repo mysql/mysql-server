@@ -1121,23 +1121,15 @@ static void close_connections(void)
   uint dump_thread_count= 0;
   uint dump_thread_kill_retries= 8;
 
-  // Clean up connection acceptors
+  // Close listeners.
   if (mysqld_socket_acceptor != NULL)
-  {
-    delete mysqld_socket_acceptor;
-    mysqld_socket_acceptor= NULL;
-  }
+    mysqld_socket_acceptor->close_listener();
 #ifdef _WIN32
   if (named_pipe_acceptor != NULL)
-  {
-    delete named_pipe_acceptor;
-    named_pipe_acceptor= NULL;
-  }
+    named_pipe_acceptor->close_listener();
+
   if (shared_mem_acceptor != NULL)
-  {
-    delete shared_mem_acceptor;
-    shared_mem_acceptor= NULL;
-  }
+    shared_mem_acceptor->close_listener();
 #endif
 
   /*
@@ -1367,6 +1359,22 @@ bool gtid_server_init()
   return res;
 }
 
+#ifndef EMBEDDED_LIBRARY
+// Free connection acceptors
+static void free_connection_acceptors()
+{
+  delete mysqld_socket_acceptor;
+  mysqld_socket_acceptor= NULL;
+
+#ifdef _WIN32
+  delete named_pipe_acceptor;
+  named_pipe_acceptor= NULL;
+  delete shared_mem_acceptor;
+  shared_mem_acceptor= NULL;
+#endif
+}
+#endif
+
 
 void clean_up(bool print_message)
 {
@@ -1457,6 +1465,7 @@ void clean_up(bool print_message)
   cleanup_errmsgs();
 
 #ifndef EMBEDDED_LIBRARY
+  free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
 #endif
 
@@ -4813,12 +4822,6 @@ int mysqld_main(int argc, char **argv)
     abort_loop= true;
 
     delete_pid_file(MYF(MY_WME));
-
-    if (mysqld_socket_acceptor != NULL)
-    {
-      delete mysqld_socket_acceptor;
-      mysqld_socket_acceptor= NULL;
-    }
 
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
