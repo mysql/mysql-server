@@ -14,6 +14,7 @@
 
 #include <boost/range.hpp>
 
+#include <boost/geometry/core/assert.hpp>
 #include <boost/geometry/core/coordinate_type.hpp>
 #include <boost/geometry/core/point_type.hpp>
 
@@ -225,7 +226,7 @@ struct get_ring<detail::buffer::buffered_ring_collection_tag>
                 ring_identifier const& id,
                 MultiGeometry const& multi_ring)
     {
-        BOOST_ASSERT
+        BOOST_GEOMETRY_ASSERT
             (
                 id.multi_index >= 0
                 && id.multi_index < int(boost::size(multi_ring))

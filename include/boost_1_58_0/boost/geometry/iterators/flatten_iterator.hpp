@@ -10,13 +10,13 @@
 #ifndef BOOST_GEOMETRY_ITERATORS_FLATTEN_ITERATOR_HPP
 #define BOOST_GEOMETRY_ITERATORS_FLATTEN_ITERATOR_HPP
 
-#include <boost/assert.hpp>
 #include <boost/mpl/assert.hpp>
 #include <boost/type_traits/is_convertible.hpp>
 #include <boost/iterator.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/iterator/iterator_categories.hpp>
 
+#include <boost/geometry/core/assert.hpp>
 
 namespace boost { namespace geometry
 {
@@ -154,8 +154,8 @@ private:
 
     inline Reference dereference() const
     {
-        BOOST_ASSERT( m_outer_it != m_outer_end );
-        BOOST_ASSERT( m_inner_it != AccessInnerEnd::apply(*m_outer_it) );
+        BOOST_GEOMETRY_ASSERT( m_outer_it != m_outer_end );
+        BOOST_GEOMETRY_ASSERT( m_inner_it != AccessInnerEnd::apply(*m_outer_it) );
         return *m_inner_it;
     }
 
@@ -194,8 +194,8 @@ private:
 
     inline void increment()
     {
-        BOOST_ASSERT( m_outer_it != m_outer_end );
-        BOOST_ASSERT( m_inner_it != AccessInnerEnd::apply(*m_outer_it) );
+        BOOST_GEOMETRY_ASSERT( m_outer_it != m_outer_end );
+        BOOST_GEOMETRY_ASSERT( m_inner_it != AccessInnerEnd::apply(*m_outer_it) );
 
         ++m_inner_it;
         if ( m_inner_it == AccessInnerEnd::apply(*m_outer_it) )

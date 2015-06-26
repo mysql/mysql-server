@@ -23,6 +23,7 @@
 
 #include <boost/geometry/arithmetic/determinant.hpp>
 #include <boost/geometry/core/access.hpp>
+#include <boost/geometry/core/assert.hpp>
 #include <boost/geometry/core/coordinate_type.hpp>
 #include <boost/geometry/algorithms/detail/assign_indexed_point.hpp>
 #include <boost/geometry/strategies/cartesian/side_by_triangle.hpp>
@@ -122,7 +123,7 @@ struct multiplicable_integral
     {
         unsigned_type b = base; // a workaround for MinGW - undefined reference base
         CmpVal val = CmpVal(m_sign) * (CmpVal(m_ms) * CmpVal(b) + CmpVal(m_ls));
-        BOOST_ASSERT(cmp_val == val);
+        BOOST_GEOMETRY_ASSERT(cmp_val == val);
     }
 };
 
@@ -176,7 +177,7 @@ private :
                     : lab < lcd ? -1
                     : 0
                     ;
-        BOOST_ASSERT(result == result2);
+        BOOST_GEOMETRY_ASSERT(result == result2);
 #endif
 
         return result;

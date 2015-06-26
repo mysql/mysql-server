@@ -14,6 +14,8 @@
 
 #include <boost/range.hpp>
 
+#include <boost/geometry/core/assert.hpp>
+
 #include <boost/geometry/arithmetic/dot_product.hpp>
 #include <boost/geometry/algorithms/assign.hpp>
 #include <boost/geometry/algorithms/comparable_distance.hpp>
@@ -214,7 +216,7 @@ public :
         boost::ignore_unused(strategy);
 #endif
 
-        BOOST_ASSERT(! piece.sections.empty());
+        BOOST_GEOMETRY_ASSERT(! piece.sections.empty());
 
         coordinate_type const point_y = geometry::get<1>(turn.robust_point);
 
@@ -227,7 +229,7 @@ public :
                 && point_y >= geometry::get<min_corner, 1>(section.bounding_box) - 1
                 && point_y <= geometry::get<max_corner, 1>(section.bounding_box) + 1)
             {
-                for (int i = section.begin_index + 1; i <= section.end_index; i++)
+                for (signed_size_type i = section.begin_index + 1; i <= section.end_index; i++)
                 {
                     point_type const& previous = piece.robust_ring[i - 1];
                     point_type const& current = piece.robust_ring[i];
@@ -409,7 +411,8 @@ class analyse_turn_wrt_piece
 
         point_type points[4];
 
-        int helper_count = piece.robust_ring.size() - piece.offsetted_count;
+        signed_size_type helper_count = static_cast<signed_size_type>(piece.robust_ring.size())
+                                            - piece.offsetted_count;
         if (helper_count == 4)
         {
             for (int i = 0; i < 4; i++)
@@ -559,7 +562,7 @@ public :
         // It is small or not monotonic, walk linearly through offset
         // TODO: this will be combined with winding strategy
 
-        for (int i = 1; i < piece.offsetted_count; i++)
+        for (signed_size_type i = 1; i < piece.offsetted_count; i++)
         {
             point_type const& previous = piece.robust_ring[i - 1];
             point_type const& current = piece.robust_ring[i];
@@ -616,6 +619,7 @@ class turn_in_piece_visitor
     }
 
 #if defined(BOOST_GEOMETRY_BUFFER_USE_SIDE_OF_INTERSECTION)
+    // NOTE: this function returns a side value in {-1, 0, 1}
     template <typename Turn, typename Piece>
     static inline int turn_in_convex_piece(Turn const& turn,
             Piece const& piece)
