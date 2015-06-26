@@ -123,18 +123,6 @@ mysql_pfs_key_t	buf_chunk_map_latch_key;
 # endif /* UNIV_DEBUG */
 #endif /* UNIV_PFS_RWLOCK */
 
-/** The number of iterations in the mutex_spin_wait() spin loop.
-Intended for performance monitoring. */
-mutex_counter_t	mutex_spin_round_count;
-
-/** The number of mutex_spin_wait() calls.  Intended for
-performance monitoring. */
-mutex_counter_t	mutex_spin_wait_count;
-
-/** The number of OS waits in mutex_spin_wait().  Intended for
-performance monitoring. */
-mutex_counter_t	mutex_os_wait_count;
-
 /** For monitoring active mutexes */
 MutexMonitor*	mutex_monitor;
 
@@ -146,17 +134,12 @@ void
 sync_print_wait_info(FILE* file)
 {
 	fprintf(file,
-		"Mutex spin waits " UINT64PF ", rounds " UINT64PF ","
-		" OS waits " UINT64PF "\n"
 		"RW-shared spins " UINT64PF ", rounds " UINT64PF ","
 		" OS waits " UINT64PF "\n"
 		"RW-excl spins " UINT64PF ", rounds " UINT64PF ","
 		" OS waits " UINT64PF "\n"
 		"RW-sx spins " UINT64PF ", rounds " UINT64PF ","
 		" OS waits " UINT64PF "\n",
-		(ib_uint64_t) mutex_spin_wait_count,
-		(ib_uint64_t) mutex_spin_round_count,
-		(ib_uint64_t) mutex_os_wait_count,
 		(ib_uint64_t) rw_lock_stats.rw_s_spin_wait_count,
 		(ib_uint64_t) rw_lock_stats.rw_s_spin_round_count,
 		(ib_uint64_t) rw_lock_stats.rw_s_os_wait_count,
@@ -168,10 +151,8 @@ sync_print_wait_info(FILE* file)
 		(ib_uint64_t) rw_lock_stats.rw_sx_os_wait_count);
 
 	fprintf(file,
-		"Spin rounds per wait: %.2f mutex, %.2f RW-shared,"
+		"Spin rounds per wait: %.2f RW-shared,"
 		" %.2f RW-excl, %.2f RW-sx\n",
-		(double) mutex_spin_round_count /
-		(mutex_spin_wait_count_get() ? mutex_spin_wait_count_get() : 1),
 		(double) rw_lock_stats.rw_s_spin_round_count /
 		(rw_lock_stats.rw_s_spin_wait_count
 		 ? rw_lock_stats.rw_s_spin_wait_count : 1),
@@ -196,30 +177,6 @@ sync_print(FILE* file)
 	sync_array_print(file);
 
 	sync_print_wait_info(file);
-}
-
-/**
-@return total number of spin rounds since startup. */
-ib_uint64_t
-mutex_spin_round_count_get()
-{
-	return(mutex_spin_round_count);
-}
-
-/**
-@return total number of spin wait calls since startup. */
-ib_uint64_t
-mutex_spin_wait_count_get()
-{
-	return(mutex_spin_wait_count);
-}
-
-/**
-@return total number of OS waits since startup. */
-ib_uint64_t
-mutex_os_wait_count_get()
-{
-	return(mutex_os_wait_count);
 }
 
 /** Print the filename "basename" e.g., p = "/a/b/c/d/e.cc" -> p = "e.cc"
