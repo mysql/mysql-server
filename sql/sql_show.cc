@@ -3109,7 +3109,10 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 
   /* Add to this status from existing threads */
   while ((tmp= it++))
-    add_to_status(to, &tmp->status_var);
+  {
+    if (!tmp->status_in_global)
+      add_to_status(to, &tmp->status_var);
+  }
   
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_VOID_RETURN;

@@ -1263,6 +1263,7 @@ void THD::init(void)
   bzero((char *) &status_var, sizeof(status_var));
   bzero((char *) &org_status_var, sizeof(org_status_var));
   start_bytes_received= 0;
+  status_in_global= 0;
 
   if (variables.sql_log_bin)
     variables.option_bits|= OPTION_BIN_LOG;
@@ -1366,6 +1367,7 @@ void THD::change_user(void)
   cleanup();
   reset_killed();
   cleanup_done= 0;
+  status_in_global= 0;
   init();
   stmt_map.reset();
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
