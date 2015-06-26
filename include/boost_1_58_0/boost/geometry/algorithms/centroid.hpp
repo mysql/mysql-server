@@ -9,6 +9,7 @@
 // Modifications copyright (c) 2014-2015 Oracle and/or its affiliates.
 
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
+// Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle
 
 // Parts of Boost.Geometry are redesigned from Geodan's Geographic Library
 // (geolib/GGL), copyright (c) 1995-2010 Geodan, Amsterdam, the Netherlands.
@@ -55,7 +56,7 @@
 #include <boost/geometry/util/for_each_coordinate.hpp>
 #include <boost/geometry/util/select_coordinate_type.hpp>
 
-#include <boost/geometry/algorithms/num_points.hpp>
+#include <boost/geometry/algorithms/is_empty.hpp>
 
 #include <boost/geometry/algorithms/detail/centroid/translating_transformer.hpp>
 
@@ -360,7 +361,7 @@ struct centroid_multi
 #if ! defined(BOOST_GEOMETRY_CENTROID_NO_THROW)
         // If there is nothing in any of the ranges, it is not possible
         // to calculate the centroid
-        if (geometry::num_points(multi) == 0)
+        if (geometry::is_empty(multi))
         {
             throw centroid_exception();
         }

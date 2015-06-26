@@ -27,13 +27,14 @@
 #include <boost/mpl/int.hpp>
 
 #include <boost/geometry/core/access.hpp>
+#include <boost/geometry/core/assert.hpp>
 #include <boost/geometry/core/coordinate_type.hpp>
 #include <boost/geometry/core/coordinate_system.hpp>
 #include <boost/geometry/core/coordinate_dimension.hpp>
 
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
 #include <algorithm>
-#include <boost/assert.hpp>
+#include <boost/geometry/core/assert.hpp>
 #endif
 
 namespace boost { namespace geometry
@@ -186,8 +187,8 @@ public:
     inline CoordinateType const& get() const
     {
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-        BOOST_ASSERT(m_created == 1);
-        BOOST_ASSERT(m_values_initialized[K] == 1);
+        BOOST_GEOMETRY_ASSERT(m_created == 1);
+        BOOST_GEOMETRY_ASSERT(m_values_initialized[K] == 1);
 #endif
         BOOST_STATIC_ASSERT(K < DimensionCount);
         return m_values[K];
@@ -200,7 +201,7 @@ public:
     inline void set(CoordinateType const& value)
     {
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-        BOOST_ASSERT(m_created == 1);
+        BOOST_GEOMETRY_ASSERT(m_created == 1);
         m_values_initialized[K] = 1;
 #endif
         BOOST_STATIC_ASSERT(K < DimensionCount);

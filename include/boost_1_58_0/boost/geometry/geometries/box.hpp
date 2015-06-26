@@ -23,7 +23,7 @@
 #include <boost/geometry/geometries/concepts/point_concept.hpp>
 
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-#include <boost/assert.hpp>
+#include <boost/geometry/core/assert.hpp>
 #endif
 
 
@@ -93,14 +93,14 @@ public:
     inline Point const& min_corner() const
     {
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-        BOOST_ASSERT(m_created == 1);
+        BOOST_GEOMETRY_ASSERT(m_created == 1);
 #endif
         return m_min_corner;
     }
     inline Point const& max_corner() const
     {
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-        BOOST_ASSERT(m_created == 1);
+        BOOST_GEOMETRY_ASSERT(m_created == 1);
 #endif
         return m_max_corner;
     }
@@ -108,14 +108,14 @@ public:
     inline Point& min_corner()
     {
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-        BOOST_ASSERT(m_created == 1);
+        BOOST_GEOMETRY_ASSERT(m_created == 1);
 #endif
         return m_min_corner;
     }
     inline Point& max_corner()
     {
 #if defined(BOOST_GEOMETRY_ENABLE_ACCESS_DEBUGGING)
-        BOOST_ASSERT(m_created == 1);
+        BOOST_GEOMETRY_ASSERT(m_created == 1);
 #endif
         return m_max_corner;
     }
