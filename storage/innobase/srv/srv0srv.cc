@@ -2826,6 +2826,20 @@ srv_is_tablespace_truncated(ulint space_id)
 
 }
 
+/** Check if tablespace was truncated.
+@param	space_id	space_id to check for truncate action
+@return true if tablespace was truncated and we still have an active
+MLOG_TRUNCATE REDO log record. */
+bool
+srv_was_tablespace_truncated(ulint space_id)
+{
+	if (is_system_tablespace(space_id)) {
+		return(false);
+	}
+
+	return(truncate_t::was_tablespace_truncated(space_id));
+}
+
 /** Call exit(3) */
 void
 srv_fatal_error()

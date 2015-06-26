@@ -1359,6 +1359,11 @@ btr_search_drop_page_hash_when_freed(
 				 &mtr);
 
 	if (block) {
+
+		/* If AHI is still valid, page can't be in free state.
+		AHI is dropped when page is freed. */
+		ut_ad(!block->page.file_page_was_freed);
+
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_FROM_HASH);
 
 		dict_index_t*	index = block->index;
