@@ -153,15 +153,22 @@ extern void plugin_shutdown(void);
 extern void memcached_shutdown(void);
 void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root);
 extern bool plugin_is_ready(const LEX_CSTRING &name, int type);
-#define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name(A,B,C)
-#define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C)
-#define my_plugin_lock(A,B) plugin_lock(A,B)
-#define my_plugin_lock_ci(A,B) plugin_lock(A,B)
-extern plugin_ref plugin_lock(THD *thd, plugin_ref *ptr);
-extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name,
-                                      int type);
-extern void plugin_unlock(THD *thd, plugin_ref plugin);
-extern void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count);
+#define my_plugin_lock_by_name(A,B,C) plugin_lock_by_name_ext(A, B, C, TRUE)
+#define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name_ext(A, B, C, TRUE)
+#define my_plugin_lock(A,B) plugin_lock_ext(A, B, TRUE)
+#define my_plugin_lock_ci(A,B) plugin_lock_ext(A, B, TRUE)
+#define plugin_lock(A, B) plugin_lock_ext(A, B, TRUE)
+#define plugin_lock_by_name(A, B, C) plugin_lock_by_name_ext(A, B, C, TRUE)
+#define plugin_unlock(A, B) plugin_unlock_ext(A, B, TRUE);
+#define plugin_unlock_list(A, B, C) plugin_unlock_list_ext(A, B, C, TRUE);
+extern plugin_ref plugin_lock_ext(THD *thd, plugin_ref *ptr,
+                                  my_bool register_plugin);
+extern plugin_ref plugin_lock_by_name_ext(THD *thd, const LEX_CSTRING &name,
+                                          int type, my_bool register_plugin);
+extern void plugin_unlock_ext(THD *thd, plugin_ref plugin,
+                              my_bool register_plugin);
+extern void plugin_unlock_list_ext(THD *thd, plugin_ref *list, size_t count,
+                                   my_bool unregister_plugin);
 extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd, bool enable_plugins);
 extern void plugin_thdvar_cleanup(THD *thd, bool enable_plugins);
