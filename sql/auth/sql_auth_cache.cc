@@ -1276,13 +1276,13 @@ public:
     @retval true Hash is of wrong length or format
 */
 
-bool set_user_salt(ACL_USER *acl_user)
+bool set_user_salt(THD *thd, ACL_USER *acl_user)
 {
   bool result= false;
   plugin_ref plugin= NULL;
 
-  plugin= my_plugin_lock_by_name(0, acl_user->plugin,
-                                 MYSQL_AUTHENTICATION_PLUGIN);
+  plugin= plugin_lock_by_name_ext(thd, acl_user->plugin,
+                                  MYSQL_AUTHENTICATION_PLUGIN, FALSE);
   if (plugin)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
@@ -1290,7 +1290,7 @@ bool set_user_salt(ACL_USER *acl_user)
                             acl_user->auth_string.length,
                             acl_user->salt,
                             &acl_user->salt_len);
-    plugin_unlock(0, plugin);
+    plugin_unlock_ext(thd, plugin, FALSE);
   }
   return result;
 }
@@ -1643,9 +1643,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
             //We only support native hash, we do not support pre 4.1 hashes
             plugin_ref native_plugin= NULL;
-            native_plugin= my_plugin_lock_by_name(0,
+            native_plugin= plugin_lock_by_name_ext(thd,
                                        native_password_plugin_name,
-                                       MYSQL_AUTHENTICATION_PLUGIN);
+                                       MYSQL_AUTHENTICATION_PLUGIN, FALSE);
             if (native_plugin)
             {
               uint password_len= password ? strlen(password) : 0;
@@ -1674,10 +1674,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                 "login with this user anymore.",
                 user.user ? user.user : "",
                 user.host.get_host() ? user.host.get_host() : "");
-                plugin_unlock(0, native_plugin);
+                plugin_unlock_ext(thd, native_plugin, FALSE);
                 continue;
               }
-              plugin_unlock(0, native_plugin);
+              plugin_unlock_ext(thd, native_plugin, FALSE);
             }
           }
 
@@ -1718,8 +1718,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
         /* Validate the hash string. */
         plugin_ref plugin= NULL;
-        plugin= my_plugin_lock_by_name(0, user.plugin,
-                                       MYSQL_AUTHENTICATION_PLUGIN);
+        plugin= plugin_lock_by_name_ext(thd, user.plugin,
+                                        MYSQL_AUTHENTICATION_PLUGIN, FALSE);
         if (plugin)
         {
           st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
@@ -1729,10 +1729,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             sql_print_warning("Found invalid password for user: '%s@%s'; "
                               "Ignoring user", user.user ? user.user : "",
                               user.host.get_host() ? user.host.get_host() : "");
-            plugin_unlock(0, plugin);
+            plugin_unlock_ext(thd, plugin, FALSE);
             continue;
           }
-          plugin_unlock(0, plugin);
+          plugin_unlock_ext(thd, plugin, FALSE);
         }
 
         if (table->s->fields > table_schema->password_expired_idx())
@@ -1821,7 +1821,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= SUPER_ACL | EXECUTE_ACL;
       }
 
-      set_user_salt(&user);
+      set_user_salt(thd, &user);
       user.password_expired= password_expired;
 
       acl_users->push_back(user);
@@ -2629,7 +2629,7 @@ end:
 }
 
 
-void acl_update_user(const char *user, const char *host,
+void acl_update_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2671,7 +2671,7 @@ void acl_update_user(const char *user, const char *host,
               acl_user->auth_string.str= strmake_root(&global_acl_memory,
                               auth.str, auth.length);
             acl_user->auth_string.length= auth.length;
-            set_user_salt(acl_user);
+            set_user_salt(thd, acl_user);
             acl_user->password_last_changed= password_change_time;
           }
         }
@@ -2723,7 +2723,7 @@ void acl_update_user(const char *user, const char *host,
 }
 
 
-void acl_insert_user(const char *user, const char *host,
+void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2790,7 +2790,7 @@ void acl_insert_user(const char *user, const char *host,
   acl_user.password_last_changed= password_change_time;
   acl_user.account_locked= password_life.account_locked;
 
-  set_user_salt(&acl_user);
+  set_user_salt(thd, &acl_user);
 
   acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())

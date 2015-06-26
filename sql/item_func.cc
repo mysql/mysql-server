@@ -43,6 +43,7 @@
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
+#include "auth\password_policy_int.h"
 
 using std::min;
 using std::max;
@@ -3988,7 +3989,8 @@ longlong Item_func_validate_password_strength::val_int()
   String *field= args[0]->val_str(&value);
   if ((null_value= args[0]->null_value) || field->length() == 0)
     return 0;
-  return (my_calculate_password_strength(field->ptr(), field->length()));
+  return (my_calculate_password_strength_int(current_thd,
+                                             field->ptr(), field->length()));
 }
 
 
