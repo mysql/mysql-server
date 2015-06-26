@@ -980,7 +980,11 @@ row_undo_mod_upd_exist_sec(
 
 		if (dict_index_is_spatial(index)) {
 			if (!row_upd_changes_ord_field_binary_func(
-				index, node->update, thr, node->row,
+				index, node->update,
+#ifdef UNIV_DEBUG
+				thr,
+#endif /* UNIV_DEBUG */
+                                node->row,
 				node->ext, ROW_BUILD_FOR_UNDO)) {
 				dict_table_next_uncorrupted_index(node->index);
 				continue;
