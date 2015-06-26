@@ -5010,7 +5010,8 @@ fil_io(
 			if (space->id != srv_sys_space.space_id()
 			    && UT_LIST_GET_LEN(space->chain) == 1
 			    && (srv_is_tablespace_truncated(space->id)
-				|| space->is_being_truncated)
+				|| space->is_being_truncated
+				|| srv_was_tablespace_truncated(space->id))
 			    && req_type.is_read()) {
 
 				/* Handle page which is outside the truncated

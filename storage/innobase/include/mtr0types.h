@@ -233,8 +233,11 @@ enum mlog_id_t {
 	/** log for some persistent dynamic metadata change */
 	MLOG_TABLE_DYNAMIC_META = 60,
 
+	/** Table is being truncated. (Marked only for file-per-table) */
+	MLOG_TRUNCATE = 61,
+
 	/** biggest value (used in assertions) */
-	MLOG_BIGGEST_TYPE = 60
+	MLOG_BIGGEST_TYPE = MLOG_TRUNCATE
 };
 
 /* @} */

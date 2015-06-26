@@ -795,6 +795,13 @@ for independent tablespace are not applicable to system-tablespace).
 bool
 srv_is_tablespace_truncated(ulint space_id);
 
+/** Check if tablespace was truncated.
+@param	space_id	space_id to check for truncate action
+@return true if tablespace was truncated and we still have an active
+MLOG_TRUNCATE REDO log record. */
+bool
+srv_was_tablespace_truncated(ulint space_id);
+
 /** Status variables to be passed to MySQL */
 struct export_var_t{
 	ulint innodb_data_pending_reads;	/*!< Pending reads */

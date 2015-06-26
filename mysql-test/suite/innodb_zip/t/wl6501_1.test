@@ -247,18 +247,18 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_before_log_removal";
+		--echo "---debug ib_trunc_crash_before_log_removal point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 1)
 	{
@@ -297,18 +297,18 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_before_log_removal";
+		--echo "---debug ib_trunc_crash_before_log_removal point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 1)
 	{
@@ -348,18 +348,18 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_before_log_removal";
+		--echo "---debug ib_trunc_crash_before_log_removal point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 1)
 	{
@@ -400,18 +400,18 @@ while ($cnt) {
 	}
 	if ($cnt == 4)
 	{
-		set session debug="+d,ib_trunc_crash_before_log_checkpoint";
-		--echo "---debug ib_trunc_crash_before_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_before_log_removal";
+		--echo "---debug ib_trunc_crash_before_log_removal point---"
 	}
 	if ($cnt == 3)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 2)
 	{
-		set session debug="+d,ib_trunc_crash_after_log_checkpoint";
-		--echo "---debug ib_trunc_crash_after_log_checkpoint point---"
+		set session debug="+d,ib_trunc_crash_after_truncate_done";
+		--echo "---debug ib_trunc_crash_after_truncate_done point---"
 	}
 	if ($cnt == 1)
 	{
