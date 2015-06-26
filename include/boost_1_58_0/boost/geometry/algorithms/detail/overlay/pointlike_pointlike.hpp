@@ -14,9 +14,9 @@
 #include <algorithm>
 #include <vector>
 
-#include <boost/assert.hpp>
 #include <boost/range.hpp>
 
+#include <boost/geometry/core/assert.hpp>
 #include <boost/geometry/core/point_type.hpp>
 #include <boost/geometry/core/tag.hpp>
 #include <boost/geometry/core/tags.hpp>
@@ -182,7 +182,7 @@ struct multipoint_point_point
                                        OutputIterator oit,
                                        Strategy const&)
     {
-        BOOST_ASSERT( OverlayType == overlay_difference );
+        BOOST_GEOMETRY_ASSERT( OverlayType == overlay_difference );
 
         for (typename boost::range_iterator<MultiPoint const>::type
                  it = boost::begin(multipoint);
