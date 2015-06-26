@@ -43,7 +43,7 @@
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
-#include "auth\password_policy_int.h"
+#include "auth/password_policy_int.h"
 
 using std::min;
 using std::max;
