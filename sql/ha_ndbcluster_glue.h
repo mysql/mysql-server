@@ -57,9 +57,6 @@ void my_free(void* ptr, myf MyFlags)
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION
 
-/* thd->binlog_query has new parameter "direct" */
-#define NDB_THD_BINLOG_QUERY_HAS_DIRECT
-
 /* No mysql_rm_table_part2 anymore in 5.5.8 */
 #define NDB_NO_MYSQL_RM_TABLE_PART2
 

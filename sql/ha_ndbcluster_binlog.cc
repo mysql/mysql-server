@@ -2586,11 +2586,10 @@ class Ndb_schema_event_handler {
     thd->reset_db(schema_db_lex_cstr);
 
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
-                      schema->query_length, FALSE,
-  #ifdef NDB_THD_BINLOG_QUERY_HAS_DIRECT
-                      TRUE,
-  #endif
+    thd->binlog_query(THD::STMT_QUERY_TYPE,
+                      schema->query, schema->query_length,
+                      false, // is_trans
+                      true, // direct
                       schema->name[0] == 0 || thd->db().str[0] == 0,
                       errcode);
 
