@@ -2573,12 +2573,18 @@ class Ndb_schema_event_handler {
       ndbcluster_anyvalue_set_serverid(loggedServerId, ::server_id);
     }
 
-    uint32 thd_server_id_save= thd->server_id;
+    /*
+      Write the DDL query to binlog with server_id set
+      to the server_id where the query originated.
+    */
+    const uint32 thd_server_id_save= thd->server_id;
     DBUG_ASSERT(sizeof(thd_server_id_save) == sizeof(thd->server_id));
-    LEX_CSTRING thd_db_save= thd->db();
     thd->server_id = loggedServerId;
+
+    LEX_CSTRING thd_db_save= thd->db();
     LEX_CSTRING schema_db_lex_cstr= {schema->db, strlen(schema->db)};
     thd->reset_db(schema_db_lex_cstr);
+
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
     thd->binlog_query(THD::STMT_QUERY_TYPE, schema->query,
                       schema->query_length, FALSE,
@@ -2587,11 +2593,16 @@ class Ndb_schema_event_handler {
   #endif
                       schema->name[0] == 0 || thd->db().str[0] == 0,
                       errcode);
-    thd->server_id= thd_server_id_save;
-    thd->reset_db(thd_db_save);
 
     // Commit the binlog write
     (void)trans_commit_stmt(thd);
+
+    /*
+      Restore original server_id and db after commit
+      since the server_id is being used also in the commit logic
+    */
+    thd->server_id= thd_server_id_save;
+    thd->reset_db(thd_db_save);
   }
 
 
