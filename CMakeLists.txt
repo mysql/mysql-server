@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -366,6 +366,10 @@ OPTION(MYSQL_MAINTAINER_MODE
 
 INCLUDE(maintainer)
 
+IF(WITH_UNIT_TESTS)
+ ENABLE_TESTING()
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
 SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
  # Add storage engines and plugins.
@@ -380,9 +384,6 @@ ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(libmysql)
 
-IF(WITH_UNIT_TESTS)
- ENABLE_TESTING()
-ENDIF()
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mysys)
