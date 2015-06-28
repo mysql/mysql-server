@@ -2,7 +2,7 @@
 #define OPT_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -234,7 +234,8 @@ protected: // To be able make a gunit fake sub class
 class Cost_model_table
 {
 public:
-  Cost_model_table() : m_cost_model_server(NULL), m_se_cost_constants(NULL)
+  Cost_model_table() : m_cost_model_server(NULL), m_se_cost_constants(NULL),
+    m_table(NULL)
   {
 #if !defined(DBUG_OFF)
     m_initialized= false;
@@ -289,17 +290,6 @@ public:
   }
 
   /**
-    Cost of reading one random block from disk.
-  */
-
-  double io_block_read_cost() const
-  {
-    DBUG_ASSERT(m_initialized);
-
-    return m_se_cost_constants->io_block_read_cost();
-  }
-
-  /**
     Cost of reading a number of random blocks from a table.
 
     @param blocks number of blocks to read
@@ -312,8 +302,46 @@ public:
     DBUG_ASSERT(m_initialized);
     DBUG_ASSERT(blocks >= 0.0);
 
-    return blocks * io_block_read_cost();
+    return blocks * m_se_cost_constants->io_block_read_cost();
   }
+
+  /**
+    Cost of reading a number of blocks from the storage engine when the
+    block is already in a memory buffer
+  
+    @param blocks number of blocks to read
+
+    @return Cost estimate
+  */
+
+  double buffer_block_read_cost(double blocks) const
+  {
+    DBUG_ASSERT(m_initialized);
+    DBUG_ASSERT(blocks >= 0.0);
+
+    return blocks * m_se_cost_constants->memory_block_read_cost();
+  }
+
+  /**
+    Cost of reading a number of random pages from a table.
+  
+    @param pages number of pages to read
+
+    @return Cost estimate
+  */
+
+  double page_read_cost(double pages) const;
+
+  /**
+    Cost of reading a number of random pages from an index.
+  
+    @param index the index number
+    @param pages number of pages to read
+
+    @return Cost estimate
+  */
+
+  double page_read_cost_index(uint index, double pages) const;
 
   /**
     The fixed part of the cost for doing a sequential seek on disk.
@@ -326,7 +354,7 @@ public:
   {
     DBUG_ASSERT(m_initialized);
 
-    return DISK_SEEK_BASE_COST * io_block_read_cost();
+    return DISK_SEEK_BASE_COST * io_block_read_cost(1.0);
   }
 
 private:
@@ -344,7 +372,7 @@ private:
 
   double disk_seek_prop_cost() const
   {
-    return DISK_SEEK_PROP_COST * io_block_read_cost();
+    return DISK_SEEK_PROP_COST * io_block_read_cost(1.0);
   }
 
 public:
@@ -385,6 +413,10 @@ protected: // To be able make a gunit fake sub class
   */
   bool m_initialized;
 #endif
+
+private:
+  /// The table that this is the cost model for
+  const TABLE *m_table;
 };
 
 #endif /* OPT_COSTMODEL_INCLUDED */

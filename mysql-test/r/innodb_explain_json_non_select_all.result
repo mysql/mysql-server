@@ -1877,7 +1877,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.30"
+      "query_cost": "2.40"
     } /* cost_info */,
     "table": {
       "table_name": "t1",
@@ -1896,9 +1896,9 @@ EXPLAIN
       "index_condition": "(`test`.`t1`.`a` < 3)",
       "using_MRR": true,
       "cost_info": {
-        "read_cost": "2.10",
+        "read_cost": "2.20",
         "eval_cost": "0.20",
-        "prefix_cost": "2.30",
+        "prefix_cost": "2.40",
         "data_read_per_join": "16"
       } /* cost_info */,
       "used_columns": [
@@ -4412,7 +4412,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 (i) VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35),(36),(37),(38),(39),
-(40),(41),(42);
+(40),(41),(42),(43),(44);
 CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #
@@ -5532,7 +5532,7 @@ CREATE TABLE t1 (i INT);
 INSERT INTO t1 VALUES (10),(11),(12),(13),(14),(15),(16),(17),(18),(19),
 (20),(21),(22),(23),(24),(25),(26),(27),(28),(29),
 (30),(31),(32),(33),(34),(35),(36),(37),(38),(39),
-(40),(41),(42);
+(40),(41),(42),(43),(44);
 CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 #

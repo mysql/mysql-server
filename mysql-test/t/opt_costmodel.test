@@ -1,3 +1,7 @@
+# The block size influence cost estimates in JSON EXPLAIN.
+# To produce the same cost estimates this test can only run with 16K pages.
+--source include/have_innodb_16k.inc 
+
 #
 # Default values for cost constants (from the source code)
 #
@@ -7,6 +11,7 @@ let $memory_temptable_create_cost= 2.0;
 let $memory_temptable_row_cost= 0.2;
 let $disk_temptable_create_cost= 40;
 let $disk_temptable_row_cost= 1.0;
+let $memory_block_read_cost= 1.0;
 let $io_block_read_cost= 1.0;
 
 --echo #
@@ -84,6 +89,10 @@ eval UPDATE mysql.server_cost
      WHERE cost_name="disk_temptable_row_cost";
 
 # Update engine_cost:
+eval UPDATE mysql.engine_cost
+     SET cost_value=$memory_block_read_cost
+     WHERE cost_name="memory_block_read_cost";
+
 eval UPDATE mysql.engine_cost
      SET cost_value=$io_block_read_cost
      WHERE cost_name="io_block_read_cost";
@@ -207,6 +216,10 @@ eval UPDATE mysql.server_cost
      WHERE cost_name="disk_temptable_row_cost";
 
 # Update engine_cost:
+eval UPDATE mysql.engine_cost
+     SET cost_value=$memory_block_read_cost
+     WHERE cost_name="memory_block_read_cost";
+
 eval UPDATE mysql.engine_cost
      SET cost_value=$io_block_read_cost
      WHERE cost_name="io_block_read_cost";

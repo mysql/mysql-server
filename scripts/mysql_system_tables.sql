@@ -256,6 +256,8 @@ CREATE TABLE IF NOT EXISTS engine_cost (
 ) ENGINE=InnoDB CHARACTER SET=utf8 COLLATE=utf8_general_ci STATS_PERSISTENT=0;
 
 INSERT IGNORE INTO engine_cost VALUES
+  ("default", 0, "memory_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
+INSERT IGNORE INTO engine_cost VALUES
   ("default", 0, "io_block_read_cost", DEFAULT, CURRENT_TIMESTAMP, DEFAULT);
 
 --

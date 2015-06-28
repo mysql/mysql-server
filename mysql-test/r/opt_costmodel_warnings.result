@@ -9,6 +9,7 @@ row_evaluate_cost	NULL	#	NULL
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
+default	0	memory_block_read_cost	NULL	#	NULL
 RENAME TABLE mysql.engine_cost TO mysql.engine_cost_renamed;
 "Restarting MySQL server"
 # restart
@@ -17,6 +18,7 @@ RENAME TABLE mysql.engine_cost_renamed TO mysql.engine_cost;
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
+default	0	memory_block_read_cost	NULL	#	NULL
 INSERT INTO mysql.server_cost
 VALUES ("lunch_cost", 1.0, CURRENT_TIMESTAMP, "Lunch is important");
 UPDATE mysql.server_cost
@@ -67,3 +69,4 @@ row_evaluate_cost	NULL	#	NULL
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
+default	0	memory_block_read_cost	NULL	#	NULL
