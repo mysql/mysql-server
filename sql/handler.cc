@@ -5646,18 +5646,7 @@ Cost_estimate handler::table_scan_cost()
     and use of the copy constructor.
   */
 
-#ifndef DBUG_OFF
-  /*
-    The cost model does not currently take into account whether table
-    data is in memory or on disk. To test and to get coverage for the
-    code for estimating data in memory, a call for getting this
-    estimate is included here when compiled in debug mode.
-  */
-  const double in_mem= table_in_memory_estimate();
-  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
-#endif
-
-  const double io_cost= scan_time() * table->cost_model()->io_block_read_cost();
+  const double io_cost= scan_time() * table->cost_model()->page_read_cost(1.0);
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
@@ -5676,19 +5665,8 @@ Cost_estimate handler::index_scan_cost(uint index, double ranges, double rows)
   DBUG_ASSERT(ranges >= 0.0);
   DBUG_ASSERT(rows >= 0.0);
 
-#ifndef DBUG_OFF
-  /*
-    The cost model does not currently take into account whether index
-    data is in memory or on disk. To test and to get coverage for the
-    code for estimating data in memory, a call for getting this
-    estimate is included here when compiled in debug mode.
-  */
-  const double in_mem= index_in_memory_estimate(index);
-  DBUG_ASSERT(in_mem >= 0.0 && in_mem <= 1.0);
-#endif
-
   const double io_cost= index_only_read_time(index, rows) *
-                        table->cost_model()->io_block_read_cost();
+    table->cost_model()->page_read_cost_index(index, 1.0);
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
@@ -5709,7 +5687,7 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
 
   const double io_cost= read_time(index, static_cast<uint>(ranges),
                                   static_cast<ha_rows>(rows)) *
-                        table->cost_model()->io_block_read_cost();
+                        table->cost_model()->page_read_cost(1.0);
   Cost_estimate cost;
   cost.add_io(io_cost);
   return cost;
@@ -6772,7 +6750,8 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
       that is more realistic. @todo: Replace this with
       key_compare_cost() when this has been given a realistic value.
     */
-    const double ROWID_COMPARE_SORT_COST = 0.01;
+    const double ROWID_COMPARE_SORT_COST=
+      table->cost_model()->key_compare_cost(1.0) / 10;
 
     /* Add cost of qsort call: n * log2(n) * cost(rowid_comparison) */
     
@@ -6793,7 +6772,10 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   A disk sweep read is a sequence of handler->rnd_pos(rowid) calls that made
   for an ordered sequence of rowids.
 
-  We assume hard disk IO. The read is performed as follows:
+  We take into account that some of the records might be in a memory
+  buffer while others need to be read from a secondary storage
+  device. The model for this assumes hard disk IO. A disk read is
+  performed as follows:
 
    1. The disk head is moved to the needed cylinder
    2. The controller waits for the plate to rotate
@@ -6824,11 +6806,11 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   We define half_rotation_cost as disk_seek_base_cost() (see
   Cost_model_server::disk_seek_base_cost()).
 
-  @param table             Table to be accessed
-  @param nrows             Number of rows to retrieve
-  @param interrupted       TRUE <=> Assume that the disk sweep will be
-                           interrupted by other disk IO. FALSE - otherwise.
-  @param cost         OUT  The cost.
+  @param      table        Table to be accessed
+  @param      nrows        Number of rows to retrieve
+  @param      interrupted  true <=> Assume that the disk sweep will be
+                           interrupted by other disk IO. false - otherwise.
+  @param[out] cost         the cost
 */
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
@@ -6841,10 +6823,16 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   {
     const Cost_model_table *const cost_model= table->cost_model();
 
+    // The total number of blocks used by this table
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
     if (n_blocks < 1.0)                         // When data_file_length is 0
       n_blocks= 1.0;
+
+    /*
+      The number of blocks that in average need to be read given that
+      the records are uniformly distribution over the table.
+    */
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(nrows)));
     if (busy_blocks < 1.0)
@@ -6853,11 +6841,34 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
     if (interrupted)
-      cost->add_io(busy_blocks * cost_model->io_block_read_cost());
+      cost->add_io(cost_model->page_read_cost(busy_blocks));
     else
-      /* Assume reading is done in one 'sweep' */
-      cost->add_io(busy_blocks * 
-                   cost_model->disk_seek_cost(n_blocks / busy_blocks));
+    {
+      /*
+        Assume reading pages from disk is done in one 'sweep'. 
+
+        The cost model and cost estimate for pages already in a memory
+        buffer will be different from pages that needed to be read from
+        disk. Calculate the number of blocks that likely already are
+        in memory and the number of blocks that need to be read from
+        disk.
+      */
+      const double busy_blocks_mem=
+        busy_blocks * table->file->table_in_memory_estimate();
+      const double busy_blocks_disk= busy_blocks - busy_blocks_mem;
+      DBUG_ASSERT(busy_blocks_disk >= 0.0);
+
+      // Cost of accessing blocks in main memory buffer
+      cost->add_io(cost_model->buffer_block_read_cost(busy_blocks_mem));
+
+      // Cost of reading blocks from disk in a 'sweep'
+      const double seek_distance= (busy_blocks_disk > 1.0) ?
+        n_blocks / busy_blocks_disk : n_blocks;
+
+      const double disk_cost=
+        busy_blocks_disk * cost_model->disk_seek_cost(seek_distance);
+      cost->add_io(disk_cost);
+    }
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;

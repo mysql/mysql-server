@@ -596,9 +596,9 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                         }
                       ] /* indexes_to_merge */,
                       "cost_of_reading_ranges": 11.935,
-                      "cost_sort_rowid_and_read_disk": 8.0666,
+                      "cost_sort_rowid_and_read_disk": 8.9551,
                       "cost_duplicate_removal": 38.361,
-                      "total_cost": 58.363
+                      "total_cost": 59.251
                     }
                   ] /* analyzing_index_merge_union */,
                   "chosen_range_access_summary": {
@@ -624,7 +624,7 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                       ] /* index_merge_of */
                     } /* range_access_plan */,
                     "rows_for_plan": 45,
-                    "cost_for_plan": 58.363,
+                    "cost_for_plan": 59.251,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -646,14 +646,14 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                         "used_index": "sort_union(i1,i2)"
                       } /* range_details */,
                       "resulting_rows": 45,
-                      "cost": 67.363,
+                      "cost": 68.251,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 45,
-                "cost_for_plan": 67.363,
+                "cost_for_plan": 68.251,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -1919,7 +1919,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                           } /* analyzing_roworder_intersect */
                         }
                       ] /* analyzing_roworder_scans */,
-                      "index_roworder_union_cost": 4.327,
+                      "index_roworder_union_cost": 4.5089,
                       "members": 2,
                       "chosen": true
                     }
@@ -1947,7 +1947,7 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                       ] /* union_of */
                     } /* range_access_plan */,
                     "rows_for_plan": 2,
-                    "cost_for_plan": 4.327,
+                    "cost_for_plan": 4.5089,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1969,14 +1969,14 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                         "used_index": "union(i2,i3)"
                       } /* range_details */,
                       "resulting_rows": 2,
-                      "cost": 4.727,
+                      "cost": 4.9089,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
-                "cost_for_plan": 4.727,
+                "cost_for_plan": 4.9089,
                 "chosen": true
               }
             ] /* considered_execution_plans */

@@ -12,6 +12,7 @@ server_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
+default	0	memory_block_read_cost	NULL	#	NULL
 SHOW INDEX FROM mysql.engine_cost;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 engine_cost	0	PRIMARY	1	cost_name	A	#	NULL	NULL		BTREE		
@@ -84,6 +85,7 @@ engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
 InnoDB	2	lunch_cost1	NULL	#	Lunch 1
 InnoDB	2	lunch_cost2	NULL	#	Lunch 2
+default	0	memory_block_read_cost	NULL	#	NULL
 DELETE FROM mysql.engine_cost
 WHERE cost_name LIKE "lunch_cost%";
 INSERT INTO mysql.engine_cost
@@ -95,6 +97,7 @@ SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
 default	0	lunch_cost	NULL	#	Lunch
+default	0	memory_block_read_cost	NULL	#	NULL
 DELETE FROM mysql.engine_cost
 WHERE cost_name="lunch_cost";
 INSERT INTO mysql.engine_cost
@@ -104,6 +107,7 @@ ERROR 23000: Duplicate entry 'IO_BLOCK_READ_COST-default-0' for key 'PRIMARY'
 SELECT * FROM mysql.engine_cost;
 engine_name	device_type	cost_name	cost_value	last_update	comment
 default	0	io_block_read_cost	NULL	#	NULL
+default	0	memory_block_read_cost	NULL	#	NULL
 CREATE TABLE server_cost_tmp (
 cost_name VARCHAR(64) NOT NULL,
 last_update TIMESTAMP

@@ -1,8 +1,4 @@
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
-#
 # Test of the FLUSH OPTIMIZER_COSTS command
 #
 
@@ -296,17 +292,17 @@ SET cost_value=DEFAULT;
 set max_heap_table_size= @max_heap_table_size_save;
 
 --echo #
---echo # Test effect of changing the io_block_read_cost
+--echo # Test effect of changing the memory_block_read_cost
 --echo #
 --echo # Result from running query with default cost constants:
 --echo #
 let query= SELECT * FROM t1;
 eval EXPLAIN FORMAT=JSON $query;
 
-# Master connection: Update the value of the io_block_read_cost
+# Master connection: Update the value of the memory_block_read_cost
 UPDATE mysql.engine_cost
 SET cost_value=2.0
-WHERE cost_name="io_block_read_cost";
+WHERE cost_name="memory_block_read_cost";
 
 FLUSH OPTIMIZER_COSTS;
 
