@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,21 +15,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-package com.mysql.clusterj;
+package testsuite.clusterj.tie;
 
-public interface DynamicObjectDelegate {
+public class ReleaseTest extends testsuite.clusterj.ReleaseTest {
 
-    public Object get(int columnNumber);
-
-    public void set(int columnNumber, Object value);
-
-    public ColumnMetadata[] columnMetadata();
-
-    public Boolean found();
-
-    public void found(Boolean found);
-
-    public void release();
-
-    public boolean wasReleased();
 }
