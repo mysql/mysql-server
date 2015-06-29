@@ -625,9 +625,6 @@ public:
 class Item_func_spatial_rel: public Item_bool_func2
 {
   enum Functype spatial_rel;
-  Gcalc_heap collector;
-  Gcalc_scan_iterator scan_it;
-  Gcalc_function func;
   String tmp_value1,tmp_value2;
 public:
   Item_func_spatial_rel(const POS &pos, Item *a,Item *b, enum Functype sp_rel);
@@ -714,10 +711,6 @@ protected:
                           Geometry_list *gv1,
                           const typename BG_geometry_collection::
                           Geometry_list *gv2);
-
-  int func_touches();
-  int func_equals();
-
 };
 
 
@@ -737,7 +730,7 @@ protected:
   friend class BG_geometry_collection;
 
   template<typename Coord_type, typename Coordsys>
-  Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *);
+  Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result);
 
   template<typename Coord_type, typename Coordsys>
   Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
@@ -746,52 +739,54 @@ protected:
 
   template<typename Coord_type, typename Coordsys>
   Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
-                                              String *result, bool *);
+                                              String *result);
 
   Geometry *empty_result(String *str, uint32 srid);
 
-  Gcalc_function::op_type spatial_op;
-  Gcalc_heap collector;
-  Gcalc_function func;
-
-  Gcalc_result_receiver res_receiver;
-  Gcalc_operation_reducer operation;
   String tmp_value1,tmp_value2;
   BG_result_buf_mgr bg_resbuf_mgr;
 
   bool assign_result(Geometry *geo, String *result);
 
   template <typename Geotypes>
-  Geometry *intersection_operation(Geometry *g1, Geometry *g2,
-                                   String *result, bool *opdone);
+  Geometry *intersection_operation(Geometry *g1, Geometry *g2, String *result);
   template <typename Geotypes>
-  Geometry *union_operation(Geometry *g1, Geometry *g2,
-                            String *result, bool *opdone);
+  Geometry *union_operation(Geometry *g1, Geometry *g2, String *result);
   template <typename Geotypes>
-  Geometry *difference_operation(Geometry *g1, Geometry *g2,
-                                 String *result, bool *opdone);
+  Geometry *difference_operation(Geometry *g1, Geometry *g2, String *result);
   template <typename Geotypes>
-  Geometry *symdifference_operation(Geometry *g1, Geometry *g2,
-                                    String *result, bool *opdone);
+  Geometry *symdifference_operation(Geometry *g1, Geometry *g2, String *result);
   template<typename Coord_type, typename Coordsys>
   Geometry *geocol_symdifference(const BG_geometry_collection &bggc1,
                                  const BG_geometry_collection &bggc2,
-                                 String *result, bool *opdone);
+                                 String *result);
   template<typename Coord_type, typename Coordsys>
   Geometry *geocol_difference(const BG_geometry_collection &bggc1,
                               const BG_geometry_collection &bggc2,
-                              String *result, bool *opdone);
+                              String *result);
   template<typename Coord_type, typename Coordsys>
   Geometry *geocol_intersection(const BG_geometry_collection &bggc1,
                                 const BG_geometry_collection &bggc2,
-                                String *result, bool *opdone);
+                                String *result);
   template<typename Coord_type, typename Coordsys>
   Geometry *geocol_union(const BG_geometry_collection &bggc1,
                          const BG_geometry_collection &bggc2,
-                         String *result, bool *opdone);
+                         String *result);
 public:
+  enum op_type
+  {
+    op_shape= 0,
+    op_not= 0x80000000,
+    op_union= 0x10000000,
+    op_intersection= 0x20000000,
+    op_symdifference= 0x30000000,
+    op_difference= 0x40000000,
+    op_backdifference= 0x50000000,
+    op_any= 0x70000000
+  };
+
   Item_func_spatial_operation(const POS &pos, Item *a, Item *b,
-                              Gcalc_function::op_type sp_op) :
+                              Item_func_spatial_operation::op_type sp_op) :
     Item_geometry_func(pos, a, b), spatial_op(sp_op)
   {
   }
@@ -802,6 +797,8 @@ public:
   {
     Item_func::print(str, query_type);
   }
+private:
+  op_type spatial_op;
 };
 
 
@@ -901,9 +898,6 @@ public:
 
 class Item_func_issimple: public Item_bool_func
 {
-  Gcalc_heap collector;
-  Gcalc_function func;
-  Gcalc_scan_iterator scan_it;
   String tmp;
 public:
   Item_func_issimple(const POS &pos, Item *a): Item_bool_func(pos, a) {}
