@@ -583,7 +583,8 @@ merge_components(my_bool *pnull_value)
     return;
 
   POS pos;
-  Item_func_spatial_operation ifso(pos, NULL, NULL, Gcalc_function::op_union);
+  Item_func_spatial_operation ifso(pos, NULL, NULL,
+                                   Item_func_spatial_operation::op_union);
   bool do_again= true;
   uint32 last_composition[6]= {0}, num_unchanged_composition= 0;
   size_t last_num_geos= 0;
@@ -953,12 +954,11 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
           break;
         }
 
-        bool opdone= false;
         gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, geom2,
-                                                        &wkbres, &opdone);
+                                                        &wkbres);
         null_value= ifso->null_value;
 
-        if (!opdone || null_value)
+        if (null_value)
         {
           if (gres != NULL && gres != *i && gres != geom2)
             delete gres;
