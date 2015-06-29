@@ -1211,7 +1211,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))')
 --echo #
 --echo # Bug#20510010 ST_BUFFER() : MYSQLD GOT SIGNAL 11
 --echo #
---replace_regex /([0-9]+\.[0-9]{1})[0-9]*/\1/
+--replace_regex /([0-9]+)\.[0-9]+/\1/
 SELECT
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(MULTILINESTRING((12 -12,-15 19),(2 -9,-4 -8,18 3,-9 -8),(13 11,-15 9,-16 6,-17 5)),
                                                         LINESTRING(14 -16,-3 18,-13 -7,-10 1))'), 6561)) as result;
