@@ -1640,7 +1640,6 @@ int ha_myisammrg::records(ha_rows *num_rows)
 }
 
 
-extern int myrg_panic(enum ha_panic_function flag);
 int myisammrg_panic(handlerton *hton, ha_panic_function flag)
 {
   return myrg_panic(flag);

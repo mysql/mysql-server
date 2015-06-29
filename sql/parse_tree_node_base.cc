@@ -16,12 +16,36 @@
 #include "my_config.h"
 #include "parse_tree_node_base.h"
 #include "sql_class.h"
+#include "sql_parse.h"
 
 Parse_context::Parse_context(THD *thd, st_select_lex *select)
 : thd(thd),
   mem_root(thd->mem_root),
   select(select)
 {}
+
+
+bool Parse_tree_node::contextualize(Parse_context *pc)
+{
+#ifndef DBUG_OFF
+  if (transitional)
+  {
+    DBUG_ASSERT(contextualized);
+    return false;
+  }
+#endif//DBUG_OFF
+
+  uchar dummy;
+  if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy))
+    return true;
+
+#ifndef DBUG_OFF
+  DBUG_ASSERT(!contextualized);
+  contextualized= true;
+#endif//DBUG_OFF
+
+  return false;
+}
 
 
 /**

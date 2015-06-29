@@ -31,6 +31,7 @@
 #include "parse_tree_helpers.h" // PT_item_list
 #include "sql_class.h"          // THD
 #include "sql_optimizer.h"      // JOIN
+#include "sql_parse.h"          // check_stack_overrun
 #include "sql_time.h"           // str_to_datetime
 
 #include <algorithm>

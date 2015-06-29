@@ -39,6 +39,12 @@ SET(MY_C_WARNING_FLAGS
 SET(MY_CXX_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
 
+# Extra flags not supported on all versions
+MY_ADD_C_WARNING_FLAG("Wmissing-format-attribute")
+MY_ADD_CXX_WARNING_FLAG("Wmissing-format-attribute")
+# Only for C++ as C code has some macro usage that is difficult to avoid
+MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
+
 # Turn on extra Clang warnings in maintainer mode
 IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)
   MY_ADD_C_WARNING_FLAG("Wconditional-uninitialized")

@@ -59,16 +59,6 @@ typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct user_conn USER_CONN;
 typedef struct st_mysql_lock MYSQL_LOCK;
 
-/**
-  The meat of thd_proc_info(THD*, char*), a macro that packs the last
-  three calling-info parameters.
-*/
-extern "C"
-const char *set_thd_proc_info(MYSQL_THD thd_arg, const char *info,
-                              const char *calling_func,
-                              const char *calling_file,
-                              const unsigned int calling_line);
-
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
 

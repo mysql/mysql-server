@@ -90,10 +90,6 @@ struct Parse_context {
 };
 
 
-// defined in sql_parse.cc:
-bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
-
-
 /**
   Base class for parse tree nodes
 */
@@ -136,31 +132,11 @@ public:
     Do all context-sensitive things and mark the node as contextualized
 
     @param      pc      current parse context
-    
+
     @retval     false   success
     @retval     true    syntax/OOM/etc error
   */
-  virtual bool contextualize(Parse_context *pc)
-  {
-#ifndef DBUG_OFF
-    if (transitional)
-    {
-      DBUG_ASSERT(contextualized);
-      return false;
-    }
-#endif//DBUG_OFF
-
-    uchar dummy;
-    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy))
-      return true;
-
-#ifndef DBUG_OFF
-    DBUG_ASSERT(!contextualized);
-    contextualized= true;
-#endif//DBUG_OFF
-
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 
   /**
    Intermediate version of the contextualize() function

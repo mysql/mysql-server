@@ -235,7 +235,8 @@ my_win_is_console_cached(FILE *file)
 #define MY_PRINT_CTRL 16  /* Replace TAB, NL, CR to "\t", "\n", "\r" */
 
 void tee_write(FILE *file, const char *s, size_t slen, int flags);
-void tee_fprintf(FILE *file, const char *fmt, ...);
+void tee_fprintf(FILE *file, const char *fmt, ...)
+  __attribute__((format(printf, 2, 3)));
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);

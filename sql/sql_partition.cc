@@ -153,7 +153,6 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
 static void set_up_range_analysis_info(partition_info *part_info);
 static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
 
-uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
 static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                                   bool left_endpoint,
                                                   bool include_endpoint);

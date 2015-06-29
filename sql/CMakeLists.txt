@@ -314,6 +314,19 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
+# Boost Geometry source has logical && with non-zero constant
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
+IF(HAVE_NO_LOGICAL_OP)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-logical-op"
+  )
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)

@@ -64,7 +64,7 @@ static store_key *get_store_key(THD *thd,
 				uint maybe_null);
 static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
+
 /**
   Handle a data manipulation query, from preparation through cleanup
 

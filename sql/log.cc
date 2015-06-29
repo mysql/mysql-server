@@ -2050,7 +2050,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;
 
-  DBUG_ASSERT(level >= MY_ERROR_LEVEL || level <= MY_INFORMATION_LEVEL);
+  DBUG_ASSERT(level >= MY_ERROR_LEVEL && level <= MY_INFORMATION_LEVEL);
 
   switch (level)
   {

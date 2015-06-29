@@ -80,13 +80,10 @@ void mysql_reset_thd_for_next_command(THD *thd);
 void create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
-void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(THD *thd,COM_DATA *com_data,
                       enum enum_server_command command);
-bool append_file_to_dir(THD *thd, const char **filename_ptr,
-                        const char *table_name);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 void execute_init_command(THD *thd, LEX_STRING *init_command,

@@ -452,7 +452,8 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, size_t len)
   
   switch (state) {
   case 0:
-    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'", len, attr);
+    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'",
+                        (int)len, attr);
     break;
 
   case _CS_CHARSET:

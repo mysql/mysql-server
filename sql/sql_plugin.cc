@@ -111,9 +111,6 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
 
-extern int initialize_audit_plugin(st_plugin_int *plugin);
-extern int finalize_audit_plugin(st_plugin_int *plugin);
-
 extern int initialize_rewrite_pre_parse_plugin(st_plugin_int *plugin);
 extern int initialize_rewrite_post_parse_plugin(st_plugin_int *plugin);
 extern int finalize_rewrite_plugin(st_plugin_int *plugin);

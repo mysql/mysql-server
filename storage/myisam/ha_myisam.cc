@@ -1226,7 +1226,7 @@ int ha_myisam::assign_to_keycache(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name=    table->s->db.str;
     param.table_name= table->s->table_name.str;
     param.testflag= 0;
-    mi_check_print_error(&param, errmsg);
+    mi_check_print_error(&param, "%s", errmsg);
   }
   DBUG_RETURN(error);
 }
@@ -1290,7 +1290,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
     param.db_name=    table->s->db.str;
     param.table_name= table->s->table_name.str;
     param.testflag=   0;
-    mi_check_print_error(&param, errmsg);
+    mi_check_print_error(&param, "%s", errmsg);
     DBUG_RETURN(error);
   }
 }
@@ -2142,7 +2142,6 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-extern int mi_panic(enum ha_panic_function flag);
 int myisam_panic(handlerton *hton, ha_panic_function flag)
 {
   return mi_panic(flag);

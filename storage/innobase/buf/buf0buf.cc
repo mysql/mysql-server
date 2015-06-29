@@ -1486,6 +1486,10 @@ buf_page_realloc(
 	return(true); /* free_list was enough */
 }
 
+
+static void buf_resize_status(const char* fmt, ...)
+	__attribute__((format(printf, 1, 2)));
+
 /** Sets the global variable that feeds MySQL's innodb_buffer_pool_resize_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3).

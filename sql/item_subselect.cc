@@ -2965,7 +2965,6 @@ void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
 }
 
 int read_first_record_seq(QEP_TAB *tab);
-int rr_sequential(READ_RECORD *info);
 
 bool subselect_single_select_engine::exec()
 {

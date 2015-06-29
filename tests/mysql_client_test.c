@@ -27,6 +27,9 @@
 #include "mysql_client_fw.c"
 #include "mysql/service_my_snprintf.h"
 
+static void mct_log(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
+
 /* Query processing */
 
 static void client_query()
@@ -471,7 +474,7 @@ void mct_start_logging(const char *test_case_name)
   }
 }
 
-void mct_log(const char *format, ...)
+static void mct_log(const char *format, ...)
 {
   va_list args;
   va_start(args, format);

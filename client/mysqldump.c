@@ -589,6 +589,8 @@ static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
+static void verbose_msg(const char *fmt, ...)
+  __attribute__((format(printf,1,2)));
 
 
 /*
