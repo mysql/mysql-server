@@ -2032,7 +2032,9 @@ public:
   }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
-  String *check_well_formed_result(String *str, bool send_error= 0);
+  String *check_well_formed_result(String *str,
+                                   bool send_error,
+                                   bool truncate);
   bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs); 
 
   /*
@@ -3439,6 +3441,11 @@ protected:
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
+    /*
+      Check if the string has any character that can't be
+      interpreted using the relevant charset.
+    */
+    check_well_formed_result(&str_value, false, false);
   }
 public:
   /* Create from a string, set name from the string itself. */

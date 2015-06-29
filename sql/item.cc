@@ -6077,44 +6077,54 @@ enum_field_types Item::field_type() const
 /**
   Verifies that the input string is well-formed according to its character set.
   @param send_error   If true, call my_error if string is not well-formed.
-
-  Will truncate input string if it is not well-formed.
+  @param truncate     If true, set to null/truncate if not well-formed.
 
   @return
   If well-formed: input string.
   If not well-formed:
-    if strict mode: NULL pointer and we set this Item's value to NULL
-    if not strict mode: input string truncated up to last good character
+    if truncate is true and strict mode:     NULL pointer and we set this
+                                             Item's value to NULL.
+    if truncate is true and not strict mode: input string truncated up to
+                                             last good character.
+    if truncate is false:                    input string is returned.
  */
-String *Item::check_well_formed_result(String *str, bool send_error)
+String *Item::check_well_formed_result(String *str,
+                                       bool send_error,
+                                       bool truncate)
 {
   /* Check whether we got a well-formed string */
   const CHARSET_INFO *cs= str->charset();
-  int well_formed_error;
-  size_t wlen= cs->cset->well_formed_len(cs,
-                                         str->ptr(), str->ptr() + str->length(),
-                                         str->length(), &well_formed_error);
-  if (wlen < str->length())
+
+  size_t valid_length;
+  bool length_error;
+
+  if (validate_string(cs, str->ptr(), str->length(),
+                      &valid_length, &length_error))
   {
+    const char *str_end= str->ptr() + str->length();
+    const char *print_byte= str->ptr() + valid_length;
     THD *thd= current_thd;
     char hexbuf[7];
-    size_t diff= str->length() - wlen;
+    size_t diff= str_end - print_byte;
     set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (send_error)
+    octet2hex(hexbuf, print_byte, diff);
+    if (send_error && length_error)
     {
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
                cs->csname,  hexbuf);
       return 0;
     }
-    if (thd->is_strict_mode())
+    if (truncate && length_error)
     {
-      null_value= 1;
-      str= 0;
-    }
-    else
-    {
-      str->length(wlen);
+      if (thd->is_strict_mode())
+      {
+        null_value= 1;
+        str= 0;
+      }
+      else
+      {
+        str->length(valid_length);
+      }
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_INVALID_CHARACTER_STRING,

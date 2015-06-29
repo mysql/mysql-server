@@ -529,7 +529,7 @@ public:
 
     set_repertoire_from_value();
     set_cs_specified(TRUE);
-    return check_well_formed_result(&str_value, TRUE) == NULL;
+    return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };
 
@@ -552,7 +552,7 @@ public:
       return true;
 
     set_cs_specified(TRUE);
-    return check_well_formed_result(&str_value, TRUE) == NULL;
+    return check_well_formed_result(&str_value, true, true) == NULL;
   }
 };
 
