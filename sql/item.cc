@@ -8266,7 +8266,15 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
     if ((*ref)->fix_fields(thd, ref))
       return true;                     /* purecov: inspected */
   }
-  return Item_direct_ref::fix_fields(thd, reference);
+  if (super::fix_fields(thd, reference))
+    return true;
+
+  if (cached_table->is_inner_table_of_outer_join())
+  {
+    maybe_null= true;
+    first_inner_table= cached_table->first_leaf_table();
+  }
+  return false;
 }
 
 /*
@@ -8348,6 +8356,87 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
   return FALSE;
 }
 
+
+longlong Item_direct_view_ref::val_int()
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return 0;
+  }
+  return super::val_int();
+}
+
+
+double Item_direct_view_ref::val_real()
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return 0.0;
+  }
+  return super::val_real();
+}
+
+
+my_decimal *Item_direct_view_ref::val_decimal(my_decimal *dec)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return NULL;
+  }
+  return super::val_decimal(dec);
+}
+
+
+String *Item_direct_view_ref::val_str(String *str)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return NULL;
+  }
+  return super::val_str(str);
+}
+
+
+bool Item_direct_view_ref::val_bool()
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return false;
+  }
+  return super::val_bool();
+}
+
+
+bool Item_direct_view_ref::is_null()
+{
+  if (has_null_row())
+    return true;
+
+  return (*ref)->is_null();
+}
+
+
+bool Item_direct_view_ref::send(Protocol *prot, String *tmp)
+{
+  if (has_null_row())
+    return prot->store_null();
+  return super::send(prot, tmp);
+}
+
+
+type_conversion_status Item_direct_view_ref::save_in_field(Field *field,
+                                                           bool no_conversions)
+{
+  if (has_null_row())
+    return set_field_to_null_with_conversions(field, no_conversions);
+
+  return super::save_in_field(field, no_conversions);
+}
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res)
 {

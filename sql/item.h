@@ -1609,6 +1609,7 @@ public:
                        bool used_alias);
 
   virtual void update_used_tables() {}
+
   virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
@@ -4085,6 +4086,8 @@ public:
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
+  typedef Item_direct_ref super;
+
 public:
   Item_direct_view_ref(Name_resolution_context *context_arg,
                        Item **item,
@@ -4092,17 +4095,16 @@ public:
                        const char *table_name_arg,
                        const char *field_name_arg,
                        TABLE_LIST *tl)
-    : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg)
+    : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg),
+      first_inner_table(NULL)
   {
     orig_table_name= table_name_arg;
     cached_table= tl;
-  }
-
-  /* Constructor need to process subselect with temporary tables (see Item) */
-  Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item)
-  {
-    cached_table= item->cached_table;
+    if (cached_table->is_inner_table_of_outer_join())
+    {
+      maybe_null= true;
+      first_inner_table= cached_table->first_leaf_table();
+    }
   }
 
   /*
@@ -4137,6 +4139,30 @@ public:
       (*ref)->set_derived_used();
     return false;
   }
+  virtual longlong val_int();
+  virtual double val_real();
+  virtual my_decimal *val_decimal(my_decimal *dec);
+  virtual String *val_str(String *str);
+  virtual bool val_bool();
+  virtual bool is_null();
+  virtual bool send(Protocol *prot, String *tmp);
+  virtual type_conversion_status save_in_field(Field *field,
+                                               bool no_conversions);
+
+private:
+  /// @return true if item is from a null-extended row from an outer join
+  bool has_null_row() const
+  {
+    // result_field is unused for this class.
+    DBUG_ASSERT(result_field == 0);
+    return first_inner_table && first_inner_table->table->null_row;
+  }
+
+  /**
+    If this column belongs to a view that is an inner table of an outer join,
+    then this field points to the first leaf table of the view, otherwise NULL.
+  */
+  TABLE_LIST *first_inner_table;
 };
 
 
