@@ -70,6 +70,20 @@ socket=$(get_option  mysqld socket "$datadir/mysql.sock")
 pidfile=$(get_option mysqld_safe pid-file "/var/run/mysql/mysqld.pid")
 logfile=$(get_option mysqld_safe log-error "/var/log/mysql/mysqld.log")
 
+install_validate_password_sql_file () {
+    local dir
+    local initfile
+    if [ -d /var/lib/mysql-files ]; then
+        dir=/var/lib/mysql-files
+    else
+        dir=/tmp
+    fi
+    initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
+    chown mysql:mysql "$initfile"
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
+    echo $initfile
+}
+
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires 
     # SELinux policy changes (in enforcing mode)
@@ -90,9 +104,11 @@ install_db () {
     # If special mysql dir is in place, skip db install 
     [ -d "$datadir/mysql" ] && return 0
 
-    # Create initial db
-    /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
+    # Create initial db and install validate password plugin
+    initfile="$(install_validate_password_sql_file)"
+    /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql --init-file="$initfile"
     ret=$?
+    rm -f "$initfile"
 
     # Generate certs if neded
     if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
