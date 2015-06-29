@@ -10843,6 +10843,7 @@ inline int64 Logical_clock::get_timestamp()
 inline int64 Logical_clock::step()
 {
   compile_time_assert(SEQ_UNINIT == 0);
+  DBUG_EXECUTE_IF("logical_clock_step_2", ++state;);
   return ++state;
 }
 
