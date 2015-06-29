@@ -600,7 +600,6 @@ let $query=
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0;
---echo # Due to bug#17023060, this result is wrong:
 eval $query;
 # Now group it by d.a:
 --error ER_WRONG_FIELD_WITH_GROUP

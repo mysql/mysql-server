@@ -865,14 +865,13 @@ ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains
 drop table t1,t2;
 create table t1(a int, b int);
 insert into t1 values(null,0),(null,1);
-# Due to bug#17023060, this result is wrong:
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0;
 a	c
 NULL	3
 NULL	3
-NULL	3
+NULL	NULL
 select d.a,d.c
 from t1 left join (select a, coalesce(a,3) as c from t1) as d
 on t1.b>0 group by d.a;
@@ -1018,7 +1017,7 @@ select t1.a, v1.b from t1 left join v1 on t1.a is not null;
 a	b
 10	2
 10	2
-NULL	2
+NULL	NULL
 select t1.a, v1.b from t1 left join v1 on t1.a is not null group by v1.a;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 drop view v1;
