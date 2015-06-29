@@ -425,7 +425,7 @@ scan_one_character(const char *s, const char *e, my_wc_t *wc)
     wc[0]= 0;
     return len;
   }
-  else if (s[0] > 0) /* 7-bit character */
+  else if ((int8) s[0] > 0) /* 7-bit character */
   {
     wc[0]= 0;
     return 1;
