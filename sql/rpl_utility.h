@@ -346,6 +346,7 @@ public:
   */
   uint32 calc_field_size(uint col, uchar *master_data) const;
 
+#ifndef MYSQL_CLIENT
   /**
     Decide if the table definition is compatible with a table.
 
@@ -366,13 +367,12 @@ public:
     @param rli   Pointer to relay log info
     @param table Pointer to table to compare with.
 
-    @param[out] tmp_table_var Pointer to temporary table for holding
+    @param[out] conv_table_var Pointer to temporary table for holding
     conversion table.
 
     @retval 1  if the table definition is not compatible with @c table
     @retval 0  if the table definition is compatible with @c table
   */
-#ifndef MYSQL_CLIENT
   bool compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
                       TABLE **conv_table_var) const;
 

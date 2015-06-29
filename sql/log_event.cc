@@ -3747,7 +3747,7 @@ Query_log_event::Query_log_event()
                       the stmt-cache.
   @param suppress_use Suppress the generation of 'USE' statements
   @param errcode      The error code of the query
-  @param ignore       Ignore user's statement, i.e. lex information, while
+  @param ignore_cmd_internals       Ignore user's statement, i.e. lex information, while
                       deciding which cache must be used.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
@@ -9794,14 +9794,14 @@ Rows_log_event::close_record_scan()
 /**
   Fetches next row. If it is a HASH_SCAN over an index, it populates
   table->record[0] with the next row corresponding to the index. If
-  the indexes are in non-contigous ranges it fetches record corresponding
+  the indexes are in non-contiguous ranges it fetches record corresponding
   to the key value in the next range.
 
-  @parms: bool first_read : signifying if this is the first time we are reading a row
+  @param first_read Signifying if this is the first time we are reading a row
           over an index.
-  @return_value: -  error code when there are no more reeords to be fetched or some other
-                    error occured,
-                 -  0 otherwise.
+  @retval error code when there are no more records to be fetched or some other
+                    error occurred
+  @retval 0 otherwise.
 */
 int
 Rows_log_event::next_record_scan(bool first_read)
@@ -9933,8 +9933,7 @@ end:
 /**
   Populates the m_distinct_keys with unique keys to be modified
   during HASH_SCAN over keys.
-  @return_value -0 success
-                -Err_code
+  @retval 0 success
 */
 int
 Rows_log_event::add_key_to_distinct_keyset()

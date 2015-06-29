@@ -590,14 +590,11 @@ can_convert_field_to(Field *field,
   If tables are compatible, but no conversions are necessary, @c
   *tmp_table_var will be set to NULL.
 
-  @param rli_arg[in]
-  Relay log info, for error reporting.
+  @param [in] rli Relay log info, for error reporting.
 
-  @param table[in]
-  Table to compare with
+  @param [in] table Table to compare with
 
-  @param tmp_table_var[out]
-  Virtual temporary table for performing conversions, if necessary.
+  @param [out] conv_table_var Virtual temporary table for performing conversions, if necessary.
 
   @retval true Master table is compatible with slave table.
   @retval false Master table is not compatible with slave table.

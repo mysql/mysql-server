@@ -4059,8 +4059,7 @@ uint Wait_for_flush::get_deadlock_weight() const
   Traverse portion of wait-for graph which is reachable through this
   table share in search for deadlocks.
 
-  @param waiting_ticket  Ticket representing wait for this share.
-  @param dvisitor        Deadlock detection visitor.
+  @param gvisitor        Deadlock detection visitor.
 
   @retval TRUE  A deadlock is found. A victim is remembered
                 by the visitor.
@@ -4156,7 +4155,6 @@ end:
   open_table_def()), which will notify the owners of the flush tickets,
   and the last one being notified will actually destroy the share.
 
-  @param mdl_context     MDL context for thread which is going to wait.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
@@ -5694,7 +5692,7 @@ void TABLE::prepare_for_position()
 
   @param thd      Thread handler (only used for duplicate handling)
   @param field    The column to be marked as used
-  @param mark_used =MARK_COLUMNS_NONE: Only update flag field, if applicable
+  @param mark      =MARK_COLUMNS_NONE: Only update flag field, if applicable
                    =MARK_COLUMNS_READ: Mark column as read
                    =MARK_COLUMNS_WRITE: Mark column as written
                    =MARK_COLUMNS_TEMP: Mark column as read, use by filesort()

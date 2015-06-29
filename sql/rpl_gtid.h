@@ -2692,10 +2692,10 @@ public:
     returns.
 
     @param thd THD object of the caller.
-    @param g Gtid to wait for.
+    @param gtid Gtid to wait for.
     @param timeout - pointer to the absolute timeout to wait for.
 
-    @retval  0 - success
+    @retval  0 success
              !=0 timeout or some failure.
   */
   int wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout= NULL);

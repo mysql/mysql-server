@@ -14,14 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @addtogroup Replication
-  @{
-
-  @file
+  @file sql/log_event.h
   
   @brief Binary log event definitions.  This includes generic code
   common to all types of log events, as well as specific code for each
   type of log event.
+
+  @addtogroup Replication
+  @{
 */
 
 
@@ -693,12 +693,12 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
-  /*
+  /**
    This function will read the common header into the buffer and
    rewind the IO_CACHE back to the beginning of the event.
 
    @param[in]         log_cache The IO_CACHE to read from.
-   @param[in/out]     header The buffer where to read the common header. This
+   @param[in,out]     header The buffer where to read the common header. This
                       buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
 
    @returns           false on success, true otherwise.
@@ -713,7 +713,7 @@ public:
     DBUG_RETURN(false);
   }
 
-  /*
+  /**
    This static function will read the event length from the common
    header that is on the IO_CACHE. Note that the IO_CACHE read position
    will not be updated.
@@ -761,7 +761,7 @@ public:
    */
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
-                            binary_log::enum_binlog_checksum_alg checksum_alg_arg,
+                            enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
                             bool* is_binlog_active= NULL);
   /*

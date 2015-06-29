@@ -182,9 +182,12 @@ public:
   friend bool Item_ref::fix_fields(THD *, Item **);
   friend void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
                                             SELECT_LEX *removed_selec);
-  friend void mark_select_range_as_dependent(THD*,
-                                             SELECT_LEX*, SELECT_LEX*,
-                                             Field*, Item*, Item_ident*);
+  friend void mark_select_range_as_dependent(THD *thd,
+                                             SELECT_LEX *last_select,
+                                             SELECT_LEX *current_sel,
+                                             Field *found_field,
+                                             Item *found_item,
+                                             Item_ident *resolved_item);
 private:
   virtual bool subq_opt_away_processor(uchar *arg);
 };

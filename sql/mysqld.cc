@@ -2486,7 +2486,6 @@ check_enough_stack_size(int recurse_level)
   Initialize one of the global date/time format variables.
 
   @param format_type    What kind of format should be supported
-  @param var_ptr    Pointer to variable that should be updated
 
   @retval
     0 ok

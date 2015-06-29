@@ -1622,7 +1622,6 @@ SELECT_LEX::simplify_joins(THD *thd,
   This function is called recursively for each join nest and/or table
   in the query block.
 
-  @param select The query block
   @param tables List of tables and join nests
 
   @return False if successful, True if failure
@@ -3463,10 +3462,10 @@ bool SELECT_LEX::setup_group(THD *thd)
 
   @param thd                  reference to the context
   @param expr                 expression to make replacement
-  @param changed[out]  returns true if item contains a replaced field item
+  @param [out] changed  returns true if item contains a replaced field item
 
   @todo
-    - TODO: Some functions are not null-preserving. For those functions
+    Some functions are not null-preserving. For those functions
     updating of the maybe_null attribute is an overkill. 
 
   @returns false if success, true if error
