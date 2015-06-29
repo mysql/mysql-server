@@ -1088,11 +1088,13 @@ static void init_check_host(void)
     acl_wild_hosts=
       new Prealloced_array<ACL_HOST_AND_IP, ACL_PREALLOC_SIZE>(key_memory_acl_mem);
 
+  size_t acl_users_size= acl_users ? acl_users->size() : 0;
+
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users->size(), 0, 0,
+                      acl_users_size, 0, 0,
                       (my_hash_get_key) check_get_key, 0, 0,
                       key_memory_acl_mem);
-  if (!allow_all_hosts)
+  if (acl_users_size && !allow_all_hosts)
   {
     for (ACL_USER *acl_user= acl_users->begin();
          acl_user != acl_users->end(); ++acl_user)
@@ -1528,6 +1530,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     {
       sql_print_error("Fatal error: mysql.user table is damaged. "
                       "Please run mysql_upgrade.");
+
+      end_read_record(&read_record_info);
       goto end;
     }
     if(user.auth_string.str)
