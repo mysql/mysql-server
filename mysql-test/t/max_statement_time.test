@@ -278,20 +278,22 @@ SET @@global.max_execution_time= 0;
 #           Execution time limit is not applicable to SELECTs of triggers.
 delimiter |;
 
+CREATE TABLE t3 (f1 int)|
+
 # Specifying MAX_EXECUTION_TIME for SELECTs of events is ignored.
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
   SELECT SLEEP(2) into @a;
   SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
-  INSERT INTO t2 VALUES(@a);
-  INSERT INTO t2 VALUES(@b);
+  INSERT INTO t3 VALUES(@a);
+  INSERT INTO t3 VALUES(@b);
 END|
 DROP TRIGGER t1_before_trigger|
 
 CREATE TRIGGER t1_before_trigger BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN
   SELECT SLEEP(2) into @a;
-  INSERT INTO t2 VALUES(@a);
+  INSERT INTO t3 VALUES(@a);
 END
 |
 
@@ -305,9 +307,9 @@ SELECT @a, @b;
 INSERT INTO t1 VALUES (1, 'string');
 #Since MAX_EXECUTION_TIME is not applicable for  SELECTs of triggers, selects of
 #triggers are not interruped so table contains 0 value.
-SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
+SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t3;
 
-DROP TABLE t1,t2;
+DROP TABLE t1,t2,t3;
 
 --echo #
 --echo # 8. Test MAX_EXECUTION_TIME precedence set at different levels.
