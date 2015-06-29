@@ -6679,9 +6679,9 @@ SHOW_VAR status_vars[]= {
 #ifndef EMBEDDED_LIBRARY
   {"Locked_connects",          (char*) &locked_account_connection_count,              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
 #endif
-  {"Max_statement_time_exceeded",   (char*) offsetof(System_status_var, max_statement_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-  {"Max_statement_time_set",        (char*) offsetof(System_status_var, max_statement_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-  {"Max_statement_time_set_failed", (char*) offsetof(System_status_var, max_statement_time_set_failed), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_execution_time_exceeded",   (char*) offsetof(System_status_var, max_execution_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_execution_time_set",        (char*) offsetof(System_status_var, max_execution_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_execution_time_set_failed", (char*) offsetof(System_status_var, max_execution_time_set_failed), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
   {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections,        SHOW_LONG,        SHOW_SCOPE_GLOBAL},
   {"Max_used_connections_time",(char*) &show_max_used_connections_time,               SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,                          SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},

@@ -260,7 +260,7 @@ struct System_variables
   Gtid_set_or_null gtid_next_list;
   ulong session_track_gtids; // see enum_session_track_gtids
 
-  ulong max_statement_time;
+  ulong max_execution_time;
 
   char *track_sysvars_ptr;
   my_bool session_track_schema;
@@ -335,9 +335,9 @@ struct System_status_var
   ulonglong bytes_received;
   ulonglong bytes_sent;
 
-  ulonglong max_statement_time_exceeded;
-  ulonglong max_statement_time_set;
-  ulonglong max_statement_time_set_failed;
+  ulonglong max_execution_time_exceeded;
+  ulonglong max_execution_time_set;
+  ulonglong max_execution_time_set_failed;
 
   /* Number of statements sent from the client. */
   ulonglong questions;

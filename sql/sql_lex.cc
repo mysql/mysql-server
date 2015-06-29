@@ -558,7 +558,7 @@ void LEX::reset()
   exchange= NULL;
   is_set_password_sql= false;
   mark_broken(false);
-  max_statement_time= 0;
+  max_execution_time= 0;
   parse_gcol_expr= false;
   opt_hints_global= NULL;
 }
@@ -4561,7 +4561,6 @@ bool st_select_lex::validate_outermost_option(LEX *lex,
           SELECT_BIG_RESULT
           OPTION_BUFFER_RESULT
           OPTION_FOUND_ROWS
-          SELECT_MAX_STATEMENT_TIME
           OPTION_TO_QUERY_CACHE
   DELETE: OPTION_QUICK
           LOW_PRIORITY
@@ -4582,7 +4581,6 @@ bool st_select_lex::validate_base_options(LEX *lex, ulonglong options_arg) const
                                 SELECT_BIG_RESULT |
                                 OPTION_BUFFER_RESULT |
                                 OPTION_FOUND_ROWS |
-                                SELECT_MAX_STATEMENT_TIME |
                                 OPTION_TO_QUERY_CACHE)));
 
   if (options_arg & SELECT_DISTINCT &&
@@ -4600,26 +4598,6 @@ bool st_select_lex::validate_base_options(LEX *lex, ulonglong options_arg) const
   if (options_arg & OPTION_FOUND_ROWS &&
       validate_outermost_option(lex, "SQL_CALC_FOUND_ROWS"))
     return true;
-
-  if (options_arg & SELECT_MAX_STATEMENT_TIME)
-  {
-    /*
-      MAX_STATEMENT_TIME is applicable to SELECT query and that too
-      only for the TOP LEVEL SELECT statement.
-      MAX_STATEMENT_TIME is not appliable to SELECTs of stored routines.
-    */
-    if (validate_outermost_option(lex, "MAX_STATEMENT_TIME"))
-      return true;
-    if (lex->sphead ||
-        (lex->sql_command == SQLCOM_CREATE_TABLE   ||
-         lex->sql_command == SQLCOM_CREATE_VIEW    ||
-         lex->sql_command == SQLCOM_REPLACE_SELECT ||
-         lex->sql_command == SQLCOM_INSERT_SELECT))
-    {
-      my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "MAX_STATEMENT_TIME");
-      return true;
-    }
-  }
 
   return false;
 }
@@ -4657,8 +4635,6 @@ bool Query_options::merge(const Query_options &a,
     }
   }
   sql_cache= b.sql_cache;
-  max_statement_time= b.max_statement_time ? b.max_statement_time
-                                           : a.max_statement_time;
   return false;
 }
 
@@ -4699,8 +4675,6 @@ bool Query_options::save_to(Parse_context *pc)
   if (pc->select->validate_base_options(lex, options))
     return true;
   pc->select->set_base_options(options);
-  if (options & SELECT_MAX_STATEMENT_TIME)
-    lex->max_statement_time= max_statement_time;
 
   return false;
 }

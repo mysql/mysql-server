@@ -900,8 +900,8 @@ static my_bool deny_updates_if_read_only_option(THD *thd,
 */
 static inline bool is_timer_applicable_to_statement(THD *thd)
 {
-  bool timer_value_is_set= (thd->lex->max_statement_time ||
-                            thd->variables.max_statement_time);
+  bool timer_value_is_set= (thd->lex->max_execution_time ||
+                            thd->variables.max_execution_time);
 
   /**
     Following conditions are checked,
@@ -929,10 +929,10 @@ static inline bool is_timer_applicable_to_statement(THD *thd)
           applied to this particular statement.
 
 */
-static inline ulong get_max_statement_time(THD *thd)
+static inline ulong get_max_execution_time(THD *thd)
 {
-  return (thd->lex->max_statement_time ? thd->lex->max_statement_time :
-                                        thd->variables.max_statement_time);
+  return (thd->lex->max_execution_time ? thd->lex->max_execution_time :
+                                        thd->variables.max_execution_time);
 }
 
 
@@ -945,7 +945,7 @@ static inline ulong get_max_statement_time(THD *thd)
 */
 static inline bool set_statement_timer(THD *thd)
 {
-  ulong max_statement_time= get_max_statement_time(thd);
+  ulong max_execution_time= get_max_execution_time(thd);
 
   /**
     whether timer can be set for the statement or not should be checked before
@@ -954,13 +954,13 @@ static inline bool set_statement_timer(THD *thd)
   DBUG_ASSERT(is_timer_applicable_to_statement(thd) == true);
   DBUG_ASSERT(thd->timer == NULL);
 
-  thd->timer= thd_timer_set(thd, thd->timer_cache, max_statement_time);
+  thd->timer= thd_timer_set(thd, thd->timer_cache, max_execution_time);
   thd->timer_cache= NULL;
 
   if (thd->timer)
-    thd->status_var.max_statement_time_set++;
+    thd->status_var.max_execution_time_set++;
   else
-    thd->status_var.max_statement_time_set_failed++;
+    thd->status_var.max_execution_time_set_failed++;
 
   return thd->timer;
 }

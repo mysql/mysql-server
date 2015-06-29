@@ -487,7 +487,6 @@ public:
     if (select->validate_base_options(thd->lex, opt_query_spec_options))
       return true;
     select->set_base_options(opt_query_spec_options);
-    DBUG_ASSERT(!(opt_query_spec_options & SELECT_MAX_STATEMENT_TIME));
     if (opt_query_spec_options & SELECT_HIGH_PRIORITY)
     {
       Yacc_state *yyps= &thd->m_parser_state->m_yacc;
