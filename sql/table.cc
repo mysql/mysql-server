@@ -4553,9 +4553,12 @@ bool TABLE_LIST::create_field_translation(THD *thd)
 
   while ((item= it++))
   {
-    // All columns from inner side of an outer join are nullable
-    if (is_inner_table_of_outer_join())
-      item->maybe_null= true;
+    /*
+      Notice that all items keep their nullability here.
+      All items are later wrapped within Item_direct_view objects.
+      If the view is used on the inner side of an outer join, these
+      objects will reflect the correct nullability of the selected expressions.
+    */
     transl[field_count].name= item->item_name.ptr();
     transl[field_count++].item= item;
   }

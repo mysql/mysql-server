@@ -3806,12 +3806,12 @@ void Item_func_case::fix_length_and_dec()
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
 
-  /*
-    fix_fields() does not handle ELSE expression automatically,
-    as it's not in the args[] list. Check its maybe_null value.
-  */
-  if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
-    maybe_null=1;
+  // Determine nullability based on THEN and ELSE expressions:
+
+  maybe_null= else_expr_num == -1 || args[else_expr_num]->maybe_null;
+
+  for (Item **arg= args + 1; arg < args + arg_count; arg+= 2)
+    maybe_null|= (*arg)->maybe_null;
 
   /*
     Aggregate all THEN and ELSE expression types
