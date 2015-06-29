@@ -521,7 +521,6 @@ extern PSI_memory_key key_memory_Row_data_memory_memory;
 extern PSI_memory_key key_memory_errmsgs;
 extern PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 extern PSI_memory_key key_memory_Event_scheduler_scheduler_param;
-extern PSI_memory_key key_memory_Gcalc_dyn_list_block;
 extern PSI_memory_key key_memory_Gis_read_stream_err_msg;
 extern PSI_memory_key key_memory_Geometry_objects_data;
 extern PSI_memory_key key_memory_host_cache_hostname;

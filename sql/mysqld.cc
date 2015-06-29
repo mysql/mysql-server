@@ -8928,7 +8928,6 @@ PSI_memory_key key_memory_MYSQL_RELAY_LOG_basename;
 PSI_memory_key key_memory_MYSQL_RELAY_LOG_index;
 PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_errmsgs;
-PSI_memory_key key_memory_Gcalc_dyn_list_block;
 PSI_memory_key key_memory_Gis_read_stream_err_msg;
 PSI_memory_key key_memory_Geometry_objects_data;
 PSI_memory_key key_memory_MYSQL_LOCK;
@@ -9069,7 +9068,6 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_MYSQL_RELAY_LOG_index, "MYSQL_RELAY_LOG::index", 0},
   { &key_memory_rpl_filter, "rpl_filter memory", 0},
   { &key_memory_errmsgs, "errmsgs", 0},
-  { &key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0},
   { &key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0},
   { &key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0},
   { &key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0},
