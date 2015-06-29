@@ -192,8 +192,8 @@ public:
 
   bool fix_fields(THD *, Item **ref);
   bool fix_func_arg(THD *, Item **arg);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   table_map used_tables() const;
   /**
      Returns the pseudo tables depended upon in order to evaluate this

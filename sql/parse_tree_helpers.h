@@ -19,7 +19,7 @@
 #include "item_func.h"      // Item etc.
 #include "set_var.h"        // enum_var_type
 
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 
 /**
   Base class for parse-time Item objects

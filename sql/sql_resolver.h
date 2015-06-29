@@ -23,7 +23,7 @@ class Item_in_subselect;
 class THD;
 struct TABLE;
 struct TABLE_LIST;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 typedef struct st_order ORDER;
 template <typename Element_type> class Bounds_checked_array;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;

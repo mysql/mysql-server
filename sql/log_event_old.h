@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,7 +159,7 @@ protected:
   Old_rows_log_event(THD*, TABLE*, ulong table_id,
                      MY_BITMAP const *cols, bool is_transactional);
 #endif
-  Old_rows_log_event(const char *row_data, uint event_len,
+  Old_rows_log_event(const char *buf, uint event_len,
                      Log_event_type event_type,
                      const Format_description_event *description_event);
 

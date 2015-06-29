@@ -1394,7 +1394,7 @@ bool Explain_join::explain_table_name()
 bool Explain_join::explain_select_type()
 {
   if (tab && sj_is_materialize_strategy(tab->get_sj_strategy()))
-    fmt->entry()->col_select_type.set(st_select_lex::SLT_MATERIALIZED);
+    fmt->entry()->col_select_type.set(SELECT_LEX::SLT_MATERIALIZED);
   else
     return Explain::explain_select_type();
   return false;

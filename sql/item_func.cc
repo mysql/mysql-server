@@ -276,8 +276,8 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
   return false;
 }
 
-void Item_func::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select)
+void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
+                                  SELECT_LEX *removed_select)
 {
   Item **arg,**arg_end;
 

@@ -5650,7 +5650,22 @@ err:
   null_value= 1;
   return 0;
 }
-#endif
+
+#else /* HAVE_COMPRESS */
+
+String *Item_func_compress::val_str(String *str)
+{
+  null_value= 1;
+  return NULL;
+}
+
+String *Item_func_uncompress::val_str(String *str)
+{
+  null_value= 1;
+  return NULL;
+}
+
+#endif /* not HAVE_COMPRESS */
 
 /*
   UUID, as in

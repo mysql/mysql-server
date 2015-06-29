@@ -1995,7 +1995,6 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          HAVE_REPLICATION \
                          HAVE_COMPRESS \
                          OPTIMIZER_TRACE \
-                         MYSQL_CLIENT \
                          MYSQL_SERVER \
                          HAVE_PSI_INTERFACE \
                          HAVE_PSI_1 \

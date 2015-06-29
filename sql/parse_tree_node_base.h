@@ -25,7 +25,7 @@
 #include "parse_location.h"
 
 class THD;
-class st_select_lex;
+class SELECT_LEX;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
@@ -84,9 +84,9 @@ typedef YYLTYPE POS;
 struct Parse_context {
   THD * const thd;              ///< Current thread handler
   MEM_ROOT *mem_root;           ///< Current MEM_ROOT
-  st_select_lex * select;       ///< Current SELECT_LEX object
+  SELECT_LEX * select;          ///< Current SELECT_LEX object
 
-  Parse_context(THD *thd, st_select_lex *select);
+  Parse_context(THD *thd, SELECT_LEX *select);
 };
 
 

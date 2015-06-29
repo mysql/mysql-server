@@ -67,7 +67,7 @@ static Item* handle_sql2003_note184_exception(Parse_context *pc, Item* left,
     if (expr2->substype() == Item_subselect::SINGLEROW_SUBS)
     {
       Item_singlerow_subselect *expr3 = (Item_singlerow_subselect*) expr2;
-      st_select_lex *subselect;
+      SELECT_LEX *subselect;
 
       /*
         Implement the mandated change, by altering the semantic tree:

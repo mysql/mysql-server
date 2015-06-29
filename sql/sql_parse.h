@@ -33,7 +33,7 @@ class THD;
 union COM_DATA;
 typedef struct st_lex_user LEX_USER;
 typedef struct st_order ORDER;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 
 
 extern "C" int test_if_data_home_dir(const char *dir);

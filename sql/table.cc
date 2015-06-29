@@ -4388,7 +4388,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
                             const char *alias,
                             TABLE_LIST *embedding,
                             List<TABLE_LIST> *belongs_to,
-                            class st_select_lex *select)
+                            SELECT_LEX *select)
 {
   DBUG_ASSERT(belongs_to && select);
 
@@ -4425,7 +4425,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   @return false if success, true if error
 */
 
-bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
+bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 {
   DBUG_ASSERT(nested_join->join_list.is_empty());
 
@@ -5284,7 +5284,7 @@ Item *Field_iterator_table::create_item(THD *thd)
     code in Item_field::fix_fields().
     */
   if (item && !thd->lex->in_sum_func &&
-      select->resolve_place == st_select_lex::RESOLVE_SELECT_LIST)
+      select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST)
   {
     if (select->with_sum_func && !select->group_list.elements)
       item->maybe_null= true;

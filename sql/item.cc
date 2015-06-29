@@ -943,9 +943,9 @@ void Item_ident::cleanup()
 bool Item_ident::remove_dependence_processor(uchar * arg)
 {
   DBUG_ENTER("Item_ident::remove_dependence_processor");
-  if (depended_from == (st_select_lex *) arg)
+  if (depended_from == (SELECT_LEX *) arg)
     depended_from= 0;
-  context= &((st_select_lex *) arg)->context;
+  context= &((SELECT_LEX *) arg)->context;
   DBUG_RETURN(0);
 }
 
@@ -3076,8 +3076,8 @@ table_map Item_field::resolved_used_tables() const
   return table_ref->map();
 }
 
-void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                   st_select_lex *removed_select)
+void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
+                                   SELECT_LEX *removed_select)
 {
   /*
     Some field items may be created for use in execution only, without
@@ -3119,7 +3119,7 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
       Refresh used_tables information for subqueries between the definition
       scope and resolution scope of the field item reference.
     */
-    st_select_lex *child_select= context->select_lex;
+    SELECT_LEX *child_select= context->select_lex;
 
     while (child_select->outer_select() != depended_from)
     {
@@ -5750,7 +5750,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   fixed= 1;
   if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select()->resolve_place ==
-      st_select_lex::RESOLVE_SELECT_LIST)
+      SELECT_LEX::RESOLVE_SELECT_LIST)
   {
     /*
       If (1) aggregation (2) without grouping, we may have to return a result
@@ -8313,8 +8313,8 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   return err;
 }
 
-void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select)
+void Item_outer_ref::fix_after_pullout(SELECT_LEX *parent_select,
+                                       SELECT_LEX *removed_select)
 {
   /*
     If this assertion holds, we need not call fix_after_pullout() on both
@@ -8325,8 +8325,8 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
   Item_ref::fix_after_pullout(parent_select, removed_select);
 }
 
-void Item_ref::fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+void Item_ref::fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
 {
   (*ref)->fix_after_pullout(parent_select, removed_select);
 

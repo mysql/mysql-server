@@ -572,7 +572,7 @@ class Dbug_table_list_dumper
 public:
   void dump_one_struct(TABLE_LIST *tbl);
 
-  int dump_graph(st_select_lex *select_lex, TABLE_LIST *first_leaf);
+  int dump_graph(SELECT_LEX *select_lex, TABLE_LIST *first_leaf);
 };
 
 
@@ -642,7 +642,7 @@ void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl)
 }
 
 
-int Dbug_table_list_dumper::dump_graph(st_select_lex *select_lex, 
+int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
                                        TABLE_LIST *first_leaf)
 {
   DBUG_ENTER("Dbug_table_list_dumper::dump_graph");

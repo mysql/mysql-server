@@ -129,7 +129,7 @@ bool Item_sum::init_sum_func_check(THD *thd)
     If the context conditions are not met the method reports an error.
     If the set function is aggregated in some outer subquery the method
     adds it to the chain of items for such set functions that is attached
-    to the the st_select_lex structure for this subquery.
+    to the the SELECT_LEX structure for this subquery.
 
     A number of designated members of the object are used to check the
     conditions. They are specified in the comment before the Item_sum
@@ -311,7 +311,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       Mark Item_subselect(s) as containing aggregate function all the way up
       to aggregate function's calculation context.
       Note that we must not mark the Item of calculation context itself
-      because with_sum_func on the calculation context st_select_lex is
+      because with_sum_func on the calculation context SELECT_LEX is
       already set above.
 
       with_sum_func being set for an Item means that this Item refers 
@@ -319,7 +319,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
       or through intermediate items to an aggregate function that is calculated
       in a context "outside" of the Item (e.g. in the current or outer select).
 
-      with_sum_func being set for an st_select_lex means that this query block
+      with_sum_func being set for an SELECT_LEX means that this query block
       has aggregate functions directly referenced (i.e. not through a subquery).
     */
     for (SELECT_LEX *sl= thd->lex->current_select(); 
@@ -398,7 +398,7 @@ void Item_sum::mark_as_sum_func()
 }
 
 
-void Item_sum::mark_as_sum_func(st_select_lex *cur_select)
+void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select)
 {
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;

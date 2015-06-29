@@ -6048,7 +6048,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
   To know the status of other channels, performance schema replication
   tables comes to the rescue.
 
-  @TODO: any warning needed if multiple channels exist to request
+  @todo  Any warning needed if multiple channels exist to request
          the users to start using replication performance schema
          tables.
 */
@@ -7935,8 +7935,6 @@ bool is_secure_file_path(char *path)
 
   1. If path normalization fails
   2. If it can not get stats of the directory
-
-  @params NONE
 
   Assumptions :
   1. Data directory path has been normalized

@@ -32,7 +32,7 @@
 #include "parse_tree_nodes.h"    // PT_subselect
 #include "sql_class.h"           // THD
 #include "sql_join_buffer.h"     // JOIN_CACHE
-#include "sql_lex.h"             // st_select_lex
+#include "sql_lex.h"             // SELECT_LEX
 #include "sql_optimizer.h"       // JOIN
 #include "sql_parse.h"           // check_stack_overrun
 #include "sql_test.h"            // print_where
@@ -71,7 +71,7 @@ Item_subselect::Item_subselect(const POS &pos):
 }
 
 
-void Item_subselect::init(st_select_lex *select_lex,
+void Item_subselect::init(SELECT_LEX *select_lex,
 			  Query_result_subquery *result)
 {
   /*
@@ -601,8 +601,8 @@ bool Item_subselect::exec()
   when these expressions are resolved.
 */
 
-void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select)
+void Item_subselect::fix_after_pullout(SELECT_LEX *parent_select,
+                                       SELECT_LEX *removed_select)
 
 {
   /* Clear usage information for this subquery predicate object */
@@ -803,7 +803,7 @@ bool Query_result_scalar_subquery::send_data(List<Item> &items)
 }
 
 
-Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
+Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
   :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
@@ -813,11 +813,11 @@ Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
   DBUG_VOID_RETURN;
 }
 
-st_select_lex *
+SELECT_LEX *
 Item_singlerow_subselect::invalidate_and_restore_select_lex()
 {
   DBUG_ENTER("Item_singlerow_subselect::invalidate_and_restore_select_lex");
-  st_select_lex *result= unit->first_select();
+  SELECT_LEX *result= unit->first_select();
 
   DBUG_ASSERT(result);
 
@@ -1009,7 +1009,7 @@ bool Query_result_max_min_subquery::cmp_str()
 
 Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
                                              Item_subselect *parent,
-                                             st_select_lex *select_lex,
+                                             SELECT_LEX *select_lex,
                                              bool max_arg,
                                              bool ignore_nulls)
   :Item_singlerow_subselect(), was_values(false)
@@ -1351,7 +1351,7 @@ bool Query_result_exists_subquery::send_data(List<Item> &items)
 }
 
 
-Item_exists_subselect::Item_exists_subselect(st_select_lex *select):
+Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select):
   Item_subselect(), value(FALSE), exec_method(EXEC_UNSPECIFIED),
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
@@ -1385,7 +1385,7 @@ bool Item_in_subselect::test_limit()
 }
 
 Item_in_subselect::Item_in_subselect(Item * left_exp,
-				     st_select_lex *select):
+				     SELECT_LEX *select):
   Item_exists_subselect(), left_expr(left_exp), left_expr_cache(NULL),
   left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
@@ -1434,7 +1434,7 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res)
 
 Item_allany_subselect::Item_allany_subselect(Item * left_exp,
                                              chooser_compare_func_creator fc,
-					     st_select_lex *select,
+					     SELECT_LEX *select,
 					     bool all_arg)
   :Item_in_subselect(), func_creator(fc), all(all_arg)
 {
@@ -2631,8 +2631,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 }
 
 
-void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select)
+void Item_in_subselect::fix_after_pullout(SELECT_LEX *parent_select,
+                                          SELECT_LEX *removed_select)
 {
   Item_subselect::fix_after_pullout(parent_select, removed_select);
 
@@ -2729,8 +2729,8 @@ bool Item_subselect::subq_opt_away_processor(uchar *arg)
 /**
    Clean up after removing the subquery from the item tree.
 
-   Call st_select_lex_unit::exclude_tree() to unlink it from its
-   master and to unlink direct st_select_lex children from
+   Call SELECT_LEX_UNIT::exclude_tree() to unlink it from its
+   master and to unlink direct SELECT_LEX children from
    all_selects_list.
 
    Don't unlink subqueries that are not descendants of the starting
@@ -2750,9 +2750,9 @@ bool Item_subselect::clean_up_after_removal(uchar *arg)
     unit->cleanup(true);
   } 
 
-  st_select_lex *root=
-    static_cast<st_select_lex*>(static_cast<void*>(arg));
-  st_select_lex *sl= unit->outer_select();
+  SELECT_LEX *root=
+    static_cast<SELECT_LEX*>(static_cast<void*>(arg));
+  SELECT_LEX *sl= unit->outer_select();
 
   /*
     While traversing the item tree with Item::walk(), Item_refs may
@@ -2817,7 +2817,7 @@ void subselect_engine::set_thd_for_result()
 
 
 subselect_single_select_engine::
-subselect_single_select_engine(st_select_lex *select,
+subselect_single_select_engine(SELECT_LEX *select,
 			       Query_result_interceptor *result_arg,
 			       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg), select_lex(select)
@@ -2844,7 +2844,7 @@ void subselect_union_engine::cleanup()
 }
 
 
-subselect_union_engine::subselect_union_engine(st_select_lex_unit *u,
+subselect_union_engine::subselect_union_engine(SELECT_LEX_UNIT *u,
 					       Query_result_interceptor *result_arg,
 					       Item_subselect *item_arg)
   :subselect_engine(item_arg, result_arg)

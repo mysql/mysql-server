@@ -18,7 +18,7 @@
 #include "sql_class.h"
 #include "sql_parse.h"
 
-Parse_context::Parse_context(THD *thd, st_select_lex *select)
+Parse_context::Parse_context(THD *thd, SELECT_LEX *select)
 : thd(thd),
   mem_root(thd->mem_root),
   select(select)

@@ -5429,15 +5429,15 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
     \#	Pointer to TABLE_LIST element added to the total table list
 */
 
-TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
-					     Table_ident *table,
-					     LEX_STRING *alias,
-					     ulong table_options,
-					     thr_lock_type lock_type,
-					     enum_mdl_type mdl_type,
-					     List<Index_hint> *index_hints_arg,
-                                             List<String> *partition_names,
-                                             LEX_STRING *option)
+TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
+                                          Table_ident *table,
+                                          LEX_STRING *alias,
+                                          ulong table_options,
+                                          thr_lock_type lock_type,
+                                          enum_mdl_type mdl_type,
+                                          List<Index_hint> *index_hints_arg,
+                                          List<String> *partition_names,
+                                          LEX_STRING *option)
 {
   TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref= NULL; /* The table preceding the current one. */
@@ -5613,7 +5613,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     The function initializes a structure of the TABLE_LIST type
     for a nested join. It sets up its nested join list as empty.
     The created structure is added to the front of the current
-    join list in the st_select_lex object. Then the function
+    join list in the SELECT_LEX object. Then the function
     changes the current nest level for joins to refer to the newly
     created empty list after having saved the info on the old level
     in the initialized structure.
@@ -5626,7 +5626,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     1   otherwise
 */
 
-bool st_select_lex::init_nested_join(THD *thd)
+bool SELECT_LEX::init_nested_join(THD *thd)
 {
   DBUG_ENTER("init_nested_join");
 
@@ -5658,7 +5658,7 @@ bool st_select_lex::init_nested_join(THD *thd)
     - 0, otherwise
 */
 
-TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
+TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
 {
   TABLE_LIST *ptr;
   NESTED_JOIN *nested_join;
@@ -5700,7 +5700,7 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     \#  Pointer to TABLE_LIST element created for the new nested join
 */
 
-TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
+TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)
 {
   DBUG_ENTER("nest_last_join");
 
@@ -5739,7 +5739,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
   Add a table to the current join list.
 
     The function puts a table in front of the current join list
-    of st_select_lex object.
+    of SELECT_LEX object.
     Thus, joined tables are put into this list in the reverse order
     (the most outer join operation follows first).
 
@@ -5749,7 +5749,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
     None
 */
 
-void st_select_lex::add_joined_table(TABLE_LIST *table)
+void SELECT_LEX::add_joined_table(TABLE_LIST *table)
 {
   DBUG_ENTER("add_joined_table");
   join_list->push_front(table);
@@ -5788,7 +5788,7 @@ void st_select_lex::add_joined_table(TABLE_LIST *table)
     - 0, otherwise
 */
 
-TABLE_LIST *st_select_lex::convert_right_join()
+TABLE_LIST *SELECT_LEX::convert_right_join()
 {
   TABLE_LIST *tab2= join_list->pop();
   TABLE_LIST *tab1= join_list->pop();
@@ -5813,7 +5813,7 @@ TABLE_LIST *st_select_lex::convert_right_join()
     Set type of metadata lock to request according to lock_type.
 */
 
-void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
+void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type)
 {
   bool for_update= lock_type >= TL_READ_NO_INSERT;
   enum_mdl_type mdl_type= mdl_type_for_dml(lock_type);
@@ -5858,7 +5858,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
     0     on success
 */
 
-bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
+bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd_arg)
 {
   SELECT_LEX *first_sl= first_select();
   DBUG_ENTER("add_fake_select_lex");

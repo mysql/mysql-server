@@ -26,7 +26,7 @@
 class JOIN;
 class sp_name;
 struct System_status_var;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
 
