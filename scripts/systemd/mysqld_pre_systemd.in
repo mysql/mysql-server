@@ -27,6 +27,20 @@ get_option () {
     echo $ret
 }
 
+install_validate_password_sql_file () {
+    local dir
+    local initfile
+    if [ -d /var/lib/mysql-files ]; then
+        dir=/var/lib/mysql-files
+    else
+        dir=/tmp
+    fi
+    initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
+    chown @MYSQLD_USER@:@MYSQLD_USER@ "$initfile"
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
+    echo $initfile
+}
+
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
     datadir=$(get_option mysqld datadir "@MYSQL_DATADIR@")
@@ -48,8 +62,10 @@ install_db () {
     # If special mysql dir is in place, skip db install
     [ -d "$datadir/mysql" ] && exit 0
 
-    # Create initial db
-    @libexecdir@/mysqld --initialize --datadir="$datadir" --user=@MYSQLD_USER@
+    # Create initial db and install validate_password plugin
+    initfile="$(install_validate_password_sql_file)"
+    @libexecdir@/mysqld --initialize --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
+    rm -f "$initfile"
 
     # Generate certs if needed
     if [ -x @bindir@/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
