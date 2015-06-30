@@ -2914,7 +2914,11 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
         (g1, g2, str_value_arg);
 
   }
-  CATCH_ALL(func_name(), had_except1= true)
+  catch (...)
+  {
+    had_except1= true;
+    handle_gis_exception(func_name());
+  }
 
   try
   {
@@ -2938,7 +2942,11 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str_value_arg->ptr()));
     bg_resbuf_mgr.free_intermediate_result_buffers();
   }
-  CATCH_ALL(func_name(), had_except2= true)
+  catch (...)
+  {
+    had_except2= true;
+    handle_gis_exception(func_name());
+  }
 
   if (had_except1 || had_except2 || null_value)
   {
