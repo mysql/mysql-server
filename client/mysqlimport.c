@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,19 +24,14 @@
 
 #include "client_priv.h"
 #include "mysql_version.h"
-#ifdef HAVE_LIBPTHREAD
-#include <my_pthread.h>
-#endif
 
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 /* Global Thread counter */
 uint counter;
-#ifdef HAVE_LIBPTHREAD
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
-#endif
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -548,7 +543,6 @@ static char *field_escape(char *to,const char *from,uint length)
 
 int exitcode= 0;
 
-#ifdef HAVE_LIBPTHREAD
 pthread_handler_t worker_thread(void *arg)
 {
   int error;
@@ -588,7 +582,6 @@ error:
 
   return 0;
 }
-#endif
 
 
 int main(int argc, char **argv)
@@ -607,7 +600,6 @@ int main(int argc, char **argv)
     return(1);
   }
 
-#ifdef HAVE_LIBPTHREAD
   if (opt_use_threads && !lock_tables)
   {
     pthread_t mainthread;            /* Thread descriptor */
@@ -661,7 +653,6 @@ int main(int argc, char **argv)
     pthread_attr_destroy(&attr);
   }
   else
-#endif
   {
     MYSQL *mysql= 0;
     if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))
