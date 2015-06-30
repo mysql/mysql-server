@@ -1474,7 +1474,11 @@ String *Item_func_validate::val_str(String *str)
   {
     isvalid= check_geometry_valid(geom);
   }
-  CATCH_ALL("ST_Validate", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_Validate");
+  }
 
   return isvalid ? swkb : error_str();
 }
@@ -1993,7 +1997,11 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
     if (!null_value)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
   }
-  CATCH_ALL("st_centroid", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_centroid");
+  }
 
   return null_value;
 }
@@ -2200,7 +2208,11 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
     if (!null_value)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
   }
-  CATCH_ALL("st_convexhull", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_convexhull");
+  }
 
   return null_value;
 }
@@ -2259,7 +2271,11 @@ String *Item_func_simplify::val_str(String *str)
         bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str->ptr()));
     }
   }
-  CATCH_ALL("ST_Simplify", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_Simplify");
+  }
 
   return str;
 }
@@ -3128,7 +3144,11 @@ bool Item_func_issimple::issimple(Geometry *g)
       break;
     }
   }
-  CATCH_ALL(func_name(), res= error_bool())
+  catch (...)
+  {
+    res= error_bool();
+    handle_gis_exception(func_name());
+  }
 
   return res;
 }
@@ -3353,7 +3373,11 @@ longlong Item_func_isvalid::val_int()
   {
     ret= check_geometry_valid(geom);
   }
-  CATCH_ALL("ST_IsValid", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_IsValid");
+  }
 
   return ret;
 }
@@ -3547,7 +3571,11 @@ double Item_func_area::bg_area(const Geometry *geom)
       break;
     }
   }
-  CATCH_ALL("st_area", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_area");
+  }
 
   /*
     Given a polygon whose rings' points are in counter-clockwise order,
@@ -4148,7 +4176,11 @@ bg_distance_spherical(const Geometry *g1, const Geometry *g2)
       break;
     }
   }
-  CATCH_ALL("st_distance_sphere", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_distance_sphere");
+  }
 
   return res;
 }
@@ -4286,7 +4318,11 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     }
   }
-  CATCH_ALL("st_distance", had_except= true)
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception("st_distance");
+  }
 
   if (had_except)
     return error_real();

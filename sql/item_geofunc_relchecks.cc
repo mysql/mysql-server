@@ -230,7 +230,11 @@ longlong Item_func_spatial_rel::val_int()
     else
       tres= geocol_relation_check<double, bgcs::cartesian>(g1, g2);
   }
-  CATCH_ALL(func_name(), { had_except= true; })
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception(func_name());
+  }
 
   if (had_except || had_error || null_value)
     DBUG_RETURN(error_int());
@@ -410,7 +414,11 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
         tres= bg_geo_relation_check<Coord_type, Coordsys>
           (*i, (*gvr)[j->second], spatial_rel, &had_error);
       }
-      CATCH_ALL(func_name(), {had_except= true;})
+      catch (...)
+      {
+        had_except= true;
+        handle_gis_exception(func_name());
+      }
 
       if (had_except || had_error)
         return error_int();
@@ -681,7 +689,11 @@ geocol_relcheck_within(const typename BG_geometry_collection::
         tres= bg_geo_relation_check<Coord_type, Coordsys>
           (*i, (*gv2)[j->second], SP_WITHIN_FUNC, &had_error);
       }
-      CATCH_ALL(func_name(), {had_except= true;})
+      catch (...)
+      {
+        had_except= true;
+        handle_gis_exception(func_name());
+      }
 
       if (had_except || had_error || null_value)
         return error_int();
