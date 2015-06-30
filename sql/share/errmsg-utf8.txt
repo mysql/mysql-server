@@ -7567,6 +7567,12 @@ ER_NO_SECURE_TRANSPORTS_CONFIGURED
 ER_DISABLED_STORAGE_ENGINE
   eng "Storage engine %s is disabled (Table creation is disallowed)."
 
+ER_USER_DOES_NOT_EXIST
+  eng "User %s does not exist."
+
+ER_USER_ALREADY_EXISTS
+  eng "User %s already exists."
+
 #
 #  End of 5.7 error messages.
 #
