@@ -565,7 +565,8 @@ int validate_plugin_server_requirements(Trans_param *param)
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);
 
-  bool server_engine_ready= is_server_engine_ready();
+  //check the server is initialized by checking if the default channel exists
+  bool server_engine_ready= channel_is_active("", CHANNEL_NO_THD);
 
   uchar *encoded_gtid_executed= NULL;
   uint length;

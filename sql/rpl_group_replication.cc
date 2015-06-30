@@ -247,11 +247,6 @@ unsigned int get_group_replication_members_number_info()
   include/mysql/group_replication_priv.h
 */
 
-bool is_server_engine_ready()
-{
-  return (tc_log != NULL);
-}
-
 void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
 {
   *hostname= glob_hostname;
