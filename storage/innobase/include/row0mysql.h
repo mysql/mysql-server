@@ -118,18 +118,6 @@ row_mysql_store_geometry(
 					is SQL NULL this should be 0; remember
 					also to set the NULL bit in the MySQL record
 					header! */
-/*******************************************************************//**
-Reads a reference to a geometry data in the MySQL format.
-@return pointer to geometry data */
-const byte*
-row_mysql_read_geometry(
-/*====================*/
-	ulint*		len,		/*!< out: geometry data length */
-	const byte*	ref,		/*!< in: reference in the
-					MySQL format */
-	ulint		col_len)	/*!< in: BLOB reference length
-					(not BLOB length) */
-	__attribute__((nonnull(1,2), warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -188,8 +176,7 @@ row_mysql_handle_errors(
 				during the function entry */
 	trx_t*		trx,	/*!< in: transaction */
 	que_thr_t*	thr,	/*!< in: query thread, or NULL */
-	trx_savept_t*	savept)	/*!< in: savepoint, or NULL */
-	__attribute__((nonnull(1,2)));
+	trx_savept_t*	savept);	/*!< in: savepoint, or NULL */
 /********************************************************************//**
 Create a prebuilt struct for a MySQL table handle.
 @return own: a prebuilt struct */
@@ -227,7 +214,7 @@ row_lock_table_autoinc_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
 @return error code or DB_SUCCESS */
@@ -240,9 +227,8 @@ row_lock_table_for_mysql(
 					if prebuilt->table should be
 					locked as
 					prebuilt->select_lock_type */
-	ulint		mode)		/*!< in: lock mode of table
+	ulint		mode);		/*!< in: lock mode of table
 					(ignored if table==NULL) */
-	__attribute__((nonnull(1)));
 
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
@@ -463,7 +449,7 @@ row_mysql_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
 	const char*	op_info)	/*!< in: string for trx->op_info */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Truncates a table for MySQL.
@@ -473,7 +459,7 @@ row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
@@ -490,11 +476,6 @@ row_drop_table_for_mysql(
 				to release and reacquire dict_operation_lock */
 	dict_table_t*	handler = NULL);
 				/*!< in/out: table handler. */
-/*********************************************************************//**
-Drop all temporary tables during crash recovery. */
-void
-row_mysql_drop_temp_tables(void);
-/*============================*/
 
 /*********************************************************************//**
 Discards the tablespace of a table which stored in an .ibd file. Discarding
@@ -506,7 +487,7 @@ row_discard_tablespace_for_mysql(
 /*=============================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx)	/*!< in: transaction handle */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
@@ -516,7 +497,7 @@ row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
-        __attribute__((nonnull, warn_unused_result));
+        __attribute__((warn_unused_result));
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -539,7 +520,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,	/*!< in: new table name */
 	trx_t*		trx,		/*!< in/out: transaction */
 	bool		commit)		/*!< in: whether to commit trx */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Renames a partitioned table for MySQL.
 @param[in]	old_name	Old table name.
@@ -551,7 +532,7 @@ row_rename_partitions_for_mysql(
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Scans an index for either COOUNT(*) or CHECK TABLE.
@@ -582,17 +563,6 @@ Close this module */
 void
 row_mysql_close(void);
 /*=================*/
-
-/*********************************************************************//**
-Reassigns the table identifier of a table.
-@return error code or DB_SUCCESS */
-dberr_t
-row_mysql_table_id_reassign(
-/*========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx,	/*!< in/out: transaction */
-	table_id_t*	new_id) /*!< out: new table id */
-        __attribute__((nonnull, warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

@@ -21,6 +21,7 @@
 #ifndef MY_GLOBAL_INCLUDED
 #include "heapdef.h"
 #endif
+#include "mysql/psi/mysql_memory.h"
 
 LIST *heap_open_list=0,*heap_share_list=0;
 

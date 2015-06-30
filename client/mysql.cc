@@ -35,13 +35,11 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_dir.h>
-#ifndef __GNU_LIBRARY__
-#define __GNU_LIBRARY__		      // Skip warnings in getopt.h
-#endif
 #include "my_readline.h"
 #include <signal.h>
 #include <violite.h>
 #include "prealloced_array.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -237,7 +235,8 @@ my_win_is_console_cached(FILE *file)
 #define MY_PRINT_CTRL 16  /* Replace TAB, NL, CR to "\t", "\n", "\r" */
 
 void tee_write(FILE *file, const char *s, size_t slen, int flags);
-void tee_fprintf(FILE *file, const char *fmt, ...);
+void tee_fprintf(FILE *file, const char *fmt, ...)
+  __attribute__((format(printf, 2, 3)));
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
 void tee_putc(int c, FILE *file);

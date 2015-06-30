@@ -19,16 +19,28 @@
 #define ITEM_CREATE_H
 
 #include "my_global.h"
+#include "binary_log_types.h"           // enum_field_types
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
-#include "item_func.h"                  // Cast_target
+#include "parse_tree_node_base.h"       // POS
 
 class Item;
 class PT_item_list;
 class THD;
 
+typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_udf_func udf_func;
 struct Cast_type;
+
+/* For type casts */
+
+enum Cast_target
+{
+  ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
+  ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
+  ITEM_CAST_DECIMAL
+};
+
 
 /**
   Public function builder interface.
@@ -132,7 +144,6 @@ extern Create_func * find_native_function_builder(THD *thd, LEX_STRING name);
 extern Create_qfunc * find_qualified_function_builder(THD *thd);
 
 
-#ifdef HAVE_DLOPEN
 /**
   Function builder for User Defined Functions.
 */
@@ -160,7 +171,6 @@ protected:
   /** Destructor. */
   virtual ~Create_udf_func() {}
 };
-#endif
 
 
 /**

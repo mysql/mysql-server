@@ -807,7 +807,10 @@ buf_flush_update_zip_checksum(
 {
 	ut_a(size > 0);
 
-	const uint32_t	checksum = page_zip_calc_checksum(
+	BlockReporter	reporter = BlockReporter(
+		false, NULL, univ_page_size, false);
+
+	const uint32_t	checksum = reporter.calc_zip_checksum(
 		page, size,
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
@@ -1039,13 +1042,18 @@ buf_flush_write_block_low(
 		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_DIRTY:
-		frame = bpage->zip.data;
+		{
+			frame = bpage->zip.data;
+			BlockReporter	reporter = BlockReporter(
+				false, frame, bpage->size,
+				fsp_is_checksum_disabled(bpage->id.space()));
 
-		mach_write_to_8(frame + FIL_PAGE_LSN,
-				bpage->newest_modification);
+			mach_write_to_8(frame + FIL_PAGE_LSN,
+					bpage->newest_modification);
 
-		ut_a(page_zip_verify_checksum(frame, bpage->size.physical()));
-		break;
+			ut_a(reporter.verify_zip_checksum());
+			break;
+		}
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;
 		if (!frame) {
@@ -1139,7 +1147,7 @@ buf_flush_page(
 	ut_ad(is_uncompressed == (block_mutex != &buf_pool->zip_mutex));
 
 	ibool		flush;
-	rw_lock_t*	rw_lock;
+	rw_lock_t*	rw_lock = NULL;
 	bool		no_fix_count = bpage->buf_fix_count == 0;
 
 	if (!is_uncompressed) {
@@ -2280,31 +2288,6 @@ buf_flush_LRU_list(
 	last iteration is still running, */
 	buf_flush_do_batch(buf_pool, BUF_FLUSH_LRU, scan_depth,
 			   0, &n_flushed);
-
-	return(n_flushed);
-}
-
-/*********************************************************************//**
-Clears up tail of the LRU lists:
-* Put replaceable pages at the tail of LRU to the free list
-* Flush dirty pages at the tail of LRU to the disk
-The depth to which we scan each buffer pool is controlled by dynamic
-config parameter innodb_LRU_scan_depth.
-@return total pages flushed */
-ulint
-buf_flush_LRU_lists(void)
-/*=====================*/
-{
-	ulint	n_flushed = 0;
-
-	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-
-		n_flushed += buf_flush_LRU_list(buf_pool_from_array(i));
-	}
-
-	if (n_flushed) {
-		buf_flush_stats(0, n_flushed);
-	}
 
 	return(n_flushed);
 }
@@ -3549,6 +3532,7 @@ buf_pool_get_dirty_pages_count(
 /******************************************************************//**
 Check if there are any dirty pages that belong to a space id in the flush list.
 @return number of dirty pages present in all the buffer pools */
+static
 ulint
 buf_flush_get_dirty_pages_count(
 /*============================*/

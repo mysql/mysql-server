@@ -559,24 +559,11 @@ rw_lock_is_locked(
 					RW_LOCK_X or RW_LOCK_SX */
 #ifdef UNIV_DEBUG
 /***************************************************************//**
-Prints debug info of an rw-lock. */
-void
-rw_lock_print(
-/*==========*/
-	rw_lock_t*	lock);		/*!< in: rw-lock */
-/***************************************************************//**
 Prints debug info of currently locked rw-locks. */
 void
 rw_lock_list_print_info(
 /*====================*/
 	FILE*		file);		/*!< in: file where to print */
-/***************************************************************//**
-Returns the number of currently locked rw-locks.
-Works only in the debug version.
-@return number of locked rw-locks */
-ulint
-rw_lock_n_locked(void);
-/*==================*/
 
 /*#####################################################################*/
 

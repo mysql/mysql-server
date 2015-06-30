@@ -44,7 +44,6 @@ create procedure populate_tables()
    declare n int default 20;
    declare inner_loop int default 100;
    set global innodb_file_per_table=on;
-   drop table if exists t1,t2,t3,t4;
 
    create temporary table t1(c1 int not null,
    c2 int not null,
@@ -74,20 +73,6 @@ create procedure populate_tables()
    index (c2))
    engine=innodb row_format=compact;
 
-   create temporary table t3(c1 int not null,
-   c2 int not null,
-   c3 char(255) not null,
-   c4 text(6000) not null,
-   c5 blob(6000) not null,
-   c6 varchar(2000) not null,
-   c7 varchar(2000) not null,
-   c8 datetime,
-   c9 decimal(6,3),
-   primary key (c1),
-   index (c3,c4(50),c5(50)),
-   index (c2))
-   engine=innodb row_format=compressed key_block_size=4;
-
    create temporary table t4(c1 int not null,
    c2 int not null,
    c3 char(255) not null,
@@ -115,7 +100,7 @@ create procedure populate_tables()
    index (c3,c4(50),c5(50)),
    index (c2))
    engine=innodb;
- 
+
    create temporary table t6 ( a int ) engine = innodb;
    insert into t6 values (50),(100),(150),(190);
 
@@ -126,10 +111,6 @@ create procedure populate_tables()
      repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
      now(),(100.55+n));
      insert into t2 values(n,n,repeat(concat(' tc3_',n),30),
-     repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
-     repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
-     now(),(100.55+n));
-     insert into t3 values(n,n,repeat(concat(' tc3_',n),30),
      repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
      repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
      now(),(100.55+n));
@@ -144,18 +125,16 @@ create procedure populate_tables()
 
      if (n > 10) then
         commit;
-     else     
+     else
         delete from t1 where c1 > 10 ;
         delete from t2 where c1 > 10 ;
-        delete from t3 where c1 > 10 ;
         delete from t4 where c1 > 10 ;
         delete from t5 where c1 > 10 ;
- 
+
         rollback;
         start transaction;
         update t1 set c1 = c1 + 1000 where c1 > 10;
         update t2 set c1 = c1 + 1000 where c1 > 10;
-        update t3 set c1 = c1 + 1000 where c1 > 10;
         update t4 set c1 = c1 + 1000 where c1 > 10;
         update t5 set c1 = c1 + 1000 where c1 > 10;
         rollback;
@@ -170,10 +149,6 @@ create procedure populate_tables()
         repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
         repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
         now(),(100.55+n+inner_loop));
-     insert into t3 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
-        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
-        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
-        now(),(100.55+n+inner_loop));
      insert into t4 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
         repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
         repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
@@ -185,15 +160,13 @@ create procedure populate_tables()
 
         delete from t1 where c1 between 100 and 110;
         delete from t2 where c1 between 100 and 110;
-        delete from t3 where c1 between 100 and 110;
         delete from t4 where c1 between 100 and 110;
         delete from t5 where c1 between 100 and 110;
 
-        update t1 set c1 = c1+1 where c1>110; 
-        update t2 set c1 = c1+1 where c1>110; 
-        update t3 set c1 = c1+1 where c1>110; 
-        update t4 set c1 = c1+1 where c1>110; 
-        update t5 set c1 = c1+1 where c1>110; 
+        update t1 set c1 = c1+1 where c1>110;
+        update t2 set c1 = c1+1 where c1>110;
+        update t4 set c1 = c1+1 where c1>110;
+        update t5 set c1 = c1+1 where c1>110;
 
         savepoint a;
 
@@ -202,10 +175,6 @@ create procedure populate_tables()
         repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
         now(),(100.55+n+inner_loop));
      insert into t2 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
-        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
-        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
-        now(),(100.55+n+inner_loop));
-     insert into t3 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
         repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
         repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
         now(),(100.55+n+inner_loop));
@@ -224,10 +193,6 @@ create procedure populate_tables()
         repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
         now(),(100.55+n+inner_loop));
      insert into t2 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
-        repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
-        repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
-        now(),(100.55+n+inner_loop));
-     insert into t3 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
         repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
         repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
         now(),(100.55+n+inner_loop));
@@ -278,30 +243,26 @@ eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 --echo # In connection 1
 connection con1;
 --reap
-# 20 rows exepceted in 5 tables
+# 20 rows expected
 select count(*) from t1;
 select count(*) from t2;
-select count(*) from t3;
 select count(*) from t4;
 select count(*) from t5;
 select c1 from t1;
 select c1 from t2;
-select c1 from t3;
 select c1 from t4;
 select c1 from t5;
 # check data of client connection 2
 --echo # In connection 2
 connection con2;
 --reap
-# 20 rows exepceted in 5 tables
+# 20 rows expected
 select count(*) from t1;
 select count(*) from t2;
-select count(*) from t3;
 select count(*) from t4;
 select count(*) from t5;
 select c1 from t1;
 select c1 from t2;
-select c1 from t3;
 select c1 from t4;
 select c1 from t5;
 
@@ -317,9 +278,6 @@ insert ignore into t1 values (20,1,'a','a','a','a','a',now(),100.55);
 insert into t2 values (20,1,'a','a','a','a','a',now(),100.55);
 insert ignore into t2 values (20,1,'a','a','a','a','a',now(),100.55);
 --error ER_DUP_ENTRY
-insert into t3 values (20,1,'a','a','a','a','a',now(),100.55);
-insert ignore into t3 values (20,1,'a','a','a','a','a',now(),100.55);
---error ER_DUP_ENTRY
 insert into t4 values (20,1,'a','a','a','a','a',now(),100.55);
 insert ignore into t4 values (20,1,'a','a','a','a','a',now(),100.55);
 --error ER_DUP_ENTRY
@@ -334,9 +292,6 @@ insert into t1 values (1,1,'a','a','a','a','a',now(),100.55),
 insert into t2 values (1,1,'a','a','a','a','a',now(),100.55),
 (20,1,'a','a','a','a','a',now(),100.55);
 --error ER_DUP_ENTRY
-insert into t3 values (1,1,'a','a','a','a','a',now(),100.55),
-(20,1,'a','a','a','a','a',now(),100.55);
---error ER_DUP_ENTRY
 insert into t4 values (1,1,'a','a','a','a','a',now(),100.55),
 (20,1,'a','a','a','a','a',now(),100.55);
 --error ER_DUP_ENTRY
@@ -347,33 +302,28 @@ set autocommit = 1;
 
 select c1,c2 from t1 where c1 in (20,1);
 select c1,c2 from t2 where c1 in (20,1);
-select c1,c2 from t3 where c1 in (20,1);
 select c1,c2 from t4 where c1 in (20,1);
 select c1,c2 from t5 where c1 in (20,1);
 
 #replace statement
 replace into t1 values (20,1,'a','a','a','a','a',now(),100.55);
 replace into t2 values (20,1,'a','a','a','a','a',now(),100.55);
-replace into t3 values (20,1,'a','a','a','a','a',now(),100.55);
 replace into t4 values (20,1,'a','a','a','a','a',now(),100.55);
 replace into t5 values (20,1,'a','a','a','a','a',now(),100.55);
 # verify row is replaced from (20,20) to (20,1)
 select c1,c2,c3,c4,c5,c6,c7,c9 from t1 where c1 = 20;
 select c1,c2,c3,c4,c5,c6,c7,c9 from t2 where c1 = 20;
-select c1,c2,c3,c4,c5,c6,c7,c9 from t3 where c1 = 20;
 select c1,c2,c3,c4,c5,c6,c7,c9 from t4 where c1 = 20;
 select c1,c2,c3,c4,c5,c6,c7,c9 from t5 where c1 = 20;
 
-# Update ignore. statement is gonored as 20 value exits 
+# Update ignore. statement is ignored as 20 value exists
 update ignore t1 set c1 = 20 where c1 = 140 ;
 update ignore t2 set c1 = 20 where c1 = 140 ;
-update ignore t3 set c1 = 20 where c1 = 140 ;
 update ignore t4 set c1 = 20 where c1 = 140 ;
 update ignore t5 set c1 = 20 where c1 = 140 ;
 # see record 140 is present as last update ignored
 select count(*) from t1 where c1 = 140;
 select count(*) from t2 where c1 = 140;
-select count(*) from t3 where c1 = 140;
 select count(*) from t4 where c1 = 140;
 select count(*) from t5 where c1 = 140;
 
@@ -404,11 +354,11 @@ on duplicate  key update c1=-2,c2=-2;
 select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
 
 #cleanup
-drop table t1 ,t2 ,t3,t4,t5,t6,temp_1;
+drop table t1,t2,t4,t5,t6,temp_1;
 disconnect con1;
 
 connection con2;
-drop table t1 ,t2 ,t3,t4,t5,t6;
+drop table t1 ,t2,t4,t5,t6;
 disconnect con2;
 
 connection default;

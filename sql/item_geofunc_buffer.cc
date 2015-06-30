@@ -24,6 +24,7 @@
 #include "item_geofunc.h"
 
 #include "sql_class.h"    // THD
+#include "current_thd.h"
 
 #include "item_geofunc_internal.h"
 #include "gis_bg_traits.h"

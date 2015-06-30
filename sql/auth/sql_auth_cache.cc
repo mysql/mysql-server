@@ -13,17 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_show.h"                   /* append_identifier */
-#include "log.h"                        /* sql_print_warning */
-#include "sql_base.h"                   /* MYSQL_LOCK_IGNORE_TIMEOUT */
-#include "key.h"                        /* key_copy, key_cmp_if_same */
-                                        /* key_restore */
-
-#include "auth_internal.h"
 #include "sql_auth_cache.h"
-#include "sql_authentication.h"
-#include "sql_time.h"
-#include "sql_plugin.h"                         // lock_plugin_data etc.
+
+#include "m_string.h"           // LEX_CSTRING
+#include "mysql/plugin_auth.h"  // st_mysql_auth
+#include "auth_common.h"        // ACL_internal_schema_access
+#include "auth_internal.h"      // auth_plugin_is_built_in
+#include "field.h"              // Field
+#include "item_func.h"          // mqh_used
+#include "log.h"                // sql_print_warning
+#include "psi_memory_key.h"     // key_memory_acl_mem
+#include "records.h"            // READ_RECORD
+#include "sql_authentication.h" // sha256_password_plugin_name
+#include "sql_base.h"           // open_and_lock_tables
+#include "sql_class.h"          // THD
+#include "sql_plugin.h"         // my_plugin_lock_by_name
+#include "sql_time.h"           // str_to_time_with_warn
+#include "table.h"              // TABLE
+#include "derror.h"             // ER_THD
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -72,8 +79,6 @@ bool rwlocks_initialized= false;
 
 const uint LOCK_GRANT_PARTITIONS= 32;
 Partitioned_rwlock LOCK_grant;
-
-#define FIRST_NON_YN_FIELD 26
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + \
@@ -607,8 +612,8 @@ static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
 }
 
 
-uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
-                       my_bool not_used __attribute__((unused)))
+static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
+                              my_bool not_used __attribute__((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->hash_key;
@@ -693,9 +698,11 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
 }
 
 
-GRANT_TABLE::GRANT_TABLE(TABLE *form)
-  :GRANT_NAME(form, false)
+GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
+  :GRANT_NAME(form, FALSE)
 {
+  uchar key[MAX_KEY_LENGTH];
+
   if (!db || !tname)
   {
     /* Wrong table row; Ignore it */
@@ -709,31 +716,9 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (my_hash_get_key) get_key_column,0,0,
                    key_memory_acl_memex);
-}
-
-
-GRANT_TABLE::~GRANT_TABLE()
-{
-  my_hash_free(&hash_columns);
-}
-
-
-bool GRANT_TABLE::init(TABLE *col_privs)
-{
-  int error;
-
   if (cols)
   {
-    uchar key[MAX_KEY_LENGTH];
     uint key_prefix_len;
-
-    if (!col_privs->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
-               col_privs->s->table_name.str);
-      return true;
-    }
-
     KEY_PART_INFO *key_part= col_privs->key_info->key_part;
     col_privs->field[0]->store(host.get_host(),
                                host.get_host() ? host.get_host_len() : 0,
@@ -747,65 +732,53 @@ bool GRANT_TABLE::init(TABLE *col_privs)
                      key_part[2].store_length +
                      key_part[3].store_length);
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
-    col_privs->field[4]->store("", 0, &my_charset_latin1);
+    col_privs->field[4]->store("",0, &my_charset_latin1);
 
-    error= col_privs->file->ha_index_init(0, 1);
-    if (error)
+    if (col_privs->file->ha_index_init(0, 1))
     {
-      acl_print_ha_error(col_privs, error);
-      return true;
-    }
-
-    error=
-      col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
-                                         (key_part_map)15, HA_READ_KEY_EXACT);
-    DBUG_EXECUTE_IF("se_error_grant_table_init_read",
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-    if (error)
-    {
-      bool ret= false;
       cols= 0;
-      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      {
-        acl_print_ha_error(col_privs, error);
-        ret= true;
-      }
-      col_privs->file->ha_index_end();
-      return ret;
+      return;
     }
 
+    if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
+                                           (key_part_map)15, HA_READ_KEY_EXACT))
+    {
+      cols = 0; /* purecov: deadcode */
+      col_privs->file->ha_index_end();
+      return;
+    }
     do
     {
       String *res,column_name;
       GRANT_COLUMN *mem_check;
       /* As column name is a string, we don't have to supply a buffer */
-      res= col_privs->field[4]->val_str(&column_name);
+      res=col_privs->field[4]->val_str(&column_name);
       ulong priv= (ulong) col_privs->field[6]->val_int();
-      if (!(mem_check= new GRANT_COLUMN(*res,
-                                        fix_rights_for_column(priv))) ||
-            my_hash_insert(&hash_columns, (uchar *) mem_check))
+      if (!(mem_check = new GRANT_COLUMN(*res,
+                                         fix_rights_for_column(priv))))
       {
         /* Don't use this entry */
-        col_privs->file->ha_index_end();
-        return true;
+        privs = cols = 0;               /* purecov: deadcode */
+        return;                         /* purecov: deadcode */
       }
-
-      error= col_privs->file->ha_index_next(col_privs->record[0]);
-      DBUG_EXECUTE_IF("se_error_grant_table_init_read_next",
-                      error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-      if (error && error != HA_ERR_END_OF_FILE)
+      if (my_hash_insert(&hash_columns, (uchar *) mem_check))
       {
-        acl_print_ha_error(col_privs, error);
-        col_privs->file->ha_index_end();
-        return true;
+        /* Invalidate this entry */
+        privs= cols= 0;
+        return;
       }
-    }
-    while (!error && !key_cmp_if_same(col_privs,key,0,key_prefix_len));
+    } while (!col_privs->file->ha_index_next(col_privs->record[0]) &&
+             !key_cmp_if_same(col_privs,key,0,key_prefix_len));
     col_privs->file->ha_index_end();
   }
-
-  return false;
 }
+
+
+GRANT_TABLE::~GRANT_TABLE()
+{
+  my_hash_free(&hash_columns);
+}
+
 
 /*
   Find first entry that matches the current user
@@ -1276,7 +1249,7 @@ public:
     @retval true Hash is of wrong length or format
 */
 
-bool set_user_salt(ACL_USER *acl_user)
+static bool set_user_salt(ACL_USER *acl_user)
 {
   bool result= false;
   plugin_ref plugin= NULL;
@@ -1484,8 +1457,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
 
   allow_all_hosts=0;
-  int read_rec_errcode;
-  while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
+  while (!(read_record_info.read_record(&read_record_info)))
   {
     password_expired= false;
     /* Reading record from mysql.user */
@@ -1829,12 +1801,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         allow_all_hosts=1;                      // Anyone can connect
     }
   } // END while reading records from the mysql.user table
-
-  end_read_record(&read_record_info);
-  if (read_rec_errcode > 0)
-    goto end;
-
+  
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+  end_read_record(&read_record_info);
   acl_users->shrink_to_fit();
 
   if (super_users_with_empty_plugin)
@@ -1864,7 +1833,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   table->use_all_columns();
   acl_dbs->clear();
 
-  while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
+  while (!(read_record_info.read_record(&read_record_info)))
   {
     /* Reading record in mysql.db */
     ACL_DB db;
@@ -1915,12 +1884,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
     acl_dbs->push_back(db);
   } // END reading records from mysql.db tables
-
-  end_read_record(&read_record_info);
-  if (read_rec_errcode > 0)
-    goto end;
-
+  
   std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
+  end_read_record(&read_record_info);
   acl_dbs->shrink_to_fit();
 
   /* Prepare to read records from the mysql.proxies_priv table */
@@ -1932,7 +1898,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                          NULL, 1, 1, FALSE))
       goto end;
     table->use_all_columns();
-    while (!(read_rec_errcode= read_record_info.read_record(&read_record_info)))
+    while (!(read_record_info.read_record(&read_record_info)))
     {
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
@@ -1946,11 +1912,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       }
     } // END reading records from the mysql.proxies_priv table
 
-    end_read_record(&read_record_info);
-    if (read_rec_errcode > 0)
-      goto end;
-
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
+    end_read_record(&read_record_info);
   }
   else
   {
@@ -2185,22 +2148,16 @@ void  grant_free(void)
   @brief Initialize structures responsible for table/column-level privilege
    checking and load information for them from tables in the 'mysql' database.
 
-  @param skip_grant_tables  true if the command line option
-    --skip-grant-tables is specified, else false.
-
   @return Error status
-    @retval false OK
-    @retval true  Could not initialize grant subsystem.
+    @retval 0 OK
+    @retval 1 Could not initialize grant subsystem.
 */
 
-bool grant_init(bool skip_grant_tables)
+my_bool grant_init()
 {
   THD  *thd;
   my_bool return_val;
   DBUG_ENTER("grant_init");
-
-  if (skip_grant_tables)
-    DBUG_RETURN(false);
 
   if (!(thd= new THD))
     DBUG_RETURN(1);                             /* purecov: deadcode */
@@ -2208,10 +2165,6 @@ bool grant_init(bool skip_grant_tables)
   thd->store_globals();
 
   return_val=  grant_reload(thd);
-
-  if (return_val && thd->get_stmt_da()->is_error())
-    sql_print_error("Fatal: can't initialize grant subsystem - '%s'",
-                    thd->get_stmt_da()->message_text());
 
   thd->release_resources();
   delete thd;
@@ -2221,13 +2174,14 @@ bool grant_init(bool skip_grant_tables)
 
 
 /**
-  @brief Helper function to grant_reload
+  @brief Helper function to grant_reload_procs_priv
 
   Reads the procs_priv table into memory hash.
 
   @param table A pointer to the procs_priv table structure.
 
   @see grant_reload
+  @see grant_reload_procs_priv
 
   @return Error state
     @retval TRUE An error occurred
@@ -2238,7 +2192,6 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 {
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
-  int error;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
@@ -2248,25 +2201,11 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
                       0, 0, key_memory_acl_memex);
-  error= p_table->file->ha_index_init(0, 1);
-  if (error)
-  {
-    acl_print_ha_error(p_table, error);
-    DBUG_RETURN(true);
-  }
+  if (p_table->file->ha_index_init(0, 1))
+    DBUG_RETURN(TRUE);
   p_table->use_all_columns();
 
-  error= p_table->file->ha_index_first(p_table->record[0]);
-  DBUG_EXECUTE_IF("se_error_grant_load_procs_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
-  {
-    if (error == HA_ERR_END_OF_FILE)
-      return_val= 0; // Return Ok.
-    else
-      acl_print_ha_error(p_table, error);
-  }
-  else
+  if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
     my_thread_set_THR_MALLOC(&memex_ptr);
@@ -2317,20 +2256,11 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
         delete mem_check;
         goto end_unlock;
       }
-      error= p_table->file->ha_index_next(p_table->record[0]);
-      DBUG_EXECUTE_IF("se_error_grant_load_procs_read_next",
-                      error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-      if (error)
-      {
-        if (error == HA_ERR_END_OF_FILE)
-          return_val= 0;
-        else
-          acl_print_ha_error(p_table, error);
-        goto end_unlock;
-      }
     }
-    while (true);
+    while (!p_table->file->ha_index_next(p_table->record[0]));
   }
+  /* Return ok */
+  return_val= 0;
 
 end_unlock:
   p_table->file->ha_index_end();
@@ -2358,7 +2288,6 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 {
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
-  int error;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
@@ -2374,43 +2303,21 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  error= t_table->file->ha_index_init(0, 1);
-  if (error)
-  {
-    acl_print_ha_error(t_table, error);
+  if (t_table->file->ha_index_init(0, 1))
     goto end_index_init;
-  }
   t_table->use_all_columns();
   c_table->use_all_columns();
 
-  error= t_table->file->ha_index_first(t_table->record[0]);
-  DBUG_EXECUTE_IF("se_error_grant_load_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
-  {
-    if (error == HA_ERR_END_OF_FILE)
-      return_val= 0; // Return Ok.
-    else
-      acl_print_ha_error(t_table, error);
-  }
-  else
+  if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
     my_thread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_TABLE *mem_check;
-      mem_check= new (memex_ptr) GRANT_TABLE(t_table);
-
-      if (!mem_check)
+      if (!(mem_check=new (memex_ptr) GRANT_TABLE(t_table,c_table)))
       {
         /* This could only happen if we are out memory */
-        goto end_unlock;
-      }
-
-      if (mem_check->init(c_table))
-      {
-        delete mem_check;
         goto end_unlock;
       }
 
@@ -2435,21 +2342,11 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
         delete mem_check;
         goto end_unlock;
       }
-      error= t_table->file->ha_index_next(t_table->record[0]);
-      DBUG_EXECUTE_IF("se_error_grant_load_read_next",
-                      error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-      if (error)
-      {
-        if (error != HA_ERR_END_OF_FILE)
-          acl_print_ha_error(t_table, error);
-        else
-          return_val= 0;
-        goto end_unlock;
-      }
-
     }
-    while (true);
+    while (!t_table->file->ha_index_next(t_table->record[0]));
   }
+
+  return_val=0;                                 // Return ok
 
 end_unlock:
   t_table->file->ha_index_end();
@@ -2584,13 +2481,12 @@ my_bool grant_reload(THD *thd)
     sql_print_warning("Table 'mysql.procs_priv' does not exist. "
                       "Please run mysql_upgrade.");
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NO_SUCH_TABLE,
-                        ER(ER_NO_SUCH_TABLE), tables[2].db,
+                        ER_THD(thd, ER_NO_SUCH_TABLE), tables[2].db,
                         tables[2].table_name);
   }
 
   LOCK_grant.wrlock();
 
-  /* Save a copy of the current hash if we need to undo the grant load */
   old_column_priv_hash= column_priv_hash;
 
   /*

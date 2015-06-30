@@ -24,6 +24,7 @@
 */
 
 #include "vio_priv.h"
+#include "mysql/service_my_snprintf.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
 # include <sys/filio.h>
@@ -323,7 +324,7 @@ int vio_socket_timeout(Vio *vio,
 }
 
 
-int vio_fastsend(Vio * vio __attribute__((unused)))
+int vio_fastsend(Vio * vio)
 {
   int r=0;
   DBUG_ENTER("vio_fastsend");

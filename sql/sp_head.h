@@ -16,9 +16,9 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
-#include "sql_class.h"                          // THD
-#include "mem_root_array.h"
+#include "my_global.h"
+#include "mem_root_array.h"    // Mem_root_array
+#include "sql_class.h"         // Query_arena
 
 /**
   @defgroup Stored_Routines Stored Routines
@@ -28,6 +28,7 @@
 
 class sp_branch_instr;
 class sp_instr;
+class sp_label;
 class sp_lex_branch_instr;
 class sp_pcontext;
 
@@ -41,21 +42,6 @@ class sp_pcontext;
 void init_sp_psi_keys(void);
 #endif
 
-
-///////////////////////////////////////////////////////////////////////////
-
-/**
-  sp_printable defines an interface which should be implemented if a class wants
-  report some internal information about its state.
-*/
-class sp_printable
-{
-public:
-  virtual void print(String *str) = 0;
-
-  virtual ~sp_printable()
-  { }
-};
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -513,7 +499,7 @@ public:
   */
   sql_mode_t m_sql_mode;
 
-  /// Fully qualified name (<db name>.<sp name>).
+  /// Fully qualified name (@<db name@>.@<sp name@>).
   LEX_STRING m_qname;
 
   bool m_explicit_name;         ///< Prepend the db name? */
@@ -652,14 +638,14 @@ public:
     - restores security context
 
     @param thd               Thread context
-    @param db                database name
-    @param table             table name
+    @param db_name           database name
+    @param table_name        table name
     @param grant_info        GRANT_INFO structure to be filled with
                              information about definer's privileges
                              on subject table
 
     @todo
-      - TODO: we should create sp_rcontext once per command and reuse it
+      We should create sp_rcontext once per command and reuse it
       on subsequent executions of a trigger.
 
     @return Error status.
@@ -681,11 +667,11 @@ public:
      - restores security context
 
     @param thd               Thread context.
-    @param argp              Passed arguments (these are items from containing
+    @param args              Passed arguments (these are items from containing
                              statement?)
     @param argcount          Number of passed arguments. We need to check if
                              this is correct.
-    @param return_value_fld  Save result here.
+    @param return_fld        Save result here.
 
     @todo
       We should create sp_rcontext once per command and reuse
@@ -1054,7 +1040,7 @@ private:
   */
   bool merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check);
 
-  friend sp_head *sp_start_parsing(THD *, enum_sp_type, sp_name *);
+  friend sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name);
 
   // Prevent use of copy constructor and assignment operator.
   sp_head(const sp_head &);

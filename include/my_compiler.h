@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,20 +25,6 @@
 */
 
 #include <stddef.h> /* size_t */
-
-#if defined __GNUC__
-/*
-  Convenience macro to test the minimum required GCC version.
-  These should be used with care as Clang also sets __GNUC__ and
-  __GNUC_MINOR__ (currently to 4.2). Prefer using feature specific
-  CMake checks in configure.cmake instead.
-*/
-#  define MY_GNUC_PREREQ(maj, min) \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#  define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
-#else
-#  define MY_GNUC_PREREQ(maj, min) (0)
-#endif
 
 /*
   The macros below are borrowed from include/linux/compiler.h in the

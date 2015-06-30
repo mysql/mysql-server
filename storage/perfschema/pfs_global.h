@@ -171,7 +171,8 @@ inline uint randomized_index(const void *ptr, uint max_size)
   return result;
 }
 
-void pfs_print_error(const char *format, ...);
+void pfs_print_error(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
 
 /**
   Given an array defined as T ARRAY[MAX],

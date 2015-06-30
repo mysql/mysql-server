@@ -123,12 +123,6 @@ bool mysql_unpack_partition(THD *thd, char *part_buf,
                             bool *work_part_info_used);
 bool make_used_partitions_str(partition_info *part_info,
                               List<const char> *parts);
-uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
-                                       bool left_endpoint,
-                                       bool include_endpoint);
-uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
-                                           bool left_endpoint,
-                                           bool include_endpoint);
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
 Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs);
@@ -179,9 +173,6 @@ void create_partition_name(char *out, const char *in1,
 void create_subpartition_name(char *out, const char *in1,
                               const char *in2, const char *in3,
                               uint name_variant);
-void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
-void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
-                       const uchar *old_buf);
 /** Set up table for creating a partition.
 Copy info from partition to the table share so the created partition
 has the correct info.

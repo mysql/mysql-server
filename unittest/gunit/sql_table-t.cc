@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,9 +127,7 @@ TEST_F(SqlTableTest, FileNameToTableName)
   MEM_NOACCESS(&foo.foo2, 1);
 
   const char test_filename[] = "-@";
-  char       test_tablename[sizeof test_filename
-                            + sizeof("#mysql50#") - 1];
-  //#mysql50# is prefix used by MySQL to indicate pre-5.1 table name encoding.
+  char       test_tablename[sizeof test_filename - 1];
 
 
   // This one used to fail with AddressSanitizer

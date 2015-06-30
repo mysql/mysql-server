@@ -18,14 +18,15 @@
 
 #include "my_global.h"
 #include "handler.h"                            // enum_schema_tables
+#include "sql_string.h"
 #include "table.h"                              // enum_schema_table_state
 #include "set_var.h"                            // enum_var_type
 
 /* Forward declarations */
 class JOIN;
 class sp_name;
-typedef class st_select_lex SELECT_LEX;
-typedef struct system_status_var STATUS_VAR;
+struct System_status_var;
+class SELECT_LEX;
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
 
@@ -34,81 +35,6 @@ enum find_files_result {
   FIND_FILES_OOM,
   FIND_FILES_DIR
 };
-
-/* Define fields' indexes for COLUMNS table of I_S tables */
-#define IS_COLUMNS_TABLE_CATALOG                0
-#define IS_COLUMNS_TABLE_SCHEMA                 1
-#define IS_COLUMNS_TABLE_NAME                   2
-#define IS_COLUMNS_COLUMN_NAME                  3
-#define IS_COLUMNS_ORDINAL_POSITION             4
-#define IS_COLUMNS_COLUMN_DEFAULT               5
-#define IS_COLUMNS_IS_NULLABLE                  6
-#define IS_COLUMNS_DATA_TYPE                    7
-#define IS_COLUMNS_CHARACTER_MAXIMUM_LENGTH     8
-#define IS_COLUMNS_CHARACTER_OCTET_LENGTH       9
-#define IS_COLUMNS_NUMERIC_PRECISION           10
-#define IS_COLUMNS_NUMERIC_SCALE               11
-#define IS_COLUMNS_DATETIME_PRECISION          12
-#define IS_COLUMNS_CHARACTER_SET_NAME          13
-#define IS_COLUMNS_COLLATION_NAME              14
-#define IS_COLUMNS_COLUMN_TYPE                 15
-#define IS_COLUMNS_COLUMN_KEY                  16
-#define IS_COLUMNS_EXTRA                       17
-#define IS_COLUMNS_PRIVILEGES                  18
-#define IS_COLUMNS_COLUMN_COMMENT              19
-#define IS_COLUMNS_GENERATION_EXPRESSION       20
-
-/* Define fields' indexes for ROUTINES table of I_S tables */
-#define IS_ROUTINES_SPECIFIC_NAME               0
-#define IS_ROUTINES_ROUTINE_CATALOG             1
-#define IS_ROUTINES_ROUTINE_SCHEMA              2
-#define IS_ROUTINES_ROUTINE_NAME                3
-#define IS_ROUTINES_ROUTINE_TYPE                4
-#define IS_ROUTINES_DATA_TYPE                   5
-#define IS_ROUTINES_CHARACTER_MAXIMUM_LENGTH    6
-#define IS_ROUTINES_CHARACTER_OCTET_LENGTH      7
-#define IS_ROUTINES_NUMERIC_PRECISION           8
-#define IS_ROUTINES_NUMERIC_SCALE               9
-#define IS_ROUTINES_DATETIME_PRECISION         10
-#define IS_ROUTINES_CHARACTER_SET_NAME         11
-#define IS_ROUTINES_COLLATION_NAME             12
-#define IS_ROUTINES_DTD_IDENTIFIER             13
-#define IS_ROUTINES_ROUTINE_BODY               14
-#define IS_ROUTINES_ROUTINE_DEFINITION         15
-#define IS_ROUTINES_EXTERNAL_NAME              16
-#define IS_ROUTINES_EXTERNAL_LANGUAGE          17
-#define IS_ROUTINES_PARAMETER_STYLE            18
-#define IS_ROUTINES_IS_DETERMINISTIC           19
-#define IS_ROUTINES_SQL_DATA_ACCESS            20
-#define IS_ROUTINES_SQL_PATH                   21
-#define IS_ROUTINES_SECURITY_TYPE              22
-#define IS_ROUTINES_CREATED                    23
-#define IS_ROUTINES_LAST_ALTERED               24
-#define IS_ROUTINES_SQL_MODE                   25
-#define IS_ROUTINES_ROUTINE_COMMENT            26
-#define IS_ROUTINES_DEFINER                    27
-#define IS_ROUTINES_CHARACTER_SET_CLIENT       28
-#define IS_ROUTINES_COLLATION_CONNECTION       29
-#define IS_ROUTINES_DATABASE_COLLATION         30
-
-
-/* Define fields' indexes for PARAMETERS table of I_S tables */
-#define IS_PARAMETERS_SPECIFIC_CATALOG          0
-#define IS_PARAMETERS_SPECIFIC_SCHEMA           1
-#define IS_PARAMETERS_SPECIFIC_NAME             2
-#define IS_PARAMETERS_ORDINAL_POSITION          3
-#define IS_PARAMETERS_PARAMETER_MODE            4
-#define IS_PARAMETERS_PARAMETER_NAME            5
-#define IS_PARAMETERS_DATA_TYPE                 6
-#define IS_PARAMETERS_CHARACTER_MAXIMUM_LENGTH  7
-#define IS_PARAMETERS_CHARACTER_OCTET_LENGTH    8
-#define IS_PARAMETERS_NUMERIC_PRECISION         9
-#define IS_PARAMETERS_NUMERIC_SCALE            10
-#define IS_PARAMETERS_DATETIME_PRECISION       11
-#define IS_PARAMETERS_CHARACTER_SET_NAME       12
-#define IS_PARAMETERS_COLLATION_NAME           13
-#define IS_PARAMETERS_DTD_IDENTIFIER           14
-#define IS_PARAMETERS_ROUTINE_TYPE             15
 
 /* Used by handlers to store things in schema tables */
 #define IS_FILES_FILE_ID              0
@@ -156,7 +82,6 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO  *create_info_arg, bool show_database);
-int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 
@@ -176,17 +101,11 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list);
 bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 
 void mysqld_list_processes(THD *thd,const char *user,bool verbose);
-int mysqld_show_status(THD *thd);
-int mysqld_show_variables(THD *thd,const char *wild);
-bool mysqld_show_storage_engines(THD *thd);
 bool mysqld_show_privileges(THD *thd);
-char *make_backup_log_name(char *buff, const char *name, const char* log_ext);
-void calc_sum_of_all_status(STATUS_VAR *to);
+void calc_sum_of_all_status(System_status_var *to);
 void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
                     const LEX_CSTRING &definer_host);
 int add_status_vars(const SHOW_VAR *list);
-DYNAMIC_ARRAY *get_status_vars();
-
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
@@ -202,7 +121,6 @@ bool schema_table_store_record(THD *thd, TABLE *table);
 void initialize_information_schema_acl();
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);
-ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 int make_schema_select(THD *thd,  SELECT_LEX *sel,
                        enum enum_schema_tables schema_table_idx);
 int mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
@@ -212,11 +130,10 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
-                             system_status_var *status_var,
+                             System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length);
 
-/* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
 /* Handle the ignored database directories list for SHOW/I_S. */

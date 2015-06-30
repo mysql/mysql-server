@@ -166,3 +166,13 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
     COMPILE_FLAGS "-Wa,-nH"
   )
 ENDIF()
+
+# Generated code with logical-op warnings
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
+IF(HAVE_NO_LOGICAL_OP)
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(
+    fts/fts0pars.cc
+    COMPILE_FLAGS "-Wno-logical-op"
+  )
+ENDIF()

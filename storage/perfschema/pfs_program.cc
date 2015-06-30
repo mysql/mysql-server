@@ -205,7 +205,7 @@ search:
     (lf_hash_search(&program_hash, pins,
                     key.m_hash_key, key.m_key_length));
 
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     /* If record already exists then return its pointer. */
     pfs= *entry;
@@ -292,7 +292,7 @@ void drop_program(PFS_thread *thread,
     (lf_hash_search(&program_hash, pins,
                     key.m_hash_key, key.m_key_length));
 
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     PFS_program *pfs= NULL;
     pfs= *entry;

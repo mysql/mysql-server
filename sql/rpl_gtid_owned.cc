@@ -18,7 +18,7 @@
 #include "rpl_gtid.h"
 
 #include "mysqld_error.h"      // ER_*
-
+#include "psi_memory_key.h"
 
 Owned_gtids::Owned_gtids(Checkable_rwlock *_sid_lock)
   : sid_lock(_sid_lock), sidno_to_hash(key_memory_Owned_gtids_sidno_to_hash)

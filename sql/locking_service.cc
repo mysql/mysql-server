@@ -15,7 +15,7 @@
 
 #include "locking_service.h"
 
-#include "mysqld.h"        // current_thd
+#include "current_thd.h"   // current_thd
 #include "mdl.h"           // MDL_request_list
 #include "sql_class.h"     // THD
 

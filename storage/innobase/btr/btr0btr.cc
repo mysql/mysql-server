@@ -52,6 +52,7 @@ Created 6/2/1994 Heikki Tuuri
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
+static
 bool
 btr_can_merge_with_page(
 /*====================*/
@@ -313,8 +314,7 @@ btr_root_adjust_on_import(
 		} else {
 			/* Check that the table flags and the tablespace
 			flags match. */
-			ulint	flags = dict_tf_to_fsp_flags(table->flags,
-							     false);
+			ulint	flags = dict_tf_to_fsp_flags(table->flags);
 			ulint	fsp_flags = fil_space_get_flags(table->space);
 			err = fsp_flags_are_equal(flags, fsp_flags)
 			      ? DB_SUCCESS : DB_CORRUPTION;
@@ -419,7 +419,7 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 buf_block_t*
 btr_page_alloc_low(
 /*===============*/
@@ -891,7 +891,7 @@ btr_free_root(
 }
 
 /** PAGE_INDEX_ID value for freed index B-trees */
-static const index_id_t	BTR_FREED_INDEX_ID = 0;
+static const space_index_t	BTR_FREED_INDEX_ID = 0;
 
 /** Invalidate an index root page so that btr_free_root_check()
 will not find it.
@@ -923,7 +923,7 @@ buf_block_t*
 btr_free_root_check(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	mtr_t*			mtr)
 {
 	ut_ad(page_id.space() != srv_tmp_space.space_id());
@@ -962,7 +962,7 @@ btr_create(
 	ulint			type,
 	ulint			space,
 	const page_size_t&	page_size,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	dict_index_t*		index,
 	const btr_create_t*	btr_redo_create_info,
 	mtr_t*			mtr)
@@ -1190,7 +1190,7 @@ void
 btr_free_if_exists(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	mtr_t*			mtr)
 {
 	buf_block_t* root = btr_free_root_check(
@@ -1226,6 +1226,114 @@ btr_free(
 	btr_free_but_not_root(block, MTR_LOG_NO_REDO);
 	btr_free_root(block, &mtr);
 	mtr.commit();
+}
+
+/** Truncate an index tree. We just free all except the root.
+Currently, this function is only specific for clustered indexes and the only
+caller is DDTableBuffer which manages a table with only a clustered index.
+It is up to the caller to ensure atomicity and to ensure correct recovery by
+calling btr_truncate_recover().
+@param[in]	index		clustered index */
+void
+btr_truncate(
+	const dict_index_t*	index)
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_table_get_next_index(index) == NULL);
+
+	ulint			root_page_no	= index->page;
+	ulint			space_id	= index->space;
+	fil_space_t*		space		= fil_space_acquire(space_id);
+
+	if (space == NULL) {
+		return;
+	}
+
+	page_size_t		page_size(space->flags);
+	const page_id_t         page_id(space_id, root_page_no);
+	mtr_t			mtr;
+	buf_block_t*		block;
+
+	mtr.start();
+
+	mtr_x_lock(&space->latch, &mtr);
+
+	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+
+	mtr.set_named_space(space);
+
+	page_t*			page = buf_block_get_frame(block);
+	ut_ad(page_is_root(page));
+
+	/* Mark that we are going to truncate the index tree
+	We use PAGE_MAX_TRX_ID as it should be always 0 for clustered
+	index. */
+	mlog_write_ull(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), -1ULL, &mtr);
+
+	mtr.commit();
+
+	mtr.start();
+	mtr.set_named_space(space);
+
+	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+
+	/* Free all except the root, we don't want to change it. */
+	btr_free_but_not_root(block, MTR_LOG_ALL);
+
+	/* Reset the mark saying that we have finished the truncate.
+	The PAGE_MAX_TRX_ID would be reset here. */
+	page_create(block, &mtr, dict_table_is_comp(index->table), false);
+	ut_ad(buf_block_get_frame(block) + (PAGE_HEADER + PAGE_MAX_TRX_ID)
+	      == 0);
+
+	mtr.commit();
+
+	rw_lock_x_unlock(&space->latch);
+
+	fil_space_release(space);
+}
+
+/** Recovery function for btr_truncate. We will check if there is a
+crash during btr_truncate, if so, do recover it, if not, do nothing.
+@param[in]	index		clustered index */
+void
+btr_truncate_recover(
+	const dict_index_t*	index)
+{
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(dict_table_get_next_index(index) == NULL);
+
+	ulint			root_page_no = index->page;
+	ulint			space_id = index->space;
+	fil_space_t*		space = fil_space_acquire(space_id);
+
+	if (space == NULL) {
+		return;
+	}
+
+	page_size_t		page_size(space->flags);
+	const page_id_t		page_id(space_id, root_page_no);
+	mtr_t			mtr;
+	buf_block_t*		block;
+
+	mtr.start();
+
+	block = buf_page_get(page_id, page_size, RW_X_LATCH, &mtr);
+
+	page_t*			page = buf_block_get_frame(block);
+
+	trx_id_t		trx_id = page_get_max_trx_id(page);
+	ut_ad(trx_id == 0 || trx_id == -1ULL);
+
+	mtr.commit();
+
+	fil_space_release(space);
+
+	if (trx_id == -1ULL) {
+		/* -1 means there is a half-done btr_truncate,
+		we can simple redo it again. */
+		btr_truncate(index);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1459,7 +1567,7 @@ IBUF_BITMAP_FREE is unaffected by reorganization.
 
 @retval true if the operation was successful
 @retval false if it is a compressed page, and recompression failed */
-static __attribute__((nonnull))
+static
 bool
 btr_page_reorganize_block(
 /*======================*/
@@ -1999,7 +2107,7 @@ func_exit:
 Returns TRUE if the insert fits on the appropriate half-page with the
 chosen split_rec.
 @return true if fits */
-static __attribute__((nonnull(1,3,4,6), warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 btr_page_insert_fits(
 /*=================*/
@@ -2173,7 +2281,7 @@ btr_insert_on_non_leaf_level_func(
 /**************************************************************//**
 Attaches the halves of an index page on the appropriate level in an
 index tree. */
-static __attribute__((nonnull))
+static
 void
 btr_attach_half_pages(
 /*==================*/
@@ -2330,7 +2438,7 @@ btr_attach_half_pages(
 /*************************************************************//**
 Determine if a tuple is smaller than any record on the page.
 @return TRUE if smaller */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 btr_page_tuple_smaller(
 /*===================*/
@@ -4909,6 +5017,7 @@ node_ptr_fails:
 /**************************************************************//**
 Do an index level validation of spaital index tree.
 @return	true if no error found */
+static
 bool
 btr_validate_spatial_index(
 /*=======================*/
@@ -4999,6 +5108,7 @@ btr_validate_index(
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
 @return	true if possible to merge. */
+static
 bool
 btr_can_merge_with_page(
 /*====================*/

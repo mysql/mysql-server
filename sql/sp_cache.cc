@@ -18,6 +18,7 @@
 
 #include "my_atomic.h"
 #include "sp_head.h"
+#include "psi_memory_key.h"
 
 
 /*

@@ -18,6 +18,7 @@
 #ifndef MYSQL_CLIENT
 #include "table.h"       // TABLE
 #endif
+#include "psi_memory_key.h"
 
 #ifdef MYSQL_CLIENT
 #define MAYBE_TABLE_NAME(T) ("")

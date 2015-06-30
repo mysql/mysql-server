@@ -279,8 +279,11 @@ struct LatchDebug {
 				Latched(latch, level));
 
 			ut_a(latches->empty()
+			     || level == SYNC_PERSIST_CHECKPOINT
 			     || level == SYNC_LEVEL_VARYING
 			     || level == SYNC_NO_ORDER_CHECK
+			     || latches->back().m_latch->get_level()
+			     == SYNC_PERSIST_CHECKPOINT
 			     || latches->back().m_latch->get_level()
 			     == SYNC_LEVEL_VARYING
 			     || latches->back().m_latch->get_level()
@@ -515,6 +518,9 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_FROM_HASH);
 	LEVEL_MAP_INSERT(SYNC_TREE_NODE_NEW);
 	LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_METADATA_BUFFER);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
+	LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
 	LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
 	LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
@@ -523,7 +529,6 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(SYNC_DICT);
 	LEVEL_MAP_INSERT(SYNC_FTS_CACHE);
 	LEVEL_MAP_INSERT(SYNC_DICT_OPERATION);
-	LEVEL_MAP_INSERT(SYNC_FILE_FORMAT_TAG);
 	LEVEL_MAP_INSERT(SYNC_TRX_I_S_LAST_READ);
 	LEVEL_MAP_INSERT(SYNC_TRX_I_S_RWLOCK);
 	LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
@@ -767,7 +772,6 @@ LatchDebug::check_order(
 	case SYNC_PAGE_CLEANER:
 	case SYNC_LOG:
 	case SYNC_LOG_FLUSH_ORDER:
-	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
 	case SYNC_SEARCH_SYS:
 	case SYNC_THREADS:
@@ -985,6 +989,25 @@ LatchDebug::check_order(
 		basic_check(latches, level, SYNC_FSP - 1);
 		ut_a(find(latches, SYNC_IBUF_MUTEX) == NULL);
 		ut_a(find(latches, SYNC_IBUF_PESS_INSERT_MUTEX) == NULL);
+		break;
+
+	case SYNC_PERSIST_METADATA_BUFFER:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) != NULL);
+		break;
+
+	case SYNC_PERSIST_DIRTY_TABLES:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
+		break;
+
+	case SYNC_PERSIST_CHECKPOINT:
+
+		basic_check(latches, level, SYNC_LOG);
+		ut_a(find(latches, SYNC_PERSIST_METADATA_BUFFER) == NULL);
+		ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
 		break;
 
 	case SYNC_DICT:
@@ -1357,10 +1380,19 @@ sync_latch_meta_init()
 	LATCH_ADD(DICT_FOREIGN_ERR, SYNC_NO_ORDER_CHECK,
 		  dict_foreign_err_mutex_key);
 
-	LATCH_ADD(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
+	LATCH_ADD(PERSIST_METADATA_BUFFER,
+		  SYNC_PERSIST_METADATA_BUFFER,
+		  index_tree_rw_lock_key);
 
-	LATCH_ADD(FILE_FORMAT_MAX, SYNC_FILE_FORMAT_TAG,
-		  file_format_max_mutex_key);
+	LATCH_ADD(DICT_PERSIST_DIRTY_TABLES,
+		  SYNC_PERSIST_DIRTY_TABLES,
+		  dict_persist_dirty_tables_mutex_key);
+
+	LATCH_ADD(DICT_PERSIST_CHECKPOINT,
+		  SYNC_PERSIST_CHECKPOINT,
+		  dict_persist_checkpoint_key);
+
+	LATCH_ADD(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
 
 	LATCH_ADD(FIL_SYSTEM, SYNC_ANY_LATCH, fil_system_mutex_key);
 
@@ -1391,8 +1423,6 @@ sync_latch_meta_init()
 
 	LATCH_ADD(LOG_FLUSH_ORDER, SYNC_LOG_FLUSH_ORDER,
 		  log_flush_order_mutex_key);
-
-	LATCH_ADD(MUTEX_LIST, SYNC_NO_ORDER_CHECK, mutex_list_mutex_key);
 
 	LATCH_ADD(PAGE_CLEANER, SYNC_PAGE_CLEANER, page_cleaner_mutex_key);
 
@@ -1550,17 +1580,21 @@ sync_latch_meta_init()
 	index directly into it from the mutex policy to update
 	the counters and access the meta-data. */
 
-	for (LatchMetaData::iterator it = latch_meta.begin();
-	     it != latch_meta.end();
-	     ++it) {
+	LatchMetaData::iterator it = latch_meta.begin();
+
+	/* Skip the first entry, it is always NULL (LATCH_ID_NONE) */
+
+	for (++it; it != latch_meta.end(); ++it) {
 
 		const latch_meta_t*	meta = *it;
 
-		/* Skip blank entries */
-		if (meta == NULL || meta->get_id() == LATCH_ID_NONE) {
+		/* Debug latches will be missing */
+
+		if (meta == NULL) {
 			continue;
 		}
 
+		ut_a(meta->get_id() != LATCH_ID_NONE);
 		ut_a(id < meta->get_id());
 
 		id = meta->get_id();

@@ -30,12 +30,17 @@
 #include "item_sum.h"         // Item_sum
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
+#include "filesort.h"         // Filesort
+#include "opt_range.h"        // QUICK_SELECT_I
 #include "opt_trace.h"        // Opt_trace_object
+#include "psi_memory_key.h"
+#include "query_result.h"     // Query_result
 #include "sql_base.h"         // fill_record
 #include "sql_join_buffer.h"  // st_cache_field
 #include "sql_optimizer.h"    // JOIN
 #include "sql_show.h"         // get_schema_tables_result
 #include "sql_tmp_table.h"    // create_tmp_table
+#include "mysqld.h"           // stage_executing
 
 #include <algorithm>
 using std::max;
@@ -81,6 +86,16 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool cmp_buffer_with_ref(THD *thd, TABLE *table, TABLE_REF *tab_ref);
+static bool alloc_group_fields(JOIN *join, ORDER *group);
+
+
+void Temp_table_param::cleanup(void)
+{
+  delete [] copy_field;
+  copy_field= NULL;
+  copy_field_end= NULL;
+}
+
 
 /**
   Execute select, executor entry point.
@@ -363,7 +378,7 @@ int JOIN::rollup_send_data(uint idx)
                                - 0 = Total sum level
                                - 1 = First group changed  (a)
                                - 2 = Second group changed (a,b)
-  @param table               reference to temp table
+  @param table_arg           Reference to temp table
 
   @retval
     0   ok
@@ -644,7 +659,7 @@ end_sj_materialize(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     the multiple equality appropriately.
 
   @param cond       condition whose multiple equalities are to be checked
-  @param table      constant table that has been read
+  @param tab        constant table that has been read
 */
 
 static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
@@ -675,7 +690,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
       {
         Field *field= item_field->field;
         JOIN_TAB *stat= field->table->reginfo.join_tab;
-        key_map possible_keys= field->key_start;
+        Key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
         stat[0].keys().merge(possible_keys);
@@ -769,7 +784,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
 /**
   @brief Setup write_func of QEP_tmp_table object
 
-  @param join_tab JOIN_TAB of a tmp table
+  @param tab QEP_TAB of a tmp table
 
   @details
   Function sets up write_func according to how QEP_tmp_table object that
@@ -1004,8 +1019,8 @@ do_select(JOIN *join)
   operation's result further.
 
   @param join  pointer to the structure providing all context info for the query
-  @param join_tab the JOIN_TAB object to which the operation is attached
-  @param end_records  TRUE <=> all records were accumulated, send them further
+  @param qep_tab the QEP_TAB object to which the operation is attached
+  @param end_of_records  TRUE <=> all records were accumulated, send them further
 
   @details
   This function accumulates records, one by one, in QEP operation's buffer by
@@ -1075,13 +1090,6 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 /**
   Retrieve records ends with a given beginning from the result of a join.
 
-  SYNPOSIS
-    sub_select()
-    join      pointer to the structure providing all context info for the query
-    join_tab  the first next table of the execution plan to be retrieved
-    end_records  true when we need to perform final steps of retrival   
-
-  DESCRIPTION
     For a given partial join record consisting of records from the tables 
     preceding the table join_tab in the execution plan, the function
     retrieves all matching full records from the result set and
@@ -1192,8 +1200,8 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
   @param join      pointer to the structure providing all context info for
                    the query
-  @param join_tab  the first next table of the execution plan to be retrieved
-  @param end_records  true when we need to perform final steps of retrival   
+  @param qep_tab  the first next table of the execution plan to be retrieved
+  @param end_of_records  true when we need to perform final steps of retreival   
 
   @return
     return one of enum_nested_loop_state, except NESTED_LOOP_NO_MORE_ROWS.
@@ -1453,8 +1461,8 @@ static int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
   join_tab->return_tab may be modified to cause a return to a previous
   join_tab.
 
-  @param  join     - The join object
-  @param  join_tab - The most inner join_tab being processed
+  @param  join     The join object
+  @param  qep_tab The most inner qep_tab being processed
 
   @return Nested loop state
 */
@@ -2362,7 +2370,7 @@ join_init_quick_read_record(QEP_TAB *tab)
       (tab->table()->file->inited != handler::NONE))
       tab->table()->file->ha_index_or_rnd_end();
 
-  key_map needed_reg_dummy;
+  Key_map needed_reg_dummy;
   QUICK_SELECT_I *old_qck= tab->quick();
   QUICK_SELECT_I *qck;
   DEBUG_SYNC(thd, "quick_not_created");
@@ -3118,7 +3126,7 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     false records are the same
 */
 
-bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
+static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
 {
   my_ptrdiff_t diff= rec1 - rec0;
 
@@ -3141,7 +3149,7 @@ bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1)
     false records are the same
 */
 
-bool table_rec_cmp(TABLE *table)
+static bool table_rec_cmp(TABLE *table)
 {
   my_ptrdiff_t diff= table->record[1] - table->record[0];
   Field **fields= table->visible_field_ptr();
@@ -3203,7 +3211,7 @@ finish:
 
 /* Generate hash for unique constraint according to group-by list */
 
-ulonglong unique_hash_group(ORDER *group)
+static ulonglong unique_hash_group(ORDER *group)
 {
   ulonglong crc= 0;
   Field *field;
@@ -3222,7 +3230,7 @@ ulonglong unique_hash_group(ORDER *group)
 
 /* Generate hash for unique_constraint for all visible fields of a table */
 
-ulonglong unique_hash_fields(TABLE *table)
+static ulonglong unique_hash_fields(TABLE *table)
 {
   ulonglong crc= 0;
   Field **fields= table->visible_field_ptr();
@@ -3240,9 +3248,9 @@ ulonglong unique_hash_fields(TABLE *table)
   @details Calculates record's hash and checks whether the record given in
   table->record[0] is already present in the tmp table.
 
-  @param tab JOIN_TAB of tmp table to check
+  @param table JOIN_TAB of tmp table to check
 
-  @notes This function assumes record[0] is already filled by the caller.
+  @note This function assumes record[0] is already filled by the caller.
   Depending on presence of table->group, it's or full list of table's fields
   are used to calculate hash.
 
@@ -4062,7 +4070,7 @@ make_group_fields(JOIN *main_join, JOIN *curr_join)
   Groups are saved in reverse order for easyer check loop.
 */
 
-bool
+static bool
 alloc_group_fields(JOIN *join, ORDER *group)
 {
   if (group)
@@ -4586,7 +4594,7 @@ QEP_tmp_table::prepare_tmp_table()
 /**
   @brief Prepare table if necessary and call write_func to save record
 
-  @param end_of_record  the end_of_record signal to pass to the writer
+  @param end_of_records The end_of_record signal to pass to the writer
 
   @return return one of enum_nested_loop_state.
 */

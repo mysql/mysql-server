@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -251,7 +251,6 @@ int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a,
         b+= b_length;
         break;
       }
-      break;
     case HA_KEYTYPE_VARBINARY1:
     case HA_KEYTYPE_VARBINARY2:
       {

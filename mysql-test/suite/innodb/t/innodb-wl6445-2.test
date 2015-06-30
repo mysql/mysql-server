@@ -57,8 +57,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -126,8 +125,7 @@ SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;

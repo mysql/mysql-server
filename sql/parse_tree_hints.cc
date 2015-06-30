@@ -17,6 +17,7 @@
 #include "sql_class.h"
 #include "mysqld.h"        // table_alias_charset
 #include "sql_lex.h"
+#include "derror.h"
 
 
 extern struct st_opt_hint_info opt_hint_info[];

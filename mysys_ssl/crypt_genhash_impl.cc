@@ -30,6 +30,7 @@
 #include "crypt_genhash_impl.h"
 
 #include "m_string.h"
+#include "mysql/service_my_snprintf.h"
 
 #include <stdint.h>
 #include <time.h>

@@ -18,7 +18,6 @@ a	b
 1	Create the tablespace
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.ibd
 #
@@ -41,7 +40,6 @@ a	b
 UNLOCK TABLES;
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.ibd
@@ -86,7 +84,6 @@ a	b	c
 UNLOCK TABLES;
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -167,7 +164,6 @@ Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
 t5980.cfg.bak
@@ -247,7 +243,6 @@ a	b
 1	Create the tablespace a third time
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -263,7 +258,6 @@ t5980.ibd.bak2
 SET GLOBAL innodb_file_per_table=ON;
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -289,7 +283,6 @@ a	b
 1	Create the tablespace a third time
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -334,7 +327,6 @@ t5980	CREATE TABLE `t5980` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 ### files in MYSQLD_DATADIR/test
 t5980.frm
-t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
 t5980.cfg.bak
@@ -370,7 +362,6 @@ test.t5980	check	error	Corrupt
 # Relocate this discarded file to the default directory
 # instead of the remote directory it was discarded from.
 # Put cfg and idb files into the default directory.
-# Delete the isl file and the remote cfg file.
 # Restart the engine again.
 # The tablespace is still in the discarded state.
 #
@@ -408,8 +399,6 @@ test.t5980	check	error	Corrupt
 #
 # Restore the ibd and cfg files to the remote directory.
 # Delete the ibd and cfg files from the default directory.
-# The isl file is missing, but is no longer needed since the
-# remote location is in the data dictionary.
 # Import the tablespace and check it out.
 #
 ### files in MYSQLD_DATADIR/test
@@ -521,11 +510,9 @@ test/t5980d	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_
 t5980a.frm
 t5980a.ibd
 t5980b.frm
-t5980b.isl
 t5980c.frm
 t5980c.ibd
 t5980d.frm
-t5980d.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980b.ibd
 t5980d.ibd

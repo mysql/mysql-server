@@ -12,9 +12,7 @@ CREATE TABLE t2(b int PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 INSERT INTO t2 VALUES(2);
 
-SET GLOBAL innodb_fast_shutdown=0;
-let $restart_parameters = restart: --innodb-read-only;
---source include/restart_mysqld.inc
+--source include/restart_innodb_read_only.inc
 
 --error ER_OPEN_AS_READONLY
 UPDATE t1,t2 SET t1.a = 2, t2.b = 2 WHERE t1.a = 1;

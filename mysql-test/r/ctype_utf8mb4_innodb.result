@@ -1,6 +1,3 @@
-set global innodb_large_prefix=off;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 drop table if exists t1,t2;
 #
 # Start of 5.5 tests
@@ -251,7 +248,7 @@ hex(s1)
 41
 drop table t1;
 create table t1 (a text character set utf8mb4, primary key(a(371))) engine InnoDB;
-ERROR 42000: Specified key was too long; max key length is 767 bytes
+Got one of the listed errors
 CREATE TABLE t1 ( a varchar(10) ) CHARACTER SET utf8mb4 ENGINE InnoDB;
 INSERT INTO t1 VALUES ( 'test' );
 SELECT a.a, b.a FROM t1 a, t1 b WHERE a.a = b.a;
@@ -1258,9 +1255,8 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 CREATE TABLE t1 (
 a varchar(255) NOT NULL default '',
 KEY a (a)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC
+DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
 insert into t1 values (_utf8mb4 0xe880bd);
 insert into t1 values (_utf8mb4 0x5b);
 select hex(a) from t1;
@@ -1307,12 +1303,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES utf8mb4;
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=InnoDB ROW_FORMAT=DYNAMIC DEFAULT CHARSET=utf8mb4;
 INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 INSERT INTO t1 VALUES('uu');
 check table t1;
@@ -2202,10 +2193,10 @@ clipid INT NOT NULL,
 Tape TINYTEXT,
 PRIMARY KEY (clipid),
 KEY tape(Tape(255))
-) CHARACTER SET=utf8mb4 ENGINE InnoDB;
-Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+) CHARACTER SET=utf8mb4 ROW_FORMAT=DYNAMIC ENGINE=InnoDB;
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1008 bytes
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -2213,8 +2204,8 @@ t1	CREATE TABLE `t1` (
   `mos` tinyint(4) DEFAULT '0',
   `Tape` tinytext,
   PRIMARY KEY (`clipid`),
-  KEY `tape` (`Tape`(191))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  KEY `tape` (`Tape`(252))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 SET sql_mode = default;
 #
@@ -2512,6 +2503,3 @@ DROP TABLE t1;
 #
 # End of tests
 #
-set global innodb_large_prefix=default;
-Warnings:
-Warning	131	Using innodb_large_prefix is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

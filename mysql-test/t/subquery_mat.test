@@ -25,9 +25,7 @@ if (`select locate('mrr', @@optimizer_switch) > 0`)
 }
 --enable_query_log
 
-set global innodb_large_prefix=off;
 --source include/subquery_mat.inc
-set global innodb_large_prefix=default;
 
 set optimizer_switch=default;
 

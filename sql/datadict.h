@@ -1,6 +1,6 @@
 #ifndef DATADICT_INCLUDED
 #define DATADICT_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@ enum frm_type_enum
 
 frm_type_enum dd_frm_type(THD *thd, char *path, enum legacy_db_type *dbt);
 
-bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
-                           handlerton **table_type);
 bool dd_check_storage_engine_flag(THD *thd,
                                   const char *db, const char *table_name,
                                   uint32 flag,

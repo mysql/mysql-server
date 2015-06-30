@@ -16,20 +16,22 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
-#include "sql_class.h"                    // Query_result_interceptor
-#include "sp_pcontext.h"                  // sp_condition_value
-#include "sql_array.h"
-#include "prealloced_array.h"
+#include "my_global.h"
+#include "prealloced_array.h"             // Prealloced_array
+#include "query_result.h"                 // Query_result_interceptor
+
+class sp_cursor;
+class sp_handler;
+class sp_head;
+class sp_instr_cpush;
+class sp_variable;
+class Query_arena;
+class Item_cache;
+class Server_side_cursor;
 
 ///////////////////////////////////////////////////////////////////////////
 // sp_rcontext declaration.
 ///////////////////////////////////////////////////////////////////////////
-
-class sp_cursor;
-class sp_instr_cpush;
-class Query_arena;
-class sp_head;
-class Item_cache;
 
 /*
   This class is a runtime context of a Stored Routine. It is used in an
@@ -200,7 +202,7 @@ public:
   /// stored routines.
   ///
   /// @param thd            Thread handle.
-  /// @param ip[out]        Instruction pointer to the first handler
+  /// @param [out] ip       Instruction pointer to the first handler
   ///                       instruction.
   /// @param cur_spi        Current SP instruction.
   ///
@@ -242,12 +244,13 @@ public:
 
   /// Create a new sp_cursor instance and push it to the cursor stack.
   ///
+  /// @param thd        Thread handle
   /// @param i          Cursor-push instruction.
   ///
   /// @return error flag.
   /// @retval false on success.
   /// @retval true on error.
-  bool push_cursor(sp_instr_cpush *i);
+  bool push_cursor(THD *thd, sp_instr_cpush *i);
 
   /// Pop and delete given number of sp_cursor instance from the cursor stack.
   ///
@@ -268,7 +271,7 @@ public:
   ///
   /// @param thd             Thread handler.
   /// @param case_expr_id    The CASE expression identifier.
-  /// @param case_expr_item  The CASE expression value
+  /// @param case_expr_item_ptr  The CASE expression value
   ///
   /// @return error flag.
   /// @retval false on success.
@@ -383,33 +386,35 @@ private:
 // sp_cursor declaration.
 ///////////////////////////////////////////////////////////////////////////
 
-class Server_side_cursor;
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
 /* A mediator between stored procedures and server side cursors */
 
 class sp_cursor
 {
 private:
-  /// An interceptor of cursor result set used to implement
-  /// FETCH <cname> INTO <varlist>.
+  /**
+    An interceptor of cursor result set used to implement
+    FETCH @<cname@> INTO @<varlist@>.
+  */
   class Query_fetch_into_spvars: public Query_result_interceptor
   {
     List<sp_variable> *spvar_list;
     uint field_count;
   public:
-    Query_fetch_into_spvars() {}               /* Remove gcc warning */
+    Query_fetch_into_spvars(THD *thd)
+      : Query_result_interceptor(thd) {}
     uint get_field_count() { return field_count; }
     void set_spvar_list(List<sp_variable> *vars) { spvar_list= vars; }
 
     virtual bool send_eof() { return FALSE; }
     virtual bool send_data(List<Item> &items);
     virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-};
+  };
 
 public:
-  sp_cursor(sp_instr_cpush *i)
-   :m_server_side_cursor(NULL),
+  sp_cursor(THD *thd, sp_instr_cpush *i)
+   :m_result(thd),
+    m_server_side_cursor(NULL),
     m_push_instr(i)
   { }
 

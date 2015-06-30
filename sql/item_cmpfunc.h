@@ -19,6 +19,7 @@
 
 /* compare and test functions */
 
+#include "my_global.h"
 #include "mem_root_array.h"  // Mem_root_array
 #include "my_regex.h"        // my_regex_t
 #include "item_func.h"       // Item_int_func
@@ -27,7 +28,6 @@
 
 class Arg_comparator;
 class Item_sum_hybrid;
-class Item_row;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
@@ -301,8 +301,8 @@ public:
   { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -601,7 +601,7 @@ private:
   enum_trig_type trig_type;
 public:
   /**
-     @param a             the item for <condition>
+     @param a             the item for @<condition@>
      @param f             pointer to trigger variable
      @param join          if a table's property is the source of 'f', JOIN
      which owns this table; NULL otherwise.
@@ -616,7 +616,7 @@ public:
   {}
   longlong val_int();
   enum Functype functype() const { return TRIG_COND_FUNC; };
-  /// '<if>', to distinguish from the if() SQL function
+  /// '@<if@>', to distinguish from the if() SQL function
   const char *func_name() const { return "<if>"; };
   bool const_item() const { return FALSE; }
   bool *get_trig_var() { return trig_var; }
@@ -890,8 +890,8 @@ public:
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
@@ -1047,8 +1047,8 @@ public:
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
 private:
@@ -1470,8 +1470,7 @@ public:
   /* Cache for the left item. */
   Item *lval_cache;
 
-  cmp_item_datetime(Item *warn_item_arg)
-    :warn_item(warn_item_arg), lval_cache(0) {}
+  cmp_item_datetime(Item *warn_item_arg);
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *ci) const;
@@ -1605,7 +1604,7 @@ public:
   /// An array of values, created when the bisection lookup method is used
   in_vector *array;
   /**
-    If there is some NULL among <in value list>, during a val_int() call; for
+    If there is some NULL among @<in value list@>, during a val_int() call; for
     example
     IN ( (1,(3,'col')), ... ), where 'col' is a column which evaluates to
     NULL.
@@ -1630,8 +1629,8 @@ public:
   }
   longlong val_int();
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   void fix_length_and_dec();
   uint decimal_precision() const { return 1; }
   void cleanup()
@@ -1662,7 +1661,7 @@ public:
                              double rows_in_table);
 private:
   /**
-     Usable if <in value list> is made only of constants. Returns true if one
+     Usable if @<in value list@> is made only of constants. Returns true if one
      of these constants contains a NULL. Example:
      IN ( (-5, (12,NULL)), ... ).
   */
@@ -1992,8 +1991,8 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   bool fix_fields(THD *, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }

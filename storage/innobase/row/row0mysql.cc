@@ -71,7 +71,13 @@ Created 9/17/2000 Heikki Tuuri
 #include <deque>
 #include <vector>
 
-const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
+
+static const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
 	"innodb_force_recovery is on. We do not allow database modifications"
 	" by the user. Shut down mysqld and edit my.cnf to set"
 	" innodb_force_recovery=0";
@@ -336,6 +342,7 @@ row_mysql_store_geometry(
 /*******************************************************************//**
 Read geometry data in the MySQL format.
 @return pointer to geometry data */
+static
 const byte*
 row_mysql_read_geometry(
 /*====================*/
@@ -1645,7 +1652,7 @@ row_insert_for_mysql_using_ins_graph(
 		/* Mark the table corrupted for the clustered index */
 		dict_index_t*	index = dict_table_get_first_index(table);
 		ut_ad(dict_index_is_clust(index));
-		dict_set_corrupted(index, trx, "INSERT TABLE"); });
+		dict_set_corrupted(index); });
 
 	if (dict_table_is_corrupted(table)) {
 
@@ -2992,14 +2999,9 @@ err_exit:
 			fil_space_get_flags(table->space),
 			path, trx, commit);
 
-			ut_free(path);
+		ut_free(path);
 
-		if (err != DB_SUCCESS) {
-
-			/* We must delete the link file. */
-			RemoteDatafile::delete_link_file(table->name.m_name);
-
-		} else if (compression != NULL) {
+		if (err == DB_SUCCESS && compression != NULL) {
 
 			ut_ad(!is_shared_tablespace(table->space));
 
@@ -3194,26 +3196,26 @@ row_create_index_for_mysql(
 		que_graph_free((que_t*) que_node_get_parent(thr));
 	} else {
 		dict_build_index_def(table, index, trx);
-
-		index_id_t index_id = index->id;
+#ifdef UNIV_DEBUG
+		space_index_t index_id = index->id;
+#endif
 
 		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			(trx_is_strict(trx)
-			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
+			trx_is_strict(trx)
+			|| dict_table_has_atomic_blobs(table));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;
 		}
 
+		index = UT_LIST_GET_LAST(table->indexes);
+		ut_ad(index->id == index_id);
+
 		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
-		if (!dict_table_is_intrinsic(table)) {
-			index = dict_index_get_if_in_cache_low(index_id);
-		} else {
-			index = dict_table_find_index_on_id(table, index_id);
-
+		if (dict_table_is_intrinsic(table)) {
 			/* trx_id field is used for tracking which transaction
 			created the index. For intrinsic table this is
 			ir-relevant and so re-use it for tracking consistent
@@ -3548,6 +3550,7 @@ row_add_table_to_background_drop_list(
 /*********************************************************************//**
 Reassigns the table identifier of a table.
 @return error code or DB_SUCCESS */
+static
 dberr_t
 row_mysql_table_id_reassign(
 /*========================*/
@@ -4066,36 +4069,25 @@ This deletes the fil_space_t if found and the file on disk.
 @param[in]	space_id	Tablespace ID
 @param[in]	tablename	Table name, same as the tablespace name
 @param[in]	filepath	File path of tablespace to delete
-@param[in]	is_temp		Is this a temporary table/tablespace
-@param[in]	trx		Transaction handle
 @return error code or DB_SUCCESS */
 UNIV_INLINE
 dberr_t
 row_drop_single_table_tablespace(
 	ulint	space_id,
 	const char*	tablename,
-	const char*	filepath,
-	bool	is_temp,
-	trx_t*	trx)
+	const char*	filepath)
 {
 	dberr_t	err = DB_SUCCESS;
 
-	/* This might be a temporary single-table tablespace if the table
-	is compressed and temporary. If so, don't spam the log when we
-	delete one of these or if we can't find the tablespace. */
-	bool	print_msg = !is_temp;
-
 	/* If the tablespace is not in the cache, just delete the file. */
 	if (!fil_space_for_table_exists_in_mem(
-		    space_id, tablename, print_msg, false, NULL, 0)) {
+		    space_id, tablename, true, false, NULL, 0)) {
 
 		/* Force a delete of any discarded or temporary files. */
 		fil_delete_file(filepath);
 
-		if (print_msg) {
-			ib::info() << "Removed datafile " << filepath
-				<< " for table " << tablename;
-		}
+		ib::info() << "Removed datafile " << filepath
+			<< " for table " << tablename;
 
 	} else if (fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE)
 		   != DB_SUCCESS) {
@@ -4223,11 +4215,6 @@ row_drop_table_for_mysql(
 
 	/* make sure background stats thread is not running on the table */
 	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
-
-	/* Delete the link file if used. */
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		RemoteDatafile::delete_link_file(name);
-	}
 
 	if (!dict_table_is_temporary(table)) {
 
@@ -4553,23 +4540,20 @@ row_drop_table_for_mysql(
 	}
 
 	switch (err) {
-		ulint	space_id;
-		bool	is_temp;
-		bool	ibd_file_missing;
-		bool	is_discarded;
-		bool	shared_tablespace;
+		ulint		space_id;
+		bool		is_temp;
+		bool		ibd_file_missing;
+		bool		is_discarded;
+		bool		shared_tablespace;
+		table_id_t	table_id;
 
 	case DB_SUCCESS:
 		space_id = table->space;
+		table_id = table->id;
 		ibd_file_missing = table->ibd_file_missing;
 		is_discarded = dict_table_is_discarded(table);
 		is_temp = dict_table_is_temporary(table);
 		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
-
-		/* If there is a temp path then the temp flag is set.
-		However, during recovery, we might have a temp flag but
-		not know the temp path */
-		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
 
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
@@ -4590,10 +4574,6 @@ row_drop_table_for_mysql(
 			filepath = fil_make_filepath(
 				table->data_dir_path,
 				table->name.m_name, IBD, true);
-		} else if (table->dir_path_of_temp_table) {
-			filepath = fil_make_filepath(
-				table->dir_path_of_temp_table,
-				NULL, IBD, false);
 		} else if (!shared_tablespace) {
 			filepath = fil_make_filepath(
 				NULL, table->name.m_name, IBD, false);
@@ -4614,7 +4594,17 @@ row_drop_table_for_mysql(
 
 		/* We can now drop the single-table tablespace. */
 		err = row_drop_single_table_tablespace(
-			space_id, tablename, filepath, is_temp, trx);
+			space_id, tablename, filepath);
+
+		/* Finally, if it's not a temporary table,
+		let's try to delete the row in DDTableBuffer if exists */
+		if (!is_temp && !srv_missing_dd_table_buffer) {
+			mutex_enter(&dict_persist->mutex);
+			err = dict_persist->table_buffer->remove(table_id);
+			ut_ad(err == DB_SUCCESS);
+			mutex_exit(&dict_persist->mutex);
+		}
+
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
@@ -4664,11 +4654,10 @@ row_drop_table_for_mysql(
 		unwarranted follow-up action on this table that can result
 		in more serious issues. */
 
-		table->corrupted = true;
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
-			dict_set_corrupted(index, trx, "DROP TABLE");
+			dict_set_corrupted(index);
 		}
 	}
 
@@ -4701,104 +4690,11 @@ funct_exit:
 	DBUG_RETURN(err);
 }
 
-/*********************************************************************//**
-Drop all temporary tables during crash recovery. */
-void
-row_mysql_drop_temp_tables(void)
-/*============================*/
-{
-	trx_t*		trx;
-	btr_pcur_t	pcur;
-	mtr_t		mtr;
-	mem_heap_t*	heap;
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "dropping temporary tables";
-	row_mysql_lock_data_dictionary(trx);
-
-	heap = mem_heap_create(200);
-
-	mtr_start(&mtr);
-
-	btr_pcur_open_at_index_side(
-		true,
-		dict_table_get_first_index(dict_sys->sys_tables),
-		BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
-
-	for (;;) {
-		const rec_t*	rec;
-		const byte*	field;
-		ulint		len;
-		const char*	table_name;
-		dict_table_t*	table;
-
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-
-		if (!btr_pcur_is_on_user_rec(&pcur)) {
-			break;
-		}
-
-		/* The high order bit of N_COLS is set unless
-		ROW_FORMAT=REDUNDANT. */
-		rec = btr_pcur_get_rec(&pcur);
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__NAME, &len);
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
-		if (len != 4
-		    || !(mach_read_from_4(field) & DICT_N_COLS_COMPACT)) {
-			continue;
-		}
-
-		/* Older versions of InnoDB, which only supported tables
-		in ROW_FORMAT=REDUNDANT could write garbage to
-		SYS_TABLES.MIX_LEN, where we now store the is_temp flag.
-		Above, we assumed is_temp=0 if ROW_FORMAT=REDUNDANT. */
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
-		if (len != 4
-		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
-			continue;
-		}
-
-		/* This is a temporary table. */
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_TABLES__NAME, &len);
-		if (len == UNIV_SQL_NULL || len == 0) {
-			/* Corrupted SYS_TABLES.NAME */
-			continue;
-		}
-
-		table_name = mem_heap_strdupl(heap, (const char*) field, len);
-
-		btr_pcur_store_position(&pcur, &mtr);
-		btr_pcur_commit_specify_mtr(&pcur, &mtr);
-
-		table = dict_load_table(table_name, true,
-					DICT_ERR_IGNORE_NONE);
-
-		if (table) {
-			row_drop_table_for_mysql(table_name, trx, FALSE);
-			trx_commit_for_mysql(trx);
-		}
-
-		mtr_start(&mtr);
-		btr_pcur_restore_position(BTR_SEARCH_LEAF,
-					  &pcur, &mtr);
-	}
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-	mem_heap_free(heap);
-	row_mysql_unlock_data_dictionary(trx);
-	trx_free_for_background(trx);
-}
-
 /*******************************************************************//**
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 drop_all_foreign_keys_in_db(
 /*========================*/
@@ -5025,7 +4921,7 @@ row_is_mysql_tmp_table_name(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_delete_constraint_low(
 /*======================*/
@@ -5048,7 +4944,7 @@ row_delete_constraint_low(
 /****************************************************************//**
 Delete a single constraint.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_delete_constraint(
 /*==================*/

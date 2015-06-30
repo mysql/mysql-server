@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@ namespace Base{
 class I_connection_factory
 {
 public:
+  virtual ~I_connection_factory() {}
+
   /**
     Provides new connection to MySQL database server.
    */

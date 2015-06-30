@@ -17,8 +17,8 @@
 #define MYSQL_SERVICE_MYSQL_PLUGIN_AUTH_INCLUDED
 
 /**
-  @file include/mysql/service_mysql_plugin_auth.h
-  This service provides functions to validatete password, check for strength
+  @file include/mysql/service_mysql_password_policy.h
+  This service provides functions to validate password, check for strength
   of password based on common policy.
 
   SYNOPSIS

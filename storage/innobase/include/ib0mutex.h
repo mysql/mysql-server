@@ -23,8 +23,6 @@ Policy based mutexes.
 Created 2013-03-26 Sunny Bains.
 ***********************************************************************/
 
-#ifndef UNIV_INNOCHECKSUM
-
 #ifndef ib0mutex_h
 #define ib0mutex_h
 
@@ -1178,5 +1176,3 @@ private:
 };
 
 #endif /* ib0mutex_h */
-
-#endif /* !UNIV_INNOCHECKSUM */

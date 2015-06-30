@@ -24,6 +24,7 @@ id
 1
 2
 3
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SET GLOBAL innodb_file_per_table = 1;
 CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';

@@ -15,13 +15,23 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#include "sql_error.h"
-#include "my_decimal.h"                         /* my_decimal */
-#include "field.h"                              /* Send_field */
-#include "protocol.h"                           /* Protocol */
+
+#include "my_global.h"
+#include "mysql_time.h"          // MYSQL_TIME
+#include "protocol.h"            // Protocol
 
 typedef struct st_mysql_field MYSQL_FIELD;
+class i_string;
 class Item_param;
+template <class T> class List;
+template <class T> class I_List;
+
+#ifdef __cplusplus
+class THD;
+#define MYSQL_THD THD*
+#else
+#define MYSQL_THD void*
+#endif
 
 class Protocol_classic : public Protocol
 {

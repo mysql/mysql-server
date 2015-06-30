@@ -14,18 +14,24 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
-#include "sql_class.h"
 #include "trigger.h"
+
 #include "mysys_err.h"            // EE_OUTOFMEMORY
-#include "trigger_creation_ctx.h" // Trigger_creation_ctx
-#include "sql_parse.h"            // parse_sql
-#include "sp.h"                   // sp_update_stmt_used_routines
-#include "sql_table.h"            // check_n_cut_mysql50_prefix
-#include "sql_show.h"             // append_identifier
+#include "derror.h"               // ER_THD
+#include "error_handler.h"        // Internal_error_handler
+#include "mysqld.h"               // table_alias_charset
+#include "sp.h"                   // sp_add_used_routine
+#include "sp_head.h"              // sp_name
+#include "sql_class.h"            // THD
 #include "sql_db.h"               // get_default_db_collation
+#include "sql_error.h"            // Sql_condition
+#include "sql_parse.h"            // parse_sql
+#include "sql_show.h"             // append_identifier
+#include "trigger_creation_ctx.h" // Trigger_creation_ctx
 
 #include "mysql/psi/mysql_sp.h"
+
+
 ///////////////////////////////////////////////////////////////////////////
 
 /**
@@ -59,11 +65,11 @@ public:
         m_trigger_name= &thd->lex->spname->m_name;
       if (m_trigger_name)
         my_snprintf(m_message, sizeof(m_message),
-                    ER(ER_ERROR_IN_TRIGGER_BODY),
+                    ER_THD(thd, ER_ERROR_IN_TRIGGER_BODY),
                     m_trigger_name->str, message);
       else
         my_snprintf(m_message, sizeof(m_message),
-                    ER(ER_ERROR_IN_UNKNOWN_TRIGGER_BODY), message);
+                    ER_THD(thd, ER_ERROR_IN_UNKNOWN_TRIGGER_BODY), message);
       return true;
     }
     return false;
@@ -657,7 +663,7 @@ bool Trigger::parse(THD *thd)
     */
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
+                        ER_TRG_NO_DEFINER, ER_THD(thd, ER_TRG_NO_DEFINER),
                         m_db_name.str,
                         m_trigger_name.str);
 
@@ -677,34 +683,6 @@ bool Trigger::parse(THD *thd)
                                        m_sp->m_name.str, m_sp->m_name.length);
 #endif
 
-#ifndef DBUG_OFF
-  /*
-    Check that we correctly update trigger definitions when we rename tables
-    with triggers.
-
-    In special cases like "RENAME TABLE `#mysql50#somename` TO `somename`"
-    or "ALTER DATABASE `#mysql50#somename` UPGRADE DATA DIRECTORY NAME"
-    we might be given table or database name with "#mysql50#" prefix (and
-    trigger's definiton contains un-prefixed version of the same name).
-    To remove this prefix we use check_n_cut_mysql50_prefix().
-  */
-
-  char fname[NAME_LEN + 1];
-  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                              lex.query_tables->db, m_db_name.str) ||
-               (check_n_cut_mysql50_prefix(m_db_name.str,
-                                           fname, sizeof(fname)) &&
-                !my_strcasecmp(table_alias_charset,
-                               lex.query_tables->db, fname))));
-  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                              lex.query_tables->table_name,
-                              m_subject_table_name.str) ||
-               (check_n_cut_mysql50_prefix(m_subject_table_name.str,
-                                           fname, sizeof(fname)) &&
-                !my_strcasecmp(table_alias_charset,
-                               lex.query_tables->table_name, fname))));
-#endif
-
 cleanup:
   lex_end(&lex);
   thd->reset_db(current_db_name_saved);
@@ -719,7 +697,7 @@ cleanup:
   used by statement.
 
   @param [in]     thd               thread handle
-  @param [in out] prelocking_ctx    prelocking context of the statement
+  @param [in,out] prelocking_ctx    prelocking context of the statement
   @param [in]     table_list        TABLE_LIST for the table
 */
 
@@ -758,7 +736,7 @@ void Trigger::print_upgrade_warning(THD *thd)
   push_warning_printf(thd,
     Sql_condition::SL_WARNING,
     ER_WARN_TRIGGER_DOESNT_HAVE_CREATED,
-    ER(ER_WARN_TRIGGER_DOESNT_HAVE_CREATED),
+    ER_THD(thd, ER_WARN_TRIGGER_DOESNT_HAVE_CREATED),
     get_db_name().str,
     get_subject_table_name().str,
     get_trigger_name().str);

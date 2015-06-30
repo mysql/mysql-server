@@ -1,7 +1,7 @@
 #ifndef KEYCACHES_INCLUDED
 #define KEYCACHES_INCLUDED
 
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@
 
 #include "sql_list.h"
 #include <keycache.h>
-
-extern PSI_memory_key key_memory_NAMED_ILINK_name;
+#include "mysql/service_mysql_alloc.h"
 
 extern "C"
 {
+  extern PSI_memory_key key_memory_NAMED_ILINK_name;
   typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
 }
 

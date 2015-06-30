@@ -50,9 +50,11 @@ ERROR HY000: Variable 'innodb_change_buffering' is a GLOBAL variable and should 
 set global innodb_change_buffering=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
 set global innodb_change_buffering=1;
-ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
+SELECT @@global.innodb_change_buffering;
+@@global.innodb_change_buffering
+inserts
 set global innodb_change_buffering=-2;
-ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
+ERROR 42000: Variable 'innodb_change_buffering' can't be set to the value of '-2'
 set global innodb_change_buffering=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering'
 set global innodb_change_buffering='some';

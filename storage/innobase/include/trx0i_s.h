@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -137,7 +137,7 @@ struct i_s_trx_row_t {
 	ulint		trx_mysql_thread_id; /*!< thd_get_thread_id() */
 	const char*	trx_query;	/*!< MySQL statement being
 					executed in the transaction */
-	CHARSET_INFO*	trx_query_cs;	/*!< the charset of trx_query */
+	const CHARSET_INFO*	trx_query_cs;	/*!< the charset of trx_query */
 	const char*	trx_operation_state; /*!< trx_t::op_info */
 	ulint		trx_tables_in_use;/*!< n_mysql_tables_in_use in
 					 trx_t */

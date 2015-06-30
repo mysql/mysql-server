@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,8 +26,6 @@ Created 11/28/1995 Heikki Tuuri
 #ifndef fut0lst_h
 #define fut0lst_h
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "univ.i"
 
 #include "fil0fil.h"
@@ -43,12 +41,11 @@ typedef	byte	flst_node_t;
 
 /* The physical size of a list base node in bytes */
 #define	FLST_BASE_NODE_SIZE	(4 + 2 * FIL_ADDR_SIZE)
-#endif /* !UNIV_INNOCHECKSUM */
 
 /* The physical size of a list node in bytes */
 #define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
 
-#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
+#if !defined UNIV_HOTBACKUP
 /********************************************************************//**
 Initializes a list base node. */
 UNIV_INLINE
@@ -72,24 +69,6 @@ flst_add_first(
 /*===========*/
 	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	flst_node_t*		node,	/*!< in: node to add */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Inserts a node after another in a list. */
-void
-flst_insert_after(
-/*==============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node1,	/*!< in: node to insert after */
-	flst_node_t*		node2,	/*!< in: node to add */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Inserts a node before another in a list. */
-void
-flst_insert_before(
-/*===============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node2,	/*!< in: node to insert */
-	flst_node_t*		node3,	/*!< in: node to insert before */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
 /********************************************************************//**
 Removes a node. */
@@ -191,19 +170,11 @@ flst_validate(
 /*==========*/
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1);	/*!< in: mtr */
-/********************************************************************//**
-Prints info of a file-based list. */
-void
-flst_print(
-/*=======*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	mtr_t*			mtr);	/*!< in: mtr */
-
 
 #ifndef UNIV_NONINL
 #include "fut0lst.ic"
 #endif
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM*/
+#endif /* !UNIV_HOTBACKUP */
 
 #endif

@@ -181,9 +181,9 @@ static void create_file_noop(PSI_file_key key NNN,
 }
 
 static int spawn_thread_noop(PSI_thread_key key NNN,
-                             my_thread_handle *thread NNN,
-                             const my_thread_attr_t *attr NNN,
-                             my_start_routine start_routine, void *arg NNN)
+                             my_thread_handle *thread,
+                             const my_thread_attr_t *attr,
+                             my_start_routine start_routine, void *arg)
 {
   return my_thread_create(thread, attr, start_routine, arg);
 }

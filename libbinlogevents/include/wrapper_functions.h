@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,10 @@
 
 #if HAVE_MYSYS
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
+extern "C" {
 extern PSI_memory_key key_memory_log_event;
+}
 #else
 #include <cassert>
 #ifndef _GNU_SOURCE
@@ -53,6 +56,7 @@ extern PSI_memory_key key_memory_log_event;
 #define BAPI_ASSERT(x) do { } while(0)
 #endif
 
+#ifndef HAVE_STRNDUP
 /**
   The strndup() function returns a pointer to a new string which is a duplicate
   of the string s, but it only copies at most n bytes. If s is longer than n,
@@ -64,7 +68,6 @@ extern PSI_memory_key key_memory_log_event;
 
   @return    The duplicated string, or NULL if insufficient memory was available.
 */
-#ifndef HAVE_STRNDUP
 inline char *strndup (const char *s, size_t n)
 {
   char *result;
@@ -133,7 +136,7 @@ inline void* bapi_memdup(const void* source, size_t len)
 
 
 /**
-  This is a wrapper function inorder to  allocate memory from the heap
+  This is a wrapper function in order to allocate memory from the heap
   in the binlogevent library.
 
   If compiled with the MySQL server, and memory is allocated using memory
@@ -141,7 +144,6 @@ inline void* bapi_memdup(const void* source, size_t len)
   the standard malloc() is called from the function.
 
   @param size         Size of the memory to be allocated.
-  @param key_to_int   A mapping from the PSI_memory_key to an enum
   @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
@@ -158,14 +160,14 @@ inline void * bapi_malloc(size_t size, int flags)
 
 
 /**
-  This is a wrapper function inorder to free the memory allocated from the heap
+  This is a wrapper function in order to free the memory allocated from the heap
   in the binlogevent library.
 
   If compiled with the MySQL server, and memory is allocated using memory
   allocating methods from the mysys library, my_free is called. Otherwise,
   the standard free() is called from the function.
 
-  @param Pointer to the memory which is to be freed.
+  @param ptr Pointer to the memory which is to be freed.
 */
 inline void bapi_free(void* ptr)
 {

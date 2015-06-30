@@ -31,13 +31,16 @@
   user-submitted one. (see sql_parse.cc)
 */
 
+#include "sql_rewrite.h"
 
-#include "auth_common.h"    // append_user
-#include "sql_parse.h"  // get_current_user
-#include "sql_show.h"   // append_identifier
-#include "sp_head.h"    // struct set_var_base
-#include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
-#include "mysqld.h"     // opt_log_backward_compatible_user_definitions
+#include "auth_common.h"    // GRANT_ACL
+#include "mysqld.h"         // opt_log_backward_compatible_user_definitions
+#include "rpl_slave.h"      // SLAVE_SQL, SLAVE_IO
+#include "sql_class.h"      // THD
+#include "sql_lex.h"        // LEX
+#include "sql_parse.h"      // get_current_user
+#include "sql_show.h"       // append_identifier
+#include "sql_string.h"     // String
 
 
 /**
@@ -54,8 +57,8 @@
   @retval          false if any subsequent key/value pair would be the first
 */
 
-bool append_int(String *str, bool comma, const char *txt, size_t len,
-                long val, int cond)
+static bool append_int(String *str, bool comma, const char *txt, size_t len,
+                       long val, int cond)
 {
   if (cond)
   {
@@ -83,7 +86,8 @@ bool append_int(String *str, bool comma, const char *txt, size_t len,
   @retval          false if any subsequent key/value pair would be the first
 */
 
-bool append_str(String *str, bool comma, const char *key, const char *val)
+static bool append_str(String *str, bool comma, const char *key,
+                       const char *val)
 {
   if (val)
   {

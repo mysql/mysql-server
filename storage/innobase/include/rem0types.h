@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,8 +54,7 @@ This constant MUST NOT BE CHANGED, or the compatibility of InnoDB data
 files would be at risk! */
 #define REC_ANTELOPE_MAX_INDEX_COL_LEN		768
 
-/** Maximum indexed field length for table format UNIV_FORMAT_B and
-beyond.
+/** Maximum indexed field length for tables that have atomic BLOBs.
 This (3072) is the maximum index row length allowed, so we cannot create index
 prefix column longer than that. */
 #define REC_VERSION_56_MAX_INDEX_COL_LEN	3072

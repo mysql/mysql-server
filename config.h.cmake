@@ -20,7 +20,6 @@
  * From configure.cmake, in order of appearance 
  */
 #cmakedefine HAVE_LLVM_LIBCPP 1
-#cmakedefine _LARGEFILE_SOURCE 1
 
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
@@ -80,7 +79,6 @@
 #cmakedefine HAVE_FTRUNCATE 1
 #cmakedefine HAVE_COMPRESS 1
 #cmakedefine HAVE_CRYPT 1
-#cmakedefine HAVE_DLOPEN 1
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FDATASYNC 1

@@ -38,11 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "buf0buf.ic"
 #endif
-#ifdef UNIV_INNOCHECKSUM
-#include "string.h"
-#include "mach0data.h"
-#endif /* UNIV_INNOCHECKSUM */
-#ifndef UNIV_INNOCHECKSUM
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"
@@ -64,7 +59,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "srv0mon.h"
 #include "fsp0sysspace.h"
-#endif /* !UNIV_INNOCHECKSUM */
 #include "page0zip.h"
 #include "buf0checksum.h"
 #include "sync0sync.h"
@@ -262,7 +256,7 @@ that the whole area may be needed in the near future, and issue
 the read requests for the whole area.
 */
 
-#if (!(defined(UNIV_HOTBACKUP) || defined(UNIV_INNOCHECKSUM)))
+#ifndef UNIV_HOTBACKUP
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 100;
 static const int WAIT_FOR_WRITE = 100;
@@ -519,7 +513,7 @@ buf_block_alloc(
 
 	return(block);
 }
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP */
 
 /** Checks if a page contains only zeroes.
 @param[in]	read_buf	database page
@@ -538,538 +532,6 @@ buf_page_is_zeroes(
 	return(true);
 }
 
-/** Checks if the page is in crc32 checksum format.
-@param[in]	read_buf	database page
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	page_no		page number of given read_buf
-@param[in]	is_log_enabled	true if log option is enabled
-@param[in]	log_file	file pointer to log_file
-@param[in]	curr_algo	current checksum algorithm
-@return true if the page is in crc32 checksum format. */
-UNIV_INLINE
-bool
-buf_page_is_checksum_valid_crc32(
-	const byte*			read_buf,
-	ulint				checksum_field1,
-	ulint				checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-	,uintmax_t			page_no,
-	bool				is_log_enabled,
-	FILE*				log_file,
-	const srv_checksum_algorithm_t	curr_algo
-#endif /* UNIV_INNOCHECKSUM */
-	)
-{
-	const uint32_t	crc32 = buf_calc_page_crc32(read_buf);
-
-#ifdef UNIV_INNOCHECKSUM
-	if (is_log_enabled
-	    && curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32) {
-		fprintf(log_file, "page::%" PRIuMAX ";"
-			" crc32 calculated = %u;"
-			" recorded checksum field1 = %lu recorded"
-			" checksum field2 =%lu\n", page_no,
-			crc32, checksum_field1, checksum_field2);
-	}
-#endif /* UNIV_INNOCHECKSUM */
-
-	if (checksum_field1 != checksum_field2) {
-		return(false);
-	}
-
-	if (checksum_field1 == crc32) {
-		return(true);
-	}
-
-	const uint32_t	crc32_legacy = buf_calc_page_crc32(read_buf, true);
-
-	if (checksum_field1 == crc32_legacy) {
-		return(true);
-	}
-
-	return(false);
-}
-
-/** Checks if the page is in innodb checksum format.
-@param[in]	read_buf	database page
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	page_no		page number of given read_buf
-@param[in]	is_log_enabled	true if log option is enabled
-@param[in]	log_file	file pointer to log_file
-@param[in]	curr_algo	current checksum algorithm
-@return true if the page is in innodb checksum format. */
-UNIV_INLINE
-bool
-buf_page_is_checksum_valid_innodb(
-	const byte*			read_buf,
-	ulint				checksum_field1,
-	ulint				checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-	,uintmax_t			page_no,
-	bool				is_log_enabled,
-	FILE*				log_file,
-	const srv_checksum_algorithm_t	curr_algo
-#endif /* UNIV_INNOCHECKSUM */
-	)
-{
-	/* There are 2 valid formulas for
-	checksum_field2 (old checksum field) which algo=innodb could have
-	written to the page:
-
-	1. Very old versions of InnoDB only stored 8 byte lsn to the
-	start and the end of the page.
-
-	2. Newer InnoDB versions store the old formula checksum
-	(buf_calc_page_old_checksum()). */
-
-	ulint	old_checksum = buf_calc_page_old_checksum(read_buf);
-	ulint	new_checksum = buf_calc_page_new_checksum(read_buf);
-
-#ifdef UNIV_INNOCHECKSUM
-	if (is_log_enabled
-	    && curr_algo == SRV_CHECKSUM_ALGORITHM_INNODB) {
-		fprintf(log_file, "page::%" PRIuMAX ";"
-			" old style: calculated ="
-			" %lu; recorded = %lu\n",
-			page_no, old_checksum,
-			checksum_field2);
-		fprintf(log_file, "page::%" PRIuMAX ";"
-			" new style: calculated ="
-			" %lu; crc32 = %u; recorded = %lu\n",
-			page_no, new_checksum,
-			buf_calc_page_crc32(read_buf), checksum_field1);
-	}
-
-	if (is_log_enabled
-	    && curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
-		fprintf(log_file, "page::%" PRIuMAX ";"
-			" old style: calculated ="
-			" %lu; recorded checksum = %lu\n",
-			page_no, old_checksum,
-			checksum_field2);
-		fprintf(log_file, "page::%" PRIuMAX ";"
-			" new style: calculated ="
-			" %lu; recorded checksum  = %lu\n",
-			page_no, new_checksum,
-			checksum_field1);
-	}
-#endif /* UNIV_INNOCHECKSUM */
-
-	if (checksum_field2 != mach_read_from_4(read_buf + FIL_PAGE_LSN)
-	    && checksum_field2 != old_checksum) {
-		return(false);
-	}
-
-	/* old field is fine, check the new field */
-
-	/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
-	(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
-
-	if (checksum_field1 != 0 && checksum_field1 != new_checksum) {
-		return(false);
-	}
-
-	return(true);
-}
-
-/** Checks if the page is in none checksum format.
-@param[in]	read_buf	database page
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	page_no		page number of given read_buf
-@param[in]	is_log_enabled	true if log option is enabled
-@param[in]	log_file	file pointer to log_file
-@param[in]	curr_algo	current checksum algorithm
-@return true if the page is in none checksum format. */
-UNIV_INLINE
-bool
-buf_page_is_checksum_valid_none(
-	const byte*			read_buf,
-	ulint				checksum_field1,
-	ulint				checksum_field2
-#ifdef	UNIV_INNOCHECKSUM
-	,uintmax_t			page_no,
-	bool				is_log_enabled,
-	FILE*				log_file,
-	const srv_checksum_algorithm_t	curr_algo
-#endif	/* UNIV_INNOCHECKSUM */
-	)
-{
-
-#ifdef UNIV_INNOCHECKSUM
-	if (is_log_enabled
-	    && curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_NONE) {
-		fprintf(log_file,
-			"page::%" PRIuMAX "; none checksum: calculated"
-			" = %lu; recorded checksum_field1 = %lu"
-			" recorded checksum_field2 = %lu\n",
-			page_no, BUF_NO_CHECKSUM_MAGIC,
-			checksum_field1, checksum_field2);
-	}
-#endif /* UNIV_INNOCHECKSUM */
-
-	return(checksum_field1 == checksum_field2
-	       && checksum_field1 == BUF_NO_CHECKSUM_MAGIC);
-}
-
-/** Checks if a page is corrupt.
-@param[in]	check_lsn	true if we need to check and complain about
-the LSN
-@param[in]	read_buf	database page
-@param[in]	page_size	page size
-@param[in]	skip_checksum	if true, skip checksum
-@param[in]	page_no		page number of given read_buf
-@param[in]	strict_check	true if strict-check option is enabled
-@param[in]	is_log_enabled	true if log option is enabled
-@param[in]	log_file	file pointer to log_file
-@return TRUE if corrupted */
-ibool
-buf_page_is_corrupted(
-	bool			check_lsn,
-	const byte*		read_buf,
-	const page_size_t&	page_size,
-	bool			skip_checksum
-#ifdef UNIV_INNOCHECKSUM
-	,uintmax_t		page_no,
-	bool			strict_check,
-	bool			is_log_enabled,
-	FILE*			log_file
-#endif /* UNIV_INNOCHECKSUM */
-)
-{
-	ulint		checksum_field1;
-	ulint		checksum_field2;
-
-	if (!page_size.is_compressed()
-	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
-		      read_buf + page_size.logical()
-		      - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4)) {
-
-		/* Stored log sequence numbers at the start and the end
-		of page do not match */
-
-		return(TRUE);
-	}
-
-#if !defined(UNIV_HOTBACKUP) && !defined(UNIV_INNOCHECKSUM)
-	if (check_lsn && recv_lsn_checks_on) {
-		lsn_t		current_lsn;
-		const lsn_t	page_lsn
-			= mach_read_from_8(read_buf + FIL_PAGE_LSN);
-
-		/* Since we are going to reset the page LSN during the import
-		phase it makes no sense to spam the log with error messages. */
-
-		if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
-
-			const ulint	space_id = mach_read_from_4(
-				read_buf + FIL_PAGE_SPACE_ID);
-			const ulint	page_no = mach_read_from_4(
-				read_buf + FIL_PAGE_OFFSET);
-
-			ib::error() << "Page " << page_id_t(space_id, page_no)
-				<< " log sequence number " << page_lsn
-				<< " is in the future! Current system"
-				<< " log sequence number "
-				<< current_lsn << ".";
-
-			ib::error() << "Your database may be corrupt or"
-				" you may have copied the InnoDB"
-				" tablespace but not the InnoDB"
-				" log files. "
-				<< FORCE_RECOVERY_MSG;
-
-		}
-	}
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
-
-	/* Check whether the checksum fields have correct values */
-
-	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE
-	    || skip_checksum) {
-		return(FALSE);
-	}
-
-	if (page_size.is_compressed()) {
-#ifdef UNIV_INNOCHECKSUM
-		return(!page_zip_verify_checksum(read_buf,
-						 page_size.physical(),
-						 page_no, strict_check,
-						 is_log_enabled, log_file));
-#else
-		return(!page_zip_verify_checksum(read_buf,
-						 page_size.physical()));
-#endif /* UNIV_INNOCHECKSUM */
-	}
-
-	checksum_field1 = mach_read_from_4(
-		read_buf + FIL_PAGE_SPACE_OR_CHKSUM);
-
-	checksum_field2 = mach_read_from_4(
-		read_buf + page_size.logical() - FIL_PAGE_END_LSN_OLD_CHKSUM);
-
-#if FIL_PAGE_LSN % 8
-#error "FIL_PAGE_LSN must be 64 bit aligned"
-#endif
-
-	/* declare empty pages non-corrupted */
-	if (checksum_field1 == 0
-	    && checksum_field2 == 0
-	    && *reinterpret_cast<const ib_uint64_t*>(
-		    read_buf + FIL_PAGE_LSN) == 0) {
-
-		/* make sure that the page is really empty */
-
-		ulint	i;
-
-		for (i = 0; i < page_size.logical(); ++i) {
-
-			/* The FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID has been
-			repurposed for page compression. It can be
-			set for uncompressed empty pages. */
-
-			if ((i < FIL_PAGE_FILE_FLUSH_LSN
-			     || i >= FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID)
-			    && read_buf[i] != 0) {
-
-				break;
-			}
-		}
-#ifdef UNIV_INNOCHECKSUM
-		if (i >= page_size.logical()) {
-			if (is_log_enabled) {
-				fprintf(log_file, "Page::%" PRIuMAX
-					" is empty and uncorrupted\n",
-					page_no);
-			}
-			return(FALSE);
-		}
-#else
-		return(i < page_size.logical());
-#endif /* UNIV_INNOCHECKSUM */
-	}
-
-#ifndef UNIV_INNOCHECKSUM
-	const page_id_t	page_id(mach_read_from_4(
-					read_buf + FIL_PAGE_SPACE_ID),
-				mach_read_from_4(
-					read_buf + FIL_PAGE_OFFSET));
-#endif /* UNIV_INNOCHECKSUM */
-
-	DBUG_EXECUTE_IF("buf_page_import_corrupt_failure", return(TRUE); );
-	const srv_checksum_algorithm_t	curr_algo =
-		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm);
-
-	switch (curr_algo) {
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-
-		if (buf_page_is_checksum_valid_crc32(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo
-#endif /* UNIV_INNOCHECKSUM */
-			)) {
-			return(FALSE);
-		}
-
-		if (buf_page_is_checksum_valid_none(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
-#else /* UNIV_INNOCHECKSUM */
-		)) {
-			if (curr_algo
-			    == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32) {
-				page_warn_strict_checksum(
-					curr_algo,
-					SRV_CHECKSUM_ALGORITHM_NONE,
-					page_id);
-			}
-#endif /* UNIV_INNOCHECKSUM */
-
-#ifdef UNIV_INNOCHECKSUM
-			if (is_log_enabled) {
-
-				fprintf(log_file, "page::%" PRIuMAX ";"
-					" old style: calculated = %lu;"
-					" recorded = %lu\n", page_no,
-					buf_calc_page_old_checksum(read_buf),
-					checksum_field2);
-				fprintf(log_file, "page::%" PRIuMAX ";"
-					" new style: calculated = %lu;"
-					" crc32 = %u; recorded = %lu\n",
-					page_no,
-					buf_calc_page_new_checksum(read_buf),
-					buf_calc_page_crc32(read_buf),
-					checksum_field1);
-			}
-#endif /* UNIV_INNOCHECKSUM */
-			return(FALSE);
-		}
-
-		if (buf_page_is_checksum_valid_innodb(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
-#else /* UNIV_INNOCHECKSUM */
-		)) {
-			if (curr_algo
-			    == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32) {
-				page_warn_strict_checksum(
-					curr_algo,
-					SRV_CHECKSUM_ALGORITHM_INNODB,
-					page_id);
-			}
-#endif /* UNIV_INNOCHECKSUM */
-			return(FALSE);
-		}
-
-#ifdef UNIV_INNOCHECKSUM
-		if (is_log_enabled) {
-			fprintf(log_file, "Fail; page %" PRIuMAX
-				" invalid (fails crc32 checksum)\n",
-				page_no);
-		}
-#endif /* UNIV_INNOCHECKSUM */
-		return(TRUE);
-
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-
-		if (buf_page_is_checksum_valid_innodb(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo
-#endif /* UNIV_INNOCHECKSUM */
-		)) {
-			return(FALSE);
-		}
-
-		if (buf_page_is_checksum_valid_none(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
-#else	/* UNIV_INNOCHECKSUM */
-		)) {
-			if (curr_algo
-			    == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
-				page_warn_strict_checksum(
-					curr_algo,
-					SRV_CHECKSUM_ALGORITHM_NONE,
-					page_id);
-			}
-#endif /* UNIV_INNOCHECKSUM */
-
-#ifdef UNIV_INNOCHECKSUM
-			if (is_log_enabled) {
-				fprintf(log_file, "page::%" PRIuMAX ";"
-					" old style: calculated = %lu;"
-					" recorded = %lu\n", page_no,
-					buf_calc_page_old_checksum(read_buf),
-					checksum_field2);
-				fprintf(log_file, "page::%" PRIuMAX ";"
-					" new style: calculated = %lu;"
-					" crc32 = %u; recorded = %lu\n",
-					page_no,
-					buf_calc_page_new_checksum(read_buf),
-					buf_calc_page_crc32(read_buf),
-					checksum_field1);
-			}
-#endif /* UNIV_INNOCHECKSUM */
-			return(FALSE);
-		}
-
-		if (buf_page_is_checksum_valid_crc32(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
-#else /* UNIV_INNOCHECKSUM */
-		)) {
-			if (curr_algo
-			    == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
-				page_warn_strict_checksum(
-					curr_algo,
-					SRV_CHECKSUM_ALGORITHM_CRC32,
-					page_id);
-			}
-#endif /* UNIV_INNOCHECKSUM */
-
-			return(FALSE);
-		}
-
-#ifdef UNIV_INNOCHECKSUM
-		if (is_log_enabled) {
-			fprintf(log_file, "Fail; page %" PRIuMAX
-				" invalid (fails innodb checksum)\n",
-				page_no);
-		}
-#endif /* UNIV_INNOCHECKSUM */
-		return(TRUE);
-
-	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-
-		if (buf_page_is_checksum_valid_none(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo
-#endif /* UNIV_INNOCHECKSUM */
-		)) {
-			return(false);
-		}
-
-		if (buf_page_is_checksum_valid_crc32(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
-#else /* UNIV_INNOCHECKSUM */
-		)) {
-			page_warn_strict_checksum(
-				curr_algo,
-				SRV_CHECKSUM_ALGORITHM_CRC32,
-				page_id);
-#endif /* UNIV_INNOCHECKSUM */
-			return(FALSE);
-		}
-
-		if (buf_page_is_checksum_valid_innodb(read_buf,
-			checksum_field1, checksum_field2
-#ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
-#else /* UNIV_INNOCHECKSUM */
-		)) {
-			page_warn_strict_checksum(
-				curr_algo,
-				SRV_CHECKSUM_ALGORITHM_INNODB,
-				page_id);
-#endif /* UNIV_INNOCHECKSUM */
-			return(FALSE);
-		}
-
-#ifdef UNIV_INNOCHECKSUM
-		if (is_log_enabled) {
-			fprintf(log_file, "Fail; page %" PRIuMAX
-				" invalid (fails none checksum)\n",
-				page_no);
-		}
-#endif /* UNIV_INNOCHECKSUM */
-		return(TRUE);
-
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-		/* should have returned FALSE earlier */
-		break;
-	/* no default so the compiler will emit a warning if new enum
-	is added and not handled here */
-	}
-
-	ut_error;
-	return(FALSE);
-}
-
-#ifndef UNIV_INNOCHECKSUM
-
 /** Prints a page to stderr.
 @param[in]	read_buf	a database page
 @param[in]	page_size	page size
@@ -1081,10 +543,6 @@ buf_page_print(
 	const page_size_t&	page_size,
 	ulint			flags)
 {
-#ifndef UNIV_HOTBACKUP
-	dict_index_t*	index;
-#endif /* !UNIV_HOTBACKUP */
-
 	if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
 
 		ib::info() << "Page dump in ascii and hex ("
@@ -1095,6 +553,9 @@ buf_page_print(
 	}
 
 	if (page_size.is_compressed()) {
+		BlockReporter	compressed  = BlockReporter(
+			false, read_buf, page_size, false);
+
 		/* Print compressed page. */
 		ib::info() << "Compressed page type ("
 			<< fil_page_get_type(read_buf)
@@ -1105,26 +566,22 @@ buf_page_print(
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_CRC32)
 			<< " "
-			<< page_zip_calc_checksum(
-				read_buf, page_size.physical(),
+			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_CRC32)
 			<< "/"
-			<< page_zip_calc_checksum(
-				read_buf, page_size.physical(),
+			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_INNODB)
 			<< " "
-			<< page_zip_calc_checksum(
-				read_buf, page_size.physical(),
+			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_INNODB)
 			<< ", "
 			<< buf_checksum_algorithm_name(
 				SRV_CHECKSUM_ALGORITHM_NONE)
 			<< " "
-			<< page_zip_calc_checksum(
-				read_buf, page_size.physical(),
+			<< compressed.calc_zip_checksum(
 				SRV_CHECKSUM_ALGORITHM_NONE)
 			<< "; page LSN "
 			<< mach_read_from_8(read_buf + FIL_PAGE_LSN)
@@ -1200,7 +657,7 @@ buf_page_print(
 #endif /* !UNIV_HOTBACKUP */
 
 	switch (fil_page_get_type(read_buf)) {
-		index_id_t	index_id;
+		space_index_t	index_id;
 	case FIL_PAGE_INDEX:
 	case FIL_PAGE_RTREE:
 		index_id = btr_page_get_index_id(read_buf);
@@ -1208,15 +665,6 @@ buf_page_print(
 			"InnoDB: Page may be an index page where"
 			" index id is " IB_ID_FMT "\n",
 			index_id);
-#ifndef UNIV_HOTBACKUP
-		index = dict_index_find_on_id_low(index_id);
-		if (index) {
-			ib::info()
-				<< "Index " << index_id
-				<< " is " << index->name
-				<< " in table " << index->table->name;
-		}
-#endif /* !UNIV_HOTBACKUP */
 		break;
 	case FIL_PAGE_INODE:
 		fputs("InnoDB: Page may be an 'inode' page\n", stderr);
@@ -1611,6 +1059,7 @@ buf_pool_set_sizes(void)
 /********************************************************************//**
 Initialize a buffer pool instance.
 @return DB_SUCCESS if all goes well. */
+static
 ulint
 buf_pool_init_instance(
 /*===================*/
@@ -2037,6 +1486,10 @@ buf_page_realloc(
 	return(true); /* free_list was enough */
 }
 
+
+static void buf_resize_status(const char* fmt, ...)
+	__attribute__((format(printf, 1, 2)));
+
 /** Sets the global variable that feeds MySQL's innodb_buffer_pool_resize_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3).
@@ -2415,6 +1868,7 @@ buf_pool_resize_hash(
 
 /** Resize the buffer pool based on srv_buf_pool_size from
 srv_buf_pool_old_size. */
+static
 void
 buf_pool_resize()
 {
@@ -3148,6 +2602,7 @@ hash_lock and reacquire it.
 @param[in]	page_id		page id
 @param[in,out]	hash_lock	hash_lock currently latched
 @return NULL if watch set, block if the page is in the buffer pool */
+static
 buf_page_t*
 buf_pool_watch_set(
 	const page_id_t&	page_id,
@@ -3651,29 +3106,30 @@ buf_zip_decompress(
 	ibool		check)	/*!< in: TRUE=verify the page checksum */
 {
 	const byte*	frame = block->page.zip.data;
-	ulint		size = page_zip_get_size(&block->page.zip);
 
 	ut_ad(block->page.size.is_compressed());
 	ut_a(block->page.id.space() != 0);
 
-	if (UNIV_UNLIKELY(check && !page_zip_verify_checksum(frame, size))) {
+	BlockReporter	compressed = BlockReporter(
+		false, frame, block->page.size, false);
+
+	if (check && !compressed.verify_zip_checksum()) {
 
 		ib::error() << "Compressed page checksum mismatch "
 			<< block->page.id << "): stored: "
 			<< mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
 			<< ", crc32: "
-			<< page_zip_calc_checksum(
-				frame, size, SRV_CHECKSUM_ALGORITHM_CRC32)
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32)
 			<< "/"
-			<< page_zip_calc_checksum(
-				frame, size, SRV_CHECKSUM_ALGORITHM_CRC32,
-				true)
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)
 			<< " innodb: "
-			<< page_zip_calc_checksum(
-				frame, size, SRV_CHECKSUM_ALGORITHM_INNODB)
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_INNODB)
 			<< ", none: "
-			<< page_zip_calc_checksum(
-				frame, size, SRV_CHECKSUM_ALGORITHM_NONE);
+			<< compressed.calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_NONE);
 
 		return(FALSE);
 	}
@@ -3883,30 +3339,6 @@ buf_pointer_is_block_field_instance(
 		}
 
 		chunk++;
-	}
-
-	return(FALSE);
-}
-
-/********************************************************************//**
-Find out if a pointer belongs to a buf_block_t. It can be a pointer to
-the buf_block_t itself or a member of it
-@return TRUE if ptr belongs to a buf_block_t struct */
-ibool
-buf_pointer_is_block_field(
-/*=======================*/
-	const void*	ptr)	/*!< in: pointer not dereferenced */
-{
-	ulint	i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
-		ibool	found;
-
-		found = buf_pointer_is_block_field_instance(
-			buf_pool_from_array(i), ptr);
-		if (found) {
-			return(TRUE);
-		}
 	}
 
 	return(FALSE);
@@ -5460,31 +4892,31 @@ buf_page_monitor(
 		: ((buf_block_t*) bpage)->frame;
 
 	switch (fil_page_get_type(frame)) {
-		ulint	level;
-
 	case FIL_PAGE_INDEX:
-	case FIL_PAGE_RTREE:
-		level = btr_page_get_level_low(frame);
-
 		/* Check if it is an index page for insert buffer */
-		if (btr_page_get_index_id(frame)
-		    == (index_id_t)(DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
-			if (level == 0) {
+		if (bpage->id.space() == IBUF_SPACE_ID
+		    && btr_page_get_index_id(frame)
+		    == static_cast<space_index_t>(
+			    DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
+			if (page_is_leaf(frame)) {
 				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_IBUF_LEAF_PAGE);
+					io_type,
+					MONITOR_INDEX_IBUF_LEAF_PAGE);
 			} else {
 				counter = MONITOR_RW_COUNTER(
 					io_type,
 					MONITOR_INDEX_IBUF_NON_LEAF_PAGE);
 			}
+			break;
+		}
+		/* fall through */
+	case FIL_PAGE_RTREE:
+		if (page_is_leaf(frame)) {
+			counter = MONITOR_RW_COUNTER(
+				io_type, MONITOR_INDEX_LEAF_PAGE);
 		} else {
-			if (level == 0) {
-				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_LEAF_PAGE);
-			} else {
-				counter = MONITOR_RW_COUNTER(
-					io_type, MONITOR_INDEX_NON_LEAF_PAGE);
-			}
+			counter = MONITOR_RW_COUNTER(
+				io_type, MONITOR_INDEX_NON_LEAF_PAGE);
 		}
 		break;
 
@@ -5541,21 +4973,16 @@ buf_page_monitor(
 	MONITOR_INC_NOCHECK(counter);
 }
 
-/********************************************************************//**
-Mark a table with the specified space pointed by bpage->id.space() corrupted.
-Also remove the bpage from LRU list.
-@return TRUE if successful */
-static
-ibool
-buf_mark_space_corrupt(
-/*===================*/
-	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
+/** Unfixes the page, unlatches the page,
+removes it from page_hash and removes it from LRU.
+@param[in,out]	bpage	pointer to the block */
+void
+buf_read_page_handle_error(
+	buf_page_t*	bpage)
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
-	ib_uint32_t	space = bpage->id.space();
-	ibool		ret = TRUE;
 
 	/* First unfix and release lock on the bpage */
 	buf_pool_mutex_enter(buf_pool);
@@ -5574,19 +5001,13 @@ buf_mark_space_corrupt(
 
 	mutex_exit(buf_page_get_mutex(bpage));
 
-	/* Find the table with specified space id, and mark it corrupted */
-	if (dict_set_corrupted_by_space(space)) {
-		buf_LRU_free_one_page(bpage);
-	} else {
-		ret = FALSE;
-	}
+	/* remove the block from LRU list */
+	buf_LRU_free_one_page(bpage);
 
 	ut_ad(buf_pool->n_pend_reads > 0);
 	buf_pool->n_pend_reads--;
 
 	buf_pool_mutex_exit(buf_pool);
-
-	return(ret);
 }
 
 /********************************************************************//**
@@ -5605,7 +5026,6 @@ buf_page_io_complete(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	const ibool	uncompressed = (buf_page_get_state(bpage)
 					== BUF_BLOCK_FILE_PAGE);
-
 	ut_a(buf_page_in_file(bpage));
 
 	/* We do not need protect io_fix here by mutex to read
@@ -5690,25 +5110,22 @@ buf_page_io_complete(
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
-		if (compressed_page
-		    || buf_page_is_corrupted(
-			    true, frame, bpage->size,
-			    fsp_is_checksum_disabled(bpage->id.space()))) {
+		bool is_corrupted;
+		{
+			BlockReporter	reporter = BlockReporter(
+				true, frame, bpage->size,
+				fsp_is_checksum_disabled(bpage->id.space()));
+			is_corrupted = reporter.is_corrupted();
+		}
+
+		if (compressed_page || is_corrupted) {
 
 			/* Not a real corruption if it was triggered by
 			error injection */
 			DBUG_EXECUTE_IF(
 				"buf_page_import_corrupt_failure",
-				if (bpage->id.space() > TRX_SYS_SPACE
-				    && !Tablespace::is_undo_tablespace(
-					    bpage->id.space())
-				    && buf_mark_space_corrupt(bpage)) {
-					ib::info() << "Simulated IMPORT "
-						"corruption";
-					return(true);
-				}
-				goto page_not_corrupt;
-				;);
+				goto page_not_corrupt; );
+
 corrupt:
 			/* Compressed pages are basically gibberish avoid
 			printing the contents. */
@@ -5740,24 +5157,14 @@ corrupt:
 			}
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
+				/* We do not have to mark any index as
+				corrupted here, since we only know the space
+				id but not the exact index id. There could
+				be multiple tables/indexes in the same space,
+				so we will mark it later in upper layer */
 
-				/* If page space id is larger than TRX_SYS_SPACE
-				(0), we will attempt to mark the corresponding
-				table as corrupted instead of crashing server */
-
-				if (bpage->id.space() > TRX_SYS_SPACE
-				    && buf_mark_space_corrupt(bpage)) {
-
-					return(false);
-				} else {
-					ib::fatal()
-						<< "Aborting because of a"
-						" corrupt database page in"
-						" the system tablespace. Or, "
-						" there was a failure in"
-						" tagging the tablespace "
-						" as corrupt.";
-				}
+				buf_read_page_handle_error(bpage);
+				return(false);
 			}
 		}
 
@@ -5901,6 +5308,17 @@ buf_all_freed_instance(
 	buf_pool_mutex_exit(buf_pool);
 
 	return(TRUE);
+}
+
+/** Refreshes the statistics used to print per-second averages.
+@param[in,out]	buf_pool	buffer pool instance */
+static
+void
+buf_refresh_io_stats(
+	buf_pool_t*	buf_pool)
+{
+	buf_pool->last_printout_time = ut_time();
+	buf_pool->old_stat = buf_pool->stat;
 }
 
 /*********************************************************************//**
@@ -6242,10 +5660,8 @@ buf_print_instance(
 	ulint		size;
 	ulint		i;
 	ulint		j;
-	index_id_t	id;
 	ulint		n_found;
 	buf_chunk_t*	chunk;
-	dict_index_t*	index;
 
 	ut_ad(buf_pool);
 
@@ -6278,7 +5694,9 @@ buf_print_instance(
 
 			if (fil_page_index_page_check(frame)) {
 
-				id = btr_page_get_index_id(frame);
+				index_id_t	id(
+					block->page.id.space(),
+					btr_page_get_index_id(frame));
 
 				/* Look for the id in the index_ids array */
 				j = 0;
@@ -6305,18 +5723,11 @@ buf_print_instance(
 	buf_pool_mutex_exit(buf_pool);
 
 	for (i = 0; i < n_found; i++) {
-		index = dict_index_get_if_in_cache(index_ids[i]);
+		ib::info	info;
 
-		if (!index) {
-			ib::info() << "Block count for index "
-				<< index_ids[i] << " in buffer is about "
-				<< counts[i];
-		} else {
-			ib::info() << "Block count for index " << index_ids[i]
-				<< " in buffer is about " << counts[i]
-				<< ", index " << index->name
-				<< " of table " << index->table->name;
-		}
+		info << "Block count for index "
+		     << index_ids[i] << " in buffer is about "
+		     << counts[i];
 	}
 
 	ut_free(index_ids);
@@ -6346,6 +5757,7 @@ buf_print(void)
 /*********************************************************************//**
 Returns the number of latched pages in the buffer pool.
 @return number of latched pages */
+static
 ulint
 buf_get_latched_pages_number_instance(
 /*==================================*/
@@ -6690,6 +6102,7 @@ buf_stats_get_pool_info(
 
 /*********************************************************************//**
 Prints info of the buffer i/o. */
+static
 void
 buf_print_io_instance(
 /*==================*/
@@ -6832,17 +6245,6 @@ buf_print_io(
 /**********************************************************************//**
 Refreshes the statistics used to print per-second averages. */
 void
-buf_refresh_io_stats(
-/*=================*/
-	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
-{
-	buf_pool->last_printout_time = ut_time();
-	buf_pool->old_stat = buf_pool->stat;
-}
-
-/**********************************************************************//**
-Refreshes the statistics used to print per-second averages. */
-void
 buf_refresh_io_stats_all(void)
 /*==========================*/
 {
@@ -6956,20 +6358,6 @@ buf_page_init_for_backup_restore(
 
 #endif /* !UNIV_HOTBACKUP */
 
-/** Print the given page_id_t object.
-@param[in,out]	out	the output stream
-@param[in]	page_id	the page_id_t object to be printed
-@return the output stream */
-std::ostream&
-operator<<(
-	std::ostream&		out,
-	const page_id_t&	page_id)
-{
-	out << "[page id: space=" << page_id.m_space
-		<< ", page number=" << page_id.m_page_no << "]";
-	return(out);
-}
-
 /** Print the given buf_pool_t object.
 @param[in,out]	out		the output stream
 @param[in]	buf_pool	the buf_pool_t object to be printed
@@ -6997,4 +6385,3 @@ operator<<(
 		<< ", written=" << buf_pool.stat.n_pages_written << "]";
 	return(out);
 }
-#endif /* !UNIV_INNOCHECKSUM */

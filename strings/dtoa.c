@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -604,8 +604,6 @@ typedef union { double d; ULong L[2]; } U;
 #define Rounding rounding
 #undef Check_FLT_ROUNDS
 #define Check_FLT_ROUNDS
-#else
-#define Rounding Flt_Rounds
 #endif
 
 #define rounded_product(a,b) a*= b
@@ -1360,7 +1358,7 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   U aadj2, adj, rv, rv0;
   Long L;
   ULong y, z;
-  Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
+  Bigint *bb= NULL, *bb1, *bd= NULL, *bd0, *bs= NULL, *delta= NULL;
 #ifdef Honor_FLT_ROUNDS
   int rounding;
 #endif
@@ -2172,7 +2170,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
   Long L;
   int denorm;
   ULong x;
-  Bigint *b, *b1, *delta, *mlo, *mhi, *S;
+  Bigint *b, *b1, *delta, *mlo= NULL, *mhi, *S;
   U d2, eps, u;
   double ds;
   char *s, *s0;

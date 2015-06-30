@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "my_getopt.h"
 #include "i_option_changed_listener.h"
 #include "i_callable.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 namespace Mysql{
@@ -65,7 +66,7 @@ protected:
     @param var_type my_getopt internal option type.
     @param name Name of option. It is used in command line option name as
       --name.
-    @param desription Description of option to be printed in --help.
+    @param description Description of option to be printed in --help.
     @param default_value default value to be supplied to internal option
       data structure.
    */

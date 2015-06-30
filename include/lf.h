@@ -18,8 +18,8 @@
 
 #include "my_global.h"
 #include "my_atomic.h"
-#include "my_sys.h"
 #include "hash.h"
+#include "mysql/service_mysql_alloc.h"
 
 C_MODE_START
 
@@ -147,6 +147,7 @@ typedef uint lf_hash_func(const struct st_lf_hash *, const uchar *, size_t);
 typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 
 #define LF_HASH_UNIQUE 1
+#define MY_LF_ERRPTR ((void*)(intptr)1)
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
 extern const int LF_HASH_OVERHEAD;

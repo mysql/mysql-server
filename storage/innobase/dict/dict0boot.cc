@@ -41,6 +41,12 @@ Created 4/18/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool    srv_missing_dd_table_buffer;
+
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
 @return pointer to the dictionary header, page x-latched */
@@ -68,7 +74,7 @@ dict_hdr_get_new_id(
 /*================*/
 	table_id_t*		table_id,	/*!< out: table id
 						(not assigned if NULL) */
-	index_id_t*		index_id,	/*!< out: index id
+	space_index_t*		index_id,	/*!< out: index id
 						(not assigned if NULL) */
 	ulint*			space_id,	/*!< out: space id
 						(not assigned if NULL) */
@@ -82,6 +88,8 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
+
 	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
@@ -158,6 +166,7 @@ dict_hdr_flush_row_id(void)
 	id = dict_sys->row_id;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr = dict_hdr_get(&mtr);
 
@@ -188,6 +197,15 @@ dict_hdr_create(
 			    DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
 
 	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
+
+	/* We create the root page for DDTableBuffer here, right after
+	all dict_header things have been created. Because
+	FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO is right after
+	FSP_DICT_HDR_PAGE_NO */
+	root_page_no = btr_create(DICT_CLUSTERED, 0, univ_page_size,
+				  DICT_TBL_BUFFER_ID, dict_ind_redundant,
+				  NULL, mtr);
+	ut_ad(root_page_no == FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO);
 
 	dict_header = dict_hdr_get(mtr);
 
@@ -341,8 +359,8 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
 	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
-	/* The low order bit of TYPE is always set to 1.  If the format
-	is UNIV_FORMAT_B or higher, this field matches table->flags. */
+	/* The low order bit of TYPE is always set to 1.  If ROW_FORMAT
+	is not REDUNDANT or COMPACT, this field matches table->flags. */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
 	/* MIX_LEN may contain additional table flags when
@@ -484,9 +502,13 @@ dict_boot(void)
 
 	/*-------------------------*/
 
-	/* Initialize the insert buffer table and index for each tablespace */
+	/* Initialize the insert buffer table, table buffer and indexes */
 
 	ibuf_init_at_db_start();
+
+	if (!srv_missing_dd_table_buffer) {
+		dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+	}
 
 	dberr_t	err = DB_SUCCESS;
 
@@ -531,6 +553,7 @@ dict_create(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	dict_hdr_create(&mtr);
 

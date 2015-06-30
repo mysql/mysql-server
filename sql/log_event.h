@@ -14,14 +14,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @addtogroup Replication
-  @{
-
-  @file
+  @file sql/log_event.h
   
   @brief Binary log event definitions.  This includes generic code
   common to all types of log events, as well as specific code for each
   type of log event.
+
+  @addtogroup Replication
+  @{
 */
 
 
@@ -57,8 +57,12 @@ typedef bool (*read_log_event_filter_function)(char** buf,
                                                const Format_description_log_event*);
 #endif
 
+extern "C" {
 extern PSI_memory_key key_memory_Incident_log_event_message;
 extern PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+}
+extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
+
 /* Forward declarations */
 using binary_log::enum_binlog_checksum_alg;
 using binary_log::checksum_crc32;
@@ -689,12 +693,12 @@ public:
                                    *description_event,
                                    my_bool crc_check);
 
-  /*
+  /**
    This function will read the common header into the buffer and
    rewind the IO_CACHE back to the beginning of the event.
 
    @param[in]         log_cache The IO_CACHE to read from.
-   @param[in/out]     header The buffer where to read the common header. This
+   @param[in,out]     header The buffer where to read the common header. This
                       buffer must be at least LOG_EVENT_MINIMAL_HEADER_LEN long.
 
    @returns           false on success, true otherwise.
@@ -709,7 +713,7 @@ public:
     DBUG_RETURN(false);
   }
 
-  /*
+  /**
    This static function will read the event length from the common
    header that is on the IO_CACHE. Note that the IO_CACHE read position
    will not be updated.
@@ -735,14 +739,14 @@ public:
     Reads an event from a binlog or relay log. Used by the dump thread
     this method reads the event into a raw buffer without parsing it.
 
-    @Note If mutex is 0, the read will proceed without mutex.
+    @note If mutex is 0, the read will proceed without mutex.
 
-    @Note If a log name is given than the method will check if the
+    @note If a log name is given than the method will check if the
     given binlog is still active.
 
     @param[in]  file                log file to be read
     @param[out] packet              packet to hold the event
-    @param[in]  lock                the lock to be used upon read
+    @param[in]  log_lock            the lock to be used upon read
     @param[in]  checksum_alg_arg    the checksum algorithm
     @param[in]  log_file_name_arg   the log's file name
     @param[out] is_binlog_active    is the current log still active
@@ -757,7 +761,7 @@ public:
    */
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
-                            binary_log::enum_binlog_checksum_alg checksum_alg_arg,
+                            enum_binlog_checksum_alg checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
                             bool* is_binlog_active= NULL);
   /*
@@ -842,19 +846,9 @@ public:
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
-  inline time_t get_time()
-  {
-    /* Not previously initialized */
-    if (!common_header->when.tv_sec && !common_header->when.tv_usec)
-    {
-      THD *tmp_thd= thd ? thd : current_thd;
-      if (tmp_thd)
-        common_header->when= tmp_thd->start_time;
-      else
-        my_micro_time_to_timeval(my_micro_time(), &(common_header->when));
-    }
-    return (time_t) common_header->when.tv_sec;
-  }
+
+  time_t get_time();
+
 #endif
   Log_event_type get_type_code()
   {
@@ -1012,8 +1006,7 @@ private:
      @param slave_server_id   id of the server, extracted from event
      @param mts_in_group      the being group parsing status, true
                               means inside the group
-     @param  is_scheduler_dbname
-                              true when the current submode (scheduler)
+     @param is_dbname_type    true when the current submode (scheduler)
                               is of DB_NAME type.
 
      @retval EVENT_EXEC_PARALLEL  if event is executed by a Worker
@@ -1081,7 +1074,7 @@ private:
   }
 
   /**
-     @return index  in \in [0, M] range to indicate
+     @return index  in [0, M] range to indicate
              to be assigned worker;
              M is the max index of the worker pool.
   */
@@ -1319,15 +1312,15 @@ protected:
 */
 
 /**
-  A @Query event is written to the binary log whenever the database is
+  A Query event is written to the binary log whenever the database is
   modified on the master, unless row based logging is used.
 
   Query_log_event is created for logging, and is called after an update to the
   database is done. It is used when the server acts as the master.
 
   Virtual inheritance is required here to handle the diamond problem in
-  the class Execute_load_query_log_event.
-  The diamond structure is explained in @Excecute_load_query_log_event
+  the class @c Execute_load_query_log_event.
+  The diamond structure is explained in @c Excecute_load_query_log_event
 
   @internal
   The inheritance structure is as follows:
@@ -1515,7 +1508,7 @@ public:        /* !!! Public in this patch to allow old usage */
 
   Virtual inheritance is required here to handle the diamond problem in
   the class Create_file_log_event.
-  The diamond structure is explained in @Create_file_log_event
+  The diamond structure is explained in @c Create_file_log_event
   @internal
   The inheritance structure in the current design for the classes is
   as follows:
@@ -2802,9 +2795,9 @@ private:
   Virtual inheritance is required here to handle the diamond problem in
   the class Write_rows_log_event, Update_rows_log_event and
   Delete_rows_log_event.
-  The diamond structure is explained in @Write_rows_log_event,
-                                        @Update_rows_log_event,
-                                        @Delete_rows_log_event
+  The diamond structure is explained in @c Write_rows_log_event,
+                                        @c Update_rows_log_event,
+                                        @c Delete_rows_log_event
 
   @internal
   The inheritance structure in the current design for the classes is
@@ -3162,7 +3155,7 @@ private:
   /**
     Private member function called while handling idempotent errors.
 
-    @param err[IN/OUT] the error to handle. If it is listed as
+    @param [in,out] err the error to handle. If it is listed as
                        idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
    */
@@ -3174,7 +3167,7 @@ private:
      m_curr_row so that the next row is processed during the row
      execution main loop (@c Rows_log_event::do_apply_event()).
 
-     @param err[IN] the current error code.
+     @param err the current error code.
    */
   void do_post_row_operations(Relay_log_info const *rli, int err);
 
@@ -3228,10 +3221,10 @@ private:
     the indexes are in non-contigous ranges it fetches record corresponding
     to the key value in the next range.
 
-    @parms: bool first_read : signifying if this is the first time we are reading a row
+    @param first_read  signifying if this is the first time we are reading a row
             over an index.
-    @return_value: -  error code when there are no more reeords to be fetched or some other
-                      error occured,
+    @return  error code when there are no more records to be fetched or some other
+                      error occurred,
                    -  0 otherwise.
   */
   int next_record_scan(bool first_read);
@@ -3239,8 +3232,7 @@ private:
   /**
     Populates the m_distinct_keys with unique keys to be modified
     during HASH_SCAN over keys.
-    @return_value -0 success
-                  -Err_code
+    @returns 0 success, or the error code.
   */
   int add_key_to_distinct_keyset();
 
@@ -4342,8 +4334,6 @@ public:
 
   /**
     Sets the certification info
-
-    @param db the database
   */
   void set_certification_info(std::map<std::string, std::string> *info);
 

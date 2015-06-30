@@ -16,6 +16,7 @@
 #include "my_global.h"          // HAVE_*
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "log.h"                // sql_print_error
+#include "mysqld.h"             // LOCK_des_key_file
 #include <m_ctype.h>
 
 #include "pfs_file_provider.h"

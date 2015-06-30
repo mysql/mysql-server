@@ -18,10 +18,13 @@
 #ifndef MYSQL_CLIENT
 
 #include "binlog_event.h"                // checksum_crv32
+#include "derror.h"                      // ER_THD
 #include "template_utils.h"              // delete_container_pointers
 #include "field.h"                       // Field
 #include "log.h"                         // sql_print_error
 #include "log_event.h"                   // Log_event
+#include "mysqld.h"                      // slave_type_conversions_options
+#include "psi_memory_key.h"
 #include "rpl_rli.h"                     // Relay_log_info
 #include "sql_class.h"                   // THD
 #include "sql_tmp_table.h"               // create_virtual_tmp_table
@@ -587,14 +590,11 @@ can_convert_field_to(Field *field,
   If tables are compatible, but no conversions are necessary, @c
   *tmp_table_var will be set to NULL.
 
-  @param rli_arg[in]
-  Relay log info, for error reporting.
+  @param [in] rli Relay log info, for error reporting.
 
-  @param table[in]
-  Table to compare with
+  @param [in] table Table to compare with
 
-  @param tmp_table_var[out]
-  Virtual temporary table for performing conversions, if necessary.
+  @param [out] conv_table_var Virtual temporary table for performing conversions, if necessary.
 
   @retval true Master table is compatible with slave table.
   @retval false Master table is not compatible with slave table.
@@ -660,7 +660,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       show_sql_type(type(col), field_metadata(col), &source_type, field->charset());
       field->sql_type(target_type);
       rli->report(ERROR_LEVEL, ER_SLAVE_CONVERSION_FAILED,
-                  ER(ER_SLAVE_CONVERSION_FAILED),
+                  ER_THD(thd, ER_SLAVE_CONVERSION_FAILED),
                   col, db_name, tbl_name,
                   source_type.c_ptr_safe(), target_type.c_ptr_safe());
       return false;
@@ -801,7 +801,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 err:
   if (conv_table == NULL)
     rli->report(ERROR_LEVEL, ER_SLAVE_CANT_CREATE_CONVERSION,
-                ER(ER_SLAVE_CANT_CREATE_CONVERSION),
+                ER_THD(thd, ER_SLAVE_CANT_CREATE_CONVERSION),
                 target_table->s->db.str,
                 target_table->s->table_name.str);
   DBUG_RETURN(conv_table);
@@ -809,7 +809,9 @@ err:
 
 #endif /* MYSQL_CLIENT */
 
+extern "C" {
 PSI_memory_key key_memory_table_def_memory;
+}
 
 table_def::table_def(unsigned char *types, ulong size,
                      uchar *field_metadata, int metadata_size,

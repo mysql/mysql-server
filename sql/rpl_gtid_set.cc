@@ -17,16 +17,19 @@
 
 #include "rpl_gtid.h"
 
-#include "my_stacktrace.h"       // my_safe_printf_stderr
-#include "mysqld_error.h"        // ER_*
+#include "my_stacktrace.h"             // my_safe_printf_stderr
+#include "mysql/service_my_snprintf.h" // my_snprintf
+#include "mysqld_error.h"              // ER_*
 #include "sql_const.h"
 
 #ifndef MYSQL_CLIENT
 #include "log.h"                 // sql_print_warning
 #endif
 
+extern "C" {
 PSI_memory_key key_memory_Gtid_set_to_string;
 PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+}
 
 using std::min;
 using std::max;

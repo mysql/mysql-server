@@ -29,6 +29,7 @@
 #include <my_getopt.h>
 #include "my_default.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "mysql/service_mysql_alloc.h"
 
 
 const char *config_file="my";			/* Default config file */

@@ -19,6 +19,7 @@
 #include <my_dir.h>
 #include <errno.h>
 #include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 /*

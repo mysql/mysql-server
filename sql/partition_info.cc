@@ -15,8 +15,6 @@
 
 /* Some general useful functions */
 
-// Required to get server definitions for mysql/plugin.h right
-#include "sql_plugin.h"
 #include "partition_info.h"                   // LIST_PART_ENTRY
                                               // NOT_A_PARTITION_ID
 #include "sql_parse.h"                        // test_if_data_home_dir
@@ -27,6 +25,8 @@
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "trigger_chain.h"                    // Trigger_chain
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
+#include "sql_class.h"                        // THD
+#include "derror.h"
 
 
 partition_info *partition_info::get_clone()
@@ -147,8 +147,6 @@ bool partition_info::add_named_partition(const char *part_name,
 
 /**
   Mark named [sub]partition to be used/locked.
-
-  @param part_elem  Partition element that matched.
 */
 
 bool partition_info::set_named_partition_bitmap(const char *part_name,
@@ -167,8 +165,6 @@ bool partition_info::set_named_partition_bitmap(const char *part_name,
 /**
   Prune away partitions not mentioned in the PARTITION () clause,
   if used.
-
-    @param table_list  Table list pointing to table to prune.
 
   @return Operation status
     @retval false Success
@@ -899,9 +895,12 @@ char* partition_info::find_duplicate_field()
   @brief Get part_elem and part_id from partition name
 
   @param partition_name Name of partition to search for.
-  @param file_name[out] Partition file name (part after table name,
-                        #P#<part>[#SP#<subpart>]), skipped if NULL.
-  @param part_id[out]   Id of found partition or NOT_A_PARTITION_ID.
+  @param [out] file_name Partition file name (part after table name,
+                        @code
+                        #P#<part>[#SP#<subpart>]
+                        @endcode
+                        ), skipped if NULL.
+  @param [out] part_id   Id of found partition or NOT_A_PARTITION_ID.
 
   @retval Pointer to part_elem of [sub]partition, if not found NULL
 
@@ -1595,11 +1594,13 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
   {
     if (part_elem->data_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
+                          WARN_OPTION_IGNORED,
+                          ER_THD(thd, WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;
   }
@@ -1766,7 +1767,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         }
         enum_ident_name_check ident_check_status=
           check_table_name(part_elem->partition_name,
-                           strlen(part_elem->partition_name), FALSE);
+                           strlen(part_elem->partition_name));
         if (ident_check_status == IDENT_NAME_WRONG)
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
@@ -1792,7 +1793,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           warn_if_dir_in_part_elem(thd, sub_elem);
           enum_ident_name_check ident_check_status=
             check_table_name(sub_elem->partition_name,
-                             strlen(sub_elem->partition_name), FALSE);
+                             strlen(sub_elem->partition_name));
           if (ident_check_status == IDENT_NAME_WRONG)
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
@@ -1890,12 +1891,13 @@ end:
 
   SYNOPSIS
     print_no_partition_found()
+    thd                          Thread handle
     table                        Table object
 
   RETURN VALUES
 */
 
-void partition_info::print_no_partition_found(TABLE *table_arg)
+void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg)
 {
   char buf[100];
   char *buf_ptr= (char*)&buf;
@@ -1905,11 +1907,12 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 
-  if (check_single_table_access(current_thd,
+  if (check_single_table_access(thd,
                                 SELECT_ACL, &table_list, TRUE))
   {
     my_message(ER_NO_PARTITION_FOR_GIVEN_VALUE,
-               ER(ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
+               ER_THD(thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT),
+               MYF(0));
   }
   else
   {
@@ -2570,7 +2573,7 @@ bool partition_info::reorganize_into_single_field_col_val()
   code.
 
   @param thd        Thread object
-  @param col_val    Array of one value
+  @param val        Array of one value
   @param part_elem  The partition instance
   @param part_id    Id of partition instance
 
@@ -2681,7 +2684,7 @@ Item* partition_info::get_column_item(Item *item, Field *field)
   Evaluate VALUES functions for column list values.
 
   @param thd      Thread object
-  @param col_val  List of column values
+  @param val      List of column values
   @param part_id  Partition id we are fixing
 
   @return Operation status

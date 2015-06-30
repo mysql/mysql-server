@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/** @file "EXPLAIN <command>" implementation */ 
+/**
+  @file sql/opt_explain.cc
+  "EXPLAIN <command>" implementation.
+*/
 
 #include "opt_explain.h"
+
+#include "current_thd.h"
 #include "sql_select.h"
 #include "sql_optimizer.h" // JOIN
 #include "sql_partition.h" // for make_used_partitions_str()
@@ -25,9 +30,12 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
 #include "debug_sync.h"    // DEBUG_SYNC
+#include "opt_range.h"     // QUICK_SELECT_I
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mysqld.h"        // stage_explaining
+#include "derror.h"              // ER_THD
 
 typedef qep_row::extra extra;
 
@@ -318,7 +326,7 @@ protected:
      condition_optim() instead.
   */
   QEP_TAB *tab;
-  key_map usable_keys;
+  Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
                      THD *const thd_arg, SELECT_LEX *select_lex= NULL,
@@ -542,8 +550,6 @@ Explain_no_table::get_subquery_context(SELECT_LEX_UNIT *unit) const
   subqueries, marks each of them with the clause they belong to.
   Then goes though all children subqueries and produces their EXPLAIN
   output, attached to the proper clause's context.
-
-  @param        result  result stream
 
   @retval       false   Ok
   @retval       true    Error (OOM)
@@ -1388,7 +1394,7 @@ bool Explain_join::explain_table_name()
 bool Explain_join::explain_select_type()
 {
   if (tab && sj_is_materialize_strategy(tab->get_sj_strategy()))
-    fmt->entry()->col_select_type.set(st_select_lex::SLT_MATERIALIZED);
+    fmt->entry()->col_select_type.set(SELECT_LEX::SLT_MATERIALIZED);
   else
     return Explain::explain_select_type();
   return false;
@@ -1908,7 +1914,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   {
     if (tbl->is_view() && tbl->view_no_explain)
     {
-      my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
+      my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
       return true;
     }
   }
@@ -1925,7 +1931,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list)
   thus we deal with this single table in a special way and then call
   explain_unit() for subqueries (if any).
 
-  @param thd            current THD
+  @param ethd           current THD
   @param plan           table modification plan
   @param select         Query's select lex
 
@@ -1937,7 +1943,7 @@ bool explain_single_table_modification(THD *ethd,
                                        SELECT_LEX *select)
 {
   DBUG_ENTER("explain_single_table_modification");
-  Query_result_send result;
+  Query_result_send result(ethd);
   const THD *const query_thd= select->master_unit()->thd;
   const bool other= (query_thd != ethd);
   bool ret;
@@ -2160,11 +2166,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit)
     explain_result= unit->query_result() ?
                     unit->query_result() : unit->first_select()->query_result();
 
-  Query_result_explain explain_wrapper(unit, explain_result);
+  Query_result_explain explain_wrapper(ethd, unit, explain_result);
 
   if (other)  
   {
-    if (!((explain_result= new Query_result_send)))
+    if (!((explain_result= new Query_result_send(ethd))))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(dummy, ethd->lex->unit) ||
@@ -2283,7 +2289,7 @@ private:
 /**
    Entry point for EXPLAIN CONNECTION: locates the connection by its ID, takes
    proper locks, explains its current statement, releases locks.
-   @param  THD executing this function (== the explainer)
+   @param  thd THD executing this function (== the explainer)
 */
 void mysql_explain_other(THD *thd)
 {
@@ -2357,8 +2363,8 @@ void mysql_explain_other(THD *thd)
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str,
                  (thd->password ?
-                  ER(ER_YES) :
-                  ER(ER_NO)));
+                  ER_THD(thd, ER_YES) :
+                  ER_THD(thd, ER_NO)));
         goto err;
       }
       mysql_mutex_unlock(&query_thd->LOCK_thd_data);
@@ -2438,7 +2444,7 @@ void Modification_plan::register_in_thd()
                         string in the "extra" column.
   @param need_sort_arg  true if it requires filesort() -- "Using filesort"
                         string in the "extra" column.
-  @param used_key_is_modified   UPDATE updates used key column
+  @param used_key_is_modified_arg UPDATE updates used key column
   @param rows           How many rows we plan to modify in the table.
 */
 
@@ -2492,7 +2498,7 @@ Modification_plan::Modification_plan(THD *thd_arg,
   DBUG_ASSERT(current_thd == thd);
   if (!thd->in_sub_stmt)
     register_in_thd();
-};
+}
 
 
 Modification_plan::~Modification_plan()

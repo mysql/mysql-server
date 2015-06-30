@@ -412,11 +412,9 @@ DROP TABLE t4;
 
 # Test externally stored update rollback.
 LET $file_per_table='on';
-LET $file_format='Barracuda';
 
 --disable_warnings
 eval SET GLOBAL innodb_file_per_table=$file_per_table;
-eval SET GLOBAL innodb_file_format=$file_format;
 --enable_warnings
 
 create table t1(i int primary key,
@@ -440,7 +438,6 @@ drop table t1;
 
 --disable_warnings
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
 --enable_warnings
 
 # Test partial update rollback.

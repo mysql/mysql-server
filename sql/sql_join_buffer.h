@@ -1,9 +1,7 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
-#include "sql_executor.h"
-
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +16,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file Join buffer classes */
+#include "my_global.h"
+#include "sql_executor.h"  // QEP_operation
+
+
+/**
+  @file sql/sql_join_buffer.h
+  Join buffer classes.
+*/
 
 /* 
   Categories of data fields of variable length written into join cache buffers.

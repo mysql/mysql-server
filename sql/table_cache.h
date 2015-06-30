@@ -20,6 +20,8 @@
 #include "sql_class.h"
 #include "sql_base.h"
 
+extern ulong table_cache_size_per_instance, table_cache_instances;
+
 /**
   Cache for open TABLE objects.
 

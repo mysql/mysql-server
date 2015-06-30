@@ -17,7 +17,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/** @file Classes used for query optimizations */
+/**
+  @file sql/sql_optimizer.h
+  Classes used for query optimizations.
+*/
 
 /*
    This structure is used to collect info on potentially sargable
@@ -27,7 +30,16 @@
    Only such indexes are involved in range analysis.
 */
 
-#include "sql_select.h"        // Item_null_array
+#include "my_global.h"
+#include "opt_explain_format.h"                 // Explain_sort_clause
+#include "mem_root_array.h"
+#include "sql_select.h"                         // Key_use
+#include "sql_executor.h"                       // Next_select_func
+
+typedef Bounds_checked_array<Item_null_result*> Item_null_array;
+
+// Key_use has a trivial destructor, no need to run it from Mem_root_array.
+typedef Mem_root_array<Key_use, true> Key_use_array;
 
 class Cost_model_server;
 
@@ -867,11 +879,10 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
-Item_equal *find_item_equal(COND_EQUAL *cond_equal, Item_field *item_field,
-                            bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
 Item *
-make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+make_cond_for_table(THD *thd, Item *cond, table_map tables,
+                    table_map used_table,
                     bool exclude_expensive_cond);
 
 /**

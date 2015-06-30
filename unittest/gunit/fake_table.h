@@ -16,6 +16,7 @@
 #ifndef FAKE_TABLE_H
 #define FAKE_TABLE_H
 
+#include "current_thd.h"
 #include "sql_class.h"
 #include "handler-t.h"
 #include <gmock/gmock.h>

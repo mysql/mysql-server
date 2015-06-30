@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,7 +264,7 @@ uint check_word(TYPELIB *lib, const char *val, const char *end,
 */
 
 
-size_t strconvert(CHARSET_INFO *from_cs, const char *from,
+size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length, uint *errors)
 {
   int cnvres;

@@ -23,10 +23,12 @@
 #include "sql_trigger.h"          // change_trigger_table_name
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "lock.h"       // MYSQL_OPEN_SKIP_TEMPORARY
+#include "mysqld.h"     // lower_case_table_names
 #include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
 #include "log.h"
+#include "sql_class.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -54,8 +56,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
   {
-    my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
-               ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
+    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(1);
   }
 
@@ -231,7 +232,7 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
     true      rename failed
 */
 
-bool
+static bool
 do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
           const char *new_table_alias, bool skip_error)
@@ -277,7 +278,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
           my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), ren_table->db, old_alias);
           DBUG_RETURN(1);
         }
-        if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
+        if (!(rc= mysql_rename_table(thd, hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
           if ((rc= change_trigger_table_name(thd, ren_table->db, old_alias,
@@ -290,20 +291,15 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
               triggers appropriately. So let us revert operations on .frm
               and handler's data and report about failure to rename table.
             */
-            (void) mysql_rename_table(hton, new_db, new_alias,
+            (void) mysql_rename_table(thd, hton, new_db, new_alias,
                                       ren_table->db, old_alias, NO_FK_CHECKS);
           }
         }
       }
       break;
     case FRMTYPE_VIEW:
-      /* 
-         change of schema is not allowed
-         except of ALTER ...UPGRADE DATA DIRECTORY NAME command
-         because a view has valid internal db&table names in this case.
-      */
-      if (thd->lex->sql_command != SQLCOM_ALTER_DB_UPGRADE &&
-          strcmp(ren_table->db, new_db))
+      // Changing the schema of a view is not allowed.
+      if (strcmp(ren_table->db, new_db))
         my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, 
                  new_db);
       else

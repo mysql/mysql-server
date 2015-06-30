@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -181,13 +181,12 @@ dtype_validate(
 	return(TRUE);
 }
 
-#ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Prints a data type structure. */
+#if defined UNIV_DEBUG && !defined UNIV_HOTBACKUP
+/** Print a data type structure.
+@param[in]	type	data type */
 void
 dtype_print(
-/*========*/
-	const dtype_t*	type)	/*!< in: type */
+	const dtype_t*	type)
 {
 	ulint	mtype;
 	ulint	prtype;
@@ -299,4 +298,4 @@ dtype_print(
 
 	fprintf(stderr, " len %lu", (ulong) len);
 }
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */

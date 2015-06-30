@@ -16,6 +16,8 @@
 #include "thr_mutex.h"
 #include "my_thread_local.h"
 
+#include <string.h>
+
 #if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 

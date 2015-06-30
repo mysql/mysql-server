@@ -22,6 +22,8 @@
 #include "my_base.h"
 #include "my_handler_errors.h"
 #include "my_thread_local.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 
 /* Max length of a error message. Should be kept in sync with MYSQL_ERRMSG_SIZE. */
 #define ERRMSGSIZE      (512)

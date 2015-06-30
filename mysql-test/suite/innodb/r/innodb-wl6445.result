@@ -8,10 +8,8 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   KEY `sec_idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-# Request clean shutdown
-# Wait for disconect
-# Restart server.
-# Restarted
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-read-only
 SELECT COUNT(*) FROM WL6445.t1;
 COUNT(*)
 3
@@ -46,9 +44,6 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   KEY `sec_idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-# Request clean shutdown
-# Wait for disconect
-# Restart server.
-# Restarted
+# restart
 DROP TABLE WL6445.t1;
 DROP DATABASE WL6445;

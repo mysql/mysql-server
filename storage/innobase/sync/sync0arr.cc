@@ -179,6 +179,34 @@ sync_array_detect_deadlock(
 	sync_cell_t*	start,	/*!< in: cell where recursive search started */
 	sync_cell_t*	cell,	/*!< in: cell to search */
 	ulint		depth);	/*!< in: recursion depth */
+
+/********************************************************************//**
+Validates the integrity of the wait array. Checks
+that the number of reserved cells equals the count variable. */
+static
+void
+sync_array_validate(
+/*================*/
+	sync_array_t*	arr)	/*!< in: sync wait array */
+{
+	ulint		count = 0;
+
+	sync_array_enter(arr);
+
+	for (ulint i = 0; i < arr->n_cells; i++) {
+		const sync_cell_t*	cell;
+
+		cell = &arr->array[i];
+
+		if (cell->latch.mutex != NULL) {
+			count++;
+		}
+	}
+
+	ut_a(count == arr->n_reserved);
+
+	sync_array_exit(arr);
+}
 #endif /* UNIV_DEBUG */
 
 /** Constructor
@@ -219,7 +247,7 @@ sync_array_t::~sync_array_t()
 {
 	ut_a(n_reserved == 0);
 
-	sync_array_validate(this);
+	ut_d(sync_array_validate(this));
 
 	/* Release the mutex protecting the wait array */
 
@@ -252,34 +280,6 @@ sync_array_free(
 	sync_array_t*	arr)	/*!< in, own: sync wait array */
 {
 	UT_DELETE(arr);
-}
-
-/********************************************************************//**
-Validates the integrity of the wait array. Checks
-that the number of reserved cells equals the count variable. */
-void
-sync_array_validate(
-/*================*/
-	sync_array_t*	arr)	/*!< in: sync wait array */
-{
-	ulint		i;
-	ulint		count		= 0;
-
-	sync_array_enter(arr);
-
-	for (i = 0; i < arr->n_cells; i++) {
-		sync_cell_t*	cell;
-
-		cell = sync_array_get_nth_cell(arr, i);
-
-		if (cell->latch.mutex != NULL) {
-			count++;
-		}
-	}
-
-	ut_a(count == arr->n_reserved);
-
-	sync_array_exit(arr);
 }
 
 /*******************************************************************//**
@@ -633,6 +633,7 @@ Report an error to stderr.
 @param lock		rw-lock instance
 @param debug		rw-lock debug information
 @param cell		thread context */
+static
 void
 sync_array_report_error(
 	rw_lock_t*		lock,

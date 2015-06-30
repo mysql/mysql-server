@@ -16,13 +16,13 @@
 
 
 /**
-  @file
-
-  @brief
-  Sorts a database
+  @file sql/filesort.cc
+  Sorts a database.
 */
 
 #include "filesort.h"
+
+#include "derror.h"
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
@@ -31,13 +31,16 @@
 #include "filesort_utils.h"
 #include "sql_select.h"
 #include "debug_sync.h"
+#include "mysqld.h"                             // mysql_tmpdir
 #include "opt_trace.h"
 #include "sql_optimizer.h"              // JOIN
+#include "sql_executor.h"               // QEP_TAB
 #include "sql_base.h"
 #include "opt_costmodel.h"
 #include "priority_queue.h"
 #include "log.h"
 #include "item_sum.h"                   // Item_sum
+#include "psi_memory_key.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -71,7 +74,7 @@ struct Mem_compare
 
 	/* functions defined in this file */
 
-static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *buffer_file,
                              IO_CACHE *chunk_file,
@@ -81,7 +84,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
 static int write_keys(Sort_param *param, Filesort_info *fs_info,
                       uint count, IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void register_used_fields(Sort_param *param);
-static int merge_index(Sort_param *param,
+static int merge_index(THD *thd,
+                       Sort_param *param,
                        Sort_buffer sort_buffer,
                        Merge_chunk_array chunk_array,
                        IO_CACHE *tempfile,
@@ -208,7 +212,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
   table->sort.sorted_result, or left in the main filesort buffer.
 
   @param      thd            Current thread
-  @param      table          Table to sort
+  @param      qep_tab        Table to sort
   @param      filesort       How to sort the table
   @param      sort_positions Set to TRUE if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
@@ -408,7 +412,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows= find_all_keys(&param, qep_tab,
+    num_rows= find_all_keys(thd, &param, qep_tab,
                             &table_sort,
                             &chunk_file,
                             &tempfile,
@@ -465,7 +469,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     param.max_keys_per_buffer=
       table_sort.sort_buffer_size() / param.rec_length;
 
-    if (merge_many_buff(&param,
+    if (merge_many_buff(thd, &param,
                         table_sort.get_raw_buf(),
                         table_sort.merge_chunks,
                         &num_chunks,
@@ -474,7 +478,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     if (flush_io_cache(&tempfile) ||
 	reinit_io_cache(&tempfile,READ_CACHE,0L,0,0))
       goto err;
-    if (merge_index(&param,
+    if (merge_index(thd, &param,
                     table_sort.get_raw_buf(),
                     Merge_chunk_array(table_sort.merge_chunks.begin(),
                                       num_chunks),
@@ -531,9 +535,10 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
       to client!
     */
     const char *cause= kill_errno
-                       ? ((kill_errno == THD::KILL_CONNECTION && !abort_loop)
-                         ? ER(THD::KILL_QUERY)
-                         : ER(kill_errno))
+                       ? ((kill_errno == THD::KILL_CONNECTION
+                         && !connection_events_loop_aborted())
+                          ? ER_THD(thd, THD::KILL_QUERY)
+                          : ER_THD(thd, kill_errno))
                        : thd->get_stmt_da()->message_text();
     const char *msg=   ER_THD(thd, ER_FILSORT_ABORT);
 
@@ -746,8 +751,9 @@ static const Item::enum_walk walk_subquery=
   (if we run out of space in the sort buffer).
   All produced sequences are guaranteed to be non-empty.
 
+  @param thd               Thread handle
   @param param             Sorting parameter
-  @param select            Use this to get source data
+  @param qep_tab            Use this to get source data
   @param fs_info           Struct containing sort buffer etc.
   @param chunk_file        File to write Merge_chunks describing sorted segments
                            in tempfile.
@@ -789,7 +795,7 @@ static const Item::enum_walk walk_subquery=
     HA_POS_ERROR on error.
 */
 
-static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
+static ha_rows find_all_keys(THD *thd, Sort_param *param, QEP_TAB *qep_tab,
                              Filesort_info *fs_info,
                              IO_CACHE *chunk_file,
                              IO_CACHE *tempfile,
@@ -802,7 +808,6 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
   uchar *ref_pos,*next_pos,ref_buff[MAX_REFLENGTH];
   my_off_t record;
   TABLE *sort_form;
-  THD *thd= current_thd;
   volatile THD::killed_state *killed= &thd->killed;
   handler *file;
   MY_BITMAP *save_read_set, *save_write_set;
@@ -839,7 +844,7 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
       DBUG_RETURN(HA_POS_ERROR);
     }
     file->extra_opt(HA_EXTRA_CACHE,
-		    current_thd->variables.read_buff_size);
+		    thd->variables.read_buff_size);
   }
 
   if (quick_select)
@@ -1111,8 +1116,8 @@ const bool Is_big_endian= true;
 #else
 const bool Is_big_endian= false;
 #endif
-void copy_native_longlong(uchar *to, size_t to_length,
-                          longlong val, bool is_unsigned)
+static void copy_native_longlong(uchar *to, size_t to_length,
+                                 longlong val, bool is_unsigned)
 {
   copy_integer<Is_big_endian>(to, to_length,
                               static_cast<uchar*>(static_cast<void*>(&val)),
@@ -1515,10 +1520,10 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
     This function tests whether a priority queue should be used to keep
     the result. Necessary conditions are:
     - estimate that it is actually cheaper than merge-sort
-    - enough memory to store the <max_rows> records.
+    - enough memory to store the @<max_rows@> records.
 
-    If we don't have space for <max_rows> records, but we *do* have
-    space for <max_rows> keys, we may rewrite 'table' to sort with
+    If we don't have space for @<max_rows@> records, but we *do* have
+    space for @<max_rows@> keys, we may rewrite 'table' to sort with
     references to records instead of additional data.
     (again, based on estimates that it will actually be cheaper).
 
@@ -1675,7 +1680,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
                       output: the number of chunks left in the output file.
   @param t_file       Where to store the result.
 */
-int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
+int merge_many_buff(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                     Merge_chunk_array chunk_array,
                     size_t *p_num_chunks, IO_CACHE *t_file)
 {
@@ -1703,7 +1708,8 @@ int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
     Merge_chunk *last_chunk= chunk_array.begin();;
     for (i=0 ; i < num_chunks - MERGEBUFF * 3 / 2 ; i+= MERGEBUFF)
     {
-      if (merge_buffers(param,                  // param
+      if (merge_buffers(thd,
+                        param,                  // param
                         from_file,              // from_file
                         to_file,                // to_file
                         sort_buffer,            // sort_buffer
@@ -1712,7 +1718,8 @@ int merge_many_buff(Sort_param *param, Sort_buffer sort_buffer,
                         0))                     // flag
       goto cleanup;
     }
-    if (merge_buffers(param,
+    if (merge_buffers(thd,
+                      param,
                       from_file,
                       to_file,
                       sort_buffer,
@@ -1882,7 +1889,7 @@ struct Merge_chunk_less
     other  error
 */
 
-int merge_buffers(Sort_param *param, IO_CACHE *from_file,
+int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
                   IO_CACHE *to_file, Sort_buffer sort_buffer,
                   Merge_chunk *last_chunk,
                   Merge_chunk_array chunk_array,
@@ -1898,11 +1905,11 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   Sort_param::chunk_compare_fun cmp;
   Merge_chunk_compare_context *first_cmp_arg;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  volatile THD::killed_state *killed= &thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  current_thd->inc_status_sort_merge_passes();
+  thd->inc_status_sort_merge_passes();
   if (param->not_killable)
   {
     killed= &not_killable;
@@ -2102,12 +2109,13 @@ end:
 
 	/* Do a merge to output-file (save only positions) */
 
-static int merge_index(Sort_param *param, Sort_buffer sort_buffer,
+static int merge_index(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                        Merge_chunk_array chunk_array,
                        IO_CACHE *tempfile, IO_CACHE *outfile)
 {
   DBUG_ENTER("merge_index");
-  if (merge_buffers(param,                    // param
+  if (merge_buffers(thd,
+                    param,                    // param
                     tempfile,                 // from_file
                     outfile,                  // to_file
                     sort_buffer,              // sort_buffer
@@ -2171,6 +2179,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       {
         sortorder->need_strxnfrm= 1;
         *multi_byte_charset= 1;
+        // How many bytes do we need (including sort weights) for strnxfrm()?
         sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
       }
       if (sortorder->field->maybe_null())
@@ -2193,6 +2202,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
         set_if_smaller(sortorder->length, thd->variables.max_sort_length);
 	if (use_strnxfrm((cs=sortorder->item->collation.collation)))
 	{ 
+          // How many bytes do we need (including sort weights) for strnxfrm()?
           sortorder->length= cs->coll->strnxfrmlen(cs, sortorder->length);
 	  sortorder->need_strxnfrm= 1;
 	  *multi_byte_charset= 1;

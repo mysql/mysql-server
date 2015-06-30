@@ -14,7 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file Representation of an SQL command.
+  @file sql/sql_cmd.h
+  Representation of an SQL command.
 */
 
 #ifndef SQL_CMD_INCLUDED
@@ -87,7 +88,6 @@ enum enum_sql_command {
   SQLCOM_CREATE_EVENT, SQLCOM_ALTER_EVENT, SQLCOM_DROP_EVENT,
   SQLCOM_SHOW_CREATE_EVENT, SQLCOM_SHOW_EVENTS,
   SQLCOM_SHOW_CREATE_TRIGGER,
-  SQLCOM_ALTER_DB_UPGRADE,
   SQLCOM_SHOW_PROFILE, SQLCOM_SHOW_PROFILES,
   SQLCOM_SIGNAL, SQLCOM_RESIGNAL,
   SQLCOM_SHOW_RELAYLOG_EVENTS,
@@ -105,7 +105,7 @@ enum enum_sql_command {
 };
 
 /**
-  @class Sql_cmd - Representation of an SQL command.
+  Representation of an SQL command.
 
   This class is an interface between the parser and the runtime.
   The parser builds the appropriate derived classes of Sql_cmd
@@ -151,7 +151,7 @@ public:
 
     @see reinit_stmt_before_use()
 
-    @node Currently this function is overloaded for INSERT/REPLACE stmts only.
+    @note Currently this function is overloaded for INSERT/REPLACE stmts only.
 
     @param thd  Current THD.
   */

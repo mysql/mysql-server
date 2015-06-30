@@ -20,6 +20,7 @@
 #include <m_string.h>
 #include "my_static.h"
 #include "mysys_err.h"
+#include "mysql/service_mysql_alloc.h"
 
 	/*
 	  Remove an open tempfile so that it doesn't survive

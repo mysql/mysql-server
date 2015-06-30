@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ use mtr_results;
 
 my $tot_real_time= 0;
 
+my $done_percentage= 0;
+
 our $timestamp= 0;
 our $timediff= 0;
 our $name;
@@ -72,7 +74,12 @@ sub _mtr_report_test_name ($) {
     if defined $tinfo->{combination};
 
   print _name(). _timestamp();
-  printf "%-40s ", $tname;
+  if( $::opt_test_progress) {
+    printf "[%3s%] %-40s ", $done_percentage, $tname ;
+  }
+  else {
+    printf "%-40s ", $tname;
+  }
   my $worker = $tinfo->{worker};
   print "w$worker " if defined $worker;
 
@@ -116,13 +123,21 @@ sub mtr_report_test_passed ($) {
 
 sub mtr_report_test ($) {
   my ($tinfo)= @_;
-  my $test_name = _mtr_report_test_name($tinfo);
 
   my $comment=  $tinfo->{'comment'};
   my $logfile=  $tinfo->{'logfile'};
   my $warnings= $tinfo->{'warnings'};
   my $result=   $tinfo->{'result'};
   my $retry=    $tinfo->{'retries'} ? "retry-" : "";
+
+  if ( $::opt_test_progress ) {
+    if ( $tinfo->{'name'} && !$retry )  {
+      $::remaining= $::remaining - 1; 
+      $done_percentage = 100 - int (($::remaining * 100) / ($::num_tests_for_report));
+    }
+  }
+
+  my $test_name = _mtr_report_test_name($tinfo);
 
   if ($result eq 'MTR_RES_FAILED'){
 

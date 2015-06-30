@@ -15,6 +15,7 @@
 
 #include "mysys_priv.h"
 #include "my_sys.h"
+#include "my_static.h"
 #include <m_string.h>
 
 static char *find_file_in_path(char *to,const char *name);

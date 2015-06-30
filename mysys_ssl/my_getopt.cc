@@ -23,6 +23,8 @@
 #include "my_default.h"
 #include <m_ctype.h>
 #include "../mysys/mysys_priv.h"
+#include "mysql/service_mysql_alloc.h"
+#include "typelib.h"
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -30,7 +32,7 @@ typedef void (*init_func_p)(const struct my_option *option, void *variable,
 my_error_reporter my_getopt_error_reporter= &my_message_local;
 
 static bool findopt(char *, uint, const struct my_option **);
-my_bool getopt_compare_strings(const char *, const char *, uint);
+static my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);

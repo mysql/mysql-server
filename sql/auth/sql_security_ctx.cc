@@ -15,6 +15,7 @@
 #include "sql_security_ctx.h"
 #include "auth_common.h"
 #include "sql_class.h"
+#include "mysqld.h"                             // my_localhost
 
 void Security_context::init()
 {

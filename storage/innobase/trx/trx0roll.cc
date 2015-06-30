@@ -231,6 +231,8 @@ trx_rollback_for_mysql(
 			trx_undo_ptr_t*	undo_ptr = &trx->rsegs.m_redo;
 			mtr_t		mtr;
 			mtr.start();
+			mtr.set_undo_space(trx->rsegs.m_redo.rseg->space);
+
 			mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
 			if (undo_ptr->insert_undo != NULL) {
 				trx_undo_set_state_at_prepare(
@@ -399,7 +401,7 @@ the row, these locks are naturally released in the rollback. Savepoints which
 were set after this savepoint are deleted.
 @return if no savepoint of the name found then DB_NO_SAVEPOINT,
 otherwise DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 trx_rollback_to_savepoint_for_mysql_low(
 /*====================================*/
@@ -780,11 +782,7 @@ trx_rollback_or_clean_recovered(
 	trx_t*	trx;
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_TRX_UNDO);
-
-	if (trx_sys_get_n_rw_trx() == 0) {
-
-		return;
-	}
+	ut_ad(!all || trx_sys_need_rollback());
 
 	if (all) {
 		ib::info() << "Starting in background the rollback"
@@ -936,6 +934,7 @@ Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
+static
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx_low(
 /*============================*/

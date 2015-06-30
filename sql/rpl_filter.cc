@@ -17,6 +17,8 @@
 
 #include "auth_common.h"                // SUPER_ACL
 #include "item.h"                       // Item
+#include "mysqld.h"                     // table_alias_charset LOCK_msr_map
+#include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
 #include "rpl_msr.h"                    // msr_map
 #include "rpl_rli.h"                    // Relay_log_info
@@ -1004,9 +1006,6 @@ void Sql_cmd_change_repl_filter::set_filter_value(List<Item>* item_list,
 
   @param thd A pointer to the thread handler object.
 
-  @param mi Pointer to Master_info object belonging to the slave's IO
-  thread.
-
   @retval FALSE success
   @retval TRUE error
  */
@@ -1015,7 +1014,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
   DBUG_ENTER("change_rpl_filter");
   bool ret= false;
 #ifdef HAVE_REPLICATION
-  int thread_mask;
+  int thread_mask= 0;
   Master_info *mi= NULL;
 
   if (check_global_access(thd, SUPER_ACL))
@@ -1039,8 +1038,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 
   if (!mi)
   {
-    my_message(ER_SLAVE_CONFIGURATION, ER(ER_SLAVE_CONFIGURATION),
-               MYF(0));
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     ret= true;
     goto err;
   }
@@ -1061,7 +1059,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
       init_thread_mask(&thread_mask, mi, 0 /*not inverse*/);
     if (thread_mask & SLAVE_SQL) /* We refuse if any slave thread is running */
     {
-      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP, ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
+      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
       ret= true;
       break;
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,10 +45,7 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
                     const char *lib[]);
 
-/*
-  These functions were protected by INNODB_COMPATIBILITY_HOOKS
- */
-size_t strconvert(CHARSET_INFO *from_cs, const char *from,
+size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length, uint *errors);
 
 

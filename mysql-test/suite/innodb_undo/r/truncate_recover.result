@@ -58,6 +58,8 @@ commit;
 Pattern "ib_undo_trunc_before_ddl_log_end" found
 # restart
 drop table t1;
+call mtr.add_suppression("Header page consists of zero bytes.*undo00[12]");
+call mtr.add_suppression("Datafile.*undo00[12]' is corrupted");
 create table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;

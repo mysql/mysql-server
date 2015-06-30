@@ -30,6 +30,7 @@
 #include <m_ctype.h>
 #include "log.h"                                // sql_print_warning,
                                                 // sql_print_information
+#include "psi_memory_key.h"
 #include "violite.h"                            // vio_getnameinfo,
                                                 // vio_get_normalized_ip_string
 

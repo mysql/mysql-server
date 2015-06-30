@@ -18,6 +18,7 @@
 #include "probes_mysql.h"
 #include "ha_blackhole.h"
 #include "sql_class.h"                          // THD, SYSTEM_THREAD_SLAVE_*
+#include "mysql/psi/mysql_memory.h"
 
 static PSI_memory_key bh_key_memory_blackhole_share;
 
@@ -209,8 +210,7 @@ THR_LOCK_DATA **ha_blackhole::store_lock(THD *thd,
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
-        && !thd_tablespace_op(thd))
+         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 
     /*

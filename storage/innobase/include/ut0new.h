@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file ut/ut0new.h
+@file include/ut0new.h
 Instrumented memory allocator.
 
 Created May 26, 2014 Vasil Dimov
@@ -164,11 +164,12 @@ extern PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
 extern PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
 extern PSI_memory_key	mem_key_other;
+extern PSI_memory_key	mem_key_partitioning;
 extern PSI_memory_key	mem_key_row_log_buf;
 extern PSI_memory_key	mem_key_row_merge_sort;
 extern PSI_memory_key	mem_key_std;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
-extern PSI_memory_key	mem_key_partitioning;
+/* Please obey alphabetical order in the definitions above. */
 
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */

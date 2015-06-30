@@ -1299,7 +1299,7 @@ let $nine_81=
 eval SELECT substring(('M') FROM ($nine_81)) AS foo;
 eval SELECT min($nine_81) AS foo;
 --error ER_GIS_INVALID_DATA
-eval SELECT multipolygonfromtext(('4294967294.1'),($nine_81)) AS foo;
+eval SELECT st_multipolygonfromtext(('4294967294.1'),($nine_81)) AS foo;
 eval SELECT convert(($nine_81), decimal(30,30)) AS foo;
 eval SELECT bit_xor($nine_81) AS foo;
 eval SELECT -($nine_81) AS foo;

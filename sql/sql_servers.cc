@@ -44,6 +44,9 @@
 #include "sql_parse.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "transaction.h"      // trans_rollback_stmt, trans_commit_stmt
+#include "sql_class.h"
+#include "mysql/psi/mysql_memory.h"
+
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
   Read locked when only reading data and write-locked for all other access.
@@ -807,8 +810,8 @@ bool Sql_cmd_alter_server::execute(THD *thd)
   if (close_cached_connection_tables(thd, m_server_options->m_server_name.str,
                                      m_server_options->m_server_name.length))
   {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_UNKNOWN_ERROR, "Server connection in use");
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
   if (error == 0 && !thd->killed)
@@ -881,8 +884,8 @@ bool Sql_cmd_drop_server::execute(THD *thd)
   if (close_cached_connection_tables(thd, m_server_name.str,
                                      m_server_name.length))
   {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_UNKNOWN_ERROR, "Server connection in use");
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
   if (error == 0 && !thd->killed)

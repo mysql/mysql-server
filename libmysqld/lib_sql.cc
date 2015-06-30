@@ -617,7 +617,9 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   acl_error= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-  acl_error= acl_init(opt_noacl) || grant_init(opt_noacl);
+  if (!(acl_error= acl_init(opt_noacl)) &&
+      !opt_noacl)
+    (void) grant_init();
 #endif
   if (acl_error || my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
@@ -631,12 +633,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
   if (!opt_bootstrap)
     servers_init(0);
 
-#ifdef HAVE_DLOPEN
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!opt_noacl)
 #endif
     udf_init();
-#endif
 
   start_handle_manager();
 
@@ -656,7 +656,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   execute_ddl_log_recovery();
 
-  start_processing_signals();
+  server_components_initialized();
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */

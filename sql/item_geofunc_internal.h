@@ -286,7 +286,7 @@ struct Is_rtree_box_valid
 /**
   Build an rtree set using a geometry collection.
   @param gl geometry object pointers container.
-  @param vals[out] rtree entries which can be used to build an rtree.
+  @param [out] rtree entries which can be used to build an rtree.
  */
 inline void
 make_rtree(const BG_geometry_collection::Geometry_list &gl,
@@ -423,7 +423,7 @@ inline bool is_empty_geocollection(const String &wkbres)
     return true;
 
   Is_empty_geometry checker;
-  uint32 len= wkbres.length() - GEOM_HEADER_SIZE;
+  uint32 len= static_cast<uint32>(wkbres.length()) - GEOM_HEADER_SIZE;
   wkb_scanner(wkbres.ptr() + GEOM_HEADER_SIZE, &len,
               Geometry::wkb_geometrycollection, false, &checker);
   return checker.is_empty;
@@ -589,8 +589,6 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param ifso the Item_func_spatial_operation object, we here rely on it to
-         do union operation.
   @param[out] pnull_value takes back null_value set during the operation.
  */
 template<typename Coord_type, typename Coordsys>

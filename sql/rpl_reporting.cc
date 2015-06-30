@@ -16,9 +16,10 @@
 #include "rpl_reporting.h"
 
 #include "log.h"               // sql_print_warning
-#include "mysqld.h"            // current_thd
+#include "mysqld.h"            // slave_trans_retries
 #include "sql_class.h"         // THD
 #include "sql_error.h"         // Diagnostics_area
+#include "current_thd.h"
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   : m_thread_name(thread_name)
@@ -36,10 +37,10 @@ Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
 
   @param      thd  a THD instance, typically of the slave SQL thread's.
-  @error_arg  the error code for assessment. 
+  @param error_arg  the error code for assessment. 
               defaults to zero which makes the function check the top
               of the reported errors stack.
-  @silent     bool indicating whether the error should be silently handled.
+  @param silent     bool indicating whether the error should be silently handled.
 
   @return 1 as the positive and 0 as the negative verdict
 */

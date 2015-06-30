@@ -20,21 +20,26 @@
 
 #include "mutex_lock.h"                     // Mutex_lock
 #include "my_dir.h"                         // MY_DIR
+#include "keycache.h"                       // dflt_key_cache
 #include "prealloced_array.h"               // Prealloced_array
 #include "template_utils.h"                 // delete_container_pointers
 #include "auth_common.h"                    // check_grant_db
 #include "datadict.h"                       // dd_frm_type
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "derror.h"                         // ER_THD
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "item.h"                           // Item_empty_string
 #include "item_cmpfunc.h"                   // Item_cond
 #include "log.h"                            // sql_print_warning
+#include "mysqld.h"                         // lower_case_table_names
 #include "mysqld_thd_manager.h"             // Global_THD_manager
 #include "opt_trace.h"                      // fill_optimizer_trace_info
 #include "protocol.h"                       // Protocol
+#include "psi_memory_key.h"
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
+#include "sp_pcontext.h"                    // sp_pcontext
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
@@ -68,7 +73,110 @@
 using std::max;
 using std::min;
 
+/* Define fields' indexes for COLUMNS table of I_S tables */
+#define IS_COLUMNS_TABLE_CATALOG                0
+#define IS_COLUMNS_TABLE_SCHEMA                 1
+#define IS_COLUMNS_TABLE_NAME                   2
+#define IS_COLUMNS_COLUMN_NAME                  3
+#define IS_COLUMNS_ORDINAL_POSITION             4
+#define IS_COLUMNS_COLUMN_DEFAULT               5
+#define IS_COLUMNS_IS_NULLABLE                  6
+#define IS_COLUMNS_DATA_TYPE                    7
+#define IS_COLUMNS_CHARACTER_MAXIMUM_LENGTH     8
+#define IS_COLUMNS_CHARACTER_OCTET_LENGTH       9
+#define IS_COLUMNS_NUMERIC_PRECISION           10
+#define IS_COLUMNS_NUMERIC_SCALE               11
+#define IS_COLUMNS_DATETIME_PRECISION          12
+#define IS_COLUMNS_CHARACTER_SET_NAME          13
+#define IS_COLUMNS_COLLATION_NAME              14
+#define IS_COLUMNS_COLUMN_TYPE                 15
+#define IS_COLUMNS_COLUMN_KEY                  16
+#define IS_COLUMNS_EXTRA                       17
+#define IS_COLUMNS_PRIVILEGES                  18
+#define IS_COLUMNS_COLUMN_COMMENT              19
+#define IS_COLUMNS_GENERATION_EXPRESSION       20
+
+/* Define fields' indexes for ROUTINES table of I_S tables */
+#define IS_ROUTINES_SPECIFIC_NAME               0
+#define IS_ROUTINES_ROUTINE_CATALOG             1
+#define IS_ROUTINES_ROUTINE_SCHEMA              2
+#define IS_ROUTINES_ROUTINE_NAME                3
+#define IS_ROUTINES_ROUTINE_TYPE                4
+#define IS_ROUTINES_DATA_TYPE                   5
+#define IS_ROUTINES_CHARACTER_MAXIMUM_LENGTH    6
+#define IS_ROUTINES_CHARACTER_OCTET_LENGTH      7
+#define IS_ROUTINES_NUMERIC_PRECISION           8
+#define IS_ROUTINES_NUMERIC_SCALE               9
+#define IS_ROUTINES_DATETIME_PRECISION         10
+#define IS_ROUTINES_CHARACTER_SET_NAME         11
+#define IS_ROUTINES_COLLATION_NAME             12
+#define IS_ROUTINES_DTD_IDENTIFIER             13
+#define IS_ROUTINES_ROUTINE_BODY               14
+#define IS_ROUTINES_ROUTINE_DEFINITION         15
+#define IS_ROUTINES_EXTERNAL_NAME              16
+#define IS_ROUTINES_EXTERNAL_LANGUAGE          17
+#define IS_ROUTINES_PARAMETER_STYLE            18
+#define IS_ROUTINES_IS_DETERMINISTIC           19
+#define IS_ROUTINES_SQL_DATA_ACCESS            20
+#define IS_ROUTINES_SQL_PATH                   21
+#define IS_ROUTINES_SECURITY_TYPE              22
+#define IS_ROUTINES_CREATED                    23
+#define IS_ROUTINES_LAST_ALTERED               24
+#define IS_ROUTINES_SQL_MODE                   25
+#define IS_ROUTINES_ROUTINE_COMMENT            26
+#define IS_ROUTINES_DEFINER                    27
+#define IS_ROUTINES_CHARACTER_SET_CLIENT       28
+#define IS_ROUTINES_COLLATION_CONNECTION       29
+#define IS_ROUTINES_DATABASE_COLLATION         30
+
+
+/* Define fields' indexes for PARAMETERS table of I_S tables */
+#define IS_PARAMETERS_SPECIFIC_CATALOG          0
+#define IS_PARAMETERS_SPECIFIC_SCHEMA           1
+#define IS_PARAMETERS_SPECIFIC_NAME             2
+#define IS_PARAMETERS_ORDINAL_POSITION          3
+#define IS_PARAMETERS_PARAMETER_MODE            4
+#define IS_PARAMETERS_PARAMETER_NAME            5
+#define IS_PARAMETERS_DATA_TYPE                 6
+#define IS_PARAMETERS_CHARACTER_MAXIMUM_LENGTH  7
+#define IS_PARAMETERS_CHARACTER_OCTET_LENGTH    8
+#define IS_PARAMETERS_NUMERIC_PRECISION         9
+#define IS_PARAMETERS_NUMERIC_SCALE            10
+#define IS_PARAMETERS_DATETIME_PRECISION       11
+#define IS_PARAMETERS_CHARACTER_SET_NAME       12
+#define IS_PARAMETERS_COLLATION_NAME           13
+#define IS_PARAMETERS_DTD_IDENTIFIER           14
+#define IS_PARAMETERS_ROUTINE_TYPE             15
+
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
+
+/**
+  @class CSET_STRING
+  @brief Character set armed LEX_CSTRING
+*/
+class CSET_STRING
+{
+private:
+  LEX_CSTRING string;
+  const CHARSET_INFO *cs;
+public:
+  CSET_STRING() : cs(&my_charset_bin)
+  {
+    string.str= NULL;
+    string.length= 0;
+  }
+  CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
+  cs(cs_arg)
+  {
+    DBUG_ASSERT(cs_arg != NULL);
+    string.str= str_arg;
+    string.length= length_arg;
+  }
+
+  inline const char *str() const { return string.str; }
+  inline size_t length() const { return string.length; }
+  const CHARSET_INFO *charset() const { return cs; }
+};
 
 enum enum_i_s_events_fields
 {
@@ -135,6 +243,8 @@ static void
 append_algorithm(TABLE_LIST *table, String *buff);
 
 static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
+
+static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 /***************************************************************************
 ** List all table types supported
@@ -247,7 +357,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
 }
 
 
-int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_plugins");
 
@@ -760,8 +870,8 @@ public:
      Creates a new Show_create_error_handler for the particular security
      context and view.
 
-     @thd Thread context, used for security context information if needed.
-     @top_view The view. We do not verify at this point that top_view is in
+     @param thd Thread context, used for security context information if needed.
+     @param top_view The view. We do not verify at this point that top_view is in
      fact a view since, alas, these things do not stay constant.
   */
   explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) :
@@ -782,13 +892,13 @@ private:
      failed is not available at this point. The only way for us to check is by
      reconstructing the actual error message and see if it's the same.
   */
-  const char* get_view_access_denied_message()
+  const char* get_view_access_denied_message(THD *thd)
   {
     if (!m_view_access_denied_message_ptr)
     {
       m_view_access_denied_message_ptr= m_view_access_denied_message;
       my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
-                  ER(ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  ER_THD(thd, ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
                   m_sctx->priv_user().str,
                   m_sctx->host_or_ip().str, m_top_view->get_table_name());
     }
@@ -816,7 +926,7 @@ public:
     switch (sql_errno)
     {
     case ER_TABLEACCESS_DENIED_ERROR:
-      if (!strcmp(get_view_access_denied_message(), msg))
+      if (!strcmp(get_view_access_denied_message(thd), msg))
       {
         /* Access to top view is not granted, don't interfere. */
         is_handled= false;
@@ -838,7 +948,7 @@ public:
       /* Established behavior: warn if underlying functions are missing. */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_INVALID,
-                          ER(ER_VIEW_INVALID),
+                          ER_THD(thd, ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
                           m_top_view->get_table_name());
       is_handled= true;
@@ -1014,7 +1124,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user().str, sctx->host_or_ip().str, dbname);
-    query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+    query_logger.general_log_print(thd,COM_INIT_DB,
+                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
                                    sctx->priv_user().str,
                                    sctx->host_or_ip().str, dbname);
     DBUG_RETURN(TRUE);
@@ -2013,7 +2124,7 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
 }
 
 
-int
+static int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
   my_bool compact_view_name= TRUE;
@@ -2438,7 +2549,7 @@ public:
   }
 };
 
-int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
+static int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 {
   DBUG_ENTER("fill_schema_processlist");
 
@@ -2709,7 +2820,7 @@ inline void make_upper(char *buf)
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              enum_var_type value_type, SHOW_TYPE show_type,
-                             system_status_var *status_var,
+                             System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
 {
@@ -2722,7 +2833,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(current_thd, thd, value_type, &null_lex_str);
+    value= (char*) var->value_ptr(thd, thd, value_type, &null_lex_str);
     *charset= var->charset(thd);
   }
   else
@@ -2847,7 +2958,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
-                              struct system_status_var *status_var,
+                              struct System_status_var *status_var,
                               const char *prefix, TABLE_LIST *tl,
                               bool ucase_names,
                               Item *cond)
@@ -2935,7 +3046,7 @@ end:
 class Add_status : public Do_THD_Impl
 {
 public:
-  Add_status(STATUS_VAR* value) : m_stat_var(value) {}
+  Add_status(System_status_var* value) : m_stat_var(value) {}
   virtual void operator()(THD *thd)
   {
     if (!thd->status_var_aggregated)
@@ -2943,10 +3054,10 @@ public:
   }
 private:
   /* Status of all threads are summed into this. */
-  STATUS_VAR* m_stat_var;
+  System_status_var* m_stat_var;
 };
 
-void calc_sum_of_all_status(STATUS_VAR *to)
+void calc_sum_of_all_status(System_status_var *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
   mysql_mutex_assert_owner(&LOCK_status);
@@ -3029,7 +3140,7 @@ static int make_table_list(THD *thd, SELECT_LEX *sel,
                            const LEX_CSTRING &table_name)
 {
   Table_ident *table_ident;
-  table_ident= new Table_ident(thd, db_name, table_name, 1);
+  table_ident= new Table_ident(thd->get_protocol(), db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
   return 0;
@@ -3054,9 +3165,9 @@ static int make_table_list(THD *thd, SELECT_LEX *sel,
     1             error, there can be no matching records for the condition
 */
 
-bool get_lookup_value(THD *thd, Item_func *item_func,
-                      TABLE_LIST *table, 
-                      LOOKUP_FIELD_VALUES *lookup_field_vals)
+static bool get_lookup_value(THD *thd, Item_func *item_func,
+                             TABLE_LIST *table,
+                             LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   ST_SCHEMA_TABLE *schema_table= table->schema_table;
   ST_FIELD_INFO *field_info= schema_table->fields_info;
@@ -3137,8 +3248,9 @@ bool get_lookup_value(THD *thd, Item_func *item_func,
     1             error, there can be no matching records for the condition
 */
 
-bool calc_lookup_values_from_cond(THD *thd, Item *cond, TABLE_LIST *table,
-                                  LOOKUP_FIELD_VALUES *lookup_field_vals)
+static bool calc_lookup_values_from_cond(THD *thd, Item *cond,
+                                         TABLE_LIST *table,
+                                         LOOKUP_FIELD_VALUES *lookup_field_vals)
 {
   if (!cond)
     return 0;
@@ -3172,7 +3284,7 @@ bool calc_lookup_values_from_cond(THD *thd, Item *cond, TABLE_LIST *table,
 }
 
 
-bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
+static bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
 {
   if (item->type() == Item::FUNC_ITEM)
   {
@@ -3286,8 +3398,8 @@ static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table)
     1             error, there can be no matching records for the condition
 */
 
-bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
-                             LOOKUP_FIELD_VALUES *lookup_field_values)
+static bool get_lookup_field_values(THD *thd, Item *cond, TABLE_LIST *tables,
+                                    LOOKUP_FIELD_VALUES *lookup_field_values)
 {
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
@@ -3366,9 +3478,9 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table)
     non-zero              error
 */
 
-int make_db_list(THD *thd, List<LEX_STRING> *files,
-                 LOOKUP_FIELD_VALUES *lookup_field_vals,
-                 bool *with_i_schema, MEM_ROOT *tmp_mem_root)
+static int make_db_list(THD *thd, List<LEX_STRING> *files,
+                        LOOKUP_FIELD_VALUES *lookup_field_vals,
+                        bool *with_i_schema, MEM_ROOT *tmp_mem_root)
 {
   LEX_STRING *i_s_name_copy= 0;
   i_s_name_copy= thd->make_lex_string(i_s_name_copy,
@@ -3480,7 +3592,8 @@ static my_bool add_schema_table(THD *thd, plugin_ref plugin,
 }
 
 
-int schema_tables_add(THD *thd, List<LEX_STRING> *files, const char *wild)
+static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
+                             const char *wild)
 {
   LEX_STRING *file_name= 0;
   ST_SCHEMA_TABLE *tmp_schema_table= schema_tables;
@@ -3904,7 +4017,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     @retval       SKIP_OPEN_TABLE | OPEN_FRM_ONLY | OPEN_FULL_TABLE
 */
 
-uint get_table_open_method(TABLE_LIST *tables,
+static uint get_table_open_method(TABLE_LIST *tables,
                                   ST_SCHEMA_TABLE *schema_table,
                                   enum enum_schema_tables schema_table_idx)
 {
@@ -4087,7 +4200,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_I_S_SKIPPED_TABLE,
-                        ER(ER_WARN_I_S_SKIPPED_TABLE),
+                        ER_THD(thd, ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
     return 0;
   }
@@ -4285,7 +4398,7 @@ public:
     @retval       1                        error
 */
 
-int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
+static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   LEX *lex= thd->lex;
   TABLE *table= tables->table;
@@ -4518,8 +4631,8 @@ err:
 }
 
 
-bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
-                          const CHARSET_INFO *cs)
+static bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
+                                 const CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[0]->store(STRING_WITH_LEN("def"), system_charset_info);
@@ -4530,7 +4643,7 @@ bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
 }
 
 
-int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   /*
     TODO: fill_schema_shemata() is called when new client is connected.
@@ -4910,8 +5023,8 @@ err:
   @return         void
 */
 
-void store_column_type(THD *thd, TABLE *table, Field *field, CHARSET_INFO *cs,
-                       uint offset)
+static void store_column_type(THD *thd, TABLE *table, Field *field,
+                              CHARSET_INFO *cs, uint offset)
 {
   bool is_blob;
   int decimals, field_length;
@@ -5177,7 +5290,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-int fill_schema_charsets(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_charsets(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -5274,7 +5387,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   DBUG_RETURN(0);
 }
 
-int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_schema_engines");
   if (plugin_foreach_with_mask(thd, iter_schema_engines,
@@ -5285,7 +5398,7 @@ int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *cond)
 }
 
 
-int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   CHARSET_INFO **cs;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -5331,7 +5444,8 @@ int fill_schema_collation(THD *thd, TABLE_LIST *tables, Item *cond)
 }
 
 
-int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_coll_charset_app(THD *thd, TABLE_LIST *tables,
+                                        Item *cond)
 {
   CHARSET_INFO **cs;
   TABLE *table= tables->table;
@@ -5391,9 +5505,9 @@ static inline void copy_field_as_string(Field *to_field, Field *from_field)
     @retval       1                     error
 */
 
-bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
-                         const char *wild, bool full_access,
-                         const char *sp_user)
+static bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
+                                const char *wild, bool full_access,
+                                const char *sp_user)
 {
   TABLE_SHARE share;
   TABLE tbl;
@@ -5552,8 +5666,9 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
 }
 
 
-bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
-                       const char *wild, bool full_access, const char *sp_user)
+static bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
+                              const char *wild, bool full_access,
+                              const char *sp_user)
 {
   MYSQL_TIME time;
   LEX *lex= thd->lex;
@@ -5690,7 +5805,7 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
 }
 
 
-int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   TABLE *proc_table;
   TABLE_LIST proc_tables;
@@ -6004,9 +6119,10 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
-                       LEX_STRING *table_name, const char *key_name,
-                       size_t key_len, const char *con_type, size_t con_len)
+static bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
+                              LEX_STRING *table_name, const char *key_name,
+                              size_t key_len, const char *con_type,
+                              size_t con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -6200,10 +6316,10 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
-                            LEX_STRING *table_name, const char *key_name,
-                            size_t key_len, const char *con_type, size_t con_len,
-                            longlong idx)
+static void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
+                                   LEX_STRING *table_name, const char *key_name,
+                                   size_t key_len, const char *con_type,
+                                   size_t con_len, longlong idx)
 {
   CHARSET_INFO *cs= system_charset_info;
   table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -6934,7 +7050,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 }
 #endif
 
-int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_open_tables");
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
@@ -6982,7 +7098,7 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       old_name, new_name);
 }
 
-int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
   Show_var_array sys_var_array(PSI_INSTRUMENT_ME);
@@ -7065,15 +7181,15 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 }
 
 
-int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
+static int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_status");
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
   int res= 0;
 
-  STATUS_VAR *status_var_ptr;
-  STATUS_VAR current_global_status_var;
+  System_status_var *status_var_ptr;
+  System_status_var current_global_status_var;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
   enum enum_var_type option_type;
@@ -7093,7 +7209,7 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     status_var_ptr= &current_global_status_var;
   }
   else
-  {
+  { 
     DBUG_ASSERT(schema_table_idx == SCH_SESSION_STATUS);
     option_type= OPT_SESSION;
     status_var_ptr= &thd->status_var;
@@ -7286,6 +7402,7 @@ ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name)
 }
 
 
+static
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 {
   return &schema_tables[schema_table_idx];
@@ -7313,7 +7430,7 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
   @retval  NULL           Can't create table
 */
 
-TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
+static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
 {
   int field_count= 0;
   Item *item;
@@ -7447,7 +7564,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
    0	success
 */
 
-int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   ST_FIELD_INFO *field_info= schema_table->fields_info;
   Name_resolution_context *context= &thd->lex->select_lex->context;
@@ -7469,7 +7586,7 @@ int make_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
   LEX *lex= thd->lex;
@@ -7498,7 +7615,7 @@ int make_schemata_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   char tmp[128];
   String buffer(tmp,sizeof(tmp), thd->charset());
@@ -7533,7 +7650,7 @@ int make_table_names_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {IS_COLUMNS_COLUMN_NAME,
                      IS_COLUMNS_COLUMN_TYPE,
@@ -7569,7 +7686,8 @@ int make_columns_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_character_sets_old_format(THD *thd,
+                                          ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {0, 2, 1, 3, -1};
   int *field_num= fields_arr;
@@ -7592,7 +7710,7 @@ int make_character_sets_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 }
 
 
-int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
+static int make_proc_old_format(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
   int fields_arr[]= {IS_ROUTINES_ROUTINE_SCHEMA,
                      IS_ROUTINES_ROUTINE_NAME,
@@ -7755,7 +7873,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
   if (schema_table->old_format(thd, schema_table) ||   /* Handle old syntax */
       !sel->add_table_to_list(thd,
-                              new Table_ident(thd,
+                              new Table_ident(thd->get_protocol(),
                                               to_lex_cstring(db),
                                               to_lex_cstring(table),
                                               0),
@@ -7964,7 +8082,7 @@ static my_bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin,
   return false;
 }
 
-int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
+static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("hton_fill_schema_table");
 

@@ -29,6 +29,7 @@
 #include "sql_string.h"
 #include "transaction.h"
 #include "sql_base.h"
+#include "mysql/service_rules_table.h"
 
 namespace rules_table_service
 {
@@ -59,7 +60,7 @@ static void add_column(MY_BITMAP *map, Cursor::column_id column)
 }
 
 
-Cursor::Cursor(MYSQL_THD mysql_thd) :
+Cursor::Cursor(THD *mysql_thd) :
   m_thd(mysql_thd),
   m_table_list(NULL),
   m_is_finished(true)

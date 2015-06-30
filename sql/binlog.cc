@@ -16,9 +16,14 @@
 #include "binlog.h"
 
 #include "my_stacktrace.h"                  // my_safe_print_system_time
+#include "current_thd.h"
 #include "debug_sync.h"                     // DEBUG_SYNC
+#include "derror.h"                         // ER_THD
+#include "item_func.h"                      // user_var_entry
 #include "log_event.h"                      // Rows_log_event
+#include "mysqld.h"                         // sync_binlog_period ...
 #include "mysqld_thd_manager.h"             // Global_THD_manager
+#include "psi_memory_key.h"
 #include "rpl_handler.h"                    // RUN_HOOK
 #include "rpl_mi.h"                         // Master_info
 #include "rpl_rli.h"                        // Relay_log_info
@@ -44,7 +49,9 @@ using std::min;
 using std::string;
 using std::list;
 using binary_log::checksum_crc32;
+
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+#define YESNO(X) ((X) ? "yes" : "no")
 
 #define LOG_PREFIX	"ML"
 
@@ -88,6 +95,79 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all);
 static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static int binlog_xa_commit(handlerton *hton,  XID *xid);
 static int binlog_xa_rollback(handlerton *hton,  XID *xid);
+
+
+#ifdef HAVE_REPLICATION
+static inline bool has_commit_order_manager(THD *thd)
+{
+  return is_mts_worker(thd) &&
+    thd->rli_slave->get_commit_order_manager() != NULL;
+}
+#endif
+
+
+bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
+{
+  DBUG_ENTER("normalize_binlog_name");
+  bool error= false;
+  char buff[FN_REFLEN];
+  char *ptr= (char*) from;
+  char *opt_name= is_relay_log ? opt_relay_logname : opt_bin_logname;
+
+  DBUG_ASSERT(from);
+
+  /* opt_name is not null and not empty and from is a relative path */
+  if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
+  {
+    // take the path from opt_name
+    // take the filename from from 
+    char log_dirpart[FN_REFLEN], log_dirname[FN_REFLEN];
+    size_t log_dirpart_len, log_dirname_len;
+    dirname_part(log_dirpart, opt_name, &log_dirpart_len);
+    dirname_part(log_dirname, from, &log_dirname_len);
+
+    /* log may be empty => relay-log or log-bin did not 
+        hold paths, just filename pattern */
+    if (log_dirpart_len > 0)
+    {
+      /* create the new path name */
+      if(fn_format(buff, from+log_dirname_len, log_dirpart, "",
+                   MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
+      {
+        error= true;
+        goto end;
+      }
+
+      ptr= buff;
+    }
+  }
+
+  DBUG_ASSERT(ptr);
+  if (ptr)
+  {
+    size_t length= strlen(ptr);
+
+    // Strips the CR+LF at the end of log name and \0-terminates it.
+    if (length && ptr[length-1] == '\n')
+    {
+      ptr[length-1]= 0;
+      length--;
+      if (length && ptr[length-1] == '\r')
+      {
+        ptr[length-1]= 0;
+        length--;
+      }
+    }
+    if (!length)
+    {
+      error= true;
+      goto end;
+    }
+    strmake(to, ptr, length);
+  }
+end:
+  DBUG_RETURN(error);
+}
 
 
 /**
@@ -789,7 +869,7 @@ void check_binlog_cache_size(THD *thd)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
-                          ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
+                          ER_THD(thd, ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_cache_size,
                           (ulong) max_binlog_cache_size);
     }
@@ -815,7 +895,7 @@ void check_binlog_stmt_cache_size(THD *thd)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
-                          ER(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
+                          ER_THD(thd, ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_stmt_cache_size,
                           (ulong) max_binlog_stmt_cache_size);
     }
@@ -898,7 +978,6 @@ public:
     binlog.
 
     @param output_cache_arg IO_CACHE to write to.
-    @param have_checksum_al
   */
   Binlog_event_writer(IO_CACHE *output_cache_arg)
     : output_cache(output_cache_arg),
@@ -916,16 +995,16 @@ public:
   /**
     Write part of an event to disk.
 
-    @param buf_p[IN,OUT] Points to buffer with data to write.  The
+    @param [in,out] buf_p Points to buffer with data to write.  The
     caller must set this initially, and it will be increased by the
     number of bytes written.
 
-    @param buf_len_p[IN,OUT] Points to the remaining length of the
+    @param [in,out] buf_len_p Points to the remaining length of the
     buffer, i.e., from buf_p to the end of the buffer.  The caller
     must set this initially, and it will be decreased by the number of
     written bytes.
 
-    @param event_len_p[IN,OUT] Points to the remaining length of the
+    @param [in,out] event_len_p Points to the remaining length of the
     event, i.e., the size of the event minus what was already written.
     This must be initialized to zero by the caller, must be remembered
     by the caller between calls, and is updated by this function: when
@@ -1288,8 +1367,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd)
   @see binlog_cache_data::flush
 
   @param thd                The thread whose transaction should be flushed
-  @param cache_data         Pointer to the cache
-  @param end_ev             The end event either commit/rollback
+  @param end_event          The end event either commit/rollback
 
   @return
     nonzero if an error pops up when flushing the cache.
@@ -1436,7 +1514,6 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
   back either a transaction or a statement.
 
   @param thd        The thread whose transaction should be flushed
-  @param cache_mngr Pointer to the cache data to be flushed
   @param all        @c true means truncate the transaction, otherwise the
                     statement must be truncated.
 
@@ -1641,7 +1718,7 @@ static int binlog_xa_rollback(handlerton *hton,  XID *xid)
   @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
   @param all   This is @c true if this is a real transaction commit, and
-               @false otherwise.
+               @c false otherwise.
 
   @see handlerton::commit
 */
@@ -1907,7 +1984,7 @@ void Stage_manager::clear_preempt_status(THD *head)
 
   @param thd Session to commit
   @param all This is @c true if this is a real transaction rollback, and
-             @false otherwise.
+             @c false otherwise.
 
   @return Error code, or zero if there were no error.
  */
@@ -2358,7 +2435,7 @@ static bool purge_error_message(THD* thd, int res)
 
   if ((errcode= purge_log_get_error_code(res)) != 0)
   {
-    my_message(errcode, ER(errcode), MYF(0));
+    my_error(errcode, MYF(0));
     return TRUE;
   }
   my_ok(thd);
@@ -2519,7 +2596,7 @@ bool stmt_cannot_safely_rollback(const THD* thd)
 
 #ifndef EMBEDDED_LIBRARY
 /**
-  Execute a PURGE BINARY LOGS TO <log> command.
+  Execute a PURGE BINARY LOGS TO @<log@> command.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -2548,7 +2625,7 @@ bool purge_master_logs(THD* thd, const char* to_log)
 
 
 /**
-  Execute a PURGE BINARY LOGS BEFORE <date> command.
+  Execute a PURGE BINARY LOGS BEFORE @<date@> command.
 
   @param thd Pointer to THD object for the client thread executing the
   statement.
@@ -3045,7 +3122,7 @@ static int find_uniq_filename(char *name)
 {
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
-  struct st_my_dir     *dir_info;
+  struct st_my_dir     *dir_info= NULL;
   struct fileinfo *file_info;
   ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;
@@ -3133,9 +3210,10 @@ int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name)
   {
     if (find_uniq_filename(new_name))
     {
-      my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+      my_printf_error(ER_NO_UNIQUE_LOGFILE,
+                      ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
                       MYF(ME_FATALERROR), log_name);
-      sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
+      sql_print_error(ER_DEFAULT(ER_NO_UNIQUE_LOGFILE), log_name);
       return 1;
     }
   }
@@ -3372,7 +3450,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   update the IO thread transaction parser.
 
   @param filename Relaylog file to read from.
-  @param retrieved_set Gtid_set to store the GTIDs found on the relaylog file.
+  @param retrieved_gtids Gtid_set to store the GTIDs found on the relaylog file.
   @param verify_checksum Set to true to verify event checksums.
   @param trx_parser The transaction boundary parser to be used in order to
   only add a GTID to the gtid_set after ensuring the transaction is fully
@@ -3779,7 +3857,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
             THD instance. Therefore, ER(X) cannot be used.
            */
           const char* msg_fmt= (current_thd != NULL) ?
-                               ER(ER_BINLOG_LOGICAL_CORRUPTION) :
+                               ER_THD(current_thd, ER_BINLOG_LOGICAL_CORRUPTION) :
                                ER_DEFAULT(ER_BINLOG_LOGICAL_CORRUPTION);
           my_printf_error(ER_BINLOG_LOGICAL_CORRUPTION,
                           msg_fmt, MYF(0),
@@ -4000,7 +4078,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
 
   if (rit == filename_list.rend())
   {
-    *errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+    *errmsg= ER_THD(current_thd, ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
     error= -5;
   }
 
@@ -4847,11 +4925,11 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
   {
     if (is_transactional)
     {
-      my_message(ER_TRANS_CACHE_FULL, ER(ER_TRANS_CACHE_FULL), MYF(MY_WME));
+      my_error(ER_TRANS_CACHE_FULL, MYF(MY_WME));
     }
     else
     {
-      my_message(ER_STMT_CACHE_FULL, ER(ER_STMT_CACHE_FULL), MYF(MY_WME));
+      my_error(ER_STMT_CACHE_FULL, MYF(MY_WME));
     }
   }
   else
@@ -5027,7 +5105,7 @@ err:
 /**
   Find the relay log name following the given name from relay log index file.
 
-  @param[in|out] log_name  The name is full path name.
+  @param[in,out] log_name  The name is full path name.
 
   @return return 0 if it finds next relay log. Otherwise return the error code.
 */
@@ -5118,7 +5196,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   {
     uint errcode= purge_log_get_error_code(err);
     sql_print_error("Failed to locate old binlog or relay log files");
-    my_message(errcode, ER(errcode), MYF(0));
+    my_error(errcode, MYF(0));
     error= 1;
     goto err;
   }
@@ -5130,7 +5208,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
       if (my_errno == ENOENT) 
       {
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                            ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                            ER_LOG_PURGE_NO_FILE,
+                            ER_THD(current_thd, ER_LOG_PURGE_NO_FILE),
                             linfo.log_file_name);
         sql_print_information("Failed to delete file '%s'",
                               linfo.log_file_name);
@@ -5161,7 +5240,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
     if (my_errno == ENOENT) 
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                          ER_LOG_PURGE_NO_FILE,
+                          ER_THD(current_thd, ER_LOG_PURGE_NO_FILE),
                           index_file_name);
       sql_print_information("Failed to delete file '%s'",
                             index_file_name);
@@ -5459,7 +5539,7 @@ err:
   crash safe index file firstly and then move the crash
   safe index file to index file.
 
-  @param linfo                  Store here the found log file name and
+  @param log_info               Store here the found log file name and
                                 position to the NEXT log file name in
                                 the index file.
 
@@ -5521,7 +5601,7 @@ err:
   @param need_lock_index
   @param need_update_threads If we want to update the log coordinates of
                              all threads. False for relay logs, true otherwise.
-  @param freed_log_space     If not null, decrement this variable of
+  @param decrease_log_space  If not null, decrement this variable of
                              the amount of log space freed
   @param auto_purge          True if this is an automatic purge.
 
@@ -5586,7 +5666,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       if(!auto_purge)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_PURGE_LOG_IS_ACTIVE,
-                            ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                            ER_THD(thd, ER_WARN_PURGE_LOG_IS_ACTIVE),
                             log_info.log_file_name);
       break;
     }
@@ -5596,7 +5676,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
       if(!auto_purge)
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_PURGE_LOG_IN_USE,
-                            ER(ER_WARN_PURGE_LOG_IN_USE),
+                            ER_THD(thd, ER_WARN_PURGE_LOG_IN_USE),
                             log_info.log_file_name,  no_of_threads_locking_log,
                             no_of_log_files_purged, no_of_log_files_to_purge);
       break;
@@ -5818,7 +5898,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         if (thd)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
-                              ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                              ER_LOG_PURGE_NO_FILE,
+                              ER_THD(thd, ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
         sql_print_information("Failed to execute mysql_file_stat on file '%s'",
@@ -5901,7 +5982,8 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
             if (thd)
             {
               push_warning_printf(thd, Sql_condition::SL_WARNING,
-                                  ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
+                                  ER_LOG_PURGE_NO_FILE,
+                                  ER_THD(thd, ER_LOG_PURGE_NO_FILE),
                                   log_info.log_file_name);
             }
             sql_print_information("Failed to delete file '%s'",
@@ -5951,7 +6033,6 @@ err:
   Remove all logs before the given file date from disk and from the
   index file.
 
-  @param thd		Thread pointer
   @param purge_time	Delete all log files before given date.
   @param auto_purge     True if this is an automatic purge.
 
@@ -6050,7 +6131,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
     if(!auto_purge)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_PURGE_LOG_IS_ACTIVE,
-                          ER(ER_WARN_PURGE_LOG_IS_ACTIVE),
+                          ER_THD(thd, ER_WARN_PURGE_LOG_IS_ACTIVE),
                           log_info.log_file_name);
 
   }
@@ -6077,7 +6158,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_PURGE_LOG_IN_USE,
-                        ER(ER_WARN_PURGE_LOG_IN_USE),
+                        ER_THD(thd, ER_WARN_PURGE_LOG_IN_USE),
                         copy_log_in_use, no_of_threads_locking_log,
                         no_of_log_files_purged, no_of_log_files_to_purge);
   }
@@ -6267,7 +6348,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
       close_on_error= true;
-      my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
+      my_printf_error(ER_ERROR_ON_WRITE,
+                      ER_THD(current_thd, ER_CANT_OPEN_FILE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
       goto end;
@@ -6334,7 +6416,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   if (error)
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
+    my_printf_error(ER_CANT_OPEN_FILE, ER_THD(current_thd, ER_CANT_OPEN_FILE),
                     MYF(ME_FATALERROR), file_to_open,
                     error, my_strerror(errbuf, sizeof(errbuf), error));
     close_on_error= true;
@@ -6402,9 +6484,6 @@ end:
   @note The caller must hold LOCK_log before invoking this function.
 
   @param mi Master_info for the IO thread.
-  @param need_data_lock If true, mi->data_lock will be acquired if a
-  rotation is needed.  Otherwise, mi->data_lock must be held by the
-  caller.
 
   @retval false success
   @retval true error
@@ -6735,7 +6814,7 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
         {
           for (size_t i= 0; i < thd->user_var_events.size(); i++)
           {
-            BINLOG_USER_VAR_EVENT *user_var_event= thd->user_var_events[i];
+            Binlog_user_var_event *user_var_event= thd->user_var_events[i];
 
             /* setting flags for user var log event */
             uchar flags= User_var_log_event::UNDEF_F;
@@ -6925,8 +7004,8 @@ uint MYSQL_BIN_LOG::next_file_id()
   length pointer to point to the end of it.
 
   @param cache IO_CACHE to read from
-  @param[OUT] buf_p Will be set to point to the beginning of the page.
-  @param[OUT] buf_len_p Will be set to the length of the buffer.
+  @param[out] buf_p Will be set to point to the beginning of the page.
+  @param[out] buf_len_p Will be set to the length of the buffer.
 
   @retval false Success
   @retval true Error reading from the cache.
@@ -7060,7 +7139,7 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
   @param need_lock_log If true, will acquire LOCK_log; otherwise the
   caller should already have acquired LOCK_log.
   @param err_msg Error message written to log file for the incident.
-  @do_flush_and_sync If true, will call flush_and_sync(), rotate() and
+  @c do_flush_and_sync If true, will call flush_and_sync(), rotate() and
   purge().
 
   @retval false error
@@ -7114,9 +7193,8 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, bool need_lock_log,
   Creates an incident event and writes it to the binary log.
 
   @param thd  Thread variable
-  @param ev   Incident event to be written
+  @param need_lock_log If the binary lock should be locked or not
   @param err_msg Error message written to log file for the incident.
-  @param lock If the binary lock should be locked or not
 
   @retval
     0    error
@@ -7216,7 +7294,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data,
       if (cache->error)				// Error on read
       {
         char errbuf[MYSYS_STRERROR_SIZE];
-        sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name,
+        sql_print_error(ER_DEFAULT(ER_ERROR_ON_READ), cache->file_name,
                         errno, my_strerror(errbuf, sizeof(errbuf), errno));
         write_error= true; // Don't give more errors
         goto err;
@@ -7232,7 +7310,7 @@ err:
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     write_error= true;
-    sql_print_error(ER(ER_ERROR_ON_WRITE), name,
+    sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name,
                     errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }
   thd->commit_error= THD::CE_FLUSH_ERROR;
@@ -7403,7 +7481,7 @@ void MYSQL_BIN_LOG::close(uint exiting)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       write_error= 1;
-      sql_print_error(ER(ER_ERROR_ON_WRITE), index_file_name,
+      sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), index_file_name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
     }
   }
@@ -8016,7 +8094,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   As a side effect, the transaction context's sequence_number
   is reset.
 
-  @param THD a pointer to THD instance
+  @param thd a pointer to THD instance
 */
 void MYSQL_BIN_LOG::update_max_committed(THD *thd)
 {
@@ -8172,7 +8250,6 @@ static const char* g_stage_name[] = {
   @param thd    Session structure
   @param stage  The stage to enter
   @param queue  Queue of threads to enqueue for the stage
-  @param stage_mutex Mutex for the stage
 
   @retval true  The thread should "bail out" and go waiting for the
                 commit to finish
@@ -9098,7 +9175,7 @@ THD::binlog_get_pending_rows_event(bool is_transactional) const
 }
 
 /**
-   @param db    db name c-string to be inserted into alphabetically sorted
+   @param db_param    db name c-string to be inserted into alphabetically sorted
                 THD::binlog_accessed_db_names list.
                 
                 Note, that space for both the data and the node
@@ -9168,7 +9245,7 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
   {
     push_warning_printf(this, Sql_condition::SL_WARNING,
                         ER_MTS_UPDATED_DBS_GREATER_MAX,
-                        ER(ER_MTS_UPDATED_DBS_GREATER_MAX),
+                        ER_THD(this, ER_MTS_UPDATED_DBS_GREATER_MAX),
                         MAX_DBS_IN_EVENT_MTS);
     return;
   }
@@ -9319,7 +9396,6 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
 
   @see THD::binlog_query
 
-  @param[in] thd    Client thread
   @param[in] tables Tables involved in the query
 
   @retval 0 No error; statement can be logged.
@@ -9635,7 +9711,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
              unsafe_type++)
           if (unsafe_flags & (1 << unsafe_type))
             my_error((error= ER_BINLOG_UNSAFE_AND_STMT_ENGINE), MYF(0),
-                     ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+                     ER_THD(current_thd,
+                            LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       }
       /* log in statement format! */
     }
@@ -9671,7 +9748,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           binlog_unsafe_warning_flags|= unsafe_flags;
           DBUG_PRINT("info", ("Scheduling warning to be issued by "
                               "binlog_query: '%s'",
-                              ER(ER_BINLOG_UNSAFE_STATEMENT)));
+                              ER_THD(current_thd, ER_BINLOG_UNSAFE_STATEMENT)));
           DBUG_PRINT("info", ("binlog_unsafe_warning_flags: 0x%x",
                               binlog_unsafe_warning_flags));
         }
@@ -9691,7 +9768,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           {
             if (flags & (1 << i))
               DBUG_PRINT("info", ("unsafe reason: %s",
-                                  ER(Query_tables_list::binlog_stmt_unsafe_errcode[i])));
+                                  ER_THD(current_thd,
+                                         Query_tables_list::binlog_stmt_unsafe_errcode[i])));
           }
           DBUG_PRINT("info", ("is_row_injection=%d",
                               lex->is_stmt_row_injection()));
@@ -9805,7 +9883,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         table_names.replace(table_names.length()-1, 1, ".", 1);
         push_warning_printf(this, Sql_condition::SL_WARNING,
                             WARN_ON_BLOCKHOLE_IN_RBR,
-                            ER(WARN_ON_BLOCKHOLE_IN_RBR),
+                            ER_THD(this, WARN_ON_BLOCKHOLE_IN_RBR),
                             is_update ? "UPDATE" : "DELETE",
                             table_names.c_ptr());
       }
@@ -9952,9 +10030,10 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
     {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
-      sql_print_warning("%s", ER(error_code));
+      sql_print_warning("%s", ER_DEFAULT(error_code));
       // Need to print to client so that users can adjust their workload.
-      push_warning(thd, Sql_condition::SL_WARNING, error_code, ER(error_code));
+      push_warning(thd, Sql_condition::SL_WARNING, error_code,
+                   ER_THD(thd, error_code));
     }
     DBUG_RETURN(true);
   }
@@ -10594,9 +10673,9 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
                                         const char* query)
 {
   DBUG_ENTER("print_unsafe_warning_in_log");
-  sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
-          ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-  sql_print_warning(ER(ER_MESSAGE_AND_STATEMENT), buf, query);
+  sprintf(buf, ER_DEFAULT(ER_BINLOG_UNSAFE_STATEMENT),
+          ER_DEFAULT(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+  sql_print_warning(ER_DEFAULT(ER_MESSAGE_AND_STATEMENT), buf, query);
   DBUG_VOID_RETURN;
 }
 
@@ -10605,10 +10684,9 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
   thrown or suppressed. Details of the implementation can be found in the
   comments inline.
 
-  @params
-   buf         - buffer to hold the warning message text
-   unsafe_type - The type of unsafety.
-   query       - The actual query statement.
+  @param buf         Buffer to hold the warning message text
+  @param unsafe_type The type of unsafety.
+  @param query       The actual query statement.
 
   TODO: Remove this function and implement a general service for all warnings
   that would prevent flooding the error log. => switch to log_throttle class?
@@ -10723,8 +10801,8 @@ void THD::issue_unsafe_warnings()
     {
       push_warning_printf(this, Sql_condition::SL_NOTE,
                           ER_BINLOG_UNSAFE_STATEMENT,
-                          ER(ER_BINLOG_UNSAFE_STATEMENT),
-                          ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+                          ER_THD(this, ER_BINLOG_UNSAFE_STATEMENT),
+                          ER_THD(this, LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       if (log_error_verbosity > 1)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
@@ -10743,7 +10821,6 @@ Logical_clock::Logical_clock()
 
 /**
   Atomically fetch the current state.
-  @parms: None
   @return  not subtracted "absolute" value.
  */
 inline int64 Logical_clock::get_timestamp()

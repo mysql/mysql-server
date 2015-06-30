@@ -19,10 +19,12 @@
 #include <m_string.h>
 #include <sql_class.h>
 #include <hash.h>
+#include <current_thd.h>
 #include <sstream>
 #include <errmsg.h>
 #include <mysql/service_locking.h>
 #include <locking_service.h>
+#include <derror.h>
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -350,7 +352,7 @@ static int parse_vtokens(char *input, enum command type)
               if (!thd->get_stmt_da()->is_set())
               {
                 my_snprintf(error_str, sizeof(error_str),
-                            ER(ER_VTOKEN_PLUGIN_TOKEN_MISMATCH),
+                            ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_MISMATCH),
                             (int) token_name.length, token_name.str,
                             (int) token_obj->token_val.length, 
                             token_obj->token_val.str);
@@ -367,7 +369,7 @@ static int parse_vtokens(char *input, enum command type)
             if (!thd->get_stmt_da()->is_set())
             {
               my_snprintf(error_str, sizeof(error_str),
-                          ER(ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND),
+                          ER_THD(thd, ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND),
                           (int) token_name.length, token_name.str);
 
               thd->get_stmt_da()->set_error_status(ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND,
@@ -396,7 +398,7 @@ static int parse_vtokens(char *input, enum command type)
 // TODO: Release locks in MYSQL_AUDIT_GENERAL_STATUS subclass.
 static void version_token_check(MYSQL_THD thd,
                                 unsigned int event_class,
-                                const void *event __attribute__((unused)))
+                                const void *event)
 {
   char *sess_var;
 

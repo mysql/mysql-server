@@ -31,22 +31,14 @@ class Cost_estimate;
 class Item;
 
 /**
-   @file
-   API for the Optimizer trace (WL#5257)
-
-   Doxygen parses include files in order to find defined symbols, which in
-   turn influence what code is scanned. OPTIMIZER_TRACE must be defined for
-   the optimizer trace code to be documented. Doxygen searches for include
-   files in "INCLUDE_PATH". But in out-of-source builds, this path varies
-   accross builds. An alternative is to use
-   PREDEFINED             = OPTIMIZER_TRACE
+  @file sql/opt_trace.h
+  API for the Optimizer trace (WL#5257)
 */
-
 
 #ifdef OPTIMIZER_TRACE
 
 /**
-  @page OPTIMIZER_TRACE The Optimizer Trace
+  @page PAGE_OPT_TRACE The Optimizer Trace
 
   @section INTRODUCTION Introduction
 
@@ -505,7 +497,6 @@ public:
 
      @param  key    key
      @param  value  value
-     @param  val_length  length of string 'value'
      @returns a reference to the structure, useful for chaining like this:
      @verbatim add(x,y).add(z,t).add(u,v) @endverbatim
 
@@ -1035,7 +1026,7 @@ private:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree
@@ -1045,7 +1036,7 @@ class st_select_lex;
    @param  trace_object  Opt_trace_object to which the query will be added
 */
 void opt_trace_print_expanded_query(THD *thd,
-                                    st_select_lex *select_lex,
+                                    SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object);
 
 /**
@@ -1231,9 +1222,9 @@ public:
    code line. This produces
    {
      "transformation": {
-       "select#": <select_number>,
-       "from": <from>,
-       "to": <to>
+       "select#": @<select_number@>,
+       "from": @<from@>,
+       "to": @<to@>
    The objects are left open, so that one can add more to them (often a
    "chosen" property after making some computation). Objects get closed when
    going out of scope as usual.

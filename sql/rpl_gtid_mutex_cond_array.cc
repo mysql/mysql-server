@@ -18,7 +18,9 @@
 #include "rpl_gtid.h"
 
 #include "mysqld_error.h"     // ER_*
+#include "psi_memory_key.h"
 #include "sql_class.h"        // THD
+#include "mysqld.h"           // key_gtid_ensure_index_mutex
 
 
 Mutex_cond_array::Mutex_cond_array(Checkable_rwlock *_global_lock)

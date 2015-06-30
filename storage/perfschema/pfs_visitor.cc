@@ -21,8 +21,10 @@
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
+#include "mysqld.h"
 #include "mysqld_thd_manager.h"
 #include "pfs_buffer_container.h"
+#include "sql_class.h"
 
 /**
   @file storage/perfschema/pfs_visitor.cc
@@ -1334,9 +1336,9 @@ void PFS_connection_memory_visitor::visit_thread(PFS_thread *pfs)
 
 
 PFS_connection_status_visitor::
-PFS_connection_status_visitor(STATUS_VAR *status_vars) : m_status_vars(status_vars)
+PFS_connection_status_visitor(System_status_var *status_vars) : m_status_vars(status_vars)
 {
-  memset(m_status_vars, 0, sizeof(STATUS_VAR));
+  memset(m_status_vars, 0, sizeof(System_status_var));
 }
 
 PFS_connection_status_visitor::~PFS_connection_status_visitor()

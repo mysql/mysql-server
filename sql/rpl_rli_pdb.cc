@@ -15,6 +15,9 @@
 
 #include "rpl_rli_pdb.h"
 
+#include "current_thd.h"
+#include "psi_memory_key.h"
+#include "mysqld.h"                         // key_mutex_slave_parallel_worker
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 
 #include "pfs_file_provider.h"
@@ -548,7 +551,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
    This worker won't contribute to recovery bitmap at future
    slave restart (see @c mts_recovery_groups).
 
-   @retrun FALSE as success TRUE as failure
+   @return FALSE as success TRUE as failure
 */
 bool Slave_worker::reset_recovery_info()
 {
@@ -1434,6 +1437,26 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
       return i > k;
 }
 
+Slave_committed_queue::Slave_committed_queue(const char *log, ulong max, uint n)
+  : circular_buffer_queue<Slave_job_group>(max), inited(false),
+    last_done(key_memory_Slave_job_group_group_relay_log_name)
+{
+  if (max >= (ulong) -1 || !inited_queue)
+    return;
+  else
+    inited= TRUE;
+
+  last_done.resize(n);
+
+  lwm.group_relay_log_name=
+    (char *) my_malloc(key_memory_Slave_job_group_group_relay_log_name,
+                       FN_REFLEN + 1, MYF(0));
+  lwm.group_relay_log_name[0]= 0;
+  lwm.sequence_number= SEQ_UNINIT;
+}
+
+
+
 #ifndef DBUG_OFF
 bool Slave_committed_queue::count_done(Relay_log_info* rli)
 {
@@ -1773,12 +1796,8 @@ static int64 get_sequence_number(Log_event *ev)
   The worker thread loops in waiting for an event, executing it and
   fixing statistics counters.
 
-  @param worker    a pointer to the assigned Worker struct
-  @param rli       a pointer to Relay_log_info of Coordinator
-                   to update statistics.
-
   @return 0 success
-         -1 got killed or an error happened during appying
+         -1 got killed or an error happened during applying
 */
 int Slave_worker::slave_worker_exec_event(Log_event *ev)
 {

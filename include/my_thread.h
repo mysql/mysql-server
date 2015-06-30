@@ -150,7 +150,7 @@ int my_thread_create(my_thread_handle *thread, const my_thread_attr_t *attr,
                      my_start_routine func, void *arg);
 int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
-void my_thread_exit(void *value_ptr);
+void my_thread_exit(void *value_ptr) __attribute__((noreturn));
 
 
 typedef uint32 my_thread_id;

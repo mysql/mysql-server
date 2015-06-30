@@ -8,6 +8,7 @@ SELECT @start_global_value;
 # exists as global and session
 #
 select @@global.gtid_executed;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.gtid_executed;
 show global variables like 'gtid_executed';
 show session variables like 'gtid_executed';

@@ -28,8 +28,6 @@ Created 12/18/1995 Heikki Tuuri
 
 #include "univ.i"
 
-#ifndef UNIV_INNOCHECKSUM
-
 #include "fsp0space.h"
 #include "fut0lst.h"
 #include "mtr0mtr.h"
@@ -37,7 +35,6 @@ Created 12/18/1995 Heikki Tuuri
 #include "rem0types.h"
 #include "ut0byte.h"
 
-#endif /* !UNIV_INNOCHECKSUM */
 #include "fsp0types.h"
 
 /* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
@@ -104,8 +101,6 @@ descriptor page, but used only in the first. */
 					to the free list from above
 					FSP_FREE_LIMIT at a time */
 /* @} */
-
-#ifndef UNIV_INNOCHECKSUM
 
 /* @defgroup File Segment Inode Constants (moved from fsp0fsp.c) @{ */
 
@@ -440,7 +435,7 @@ fseg_alloc_free_page_general(
 				in which the page should be initialized.
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
-	__attribute__((warn_unused_result, nonnull));
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Reserves free pages from a tablespace. All mini-transactions which may
 use several pages from the tablespace should call this function beforehand
@@ -517,7 +512,7 @@ fseg_page_is_free(
 	fseg_header_t*	seg_header,	/*!< in: segment header */
 	ulint		space_id,	/*!< in: space id */
 	ulint		page)		/*!< in: page offset */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Frees part of a segment. This function can be used to free a segment
 by repeatedly calling this function in different mini-transactions.
@@ -568,16 +563,6 @@ fsp_parse_init_file_page(
 	byte*		ptr,	/*!< in: buffer */
 	byte*		end_ptr, /*!< in: buffer end */
 	buf_block_t*	block);	/*!< in: block or NULL */
-#ifdef UNIV_DEBUG
-/*******************************************************************//**
-Validates a segment.
-@return TRUE if ok */
-ibool
-fseg_validate(
-/*==========*/
-	fseg_header_t*	header, /*!< in: segment header */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
-#endif /* UNIV_DEBUG */
 #ifdef UNIV_BTR_PRINT
 /*******************************************************************//**
 Writes info of a segment. */
@@ -648,27 +633,6 @@ xdes_calc_descriptor_index(
 	const page_size_t&	page_size,
 	ulint			offset);
 
-/** Gets pointer to a the extent descriptor of a page.
-The page where the extent descriptor resides is x-locked. If the page offset
-is equal to the free limit of the space, adds new extents from above the free
-limit to the space free list, if not free limit == space size. This adding
-is necessary to make the descriptor defined, as they are uninitialized
-above the free limit.
-@param[in]	space_id	space id
-@param[in]	offset		page offset; if equal to the free limit, we
-try to add new extents to the space free list
-@param[in]	page_size	page size
-@param[in,out]	mtr		mini-transaction
-@return pointer to the extent descriptor, NULL if the page does not
-exist in the space or if the offset exceeds the free limit */
-xdes_t*
-xdes_get_descriptor(
-	ulint			space_id,
-	ulint			offset,
-	const page_size_t&	page_size,
-	mtr_t*			mtr)
-__attribute__((warn_unused_result));
-
 /**********************************************************************//**
 Gets a descriptor bit of a page.
 @return TRUE if free */
@@ -690,7 +654,6 @@ ulint
 xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	ulint			offset);
-#endif /* !UNIV_INNOCHECKSUM */
 
 #ifndef UNIV_NONINL
 #include "fsp0fsp.ic"

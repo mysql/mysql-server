@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 /* close a heap-database */
 
 #include "heapdef.h"
+#include "mysql/service_mysql_alloc.h"
 
 	/* Close a database open by hp_open() */
 	/* Data is normally not deallocated */

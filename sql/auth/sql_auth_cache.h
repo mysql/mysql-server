@@ -16,19 +16,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"                  // NO_EMBEDDED_ACCESS_CHECKS
+#include "my_global.h"
 #include "my_sys.h"                     // wild_many, wild_one, wild_prefix
-#include <string.h>                     // strchr
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
+#include "mysql_time.h"                 // MYSQL_TIME
+#include "prealloced_array.h"           // Prealloced_array
 #include "violite.h"                    // SSL_type
 #include "hash_filo.h"                  // HASH, hash_filo
-#include "records.h"                    // READ_RECORD
 #include "partitioned_rwlock.h"         // Partitioned_rwlock
-
-#include "prealloced_array.h"
+#include "sql_alloc.h"                  // Sql_alloc
+#include "sql_connect.h"                // USER_RESOURCES
 
 /* Forward Declarations */
 class String;
+struct TABLE;
 
 /* Classes */
 
@@ -247,8 +248,7 @@ public:
 
   GRANT_TABLE(const char *h, const char *d,const char *u,
               const char *t, ulong p, ulong c);
-  explicit GRANT_TABLE(TABLE *form);
-  bool init(TABLE *col_privs);
+  GRANT_TABLE (TABLE *form, TABLE *col_privs);
   ~GRANT_TABLE();
   bool ok() { return privs != 0 || cols != 0; }
 };

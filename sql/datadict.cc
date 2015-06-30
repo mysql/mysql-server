@@ -15,7 +15,8 @@
 
 #include "datadict.h"
 #include "sql_class.h"
-#include "sql_table.h"
+#include "sql_table.h"                          // build_table_filename
+#include "mysqld.h"                             // key_file_frm
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -80,8 +81,9 @@ frm_type_enum dd_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
   @return FALSE if FRMTYPE_TABLE and storage engine found. TRUE otherwise.
 */
 
-bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
-                           handlerton **table_type)
+static bool dd_frm_storage_engine(THD *thd, const char *db,
+                                  const char *table_name,
+                                  handlerton **table_type)
 {
   char path[FN_REFLEN + 1];
   enum legacy_db_type db_type;
@@ -96,7 +98,7 @@ bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
     return TRUE;
 
   enum_ident_name_check ident_check_status=
-    check_table_name(table_name, strlen(table_name), FALSE);
+    check_table_name(table_name, strlen(table_name));
   if (ident_check_status == IDENT_NAME_WRONG)
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table_name);

@@ -63,8 +63,7 @@ UNIV_INLINE
 btr_search_t*
 btr_search_get_info(
 /*================*/
-	dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull));
+	dict_index_t*	index);	/*!< in: index */
 
 /** Creates and initializes a search info struct.
 @param[in]	heap		heap where created.

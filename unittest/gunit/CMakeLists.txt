@@ -208,6 +208,16 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wno-compare-distinct-pointer-types"
 IF(HAVE_NO_COMPARE_DISTINCT_POINTER_TYPES)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-compare-distinct-pointer-types")
 ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-c++11-extra-semi"
+                           HAVE_NO_CPP11_EXTRA_SEMI)
+IF(HAVE_NO_CPP11_EXTRA_SEMI)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++11-extra-semi")
+ENDIF()
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-missing-format-attribute"
+  HAVE_NO_MISSING_FORMAT_ATTRIBUTE)
+IF(HAVE_NO_MISSING_FORMAT_ATTRIBUTE)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-missing-format-attribute")
+ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 MY_CHECK_CXX_COMPILER_FLAG("-Wempty-body" HAVE_EMPTY_BODY)
@@ -234,6 +244,12 @@ TARGET_LINK_LIBRARIES(gunit_small
 TARGET_LINK_LIBRARIES(gunit_large
   mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
+
+IF(WIN32)
+  ## Create an object library of nt_servc.cc, so we don't have to
+  ## compile it again for each target
+  ADD_LIBRARY(my_nt_servc OBJECT ../../sql/nt_servc.cc)
+ENDIF()
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER -DEXTRA_CODE_FOR_UNIT_TESTING)
@@ -343,6 +359,20 @@ SET(SERVER_TESTS
   initialize_password
 )
 
+SET(SQL_GUNIT_LIB_SOURCE 
+  ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
+  ${CMAKE_SOURCE_DIR}/sql/mdl.cc 
+  ${CMAKE_SOURCE_DIR}/sql/sql_list.cc 
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
+  )
+
+IF(WIN32)
+  LIST(APPEND SQL_GUNIT_LIB_SOURCE ${CMAKE_SOURCE_DIR}/sql/named_pipe.cc)
+ENDIF()
+ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
+ADD_DEPENDENCIES(sqlgunitlib GenError)
+
 ## Merging tests into fewer executables saves *a lot* of
 ## link time and disk space ...
 OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
@@ -377,7 +407,7 @@ IF (MERGE_UNITTESTS)
   ADD_EXECUTABLE(merge_small_tests-t ${MERGE_SMALL_TESTS})
   SET(SRC_FILES ${MERGE_LARGE_TESTS})
   IF(WIN32)
-    LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
+    LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
   ENDIF()
   LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ADD_COMPILE_FLAGS(
@@ -442,7 +472,7 @@ ENDIF(MERGE_UNITTESTS)
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
     IF(WIN32)
-      LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
+      LIST(APPEND SRC_FILES $<TARGET_OBJECTS:my_nt_servc>)
     ENDIF()
     IF(test MATCHES "table_cache")
       LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)

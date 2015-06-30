@@ -39,17 +39,6 @@
 */
 
 
-/*
-  Avoid using my_snprintf
-  We cannot use my_snprintf() here, because ctype.o is
-  used to build conf_to_src, which must require minimun
-  dependency.
-*/
-
-#undef my_snprinf
-#define my_snprintf "We cannot use my_snprintf in this file"
-
-
 int (*my_string_stack_guard)(int)= NULL;
 
 static char *mstr(char *str,const char *src,size_t l1,size_t l2)
@@ -265,8 +254,6 @@ static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 }
 
 #define MY_CS_CSDESCR_SIZE	64
-#define MY_CS_TAILORING_SIZE	32*1024
-#define MY_CS_UCA_VERSION_SIZE  64
 #define MY_CS_CONTEXT_SIZE      64
 
 typedef struct my_cs_file_info
@@ -465,7 +452,8 @@ static int cs_enter(MY_XML_PARSER *st,const char *attr, size_t len)
   
   switch (state) {
   case 0:
-    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'", len, attr);
+    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'",
+                        (int)len, attr);
     break;
 
   case _CS_CHARSET:

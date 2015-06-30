@@ -16,7 +16,6 @@
 
 /* Execute DO statement */
 
-#include "transaction.h"
 #include "sql_do.h"
 #include "sql_base.h"                 // open_tables_for_query
 #include "sql_select.h"               // handle_query

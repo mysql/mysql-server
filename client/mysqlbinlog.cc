@@ -40,6 +40,7 @@
 #include <my_dir.h>
 
 #include "prealloced_array.h"
+#include "mysql/service_my_snprintf.h"
 
 /*
   error() is used in macro BINLOG_ERROR which is invoked in
@@ -48,6 +49,10 @@
 static void error(const char *format, ...)
   __attribute__((format(printf, 1, 2)));
 static void warning(const char *format, ...)
+  __attribute__((format(printf, 1, 2)));
+static void error_or_warning(const char *format, va_list args, const char *msg)
+  __attribute__((format(printf, 1, 0)));
+static void sql_print_error(const char *format,...)
   __attribute__((format(printf, 1, 2)));
 
 #include "rpl_gtid.h"
@@ -771,7 +776,7 @@ Exit_status  Load_log_processor::process(Create_file_log_event *ce)
 
   @see Load_log_processor::process_first_event(const char*,uint,const char*,uint,uint,Create_file_log_event*)
 
-  @param ce Begin_load_query_log_event to process.
+  @param blqe Begin_load_query_log_event to process.
 
   @retval ERROR_STOP An error occurred - the program should terminate.
   @retval OK_CONTINUE No error, the program should continue.
@@ -3386,7 +3391,6 @@ int main(int argc, char** argv)
 */
 
 #include "decimal.c"
-#include "my_decimal.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
 #include "rpl_utility.cc"

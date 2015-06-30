@@ -18,6 +18,7 @@
 #include "ndb_schema_object.h"
 
 #include "hash.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 extern native_mutex_t ndbcluster_mutex;

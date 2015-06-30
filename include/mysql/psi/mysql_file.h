@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <my_dir.h>
 /* For my_chsize */
 #include <my_sys.h>
+#include "mysql/service_mysql_alloc.h"
 
 /**
   @file mysql/psi/mysql_file.h
@@ -634,6 +635,10 @@ inline_mysql_file_fputc(
 
 static inline int
 inline_mysql_file_fprintf(MYSQL_FILE *file, const char *format, ...)
+__attribute__((format(printf, 2, 3)));
+
+static inline int
+inline_mysql_file_fprintf(MYSQL_FILE *file, const char *format, ...)
 {
   /*
     TODO: figure out how to pass src_file and src_line from the caller.
@@ -661,6 +666,18 @@ inline_mysql_file_fprintf(MYSQL_FILE *file, const char *format, ...)
   va_end(args);
   return result;
 }
+
+static inline int
+inline_mysql_file_vfprintf(
+#ifdef HAVE_PSI_FILE_INTERFACE
+  const char *src_file, uint src_line,
+#endif
+  MYSQL_FILE *file, const char *format, va_list args)
+#ifdef HAVE_PSI_FILE_INTERFACE
+  __attribute__((format(printf, 4, 0)));
+#else
+  __attribute__((format(printf, 2, 0)));
+#endif
 
 static inline int
 inline_mysql_file_vfprintf(

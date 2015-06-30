@@ -38,6 +38,7 @@
 #include <violite.h>
 #include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
+#include "mysql/service_my_snprintf.h"
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
@@ -2653,7 +2654,9 @@ typedef struct
 static st_error global_error_names[] =
 {
   { "<No error>", (uint)-1, "" },
+#ifndef IN_DOXYGEN
 #include <mysqld_ername.h>
+#endif /* IN_DOXYGEN */
   { 0, 0, 0 }
 };
 

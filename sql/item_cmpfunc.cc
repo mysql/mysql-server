@@ -21,19 +21,22 @@
   This file defines all compare functions
 */
 
-#include <m_ctype.h>
-#include "sql_select.h"
-#include "sql_optimizer.h"             // JOIN_TAB
-#include "sql_parse.h"                          // check_stack_overrun
-#include "sql_time.h"                  // make_truncated_value_warning
-#include "opt_trace.h"
-#include "parse_tree_helpers.h"
-#include "template_utils.h"
+#include "item_cmpfunc.h"
+
+#include "aggregate_check.h"    // Distinct_check
+#include "current_thd.h"        // current_thd
+#include "item_subselect.h"     // Item_subselect
+#include "item_sum.h"           // Item_sum_hybrid
+#include "mysqld.h"             // log_10
+#include "parse_tree_helpers.h" // PT_item_list
+#include "sql_class.h"          // THD
+#include "sql_optimizer.h"      // JOIN
+#include "sql_parse.h"          // check_stack_overrun
+#include "sql_time.h"           // str_to_datetime
 
 #include <algorithm>
 using std::min;
 using std::max;
-#include "aggregate_check.h"
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong
@@ -170,7 +173,7 @@ static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
   @brief Aggregates field types from the array of items.
 
   @param[in] items  array of items to aggregate the type from
-  @paran[in] nitems number of items in the array
+  @param[in] nitems number of items in the array
 
   @details This function aggregates field types from the array of items.
     Found type is supposed to be used later as the result field type
@@ -260,7 +263,7 @@ static void my_coll_agg_error(DTCollation &c1, DTCollation &c2,
   P is either AND or OR, depending on the comparison operation, and this
   detail is left for combine().
 
-  The actual operator @i op is created by the concrete subclass in
+  The actual operator @c op is created by the concrete subclass in
   create_scalar_predicate().
 */
 Item_bool_func *Linear_comp_creator::create(Item *a, Item *b) const
@@ -491,7 +494,7 @@ longlong Item_func_nop_all::val_int()
     are converted to bigints).
 
   @param  thd             thread handle
-  @param  field           item will be converted using the type of this field
+  @param  field_item      item will be converted using the type of this field
   @param[in,out] item     reference to the item to convert
 
   @note
@@ -2039,8 +2042,8 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select)
+void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
+                                          SELECT_LEX *removed_select)
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
@@ -2061,7 +2064,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
 
 
 /**
-   The implementation of optimized \<outer expression\> [NOT] IN \<subquery\>
+   The implementation of optimized @<outer expression@> [NOT] IN @<subquery@>
    predicates. It applies to predicates which have gone through the IN->EXISTS
    transformation in in_to_exists_transformer functions; not to subquery
    materialization (which has no triggered conditions).
@@ -2079,22 +2082,22 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
      transformation previously performed on the sub-query. The expression
 
      <tt>
-     ( oc_1, ..., oc_n ) 
-     \<in predicate\>
+     ( oc_1, ..., oc_n )
+     @<in predicate@>
      ( SELECT ic_1, ..., ic_n
-       FROM \<table\>
-       WHERE \<inner where\> 
+       FROM @<table@>
+       WHERE @<inner where@>
      )
      </tt>
 
      was transformed into
      
      <tt>
-     ( oc_1, ..., oc_n ) 
-     \<in predicate\>
+     ( oc_1, ..., oc_n )
+     \@in predicate@>
      ( SELECT ic_1, ..., ic_n 
-       FROM \<table\> 
-       WHERE \<inner where\> AND ... ( ic_k = oc_k OR ic_k IS NULL ) 
+       FROM @<table@>
+       WHERE @<inner where@> AND ... ( ic_k = oc_k OR ic_k IS NULL )
        HAVING ... NOT ic_k IS NULL
      )
      </tt>
@@ -2102,7 +2105,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
      The evaluation will now proceed according to special rules set up
      elsewhere. These rules include:
 
-     - The HAVING NOT \<inner column\> IS NULL conditions added by the
+     - The HAVING NOT @<inner column@> IS NULL conditions added by the
        aforementioned rewrite methods will detect whether they evaluated (and
        rejected) a NULL value and if so, will cause the subquery to evaluate
        to NULL. 
@@ -2253,9 +2256,9 @@ bool Item_in_optimizer::is_null()
 
   @param transformer the transformer callback function to be applied to the
          nodes of the tree of the object
-  @param parameter to be passed to the transformer
+  @param argument to be passed to the transformer
 
-  @detail
+  @details
     Recursively transform the left and the right operand of this Item. The
     Right operand is an Item_in_subselect or its subclass. To avoid the
     creation of new Items, we use the fact the the left operand of the
@@ -2751,8 +2754,8 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_between::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select)
+void Item_func_between::fix_after_pullout(SELECT_LEX *parent_select,
+                                          SELECT_LEX *removed_select)
 {
   Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
 
@@ -3295,8 +3298,8 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_if::fix_after_pullout(st_select_lex *parent_select,
-                                     st_select_lex *removed_select)
+void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select)
 {
   Item_func::fix_after_pullout(parent_select, removed_select);
 
@@ -4751,6 +4754,10 @@ cmp_item* cmp_item_decimal::make_same()
 }
 
 
+cmp_item_datetime::cmp_item_datetime(Item *warn_item_arg)
+  :warn_item(warn_item_arg), lval_cache(0)
+{}
+
 void cmp_item_datetime::store_value(Item *item)
 {
   bool is_null;
@@ -4986,8 +4993,8 @@ bool Item_func_in::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_in::fix_after_pullout(st_select_lex *parent_select,
-                                     st_select_lex *removed_select)
+void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select)
 {
   Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
 
@@ -5536,8 +5543,8 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_cond::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select)
+void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
+                                  SELECT_LEX *removed_select)
 {
   List_iterator<Item> li(list);
   Item *item;

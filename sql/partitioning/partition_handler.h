@@ -20,6 +20,7 @@
 */
 
 #include "my_global.h"            // uint etc.
+#include "hash.h"                 // HASH
 #include "my_base.h"              // ha_rows.
 #include "handler.h"              // Handler_share
 #include "sql_partition.h"        // part_id_range
@@ -184,7 +185,7 @@ class Partition_handler :public Sql_alloc
 {
 public:
   Partition_handler() {}
-  ~Partition_handler() {}
+  virtual ~Partition_handler() {}
 
   /**
     Get dynamic table information from partition.
@@ -264,18 +265,8 @@ public:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  int truncate_partition()
-  {
-    handler *file= get_handler();
-    if (!file)
-    {
-      return HA_ERR_WRONG_COMMAND;
-    }
-    DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
-                file->m_lock_type == F_WRLCK);
-    file->mark_trx_read_write();
-    return truncate_partition_low();
-  }
+  int truncate_partition();
+
   /**
     Change partitions.
 
@@ -296,19 +287,8 @@ public:
   int change_partitions(HA_CREATE_INFO *create_info,
                         const char *path,
                         ulonglong * const copied,
-                        ulonglong * const deleted)
-  {
-    handler *file= get_handler();
-    if (!file)
-    {
-      my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
-      return HA_ERR_WRONG_COMMAND;
-    }
-    DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
-                file->m_lock_type != F_UNLCK);
-    file->mark_trx_read_write();
-    return change_partitions_low(create_info, path, copied, deleted);
-  }
+                        ulonglong * const deleted);
+
   /**
     Alter flags.
 
@@ -416,7 +396,7 @@ class Partition_helper : public Sql_alloc
   typedef Priority_queue<uchar *, std::vector<uchar*>, Key_rec_less> Prio_queue;
 public:
   Partition_helper(handler *main_handler);
-  ~Partition_helper();
+  virtual ~Partition_helper();
 
   /**
     Set partition info.
@@ -679,8 +659,6 @@ protected:
   /**
     Set m_part_share, Allocate internal bitmaps etc. used by open tables.
 
-    @param mem_root  Memory root to allocate things from (not yet used).
-
     @return Operation status.
       @retval false success.
       @retval true  failure.
@@ -696,18 +674,8 @@ protected:
   /**
     Lock auto increment value if needed.
   */
-  inline void lock_auto_increment()
-  {
-    /* lock already taken */
-    if (m_auto_increment_safe_stmt_log_lock)
-      return;
-    DBUG_ASSERT(!m_auto_increment_lock);
-    if(m_table->s->tmp_table == NO_TMP_TABLE)
-    {
-      m_auto_increment_lock= true;
-      m_part_share->lock_auto_inc();
-    }
-  }
+  void lock_auto_increment();
+
   /**
     unlock auto increment.
   */
@@ -788,14 +756,14 @@ protected:
   /**
     Check/fix misplaced rows.
 
-    @param part_id  Partition to check/fix.
+    @param read_part_id  Partition to check/fix.
     @param repair   If true, move misplaced rows to correct partition.
 
     @return Operation status.
       @retval    0  Success
       @retval != 0  Error
   */
-  int check_misplaced_rows(uint part_id, bool repair);
+  int check_misplaced_rows(uint read_part_id, bool repair);
   /**
     Set used partitions bitmap from Alter_info.
 
@@ -861,7 +829,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int update_row_in_part(uint new_part_id,
+  virtual int update_row_in_part(uint part_id,
                                  const uchar *old_data,
                                  uchar *new_data) = 0;
   /**
@@ -1071,7 +1039,7 @@ private:
     perform any sort.
 
     @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  next_same  Called from index_next_same.
+    @param[in]  is_next_same  Called from index_next_same.
 
     @return Operation status.
       @retval HA_ERR_END_OF_FILE  End of scan
@@ -1133,7 +1101,7 @@ private:
     Common routine to handle index_next with ordered results.
 
     @param[out] buf        Read row in MySQL Row Format.
-    @param[in]  next_same  Called from index_next_same.
+    @param[in]  is_next_same  Called from index_next_same.
 
     @return Operation status.
       @retval HA_ERR_END_OF_FILE  End of scan

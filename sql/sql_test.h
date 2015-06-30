@@ -19,13 +19,13 @@
 #include "my_global.h"
 #include "thr_lock.h"           // TL_WRITE_ONLY
 #include "mem_root_array.h"     // Mem_root_array
-#include "mysqld.h"             // enum_query_type
+#include "enum_query_type.h"    // enum_query_type
 
 class Item;
 class JOIN;
 class Key_use;
 struct TABLE_LIST;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 typedef Mem_root_array<Key_use, true> Key_use_array;
 
 extern const char *lock_descriptions[TL_WRITE_ONLY + 1];

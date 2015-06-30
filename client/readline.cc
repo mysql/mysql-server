@@ -23,6 +23,7 @@
 #include <my_dir.h>
 #include "my_readline.h"
 #include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 
 static bool init_line_buffer(LINE_BUFFER *buffer,File file,ulong size,
 			    ulong max_size);

@@ -45,7 +45,7 @@ test/t1#p#p1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alternate_dir/d
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-# Verifying .frm, .isl & .ibd files
+# Verifying .frm and .ibd files
 # Verifying that there are no MyISAM files
 # Test TRUNCATE TABLE with partitioned InnoDB tables
 INSERT INTO t1 VALUES (1, "red");
@@ -81,7 +81,7 @@ test/t1#p#p1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alternate_dir/d
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 test/t1#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
-# Verifying .frm and InnoDB files (.isl, .ibd)
+# Verifying .frm and .ibd files
 # Test RENAME TABLE with partitioned InnoDB tables
 RENAME TABLE t1 TO t11;
 SHOW CREATE TABLE t11;
@@ -106,7 +106,7 @@ test/t11#p#p1	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alternate_dir/
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t11#p#p0	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
 test/t11#p#p1	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
-# Verifying .frm and InnoDB files (.isl, .ibd)
+# Verifying .frm and .ibd files
 DROP TABLE t11;
 # Test the previous DDL as a prepared statement.
 SET GLOBAL innodb_file_per_table = ON;
@@ -216,7 +216,7 @@ test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_D
 test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
 test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-# Verifying .frm, .isl & .ibd files
+# Verifying .frm and .ibd files
 DROP TABLE t1;
 # Same as above except with ROW_FORMAT=Dyamic.
 SET GLOBAL innodb_file_per_table = ON;
@@ -294,7 +294,7 @@ test/t1#p#p1#sp#s2	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_D
 test/t1#p#p1#sp#s3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
 test/t1#p#p2#sp#s4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 test/t1#p#p2#sp#s5	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
-# Verifying .frm, .isl & .ibd files
+# Verifying .frm and .ibd files
 #
 # Cleanup
 #
@@ -317,7 +317,7 @@ PARTITION p2 VALUES LESS THAN (30)
 (SUBPARTITION sp6,
 SUBPARTITION sp7 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data_subpart',
 SUBPARTITION sp8));
-# Verifying .frm, .isl & .ibd files
+# Verifying .frm and .ibd files
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

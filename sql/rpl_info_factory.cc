@@ -15,6 +15,7 @@
 
 #include "rpl_info_factory.h"
 
+#include "current_thd.h"
 #include "log.h"                    // sql_print_error
 #include "mysqld.h"                 // key_master_info_run_lock
 #include "rpl_info_dummy.h"         // Rpl_info_dummy
@@ -299,8 +300,8 @@ err:
 /**
   Allows to change the relay log info repository after startup.
 
-  @param[in]  mi        Pointer to Relay_log_info.
-  @param[in]  mi_option Type of the repository, e.g. FILE TABLE.
+  @param[in]  rli       Pointer to Relay_log_info.
+  @param[in]  rli_option Type of the repository, e.g. FILE TABLE.
   @param[out] msg       Error message if something goes wrong.
 
   @retval FALSE No error

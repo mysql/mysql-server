@@ -31,6 +31,7 @@
 
 #include "sql_profile.h"
 #include "my_sys.h"
+#include "psi_memory_key.h"
 #include "sql_show.h"                     // schema_table_store_record
 #include "sql_class.h"                    // THD
 #include "log.h"

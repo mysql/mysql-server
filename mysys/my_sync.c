@@ -62,16 +62,6 @@ int my_sync(File fd, myf my_flags)
     (*before_sync_wait)();
   do
   {
-#if defined(F_FULLFSYNC)
-    /*
-      In Mac OS X >= 10.3 this call is safer than fsync() (it forces the
-      disk's cache and guarantees ordered writes).
-    */
-    if (!(res= fcntl(fd, F_FULLFSYNC, 0)))
-      break; /* ok */
-    /* Some file systems don't support F_FULLFSYNC and fail above: */
-    DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
-#endif
 #if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
     res= fdatasync(fd);
 #elif defined(HAVE_FSYNC)

@@ -20,6 +20,7 @@
 
 #include "my_global.h"
 #include "my_thread.h"
+#include "current_thd.h"
 #include "table_host_cache.h"
 #include "hostname.h"
 #include "field.h"

@@ -140,13 +140,14 @@ Channel_info* Per_thread_connection_handler::block_until_new_connection()
 
     // Block pthread
     blocked_pthread_count++;
-    while (!abort_loop && !wake_pthread && !kill_blocked_pthreads_flag)
+    while (!connection_events_loop_aborted() && !wake_pthread &&
+           !kill_blocked_pthreads_flag)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
     if (kill_blocked_pthreads_flag)
       mysql_cond_signal(&COND_flush_thread_cache);
-    else if (!abort_loop && wake_pthread)
+    else if (!connection_events_loop_aborted() && wake_pthread)
     {
       wake_pthread--;
       DBUG_ASSERT(!waiting_channel_info_list->empty());
@@ -321,7 +322,8 @@ extern "C" void *handle_connection(void *arg)
 
     delete thd;
 
-    if (abort_loop) // Server is shutting down so end the pthread.
+    // Server is shutting down so end the pthread.
+    if (connection_events_loop_aborted())
       break;
 
     channel_info= Per_thread_connection_handler::block_until_new_connection();

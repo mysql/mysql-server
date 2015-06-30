@@ -16,6 +16,10 @@
 #ifndef PFS_BUFFER_CONTAINER_H
 #define PFS_BUFFER_CONTAINER_H
 
+/**
+  @file storage/perfschema/pfs_buffer_container.h
+  Generic buffer container.
+*/
 #include "my_global.h"
 #include "pfs_lock.h"
 #include "pfs_instr.h"
@@ -61,9 +65,9 @@ public:
 
   value_type *allocate(pfs_dirty_state *dirty_state, size_t max)
   {
-    uint index;
-    uint monotonic;
-    uint monotonic_max;
+    size_t index;
+    size_t monotonic;
+    size_t monotonic_max;
     value_type *pfs;
 
     if (m_full)
@@ -856,7 +860,7 @@ private:
 
       if (page == NULL)
       {
-        index= m_max;
+        index= static_cast<uint>(m_max);
         return NULL;
       }
 
@@ -868,7 +872,7 @@ private:
       {
         if (pfs->m_lock.is_populated())
         {
-          uint found= index_1 * PAGE_SIZE + (pfs - pfs_first);
+          uint found= index_1 * PAGE_SIZE + static_cast<uint>(pfs - pfs_first);
           *found_index= found;
           index= found + 1;
           return pfs;
@@ -881,7 +885,7 @@ private:
     }
     while (index_1 < PAGE_COUNT);
 
-    index= m_max;
+    index= static_cast<uint>(m_max);
     return NULL;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 #ifndef SQL_DB_INCLUDED
 #define SQL_DB_INCLUDED
 
-#include "hash.h"                               /* HASH */
+#include "my_global.h"
 
 class THD;
 typedef struct charset_info_st CHARSET_INFO;
@@ -24,11 +24,9 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
-int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create,
-                    bool silent);
+bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
-bool mysql_rm_db(THD *thd,const LEX_CSTRING &db,bool if_exists, bool silent);
-bool mysql_upgrade_db(THD *thd, const LEX_CSTRING &old_db);
+bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists);
 bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                      bool force_switch);
 
@@ -40,11 +38,9 @@ bool mysql_opt_change_db(THD *thd,
 bool my_dboptions_cache_init(void);
 void my_dboptions_cache_free(void);
 bool check_db_dir_existence(const char *db_name);
-bool load_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create);
 bool load_db_opt_by_name(THD *thd, const char *db_name,
                          HA_CREATE_INFO *db_create_info);
 const CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name);
-bool my_dbopt_init(void);
 void my_dbopt_cleanup(void);
 
 #define MY_DB_OPT_FILE "db.opt"

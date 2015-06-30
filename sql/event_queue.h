@@ -25,26 +25,17 @@
   Queue of events awaiting execution.
 */
 
-#include "my_global.h"                          // uint
-#include "mysql/mysql_lex_string.h"             // LEX_STRING
-#include "my_time.h"                    /* my_time_t, interval_type */
+#include "my_global.h"
 
-#include "event_data_objects.h"
-#include "event_parse_data.h"
-#include "priority_queue.h"
-#include "malloc_allocator.h"
+#include "priority_queue.h"                     // Priority_queue
+#include "event_data_objects.h"                 // Event_queue_element
+#include "event_parse_data.h"                   // Event_parse_data
+#include "malloc_allocator.h"                   // Malloc_allocator
 
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_mutex_key key_LOCK_event_queue;
 extern PSI_cond_key key_COND_queue_state;
 #endif /* HAVE_PSI_INTERFACE */
-
-class Event_basic;
-class Event_queue_element;
-class Event_queue_element_for_exec;
-
-class THD;
-
 
 /**
   Compares the execute_at members of two Event_queue_element instances.

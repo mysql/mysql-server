@@ -75,10 +75,8 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 --copy_file $MYSQLD_TMPDIR/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
 --copy_file $MYSQLD_TMPDIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
-SET GLOBAL innodb_file_format=Antelope;
 SET innodb_strict_mode=off;
 ALTER TABLE t1 ENGINE InnoDB;
-SET GLOBAL innodb_file_format=default;
 SET innodb_strict_mode=default;
 SELECT COUNT(*) FROM t1;
 SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;

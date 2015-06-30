@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,6 @@
 
 #ifdef HAVE_CHARSET_tis620
 
-#define BUFFER_MULTIPLY 4
 #define M  L_MIDDLE
 #define U  L_UPPER
 #define L  L_LOWER
@@ -842,9 +841,9 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,plFF
 
 static
 int my_mb_wc_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
-		  my_wc_t *wc,
-		  const uchar *str,
-		  const uchar *end __attribute__((unused)))
+                    my_wc_t *wc,
+                    const uchar *str,
+                    const uchar *end)
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -855,9 +854,9 @@ int my_mb_wc_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
 
 static
 int my_wc_mb_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
-		  my_wc_t wc,
-		  uchar *str,
-		  uchar *end __attribute__((unused)))
+                    my_wc_t wc,
+                    uchar *str,
+                    uchar *end)
 {
   const uchar *pl;
 

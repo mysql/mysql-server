@@ -18,11 +18,16 @@
 
 #include "base64.h"            // base64_encode
 #include "binary_log_funcs.h"  // my_timestamp_binary_length
+#include "mysql/service_my_snprintf.h" // my_snprintf
 
 #ifndef MYSQL_CLIENT
+#include "current_thd.h"
 #include "debug_sync.h"        // debug_sync_set_action
 #include "my_dir.h"            // my_dir
+#include "mysqld.h"            // lower_case_table_names server_uuid ...
+#include "item_func.h"         // Item_func_set_user_var
 #include "log.h"               // Log_throttle
+#include "query_result.h"      // sql_exchange
 #include "rpl_mts_submode.h"   // Mts_submode
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_rli_pdb.h"       // Slave_job_group
@@ -65,9 +70,11 @@ slave_ignored_err_throttle(window_size,
 #include "rpl_gtid.h"
 #include "xa_aux.h"
 
+extern "C" {
 PSI_memory_key key_memory_log_event;
 PSI_memory_key key_memory_Incident_log_event_message;
 PSI_memory_key key_memory_Rows_query_log_event_rows_query;
+}
 
 using std::min;
 using std::max;
@@ -607,6 +614,24 @@ static void print_set_option(IO_CACHE* file, uint32 bits_changed,
 /**************************************************************************
 	Log_event methods (= the parent class of all events)
 **************************************************************************/
+
+#ifdef MYSQL_SERVER
+
+time_t Log_event::get_time()
+{
+  /* Not previously initialized */
+  if (!common_header->when.tv_sec && !common_header->when.tv_usec)
+  {
+    THD *tmp_thd= thd ? thd : current_thd;
+    if (tmp_thd)
+      common_header->when= tmp_thd->start_time;
+    else
+      my_micro_time_to_timeval(my_micro_time(), &(common_header->when));
+  }
+  return (time_t) common_header->when.tv_sec;
+}
+
+#endif
 
 /**
   @return
@@ -2318,7 +2343,7 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
   
   @param[in] file              IO cache
   @param[in] td                Table definition
-  @param[in] print_event_into  Print parameters
+  @param[in] print_event_info  Print parameters
   @param[in] cols_bitmap       Column bitmaps.
   @param[in] value             Pointer to packed row
   @param[in] prefix            Row's SQL clause ("SET", "WHERE", etc)
@@ -2399,7 +2424,7 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
   Print a row event into IO cache in human readable form (in SQL format)
   
   @param[in] file              IO cache
-  @param[in] print_event_into  Print parameters
+  @param[in] print_event_info  Print parameters
 */
 void Rows_log_event::print_verbose(IO_CACHE *file,
                                    PRINT_EVENT_INFO *print_event_info)
@@ -3734,7 +3759,7 @@ Query_log_event::Query_log_event()
                       the stmt-cache.
   @param suppress_use Suppress the generation of 'USE' statements
   @param errcode      The error code of the query
-  @param ignore       Ignore user's statement, i.e. lex information, while
+  @param ignore_cmd_internals       Ignore user's statement, i.e. lex information, while
                       deciding which cache must be used.
 */
 Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
@@ -4609,7 +4634,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
-        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER, ER(ER_ERROR_ON_MASTER),
+        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER,
+                    ER_THD(thd, ER_ERROR_ON_MASTER),
                     expected_error, thd->query().str);
         thd->is_slave_error= 1;
       }
@@ -4670,7 +4696,8 @@ compare_errors:
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
     {
-      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
+      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR,
+                  ER_THD(thd, ER_INCONSISTENT_ERROR),
                   ER_THD(thd, expected_error), expected_error,
                   (actual_error ?
                    thd->get_stmt_da()->message_text() :
@@ -4863,7 +4890,7 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 
    @param buf               Pointer to the event buffer.
    @param length            The size of the event buffer.
-   @param description_event The description event of the master which logged
+   @param fd_event          The description event of the master which logged
                             the event.
    @param[out] query        The pointer to receive the query pointer.
 
@@ -5176,7 +5203,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     binlogs from MySQL 3.23 or 4.x.
     When in a client, only the 2nd use is possible.
 
-  @param binlog_version         the binlog version for which we want to build
+  @param binlog_ver             the binlog version for which we want to build
                                 an event. Can be 1 (=MySQL 3.23), 3 (=4.0.x
                                 x>=2 and 4.1) or 4 (MySQL 5.0). Note that the
                                 old 4.0 (binlog version 2) is not supported;
@@ -6196,7 +6223,7 @@ error:
     else
     {
       sql_errno=ER_UNKNOWN_ERROR;
-      err=ER(sql_errno);       
+      err=ER_THD(thd, sql_errno);
     }
     rli->report(ERROR_LEVEL, sql_errno,"\
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
@@ -6216,7 +6243,7 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
                 print_slave_db_safe(remember_db));
 
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER(ER_SLAVE_FATAL_ERROR), buf);
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
     return 1;
   }
 
@@ -7270,7 +7297,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return 1;
     }
   }
@@ -7344,7 +7371,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return 0;
     }
     int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
@@ -7472,7 +7499,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       return;
     }
   }
@@ -7547,7 +7574,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(false);
       DBUG_RETURN(0);
     }
   }
@@ -8361,7 +8388,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
                                   opt_slave_sql_verify_checksum)) ||
       lev->get_type_code() != binary_log::NEW_LOAD_EVENT)
   {
-    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER(ER_FILE_CORRUPT),
+    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER_THD(thd, ER_FILE_CORRUPT),
                 fname);
     goto err;
   }
@@ -8653,7 +8680,7 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   if (buf == NULL)
   {
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER(ER_SLAVE_FATAL_ERROR), "Not enough memory");
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR), "Not enough memory");
     return 1;
   }
 
@@ -9786,14 +9813,14 @@ Rows_log_event::close_record_scan()
 /**
   Fetches next row. If it is a HASH_SCAN over an index, it populates
   table->record[0] with the next row corresponding to the index. If
-  the indexes are in non-contigous ranges it fetches record corresponding
+  the indexes are in non-contiguous ranges it fetches record corresponding
   to the key value in the next range.
 
-  @parms: bool first_read : signifying if this is the first time we are reading a row
+  @param first_read Signifying if this is the first time we are reading a row
           over an index.
-  @return_value: -  error code when there are no more reeords to be fetched or some other
-                    error occured,
-                 -  0 otherwise.
+  @retval error code when there are no more records to be fetched or some other
+                    error occurred
+  @retval 0 otherwise.
 */
 int
 Rows_log_event::next_record_scan(bool first_read)
@@ -9925,8 +9952,7 @@ end:
 /**
   Populates the m_distinct_keys with unique keys to be modified
   during HASH_SCAN over keys.
-  @return_value -0 success
-                -Err_code
+  @retval 0 success
 */
 int
 Rows_log_event::add_key_to_distinct_keyset()
@@ -10696,7 +10722,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
 
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
 
   TABLE* 
@@ -11213,7 +11239,7 @@ void Rows_log_event::print_helper(FILE *file,
 **************************************************************************/
 
 /**
-  @page How replication of field metadata works.
+  @page PAGE_RPL_FIELD_METADATA How replication of field metadata works.
   
   When a table map is created, the master first calls 
   Table_map_log_event::save_field_metadata() which calculates how many 
@@ -11635,14 +11661,14 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                   table_list->table_id.id());
 
       if (thd->slave_thread)
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
-                    ER(ER_SLAVE_FATAL_ERROR), buf);
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
       else
         /* 
           For the cases in which a 'BINLOG' statement is set to 
           execute in a user session 
          */
-        my_printf_error(ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), 
+        my_printf_error(ER_SLAVE_FATAL_ERROR, ER_THD(thd, ER_SLAVE_FATAL_ERROR),
                         MYF(0), buf);
     } 
     
@@ -12068,7 +12094,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
     TODO: Add safety measures against infinite looping. 
    */
 
-  m_table->mark_columns_per_binlog_row_image();
+  m_table->mark_columns_per_binlog_row_image(thd);
 
   while ((error= table->file->ha_write_row(table->record[0])))
   {
@@ -12363,7 +12389,7 @@ int Delete_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   int error;
   DBUG_ASSERT(m_table != NULL);
   /* m_table->record[0] contains the BI */
-  m_table->mark_columns_per_binlog_row_image();
+  m_table->mark_columns_per_binlog_row_image(thd);
   error= m_table->file->ha_delete_row(m_table->record[0]);
   m_table->default_column_bitmaps();
   return error;
@@ -12513,7 +12539,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
   memcpy(m_table->read_set->bitmap, m_cols.bitmap, (m_table->read_set->n_bits + 7) / 8);
   memcpy(m_table->write_set->bitmap, m_cols_ai.bitmap, (m_table->write_set->n_bits + 7) / 8);
 
-  m_table->mark_columns_per_binlog_row_image();
+  m_table->mark_columns_per_binlog_row_image(thd);
   error= m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
   if (error == HA_ERR_RECORD_IS_THE_SAME)
     error= 0;
@@ -12612,7 +12638,7 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
   }
    
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
-              ER(ER_SLAVE_INCIDENT),
+              ER_THD(thd, ER_SLAVE_INCIDENT),
               description(),
               message_length > 0 ? message : "<none>");
   DBUG_RETURN(1);

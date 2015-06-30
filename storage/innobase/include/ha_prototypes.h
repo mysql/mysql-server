@@ -31,30 +31,11 @@ simple headers.
 
 #include "univ.i"
 
-#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
+#if !defined UNIV_HOTBACKUP
 
 /* Forward declarations */
 class THD;
-class Field;
-struct fts_string_t;
 typedef struct charset_info_st CHARSET_INFO;
-
-/*********************************************************************//**
-Wrapper around MySQL's copy_and_convert function.
-@return number of bytes copied to 'to' */
-ulint
-innobase_convert_string(
-/*====================*/
-	void*		to,		/*!< out: converted string */
-	ulint		to_length,	/*!< in: number of bytes reserved
-					for the converted string */
-	CHARSET_INFO*	to_cs,		/*!< in: character set to convert to */
-	const void*	from,		/*!< in: string to convert */
-	ulint		from_length,	/*!< in: number of bytes to convert */
-	CHARSET_INFO*	from_cs,	/*!< in: character set to convert
-					from */
-	uint*		errors);	/*!< out: number of errors encountered
-					during the conversion */
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
@@ -186,16 +167,6 @@ innobase_strcasecmp(
 	const char*	a,	/*!< in: first string to compare */
 	const char*	b);	/*!< in: second string to compare */
 
-/******************************************************************//**
-Compares NUL-terminated UTF-8 strings case insensitively. The
-second string contains wildcards.
-@return 0 if a match is found, 1 if not */
-int
-innobase_wildcasecmp(
-/*=================*/
-	const char*	a,	/*!< in: string to compare */
-	const char*	b);	/*!< in: wildcard string to compare */
-
 /** Strip dir name from a full path name and return only the file name
 @param[in]	path_name	full path name
 @return file name or "null" if no file name */
@@ -216,21 +187,21 @@ Converts an identifier to a table name. */
 void
 innobase_convert_from_table_id(
 /*===========================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len);	/*!< in: length of 'to', in bytes; should
-				be at least 5 * strlen(to) + 1 */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len);	/*!< in: length of 'to', in bytes; should
+					be at least 5 * strlen(to) + 1 */
 /******************************************************************//**
 Converts an identifier to UTF-8. */
 void
 innobase_convert_from_id(
 /*=====================*/
-	CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
-	char*		to,	/*!< out: converted identifier */
-	const char*	from,	/*!< in: identifier to convert */
-	ulint		len);	/*!< in: length of 'to', in bytes;
-				should be at least 3 * strlen(to) + 1 */
+	const CHARSET_INFO*	cs,	/*!< in: the 'from' character set */
+	char*			to,	/*!< out: converted identifier */
+	const char*		from,	/*!< in: identifier to convert */
+	ulint			len);	/*!< in: length of 'to', in bytes;
+					should be at least 3 * strlen(to) + 1 */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void
@@ -241,7 +212,7 @@ innobase_casedn_str(
 /**********************************************************************//**
 Determines the connection character set.
 @return connection character set */
-CHARSET_INFO*
+const CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	thd);	/*!< in: MySQL thread handle */
@@ -546,6 +517,6 @@ thd_requested_durability(
 	const THD* thd)	/*!< in: thread handle */
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* HA_INNODB_PROTOTYPES_H */

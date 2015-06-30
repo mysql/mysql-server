@@ -275,10 +275,8 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   if (end_io_cache(&file))
     goto err_w_file;
 
-  if (opt_sync_frm) {
-    if (mysql_file_sync(handler, MYF(MY_WME)))
-      goto err_w_file;
-  }
+  if (mysql_file_sync(handler, MYF(MY_WME)))
+    goto err_w_file;
 
   if (mysql_file_close(handler, MYF(MY_WME)))
   {
@@ -308,7 +306,7 @@ err_w_file:
 /**
   Renames a frm file (including backups) in same schema.
 
-  @thd                     thread handler
+  @param thd               thread handler
   @param schema            name of given schema
   @param old_name          original file name
   @param new_db            new schema
@@ -688,7 +686,6 @@ nlist_err:
                              then "required", non-existing parameters will
                              remain their values.
   @param hook                hook called for unknown keys
-  @param hook_data           some data specific for the hook
 
   @retval
     FALSE   OK

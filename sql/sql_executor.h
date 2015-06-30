@@ -17,14 +17,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file Classes for query execution */
+/**
+  @file sql/sql_executor.h
+  Classes for query execution.
+*/
 
+#include "my_global.h"
 #include "records.h"               // READ_RECORD
+#include "sql_class.h"             // THD
 #include "sql_opt_exec_shared.h"   // QEP_shared_owner
+#include "temp_table_param.h"      // Temp_table_param
 
 class JOIN;
 class JOIN_TAB;
 class QEP_TAB;
+typedef struct st_columndef MI_COLUMNDEF;
 typedef struct st_table_ref TABLE_REF;
 typedef struct st_position POSITION;
 
@@ -293,8 +300,6 @@ bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 int report_handler_error(TABLE *table, int error);
 
 int safe_index_read(QEP_TAB *tab);
-st_sort_field * make_unireg_sortorder(ORDER *order, uint *length,
-                                      st_sort_field *sortorder);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);
@@ -320,7 +325,6 @@ bool change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 				      List<Item> &new_list1,
 				      List<Item> &new_list2,
 				      uint elements, List<Item> &items);
-bool alloc_group_fields(JOIN *join, ORDER *group);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
@@ -621,7 +625,7 @@ public:
   */
   bool quick_traced_before;
 
-  /// @See m_quick_optim
+  /// @see m_quick_optim
   Item          *m_condition_optim;
 
   /**

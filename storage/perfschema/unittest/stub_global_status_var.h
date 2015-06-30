@@ -19,6 +19,7 @@
 #include <string.h>
 
 
-void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var, bool reset_from_var)
+void add_to_status(System_status_var *to_var, const System_status_var *from_var,
+                   bool reset_from_var)
 {
 }

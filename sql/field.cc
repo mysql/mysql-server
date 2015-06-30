@@ -17,17 +17,19 @@
 
 
 /**
-  @file
-
-  @brief
-  This file implements classes defined in field.h
+  @file sql/field.cc
+  This file implements classes defined in field.h.
 */
 
 #include "field.h"
 
+#include "current_thd.h"
+#include "decimal.h"
+#include "derror.h"                      // ER_THD
 #include "filesort.h"                    // change_double_for_sort
 #include "item_timefunc.h"               // Item_func_now_local
 #include "log_event.h"                   // class Table_map_log_event
+#include "mysqld.h"                      // log_10
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // rpl_master_has_bug
 #include "sql_class.h"                   // THD
@@ -1111,7 +1113,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
     String tmp(buf, sizeof(buf), cs);
     tmp.copy(str, length, cs);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        error, ER(error), typestr, tmp.c_ptr(),
+                        error, ER_THD(thd, error), typestr, tmp.c_ptr(),
                         field_name, row_num);
 }
 
@@ -1123,7 +1125,7 @@ static void push_numerical_conversion_warning(THD* thd, const char* str,
 
   @param dec_error         decimal library return code
                            (E_DEC_* see include/decimal.h)
-  @param dec_value[in,out] Decimal value returned by convertion function.
+  @param [in,out] dec_value Decimal value returned by conversion function.
   @param from              Value converted from
   @param length            Length of 'from'
   @param charset_arg       Charset of 'from'
@@ -1149,7 +1151,7 @@ static void set_decimal_warning(Field_new_decimal *field,
     const Diagnostics_area *da= field->table->in_use->get_stmt_da();
     push_warning_printf(field->table->in_use, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        ER_THD(field->table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", errmsg.ptr(), field->field_name,
                         da->current_row_for_condition());
     my_decimal_set_zero(dec_value);
@@ -1246,7 +1248,7 @@ Field_num::check_int(const CHARSET_INFO *cs, const char *str, size_t length,
     ErrConvString err(str, length, cs);
     push_warning_printf(table->in_use, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, 
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "integer", err.ptr(), field_name,
                         table->in_use->get_stmt_da()->
                         current_row_for_condition());
@@ -1421,7 +1423,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   Check NOT NULL constraint on the field after temporary nullability is
   disabled.
 
-  @param warning_no Warning to report.
+  @param mysql_errno Warning to report.
 
   @return TYPE_OK if the value is Ok, or corresponding error code from
   the type_conversion_status enum.
@@ -2889,7 +2891,7 @@ Field_new_decimal::store(const char *from, size_t length,
     const Diagnostics_area *da= table->in_use->get_stmt_da();
     push_warning_printf(table->in_use, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                        ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                         "decimal", errmsg.ptr(), field_name,
                         da->current_row_for_condition());
     DBUG_RETURN(decimal_err_to_type_conv_status(err));
@@ -4776,7 +4778,7 @@ warn:
     ErrConvString err(str);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
   }
   return res;
@@ -4867,8 +4869,6 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-#define DBL_EXP_DIG (sizeof(double)*8-DBL_MANT_DIG)
-
 /* The following should work for IEEE */
 
 void Field_double::make_sort_key(uchar *to, size_t length)
@@ -4929,6 +4929,11 @@ void Field_double::sql_type(String &res) const
 /****************************************************************************
 ** Common code for all temporal data types: DATE, DATETIME, TIMESTAMP, TIME
 *****************************************************************************/
+
+my_time_flags_t Field_temporal::date_flags()
+{
+  return date_flags(table ? table->in_use : current_thd);
+}
 
 uint Field_temporal::is_equal(Create_field *new_field)
 {
@@ -5066,7 +5071,7 @@ type_conversion_status Field_temporal::store(double nr)
 /**
   Store string into a date/time/datetime field.
 
-  @param from     Date/time string
+  @param str      Date/time string
   @param  len     Length of the string
   @param  cs      Character set of the string
 
@@ -5497,8 +5502,8 @@ my_decimal *Field_temporal_with_date_and_timef::val_decimal(my_decimal *dec_arg)
 
   - TIMESTAMP_DN_FIELD - means TIMESTAMP DEFAULT CURRENT_TIMESTAMP.
 
-  - TIMESTAMP_UN_FIELD - means TIMESTAMP DEFAULT <default value> ON UPDATE
-    CURRENT_TIMESTAMP, where <default value> is an implicit or explicit
+  - TIMESTAMP_UN_FIELD - means TIMESTAMP DEFAULT @<default value@> ON UPDATE
+    CURRENT_TIMESTAMP, where @<default value@> is an implicit or explicit
     expression other than CURRENT_TIMESTAMP or any synonym thereof
     (e.g. NOW().)
 
@@ -6797,7 +6802,7 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
   push_warning_printf(thd,
                       Sql_condition::SL_WARNING,
                       ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-                      ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
+                      ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
   return TYPE_WARN_TRUNCATED;
@@ -6976,7 +6981,7 @@ double Field_string::val_real(void)
     ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
                         err.ptr());
   }
   return result;
@@ -7000,7 +7005,7 @@ longlong Field_string::val_int(void)
     ErrConvString err((char*) ptr, field_length, cs);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
-                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                         "INTEGER", err.ptr());
   }
   return result;
@@ -7036,7 +7041,7 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
     ErrConvString errmsg((char*) ptr, field_length, charset());
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE, 
-                        ER(ER_TRUNCATED_WRONG_VALUE),
+                        ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
                         "DECIMAL", errmsg.ptr());
   }
 
@@ -7065,7 +7070,7 @@ check_field_for_37426(const void *param_arg)
 bool
 Field_string::compatible_field_size(uint field_metadata,
                                     Relay_log_info *rli_arg,
-                                    uint16 mflags __attribute__((unused)),
+                                    uint16 mflags,
                                     int *order_var)
 {
 #ifdef HAVE_REPLICATION
@@ -7810,6 +7815,12 @@ void Field_varstring::hash(ulong *nr, ulong *nr2)
 ** packlength slot and may be from 1-4.
 ****************************************************************************/
 
+Field_blob::Field_blob(uint32 packlength_arg)
+  :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp",
+                 system_charset_info),
+   packlength(packlength_arg)
+{}
+
 Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 		       enum utype unireg_check_arg, const char *field_name_arg,
                        TABLE_SHARE *share, uint blob_pack_length,
@@ -8478,24 +8489,21 @@ void Field_geom::sql_type(String &res) const
 
 type_conversion_status Field_geom::store(double nr)
 {
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
   return TYPE_ERR_BAD_VALUE;
 }
 
 
 type_conversion_status Field_geom::store(longlong nr, bool unsigned_val)
 {
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
   return TYPE_ERR_BAD_VALUE;
 }
 
 
 type_conversion_status Field_geom::store_decimal(const my_decimal *)
 {
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+  my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
   return TYPE_ERR_BAD_VALUE;
 }
 
@@ -8533,8 +8541,7 @@ Field_geom::store_internal(const char *from, size_t length,
                                 Geometry::wkb_ndr))
   {
     memset(ptr, 0, Field_blob::pack_length());  
-    my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-               ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
     return TYPE_ERR_BAD_VALUE;
   }
 
@@ -10194,7 +10201,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
         */
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_BLOB_CANT_HAVE_DEFAULT,
-                            ER(ER_BLOB_CANT_HAVE_DEFAULT),
+                            ER_THD(thd, ER_BLOB_CANT_HAVE_DEFAULT),
                             fld_name);
       }
       def= 0;
@@ -10887,7 +10894,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   {
     // We aggregate warnings from only INSERT and REPLACE statements.
 
-    push_warning_printf(thd, level, code, ER(code), field_name,
+    push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
                         thd->get_stmt_da()->current_row_for_condition());
 
     return 0;
@@ -10904,7 +10911,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   {
     if (!(m_warnings_pushed & current_warning_mask))
     {
-      push_warning_printf(thd, level, code, ER(code), field_name,
+      push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
                           thd->get_stmt_da()->current_row_for_condition());
       m_warnings_pushed|= current_warning_mask;
     }
@@ -10915,7 +10922,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_NO_DEFAULT_FOR_VIEW_FIELD,
-                          ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                          ER_THD(thd, ER_NO_DEFAULT_FOR_VIEW_FIELD),
                           view_db_name,
                           view_name);
       m_warnings_pushed|= NO_DEFAULT_FOR_VIEW_FIELD_PUSHED;
@@ -10923,7 +10930,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level,
   }
   else
   {
-    push_warning_printf(thd, level, code, ER(code), field_name,
+    push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
                         thd->get_stmt_da()->current_row_for_condition());
   }
 

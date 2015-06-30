@@ -99,3 +99,15 @@ SELECT col_1_text = REPEAT("a", 3500) , col_2_text  = REPEAT("o", 3500) FROM
 worklog5743;
 
 DROP TABLE worklog5743;
+
+#
+# Bug#17530: Incorrect key truncation on table creation caused server crash.
+#
+
+# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
+SET sql_mode='NO_ENGINE_SUBSTITUTION';
+create table t1(f1 varchar(3800) binary not null, key(f1))
+  character set utf8 collate utf8_general_ci row_format=dynamic;
+insert into t1 values('aaa');
+drop table t1;
+SET sql_mode=default;

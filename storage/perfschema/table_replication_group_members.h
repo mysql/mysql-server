@@ -27,6 +27,7 @@
 #include "pfs_engine_table.h"
 #include "mysql_com.h"
 #include "rpl_info.h"
+#include "sql_const.h"                          // UUID_LENGTH
 #include <mysql/plugin_group_replication.h>
 
 /**
@@ -36,7 +37,7 @@
 
 /**
   A row in connection nodes table. The fields with string values have an additional
-  length field denoted by <field_name>_length.
+  length field denoted by \<field_name\>_length.
 */
 struct st_row_group_members {
   char channel_name[CHANNEL_NAME_LENGTH];

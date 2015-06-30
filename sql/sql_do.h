@@ -16,7 +16,8 @@
 #ifndef SQL_DO_INCLUDED
 #define SQL_DO_INCLUDED
 
-#include "sql_class.h"
+#include "my_global.h"
+#include "query_result.h"
  
 class THD;
 struct LEX;
@@ -24,7 +25,7 @@ struct LEX;
 class Query_result_do :public Query_result
 {
 public:
-  Query_result_do(THD *thd): Query_result() {}
+  Query_result_do(THD *thd): Query_result(thd) {}
   bool send_result_set_metadata(List<Item> &list, uint flags) { return false; }
   bool send_data(List<Item> &items);
   bool send_eof();

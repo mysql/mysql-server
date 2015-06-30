@@ -19,6 +19,7 @@
 #include "sql_trigger.h"
 
 #include "auth_common.h"              // check_table_access
+#include "mysqld.h"                   // trust_function_creators
 #include "sp.h"                       // sp_add_to_query_tables()
 #include "sql_base.h"                 // find_temporary_table()
 #include "sql_table.h"                // build_table_filename()
@@ -29,6 +30,7 @@
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
 #include "binlog.h"
 #include "sp_head.h"                  // sp_name
+#include "derror.h"                   // ER_THD
 
 #include "mysql/psi/mysql_sp.h"
 
@@ -314,8 +316,8 @@ end:
   the statement table list.
 
   @param[in] thd       Thread context.
-  @param[in] trg_name  Trigger name.
-  @param[in] if_exists TRUE if SQL statement contains "IF EXISTS" clause.
+  @param[in] trigger_name  Trigger name.
+  @param[in] continue_if_not_exist TRUE if SQL statement contains "IF EXISTS" clause.
                        That means a warning instead of error should be
                        thrown if trigger with given name does not exist.
   @param[out] table    Pointer to TABLE_LIST object for the
@@ -347,7 +349,8 @@ bool add_table_for_trigger(THD *thd,
     if (continue_if_not_exist)
     {
       push_warning(thd, Sql_condition::SL_NOTE,
-                   ER_TRG_DOES_NOT_EXIST, ER(ER_TRG_DOES_NOT_EXIST));
+                   ER_TRG_DOES_NOT_EXIST,
+                   ER_THD(thd, ER_TRG_DOES_NOT_EXIST));
 
       *table= NULL;
 
@@ -372,7 +375,7 @@ bool add_table_for_trigger(THD *thd,
 /**
   Update .TRG and .TRN files after renaming triggers' subject table.
 
-  @param[i]] thd            Thread context
+  @param[in] thd            Thread context
   @param[in] db_name        Current database of subject table
   @param[in] table_alias    Current alias of subject table
   @param[in] table_name     Current name of subject table
@@ -412,27 +415,12 @@ bool change_trigger_table_name(THD *thd,
     moving table with them between two schemas raises too many questions.
     (E.g. what should happen if in new schema we already have trigger
      with same name ?).
-
-    In case of "ALTER DATABASE `#mysql50#db1` UPGRADE DATA DIRECTORY NAME"
-    we will be given table name with "#mysql50#" prefix
-    To remove this prefix we use check_n_cut_mysql50_prefix().
   */
-
-  bool upgrading50to51= false;
 
   if (my_strcasecmp(table_alias_charset, db_name, new_db_name))
   {
-    char dbname[NAME_LEN + 1];
-    if (check_n_cut_mysql50_prefix(db_name, dbname, sizeof(dbname)) &&
-        !my_strcasecmp(table_alias_charset, dbname, new_db_name))
-    {
-      upgrading50to51= true;
-    }
-    else
-    {
-      my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
-      return true;
-    }
+    my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+    return true;
   }
 
   /*
@@ -454,8 +442,7 @@ bool change_trigger_table_name(THD *thd,
          d.rename_subject_table(thd,
                                 db_name, new_db_name,
                                 table_alias,
-                                new_table_name,
-                                upgrading50to51);
+                                new_table_name);
 }
 
 

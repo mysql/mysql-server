@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186

@@ -147,8 +147,8 @@ row_build_index_entry_low(
 					}
 
 					if (flag == ROW_BUILD_FOR_UNDO
-                                            && dict_table_get_format(index->table)
-                                                >= UNIV_FORMAT_B) {
+                                            && dict_table_has_atomic_blobs(
+						    index->table)) {
 					        /* For build entry for undo, and
                                                 the table is Barrcuda, we need
                                                 to skip the prefix data. */
@@ -224,11 +224,11 @@ row_build_index_entry_low(
 
 		/* If the column is stored externally (off-page) in
 		the clustered index, it must be an ordering field in
-		the secondary index.  In the Antelope format, only
-		prefix-indexed columns may be stored off-page in the
-		clustered index record. In the Barracuda format, also
-		fully indexed long CHAR or VARCHAR columns may be
-		stored off-page. */
+		the secondary index. If !atomic_blobs, the only way
+		we may have a secondary index pointing to a clustered
+		index record with an off-page column is when it is a
+		column prefix index. If atomic_blobs, also fully
+		indexed long columns may be stored off-page. */
 		ut_ad(col->ord_part);
 
 		if (ext) {
@@ -243,9 +243,8 @@ row_build_index_entry_low(
 			}
 
 			if (ind_field->prefix_len == 0) {
-				/* In the Barracuda format
-				(ROW_FORMAT=DYNAMIC or
-				ROW_FORMAT=COMPRESSED), we can have a
+				/* If ROW_FORMAT=DYNAMIC or
+				ROW_FORMAT=COMPRESSED, we can have a
 				secondary index on an entire column
 				that is stored off-page in the
 				clustered index. As this is not a
@@ -255,11 +254,12 @@ row_build_index_entry_low(
 				continue;
 			}
 		} else if (dfield_is_ext(dfield)) {
-			/* This table is either in Antelope format
+			/* This table is either in
 			(ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT)
 			or a purge record where the ordered part of
 			the field is not external.
-			In Antelope, the maximum column prefix
+			In ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT,
+			the maximum column prefix
 			index length is 767 bytes, and the clustered
 			index record contains a 768-byte prefix of
 			each off-page column. */

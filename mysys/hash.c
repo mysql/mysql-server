@@ -21,6 +21,7 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include "hash.h"
+#include "mysql/service_mysql_alloc.h"
 
 #define NO_RECORD	((uint) -1)
 #define LOWFIND 1

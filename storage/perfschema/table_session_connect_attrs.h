@@ -16,9 +16,16 @@
 #ifndef TABLE_SESSION_CONNECT_ATTRS_H
 #define TABLE_SESSION_CONNECT_ATTRS_H
 
-#include "table_session_connect.h"
 /**
-  \addtogroup Performance_schema_tables
+  @file storage/perfschema/table_session_connect_attrs.h
+  TABLE SESSION_CONNECT_ATTRS.
+*/
+
+#include "table_session_connect.h"
+#include "thr_lock.h"
+
+/**
+  @addtogroup Performance_schema_tables
   @{
 */
 

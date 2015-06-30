@@ -19,6 +19,8 @@
 #include "my_default.h"
 #include "mysqld_error.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/service_my_snprintf.h"
 
 using namespace std;
 
@@ -311,7 +313,7 @@ int install_password_validation_plugin()
 {
   int reply;
   int plugin_set= 0;
-  char *strength;
+  char *strength= NULL;
   bool option_read= FALSE;
   reply= get_response((const char *) "\nVALIDATE PASSWORD PLUGIN can be used "
                                      "to test passwords\nand improve security. "

@@ -67,8 +67,9 @@ class Query_result_materialize: public Query_result_union
   Query_result *result; /**< the result object of the caller (PS or SP) */
 public:
   Materialized_cursor *materialized_cursor;
-  Query_result_materialize(Query_result *result_arg)
-    :result(result_arg), materialized_cursor(0) {}
+  Query_result_materialize(THD *thd, Query_result *result_arg)
+    :Query_result_union(thd),
+     result(result_arg), materialized_cursor(0) {}
   virtual bool send_result_set_metadata(List<Item> &list, uint flags);
 };
 
@@ -101,7 +102,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   LEX *lex= thd->lex;
 
   if (! (result_materialize=
-           new (thd->mem_root) Query_result_materialize(result)))
+         new (thd->mem_root) Query_result_materialize(thd, result)))
     return true;
 
   save_result= lex->result;

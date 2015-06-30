@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-/** @file Temporary tables implementation */
+/**
+  @file sql/sql_tmp_table.cc
+  Temporary tables implementation.
+*/
 
 #include "sql_tmp_table.h"
 
@@ -26,10 +29,13 @@
 #include "opt_range.h"            // QUICK_SELECT_I
 #include "opt_trace.h"            // Opt_trace_object
 #include "opt_trace_context.h"    // Opt_trace_context
+#include "psi_memory_key.h"
 #include "sql_base.h"             // free_io_cache
 #include "sql_class.h"            // THD
 #include "sql_executor.h"         // SJ_TMP_TABLE
 #include "sql_plugin.h"           // plugin_unlock
+#include "current_thd.h"
+#include "mysqld.h"               // heap_hton use_temp_pool
 
 #include <algorithm>
 
@@ -466,7 +472,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   INNODB_MAX_KEY_LENGTH= handler->max_key_length();
   /*
     For ha_innobase::max_supported_key_part_length(), the returned value
-    relies on innodb_large_prefix. However, in innodb itself, the limitation
+    is constant. However, in innodb itself, the limitation
     on key_part length is up to the ROW_FORMAT. In current trunk, internal
     temp table's ROW_FORMAT is COMPACT. In order to keep the consistence
     between server and innodb, here we hard-coded 767 as the maximum of 
@@ -2033,7 +2039,7 @@ error:
 }
 
 
-bool open_tmp_table(TABLE *table)
+static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
@@ -2081,10 +2087,10 @@ bool open_tmp_table(TABLE *table)
      TRUE  - Error
 */
 
-bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo, 
-                             MI_COLUMNDEF *start_recinfo,
-                             MI_COLUMNDEF **recinfo, 
-                             ulonglong options, my_bool big_tables)
+static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
+                                    MI_COLUMNDEF *start_recinfo,
+                                    MI_COLUMNDEF **recinfo,
+                                    ulonglong options, my_bool big_tables)
 {
   int error;
   MI_KEYDEF keydef;
@@ -2209,7 +2215,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
      FALSE - OK
      TRUE  - Error
 */
-bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
+static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
 {
   TABLE_SHARE *share= table->s;
 
@@ -2399,15 +2405,15 @@ free_tmp_table(THD *thd, TABLE *entry)
   @param thd             THD reference
   @param table           Table reference
   @param start_recinfo   Engine's column descriptions
-  @param recinfo[in,out] End of engine's column descriptions
+  @param [in,out] recinfo End of engine's column descriptions
   @param error           Reason why inserting into MEMORY table failed. 
   @param ignore_last_dup If true, ignore duplicate key error for last
                          inserted key (see detailed description below).
-  @param is_duplicate[out] if non-NULL and ignore_last_dup is TRUE,
+  @param [out] is_duplicate if non-NULL and ignore_last_dup is TRUE,
                          return TRUE if last key was a duplicate,
                          and FALSE otherwise.
 
-  @detail
+  @details
     Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
     will be handled, all other errors cause a fatal error to be thrown.
     The function creates a disk-based temporary table, copies all records

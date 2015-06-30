@@ -2081,33 +2081,6 @@ delimiter ;//
 
 
 #
-# Bug#28360 (RENAME DATABASE destroys routines)
-#
-
---disable_warnings
-drop procedure if exists proc_28360;
-drop function if exists func_28360;
---enable_warnings
-
-delimiter //;
-
---error ER_SP_NO_DROP_SP
-CREATE PROCEDURE proc_28360()
-BEGIN
-  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-END//
-
---error ER_SP_NO_DROP_SP
-CREATE FUNCTION func_28360() RETURNS int
-BEGIN
-  ALTER DATABASE `#mysql50#upgrade-me` UPGRADE DATA DIRECTORY NAME;
-  RETURN 0;
-END//
-
-delimiter ;//
-
-
-#
 # Bug#29223 declare cursor c for SHOW .....
 #
 

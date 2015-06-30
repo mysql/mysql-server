@@ -91,7 +91,7 @@ public:
 		typedef std::vector<byte, ut_allocator<byte> >	fields_t;
 
 		/** Index id */
-		index_id_t	m_id;
+		space_index_t	m_id;
 
 		/** Index type */
 		ulint		m_type;
@@ -195,7 +195,7 @@ public:
 		ulint			space_id,
 		const page_size_t&	page_size,
 		ulint			index_type,
-		index_id_t      	index_id,
+		space_index_t		index_id,
 		const btr_create_t&	btr_redo_create_info,
 		mtr_t*			mtr) const;
 

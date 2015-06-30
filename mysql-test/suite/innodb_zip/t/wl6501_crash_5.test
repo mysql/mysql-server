@@ -21,6 +21,4 @@
 let $wl6501_file_per_table = 1;
 let $wl6501_row_fmt = compressed;
 let $wl6501_kbs = 8;
-let $wl6501_file_format = 'Barracuda';
 --source suite/innodb/include/innodb_wl6501_crash.inc
-

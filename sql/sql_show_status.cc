@@ -15,11 +15,17 @@
 
 
 #include "sql_show_status.h"
-#include "sql_parse.h"
-#include "sql_yacc.h"
-#include "parse_tree_items.h"
-#include "parse_tree_nodes.h"
-#include "item_cmpfunc.h"
+
+#include "m_string.h"                  // C_STRING_WITH_LEN
+#include "mysql/mysql_lex_string.h"    // LEX_STRING
+#include "thr_lock.h"                  // TL_READ
+#include "item_cmpfunc.h"              // Item_func_like
+#include "parse_tree_items.h"          // PTI_simple_ident_ident
+#include "parse_tree_nodes.h"          // PT_select_item_list
+#include "sql_class.h"                 // THD
+#include "sql_cmd.h"                   // enum_sql_command
+#include "sql_lex.h"                   // Query_options
+
 
 /**
   Build a replacement query for SHOW STATUS.
@@ -38,7 +44,7 @@
            FROM performance_schema.global_status
            WHERE Variable_name LIKE "<value>"
 */
-SELECT_LEX*
+static SELECT_LEX*
 build_query(const POS &pos,
             THD *thd,
             enum_sql_command command,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "mysql.h"
 #include <m_string.h>
 #include <m_ctype.h>
+#include "mysql/service_mysql_alloc.h"
 
 #ifdef HAVE_GETPASS
 #ifdef HAVE_PWD_H

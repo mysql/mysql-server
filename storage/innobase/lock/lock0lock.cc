@@ -27,6 +27,7 @@ Created 5/7/1996 Heikki Tuuri
 
 #include <mysql/service_thd_engine_lock.h>
 #include "ha_prototypes.h"
+#include "current_thd.h"
 
 #include "lock0lock.h"
 #include "lock0priv.h"
@@ -285,7 +286,7 @@ lock_sys_t*	lock_sys	= NULL;
 
 /** We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
-bool	lock_deadlock_found = false;
+static bool	lock_deadlock_found = false;
 
 /** Only created if !srv_read_only_mode */
 static FILE*		lock_latest_err_file;
@@ -2481,6 +2482,7 @@ lock_rec_cancel(
 Removes a record lock request, waiting or granted, from the queue and
 grants locks to other transactions in the queue if they now are entitled
 to a lock. NOTE: all record locks contained in in_lock are removed. */
+static
 void
 lock_rec_dequeue_from_page(
 /*=======================*/
@@ -2763,6 +2765,7 @@ lock_rec_inherit_to_gap_if_gap_lock(
 /*************************************************************//**
 Moves the locks of a record to another record and resets the lock bits of
 the donating record. */
+static
 void
 lock_rec_move_low(
 /*==============*/
@@ -2844,6 +2847,28 @@ lock_move_granted_locks_to_front(
 			lock = prev;
 		}
 	}
+}
+
+/*************************************************************//**
+Moves the locks of a record to another record and resets the lock bits of
+the donating record. */
+UNIV_INLINE
+void
+lock_rec_move(
+/*==========*/
+	const buf_block_t*	receiver,       /*!< in: buffer block containing
+						the receiving record */
+	const buf_block_t*	donator,        /*!< in: buffer block containing
+						the donating record */
+	ulint			receiver_heap_no,/*!< in: heap_no of the record
+						which gets the locks; there
+						must be no lock requests
+						on it! */
+	ulint			donator_heap_no)/*!< in: heap_no of the record
+                                                which gives the locks */
+{
+	lock_rec_move_low(lock_sys->rec_hash, receiver, donator,
+			  receiver_heap_no, donator_heap_no);
 }
 
 /*************************************************************//**
@@ -4629,6 +4654,7 @@ lock_remove_all_on_table(
 
 /*********************************************************************//**
 Prints info of a table lock. */
+static
 void
 lock_table_print(
 /*=============*/
@@ -4669,6 +4695,7 @@ lock_table_print(
 
 /*********************************************************************//**
 Prints info of a record lock. */
+static
 void
 lock_rec_print(
 /*===========*/
@@ -4941,7 +4968,7 @@ public:
 	}
 
 	/** Increment the ordinal value.
-	@retun the current index value */
+	@return the current index value */
 	ulint next()
 	{
 		return(++m_index);
@@ -6684,11 +6711,6 @@ lock_trx_release_locks(
 
 		ut_a(trx_sys->n_prepared_trx > 0);
 		--trx_sys->n_prepared_trx;
-
-		if (trx->is_recovered) {
-			ut_a(trx_sys->n_prepared_recovered_trx > 0);
-			trx_sys->n_prepared_recovered_trx--;
-		}
 
 		mutex_exit(&trx_sys->mutex);
 	} else {

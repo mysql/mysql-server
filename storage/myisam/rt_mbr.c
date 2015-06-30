@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #define EQUAL_CMP(amin, amax, bmin, bmax) ((amin != bmin) || (amax != bmax))
 
 #define FCMP(A, B) ((int)(A) - (int)(B))
-#define p_inc(A, B, X)  {A += X; B += X;}
 
 #define RT_CMP(nextflag) \
   if (nextflag & MBR_INTERSECT) \

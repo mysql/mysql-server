@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -232,30 +232,6 @@ fts_check_token(
 	bool			is_ngram,
 	const CHARSET_INFO*	cs);
 
-/*******************************************************************//**
-Tokenize a document. */
-void
-fts_tokenize_document(
-/*==================*/
-	fts_doc_t*	doc,		/*!< in/out: document to
-					tokenize */
-	fts_doc_t*	result,		/*!< out: if provided, save
-					result tokens here */
-	st_mysql_ftparser*	parser);/* in: plugin fts parser */
-
-/*******************************************************************//**
-Continue to tokenize a document. */
-void
-fts_tokenize_document_next(
-/*=======================*/
-	fts_doc_t*	doc,		/*!< in/out: document to
-					tokenize */
-	ulint		add_pos,	/*!< in: add this position to all
-					tokens from this tokenization */
-	fts_doc_t*	result,		/*!< out: if provided, save
-					result tokens here */
-	st_mysql_ftparser*	parser);/* in: plugin fts parser */
-
 /******************************************************************//**
 Initialize a document. */
 void
@@ -301,16 +277,6 @@ fts_index_fetch_nodes(
 	const fts_string_t*
 			word,		/*!< in: the word to fetch */
 	fts_fetch_t*	fetch);		/*!< in: fetch callback.*/
-
-/******************************************************************//**
-Create a fts_optimizer_word_t instance.
-@return new instance */
-fts_word_t*
-fts_word_init(
-/*==========*/
-	fts_word_t*	word,		/*!< in: word to initialize */
-	byte*		utf8,		/*!< in: UTF-8 string */
-	ulint		len);		/*!< in: length of string in bytes */
 
 /******************************************************************//**
 Compare two fts_trx_table_t instances, we actually compare the
@@ -429,31 +395,7 @@ fts_config_set_index_value(
 					config table */
 	__attribute__((warn_unused_result));
 
-/******************************************************************//**
-Increment the value in the config table for column name.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_config_increment_value(
-/*=======================*/
-	trx_t*		trx,		/*!< transaction */
-	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
-	const char*	name,		/*!< in: increment config value
-					for this parameter name */
-	ulint		delta)		/*!< in: increment by this much */
-	__attribute__((warn_unused_result));
-
-/******************************************************************//**
-Increment the per index value in the config table for column name.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_config_increment_index_value(
-/*=============================*/
-	trx_t*		trx,		/*!< transaction */
-	dict_index_t*	index,		/*!< in: FTS index */
-	const char*	name,		/*!< in: increment config value
-					for this parameter name */
-	ulint		delta);		/*!< in: increment by this much */
-
+#ifdef FTS_OPTIMIZE_DEBUG
 /******************************************************************//**
 Get an ulint value from the config table.
 @return DB_SUCCESS or error code */
@@ -477,6 +419,7 @@ fts_config_set_index_ulint(
 	const char*	name,		/*!< in: param name */
 	ulint		int_value)	/*!< in: value */
 	__attribute__((warn_unused_result));
+#endif /* FTS_OPTIMIZE_DEBUG */
 
 /******************************************************************//**
 Get an ulint value from the config table.
@@ -502,17 +445,6 @@ fts_cache_find_word(
 	__attribute__((warn_unused_result));
 
 /******************************************************************//**
-Check cache for deleted doc id.
-@return TRUE if deleted */
-ibool
-fts_cache_is_deleted_doc_id(
-/*========================*/
-	const fts_cache_t*
-			cache,		/*!< in: cache ito search */
-	doc_id_t	doc_id)		/*!< in: doc id to search for */
-	__attribute__((warn_unused_result));
-
-/******************************************************************//**
 Append deleted doc ids to vector and sort the vector. */
 void
 fts_cache_append_deleted_doc_ids(
@@ -533,18 +465,6 @@ fts_wait_for_background_thread_to_start(
 	ulint		max_wait);	/*!< in: time in microseconds, if set
 					to 0 then it disables timeout
 					checking */
-#ifdef FTS_DOC_STATS_DEBUG
-/******************************************************************//**
-Get the total number of words in the FTS for a particular FTS index.
-@return DB_SUCCESS or error code */
-dberr_t
-fts_get_total_word_count(
-/*=====================*/
-	trx_t*		trx,		/*!< in: transaction */
-	dict_index_t*	index,		/*!< in: for this index */
-	ulint*		total)		/*!< out: total words */
-	__attribute__((warn_unused_result));
-#endif
 /******************************************************************//**
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
@@ -601,13 +521,6 @@ void
 fts_optimize_add_table(
 /*===================*/
 	dict_table_t*	table);		/*!< in: table to add */
-
-/******************************************************************//**
-Optimize a table. */
-void
-fts_optimize_do_table(
-/*==================*/
-	dict_table_t*	table);		/*!< in: table to optimize */
 
 /******************************************************************//**
 Construct the prefix name of an FTS table.

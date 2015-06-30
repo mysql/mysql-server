@@ -1,22 +1,22 @@
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
-11	SYS_FOREIGN	0	7	0	Antelope	Redundant	0	System
-12	SYS_FOREIGN_COLS	0	7	0	Antelope	Redundant	0	System
-13	SYS_TABLESPACES	0	6	0	Antelope	Redundant	0	System
-14	SYS_DATAFILES	0	5	0	Antelope	Redundant	0	System
-15	mysql/plugin	1	5	2	Antelope	Compact	0	Single
-16	mysql/servers	1	12	3	Antelope	Compact	0	Single
-17	mysql/help_topic	1	9	4	Antelope	Compact	0	Single
-18	mysql/help_category	1	7	5	Antelope	Compact	0	Single
-19	mysql/help_relation	1	5	6	Antelope	Compact	0	Single
-20	mysql/help_keyword	1	5	7	Antelope	Compact	0	Single
-21	mysql/time_zone_name	1	5	8	Antelope	Compact	0	Single
-22	mysql/time_zone	1	5	9	Antelope	Compact	0	Single
-23	mysql/time_zone_transition	1	6	10	Antelope	Compact	0	Single
-24	mysql/time_zone_transition_type	1	8	11	Antelope	Compact	0	Single
-25	mysql/time_zone_leap_second	1	5	12	Antelope	Compact	0	Single
-31	mysql/gtid_executed	1	6	18	Antelope	Compact	0	Single
-32	mysql/server_cost	1	7	19	Antelope	Compact	0	Single
-33	mysql/engine_cost	1	9	20	Antelope	Compact	0	Single
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE
+11	SYS_FOREIGN	0	7	0	Redundant	0	System
+12	SYS_FOREIGN_COLS	0	7	0	Redundant	0	System
+13	SYS_TABLESPACES	0	6	0	Redundant	0	System
+14	SYS_DATAFILES	0	5	0	Redundant	0	System
+15	mysql/plugin	1	5	2	Compact	0	Single
+16	mysql/servers	1	12	3	Compact	0	Single
+17	mysql/help_topic	1	9	4	Compact	0	Single
+18	mysql/help_category	1	7	5	Compact	0	Single
+19	mysql/help_relation	1	5	6	Compact	0	Single
+20	mysql/help_keyword	1	5	7	Compact	0	Single
+21	mysql/time_zone_name	1	5	8	Compact	0	Single
+22	mysql/time_zone	1	5	9	Compact	0	Single
+23	mysql/time_zone_transition	1	6	10	Compact	0	Single
+24	mysql/time_zone_transition_type	1	8	11	Compact	0	Single
+25	mysql/time_zone_leap_second	1	5	12	Compact	0	Single
+31	mysql/gtid_executed	1	6	18	Compact	0	Single
+32	mysql/server_cost	1	7	19	Compact	0	Single
+33	mysql/engine_cost	1	9	20	Compact	0	Single
 table_id	pos	mtype	prtype	len	name
 11	0	1	524292	0	ID
 11	1	1	524292	0	FOR_NAME

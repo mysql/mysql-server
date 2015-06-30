@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,35 +35,7 @@ ib_list_t*
 ib_list_create(void)
 /*=================*/
 {
-	ib_list_t*	list;
-
-	list = static_cast<ib_list_t*>(ut_malloc_nokey(sizeof(*list)));
-
-	list->first = NULL;
-	list->last = NULL;
-	list->is_heap_list = FALSE;
-
-	return(list);
-}
-
-/****************************************************************//**
-Create a new list using the given heap. ib_list_free MUST NOT BE CALLED for
-lists created with this function.
-@return list */
-ib_list_t*
-ib_list_create_heap(
-/*================*/
-	mem_heap_t*	heap)	/*!< in: memory heap to use */
-{
-	ib_list_t*	list;
-
-	list = static_cast<ib_list_t*>(mem_heap_alloc(heap, sizeof(*list)));
-
-	list->first = NULL;
-	list->last = NULL;
-	list->is_heap_list = TRUE;
-
-	return(list);
+	return(static_cast<ib_list_t*>(ut_zalloc_nokey(sizeof(ib_list_t))));
 }
 
 /****************************************************************//**
@@ -73,8 +45,6 @@ ib_list_free(
 /*=========*/
 	ib_list_t*	list)	/*!< in: list */
 {
-	ut_a(!list->is_heap_list);
-
 	/* We don't check that the list is empty because it's entirely valid
 	to e.g. have all the nodes allocated from a single heap that is then
 	freed after the list itself is freed. */
@@ -83,34 +53,9 @@ ib_list_free(
 }
 
 /****************************************************************//**
-Add the data to the start of the list.
-@return new list node */
-ib_list_node_t*
-ib_list_add_first(
-/*==============*/
-	ib_list_t*	list,	/*!< in: list */
-	void*		data,	/*!< in: data */
-	mem_heap_t*	heap)	/*!< in: memory heap to use */
-{
-	return(ib_list_add_after(list, ib_list_get_first(list), data, heap));
-}
-
-/****************************************************************//**
-Add the data to the end of the list.
-@return new list node */
-ib_list_node_t*
-ib_list_add_last(
-/*=============*/
-	ib_list_t*	list,	/*!< in: list */
-	void*		data,	/*!< in: data */
-	mem_heap_t*	heap)	/*!< in: memory heap to use */
-{
-	return(ib_list_add_after(list, ib_list_get_last(list), data, heap));
-}
-
-/****************************************************************//**
 Add the data after the indicated node.
 @return new list node */
+static
 ib_list_node_t*
 ib_list_add_after(
 /*==============*/
@@ -162,6 +107,19 @@ ib_list_add_after(
 	}
 
 	return(node);
+}
+
+/****************************************************************//**
+Add the data to the end of the list.
+@return new list node */
+ib_list_node_t*
+ib_list_add_last(
+/*=============*/
+	ib_list_t*	list,	/*!< in: list */
+	void*		data,	/*!< in: data */
+	mem_heap_t*	heap)	/*!< in: memory heap to use */
+{
+	return(ib_list_add_after(list, ib_list_get_last(list), data, heap));
 }
 
 /****************************************************************//**

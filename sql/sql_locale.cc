@@ -3470,7 +3470,7 @@ my_locale_by_name(MY_LOCALE** locales, const char *name)
 }
 
 
-MY_LOCALE *my_locale_by_name(const char *name)
+MY_LOCALE *my_locale_by_name(THD *thd, const char *name)
 {
   MY_LOCALE *locale;
   
@@ -3482,7 +3482,6 @@ MY_LOCALE *my_locale_by_name(const char *name)
   }
   else if ((locale= my_locale_by_name(my_locales_deprecated, name)))
   {
-    THD *thd= current_thd;
     /*
       Replace the deprecated locale to the corresponding
       'fresh' locale with the same ID.
@@ -3492,7 +3491,8 @@ MY_LOCALE *my_locale_by_name(const char *name)
     {
       // Send a warning to the client
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SYNTAX, ER(ER_WARN_DEPRECATED_SYNTAX),
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                           name, locale->name);
     }
     else

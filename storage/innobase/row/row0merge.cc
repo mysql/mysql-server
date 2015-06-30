@@ -286,7 +286,7 @@ row_merge_insert_index_tuples(
 
 /******************************************************//**
 Encode an index record. */
-static __attribute__((nonnull))
+static
 void
 row_merge_buf_encode(
 /*=================*/
@@ -323,7 +323,7 @@ row_merge_buf_encode(
 /******************************************************//**
 Allocate a sort buffer.
 @return own: sort buffer */
-static __attribute__((malloc, nonnull))
+static __attribute__((malloc))
 row_merge_buf_t*
 row_merge_buf_create_low(
 /*=====================*/
@@ -905,7 +905,7 @@ respectively */
 
 /**********************************************************************//**
 Merge sort the tuple buffer in main memory. */
-static __attribute__((nonnull(4,5)))
+static
 void
 row_merge_tuple_sort(
 /*=================*/
@@ -1795,7 +1795,7 @@ row_merge_read_clustered_index(
 		const rec_t*	rec;
 		ulint*		offsets;
 		const dtuple_t*	row;
-		row_ext_t*	ext;
+		row_ext_t*	ext = NULL;
 		page_cur_t*	cur	= btr_pcur_get_page_cur(&pcur);
 
 		page_cur_move_to_next(cur);
@@ -3351,7 +3351,7 @@ void
 row_merge_drop_index_dict(
 /*======================*/
 	trx_t*		trx,	/*!< in/out: dictionary transaction */
-	index_id_t	index_id)/*!< in: index identifier */
+	space_index_t	index_id)/*!< in: index identifier */
 {
 	static const char sql[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
@@ -3807,7 +3807,7 @@ row_merge_rename_index_to_add(
 /*==========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id)	/*!< in: index identifier */
+	space_index_t	index_id)	/*!< in: index identifier */
 {
 	dberr_t		err = DB_SUCCESS;
 	pars_info_t*	info = pars_info_create();
@@ -3858,7 +3858,7 @@ row_merge_rename_index_to_drop(
 /*===========================*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	table_id_t	table_id,	/*!< in: table identifier */
-	index_id_t	index_id)	/*!< in: index identifier */
+	space_index_t	index_id)	/*!< in: index identifier */
 {
 	dberr_t		err;
 	pars_info_t*	info = pars_info_create();
@@ -4047,7 +4047,7 @@ row_merge_rename_tables_dict(
 /*********************************************************************//**
 Create and execute a query graph for creating an index.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
 /*=========================*/

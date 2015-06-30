@@ -18,6 +18,7 @@
 
 #include "dynamic_ids.h"        // Server_ids
 #include "log.h"                // sql_print_error
+#include "mysqld.h"             // sync_masterinfo_period
 #include "rpl_slave.h"          // master_retry_count
 
 
@@ -239,8 +240,6 @@ void Master_info::end_info()
 
   - Error can happen if writing to file fails or if flushing the file
     fails.
-
-  @param rli The object representing the Relay_log_info.
 
   @todo Change the log file information to a binary format to avoid
   calling longlong2str.

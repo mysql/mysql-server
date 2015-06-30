@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
                                         const Suppressor* suppressor)
 {
   /* Don't allow queries to affect THD's status variables */
-  struct system_status_var save_thd_status_var= m_thd->status_var;
+  struct System_status_var save_thd_status_var= m_thd->status_var;
 
   /* Check modified_non_trans_table is false(check if actually needed) */
   assert(!m_thd->get_transaction()->has_modified_non_trans_table(

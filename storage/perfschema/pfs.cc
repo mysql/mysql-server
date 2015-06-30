@@ -46,6 +46,30 @@
 #include "pfs_prepared_stmt.h"
 
 /*
+  Exporting cmake compilation flags to doxygen,
+  so they get documented.
+*/
+#ifdef IN_DOXYGEN
+#define HAVE_PSI_2
+#define DISABLE_PSI_MUTEX
+#define DISABLE_PSI_RWLOCK
+#define DISABLE_PSI_COND
+#define DISABLE_PSI_FILE
+#define DISABLE_PSI_THREAD
+#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_STAGE
+#define DISABLE_PSI_STATEMENT
+#define DISABLE_PSI_SP
+#define DISABLE_PSI_PS
+#define DISABLE_PSI_STATEMENT_DIGEST
+#define DISABLE_PSI_SOCKET
+#define DISABLE_PSI_MEMORY
+#define DISABLE_PSI_IDLE
+#define DISABLE_PSI_METADATA
+#define DISABLE_PSI_TRANSACTION
+#endif /* IN_DOXYGEN */
+
+/*
   This is a development tool to investigate memory statistics,
   do not use in production.
 */
@@ -77,7 +101,7 @@ static void report_memory_accounting_error(
 #endif /* PFS_PARANOID */
 
 /**
-  @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
+  @page PAGE_PFS The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
 
   @section INTRO Introduction
@@ -117,8 +141,7 @@ static void report_memory_accounting_error(
   - MySQL plugins, including storage engines,
   - third party plugins, including third party storage engines.
 
-  For details, see the @ref PAGE_INSTRUMENTATION_INTERFACE
-  "instrumentation interface page".
+  For details, see @ref PAGE_PFS_PSI
 
   @subsection INT_COMPILING Compiling interface
 
@@ -346,7 +369,7 @@ static void report_memory_accounting_error(
 */
 
 /**
-  @page PAGE_INSTRUMENTATION_INTERFACE Performance schema: instrumentation interface page.
+  @page PAGE_PFS_PSI Performance schema: instrumentation interface page.
   MySQL performance schema instrumentation interface.
 
   @section INTRO Introduction
@@ -507,7 +530,7 @@ static inline int mysql_mutex_lock(...)
 */
 
 /**
-  @page PAGE_AGGREGATES Performance schema: the aggregates page.
+  @page PAGE_PFS_AGGREGATES Performance schema: the aggregates page.
   Performance schema aggregates.
 
   @section INTRO Introduction
@@ -1319,8 +1342,7 @@ static inline int mysql_mutex_lock(...)
 /**
   @defgroup Performance_schema Performance Schema
   The performance schema component.
-  For details, see the
-  @ref PAGE_PERFORMANCE_SCHEMA "performance schema main page".
+  For details, see @ref PAGE_PFS
 
   @defgroup Performance_schema_implementation Performance Schema Implementation
   @ingroup Performance_schema

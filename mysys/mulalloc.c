@@ -16,6 +16,7 @@
 #include "mysys_priv.h"
 #include "my_sys.h"
 #include <stdarg.h>
+#include "mysql/service_mysql_alloc.h"
 
 /*
   Malloc many pointers at the same time

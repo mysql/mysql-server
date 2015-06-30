@@ -25,15 +25,17 @@
 */
 
 #include "sql_planner.h"
-#include "sql_optimizer.h"
-#include "opt_costmodel.h"
-#include "opt_range.h"
-#include "opt_trace.h"
-#include "sql_executor.h"
-#include "merge_sort.h"
-#include <my_bit.h>
-#include "opt_hints.h"   // hint_table_state()
-#include "parse_tree_hints.h"
+
+#include "my_base.h"            // key_part_map
+#include "my_bit.h"             // my_count_bits
+#include "merge_sort.h"         // merge_sort
+#include "opt_hints.h"          // hint_table_state
+#include "opt_range.h"          // QUICK_SELECT_I
+#include "opt_trace.h"          // Opt_trace_object
+#include "sql_class.h"          // THD
+#include "sql_optimizer.h"      // JOIN
+#include "sql_select.h"         // JOIN_TAB
+#include "sql_test.h"           // print_plan
 
 #include <algorithm>
 using std::max;
@@ -81,6 +83,21 @@ cache_record_length(JOIN *join,uint idx)
   }
   return length;
 }
+
+
+Optimize_table_order::Optimize_table_order(THD *thd_arg, JOIN *join_arg,
+                                           TABLE_LIST *sjm_nest_arg)
+: thd(thd_arg), join(join_arg),
+  search_depth(determine_search_depth(thd->variables.optimizer_search_depth,
+                                      join->tables - join->const_tables)),
+  prune_level(thd->variables.optimizer_prune_level),
+  cur_embedding_map(0), emb_sjm_nest(sjm_nest_arg),
+  excluded_tables((emb_sjm_nest ?
+                   (join->all_table_map & ~emb_sjm_nest->sj_inner_tables) : 0) |
+                  (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
+  has_sj(!(join->select_lex->sj_nests.is_empty() || emb_sjm_nest)),
+  test_all_ref_keys(false), found_plan_with_allowed_sj(false)
+{}
 
 
 /**
@@ -1410,7 +1427,7 @@ cleanup:
 
 
 /**
-   @Returns a bitmap of bound semi-join equalities.
+   Returns a bitmap of bound semi-join equalities.
 
    If we consider (oe1, .. oeN) IN (SELECT ie1, .. ieN) then ieK=oeK is
    called sj-equality. If ieK or oeK depends only on tables available before
@@ -2280,9 +2297,9 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
   Calculate a cost of given partial join order
  
   @param join              Join to use. ::positions holds the partial join order
-  @param n_tables          Number of tables in the partial join order
-  @param cost_arg[out]     Store read time here 
-  @param rowcount_arg[out] Store record count here
+  @param n_tables           Number of tables in the partial join order
+  @param [out] cost_arg     Store read time here 
+  @param [out] rowcount_arg Store record count here
 
     This is needed for semi-join materialization code. The idea is that 
     we detect sj-materialization after we've put all sj-inner tables into
@@ -3504,7 +3521,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   @param final            If true, use and update access path data in
                           join->best_positions, otherwise use join->positions
                           and update a local buffer.
-  @param[out] rowcount    New output row count
+  @param[out] newcount    New output row count
   @param[out] newcost     New join prefix cost
 
   @return True if strategy selection successful, false otherwise.
@@ -3679,7 +3696,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   @param final             If true, use and update access path data in
                            join->best_positions, otherwise use join->positions
                            and update a local buffer.
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details
@@ -3765,7 +3782,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
 
   @param last_inner        Index of the last inner table
   @param sjm_nest          Pointer to semi-join nest for inner tables
-  @param[out] rowcount     New output row count
+  @param[out] newcount     New output row count
   @param[out] newcost      New join prefix cost
 
   @details

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,10 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* write whats in isam.log */
-
-#ifndef USE_MY_FUNC
-#define USE_MY_FUNC
-#endif
 
 #include "myisamdef.h"
 #include <my_tree.h>
@@ -66,7 +62,8 @@ static void file_info_free(struct file_info *info);
 static int close_some_file(TREE *tree);
 static int reopen_closed_file(TREE *tree,struct file_info *file_info);
 static int find_record_with_key(struct file_info *file_info,uchar *record);
-static void printf_log(const char *str,...);
+static void printf_log(const char *str,...)
+  __attribute__((format(printf, 1, 2)));
 static my_bool cmp_filename(struct file_info *file_info,char * name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
@@ -125,7 +122,6 @@ int main(int argc, char **argv)
   my_free_open_file_info();
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error);
-  return 0;				/* No compiler warning */
 } /* main */
 
 
@@ -555,7 +551,7 @@ static int examine_log(char * file_name, char **table_names)
 	if (verbose)
 	  printf_log("%s: %s at %ld, length=%ld -> %d",
 		     FILENAME(curr_file_info),
-		     command_name[command], filepos,length,result);
+		     command_name[command], (long)filepos,length,result);
       }
       if (update && curr_file_info && !curr_file_info->closed)
       {

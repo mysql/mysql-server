@@ -16,8 +16,10 @@
 /* Routines to handle mallocing of results which will be freed the same time */
 
 #include <my_global.h>
+#include "my_alloc.h"
 #include <my_sys.h>
 #include <m_string.h>
+#include "mysql/service_mysql_alloc.h"
 
 /*
   For instrumented code: don't preallocate memory in alloc_root().

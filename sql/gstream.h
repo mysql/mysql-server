@@ -20,6 +20,7 @@
 #include "my_global.h"                          /* NULL, NullS */
 #include "my_sys.h"                             /* MY_ALLOW_ZERO_PTR */
 #include "m_ctype.h"           /* my_charset_latin1, my_charset_bin */
+#include "mysql/service_mysql_alloc.h"
 
 typedef struct charset_info_st CHARSET_INFO;
 typedef struct st_mysql_lex_string LEX_STRING;

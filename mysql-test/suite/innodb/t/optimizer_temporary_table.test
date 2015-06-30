@@ -39,7 +39,11 @@ let $restart_parameters = restart: --big-tables=1;
 #
 # Workload in read-only mode.
 #
-let $restart_parameters = restart: --innodb-read-only --big-tables=1;
+
+# Force a change buffer merge, so that --innodb-read-only will not
+# # refuse startup, in case there exist buffered changes from earlier tests.
+SET GLOBAL innodb_fast_shutdown = 0;
+let $restart_parameters = restart: --big-tables=1 --innodb-read-only;
 --source include/restart_mysqld.inc
 
 --source suite/innodb/include/query_workload_itt.inc

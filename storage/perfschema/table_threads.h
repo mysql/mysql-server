@@ -16,13 +16,18 @@
 #ifndef TABLE_THREADS_H
 #define TABLE_THREADS_H
 
+/**
+  @file storage/perfschema/table_threads.h
+  TABLE THREADS.
+*/
+
 #include "pfs_column_types.h"
 #include "cursor_by_thread.h"
 
 struct PFS_thread;
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 

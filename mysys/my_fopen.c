@@ -18,6 +18,7 @@
 #include <errno.h>
 #include "mysys_err.h"
 #include "my_thread_local.h"
+#include "mysql/service_mysql_alloc.h"
 
 
 static void make_ftype(char * to,int flag);

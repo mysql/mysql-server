@@ -19,15 +19,25 @@
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "auth_acls.h"                          /* ACL information */
 #include "sql_string.h"                         /* String */
-#include "table.h"                              /* TABLE_LIST */
-#include "field.h"
+#include "mysql_com.h"                          /* enum_server_command */
+#include "sql_list.h"                           /* List */
+#include "template_utils.h"
 
 /* Forward Declarations */
+class Alter_info;
+class Field_iterator_table_ref;
 class LEX_COLUMN;
 class THD;
+typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
+typedef struct st_lex_user LEX_USER;
+typedef struct st_ha_create_information HA_CREATE_INFO;
 struct GRANT_INFO;
+class Item;
 struct LEX;
 typedef struct user_conn USER_CONN;
+class Security_context;
+struct TABLE;
+struct TABLE_LIST;
 
 /* Classes */
 
@@ -499,20 +509,16 @@ public:
   virtual Acl_load_user_table_schema* get_user_table_schema(TABLE *table)
   {
     return is_old_user_table_schema(table) ?
-      (Acl_load_user_table_schema*) new Acl_load_user_table_old_schema():
-      (Acl_load_user_table_schema*) new Acl_load_user_table_current_schema();
+      implicit_cast<Acl_load_user_table_schema*>
+      (new Acl_load_user_table_old_schema()) :
+      implicit_cast<Acl_load_user_table_schema*>
+      (new Acl_load_user_table_current_schema());
   }
 
-  virtual bool is_old_user_table_schema(TABLE* table)
-  {
-    Field *password_field=
-      table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
-    return strncmp(password_field->field_name, "Password", 8) == 0;
-  }
+  virtual bool is_old_user_table_schema(TABLE* table);
   virtual ~Acl_load_user_table_schema_factory() {}
 };
 
-extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 extern my_bool disconnect_on_expired_password;
 extern const char *any_db;	// Special symbol for check_access
@@ -575,8 +581,8 @@ int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
-my_bool acl_reload(THD *thd); 
-bool grant_init(bool skip_grant_tables);
+my_bool acl_reload(THD *thd);
+my_bool grant_init();
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 ulong acl_get(const char *host, const char *ip,
@@ -603,12 +609,10 @@ bool check_grant_column (THD *thd, GRANT_INFO *grant,
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
                                      const char *name, size_t length,
                                      ulong want_privilege);
-bool check_grant_all_columns(THD *thd, ulong want_access, 
+bool check_grant_all_columns(THD *thd, ulong want_access,
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access,
                          TABLE_LIST *procs, bool is_proc, bool no_error);
-bool check_routine_level_acl(THD *thd, const char *db, const char *name,
-                             bool is_proc);
 bool check_grant_db(THD *thd,const char *db);
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
                                   bool with_grant);
@@ -673,11 +677,9 @@ inline bool check_single_table_access(THD *thd, ulong privilege,
 inline bool check_routine_access(THD *thd,ulong want_access,const char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
-inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{
-  table->grant.privilege= want_access;
-  return false;
-}
+
+bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table);
+
 inline bool check_some_routine_access(THD *thd, const char *db,
                                       const char *name, bool is_proc)
 { return false; }
@@ -695,8 +697,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
                    bool no_errors)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
-
-/* These was under the INNODB_COMPATIBILITY_HOOKS */
 
 bool check_global_access(THD *thd, ulong want_access);
 
@@ -723,4 +723,6 @@ typedef enum ssl_artifacts_status
 extern my_bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #endif /* HAVE_OPENSSL && !HAVE_YASSL */
+
 #endif /* AUTH_COMMON_INCLUDED */
+

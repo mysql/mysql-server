@@ -19,6 +19,7 @@
 #define RPL_GTID_PERSIST_H_
 
 #include "my_global.h"
+#include "derror.h"                  // ER_THD
 #include "rpl_table_access.h"        // System_table_access
 #include "sql_class.h"               // Open_tables_backup
 
@@ -41,8 +42,7 @@ public:
       - Disable binlog temporarily if we are going to modify the table
       - Open and lock a table.
 
-    @param[in/out] thd        Thread requesting to open the table
-    @param         lock_type  How to lock the table
+    @param[in,out] thd        Thread requesting to open the table
     @param[out]    table      We will store the open table here
 
     @return
@@ -199,7 +199,7 @@ public:
       */
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
-                          ER(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
+                          ER_THD(thd, ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE),
                           table->table_name);
       DBUG_RETURN(true);
     }
@@ -257,7 +257,7 @@ private:
 
     @param  fields   Reference to table fileds.
     @param  sid      The source id of the gtid interval.
-    @param  gno_star The first GNO of the gtid interval.
+    @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
     @return
@@ -271,7 +271,7 @@ private:
 
     @param  table    Reference to a table object.
     @param  sid      The source id of the gtid interval.
-    @param  gno_star The first GNO of the gtid interval.
+    @param  gno_start The first GNO of the gtid interval.
     @param  gno_end  The last GNO of the gtid interval.
 
     @return
@@ -287,7 +287,7 @@ private:
 
     @param  table        Reference to a table object.
     @param  sid          The source id of the gtid interval.
-    @param  gno_star     The first GNO of the gtid interval.
+    @param  gno_start    The first GNO of the gtid interval.
     @param  new_gno_end  The new last GNO of the gtid interval.
 
     @return
@@ -316,10 +316,10 @@ private:
   /**
     Get gtid interval from the the current row of the table.
 
-    @param  table         Reference to a table object.
-    @param  sid[out]      The source id of the gtid interval.
-    @param  gno_star[out] The first GNO of the gtid interval.
-    @param  gno_end[out]  The last GNO of the gtid interval.
+    @param table          Reference to a table object.
+    @param [out] sid      The source id of the gtid interval.
+    @param [out] gno_start The first GNO of the gtid interval.
+    @param [out] gno_end  The last GNO of the gtid interval.
   */
   void get_gtid_interval(TABLE *table, std::string &sid,
                          rpl_gno &gno_start, rpl_gno &gno_end);
@@ -327,7 +327,7 @@ private:
     Insert the gtid set into table.
 
     @param table          The gtid_executed table.
-    @param gtid_executed  Contains a set of gtid, which holds
+    @param gtid_set       Contains a set of gtid, which holds
                           the sidno and the gno.
 
     @retval

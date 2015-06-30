@@ -23,12 +23,16 @@
 #include "auth_common.h"                 // acl_getroot
 #include "binlog.h"                      // mysql_bin_log
 #include "debug_sync.h"                  // DEBUG_SYNC
+#include "derror.h"                      // ER_THD
 #include "item_cmpfunc.h"                // and_conds
 #include "key.h"                         // find_ref_key
 #include "log.h"                         // sql_print_warning
+#include "mysqld.h"                      // reg_ext key_file_frm ...
 #include "opt_trace.h"                   // opt_trace_disable_if_no_security_...
 #include "parse_file.h"                  // sql_parse_prepare
 #include "partition_info.h"              // partition_info
+#include "psi_memory_key.h"
+#include "query_result.h"                // Query_result
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // check_stack_overrun
@@ -82,8 +86,6 @@ LEX_STRING PARSE_GCOL_KEYWORD= {C_STRING_WITH_LEN("parse_gcol_expr")};
 
 	/* Functions defined in this file */
 
-void open_table_error(TABLE_SHARE *share, int error, int db_errno,
-                      myf errortype, int errarg);
 static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                            uchar *head, File file);
 static void fix_type_pointers(const char ***array, TYPELIB *point_to_type,
@@ -177,7 +179,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   {
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
-                        ER(ER_VIEW_NO_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_NO_CREATION_CTX),
                         view->db,
                         view->table_name);
 
@@ -211,7 +213,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
-                        ER(ER_VIEW_INVALID_CREATION_CTX),
+                        ER_THD(thd, ER_VIEW_INVALID_CREATION_CTX),
                         view->db,
                         view->table_name);
   }
@@ -624,26 +626,6 @@ inline bool is_system_table_name(const char *name, size_t length)
 }
 
 
-/**
-  Check if a string contains path elements
-*/  
-
-static inline bool has_disabled_path_chars(const char *str)
-{
-  for (; *str; str++)
-    switch (*str)
-    {
-      case FN_EXTCHAR:
-      case '/':
-      case '\\':
-      case '~':
-      case '@':
-        return TRUE;
-    }
-  return FALSE;
-}
-
-
 /*
   Read table definition from a binary / text based .frm file
   
@@ -690,57 +672,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   if ((file= mysql_file_open(key_file_frm,
                              path, O_RDONLY | O_SHARE, MYF(0))) < 0)
   {
-    /*
-      We don't try to open 5.0 unencoded name, if
-      - non-encoded name contains '@' signs, 
-        because '@' can be misinterpreted.
-        It is not clear if '@' is escape character in 5.1,
-        or a normal character in 5.0.
-        
-      - non-encoded db or table name contain "#mysql50#" prefix.
-        This kind of tables must have been opened only by the
-        mysql_file_open() above.
-    */
-    if (has_disabled_path_chars(share->table_name.str) ||
-        has_disabled_path_chars(share->db.str) ||
-        !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
-                 MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
-        !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
-                 MYSQL50_TABLE_NAME_PREFIX_LENGTH))
-      goto err_not_open;
-
-    /*
-      Trying unencoded 5.0 name for temporary tables does not
-      make sense since such tables are not persistent.
-    */
-    if (share->tmp_table)
-      goto err_not_open;
-
-    /* Try unencoded 5.0 name */
-    size_t length;
-    strxnmov(path, sizeof(path)-1,
-             mysql_data_home, "/", share->db.str, "/",
-             share->table_name.str, reg_ext, NullS);
-    length= unpack_filename(path, path) - reg_ext_length;
-    /*
-      The following is a safety test and should never fail
-      as the old file name should never be longer than the new one.
-    */
-    DBUG_ASSERT(length <= share->normalized_path.length);
-    /*
-      If the old and the new names have the same length,
-      then table name does not have tricky characters,
-      so no need to check the old file name.
-    */
-    if (length == share->normalized_path.length ||
-        ((file= mysql_file_open(key_file_frm,
-                                path, O_RDONLY | O_SHARE, MYF(0))) < 0))
-      goto err_not_open;
-
-    /* Unencoded 5.0 table name found */
-    path[length]= '\0'; // Remove .frm extension
-    my_stpcpy(share->normalized_path.str, path);
-    share->normalized_path.length= length;
+    goto err_not_open;
   }
 
   error= 4;
@@ -821,7 +753,7 @@ err_not_open:
   if (error && !error_given)
   {
     share->error= error;
-    open_table_error(share, error, (share->open_errno= my_errno), 0);
+    open_table_error(thd, share, error, (share->open_errno= my_errno), 0);
   }
 
   DBUG_RETURN(error);
@@ -2549,7 +2481,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
 
-  open_table_error(share, error, share->open_errno, errarg);
+  open_table_error(thd, share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
 } /* open_binary_frm */
 
@@ -2623,7 +2555,7 @@ static bool validate_generated_expr(Field *field)
   @return
     FALSE                Ok, generated expression is fixed sucessfully 
  */
-bool fix_fields_gcol_func(THD *thd, Field *field)
+static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -2728,11 +2660,11 @@ end:
     FALSE           Success
  */
 
-bool unpack_gcol_info_from_frm(THD *thd,
-                               TABLE *table,
-                               Field *field,
-                               bool is_create_table,
-                               bool *error_reported)
+static bool unpack_gcol_info_from_frm(THD *thd,
+                                      TABLE *table,
+                                      Field *field,
+                                      bool is_create_table,
+                                      bool *error_reported)
 {
   DBUG_ENTER("unpack_gcol_info_from_frm");
   DBUG_ASSERT(field->table == table);
@@ -3243,7 +3175,7 @@ partititon_err:
 
  err:
   if (! error_reported)
-    open_table_error(share, error, my_errno, 0);
+    open_table_error(thd, share, error, my_errno, 0);
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
@@ -3491,7 +3423,8 @@ ulong make_new_entry(File file, uchar *fileinfo, TYPELIB *formnames,
 
 	/* error message when opening a form file */
 
-void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
+void open_table_error(THD *thd, TABLE_SHARE *share,
+                      int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
@@ -3525,7 +3458,7 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 
     if (share->db_type() != NULL)
     {
-      if ((file= get_new_handler(share, current_thd->mem_root,
+      if ((file= get_new_handler(share, thd->mem_root,
                                  share->db_type())))
       {
         if (!(datext= *file->bas_ext()))
@@ -3985,7 +3918,6 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
 {
   char *name= org_name->str;
   size_t name_length= org_name->length;
-  bool check_for_path_chars;
   enum_ident_name_check ident_check_status;
 
   if (!name_length || name_length > NAME_LEN)
@@ -3994,16 +3926,10 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
     return IDENT_NAME_WRONG;
   }
 
-  if ((check_for_path_chars= check_mysql50_prefix(name)))
-  {
-    name+= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-    name_length-= MYSQL50_TABLE_NAME_PREFIX_LENGTH;
-  }
-
   if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
-  ident_check_status= check_table_name(name, name_length, check_for_path_chars);
+  ident_check_status= check_table_name(name, name_length);
   if (ident_check_status == IDENT_NAME_WRONG)
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
   else if (ident_check_status == IDENT_NAME_TOO_LONG)
@@ -4018,7 +3944,6 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
 
   @param name                  Table name
   @param length                Length of table name
-  @param check_for_path_chars  Check if the table name contains path chars
 
   @retval  IDENT_NAME_OK        Identifier name is Ok (Success)
   @retval  IDENT_NAME_WRONG     Identifier name is Wrong (ER_WRONG_TABLE_NAME)
@@ -4028,8 +3953,7 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
   @note Reporting error to the user is the responsiblity of the caller.
 */
 
-enum_ident_name_check check_table_name(const char *name, size_t length,
-                                       bool check_for_path_chars)
+enum_ident_name_check check_table_name(const char *name, size_t length)
 {
   // name length in symbols
   size_t name_length= 0;
@@ -4051,9 +3975,6 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-    if (check_for_path_chars &&
-        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
-      return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
@@ -4112,7 +4033,8 @@ bool check_column_name(const char *name)
 */
 
 bool
-Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
+Table_check_intact::check(THD *thd, TABLE *table,
+                          const TABLE_FIELD_DEF *table_def)
 {
   uint i;
   my_bool error= FALSE;
@@ -4133,7 +4055,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
+                   ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2),
                    table->s->db.str, table->alias,
                    table_def->count, table->s->fields,
                    static_cast<int>(table->s->mysql_version),
@@ -4143,7 +4065,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
       report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2,
-                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
+                   ER_THD(thd, ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2),
                    table->s->db.str, table->s->table_name.str,
                    table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
@@ -4270,8 +4192,7 @@ uint Wait_for_flush::get_deadlock_weight() const
   Traverse portion of wait-for graph which is reachable through this
   table share in search for deadlocks.
 
-  @param waiting_ticket  Ticket representing wait for this share.
-  @param dvisitor        Deadlock detection visitor.
+  @param gvisitor        Deadlock detection visitor.
 
   @retval TRUE  A deadlock is found. A victim is remembered
                 by the visitor.
@@ -4367,7 +4288,6 @@ end:
   open_table_def()), which will notify the owners of the flush tickets,
   and the last one being notified will actually destroy the share.
 
-  @param mdl_context     MDL context for thread which is going to wait.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
@@ -4454,6 +4374,18 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     DBUG_ASSERT(0);
     return TRUE;
   }
+}
+
+Blob_mem_storage::Blob_mem_storage()
+  : truncated_value(false)
+{
+  init_alloc_root(key_memory_blob_mem_storage,
+                  &storage, MAX_FIELD_VARCHARLENGTH, 0);
+}
+
+Blob_mem_storage::~Blob_mem_storage()
+{
+  free_root(&storage, MYF(0));
 }
 
 
@@ -4587,7 +4519,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
                             const char *alias,
                             TABLE_LIST *embedding,
                             List<TABLE_LIST> *belongs_to,
-                            class st_select_lex *select)
+                            SELECT_LEX *select)
 {
   DBUG_ASSERT(belongs_to && select);
 
@@ -4624,7 +4556,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   @return false if success, true if error
 */
 
-bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
+bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 {
   DBUG_ASSERT(nested_join->join_list.is_empty());
 
@@ -5238,7 +5170,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       {
         push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
-                            ER(ER_NO_SUCH_USER),
+                            ER_THD(thd, ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
       }
       else
@@ -5258,7 +5190,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
             my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                      thd->security_context()->priv_user().str,
                      thd->security_context()->priv_host().str,
-                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+                     (thd->password ?  ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -5483,7 +5415,7 @@ Item *Field_iterator_table::create_item(THD *thd)
     code in Item_field::fix_fields().
     */
   if (item && !thd->lex->in_sum_func &&
-      select->resolve_place == st_select_lex::RESOLVE_SELECT_LIST)
+      select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST)
   {
     if (select->with_sum_func && !select->group_list.elements)
       item->maybe_null= true;
@@ -5893,7 +5825,7 @@ void TABLE::prepare_for_position()
 
   @param thd      Thread handler (only used for duplicate handling)
   @param field    The column to be marked as used
-  @param mark_used =MARK_COLUMNS_NONE: Only update flag field, if applicable
+  @param mark      =MARK_COLUMNS_NONE: Only update flag field, if applicable
                    =MARK_COLUMNS_READ: Mark column as read
                    =MARK_COLUMNS_WRITE: Mark column as written
                    =MARK_COLUMNS_TEMP: Mark column as read, use by filesort()
@@ -6053,9 +5985,9 @@ void TABLE::mark_auto_increment_column()
     retrieve the row again.
 */
 
-void TABLE::mark_columns_needed_for_delete()
+void TABLE::mark_columns_needed_for_delete(THD *thd)
 {
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
 
   if (triggers)
     triggers->mark_fields(TRG_EVENT_DELETE);
@@ -6119,11 +6051,11 @@ void TABLE::mark_columns_needed_for_delete()
     Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(THD *thd)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -6197,7 +6129,7 @@ void TABLE::mark_columns_needed_for_update()
   we only want to log a PK and we needed other fields for
   execution).
  */
-void TABLE::mark_columns_per_binlog_row_image()
+void TABLE::mark_columns_per_binlog_row_image(THD *thd)
 {
   DBUG_ENTER("mark_columns_per_binlog_row_image");
   DBUG_ASSERT(read_set->bitmap);
@@ -6211,9 +6143,6 @@ void TABLE::mark_columns_per_binlog_row_image()
        in_use->is_current_stmt_binlog_format_row() &&
        !ha_check_storage_engine_flag(s->db_type(), HTON_NO_BINLOG_ROW_OPT)))
   {
-
-    THD *thd= current_thd;
-
     /* if there is no PK, then mark all columns for the BI. */
     if (s->primary_key >= MAX_KEY)
       bitmap_set_all(read_set);
@@ -6302,7 +6231,7 @@ bool TABLE::alloc_keys(uint key_count)
   key.
   @see add_derived_key
 
-  @TODO somehow manage to create keys in tmp_table_param for unification
+  @todo somehow manage to create keys in tmp_table_param for unification
         purposes
 
   @return TRUE OOM error.
@@ -6489,9 +6418,9 @@ void TABLE::use_index(int key_to_save)
   as changed.
 */
 
-void TABLE::mark_columns_needed_for_insert()
+void TABLE::mark_columns_needed_for_insert(THD *thd)
 {
-  mark_columns_per_binlog_row_image();
+  mark_columns_per_binlog_row_image(thd);
   if (triggers)
   {
     /*
@@ -6746,9 +6675,9 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
   if (index_hints)
   {
     /* Temporary variables used to collect hints of each kind. */
-    key_map index_join[INDEX_HINT_FORCE + 1];
-    key_map index_order[INDEX_HINT_FORCE + 1];
-    key_map index_group[INDEX_HINT_FORCE + 1];
+    Key_map index_join[INDEX_HINT_FORCE + 1];
+    Key_map index_order[INDEX_HINT_FORCE + 1];
+    Key_map index_group[INDEX_HINT_FORCE + 1];
     Index_hint *hint;
     bool have_empty_use_join= FALSE, have_empty_use_order= FALSE, 
          have_empty_use_group= FALSE;
@@ -7168,12 +7097,12 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
 
 /**
   @brief
-  Generate keys for a materialized derived table/view
+  Generate keys for a materialized derived table/view.
 
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling the
-  TABLE::add_tmp_key to actually add keys. A name <auto_keyN>, where N is a
+  TABLE::add_tmp_key to actually add keys. A name @<auto_keyN@>, where N is a
   sequential number, is given to each key to ease debugging.
   @see add_derived_key
 

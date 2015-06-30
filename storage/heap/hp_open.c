@@ -17,6 +17,7 @@
 
 #include "heapdef.h"
 #include "my_sys.h"
+#include "mysql/service_mysql_alloc.h"
 
 /*
   Open heap table based on HP_SHARE structure

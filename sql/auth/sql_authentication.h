@@ -16,11 +16,14 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"                  // NO_EMBEDDED_ACCESS_CHECKS
-#include <mysql/plugin_auth.h>          // MYSQL_SERVER_AUTH_INFO
+#include "my_global.h"
+#include "m_string.h"                   // LEX_CSTRING
+#include "my_thread.h"                  // my_thread_id
+#include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
 #include "sql_plugin_ref.h"             // plugin_ref
 
 /* Forward declarations */
+class String;
 class THD;
 typedef struct charset_info_st CHARSET_INFO;
 class ACL_USER;

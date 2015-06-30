@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "heapdef.h"
+#include "mysql/service_mysql_alloc.h"
 
 static int keys_compare(heap_rb_param *param, uchar *key1, uchar *key2);
 static void init_block(HP_BLOCK *block,uint reclength,ulong min_records,

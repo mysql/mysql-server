@@ -17,15 +17,13 @@
 
 #include "abstract_query_plan.h"
 
+#include "sql_executor.h"     // QEP_TAB
 #include "sql_optimizer.h"    // JOIN
+#include "opt_range.h"        // QUICK_SELECT_I
+#include "sql_select.h"       // st_position
 
 namespace AQP
 {
-
-  /**
-    @param join_tab Array of access methods constituting the nested loop join.
-    @param access_count Length of array.
-  */
   Join_plan::Join_plan(const JOIN* join)
    : m_qep_tabs(join->qep_tab),
      m_access_count(join->primary_tables),
@@ -62,7 +60,7 @@ namespace AQP
 
   /**
     Determine join type between this table access and some other table
-    access that preceeds it in the join plan..
+    access that preceeds it in the join plan.
   */
   enum_join_type 
   Table_access::get_join_type(const Table_access* predecessor) const
@@ -509,5 +507,5 @@ namespace AQP
     qep_tab->set_pushed_table_access_method();
   }
 
-};
+}
 // namespace AQP

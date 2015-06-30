@@ -43,16 +43,12 @@
 #include <signal.h>
 #include <errno.h>
 #include "probes_mysql.h"
-/* key_memory_NET_buff */
-#include "mysqld.h"
+#include "mysql/service_mysql_alloc.h"
 
 #include <algorithm>
 
 using std::min;
 using std::max;
-
-PSI_memory_key key_memory_NET_buff;
-PSI_memory_key key_memory_NET_compress_packet;
 
 #ifdef EMBEDDED_LIBRARY
 #undef MYSQL_SERVER
@@ -60,6 +56,12 @@ PSI_memory_key key_memory_NET_compress_packet;
 #define MYSQL_CLIENT
 #endif /*EMBEDDED_LIBRARY */
 
+#ifndef MYSQL_CLIENT
+#include "psi_memory_key.h"
+#else
+#define key_memory_NET_buff 0
+#define key_memory_NET_compress_packet 0
+#endif
 
 /*
   The following handles the differences when this is linked between the
@@ -240,7 +242,7 @@ my_bool net_flush(NET *net)
 */
 
 static my_bool
-net_should_retry(NET *net, uint *retry_count __attribute__((unused)))
+net_should_retry(NET *net, uint *retry_count)
 {
   my_bool retry;
 
@@ -800,7 +802,7 @@ static my_bool net_read_packet_header(NET *net)
   @remark Long packets are handled by my_net_read().
   @remark The network buffer is expanded if necessary.
 
-  @return The length of the packet, or @packet_error on error.
+  @return The length of the packet, or @c packet_error on error.
 */
 
 static size_t net_read_packet(NET *net, size_t *complen)

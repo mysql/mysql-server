@@ -21,6 +21,7 @@
 #include "connection_handler_manager.h"  // Connection_handler_manager
 #include "mysqld_thd_manager.h"          // Global_THD_manager
 #include "sql_class.h"
+#include "current_thd.h"                 // my_thread_get_THR_THD
 
 #ifdef _WIN32
 #include <crtdbg.h>

@@ -211,8 +211,6 @@ TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
                                    thr_lock_type locktype,
                                    enum_mdl_type mdl_type);
 
-bool sp_check_show_access(THD *thd, sp_head *sp, bool *full_access);
-
 Item *sp_prepare_func_item(THD* thd, Item **it_addr);
 
 bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr);

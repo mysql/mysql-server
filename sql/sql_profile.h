@@ -52,7 +52,10 @@ typedef struct st_mysql_lex_string LEX_STRING;
 
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
+
+extern "C" {
 extern PSI_memory_key key_memory_queue_item;
+}
 
 class PROF_MEASUREMENT;
 class QUERY_PROFILE;

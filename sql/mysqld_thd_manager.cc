@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,20 @@
 
 int Global_THD_manager::global_thd_count= 0;
 Global_THD_manager *Global_THD_manager::thd_manager = NULL;
+
+
+bool Find_thd_with_id::operator()(THD *thd)
+{
+  if (thd->get_command() == COM_DAEMON)
+    return false;
+  if (thd->thread_id() == m_id)
+  {
+    mysql_mutex_lock(&thd->LOCK_thd_data);
+    return true;
+  }
+  return false;
+}
+
 
 /**
   Internal class used in do_for_all_thd() and do_for_all_thd_copy()

@@ -14,10 +14,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "spatial.h"
+
 #include "sql_string.h"                         // String
 #include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "gstream.h"                            // Gis_read_stream
-#include "spatial.h"
+#include "psi_memory_key.h"
+
 #include <mysqld_error.h>
 #include <set>
 #include <utility>
@@ -27,6 +30,28 @@
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif
+
+void *gis_wkb_alloc(size_t sz)
+{
+  sz+= GEOM_HEADER_SIZE;
+  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
+                                         sz, MYF(MY_FAE)));
+  p+= GEOM_HEADER_SIZE;
+  return p;
+}
+
+
+void *gis_wkb_realloc(void *p, size_t sz)
+{
+  char *cp= static_cast<char *>(p);
+  if (cp)
+    cp-= GEOM_HEADER_SIZE;
+  sz+= GEOM_HEADER_SIZE;
+
+  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
+  cp= static_cast<char *>(p);
+  return cp + GEOM_HEADER_SIZE;
+}
 
 
 /***************************** MBR *******************************/
@@ -1138,7 +1163,7 @@ bool Geometry::envelope(String *result) const
 /**
   Create a point from data.
 
-  @param OUT result   Put result here
+  @param [out] result   Put result here
   @param wkb          Data for point is here.
 
   @return             false on success, true on error
@@ -1159,9 +1184,8 @@ bool Geometry::create_point(String *result, wkb_parser *wkb) const
 /**
   Create a point from coordinates.
 
-  @param OUT result
-  @param x  x coordinate for point
-  @param y  y coordinate for point
+  @param [out] result
+  @param p  coordinates for point
 
   @return  false on success, true on error
 */
@@ -1183,7 +1207,7 @@ bool Geometry::create_point(String *result, point_xy p) const
   Before calling this function, caller must have already checked that wkb's
   buffer is complete and not truncated.
 
-  @param OUT txt        Append points here
+  @param [out] txt        Append points here
   @param     n_points   Number of points
   @param     wkb        Packed data
   @param     offset     Offset between points
@@ -1211,7 +1235,7 @@ void Geometry::append_points(String *txt, uint32 n_points,
 /**
   Get most bounding rectangle (mbr) for X points
 
-  @param OUT mbr      Result
+  @param [out] mbr      Result
   @param wkb          Data for point is here.
   @param offset       Offset between points
 
@@ -1377,8 +1401,8 @@ Gis_point::Gis_point(const self &pt) :Geometry(pt)
 
 /**
   Deep assignment from point 'p' to this object.
-  @param p the Gis_point to duplicate from.
-  */
+  @param rhs the Gis_point to duplicate from.
+*/
 Gis_point &Gis_point::operator=(const Gis_point &rhs)
 {
   if (this == &rhs)
@@ -1905,8 +1929,8 @@ Gis_polygon::~Gis_polygon()
 
 /**
   Deep assignment from polygon 'o' to this object.
-  @param p the Gis_polygon instance to duplicate from.
-  */
+  @param rhs the Gis_polygon instance to duplicate from.
+*/
 Gis_polygon &Gis_polygon::operator=(const Gis_polygon &rhs)
 {
   if (this == &rhs || !is_bg_adapter() || !rhs.is_bg_adapter())
@@ -4124,8 +4148,6 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms)
   not be made a virtual function since BG adapter geometry objects may also
   need it.
 
-  @param geo the geometry to convert, should be one of polygon, multipolygon or
-             geometry collection, otherwise it's a no-op.
   @return the WKB buffer address of the geometry which contains the
           converted WKB data. If geometry data is invalid, returns NULL.
  */

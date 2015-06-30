@@ -21,7 +21,6 @@
   Performance schema connection slice (declarations).
 */
 
-#include "sql_class.h"
 #include "pfs_lock.h"
 #include "lf.h"
 #include "pfs_status.h"
@@ -234,7 +233,7 @@ private:
 
 public:
 
-  void aggregate_status_stats(const STATUS_VAR *status_vars)
+  void aggregate_status_stats(const System_status_var *status_vars)
   {
     m_status_stats.aggregate_from(status_vars);
   }

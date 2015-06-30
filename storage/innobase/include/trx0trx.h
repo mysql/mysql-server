@@ -66,7 +66,7 @@ void
 trx_search_latch_release_if_reserved(trx_t* trx);
 
 /** Set flush observer for the transaction
-@param[in/out]	trx		transaction struct
+@param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
 void
 trx_set_flush_observer(
@@ -109,13 +109,17 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 
-/** Frees and initialize a transaction object instantinated during recovery.
-@param trx trx object to free and initialize during recovery */
+/** Resurrect table locks for resurrected transactions. */
+void
+trx_resurrect_locks();
+
+/** Free and initialize a transaction object instantiated during recovery.
+@param[in,out]	trx	transaction object to free and initialize */
 void
 trx_free_resurrected(trx_t* trx);
 
 /** Free a transaction that was allocated by background or user threads.
-@param trx trx object to free */
+@param[in,out]	trx	transaction object to free */
 void
 trx_free_for_background(trx_t* trx);
 
@@ -1283,7 +1287,7 @@ struct trx_t {
 /**
 Check if transaction is started.
 @param[in] trx		Transaction whose state we need to check
-@reutrn true if transaction is in state started */
+@return true if transaction is in state started */
 inline
 bool
 trx_is_started(

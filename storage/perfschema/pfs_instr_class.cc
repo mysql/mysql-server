@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "table.h"
+#include "mysqld.h"                             // lower_case_table_names
 #include "pfs_instr_class.h"
 #include "pfs_builtin_memory.h"
 #include "pfs_instr.h"
@@ -595,8 +596,8 @@ PFS_table_share::find_index_stat(uint index) const
 
 /**
   Find or create a table share index instrumentation.
-  @param server_share
-  @index index
+  @param server_share the server TABLE_SHARE structure
+  @param index the index
   @return a table share index, or NULL
 */
 PFS_table_share_index*
@@ -1747,7 +1748,7 @@ search:
   entry= reinterpret_cast<PFS_table_share**>
     (lf_hash_search(&table_share_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     pfs= *entry;
     pfs->inc_refcount() ;
@@ -1950,7 +1951,7 @@ void drop_table_share(PFS_thread *thread,
   entry= reinterpret_cast<PFS_table_share**>
     (lf_hash_search(&table_share_hash, pins,
                     key.m_hash_key, key.m_key_length));
-  if (entry && (entry != MY_ERRPTR))
+  if (entry && (entry != MY_LF_ERRPTR))
   {
     PFS_table_share *pfs= *entry;
     lf_hash_delete(&table_share_hash, pins,

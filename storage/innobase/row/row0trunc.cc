@@ -65,6 +65,8 @@ public:
 
 		if (noredo) {
 			mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
+		} else {
+			m_mtr.set_sys_modified();
 		}
 
 		btr_pcur_open_on_user_rec(
@@ -523,7 +525,7 @@ private:
 private:
 	/** Lookup the index using the index id.
 	@return index instance if found else NULL */
-	const dict_index_t* find(index_id_t id) const
+	const dict_index_t* find(space_index_t id) const
 	{
 		for (const dict_index_t* index = UT_LIST_GET_FIRST(
 				m_table->indexes);
@@ -998,6 +1000,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
+		mtr->set_sys_modified();
 		mtr->set_log_mode(log_mode);
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
@@ -1089,7 +1092,7 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
-
+		mtr->set_sys_modified();
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	} else {
@@ -1172,7 +1175,7 @@ row_truncate_rollback(
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-			dict_set_corrupted(index, trx, "TRUNCATE TABLE");
+			dict_set_corrupted(index);
 		}
 
 		if (has_internal_doc_id) {
@@ -1205,10 +1208,10 @@ row_truncate_rollback(
 			index->page = FIL_NULL;
 		}
 
+		dict_set_corrupted(dict_table_get_first_index(table));
+
 		dict_table_x_unlock_indexes(table);
 	}
-
-	table->corrupted = corrupted;
 }
 
 /**
@@ -1980,9 +1983,9 @@ row_truncate_table_for_mysql(
 			return(row_truncate_complete(
 				table, trx, fsp_flags, logger, err));
 		}
-
 	} else {
 		/* For temporary tables we don't have entries in SYSTEM TABLES*/
+		ut_ad(fsp_is_system_temporary(table->space));
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -2005,9 +2008,7 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	if (is_file_per_table
-	    && !dict_table_is_temporary(table)
-	    && fsp_flags != ULINT_UNDEFINED) {
+	if (is_file_per_table && fsp_flags != ULINT_UNDEFINED) {
 
 		fil_reinit_space_header(
 			table->space,
@@ -2726,7 +2727,7 @@ truncate_t::create_index(
 	ulint			space_id,
 	const page_size_t&	page_size,
 	ulint			index_type,
-	index_id_t		index_id,
+	space_index_t		index_id,
 	const btr_create_t&	btr_redo_create_info,
 	mtr_t*			mtr) const
 {
@@ -2830,6 +2831,8 @@ truncate_t::drop_indexes(
 			/* Do not log changes for single-table
 			tablespaces, we are in recovery mode. */
 			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_sys_modified();
 		}
 
 		if (root_page_no != FIL_NULL) {
@@ -2870,6 +2873,8 @@ truncate_t::create_indexes(
 		/* Do not log changes for single-table tablespaces, we
 		are in recovery mode. */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_sys_modified();
 	}
 
 	/* Create all new index trees with table format, index ids, index

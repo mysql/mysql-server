@@ -23,6 +23,7 @@
 
 #include "my_global.h"
 #include "table_replication_applier_status.h"
+#include "mysqld.h"                             // LOCK_msr_map
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"

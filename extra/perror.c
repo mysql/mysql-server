@@ -104,12 +104,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
-    break;
   case 'I':
   case '?':
     usage();
     exit(0);
-    break;
   }
   return 0;
 }
@@ -369,5 +367,4 @@ int main(int argc,char *argv[])
     free(unknown_error);
 
   exit(error);
-  return error;
 }

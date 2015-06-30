@@ -27,6 +27,10 @@
 
 class MY_LOCALE;
 
+CHARSET_INFO *
+mysqld_collation_get_by_name(const char *name,
+                             CHARSET_INFO *name_cs= system_charset_info);
+
 class Item_str_func :public Item_func
 {
   typedef Item_func super;
@@ -175,7 +179,7 @@ public:
 /**
   This class handles the following function:
 
-    <string> = ST_ASGEOJSON(<geometry>[, <maxdecimaldigits>[, <options>]])
+    @<string@> = ST_ASGEOJSON(@<geometry@>[, @<maxdecimaldigits@>[, @<options@>]])
 
   It converts a GEOMETRY into a valid GeoJSON string. If maxdecimaldigits is
   specified, the coordinates written are rounded to the number of decimals
@@ -185,8 +189,8 @@ public:
     0  No options (default values).
     1  Add a bounding box to the output.
     2  Add a short CRS URN to the output. The default format is a
-       short format ("EPSG:<srid>").
-    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
+       short format ("EPSG:@<srid@>").
+    4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::@<srid@>"). This
        implies 2. This means that, e.g., bitmask 5 and 7 mean the
        same: add a bounding box and a long format CRS URN.
 */
@@ -810,11 +814,11 @@ public:
 /**
   This class handles two forms of the same function:
 
-  <string> = ST_GEOHASH(<point>, <maxlength>);
-  <string> = ST_GEOHASH(<longitude>, <latitude>, <maxlength>)
+  @<string@> = ST_GEOHASH(@<point@>, @<maxlength@>);
+  @<string@> = ST_GEOHASH(@<longitude@>, @<latitude@>, @<maxlength@>)
 
-  It returns an encoded geohash string, no longer than <maxlength> characters
-  long. Note that it might be shorter than <maxlength>.
+  It returns an encoded geohash string, no longer than @<maxlength@> characters
+  long. Note that it might be shorter than @<maxlength@>.
 */
 class Item_func_geohash :public Item_str_ascii_func
 {
@@ -1375,12 +1379,6 @@ public:
   longlong val_int();
 };
 
-#ifdef HAVE_COMPRESS
-#define ZLIB_DEPENDED_FUNCTION ;
-#else
-#define ZLIB_DEPENDED_FUNCTION { null_value=1; return 0; }
-#endif
-
 class Item_func_compress: public Item_str_func
 {
   String buffer;
@@ -1388,7 +1386,7 @@ public:
   Item_func_compress(const POS &pos, Item *a):Item_str_func(pos, a){}
   void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
   const char *func_name() const{return "compress";}
-  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+  String *val_str(String *str);
 };
 
 class Item_func_uncompress: public Item_str_func
@@ -1398,7 +1396,7 @@ public:
   Item_func_uncompress(const POS &pos, Item *a): Item_str_func(pos, a) {}
   void fix_length_and_dec(){ maybe_null= 1; max_length= MAX_BLOB_WIDTH; }
   const char *func_name() const{return "uncompress";}
-  String *val_str(String *) ZLIB_DEPENDED_FUNCTION
+  String *val_str(String * str);
 };
 
 class Item_func_uuid: public Item_str_func
@@ -1410,12 +1408,7 @@ public:
   Item_func_uuid(const POS &pos): Item_str_func(pos) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
-  void fix_length_and_dec()
-  {
-    collation.set(system_charset_info,
-                  DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
-    fix_char_length(UUID_LENGTH);
-  }
+  void fix_length_and_dec();
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
   bool check_gcol_func_processor(uchar *int_arg) 

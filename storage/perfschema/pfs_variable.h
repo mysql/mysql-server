@@ -110,13 +110,13 @@
 #define PFS_VAR
 /* Class sys_var */
 #include "set_var.h"
-/* convert_value_to_string */
-#include "sql_show.h"
 /* PFS_thread */
 #include "pfs_instr.h"
 #include "pfs_user.h"
 #include "pfs_host.h"
 #include "pfs_account.h"
+
+typedef std::vector<st_mysql_show_var> Status_var_array;
 
 /* Global array of all server and plugin-defined status variables. */
 extern Status_var_array all_status_vars;
@@ -166,7 +166,7 @@ public:
                       m_type(SHOW_UNDEF), m_scope(SHOW_SCOPE_UNDEF),
                       m_charset(NULL), m_initialized(false) {}
 
-  Status_variable(const SHOW_VAR *show_var, STATUS_VAR *status_array, enum_var_type query_scope);
+  Status_variable(const SHOW_VAR *show_var, System_status_var *status_array, enum_var_type query_scope);
 
   ~Status_variable() {}
 
@@ -182,7 +182,7 @@ public:
   const CHARSET_INFO *m_charset;
 private:
   bool m_initialized;
-  void init(const SHOW_VAR *show_var, STATUS_VAR *status_array, enum_var_type query_scope);
+  void init(const SHOW_VAR *show_var, System_status_var *status_array, enum_var_type query_scope);
 };
 
 
@@ -195,16 +195,7 @@ public:
   Find_THD_variable() : m_unsafe_thd(NULL) {}
   Find_THD_variable(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
-  virtual bool operator()(THD *thd)
-  {
-    //TODO: filter bg threads?
-    if (thd != m_unsafe_thd)
-      return false;
-
-    /* Hold this lock to keep THD during materialization. */
-    mysql_mutex_lock(&thd->LOCK_thd_data);
-    return true;
-  }
+  virtual bool operator()(THD *thd);
   void set_unsafe_thd(THD *unsafe_thd) { m_unsafe_thd= unsafe_thd; }
 private:
   THD *m_unsafe_thd;
@@ -219,23 +210,7 @@ class PFS_variable_cache
 public:
   typedef Prealloced_array<Var_type, SHOW_VAR_PREALLOC, false> Variable_array;
 
-  PFS_variable_cache(bool external_init)
-    : m_safe_thd(NULL),
-      m_unsafe_thd(NULL),
-      m_current_thd(current_thd),
-      m_pfs_thread(NULL),
-      m_pfs_client(NULL),
-      m_thd_finder(),
-      m_cache(PSI_INSTRUMENT_ME),
-      m_initialized(false),
-      m_external_init(external_init),
-      m_materialized(false),
-      m_show_var_array(PSI_INSTRUMENT_ME),
-      m_version(0),
-      m_query_scope(OPT_DEFAULT),
-      m_use_mem_root(false),
-      m_aggregate(false)
-  { }
+  PFS_variable_cache(bool external_init);
 
   virtual ~PFS_variable_cache()= 0;
 
@@ -652,7 +627,7 @@ private:
   int do_materialize_client(PFS_client *pfs_client);
 
   /* Callback to sum user, host or account status variables. */
-  void (*m_sum_client_status)(PFS_client *pfs_client, STATUS_VAR *status_totals);
+  void (*m_sum_client_status)(PFS_client *pfs_client, System_status_var *status_totals);
 
   /* Build SHOW_VAR array from external source. */
   bool init_show_var_array(enum_var_type scope, bool strict);
@@ -680,13 +655,13 @@ private:
 
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,
-                STATUS_VAR *status_var_array, const char *prefix, bool nested_array, bool strict);
+                System_status_var *status_var_array, const char *prefix, bool nested_array, bool strict);
 };
 
 /* Callback functions to sum status variables for a given user, host or account. */
-void sum_user_status(PFS_client *pfs_user, STATUS_VAR *status_totals);
-void sum_host_status(PFS_client *pfs_host, STATUS_VAR *status_totals);
-void sum_account_status(PFS_client *pfs_account, STATUS_VAR *status_totals);
+void sum_user_status(PFS_client *pfs_user, System_status_var *status_totals);
+void sum_host_status(PFS_client *pfs_host, System_status_var *status_totals);
+void sum_account_status(PFS_client *pfs_account, System_status_var *status_totals);
 
 
 /** @} */

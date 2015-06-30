@@ -121,11 +121,7 @@ class BG_geometry_collection
 public:
   typedef std::vector<Geometry *> Geometry_list;
 
-  BG_geometry_collection()
-    :comp_no_overlapped(false), m_srid(0), m_num_isolated(0),
-    m_geobufs(key_memory_Geometry_objects_data),
-    m_geosdata(key_memory_Geometry_objects_data)
-  {}
+  BG_geometry_collection();
 
   bool is_comp_no_overlapped() const
   {
@@ -277,7 +273,7 @@ public:
 /**
   This handles one function:
 
-    <geometry> = ST_GEOMFROMGEOJSON(<string>[, <options>[, <srid>]])
+    @<geometry@> = ST_GEOMFROMGEOJSON(@<string@>[, @<options@>[, @<srid@>]])
 
   Options is an integer argument which determines how positions with higher
   coordinate dimension than MySQL support should be handled. The function will
@@ -459,7 +455,7 @@ public:
 
 
 /**
-  This handles the <point> = ST_POINTFROMGEOHASH(<string>, <srid>) funtion.
+  This handles the @<point@> = ST_POINTFROMGEOHASH(@<string@>, @<srid@>) function.
 
   It returns a point containing the decoded geohash value, where X is the
   longitude in the range of [-180, 180] and Y is the latitude in the range

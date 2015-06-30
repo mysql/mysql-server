@@ -310,7 +310,7 @@ namespace AQP
     return m_tab_no;
   }
 
-}; 
+}
 // namespace AQP
 
 #endif

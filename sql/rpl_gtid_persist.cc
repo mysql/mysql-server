@@ -17,11 +17,13 @@
 
 #include "rpl_gtid_persist.h"
 
+#include "current_thd.h"
 #include "debug_sync.h"       // debug_sync_set_action
 #include "log.h"              // sql_print_error
 #include "replication.h"      // THD_ENTER_COND
 #include "sql_base.h"         // MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK
 #include "sql_parse.h"        // mysql_reset_thd_for_next_command
+#include "mysqld.h"           // gtid_executed_compression_period
 
 using std::list;
 using std::string;
@@ -788,7 +790,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
                       {
                         const char act[]= "now signal compression_failed";
                         DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                        DBUG_ASSERT(!debug_sync_set_action(thd,
                                                            STRING_WITH_LEN(act)));
                       };);
     }
@@ -809,7 +811,7 @@ extern "C" void *compress_gtid_table(void *p_thd)
 void create_compress_gtid_table_thread()
 {
   my_thread_attr_t attr;
-  int error;
+  int error= 0;
   THD *thd;
   if (!(thd= new THD))
   {

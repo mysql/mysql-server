@@ -29,9 +29,9 @@ using std::string;
 using std::vector;
 
 /**
-  @file Implementation of rewrite rule execution
+  @file plugin/rewriter/rule.cc
+  Implementation of rewrite rule execution.
   Details on parameter extraction:
-
   It is important to understand that in the case of a rewrite the tree of the
   original query and of the pattern have been found to be similar (by
   comparing the normalized strings,) except that instead of parameter markers

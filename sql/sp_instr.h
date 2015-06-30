@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,14 +16,29 @@
 #ifndef _SP_INSTR_H_
 #define _SP_INSTR_H_
 
-#include "my_global.h"    // NO_EMBEDDED_ACCESS_CHECKS
-#include "sp_pcontext.h"  // sp_pcontext
-#include "sql_class.h"    // THD
-#include "sp_head.h"      // sp_printable
+#include "my_global.h"
+#include "sql_class.h"   // Query_arena
+
+class sp_handler;
+class sp_variable;
 
 ///////////////////////////////////////////////////////////////////////////
 // This file contains SP-instruction classes.
 ///////////////////////////////////////////////////////////////////////////
+
+/**
+  sp_printable defines an interface which should be implemented if a class wants
+  report some internal information about its state.
+*/
+class sp_printable
+{
+public:
+  virtual void print(String *str) = 0;
+
+  virtual ~sp_printable()
+  { }
+};
+
 
 /**
   An interface for all SP-instructions with destinations that
@@ -242,7 +257,7 @@ private:
     cleanup afterwards.
 
     @param thd           thread context
-    @param nextp[out]    next instruction pointer
+    @param [out] nextp   next instruction pointer
     @param open_tables   if TRUE then check read access to tables in LEX's table
                          list and open and lock them (used in instructions which
                          need to calculate some expression and don't execute
@@ -310,7 +325,7 @@ protected:
     (e.g. setting of proper LEX, saving part of the thread context).
 
     @param thd  Thread context.
-    @param nextp[out]    next instruction pointer
+    @param [out] nextp    next instruction pointer
 
     @return Error flag.
   */
@@ -1091,10 +1106,6 @@ public:
     m_expr_item= NULL; // it's a WHEN-expression.
   }
 
-  virtual bool on_after_expr_parsing(THD *thd)
-  { return build_expr_items(thd); }
-
-private:
   /**
     Build CASE-expression item tree:
       Item_func_eq(case-expression, when-i-expression)
@@ -1115,7 +1126,7 @@ private:
 
     @return Error flag.
   */
-  bool build_expr_items(THD *thd);
+  virtual bool on_after_expr_parsing(THD *thd);
 
 private:
   /// Identifier (index) of the CASE-expression in the runtime context.
@@ -1151,23 +1162,11 @@ class sp_instr_hpush_jump : public sp_instr_jump
 public:
   sp_instr_hpush_jump(uint ip,
                       sp_pcontext *ctx,
-                      sp_handler *handler)
-   :sp_instr_jump(ip, ctx),
-    m_handler(handler),
-    m_opt_hpop(0),
-    m_frame(ctx->current_var_count())
-  {
-    DBUG_ASSERT(m_handler->condition_values.elements == 0);
-  }
+                      sp_handler *handler);
 
-  virtual ~sp_instr_hpush_jump()
-  {
-    m_handler->condition_values.empty();
-    m_handler= NULL;
-  }
+  virtual ~sp_instr_hpush_jump();
 
-  void add_condition(sp_condition_value *condition_value)
-  { m_handler->condition_values.push_back(condition_value); }
+  void add_condition(sp_condition_value *condition_value);
 
   sp_handler *get_handler()
   { return m_handler; }
@@ -1263,10 +1262,7 @@ public:
 class sp_instr_hreturn : public sp_instr_jump
 {
 public:
-  sp_instr_hreturn(uint ip, sp_pcontext *ctx)
-   :sp_instr_jump(ip, ctx),
-    m_frame(ctx->current_var_count())
-  { }
+  sp_instr_hreturn(uint ip, sp_pcontext *ctx);
 
   /////////////////////////////////////////////////////////////////////////
   // sp_printable implementation.
@@ -1608,7 +1604,7 @@ public:
 
   virtual bool execute(THD *thd, uint *nextp)
   {
-    my_message(m_errcode, ER(m_errcode), MYF(0));
+    my_error(m_errcode, MYF(0));
     *nextp= get_ip() + 1;
     return true;
   }

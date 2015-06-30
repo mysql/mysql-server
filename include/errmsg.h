@@ -31,11 +31,6 @@ extern const char *client_errors[];	/* Error messages */
 
 #define CR_MIN_ERROR		2000	/* For easier client code */
 #define CR_MAX_ERROR		2999
-#if !defined(ER)
-#define ER(X) (((X) >= CR_ERROR_FIRST && (X) <= CR_ERROR_LAST)? \
-               client_errors[(X)-CR_ERROR_FIRST]: client_errors[CR_UNKNOWN_ERROR])
-
-#endif
 #define CLIENT_ERRMAP		2	/* Errormap used by my_error() */
 
 /* Do not add error numbers before CR_ERROR_FIRST. */
@@ -109,5 +104,12 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_INSECURE_API_ERR                     2062
 #define CR_ERROR_LAST  /*Copy last error nr:*/  2062
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
+
+static inline const char* ER_CLIENT(int client_errno)
+{
+  if (client_errno >= CR_ERROR_FIRST && client_errno <= CR_ERROR_LAST)
+    return client_errors[client_errno - CR_ERROR_FIRST];
+  return client_errors[CR_UNKNOWN_ERROR];
+}
 
 #endif /* ERRMSG_INCLUDED */

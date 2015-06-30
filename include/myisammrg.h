@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2004, 2006-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,18 +17,14 @@
 
 #ifndef _myisammrg_h
 #define _myisammrg_h
-#ifdef	__cplusplus
-extern "C" {
-#endif
 
-#ifndef _my_base_h
-#include <my_base.h>
-#endif
-#ifndef _myisam_h
-#include <myisam.h>
-#endif
+#include "my_global.h"
+#include "my_base.h"
+#include "myisam.h"
+#include "queues.h"
+#include "typelib.h"
 
-#include <queues.h>
+C_MODE_START
 
 #define MYRG_NAME_EXT	".MRG"
 
@@ -118,7 +113,7 @@ extern ha_rows myrg_records_in_range(MYRG_INFO *info, int inx,
 extern ha_rows myrg_records(MYRG_INFO *info);
 
 extern ulonglong myrg_position(MYRG_INFO *info);
-#ifdef	__cplusplus
-}
-#endif
-#endif
+
+C_MODE_END
+
+#endif /* _myisammrg_h */

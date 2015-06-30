@@ -865,7 +865,7 @@
    fun:my_b_flush_io_cache
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
-   fun:_Z*13find_all_keysP10Sort_paramP7QEP_TABP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_N12_GLOBAL__N_111Mem_compareEEPy
+   fun:_Z*13find_all_keysP3THDP10Sort_paramP7QEP_TABP13Filesort_infoP11st_io_cacheS8_P13Bounded_queueIPhSA_S1_N12_GLOBAL__N_111Mem_compareEEPy
    fun:_Z8filesortP3THDP7QEP_TABP8FilesortbPyS5_
 }
 

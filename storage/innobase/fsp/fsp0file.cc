@@ -25,6 +25,7 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "ha_prototypes.h"
 
+#include "fsp0file.h"
 #include "fil0fil.h"
 #include "fsp0sysspace.h"
 #include "os0file.h"
@@ -510,7 +511,10 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 		free_first_page();
 
 		return(DB_ERROR);
-
+	} else if (!fsp_flags_is_valid(m_flags)
+		   || FSP_FLAGS_GET_TEMPORARY(m_flags)) {
+		/* Tablespace flags must be valid. */
+		error_txt = "Tablespace flags are invalid";
 	} else if (page_get_page_no(m_first_page) != 0) {
 
 		/* First page must be number 0 */
@@ -520,13 +524,14 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		/* The space_id can be most anything, except -1. */
 		error_txt = "A bad Space ID was found";
-
-	} else if (buf_page_is_corrupted(
+	} else {
+		BlockReporter	reporter(
 			false, m_first_page, page_size,
-			fsp_is_checksum_disabled(m_space_id))) {
-
-		/* Look for checksum and other corruptions. */
-		error_txt = "Checksum mismatch";
+			fsp_is_checksum_disabled(m_space_id));
+		if (reporter.is_corrupted()) {
+			/* Look for checksum and other corruptions. */
+			error_txt = "Checksum mismatch";
+		}
 	}
 
 	if (error_txt != NULL) {
@@ -558,9 +563,7 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		free_first_page();
 
-		return(is_predefined_tablespace(m_space_id)
-		       ? DB_CORRUPTION
-		       : DB_TABLESPACE_EXISTS);
+		return(DB_TABLESPACE_EXISTS);
 	}
 
 	return(DB_SUCCESS);
@@ -663,8 +666,11 @@ Datafile::find_space_id()
 			/* For noncompressed pages, the page size must be
 			equal to univ_page_size.physical(). */
 			if (page_size == univ_page_size.physical()) {
-				noncompressed_ok = !buf_page_is_corrupted(
+				BlockReporter	reporter(
 					false, page, univ_page_size, false);
+
+				noncompressed_ok =
+					!reporter.is_corrupted();
 			}
 
 			bool	compressed_ok = false;
@@ -683,8 +689,11 @@ Datafile::find_space_id()
 					page_size, univ_page_size.logical(),
 					true);
 
-				compressed_ok = !buf_page_is_corrupted(
+				BlockReporter	reporter(
 					false, page, compr_page_size, false);
+
+				compressed_ok =
+					!reporter.is_corrupted();
 			}
 
 			if (noncompressed_ok || compressed_ok) {
@@ -791,223 +800,4 @@ Datafile::restore_from_doublewrite(
 	return(os_file_write(
 			request,
 			m_filepath, m_handle, page, 0, page_size.physical()));
-}
-
-/** Opens a handle to the file linked to in an InnoDB Symbolic Link file
-in read-only mode so that it can be validated.
-@param[in]	strict	whether to issue error messages
-@return DB_SUCCESS if remote linked tablespace file is found and opened. */
-dberr_t
-RemoteDatafile::open_read_only(bool strict)
-{
-	ut_ad(m_filepath == NULL);
-
-	read_link_file(name(), &m_link_filepath, &m_filepath);
-
-	if (m_filepath == NULL) {
-		/* There is no remote file */
-		return(DB_ERROR);
-	}
-
-	dberr_t err = Datafile::open_read_only(strict);
-
-	if (err != DB_SUCCESS && strict) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-		ib::error() << "A link file was found named '"
-			<< m_link_filepath << "' but the linked tablespace '"
-			<< m_filepath << "' could not be opened read-only.";
-	}
-
-	return(err);
-}
-
-/** Opens a handle to the file linked to in an InnoDB Symbolic Link file
-in read-write mode so that it can be restored from doublewrite and validated.
-@param[in]	read_only_mode	If true, then readonly mode checks are enforced.
-@return DB_SUCCESS if remote linked tablespace file is found and opened. */
-dberr_t
-RemoteDatafile::open_read_write(bool read_only_mode)
-{
-	if (m_filepath == NULL) {
-		read_link_file(name(), &m_link_filepath, &m_filepath);
-
-		if (m_filepath == NULL) {
-			/* There is no remote file */
-			return(DB_ERROR);
-		}
-	}
-
-	dberr_t err = Datafile::open_read_write(read_only_mode);
-
-	if (err != DB_SUCCESS) {
-		/* The following call prints an error message */
-		m_last_os_error = os_file_get_last_error(true);
-		ib::error() << "A link file was found named '"
-			<< m_link_filepath << "' but the linked data file '"
-			<< m_filepath << "' could not be opened for writing.";
-	}
-
-	return(err);
-}
-
-/** Release the resources. */
-void
-RemoteDatafile::shutdown()
-{
-	Datafile::shutdown();
-
-	if (m_link_filepath != 0) {
-		ut_free(m_link_filepath);
-		m_link_filepath = 0;
-	}
-}
-
-/** Creates a new InnoDB Symbolic Link (ISL) file.  It is always created
-under the 'datadir' of MySQL. The datadir is the directory of a
-running mysqld program. We can refer to it by simply using the path ".".
-@param[in]	name		tablespace name
-@param[in]	filepath	remote filepath of tablespace datafile
-@return DB_SUCCESS or error code */
-dberr_t
-RemoteDatafile::create_link_file(
-	const char*	name,
-	const char*	filepath)
-{
-	os_file_t	file;
-	bool		success;
-	dberr_t		err = DB_SUCCESS;
-	char*		link_filepath = NULL;
-	char*		prev_filepath = NULL;
-
-	read_link_file(name, &link_filepath, &prev_filepath);
-
-	ut_ad(!srv_read_only_mode);
-
-	if (prev_filepath) {
-		/* Truncate will call this with an existing
-		link file which contains the same filepath. */
-		bool same = !strcmp(prev_filepath, filepath);
-		ut_free(prev_filepath);
-		if (same) {
-			ut_free(link_filepath);
-			return(DB_SUCCESS);
-		}
-	}
-
-	if (link_filepath == NULL) {
-		return(DB_ERROR);
-	}
-
-	file = os_file_create_simple_no_error_handling(
-		innodb_data_file_key, link_filepath,
-		OS_FILE_CREATE, OS_FILE_READ_WRITE,
-		srv_read_only_mode, &success);
-
-	if (!success) {
-		/* This call will print its own error message */
-		ulint	error = os_file_get_last_error(true);
-
-		ib::error() << "Cannot create file " << link_filepath << ".";
-
-		if (error == OS_FILE_ALREADY_EXISTS) {
-			ib::error() << "The link file: " << link_filepath
-				<< " already exists.";
-			err = DB_TABLESPACE_EXISTS;
-
-		} else if (error == OS_FILE_DISK_FULL) {
-			err = DB_OUT_OF_FILE_SPACE;
-
-		} else {
-			err = DB_ERROR;
-		}
-
-		/* file is not open, no need to close it. */
-		ut_free(link_filepath);
-		return(err);
-	}
-
-	IORequest	request(IORequest::WRITE);
-
-	/* Note: The pages are written out as uncompressed because we don't
-	have the compression algorithm information at this point. */
-
-	request.disable_compression();
-
-	err = os_file_write(
-		request, link_filepath, file, filepath, 0, strlen(filepath));
-
-	/* Close the file, we only need it at startup */
-	os_file_close(file);
-
-	ut_free(link_filepath);
-
-	return(err);
-}
-
-/** Delete an InnoDB Symbolic Link (ISL) file by name.
-@param[in]	name	tablespace name */
-void
-RemoteDatafile::delete_link_file(
-	const char*	name)
-{
-	char* link_filepath = fil_make_filepath(NULL, name, ISL, false);
-
-	if (link_filepath != NULL) {
-		os_file_delete_if_exists(
-			innodb_data_file_key, link_filepath, NULL);
-
-		ut_free(link_filepath);
-	}
-}
-
-/** Reads an InnoDB Symbolic Link (ISL) file.
-It is always created under the 'datadir' of MySQL.  The name is of the
-form {databasename}/{tablename}. and the isl file is expected to be in a
-'{databasename}' directory called '{tablename}.isl'. The caller must free
-the memory of the null-terminated path returned if it is not null.
-@param[in]	name		tablespace name
-@param[out]	link_filepath	filepath of the ISL file
-@param[out]	ibd_filepath	filepath of the IBD file read from
-				the ISL file */
-
-void
-RemoteDatafile::read_link_file(
-	const char*	name,
-	char**		link_filepath,
-	char**		ibd_filepath)
-{
-	char*		filepath;
-	FILE*		file = NULL;
-
-	*link_filepath = NULL;
-	*ibd_filepath = NULL;
-
-	/* The .isl file is in the 'normal' tablespace location. */
-	*link_filepath = fil_make_filepath(NULL, name, ISL, false);
-	if (*link_filepath == NULL) {
-		return;
-	}
-
-	file = fopen(*link_filepath, "r+b");
-	if (file == NULL) {
-		return;
-	}
-
-	filepath = static_cast<char*>(
-		ut_malloc_nokey(OS_FILE_MAX_PATH));
-
-	os_file_read_string(file, filepath, OS_FILE_MAX_PATH);
-	fclose(file);
-
-	if (filepath[0] != '\0') {
-		/* Trim whitespace from end of filepath */
-		ulint last_ch = strlen(filepath) - 1;
-		while (last_ch > 4 && filepath[last_ch] <= 0x20) {
-			filepath[last_ch--] = 0x00;
-		}
-		os_normalize_path_for_win(filepath);
-	}
-
-	*ibd_filepath = filepath;
 }

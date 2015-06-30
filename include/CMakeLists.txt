@@ -40,7 +40,6 @@ SET(HEADERS
   m_string.h
   my_sys.h 
   my_xml.h
-  mysql_embed.h
   my_thread.h
   decimal.h
   errmsg.h

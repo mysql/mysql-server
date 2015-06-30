@@ -18,6 +18,12 @@
 #include "mysys_err.h"
 #include "my_thread_local.h"
 
+#if defined(_WIN32)
+typedef unsigned long long os_off_t;
+#else
+typedef off_t os_off_t;
+#endif
+
 /* 
   Seek to a position in a file.
 

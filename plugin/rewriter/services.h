@@ -22,7 +22,7 @@
 #include <vector>
 
 /**
-  @file services.h
+  @file plugin/rewriter/services.h
 
   Conversion layer between the parser service and this plugin. This plugin is
   written in C++, while the parser service is written in C.
@@ -72,6 +72,7 @@ public:
 class Literal_visitor
 {
 public:
+  virtual ~Literal_visitor() {}
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
 

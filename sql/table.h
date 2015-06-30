@@ -24,6 +24,7 @@
 #include "datadict.h"      // frm_type_enum
 #include "handler.h"       // row_type
 #include "mdl.h"           // MDL_wait_for_subgraph
+#include "enum_query_type.h" // enum_query_type
 #include "opt_costmodel.h" // Cost_model_table
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
@@ -34,13 +35,14 @@ class File_parser;
 class Item_subselect;
 class Item_field;
 class GRANT_TABLE;
-class st_select_lex_unit;
+class SELECT_LEX_UNIT;
 class COND_EQUAL;
 class Security_context;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Table_cache_element;
 class Table_trigger_dispatcher;
+class QEP_TAB;
 class Query_result_union;
 class Temp_table_param;
 class Index_hint;
@@ -49,6 +51,9 @@ struct LEX;
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
+class SELECT_LEX;
+
+typedef int64 query_id_t;
 
 #define store_record(A,B) memcpy((A)->B,(A)->record[0],(size_t) (A)->s->reclength)
 #define restore_record(A,B) memcpy((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
@@ -500,7 +505,7 @@ public:
   virtual ~Table_check_intact() {}
 
   /** Checks whether a table is intact. */
-  bool check(TABLE *table, const TABLE_FIELD_DEF *table_def);
+  bool check(THD *thd, TABLE *table, const TABLE_FIELD_DEF *table_def);
 };
 
 
@@ -606,8 +611,8 @@ struct TABLE_SHARE
      Set of keys in use, implemented as a Bitmap.
      Excludes keys disabled by ALTER TABLE ... DISABLE KEYS.
   */
-  key_map keys_in_use;
-  key_map keys_for_keyread;
+  Key_map keys_in_use;
+  Key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
   /**
@@ -902,15 +907,9 @@ private:
   */
   bool truncated_value;
 public:
-  Blob_mem_storage() :truncated_value(false)
-  {
-    init_alloc_root(key_memory_blob_mem_storage,
-                    &storage, MAX_FIELD_VARCHARLENGTH, 0);
-  }
-  ~ Blob_mem_storage()
-  {
-    free_root(&storage, MYF(0));
-  }
+  Blob_mem_storage();
+  ~Blob_mem_storage();
+
   void reset()
   {
     free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
@@ -1017,8 +1016,8 @@ public:
     Map of keys that can be used to retrieve all data from this table 
     needed by the query without reading the row.
   */
-  key_map covering_keys;
-  key_map quick_keys, merge_keys;
+  Key_map covering_keys;
+  Key_map quick_keys, merge_keys;
   
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
@@ -1030,7 +1029,7 @@ public:
     optimizer at the top level. OTOH they directly use the range optimizer,
     that collects all keys usable for range access here.
   */
-  key_map possible_quick_keys;
+  Key_map possible_quick_keys;
 
   /*
     A set of keys that can be used in the query that references this
@@ -1043,11 +1042,11 @@ public:
 
     The set is implemented as a bitmap.
   */
-  key_map keys_in_use_for_query;
+  Key_map keys_in_use_for_query;
   /* Map of keys that can be used to calculate GROUP BY without sorting */
-  key_map keys_in_use_for_group_by;
+  Key_map keys_in_use_for_group_by;
   /* Map of keys that can be used to calculate ORDER BY without sorting */
-  key_map keys_in_use_for_order_by;
+  Key_map keys_in_use_for_order_by;
   KEY  *key_info;			/* data of keys defined for the table */
 
   Field *next_number_field;		/* Set if next_number is activated */
@@ -1274,10 +1273,10 @@ public:
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(void);
-  void mark_columns_needed_for_delete(void);
-  void mark_columns_needed_for_insert(void);
-  void mark_columns_per_binlog_row_image(void);
+  void mark_columns_needed_for_update(THD *thd);
+  void mark_columns_needed_for_delete(THD *thd);
+  void mark_columns_needed_for_insert(THD *thd);
+  void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
   bool is_field_dependent_on_generated_columns(uint field_index);
   inline void column_bitmaps_set(MY_BITMAP *read_set_arg,
@@ -1440,8 +1439,8 @@ typedef struct st_field_info
   /**
      This is used to set column attributes. By default, columns are @c NOT
      @c NULL and @c SIGNED, and you can deviate from the default
-     by setting the appopriate flags. You can use either one of the flags
-     @c MY_I_S_MAYBE_NULL and @cMY_I_S_UNSIGNED or
+     by setting the appropriate flags. You can use either one of the flags
+     @c MY_I_S_MAYBE_NULL and @c MY_I_S_UNSIGNED or
      combine them using the bitwise or operator @c |. Both flags are
      defined in table.h.
    */
@@ -1685,7 +1684,7 @@ struct TABLE_LIST
                                      const char *alias,
                                      TABLE_LIST *embedding,
                                      List<TABLE_LIST> *belongs_to,
-                                     class st_select_lex *select);
+                                     SELECT_LEX *select);
 
   Item         **join_cond_ref() { return &m_join_cond; }
   Item          *join_cond() const { return m_join_cond; }
@@ -1720,7 +1719,7 @@ struct TABLE_LIST
   }
 
   /// Merge tables from a query block into a nested join structure
-  bool merge_underlying_tables(class st_select_lex *select);
+  bool merge_underlying_tables(SELECT_LEX *select);
 
   /// Reset table
   void reset();
@@ -1896,13 +1895,13 @@ struct TABLE_LIST
     Set the query expression of a derived table or view.
     (Will also define this as a derived table, unless it is a named view.)
   */
-  void set_derived_unit(st_select_lex_unit *query_expr)
+  void set_derived_unit(SELECT_LEX_UNIT *query_expr)
   {
     derived= query_expr;
   }
 
   /// Return the query expression of a derived table or view.
-  st_select_lex_unit *derived_unit() const
+  SELECT_LEX_UNIT *derived_unit() const
   {
     DBUG_ASSERT(derived);
     return derived;
@@ -2110,7 +2109,7 @@ struct TABLE_LIST
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
-    Created at parse time in st_select_lex::add_table_to_list() ->
+    Created at parse time in SELECT_LEX::add_table_to_list() ->
     table_list.link_in_list().
   */
   TABLE_LIST *next_local;
@@ -2213,11 +2212,11 @@ private:
      
      @note Inside views, a subquery in the @c FROM clause is not allowed.
   */
-  st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  SELECT_LEX_UNIT *derived;		/* SELECT_LEX_UNIT of derived table */
 
 public:
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
-  st_select_lex	*schema_select_lex;
+  SELECT_LEX *schema_select_lex;
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
@@ -2225,7 +2224,7 @@ public:
   bool schema_table_reformed;
   Temp_table_param *schema_table_param;
   /* link to select_lex where this table was used */
-  st_select_lex	*select_lex;
+  SELECT_LEX *select_lex;
 
 private:
   LEX *view;                    /* link on VIEW lex for merging */
@@ -2298,7 +2297,7 @@ public:
       - VIEW_ALGORITHM_UNDEFINED
       - VIEW_ALGORITHM_TEMPTABLE
       - VIEW_ALGORITHM_MERGE
-      @to do Replace with an enum 
+      @todo Replace with an enum 
   */
   ulonglong     algorithm;
   ulonglong     view_suid;              ///< view is suid (TRUE by default)
@@ -2375,7 +2374,7 @@ public:
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;
   /** TRUE if the table is referred to in the statement using a fully
-      qualified name (<db_name>.<table_name>).
+      qualified name (@<db_name@>.@<table_name@>).
   */
   bool          is_fqtn;
 
@@ -2387,7 +2386,7 @@ public:
   /*
     Attributes to save/load view creation context in/from frm-file.
 
-    Ther are required only to be able to use existing parser to load
+    They are required only to be able to use existing parser to load
     view-definition file. As soon as the parser parsed the file, view
     creation context is initialized and the attributes become redundant.
 
@@ -2817,13 +2816,13 @@ void free_table_share(TABLE_SHARE *share);
 const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
-void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
+void open_table_error(THD *thd, TABLE_SHARE *share,
+                      int error, int db_errno, int errarg);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
 enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
                                                 bool preserve_lettercase);
 bool check_column_name(const char *name);
-enum_ident_name_check check_table_name(const char *name, size_t length,
-                                       bool check_for_path_chars);
+enum_ident_name_check check_table_name(const char *name, size_t length);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
@@ -2856,6 +2855,7 @@ extern LEX_STRING MYSQL_SCHEMA_NAME;
 extern LEX_STRING RLI_INFO_NAME;
 extern LEX_STRING MI_INFO_NAME;
 extern LEX_STRING WORKER_INFO_NAME;
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 inline bool is_infoschema_db(const char *name, size_t len)
 {
@@ -2905,6 +2905,29 @@ bool is_simple_order(ORDER *order);
 
 bool update_generated_write_fields(TABLE *table);
 bool update_generated_read_fields(TABLE *table);
+
+/**
+  Check if a TABLE_LIST instance represents a pre-opened temporary table.
+*/
+
+inline bool is_temporary_table(TABLE_LIST *tl)
+{
+  if (tl->is_view() || tl->schema_table)
+    return FALSE;
+
+  if (!tl->table)
+    return FALSE;
+
+  /*
+    NOTE: 'table->s' might be NULL for specially constructed TABLE
+    instances. See SHOW TRIGGERS for example.
+  */
+
+  if (!tl->table->s)
+    return FALSE;
+
+  return tl->table->s->tmp_table != NO_TMP_TABLE;
+}
 
 #endif /* MYSQL_CLIENT */
 

@@ -109,10 +109,10 @@ row_sel_sec_rec_is_for_blob(
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
 
-	/* This function should never be invoked on an Antelope format
-	table, because they should always contain enough prefix in the
-	clustered index record. */
-	ut_ad(dict_table_get_format(table) >= UNIV_FORMAT_B);
+	/* This function should never be invoked on tables in
+	ROW_FORMAT=REDUNDANT or ROW_FORMAT=COMPACT, because they
+	should always contain enough prefix in the clustered index record. */
+	ut_ad(dict_table_has_atomic_blobs(table));
 	ut_a(clust_len >= BTR_EXTERN_FIELD_REF_SIZE);
 	ut_ad(prefix_len >= sec_len);
 	ut_ad(prefix_len > 0);
@@ -122,7 +122,7 @@ row_sel_sec_rec_is_for_blob(
 		    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
-		recv_recovery_rollback_active() or any
+		trx_rollback_or_clean_all_recovered() or any
 		TRX_ISO_READ_UNCOMMITTED transactions. */
 		return(FALSE);
 	}
@@ -489,7 +489,7 @@ row_sel_fetch_columns(
 				externally stored field was not
 				written yet. This record
 				should only be seen by
-				recv_recovery_rollback_active() or any
+				trx_rollback_or_clean_all_recovered() or any
 				TRX_ISO_READ_UNCOMMITTED
 				transactions. The InnoDB SQL parser
 				(the sole caller of this function)
@@ -706,7 +706,7 @@ sel_enqueue_prefetched_row(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_build_prev_vers(
 /*====================*/
@@ -741,7 +741,7 @@ row_sel_build_prev_vers(
 /*********************************************************************//**
 Builds the last committed version of a clustered index record for a
 semi-consistent read. */
-static __attribute__((nonnull))
+static
 void
 row_sel_build_committed_vers_for_mysql(
 /*===================================*/
@@ -839,7 +839,7 @@ row_sel_test_other_conds(
 Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_get_clust_rec(
 /*==================*/
@@ -2441,109 +2441,6 @@ fetch_step(
 }
 
 /****************************************************************//**
-Sample callback function for fetch that prints each row.
-@return always returns non-NULL */
-void*
-row_fetch_print(
-/*============*/
-	void*	row,		/*!< in:  sel_node_t* */
-	void*	user_arg)	/*!< in:  not used */
-{
-	que_node_t*	exp;
-	ulint		i = 0;
-	sel_node_t*	node = static_cast<sel_node_t*>(row);
-
-	UT_NOT_USED(user_arg);
-
-	ib::info() << "row_fetch_print: row " << row;
-
-	for (exp = node->select_list;
-	     exp != 0;
-	     exp = que_node_get_next(exp), i++) {
-
-		dfield_t*	dfield = que_node_get_val(exp);
-		const dtype_t*	type = dfield_get_type(dfield);
-
-		fprintf(stderr, " column %lu:\n", (ulong) i);
-
-		dtype_print(type);
-		putc('\n', stderr);
-
-		if (dfield_get_len(dfield) != UNIV_SQL_NULL) {
-			ut_print_buf(stderr, dfield_get_data(dfield),
-				     dfield_get_len(dfield));
-			putc('\n', stderr);
-		} else {
-			fputs(" <NULL>;\n", stderr);
-		}
-	}
-
-	return((void*)42);
-}
-
-/***********************************************************//**
-Prints a row in a select result.
-@return query thread to run next or NULL */
-que_thr_t*
-row_printf_step(
-/*============*/
-	que_thr_t*	thr)	/*!< in: query thread */
-{
-	row_printf_node_t*	node;
-	sel_node_t*		sel_node;
-	que_node_t*		arg;
-
-	ut_ad(thr);
-
-	node = static_cast<row_printf_node_t*>(thr->run_node);
-
-	sel_node = node->sel_node;
-
-	ut_ad(que_node_get_type(node) == QUE_NODE_ROW_PRINTF);
-
-	if (thr->prev_node == que_node_get_parent(node)) {
-
-		/* Reset the cursor */
-		sel_node->state = SEL_NODE_OPEN;
-
-		/* Fetch next row to print */
-
-		thr->run_node = sel_node;
-
-		return(thr);
-	}
-
-	if (sel_node->state != SEL_NODE_FETCH) {
-
-		ut_ad(sel_node->state == SEL_NODE_NO_MORE_ROWS);
-
-		/* No more rows to print */
-
-		thr->run_node = que_node_get_parent(node);
-
-		return(thr);
-	}
-
-	arg = sel_node->select_list;
-
-	while (arg) {
-		dfield_print_also_hex(que_node_get_val(arg));
-
-		fputs(" ::: ", stderr);
-
-		arg = que_node_get_next(arg);
-	}
-
-	putc('\n', stderr);
-
-	/* Fetch next row to print */
-
-	thr->run_node = sel_node;
-
-	return(thr);
-}
-
-/****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence
 the parameter key_len. But currently we do not allow search keys where the
@@ -2816,7 +2713,7 @@ row_sel_store_row_id_to_prebuilt(
 /**************************************************************//**
 Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
 function is row_mysql_store_col_in_innobase_format() in row0mysql.cc. */
-static __attribute__((nonnull))
+static
 void
 row_sel_field_store_in_mysql_format_func(
 /*=====================================*/
@@ -3078,7 +2975,7 @@ row_sel_store_mysql_field_func(
 		if (UNIV_UNLIKELY(!data)) {
 			/* The externally stored field was not written
 			yet. This record should only be seen by
-			recv_recovery_rollback_active() or any
+			trx_rollback_or_clean_all_recovered() or any
 			TRX_ISO_READ_UNCOMMITTED transactions. */
 
 			if (heap != prebuilt->blob_heap) {
@@ -3235,7 +3132,7 @@ row_sel_store_mysql_rec(
 /*********************************************************************//**
 Builds a previous version of a clustered index record for a consistent read
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_build_prev_vers_for_mysql(
 /*==============================*/
@@ -3272,7 +3169,7 @@ Retrieves the clustered index record corresponding to a record in a
 non-clustered index. Does the necessary locking. Used in the MySQL
 interface.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_sel_get_clust_rec_for_mysql(
 /*============================*/
@@ -4329,7 +4226,7 @@ row_search_mvcc(
 	read (fetch the newest committed version), then this is set to
 	TRUE */
 	ulint		next_offs;
-	ibool		same_user_rec;
+	ibool		same_user_rec 			= FALSE;
 	mtr_t		mtr;
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];

@@ -17,7 +17,7 @@
 #include "log_event.h"
 #ifndef MYSQL_CLIENT
 #include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
-#include "sql_base.h"                       // close_tables_for_reopen
+#include "sql_base.h"                       // open_and_lock_tables
 #include "key.h"                            // key_copy
 #include "lock.h"                           // mysql_unlock_tables
 #include "sql_parse.h"             // mysql_reset_thd_for_next_command
@@ -33,7 +33,9 @@
 using std::min;
 using std::max;
 
+extern "C" {
 PSI_memory_key key_memory_log_event_old;
+}
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
@@ -168,7 +170,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     TABLE_LIST *ptr= rli->tables_to_lock;
     for (uint i=0; ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
 
   TABLE* table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(ev->m_table_id);
@@ -1604,7 +1606,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     {
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
     }
-    query_cache.invalidate_locked_for_write(rli->tables_to_lock);
+    query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
 
   TABLE* 

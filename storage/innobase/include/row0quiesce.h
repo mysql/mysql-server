@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,8 +41,7 @@ void
 row_quiesce_table_start(
 /*====================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_t*		trx)		/*!< in/out: transaction/session */
-        __attribute__((nonnull));
+	trx_t*		trx);		/*!< in/out: transaction/session */
 
 /*********************************************************************//**
 Set a table's quiesce state.
@@ -53,7 +52,7 @@ row_quiesce_set_state(
 	dict_table_t*	table,		/*!< in: quiesce this table */
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
 	trx_t*		trx)		/*!< in/out: transaction */
-        __attribute__((nonnull, warn_unused_result));
+        __attribute__((warn_unused_result));
 
 /*********************************************************************//**
 Cleanup after table quiesce. */
@@ -61,8 +60,7 @@ void
 row_quiesce_table_complete(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_t*		trx)		/*!< in/out: transaction/session */
-        __attribute__((nonnull));
+	trx_t*		trx);		/*!< in/out: transaction/session */
 
 #ifndef UNIV_NONINL
 #include "row0quiesce.ic"

@@ -14,20 +14,28 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "my_global.h"
 #include "trigger_loader.h"
-#include "sql_class.h"
-#include "sp_head.h"      // sp_name
-#include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)
-#include "sql_table.h"    // build_table_filename()
-#include <mysys_err.h>    // EE_OUTOFMEMORY
+
+#include "m_string.h"     // C_STRING_WITH_LEN
+#include "mysqld_error.h" // ER_*
+#include "current_thd.h"  // current_thd
+#include "derror.h"       // ER_THD
+#include "mysqld.h"       // key_file_trn
 #include "parse_file.h"   // File_option
-#include "trigger.h"
+#include "sql_base.h"     // is_equal(LEX_STRING, LEX_STRING)
+#include "sql_class.h"    // THD
+#include "sql_error.h"    // Sql_condition
+#include "sql_list.h"     // List
+#include "sql_string.h"   // String
+#include "sql_table.h"    // build_table_filename
+#include "table.h"        // TABLE_LIST
+#include "trigger.h"      // Trigger
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
 #include "mysql/psi/mysql_sp.h"
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -296,7 +304,6 @@ static bool fill_trg_data(Trg_file_data *trg,
 /**
   Change the subject table in the given list of triggers.
 
-  @param db_name         Old database of subject table
   @param new_db_name         New database of subject table
   @param new_table_name      New subject table's name
   @param stopper             Pointer to a trigger_name for
@@ -309,7 +316,6 @@ static bool fill_trg_data(Trg_file_data *trg,
 
 static Trigger *change_table_name_in_trn_files(
   List<Trigger> *triggers,
-  const char *db_name,
   const char *new_db_name,
   const LEX_STRING *new_table_name,
   const Trigger *stopper)
@@ -346,16 +352,6 @@ static Trigger *change_table_name_in_trn_files(
       return t;
     }
 
-    // Remove stale .TRN file in case of database upgrade.
-
-    if (db_name)
-    {
-      if (rm_trn_file(db_name, t->get_trigger_name().str))
-      {
-        rm_trn_file(new_db_name, t->get_trigger_name().str);
-        return t;
-      }
-    }
   }
 
   return NULL;
@@ -435,7 +431,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     push_warning_printf(current_thd,
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
-                        ER(ER_OLD_FILE_FORMAT),
+                        ER_THD(current_thd, ER_OLD_FILE_FORMAT),
                         path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
@@ -480,7 +476,7 @@ bool Handle_old_incorrect_trigger_table_hook::process_unknown_string(
     push_warning_printf(current_thd,
                         Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
-                        ER(ER_OLD_FILE_FORMAT),
+                        ER_THD(current_thd, ER_OLD_FILE_FORMAT),
                         path, "TRIGGER");
 
     if (!(ptr= parse_escaped_string(ptr, end, mem_root, trigger_table_value)))
@@ -637,7 +633,7 @@ bool Trigger_loader::load_triggers(THD *thd,
 
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TRG_NO_CREATION_CTX,
-                        ER(ER_TRG_NO_CREATION_CTX),
+                        ER_THD(thd, ER_TRG_NO_CREATION_CTX),
                         db_name,
                         table_name);
 
@@ -730,7 +726,6 @@ bool Trigger_loader::load_triggers(THD *thd,
 /**
   Store a table trigger into the data dictionary.
 
-  @param [in]  tables       pointer to trigger's table
   @param [in]  new_trigger  trigger to save
   @param [in]  triggers     pointer to the list where new trigger object has to
                             be added
@@ -795,7 +790,6 @@ bool Trigger_loader::store_trigger(const LEX_STRING &db_name,
 /**
   Drop trigger in the data dictionary.
 
-  @param [in]  tables         pointer to trigger's table
   @param [in]  trigger_name   name of the trigger to drop
   @param [in]  triggers       list of all table triggers
   @param [out] trigger_found  flag to store a result whether
@@ -956,8 +950,7 @@ bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
                                           const char *db_name,
                                           LEX_STRING *table_name,
                                           const char *new_db_name,
-                                          LEX_STRING *new_table_name,
-                                          bool upgrading50to51)
+                                          LEX_STRING *new_table_name)
 {
   // Prepare TRG-data. Do it here so that OOM-error will not cause data
   // inconsistency.
@@ -971,7 +964,6 @@ bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
 
   Trigger *err_trigger=
     change_table_name_in_trn_files(triggers,
-                                   upgrading50to51 ? db_name : NULL,
                                    new_db_name, new_table_name,
                                    NULL);
 
@@ -985,7 +977,6 @@ bool Trigger_loader::rename_subject_table(MEM_ROOT *mem_root,
     */
     change_table_name_in_trn_files(
       triggers,
-      upgrading50to51 ? new_db_name : NULL,
       db_name, table_name,
       err_trigger);
     return true;

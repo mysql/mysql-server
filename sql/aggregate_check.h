@@ -24,7 +24,9 @@
 */
 
 /**
-   @page AGGREGATE_CHECKS ONLY_FULL_GROUP_BY Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
+   @page PAGE_OPT_AGGREGATE_CHECKS Optimizer aggregate checks
+   
+   ONLY_FULL_GROUP_BY Checks for some semantic constraints on queries using GROUP BY, or aggregate functions, or DISTINCT.
 
 We call "aggregation" the operation of taking a group of rows and replacing
 it with a single row. There are three types of aggregation: DISTINCT,
@@ -413,20 +415,17 @@ NULL-friendliness is not required for propagation).
 @li or A contains at least one non-nullable expression, which makes A -> B
 NULL-friendly.
 
-Implementation of view merging makes it difficult to use rule above for a
-merged view. Indeed, if the view is merged, it is difficult to identify in
-which join nest it was and what its columns were [this may be solvable after
-WL#5275 is pushed, using Item_view_ref::cached_table]. So, for a merged view,
-we use a different rule:
+The above is fine for materialized views. For merged views, we cannot study the
+query expression of the view, it has been merged (and scattered), so we use a
+different rule:
 @li a merged view is similar to a join nest inserted in the parent query, so
 for dependencies based on keys or join conditions, we simply follow
 propagation rules of the non-view sections.
-@li For expression-based dependencies (VE3 depends on VE1 and VE2), which may
-not be NULL-friendly, we determine (approximately - using slightly too broad
-criteria) whether the view belongs to some embedding join nest which is on the
-weak side of some outer join, and if it does, we require that the left set be
-non-empty and that if VE1 and VE2 are NULL then VE3 must be NULL, which makes
-the dependency NULL-friendly.
+@li For expression-based dependencies (VE3 depends on VE1 and VE2, VE3
+belonging to the view SELECT list), which may not be NULL-friendly, we require
+@li the same non-weak-side criterion as above
+@li or that the left set of the dependency be non-empty and that if VE1 and
+VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 */
 
 #include "my_global.h"
@@ -435,7 +434,7 @@ the dependency NULL-friendly.
 #include "item_cmpfunc.h"
 #include "item_sum.h"
 struct st_mem_root;
-class st_select_lex;
+class SELECT_LEX;
 struct TABLE_LIST;
 
 /**
@@ -513,7 +512,7 @@ class Distinct_check: public Item_tree_walker, public Sql_alloc
 {
 public:
 
-  Distinct_check(st_select_lex *select_arg)
+  Distinct_check(SELECT_LEX *select_arg)
     : select(select_arg), failed_ident(NULL)
   {}
 
@@ -522,7 +521,7 @@ public:
 private:
 
   /// Query block which we are validating
-  st_select_lex *const select;
+  SELECT_LEX *const select;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -547,7 +546,7 @@ class Group_check: public Item_tree_walker, public Sql_alloc
 {
 public:
 
-  Group_check(st_select_lex *select_arg, st_mem_root *root)
+  Group_check(SELECT_LEX *select_arg, st_mem_root *root)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false),
     table(NULL), group_in_fd(~0ULL), m_root(root), fd(root),
@@ -566,7 +565,7 @@ public:
 private:
 
   /// Query block which we are validating
-  st_select_lex *const select;
+  SELECT_LEX *const select;
 
   /**
      "Underlying" == view or derived table, both merged or materialized.
@@ -625,7 +624,7 @@ private:
   bool is_child() const { return table != NULL; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(st_select_lex *select_arg, st_mem_root *root,
+  Group_check(SELECT_LEX *select_arg, st_mem_root *root,
               TABLE_LIST *table_arg)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false), table(table_arg),

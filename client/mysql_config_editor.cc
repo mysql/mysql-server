@@ -32,6 +32,7 @@
 #include "client_priv.h"
 #include "my_default.h"
 #include "my_default_priv.h"
+#include "mysql/service_mysql_alloc.h"
 
 #define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096
@@ -83,7 +84,8 @@ static int read_login_key(void);
 static int add_header(void);
 static void my_perror(const char *msg);
 
-static void verbose_msg(const char *fmt, ...);
+static void verbose_msg(const char *fmt, ...)
+  __attribute__((format(printf, 1, 2)));
 static void print_version(void);
 static void usage_program(void);
 static void usage_command(int command);
@@ -518,8 +520,6 @@ done:
 /**
   Execute 'set' command.
 
-  @param void
-
   @return -1              Error
            0              Success
 */
@@ -667,8 +667,6 @@ error:
 /**
   Execute 'print' command.
 
-  @param void
-
   @return -1              Error
            0              Success
 */
@@ -703,8 +701,6 @@ error:
 /**
   Create the login file if it does not exist, check
   and set its permissions and modes.
-
-  @param void
 
   @return -1              Error
            0              Success
@@ -901,8 +897,6 @@ done:
   password string.
 
   @param buf [in]         Buffer to be printed.
-
-  @raturn                 void
 */
 
 static void mask_password_and_print(char *buf)
@@ -1169,8 +1163,8 @@ static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   @note The contents of the file buffer are encrypted
         on a line-by-line basis with each line having
         the following format :
-        [<first 4 bytes store cipher-length>|<Next cipher-length
-        bytes store actual cipher>]
+        [\<first 4 bytes store cipher-length\>
+        |\<Next cipher-length bytes store actual cipher\>]
 */
 
 static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)

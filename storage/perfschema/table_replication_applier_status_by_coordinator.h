@@ -19,7 +19,7 @@
 #define TABLE_REPLICATION_APPLIER_STATUS_BY_COORDINATOR_H
 
 /**
-  @file storage/perfschema/table_replication_applier_applier_by_coordinator.h
+  @file storage/perfschema/table_replication_applier_status_by_coordinator.h
   Table replication_applier_status_by_coordinator(declarations).
 */
 

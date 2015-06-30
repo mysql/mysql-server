@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
-#include "mysqld.h"
 #include "sql_string.h"                 // String
 
 #include <vector>
@@ -237,15 +236,7 @@ struct Geometry_buffer;
   Memory management functions for BG adapter code. Allocate extra space for
   GEOMETRY header so that we can later prefix the header if needed.
  */
-inline void *gis_wkb_alloc(size_t sz)
-{
-  sz+= GEOM_HEADER_SIZE;
-  char *p= static_cast<char *>(my_malloc(key_memory_Geometry_objects_data,
-                                         sz, MYF(MY_FAE)));
-  p+= GEOM_HEADER_SIZE;
-  return p;
-}
-
+void *gis_wkb_alloc(size_t sz);
 
 inline void *gis_wkb_fixed_alloc(size_t sz)
 {
@@ -253,17 +244,7 @@ inline void *gis_wkb_fixed_alloc(size_t sz)
 }
 
 
-inline void *gis_wkb_realloc(void *p, size_t sz)
-{
-  char *cp= static_cast<char *>(p);
-  if (cp)
-    cp-= GEOM_HEADER_SIZE;
-  sz+= GEOM_HEADER_SIZE;
-
-  p= my_realloc(key_memory_Geometry_objects_data, cp, sz, MYF(MY_FAE));
-  cp= static_cast<char *>(p);
-  return cp + GEOM_HEADER_SIZE;
-}
+void *gis_wkb_realloc(void *p, size_t sz);
 
 
 inline void gis_wkb_free(void *p)
@@ -283,7 +264,7 @@ inline void gis_wkb_raw_free(void *p)
 
 class Geometry
 {
-  friend void parse_wkb_data(Geometry *g, const char *p, size_t num_geoms);
+  friend void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms);
 protected:
   // Flag bits for m_flags.props.
 
@@ -2124,7 +2105,7 @@ void *get_packed_ptr(const Geometry *geo, size_t *pnbytes);
 const char *get_packed_ptr(Geometry *geo);
 bool polygon_is_packed(Geometry *plgn, Geometry *mplgn);
 void own_rings(Geometry *geo);
-void parse_wkb_data(Geometry *g, const char *p, size_t num_geoms= 0);
+void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms= 0);
 
 /**
    Geometry vector class.
@@ -2379,9 +2360,7 @@ private:
 /// @brief Constructor.
 /// @param ptr points to the geometry's wkb data's 1st byte, right after its
 /// wkb header if any.
-/// @param bo the byte order indicated by ptr's wkb header.
-/// @param geotype the geometry type indicated by ptr's wkb header
-/// @param dim dimension of the geometry
+/// @param nbytes the byte order indicated by ptr's wkb header.
 /// @param is_bg_adapter Whether this object is created to be used by
 ///        Boost Geometry, or to be only used in MySQL code.
 template <typename T>
@@ -2460,8 +2439,8 @@ Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
 
 /**
   Deep assignment from vector 'rhs' to this object.
-  @param p the Gis_wkb_vector<T> instance to duplicate from.
-  */
+  @param rhs the Gis_wkb_vector<T> instance to duplicate from.
+*/
 template <typename T>
 Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs)
 {
@@ -2545,9 +2524,7 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs)
   shallow copy because we want all elements in geo.m_geo_vect vector point
   into locations in the geo.m_ptr buffer. In such situations call this
   function.
-  @param vec A Geometry object's m_geo_vect vector, into which we want to
-             push a Geometry object.
-  @param geo The Geometry object to push into vec.
+  @param g   The Geometry object to push into vec.
   @return The address of the Geometry object stored in vec.
  */
 template <typename T>
@@ -3634,6 +3611,7 @@ struct Geometry_buffer : public
 class WKB_scanner_event_handler
 {
 public:
+  virtual ~WKB_scanner_event_handler() {}
 
   /**
     Notified when scanner sees the start of a geometry WKB.

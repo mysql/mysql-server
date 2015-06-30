@@ -67,7 +67,7 @@ row_purge_poss_sec(
 	purge_node_t*	node,	/*!< in/out: row purge node */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const dtuple_t*	entry)	/*!< in: secondary index entry */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
@@ -76,7 +76,7 @@ que_thr_t*
 row_purge_step(
 /*===========*/
 	que_thr_t*	thr)	/*!< in: query thread */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /* Purge node structure */
 

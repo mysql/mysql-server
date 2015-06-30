@@ -90,10 +90,8 @@ support cross-platform development and expose comonly used SQL names. */
 # include <my_global.h>
 # include <my_thread.h>
 
-# ifndef UNIV_INNOCHECKSUM
 #  include <m_string.h>
 #  include <mysqld_error.h>
-# endif /* !UNIV_INNOCHECKSUM */
 #endif /* !UNIV_HOTBACKUP  */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
@@ -287,30 +285,6 @@ management to ensure correct alignment for doubles etc. */
 			========================
 */
 
-/** There are currently two InnoDB file formats which are used to group
-features with similar restrictions and dependencies. Using an enum allows
-switch statements to give a compiler warning when a new one is introduced. */
-enum innodb_file_formats_enum {
-	/** Antelope File Format: InnoDB/MySQL up to 5.1.
-	This format includes REDUNDANT and COMPACT row formats */
-	UNIV_FORMAT_A		= 0,
-
-	/** Barracuda File Format: Introduced in InnoDB plugin for 5.1:
-	This format includes COMPRESSED and DYNAMIC row formats.  It
-	includes the ability to create secondary indexes from data that
-	is not on the clustered index page and the ability to store more
-	data off the clustered index page. */
-	UNIV_FORMAT_B		= 1
-};
-
-typedef enum innodb_file_formats_enum innodb_file_formats_t;
-
-/** Minimum supported file format */
-#define UNIV_FORMAT_MIN		UNIV_FORMAT_A
-
-/** Maximum supported file format */
-#define UNIV_FORMAT_MAX		UNIV_FORMAT_B
-
 /** The 2-logarithm of UNIV_PAGE_SIZE: */
 #define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 
@@ -405,7 +379,7 @@ mysql_com.h if you are to use this macro. */
 /** The maximum length in bytes that a table name can occupy when stored in
 UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
 mysql_com.h if you are to use this macro. */
-#define MAX_TABLE_UTF8_LEN	(NAME_LEN + sizeof(srv_mysql50_table_name_prefix))
+#define MAX_TABLE_UTF8_LEN	(NAME_LEN)
 
 /*
 			UNIVERSAL TYPE DEFINITIONS

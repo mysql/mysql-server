@@ -21,6 +21,7 @@
   This file defines implementations of GIS set operation functions.
 */
 #include "my_config.h"
+#include "current_thd.h"
 #include "item_geofunc_internal.h"
 
 
@@ -2537,7 +2538,7 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
   linestring, multilinestring, multipoint, or geometry collection.
 
   @param mls The multilinestring to simplify
-  @param[out] The GEOMETRY string (SRID+WKB) of the returned object
+  @param[out] result The GEOMETRY string (SRID+WKB) of the returned object
   @return The simplest geometry type representing the input.
 */
 Geometry *Item_func_spatial_operation::
@@ -2996,6 +2997,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
     else if (gres == g2)
       str_value_arg= res2;
   }
+
   simplify_multi_geometry(str_value_arg);
 
 exit:
@@ -3208,8 +3210,8 @@ geometry_collection_set_operation(Geometry *g1, Geometry *g2,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @return The intersection result, whose WKB data is stored in 'result'.
@@ -3313,8 +3315,8 @@ geocol_intersection(const BG_geometry_collection &bggc1,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @return The union result, whose WKB data is stored in 'result'.
@@ -3355,8 +3357,8 @@ geocol_union(const BG_geometry_collection &bggc1,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @return The difference result, whose WKB data is stored in 'result'.
@@ -3466,8 +3468,8 @@ geocol_difference(const BG_geometry_collection &bggc1,
           it's double.
   @tparam Coordsys Coordinate system type, specified using those defined in
           boost::geometry::cs.
-  @param g1 First geometry operand, a geometry collection.
-  @param g2 Second geometry operand, a geometry collection.
+  @param bggc1 First geometry operand, a geometry collection.
+  @param bggc2 Second geometry operand, a geometry collection.
   @param[out] result Holds WKB data of the result, which must be a
                 geometry collection.
   @return The symdifference result, whose WKB data is stored in 'result'.

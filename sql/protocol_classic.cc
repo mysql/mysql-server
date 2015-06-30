@@ -21,8 +21,9 @@ The actual communication is handled by the net_xxx functions in net_serv.cc
 */
 
 #include "protocol_classic.h"
+#include "item_func.h"                          // Item_func_set_user_var
 #include "sql_class.h"                          // THD
-#include <stdarg.h>
+#include "mysqld.h"                             // global_system_variables
 
 using std::min;
 using std::max;
@@ -242,7 +243,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
   @param id                      Auto_increment id for first row (if used)
   @param message                 Message to send to the client
                                  (Used by mysql_status)
-  @param eof_indentifier         when true [FE] will be set in OK header
+  @param eof_identifier          when true [FE] will be set in OK header
                                  else [00] will be used
 
   @return

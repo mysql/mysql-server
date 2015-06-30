@@ -1114,6 +1114,7 @@ trx_undo_truncate_end_func(
 			ut_ad(trx->rsegs.m_noredo.rseg == undo->rseg);
 		} else {
 			ut_ad(trx->rsegs.m_redo.rseg == undo->rseg);
+			mtr.set_undo_space(undo->rseg->space);
 		}
 
 		trunc_here = NULL;
@@ -1192,6 +1193,8 @@ loop:
 
 	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else {
+		mtr.set_undo_space(rseg->space);
 	}
 
 	rec = trx_undo_get_first_rec(rseg->space, rseg->page_size,
@@ -1256,6 +1259,8 @@ trx_undo_seg_free(
 
 		if (noredo) {
 			mtr.set_log_mode(MTR_LOG_NO_REDO);
+		} else {
+			mtr.set_undo_space(rseg->space);
 		}
 
 		mutex_enter(&(rseg->mutex));
@@ -1568,7 +1573,7 @@ Creates a new undo log.
 @return DB_SUCCESS if successful in creating the new undo lob object,
 possible error codes are: DB_TOO_MANY_CONCURRENT_TRXS
 DB_OUT_OF_FILE_SPACE DB_OUT_OF_MEMORY */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 trx_undo_create(
 /*============*/
@@ -1788,16 +1793,10 @@ trx_undo_assign_undo(
 
 	mtr_start(&mtr);
 	if (&trx->rsegs.m_noredo == undo_ptr) {
-		mtr.set_log_mode(MTR_LOG_NO_REDO);;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	} else {
 		ut_ad(&trx->rsegs.m_redo == undo_ptr);
-	}
-
-	if (trx_sys_is_noredo_rseg_slot(rseg->id)) {
-		mtr.set_log_mode(MTR_LOG_NO_REDO);;
-		ut_ad(undo_ptr == &trx->rsegs.m_noredo);
-	} else {
-		ut_ad(undo_ptr == &trx->rsegs.m_redo);
+		mtr.set_undo_space(rseg->space);
 	}
 
 	mutex_enter(&rseg->mutex);

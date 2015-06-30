@@ -14,14 +14,9 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-#include "handler.h"                            // handlerton
-#include "m_ctype.h"                            // my_charset_utf8_general_ci
-#include "my_dbug.h"
 #include "opt_costconstants.h"
-#include "sql_plugin.h"                         // plugin_ref
-#include "table.h"                              // TABLE
+
+#include "table.h"              // TABLE
 
 /**
   The default value for storage device type. If device type information

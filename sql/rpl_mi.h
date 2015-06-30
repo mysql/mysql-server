@@ -160,8 +160,8 @@ public:
       strmake(user, user_arg, sizeof(user) - 1);
     }
   }
-  /*
-    Returns user's size name. See @code get_user().
+  /**
+    Returns user's size name. See @c get_user().
 
     @return user's size name.
   */
@@ -221,8 +221,6 @@ public:
   }
   /**
     Stores the DEFAULT_AUTH defined by START SLAVE.
-
-    @param DEFAULT_AUTH.
   */
   void set_plugin_auth(const char* src)
   {
@@ -231,8 +229,6 @@ public:
   }
   /**
     Stores the DEFAULT_AUTH defined by START SLAVE.
-
-    @param DEFAULT_AUTH.
   */
   void set_plugin_dir(const char* src)
   {

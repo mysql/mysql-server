@@ -44,6 +44,8 @@
 #include <my_dir.h>
 #include <my_aes.h>
 #include "mysql/psi/mysql_file.h"
+#include "mysql/service_my_snprintf.h"
+#include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>
 #endif
@@ -128,10 +130,8 @@ static const char **default_directories = NULL;
 
 #ifdef _WIN32
 static const char *f_extensions[]= { ".ini", ".cnf", 0 };
-#define NEWLINE "\r\n"
 #else
 static const char *f_extensions[]= { ".cnf", 0 };
-#define NEWLINE "\n"
 #endif
 
 extern "C" {

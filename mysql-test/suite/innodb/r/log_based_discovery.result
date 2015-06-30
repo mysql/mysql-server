@@ -1,0 +1,76 @@
+MYSQL_TMP_DIR/bootstrap.log
+# Stop server MTR default DB server
+# Run the bootstrap command of datadir1
+# Start the DB server with datadir1
+USE test;
+CREATE TABLE tab1(c1 INT, c2 VARCHAR(30));
+INSERT INTO tab1 VALUES(1, 'Test consistency undo*');
+SELECT * FROM tab1;
+c1	c2
+1	Test consistency undo*
+# Abruptly stop the DB server with datadir1
+# Kill the server
+# Run the bootstrap command of datadir2
+# Start the DB server with datadir2
+USE test;
+CREATE TABLE tab2(c1 INT, c2 VARCHAR(30));
+INSERT INTO tab2 VALUES(1, 'Test consistency undo*');
+SELECT * FROM tab2;
+c1	c2
+1	Test consistency undo*
+# Stop the DB server with datadir2
+# Start the DB1 server with wrong path of undo tablespaces, expect an recovery errors
+# Start the DB1 server with wrong path of ibdata* tablespaces, expect an recovery errors
+# Start the DB server with right path, expect no recovery errors
+USE test;
+SELECT @@innodb_undo_tablespaces;
+@@innodb_undo_tablespaces
+5
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+MYSQL_TMP_DIR/innodb_data_home_dir1
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+MYSQL_TMP_DIR/innodb_undo_data_dir1
+SELECT * FROM tab1;
+c1	c2
+1	Test consistency undo*
+DROP TABLE tab1;
+# Stop the DB server with datadir1
+# Start the DB server with datadir2 for cleanup
+USE test;
+SELECT * FROM tab2;
+c1	c2
+1	Test consistency undo*
+DROP TABLE tab2;
+CREATE DATABASE mysql;
+USE mysql;
+CREATE TABLE `proc` (
+`db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+`name` char(64) NOT NULL DEFAULT '',
+`type` enum('FUNCTION','PROCEDURE') NOT NULL,
+`specific_name` char(64) NOT NULL DEFAULT '',
+`language` enum('SQL') NOT NULL DEFAULT 'SQL',
+`sql_data_access` enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA') NOT NULL DEFAULT 'CONTAINS_SQL',
+`is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
+`security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
+`param_list` blob NOT NULL,
+`returns` longblob NOT NULL,
+`body` longblob NOT NULL,
+`definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+`created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+`modified` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+`sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',
+`comment` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+`character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+`collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+`db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+`body_utf8` longblob,
+PRIMARY KEY (`db`,`name`,`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures';
+CREATE DATABASE mtr;
+USE mtr;
+CREATE PROCEDURE mtr.check_warnings(OUT result INT)
+BEGIN
+SELECT 0 INTO RESULT;
+END|

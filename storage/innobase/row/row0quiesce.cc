@@ -39,7 +39,7 @@ Created 2012-02-08 by Sunny Bains.
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_quiesce_write_index_fields(
 /*===========================*/
@@ -99,7 +99,7 @@ row_quiesce_write_index_fields(
 /*********************************************************************//**
 Write the meta data config file index information.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_quiesce_write_indexes(
 /*======================*/
@@ -135,14 +135,14 @@ row_quiesce_write_indexes(
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
 		byte*		ptr;
-		byte		row[sizeof(index_id_t)
+		byte		row[sizeof(space_index_t)
 				    + sizeof(ib_uint32_t) * 8];
 
 		ptr = row;
 
-		ut_ad(sizeof(index_id_t) == 8);
+		ut_ad(sizeof(space_index_t) == 8);
 		mach_write_to_8(ptr, index->id);
-		ptr += sizeof(index_id_t);
+		ptr += sizeof(space_index_t);
 
 		mach_write_to_4(ptr, index->space);
 		ptr += sizeof(ib_uint32_t);
@@ -212,7 +212,7 @@ Write the meta data (table columns) config file. Serialise the contents of
 dict_col_t structure, along with the column name. All fields are serialized
 as ib_uint32_t.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_quiesce_write_table(
 /*====================*/
@@ -295,7 +295,7 @@ row_quiesce_write_table(
 /*********************************************************************//**
 Write the meta data config file header.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_quiesce_write_header(
 /*=====================*/
@@ -416,7 +416,7 @@ row_quiesce_write_header(
 /*********************************************************************//**
 Write the table meta data after quiesce.
 @return DB_SUCCESS or error code */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 dberr_t
 row_quiesce_write_cfg(
 /*==================*/

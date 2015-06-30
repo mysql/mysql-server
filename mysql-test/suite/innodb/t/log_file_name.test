@@ -49,7 +49,7 @@ let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t2.ibd' with space ID \d+. Ano
 --echo # Fault 2: Wrong space_id in a dirty file, and a missing file.
 --move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQLD_DATADIR/test/t1.ibd
 
---error 3
+--error 1
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t1.ibd' with space ID;
@@ -67,7 +67,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at.*t3.ibd;
 --move_file $MYSQLD_DATADIR/test/t2.ibd $MYSQLD_DATADIR/test/t3.ibd
 --move_file $MYSQLD_DATADIR/test/t.ibd $MYSQLD_DATADIR/test/t2.ibd
 
---error 3
+--error 1
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Ignoring data file '.*t[23].ibd' with space ID;
@@ -88,7 +88,7 @@ let SEARCH_PATTERN= InnoDB: Set innodb_force_recovery=1 to ignore this and to pe
 
 --echo # Fault 4: Missing data file
 
---error 3
+--error 1
 --exec $mysqld
 
 let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd.
@@ -108,7 +108,7 @@ let SEARCH_PATTERN= InnoDB: Tablespace \d+ was not found at .*t[12].ibd.
 # Create a short file.
 --exec echo "" > $MYSQLD_DATADIR/test/t2.ibd
 
---error 3
+--error 1
 --exec $mysqld
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Datafile .*t2.*\. Cannot determine the space ID from the first 64 pages;

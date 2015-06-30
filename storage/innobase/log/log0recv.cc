@@ -49,13 +49,11 @@ Created 9/20/1997 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0rec.h"
 #include "fil0fil.h"
-#include "fsp0sysspace.h"
 #include "ut0new.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
 # include "srv0srv.h"
 # include "srv0start.h"
-# include "trx0roll.h"
 # include "row0merge.h"
 #include "row0trunc.h"
 #else /* !UNIV_HOTBACKUP */
@@ -137,11 +135,7 @@ ulint	recv_n_pool_free_frames;
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
-lsn_t	recv_max_page_lsn;
-
-#ifdef UNIV_PFS_THREAD
-mysql_pfs_key_t	trx_rollback_clean_thread_key;
-#endif /* UNIV_PFS_THREAD */
+static lsn_t	recv_max_page_lsn;
 
 #ifndef UNIV_HOTBACKUP
 # ifdef UNIV_PFS_THREAD
@@ -149,8 +143,14 @@ mysql_pfs_key_t	recv_writer_thread_key;
 # endif /* UNIV_PFS_THREAD */
 
 /** Flag indicating if recv_writer thread is active. */
-volatile bool	recv_writer_thread_active = false;
+volatile static bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
+
+/** TRUE if we don't have DDTableBuffer in the system tablespace,
+this should be due to we run the server against old data files.
+Please do NOT change this when server is running.
+FIXME: This should be removed away once we can upgrade for new DD. */
+extern bool	srv_missing_dd_table_buffer;
 
 /* prototypes */
 
@@ -200,6 +200,8 @@ fil_name_process(
 	ulint	space_id,
 	bool	deleted)
 {
+	ut_ad(space_id != TRX_SYS_SPACE);
+
 	/* We will also insert space=NULL into the map, so that
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
@@ -340,16 +342,67 @@ fil_name_parse(
 		return(NULL);
 	}
 
+	char*	name	= reinterpret_cast<char*>(ptr);
+	byte*	end_ptr	= ptr + len;
+	bool	corrupt	= false;
+
 	/* MLOG_FILE_* records should only be written for
 	user-created tablespaces. The name must be long enough
-	and end in .ibd. */
-	bool corrupt = is_predefined_tablespace(space_id)
-		|| first_page_no != 0 // TODO: multi-file user tablespaces
-		|| len < sizeof "/a.ibd\0"
-		|| memcmp(ptr + len - 5, DOT_IBD, 5) != 0
-		|| memchr(ptr, OS_PATH_SEPARATOR, len) == NULL;
-
-	byte*	end_ptr	= ptr + len;
+	and end in .ibd.
+	Exception: MLOG_FILE_NAME can be created for
+	predefined tablespaces. */
+	if (len > sizeof "/a.ibd" && !memcmp(end_ptr - 5, DOT_IBD, 5)
+	    && memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL) {
+		/* User-defined tablespace (*.ibd file) */
+		if (first_page_no != 0) {
+			corrupt = true;
+		}
+	} else if (type != MLOG_FILE_NAME) {
+		/* Only MLOG_FILE_NAME is allowed for other than
+		user-defined tablespaces. */
+		corrupt = true;
+	} else if (len > 9
+		   && end_ptr[-9] == OS_PATH_SEPARATOR
+		   && end_ptr[-8] == 'u'
+		   && end_ptr[-7] == 'n'
+		   && end_ptr[-6] == 'd'
+		   && end_ptr[-5] == 'o'
+		   && end_ptr[-4] >= '0' && end_ptr[-4] <= '9'
+		   && end_ptr[-3] >= '0' && end_ptr[-3] <= '9'
+		   && end_ptr[-2] >= '0' && end_ptr[-2] <= '9'
+		   && end_ptr[-1] == 0) {
+		/* Undo tablespace */
+		if (first_page_no != 0) {
+			corrupt = true;
+		}
+	} else if (space_id == TRX_SYS_SPACE && end_ptr[-1] == 0) {
+		switch (fil_space_system_check(first_page_no, name)) {
+		case FIL_SPACE_SYSTEM_MISMATCH:
+			if (srv_force_recovery) {
+				break;
+			}
+			ib::error() <<
+				"Redo log refers to system tablespace"
+				" file '" << name << "' starting at page "
+				<< first_page_no <<
+				", which disagrees with innodb_data_file_path"
+				" or the directory settings."
+				" Check the startup parameters"
+				" or ignore this error by setting"
+				" --innodb-force-recovery.";
+			corrupt = true;
+		case FIL_SPACE_SYSTEM_OK:
+			break;
+		case FIL_SPACE_SYSTEM_ALL:
+			/* Insert a dummy entry for the system tablespace. */
+			recv_spaces.insert(
+				std::make_pair(TRX_SYS_SPACE,
+					       file_name_t("", false)));
+			break;
+		}
+	} else {
+		corrupt = true;
+	}
 
 	switch (type) {
 	default:
@@ -359,16 +412,17 @@ fil_name_parse(
 			recv_sys->found_corrupt_log = true;
 			break;
 		}
-		fil_name_process(
-			reinterpret_cast<char*>(ptr), len, space_id, false);
+		if (space_id == TRX_SYS_SPACE) {
+			break;
+		}
+		fil_name_process(name, len, space_id, false);
 		break;
 	case MLOG_FILE_DELETE:
 		if (corrupt) {
 			recv_sys->found_corrupt_log = true;
 			break;
 		}
-		fil_name_process(
-			reinterpret_cast<char*>(ptr), len, space_id, true);
+		fil_name_process(name, len, space_id, true);
 #ifdef UNIV_HOTBACKUP
 		if (apply && recv_replay_file_ops
 		    && fil_space_get(space_id)) {
@@ -407,9 +461,7 @@ fil_name_parse(
 			break;
 		}
 
-		fil_name_process(
-			reinterpret_cast<char*>(ptr), len,
-			space_id, false);
+		fil_name_process(name, len, space_id, false);
 		fil_name_process(
 			reinterpret_cast<char*>(new_name), new_len,
 			space_id, false);
@@ -432,6 +484,157 @@ fil_name_parse(
 	}
 
 	return(end_ptr);
+}
+
+/** Destructor */
+MetadataRecover::~MetadataRecover()
+{
+	PersistentTables::iterator	iter;
+
+	for (iter = m_tables.begin(); iter != m_tables.end(); ++iter) {
+
+		UT_DELETE(iter->second);
+	}
+}
+
+/** Get the dynamic metadata of a specified table, create a new one
+if not exist
+@param[in]	id	table id
+@return the metadata of the specified table */
+PersistentTableMetadata*
+MetadataRecover::getMetadata(
+	table_id_t	id)
+{
+	PersistentTableMetadata*	metadata = NULL;
+	PersistentTables::iterator	iter = m_tables.find(id);
+
+	if (iter == m_tables.end()) {
+		PersistentTableMetadata* mem =
+			static_cast<PersistentTableMetadata*>(
+				ut_zalloc_nokey(sizeof *metadata));
+
+		metadata = new (mem) PersistentTableMetadata(id);
+
+		m_tables.insert(std::make_pair(id, metadata));
+	} else {
+		metadata = iter->second;
+		ut_ad(metadata->get_table_id() == id);
+	}
+
+	ut_ad(metadata != NULL);
+	return(metadata);
+}
+
+/** Parse a dynamic metadata redo log of a table and store
+the metadata locally
+@param[in]	id	table id
+@param[in]	ptr	redo log start
+@param[in]	end	end of redo log
+@retval ptr to next redo log record, NULL if this log record
+was truncated */
+byte*
+MetadataRecover::parseMetadataLog(
+	table_id_t	id,
+	byte*		ptr,
+	byte*		end)
+{
+	if (ptr + 2 > end) {
+		/* At least we should get type byte and another one byte
+		for data, if not, it's an incompleted log */
+		return(NULL);
+	}
+
+	persistent_type_t	type = static_cast<persistent_type_t>(ptr[0]);
+
+	ut_ad(dict_persist->persisters != NULL);
+
+	Persister*		persister = dict_persist->persisters->get(
+		type);
+	PersistentTableMetadata*metadata = getMetadata(id);
+	bool			corrupt;
+	ulint			consumed = persister->read(
+		*metadata, ptr, end - ptr, &corrupt);
+
+	if (corrupt) {
+		recv_sys->found_corrupt_log = true;
+	}
+
+	if (consumed == 0) {
+		return(NULL);
+	} else {
+		return(ptr + consumed);
+	}
+}
+
+/** Apply the collected persistent dynamic metadata to in-memory
+table objects */
+void
+MetadataRecover::apply()
+{
+	if (srv_missing_dd_table_buffer) {
+		return;
+	}
+
+	PersistentTables::iterator	iter;
+
+	mutex_enter(&dict_sys->mutex);
+
+	for (iter = m_tables.begin();
+	     iter != m_tables.end();
+	     ++iter) {
+
+		table_id_t		table_id = iter->first;
+		PersistentTableMetadata*metadata = iter->second;
+		dict_table_t*		table;
+
+		table = dict_table_open_on_id(
+			table_id, true, DICT_TABLE_OP_NORMAL);
+
+		/* If the table is NULL, it might be already dropped */
+		if (table == NULL) {
+			continue;
+		}
+
+		/* At this time, the metadata in DDTableBuffer has
+		already been applied to table object, we can apply
+		the latest status of metadata read from redo logs to
+		the table now. We can read the dirty_status directly
+		since it's in recovery phase */
+
+		/* The table should be either CLEAN or applied BUFFERED
+		metadata from DDTableBuffer just now */
+		ut_ad(table->dirty_status == METADATA_CLEAN
+		      || table->dirty_status == METADATA_BUFFERED);
+		bool buffered = (table->dirty_status == METADATA_BUFFERED);
+
+		mutex_enter(&dict_persist->mutex);
+
+		bool is_dirty = dict_table_apply_dynamic_metadata(
+			table, metadata);
+
+		if (is_dirty) {
+			/* This table was not marked as METADATA_BUFFERED
+			before the redo logs are applied, so it's not in
+			the list */
+			if (!buffered) {
+				ut_ad(!table->in_dirty_dict_tables_list);
+
+				UT_LIST_ADD_LAST(
+					dict_persist->dirty_dict_tables,
+					table);
+			}
+
+			table->dirty_status = METADATA_DIRTY;
+
+			ut_d(table->in_dirty_dict_tables_list = true);
+		}
+
+		mutex_exit(&dict_persist->mutex);
+
+		dict_table_close(table, true, false);
+	}
+
+	mutex_exit(&dict_sys->mutex);
 }
 
 /********************************************************//**
@@ -479,6 +682,7 @@ recv_sys_close(void)
 
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
+		UT_DELETE(recv_sys->metadata_recover);
 
 #ifndef UNIV_HOTBACKUP
 		ut_ad(!recv_writer_thread_active);
@@ -519,6 +723,7 @@ recv_sys_mem_free(void)
 
 		ut_free(recv_sys->buf);
 		ut_free(recv_sys->last_block_buf_start);
+		UT_DELETE(recv_sys->metadata_recover);
 		ut_free(recv_sys);
 		recv_sys = NULL;
 	}
@@ -658,6 +863,8 @@ recv_sys_init(
 	/* Call the constructor for recv_sys_t::dblwr member */
 	new (&recv_sys->dblwr) recv_dblwr_t();
 
+	recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
+
 	mutex_exit(&(recv_sys->mutex));
 }
 
@@ -695,11 +902,13 @@ recv_sys_debug_free(void)
 	mem_heap_free(recv_sys->heap);
 	ut_free(recv_sys->buf);
 	ut_free(recv_sys->last_block_buf_start);
+	UT_DELETE(recv_sys->metadata_recover);
 
 	recv_sys->buf = NULL;
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
 	recv_sys->last_block_buf_start = NULL;
+	recv_sys->metadata_recover = NULL;
 
 	/* wake page cleaner up to progress */
 	if (!srv_read_only_mode) {
@@ -793,7 +1002,7 @@ recv_check_cp_is_consistent(
 /********************************************************//**
 Looks for the maximum consistent checkpoint from the log groups.
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 recv_find_max_checkpoint(
 /*=====================*/
@@ -1258,19 +1467,39 @@ recv_parse_or_apply_log_rec_body(
 		page = block->frame;
 		page_zip = buf_block_get_page_zip(block);
 		ut_d(page_type = fil_page_get_type(page));
-	} else if (apply
-		   && !is_predefined_tablespace(space_id)
-		   && recv_spaces.find(space_id) == recv_spaces.end()) {
-		ib::fatal() << "Missing MLOG_FILE_NAME or MLOG_FILE_DELETE"
-			" for redo log record " << type << " (page "
-			<< space_id << ":" << page_no << ") at "
-			<< recv_sys->recovered_lsn << ".";
-		return(NULL);
 	} else {
 		/* Parsing a page log record. */
 		page = NULL;
 		page_zip = NULL;
 		ut_d(page_type = FIL_PAGE_TYPE_ALLOCATED);
+
+		if (apply
+		    && recv_spaces.find(space_id) == recv_spaces.end()) {
+			if (space_id == TRX_SYS_SPACE) {
+				if (!srv_force_recovery) {
+					ib::error() <<
+						"Some file names in"
+						" innodb_data_file_path"
+						" do not occur in"
+						" the redo log."
+						" Check the startup parameters"
+						" or ignore this error "
+						" by setting "
+						" --innodb-force-recovery.";
+					exit(1);
+				}
+			} else {
+				ib::fatal()
+					<< "Missing MLOG_FILE_NAME"
+					" or MLOG_FILE_DELETE"
+					" for redo log record " << type
+					<< " (page "
+					<< space_id << ":" << page_no
+					<< ") at "
+					<< recv_sys->recovered_lsn << ".";
+				return(NULL);
+			}
+		}
 	}
 
 	const byte*	old_ptr = ptr;
@@ -2418,6 +2647,20 @@ skip_this_recv_addr:
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/** Apply the table persistent dynamic metadata collected during redo
+to in-memory tables */
+void
+recv_apply_table_dynamic_metadata(void)
+{
+	ut_ad(recv_sys->metadata_recover != NULL);
+
+	recv_sys->metadata_recover->apply();
+
+	/* We don't need the followings any more */
+	UT_DELETE(recv_sys->metadata_recover);
+	recv_sys->metadata_recover = NULL;
+}
+
 /** Tries to parse a single log record.
 @param[out]	type		log record type
 @param[in]	ptr		pointer to a buffer
@@ -2479,6 +2722,19 @@ recv_parse_log_rec(
 	case MLOG_CHECKPOINT | MLOG_SINGLE_REC_FLAG:
 		recv_sys->found_corrupt_log = true;
 		return(0);
+	case MLOG_TABLE_DYNAMIC_META:
+	case MLOG_TABLE_DYNAMIC_META | MLOG_SINGLE_REC_FLAG:
+		table_id_t	id;
+
+		new_ptr = mlog_parse_initial_dict_log_record(
+			ptr, end_ptr, type, &id);
+
+		if (new_ptr != NULL) {
+			new_ptr = recv_sys->metadata_recover->parseMetadataLog(
+				id, new_ptr, end_ptr);
+		}
+
+		return(new_ptr == NULL ? 0 : new_ptr - ptr);
 	}
 
 	new_ptr = mlog_parse_initial_log_record(ptr, end_ptr, type, space,
@@ -2727,6 +2983,7 @@ loop:
 		case MLOG_FILE_NAME:
 		case MLOG_FILE_RENAME2:
 		case MLOG_FILE_DELETE:
+		case MLOG_TABLE_DYNAMIC_META:
 			/* These were already handled by
 			recv_parse_log_rec() and
 			recv_parse_or_apply_log_rec_body(). */
@@ -2875,6 +3132,7 @@ loop:
 			case MLOG_FILE_NAME:
 			case MLOG_FILE_RENAME2:
 			case MLOG_FILE_DELETE:
+			case MLOG_TABLE_DYNAMIC_META:
 				/* These were already handled by
 				recv_parse_log_rec() and
 				recv_parse_or_apply_log_rec_body(). */
@@ -3349,16 +3607,17 @@ recv_init_crash_recovery_spaces(void)
 
 	for (recv_spaces_t::iterator i = recv_spaces.begin();
 	     i != recv_spaces.end(); i++) {
-		ut_ad(!is_predefined_tablespace(i->first));
-
 		if (i->second.deleted) {
 			/* The tablespace was deleted,
 			so we can ignore any redo log for it. */
+			ut_ad(i->first != TRX_SYS_SPACE);
 			flag_deleted = true;
 		} else if (i->second.space != NULL) {
 			/* The tablespace was found, and there
 			are some redo log records for it. */
 			fil_names_dirty(i->second.space);
+		} else if (i->first == TRX_SYS_SPACE) {
+			/* The system tablespace is always opened. */
 		} else {
 			missing_spaces.insert(i->first);
 			flag_deleted = true;
@@ -3380,7 +3639,7 @@ recv_init_crash_recovery_spaces(void)
 				     HASH_GET_NEXT(addr_hash, recv_addr))) {
 				const ulint space = recv_addr->space;
 
-				if (is_predefined_tablespace(space)) {
+				if (space == TRX_SYS_SPACE) {
 					continue;
 				}
 
@@ -3740,9 +3999,6 @@ recv_recovery_from_checkpoint_finish(void)
 
 	recv_sys_debug_free();
 
-	/* Free up the flush_rbt. */
-	buf_flush_free_flush_rbt();
-
 	/* Validate a few system page types that were left uninitialized
 	by older versions of MySQL. */
 	mtr_t		mtr;
@@ -3771,50 +4027,8 @@ recv_recovery_from_checkpoint_finish(void)
 	fil_block_check_type(block, FIL_PAGE_TYPE_SYS, &mtr);
 	mtr.commit();
 
-	/* Roll back any recovered data dictionary transactions, so
-	that the data dictionary tables will be free of any locks.
-	The data dictionary latch should guarantee that there is at
-	most one data dictionary transaction active at a time. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
-		trx_rollback_or_clean_recovered(FALSE);
-	}
-}
-
-/********************************************************//**
-Initiates the rollback of active transactions. */
-void
-recv_recovery_rollback_active(void)
-/*===============================*/
-{
-	ut_ad(!recv_writer_thread_active);
-
-	/* Switch latching order checks on in sync0debug.cc, if
-	--innodb-sync-debug=true (default) */
-	ut_d(sync_check_enable());
-
-	/* We can't start any (DDL) transactions if UNDO logging
-	has been disabled, additionally disable ROLLBACK of recovered
-	user transactions. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
-	    && !srv_read_only_mode) {
-
-		/* Drop partially created indexes. */
-		row_merge_drop_temp_indexes();
-		/* Drop temporary tables. */
-		row_mysql_drop_temp_tables();
-
-		/* Drop any auxiliary tables that were not dropped when the
-		parent table was dropped. This can happen if the parent table
-		was dropped but the server crashed before the auxiliary tables
-		were dropped. */
-		fts_drop_orphaned_tables();
-
-		/* Rollback the uncommitted transactions which have no user
-		session */
-
-		trx_rollback_or_clean_is_active = true;
-		os_thread_create(trx_rollback_or_clean_all_recovered, 0, 0);
-	}
+	/* Free up the flush_rbt. */
+	buf_flush_free_flush_rbt();
 }
 
 /******************************************************//**

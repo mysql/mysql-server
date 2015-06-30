@@ -19,8 +19,10 @@
 
 #define MY_BIT_NONE (~(uint) 0)
 
-#include <m_string.h>
+#include "my_global.h"
 #include "mysql/psi/mysql_thread.h"   /* mysql_mutex_t */
+
+#include <string.h>
 
 typedef uint32 my_bitmap_map;
 

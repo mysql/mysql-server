@@ -23,8 +23,11 @@
 #include "sql_select.h"
 #include "opt_trace.h"
 #include "keycaches.h"
+#include "mysqld.h"         // LOCK_status
+#include "psi_memory_key.h"
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
+#include "opt_range.h"      // QUICK_SELECT_I
 #include <hash.h>
 #ifndef EMBEDDED_LIBRARY
 #include "events.h"
@@ -456,7 +459,7 @@ reads:          %10s\n\n",
 void mysql_print_status()
 {
   char current_dir[FN_REFLEN];
-  STATUS_VAR current_global_status_var;
+  System_status_var current_global_status_var;
 
   printf("\nStatus information:\n\n");
   (void) my_getwd(current_dir, sizeof(current_dir),MYF(0));
@@ -569,7 +572,7 @@ class Dbug_table_list_dumper
 public:
   void dump_one_struct(TABLE_LIST *tbl);
 
-  int dump_graph(st_select_lex *select_lex, TABLE_LIST *first_leaf);
+  int dump_graph(SELECT_LEX *select_lex, TABLE_LIST *first_leaf);
 };
 
 
@@ -639,7 +642,7 @@ void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl)
 }
 
 
-int Dbug_table_list_dumper::dump_graph(st_select_lex *select_lex, 
+int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
                                        TABLE_LIST *first_leaf)
 {
   DBUG_ENTER("Dbug_table_list_dumper::dump_graph");

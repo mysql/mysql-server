@@ -303,55 +303,6 @@ lock_rec_enqueue_waiting(
 	que_thr_t*		thr,	/*!< in: query thread */
 	lock_prdt_t*		prdt);	/*!< in: Minimum Bounding Box */
 
-/*************************************************************//**
-Removes a record lock request, waiting or granted, from the queue and
-grants locks to other transactions in the queue if they now are entitled
-to a lock. NOTE: all record locks contained in in_lock are removed. */
-void
-lock_rec_dequeue_from_page(
-/*=======================*/
-        lock_t*         in_lock);        /*!< in: record lock object: all
-                                        record locks which are contained in
-                                        this lock object are removed;
-                                        transactions waiting behind will
-                                        get their lock requests granted,
-                                        if they are now qualified to it */
-
-/*************************************************************//**
-Moves the locks of a record to another record and resets the lock bits of
-the donating record. */
-UNIV_INLINE
-void
-lock_rec_move(
-/*==========*/
-        const buf_block_t*      receiver,       /*!< in: buffer block containing
-                                                the receiving record */
-        const buf_block_t*      donator,        /*!< in: buffer block containing
-                                                the donating record */
-        ulint                   receiver_heap_no,/*!< in: heap_no of the record
-                                                which gets the locks; there
-                                                must be no lock requests
-                                                on it! */
-        ulint                   donator_heap_no);/*!< in: heap_no of the record
-                                                which gives the locks */
-
-/*************************************************************//**
-Moves the locks of a record to another record and resets the lock bits of
-the donating record. */
-void
-lock_rec_move_low(
-/*==============*/
-	hash_table_t*		lock_hash,	/*!< in: hash  table to use */
-        const buf_block_t*      receiver,       /*!< in: buffer block containing
-                                                the receiving record */
-        const buf_block_t*      donator,        /*!< in: buffer block containing
-                                                the donating record */
-        ulint                   receiver_heap_no,/*!< in: heap_no of the record
-                                                which gets the locks; there
-                                                must be no lock requests
-                                                on it! */
-        ulint                   donator_heap_no);/*!< in: heap_no of the record
-                                                which gives the locks */
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,
@@ -647,20 +598,6 @@ lock_report_trx_id_insanity(
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
 	trx_id_t	max_trx_id);	/*!< in: trx_sys_get_max_trx_id() */
-/*********************************************************************//**
-Prints info of a table lock. */
-void
-lock_table_print(
-/*=============*/
-	FILE*		file,	/*!< in: file where to print */
-	const lock_t*	lock);	/*!< in: table type lock */
-/*********************************************************************//**
-Prints info of a record lock. */
-void
-lock_rec_print(
-/*===========*/
-	FILE*		file,	/*!< in: file where to print */
-	const lock_t*	lock);	/*!< in: record type lock */
 /*********************************************************************//**
 Prints info of locks for all transactions.
 @return FALSE if not able to obtain lock mutex and exits without

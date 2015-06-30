@@ -372,19 +372,19 @@
 
 
 #define MYSQL_SERVER 1
+#include "ha_federated.h"
+
 #include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
-#include "sql_class.h"           // SSV
 #include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
-
-#include "ha_federated.h"
 #include "probes_mysql.h"
-
 #include "m_string.h"
 #include "key.h"                                // key_copy
 #include "myisam.h"                             // TT_USEFRM
-
-#include <mysql/plugin.h>
+#include "current_thd.h"
+#include "mysqld.h"                             // my_localhost
+#include "sql_class.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <algorithm>
 
@@ -1824,7 +1824,7 @@ int ha_federated::write_row(uchar *buf)
 
   values_string.length(0);
   insert_field_value_string.length(0);
-  ha_statistic_increment(&SSV::ha_write_count);
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
   /*
     start both our field and field values strings
@@ -2429,7 +2429,7 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
   *result= 0;                                   // In case of errors
   index_string.length(0);
   sql_query.length(0);
-  ha_statistic_increment(&SSV::ha_read_key_count);
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
 
   sql_query.append(share->select_query);
 
@@ -2564,7 +2564,7 @@ int ha_federated::index_next(uchar *buf)
   int retval;
   DBUG_ENTER("ha_federated::index_next");
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  ha_statistic_increment(&SSV::ha_read_next_count);
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
   retval= read_next(buf, stored_result);
   MYSQL_INDEX_READ_ROW_DONE(retval);
   DBUG_RETURN(retval);
@@ -2781,7 +2781,7 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos)
 
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        FALSE);
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
   /* Get stored result set. */
   memcpy(&result, pos, sizeof(MYSQL_RES *));
@@ -2932,7 +2932,7 @@ error:
   if (remote_error_number != -1 /* error already reported */)
   {
     error_code= remote_error_number;
-    my_error(error_code, MYF(0), ER(error_code));
+    my_error(error_code, MYF(0));
   }
   DBUG_RETURN(error_code);
 }
@@ -2981,7 +2981,7 @@ int ha_federated::extra(ha_extra_function operation)
 /**
   @brief Reset state of file to after 'open'.
 
-  @detail This function is called after every statement for all tables
+  @details This function is called after every statement for all tables
     used by that statement.
 
   @return Operation status

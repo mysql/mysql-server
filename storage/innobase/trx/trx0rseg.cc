@@ -392,7 +392,9 @@ trx_rseg_create(
 
 	/* To obey the latching order, acquire the file space
 	x-latch before the trx_sys->mutex. */
-	const fil_space_t*	space = mtr_x_lock_space(space_id, &mtr);
+	fil_space_t*	space = mtr.set_undo_space(space_id);
+
+	mtr_x_lock(&space->latch, &mtr);
 
 	switch (space->purpose) {
 	case FIL_TYPE_LOG:
@@ -402,6 +404,8 @@ trx_rseg_create(
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		break;
 	case FIL_TYPE_TABLESPACE:
+		/* We will modify TRX_SYS_RSEGS in TRX_SYS page. */
+		mtr.set_sys_modified();
 		break;
 	}
 

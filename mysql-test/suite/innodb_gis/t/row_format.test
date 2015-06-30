@@ -4,7 +4,6 @@
 
 # Test the redundant format
 LET $file_per_table='off';
-LET $file_format='Antelope';
 LET $row_format=REDUNDANT;
 
 --source include/innodb_gis_row_format_basic.inc
@@ -12,7 +11,6 @@ LET $row_format=REDUNDANT;
 
 # Test the compressed format
 LET $file_per_table='on';
-LET $file_format='Barracuda';
 LET $row_format=COMPRESSED;
 
 --source include/innodb_gis_row_format_basic.inc
@@ -20,15 +18,12 @@ LET $row_format=COMPRESSED;
 
 # Test the dynamic format
 LET $file_per_table='on';
-LET $file_format='Barracuda';
 LET $row_format=DYNAMIC;
 
 --source include/innodb_gis_row_format_basic.inc
 
 # Test the compact format
 LET $file_per_table='off';
-LET $file_format='Antelope';
 LET $row_format=COMPACT;
 
 --source include/innodb_gis_row_format_basic.inc
-

@@ -1482,7 +1482,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
   unlock_append_buffer(info);
 
 int my_b_flush_io_cache(IO_CACHE *info,
-                        int need_append_buffer_lock __attribute__((unused)))
+                        int need_append_buffer_lock)
 {
   size_t length;
   my_off_t pos_in_file;

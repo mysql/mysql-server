@@ -20,6 +20,7 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include <my_xml.h>
+#include "mysql/service_my_snprintf.h"
 #include "mysql/psi/mysql_file.h"
 
 /*

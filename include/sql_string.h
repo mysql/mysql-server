@@ -18,12 +18,22 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#include "m_ctype.h"                            /* my_charset_bin */
-#include "my_sys.h"              /* alloc_root, my_free, my_realloc */
-#include "m_string.h"                           /* TRASH */
+#include "my_global.h"
+#include "m_ctype.h"                         // my_convert
+#include "m_string.h"                        // LEX_CSTRING
+#include "my_sys.h"                          // alloc_root
+#include "mysql/mysql_lex_string.h"          // LEX_STRING
+#include "mysql/service_mysql_alloc.h"       // my_free
+
+#include <string.h>
+
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 #ifdef MYSQL_SERVER
+extern "C" {
 extern PSI_memory_key key_memory_String_value;
+}
 #define STRING_PSI_MEMORY_KEY key_memory_String_value
 #else
 #define STRING_PSI_MEMORY_KEY PSI_NOT_INSTRUMENTED
@@ -119,7 +129,7 @@ typedef struct st_io_cache IO_CACHE;
 typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
-String *copy_if_not_alloced(String *a, String *b, size_t arg_length);
+String *copy_if_not_alloced(String *to, String *from, size_t from_length);
 inline size_t copy_and_convert(char *to, size_t to_length,
                                const CHARSET_INFO *to_cs,
                                const char *from, size_t from_length,
@@ -475,7 +485,7 @@ public:
   void strip_sp();
   friend int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
   friend int stringcmp(const String *a,const String *b);
-  friend String *copy_if_not_alloced(String *a,String *b, size_t arg_length);
+  friend String *copy_if_not_alloced(String *to, String *from, size_t from_length);
   size_t numchars() const;
   size_t charpos(size_t i, size_t offset=0);
 

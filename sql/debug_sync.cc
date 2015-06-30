@@ -330,8 +330,11 @@
 
 #if defined(ENABLED_DEBUG_SYNC)
 
-#include "sql_parse.h"
 #include "log.h"
+#include "current_thd.h"
+#include "sql_class.h"
+#include "derror.h"
+#include "mysql/psi/mysql_memory.h"
 
 #include <set>
 #include <string>
@@ -1968,7 +1971,8 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         {
           // We should not make the statement fail, even if in strict mode.
           push_warning(thd, Sql_condition::SL_WARNING,
-                       ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
+                       ER_DEBUG_SYNC_TIMEOUT,
+                       ER_THD(thd, ER_DEBUG_SYNC_TIMEOUT));
           DBUG_EXECUTE_IF("debug_sync_abort_on_timeout", DBUG_ABORT(););
           break;
         }

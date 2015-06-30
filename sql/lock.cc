@@ -73,14 +73,18 @@
   we are forced to use mysql_lock_merge.
 */
 
-#include "debug_sync.h"
 #include "lock.h"
-#include "sql_base.h"                       // close_tables_for_reopen
+
+#include "hash.h"
+#include "debug_sync.h"
+#include "sql_base.h"                       // MYSQL_LOCK_LOG_TABLE
 #include "sql_parse.h"                     // is_log_table_write_query
+#include "psi_memory_key.h"
 #include "auth_common.h"                   // SUPER_ACL
-#include <hash.h>
-#include <assert.h>
+#include "sql_class.h"
+#include "mysqld.h"                        // opt_readonly
 #include "my_atomic.h"
+
 /**
   @defgroup Locking Locking
   @{
@@ -209,7 +213,7 @@ lock_tables_check(THD *thd, TABLE **tables, size_t count, uint flags)
 /**
   Reset lock type in lock data
 
-  @param mysql_lock Lock structures to reset.
+  @param sql_lock Lock structures to reset.
 
   @note After a locking error we want to quit the locking of the table(s).
         The test case in the bug report for Bug #18544 has the following
@@ -526,23 +530,6 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
       }
     }
   }
-}
-
-
-/** Abort all other threads waiting to get lock in table. */
-
-void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
-{
-  MYSQL_LOCK *locked;
-  DBUG_ENTER("mysql_lock_abort");
-
-  if ((locked= get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK)))
-  {
-    for (uint i=0; i < locked->lock_count; i++)
-      thr_abort_locks(locked->locks[i]->lock, upgrade_lock);
-    my_free(locked);
-  }
-  DBUG_VOID_RETURN;
 }
 
 

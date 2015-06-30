@@ -53,6 +53,8 @@
 #include "mysql.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
@@ -83,6 +85,11 @@
 #define IGNORE_NONE 0x00 /* no ignore */
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
 
+#ifdef HAVE_CHARSET_utf8
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"
+#else
+#define MYSQL_UNIVERSAL_CLIENT_CHARSET MYSQL_DEFAULT_CHARSET_NAME
+#endif
 
 static void add_load_option(DYNAMIC_STRING *str, const char *option,
                              const char *option_value);
@@ -582,6 +589,8 @@ static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
+static void verbose_msg(const char *fmt, ...)
+  __attribute__((format(printf,1,2)));
 
 
 /*
@@ -5853,7 +5862,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size)
 int main(int argc, char **argv)
 {
   char bin_log_name[FN_REFLEN];
-  int exit_code, md_result_fd;
+  int exit_code, md_result_fd= 0;
   MY_INIT("mysqldump");
 
   compatible_mode_normal_str[0]= 0;

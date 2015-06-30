@@ -470,6 +470,7 @@ alphabetical position of the cursor is guaranteed to be sensible on
 return, but it may happen that the cursor is not positioned on the last
 record of any page, because the structure of the tree may have changed
 during the time when the cursor had no latches. */
+static
 void
 btr_pcur_move_backward_from_page(
 /*=============================*/

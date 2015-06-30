@@ -40,6 +40,7 @@
 #include <mysql_version.h>
 #include "path.h"
 #include "logger.h"
+#include "mysql/service_mysql_alloc.h"
 
 #if HAVE_CHOWN
 #include <pwd.h>

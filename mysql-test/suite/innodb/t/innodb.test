@@ -1467,10 +1467,8 @@ set session old_alter_table=0;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
-SET GLOBAL innodb_large_prefix=OFF;
+--error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
 create table t1 (v varchar(65530), key(v));
-SET GLOBAL innodb_large_prefix=default;
-drop table t1;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;
@@ -1619,39 +1617,7 @@ create table t8 (col1 blob, index(col1(767)))
 # multi-column tests can be found in innodb_16k, innodb_8k & innodb_4k
 
 drop table t1, t2, t3, t4, t5, t6, t7, t8;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-SET GLOBAL innodb_large_prefix=OFF;
-# these should have their index length trimmed
-create table t1 (col1 varchar(768), index(col1))
- character set = latin1 engine = innodb;
-create table t2 (col1 varbinary(768), index(col1))
- character set = latin1 engine = innodb;
-create table t3 (col1 text, index(col1(768)))
- character set = latin1 engine = innodb;
-create table t4 (col1 blob, index(col1(768)))
- character set = latin1 engine = innodb;
-SET GLOBAL innodb_large_prefix=default;
 
-show create table t1;
-
-drop table t1, t2, t3, t4;
-
-# these should be refused
-set global innodb_large_prefix=OFF;
---error ER_TOO_LONG_KEY
-create table t1 (col1 varchar(768) primary key)
- character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
-create table t2 (col1 varbinary(768) primary key)
- character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
-create table t3 (col1 text, primary key(col1(768)))
- character set = latin1 engine = innodb;
---error ER_TOO_LONG_KEY
-create table t4 (col1 blob, primary key(col1(768)))
- character set = latin1 engine = innodb;
-SET sql_mode = default;
-set global innodb_large_prefix=default;
 #
 # Test improved foreign key error messages (bug #3443)
 #

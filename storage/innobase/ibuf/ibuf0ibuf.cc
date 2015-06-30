@@ -453,6 +453,10 @@ void
 ibuf_close(void)
 /*============*/
 {
+	if (ibuf == NULL) {
+		return;
+	}
+
 	mutex_free(&ibuf_pessimistic_insert_mutex);
 
 	mutex_free(&ibuf_mutex);
@@ -518,6 +522,7 @@ ibuf_init_at_db_start(void)
 		     &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	mtr_x_lock_space(IBUF_SPACE_ID, &mtr);
 
@@ -2425,7 +2430,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return current rec or NULL */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2447,7 +2452,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((warn_unused_result))
 ulint
 ibuf_get_merge_pages(
 /*=================*/
@@ -3375,7 +3380,7 @@ ibuf_insert_low(
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
-	ulint		n_stored;
+	ulint		n_stored = 0;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
@@ -3449,6 +3454,7 @@ ibuf_insert_low(
 	}
 
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
@@ -3726,8 +3732,6 @@ ibuf_insert(
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
 			goto check_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_DELETE_MARK:
@@ -3741,8 +3745,6 @@ ibuf_insert(
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
 			goto check_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_DELETE:
@@ -3756,8 +3758,6 @@ ibuf_insert(
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
 			goto skip_watch;
-		case IBUF_USE_COUNT:
-			break;
 		}
 		break;
 	case IBUF_OP_COUNT:
@@ -3833,7 +3833,7 @@ skip_watch:
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
 @return	newly inserted record */
-static __attribute__((nonnull))
+static
 rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -4238,7 +4238,7 @@ ibuf_delete(
 /*********************************************************************//**
 Restores insert buffer tree cursor position
 @return TRUE if the position was restored; FALSE if not */
-static __attribute__((nonnull))
+static
 ibool
 ibuf_restore_pos(
 /*=============*/
@@ -4308,6 +4308,7 @@ ibuf_delete_rec(
 	dberr_t		err;
 
 	ut_ad(ibuf_inside(mtr));
+	ut_ad(mtr->is_named_space(IBUF_SPACE_ID));
 	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
@@ -4377,6 +4378,7 @@ ibuf_delete_rec(
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 	ibuf_mtr_start(mtr);
+	mtr->set_sys_modified();
 	mutex_enter(&ibuf_mutex);
 
 	if (!ibuf_restore_pos(space, page_no, search_tuple,
@@ -4554,6 +4556,7 @@ ibuf_merge_or_delete_for_page(
 
 loop:
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	/* Position pcur in the insert buffer at the first entry for this
 	index page */
@@ -4682,6 +4685,7 @@ loop:
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				ibuf_mtr_start(&mtr);
+				mtr.set_sys_modified();
 				mtr.set_named_space(page_id.space());
 
 				success = buf_page_get_known_nowait(
@@ -4810,6 +4814,7 @@ ibuf_delete_for_discarded_space(
 	memset(dops, 0, sizeof(dops));
 loop:
 	ibuf_mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	/* Position pcur in the insert buffer at the first entry for the
 	space */

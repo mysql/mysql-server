@@ -2267,7 +2267,8 @@ or outr.col_varchar_key is null;
 x
 102
 SET @@optimizer_switch=@optimizer_switch_saved;
-# restart: --innodb-read-only --big-tables=1
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --big-tables=1 --innodb-read-only
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 explain format = json select sql_buffer_result * from t1;

@@ -25,15 +25,15 @@
 #include "my_global.h"
 #include "m_string.h"                   // LEX_CSTRING
 #include "my_alloc.h"                   // MEM_ROOT
-#include "my_time.h"                    // my_time_t
+#include "my_time.h"                    // interval_type
 #include "mysql/mysql_lex_string.h"     // LEX_STRING
 
 #include "my_thread.h"                  // Needed for psi.h
-#include <pfs_stage_provider.h>
-#include <mysql/psi/mysql_stage.h>
+#include "pfs_stage_provider.h"
+#include "mysql/psi/mysql_stage.h"
 
-#include <pfs_statement_provider.h>
-#include <mysql/psi/mysql_statement.h>
+#include "pfs_statement_provider.h"
+#include "mysql/psi/mysql_statement.h"
 
 class Field;
 class String;
@@ -135,7 +135,7 @@ public:
   load_from_row(THD *thd, TABLE *table);
 
   bool
-  compute_next_execution_time();
+  compute_next_execution_time(THD *thd);
 
   void
   mark_last_executed(THD *thd);

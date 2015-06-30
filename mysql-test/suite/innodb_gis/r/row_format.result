@@ -1,7 +1,4 @@
 SET GLOBAL innodb_file_per_table='off';
-SET GLOBAL innodb_file_format='Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
@@ -392,13 +389,7 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table='on';
-SET GLOBAL innodb_file_format='Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
@@ -789,13 +780,7 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table='on';
-SET GLOBAL innodb_file_format='Barracuda';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
@@ -1186,13 +1171,7 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 SET GLOBAL innodb_file_per_table='off';
-SET GLOBAL innodb_file_format='Antelope';
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html
 CREATE TABLE t1 (
 id bigint(12) unsigned NOT NULL auto_increment,
 c2 varchar(15) collate utf8_bin DEFAULT NULL,
@@ -1583,6 +1562,3 @@ COUNT(*)
 353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
-SET GLOBAL innodb_file_format=default;
-Warnings:
-Warning	131	Using innodb_file_format is deprecated and the parameter may be removed in future releases. See http://dev.mysql.com/doc/refman/5.7/en/innodb-file-format.html

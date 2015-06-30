@@ -16,7 +16,9 @@
 
 #include "session_tracker.h"
 
+#include "current_thd.h"
 #include "hash.h"
+#include "psi_memory_key.h"
 #include "rpl_gtid.h"
 #include "sql_class.h"
 #include "sql_show.h"
@@ -652,8 +654,8 @@ bool Session_sysvars_tracker::update(THD *thd)
          Once the data is stored, we reset the flags related to state-change
          (see reset()).
 
-  @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param thd                The thd handle.
+  @param[in,out] buf        Buffer to store the information to.
 
   @return
     false                   Success
@@ -722,9 +724,7 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the system variable with the specified name as changed.
 
-  @param name [IN]          Name of the system variable which got changed.
-
-  @return                   void
+  @param tracked_item_name Name of the system variable which got changed.
 */
 
 void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name)
@@ -814,7 +814,7 @@ bool Current_schema_tracker::update(THD *thd)
 
 
   @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param [in,out] buf       Buffer to store the information to.
 
   @return
     false                   Success
@@ -852,9 +852,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed.
 
-  @param name [IN]          Always null.
-
-  @return void
+  @param tracked_item_name Always null (unused).
 */
 
 void Current_schema_tracker::mark_as_changed(THD *thd,
@@ -868,8 +866,6 @@ void Current_schema_tracker::mark_as_changed(THD *thd,
 
 /**
   @brief Reset the m_changed flag for next statement.
-
-  @return                   void
 */
 
 void Current_schema_tracker::reset()
@@ -901,7 +897,7 @@ bool Session_state_change_tracker::enable(THD *thd)
 }
 
 /**
-  @Enable/disable the tracker based on @@session_track_state_change value.
+  Enable/disable the tracker based on @@session_track_state_change value.
 
   @param thd [IN]           The thd handle.
   @return                   false (always)
@@ -920,7 +916,7 @@ bool Session_state_change_tracker::update(THD *thd)
          there is no state change information.
 
   @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param [in,out] buf       Buffer to store the information to.
 
   @return
     false                   Success
@@ -954,9 +950,6 @@ bool Session_state_change_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed and associated session
          attributes accordingly.
-
-  @param name [IN]          Always null.
-  @return void
 */
 
 void Session_state_change_tracker::mark_as_changed(THD *thd,
@@ -1223,7 +1216,7 @@ bool Session_gtids_tracker::update(THD *thd)
 
 
   @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param [in,out] buf       Buffer to store the information to.
 
   @return
     false                   Success
@@ -1257,8 +1250,6 @@ void Session_gtids_tracker::mark_as_changed(THD *thd __attribute__((unused)),
 
 /**
   @brief Reset the m_changed flag for next statement.
-
-  @return                   void
 */
 
 void Session_gtids_tracker::reset()

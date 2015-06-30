@@ -20,6 +20,7 @@
 #include "base64.h"                             // base64_needed_decoded_length
 #include "auth_common.h"                        // check_global_access
 #include "log_event.h"                          // Format_description_log_event
+#include "psi_memory_key.h"
 #include "rpl_info_factory.h"                   // Rpl_info_factory
 #include "rpl_rli.h"                            // Relay_log_info
 

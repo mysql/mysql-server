@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file sql/sql_select.cc
 
   @brief Evaluate query expressions, throughout resolving, optimization and
          execution.
@@ -24,6 +24,8 @@
 */
 
 #include "sql_select.h"
+
+#include "current_thd.h"
 #include "sql_table.h"                          // primary_key_name
 #include "sql_derived.h"
 #include "probes_mysql.h"
@@ -31,9 +33,11 @@
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
 #include "lock.h"                // mysql_unlock_some_tables,
                                  // mysql_unlock_read_tables
+#include "mysqld.h"              // stage_init
 #include "sql_show.h"            // append_identifier
 #include "sql_base.h"
 #include "auth_common.h"         // *_ACL
+#include "opt_range.h"           // QUICK_SELECT_I
 #include "sql_test.h"            // misc. debug printing utilities
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
@@ -45,6 +49,7 @@
 #include "item_sum.h"            // Item_sum
 #include "sql_planner.h"         // calculate_condition_filter
 #include "opt_hints.h"           // hint_key_state()
+#include "sql_cache.h"           // query_cache
 
 #include <algorithm>
 
@@ -57,8 +62,9 @@ static store_key *get_store_key(THD *thd,
 				Key_use *keyuse, table_map used_tables,
 				KEY_PART_INFO *key_part, uchar *key_buff,
 				uint maybe_null);
+static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+
 /**
   Handle a data manipulation query, from preparation through cleanup
 
@@ -323,124 +329,133 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   @retval FALSE  OK 
   @retval TRUE   Out of memory error
 
-  @details
     Setup the strategies to eliminate semi-join duplicates.
     At the moment there are 5 strategies:
 
-    1. DuplicateWeedout (use of temptable to remove duplicates based on rowids
+    -# DuplicateWeedout (use of temptable to remove duplicates based on rowids
                          of row combinations)
-    2. FirstMatch (pick only the 1st matching row combination of inner tables)
-    3. LooseScan (scanning the sj-inner table in a way that groups duplicates
+    -# FirstMatch (pick only the 1st matching row combination of inner tables)
+    -# LooseScan (scanning the sj-inner table in a way that groups duplicates
                   together and picking the 1st one)
-    4. MaterializeLookup (Materialize inner tables, then setup a scan over
+    -# MaterializeLookup (Materialize inner tables, then setup a scan over
                           outer correlated tables, lookup in materialized table)
-    5. MaterializeScan (Materialize inner tables, then setup a scan over
+    -# MaterializeScan (Materialize inner tables, then setup a scan over
                         materialized tables, perform lookup in outer tables)
-    
+
     The join order has "duplicate-generating ranges", and every range is
     served by one strategy or a combination of FirstMatch with with some
     other strategy.
-    
+
     "Duplicate-generating range" is defined as a range within the join order
     that contains all of the inner tables of a semi-join. All ranges must be
     disjoint, if tables of several semi-joins are interleaved, then the ranges
     are joined together, which is equivalent to converting
-      SELECT ... WHERE oe1 IN (SELECT ie1 ...) AND oe2 IN (SELECT ie2 )
+
+     `SELECT ... WHERE oe1 IN (SELECT ie1 ...) AND oe2 IN (SELECT ie2 )`
+
     to
-      SELECT ... WHERE (oe1, oe2) IN (SELECT ie1, ie2 ... ...)
-    .
+
+      `SELECT ... WHERE (oe1, oe2) IN (SELECT ie1, ie2 ... ...)`.
 
     Applicability conditions are as follows:
 
-    DuplicateWeedout strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~
+    @par DuplicateWeedout strategy
 
+    @code
       (ot|nt)*  [ it ((it|ot|nt)* (it|ot))]  (nt)*
       +------+  +=========================+  +---+
         (1)                 (2)               (3)
+    @endcode
 
-       (1) - Prefix of OuterTables (those that participate in 
-             IN-equality and/or are correlated with subquery) and outer 
-             Non-correlated tables.
-       (2) - The handled range. The range starts with the first sj-inner
-             table, and covers all sj-inner and outer tables 
-             Within the range,  Inner, Outer, outer non-correlated tables
-             may follow in any order.
-       (3) - The suffix of outer non-correlated tables.
-    
-    FirstMatch strategy
-    ~~~~~~~~~~~~~~~~~~~
+    -# Prefix of OuterTables (those that participate in IN-equality and/or are
+       correlated with subquery) and outer Non-correlated tables.
 
+    -# The handled range. The range starts with the first sj-inner table, and
+       covers all sj-inner and outer tables Within the range, Inner, Outer,
+       outer non-correlated tables may follow in any order.
+
+    -# The suffix of outer non-correlated tables.
+
+    @par FirstMatch strategy
+
+    @code
       (ot|nt)*  [ it ((it|nt)* it) ]  (nt)*
       +------+  +==================+  +---+
         (1)             (2)          (3)
 
-      (1) - Prefix of outer correlated and non-correlated tables
-      (2) - The handled range, which may contain only inner and
-            non-correlated tables.
-      (3) - The suffix of outer non-correlated tables.
+    @endcode
+    -# Prefix of outer correlated and non-correlated tables
 
-    LooseScan strategy 
-    ~~~~~~~~~~~~~~~~~~
+    -# The handled range, which may contain only inner and non-correlated
+       tables.
 
+    -# The suffix of outer non-correlated tables.
+
+    @par LooseScan strategy
+
+    @code
      (ot|ct|nt) [ loosescan_tbl (ot|nt|it)* it ]  (ot|nt)*
      +--------+   +===========+ +=============+   +------+
         (1)           (2)          (3)              (4)
-     
-      (1) - Prefix that may contain any outer tables. The prefix must contain
-            all the non-trivially correlated outer tables. (non-trivially means
-            that the correlation is not just through the IN-equality).
-      
-      (2) - Inner table for which the LooseScan scan is performed.
-            Notice that special requirements for existence of certain indexes
-            apply to this table, @see class Loose_scan_opt.
+    @endcode
 
-      (3) - The remainder of the duplicate-generating range. It is served by 
-            application of FirstMatch strategy. Outer IN-correlated tables
-            must be correlated to the LooseScan table but not to the inner
-            tables in this range. (Currently, there can be no outer tables
-            in this range because of implementation restrictions,
-            @see Optimize_table_order::advance_sj_state()).
+    -# Prefix that may contain any outer tables. The prefix must contain all
+       the non-trivially correlated outer tables. (non-trivially means that
+       the correlation is not just through the IN-equality).
 
-      (4) - The suffix of outer correlated and non-correlated tables.
+    -# Inner table for which the LooseScan scan is performed.  Notice that
+       special requirements for existence of certain indexes apply to this
+       table, @see class Loose_scan_opt.
 
-    MaterializeLookup strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    -# The remainder of the duplicate-generating range. It is served by
+       application of FirstMatch strategy. Outer IN-correlated tables must be
+       correlated to the LooseScan table but not to the inner tables in this
+       range. (Currently, there can be no outer tables in this range because
+       of implementation restrictions, @see
+       Optimize_table_order::advance_sj_state()).
 
+    -# The suffix of outer correlated and non-correlated tables.
+
+    @par MaterializeLookup strategy
+
+    @code
      (ot|nt)*  [ it (it)* ]  (nt)*
      +------+  +==========+  +---+
         (1)         (2)        (3)
+    @endcode
 
-      (1) - Prefix of outer correlated and non-correlated tables.
+    -# Prefix of outer correlated and non-correlated tables.
 
-      (2) - The handled range, which may contain only inner tables.
+    -# The handled range, which may contain only inner tables.
             The inner tables are materialized in a temporary table that is
             later used as a lookup structure for the outer correlated tables.
 
-      (3) - The suffix of outer non-correlated tables.
+    -# The suffix of outer non-correlated tables.
 
-    MaterializeScan strategy
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    @par MaterializeScan strategy
 
+    @code
      (ot|nt)*  [ it (it)* ]  (ot|nt)*
      +------+  +==========+  +-----+
         (1)         (2)         (3)
+    @endcode
 
-      (1) - Prefix of outer correlated and non-correlated tables.
+    -# Prefix of outer correlated and non-correlated tables.
 
-      (2) - The handled range, which may contain only inner tables.
+    -# The handled range, which may contain only inner tables.
             The inner tables are materialized in a temporary table which is
             later used to setup a scan.
 
-      (3) - The suffix of outer correlated and non-correlated tables.
+    -# The suffix of outer correlated and non-correlated tables.
 
-  Note that MaterializeLookup and MaterializeScan has overlap in their patterns.
-  It may be possible to consolidate the materialization strategies into one.
-  
+  Note that MaterializeLookup and MaterializeScan has overlap in their
+  patterns. It may be possible to consolidate the materialization strategies
+  into one.
+
   The choice between the strategies is made by the join optimizer (see
-  advance_sj_state() and fix_semijoin_strategies()).
-  This function sets up all fields/structures/etc needed for execution except
-  for setup/initialization of semi-join materialization which is done in 
+  advance_sj_state() and fix_semijoin_strategies()).  This function sets up
+  all fields/structures/etc needed for execution except for
+  setup/initialization of semi-join materialization which is done in
   setup_materialized_table().
 */
 
@@ -1213,7 +1228,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 
   @param join          The join object being handled
   @param j             The join_tab which will have the ref access populated
-  @param first_keyuse  First key part of (possibly multi-part) key
+  @param org_keyuse  First key part of (possibly multi-part) key
   @param used_tables   Bitmap of available tables
 
   @return False if success, True if error
@@ -2300,8 +2315,7 @@ bool error_if_full_join(JOIN *join)
 
     if (tab->type() == JT_ALL && (!tab->quick()))
     {
-      my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
-                 ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
+      my_error(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE, MYF(0));
       return true;
     }
   }
@@ -2455,8 +2469,10 @@ bool QEP_shared_owner::and_with_condition(Item *add_cond)
     - However, if this is a JOIN for a [sub]select, which is not
     a correlated subquery itself, but has subqueries, we can free it
     fully and also free JOINs of all its subqueries. The exception
-    is a subquery in SELECT list, e.g: @n
-    SELECT a, (select max(b) from t1) group by c @n
+    is a subquery in SELECT list, e.g:
+    @code
+    SELECT a, (select max(b) from t1) group by c
+    @endcode
     This subquery will not be evaluated at first sweep and its value will
     not be inserted into the temporary table. Instead, it's evaluated
     when selecting from the temporary table. Therefore, it can't be freed
@@ -2527,10 +2543,6 @@ void JOIN::join_free()
 /**
   Free resources of given join.
 
-  @param fill   true if we should free all resources, call with full==1
-                should be last, before it this function can be called with
-                full==0
-
   @note
     With subquery this function definitely will be called several times,
     but even for simple query it can be called several times.
@@ -2597,8 +2609,8 @@ void JOIN::cleanup()
   with non-JOIN statements (i.e. single-table UPDATE and DELETE).
 
 
-  @param order            Linked list of ORDER BY arguments
-  @param cond             WHERE expression
+  @param order            Linked list of ORDER BY arguments.
+  @param where            Where condition.
 
   @return pointer to new filtered ORDER list or NULL if whole list eliminated
 
@@ -3074,7 +3086,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
   Free joins of subselect of this select.
 
   @param thd      THD pointer
-  @param select   pointer to st_select_lex which subselects joins we will free
+  @param select   pointer to SELECT_LEX which subselects joins we will free
 */
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select)
@@ -3286,6 +3298,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     TRUE on error  
 */
 
+__attribute__((warn_unused_result))
 bool JOIN::clear()
 {
   /* 
@@ -3727,7 +3740,7 @@ bool JOIN::make_tmp_tables_info()
         used_tables= 1;
       }
 
-      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
+      Item* sort_table_cond= make_cond_for_table(thd, having_cond, used_tables,
                                                  (table_map) 0, false);
       if (sort_table_cond)
       {
@@ -3744,7 +3757,7 @@ bool JOIN::make_tmp_tables_info()
 					 "select and having",
                                          QT_ORDINARY););
 
-        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+        having_cond= make_cond_for_table(thd, having_cond, ~ (table_map) 0,
                                          ~used_tables, false);
         DBUG_EXECUTE("where",
                      print_where(having_cond, "having after sort",
@@ -3852,7 +3865,9 @@ void JOIN::unplug_join_tabs()
 /**
   @brief Add Filesort object to the given table to sort if with filesort
 
-  @param tab        the JOIN_TAB object to attach created Filesort object to
+  @param idx        JOIN_TAB's position in the qep_tab array. The
+                    created Filesort object gets attached to this.
+
   @param sort_order List of expressions to sort the table by
 
   @note This function moves tab->select, if any, to filesort->select
@@ -3910,7 +3925,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 }
 
 /**
-  Find a cheaper access key than a given @a key
+  Find a cheaper access key than a given key.
 
   @param          tab                 NULL or JOIN_TAB of the accessed table
   @param          order               Linked list of ORDER BY arguments
@@ -3940,7 +3955,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
 
 bool
 test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
-                         key_map usable_keys,  int ref_key,
+                         Key_map usable_keys,  int ref_key,
                          ha_rows select_limit,
                          int *new_key, int *new_key_direction,
                          ha_rows *new_select_limit, uint *new_used_key_parts,
@@ -3958,7 +3973,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   if (join)
     ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   uint nr;
-  key_map keys;
+  Key_map keys;
   uint best_key_parts= 0;
   int best_key_direction= 0;
   ha_rows best_records= 0;
@@ -4190,8 +4205,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   Find a key to apply single table UPDATE/DELETE by a given ORDER
 
   @param       order           Linked list of ORDER BY arguments
-  @param       table           Table to find a key
-  @param       select          Pointer to access/update select->quick (if any)
+  @param       tab             Table to find a key
   @param       limit           LIMIT clause parameter 
   @param [out] need_sort       TRUE if filesort needed
   @param [out] reverse
@@ -4329,7 +4343,7 @@ uint actual_key_parts(const KEY *key_info)
   @return key flags.
 */
 
-uint actual_key_flags(KEY *key_info)
+static uint actual_key_flags(KEY *key_info)
 {
   return key_info->table->in_use->
     optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?

@@ -35,6 +35,9 @@
 #include "mysql.h"
 #include "hash.h"
 #include "mysql/client_authentication.h"
+#include "mysql/service_my_snprintf.h"
+#include "mysql/service_mysql_alloc.h"
+#include "mysql/psi/mysql_memory.h"
 
 /* Remove client convenience wrappers */
 #undef max_allowed_packet
@@ -49,9 +52,6 @@
 #endif
 
 #define CLI_MYSQL_REAL_CONNECT STDCALL cli_mysql_real_connect
-
-#undef net_flush
-my_bool	net_flush(NET *net);
 
 #else  /*EMBEDDED_LIBRARY*/
 #define CLI_MYSQL_REAL_CONNECT STDCALL mysql_real_connect
@@ -166,8 +166,6 @@ char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-void mysql_close_free_options(MYSQL *mysql);
-void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
@@ -259,21 +257,21 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
 {
   NET *net;
   DBUG_ENTER("set_mysql_error");
-  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
+  DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER_CLIENT(errcode)));
   DBUG_ASSERT(mysql != 0);
 
   if (mysql)
   {
     net= &mysql->net;
     net->last_errno= errcode;
-    my_stpcpy(net->last_error, ER(errcode));
+    my_stpcpy(net->last_error, ER_CLIENT(errcode));
     my_stpcpy(net->sqlstate, sqlstate);
     MYSQL_TRACE(ERROR, mysql, ());
   }
   else
   {
     mysql_server_last_errno= errcode;
-    my_stpcpy(mysql_server_last_error, ER(errcode));
+    my_stpcpy(mysql_server_last_error, ER_CLIENT(errcode));
   }
   DBUG_VOID_RETURN;
 }
@@ -378,7 +376,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
     if (GetLastError() != ERROR_PIPE_BUSY)
     {
       set_mysql_extended_error(mysql, CR_NAMEDPIPEOPEN_ERROR,
-                               unknown_sqlstate, ER(CR_NAMEDPIPEOPEN_ERROR),
+                               unknown_sqlstate, ER_CLIENT(CR_NAMEDPIPEOPEN_ERROR),
                                host, unix_socket, (ulong) GetLastError());
       return INVALID_HANDLE_VALUE;
     }
@@ -386,7 +384,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
     if (!WaitNamedPipe(pipe_name, connect_timeout))
     {
       set_mysql_extended_error(mysql, CR_NAMEDPIPEWAIT_ERROR, unknown_sqlstate,
-                               ER(CR_NAMEDPIPEWAIT_ERROR),
+                               ER_CLIENT(CR_NAMEDPIPEWAIT_ERROR),
                                host, unix_socket, (ulong) GetLastError());
       return INVALID_HANDLE_VALUE;
     }
@@ -394,7 +392,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
   if (hPipe == INVALID_HANDLE_VALUE)
   {
     set_mysql_extended_error(mysql, CR_NAMEDPIPEOPEN_ERROR, unknown_sqlstate,
-                             ER(CR_NAMEDPIPEOPEN_ERROR), host, unix_socket,
+                             ER_CLIENT(CR_NAMEDPIPEOPEN_ERROR), host, unix_socket,
                              (ulong) GetLastError());
     return INVALID_HANDLE_VALUE;
   }
@@ -403,7 +401,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
   {
     CloseHandle( hPipe );
     set_mysql_extended_error(mysql, CR_NAMEDPIPESETSTATE_ERROR,
-                             unknown_sqlstate, ER(CR_NAMEDPIPESETSTATE_ERROR),
+                             unknown_sqlstate, ER_CLIENT(CR_NAMEDPIPESETSTATE_ERROR),
                              host, unix_socket, (ulong) GetLastError());
     return INVALID_HANDLE_VALUE;
   }
@@ -647,10 +645,10 @@ err:
   {
     if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
       set_mysql_extended_error(mysql, error_allow, unknown_sqlstate,
-                               ER(error_allow), suffix_pos, error_code);
+                               ER_CLIENT(error_allow), suffix_pos, error_code);
     else
       set_mysql_extended_error(mysql, error_allow, unknown_sqlstate,
-                               ER(error_allow), error_code);
+                               ER_CLIENT(error_allow), error_code);
     return(INVALID_HANDLE_VALUE);
   }
   return(handle_map);
@@ -1519,7 +1517,7 @@ static int check_license(MYSQL *mysql)
     if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
       set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
-                               ER(CR_WRONG_LICENSE), required_license);
+                               ER_CLIENT(CR_WRONG_LICENSE), required_license);
     }
     return 1;
   }
@@ -1536,7 +1534,7 @@ static int check_license(MYSQL *mysql)
        strncmp(row[0], required_license, sizeof(required_license))))
   {
     set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
-                             ER(CR_WRONG_LICENSE), required_license);
+                             ER_CLIENT(CR_WRONG_LICENSE), required_license);
   }
   mysql_free_result(res);
   return net->last_errno;
@@ -1684,6 +1682,7 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
                   (STR), MYF(MY_WME)) : NULL;                    \
     } while (0)
 
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SET_OPTION(opt_var,arg) \
   do { \
     if (mysql->options.opt_var) \
@@ -1692,7 +1691,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   } while (0)
 
 
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SET_SSL_OPTION(opt_var,arg) \
   do { \
     SET_OPTION(opt_var, arg); \
@@ -2538,7 +2536,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 static void
-mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
+mysql_ssl_free(MYSQL *mysql)
 {
   struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");
@@ -3010,7 +3008,7 @@ int mysql_init_character_set(MYSQL *mysql)
   {
     if (mysql->options.charset_dir)
       set_mysql_extended_error(mysql, CR_CANT_READ_CHARSET, unknown_sqlstate,
-                               ER(CR_CANT_READ_CHARSET),
+                               ER_CLIENT(CR_CANT_READ_CHARSET),
                                mysql->options.charset_name,
                                mysql->options.charset_dir);
     else
@@ -3018,7 +3016,7 @@ int mysql_init_character_set(MYSQL *mysql)
       char cs_dir_name[FN_REFLEN];
       get_charsets_dir(cs_dir_name);
       set_mysql_extended_error(mysql, CR_CANT_READ_CHARSET, unknown_sqlstate,
-                               ER(CR_CANT_READ_CHARSET),
+                               ER_CLIENT(CR_CANT_READ_CHARSET),
                                mysql->options.charset_name,
                                cs_dir_name);
     }
@@ -3424,7 +3422,7 @@ cli_establish_ssl(MYSQL *mysql)
     if (!(mysql->server_capabilities & CLIENT_SSL))
     {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR),
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
                                "SSL is required but the server doesn't "
                                "support it"
                                );
@@ -3467,7 +3465,7 @@ cli_establish_ssl(MYSQL *mysql)
     if (my_net_write(net, (uchar*) buff, (size_t) (end - buff)) || net_flush(net))
     {
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                               ER(CR_SERVER_LOST_EXTENDED),
+                               ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                "sending connection information to server",
                                errno);
       goto error;
@@ -3488,7 +3486,8 @@ cli_establish_ssl(MYSQL *mysql)
       options->extension->ssl_crlpath : NULL)))
     {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR), sslGetErrString(ssl_init_error));
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
+                               sslGetErrString(ssl_init_error));
       goto error;
     }
     mysql->connector_fd= (unsigned char *) ssl_fd;
@@ -3503,7 +3502,7 @@ cli_establish_ssl(MYSQL *mysql)
       ERR_error_string_n(ssl_error, buf, 512);
       buf[511]= 0;
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR),
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR),
                                buf);
       goto error;
     }
@@ -3514,7 +3513,7 @@ cli_establish_ssl(MYSQL *mysql)
         ssl_verify_server_cert(net->vio, mysql->host, &cert_error))
     {
       set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate,
-                               ER(CR_SSL_CONNECTION_ERROR), cert_error);
+                               ER_CLIENT(CR_SSL_CONNECTION_ERROR), cert_error);
       goto error;
     }
 
@@ -3529,9 +3528,8 @@ error:
 
 #else
   (void)mysql; /* avoid warning */
-
-#endif /* HAVE_OPENSSL */
   return 0;
+#endif /* HAVE_OPENSSL */
 }
 
 
@@ -3649,7 +3647,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   if (my_net_write(net, (uchar*) buff, (size_t) (end-buff)) || net_flush(net))
   {
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                             ER(CR_SERVER_LOST_EXTENDED),
+                             ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                              "sending authentication information",
                              errno);
     goto error;
@@ -3758,7 +3756,7 @@ static int client_mpvio_write_packet(struct st_plugin_vio *mpv,
     }
     else
       set_mysql_extended_error(mpvio->mysql, CR_SERVER_LOST, unknown_sqlstate,
-                               ER(CR_SERVER_LOST_EXTENDED),
+                               ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                "sending authentication information",
                                errno);
   }
@@ -3828,7 +3826,7 @@ static my_bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin)
   {
     set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
                              unknown_sqlstate,
-                             ER(CR_AUTH_PLUGIN_CANNOT_LOAD),
+                             ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD),
                              clear_password_client_plugin.name,
                              "plugin not enabled");
     return TRUE;
@@ -3946,7 +3944,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   {
     if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                               ER(CR_SERVER_LOST_EXTENDED),
+                               ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                "reading authorization packet",
                                errno);
     DBUG_RETURN (1);
@@ -4007,7 +4005,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
       {
         if (mysql->net.last_errno == CR_SERVER_LOST)
           set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                                   ER(CR_SERVER_LOST_EXTENDED),
+                                   ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                    "reading final connect information",
                                    errno);
         DBUG_RETURN (1);
@@ -4192,7 +4190,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
       my_snprintf(host_info=buff, sizeof(buff)-1,
-                  ER(CR_SHARED_MEMORY_CONNECTION), host);
+                  ER_CLIENT(CR_SHARED_MEMORY_CONNECTION), host);
     }
   }
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
@@ -4209,7 +4207,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR,
                                unknown_sqlstate,
-                               ER(CR_SOCKET_CREATE_ERROR),
+                               ER_CLIENT(CR_SOCKET_CREATE_ERROR),
                                socket_errno);
       goto error;
     }
@@ -4227,7 +4225,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     host= LOCAL_HOST;
     if (!unix_socket)
       unix_socket= mysql_unix_port;
-    host_info= (char*) ER(CR_LOCALHOST_CONNECTION);
+    host_info= (char*) ER_CLIENT(CR_LOCALHOST_CONNECTION);
     DBUG_PRINT("info", ("Using UNIX sock '%s'", unix_socket));
 
     memset(&UNIXaddr, 0, sizeof(UNIXaddr));
@@ -4241,7 +4239,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 			  socket_errno));
       set_mysql_extended_error(mysql, CR_CONNECTION_ERROR,
                                unknown_sqlstate,
-                               ER(CR_CONNECTION_ERROR),
+                               ER_CLIENT(CR_CONNECTION_ERROR),
                                unix_socket, socket_errno);
       vio_delete(net->vio);
       net->vio= 0;
@@ -4275,7 +4273,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       net->vio= vio_new_win32pipe(hPipe);
       my_snprintf(host_info=buff, sizeof(buff)-1,
-                  ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
+                  ER_CLIENT(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
   }
 #endif
@@ -4299,7 +4297,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     if (!host)
       host= LOCAL_HOST;
 
-    my_snprintf(host_info=buff, sizeof(buff)-1, ER(CR_TCP_CONNECTION), host);
+    my_snprintf(host_info=buff, sizeof(buff)-1, ER_CLIENT(CR_TCP_CONNECTION), host);
     DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host, port));
 
     memset(&hints, 0, sizeof(hints));
@@ -4319,7 +4317,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       */
       DBUG_PRINT("info",("IPV6 getaddrinfo error %d", gai_errno));
       set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                               ER(CR_UNKNOWN_HOST), host, errno);
+                               ER_CLIENT(CR_UNKNOWN_HOST), host, errno);
 
       goto error;
     }
@@ -4338,7 +4336,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       {
         DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                                 ER(CR_UNKNOWN_HOST),
+                                 ER_CLIENT(CR_UNKNOWN_HOST),
                                  mysql->options.ci.bind_address,
                                  bind_gai_errno);
 
@@ -4467,7 +4465,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     if (sock == SOCKET_ERROR)
     {
       set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
-                                ER(CR_IPSOCK_ERROR), saved_error);
+                                ER_CLIENT(CR_IPSOCK_ERROR), saved_error);
       goto error;
     }
 
@@ -4475,7 +4473,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       DBUG_PRINT("error",("Got error %d on connect to '%s'", saved_error, host));
       set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-                                ER(CR_CONN_HOST_ERROR), host, saved_error);
+                                ER_CLIENT(CR_CONN_HOST_ERROR), host, saved_error);
       goto error;
     }
   }
@@ -4518,7 +4516,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                    get_vio_connect_timeout(mysql)) < 1))
   {
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                             ER(CR_SERVER_LOST_EXTENDED),
+                             ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                              "waiting for initial communication packet",
                              socket_errno);
     goto error;
@@ -4533,7 +4531,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   {
     if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                               ER(CR_SERVER_LOST_EXTENDED),
+                               ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                "reading initial communication packet",
                                socket_errno);
     goto error;
@@ -4547,7 +4545,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (mysql->protocol_version != PROTOCOL_VERSION)
   {
     set_mysql_extended_error(mysql, CR_VERSION_ERROR, unknown_sqlstate,
-                             ER(CR_VERSION_ERROR), mysql->protocol_version,
+                             ER_CLIENT(CR_VERSION_ERROR), mysql->protocol_version,
                              PROTOCOL_VERSION);
     goto error;
   }
@@ -4710,7 +4708,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   {
     if (mysql->net.last_errno == CR_SERVER_LOST)
         set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
-                                 ER(CR_SERVER_LOST_EXTENDED),
+                                 ER_CLIENT(CR_SERVER_LOST_EXTENDED),
                                  "Setting intital database",
                                  errno);
     goto error;
@@ -4963,7 +4961,7 @@ static void mysql_prune_stmt_list(MYSQL *mysql)
     {
       stmt->mysql= 0;
       stmt->last_errno= CR_SERVER_LOST;
-      my_stpcpy(stmt->last_error, ER(CR_SERVER_LOST));
+      my_stpcpy(stmt->last_error, ER_CLIENT(CR_SERVER_LOST));
       my_stpcpy(stmt->sqlstate, unknown_sqlstate);
     }
     else
@@ -5000,7 +4998,7 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
   char buff[MYSQL_ERRMSG_SIZE];
   DBUG_ENTER("mysql_detach_stmt_list");
 
-  my_snprintf(buff, sizeof(buff)-1, ER(CR_STMT_CLOSED), func_name);
+  my_snprintf(buff, sizeof(buff)-1, ER_CLIENT(CR_STMT_CLOSED), func_name);
   for (; element; element= element->next)
   {
     MYSQL_STMT *stmt= (MYSQL_STMT *) element->data;
@@ -5990,7 +5988,7 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
     char cs_dir_name[FN_REFLEN];
     get_charsets_dir(cs_dir_name);
     set_mysql_extended_error(mysql, CR_CANT_READ_CHARSET, unknown_sqlstate,
-                             ER(CR_CANT_READ_CHARSET), cs_name, cs_dir_name);
+                             ER_CLIENT(CR_CANT_READ_CHARSET), cs_name, cs_dir_name);
   }
   charsets_dir= save_csdir;
   return mysql->net.last_errno;

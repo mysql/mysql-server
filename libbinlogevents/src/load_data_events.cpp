@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ Execute_load_query_event(uint32_t file_id_arg,
 }
 
 /**
-  The constructor used inorder to decode EXECUTE_LOAD_QUERY_EVENT from a
+  The constructor used in order to decode EXECUTE_LOAD_QUERY_EVENT from a
   packet. It is used on the MySQL server acting as a slave.
 */
 Execute_load_query_event::

@@ -24,6 +24,7 @@
 
 #include "my_thread.h"         // my_thread_t
 #include "log.h"               // sql_print_warning
+#include "mysqld.h"            // flush_time
 #include "sql_base.h"          // tdc_flush_unused_tables
 
 static bool volatile manager_thread_in_use;

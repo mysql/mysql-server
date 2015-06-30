@@ -23,6 +23,7 @@
 #include "sql_authentication.h"
 #include "log.h"
 #include "sql_class.h"
+#include "current_thd.h"
 
 #include "../scripts/sql_commands_system_tables.h"
 #include "../scripts/sql_commands_system_data.h"

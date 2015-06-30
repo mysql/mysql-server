@@ -263,7 +263,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         DBUG_RETURN(CR_ERROR);
 #else
       set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
-                                ER(CR_AUTH_PLUGIN_ERR), "sha256_password",
+                                ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
                                 "Authentication requires SSL encryption");
       DBUG_RETURN(CR_ERROR); // If no openssl support
 #endif

@@ -126,12 +126,6 @@ private:
   uint32 queue_front() { return queue_head; }
 };
 
-inline bool has_commit_order_manager(THD *thd)
-{
-  return is_mts_worker(thd) &&
-    thd->rli_slave->get_commit_order_manager() != NULL;
-}
-
 /**
    Check if order commit deadlock happens.
 

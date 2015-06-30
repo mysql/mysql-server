@@ -19,7 +19,7 @@
    Helpers connecting the optimizer trace to THD or Information Schema. They
    are dedicated "to the server" (hence the file's name).
    In order to create a unit test of the optimizer trace without defining
-   Item_field (and all its parent classes), st_select_lex..., these helpers
+   Item_field (and all its parent classes), SELECT_LEX..., these helpers
    are defined in opt_trace2server.cc.
 */
 
@@ -29,6 +29,7 @@
 #include "sql_show.h"    // schema_table_stored_record
 #include "sql_parse.h"   // sql_command_flags
 #include "sp_head.h"     // sp_head
+#include "sp_instr.h"    // sp_printable
 
 #ifdef OPTIMIZER_TRACE
 
@@ -233,13 +234,13 @@ Opt_trace_start::~Opt_trace_start()
 }
 
 
-void opt_trace_print_expanded_query(THD *thd, st_select_lex *select_lex,
+void opt_trace_print_expanded_query(THD *thd, SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object)
 
 {
   Opt_trace_context * const trace= &thd->opt_trace;
   /**
-     It's hard to prove that st_select_lex::print() doesn't modify any of its
+     It's hard to prove that SELECT_LEX::print() doesn't modify any of its
      Item-s in a dangerous way. Item_int::print(), for example, modifies its
      internal str_value.
      To make the danger rare, we print the expanded query as rarely as

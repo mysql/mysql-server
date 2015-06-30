@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,11 @@ typedef struct st_keycache_wqueue
 {
   struct st_my_thread_var *last_thread;  /* circular list of waiting threads */
 } KEYCACHE_WQUEUE;
+
+	/* Typical key cash */
+#define KEY_CACHE_SIZE		(uint) (8*1024*1024)
+	/* Default size of a key cache block  */
+#define KEY_CACHE_BLOCK_SIZE	(uint) 1024
 
 #define CHANGED_BLOCKS_HASH 128             /* must be power of 2 */
 

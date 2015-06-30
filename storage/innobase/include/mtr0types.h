@@ -26,9 +26,7 @@ Created 11/26/1995 Heikki Tuuri
 #ifndef mtr0types_h
 #define mtr0types_h
 
-#ifndef UNIV_INNOCHECKSUM
 #include "sync0rw.h"
-#endif /* UNIV_INNOCHECKSUM */
 
 struct mtr_t;
 
@@ -232,8 +230,11 @@ enum mlog_id_t {
 	We use it to replace MLOG_INIT_FILE_PAGE. */
 	MLOG_INIT_FILE_PAGE2 = 59,
 
+	/** log for some persistent dynamic metadata change */
+	MLOG_TABLE_DYNAMIC_META = 60,
+
 	/** Table is being truncated. (Marked only for file-per-table) */
-	MLOG_TRUNCATE = 60,
+	MLOG_TRUNCATE = 61,
 
 	/** biggest value (used in assertions) */
 	MLOG_BIGGEST_TYPE = MLOG_TRUNCATE
@@ -249,7 +250,6 @@ mach_write_to_8(checkpoint_lsn). */
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 enum mtr_memo_type_t {
-#ifndef UNIV_INNOCHECKSUM
 	MTR_MEMO_PAGE_S_FIX = RW_S_LATCH,
 
 	MTR_MEMO_PAGE_X_FIX = RW_X_LATCH,
@@ -257,7 +257,6 @@ enum mtr_memo_type_t {
 	MTR_MEMO_PAGE_SX_FIX = RW_SX_LATCH,
 
 	MTR_MEMO_BUF_FIX = RW_NO_LATCH,
-#endif /* !UNIV_CHECKSUM */
 
 #ifdef UNIV_DEBUG
 	MTR_MEMO_MODIFY = 32,

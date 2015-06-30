@@ -32,10 +32,10 @@ Created 9/5/1995 Heikki Tuuri
 #include "ut0new.h"
 #include "ut0counter.h"
 
-#if defined(UNIV_DEBUG) && !defined(UNIV_INNOCHECKSUM)
+#ifdef UNIV_DEBUG
 /** Set when InnoDB has invoked exit(). */
 extern bool	innodb_calling_exit;
-#endif /* UNIV_DEBUG && !UNIV_INNOCHECKSUM */
+#endif /* UNIV_DEBUG */
 
 #ifdef _WIN32
 /** On Windows, InterlockedExchange operates on LONG variable */
@@ -243,6 +243,7 @@ enum latch_level_t {
 	SYNC_RECV,
 	SYNC_LOG_FLUSH_ORDER,
 	SYNC_LOG,
+
 	SYNC_PAGE_CLEANER,
 	SYNC_PURGE_QUEUE,
 	SYNC_TRX_SYS_HEADER,
@@ -278,6 +279,10 @@ enum latch_level_t {
 	SYNC_TREE_NODE_NEW,
 	SYNC_INDEX_TREE,
 
+	SYNC_PERSIST_METADATA_BUFFER,
+	SYNC_PERSIST_DIRTY_TABLES,
+	SYNC_PERSIST_CHECKPOINT,
+
 	SYNC_IBUF_PESS_INSERT_MUTEX,
 	SYNC_IBUF_HEADER,
 	SYNC_DICT_HEADER,
@@ -287,8 +292,6 @@ enum latch_level_t {
 	SYNC_FTS_CACHE,
 
 	SYNC_DICT_OPERATION,
-
-	SYNC_FILE_FORMAT_TAG,
 
 	SYNC_TRX_I_S_LAST_READ,
 
@@ -320,7 +323,6 @@ enum latch_id_t {
 	LATCH_ID_CACHE_LAST_READ,
 	LATCH_ID_DICT_FOREIGN_ERR,
 	LATCH_ID_DICT_SYS,
-	LATCH_ID_FILE_FORMAT_MAX,
 	LATCH_ID_FIL_SYSTEM,
 	LATCH_ID_FLUSH_LIST,
 	LATCH_ID_FTS_BG_THREADS,
@@ -334,8 +336,9 @@ enum latch_id_t {
 	LATCH_ID_IBUF_PESSIMISTIC_INSERT,
 	LATCH_ID_LOG_SYS,
 	LATCH_ID_LOG_FLUSH_ORDER,
-	LATCH_ID_LIST,
-	LATCH_ID_MUTEX_LIST,
+	LATCH_ID_PERSIST_METADATA_BUFFER,
+	LATCH_ID_DICT_PERSIST_DIRTY_TABLES,
+	LATCH_ID_DICT_PERSIST_CHECKPOINT,
 	LATCH_ID_PAGE_CLEANER,
 	LATCH_ID_PURGE_SYS_PQ,
 	LATCH_ID_RECALC_POOL,
@@ -399,7 +402,6 @@ enum latch_id_t {
 	LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
 };
 
-#ifndef UNIV_INNOCHECKSUM
 /** OS mutex, without any policy. It is a thin wrapper around the
 system mutexes. The interface is different from the policy mutexes,
 to ensure that it is called directly and not confused with the
@@ -1231,7 +1233,5 @@ enum rw_lock_flag_t {
 };
 
 #endif /* UNIV_DBEUG */
-
-#endif /* UNIV_INNOCHECKSUM */
 
 #endif /* sync0types_h */

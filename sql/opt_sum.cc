@@ -54,9 +54,9 @@
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
                                 Item_field *item_field, Item *cond,
                                 uint *range_fl, uint *key_prefix_length);
-static int reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
+static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
                             Item *cond, uint range_fl, uint prefix_len);
-static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
+static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond);
 
 
 /*
@@ -95,9 +95,9 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   
   @param table      Table object
   @param ref        Reference to the structure where we store the key value
-  @item_field       Field used in MIN()
-  @range_fl         Whether range endpoint is strict less than
-  @prefix_len       Length of common key part for the range
+  @param item_field Field used in MIN()
+  @param range_fl   Whether range endpoint is strict less than
+  @param prefix_len Length of common key part for the range
   
   @retval
     0               No errors
@@ -190,7 +190,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
   
   @param table      Table object
   @param ref        Reference to the structure where we store the key value
-  @range_fl         Whether range endpoint is strict greater than
+  @param range_fl   Whether range endpoint is strict greater than
   
   @retval
     0               No errors
@@ -724,7 +724,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   case Item_func::LT_FUNC:
     noeq_type= 1;   /* fall through */
   case Item_func::LE_FUNC:
-    less_fl= 1;      
+    less_fl= 1;
     break;
   case Item_func::GT_FUNC:
     noeq_type= 1;   /* fall through */
@@ -757,7 +757,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     DBUG_RETURN(FALSE);
 
   if (inv && !eq_type)
-    less_fl= 1-less_fl;                         // Convert '<' -> '>' (etc)
+    less_fl= !less_fl;                         // Convert '<' -> '>' (etc)
 
   /* Check if field is part of the tested partial key */
   uchar *key_ptr= ref->key_buff;
@@ -1011,19 +1011,19 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
   @param[in] prefix_len     Length of the constant part of the key
 
   @retval
-    0        ok
+    false    ok
   @retval
-    1        WHERE was not true for the found row
+    true     WHERE was not true for the found row
 */
 
-static int reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
+static bool reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
                             Item *cond, uint range_fl, uint prefix_len)
 {
   if (key_cmp_if_same(item_field->field->table, ref->key_buff, ref->key,
                       prefix_len))
-    return 1;
+    return true;
   if (!cond || (range_fl & (max_fl ? NO_MIN_RANGE : NO_MAX_RANGE)))
-    return 0;
+    return false;
   return maxmin_in_range(max_fl, item_field, cond);
 }
 
@@ -1036,12 +1036,12 @@ static int reckey_in_range(bool max_fl, TABLE_REF *ref, Item_field *item_field,
   @param[in] cond            WHERE condition
 
   @retval
-    0        ok
+    false    ok
   @retval
-    1        WHERE was not true for the found row
+    true     WHERE was not true for the found row
 */
 
-static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond)
+static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond)
 {
   /* If AND/OR condition */
   if (cond->type() == Item::COND_ITEM)
@@ -1051,27 +1051,27 @@ static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond)
     while ((item= li++))
     {
       if (maxmin_in_range(max_fl, item_field, item))
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
   }
 
   if (cond->used_tables() != item_field->table_ref->map())
-    return 0;
-  bool less_fl= 0;
+    return false;
+  bool less_fl= false;
   switch (((Item_func*) cond)->functype()) {
   case Item_func::BETWEEN:
     return cond->val_int() == 0;                // Return 1 if WHERE is false
   case Item_func::LT_FUNC:
   case Item_func::LE_FUNC:
-    less_fl= 1;
+    less_fl= true;
   case Item_func::GT_FUNC:
   case Item_func::GE_FUNC:
   {
     Item *item= ((Item_func*) cond)->arguments()[1];
     /* In case of 'const op item' we have to swap the operator */
     if (!item->const_item())
-      less_fl= 1-less_fl;
+      less_fl= !less_fl;
     /*
       We only have to check the expression if we are using an expression like
       SELECT MAX(b) FROM t1 WHERE a=const AND b>const
@@ -1080,15 +1080,17 @@ static int maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond)
     */
     if (max_fl != less_fl)
       return cond->val_int() == 0;                // Return 1 if WHERE is false
-    return 0;
+    return false;
   }
   case Item_func::EQ_FUNC:
   case Item_func::EQUAL_FUNC:
+  case Item_func::MULT_EQUAL_FUNC:
+  case Item_func::ISNULL_FUNC:
     break;
   default:                                        // Keep compiler happy
-    DBUG_ASSERT(1);                               // Impossible
+    DBUG_ASSERT(false);                           // Impossible
     break;
   }
-  return 0;
+  return false;
 }
 

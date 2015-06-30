@@ -302,7 +302,7 @@ dict_mem_table_add_col(
 
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
-static __attribute__((nonnull))
+static
 void
 dict_mem_table_col_rename_low(
 /*==========================*/

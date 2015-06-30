@@ -14,6 +14,7 @@ i	LEFT(j,20)
 1	aaaaaaaaaaaaaaaaaaaa
 2	bbbbbbbbbbbbbbbbbbbb
 3	cccccccccccccccccccc
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
@@ -77,6 +78,7 @@ i	LEFT(j,20)
 DELETE FROM t2;
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 i	LEFT(j,20)
+SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;

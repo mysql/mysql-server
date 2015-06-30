@@ -14,8 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "keycaches.h"
-/* key_memory_KEY_CACHE */
 #include "../mysys/mysys_priv.h"
+
 
 /****************************************************************************
   Named list handling
@@ -23,8 +23,8 @@
 
 NAMED_ILIST key_caches;
 
-uchar* find_named(I_List<NAMED_ILINK> *list, const char *name, size_t length,
-                NAMED_ILINK **found)
+static uchar* find_named(I_List<NAMED_ILINK> *list, const char *name,
+                         size_t length, NAMED_ILINK **found)
 {
   I_List_iterator<NAMED_ILINK> it(*list);
   NAMED_ILINK *element;

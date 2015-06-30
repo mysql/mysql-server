@@ -31,6 +31,7 @@
 /* Iteration on THD from the sql layer. */
 #include "sql_class.h"
 #include "mysqld_thd_manager.h"
+#include "item_func.h"
 
 class Find_thd_user_var : public Find_THD_Impl
 {

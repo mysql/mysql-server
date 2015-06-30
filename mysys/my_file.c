@@ -16,6 +16,7 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 #include <m_string.h>
+#include "mysql/service_mysql_alloc.h"
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>  /* RLIMIT_NOFILE */
 #endif

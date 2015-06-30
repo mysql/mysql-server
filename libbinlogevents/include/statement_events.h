@@ -19,7 +19,7 @@
 
   @file statement_events.h
 
-  @brief Contains the classes representing statement events occuring in the
+  @brief Contains the classes representing statement events occurring in the
   replication stream. Each event is represented as a byte sequence with logical
   divisions as event header, event specific data and event footer. The header
   and footer are common to all the events and are represented as two different
@@ -636,7 +636,7 @@ public:
     </pre>
 
     @param buf                Containing the event header and data
-    @param even_len           The length upto which buf contains Query event data
+    @param event_len          The length upto which buf contains Query event data
     @param description_event  FDE specific to the binlog version
 
     @param event_type         Required to determine whether the event type is
@@ -790,7 +790,7 @@ public:
   };
 
   /**
-    This constructor will initialize the instance variablesi and the type_code,
+    This constructor will initialize the instance variables and the type_code,
     it will be used only by the server code.
   */
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
@@ -824,7 +824,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
-    @param length             Length of the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version

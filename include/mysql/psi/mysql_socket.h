@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
@@ -106,7 +106,7 @@ mysql_socket_invalid()
 
 /**
   Set socket descriptor and address.
-  @param socket nstrumented socket
+  @param socket instrumented socket
   @param addr unformatted socket address
   @param addr_len length of socket addres
 */

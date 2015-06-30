@@ -16,25 +16,23 @@
 #ifndef SQL_TABLE_INCLUDED
 #define SQL_TABLE_INCLUDED
 
-#include "my_global.h"                          /* my_bool */
-#include "m_ctype.h"                            /* CHARSET_INFO */
-#include "mysql_com.h"                          /* enum_field_types */
-#include "mysql/psi/mysql_thread.h"             /* mysql_mutex_t */
+#include "my_global.h"
+#include "binary_log_types.h"  // enum_field_types
 
 class Alter_info;
 class Alter_table_ctx;
 class Create_field;
-struct TABLE_LIST;
 class THD;
-struct TABLE;
 struct handlerton;
+struct TABLE;
+struct TABLE_LIST;
 typedef struct st_ha_check_opt HA_CHECK_OPT;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_key KEY;
-typedef struct st_key_cache KEY_CACHE;
 typedef struct st_lock_param_type ALTER_PARTITION_PARAM_TYPE;
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_order ORDER;
+typedef struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_mutex mysql_mutex_t;
+template<typename T> class List;
+
 
 enum ddl_log_entry_code
 {
@@ -120,12 +118,6 @@ enum enum_explain_filename_mode
 /* Maximum length of GEOM_POINT Field */
 #define MAX_LEN_GEOM_POINT_FIELD   25
 
-/* depends on errmsg.txt Database `db`, Table `t` ... */
-#define EXPLAIN_FILENAME_MAX_EXTRA_LENGTH 63
-
-#define MYSQL50_TABLE_NAME_PREFIX         "#mysql50#"
-#define MYSQL50_TABLE_NAME_PREFIX_LENGTH  9
-
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
@@ -148,8 +140,6 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #endif /* DBUG_OFF */
                            );
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
-size_t check_n_cut_mysql50_prefix(const char *from, char *to, size_t to_length);
-bool check_mysql50_prefix(const char *name);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext,
                             uint flags, bool *was_truncated);
@@ -174,8 +164,7 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
                                 uint select_field_count,
                                 bool *is_trans);
 int mysql_discard_or_import_tablespace(THD *thd,
-                                       TABLE_LIST *table_list,
-                                       bool discard);
+                                       TABLE_LIST *table_list);
 bool mysql_prepare_alter_table(THD *thd, TABLE *table,
                                HA_CREATE_INFO *create_info,
                                Alter_info *alter_info,
@@ -194,12 +183,9 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy);
 bool mysql_create_like_table(THD *thd, TABLE_LIST *table,
                              TABLE_LIST *src_table,
                              HA_CREATE_INFO *create_info);
-bool mysql_rename_table(handlerton *base, const char *old_db,
+bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
                         const char * old_name, const char *new_db,
                         const char * new_name, uint flags);
-
-bool mysql_backup_table(THD* thd, TABLE_LIST* table_list);
-bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
 bool mysql_checksum_table(THD* thd, TABLE_LIST* table_list,
                           HA_CHECK_OPT* check_opt);
@@ -210,14 +196,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool log_query);
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
-void close_cached_table(THD *thd, TABLE *table);
 bool fill_field_definition(THD *thd,
                            class sp_head *sp,
                            enum enum_field_types field_type,
                            Create_field *field_def);
-int prepare_create_field(Create_field *sql_field,
-			 uint *blob_columns,
-			 longlong table_flags);
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                           HA_CREATE_INFO *create_info);
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
@@ -231,7 +213,6 @@ bool write_execute_ddl_log_entry(uint first_entry,
                                    DDL_LOG_MEMORY_ENTRY **active_entry);
 bool deactivate_ddl_log_entry(uint entry_no);
 void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry);
-bool sync_ddl_log();
 void release_ddl_log();
 void execute_ddl_log_recovery();
 bool execute_ddl_log_entry(THD *thd, uint first_entry);
@@ -239,12 +220,8 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                              size_t *comment_len, uint max_len,
                              uint err_code, const char *comment_name);
 
-template<typename T> class List;
 void promote_first_timestamp_column(List<Create_field> *column_definitions);
 
-/*
-  These prototypes where under INNODB_COMPATIBILITY_HOOKS.
-*/
 size_t explain_filename(THD* thd, const char *from, char *to, size_t to_length,
                         enum_explain_filename_mode explain_mode);
 

@@ -137,9 +137,6 @@ struct srv_stats_t {
 
 extern const char*	srv_main_thread_op_info;
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-extern const char	srv_mysql50_table_name_prefix[10];
-
 /* The monitor thread waits on this event. */
 extern os_event_t	srv_monitor_event;
 
@@ -203,12 +200,6 @@ extern	ulong	srv_thread_sleep_delay;
 /** Maximum sleep delay (in micro-seconds), value of 0 disables it.*/
 extern	ulong	srv_adaptive_max_sleep_delay;
 
-/** The file format to use on new *.ibd files. */
-extern ulint	srv_file_format;
-/** Whether to check file format during startup.  A value of
-UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
-set it to the highest format we support. */
-extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
@@ -263,13 +254,13 @@ extern char*	srv_log_group_home_dir;
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
-extern ib_uint64_t	srv_log_file_size;
-extern ib_uint64_t	srv_log_file_size_requested;
-extern ulint	srv_log_buffer_size;
+extern ulonglong	srv_log_file_size;
+extern ulonglong	srv_log_file_size_requested;
+extern ulong	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
 extern ulong	srv_log_write_ahead_size;
-extern char	srv_adaptive_flushing;
+extern my_bool	srv_adaptive_flushing;
 extern my_bool	srv_flush_sync;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -310,8 +301,8 @@ extern ulint	srv_lock_table_size;
 extern ulint	srv_n_file_io_threads;
 extern my_bool	srv_random_read_ahead;
 extern ulong	srv_read_ahead_threshold;
-extern ulint	srv_n_read_io_threads;
-extern ulint	srv_n_write_io_threads;
+extern ulong	srv_n_read_io_threads;
+extern ulong	srv_n_write_io_threads;
 
 extern uint	srv_change_buffer_max_size;
 
@@ -332,8 +323,6 @@ is 5% of the max where max is srv_io_capacity.  */
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
-
-extern char*	srv_file_flush_method_str;
 
 extern ulint	srv_max_n_open_files;
 
@@ -512,10 +501,10 @@ extern PSI_stage_info	srv_stage_buffer_pool_load;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef _WIN32
-/** Alternatives for the file flush option in Unix; see the InnoDB manual
-about what these mean */
+/** Alternatives for the file flush option in Unix.
+@see innodb_flush_method_names */
 enum srv_unix_flush_t {
-	SRV_UNIX_FSYNC = 1,	/*!< fsync, the default */
+	SRV_UNIX_FSYNC = 0,	/*!< fsync, the default */
 	SRV_UNIX_O_DSYNC,	/*!< open log files in O_SYNC mode */
 	SRV_UNIX_LITTLESYNC,	/*!< do not call os_file_flush()
 				when writing data files, but do flush
@@ -537,10 +526,12 @@ enum srv_unix_flush_t {
 };
 extern enum srv_unix_flush_t	srv_unix_file_flush_method;
 #else
-/** Alternatives for file i/o in Windows */
+/** Alternatives for file i/o in Windows. @see innodb_flush_method_names. */
 enum srv_win_flush_t {
-	SRV_WIN_IO_NORMAL = 1,	/*!< buffered I/O */
-	SRV_WIN_IO_UNBUFFERED	/*!< unbuffered I/O; this is the default */
+	/** unbuffered I/O; this is the default */
+	SRV_WIN_IO_UNBUFFERED = 0,
+	/** buffered I/O */
+	SRV_WIN_IO_NORMAL,
 };
 extern enum srv_win_flush_t	srv_win_file_flush_method;
 #endif /* _WIN32 */
@@ -605,21 +596,10 @@ void
 srv_boot(void);
 /*==========*/
 /*********************************************************************//**
-Initializes the server. */
-void
-srv_init(void);
-/*==========*/
-/*********************************************************************//**
 Frees the data structures created in srv_init(). */
 void
 srv_free(void);
 /*==========*/
-/*********************************************************************//**
-Initializes the synchronization primitives, memory system, and the thread
-local storage. */
-void
-srv_general_init(void);
-/*==================*/
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 void
@@ -802,7 +782,8 @@ srv_purge_wakeup(void);
 
 /** Call exit(3) */
 void
-srv_fatal_error();
+srv_fatal_error()
+	__attribute__((noreturn));
 
 /** Check if tablespace is being truncated.
 (Ignore system-tablespace as we don't re-create the tablespace
@@ -831,8 +812,8 @@ struct export_var_t{
 	ulint innodb_data_writes;		/*!< I/O write requests */
 	ulint innodb_data_written;		/*!< Data bytes written */
 	ulint innodb_data_reads;		/*!< I/O read requests */
-	char  innodb_buffer_pool_dump_status[512];/*!< Buf pool dump status */
-	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
+	char  innodb_buffer_pool_dump_status[OS_FILE_MAX_PATH + 128];/*!< Buf pool dump status */
+	char  innodb_buffer_pool_load_status[OS_FILE_MAX_PATH + 128];/*!< Buf pool load status */
 	char  innodb_buffer_pool_resize_status[512];/*!< Buf pool resize status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */

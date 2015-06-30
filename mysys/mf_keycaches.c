@@ -25,6 +25,7 @@
 #include <keycache.h>
 #include <hash.h>
 #include <m_string.h>
+#include "mysql/service_mysql_alloc.h"
 
 /*****************************************************************************
   General functions to handle SAFE_HASH objects.

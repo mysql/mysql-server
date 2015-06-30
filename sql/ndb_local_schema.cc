@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "log.h"
 #include "table_trigger_dispatcher.h"
 #include "sql_trigger.h"
+#include "mysqld.h"                             // reg_ext
 
 static const char *ndb_ext=".ndb";
 

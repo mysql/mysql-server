@@ -5,7 +5,6 @@ begin
 declare n int default 20;
 declare inner_loop int default 100;
 set global innodb_file_per_table=on;
-drop table if exists t1,t2,t3,t4;
 create temporary table t1(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -32,19 +31,6 @@ primary key (c1),
 index (c3,c4(50),c5(50)),
 index (c2))
 engine=innodb row_format=compact;
-create temporary table t3(c1 int not null,
-c2 int not null,
-c3 char(255) not null,
-c4 text(6000) not null,
-c5 blob(6000) not null,
-c6 varchar(2000) not null,
-c7 varchar(2000) not null,
-c8 datetime,
-c9 decimal(6,3),
-primary key (c1),
-index (c3,c4(50),c5(50)),
-index (c2))
-engine=innodb row_format=compressed key_block_size=4;
 create temporary table t4(c1 int not null,
 c2 int not null,
 c3 char(255) not null,
@@ -83,10 +69,6 @@ insert into t2 values(n,n,repeat(concat(' tc3_',n),30),
 repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
 repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
 now(),(100.55+n));
-insert into t3 values(n,n,repeat(concat(' tc3_',n),30),
-repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
-repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
-now(),(100.55+n));
 insert into t4 values(n,n,repeat(concat(' tc3_',n),30),
 repeat(concat(' tc4_',n),800),repeat(concat(' tc_',n),800),
 repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
@@ -97,17 +79,15 @@ repeat(concat(' tc6_',n),800),repeat(concat(' tc7_',n),800),
 now(),(100.55+n));
 if (n > 10) then
 commit;
-else     
+else
 delete from t1 where c1 > 10 ;
 delete from t2 where c1 > 10 ;
-delete from t3 where c1 > 10 ;
 delete from t4 where c1 > 10 ;
 delete from t5 where c1 > 10 ;
 rollback;
 start transaction;
 update t1 set c1 = c1 + 1000 where c1 > 10;
 update t2 set c1 = c1 + 1000 where c1 > 10;
-update t3 set c1 = c1 + 1000 where c1 > 10;
 update t4 set c1 = c1 + 1000 where c1 > 10;
 update t5 set c1 = c1 + 1000 where c1 > 10;
 rollback;
@@ -121,10 +101,6 @@ insert into t2 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_lo
 repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
 repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
 now(),(100.55+n+inner_loop));
-insert into t3 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
-repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
-repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
-now(),(100.55+n+inner_loop));
 insert into t4 values(n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
 repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
 repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
@@ -135,24 +111,18 @@ repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245
 now(),(100.55+n+inner_loop));
 delete from t1 where c1 between 100 and 110;
 delete from t2 where c1 between 100 and 110;
-delete from t3 where c1 between 100 and 110;
 delete from t4 where c1 between 100 and 110;
 delete from t5 where c1 between 100 and 110;
-update t1 set c1 = c1+1 where c1>110; 
-update t2 set c1 = c1+1 where c1>110; 
-update t3 set c1 = c1+1 where c1>110; 
-update t4 set c1 = c1+1 where c1>110; 
-update t5 set c1 = c1+1 where c1>110; 
+update t1 set c1 = c1+1 where c1>110;
+update t2 set c1 = c1+1 where c1>110;
+update t4 set c1 = c1+1 where c1>110;
+update t5 set c1 = c1+1 where c1>110;
 savepoint a;
 insert into t1 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
 repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
 repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
 now(),(100.55+n+inner_loop));
 insert into t2 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
-repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
-repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
-now(),(100.55+n+inner_loop));
-insert into t3 values(300+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
 repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
 repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
 now(),(100.55+n+inner_loop));
@@ -170,10 +140,6 @@ repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800)
 repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
 now(),(100.55+n+inner_loop));
 insert into t2 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
-repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
-repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
-now(),(100.55+n+inner_loop));
-insert into t3 values(400+n+inner_loop,n+inner_loop,repeat(concat(' tc3_',n+inner_loop),30),
 repeat(concat(' tc4_',n+inner_loop),800),repeat(concat(' tc_',n+inner_loop),800),
 repeat(concat(' tc6_',n+inner_loop),245),repeat(concat(' tc7_',n+inner_loop),245),
 now(),(100.55+n+inner_loop));
@@ -201,9 +167,6 @@ select count(*) from t1;
 count(*)
 20
 select count(*) from t2;
-count(*)
-20
-select count(*) from t3;
 count(*)
 20
 select count(*) from t4;
@@ -235,28 +198,6 @@ c1
 138
 140
 select c1 from t2;
-c1
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-select c1 from t3;
 c1
 11
 12
@@ -329,9 +270,6 @@ count(*)
 select count(*) from t2;
 count(*)
 20
-select count(*) from t3;
-count(*)
-20
 select count(*) from t4;
 count(*)
 20
@@ -361,28 +299,6 @@ c1
 138
 140
 select c1 from t2;
-c1
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-122
-124
-126
-128
-130
-132
-134
-136
-138
-140
-select c1 from t3;
 c1
 11
 12
@@ -460,11 +376,6 @@ ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t2 values (20,1,'a','a','a','a','a',now(),100.55);
 Warnings:
 Warning	1062	Duplicate entry '20' for key 'PRIMARY'
-insert into t3 values (20,1,'a','a','a','a','a',now(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
-insert ignore into t3 values (20,1,'a','a','a','a','a',now(),100.55);
-Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 insert into t4 values (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t4 values (20,1,'a','a','a','a','a',now(),100.55);
@@ -481,9 +392,6 @@ ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert into t2 values (1,1,'a','a','a','a','a',now(),100.55),
 (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
-insert into t3 values (1,1,'a','a','a','a','a',now(),100.55),
-(20,1,'a','a','a','a','a',now(),100.55);
-ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert into t4 values (1,1,'a','a','a','a','a',now(),100.55),
 (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
@@ -497,9 +405,6 @@ c1	c2
 select c1,c2 from t2 where c1 in (20,1);
 c1	c2
 20	20
-select c1,c2 from t3 where c1 in (20,1);
-c1	c2
-20	20
 select c1,c2 from t4 where c1 in (20,1);
 c1	c2
 20	20
@@ -508,16 +413,12 @@ c1	c2
 20	20
 replace into t1 values (20,1,'a','a','a','a','a',now(),100.55);
 replace into t2 values (20,1,'a','a','a','a','a',now(),100.55);
-replace into t3 values (20,1,'a','a','a','a','a',now(),100.55);
 replace into t4 values (20,1,'a','a','a','a','a',now(),100.55);
 replace into t5 values (20,1,'a','a','a','a','a',now(),100.55);
 select c1,c2,c3,c4,c5,c6,c7,c9 from t1 where c1 = 20;
 c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 select c1,c2,c3,c4,c5,c6,c7,c9 from t2 where c1 = 20;
-c1	c2	c3	c4	c5	c6	c7	c9
-20	1	a	a	a	a	a	100.550
-select c1,c2,c3,c4,c5,c6,c7,c9 from t3 where c1 = 20;
 c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 select c1,c2,c3,c4,c5,c6,c7,c9 from t4 where c1 = 20;
@@ -532,9 +433,6 @@ Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t2 set c1 = 20 where c1 = 140 ;
 Warnings:
 Warning	1062	Duplicate entry '20' for key 'PRIMARY'
-update ignore t3 set c1 = 20 where c1 = 140 ;
-Warnings:
-Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t4 set c1 = 20 where c1 = 140 ;
 Warnings:
 Warning	1062	Duplicate entry '20' for key 'PRIMARY'
@@ -545,9 +443,6 @@ select count(*) from t1 where c1 = 140;
 count(*)
 1
 select count(*) from t2 where c1 = 140;
-count(*)
-1
-select count(*) from t3 where c1 = 140;
 count(*)
 1
 select count(*) from t4 where c1 = 140;
@@ -580,8 +475,8 @@ on duplicate  key update c1=-2,c2=-2;
 select c1,c2,c3,c4,c5,c6,c7,c9,c10,c11 from temp_1 where c1 < 0;
 c1	c2	c3	c4	c5	c6	c7	c9	c10	c11
 -2	-2	a	a	a	a	a	100.550	99	test
-drop table t1 ,t2 ,t3,t4,t5,t6,temp_1;
-drop table t1 ,t2 ,t3,t4,t5,t6;
+drop table t1,t2,t4,t5,t6,temp_1;
+drop table t1 ,t2,t4,t5,t6;
 drop procedure populate_tables;
 create temporary table prep_1(c1 int not null,
 c2 int not null,

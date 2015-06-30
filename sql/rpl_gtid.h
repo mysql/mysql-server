@@ -24,16 +24,12 @@
 #include "my_atomic.h"          // my_atomic_add32
 #include "prealloced_array.h"   // Prealloced_array
 #include "control_events.h"     // binary_log::Uuid
-
-#ifdef MYSQL_SERVER
-#include "mysqld.h"             // key_rwlock_global_sid_lock
-#include "table.h"
-#endif
-
 #include <list>
 #include "atomic_class.h"
+#include "typelib.h"
 
-using binary_log::Uuid;
+struct TABLE_LIST;
+
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -52,11 +48,13 @@ using binary_log::Uuid;
 #endif
 
 
+extern "C" {
 extern PSI_memory_key key_memory_Gtid_set_to_string;
 extern PSI_memory_key key_memory_Owned_gtids_to_string;
 extern PSI_memory_key key_memory_Gtid_state_to_string;
 extern PSI_memory_key key_memory_Group_cache_to_string;
 extern PSI_memory_key key_memory_Gtid_set_Interval_chunk;
+}
 
 /**
   This macro is used to check that the given character, pointed to by the
@@ -419,7 +417,7 @@ rpl_gno parse_gno(const char **s);
 */
 int format_gno(char *s, rpl_gno gno);
 
-typedef Uuid rpl_sid;
+typedef binary_log::Uuid rpl_sid;
 
 
 /**
@@ -859,8 +857,8 @@ public:
     during the wait and (atomically) re-acquired when the wait ends
     or the timeout is reached.
 
-    @param[in] n - Sidno to wait for.
-    @param[in] abstime - pointer to the absolute wating time
+    @param[in] sidno Sidno to wait for.
+    @param[in] abstime pointer to the absolute wating time
 
     @retval - 0 - success
              !=0 - failure
@@ -1227,7 +1225,7 @@ public:
     short period when the lock is not held at all.
 
     @param text The string to parse.
-    @param anonymous[in,out] If this is NULL, ANONYMOUS is not
+    @param [in,out] anonymous If this is NULL, ANONYMOUS is not
     allowed.  If this is not NULL, it will be set to true if the
     anonymous group was found; false otherwise.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
@@ -1236,7 +1234,7 @@ public:
   /**
     Decodes a Gtid_set from the given string.
 
-    @param string The string to parse.
+    @param encoded The string to parse.
     @param length The number of bytes.
     @param actual_length If this is not NULL, it is set to the number
     of bytes used by the encoding (which may be less than 'length').
@@ -1483,7 +1481,7 @@ public:
     number of intervals.
 
     @param n_intervals The number of intervals to add.
-    @param intervals Array of n_intervals intervals.
+    @param intervals_param Array of n_intervals intervals.
   */
   void add_interval_memory(int n_intervals, Interval *intervals_param)
   {
@@ -2042,7 +2040,7 @@ public:
   /**
     Returns the owner of the given GTID, or 0 if the GTID is not owned.
 
-    @param Gtid The Gtid to query.
+    @param gtid The Gtid to query.
     @return my_thread_id of the thread that owns the group, or
     0 if the group is not owned.
   */
@@ -2665,7 +2663,7 @@ public:
     Generates the GTID (or ANONYMOUS, if GTID_MODE = OFF or
     OFF_PERMISSIVE) for the THD, and acquires ownership.
 
-    @param THD The thread.
+    @param thd The thread.
     @param specified_sidno Externaly generated sidno.
     @param specified_gno   Externaly generated gno.
 
@@ -2694,10 +2692,10 @@ public:
     returns.
 
     @param thd THD object of the caller.
-    @param g Gtid to wait for.
+    @param gtid Gtid to wait for.
     @param timeout - pointer to the absolute timeout to wait for.
 
-    @retval  0 - success
+    @retval  0 success
              !=0 timeout or some failure.
   */
   int wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout= NULL);
@@ -2737,11 +2735,12 @@ public:
   */
   enum_return_status ensure_sidno();
 
+#ifdef MYSQL_SERVER
   /**
     This function is used to wait for a given gtid until it is logged.
 
     @param thd     - global thread pointer.
-    @param Gtid    - Pointer to the Gtid set which gets updated.
+    @param gtid    - Pointer to the Gtid set which gets updated.
     @param timeout - Timeout value for which wait should be done in
                      millisecond.
 
@@ -2752,7 +2751,6 @@ public:
     my_error(ER_*, MYF(0)) call and return with value of -1.
 
    */
-#ifdef MYSQL_SERVER
   int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
 #endif
   /**
@@ -3191,7 +3189,7 @@ struct Gtid_specification
 
     @param sid_map Sid_map to use if the type of this
     Gtid_specification is GTID_GROUP.
-    @param buf[out] The buffer
+    @param [out] buf The buffer
     @param need_lock If true, this function acquires global_sid_lock
     before looking up the sidno in sid_map, and then releases it. If
     false, this function asserts that the lock is held by the caller.
@@ -3204,9 +3202,8 @@ struct Gtid_specification
     @param sid SID to use if the type of this Gtid_specification is
     GTID_GROUP.  Can be NULL if this Gtid_specification is
     ANONYMOUS_GROUP or AUTOMATIC_GROUP.
-    @param buf[out] The buffer
+    @param[out] buf The buffer
     @retval The number of characters written.
-    @buf[out]
   */
   int to_string(const rpl_sid *sid, char *buf) const;
 #ifndef DBUG_OFF

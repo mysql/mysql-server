@@ -26,6 +26,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 /* Include necessary SQL headers */
 #include <debug_sync.h>
 #include <log.h>
+#include <mysqld.h>
 #include <strfunc.h>
 #include <sql_acl.h>
 #include <sql_class.h>
@@ -53,17 +54,14 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "partition_info.h"
 #include "key.h"
 
-#define INSIDE_HA_INNOPART_CC
-
 /* To be backwards compatible we also fold partition separator on windows. */
 #ifdef _WIN32
-const char* part_sep = "#p#";
-const char* sub_sep = "#sp#";
+static const char* part_sep = "#p#";
+static const char* sub_sep = "#sp#";
 #else
-const char* part_sep = "#P#";
-const char* sub_sep = "#SP#";
+static const char* part_sep = "#P#";
+static const char* sub_sep = "#SP#";
 #endif /* _WIN32 */
-extern char*	innobase_file_format_max;
 
 Ha_innopart_share::Ha_innopart_share(
 	TABLE_SHARE*	table_share)
@@ -179,9 +177,11 @@ Ha_innopart_share::open_one_table_part(
 		/* Mark this partition as corrupted, so the drop table
 		or force recovery can still use it, but not others.
 		TODO: persist table->corrupted so it will be retained on
-		restart and out-of-bounds operations will see it. */
+		restart and out-of-bounds operations will see it. But if
+		this would be removed in WL#7141-7488, we don't need to
+		persist it */
 
-		ib_table->corrupted = true;
+		dict_table_get_first_index(ib_table)->type |= DICT_CORRUPT;
 		dict_table_close(ib_table, FALSE, FALSE);
 	}
 
@@ -1195,15 +1195,6 @@ share_error:
 
 	/* Index block size in InnoDB: used by MySQL in query optimization. */
 	stats.block_size = UNIV_PAGE_SIZE;
-
-	if (m_prebuilt->table != NULL) {
-		/* We update the highest file format in the system table
-		space, if this table has higher file format setting. */
-
-		trx_sys_file_format_max_upgrade(
-			(const char**) &innobase_file_format_max,
-			dict_table_get_format(m_prebuilt->table));
-	}
 
 	/* Only if the table has an AUTOINC column. */
 	if (m_prebuilt->table != NULL
@@ -2358,7 +2349,7 @@ ha_innopart::rnd_next_in_part(
 		}
 		m_start_of_scan = 0;
 	} else {
-		ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+		ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 		error = ha_innobase::general_fetch(buf, ROW_SEL_NEXT, 0);
 	}
 
@@ -2384,7 +2375,7 @@ ha_innopart::rnd_pos(
 	ut_ad(PARTITION_BYTES_IN_POS == 2);
 	DBUG_DUMP("pos", pos, ref_length);
 
-	ha_statistic_increment(&SSV::ha_read_rnd_count);
+	ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
 	ut_a(m_prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -2629,8 +2620,6 @@ ha_innopart::create(
 	int		error;
 	/** {database}/{tablename} */
 	char		table_name[FN_REFLEN];
-	/** absolute path of temp frm */
-	char		temp_path[FN_REFLEN];
 	/** absolute path of table */
 	char		remote_path[FN_REFLEN];
 	char		partition_name[FN_REFLEN];
@@ -2647,7 +2636,6 @@ ha_innopart::create(
 				     form,
 				     create_info,
 				     table_name,
-				     temp_path,
 				     remote_path,
 				     tablespace_name);
 
@@ -2674,7 +2662,6 @@ ha_innopart::create(
 	if (error != 0) {
 		DBUG_RETURN(error);
 	}
-	ut_ad(temp_path[0] == '\0');
 	strcpy(partition_name, table_name);
 	partition_name_start = partition_name + strlen(partition_name);
 	table_name_len = strlen(table_name);

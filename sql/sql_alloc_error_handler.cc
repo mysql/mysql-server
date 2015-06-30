@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,8 @@
 
 #include "log.h"
 #include "sql_class.h"
-#include "mysqld.h"
+#include "current_thd.h"
+#include "derror.h"
 
 extern "C" void sql_alloc_error_handler(void)
 {
@@ -42,11 +43,11 @@ extern "C" void sql_alloc_error_handler(void)
           error packet.
         - SHOW ERROR/SHOW WARNINGS may be empty.
     */
-    thd->get_stmt_da()->set_error_status(ER_OUT_OF_RESOURCES);
+    thd->get_stmt_da()->set_error_status(thd, ER_OUT_OF_RESOURCES);
   }
 
   /* Skip writing to the error log to avoid mtr complaints */
   DBUG_EXECUTE_IF("simulate_out_of_memory", return;);
 
-  sql_print_error("%s", ER(ER_OUT_OF_RESOURCES));
+  sql_print_error("%s", ER_DEFAULT(ER_OUT_OF_RESOURCES));
 }

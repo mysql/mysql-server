@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,19 +50,16 @@ typedef enum {
 	IBUF_OP_COUNT = 3
 } ibuf_op_t;
 
-/** Combinations of operations that can be buffered.  Because the enum
-values are used for indexing innobase_change_buffering_values[], they
-should start at 0 and there should not be any gaps. */
-typedef enum {
+/** Combinations of operations that can be buffered.
+@see innodb_change_buffering_names */
+enum ibuf_use_t {
 	IBUF_USE_NONE = 0,
 	IBUF_USE_INSERT,	/* insert */
 	IBUF_USE_DELETE_MARK,	/* delete */
 	IBUF_USE_INSERT_DELETE_MARK,	/* insert+delete */
 	IBUF_USE_DELETE,	/* delete+purge */
-	IBUF_USE_ALL,		/* insert+delete+purge */
-
-	IBUF_USE_COUNT		/* number of entries in ibuf_use_t */
-} ibuf_use_t;
+	IBUF_USE_ALL		/* insert+delete+purge */
+};
 
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
@@ -114,16 +111,14 @@ UNIV_INLINE
 void
 ibuf_mtr_start(
 /*===========*/
-	mtr_t*	mtr)	/*!< out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*	mtr);	/*!< out: mini-transaction */
 /***************************************************************//**
 Commits an insert buffer mini-transaction. */
 UNIV_INLINE
 void
 ibuf_mtr_commit(
 /*============*/
-	mtr_t*	mtr)	/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*	mtr);	/*!< in/out: mini-transaction */
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
 void
@@ -426,11 +421,11 @@ ibuf_check_bitmap_on_import(
 /*========================*/
 	const trx_t*	trx,		/*!< in: transaction */
 	ulint		space_id)	/*!< in: tablespace identifier */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page
-@param]in]      reset   flag if reset free val */
+@param[in]      reset   flag if reset free val */
 void
 ibuf_set_bitmap_for_bulk_load(
 	buf_block_t*    block,

@@ -150,7 +150,6 @@ enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void
 thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
-void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock);
 void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread);
 void thr_print_locks(void);		/* For debugging */
 void    thr_downgrade_write_lock(THR_LOCK_DATA *data,

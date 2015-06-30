@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_sys.h>
+#include <typelib.h>
 #include <string>
 #include <mysql/plugin_validate_password.h>
 #include <mysql/service_my_plugin_log.h>

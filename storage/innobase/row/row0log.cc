@@ -380,8 +380,8 @@ row_log_online_op(
 		log->tail.blocks++;
 		if (err != DB_SUCCESS) {
 write_failed:
-			/* We set the flag directly instead of invoking
-			dict_set_corrupted_index_cache_only(index) here,
+			/* We set the flag directly instead of
+			invoking dict_set_corrupted() here,
 			because the index is not "public" yet. */
 			index->type |= DICT_CORRUPT;
 		}
@@ -416,7 +416,7 @@ row_log_table_get_error(
 /******************************************************//**
 Starts logging an operation to a table that is being rebuilt.
 @return pointer to log, or NULL if no logging is necessary */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 byte*
 row_log_table_open(
 /*===============*/
@@ -451,7 +451,7 @@ err_exit:
 
 /******************************************************//**
 Stops logging an operation to a table that is being rebuilt. */
-static __attribute__((nonnull))
+static
 void
 row_log_table_close_func(
 /*=====================*/
@@ -543,7 +543,7 @@ row_log_table_delete(
 	ulint		avail_size;
 	mem_heap_t*	heap		= NULL;
 	const dtuple_t*	old_pk;
-	row_ext_t*	ext;
+	row_ext_t*	ext = NULL;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -629,8 +629,8 @@ row_log_table_delete(
 	old and new table are in COMPACT or REDUNDANT format,
 	which store the prefix in the clustered index record. */
 	if (rec_offs_any_extern(offsets)
-	    && (dict_table_get_format(index->table) >= UNIV_FORMAT_B
-		|| dict_table_get_format(new_table) >= UNIV_FORMAT_B)) {
+	    && (dict_table_has_atomic_blobs(index->table)
+		|| dict_table_has_atomic_blobs(new_table))) {
 
 		/* Build a cache of those off-page column prefixes
 		that are referenced by secondary indexes. It can be
@@ -822,7 +822,7 @@ row_log_table_low_redundant(
 
 /******************************************************//**
 Logs an insert or update to a table that is being rebuilt. */
-static __attribute__((nonnull(1,2,3)))
+static
 void
 row_log_table_low(
 /*==============*/
@@ -1320,7 +1320,7 @@ row_log_table_blob_alloc(
 /******************************************************//**
 Converts a log record to a table row.
 @return converted row, or NULL if the conversion fails */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
@@ -1474,7 +1474,7 @@ blob_done:
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_insert_low(
 /*===========================*/
@@ -1545,7 +1545,7 @@ row_log_table_apply_insert_low(
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_insert(
 /*=======================*/
@@ -1597,7 +1597,7 @@ row_log_table_apply_insert(
 /******************************************************//**
 Deletes a record from a table that is being rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1, 2, 4, 5), warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_delete_low(
 /*===========================*/
@@ -1611,7 +1611,7 @@ row_log_table_apply_delete_low(
 						will be committed */
 {
 	dberr_t		error;
-	row_ext_t*	ext;
+	row_ext_t*	ext = NULL;
 	dtuple_t*	row;
 	dict_index_t*	index	= btr_pcur_get_btr_cur(pcur)->index;
 
@@ -1695,7 +1695,7 @@ flag_ok:
 /******************************************************//**
 Replays a delete operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1, 3, 4, 5, 6, 7), warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_delete(
 /*=======================*/
@@ -1819,7 +1819,7 @@ all_done:
 /******************************************************//**
 Replays an update operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_log_table_apply_update(
 /*=======================*/
@@ -2174,7 +2174,7 @@ func_exit_committed:
 Applies an operation to a table that was rebuilt.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const mrec_t*
 row_log_table_apply_op(
 /*===================*/
@@ -3016,7 +3016,7 @@ row_log_get_max_trx(
 
 /******************************************************//**
 Applies an operation to a secondary index that was being created. */
-static __attribute__((nonnull))
+static
 void
 row_log_apply_op_low(
 /*=================*/
@@ -3253,7 +3253,7 @@ func_exit:
 Applies an operation to a secondary index that was being created.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 const mrec_t*
 row_log_apply_op(
 /*=============*/
@@ -3670,8 +3670,8 @@ func_exit:
 		}
 		/* fall through */
 	default:
-		/* We set the flag directly instead of invoking
-		dict_set_corrupted_index_cache_only(index) here,
+		/* We set the flag directly instead of
+		invoking dict_set_corrupted() here,
 		because the index is not "public" yet. */
 		index->type |= DICT_CORRUPT;
 	}
@@ -3721,8 +3721,8 @@ row_log_apply(
 
 	if (error != DB_SUCCESS) {
 		ut_a(!dict_table_is_discarded(index->table));
-		/* We set the flag directly instead of invoking
-		dict_set_corrupted_index_cache_only(index) here,
+		/* We set the flag directly instead of
+		invoking dict_set_corrupted() here,
 		because the index is not "public" yet. */
 		index->type |= DICT_CORRUPT;
 		index->table->drop_aborted = TRUE;

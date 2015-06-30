@@ -498,7 +498,7 @@ public:
 	}
 
 	/** Compare two requests
-	@reutrn true if the are equal */
+	@return true if the are equal */
 	bool operator==(const IORequest& rhs) const
 	{
 		return(m_type == rhs.m_type);
@@ -1343,7 +1343,7 @@ os_file_set_size(
 	__attribute__((warn_unused_result));
 
 /** Truncates a file at its current position.
-@param[in/out]	file	file to be truncated
+@param[in,out]	file	file to be truncated
 @return true if success */
 bool
 os_file_set_eof(
@@ -1461,38 +1461,6 @@ os_file_status(
 	const char*	path,
 	bool*		exists,
 	os_file_type_t* type);
-
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' characters
-are not counted as part of the pathname.
-
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
-@param[in]	path		pathname
-@return own: directory component of the pathname */
-char*
-os_file_dirname(
-	const char*	path);
 
 /** This function returns a new path name after replacing the basename
 in an old path with a new basename.  The old_path is a full path
@@ -1636,7 +1604,7 @@ os_aio_handler(
 	IORequest*	type);
 
 /** Prints info of the aio arrays.
-@param[in/out]	file		file where to print */
+@param[in,out]	file		file where to print */
 void
 os_aio_print(FILE* file);
 

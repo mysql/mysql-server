@@ -19,6 +19,7 @@
 
 #include "hash.h"                // HASH
 #include "auth_common.h"         // SUPER_ACL
+#include "derror.h"              // ER_THD
 #include "log.h"                 // sql_print_warning
 #include "mysqld.h"              // system_charset_info
 #include "sql_class.h"           // THD
@@ -112,7 +113,7 @@ void sys_var_end()
   @param def_val   default value, @sa my_option::def_value
   @param lock      mutex or rw_lock that protects the global variable
                    *in addition* to LOCK_global_system_variables.
-  @param binlog_status_enum @sa binlog_status_enum
+  @param binlog_status_arg @sa binlog_status_enum
   @param on_check_func a function to be called at the end of sys_var::check,
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
@@ -299,7 +300,7 @@ void sys_var::do_deprecated_warning(THD *thd)
       : ER_WARN_DEPRECATED_SYNTAX;
     if (thd)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SYNTAX, ER(errmsg),
+                          ER_WARN_DEPRECATED_SYNTAX, ER_THD(thd, errmsg),
                           buf1, deprecation_substitute);
     else
       sql_print_warning(ER_DEFAULT(errmsg), buf1, deprecation_substitute);
@@ -337,7 +338,7 @@ bool throw_bounds_warning(THD *thd, const char *name,
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
+                        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE), name, buf);
   }
   return false;
 }
@@ -357,7 +358,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
+                        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE), name, buf);
   }
   return false;
 }
@@ -622,7 +623,7 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
   This should ensure that in all normal cases none all or variables are
   updated.
 
-  @param THD            Thread id
+  @param thd            Thread id
   @param var_list       List of variables to update
 
   @retval
@@ -752,7 +753,7 @@ int set_var::light_check(THD *thd)
   if (!var->check_scope(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
-    my_error(err, MYF(0), var->name);
+    my_error(err, MYF(0), var->name.str);
     return -1;
   }
   if (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL))
@@ -845,7 +846,7 @@ int set_var_user::update(THD *thd)
   if (user_var_item->update())
   {
     /* Give an error if it's not given already */
-    my_message(ER_SET_CONSTANTS_ONLY, ER(ER_SET_CONSTANTS_ONLY), MYF(0));
+    my_error(ER_SET_CONSTANTS_ONLY, MYF(0));
     return -1;
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())

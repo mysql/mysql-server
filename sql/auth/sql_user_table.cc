@@ -28,46 +28,13 @@
 #include "sql_auth_cache.h"
 #include "sql_user_table.h"
 #include "sql_authentication.h"
+#include "sql_class.h"
+#include "field.h"
 
 #include "tztime.h"
 #include "sql_time.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
-
-#define DEBUG_SE_WRITE_ERROR_PRE(debug_flag)       \
-  DBUG_EXECUTE_IF(debug_flag,  \
-                  DBUG_SET("+d, inject_error_ha_write_row"););
-
-#define DEBUG_SE_WRITE_ERROR_POST(debug_flag)    \
-  DBUG_EXECUTE_IF(debug_flag,  \
-                  {  \
-                    DBUG_ASSERT(error == HA_ERR_INTERNAL_ERROR);  \
-                    DBUG_SET("-d, inject_error_ha_write_row"); \
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;  \
-                  });
-
-#define DEBUG_SE_UPDATE_ERROR_PRE(debug_flag)       \
-  DBUG_EXECUTE_IF(debug_flag,  \
-                  DBUG_SET("+d, inject_error_ha_update_row"););
-
-#define DEBUG_SE_UPDATE_ERROR_POST(debug_flag)    \
-  DBUG_EXECUTE_IF(debug_flag,  \
-                  {  \
-                    DBUG_ASSERT(error == HA_ERR_INTERNAL_ERROR);  \
-                    DBUG_SET("-d, inject_error_ha_update_row"); \
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;  \
-                  });
-
-#define DEBUG_SE_DELETE_ERROR_PRE(debug_flag)       \
-  DBUG_EXECUTE_IF(debug_flag,  \
-                  DBUG_SET("+d, inject_error_ha_delete_row"););
-
-#define DEBUG_SE_DELETE_ERROR_POST(debug_flag)    \
-  DBUG_EXECUTE_IF(debug_flag,  \
-                  {  \
-                    DBUG_ASSERT(error == HA_ERR_INTERNAL_ERROR);  \
-                    DBUG_SET("-d, inject_error_ha_delete_row"); \
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;  \
-                  });
+#include "item_func.h"          // mqh_used
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -265,8 +232,9 @@ void close_acl_tables(THD *thd)
 
 
 /**
-  Commit or rollback ACL statement (and transaction),
-  close tables which it has opened and release metadata locks.
+  Commit ACL statement (and transaction) ignoring the fact that it might have
+  ended with an error, close tables which it has opened and release metadata
+  locks.
 
   @note In case of failure to commit transaction we try to restore correct
         state of in-memory structures by reloading privileges.
@@ -275,9 +243,10 @@ void close_acl_tables(THD *thd)
   @retval True  - Error.
 */
 
-bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
+bool acl_trans_commit_and_close_tables(THD *thd)
 {
   bool result;
+  bool rollback= false;
 
   /*
     Try to commit a transaction even if we had some failures.
@@ -296,7 +265,7 @@ bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
   */
   DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
-  if (rollback_transaction)
+  if (thd->transaction_rollback_request)
   {
     /*
       Transaction rollback request by SE is unlikely. Still let us
@@ -304,6 +273,7 @@ bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
     */
     result= trans_rollback_stmt(thd);
     result|= trans_rollback_implicit(thd);
+    rollback= true;
   }
   else
   {
@@ -313,7 +283,7 @@ bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
   close_thread_tables(thd);
   thd->mdl_context.release_transactional_locks();
 
-  if (result || rollback_transaction)
+  if (result || rollback)
   {
     /*
       Try to bring in-memory structures back in sync with on-disk data if we
@@ -349,7 +319,7 @@ void acl_notify_htons(THD* thd, const char* query, size_t query_length)
 }
 
 
-void get_grantor(THD *thd, char *grantor)
+static void get_grantor(THD *thd, char *grantor)
 {
   const char *user= thd->security_context()->user().str;
   const char *host= thd->security_context()->host_or_ip().str;
@@ -364,20 +334,6 @@ void get_grantor(THD *thd, char *grantor)
   strxmov(grantor, user, "@", host, NullS);
 }
 
-
-/**
-  Print error reported by storage engine
-
-  @param TABLE           Handle of TABLE to fetch SE information
-  @param  handler_error  an error number resulted from storage engine
- */
-
-void acl_print_ha_error(TABLE *table, int handler_error)
-{
-  table->file->print_error(handler_error, MYF(0));
-}
-
-
 /**
   Update SSL properties in mysql.user table.
 
@@ -386,7 +342,7 @@ void acl_print_ha_error(TABLE *table, int handler_error)
 
 */
 
-void update_ssl_properties(THD *thd, TABLE *table)
+static void update_ssl_properties(THD *thd, TABLE *table)
 {
   LEX *lex= thd->lex;
   switch (lex->ssl_type)
@@ -442,7 +398,7 @@ void update_ssl_properties(THD *thd, TABLE *table)
 
 */
 
-void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
+static void update_user_resource(TABLE *table, USER_RESOURCES *mqh)
 {
   if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
     table->field[MYSQL_USER_FIELD_MAX_QUESTIONS]->
@@ -492,19 +448,10 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  error= table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT);
-  DBUG_EXECUTE_IF("se_error_replace_user_table_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
-      acl_print_ha_error(table, error);
-      DBUG_RETURN(-1);
-    }
-
     /*
       The user record wasn't found; if the intention was to revoke privileges
       (indicated by what == 'N') then execution must fail now.
@@ -512,11 +459,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     if (what == 'N')
     {
       my_error(ER_NONEXISTING_GRANT, MYF(0), combo->user.str, combo->host.str);
-      /* 
-        Return 1 as an indication that expected error occured during
-        handling of REVOKE statement for an unknown user.
-      */
-      error= 1;
       goto end;
     }
 
@@ -526,7 +468,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     if (!can_create_user)
     {
       my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
-      error= 1;
       goto end;
     }
     if (thd->lex->sql_command == SQLCOM_GRANT)
@@ -539,7 +480,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
           (what_to_replace & DEFAULT_AUTH_ATTR))
       {
         my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
-        error= 1;
         goto end;
       }
       push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
@@ -623,7 +563,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     else
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), "plugin", "mysql.user");
-      DBUG_RETURN(-1);
+      goto end;
     }
     /* If we change user plugin then check if it is builtin plugin */
     optimize_plugin_compare_by_pointer(&combo->plugin);
@@ -649,7 +589,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     else
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_last_changed", "mysql.user");
-      DBUG_RETURN(-1);
+      goto end;
     }
     /* if we have a password supplied we update the expiration field */
     if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
@@ -661,7 +601,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     else
     {
       my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
-      DBUG_RETURN(-1);
+      goto end;
     }
   }
   /* Update table columns with new privileges */
@@ -709,7 +649,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
       {
         my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
-        DBUG_RETURN(-1);
+        goto end;
       }
     }
     /*
@@ -748,7 +688,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
       {
         my_error(ER_BAD_FIELD_ERROR, MYF(0), "account_locked", "mysql.user");
-        DBUG_RETURN(-1);
+        goto end;
       }
     }
   }
@@ -761,31 +701,25 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     */
     if (cmp_record(table,record[1]))
     {
-      DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_user_table_update");
-      error= table->file->ha_update_row(table->record[1],
-                                        table->record[0]);
-      DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_user_table_update");
-
-      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
-      {
-        acl_print_ha_error(table, error);
-        error= -1;
-        goto end;
+      if ((error=
+           table->file->ha_update_row(table->record[1],table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+      {						// This should never happen
+        table->file->print_error(error,MYF(0));	/* purecov: deadcode */
+        error= -1;				/* purecov: deadcode */
+        goto end;				/* purecov: deadcode */
       }
       else
         error= 0;
     }
   }
-  else
-  {
-    DEBUG_SE_WRITE_ERROR_PRE("se_error_replace_user_table_add");
-    error=table->file->ha_write_row(table->record[0]);
-    DEBUG_SE_WRITE_ERROR_POST("se_error_replace_user_table_add");
-    if (error && !table->file->is_ignorable_error(error))
+  else if ((error=table->file->ha_write_row(table->record[0]))) // insert
+  {						// This should never happen
+    if (!table->file->is_ignorable_error(error))
     {
-      acl_print_ha_error(table, error);
-      error= -1;
-      goto end;
+      table->file->print_error(error,MYF(0));	/* purecov: deadcode */
+      error= -1;				/* purecov: deadcode */
+      goto end;					/* purecov: deadcode */
     }
   }
   error=0;					// Privileges granted / revoked
@@ -860,8 +794,8 @@ int replace_db_table(TABLE *table, const char *db,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
-    DBUG_RETURN(1);
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+    DBUG_RETURN(-1);
   }
 
   table->use_all_columns();
@@ -873,21 +807,14 @@ int replace_db_table(TABLE *table, const char *db,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  error= table->file->ha_index_read_idx_map(table->record[0],0, user_key,
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT);
-
-  DBUG_EXECUTE_IF("se_error_replace_db_table_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
+  if (table->file->ha_index_read_idx_map(table->record[0],0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      goto table_error;
-
     if (what == 'N')
     { // no row, no revoke
       my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
-      DBUG_RETURN(1);
+      goto abort;
     }
     old_row_exists = 0;
     restore_record(table, s->default_values);
@@ -917,30 +844,21 @@ int replace_db_table(TABLE *table, const char *db,
     /* update old existing row */
     if (rights)
     {
-      DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_db_table_update");
-      error= table->file->ha_update_row(table->record[1],
-                                        table->record[0]);
-      DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_db_table_update");
-
-      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
-        goto table_error;
+      if ((error= table->file->ha_update_row(table->record[1],
+                                             table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+        goto table_error;                       /* purecov: deadcode */
     }
     else        /* must have been a revoke of all privileges */
     {
-      DEBUG_SE_DELETE_ERROR_PRE("se_error_replace_db_table_delete");
-      error= table->file->ha_delete_row(table->record[1]);
-      DEBUG_SE_DELETE_ERROR_POST("se_error_replace_db_table_delete");
-      if (error)
+      if ((error= table->file->ha_delete_row(table->record[1])))
         goto table_error;                       /* purecov: deadcode */
     }
   }
-  else if (rights)
+  else if (rights && (error= table->file->ha_write_row(table->record[0])))
   {
-    DEBUG_SE_WRITE_ERROR_PRE("se_error_replace_db_table_add");
-    error= table->file->ha_write_row(table->record[0]);
-    DEBUG_SE_WRITE_ERROR_POST("se_error_replace_db_table_add");
-    if (error && !table->file->is_ignorable_error(error))
-      goto table_error;
+    if (!table->file->is_ignorable_error(error))
+      goto table_error; /* purecov: deadcode */
   }
 
   acl_cache->clear(1);                          // Clear privilege cache
@@ -953,8 +871,9 @@ int replace_db_table(TABLE *table, const char *db,
 
   /* This could only happen if the grant tables got corrupted */
 table_error:
-  acl_print_ha_error(table, error);
+  table->file->print_error(error,MYF(0));       /* purecov: deadcode */
 
+abort:
   DBUG_RETURN(-1);
 }
 
@@ -980,8 +899,8 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(user->host.str,user->user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
-    DBUG_RETURN(1);
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));
+    DBUG_RETURN(-1);
   }
 
   table->use_all_columns();
@@ -995,28 +914,20 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
   if ((error= table->file->ha_index_init(0, 1)))
   {
-    acl_print_ha_error(table, error);
+    table->file->print_error(error, MYF(0));
     DBUG_PRINT("info", ("ha_index_init error"));
     DBUG_RETURN(-1);
   }
 
-  error= table->file->ha_index_read_map(table->record[0], user_key,
-                                        HA_WHOLE_KEY,
-                                        HA_READ_KEY_EXACT);
-
-  DBUG_EXECUTE_IF("se_error_replace_proxies_priv_table_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
+  if (table->file->ha_index_read_map(table->record[0], user_key,
+                                     HA_WHOLE_KEY,
+                                     HA_READ_KEY_EXACT))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      goto table_error;
-
     DBUG_PRINT ("info", ("Row not found"));
     if (revoke_grant)
     { // no row, no revoke
       my_error(ER_NONEXISTING_GRANT, MYF(0), user->user.str, user->host.str);
-      table->file->ha_index_end();
-      DBUG_RETURN(1);
+      goto abort;
     }
     old_row_exists= 0;
     restore_record(table, s->default_values);
@@ -1030,8 +941,8 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   {
     DBUG_PRINT("info", ("Row found"));
     old_row_exists= 1;
-    store_record(table,record[1]);                    // copy original row
     ACL_PROXY_USER::store_with_grant(table, with_grant_arg);
+    store_record(table, record[1]);
   }
 
   if (old_row_exists)
@@ -1039,32 +950,22 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     /* update old existing row */
     if (!revoke_grant)
     {
-      DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_proxies_priv_table_update");
-      error= table->file->ha_update_row(table->record[1],
-                                        table->record[0]);
-      DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_proxies_priv_table_update");
-      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
-        goto table_error;
+      if ((error= table->file->ha_update_row(table->record[1],
+                                             table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+        goto table_error;                       /* purecov: inspected */
     }
     else
     {
-      DEBUG_SE_DELETE_ERROR_PRE("se_error_replace_proxies_priv_table_delete");
-      error= table->file->ha_delete_row(table->record[1]);
-      DEBUG_SE_DELETE_ERROR_POST("se_error_replace_proxies_priv_table_delete");
-      if (error)
+      if ((error= table->file->ha_delete_row(table->record[1])))
         goto table_error;                       /* purecov: inspected */
     }
   }
-  else
+  else if ((error= table->file->ha_write_row(table->record[0])))
   {
-    DEBUG_SE_WRITE_ERROR_PRE("se_error_replace_proxies_priv_table_add");
-    error= table->file->ha_write_row(table->record[0]);
-    DEBUG_SE_WRITE_ERROR_POST("se_error_replace_proxies_priv_table_add");
-    if (error && !table->file->is_ignorable_error(error))
-    {
-      DBUG_PRINT("info", ("error inserting the row"));
+    DBUG_PRINT("info", ("error inserting the row"));
+    if (!table->file->is_ignorable_error(error))
       goto table_error; /* purecov: inspected */
-    }
   }
 
   acl_cache->clear(1);                          // Clear privilege cache
@@ -1089,8 +990,9 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   /* This could only happen if the grant tables got corrupted */
 table_error:
   DBUG_PRINT("info", ("table error"));
-  acl_print_ha_error(table, error);
+  table->file->print_error(error, MYF(0));      /* purecov: inspected */
 
+abort:
   DBUG_PRINT("info", ("aborting replace_proxies_priv_table"));
   table->file->ha_index_end();
   DBUG_RETURN(-1);
@@ -1141,7 +1043,7 @@ int replace_column_table(GRANT_TABLE *g_t,
   int error= table->file->ha_index_init(0, 1);
   if (error)
   {
-    acl_print_ha_error(table, error);
+    table->file->print_error(error, MYF(0));
     DBUG_RETURN(-1);
   }
 
@@ -1159,27 +1061,15 @@ int replace_column_table(GRANT_TABLE *g_t,
     key_copy(user_key, table->record[0], table->key_info,
              table->key_info->key_length);
 
-    error= table->file->ha_index_read_map(table->record[0],
-                                          user_key, HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT);
-
-    DBUG_EXECUTE_IF("se_error_replace_column_table_read",
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-    if (error)
+    if (table->file->ha_index_read_map(table->record[0], user_key, HA_WHOLE_KEY,
+                                       HA_READ_KEY_EXACT))
     {
-      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      {
-        acl_print_ha_error(table, error);
-        result= -1;
-        goto end;
-      }
-
       if (revoke_grant)
       {
         my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
                  combo.user.str, combo.host.str,
                  table_name);                   /* purecov: inspected */
-        result= 1;                              /* purecov: inspected */
+        result= -1;                             /* purecov: inspected */
         continue;                               /* purecov: inspected */
       }
       old_row_exists = 0;
@@ -1208,29 +1098,17 @@ int replace_column_table(GRANT_TABLE *g_t,
     {
       GRANT_COLUMN *grant_column;
       if (privileges)
+        error=table->file->ha_update_row(table->record[1],table->record[0]);
+      else
+        error=table->file->ha_delete_row(table->record[1]);
+      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
       {
-        DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_column_table_update");
-        error= table->file->ha_update_row(table->record[1],table->record[0]);
-        DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_column_table_update");
-        if (error && error != HA_ERR_RECORD_IS_THE_SAME)
-        {
-          acl_print_ha_error(table, error);
-          result= -1;
-          goto end;
-        }
+        table->file->print_error(error,MYF(0)); /* purecov: inspected */
+        result= -1;                             /* purecov: inspected */
+        goto end;                               /* purecov: inspected */
       }
       else
-      {
-        DEBUG_SE_DELETE_ERROR_PRE("se_error_replace_column_table_delete");
-        error= table->file->ha_delete_row(table->record[1]);
-        DEBUG_SE_DELETE_ERROR_POST("se_error_replace_column_table_delete");
-        if (error)
-        {
-          acl_print_ha_error(table, error);
-          result= -1;
-          goto end;
-        }
-      }
+        error= 0;
       grant_column= column_hash_search(g_t, column->column.ptr(),
                                        column->column.length());
       if (grant_column)                         // Should always be true
@@ -1239,14 +1117,11 @@ int replace_column_table(GRANT_TABLE *g_t,
     else                                        // new grant
     {
       GRANT_COLUMN *grant_column;
-      DEBUG_SE_WRITE_ERROR_PRE("se_error_replace_column_table_add");
-      error= table->file->ha_write_row(table->record[0]);
-      DEBUG_SE_WRITE_ERROR_POST("se_error_replace_column_table_add");
-      if (error)
+      if ((error=table->file->ha_write_row(table->record[0])))
       {
-        acl_print_ha_error(table, error);
-        result= -1;
-        goto end;
+        table->file->print_error(error,MYF(0)); /* purecov: inspected */
+        result= -1;                             /* purecov: inspected */
+        goto end;                               /* purecov: inspected */
       }
       grant_column= new GRANT_COLUMN(column->column,privileges);
       if (my_hash_insert(&g_t->hash_columns,(uchar*) grant_column))
@@ -1267,20 +1142,11 @@ int replace_column_table(GRANT_TABLE *g_t,
     uchar user_key[MAX_KEY_LENGTH];
     key_copy(user_key, table->record[0], table->key_info,
              key_prefix_length);
-    error= table->file->ha_index_read_map(table->record[0], user_key,
-                                          (key_part_map)15,
-                                          HA_READ_KEY_EXACT);
-    DBUG_EXECUTE_IF("se_error_replace_column_table_revoke_read",
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-    if (error)
-    {
-      if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      {
-        acl_print_ha_error(table, error);
-        result= -1;
-      }
+
+    if (table->file->ha_index_read_map(table->record[0], user_key,
+                                       (key_part_map)15,
+                                       HA_READ_KEY_EXACT))
       goto end;
-    }
 
     /* Scan through all rows with the same host,db,user and table */
     do
@@ -1305,12 +1171,12 @@ int replace_column_table(GRANT_TABLE *g_t,
                                           column_name.length());
         if (privileges)
         {
-          DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_column_table_revoke_update");
-          error= table->file->ha_update_row(table->record[1], table->record[0]);
-          DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_column_table_revoke_update");
-          if (error && error != HA_ERR_RECORD_IS_THE_SAME)
+          int tmp_error;
+          if ((tmp_error=table->file->ha_update_row(table->record[1],
+                                                    table->record[0])) &&
+              tmp_error != HA_ERR_RECORD_IS_THE_SAME)
           {                                        /* purecov: deadcode */
-            acl_print_ha_error(table, error);     // deadcode
+            table->file->print_error(tmp_error,MYF(0)); /* purecov: deadcode */
             result= -1;                         /* purecov: deadcode */
             goto end;                           /* purecov: deadcode */
           }
@@ -1319,32 +1185,19 @@ int replace_column_table(GRANT_TABLE *g_t,
         }
         else
         {
-          DEBUG_SE_DELETE_ERROR_PRE("se_error_replace_column_table_revoke_delete");
-          error= table->file->ha_delete_row(table->record[1]);
-          DEBUG_SE_DELETE_ERROR_POST("se_error_replace_column_table_revoke_delete");
-          if (error)
-          {
-            acl_print_ha_error(table, error);
-            result= -1;
-            goto end;
+          int tmp_error;
+          if ((tmp_error = table->file->ha_delete_row(table->record[1])))
+          {                                     /* purecov: deadcode */
+            table->file->print_error(tmp_error,MYF(0)); /* purecov: deadcode */
+            result= -1;                         /* purecov: deadcode */
+            goto end;                           /* purecov: deadcode */
           }
           if (grant_column)
             my_hash_delete(&g_t->hash_columns,(uchar*) grant_column);
         }
       }
-      error= table->file->ha_index_next(table->record[0]);
-      DBUG_EXECUTE_IF("se_error_replace_column_table_revoke_read_next",
-                      error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-      if (error)
-      {
-        if (error != HA_ERR_END_OF_FILE)
-        {
-          acl_print_ha_error(table, error);
-          result= -1;
-        }
-        goto end;
-      }
-    } while (!key_cmp_if_same(table, key, 0, key_prefix_length));
+    } while (!table->file->ha_index_next(table->record[0]) &&
+             !key_cmp_if_same(table, key, 0, key_prefix_length));
   }
 
 end:
@@ -1372,9 +1225,8 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   */
   if (!find_acl_user(combo.host.str,combo.user.str, FALSE))
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
-               MYF(0)); /* purecov: deadcode */
-    DBUG_RETURN(1);                            /* purecov: deadcode */
+    my_error(ER_PASSWORD_NO_MATCH, MYF(0));     /* purecov: deadcode */
+    DBUG_RETURN(-1);                            /* purecov: deadcode */
   }
 
   table->use_all_columns();
@@ -1390,19 +1242,10 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
-  error= table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT);
-
-  DBUG_EXECUTE_IF("se_error_replace_table_table_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
+  if (table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
-      acl_print_ha_error(table, error);
-      DBUG_RETURN(-1);
-    }
     /*
       The following should never happen as we first check the in memory
       grant tables for the user.  There is however always a small change that
@@ -1413,7 +1256,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
       my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0),
                combo.user.str, combo.host.str,
                table_name);                     /* purecov: deadcode */
-      DBUG_RETURN(1);                           /* purecov: deadcode */
+      DBUG_RETURN(-1);                          /* purecov: deadcode */
     }
     old_row_exists = 0;
     restore_record(table,record[1]);                    // Get saved record
@@ -1450,24 +1293,19 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   {
     if (store_table_rights || store_col_rights)
     {
-      DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_table_table_update");
-      error=table->file->ha_update_row(table->record[1],
-                                       table->record[0]);
-      DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_table_table_update");
-
-      if (error &&  error != HA_ERR_RECORD_IS_THE_SAME)
-        goto table_error;
+      if ((error=table->file->ha_update_row(table->record[1],
+                                            table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
+        goto table_error;                       /* purecov: deadcode */
     }
     else if ((error = table->file->ha_delete_row(table->record[1])))
       goto table_error;                         /* purecov: deadcode */
   }
   else
   {
-    DEBUG_SE_WRITE_ERROR_PRE("se_error_replace_table_table_add");
     error=table->file->ha_write_row(table->record[0]);
-    DEBUG_SE_WRITE_ERROR_POST("se_error_replace_table_table_add");
     if (!table->file->is_ignorable_error(error))
-      goto table_error;
+      goto table_error;                         /* purecov: deadcode */
   }
 
   if (rights | col_rights)
@@ -1483,7 +1321,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
 
   /* This should never happen */
 table_error:
-  acl_print_ha_error(table, error); /* purecov: deadcode */
+  table->file->print_error(error,MYF(0)); /* purecov: deadcode */
   DBUG_RETURN(-1); /* purecov: deadcode */
 }
 
@@ -1529,20 +1367,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
                          TRUE);
   store_record(table,record[1]);                        // store at pos 1
 
-  error= table->file->ha_index_read_idx_map(table->record[0], 0,
-                                            table->field[0]->ptr,
-                                            HA_WHOLE_KEY,
-                                            HA_READ_KEY_EXACT);
-
-  DBUG_EXECUTE_IF("se_error_replace_routine_table_read",
-                  error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-  if (error)
+  if (table->file->ha_index_read_idx_map(table->record[0], 0,
+                                         table->field[0]->ptr,
+                                         HA_WHOLE_KEY,
+                                         HA_READ_KEY_EXACT))
   {
-    if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    {
-      acl_print_ha_error(table, error);
-      DBUG_RETURN(-1);
-    }
     /*
       The following should never happen as we first check the in memory
       grant tables for the user.  There is however always a small change that
@@ -1552,7 +1381,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
     { // no row, no revoke
       my_error(ER_NONEXISTING_PROC_GRANT, MYF(0),
                combo.user.str, combo.host.str, routine_name);
-      DBUG_RETURN(1);
+      DBUG_RETURN(-1);
     }
     old_row_exists= 0;
     restore_record(table,record[1]);                    // Get saved record
@@ -1584,27 +1413,17 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   {
     if (store_proc_rights)
     {
-      DEBUG_SE_UPDATE_ERROR_PRE("se_error_replace_routine_table_update");
-      error=table->file->ha_update_row(table->record[1],
-                                       table->record[0]);
-      DEBUG_SE_UPDATE_ERROR_POST("se_error_replace_routine_table_update");
-      if (error && error != HA_ERR_RECORD_IS_THE_SAME)
+      if ((error=table->file->ha_update_row(table->record[1],
+                                            table->record[0])) &&
+          error != HA_ERR_RECORD_IS_THE_SAME)
         goto table_error;
     }
-    else
-    {
-      DEBUG_SE_DELETE_ERROR_PRE("se_error_replace_routine_table_delete");
-      error= table->file->ha_delete_row(table->record[1]);
-      DEBUG_SE_DELETE_ERROR_POST("se_error_replace_routine_table_delete");
-      if (error)
-        goto table_error;
-    }
+    else if ((error= table->file->ha_delete_row(table->record[1])))
+      goto table_error;
   }
   else
   {
-    DEBUG_SE_WRITE_ERROR_PRE("se_error_replace_routine_table_add");
     error=table->file->ha_write_row(table->record[0]);
-    DEBUG_SE_WRITE_ERROR_POST("se_error_replace_routine_table_add");
     if (!table->file->is_ignorable_error(error))
       goto table_error;
   }
@@ -1622,7 +1441,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 
   /* This should never happen */
 table_error:
-  acl_print_ha_error(table, error);
+  table->file->print_error(error,MYF(0));
   DBUG_RETURN(-1);
 }
 
@@ -1755,23 +1574,18 @@ static int modify_grant_table(TABLE *table, Field *host_field,
                       system_charset_info);
     user_field->store(user_to->user.str, user_to->user.length,
                       system_charset_info);
-    DEBUG_SE_UPDATE_ERROR_PRE("se_error_modify_grant_table_update");
-    error= table->file->ha_update_row(table->record[1],
-                                      table->record[0]);
-    DEBUG_SE_UPDATE_ERROR_POST("se_error_modify_grant_table_update");
-    if (error && error != HA_ERR_RECORD_IS_THE_SAME)
-      acl_print_ha_error(table, error);
+    if ((error= table->file->ha_update_row(table->record[1], 
+                                           table->record[0])) &&
+        error != HA_ERR_RECORD_IS_THE_SAME)
+      table->file->print_error(error, MYF(0));
     else
       error= 0;
   }
   else
   {
     /* delete */
-    DEBUG_SE_DELETE_ERROR_PRE("se_error_modify_grant_table_delete");
-    error= table->file->ha_delete_row(table->record[0]);
-    DEBUG_SE_DELETE_ERROR_POST("se_error_modify_grant_table_delete");
-    if (error)
-      acl_print_ha_error(table, error);
+    if ((error=table->file->ha_delete_row(table->record[0])))
+      table->file->print_error(error, MYF(0));
   }
 
   DBUG_RETURN(error);
@@ -1782,6 +1596,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
 
   SYNOPSIS
     handle_grant_table()
+    thd                         Thread handle
     tables                      The array with the four open tables.
     table_no                    The number of the table to handle (0..4).
     drop                        If user_from is to be dropped.
@@ -1809,7 +1624,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     < 0         Error.
 */
 
-int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
+int handle_grant_table(THD *thd, TABLE_LIST *tables, uint table_no, bool drop,
                        LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -1822,7 +1637,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   DBUG_ENTER("handle_grant_table");
-  THD *thd= current_thd;
 
   table->use_all_columns();
   if (! table_no) // mysql.user table
@@ -1858,17 +1672,13 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
 
-    error= table->file->ha_index_read_idx_map(table->record[0], 0,
-                                              user_key, (key_part_map)3,
-                                              HA_READ_KEY_EXACT);
-
-    DBUG_EXECUTE_IF("se_error_handle_grant_table_read",
-                    error= HA_ERR_LOCK_WAIT_TIMEOUT;);
-    if (error)
+    if ((error= table->file->ha_index_read_idx_map(table->record[0], 0,
+                                                   user_key, (key_part_map)3,
+                                                   HA_READ_KEY_EXACT)))
     {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
-        acl_print_ha_error(table, error);
+        table->file->print_error(error, MYF(0));
         result= -1;
       }
     }
@@ -1890,7 +1700,7 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     */
     if ((error= table->file->ha_rnd_init(1)))
     {
-      acl_print_ha_error(table, error);
+      table->file->print_error(error, MYF(0));
       result= -1;
     }
     else
@@ -1901,24 +1711,15 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                          user_from->user.str,
                          user_from->host.str));
 #endif
-      while (true)
+      while ((error= table->file->ha_rnd_next(table->record[0])) != 
+             HA_ERR_END_OF_FILE)
       {
-        error= table->file->ha_rnd_next(table->record[0]);
-        DBUG_EXECUTE_IF("se_error_handle_grant_table_rnd_read",
-                        error= HA_ERR_LOCK_WAIT_TIMEOUT;);
         if (error)
         {
-          if (error == HA_ERR_RECORD_DELETED)
-            continue;
-
-          if (error != HA_ERR_END_OF_FILE)
-          {
-            acl_print_ha_error(table, error);
-            result= -1;
-          }
-          break;
+          /* Most probable 'deleted record'. */
+          DBUG_PRINT("info",("scan error: %d", error));
+          continue;
         }
-
         if (! (host= get_field(thd->mem_root, host_field)))
           host= "";
         if (! (user= get_field(thd->mem_root, user_field)))

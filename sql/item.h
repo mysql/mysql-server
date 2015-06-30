@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "field.h"       // Derivation
+#include "my_decimal.h"  // my_decimal
 #include "parse_tree_node_base.h" // Parse_tree_node
 #include "sql_array.h"   // Bounds_checked_array
 #include "trigger_def.h" // enum_trigger_variable_type
@@ -506,7 +507,7 @@ struct Name_resolution_context: Sql_alloc
     SELECT_LEX where item was created, so we can't use table_list/field_list
     from there
   */
-  st_select_lex *select_lex;
+  SELECT_LEX *select_lex;
 
   /*
     Processor of errors caused during Item name resolving, now used only to
@@ -522,7 +523,7 @@ struct Name_resolution_context: Sql_alloc
     this->table_list. If FALSE, items are resolved only against
     this->table_list.
 
-    @see st_select_lex::item_list, st_select_lex::group_list
+    @see SELECT_LEX::item_list, SELECT_LEX::group_list
   */
   bool resolve_in_select_list;
 
@@ -815,7 +816,7 @@ public:
      in:
      - during field resolution: it contains the index, in the "all_fields"
      list, of the expression to which this field belongs; or a special
-     constant UNDEF_POS; see st_select_lex::cur_pos_in_all_fields and
+     constant UNDEF_POS; see SELECT_LEX::cur_pos_in_all_fields and
      match_exprs_for_only_full_group_by().
      - when attaching conditions to tables: it says whether some condition
      needs to be attached or can be omitted (for example because it is already
@@ -961,8 +962,8 @@ public:
     @param removed_select select_lex that tables are moved away from,
                           child of parent_select.
   */
-  virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
   {};
   /*
     should be used in case where we are sure that we do not need
@@ -974,7 +975,7 @@ public:
     Save the item into a field but do not emit any warnings.
 
     @param field         field to save the item into
-    @param no_coversions whether or not to allow conversions of the value
+    @param no_conversions whether or not to allow conversions of the value
 
     @return the status from saving into the field
       @retval TYPE_OK    item saved without any issues
@@ -1315,11 +1316,11 @@ protected:
   /**
     Get the value to return from val_bool() in case of errors.
 
-    This function is called from val_bool() when an error has occured
+    This function is called from val_bool() when an error has occurred
     and we need to return something to abort evaluation of the
     item. The expected pattern in val_bool() is
 
-      if (<error condition>)
+      if (@<error condition@>)
       {
         my_error(...)
         return error_bool();
@@ -1345,7 +1346,7 @@ protected:
       my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
       {
         ...
-        if (<error condition>)
+        if (@<error condition@>)
         {
           my_error(...)
           return error_decimal(decimal_buffer);
@@ -1779,7 +1780,7 @@ public:
 
   /**
      Visitor interface for removing all column expressions (Item_field) in
-     this expression tree from a bitmap. @See walk()
+     this expression tree from a bitmap. @see walk()
 
      @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
                  Field::field_index values.
@@ -1795,8 +1796,8 @@ public:
   /**
      Clean up after removing the item from the item tree.
 
-     @param arg Pointer to the st_select_lex from which the walk started, i.e.,
-                the st_select_lex that contained the clause that was removed.
+     @param arg Pointer to the SELECT_LEX from which the walk started, i.e.,
+                the SELECT_LEX that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
   /// @see Distinct_check::check_query()
@@ -1811,7 +1812,7 @@ public:
   /// @see Group_check::is_in_fd_of_underlying()
   virtual bool is_column_not_in_fd(uchar *arg)
   { return false; }
-  virtual Bool3 local_column(const st_select_lex *sl) const
+  virtual Bool3 local_column(const SELECT_LEX *sl) const
   { return Bool3::false3(); }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
@@ -1914,16 +1915,14 @@ public:
   virtual bool check_valid_arguments_processor(uchar *arg) { return false; }
 
   /**
-    Find a function of a given type
+    Find a function of a given type.
+    This function can be used (together with Item::walk()) to find functions
+    in an item tree fragment.
 
     @param   arg     the function type to search (enum Item_func::Functype)
     @return
       @retval TRUE   the function type we're searching for is found
       @retval FALSE  the function type wasn't found
-
-    @description
-      This function can be used (together with Item::walk()) to find functions
-      in an item tree fragment.
   */
   virtual bool find_function_processor (uchar *arg)
   {
@@ -1948,15 +1947,6 @@ public:
       ("check_gcol_func_processor returns TRUE: unsupported function"));
     DBUG_RETURN(TRUE);
   }
-
-  /**
-    @brief  update_indexed_column_map
-    Update columns map for index.
-
-    @param int_arg It's useless 
-    @return  false successfully update 
-    */
-  virtual bool update_indexed_column_map(uchar *int_arg) { return false; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -2428,8 +2418,6 @@ public:
   }
 };
 
-bool agg_item_collations(DTCollation &c, const char *name,
-                         Item **items, uint nitems, uint flags, int item_sep);
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
                                         Item **items, uint nitems, uint flags);
 bool agg_item_set_converter(DTCollation &coll, const char *fname,
@@ -2485,7 +2473,7 @@ public:
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
 
-class st_select_lex;
+class SELECT_LEX;
 class Item_ident :public Item
 {
   typedef Item super;
@@ -2520,7 +2508,7 @@ public:
     0 - means no cached value.
   */
   TABLE_LIST *cached_table;
-  st_select_lex *depended_from;
+  SELECT_LEX *depended_from;
 
   Item_ident(Name_resolution_context *context_arg,
              const char *db_name_arg, const char *table_name_arg,
@@ -2534,13 +2522,13 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   const char *full_name() const;
-  virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select);
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
   virtual bool aggregate_check_distinct(uchar *arg);
   virtual bool aggregate_check_group(uchar *arg);
-  Bool3 local_column(const st_select_lex *sl) const;
+  Bool3 local_column(const SELECT_LEX *sl) const;
 
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
@@ -2835,7 +2823,7 @@ public:
 
   friend class Item_default_value;
   friend class Item_insert_value;
-  friend class st_select_lex_unit;
+  friend class SELECT_LEX_UNIT;
 
   /**
      @note that field->table->alias_name_used is reliable only if
@@ -3912,8 +3900,8 @@ public:
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -4212,8 +4200,8 @@ public:
     outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
@@ -4936,8 +4924,8 @@ public:
     return example ? example->resolved_used_tables() : used_table_map;
   }
 
-  virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
   {
     if (example == NULL)
       return;
@@ -5293,10 +5281,10 @@ public:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
 void mark_select_range_as_dependent(THD *thd,
-                                    st_select_lex *last_select,
-                                    st_select_lex *current_sel,
+                                    SELECT_LEX *last_select,
+                                    SELECT_LEX *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 

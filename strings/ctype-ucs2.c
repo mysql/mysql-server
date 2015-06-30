@@ -1079,7 +1079,6 @@ my_lengthsp_mb2(const CHARSET_INFO *cs __attribute__((unused)),
   DC00..DFFF - Surrogate low              (1024 codes in a page)
 */
 #define MY_UTF16_SURROGATE_HIGH_FIRST 0xD800
-#define MY_UTF16_SURROGATE_HIGH_LAST  0xDBFF
 #define MY_UTF16_SURROGATE_LOW_FIRST  0xDC00
 #define MY_UTF16_SURROGATE_LOW_LAST   0xDFFF
 
@@ -3141,7 +3140,7 @@ static int my_strnncoll_ucs2(const CHARSET_INFO *cs,
     > 0  a > b
 */
 
-static int my_strnncollsp_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_ucs2(const CHARSET_INFO *cs,
                                const uchar *s, size_t slen,
                                const uchar *t, size_t tlen,
                                my_bool diff_if_only_endspace_difference
@@ -3217,8 +3216,8 @@ size_t my_numchars_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
 
 static
 size_t my_charpos_ucs2(const CHARSET_INFO *cs __attribute__((unused)),
-                       const char *b  __attribute__((unused)),
-                       const char *e  __attribute__((unused)),
+                       const char *b,
+                       const char *e,
                        size_t pos)
 {
   size_t string_length= (size_t) (e - b);

@@ -48,9 +48,9 @@ set @@session.innodb_change_buffering='some';
 #
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering=1.1;
---error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering=1;
---error ER_WRONG_TYPE_FOR_VAR
+SELECT @@global.innodb_change_buffering;
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_change_buffering=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering=1e1;

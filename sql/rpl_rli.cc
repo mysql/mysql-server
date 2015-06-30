@@ -17,6 +17,7 @@
 
 #include "my_dir.h"                // MY_STAT
 #include "log_event.h"             // Log_event
+#include "mysqld.h"                // sync_relaylog_period ...
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
 #include "rpl_info_factory.h"      // Rpl_info_factory
 #include "rpl_mi.h"                // Master_info
@@ -430,15 +431,14 @@ void Relay_log_info::clear_until_condition()
   @todo check proper initialization of
   group_master_log_name/group_master_log_pos. /alfranio
 
-  @param rli[in] Relay information (will be initialized)
-  @param log[in] Name of relay log file to read from. NULL = First log
-  @param pos[in] Position in relay log file
-  @param need_data_lock[in] If true, this function will acquire the
+  @param [in] log Name of relay log file to read from. NULL = First log
+  @param [in] pos Position in relay log file
+  @param [in] need_data_lock If true, this function will acquire the
   relay_log.data_lock(); otherwise the caller should already have
   acquired it.
-  @param errmsg[out] On error, this function will store a pointer to
+  @param [out] errmsg On error, this function will store a pointer to
   an error message here
-  @param look_for_description_event[in] If true, this function will
+  @param [in] look_for_description_event If true, this function will
   look for a Format_description_log_event.  We only need this when the
   SQL thread starts and opens an existing relay log and has to execute
   it (possibly from an offset >4); then we need to read the first
@@ -1126,7 +1126,7 @@ void Relay_log_info::close_temporary_tables()
       slave restarts, but it is a better intention to not delete them.
     */
     DBUG_PRINT("info", ("table: 0x%lx", (long) table));
-    close_temporary(table, 1, 0);
+    close_temporary(NULL, table, true, false);
   }
   save_temporary_tables= 0;
   slave_open_temp_tables= 0;
@@ -1137,12 +1137,12 @@ void Relay_log_info::close_temporary_tables()
   Purges relay logs. It assumes to have a run lock on rli and that no
   slave thread are running.
 
-  @param[in]   THD         connection,
+  @param[in]   thd         connection,
   @param[in]   just_reset  if false, it tells that logs should be purged
                            and @c init_relay_log_pos() should be called,
-  @errmsg[out] errmsg      store pointer to an error message.
+  @param[out] errmsg      store pointer to an error message.
 
-  @retval 0 successfuly executed,
+  @retval 0 successfully executed,
   @retval 1 otherwise error, where errmsg is set to point to the error message.
 */
 
@@ -1318,10 +1318,6 @@ Relay_log_info::add_channel_to_relay_log_name(char *buff, uint buff_size,
      autoincrement or if we have transactions).
 
      Should be called ONLY if @c until_condition @c != @c UNTIL_NONE !
-
-     @param master_beg_pos    position of the beginning of to be executed event
-                              (not @c log_pos member of the event that points to
-                              the beginning of the following event)
 
      @retval true   condition met or error happened (condition seems to have
                     bad log file name),
@@ -2301,8 +2297,6 @@ void Relay_log_info::set_master_info(Master_info* info)
   - Error can happen if writing to file fails or if flushing the file
     fails.
 
-  @param rli The object representing the Relay_log_info.
-
   @todo Change the log file information to a binary format to avoid
   calling longlong2str.
 
@@ -2343,6 +2337,14 @@ size_t Relay_log_info::get_number_info_rli_fields()
 { 
   return sizeof(info_rli_fields)/sizeof(info_rli_fields[0]);
 }
+
+void Relay_log_info::start_sql_delay(time_t delay_end)
+{
+  mysql_mutex_assert_owner(&data_lock);
+  sql_delay_end= delay_end;
+  THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
+}
+
 
 bool Relay_log_info::read_info(Rpl_info_handler *from)
 {
@@ -2502,7 +2504,7 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
    once at its destruction time.
    todo: fix Slave_worker and Relay_log_info inheritance relation.
 
-   @param  a pointer to be installed into execution context 
+   @param  fe Pointer to be installed into execution context 
            FormatDescriptor event
 */
 
@@ -2644,7 +2646,7 @@ static st_feature_version s_features[]=
 void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
 {
   THD *thd=info_thd;
-  ulong master_version, current_version;
+  ulong master_version= 0, current_version= 0;
   int changed= !fdle || ! rli_description_event ? 0 :
     (master_version= fdle->get_product_version()) -
     (current_version= rli_description_event->get_product_version());

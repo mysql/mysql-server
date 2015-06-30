@@ -91,28 +91,6 @@ lock_get_min_heap_no(
 }
 
 /*************************************************************//**
-Moves the locks of a record to another record and resets the lock bits of
-the donating record. */
-UNIV_INLINE
-void
-lock_rec_move(
-/*==========*/
-	const buf_block_t*	receiver,       /*!< in: buffer block containing
-						the receiving record */
-	const buf_block_t*	donator,        /*!< in: buffer block containing
-						the donating record */
-	ulint			receiver_heap_no,/*!< in: heap_no of the record
-						which gets the locks; there
-						must be no lock requests
-						on it! */
-	ulint			donator_heap_no)/*!< in: heap_no of the record
-                                                which gives the locks */
-{
-	lock_rec_move_low(lock_sys->rec_hash, receiver, donator,
-			  receiver_heap_no, donator_heap_no);
-}
-
-/*************************************************************//**
 Get the lock hash table */
 UNIV_INLINE
 hash_table_t*

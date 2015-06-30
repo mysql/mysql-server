@@ -534,12 +534,13 @@ ibool
 dtype_validate(
 /*===========*/
 	const dtype_t*	type);	/*!< in: type struct to validate */
-/*********************************************************************//**
-Prints a data type structure. */
+#ifdef UNIV_DEBUG
+/** Print a data type structure.
+@param[in]	type	data type */
 void
 dtype_print(
-/*========*/
-	const dtype_t*	type);	/*!< in: type */
+	const dtype_t*	type);
+#endif /* UNIV_DEBUG */
 
 /* Structure for an SQL data type.
 If you add fields to this structure, be sure to initialize them everywhere.

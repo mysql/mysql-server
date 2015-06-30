@@ -26,12 +26,17 @@
 #include "mysql_version.h"            // MYSQL_VERSION_ID
 
 #include "binlog.h"                   // mysql_bin_log
+#include "current_thd.h"
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "derror.h"                   // ER_DEFAULT
 #include "discover.h"                 // writefrm
+#include "lock.h"                     // MYSQL_LOCK
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
+#include "mysqld.h"                   // global_system_variables heap_hton ..
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
+#include "psi_memory_key.h"
 #include "rpl_handler.h"              // RUN_HOOK
 #include "sql_base.h"                 // free_io_cache
 #include "sql_parse.h"                // check_stack_overrun
@@ -192,14 +197,12 @@ const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 
 static handlerton *installed_htons[128];
 
-#define BITMAP_STACKBUF_SIZE (128/8)
-
 KEY_CREATE_INFO default_key_create_info=
   { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
 
-/* number of entries in handlertons[] */
-ulong total_ha= 0;
-/* number of storage engines (from handlertons[]) that support 2pc */
+/* number of entries in installed_htons[] */
+static ulong total_ha= 0;
+/* number of storage engines (from installed_htons[]) that support 2pc */
 ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size= 0;
@@ -225,82 +228,12 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
-#ifndef DBUG_OFF
-
-const char *ha_legacy_type_name(legacy_db_type legacy_type)
-{
-  switch (legacy_type)
-  {
-  case DB_TYPE_UNKNOWN:
-    return "DB_TYPE_UNKNOWN";
-  case DB_TYPE_DIAB_ISAM:
-    return "DB_TYPE_DIAB_ISAM";
-  case DB_TYPE_HASH:
-    return "DB_TYPE_HASH";
-  case DB_TYPE_MISAM:
-    return "DB_TYPE_MISAM";
-  case DB_TYPE_PISAM:
-    return "DB_TYPE_PISAM";
-  case DB_TYPE_RMS_ISAM:
-    return "DB_TYPE_RMS_ISAM";
-  case DB_TYPE_HEAP:
-    return "DB_TYPE_HEAP";
-  case DB_TYPE_ISAM:
-    return "DB_TYPE_ISAM";
-  case DB_TYPE_MRG_ISAM:
-    return "DB_TYPE_MRG_ISAM";
-  case DB_TYPE_MYISAM:
-    return "DB_TYPE_MYISAM";
-  case DB_TYPE_MRG_MYISAM:
-    return "DB_TYPE_MRG_MYISAM";
-  case DB_TYPE_BERKELEY_DB:
-    return "DB_TYPE_BERKELEY_DB";
-  case DB_TYPE_INNODB:
-    return "DB_TYPE_INNODB";
-  case DB_TYPE_GEMINI:
-    return "DB_TYPE_GEMINI";
-  case DB_TYPE_NDBCLUSTER:
-    return "DB_TYPE_NDBCLUSTER";
-  case DB_TYPE_EXAMPLE_DB:
-    return "DB_TYPE_EXAMPLE_DB";
-  case DB_TYPE_ARCHIVE_DB:
-    return "DB_TYPE_ARCHIVE_DB";
-  case DB_TYPE_CSV_DB:
-    return "DB_TYPE_CSV_DB";
-  case DB_TYPE_FEDERATED_DB:
-    return "DB_TYPE_FEDERATED_DB";
-  case DB_TYPE_BLACKHOLE_DB:
-    return "DB_TYPE_BLACKHOLE_DB";
-  case DB_TYPE_PARTITION_DB:
-    return "DB_TYPE_PARTITION_DB";
-  case DB_TYPE_BINLOG:
-    return "DB_TYPE_BINLOG";
-  case DB_TYPE_SOLID:
-    return "DB_TYPE_SOLID";
-  case DB_TYPE_PBXT:
-    return "DB_TYPE_PBXT";
-  case DB_TYPE_TABLE_FUNCTION:
-    return "DB_TYPE_TABLE_FUNCTION";
-  case DB_TYPE_MEMCACHE:
-    return "DB_TYPE_MEMCACHE";
-  case DB_TYPE_FALCON:
-    return "DB_TYPE_FALCON";
-  case DB_TYPE_MARIA:
-    return "DB_TYPE_MARIA";
-  case DB_TYPE_PERFORMANCE_SCHEMA:
-    return "DB_TYPE_PERFORMANCE_SCHEMA";
-  default:
-    return "DB_TYPE_DYNAMIC";
-  }
-}
-#endif
-
 /**
   Database name that hold most of mysqld system tables.
   Current code assumes that, there exists only some
   specific "database name" designated as system database.
 */
-const char* mysqld_system_database= "mysql";
+static const char* mysqld_system_database= "mysql";
 
 // System tables that belong to mysqld_system_database.
 st_system_tablename mysqld_system_tables[]= {
@@ -343,6 +276,10 @@ static my_bool system_databases_handlerton(THD *unused, plugin_ref plugin,
 static my_bool check_engine_system_table_handlerton(THD *unused,
                                                     plugin_ref plugin,
                                                     void *arg);
+
+static int ha_discover(THD *thd, const char *db, const char *name,
+                       uchar **frmblob, size_t *frmlen);
+
 /**
   Structure used by SE during check for system table.
   This structure is passed to each SE handlerton and the status (OUT param)
@@ -1395,7 +1332,7 @@ int ha_prepare(THD *thd)
       else
       {
         push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
+                            ER_ILLEGAL_HA, ER_THD(thd, ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
       ha_info= ha_info->next();
@@ -1575,7 +1512,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     DBUG_EXECUTE_IF("dbug.enabled_commit",
                     {
                       const char act[]= "now signal Reached wait_for signal.commit_continue";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
                                                          STRING_WITH_LEN(act)));
                     };);
     if (rw_trans && !ignore_global_read_lock)
@@ -1739,7 +1676,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     trn_ctx->reset_scope(trx_scope);
     if (all)
     {
-      trn_ctx->invalidate_changed_tables_in_cache();
+      trn_ctx->invalidate_changed_tables_in_cache(thd);
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
@@ -2389,7 +2326,7 @@ err:
 }
 
 
-void handler::ha_statistic_increment(ulonglong SSV::*offset) const
+void handler::ha_statistic_increment(ulonglong System_status_var::*offset) const
 {
   (table->in_use->status_var.*offset)++;
 }
@@ -2939,7 +2876,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   int error;
   DBUG_ENTER("handler::read_first_row");
 
-  ha_statistic_increment(&SSV::ha_read_first_count);
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
 
   /*
     If there is very few deleted rows in the table, find the first row by
@@ -2987,7 +2924,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   @verbatim 1,5,15,25,35,... @endverbatim
 */
 inline ulonglong
-compute_next_insert_id(ulonglong nr,struct system_variables *variables)
+compute_next_insert_id(ulonglong nr,struct System_variables *variables)
 {
   const ulonglong save_nr= nr;
 
@@ -3037,7 +2974,7 @@ void handler::adjust_next_insert_id_after_explicit_value(ulonglong nr)
     The number X if it exists, "nr" otherwise.
 */
 inline ulonglong
-prev_insert_id(ulonglong nr, struct system_variables *variables)
+prev_insert_id(ulonglong nr, struct System_variables *variables)
 {
   if (unlikely(nr < variables->auto_increment_offset))
   {
@@ -3141,10 +3078,10 @@ prev_insert_id(ulonglong nr, struct system_variables *variables)
 
 int handler::update_auto_increment()
 {
-  ulonglong nr, nb_reserved_values;
+  ulonglong nr, nb_reserved_values= 0;
   bool append= FALSE;
   THD *thd= table->in_use;
-  struct system_variables *variables= &thd->variables;
+  struct System_variables *variables= &thd->variables;
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ENTER("handler::update_auto_increment");
@@ -3473,6 +3410,12 @@ void handler::ha_release_auto_increment()
 }
 
 
+const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+{
+  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
+}
+
+
 /**
   Construct and emit duplicate key error message using information
   from table's record buffer.
@@ -3521,7 +3464,8 @@ void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 
 void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key,
+                     ER_THD(current_thd, ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -5193,8 +5137,9 @@ static my_bool discover_handlerton(THD *thd, plugin_ref plugin,
   return FALSE;
 }
 
-int ha_discover(THD *thd, const char *db, const char *name,
-		uchar **frmblob, size_t *frmlen)
+
+static int ha_discover(THD *thd, const char *db, const char *name,
+                       uchar **frmblob, size_t *frmlen)
 {
   int error= -1; // Table does not exist in any handler
   DBUG_ENTER("ha_discover");
@@ -5719,7 +5664,7 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
   @retval FALSE  No
 */
 
-bool key_uses_partial_cols(TABLE *table, uint keyno)
+static bool key_uses_partial_cols(TABLE *table, uint keyno)
 {
   KEY_PART_INFO *kp= table->key_info[keyno].key_part;
   KEY_PART_INFO *kp_end= kp + table->key_info[keyno].user_defined_key_parts;
@@ -5746,15 +5691,15 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
                          can't efficiently determine it
-  @param bufsz[in,out]   IN:  Size of the buffer available for use
+  @param [in,out] bufsz  IN:  Size of the buffer available for use
                          OUT: Size of the buffer that is expected to be actually
                               used, or 0 if buffer is not needed.
-  @param flags[in,out]   A combination of HA_MRR_* flags
-  @param cost[out]       Estimated cost of MRR access
+  @param [in,out] flags  A combination of HA_MRR_* flags
+  @param [out] cost      Estimated cost of MRR access
 
   @note
     This method (or an overriding one in a derived class) must check for
-    thd->killed and return HA_POS_ERROR if it is not zero. This is required
+    \c thd->killed and return HA_POS_ERROR if it is not zero. This is required
     for a user to be able to interrupt the calculation by killing the
     connection/query.
 
@@ -5893,11 +5838,11 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                          range sequence.
   @param n_rows          Estimated total number of records contained within all
                          of the ranges
-  @param bufsz[in,out]   IN:  Size of the buffer available for use
+  @param [in,out] bufsz  IN:  Size of the buffer available for use
                          OUT: Size of the buffer that will be actually used, or
                               0 if buffer is not needed.
-  @param flags[in,out]   A combination of HA_MRR_* flags
-  @param cost[out]       Estimated cost of MRR access
+  @param [in,out] flags  A combination of HA_MRR_* flags
+  @param [out] cost      Estimated cost of MRR access
 
   @retval
     0     OK, *cost contains cost of the scan, *bufsz and *flags contain scan
@@ -5927,9 +5872,9 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 
 
 /**
-  Initialize the MRR scan
+  Initialize the MRR scan.
 
-  Initialize the MRR scan. This function may do heavyweight scan 
+  This function may do heavyweight scan 
   initialization like row prefetching/sorting/etc (NOTE: but better not do
   it here as we may not need it, e.g. if we never satisfy WHERE clause on
   previous tables. For many implementations it would be natural to do such
@@ -5938,7 +5883,7 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
   mode is a combination of the following flags: HA_MRR_SORTED,
   HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION 
 
-  @param seq             Range sequence to be traversed
+  @param seq_funcs       Range sequence to be traversed
   @param seq_init_param  First parameter for seq->init()
   @param n_ranges        Number of ranges in the sequence
   @param mode            Flags, see the description section for the details
@@ -5996,7 +5941,7 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 int handler::multi_range_read_next(char **range_info)
 {
   int result= HA_ERR_END_OF_FILE;
-  int range_res;
+  int range_res= 0;
   DBUG_ENTER("handler::multi_range_read_next");
 
   if (!mrr_have_range)
@@ -6074,33 +6019,27 @@ scan_it_again:
        to read records from the table (handler->inited is RND) either
        using the primary index or using no index at all.
 
-  @param h_arg           Table handler to be used
-  @param seq_funcs       Interval sequence enumeration functions
-  @param seq_init_param  Interval sequence enumeration parameter
-  @param n_ranges        Number of ranges in the sequence.
-  @param mode            HA_MRR_* modes to use
-  @param buf             INOUT Buffer to use
+  @param         seq_funcs       Interval sequence enumeration functions
+  @param         seq_init_param  Interval sequence enumeration parameter
+  @param         n_ranges        Number of ranges in the sequence.
+  @param         mode            HA_MRR_* modes to use
+  @param[in,out] buf             Buffer to use
 
   @retval 0     Ok, Scan started.
   @retval other Error
 */
 
-int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
-                           void *seq_init_param, uint n_ranges, uint mode,
-                           HANDLER_BUFFER *buf)
+int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
+                           uint n_ranges, uint mode, HANDLER_BUFFER *buf)
 {
+  DBUG_ASSERT(table != NULL);                   // Verify init() called
+
   uint elem_size;
   int retval= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
-  THD *thd= h_arg->table->in_use;     // current THD
+  THD *const thd= table->in_use;                // current THD
 
-  /*
-    index_merge may invoke a scan on an object for which dsmrr_info[_const]
-    has not been called, so set the owner handler here as well.
-  */
-  h= h_arg;
-  
-  if (!hint_key_state(thd, h->table, h->active_index,
+  if (!hint_key_state(thd, table, h->active_index,
                       MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) ||
       mode & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)) // DS-MRR doesn't sort
   {
@@ -6159,7 +6098,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
       DBUG_RETURN(1);
 
-    if (!(new_h2= h->clone(h->table->s->normalized_path.str, thd->mem_root)))
+    if (!(new_h2= h->clone(table->s->normalized_path.str, thd->mem_root)))
       DBUG_RETURN(1);
     h2= new_h2; /* Ok, now can put it into h2 */
     table->prepare_for_position();
@@ -6173,7 +6112,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     DBUG_ASSERT(h->active_index != MAX_KEY);
     const uint mrr_keyno= h->active_index;
 
-    if ((retval= h2->ha_external_lock(thd, h->m_lock_type)))
+    if ((retval= h2->ha_external_lock(thd, h->get_lock_type())))
       goto error;
 
     if ((retval= h2->extra(HA_EXTRA_KEYREAD)))
@@ -6238,7 +6177,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
               h->active_index == table->s->primary_key);
   DBUG_ASSERT(h2->inited == handler::INDEX);
   DBUG_ASSERT(h2->active_index != MAX_KEY);
-  DBUG_ASSERT(h->m_lock_type == h2->m_lock_type);
+  DBUG_ASSERT(h->get_lock_type() == h2->get_lock_type());
 
   if ((retval= h2->handler::multi_range_read_init(seq_funcs, seq_init_param, 
                                                   n_ranges, mode, buf)))
@@ -6330,8 +6269,6 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
   
   The function assumes that rowids buffer is empty when it is invoked. 
   
-  @param h  Table handler
-
   @retval 0      OK, the next portion of rowids is in the buffer,
                  properly ordered
   @retval other  Error
@@ -6981,7 +6918,7 @@ void handler::set_end_range(const key_range* range,
 
   @param range		range to compare to row. May be 0 for no range
 
-  @seealso
+  @sa
     key.cc::key_cmp()
 
   @return
@@ -7040,7 +6977,7 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
                                 enum ha_rkey_function find_flag)
 {
-  int error, error1;
+  int error, error1= 0;
   error= index_init(index, 0);
   if (!error)
   {
@@ -7431,7 +7368,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
                                table_share->table_name.str);
   }
 
-  ha_statistic_increment(&SSV::ha_external_lock_count);
+  ha_statistic_increment(&System_status_var::ha_external_lock_count);
 
   MYSQL_TABLE_LOCK_WAIT(PSI_TABLE_EXTERNAL_LOCK, lock_type,
     { error= external_lock(thd, lock_type); })
@@ -7545,10 +7482,6 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   DBUG_ASSERT(new_data == table->record[0]);
   DBUG_ASSERT(old_data == table->record[1]);
 
-  DBUG_ENTER("hanlder::ha_update_row");
-  DBUG_EXECUTE_IF("inject_error_ha_update_row",
-                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
-
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
@@ -7561,10 +7494,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
-    DBUG_RETURN(error);
+    return error;
   if (unlikely((error= binlog_log_row(table, old_data, new_data, log_func))))
-    DBUG_RETURN(error);
-  DBUG_RETURN(0);
+    return error;
+  return 0;
 }
 
 int handler::ha_delete_row(const uchar *buf)
@@ -7641,7 +7574,7 @@ Handler_share *handler::get_ha_share_ptr()
 /**
   Set ha_share to be used by all instances of the same table/partition.
 
-  @param ha_share    Handler_share to be shared.
+  @param arg_ha_share    Handler_share to be shared.
 
   @note
   If not a temp table, then LOCK_ha_data must be held.

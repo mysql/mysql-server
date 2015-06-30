@@ -814,19 +814,6 @@ SELECT * from t2;
 drop table t1,t2;
 
 #
-# Bug#17530: Incorrect key truncation on table creation caused server crash.
-#
-
-# Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
-SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(f1 varchar(800) binary not null, key(f1))
-  character set utf8 collate utf8_general_ci;
-insert into t1 values('aaa');
-drop table t1;
-SET sql_mode=default;
-
-
-#
 # Bug#22781: SQL_BIG_RESULT fails to influence sort plan
 #
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c FLOAT, KEY b(b)) ENGINE = INNODB;
@@ -1002,9 +989,11 @@ DROP TABLE t1;
 
 # Legacy queries below need to turn off ONLY_FULL_GROUP_BY and STRICT mode.
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-create table t1(a text) engine=innodb default charset=utf8; 
+create table t1(a text) engine=innodb row_format=dynamic default charset=utf8;
 insert into t1 values('aaa');
-alter table t1 add index(a(1024));
+--replace_result 768 3072 1536 3072
+alter table t1 add index(a(1025));
+--replace_result 256 1024 512 1024
 show create table t1;
 drop table t1;
 SET sql_mode=default;

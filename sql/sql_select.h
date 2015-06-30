@@ -18,24 +18,16 @@
 
 
 /**
-  @file
+  @file sql/sql_select.h
 
-  @brief
-  classes to use when handling where clause
+  Classes to use when handling where clause
 */
 
-#include "procedure.h"
-#include <myisam.h>
-#include "sql_array.h"                        /* Array */
-#include "records.h"                          /* READ_RECORD */
-#include "opt_range.h"                        /* QUICK_SELECT_I */
-#include "filesort.h"
 
-#include "mem_root_array.h"
-#include "sql_executor.h"
-#include "opt_explain_format.h" // for Extra_tag
-#include "sql_opt_exec_shared.h"
+#include "my_global.h"
 #include "item_cmpfunc.h"             // Item_cond_and
+#include "sql_class.h"                // THD
+#include "sql_opt_exec_shared.h"      // join_type
 
 #include <functional>
 /**
@@ -183,8 +175,8 @@ public:
             an Item_func_trig_cond. This means the equality (and validity of
             this Key_use element) can be turned on and off. The on/off state
             is indicted by the pointed value:
-              *cond_guard == TRUE <=> equality condition is on
-              *cond_guard == FALSE <=> equality condition is off
+              *cond_guard == TRUE @<=@> equality condition is on
+              *cond_guard == FALSE @<=@> equality condition is off
 
     NULL  - Otherwise (the source equality can't be turned off)
 
@@ -193,7 +185,7 @@ public:
   */
   bool *cond_guard;
   /**
-     0..63    <=> This was created from semi-join IN-equality # sj_pred_no.
+     0..63    @<=@> This was created from semi-join IN-equality # sj_pred_no.
      UINT_MAX  Otherwise
 
      Not used if the index is fulltext (such index cannot be used for
@@ -240,9 +232,6 @@ public:
 };
 
 
-// Key_use has a trivial destructor, no need to run it from Mem_root_array.
-typedef Mem_root_array<Key_use, true> Key_use_array;
-
 /// @returns join type according to quick select type used
 join_type calc_join_type(int quick_type);
 
@@ -271,12 +260,12 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 
 /**
   A position of table within a join order. This structure is primarily used
-  as a part of join->positions and join->best_positions arrays.
+  as a part of @c join->positions and @c join->best_positions arrays.
 
   One POSITION element contains information about:
    - Which table is accessed
    - Which access method was chosen
-      = Its cost and #of output records
+      = Its cost and \#of output records
    - Semi-join strategy choice. Note that there are two different
      representation formats:
       1. The one used during join optimization
@@ -290,7 +279,7 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
      strategy.  
      The variables are really a function of join prefix but they are too
      expensive to re-caclulate for every join prefix we consider, so we
-     maintain current state in join->positions[#tables_in_prefix]. See
+     maintain current state in join->positions[\#tables_in_prefix]. See
      advance_sj_state() for details.
 
   This class has to stay a POD, because it is memcpy'd in many places.
@@ -308,7 +297,7 @@ typedef struct st_position : public Sql_alloc
     index access, depending on the access method ('ref', 'range',
     etc.)
 
-    @Note that for index/table scans, rows_fetched may be less than
+    @note For index/table scans, rows_fetched may be less than
     the number of rows in the table because the cost of evaluating
     constant conditions is included in the scan cost, and the number
     of rows produced by these scans is the estimated number of rows
@@ -333,29 +322,29 @@ typedef struct st_position : public Sql_alloc
     The fraction of the 'rows_fetched' rows that will pass the table
     conditions that were NOT used by the access method. If, e.g.,
 
-      "SELECT ... WHERE t1.colx = 4 and t1.coly > 5"
+      "SELECT ... WHERE t1.colx = 4 and t1.coly @> 5"
 
     is resolved by ref access on t1.colx, filter_effect will be the
-    fraction of rows that will pass the "t1.coly > 5" predicate. The
+    fraction of rows that will pass the "t1.coly @> 5" predicate. The
     valid range is 0..1, where 0.0 means that no rows will pass the
     table conditions and 1.0 means that all rows will pass.
 
     It is used to calculate how many row combinations will be joined
     with the next table, @see prefix_rowcount below.
 
-    @Note that with condition filtering enabled, it is possible to get
+    @note With condition filtering enabled, it is possible to get
     a fanout = rows_fetched * filter_effect that is less than 1.0.
     Consider, e.g., a join between t1 and t2:
 
-       "SELECT ... WHERE t1.col1=t2.colx and t2.coly OP <something>"
+       "SELECT ... WHERE t1.col1=t2.colx and t2.coly OP @<something@>"
 
     where t1 is a prefix table and the optimizer currently calculates
     the cost of adding t2 to the join. Assume that the chosen access
     method on t2 is a 'ref' access on 'colx' that is estimated to
     produce 2 rows per row from t1 (i.e., rows_fetched = 2). It will
     in this case be perfectly fine to calculate a filtering effect
-    <0.5 (resulting in "rows_fetched * filter_effect < 1.0") from the
-    predicate "t2.coly OP <something>". If so, the number of row
+    @<0.5 (resulting in "rows_fetched * filter_effect @< 1.0") from the
+    predicate "t2.coly OP @<something@>". If so, the number of row
     combinations from (t1,t2) is lower than the prefix_rowcount of t1.
 
     The above is just an example of how the fanout of a table can
@@ -604,14 +593,15 @@ private:
   Key_use       *m_keyuse;        /**< pointer to first used key               */
 
   /**
-     Pointer to the associated join condition:
-     - if this is a table with position==NULL (e.g. internal sort/group
-     temporary table), pointer is NULL
-     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
-     Thus, TABLE_LIST::m_join_cond and *JOIN_TAB::m_join_cond_ref are the same
-     thing (changing one changes the other; thus, optimizations made on the
-     second are reflected in SELECT_LEX::print_table_array() which uses the
-     first).
+    Pointer to the associated join condition:
+
+    - if this is a table with position==NULL (e.g. internal sort/group
+      temporary table), pointer is NULL
+
+    - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
+      Thus, the pointee is the same as TABLE_LIST::m_join_cond (changing one
+      changes the other; thus, optimizations made on the second are reflected
+      in SELECT_LEX::print_table_array() which uses the first one).
   */
   Item          **m_join_cond_ref;
 public:
@@ -634,9 +624,9 @@ public:
   */
   double	worst_seeks;
   /** Keys with constant part. Subset of keys. */
-  key_map	const_keys;
-  key_map	checked_keys;			/**< Keys checked */
-  key_map	needed_reg;
+  Key_map	const_keys;
+  Key_map	checked_keys;			/**< Keys checked */
+  Key_map	needed_reg;
 
   /**
     Used to avoid repeated range analysis for the same key in
@@ -646,7 +636,7 @@ public:
     this JOIN_TAB changes since a new condition may give another plan
     and cost from range analysis.
    */
-  key_map       quick_order_tested;
+  Key_map       quick_order_tested;
 
   /*
     Number of records that will be scanned (yes scanned, not returned) by the
@@ -749,16 +739,16 @@ JOIN_TAB::JOIN_TAB() :
 
   @note The order relation implemented by Join_tab_compare_default is not
     transitive, i.e. it is possible to choose a, b and c such that 
-    (a < b) && (b < c) but (c < a). This is the case in the
+    (a @< b) && (b @< c) but (c @< a). This is the case in the
     following example: 
 
-      a: dependent = <none>   found_records = 3
-      b: dependent = <none>   found_records = 4
+      a: dependent = @<none@> found_records = 3
+      b: dependent = @<none@> found_records = 4
       c: dependent = b        found_records = 2
 
-        a < b: because a has fewer records
-        b < c: because c depends on b (e.g outer join dependency)
-        c < a: because c has fewer records
+        a @< b: because a has fewer records
+        b @< c: because c depends on b (e.g outer join dependency)
+        c @< a: because c has fewer records
 
     This implies that the result of a sort using the relation
     implemented by Join_tab_compare_default () depends on the order in
@@ -862,8 +852,6 @@ public:
 };
 
 
-typedef Bounds_checked_array<Item_null_result*> Item_null_array;
-
 typedef struct st_select_check {
   uint const_ref,reg_ref;
 } SELECT_CHECK;
@@ -872,7 +860,7 @@ typedef struct st_select_check {
 void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param, 
                        List<Item> &fields, bool reset_with_sum_func,
                        bool save_sum_fields);
-uint find_shortest_key(TABLE *table, const key_map *usable_keys);
+uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
@@ -1130,13 +1118,12 @@ static inline Item * and_items(Item* cond, Item *item)
 }
 
 uint actual_key_parts(const KEY *key_info);
-uint actual_key_flags(KEY *key_info);
 
 int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
                          uint *used_key_parts= NULL);
 bool test_if_cheaper_ordering(const JOIN_TAB *tab,
                               ORDER *order, TABLE *table,
-                              key_map usable_keys, int key,
+                              Key_map usable_keys, int key,
                               ha_rows select_limit,
                               int *new_key, int *new_key_direction,
                               ha_rows *new_select_limit,

@@ -13,23 +13,7 @@ INSERT INTO WL6445.t1 VALUES(0,0),(1,1),(2,2);
 
 SHOW CREATE TABLE WL6445.t1;
 
-# Write file to make mysql-test-run.pl wait for the server to stop
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Request clean shutdown
---send_shutdown
-
---echo # Wait for disconect
---source include/wait_until_disconnected.inc
-
---echo # Restart server.
---exec echo "restart:--innodb-read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---echo # Restarted
+--source include/restart_innodb_read_only.inc
 
 ## DDL
 
@@ -79,24 +63,8 @@ DROP DATABASE WL6445;
 
 SHOW CREATE TABLE WL6445.t1;
 
-# Restart in RW mode so that we can drop the test data
-# Write file to make mysql-test-run.pl wait for the server to stop
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Request clean shutdown
---send_shutdown
-
---echo # Wait for disconect
---source include/wait_until_disconnected.inc
-
---echo # Restart server.
---exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-
---echo # Restarted
+let $restart_parameters = restart;
+--source include/restart_mysqld.inc
 
 DROP TABLE WL6445.t1;
 

@@ -20,6 +20,7 @@
 #include "sql_string.h"                        /* String */
 #include "sql_plist.h" /* I_P_List */
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
+#include "mysql/service_my_snprintf.h"
 
 class THD;
 class my_decimal;
@@ -113,7 +114,7 @@ private:
     @param mysql_errno       MYSQL_ERRNO
     @param returned_sqlstate RETURNED_SQLSTATE
     @param severity          Severity level - error, warning or note.
-    @param message_Text      MESSAGE_TEXT
+    @param message_text      MESSAGE_TEXT
   */
   Sql_condition(MEM_ROOT *mem_root,
                 uint mysql_errno,
@@ -327,9 +328,10 @@ public:
     report fatal errors (such as out-of-memory errors) when no further
     processing is possible.
 
+    @param thd              Thread handle
     @param mysql_errno      SQL-condition error number
   */
-  void set_error_status(uint mysql_errno);
+  void set_error_status(THD *thd, uint mysql_errno);
 
   /**
     Set ERROR status in the Diagnostics Area.

@@ -372,12 +372,13 @@ typedef struct PSI_bootstrap PSI_bootstrap;
   @sa DISABLE_PSI_STAGE
   @sa DISABLE_PSI_STATEMENT
   @sa DISABLE_PSI_SP
+  @sa DISABLE_PSI_PS
   @sa DISABLE_PSI_STATEMENT_DIGEST
   @sa DISABLE_PSI_SOCKET
   @sa DISABLE_PSI_MEMORY
   @sa DISABLE_PSI_IDLE
   @sa DISABLE_PSI_METADATA
-  @sa DISABLE PSI_TRANSACTION
+  @sa DISABLE_PSI_TRANSACTION
 */
 
 #ifndef DISABLE_PSI_MUTEX
@@ -2165,7 +2166,7 @@ typedef void (*start_transaction_v1_t)
   Set the transaction xid.
   @param locker the transaction locker for this event
   @param xid the id of the XA transaction
-  #param xa_state is the state of the XA transaction
+  @param xa_state the state of the XA transaction
 */
 typedef void (*set_transaction_xid_v1_t)
   (struct PSI_transaction_locker *locker,

@@ -16,6 +16,7 @@
 #include "rpl_slave_commit_order_manager.h"
 
 #include "rpl_rli_pdb.h"     // Slave_worker
+#include "mysqld.h"          // key_commit_order_manager_mutex ..
 
 Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
   : m_rollback_trx(false), m_workers(worker_numbers), queue_head(QUEUE_EOF),

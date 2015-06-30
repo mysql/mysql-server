@@ -18,6 +18,7 @@
 #include "channel_info.h"
 
 #include "my_stacktrace.h"              // my_safe_snprintf
+#include "derror.h"                     // ER_DEFAULT
 #include "sql_class.h"                  // THD
 
 

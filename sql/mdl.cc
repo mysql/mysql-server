@@ -28,6 +28,7 @@
 #include <my_murmur3.h>
 #include <algorithm>
 #include <functional>
+#include "mysql/psi/mysql_memory.h"
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -1178,7 +1179,7 @@ void MDL_map::destroy()
 /**
   Find MDL_lock object corresponding to the key.
 
-  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+  @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
@@ -1186,7 +1187,7 @@ void MDL_map::destroy()
                                    (i.e. it is an object for GLOBAL or COMMIT
                                    namespaces).
 
-  @retval MY_ERRPTR      - Failure (OOM)
+  @retval MY_LF_ERRPTR   - Failure (OOM)
   @retval other-non-NULL - MDL_lock object found.
   @retval NULL           - Object not found.
 */
@@ -1219,7 +1220,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   lock= static_cast<MDL_lock *>(lf_hash_search(&m_locks, pins, mdl_key->ptr(),
                                           mdl_key->length()));
 
-  if (lock == NULL || lock == MY_ERRPTR)
+  if (lock == NULL || lock == MY_LF_ERRPTR)
   {
     lf_hash_search_unpin(pins);
     *pinned= false; // Avoid warnings on older compilers.
@@ -1236,7 +1237,7 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
   Find MDL_lock object corresponding to the key, create it
   if it does not exist.
 
-  @param[in/out]  pins     LF_PINS to be used for pinning pointers during
+  @param[in,out]  pins     LF_PINS to be used for pinning pointers during
                            look-up and returned MDL_lock object.
   @param[in]      mdl_key  Key for which MDL_lock object needs to be found.
   @param[out]     pinned   TRUE  - if MDL_lock object is pinned,
@@ -1272,7 +1273,7 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
       my_atomic_add32(&m_unused_lock_objects, 1);
     }
   }
-  if (lock == MY_ERRPTR)
+  if (lock == MY_LF_ERRPTR)
   {
     /* If OOM in lf_hash_search. */
     return NULL;
@@ -1311,7 +1312,7 @@ static int mdl_lock_match_unused(const uchar *arg)
                                unused object. Primarily needed to generate
                                random value to be used for random dive into
                                the hash in MDL_map.
-  @param[in/out] pins          Pins for the calling thread to be used for
+  @param[in,out] pins          Pins for the calling thread to be used for
                                hash lookup and deletion.
   @param[out]    unused_locks  Number of unused lock objects after operation.
 
@@ -1334,7 +1335,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
                                             pins, &mdl_lock_match_unused,
                                             ctx->get_random()));
 
-  if (lock == NULL || lock == MY_ERRPTR)
+  if (lock == NULL || lock == MY_LF_ERRPTR)
   {
     /*
       We were unlucky and no unused objects were found. This can happen,
@@ -1516,9 +1517,9 @@ bool MDL_context::fix_pins()
   The MDL subsystem does not own or manage memory of lock requests.
 
   @param  mdl_namespace  Id of namespace of object to be locked
-  @param  db             Name of database to which the object belongs
-  @param  name           Name of of the object
-  @param  mdl_type       The MDL lock type for the request.
+  @param  db_arg         Name of database to which the object belongs
+  @param  name_arg       Name of of the object
+  @param  mdl_type_arg   The MDL lock type for the request.
 */
 
 void MDL_request::init_with_source(MDL_key::enum_mdl_namespace mdl_namespace,
@@ -1867,8 +1868,6 @@ MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
   Clear bit corresponding to the type of metadata lock in bitmap representing
   set of such types if list of tickets does not contain ticket with such type.
 
-  @param[in,out]  bitmap  Bitmap representing set of types of locks.
-  @param[in]      list    List to inspect.
   @param[in]      type    Type of metadata lock to look up in the list.
 */
 
@@ -4339,7 +4338,7 @@ void MDL_context::release_locks(MDL_release_locks_visitor *visitor)
 /**
   Downgrade an EXCLUSIVE or SHARED_NO_WRITE lock to shared metadata lock.
 
-  @param type  Type of lock to which exclusive lock should be downgraded.
+  @param new_type  Type of lock to which exclusive lock should be downgraded.
 */
 
 void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
@@ -4457,7 +4456,7 @@ bool MDL_context::find_lock_owner(const MDL_key *mdl_key,
     return true;
 
 retry:
-  if ((lock= mdl_locks.find(m_pins, mdl_key, &pinned)) == MY_ERRPTR)
+  if ((lock= mdl_locks.find(m_pins, mdl_key, &pinned)) == MY_LF_ERRPTR)
     return true;
 
   /* No MDL_lock object, no owner, nothing to visit. */
@@ -4590,7 +4589,7 @@ bool MDL_context::has_lock(const MDL_savepoint &mdl_savepoint,
 /**
   Change lock duration for transactional lock.
 
-  @param ticket   Ticket representing lock.
+  @param mdl_ticket Ticket representing lock.
   @param duration Lock duration to be set.
 
   @note This method only supports changing duration of

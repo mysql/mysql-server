@@ -98,6 +98,7 @@ dict_stats_recalc_pool_deinit()
 	recalc_pool->clear();
 
 	UT_DELETE(recalc_pool);
+	recalc_pool = NULL;
 }
 
 /*****************************************************************//**
@@ -252,6 +253,10 @@ dict_stats_thread_deinit()
 	ut_a(!srv_read_only_mode);
 	ut_ad(!srv_dict_stats_thread_active);
 
+	if (recalc_pool == NULL) {
+		return;
+	}
+
 	dict_stats_recalc_pool_deinit();
 
 	mutex_free(&recalc_pool_mutex);
@@ -292,7 +297,7 @@ dict_stats_process_entry_from_recalc_pool()
 	}
 
 	/* Check whether table is corrupted */
-	if (table->corrupted) {
+	if (dict_table_is_corrupted(table)) {
 		dict_table_close(table, TRUE, FALSE);
 		mutex_exit(&dict_sys->mutex);
 		return;

@@ -18,6 +18,7 @@
 #include "log.h"                 // sql_print_warning
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "bootstrap_impl.h"
+#include "mysqld.h"              // key_file_init
 #include "sql_initialize.h"
 #include "sql_class.h"           // THD
 #include "sql_connect.h"         // close_connection

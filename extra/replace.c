@@ -47,6 +47,8 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <errno.h>
+#include "mysql/service_mysql_alloc.h"
+#include "typelib.h"
 
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */
@@ -140,7 +142,6 @@ int main(int argc, char *argv[])
   free_buffer();
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(error ? 2 : 0);
-  return 0;					/* No compiler warning */
 } /* main */
 
 

@@ -16,6 +16,7 @@
 #include "sql_partition_admin.h"
 
 #include "auth_common.h"                    // check_access
+#include "mysqld.h"                         // opt_log_slow_admin_statements
 #include "sql_table.h"                      // mysql_alter_table, etc.
 #include "partition_info.h"                 // class partition_info etc.
 #include "sql_base.h"                       // open_and_lock_tables, etc
@@ -23,6 +24,8 @@
 #include "sql_base.h"                       // open_and_lock_tables
 #include "log.h"
 #include "partitioning/partition_handler.h" // Partition_handler
+#include "sql_class.h"                      // THD
+#include "sql_cache.h"                      // query_cache
 
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
@@ -418,7 +421,7 @@ err_rename:
     will log to the error log about the failures...
   */
   /* execute the ddl log entry to revert the renames */
-  (void) execute_ddl_log_entry(current_thd, log_entry->entry_pos);
+  (void) execute_ddl_log_entry(thd, log_entry->entry_pos);
   mysql_mutex_lock(&LOCK_gdl);
   /* mark the execute log entry done */
   (void) write_execute_ddl_log_entry(0, TRUE, &exec_log_entry);

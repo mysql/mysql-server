@@ -13,6 +13,11 @@
   along with this program; if not, write to the Free Software Foundation,
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file storage/perfschema/table_session_connect.cc
+  TABLE SESSION_CONNECT (abstract).
+*/
+
 #include "table_session_connect.h"
 #include "field.h"
 
@@ -122,16 +127,16 @@ bool parse_length_encoded_string(const char **ptr,
   If parsing fails or no more attributes are found the function stops
   and returns an error code.
 
-  @arg connect_attrs            pointer to the connect attributes blob
-  @arg connect_attrs_length     length of @c connect_attrs
-  @arg connect_attrs_cs         character set used to encode @c connect_attrs
-  @arg ordinal                  index of the attribute we need
-  @arg attr_name [out]          buffer to receive the attribute name
-  @arg max_attr_name            max size of @c attr_name in bytes
-  @arg attr_name_length [out]   number of bytes written in @attr_name
-  @arg attr_value [out]         buffer to receive the attribute name
-  @arg max_attr_value           max size of @c attr_value in bytes
-  @arg attr_value_length [out]  number of bytes written in @attr_value
+  @param connect_attrs            pointer to the connect attributes blob
+  @param connect_attrs_length     length of @c connect_attrs
+  @param connect_attrs_cs         character set used to encode @c connect_attrs
+  @param ordinal                  index of the attribute we need
+  @param [out] attr_name          buffer to receive the attribute name
+  @param max_attr_name            max size of @c attr_name in bytes
+  @param [out] attr_name_length   number of bytes written in @c attr_name
+  @param [out] attr_value         buffer to receive the attribute name
+  @param max_attr_value           max size of @c attr_value in bytes
+  @param [out] attr_value_length  number of bytes written in @c attr_value
   @return status
     @retval true    requested attribute pair is found and copied
     @retval false   error. Either because of parsing or too few attributes.

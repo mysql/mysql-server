@@ -18,10 +18,12 @@
 
 #include "my_global.h"
 #include "auth/sql_security_ctx.h"  // Security_context
-#include "handler.h"                // ha_commit_low
 
+struct TABLE_LIST;
 typedef ulonglong my_xid;
 
+#define TC_LOG_PAGE_SIZE   8192
+#define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
 /**
   Transaction Coordinator Log.
@@ -100,15 +102,9 @@ public:
   TC_LOG_DUMMY() {}
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
-  enum_result commit(THD *thd, bool all) {
-    return ha_commit_low(thd, all) ? RESULT_ABORTED : RESULT_SUCCESS;
-  }
-  int rollback(THD *thd, bool all) {
-    return ha_rollback_low(thd, all);
-  }
-  int prepare(THD *thd, bool all) {
-    return ha_prepare_low(thd, all);
-  }
+  enum_result commit(THD *thd, bool all);
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
 };
 
 class TC_LOG_MMAP: public TC_LOG
@@ -163,8 +159,8 @@ public:
   int open(const char *opt_name);
   void close();
   enum_result commit(THD *thd, bool all);
-  int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
-  int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
+  int rollback(THD *thd, bool all);
+  int prepare(THD *thd, bool all);
   int recover();
   uint size() const;
 
@@ -188,7 +184,7 @@ private:
 
     @param   xid    value of xid to store in the page
     @param   p      pointer to the page where to store xid
-    @param   data   pointer to the top of the mapped to memory file
+    @param   data_arg   pointer to the top of the mapped to memory file
                     to calculate offset value (cookie)
 
     @return  offset value from the top of the page where the xid was stored.
@@ -310,18 +306,7 @@ enum enum_log_table_type
 
 class File_query_log
 {
-  File_query_log(enum_log_table_type log_type)
-  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
-  {
-    memset(&log_file, 0, sizeof(log_file));
-    mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
-#ifdef HAVE_PSI_INTERFACE
-    if (log_type == QUERY_LOG_GENERAL)
-      m_log_file_key= key_file_general_log;
-    else if (log_type == QUERY_LOG_SLOW)
-      m_log_file_key= key_file_slow_log;
-#endif
-  }
+  File_query_log(enum_log_table_type log_type);
 
   ~File_query_log()
   {
@@ -360,7 +345,7 @@ class File_query_log
      Log given command to normal (not rotatable) log file.
 
      @param event_utime       Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user@host info
+     @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
      @param thread_id         Id of the thread that issued the query
@@ -382,7 +367,7 @@ class File_query_log
      @param thd               THD of the query
      @param current_utime     Current timestamp in micro seconds
      @param query_start_arg   Command start timestamp
-     @param user_host         The pointer to the string with user@host info
+     @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
      @param query_utime       Amount of time the query took to execute (in microseconds)
@@ -450,11 +435,11 @@ public:
      @param thd               THD of the query
      @param current_utime     Current timestamp in micro seconds
      @param query_start_arg   Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user@host info
+     @param user_host         The pointer to the string with user\@host info
      @param user_host_len     Length of the user_host string. this is computed once
                               and passed to all general log event handlers
-     @param query_time        Amount of time the query took to execute (in microseconds)
-     @param lock_time         Amount of time the query was locked (in microseconds)
+     @param query_utime       Amount of time the query took to execute (in microseconds)
+     @param lock_utime        Amount of time the query was locked (in microseconds)
      @param is_command        The flag which determines whether the sql_text is a
                               query or an administrator command (these are treated
                               differently by the old logging routines)
@@ -475,7 +460,7 @@ public:
      Log command to the general log.
 
      @param  event_utime       Command start timestamp in micro seconds
-     @param  user_host         The pointer to the string with user@host info
+     @param  user_host         The pointer to the string with user\@host info
      @param  user_host_len     Length of the user_host string. this is computed
                                once and passed to all general log event handlers
      @param  thread_id         Id of the thread, issued a query
@@ -648,15 +633,7 @@ public:
 
      @return true if table logging is on, false otherwise.
   */
-  bool is_log_table_enabled(enum_log_table_type log_type) const
-  {
-    if (log_type == QUERY_LOG_SLOW)
-      return (opt_slow_log && (log_output_options & LOG_TABLE));
-    else if (log_type == QUERY_LOG_GENERAL)
-      return (opt_general_log && (log_output_options & LOG_TABLE));
-    DBUG_ASSERT(false);
-    return false;                             /* make compiler happy */
-  }
+  bool is_log_table_enabled(enum_log_table_type log_type) const;
 
   /**
      Check if file logging is turned on for the given log type.
@@ -676,11 +653,7 @@ public:
      initialization, performed by MY_INIT(). This why this is done in
      this function.
   */
-  void init()
-  {
-    file_log_handler= new Log_to_file_event_handler; // Causes mutex init
-    mysql_rwlock_init(key_rwlock_LOCK_logger, &LOCK_logger);
-  }
+  void init();
 
   /** Free memory. Nothing could be logged after this function is called. */
   void cleanup();
@@ -1013,7 +986,7 @@ private:
   /**
     The routine we call to actually log a line (i.e. our summary).
   */
-  void (*log_summary)(const char *, ...);
+  void (*log_summary)(const char *, ...) __attribute__((format(printf, 1, 2)));
 
   /**
     Actually print the prepared summary to log.
@@ -1030,7 +1003,8 @@ public:
     @param msg           use this template containing %lu as only non-literal
   */
   Error_log_throttle(ulong window_usecs,
-                     void (*logger)(const char*, ...),
+                     void (*logger)(const char*, ...)
+                       __attribute__((format(printf, 1, 2))),
                      const char *msg)
   : Log_throttle(window_usecs, msg), log_summary(logger)
   {}

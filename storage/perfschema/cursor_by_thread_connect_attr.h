@@ -16,12 +16,16 @@
 #ifndef CURSOR_BY_THREAD_CONNECT_ATTR_H
 #define CURSOR_BY_THREAD_CONNECT_ATTR_H
 
+/**
+  @file storage/perfschema/cursor_by_thread_connect_attr.h
+*/
+
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
 #include "pfs_instr.h"
 
 /**
-  \addtogroup Performance_schema_tables
+  @addtogroup Performance_schema_tables
   @{
 */
 

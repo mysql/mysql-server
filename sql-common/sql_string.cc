@@ -15,13 +15,9 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include <m_string.h>
-#include <m_ctype.h>
-#include <mysql_com.h>
-
 #include "sql_string.h"
+
+#include "mysql_com.h"    // MAX_BIGINT_WIDTH
 
 #include <algorithm>
 
@@ -29,7 +25,9 @@ using std::min;
 using std::max;
 
 #ifdef MYSQL_SERVER
+extern "C" {
 PSI_memory_key key_memory_String_value;
+}
 #endif
 
 /*****************************************************************************
@@ -828,8 +826,8 @@ int stringcmp(const String *s,const String *t)
   'from', possibly re-allocated to be at least from_length bytes long.
   It is also the case if from==to or to==NULL.
   Otherwise, this function makes and returns a copy of "from" into "to"; the
-  buffer of "to" is heap-allocated; a pre-condition is that from->str and
-  to->str must point to non-overlapping buffers.
+  buffer of "to" is heap-allocated; a pre-condition is that \c from->str and
+  \c to->str must point to non-overlapping buffers.
   The logic behind this complex design, is that a caller, typically a
   val_str() function, sometimes has an input String ('from') which buffer it
   wants to modify; but this String's buffer may or not be heap-allocated; if

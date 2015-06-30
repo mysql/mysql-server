@@ -66,7 +66,7 @@ extern MY_LOCALE *my_default_lc_time_names;
 
 /* Exported functions */
 
-MY_LOCALE *my_locale_by_name(const char *name);
+MY_LOCALE *my_locale_by_name(THD *thd, const char *name);
 MY_LOCALE *my_locale_by_number(uint number);
 void cleanup_errmsgs(void);
 

@@ -51,7 +51,6 @@ row_vers_impl_x_locked(
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: the secondary index */
 	const ulint*	offsets);/*!< in: rec_get_offsets(rec, index) */
-
 /*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
 index record, because it is >= the purge view.
@@ -111,11 +110,10 @@ row_vers_build_for_consistent_read(
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	rec_t**		old_vers)/*!< out, own: old version, or NULL
+	rec_t**		old_vers);/*!< out, own: old version, or NULL
 				if the history is missing or the record
 				does not exist in the view, that is,
 				it was freshly inserted afterwards */
-	__attribute__((nonnull(1,2,3,4,5,6,7)));
 
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
@@ -137,10 +135,9 @@ row_vers_build_for_semi_consistent_read(
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	const rec_t**	old_vers)/*!< out: rec, old version, or NULL if the
+	const rec_t**	old_vers);/*!< out: rec, old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
-	__attribute__((nonnull(1,2,3,4,5)));
 
 
 #ifndef UNIV_NONINL

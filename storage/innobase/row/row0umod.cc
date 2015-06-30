@@ -74,7 +74,7 @@ introduced where a call to log_free_check() is bypassed. */
 /***********************************************************//**
 Undoes a modify in a clustered index record.
 @return DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_clust_low(
 /*===================*/
@@ -156,7 +156,7 @@ This is attempted when the record was inserted by updating a
 delete-marked record and there no longer exist transactions
 that would see the delete-marked record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_remove_clust_low(
 /*==========================*/
@@ -248,7 +248,7 @@ row_undo_mod_remove_clust_low(
 Undoes a modify in a clustered index record. Sets also the node state for the
 next round of undo.
 @return DB_SUCCESS or error code: we may run out of file space */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_clust(
 /*===============*/
@@ -393,7 +393,7 @@ row_undo_mod_clust(
 /***********************************************************//**
 Delete marks or removes a secondary index entry if found.
 @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_del_mark_or_remove_sec_low(
 /*====================================*/
@@ -551,7 +551,7 @@ not cause problems because in row0sel.cc, in queries we always retrieve the
 clustered index record or an earlier version of it, if the secondary index
 record through which we do the search is delete-marked.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_del_mark_or_remove_sec(
 /*================================*/
@@ -584,7 +584,7 @@ fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'.
 @retval DB_OUT_OF_FILE_SPACE when running out of tablespace
 @retval DB_DUPLICATE_KEY if the value was missing
 	and an insert would lead to a duplicate exists */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_del_unmark_sec_and_undo_update(
 /*========================================*/
@@ -792,7 +792,7 @@ func_exit_no_pcur:
 
 /***********************************************************//**
 Flags a secondary index corrupted. */
-static __attribute__((nonnull))
+static
 void
 row_undo_mod_sec_flag_corrupted(
 /*============================*/
@@ -803,13 +803,8 @@ row_undo_mod_sec_flag_corrupted(
 
 	switch (trx->dict_operation_lock_mode) {
 	case RW_S_LATCH:
-		/* Because row_undo() is holding an S-latch
-		on the data dictionary during normal rollback,
-		we can only mark the index corrupted in the
-		data dictionary cache. TODO: fix this somehow.*/
-		mutex_enter(&dict_sys->mutex);
-		dict_set_corrupted_index_cache_only(index);
-		mutex_exit(&dict_sys->mutex);
+		/* This should be the normal rollback */
+		dict_set_corrupted(index);
 		break;
 	default:
 		ut_ad(0);
@@ -817,14 +812,14 @@ row_undo_mod_sec_flag_corrupted(
 	case RW_X_LATCH:
 		/* This should be the rollback of a data dictionary
 		transaction. */
-		dict_set_corrupted(index, trx, "rollback");
+		dict_set_corrupted(index);
 	}
 }
 
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_DEL.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_upd_del_sec(
 /*=====================*/
@@ -891,7 +886,7 @@ row_undo_mod_upd_del_sec(
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is DEL_MARK.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_del_mark_sec(
 /*======================*/
@@ -959,7 +954,7 @@ row_undo_mod_del_mark_sec(
 /***********************************************************//**
 Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 row_undo_mod_upd_exist_sec(
 /*=======================*/
@@ -1018,8 +1013,7 @@ row_undo_mod_upd_exist_sec(
 			format.  REDUNDANT and COMPACT formats
 			store a local 768-byte prefix of each
 			externally stored column. */
-			ut_a(dict_table_get_format(index->table)
-			     >= UNIV_FORMAT_B);
+			ut_a(dict_table_has_atomic_blobs(index->table));
 
 			/* This is only legitimate when
 			rolling back an incomplete transaction
@@ -1099,7 +1093,7 @@ row_undo_mod_upd_exist_sec(
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record. */
-static __attribute__((nonnull))
+static
 void
 row_undo_mod_parse_undo_rec(
 /*========================*/

@@ -300,6 +300,20 @@ fts_query_filter_doc_ids(
 	ibool			calc_doc_count);/*!< in: whether to remember doc
 						count */
 
+/** Process (nested) sub-expression, create a new result set to store the
+sub-expression result by processing nodes under current sub-expression
+list. Merge the sub-expression result with that of parent expression list.
+@param[in,out]	node	current root node
+@param[in,out]	visitor	callback function
+@param[in,out]	arg	argument for callback
+@return DB_SUCCESS if all go well */
+static
+dberr_t
+fts_ast_visit_sub_exp(
+	fts_ast_node_t*		node,
+	fts_ast_callback	visitor,
+	void*			arg);
+
 #if 0
 /*****************************************************************//***
 Find a doc_id in a word's ilist.
@@ -327,7 +341,7 @@ fts_expand_query(
 	dict_index_t*	index,		/*!< in: FTS index to search */
 	fts_query_t*	query)		/*!< in: query result, to be freed
 					by the client */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*************************************************************//**
 This function finds documents that contain all words in a
 phrase or proximity search. And if proximity search, verify
@@ -1099,7 +1113,7 @@ cont_search:
 /*****************************************************************//**
 Set difference.
 @return DB_SUCCESS if all go well */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_difference(
 /*=================*/
@@ -1195,7 +1209,7 @@ fts_query_difference(
 /*****************************************************************//**
 Intersect the token doc ids with the current set.
 @return DB_SUCCESS if all go well */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_intersect(
 /*================*/
@@ -1377,7 +1391,7 @@ fts_query_cache(
 /*****************************************************************//**
 Set union.
 @return DB_SUCCESS if all go well */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_union(
 /*============*/
@@ -2105,7 +2119,7 @@ fts_query_select(
 Read the rows from the FTS index, that match word and where the
 doc id is between first and last doc id.
 @return DB_SUCCESS if all go well else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_find_term(
 /*================*/
@@ -2247,7 +2261,7 @@ fts_query_sum(
 /********************************************************************
 Calculate the total documents that contain a particular word (term).
 @return DB_SUCCESS if all go well else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_total_docs_containing_term(
 /*=================================*/
@@ -2329,7 +2343,7 @@ fts_query_total_docs_containing_term(
 /********************************************************************
 Get the total number of words in a documents.
 @return DB_SUCCESS if all go well else error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_terms_in_document(
 /*========================*/
@@ -2412,7 +2426,7 @@ fts_query_terms_in_document(
 /*****************************************************************//**
 Retrieve the document and match the phrase tokens.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_match_document(
 /*=====================*/
@@ -2455,7 +2469,7 @@ fts_query_match_document(
 This function fetches the original documents and count the
 words in between matching words to see that is in specified distance
 @return DB_SUCCESS if all OK */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 fts_query_is_in_proximity_range(
 /*============================*/
@@ -2507,7 +2521,7 @@ fts_query_is_in_proximity_range(
 Iterate over the matched document ids and search the for the
 actual phrase in the text.
 @return DB_SUCCESS if all OK */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_search_phrase(
 /*====================*/
@@ -2736,7 +2750,7 @@ fts_query_phrase_search(
 
 	/* Ignore empty strings. */
 	if (num_token > 0) {
-		fts_string_t*	token;
+		fts_string_t*	token = NULL;
 		fts_fetch_t	fetch;
 		trx_t*		trx = query->trx;
 		fts_ast_oper_t	oper = query->oper;
@@ -2890,7 +2904,7 @@ func_exit:
 /*****************************************************************//**
 Find the word and evaluate.
 @return DB_SUCCESS if all go well */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_query_execute(
 /*==============*/
@@ -3055,17 +3069,19 @@ fts_query_visitor(
 	DBUG_RETURN(query->error);
 }
 
-/*****************************************************************//**
-Process (nested) sub-expression, create a new result set to store the
+/** Process (nested) sub-expression, create a new result set to store the
 sub-expression result by processing nodes under current sub-expression
 list. Merge the sub-expression result with that of parent expression list.
+@param[in,out]	node	current root node
+@param[in,out]	visitor	callback function
+@param[in,out]	arg	argument for callback
 @return DB_SUCCESS if all go well */
+static
 dberr_t
 fts_ast_visit_sub_exp(
-/*==================*/
-	fts_ast_node_t*		node,		/*!< in,out: current root node */
-	fts_ast_callback	visitor,	/*!< in: callback function */
-	void*			arg)		/*!< in,out: arg for callback */
+	fts_ast_node_t*		node,
+	fts_ast_callback	visitor,
+	void*			arg)
 {
 	fts_ast_oper_t		cur_oper;
 	fts_query_t*		query = static_cast<fts_query_t*>(arg);
@@ -3976,20 +3992,6 @@ fts_query(
 
 	query.total_docs = dict_table_get_n_rows(index->table);
 
-#ifdef FTS_DOC_STATS_DEBUG
-	if (ft_enable_diag_print) {
-		error = fts_get_total_word_count(
-			trx, query.index, &query.total_words);
-
-		if (error != DB_SUCCESS) {
-			goto func_exit;
-		}
-
-		ib::info() << "Total docs: " << query.total_docs
-			<< " Total words: " << query.total_words;
-	}
-#endif /* FTS_DOC_STATS_DEBUG */
-
 	query.fts_common_table.suffix = "DELETED";
 
 	/* Read the deleted doc_ids, we need these for filtering. */
@@ -4204,7 +4206,7 @@ words in documents found in the first search pass will be used as
 search arguments to search the document again, thus "expand"
 the search result set.
 @return DB_SUCCESS if success, otherwise the error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 dberr_t
 fts_expand_query(
 /*=============*/

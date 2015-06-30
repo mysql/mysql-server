@@ -19,6 +19,7 @@
 #include "sql_class.h"
 #include "test_utils.h"
 #include "thread_utils.h"
+#include "mysqld.h"
 
 #ifdef _WIN32
 #include <process.h> // getpid

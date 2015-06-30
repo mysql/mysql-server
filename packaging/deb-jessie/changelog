@@ -1,4 +1,4 @@
-mysql-community (5.7.8-rc-1debian8) jessie; urgency=low
+mysql-community (5.8.0-m17-1debian8) jessie; urgency=low
 
   * new upstream release
   * added new plugin to source/include-binaries, mysql-*-test.install
@@ -21,6 +21,7 @@ mysql-community (5.7.7-rc-2debian8) jessie; urgency=low
 
   * new upstream release
   * forked packaging source from wheezy to jessie
+  * added systemd support
 
  -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 15 Apr 2015 20:18:18 +0530
 

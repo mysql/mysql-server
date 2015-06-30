@@ -17,10 +17,11 @@
 #include "sp_head.h"
 
 #include "sql_cache.h"         // query_cache_*
+#include "mysqld.h"            // global_query_id
 #include "probes_mysql.h"
+#include "psi_memory_key.h"
 #include "sql_show.h"          // append_identifier
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
-#include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
 #include "log_event.h"         // append_query_string, Query_log_event
 #include "binlog.h"
@@ -2092,7 +2093,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
   {
     char *tab_buff, *key_buff;
     SP_TABLE *stab= (SP_TABLE*) my_hash_element(&m_sptabs, i);
-    if (stab->temp)
+    if (stab->temp || stab->lock_type == TL_IGNORE)
       continue;
 
     if (!(tab_buff= (char *)thd->mem_calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *

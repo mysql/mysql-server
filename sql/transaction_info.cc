@@ -15,8 +15,17 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "transaction_info.h"
-#include "mysys_err.h"
-#include "sql_class.h"
+
+#include "mysys_err.h"          // EE_OUTOFMEMORY
+#include "derror.h"             // ER_THD
+#include "mysqld.h"             // global_system_variables
+#include "mysqld_error.h"       // ER_*
+#include "psi_memory_key.h"     // key_memory_thd_transactions
+#include "sql_cache.h"          // query_cache
+#include "sql_error.h"          // Sql_condition
+#include "system_variables.h"   // System_variables
+#include "table.h"              // TABLE_LIST
+
 
 Transaction_ctx::Transaction_ctx()
   : m_savepoints(NULL), m_xid_state(), m_changed_tables(NULL),
@@ -36,17 +45,24 @@ void Transaction_ctx::push_unsafe_rollback_warnings(THD *thd)
   if (m_scope_info[SESSION].has_modified_non_trans_table())
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+                 ER_THD(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
   if (m_scope_info[SESSION].has_created_temp_table())
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
+                 ER_THD(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
   if (m_scope_info[SESSION].has_dropped_temp_table())
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
+                 ER_THD(thd, ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
+}
+
+
+void Transaction_ctx::invalidate_changed_tables_in_cache(THD *thd)
+{
+  if (m_changed_tables)
+    query_cache.invalidate(thd, m_changed_tables);
 }
 
 

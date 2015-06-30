@@ -18,6 +18,7 @@
 
 #include "thr_malloc.h"
 #include "sql_class.h"
+#include "mysqld.h"                             // my_thread_get_THR_MALLOC
 
 #include <algorithm>
 

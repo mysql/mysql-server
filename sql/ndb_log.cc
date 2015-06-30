@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 // need to pass in a MYSQL_PLUGIN pointer. Presumably 'my_plugin_log_service'
 // can be extended with a my_log_message(level, prefix, message, ...) function
 #include "log.h"
+#include "mysql/service_my_snprintf.h"
 
 
 /*

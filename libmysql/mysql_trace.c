@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 #include <my_global.h>
 #include "mysql.h"
 #include "mysql_trace.h"
+#include "mysql/service_mysql_alloc.h"
 
 /*
   Definition of the global trace_plugin pointer - see plugin_trace.h
@@ -55,10 +56,8 @@ struct st_mysql_client_plugin_TRACE *trace_plugin= NULL;
   Macros for manipulating trace_info structure.
 */
 #define GET_DATA(TI)      (TI)->trace_plugin_data
-#define SET_DATA(TI,D)    GET_DATA(TI) = (D)
 #define GET_STAGE(TI)     (TI)->stage
 #define TEST_STAGE(TI,X)  (GET_STAGE(TI) == PROTOCOL_STAGE_ ## X)
-#define SET_STAGE(TI,X)   GET_STAGE(TI) = PROTOCOL_STAGE_ ## X
 
 
 /**
