@@ -2145,6 +2145,10 @@ loop_end:
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "");
+    thd->variables.big_tables= save_big_tables;
+    if (!tmp_tables[cnt])
+      DBUG_RETURN(1);
+
     /*
       Pass a table triggers pointer (Table_trigger_dispatcher *) from
       the original table to the new temporary table. This pointer will be used
@@ -2153,9 +2157,6 @@ loop_end:
       calling fill_record() to assign values to the temporary table's fields.
     */
     tmp_tables[cnt]->triggers= table->triggers;
-    thd->variables.big_tables= save_big_tables;
-    if (!tmp_tables[cnt])
-      DBUG_RETURN(1);
     tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
   DBUG_RETURN(0);
