@@ -1,3 +1,6 @@
+#ifndef GEOFUNC_INTERNAL_INCLUDED
+#define GEOFUNC_INTERNAL_INCLUDED
+
 /* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -57,111 +60,124 @@
 #endif
 
 
-#define CATCH_ALL(funcname, expr) \
-  catch (const boost::geometry::centroid_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::overlay_invalid_input_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),\
-             (funcname));\
-  }\
-  catch (const boost::geometry::turn_info_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),\
-             (funcname));\
-  }\
-  catch (const boost::geometry::empty_input_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const boost::geometry::inconsistent_turns_exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION, MYF(0)); \
-  }\
-  catch (const boost::geometry::exception &)\
-  {\
-    expr;\
-    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-  }\
-  catch (const std::bad_alloc &e)\
-  {\
-    expr;\
-    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::domain_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::length_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::invalid_argument &e)\
-  {\
-    expr;\
-    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::out_of_range &e)\
-  {\
-    expr;\
-    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::overflow_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::range_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::underflow_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::logic_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::runtime_error &e)\
-  {\
-    expr;\
-    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
-  }\
-  catch (const std::exception &e)\
-  {\
-    expr;\
-    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
-  }\
-  catch (...)\
-  {\
-    expr;\
-    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
-  }
-
-
 #define GIS_ZERO 0.00000000001
 
 extern bool simplify_multi_geometry(String *str);
 
 using std::auto_ptr;
+
+
+/**
+  Handle a GIS exception of any type.
+
+  This function constitutes the exception handling barrier between
+  Boost.Geometry and MySQL code. It handles all exceptions thrown in
+  GIS code and raises the corresponding error in MySQL.
+
+  Pattern for use in other functions:
+
+  @code
+  try
+  {
+    something_that_throws();
+  }
+  catch (...)
+  {
+    handle_gis_exception("st_foo");
+  }
+  @endcode
+
+  Other exception handling code put into the catch block, before or
+  after the call to handle_gis_exception(), must not throw exceptions.
+
+  @param funcname Function name for use in error message
+ */
+inline void handle_gis_exception(const char *funcname)
+{
+  try
+  {
+    throw;
+  }
+  catch (const boost::geometry::centroid_exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);
+  }
+  catch (const boost::geometry::overlay_invalid_input_exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),
+             funcname);
+  }
+  catch (const boost::geometry::turn_info_exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), funcname);
+  }
+  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),
+             funcname);
+  }
+  catch (const boost::geometry::empty_input_exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), funcname);
+  }
+  catch (const boost::geometry::inconsistent_turns_exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION, MYF(0));
+  }
+  catch (const boost::geometry::exception &)
+  {
+    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), funcname);
+  }
+  catch (const std::bad_alloc &e)
+  {
+    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::domain_error &e)
+  {
+    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::length_error &e)
+  {
+    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::invalid_argument &e)
+  {
+    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), funcname);
+  }
+  catch (const std::out_of_range &e)
+  {
+    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::overflow_error &e)
+  {
+    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::range_error &e)
+  {
+    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::underflow_error &e)
+  {
+    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::logic_error &e)
+  {
+    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::runtime_error &e)
+  {
+    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
+  }
+  catch (const std::exception &e)
+  {
+    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), funcname);
+  }
+  catch (...)
+  {
+    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), funcname);
+  }
+}
+
 
 /// A wrapper and interface for all geometry types used here. Make these
 /// types as localized as possible. It's used as a type interface.
@@ -1021,3 +1037,5 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
   // in 'added' are freed, and memory buffers in added_wkbbufs are freed too.
   return has_new;
 }
+
+#endif

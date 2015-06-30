@@ -641,7 +641,11 @@ String *Item_func_buffer::val_str(String *str_value_arg)
     */
     simplify_multi_geometry(str_result);
   }
-  CATCH_ALL("st_buffer", had_except= true)
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception("st_buffer");
+  }
 
   if (had_except)
     DBUG_RETURN(error_str());
