@@ -46,6 +46,7 @@ override_dh_auto_configure:
 		-DWITH_ZLIB=system \
 		-DWITH_EXTRA_CHARSETS=all \
 		-DWITH_INNODB_MEMCACHED=1 \
+		-DWITH_MECAB=system \
 		-DDOWNLOAD_BOOST=1 \
 		-DCOMPILATION_COMMENT="MySQL Community Server (GPL)" \
 		-DINSTALL_LAYOUT=DEB
