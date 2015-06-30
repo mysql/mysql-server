@@ -125,6 +125,11 @@ case "$1" in
 			mysqladmin shutdown
 		fi
 
+		if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${MYSQLDATA}/server-key.pem" ];
+		then
+			/usr/bin/mysql_ssl_rsa_setup --datadir="${MYSQLDATA}" --uid=mysql >/dev/null 2>&1
+		fi
+
 		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
 		then
 			mkdir ${MYSQLLOG}
