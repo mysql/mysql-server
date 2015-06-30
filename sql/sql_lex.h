@@ -69,7 +69,7 @@ class Query_result_interceptor;
 class Item_func;
 class Sql_cmd;
 struct sql_digest_state;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 class Opt_hints_global;
@@ -424,40 +424,40 @@ public:
 }; 
 
 /* 
-  Class st_select_lex_unit represents a query expression.
-  Class st_select_lex represents a query block.
+  Class SELECT_LEX_UNIT represents a query expression.
+  Class SELECT_LEX represents a query block.
   A query expression contains one or more query blocks (more than one means
   that we have a UNION query).
   These classes are connected as follows:
    Both classes have a master, a slave, a next and a prev field.
-   For class st_select_lex, master and slave connect to objects of type
-   st_select_lex_unit, whereas for class st_select_lex_unit, they connect
-   to st_select_lex.
+   For class SELECT_LEX, master and slave connect to objects of type
+   SELECT_LEX_UNIT, whereas for class SELECT_LEX_UNIT, they connect
+   to SELECT_LEX.
    master is pointer to outer node.
    slave is pointer to the first inner node
 
-   neighbors are two st_select_lex or st_select_lex_unit objects on
+   neighbors are two SELECT_LEX or SELECT_LEX_UNIT objects on
    the same level.
 
    The structures are linked with the following pointers:
    - list of neighbors (next/prev) (prev of first element point to slave
      pointer of outer structure)
-     - For st_select_lex, this is a list of query blocks.
-     - For st_select_lex_unit, this is a list of subqueries.
+     - For SELECT_LEX, this is a list of query blocks.
+     - For SELECT_LEX_UNIT, this is a list of subqueries.
 
    - pointer to outer node (master), which is
-     If this is st_select_lex_unit
+     If this is SELECT_LEX_UNIT
        - pointer to outer select_lex.
-     If this is st_select_lex
-       - pointer to outer st_select_lex_unit.
+     If this is SELECT_LEX
+       - pointer to outer SELECT_LEX_UNIT.
 
    - pointer to inner objects (slave), which is either:
-     If this is an st_select_lex_unit:
+     If this is an SELECT_LEX_UNIT:
        - first query block that belong to this query expression.
-     If this is an st_select_lex
+     If this is an SELECT_LEX
        - first query expression that belong to this query block (subqueries).
 
-   - list of all st_select_lex objects (link_next/link_prev)
+   - list of all SELECT_LEX objects (link_next/link_prev)
      This is to be used for things like derived tables creation, where we
      go through this list and create the derived tables.
 
@@ -552,14 +552,14 @@ class Query_result_union;
   This class represents a query expression (one query block or
   several query blocks combined with UNION).
 */
-class st_select_lex_unit: public Sql_alloc
+class SELECT_LEX_UNIT: public Sql_alloc
 {
   /**
     Intrusive double-linked list of all query expressions
     immediately contained within the same query block.
   */
-  st_select_lex_unit *next;
-  st_select_lex_unit **prev;
+  SELECT_LEX_UNIT *next;
+  SELECT_LEX_UNIT **prev;
 
   /**
     The query block wherein this query expression is contained,
@@ -597,12 +597,12 @@ public:
   */
   uint8 uncacheable;
 
-  explicit st_select_lex_unit(enum_parsing_context parsing_context);
+  explicit SELECT_LEX_UNIT(enum_parsing_context parsing_context);
 
   /// @return true for a query expression without UNION or multi-level ORDER
   bool is_simple() const { return !(is_union() || fake_select_lex); }
 
-  /// Values for st_select_lex_unit::cleaned
+  /// Values for SELECT_LEX_UNIT::cleaned
   enum enum_clean_state
   {
     UC_DIRTY,     ///< Unit isn't cleaned
@@ -633,7 +633,7 @@ public:
 
     If this is a union of multiple query blocks, the global parameters are
     stored in fake_select_lex. If the union doesn't use a temporary table,
-    st_select_lex_unit::prepare() nulls out fake_select_lex, but saves a copy
+    SELECT_LEX_UNIT::prepare() nulls out fake_select_lex, but saves a copy
     in saved_fake_select_lex in order to preserve the global parameters.
 
     If this is not a union, and the query expression has no multi-level
@@ -641,7 +641,7 @@ public:
 
     @return query block containing the global parameters
   */
-  inline st_select_lex *global_parameters() const
+  inline SELECT_LEX *global_parameters() const
   {
     if (fake_select_lex != NULL)
       return fake_select_lex;
@@ -658,26 +658,26 @@ public:
     Helper query block for query expression with UNION or multi-level
     ORDER BY/LIMIT
   */
-  st_select_lex *fake_select_lex;
+  SELECT_LEX *fake_select_lex;
   /**
     SELECT_LEX that stores LIMIT and OFFSET for UNION ALL when no
     fake_select_lex is used.
   */
-  st_select_lex *saved_fake_select_lex;
+  SELECT_LEX *saved_fake_select_lex;
   /// Points to last query block used by UNION DISTINCT query
-  st_select_lex *union_distinct;
+  SELECT_LEX *union_distinct;
 
   /// @return true if query expression can be merged into an outer query
   bool is_mergeable() const;
 
   /// @return the query block this query expression belongs to as subquery
-  st_select_lex* outer_select() const { return master; }
+  SELECT_LEX* outer_select() const { return master; }
 
   /// @return the first query block inside this query expression
-  st_select_lex* first_select() const { return slave; }
+  SELECT_LEX* first_select() const { return slave; }
 
   /// @return the next query expression within same query block (next subquery)
-  st_select_lex_unit* next_unit() const { return next; }
+  SELECT_LEX_UNIT* next_unit() const { return next; }
 
   /// @return the query result object in use for this query expression
   Query_result *query_result() const { return m_query_result; }
@@ -708,17 +708,17 @@ public:
   bool is_executed() const { return executed; }
   bool change_query_result(Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
-  void set_limit(st_select_lex *values);
+  void set_limit(SELECT_LEX *values);
   void set_thd(THD *thd_arg) { thd= thd_arg; }
 
   inline bool is_union () const;
   bool union_needs_tmp_table();
 
   /// Include a query expression below a query block.
-  void include_down(LEX *lex, st_select_lex *outer);
+  void include_down(LEX *lex, SELECT_LEX *outer);
 
   /// Include a chain of query expressions below a query block.
-  void include_chain(LEX *lex, st_select_lex *outer);
+  void include_chain(LEX *lex, SELECT_LEX *outer);
 
   /// Exclude this unit and immediately contained select_lex objects
   void exclude_level();
@@ -729,14 +729,14 @@ public:
   /// Renumber query blocks of a query expression according to supplied LEX
   void renumber_selects(LEX *lex);
 
-  friend class st_select_lex;
+  friend class SELECT_LEX;
 
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
 
   enum_parsing_context get_explain_marker() const;
   void set_explain_marker(enum_parsing_context m);
-  void set_explain_marker_from(const st_select_lex_unit *u);
+  void set_explain_marker_from(const SELECT_LEX_UNIT *u);
 
 #ifndef DBUG_OFF
   /**
@@ -757,7 +757,6 @@ public:
 
 };
 
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 /**
@@ -765,7 +764,7 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
-class st_select_lex: public Sql_alloc
+class SELECT_LEX: public Sql_alloc
 {
 public:
   /// @returns a slice of ref_pointer_array
@@ -834,17 +833,17 @@ private:
     Intrusive double-linked list of all query blocks within the same
     query expression.
   */
-  st_select_lex *next;
-  st_select_lex **prev;
+  SELECT_LEX *next;
+  SELECT_LEX **prev;
 
   /// The query expression containing this query block.
-  st_select_lex_unit *master;
+  SELECT_LEX_UNIT *master;
   /// The first query expression contained within this query block.
-  st_select_lex_unit *slave;
+  SELECT_LEX_UNIT *slave;
 
   /// Intrusive double-linked global list of query blocks.
-  st_select_lex *link_next;
-  st_select_lex **link_prev;
+  SELECT_LEX *link_next;
+  SELECT_LEX **link_prev;
 
   /// Result of this query block
   Query_result *m_query_result;
@@ -1119,7 +1118,7 @@ public:
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :
       1. Sets the natural_join of the second TABLE_LIST in the join
-         and the st_select_lex::prev_join_using.
+         and the SELECT_LEX::prev_join_using.
       2. Makes a parent TABLE_LIST and sets its is_natural_join/
        join_using_fields members.
       3. Uses the wrapper TABLE_LIST as a table in the upper level.
@@ -1144,29 +1143,29 @@ public:
     @note the group_by and order_by lists below will probably be added to the
           constructor when the parser is converted into a true bottom-up design.
   */
-  st_select_lex(TABLE_LIST *table_list, List<Item> *item_list,
+  SELECT_LEX(TABLE_LIST *table_list, List<Item> *item_list,
                 Item *where, Item *having, Item *limit, Item *offset
                 //SQL_I_LIST<ORDER> *group_by, SQL_I_LIST<ORDER> order_by
                 );
 
-  virtual ~st_select_lex() {}
+  virtual ~SELECT_LEX() {}
 
-  st_select_lex_unit *master_unit() const { return master; }
-  st_select_lex_unit *first_inner_unit() const { return slave; }
+  SELECT_LEX_UNIT *master_unit() const { return master; }
+  SELECT_LEX_UNIT *first_inner_unit() const { return slave; }
   SELECT_LEX *outer_select() const { return master->outer_select(); }
   SELECT_LEX *next_select() const { return next; }
 
-  st_select_lex* last_select()
-  { 
-    st_select_lex* mylast= this;
+  SELECT_LEX* last_select()
+  {
+    SELECT_LEX* mylast= this;
     for (; mylast->next_select(); mylast= mylast->next_select())
     {}
-    return mylast; 
+    return mylast;
   }
 
   SELECT_LEX *next_select_in_list() const { return link_next; }
 
-  void mark_as_dependent(st_select_lex *last);
+  void mark_as_dependent(SELECT_LEX *last);
 
   /// @return true if query block is explicitly grouped (non-empty GROUP BY)
   bool is_explicitly_grouped() const { return group_list.elements > 0; }
@@ -1357,19 +1356,19 @@ public:
   }
 
   /// Include query block inside a query expression.
-  void include_down(LEX *lex, st_select_lex_unit *outer);
+  void include_down(LEX *lex, SELECT_LEX_UNIT *outer);
 
   /// Include a query block next to another query block.
-  void include_neighbour(LEX *lex, st_select_lex *before);
+  void include_neighbour(LEX *lex, SELECT_LEX *before);
 
   /// Include query block inside a query expression, but do not link.
-  void include_standalone(st_select_lex_unit *sel, st_select_lex **ref);
+  void include_standalone(SELECT_LEX_UNIT *sel, SELECT_LEX **ref);
 
   /// Include query block into global list.
-  void include_in_global(st_select_lex **plink);
+  void include_in_global(SELECT_LEX **plink);
 
   /// Include chain of query blocks into global list.
-  void include_chain_in_global(st_select_lex **start);
+  void include_chain_in_global(SELECT_LEX **start);
 
   /// Renumber query blocks of contained query expressions
   void renumber(LEX *lex);
@@ -1404,7 +1403,7 @@ private:
                                          Group_list_ptrs **list_ptrs);
   static const char *type_str[SLT_total];
 
-  friend class st_select_lex_unit;
+  friend class SELECT_LEX_UNIT;
 
   bool record_join_nest_info(List<TABLE_LIST> *tables);
   bool simplify_joins(THD *thd,
@@ -1481,9 +1480,9 @@ public:
   */
   void update_semijoin_strategies(THD *thd);
 };
-typedef class st_select_lex SELECT_LEX;
+typedef class SELECT_LEX SELECT_LEX;
 
-inline bool st_select_lex_unit::is_union() const
+inline bool SELECT_LEX_UNIT::is_union() const
 { 
   return first_select()->next_select() && 
          first_select()->next_select()->linkage == UNION_TYPE;
@@ -1515,7 +1514,6 @@ struct Limit_options
 struct Query_options {
   ulonglong query_spec_options;
   enum SELECT_LEX::e_sql_cache sql_cache;
-  ulong max_statement_time;
 
   bool merge(const Query_options &a, const Query_options &b);
   bool save_to(Parse_context *);
@@ -1662,7 +1660,7 @@ union YYSTYPE {
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   timestamp_type date_time_type;
-  st_select_lex *select_lex;
+  SELECT_LEX *select_lex;
   chooser_compare_func_creator boolfunc2creator;
   class sp_condition_value *spcondvalue;
   struct { int vars, conds, hndlrs, curs; } spblock;
@@ -3340,7 +3338,7 @@ public:
   class Explain_format *explain_format;
 
   // Maximum execution time for a statement.
-  ulong max_statement_time;
+  ulong max_execution_time;
 
   LEX();
 
@@ -3350,13 +3348,13 @@ public:
   void reset();
 
   /// Create an empty query block within this LEX object.
-  st_select_lex *new_empty_query_block();
+  SELECT_LEX *new_empty_query_block();
 
   /// Create query expression object that contains one query block.
-  st_select_lex *new_query(st_select_lex *curr_select);
+  SELECT_LEX *new_query(SELECT_LEX *curr_select);
 
   /// Create query block and attach it to the current query expression.
-  st_select_lex *new_union_query(st_select_lex *curr_select, bool distinct);
+  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();
@@ -3549,7 +3547,7 @@ public:
     table_wild_one rules.
     Statements which use these rules but require lock type different
     from one specified by this member have to override it by using
-    st_select_lex::set_lock_for_tables() method.
+    SELECT_LEX::set_lock_for_tables() method.
 
     The default value of this member is TL_READ_DEFAULT. The only two
     cases in which we change it are:

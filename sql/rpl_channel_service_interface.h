@@ -52,6 +52,26 @@ enum enum_multi_threaded_workers_type
 };
 
 /**
+ SSL information to be used when creating a channel.
+ It maps the SSL options present in a CHANGE MASTER.
+*/
+struct st_ssl_info
+{
+  int   use_ssl;                //use SSL
+  char* ssl_ca_file_name;       //SSL list of trusted certificate authorities
+  char* ssl_ca_directory;       //SSL certificate authorities directory
+  char* ssl_cert_file_name;     //SSL connection certificate
+  char* ssl_crl_file_name;      //SSL certificate revocation list
+  char* ssl_crl_directory;      //SSL certificate revocation list file directory
+  char* ssl_key;                //SSL key file for connections
+  char* ssl_cipher;             //list of permissible ciphers to use for SSL
+  int   ssl_verify_server_cert; //check the server's Common Name value
+};
+typedef struct st_ssl_info Channel_ssl_info;
+
+void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info);
+
+/**
  Creation information for a channel.
  It includes the data that is usually associated to a change master command
 */
@@ -62,6 +82,7 @@ struct st_channel_info
   int port;
   char* user;
   char* password;
+  Channel_ssl_info* ssl_info;
   int auto_position;
   int channel_mts_parallel_type;
   int channel_mts_parallel_workers;

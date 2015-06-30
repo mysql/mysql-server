@@ -45,7 +45,8 @@ typedef struct sym_entry
 static char* dump_fname = 0, *sym_fname = 0;
 static DYNAMIC_ARRAY sym_table; /* how do you like this , static DYNAMIC ? */
 static FILE* fp_dump, *fp_sym = 0, *fp_out; 
-static void die(const char* fmt, ...) __attribute__((noreturn));
+static void die(const char* fmt, ...)
+  __attribute__((noreturn)) __attribute__((format(printf, 1, 2)));
 
 static struct my_option my_long_options[] =
 {

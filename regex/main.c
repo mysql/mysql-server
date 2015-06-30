@@ -72,8 +72,6 @@ char *argv[];
 	int opt_inline = 0;
 	int i;
         char *input_file_name= NULL;
-	extern int optind;
-	extern char *optarg;
 
 	progname = argv[0];
 

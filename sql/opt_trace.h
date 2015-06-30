@@ -1026,7 +1026,7 @@ private:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree
@@ -1036,7 +1036,7 @@ class st_select_lex;
    @param  trace_object  Opt_trace_object to which the query will be added
 */
 void opt_trace_print_expanded_query(THD *thd,
-                                    st_select_lex *select_lex,
+                                    SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object);
 
 /**

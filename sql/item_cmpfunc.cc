@@ -31,6 +31,7 @@
 #include "parse_tree_helpers.h" // PT_item_list
 #include "sql_class.h"          // THD
 #include "sql_optimizer.h"      // JOIN
+#include "sql_parse.h"          // check_stack_overrun
 #include "sql_time.h"           // str_to_datetime
 
 #include <algorithm>
@@ -2041,8 +2042,8 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select)
+void Item_in_optimizer::fix_after_pullout(SELECT_LEX *parent_select,
+                                          SELECT_LEX *removed_select)
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
@@ -2753,8 +2754,8 @@ bool Item_func_between::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_between::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select)
+void Item_func_between::fix_after_pullout(SELECT_LEX *parent_select,
+                                          SELECT_LEX *removed_select)
 {
   Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
 
@@ -3297,8 +3298,8 @@ Item_func_if::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_if::fix_after_pullout(st_select_lex *parent_select,
-                                     st_select_lex *removed_select)
+void Item_func_if::fix_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select)
 {
   Item_func::fix_after_pullout(parent_select, removed_select);
 
@@ -3805,12 +3806,12 @@ void Item_func_case::fix_length_and_dec()
   if (!(agg= (Item**) sql_alloc(sizeof(Item*)*(ncases+1))))
     return;
 
-  /*
-    fix_fields() does not handle ELSE expression automatically,
-    as it's not in the args[] list. Check its maybe_null value.
-  */
-  if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
-    maybe_null=1;
+  // Determine nullability based on THEN and ELSE expressions:
+
+  maybe_null= else_expr_num == -1 || args[else_expr_num]->maybe_null;
+
+  for (Item **arg= args + 1; arg < args + arg_count; arg+= 2)
+    maybe_null|= (*arg)->maybe_null;
 
   /*
     Aggregate all THEN and ELSE expression types
@@ -4992,8 +4993,8 @@ bool Item_func_in::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_in::fix_after_pullout(st_select_lex *parent_select,
-                                     st_select_lex *removed_select)
+void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select)
 {
   Item_func_opt_neg::fix_after_pullout(parent_select, removed_select);
 
@@ -5542,8 +5543,8 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_cond::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select)
+void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
+                                  SELECT_LEX *removed_select)
 {
   List_iterator<Item> li(list);
   Item *item;

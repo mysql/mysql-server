@@ -2367,7 +2367,7 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
 
       /*
         These must be reset before every new preparation.
-        @note done here and not in st_select_lex::prepare() since for
+        @note done here and not in SELECT_LEX::prepare() since for
               multi-table UPDATE and DELETE, derived tables are merged into
               the outer query block before ::prepare() is called.
       */

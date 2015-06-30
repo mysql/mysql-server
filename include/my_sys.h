@@ -204,7 +204,6 @@ extern uint    my_large_page_size;
 
 extern char *home_dir;			/* Home directory for user */
 extern const char *my_progname;		/* program-name (printed in errors) */
-extern char curr_dir[];		/* Current directory for user */
 extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
@@ -808,12 +807,10 @@ static inline void my_sleep(time_t m_seconds)
 #endif
 }
 
-extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);
 
 extern time_t my_time(myf flags);
-extern ulonglong my_getsystime(void);
 extern ulonglong my_micro_time();
 extern my_bool my_gethwaddr(uchar *to);
 

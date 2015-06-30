@@ -241,7 +241,8 @@ typedef struct my_charset_loader_st
   void *(*mem_malloc)(size_t);
   void *(*mem_realloc)(void *, size_t);
   void (*mem_free)(void *);
-  void (*reporter)(enum loglevel, const char *format, ...);
+  void (*reporter)(enum loglevel, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
   int  (*add_collation)(struct charset_info_st *cs);
 } MY_CHARSET_LOADER;
 

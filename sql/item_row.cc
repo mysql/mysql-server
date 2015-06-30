@@ -164,8 +164,8 @@ void Item_row::update_used_tables()
   }
 }
 
-void Item_row::fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+void Item_row::fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
 {
   used_tables_cache= 0;
   not_null_tables_cache= 0;

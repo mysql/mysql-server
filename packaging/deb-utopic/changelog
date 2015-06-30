@@ -5,8 +5,13 @@ mysql-community (5.8.0-m17-1ubuntu14.10) utopic; urgency=low
     libtest_framework
     libtest_services
     libtest_services_threaded
+  * added support for MECAB in
+    d/{control,rules,mysql-*-server.install,source/include-binaries}
+    (Closes: #20315007)
+  * added automatic setup of ssl certs in d/mysql-*-server.mysql.init
+    (Closes: #20650118)
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Wed, 27 May 2015 13:29:25 +0530
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Tue, 23 Jun 2015 16:11:26 +0530
 
 mysql-community (5.7.7-rc-1ubuntu14.10) utopic; urgency=low
 

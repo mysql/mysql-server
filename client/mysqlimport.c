@@ -27,19 +27,14 @@
 #include "mysql_version.h"
 #include "mysql/service_my_snprintf.h"
 #include "mysql/service_mysql_alloc.h"
-#ifdef HAVE_LIBPTHREAD
-#include <my_thread.h>
-#endif
 
 #include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 /* Global Thread counter */
 uint counter;
-#ifdef HAVE_LIBPTHREAD
 native_mutex_t counter_mutex;
 native_cond_t count_threshold;
-#endif
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -586,8 +581,7 @@ static char *field_escape(char *to,const char *from,uint length)
 
 int exitcode= 0;
 
-#ifdef HAVE_LIBPTHREAD
-pthread_handler_t worker_thread(void *arg)
+void *worker_thread(void *arg)
 {
   int error;
   char *raw_table_name= (char *)arg;
@@ -626,7 +620,6 @@ error:
 
   return 0;
 }
-#endif
 
 
 int main(int argc, char **argv)
@@ -648,14 +641,14 @@ int main(int argc, char **argv)
     return(1);
   }
 
-#ifdef HAVE_LIBPTHREAD
   if (opt_use_threads && !lock_tables)
   {
-    my_thread_t mainthread;            /* Thread descriptor */
+    my_thread_handle mainthread;            /* Thread descriptor */
     my_thread_attr_t attr;          /* Thread attributes */
     my_thread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr,
-                                PTHREAD_CREATE_DETACHED);
+#ifndef _WIN32
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+#endif
 
     native_mutex_init(&counter_mutex, NULL);
     native_cond_init(&count_threshold);
@@ -667,7 +660,7 @@ int main(int argc, char **argv)
       {
         struct timespec abstime;
 
-        set_timespec(abstime, 3);
+        set_timespec(&abstime, 3);
         native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
       }
       /* Before exiting the lock we set ourselves up for the next thread */
@@ -693,7 +686,7 @@ int main(int argc, char **argv)
     {
       struct timespec abstime;
 
-      set_timespec(abstime, 3);
+      set_timespec(&abstime, 3);
       native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
     }
     native_mutex_unlock(&counter_mutex);
@@ -702,7 +695,6 @@ int main(int argc, char **argv)
     my_thread_attr_destroy(&attr);
   }
   else
-#endif
   {
     MYSQL *mysql= 0;
     if (!(mysql= db_connect(current_host,current_db,current_user,opt_password)))

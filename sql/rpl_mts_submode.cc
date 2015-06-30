@@ -599,7 +599,10 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     compile_time_assert(SEQ_UNINIT == 0);
     if (unlikely(sequence_number > last_sequence_number + 1))
     {
-      DBUG_ASSERT(rli->replicate_same_server_id || true /* TODO: account autopositioning */);
+      /*
+        TODO: account autopositioning
+        DBUG_ASSERT(rli->replicate_same_server_id);
+      */
       gap_successor= true;
     }
   }

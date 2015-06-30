@@ -1,5 +1,5 @@
 	/*
-   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,6 @@ extern int my_handle_options (int *argc, char ***argv,
                               const char **command_list, my_bool ignore_unknown_option);
 extern void print_cmdline_password_warning();
 extern void my_cleanup_options(const struct my_option *options);
-extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
 extern void my_print_variables(const struct my_option *options);
 extern void my_print_variables_ex(const struct my_option *options, FILE* file);
@@ -137,7 +136,6 @@ longlong getopt_ll_limit_value(longlong, const struct my_option *,
                                my_bool *fix);
 double getopt_double_limit_value(double num, const struct my_option *optp,
                                  my_bool *fix);
-my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 ulonglong max_of_int_range(int var_type);
 
 ulonglong getopt_double2ulonglong(double);

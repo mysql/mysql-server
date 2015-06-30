@@ -238,6 +238,14 @@ buf_LRU_drop_page_hash_batch(
 	ut_ad(count <= BUF_LRU_DROP_SEARCH_SIZE);
 
 	for (ulint i = 0; i < count; ++i, ++arr) {
+		/* While our only caller
+		buf_LRU_drop_page_hash_for_tablespace()
+		is being executed for DROP TABLE or similar,
+		the table cannot be evicted from the buffer pool.
+		Note: this should not be executed for DROP TABLESPACE,
+		because DROP TABLESPACE would be refused if tables existed
+		in the tablespace, and a previous DROP TABLE would have
+		already removed the AHI entries. */
 		btr_search_drop_page_hash_when_freed(
 			page_id_t(space_id, *arr), page_size);
 	}
@@ -294,12 +302,16 @@ next_page:
 		mutex_enter(&((buf_block_t*) bpage)->mutex);
 
 		{
-			bool	is_fixed = bpage->buf_fix_count > 0
+			bool	skip = bpage->buf_fix_count > 0
 				|| !((buf_block_t*) bpage)->index;
 
 			mutex_exit(&((buf_block_t*) bpage)->mutex);
 
-			if (is_fixed) {
+			if (skip) {
+				/* Skip this block, because there are
+				no adaptive hash index entries
+				pointing to it, or because we cannot
+				drop them due to the buffer-fix. */
 				goto next_page;
 			}
 		}
@@ -790,7 +802,10 @@ scan_again:
 			mutex_exit(block_mutex);
 
 			/* Note that the following call will acquire
-			and release block->lock X-latch. */
+			and release block->lock X-latch.
+			Note that the table cannot be evicted during
+			the execution of ALTER TABLE...DISCARD TABLESPACE
+			because MySQL is keeping the table handle open. */
 
 			btr_search_drop_page_hash_when_freed(
 				bpage->id, bpage->size);

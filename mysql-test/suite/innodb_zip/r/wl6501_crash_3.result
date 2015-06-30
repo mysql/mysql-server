@@ -385,7 +385,7 @@ i	f	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_before_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_before_log_removal";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
 check table t;
@@ -416,7 +416,7 @@ i	f	c
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
-set session debug = "+d,ib_trunc_crash_after_log_checkpoint";
+set session debug = "+d,ib_trunc_crash_after_truncate_done";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
 check table t;

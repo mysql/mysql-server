@@ -42,7 +42,6 @@ public:
 
   ~Connection_acceptor()
   {
-    m_listener->close_listener();
     delete m_listener;
   }
 
@@ -69,5 +68,14 @@ public:
         mgr->process_new_connection(channel_info);
     }
   }
+
+  /**
+    Close the listener.
+  */
+  void close_listener()
+  {
+    m_listener->close_listener();
+  }
+
 };
 #endif // CONNECTION_ACCEPTOR_INCLUDED

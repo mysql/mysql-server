@@ -166,8 +166,6 @@ char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
-void mysql_close_free_options(MYSQL *mysql);
-void mysql_close_free(MYSQL *mysql);
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;

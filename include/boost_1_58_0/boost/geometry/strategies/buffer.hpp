@@ -83,6 +83,17 @@ enum join_selector
     join_spike     // collinear, with overlap, next segment goes back
 };
 
+/*!
+\brief Enumerates types of result codes from buffer strategies
+\ingroup enum
+*/
+enum result_code
+{
+    result_normal,
+    result_error_numerical,
+    result_no_output
+};
+
 
 }} // namespace strategy::buffer
 

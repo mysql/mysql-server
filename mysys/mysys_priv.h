@@ -49,7 +49,7 @@ C_MODE_START
 extern PSI_stage_info stage_waiting_for_table_level_lock;
 
 extern mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open, THR_LOCK_keycache;
-extern mysql_mutex_t THR_LOCK_lock, THR_LOCK_net;
+extern mysql_mutex_t THR_LOCK_net;
 extern mysql_mutex_t THR_LOCK_charset;
 
 #ifdef HAVE_PSI_INTERFACE

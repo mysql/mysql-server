@@ -146,31 +146,4 @@ extern	mysql_pfs_key_t buf_chunk_map_latch_key;
 void
 sync_print(FILE* file);
 
-/* Number of spin waits on mutexes: for performance monitoring */
-typedef ib_counter_t<int64_t, IB_N_SLOTS> mutex_counter_t;
-
-/** The number of OS waits in mutex_spin_wait().  Intended for
-performance monitoring. */
-extern mutex_counter_t	mutex_os_wait_count;
-
-/** The number of mutex_spin_wait() calls.  Intended for
-performance monitoring. */
-extern mutex_counter_t	mutex_spin_wait_count;
-
-/** The number of iterations in the mutex_spin_wait() spin loop.
-Intended for performance monitoring. */
-extern mutex_counter_t	mutex_spin_round_count;
-
-/**
-@return total number of spin rounds since startup. */
-ib_uint64_t mutex_spin_round_count_get();
-
-/**
-@return total number of spin wait calls since startup. */
-ib_uint64_t mutex_spin_wait_count_get();
-
-/**
-@return total number of OS waits since startup. */
-ib_uint64_t mutex_os_wait_count_get();
-
 #endif /* !sync0sync_h */

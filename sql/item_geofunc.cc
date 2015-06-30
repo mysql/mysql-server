@@ -1474,7 +1474,11 @@ String *Item_func_validate::val_str(String *str)
   {
     isvalid= check_geometry_valid(geom);
   }
-  CATCH_ALL("ST_Validate", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_Validate");
+  }
 
   return isvalid ? swkb : error_str();
 }
@@ -1993,7 +1997,11 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
     if (!null_value)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
   }
-  CATCH_ALL("st_centroid", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_centroid");
+  }
 
   return null_value;
 }
@@ -2200,7 +2208,11 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
     if (!null_value)
       bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
   }
-  CATCH_ALL("st_convexhull", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_convexhull");
+  }
 
   return null_value;
 }
@@ -2259,7 +2271,11 @@ String *Item_func_simplify::val_str(String *str)
         bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str->ptr()));
     }
   }
-  CATCH_ALL("ST_Simplify", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_Simplify");
+  }
 
   return str;
 }
@@ -2834,302 +2850,11 @@ err:
 }
 
 
-static double count_edge_t(const Gcalc_heap::Info *ea,
-                           const Gcalc_heap::Info *eb,
-                           const Gcalc_heap::Info *v,
-                           double &ex, double &ey, double &vx, double &vy,
-                           double &e_sqrlen)
-{
-  ex= eb->x - ea->x;
-  ey= eb->y - ea->y;
-  vx= v->x - ea->x;
-  vy= v->y - ea->y;
-  e_sqrlen= ex * ex + ey * ey;
-  return (ex * vx + ey * vy) / e_sqrlen;
-}
-
-
-static double distance_to_line(double ex, double ey, double vx, double vy,
-                               double e_sqrlen)
-{
-  return fabs(vx * ey - vy * ex) / sqrt(e_sqrlen);
-}
-
-
-static double distance_points(const Gcalc_heap::Info *a,
-                              const Gcalc_heap::Info *b)
-{
-  double x= a->x - b->x;
-  double y= a->y - b->y;
-  return sqrt(x * x + y * y);
-}
-
-
-/*
-  Calculates the distance between objects.
-*/
-
-static int calc_distance(double *result, Gcalc_heap *collector, uint obj2_si,
-                         Gcalc_function *func, Gcalc_scan_iterator *scan_it)
-{
-  bool cur_point_edge;
-  const Gcalc_scan_iterator::point *evpos;
-  const Gcalc_heap::Info *cur_point, *dist_point;
-  Gcalc_scan_events ev;
-  double t, distance, cur_distance;
-  double ex, ey, vx, vy, e_sqrlen;
-
-  DBUG_ENTER("calc_distance");
-
-  distance= DBL_MAX;
-
-  while (scan_it->more_points())
-  {
-    if (scan_it->step())
-      goto mem_error;
-    evpos= scan_it->get_event_position();
-    ev= scan_it->get_event();
-    cur_point= evpos->pi;
-
-    /*
-       handling intersection we only need to check if it's the intersecion
-       of objects 1 and 2. In this case distance is 0
-    */
-    if (ev == scev_intersection)
-    {
-      if ((evpos->get_next()->pi->shape >= obj2_si) !=
-            (cur_point->shape >= obj2_si))
-      {
-        distance= 0;
-        goto exit;
-      }
-      continue;
-    }
-
-    /*
-       if we get 'scev_point | scev_end | scev_two_ends' we don't need
-       to check for intersection of objects.
-       Though we need to calculate distances.
-    */
-    if (ev & (scev_point | scev_end | scev_two_ends))
-      goto calculate_distance;
-
-    goto calculate_distance;
-    /*
-       having these events we need to check for possible intersection
-       of objects
-       scev_thread | scev_two_threads | scev_single_point
-    */
-    DBUG_ASSERT(ev & (scev_thread | scev_two_threads | scev_single_point));
-
-    func->clear_state();
-    for (Gcalc_point_iterator pit(scan_it); pit.point() != evpos; ++pit)
-    {
-      gcalc_shape_info si= pit.point()->get_shape();
-      if ((func->get_shape_kind(si) == Gcalc_function::shape_polygon))
-        func->invert_state(si);
-    }
-    func->invert_state(evpos->get_shape());
-    if (func->count())
-    {
-      /* Point of one object is inside the other - intersection found */
-      distance= 0;
-      goto exit;
-    }
-
-
-calculate_distance:
-    if (cur_point->shape >= obj2_si)
-      continue;
-    cur_point_edge= !cur_point->is_bottom();
-
-    for (dist_point= collector->get_first(); dist_point;
-         dist_point= dist_point->get_next())
-    {
-      /* We only check vertices of object 2 */
-      if (dist_point->shape < obj2_si)
-        continue;
-
-      /* if we have an edge to check */
-      if (dist_point->left)
-      {
-        t= count_edge_t(dist_point, dist_point->left, cur_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t > 0.0) && (t < 1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      if (cur_point_edge)
-      {
-        t= count_edge_t(cur_point, cur_point->left, dist_point,
-                        ex, ey, vx, vy, e_sqrlen);
-        if ((t > 0.0) && (t < 1.0))
-        {
-          cur_distance= distance_to_line(ex, ey, vx, vy, e_sqrlen);
-          if (distance > cur_distance)
-            distance= cur_distance;
-        }
-      }
-      cur_distance= distance_points(cur_point, dist_point);
-      if (distance > cur_distance)
-        distance= cur_distance;
-    }
-  }
-
-exit:
-  *result= distance;
-  DBUG_RETURN(0);
-
-mem_error:
-  DBUG_RETURN(1);
-}
-
-
-int Item_func_spatial_rel::func_touches()
-{
-  double distance= GIS_ZERO;
-  int result= 0;
-  int cur_func= 0;
-
-  Gcalc_operation_transporter trn(&func, &collector);
-
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  int obj2_si;
-
-  DBUG_ENTER("Item_func_spatial_rel::func_touches");
-  DBUG_ASSERT(fixed == 1);
-
-  if ((null_value= (!res1 || args[0]->null_value ||
-                    !res2 || args[1]->null_value)))
-    goto mem_error;
-  if (!(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)))
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    result= error_int();
-    goto exit;
-  }
-
-  if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
-      (g2->get_class_info()->m_type_id == Geometry::wkb_point))
-  {
-    point_xy p1, p2, e;
-    if (((Gis_point *) g1)->get_xy(&p1) ||
-        ((Gis_point *) g2)->get_xy(&p2))
-      goto mem_error;
-    e.x= p2.x - p1.x;
-    e.y= p2.y - p1.y;
-    DBUG_RETURN((e.x * e.x + e.y * e.y) < GIS_ZERO);
-  }
-
-  if (func.reserve_op_buffer(1))
-    goto mem_error;
-  func.add_operation(Gcalc_function::op_intersection, 2);
-
-  if (g1->store_shapes(&trn))
-    goto mem_error;
-  obj2_si= func.get_nshapes();
-
-  if (g2->store_shapes(&trn) || func.alloc_states())
-    goto mem_error;
-
-#ifndef DBUG_OFF
-  func.debug_print_function_buffer(current_thd);
-#endif
-
-  collector.prepare_operation();
-  scan_it.init(&collector);
-
-  if (calc_distance(&distance, &collector, obj2_si, &func, &scan_it))
-    goto mem_error;
-  if (distance > GIS_ZERO)
-    goto exit;
-
-  scan_it.reset();
-  scan_it.init(&collector);
-
-  distance= DBL_MAX;
-
-  while (scan_it.more_trapezoids())
-  {
-    if (scan_it.step())
-      goto mem_error;
-
-    func.clear_state();
-    for (Gcalc_trapezoid_iterator ti(&scan_it); ti.more(); ++ti)
-    {
-      gcalc_shape_info si= ti.lb()->get_shape();
-      if ((func.get_shape_kind(si) == Gcalc_function::shape_polygon))
-      {
-        func.invert_state(si);
-        cur_func= func.count();
-      }
-      if (cur_func)
-      {
-        double area= scan_it.get_h() *
-              ((ti.rb()->x - ti.lb()->x) + (ti.rt()->x - ti.lt()->x));
-        if (area > GIS_ZERO)
-        {
-          result= 0;
-          goto exit;
-        }
-      }
-    }
-  }
-  result= 1;
-
-exit:
-  collector.reset();
-  func.reset();
-  scan_it.reset();
-  DBUG_RETURN(result);
-mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
-}
-
-
-int Item_func_spatial_rel::func_equals()
-{
-  Gcalc_heap::Info *pi_s1, *pi_s2;
-  Gcalc_heap::Info *cur_pi= collector.get_first();
-  double d;
-
-  if (!cur_pi)
-    return 1;
-
-  do {
-    pi_s1= cur_pi;
-    pi_s2= 0;
-    while ((cur_pi= cur_pi->get_next()))
-    {
-      d= fabs(pi_s1->x - cur_pi->x) + fabs(pi_s1->y - cur_pi->y);
-      if (d > GIS_ZERO)
-        break;
-      if (!pi_s2 && pi_s1->shape != cur_pi->shape)
-        pi_s2= cur_pi;
-    }
-
-    if (!pi_s2)
-      return 0;
-  } while (cur_pi);
-
-  return 1;
-}
-
-
 BG_geometry_collection::BG_geometry_collection()
   :comp_no_overlapped(false), m_srid(0), m_num_isolated(0),
    m_geobufs(key_memory_Geometry_objects_data),
    m_geosdata(key_memory_Geometry_objects_data)
 {}
-
 
 
 /**
@@ -3419,7 +3144,11 @@ bool Item_func_issimple::issimple(Geometry *g)
       break;
     }
   }
-  CATCH_ALL(func_name(), res= error_bool())
+  catch (...)
+  {
+    res= error_bool();
+    handle_gis_exception(func_name());
+  }
 
   return res;
 }
@@ -3644,7 +3373,11 @@ longlong Item_func_isvalid::val_int()
   {
     ret= check_geometry_valid(geom);
   }
-  CATCH_ALL("ST_IsValid", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("ST_IsValid");
+  }
 
   return ret;
 }
@@ -3838,7 +3571,11 @@ double Item_func_area::bg_area(const Geometry *geom)
       break;
     }
   }
-  CATCH_ALL("st_area", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_area");
+  }
 
   /*
     Given a polygon whose rings' points are in counter-clockwise order,
@@ -4439,7 +4176,11 @@ bg_distance_spherical(const Geometry *g1, const Geometry *g2)
       break;
     }
   }
-  CATCH_ALL("st_distance_sphere", null_value= true)
+  catch (...)
+  {
+    null_value= true;
+    handle_gis_exception("st_distance_sphere");
+  }
 
   return res;
 }
@@ -4577,7 +4318,11 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       break;
     }
   }
-  CATCH_ALL("st_distance", had_except= true)
+  catch (...)
+  {
+    had_except= true;
+    handle_gis_exception("st_distance");
+  }
 
   if (had_except)
     return error_real();

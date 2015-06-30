@@ -943,9 +943,9 @@ void Item_ident::cleanup()
 bool Item_ident::remove_dependence_processor(uchar * arg)
 {
   DBUG_ENTER("Item_ident::remove_dependence_processor");
-  if (depended_from == (st_select_lex *) arg)
+  if (depended_from == (SELECT_LEX *) arg)
     depended_from= 0;
-  context= &((st_select_lex *) arg)->context;
+  context= &((SELECT_LEX *) arg)->context;
   DBUG_RETURN(0);
 }
 
@@ -3076,8 +3076,8 @@ table_map Item_field::resolved_used_tables() const
   return table_ref->map();
 }
 
-void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                   st_select_lex *removed_select)
+void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
+                                   SELECT_LEX *removed_select)
 {
   /*
     Some field items may be created for use in execution only, without
@@ -3119,7 +3119,7 @@ void Item_ident::fix_after_pullout(st_select_lex *parent_select,
       Refresh used_tables information for subqueries between the definition
       scope and resolution scope of the field item reference.
     */
-    st_select_lex *child_select= context->select_lex;
+    SELECT_LEX *child_select= context->select_lex;
 
     while (child_select->outer_select() != depended_from)
     {
@@ -5750,7 +5750,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   fixed= 1;
   if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select()->resolve_place ==
-      st_select_lex::RESOLVE_SELECT_LIST)
+      SELECT_LEX::RESOLVE_SELECT_LIST)
   {
     /*
       If (1) aggregation (2) without grouping, we may have to return a result
@@ -6077,44 +6077,54 @@ enum_field_types Item::field_type() const
 /**
   Verifies that the input string is well-formed according to its character set.
   @param send_error   If true, call my_error if string is not well-formed.
-
-  Will truncate input string if it is not well-formed.
+  @param truncate     If true, set to null/truncate if not well-formed.
 
   @return
   If well-formed: input string.
   If not well-formed:
-    if strict mode: NULL pointer and we set this Item's value to NULL
-    if not strict mode: input string truncated up to last good character
+    if truncate is true and strict mode:     NULL pointer and we set this
+                                             Item's value to NULL.
+    if truncate is true and not strict mode: input string truncated up to
+                                             last good character.
+    if truncate is false:                    input string is returned.
  */
-String *Item::check_well_formed_result(String *str, bool send_error)
+String *Item::check_well_formed_result(String *str,
+                                       bool send_error,
+                                       bool truncate)
 {
   /* Check whether we got a well-formed string */
   const CHARSET_INFO *cs= str->charset();
-  int well_formed_error;
-  size_t wlen= cs->cset->well_formed_len(cs,
-                                         str->ptr(), str->ptr() + str->length(),
-                                         str->length(), &well_formed_error);
-  if (wlen < str->length())
+
+  size_t valid_length;
+  bool length_error;
+
+  if (validate_string(cs, str->ptr(), str->length(),
+                      &valid_length, &length_error))
   {
+    const char *str_end= str->ptr() + str->length();
+    const char *print_byte= str->ptr() + valid_length;
     THD *thd= current_thd;
     char hexbuf[7];
-    size_t diff= str->length() - wlen;
+    size_t diff= str_end - print_byte;
     set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (send_error)
+    octet2hex(hexbuf, print_byte, diff);
+    if (send_error && length_error)
     {
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
                cs->csname,  hexbuf);
       return 0;
     }
-    if (thd->is_strict_mode())
+    if (truncate && length_error)
     {
-      null_value= 1;
-      str= 0;
-    }
-    else
-    {
-      str->length(wlen);
+      if (thd->is_strict_mode())
+      {
+        null_value= 1;
+        str= 0;
+      }
+      else
+      {
+        str->length(valid_length);
+      }
     }
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_INVALID_CHARACTER_STRING,
@@ -8265,7 +8275,15 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
     if ((*ref)->fix_fields(thd, ref))
       return true;                     /* purecov: inspected */
   }
-  return Item_direct_ref::fix_fields(thd, reference);
+  if (super::fix_fields(thd, reference))
+    return true;
+
+  if (cached_table->is_inner_table_of_outer_join())
+  {
+    maybe_null= true;
+    first_inner_table= cached_table->first_leaf_table();
+  }
+  return false;
 }
 
 /*
@@ -8295,8 +8313,8 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
   return err;
 }
 
-void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select)
+void Item_outer_ref::fix_after_pullout(SELECT_LEX *parent_select,
+                                       SELECT_LEX *removed_select)
 {
   /*
     If this assertion holds, we need not call fix_after_pullout() on both
@@ -8307,8 +8325,8 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
   Item_ref::fix_after_pullout(parent_select, removed_select);
 }
 
-void Item_ref::fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+void Item_ref::fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
 {
   (*ref)->fix_after_pullout(parent_select, removed_select);
 
@@ -8347,6 +8365,87 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
   return FALSE;
 }
 
+
+longlong Item_direct_view_ref::val_int()
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return 0;
+  }
+  return super::val_int();
+}
+
+
+double Item_direct_view_ref::val_real()
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return 0.0;
+  }
+  return super::val_real();
+}
+
+
+my_decimal *Item_direct_view_ref::val_decimal(my_decimal *dec)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return NULL;
+  }
+  return super::val_decimal(dec);
+}
+
+
+String *Item_direct_view_ref::val_str(String *str)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return NULL;
+  }
+  return super::val_str(str);
+}
+
+
+bool Item_direct_view_ref::val_bool()
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return false;
+  }
+  return super::val_bool();
+}
+
+
+bool Item_direct_view_ref::is_null()
+{
+  if (has_null_row())
+    return true;
+
+  return (*ref)->is_null();
+}
+
+
+bool Item_direct_view_ref::send(Protocol *prot, String *tmp)
+{
+  if (has_null_row())
+    return prot->store_null();
+  return super::send(prot, tmp);
+}
+
+
+type_conversion_status Item_direct_view_ref::save_in_field(Field *field,
+                                                           bool no_conversions)
+{
+  if (has_null_row())
+    return set_field_to_null_with_conversions(field, no_conversions);
+
+  return super::save_in_field(field, no_conversions);
+}
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res)
 {

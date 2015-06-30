@@ -9373,10 +9373,10 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
   {
     trace_simpl.add_alnum("clause", clause_type);
     String str;
-    st_select_lex::print_order(&str, first_order,
-                               enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER |
-                                               QT_NO_DEFAULT_DB));
+    SELECT_LEX::print_order(&str, first_order,
+                            enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                            QT_SHOW_SELECT_NUMBER |
+                                            QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("original_clause", str.ptr(), str.length());
   }
   Opt_trace_array trace_each_item(trace, "items");
@@ -9488,10 +9488,10 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
   if (trace->is_started() && change_list)
   {
     String str;
-    st_select_lex::print_order(&str, first_order,
-                               enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                               QT_SHOW_SELECT_NUMBER |
-                                               QT_NO_DEFAULT_DB));
+    SELECT_LEX::print_order(&str, first_order,
+                            enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                            QT_SHOW_SELECT_NUMBER |
+                                            QT_NO_DEFAULT_DB));
     trace_simpl.add_utf8("resulting_clause", str.ptr(), str.length());
   }
 

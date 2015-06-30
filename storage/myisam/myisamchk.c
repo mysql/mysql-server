@@ -1534,7 +1534,7 @@ static int mi_sort_records(MI_CHECK *param,
 	       share->state.key_root[sort_key],
 	       MYF(MY_NABP+MY_WME)))
   {
-    mi_check_print_error(param,"Can't read indexpage from filepos: %s",
+    mi_check_print_error(param,"Can't read indexpage from filepos: %lu",
 		(ulong) share->state.key_root[sort_key]);
     goto err;
   }

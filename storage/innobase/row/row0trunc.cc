@@ -38,7 +38,8 @@ Created 2013-04-12 Sunny Bains
 #include <vector>
 
 bool	truncate_t::s_fix_up_active = false;
-truncate_t::tables_t	truncate_t::s_tables;
+truncate_t::tables_t		truncate_t::s_tables;
+truncate_t::truncated_tables_t	truncate_t::s_truncated_tables;
 
 /**
 Iterator over the the raw records in an index, doesn't support MVCC. */
@@ -358,6 +359,8 @@ public:
 		byte*	log_buf = static_cast<byte*>(
 			ut_align(buf, UNIV_PAGE_SIZE));
 
+		lsn_t	lsn = log_get_lsn();
+
 		/* Generally loop should exit in single go but
 		just for those 1% of rare cases we need to assume
 		corner case. */
@@ -367,7 +370,7 @@ public:
 			err = m_truncate.write(
 				log_buf + 4, log_buf + sz - 4,
 				m_table->space, m_table->name.m_name,
-				m_flags, m_table->flags, log_get_lsn());
+				m_flags, m_table->flags, lsn);
 
 			DBUG_EXECUTE_IF("ib_err_trunc_oom_logging",
 					err = DB_FAIL;);
@@ -415,6 +418,43 @@ public:
 		os_file_close(handle);
 
 		ut_free(buf);
+
+		/* Why we need MLOG_TRUNCATE when we have truncate_log for
+		recovery?
+		- truncate log can protect us if crash happens while truncate
+		  is active. Once truncate is done truncate log is removed.
+		- If crash happens post truncate and system is yet to
+		  checkpoint, on recovery we would see REDO records from action
+		  before truncate (unless we explicitly checkpoint before
+		  returning from truncate API. Costly alternative so rejected).
+		- These REDO records may reference a page that doesn't exist
+		  post truncate so we need a mechanism to skip all such REDO
+		  records. MLOG_TRUNCATE records space_id and lsn that exactly
+		  serve the purpose.
+		- If checkpoint happens post truncate and crash happens post
+		  this point then neither MLOG_TRUNCATE nor REDO record
+		  from action before truncate are accessible. */
+		if (!is_system_tablespace(m_table->space)) {
+			mtr_t	mtr;
+			byte*	log_ptr;
+
+			mtr_start(&mtr);
+
+			log_ptr = mlog_open(&mtr, 11 + 4 + 8);
+			log_ptr = mlog_write_initial_log_record_low(
+				MLOG_TRUNCATE, m_table->space, 0,
+				log_ptr, &mtr);
+
+			mach_write_to_4(log_ptr, m_table->space);
+			log_ptr += 4;
+
+			mach_write_to_8(log_ptr, lsn);
+			log_ptr += 8;
+
+			mlog_close(&mtr, log_ptr);
+			mtr_commit(&mtr);
+		}
+
 		return(err);
 	}
 
@@ -1207,19 +1247,15 @@ row_truncate_complete(
 
 	if (!dict_table_is_temporary(table)) {
 
-		/* Log checkpoint so that drop/create entries as part of
-		truncate action are not seen post this point.
-		If server crashes after performing actions post truncate
-		then restart will not apply drop/create entries. */
-		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_checkpoint",
+		DBUG_EXECUTE_IF("ib_trunc_crash_before_log_removal",
 				log_buffer_flush_to_disk();
 				os_thread_sleep(500000);
 				DBUG_SUICIDE(););
 
-		log_make_checkpoint_at(LSN_MAX, TRUE);
-
-		DBUG_EXECUTE_IF("ib_trunc_crash_after_log_checkpoint",
-				DBUG_SUICIDE(););
+		/* Note: We don't log-checkpoint instead we have written
+		a special REDO log record MLOG_TRUNCATE that is used to
+		avoid applying REDO records before truncate for crash
+		that happens post successful truncate completion. */
 
 		if (logger != NULL) {
 			logger->done();
@@ -1259,6 +1295,9 @@ row_truncate_complete(
 	ut_ad(!trx_is_started(trx));
 
 	srv_wake_master_thread();
+
+	DBUG_EXECUTE_IF("ib_trunc_crash_after_truncate_done",
+			DBUG_SUICIDE(););
 
 	return(err);
 }
@@ -1749,8 +1788,6 @@ row_truncate_table_for_mysql(
 
 	}
 
-	log_make_checkpoint_at(LSN_MAX, TRUE);
-
 	/* Step-2: Start transaction (only for non-temp table as temp-table
 	don't modify any data on disk doesn't need transaction object). */
 	if (!dict_table_is_temporary(table)) {
@@ -2122,6 +2159,9 @@ truncate_t::fixup_tables_in_system_tablespace()
 		}
 	}
 
+	/* Also clear the map used to track tablespace truncated. */
+	s_truncated_tables.clear();
+
 	return(err);
 }
 
@@ -2417,6 +2457,28 @@ truncate_t::is_tablespace_truncated(ulint space_id)
 	return(false);
 }
 
+/** Was tablespace truncated (on crash before checkpoint).
+If the MLOG_TRUNCATE redo-record is still available then tablespace
+was truncated and checkpoint is yet to happen.
+@param[in]	space_id	tablespace id to check.
+@return true if tablespace is was truncated. */
+bool
+truncate_t::was_tablespace_truncated(ulint space_id)
+{
+	return(s_truncated_tables.find(space_id) != s_truncated_tables.end());
+}
+
+/** Get the lsn associated with space.
+@param[in]	space_id	tablespace id to check.
+@return associated lsn. */
+lsn_t
+truncate_t::get_truncated_tablespace_init_lsn(ulint space_id)
+{
+	ut_ad(was_tablespace_truncated(space_id));
+
+	return(s_truncated_tables.find(space_id)->second);
+}
+
 /**
 Parses log record during recovery
 @param start_ptr	buffer containing log body to parse
@@ -2558,6 +2620,47 @@ truncate_t::parse(
 	}
 
 	return(DB_SUCCESS);
+}
+
+/** Parse log record from REDO log file during recovery.
+@param[in,out]	start_ptr	buffer containing log body to parse
+@param[in]	end_ptr		buffer end
+@return parsed upto or NULL. */
+byte*
+truncate_t::parse_redo_entry(
+	byte*		start_ptr,
+	const byte*	end_ptr)
+{
+	ulint	space_id;
+	lsn_t	lsn;
+
+	/* Parse space-id, lsn */
+	if (end_ptr < start_ptr + (4 + 8)) {
+		return(NULL);
+	}
+
+	space_id = mach_read_from_4(start_ptr);
+	start_ptr += 4;
+
+	lsn = mach_read_from_8(start_ptr);
+	start_ptr += 8;
+
+	/* Tablespace can't exist in both state.
+	(scheduled-for-truncate, was-truncated). */
+	if (!is_tablespace_truncated(space_id)) {
+
+		truncated_tables_t::iterator	it =
+				s_truncated_tables.find(space_id);
+
+		if (it == s_truncated_tables.end()) {
+			s_truncated_tables.insert(
+				std::pair<ulint, lsn_t>(space_id, lsn));
+		} else {
+			it->second = lsn;
+		}
+	}
+
+	return(start_ptr);
 }
 
 /**

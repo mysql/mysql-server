@@ -69,8 +69,7 @@ build_query(const POS &pos,
   static const Query_options options=
   {
     0, /* query_spec_options */
-    SELECT_LEX::SQL_CACHE_UNSPECIFIED, /* sql_cache */
-    0 /* max_statement_time */
+    SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
   };
 
   static const Select_lock_type lock_type=

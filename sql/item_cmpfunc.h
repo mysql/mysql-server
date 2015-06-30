@@ -301,8 +301,8 @@ public:
   { with_subselect= TRUE; }
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -890,8 +890,8 @@ public:
   enum Functype functype() const   { return BETWEEN; }
   const char *func_name() const { return "between"; }
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
@@ -1047,8 +1047,8 @@ public:
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
 private:
@@ -1629,8 +1629,8 @@ public:
   }
   longlong val_int();
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   void fix_length_and_dec();
   uint decimal_precision() const { return 1; }
   void cleanup()
@@ -1991,8 +1991,8 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   bool fix_fields(THD *, Item **ref);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }

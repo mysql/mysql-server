@@ -35,7 +35,7 @@ class File_parser;
 class Item_subselect;
 class Item_field;
 class GRANT_TABLE;
-class st_select_lex_unit;
+class SELECT_LEX_UNIT;
 class COND_EQUAL;
 class Security_context;
 class ACL_internal_schema_access;
@@ -51,6 +51,7 @@ struct LEX;
 typedef int8 plan_idx;
 class Opt_hints_qb;
 class Opt_hints_table;
+class SELECT_LEX;
 
 typedef int64 query_id_t;
 
@@ -1683,7 +1684,7 @@ struct TABLE_LIST
                                      const char *alias,
                                      TABLE_LIST *embedding,
                                      List<TABLE_LIST> *belongs_to,
-                                     class st_select_lex *select);
+                                     SELECT_LEX *select);
 
   Item         **join_cond_ref() { return &m_join_cond; }
   Item          *join_cond() const { return m_join_cond; }
@@ -1718,7 +1719,7 @@ struct TABLE_LIST
   }
 
   /// Merge tables from a query block into a nested join structure
-  bool merge_underlying_tables(class st_select_lex *select);
+  bool merge_underlying_tables(SELECT_LEX *select);
 
   /// Reset table
   void reset();
@@ -1894,13 +1895,13 @@ struct TABLE_LIST
     Set the query expression of a derived table or view.
     (Will also define this as a derived table, unless it is a named view.)
   */
-  void set_derived_unit(st_select_lex_unit *query_expr)
+  void set_derived_unit(SELECT_LEX_UNIT *query_expr)
   {
     derived= query_expr;
   }
 
   /// Return the query expression of a derived table or view.
-  st_select_lex_unit *derived_unit() const
+  SELECT_LEX_UNIT *derived_unit() const
   {
     DBUG_ASSERT(derived);
     return derived;
@@ -2108,7 +2109,7 @@ struct TABLE_LIST
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
-    Created at parse time in st_select_lex::add_table_to_list() ->
+    Created at parse time in SELECT_LEX::add_table_to_list() ->
     table_list.link_in_list().
   */
   TABLE_LIST *next_local;
@@ -2211,11 +2212,11 @@ private:
      
      @note Inside views, a subquery in the @c FROM clause is not allowed.
   */
-  st_select_lex_unit *derived;		/* SELECT_LEX_UNIT of derived table */
+  SELECT_LEX_UNIT *derived;		/* SELECT_LEX_UNIT of derived table */
 
 public:
   ST_SCHEMA_TABLE *schema_table;        /* Information_schema table */
-  st_select_lex	*schema_select_lex;
+  SELECT_LEX *schema_select_lex;
   /*
     True when the view field translation table is used to convert
     schema table fields for backwards compatibility with SHOW command.
@@ -2223,7 +2224,7 @@ public:
   bool schema_table_reformed;
   Temp_table_param *schema_table_param;
   /* link to select_lex where this table was used */
-  st_select_lex	*select_lex;
+  SELECT_LEX *select_lex;
 
 private:
   LEX *view;                    /* link on VIEW lex for merging */

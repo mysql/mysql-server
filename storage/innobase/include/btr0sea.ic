@@ -123,10 +123,10 @@ btr_search_s_unlock_all()
 }
 
 #ifdef UNIV_DEBUG
-
 /** Check if thread owns all the search latches.
 @param[in]	mode	lock mode check
-@return true if owns all of them else false. */
+@retval true if owns all of them
+@retval false if does not own some of them */
 UNIV_INLINE
 bool
 btr_search_own_all(ulint mode)
@@ -139,11 +139,25 @@ btr_search_own_all(ulint mode)
 	return(true);
 }
 
+/** Check if thread owns any of the search latches.
+@param[in]	mode	lock mode check
+@retval true if owns any of them
+@retval false if owns no search latch */
+UNIV_INLINE
+bool
+btr_search_own_any(ulint mode)
+{
+	for (ulint i = 0; i < btr_ahi_parts; ++i) {
+		if (rw_lock_own(btr_search_latches[i], mode)) {
+			return(true);
+		}
+	}
+	return(false);
+}
 #endif /* UNIV_DEBUG */
 
-/** Get the latch based on index attributes.
-A latch is selected from an array of latches using pair of index-id, space-id.
-@param[in]	index	index handler
+/** Get the adaptive hash search index latch for a b-tree.
+@param[in]	index	b-tree index
 @return latch */
 UNIV_INLINE
 rw_lock_t*

@@ -1193,23 +1193,15 @@ static void close_connections(void)
   uint dump_thread_count= 0;
   uint dump_thread_kill_retries= 8;
 
-  // Clean up connection acceptors
+  // Close listeners.
   if (mysqld_socket_acceptor != NULL)
-  {
-    delete mysqld_socket_acceptor;
-    mysqld_socket_acceptor= NULL;
-  }
+    mysqld_socket_acceptor->close_listener();
 #ifdef _WIN32
   if (named_pipe_acceptor != NULL)
-  {
-    delete named_pipe_acceptor;
-    named_pipe_acceptor= NULL;
-  }
+    named_pipe_acceptor->close_listener();
+
   if (shared_mem_acceptor != NULL)
-  {
-    delete shared_mem_acceptor;
-    shared_mem_acceptor= NULL;
-  }
+    shared_mem_acceptor->close_listener();
 #endif
 
   /*
@@ -1440,6 +1432,22 @@ bool gtid_server_init()
   return res;
 }
 
+#ifndef EMBEDDED_LIBRARY
+// Free connection acceptors
+static void free_connection_acceptors()
+{
+  delete mysqld_socket_acceptor;
+  mysqld_socket_acceptor= NULL;
+
+#ifdef _WIN32
+  delete named_pipe_acceptor;
+  named_pipe_acceptor= NULL;
+  delete shared_mem_acceptor;
+  shared_mem_acceptor= NULL;
+#endif
+}
+#endif
+
 
 void clean_up(bool print_message)
 {
@@ -1528,6 +1536,7 @@ void clean_up(bool print_message)
   cleanup_errmsgs();
 
 #ifndef EMBEDDED_LIBRARY
+  free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
 #endif
 
@@ -2477,7 +2486,6 @@ check_enough_stack_size(int recurse_level)
   Initialize one of the global date/time format variables.
 
   @param format_type    What kind of format should be supported
-  @param var_ptr    Pointer to variable that should be updated
 
   @retval
     0 ok
@@ -4876,12 +4884,6 @@ int mysqld_main(int argc, char **argv)
 
     delete_pid_file(MYF(MY_WME));
 
-    if (mysqld_socket_acceptor != NULL)
-    {
-      delete mysqld_socket_acceptor;
-      mysqld_socket_acceptor= NULL;
-    }
-
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
@@ -6045,7 +6047,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
   To know the status of other channels, performance schema replication
   tables comes to the rescue.
 
-  @TODO: any warning needed if multiple channels exist to request
+  @todo  Any warning needed if multiple channels exist to request
          the users to start using replication performance schema
          tables.
 */
@@ -6676,9 +6678,9 @@ SHOW_VAR status_vars[]= {
 #ifndef EMBEDDED_LIBRARY
   {"Locked_connects",          (char*) &locked_account_connection_count,              SHOW_LONG,               SHOW_SCOPE_GLOBAL},
 #endif
-  {"Max_statement_time_exceeded",   (char*) offsetof(System_status_var, max_statement_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-  {"Max_statement_time_set",        (char*) offsetof(System_status_var, max_statement_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-  {"Max_statement_time_set_failed", (char*) offsetof(System_status_var, max_statement_time_set_failed), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_execution_time_exceeded",   (char*) offsetof(System_status_var, max_execution_time_exceeded),   SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_execution_time_set",        (char*) offsetof(System_status_var, max_execution_time_set),        SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
+  {"Max_execution_time_set_failed", (char*) offsetof(System_status_var, max_execution_time_set_failed), SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
   {"Max_used_connections",     (char*) &Connection_handler_manager::max_used_connections,        SHOW_LONG,        SHOW_SCOPE_GLOBAL},
   {"Max_used_connections_time",(char*) &show_max_used_connections_time,               SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
   {"Not_flushed_delayed_rows", (char*) &delayed_rows_in_use,                          SHOW_LONG_NOFLUSH,       SHOW_SCOPE_GLOBAL},
@@ -7932,8 +7934,6 @@ bool is_secure_file_path(char *path)
 
   1. If path normalization fails
   2. If it can not get stats of the directory
-
-  @params NONE
 
   Assumptions :
   1. Data directory path has been normalized

@@ -678,9 +678,9 @@ static TABLE_LIST **make_leaf_tables(TABLE_LIST **list, TABLE_LIST *tables)
   @returns false if success, true if error.
 */
 
-bool st_select_lex::check_view_privileges(THD *thd,
-                                          ulong want_privilege_first,
-                                          ulong want_privilege_next)
+bool SELECT_LEX::check_view_privileges(THD *thd,
+                                       ulong want_privilege_first,
+                                       ulong want_privilege_next)
 {
   ulong want_privilege= want_privilege_first;
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
@@ -718,10 +718,10 @@ bool st_select_lex::check_view_privileges(THD *thd,
   @returns False on success, true on error
 */
 
-bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
-                                 bool select_insert)
+bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
+                              bool select_insert)
 {
-  DBUG_ENTER("st_select_lex::setup_tables");
+  DBUG_ENTER("SELECT_LEX::setup_tables");
 
   DBUG_ASSERT ((select_insert && !tables->next_name_resolution_table) ||
                !tables || 
@@ -805,7 +805,7 @@ bool st_select_lex::setup_tables(THD *thd, TABLE_LIST *tables,
     quary block.
 */
 
-void st_select_lex::remap_tables(THD *thd)
+void SELECT_LEX::remap_tables(THD *thd)
 {
   LEX *const lex= thd->lex;
   TABLE_LIST *first_select_table= NULL;
@@ -843,9 +843,9 @@ void st_select_lex::remap_tables(THD *thd)
   @return false if success, true if error
 */
 
-bool st_select_lex::resolve_derived(THD *thd, bool apply_semijoin)
+bool SELECT_LEX::resolve_derived(THD *thd, bool apply_semijoin)
 {
-  DBUG_ENTER("st_select_lex::resolve_derived");
+  DBUG_ENTER("SELECT_LEX::resolve_derived");
 
   DBUG_ASSERT(derived_table_count);
 
@@ -1020,8 +1020,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       !is_part_of_union() &&                                            // 2
       !group_list.elements &&                                           // 3
       !m_having_cond && !with_sum_func &&                               // 4
-      (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5a
-       outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5a
+      (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||         // 5a
+       outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&        // 5a
       !outer->semijoin_disallowed &&                                    // 5b
       outer->sj_candidates &&                                           // 6
       leaf_table_count &&                                               // 7
@@ -1151,13 +1151,13 @@ bool SELECT_LEX::setup_conds(THD *thd)
 
   if (m_where_cond)
   {
-    resolve_place= st_select_lex::RESOLVE_CONDITION;
+    resolve_place= SELECT_LEX::RESOLVE_CONDITION;
     thd->where="where clause";
     if ((!m_where_cond->fixed &&
          m_where_cond->fix_fields(thd, &m_where_cond)) ||
 	m_where_cond->check_cols(1))
       DBUG_RETURN(true);
-    resolve_place= st_select_lex::RESOLVE_NONE;
+    resolve_place= SELECT_LEX::RESOLVE_NONE;
   }
 
   /*
@@ -1173,7 +1173,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
       embedded= embedding;
       if (embedded->join_cond())
       {
-        resolve_place= st_select_lex::RESOLVE_JOIN_NEST;
+        resolve_place= SELECT_LEX::RESOLVE_JOIN_NEST;
         resolve_nest= embedded;
         thd->where="on clause";
         if ((!embedded->join_cond()->fixed &&
@@ -1181,7 +1181,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
 	   embedded->join_cond()->check_cols(1))
           DBUG_RETURN(true);
         cond_count++;
-        resolve_place= st_select_lex::RESOLVE_NONE;
+        resolve_place= SELECT_LEX::RESOLVE_NONE;
         resolve_nest= NULL;
       }
       embedding= embedded->embedding;
@@ -1622,7 +1622,6 @@ SELECT_LEX::simplify_joins(THD *thd,
   This function is called recursively for each join nest and/or table
   in the query block.
 
-  @param select The query block
   @param tables List of tables and join nests
 
   @return False if successful, True if failure
@@ -1732,8 +1731,8 @@ static int subq_sj_candidate_cmp(Item_exists_subselect* const *el1,
                         Tables are adjusted from position N to N+table_adjust
 */
 
-static void fix_tables_after_pullout(st_select_lex *parent_select,
-                                     st_select_lex *removed_select,
+static void fix_tables_after_pullout(SELECT_LEX *parent_select,
+                                     SELECT_LEX *removed_select,
                                      TABLE_LIST *tr,
                                      uint table_adjust)
 {
@@ -1981,8 +1980,8 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
     nested_join->used_tables and nested_join->not_null_tables are
     initialized in simplify_joins().
   */
-  
-  st_select_lex *const subq_select= subq_pred->unit->first_select();
+
+  SELECT_LEX *const subq_select= subq_pred->unit->first_select();
 
   nested_join->query_block_id= subq_select->select_number;
 
@@ -2596,7 +2595,7 @@ bool SELECT_LEX::flatten_subqueries()
     */
     DBUG_ASSERT((*subq)->substype() == Item_subselect::IN_SUBS);
 
-    st_select_lex *child_select= (*subq)->unit->first_select();
+    SELECT_LEX *child_select= (*subq)->unit->first_select();
 
     // Check that we proceeded bottom-up
     DBUG_ASSERT(child_select->sj_candidates == NULL);
@@ -2733,7 +2732,7 @@ static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable)
   table or view.
 */
 
-void st_select_lex::propagate_unique_test_exclusion()
+void SELECT_LEX::propagate_unique_test_exclusion()
 {
   for (SELECT_LEX_UNIT *unit= first_inner_unit(); unit; unit= unit->next_unit())
     for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
@@ -3463,10 +3462,10 @@ bool SELECT_LEX::setup_group(THD *thd)
 
   @param thd                  reference to the context
   @param expr                 expression to make replacement
-  @param changed[out]  returns true if item contains a replaced field item
+  @param [out] changed  returns true if item contains a replaced field item
 
   @todo
-    - TODO: Some functions are not null-preserving. For those functions
+    Some functions are not null-preserving. For those functions
     updating of the maybe_null attribute is an overkill. 
 
   @returns false if success, true if error

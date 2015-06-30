@@ -7451,7 +7451,7 @@ ER_WARN_BAD_MAX_EXECUTION_TIME
   eng "Unsupported MAX_EXECUTION_TIME"
 
 ER_WARN_UNSUPPORTED_MAX_EXECUTION_TIME
-  eng "MAX_EXECUTION_TIME hint is supported by SELECT statements only"
+  eng "MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only"
 
 ER_WARN_CONFLICTING_HINT
   eng "Hint %s is ignored as conflicting/duplicated"

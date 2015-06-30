@@ -1994,7 +1994,8 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          IN_DOXYGEN \
                          HAVE_REPLICATION \
                          HAVE_COMPRESS \
-                         MYSQL_CLIENT \
+                         HAVE_MYSYS \
+                         OPTIMIZER_TRACE \
                          MYSQL_SERVER \
                          HAVE_PSI_INTERFACE \
                          HAVE_PSI_1 \
@@ -2009,8 +2010,8 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
                          HAVE_PSI_STAGE_INTERFACE \
                          HAVE_PSI_STATEMENT_INTERFACE \
                          HAVE_PSI_STATEMENT_DIGEST_INTERFACE \
-                         __attribute__(X)=
-                         ZLIB_DEPENDED_FUNCTION= ;
+                         __attribute__(X)= \
+                         UNIV_NOTHROW
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

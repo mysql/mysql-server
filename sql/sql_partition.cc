@@ -153,7 +153,6 @@ static uint32 get_next_partition_via_walking(PARTITION_ITERATOR*);
 static void set_up_range_analysis_info(partition_info *part_info);
 static uint32 get_next_subpartition_via_walking(PARTITION_ITERATOR*);
 
-uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter);
 static uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                                   bool left_endpoint,
                                                   bool include_endpoint);
@@ -1021,8 +1020,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   int error;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX_UNIT unit(CTX_NONE);
+  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
   lex.new_static_query(&unit, &select);
 
   DBUG_ENTER("fix_fields_part_func");
@@ -4416,8 +4415,8 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
-  st_select_lex_unit unit(CTX_NONE);
-  st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL);
+  SELECT_LEX_UNIT unit(CTX_NONE);
+  SELECT_LEX select(NULL, NULL, NULL, NULL, NULL, NULL);
   lex.new_static_query(&unit, &select);
 
   sql_digest_state *parent_digest= thd->m_digest;

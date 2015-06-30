@@ -434,7 +434,7 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 #include "item_cmpfunc.h"
 #include "item_sum.h"
 struct st_mem_root;
-class st_select_lex;
+class SELECT_LEX;
 struct TABLE_LIST;
 
 /**
@@ -512,7 +512,7 @@ class Distinct_check: public Item_tree_walker, public Sql_alloc
 {
 public:
 
-  Distinct_check(st_select_lex *select_arg)
+  Distinct_check(SELECT_LEX *select_arg)
     : select(select_arg), failed_ident(NULL)
   {}
 
@@ -521,7 +521,7 @@ public:
 private:
 
   /// Query block which we are validating
-  st_select_lex *const select;
+  SELECT_LEX *const select;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -546,7 +546,7 @@ class Group_check: public Item_tree_walker, public Sql_alloc
 {
 public:
 
-  Group_check(st_select_lex *select_arg, st_mem_root *root)
+  Group_check(SELECT_LEX *select_arg, st_mem_root *root)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false),
     table(NULL), group_in_fd(~0ULL), m_root(root), fd(root),
@@ -565,7 +565,7 @@ public:
 private:
 
   /// Query block which we are validating
-  st_select_lex *const select;
+  SELECT_LEX *const select;
 
   /**
      "Underlying" == view or derived table, both merged or materialized.
@@ -624,7 +624,7 @@ private:
   bool is_child() const { return table != NULL; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(st_select_lex *select_arg, st_mem_root *root,
+  Group_check(SELECT_LEX *select_arg, st_mem_root *root,
               TABLE_LIST *table_arg)
     : select(select_arg), search_in_underlying(false),
     non_null_in_source(false), table(table_arg),

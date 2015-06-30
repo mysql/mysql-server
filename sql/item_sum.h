@@ -110,7 +110,7 @@ public:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
 
 /**
   Class Item_sum is the base class used for special expressions that SQL calls
@@ -294,7 +294,7 @@ class st_select_lex;
   and reports an error if it is illegal.
   The method register_sum_func serves to link the items for the set functions
   that are aggregated in the embedding (sub)queries. Circular chains of such
-  functions are attached to the corresponding st_select_lex structures
+  functions are attached to the corresponding SELECT_LEX structures
   through the field inner_sum_func_list.
 
   Exploiting the fact that the members mentioned above are used in one
@@ -351,7 +351,7 @@ public:
   Item **ref_by; /* pointer to a ref to the object used to register it */
   Item_sum *next; /* next in the circular chain of registered objects  */
   Item_sum *in_sum_func;  /* embedding set function if any */ 
-  st_select_lex * aggr_sel; /* select where the function is aggregated       */ 
+  SELECT_LEX * aggr_sel; /* select where the function is aggregated       */
   int8 nest_level;        /* number of the nesting level of the set function */
   int8 aggr_level;        /* nesting level of the aggregating subquery       */
   int8 max_arg_level;     /* max level of unbound column references          */
@@ -374,7 +374,7 @@ protected:
 public:  
 
   void mark_as_sum_func();
-  void mark_as_sum_func(st_select_lex *);
+  void mark_as_sum_func(SELECT_LEX *);
   Item_sum(const POS &pos)
     :super(pos), next(NULL), quick_group(1), arg_count(0), forced_const(FALSE)
   {
@@ -474,7 +474,7 @@ public:
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);
-  st_select_lex *depended_from() 
+  SELECT_LEX *depended_from()
     { return (nest_level == aggr_level ? 0 : aggr_sel); }
 
   Item *get_arg(uint i) { return args[i]; }

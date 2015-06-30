@@ -22,7 +22,7 @@
 
 struct LEX;
 
-typedef class st_select_lex_unit SELECT_LEX_UNIT;
+class SELECT_LEX_UNIT;
 
 class Query_result_union :public Query_result_interceptor
 {

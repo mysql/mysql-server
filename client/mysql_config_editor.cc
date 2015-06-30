@@ -84,7 +84,8 @@ static int read_login_key(void);
 static int add_header(void);
 static void my_perror(const char *msg);
 
-static void verbose_msg(const char *fmt, ...);
+static void verbose_msg(const char *fmt, ...)
+  __attribute__((format(printf, 1, 2)));
 static void print_version(void);
 static void usage_program(void);
 static void usage_command(int command);

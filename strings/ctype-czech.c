@@ -59,8 +59,6 @@
  * .configure. strxfrm_multiply_czech=4
  */
 
-#define SKIP_TRAILING_SPACES 1
-
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
@@ -183,7 +181,7 @@ while (1)						\
     const uchar *runner = ++p;				\
     while (!(IS_END(runner, src, len)) && (CZ_SORT_TABLE[pass][*runner] == 2)) \
      runner++;	/* skip all spaces */			\
-    if (IS_END(runner, src, len) && SKIP_TRAILING_SPACES) \
+    if (IS_END(runner, src, len)) 			\
       p = runner;					\
     if ((pass <= 2) && !(IS_END(runner, src, len)))	\
       p = runner;					\

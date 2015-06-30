@@ -85,8 +85,6 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
-  gcalc_slicescan.cc
-  gcalc_tools.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -311,6 +309,19 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+
+# Boost Geometry source has logical && with non-zero constant
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
+IF(HAVE_NO_LOGICAL_OP)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-logical-op"
   )
 ENDIF()
 

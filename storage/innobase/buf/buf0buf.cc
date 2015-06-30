@@ -1496,6 +1496,10 @@ buf_page_realloc(
 	return(true); /* free_list was enough */
 }
 
+
+static void buf_resize_status(const char* fmt, ...)
+	__attribute__((format(printf, 1, 2)));
+
 /** Sets the global variable that feeds MySQL's innodb_buffer_pool_resize_status
 to the specified string. The format and the following parameters are the
 same as the ones used for printf(3).
@@ -3961,7 +3965,15 @@ got_block:
 	}
 #endif /* UNIV_DEBUG */
 
+	/* While tablespace is reinited the indexes are already freed but the
+	blocks related to it still resides in buffer pool. Trying to remove
+	such blocks from buffer pool would invoke removal of AHI entries
+	associated with these blocks. Logic to remove AHI entry will try to
+	load the block but block is already in free state. Handle the said case
+	with mode = BUF_PEEK_IF_IN_POOL that is invoked from
+	"btr_search_drop_page_hash_when_freed". */
 	ut_ad(mode == BUF_GET_POSSIBLY_FREED
+	      || mode == BUF_PEEK_IF_IN_POOL
 	      || !fix_block->page.file_page_was_freed);
 
 	/* Check if this is the first access to the page */

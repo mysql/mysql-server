@@ -9175,7 +9175,7 @@ THD::binlog_get_pending_rows_event(bool is_transactional) const
 }
 
 /**
-   @param db    db name c-string to be inserted into alphabetically sorted
+   @param db_param    db name c-string to be inserted into alphabetically sorted
                 THD::binlog_accessed_db_names list.
                 
                 Note, that space for both the data and the node

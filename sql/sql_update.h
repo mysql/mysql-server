@@ -24,7 +24,7 @@ class Item;
 class Query_result_update;
 struct TABLE_LIST;
 
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 
 bool mysql_update_prepare_table(THD *thd, SELECT_LEX *select);
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,

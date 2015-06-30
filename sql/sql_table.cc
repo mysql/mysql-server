@@ -4334,32 +4334,44 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Check fields. */
   it.rewind();
-  while ((sql_field=it++))
+
+  /*
+    Check if  STRICT SQL mode is active and server is not started with
+    --explicit-defaults-for-timestamp. Below check was added to prevent implicit
+    default 0 value of timestamp. When explicit-defaults-for-timestamp server
+    option is removed, whole set of check can be removed.
+  */
+  if (thd->is_strict_mode()  && !thd->variables.explicit_defaults_for_timestamp)
   {
-    Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
-
-    if (thd->is_strict_mode() && !sql_field->def &&
-        !sql_field->gcol_info &&
-        is_timestamp_type(sql_field->sql_type) &&
-        (sql_field->flags & NOT_NULL_FLAG) &&
-        (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
+    while ((sql_field=it++))
     {
-      /*
-        An error should be reported if:
-          - STRICT SQL mode is active;
-          - there is no explicit DEFAULT clause (default column value);
-          - this is a TIMESTAMP column;
-          - the column is not NULL;
-          - this is not the DEFAULT CURRENT_TIMESTAMP column.
+      Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
 
-        In other words, an error should be reported if
-          - STRICT SQL mode is active;
-          - the column definition is equivalent to
-            'column_name TIMESTAMP DEFAULT 0'.
-      */
+      if (!sql_field->def &&
+          !sql_field->gcol_info &&
+          is_timestamp_type(sql_field->sql_type) &&
+          (sql_field->flags & NOT_NULL_FLAG) &&
+          (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
+      {
+        /*
+          An error should be reported if:
+            - there is no explicit DEFAULT clause (default column value);
+            - this is a TIMESTAMP column;
+            - the column is not NULL;
+            - this is not the DEFAULT CURRENT_TIMESTAMP column.
+          And from checks before while loop,
+            - STRICT SQL mode is active;
+            - server is not started with --explicit-defaults-for-timestamp
 
-      my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-      DBUG_RETURN(TRUE);
+          In other words, an error should be reported if
+            - STRICT SQL mode is active;
+            - the column definition is equivalent to
+              'column_name TIMESTAMP DEFAULT 0'.
+        */
+
+        my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+        DBUG_RETURN(TRUE);
+      }
     }
   }
 
@@ -7236,7 +7248,7 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
     DBUG_ASSERT(!def->gcol_info ||
                 (def->gcol_info  &&
                  (def->sql_type != MYSQL_TYPE_DATETIME
-                 || def->sql_type != MYSQL_TYPE_TIMESTAMP)));
+                 && def->sql_type != MYSQL_TYPE_TIMESTAMP)));
     // Replace the old temporal field with the new temporal field.
     Create_field *temporal_field= NULL;
     if (!(temporal_field= new (thd->mem_root) Create_field()) ||

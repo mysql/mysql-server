@@ -663,4 +663,8 @@ inline LEX_CSTRING to_lex_cstring(const char *s)
   LEX_CSTRING cstr= { s, s != NULL ? strlen(s) : 0 };
   return cstr;
 }
+
+bool
+validate_string(const CHARSET_INFO *cs, const char *str, uint32 length,
+                size_t *valid_length, bool *length_error);
 #endif /* SQL_STRING_INCLUDED */

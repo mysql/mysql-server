@@ -4059,8 +4059,7 @@ uint Wait_for_flush::get_deadlock_weight() const
   Traverse portion of wait-for graph which is reachable through this
   table share in search for deadlocks.
 
-  @param waiting_ticket  Ticket representing wait for this share.
-  @param dvisitor        Deadlock detection visitor.
+  @param gvisitor        Deadlock detection visitor.
 
   @retval TRUE  A deadlock is found. A victim is remembered
                 by the visitor.
@@ -4156,7 +4155,6 @@ end:
   open_table_def()), which will notify the owners of the flush tickets,
   and the last one being notified will actually destroy the share.
 
-  @param mdl_context     MDL context for thread which is going to wait.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
@@ -4388,7 +4386,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
                             const char *alias,
                             TABLE_LIST *embedding,
                             List<TABLE_LIST> *belongs_to,
-                            class st_select_lex *select)
+                            SELECT_LEX *select)
 {
   DBUG_ASSERT(belongs_to && select);
 
@@ -4425,7 +4423,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   @return false if success, true if error
 */
 
-bool TABLE_LIST::merge_underlying_tables(class st_select_lex *select)
+bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select)
 {
   DBUG_ASSERT(nested_join->join_list.is_empty());
 
@@ -4553,9 +4551,12 @@ bool TABLE_LIST::create_field_translation(THD *thd)
 
   while ((item= it++))
   {
-    // All columns from inner side of an outer join are nullable
-    if (is_inner_table_of_outer_join())
-      item->maybe_null= true;
+    /*
+      Notice that all items keep their nullability here.
+      All items are later wrapped within Item_direct_view objects.
+      If the view is used on the inner side of an outer join, these
+      objects will reflect the correct nullability of the selected expressions.
+    */
     transl[field_count].name= item->item_name.ptr();
     transl[field_count++].item= item;
   }
@@ -5281,7 +5282,7 @@ Item *Field_iterator_table::create_item(THD *thd)
     code in Item_field::fix_fields().
     */
   if (item && !thd->lex->in_sum_func &&
-      select->resolve_place == st_select_lex::RESOLVE_SELECT_LIST)
+      select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST)
   {
     if (select->with_sum_func && !select->group_list.elements)
       item->maybe_null= true;
@@ -5691,7 +5692,7 @@ void TABLE::prepare_for_position()
 
   @param thd      Thread handler (only used for duplicate handling)
   @param field    The column to be marked as used
-  @param mark_used =MARK_COLUMNS_NONE: Only update flag field, if applicable
+  @param mark      =MARK_COLUMNS_NONE: Only update flag field, if applicable
                    =MARK_COLUMNS_READ: Mark column as read
                    =MARK_COLUMNS_WRITE: Mark column as written
                    =MARK_COLUMNS_TEMP: Mark column as read, use by filesort()

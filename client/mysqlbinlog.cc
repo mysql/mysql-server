@@ -50,6 +50,10 @@ static void error(const char *format, ...)
   __attribute__((format(printf, 1, 2)));
 static void warning(const char *format, ...)
   __attribute__((format(printf, 1, 2)));
+static void error_or_warning(const char *format, va_list args, const char *msg)
+  __attribute__((format(printf, 1, 0)));
+static void sql_print_error(const char *format,...)
+  __attribute__((format(printf, 1, 2)));
 
 #include "rpl_gtid.h"
 #include "log_event.h"

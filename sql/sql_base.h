@@ -41,7 +41,7 @@ template <class T> class List;
 template <class T> class List_iterator;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_open_table_list OPEN_TABLE_LIST;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
 

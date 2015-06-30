@@ -64,7 +64,7 @@ static store_key *get_store_key(THD *thd,
 				uint maybe_null);
 static uint actual_key_flags(KEY *key_info);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
-uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
+
 /**
   Handle a data manipulation query, from preparation through cleanup
 
@@ -1013,7 +1013,7 @@ void JOIN::cleanup_item_list(List<Item> &items) const
   @returns false if success, true if error
 */
 
-bool st_select_lex::optimize(THD *thd)
+bool SELECT_LEX::optimize(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::optimize");
 
@@ -3086,7 +3086,7 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
   Free joins of subselect of this select.
 
   @param thd      THD pointer
-  @param select   pointer to st_select_lex which subselects joins we will free
+  @param select   pointer to SELECT_LEX which subselects joins we will free
 */
 
 void free_underlaid_joins(THD *thd, SELECT_LEX *select)
@@ -3337,7 +3337,7 @@ bool JOIN::clear()
   @retval true  Error
 */
 
-bool st_select_lex::change_query_result(Query_result_interceptor *new_result,
+bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
                                      Query_result_interceptor *old_result)
 {
   DBUG_ENTER("SELECT_LEX::change_query_result");

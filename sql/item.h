@@ -507,7 +507,7 @@ struct Name_resolution_context: Sql_alloc
     SELECT_LEX where item was created, so we can't use table_list/field_list
     from there
   */
-  st_select_lex *select_lex;
+  SELECT_LEX *select_lex;
 
   /*
     Processor of errors caused during Item name resolving, now used only to
@@ -523,7 +523,7 @@ struct Name_resolution_context: Sql_alloc
     this->table_list. If FALSE, items are resolved only against
     this->table_list.
 
-    @see st_select_lex::item_list, st_select_lex::group_list
+    @see SELECT_LEX::item_list, SELECT_LEX::group_list
   */
   bool resolve_in_select_list;
 
@@ -816,7 +816,7 @@ public:
      in:
      - during field resolution: it contains the index, in the "all_fields"
      list, of the expression to which this field belongs; or a special
-     constant UNDEF_POS; see st_select_lex::cur_pos_in_all_fields and
+     constant UNDEF_POS; see SELECT_LEX::cur_pos_in_all_fields and
      match_exprs_for_only_full_group_by().
      - when attaching conditions to tables: it says whether some condition
      needs to be attached or can be omitted (for example because it is already
@@ -962,8 +962,8 @@ public:
     @param removed_select select_lex that tables are moved away from,
                           child of parent_select.
   */
-  virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
   {};
   /*
     should be used in case where we are sure that we do not need
@@ -1610,6 +1610,7 @@ public:
                        bool used_alias);
 
   virtual void update_used_tables() {}
+
   virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
@@ -1795,8 +1796,8 @@ public:
   /**
      Clean up after removing the item from the item tree.
 
-     @param arg Pointer to the st_select_lex from which the walk started, i.e.,
-                the st_select_lex that contained the clause that was removed.
+     @param arg Pointer to the SELECT_LEX from which the walk started, i.e.,
+                the SELECT_LEX that contained the clause that was removed.
   */
   virtual bool clean_up_after_removal(uchar *arg) { return false; }
   /// @see Distinct_check::check_query()
@@ -1811,7 +1812,7 @@ public:
   /// @see Group_check::is_in_fd_of_underlying()
   virtual bool is_column_not_in_fd(uchar *arg)
   { return false; }
-  virtual Bool3 local_column(const st_select_lex *sl) const
+  virtual Bool3 local_column(const SELECT_LEX *sl) const
   { return Bool3::false3(); }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
@@ -2032,7 +2033,9 @@ public:
   }
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
-  String *check_well_formed_result(String *str, bool send_error= 0);
+  String *check_well_formed_result(String *str,
+                                   bool send_error,
+                                   bool truncate);
   bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs); 
 
   /*
@@ -2470,7 +2473,7 @@ public:
 
 #define NO_CACHED_FIELD_INDEX ((uint)(-1))
 
-class st_select_lex;
+class SELECT_LEX;
 class Item_ident :public Item
 {
   typedef Item super;
@@ -2505,7 +2508,7 @@ public:
     0 - means no cached value.
   */
   TABLE_LIST *cached_table;
-  st_select_lex *depended_from;
+  SELECT_LEX *depended_from;
 
   Item_ident(Name_resolution_context *context_arg,
              const char *db_name_arg, const char *table_name_arg,
@@ -2519,13 +2522,13 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   const char *full_name() const;
-  virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select);
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
   virtual bool aggregate_check_distinct(uchar *arg);
   virtual bool aggregate_check_group(uchar *arg);
-  Bool3 local_column(const st_select_lex *sl) const;
+  Bool3 local_column(const SELECT_LEX *sl) const;
 
   virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
@@ -2820,7 +2823,7 @@ public:
 
   friend class Item_default_value;
   friend class Item_insert_value;
-  friend class st_select_lex_unit;
+  friend class SELECT_LEX_UNIT;
 
   /**
      @note that field->table->alias_name_used is reliable only if
@@ -3439,6 +3442,11 @@ protected:
     decimals=NOT_FIXED_DEC;
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
+    /*
+      Check if the string has any character that can't be
+      interpreted using the relevant charset.
+    */
+    check_well_formed_result(&str_value, false, false);
   }
 public:
   /* Create from a string, set name from the string itself. */
@@ -3892,8 +3900,8 @@ public:
   bool send(Protocol *prot, String *tmp);
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -4066,6 +4074,8 @@ public:
 */
 class Item_direct_view_ref :public Item_direct_ref
 {
+  typedef Item_direct_ref super;
+
 public:
   Item_direct_view_ref(Name_resolution_context *context_arg,
                        Item **item,
@@ -4073,17 +4083,16 @@ public:
                        const char *table_name_arg,
                        const char *field_name_arg,
                        TABLE_LIST *tl)
-    : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg)
+    : Item_direct_ref(context_arg, item, alias_name_arg, field_name_arg),
+      first_inner_table(NULL)
   {
     orig_table_name= table_name_arg;
     cached_table= tl;
-  }
-
-  /* Constructor need to process subselect with temporary tables (see Item) */
-  Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item)
-  {
-    cached_table= item->cached_table;
+    if (cached_table->is_inner_table_of_outer_join())
+    {
+      maybe_null= true;
+      first_inner_table= cached_table->first_leaf_table();
+    }
   }
 
   /*
@@ -4118,6 +4127,30 @@ public:
       (*ref)->set_derived_used();
     return false;
   }
+  virtual longlong val_int();
+  virtual double val_real();
+  virtual my_decimal *val_decimal(my_decimal *dec);
+  virtual String *val_str(String *str);
+  virtual bool val_bool();
+  virtual bool is_null();
+  virtual bool send(Protocol *prot, String *tmp);
+  virtual type_conversion_status save_in_field(Field *field,
+                                               bool no_conversions);
+
+private:
+  /// @return true if item is from a null-extended row from an outer join
+  bool has_null_row() const
+  {
+    // result_field is unused for this class.
+    DBUG_ASSERT(result_field == 0);
+    return first_inner_table && first_inner_table->table->null_row;
+  }
+
+  /**
+    If this column belongs to a view that is an inner table of an outer join,
+    then this field points to the first leaf table of the view, otherwise NULL.
+  */
+  TABLE_LIST *first_inner_table;
 };
 
 
@@ -4167,8 +4200,8 @@ public:
     outer_ref->save_org_in_field(result_field);
   }
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  void fix_after_pullout(SELECT_LEX *parent_select,
+                         SELECT_LEX *removed_select);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
@@ -4891,8 +4924,8 @@ public:
     return example ? example->resolved_used_tables() : used_table_map;
   }
 
-  virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select)
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
+                                 SELECT_LEX *removed_select)
   {
     if (example == NULL)
       return;
@@ -5248,10 +5281,10 @@ public:
 };
 
 
-class st_select_lex;
+class SELECT_LEX;
 void mark_select_range_as_dependent(THD *thd,
-                                    st_select_lex *last_select,
-                                    st_select_lex *current_sel,
+                                    SELECT_LEX *last_select,
+                                    SELECT_LEX *current_sel,
                                     Field *found_field, Item *found_item,
                                     Item_ident *resolved_item);
 

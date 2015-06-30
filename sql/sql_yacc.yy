@@ -425,7 +425,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
   Currently there are 159 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 159
+%expect 155
 
 /*
    Comments for TOKENS.
@@ -758,7 +758,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
-%token  MAX_STATEMENT_TIME_SYM
 %token  MAX_ROWS
 %token  MAX_SIZE_SYM
 %token  MAX_SYM                       /* SQL-2003-N */
@@ -9001,7 +9000,6 @@ select_options:
           {
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= 0;
           }
         | select_option_list
         ;
@@ -9020,7 +9018,6 @@ select_option:
           {
             $$.query_spec_options= $1;
             $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= 0;
           }
         | SQL_NO_CACHE_SYM
           {
@@ -9030,7 +9027,6 @@ select_option:
              */
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_NO_CACHE;
-            $$.max_statement_time= 0;
           }
         | SQL_CACHE_SYM
           {
@@ -9040,18 +9036,6 @@ select_option:
              */
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_CACHE;
-            $$.max_statement_time= 0;
-          }
-        | MAX_STATEMENT_TIME_SYM EQ real_ulong_num
-          {
-            /*
-              MAX_STATEMENT_TIME is applicable to SELECT query and that too
-              only for the TOP LEVEL SELECT statement.
-              MAX_STATEMENT_TIME is not appliable to SELECTs of stored routines.
-            */
-            $$.query_spec_options= SELECT_MAX_STATEMENT_TIME;
-            $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= $3;
           }
         ;
 
@@ -10954,7 +10938,6 @@ empty_select_options:
           {
             $$.query_spec_options= 0;
             $$.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
-            $$.max_statement_time= 0;
           }
         ;
 
@@ -13333,7 +13316,6 @@ keyword_sp:
         | MASTER_AUTO_POSITION_SYM {}
         | MAX_CONNECTIONS_PER_HOUR {}
         | MAX_QUERIES_PER_HOUR     {}
-        | MAX_STATEMENT_TIME_SYM   {}
         | MAX_SIZE_SYM             {}
         | MAX_UPDATES_PER_HOUR     {}
         | MAX_USER_CONNECTIONS_SYM {}

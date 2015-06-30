@@ -22,7 +22,7 @@
 class Item;
 class String;
 class THD;
-typedef class st_select_lex SELECT_LEX;
+class SELECT_LEX;
 
 SELECT_LEX*
 build_show_global_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);

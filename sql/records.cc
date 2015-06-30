@@ -30,7 +30,6 @@
 #include "psi_memory_key.h"
 
 static int rr_quick(READ_RECORD *info);
-int rr_sequential(READ_RECORD *info);
 static int rr_from_tempfile(READ_RECORD *info);
 template<bool> static int rr_unpack_from_tempfile(READ_RECORD *info);
 template<bool> static int rr_unpack_from_buffer(READ_RECORD *info);

@@ -123,6 +123,19 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
+# Boost Geometry source has logical && with non-zero constant
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
+IF(HAVE_NO_LOGICAL_OP)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
+    ../sql/item_geofunc_relchecks.cc
+    ../sql/item_geofunc_relchecks_bgwrap.cc
+    ../sql/item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-logical-op"
+  )
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

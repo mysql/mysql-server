@@ -20,6 +20,7 @@
 #include <m_string.h>
 #include "mysys_err.h"
 #include "my_thread_local.h"
+#include "my_static.h"
 #if defined(_WIN32)
 #include <m_ctype.h>
 #include <dos.h>

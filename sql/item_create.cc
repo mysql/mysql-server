@@ -4371,7 +4371,7 @@ Item*
 Create_func_intersection::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_operation(POS(), arg1, arg2,
-                               Gcalc_function::op_intersection);
+                               Item_func_spatial_operation::op_intersection);
 }
 
 
@@ -4381,7 +4381,7 @@ Item*
 Create_func_difference::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_operation(POS(), arg1, arg2,
-                               Gcalc_function::op_difference);
+                               Item_func_spatial_operation::op_difference);
 }
 
 
@@ -4391,7 +4391,7 @@ Item*
 Create_func_union::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_operation(POS(), arg1, arg2,
-                               Gcalc_function::op_union);
+                               Item_func_spatial_operation::op_union);
 }
 
 
@@ -4401,7 +4401,7 @@ Item*
 Create_func_symdifference::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_operation(POS(), arg1, arg2,
-                               Gcalc_function::op_symdifference);
+                               Item_func_spatial_operation::op_symdifference);
 }
 
 

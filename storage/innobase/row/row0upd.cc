@@ -1230,8 +1230,10 @@ row_upd_changes_ord_field_binary_func(
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
-	const row_ext_t*ext)	/*!< NULL, or prefixes of the externally
+	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
 				stored columns in the old row */
+	ulint		flag)	/*!< in: ROW_BUILD_NORMAL,
+				ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
 {
 	ulint			n_unique;
 	ulint			i;
@@ -1272,6 +1274,106 @@ row_upd_changes_ord_field_binary_func(
 		}
 
 		dfield = dtuple_get_nth_field(row, col_no);
+
+		/* For spatial index update, since the different geometry
+		data could generate same MBR, so, if the new index entry is
+		same as old entry, which means the MBR is not changed, we
+		don't need to do anything. */
+		if (dict_index_is_spatial(index) && i == 0) {
+			double		mbr1[SPDIMS * 2];
+			double		mbr2[SPDIMS * 2];
+			rtr_mbr_t*	old_mbr;
+			rtr_mbr_t*	new_mbr;
+			uchar*		dptr = NULL;
+			ulint		flen = 0;
+			ulint		dlen = 0;
+			mem_heap_t*	temp_heap = NULL;
+			const dfield_t*	new_field = &upd_field->new_val;
+
+			const page_size_t	page_size
+				= (ext != NULL)
+				? ext->page_size
+				: dict_table_page_size(
+					index->table);
+
+			ut_ad(dfield->data != NULL
+			      && dfield->len > GEO_DATA_HEADER_SIZE);
+
+			/* Get the old mbr. */
+			if (dfield_is_ext(dfield)) {
+				/* For off-page stored data, we
+				need to read the whole field data. */
+				flen = dfield_get_len(dfield);
+				dptr = static_cast<byte*>(
+					dfield_get_data(dfield));
+				temp_heap = mem_heap_create(1000);
+
+				dptr = btr_copy_externally_stored_field(
+					&dlen, dptr,
+					page_size,
+					flen,
+					temp_heap);
+			} else {
+				dptr = static_cast<uchar*>(dfield->data);
+				dlen = dfield->len;
+			}
+
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(dlen
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS, mbr1);
+			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
+
+			/* Get the new mbr. */
+			if (dfield_is_ext(new_field)) {
+				if (flag == ROW_BUILD_FOR_UNDO
+				    && dict_table_has_atomic_blobs(
+					    index->table)) {
+					/* For undo, and the table is
+					Barrcuda, we need to skip the
+					prefix data. */
+					flen = BTR_EXTERN_FIELD_REF_SIZE;
+					ut_ad(dfield_get_len(new_field) >=
+					      BTR_EXTERN_FIELD_REF_SIZE);
+					dptr = static_cast<byte*>(
+						dfield_get_data(new_field))
+						+ dfield_get_len(new_field)
+						- BTR_EXTERN_FIELD_REF_SIZE;
+				} else {
+					flen = dfield_get_len(new_field);
+					dptr = static_cast<byte*>(
+						dfield_get_data(new_field));
+				}
+
+				if (temp_heap == NULL) {
+					temp_heap = mem_heap_create(1000);
+				}
+
+				dptr = btr_copy_externally_stored_field(
+					&dlen, dptr,
+					page_size,
+					flen,
+					temp_heap);
+			} else {
+				dptr = static_cast<uchar*>(upd_field->new_val.data);
+				dlen = upd_field->new_val.len;
+			}
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(dlen
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS, mbr2);
+			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
+
+			if (temp_heap) {
+				mem_heap_free(temp_heap);
+			}
+
+			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
+				return(TRUE);
+			} else {
+				continue;
+			}
+		}
 
 		/* This treatment of column prefix indexes is loosely
 		based on row_build_index_entry(). */
@@ -1319,40 +1421,6 @@ copy_dfield:
 			dfield_copy(&dfield_ext, dfield);
 			dfield_set_data(&dfield_ext, buf, dfield_len);
 			dfield = &dfield_ext;
-		}
-
-		/* For spatial index update, since the different geometry
-		data could generate same MBR, so, if the new index entry is
-		same as old entry, which means the MBR is not changed, we
-		don't need to do anything. */
-		if (dict_index_is_spatial(index) && i == 0) {
-			double		mbr1[SPDIMS * 2];
-			double		mbr2[SPDIMS * 2];
-			rtr_mbr_t*	old_mbr;
-			rtr_mbr_t*	new_mbr;
-			uchar*		dptr = NULL;
-			ulint		dlen = 0;
-
-			dptr = static_cast<uchar*>(dfield->data);
-			dlen = dfield->len;
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr1);
-			old_mbr = reinterpret_cast<rtr_mbr_t*>(mbr1);
-
-			dptr = static_cast<uchar*>(upd_field->new_val.data);
-			dlen = upd_field->new_val.len;
-			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   static_cast<uint>(dlen
-					   - GEO_DATA_HEADER_SIZE),
-					   SPDIMS, mbr2);
-			new_mbr = reinterpret_cast<rtr_mbr_t*>(mbr2);
-			if (!MBR_EQUAL_CMP(old_mbr, new_mbr)) {
-				return(TRUE);
-			} else {
-				continue;
-			}
 		}
 
 		if (!dfield_datas_are_binary_equal(
@@ -2562,9 +2630,6 @@ row_upd(
 
 	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 
-	/* Initialize last updated spatial index. */
-	thr_get_trx(thr)->last_upd_sp_index = NULL;
-
 	do {
 		/* Skip corrupted index */
 		dict_table_skip_corrupt_index(node->index);
@@ -2579,12 +2644,6 @@ row_upd(
 			if (err != DB_SUCCESS) {
 
 				DBUG_RETURN(err);
-			}
-
-			/* Set last updated spatial index. */
-			if (dict_index_is_spatial(node->index)) {
-				trx_t*	trx = thr_get_trx(thr);
-				trx->last_upd_sp_index = node->index;
 			}
 		}
 

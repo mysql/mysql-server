@@ -13,9 +13,9 @@
 #include <algorithm>
 #include <vector>
 
-#include <boost/assert.hpp>
 #include <boost/range.hpp>
 
+#include <boost/geometry/core/assert.hpp>
 #include <boost/geometry/core/tags.hpp>
 
 #include <boost/geometry/geometries/box.hpp>
@@ -77,7 +77,7 @@ public:
     static inline bool apply(MultiPoint1 const& multipoint1,
                              MultiPoint2 const& multipoint2)
     {
-        BOOST_ASSERT( boost::size(multipoint1) <= boost::size(multipoint2) );
+        BOOST_GEOMETRY_ASSERT( boost::size(multipoint1) <= boost::size(multipoint2) );
 
         typedef typename boost::range_value<MultiPoint1>::type point1_type;
 

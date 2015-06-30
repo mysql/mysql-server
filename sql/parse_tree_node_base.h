@@ -25,7 +25,7 @@
 #include "parse_location.h"
 
 class THD;
-class st_select_lex;
+class SELECT_LEX;
 
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
@@ -84,14 +84,10 @@ typedef YYLTYPE POS;
 struct Parse_context {
   THD * const thd;              ///< Current thread handler
   MEM_ROOT *mem_root;           ///< Current MEM_ROOT
-  st_select_lex * select;       ///< Current SELECT_LEX object
+  SELECT_LEX * select;          ///< Current SELECT_LEX object
 
-  Parse_context(THD *thd, st_select_lex *select);
+  Parse_context(THD *thd, SELECT_LEX *select);
 };
-
-
-// defined in sql_parse.cc:
-bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 
 
 /**
@@ -136,31 +132,11 @@ public:
     Do all context-sensitive things and mark the node as contextualized
 
     @param      pc      current parse context
-    
+
     @retval     false   success
     @retval     true    syntax/OOM/etc error
   */
-  virtual bool contextualize(Parse_context *pc)
-  {
-#ifndef DBUG_OFF
-    if (transitional)
-    {
-      DBUG_ASSERT(contextualized);
-      return false;
-    }
-#endif//DBUG_OFF
-
-    uchar dummy;
-    if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy))
-      return true;
-
-#ifndef DBUG_OFF
-    DBUG_ASSERT(!contextualized);
-    contextualized= true;
-#endif//DBUG_OFF
-
-    return false;
-  }
+  virtual bool contextualize(Parse_context *pc);
 
   /**
    Intermediate version of the contextualize() function

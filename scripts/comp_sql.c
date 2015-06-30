@@ -39,7 +39,8 @@
 FILE *in;
 FILE *out;
 
-static void die(const char *fmt, ...) __attribute__((noreturn));
+static void die(const char *fmt, ...)
+  __attribute__((noreturn)) __attribute__((format(printf, 1, 2)));
 
 static void die(const char *fmt, ...)
 {

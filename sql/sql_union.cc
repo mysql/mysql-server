@@ -174,7 +174,7 @@ void Query_result_union::cleanup()
   for send_eof(), which is executed only for the last query block).
 
   This Query_result is used when a UNION is not DISTINCT and doesn't
-  have a global ORDER BY clause. @see st_select_lex_unit::prepare().
+  have a global ORDER BY clause. @see SELECT_LEX_UNIT::prepare().
 */
 class Query_result_union_direct :public Query_result_union
 {
@@ -353,9 +353,9 @@ bool Query_result_union_direct::send_eof()
   @returns false if success, true if error
 */
 
-bool st_select_lex_unit::prepare_fake_select_lex(THD *thd_arg)
+bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg)
 {
-  DBUG_ENTER("st_select_lex_unit::prepare_fake_select_lex");
+  DBUG_ENTER("SELECT_LEX_UNIT::prepare_fake_select_lex");
 
   DBUG_ASSERT(thd_arg->lex->current_select() == fake_select_lex);
 
@@ -429,11 +429,11 @@ bool st_select_lex_unit::prepare_fake_select_lex(THD *thd_arg)
 
   @returns false if success, true if error
  */
-bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
+bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
                                  ulonglong added_options,
                                  ulonglong removed_options)
 {
-  DBUG_ENTER("st_select_lex_unit::prepare");
+  DBUG_ENTER("SELECT_LEX_UNIT::prepare");
 
   DBUG_ASSERT(!is_prepared());
 
@@ -648,9 +648,9 @@ err:
   @returns false if optimization successful, true if error
 */
 
-bool st_select_lex_unit::optimize(THD *thd)
+bool SELECT_LEX_UNIT::optimize(THD *thd)
 {
-  DBUG_ENTER("st_select_lex_unit::optimize");
+  DBUG_ENTER("SELECT_LEX_UNIT::optimize");
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
 
@@ -719,9 +719,9 @@ bool st_select_lex_unit::optimize(THD *thd)
   @return false if success, true if error
 */
 
-bool st_select_lex_unit::explain(THD *ethd)
+bool SELECT_LEX_UNIT::explain(THD *ethd)
 {
-  DBUG_ENTER("st_select_lex_unit::explain");
+  DBUG_ENTER("SELECT_LEX_UNIT::explain");
 
 #ifndef DBUG_OFF
   SELECT_LEX *lex_select_save= thd->lex->current_select();
@@ -772,9 +772,9 @@ bool st_select_lex_unit::explain(THD *ethd)
   @returns false if success, true if error
 */
 
-bool st_select_lex_unit::execute(THD *thd)
+bool SELECT_LEX_UNIT::execute(THD *thd)
 {
-  DBUG_ENTER("st_select_lex_unit::exec");
+  DBUG_ENTER("SELECT_LEX_UNIT::exec");
   DBUG_ASSERT(!is_simple() && is_optimized());
 
   if (is_executed() && !uncacheable)
@@ -870,9 +870,9 @@ bool st_select_lex_unit::execute(THD *thd)
   @return false if previous execution was successful, and true otherwise
 */
 
-bool st_select_lex_unit::cleanup(bool full)
+bool SELECT_LEX_UNIT::cleanup(bool full)
 {
-  DBUG_ENTER("st_select_lex_unit::cleanup");
+  DBUG_ENTER("SELECT_LEX_UNIT::cleanup");
 
   DBUG_ASSERT(thd == current_thd);
 
@@ -909,7 +909,7 @@ bool st_select_lex_unit::cleanup(bool full)
 
 
 #ifndef DBUG_OFF
-void st_select_lex_unit::assert_not_fully_clean()
+void SELECT_LEX_UNIT::assert_not_fully_clean()
 {
   DBUG_ASSERT(cleaned < UC_CLEAN);
   SELECT_LEX *sl= first_select();
@@ -933,7 +933,7 @@ void st_select_lex_unit::assert_not_fully_clean()
 #endif
 
 
-void st_select_lex_unit::reinit_exec_mechanism()
+void SELECT_LEX_UNIT::reinit_exec_mechanism()
 {
   prepared= optimized= executed= false;
 #ifndef DBUG_OFF
@@ -967,8 +967,8 @@ void st_select_lex_unit::reinit_exec_mechanism()
 */
 
 bool
-st_select_lex_unit::change_query_result(Query_result_interceptor *new_result,
-                                        Query_result_interceptor *old_result)
+SELECT_LEX_UNIT::change_query_result(Query_result_interceptor *new_result,
+                                     Query_result_interceptor *old_result)
 {
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
@@ -985,18 +985,18 @@ st_select_lex_unit::change_query_result(Query_result_interceptor *new_result,
   For a single query block the column types are taken from the list
   of selected items of this block.
 
-  For a union this function assumes that st_select_lex_unit::prepare()
+  For a union this function assumes that SELECT_LEX_UNIT::prepare()
   has been called and returns the type holders that were created for unioned
   column types of all query blocks.
 
   @note
     The implementation of this function should be in sync with
-    st_select_lex_unit::prepare()
+    SELECT_LEX_UNIT::prepare()
 
   @returns List of items as specified in function description
 */
 
-List<Item> *st_select_lex_unit::get_unit_column_types()
+List<Item> *SELECT_LEX_UNIT::get_unit_column_types()
 {
   DBUG_ASSERT(is_prepared());
 
@@ -1014,7 +1014,7 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
   @returns List containing fields of the query expression.
 */
 
-List<Item> *st_select_lex_unit::get_field_list()
+List<Item> *SELECT_LEX_UNIT::get_field_list()
 {
   DBUG_ASSERT(is_optimized());
 
@@ -1028,9 +1028,9 @@ List<Item> *st_select_lex_unit::get_field_list()
   @return false if previous execution was successful, and true otherwise
 */
 
-bool st_select_lex::cleanup(bool full)
+bool SELECT_LEX::cleanup(bool full)
 {
-  DBUG_ENTER("st_select_lex::cleanup()");
+  DBUG_ENTER("SELECT_LEX::cleanup()");
 
   bool error= false;
   if (join)
@@ -1056,7 +1056,7 @@ bool st_select_lex::cleanup(bool full)
 }
 
 
-void st_select_lex::cleanup_all_joins()
+void SELECT_LEX::cleanup_all_joins()
 {
   if (join)
     join->cleanup();

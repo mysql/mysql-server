@@ -986,7 +986,7 @@ private:
   /**
     The routine we call to actually log a line (i.e. our summary).
   */
-  void (*log_summary)(const char *, ...);
+  void (*log_summary)(const char *, ...) __attribute__((format(printf, 1, 2)));
 
   /**
     Actually print the prepared summary to log.
@@ -1003,7 +1003,8 @@ public:
     @param msg           use this template containing %lu as only non-literal
   */
   Error_log_throttle(ulong window_usecs,
-                     void (*logger)(const char*, ...),
+                     void (*logger)(const char*, ...)
+                       __attribute__((format(printf, 1, 2))),
                      const char *msg)
   : Log_throttle(window_usecs, msg), log_summary(logger)
   {}
