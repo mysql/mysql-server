@@ -1,3 +1,4 @@
+RESET MASTER;
 SET @start_global_value = @@global.gtid_executed;
 SELECT @start_global_value;
 @start_global_value
