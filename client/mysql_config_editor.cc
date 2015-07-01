@@ -377,7 +377,7 @@ int main(int argc, char *argv[])
   if (command > -1)
     rc= execute_commands(command);
 
-  if (rc == -1)
+  if (rc != 0)
   {
     my_perror("operation failed.");
     DBUG_RETURN(1);
@@ -702,8 +702,8 @@ error:
   Create the login file if it does not exist, check
   and set its permissions and modes.
 
-  @return -1              Error
-           0              Success
+  @return  TRUE           Error
+           FALSE          Success
 */
 
 static my_bool check_and_create_login_file(void)
@@ -832,10 +832,10 @@ static my_bool check_and_create_login_file(void)
       goto error;
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(FALSE);
 
 error:
-  DBUG_RETURN(-1);
+  DBUG_RETURN(TRUE);
 }
 
 
