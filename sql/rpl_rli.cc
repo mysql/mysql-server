@@ -1529,9 +1529,22 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       if (until_view_id.compare(view_event->get_view_id()) == 0)
       {
         set_group_replication_retrieved_certification_info(view_event);
-        DBUG_RETURN(true);
+        until_view_id_found= true;
+        DBUG_RETURN(false);
       }
     }
+
+    if (until_view_id_found && ev != NULL && ev->ends_group())
+    {
+      until_view_id_commit_found= true;
+      DBUG_RETURN(false);
+    }
+
+    if (until_view_id_commit_found && ev == NULL)
+    {
+      DBUG_RETURN(true);
+    }
+
     DBUG_RETURN(false);
     break;
 
