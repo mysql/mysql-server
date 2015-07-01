@@ -817,6 +817,23 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
   return false;
 }
 
+static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd, set_var *var)
+{
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (self->scope() != sys_var::GLOBAL)
+    return check_has_super(self, thd, var);
+  return false;
+}
+
 #ifdef HAVE_REPLICATION
 /**
   Check-function to @@GTID_NEXT system variable.
@@ -1054,7 +1071,7 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
        "The variable can only be set by users having the SUPER privilege.",
        SESSION_VAR(explicit_defaults_for_timestamp),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_super_outside_trx_outside_sf));
+       ON_CHECK(check_explicit_defaults_for_timestamp));
 
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
 {
