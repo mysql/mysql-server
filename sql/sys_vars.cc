@@ -790,6 +790,16 @@ static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
     return true;
   }
+  if (!thd->owned_gtid.is_empty())
+  {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    if (thd->owned_gtid.sidno > 0)
+      thd->owned_gtid.to_string(thd->owned_sid, buf);
+    else
+      strcpy(buf, "ANONYMOUS");
+    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->var->name.str, buf);
+    return true;
+  }
   return false;
 }
 
@@ -809,10 +819,7 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
 
 #ifdef HAVE_REPLICATION
 /**
-  Check-function to @@GTID_NEXT system variable. Essentially it's a
-  wrapper to @c check_super_outside_trx_outside_sf whose task is
-  temporarily mask server_status of prepared XA transaction before to
-  call the function.
+  Check-function to @@GTID_NEXT system variable.
 
   @param self   a pointer to the sys_var, i.e. gtid_next
   @param thd    a reference to THD object
@@ -821,25 +828,22 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
   @return @c false if the change is allowed, otherwise @c true.
 */
 
-static bool check_super_outside_prepared_trx_outside_sf(sys_var *self, THD *thd,
-                                                        set_var *var)
+static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 {
   bool is_prepared_trx=
     thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
-  bool rc=false;
 
-  if (is_prepared_trx)
+  if (thd->in_sub_stmt)
   {
-    DBUG_ASSERT(thd->in_active_multi_stmt_transaction());
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
   }
-  rc= check_super_outside_trx_outside_sf(self, thd, var);
-  if (is_prepared_trx)
+  if (!is_prepared_trx && thd->in_active_multi_stmt_transaction())
   {
-    thd->server_status|= SERVER_STATUS_IN_TRANS;
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
+    return true;
   }
-
-  return rc;
+  return check_has_super(self, thd, var);
 }
 #endif
 
@@ -5519,7 +5523,7 @@ static Sys_var_gtid_next Sys_gtid_next(
        "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_super_outside_prepared_trx_outside_sf));
+       NOT_IN_BINLOG, ON_CHECK(check_gtid_next));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(
