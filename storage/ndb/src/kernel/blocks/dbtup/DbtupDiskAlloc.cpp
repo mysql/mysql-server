@@ -28,8 +28,18 @@ NdbOut&
 operator<<(NdbOut& out, const Ptr<Dbtup::Page> & ptr)
 {
   out << "[ Page: ptr.i: " << ptr.i 
-      << " [ m_file_no: " << ptr.p->m_file_no
-      << " m_page_no: " << ptr.p->m_page_no << "]"
+      << " ["
+      << " m_m_page_lsn_hi: " << ptr.p->m_page_header.m_page_lsn_hi
+      << " m_m_page_lsn_lo: " << ptr.p->m_page_header.m_page_lsn_lo
+      << " m_page_type: " << ptr.p->m_page_header.m_page_type
+      << " m_file_no: " << ptr.p->m_file_no
+      << " m_page_no: " << ptr.p->m_page_no
+      << " m_table_id: " << ptr.p->m_table_id
+      << " m_fragment_id: " << ptr.p->m_fragment_id
+      << " m_extent_no: " << ptr.p->m_extent_no
+      << " m_extent_info_ptr: " << ptr.p->m_extent_info_ptr
+      << " m_restart_seq: " << ptr.p->m_restart_seq
+      << "]"
       << " list_index: " << ptr.p->list_index 
       << " free_space: " << ptr.p->free_space
       << " uncommitted_used_space: " << ptr.p->uncommitted_used_space
@@ -61,6 +71,12 @@ operator<<(NdbOut& out, const Ptr<Dbtup::Extent_info> & ptr)
   out << "[ Extent_info: ptr.i " << ptr.i
       << " " << ptr.p->m_key
       << " m_first_page_no: " << ptr.p->m_first_page_no
+      << " m_empty_page_no: " << ptr.p->m_empty_page_no
+      << " m_key: ["
+      << " m_file_no=" << ptr.p->m_key.m_file_no
+      << " m_page_no=" << ptr.p->m_key.m_page_no
+      << " m_page_idx=" << ptr.p->m_key.m_page_idx
+      << " ]"
       << " m_free_space: " << ptr.p->m_free_space
       << " m_free_matrix_pos: " << ptr.p->m_free_matrix_pos
       << " m_free_page_count: [";
@@ -855,6 +871,16 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
                                  Uint32 old_idx,
                                  Uint32 new_idx)
 {
+  if (extentPtr.p->m_free_page_count[old_idx] == 0)
+  {
+    // Additional printouts when following ddassert fails.
+    // The ddassert prints the alloc argument.
+    ndbout << "Dbtup::disk_page_move_dirty_page" << endl;
+    ndbout << "  extentPtr: " << extentPtr << endl;
+    ndbout << "  pagePtr: " << pagePtr << endl;
+    ndbout << "  old_idx: " << old_idx << endl;
+    ndbout << "  new_idx: " << new_idx << endl;
+  }
   ddassert(extentPtr.p->m_free_page_count[old_idx]);
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
