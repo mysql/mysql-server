@@ -12953,7 +12953,8 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   *ptr_buffer= LOGICAL_TIMESTAMP_TYPECODE;
   ptr_buffer+= LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
 
-  DBUG_ASSERT(sequence_number > last_committed);
+  DBUG_ASSERT((sequence_number == 0 && last_committed == 0) ||
+              (sequence_number > last_committed));
   DBUG_EXECUTE_IF("set_commit_parent_100",
                   { last_committed= max<int64>(sequence_number > 1 ? 1 : 0,
                                                sequence_number - 100); });
@@ -13583,8 +13584,6 @@ void View_change_log_event::print(FILE *file,
    }
 
    written_to_binlog= true;
-   //Set the event as sequencial to guarantee the correct order on MTS
-   common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
    return mysql_bin_log.write_event(this);
  }
 
