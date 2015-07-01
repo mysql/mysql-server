@@ -6255,10 +6255,8 @@ Field *Item::make_string_field(TABLE *table)
   For now, this is only used to create a field for
   IFNULL(x,something) and time functions
 
-  @retval
-    NULL  error
-  @retval
-    \#    Created field
+  @return Created field
+  @retval NULL  error
 */
 
 Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)

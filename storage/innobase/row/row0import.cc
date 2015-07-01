@@ -2872,7 +2872,7 @@ row_import_read_columns(
 }
 
 /*****************************************************************//**
-Read the contents of the <tablespace>.cfg file.
+Read the contents of the @<tablespace@>.cfg file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((warn_unused_result))
 dberr_t
@@ -3049,7 +3049,7 @@ row_import_read_v1(
 }
 
 /**
-Read the contents of the <tablespace>.cfg file.
+Read the contents of the @<tablespace@>.cfg file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((warn_unused_result))
 dberr_t
@@ -3092,7 +3092,7 @@ row_import_read_meta_data(
 }
 
 /**
-Read the contents of the <tablename>.cfg file.
+Read the contents of the @<tablename@>.cfg file.
 @return DB_SUCCESS or error code. */
 static	__attribute__((warn_unused_result))
 dberr_t

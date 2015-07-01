@@ -5210,8 +5210,6 @@ ha_find_files(THD *thd,const char *db,const char *path,
     HA_ERR_NO_SUCH_TABLE     Table does not exist
   @retval
     HA_ERR_TABLE_EXIST       Table exists
-  @retval
-    \#                  Error code
 */
 struct st_table_exists_in_engine_args
 {
@@ -6806,8 +6804,6 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     0			Found row
   @retval
     HA_ERR_END_OF_FILE	No rows in range
-  @retval
-    \#			Error code
 */
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
@@ -6860,8 +6856,6 @@ int handler::read_range_first(const key_range *start_key,
     0			Found row
   @retval
     HA_ERR_END_OF_FILE	No rows in range
-  @retval
-    \#			Error code
 */
 int handler::read_range_next()
 {

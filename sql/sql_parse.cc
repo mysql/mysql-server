@@ -5424,10 +5424,9 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
 
+  @return Pointer to TABLE_LIST element added to the total table list
   @retval
       0		Error
-  @retval
-    \#	Pointer to TABLE_LIST element added to the total table list
 */
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
@@ -5695,10 +5694,9 @@ TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
 
   @param thd         current thread
 
+  @return Pointer to TABLE_LIST element created for the new nested join
   @retval
     0  Error
-  @retval
-    \#  Pointer to TABLE_LIST element created for the new nested join
 */
 
 TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)

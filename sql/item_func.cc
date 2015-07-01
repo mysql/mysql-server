@@ -1583,10 +1583,9 @@ err:
 
   @param decimal_value	Buffer that can be used to store result
 
+  @return Value of operation as a decimal
   @retval
     0  Value was NULL;  In this case null_value is set
-  @retval
-    \# Value of operation as a decimal
 */
 
 my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)

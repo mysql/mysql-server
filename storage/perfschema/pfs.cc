@@ -104,7 +104,7 @@ static void report_memory_accounting_error(
   @page PAGE_PFS The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
 
-  @section INTRO Introduction
+  @section PFS_MAIN_INTRO Introduction
   The PERFORMANCE_SCHEMA is a way to introspect the internal execution of
   the server at runtime.
   The performance schema focuses primarily on performance data,
@@ -372,7 +372,7 @@ static void report_memory_accounting_error(
   @page PAGE_PFS_PSI Performance schema: instrumentation interface page.
   MySQL performance schema instrumentation interface.
 
-  @section INTRO Introduction
+  @section PFS_PSI_INTRO Introduction
 
   The instrumentation interface consist of two layers:
   - a raw ABI (Application Binary Interface) layer, that exposes the primitive
@@ -533,7 +533,7 @@ static inline int mysql_mutex_lock(...)
   @page PAGE_PFS_AGGREGATES Performance schema: the aggregates page.
   Performance schema aggregates.
 
-  @section INTRO Introduction
+  @section PFS_AGG_INTRO Introduction
 
   Aggregates tables are tables that can be formally defined as
   SELECT ... from EVENTS_WAITS_HISTORY_INFINITE ... group by 'group clause'.
