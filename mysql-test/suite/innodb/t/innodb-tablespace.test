@@ -201,7 +201,7 @@ SHOW WARNINGS;
 
 --echo # CREATE TEMPORARY compressed TABLE with DATA DIRECTORY is rejected in strict mode.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---error ER_ILLEGAL_HA
+--error ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB row_format=compressed $data_directory_clause;
 SHOW WARNINGS;
 
