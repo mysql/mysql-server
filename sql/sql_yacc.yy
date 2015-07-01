@@ -6533,10 +6533,12 @@ type:
               if (!YYTHD->variables.explicit_defaults_for_timestamp)
                 Lex->type|= NOT_NULL_FLAG;
               /*
-                To flag the current statement as dependent for binary logging
-                on the session var
+                To flag the current statement as dependent for binary
+                logging on the session var. Extra copying to Lex is
+                done in case prepared stmt.
               */
-              YYTHD->binlog_need_explicit_defaults_ts= true;
+              Lex->binlog_need_explicit_defaults_ts=
+                YYTHD->binlog_need_explicit_defaults_ts= true;
 
               $$=MYSQL_TYPE_TIMESTAMP2;
             }

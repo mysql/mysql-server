@@ -3934,7 +3934,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         */
         rewrite_query_if_needed(thd);
         log_execute_line(thd);
-
+        thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
         error= mysql_execute_command(thd);
         MYSQL_QUERY_EXEC_DONE(error);
       }
