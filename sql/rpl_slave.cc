@@ -9226,7 +9226,7 @@ bool flush_relay_logs_cmd(THD *thd)
           /*
             Log warning on SQL or worker threads.
           */
-          sql_print_warning(ER(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED),
+          sql_print_warning(ER_DEFAULT(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED),
                             "FLUSH RELAY LOGS", lex->mi.channel);
         }
         else
