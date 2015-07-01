@@ -1337,7 +1337,6 @@ static void init_plugin_psi_keys(void)
 int plugin_init(int *argc, char **argv, int flags)
 {
   uint i;
-  bool is_myisam;
   st_mysql_plugin **builtins;
   st_mysql_plugin *plugin;
   st_plugin_int tmp, *plugin_ptr, **reap;
@@ -1438,11 +1437,18 @@ int plugin_init(int *argc, char **argv, int flags)
       if (register_builtin(plugin, &tmp, &plugin_ptr))
         goto err_unlock;
 
-      /* only initialize MyISAM, InnoDB and CSV at this stage */
-      is_myisam= !my_strcasecmp(&my_charset_latin1, plugin->name, "MyISAM");
+      /*
+        Only initialize MyISAM, InnoDB and CSV at this stage.
+        Note that when the --help option is supplied, InnoDB is not
+        initialized because the plugin table will not be read anyway,
+        as indicated by the flag set when the plugin_init() function
+        is called.
+      */
+      bool is_myisam= !my_strcasecmp(&my_charset_latin1, plugin->name, "MyISAM");
+      bool is_innodb= !my_strcasecmp(&my_charset_latin1, plugin->name, "InnoDB");
       if (!is_myisam &&
-          my_strcasecmp(&my_charset_latin1, plugin->name, "CSV") &&
-          my_strcasecmp(&my_charset_latin1, plugin->name, "InnoDB"))
+          (!is_innodb || opt_help) &&
+          my_strcasecmp(&my_charset_latin1, plugin->name, "CSV"))
         continue;
 
       if (plugin_ptr->state != PLUGIN_IS_UNINITIALIZED ||
