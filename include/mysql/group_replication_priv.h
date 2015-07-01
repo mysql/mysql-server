@@ -78,16 +78,6 @@ void get_server_startup_prerequirements(Trans_context_info& requirements,
 
 
 /**
-  Returns if the server engine initialization as ended or not.
-
-  @return is the server ready
-    @retval false     not ready
-    @retval true      ready
-*/
-bool is_server_engine_ready();
-
-
-/**
   Returns the server GTID_EXECUTED encoded as a binary string.
 
   @note Memory allocated to encoded_gtid_executed must be release by caller.

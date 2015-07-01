@@ -1195,6 +1195,302 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   return tablespace_name;
 }
 
+
+/**
+  Auxiliary function which creates Field object from in-memory
+  representation of .FRM file.
+
+  @param         thd                   Connection context.
+  @param         share                 TABLE_SHARE for which Field object
+                                       needs to be constructed.
+  @param         new_frm_ver           .FRM file version.
+  @param         use_hash              Indicates whether we use hash or linear
+                                       search to lookup fields by name.
+  @param         field_idx             Field index in TABLE_SHARE::field array.
+  @param         strpos                Pointer to part of .FRM's screens
+                                       section describing the field to be
+                                       created.
+  @param         format_section_fields Array where each byte contains packed
+                                       values of COLUMN_FORMAT/STORAGE options
+                                       for corresponding column.
+  @param[in/out] comment_pos           Pointer to part of column comments
+                                       section of .FRM which corresponds
+                                       to current field. Advanced to the
+                                       position corresponding to comment
+                                       for the next column.
+  @param[in/out] gcol_screen_pos       Pointer to part of generated columns
+                                       section of .FRM which corresponds
+                                       to current generated field. If field
+                                       to be created is generated advanced
+                                       to the position for the next column
+  @param[in/out] null_pos              Current byte in the record preamble
+                                       to be used for field's null/leftover
+                                       bits if necessary.
+  @param[in/out] null_bit_pos          Current bit in the current preamble
+                                       byte to be used for field's null/
+                                       leftover bits if necessary.
+  @param[out]    errarg                Additional argument for the error to
+                                       be reported.
+
+  @retval 0      Success.
+  @retval non-0  Error number (@sa open_table_def() for details).
+*/
+
+static int make_field_from_frm(THD *thd,
+                               TABLE_SHARE *share,
+                               uint new_frm_ver,
+                               bool use_hash,
+                               uint field_idx,
+                               uchar *strpos,
+                               uchar *format_section_fields,
+                               char **comment_pos,
+                               char **gcol_screen_pos,
+                               uchar **null_pos,
+                               uint *null_bit_pos,
+                               int *errarg)
+{
+  uint pack_flag, interval_nr, unireg_type, recpos, field_length;
+  uint gcol_info_length=0;
+  enum_field_types field_type;
+  const CHARSET_INFO *charset=NULL;
+  Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
+  LEX_STRING comment;
+  Generated_column *gcol_info= 0;
+  bool fld_stored_in_db= true;
+  Field *reg_field;
+
+  if (new_frm_ver >= 3)
+  {
+    /* new frm file in 4.1 */
+    field_length= uint2korr(strpos+3);
+    recpos=	  uint3korr(strpos+5);
+    pack_flag=    uint2korr(strpos+8);
+    unireg_type=  (uint) strpos[10];
+    interval_nr=  (uint) strpos[12];
+    uint comment_length=uint2korr(strpos+15);
+    field_type=(enum_field_types) (uint) strpos[13];
+
+    /* charset and geometry_type share the same byte in frm */
+    if (field_type == MYSQL_TYPE_GEOMETRY)
+    {
+      geom_type= (Field::geometry_type) strpos[14];
+      charset= &my_charset_bin;
+    }
+    else
+    {
+      uint csid= strpos[14] + (((uint) strpos[11]) << 8);
+      if (!csid)
+        charset= &my_charset_bin;
+      else if (!(charset= get_charset(csid, MYF(0))))
+      {
+        // Unknown or unavailable charset
+        *errarg= (int) csid;
+        return 5;
+      }
+    }
+
+    if (!comment_length)
+    {
+      comment.str= (char*) "";
+      comment.length=0;
+    }
+    else
+    {
+      comment.str= *comment_pos;
+      comment.length= comment_length;
+      (*comment_pos)+= comment_length;
+    }
+
+    if (unireg_type & Field::GENERATED_FIELD)
+    {
+      /*
+        Get generated column data stored in the .frm file as follows:
+        byte 1      = 1 (always 1 to allow for future extensions)
+        byte 2,3    = expression length
+        byte 4      = flags, as of now:
+                        0 - no flags
+                        1 - field is physically stored
+        byte 5-...  = generated column expression (text data)
+      */
+      gcol_info= new Generated_column();
+      if ((uint)(*gcol_screen_pos)[0] != 1)
+        return 4;
+
+      gcol_info_length= uint2korr(*gcol_screen_pos + 1);
+      DBUG_ASSERT(gcol_info_length); // Expect non-null expression
+
+      fld_stored_in_db= (bool) (uint) (*gcol_screen_pos)[3];
+      gcol_info->set_field_stored(fld_stored_in_db);
+      gcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
+                                                   *gcol_screen_pos+
+                                                   (uint)FRM_GCOL_HEADER_SIZE,
+                                                   gcol_info_length);
+      gcol_info->expr_str.length= gcol_info_length;
+      (*gcol_screen_pos)+= gcol_info_length + FRM_GCOL_HEADER_SIZE;
+      share->vfields++;
+    }
+  }
+  else
+  {
+    field_length= (uint) strpos[3];
+    recpos=	    uint2korr(strpos+4),
+    pack_flag=    uint2korr(strpos+6);
+    pack_flag&=   ~FIELDFLAG_NO_DEFAULT;     // Safety for old files
+    unireg_type=  (uint) strpos[8];
+    interval_nr=  (uint) strpos[10];
+
+    /* old frm file */
+    field_type= (enum_field_types) f_packtype(pack_flag);
+    if (f_is_binary(pack_flag))
+    {
+      /*
+        Try to choose the best 4.1 type:
+        - for 4.0 "CHAR(N) BINARY" or "VARCHAR(N) BINARY"
+          try to find a binary collation for character set.
+        - for other types (e.g. BLOB) just use my_charset_bin.
+      */
+      if (!f_is_blob(pack_flag))
+      {
+        // 3.23 or 4.0 string
+        if (!(charset= get_charset_by_csname(share->table_charset->csname,
+                                             MY_CS_BINSORT, MYF(0))))
+          charset= &my_charset_bin;
+      }
+      else
+        charset= &my_charset_bin;
+    }
+    else
+      charset= share->table_charset;
+    memset(&comment, 0, sizeof(comment));
+  }
+
+  if (interval_nr && charset->mbminlen > 1)
+  {
+    /* Unescape UCS2 intervals from HEX notation */
+    TYPELIB *interval= share->intervals + interval_nr - 1;
+    unhex_type2(interval);
+  }
+
+  if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
+  {
+    /*
+      Fix pack length of old decimal values from 5.0.3 -> 5.0.4
+      The difference is that in the old version we stored precision
+      in the .frm table while we now store the display_length
+    */
+    uint decimals= f_decimals(pack_flag);
+    field_length= my_decimal_precision_to_length(field_length,
+                                                 decimals,
+                                                 f_is_dec(pack_flag) == 0);
+    sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
+                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                    share->fieldnames.type_names[field_idx],
+                    share->table_name.str,
+                    share->table_name.str);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_CRASHED_ON_USAGE,
+                        "Found incompatible DECIMAL field '%s' in %s; "
+                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        share->fieldnames.type_names[field_idx],
+                        share->table_name.str,
+                        share->table_name.str);
+    share->crashed= 1;                        // Marker for CHECK TABLE
+  }
+
+  if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
+  {
+    sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
+                    "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                    share->fieldnames.type_names[field_idx],
+                    share->table_name.str,
+                    share->table_name.str);
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_CRASHED_ON_USAGE,
+                        "Found incompatible YEAR(x) field '%s' in %s; "
+                        "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
+                        share->fieldnames.type_names[field_idx],
+                        share->table_name.str,
+                        share->table_name.str);
+    share->crashed= 1;
+  }
+
+  share->field[field_idx]= reg_field=
+    make_field(share,
+               share->default_values - 1 + recpos, // recpos starts from 1.
+               (uint32) field_length,
+               *null_pos, *null_bit_pos,
+               pack_flag,
+               field_type,
+               charset,
+               geom_type,
+               (Field::utype) MTYP_TYPENR(unireg_type),
+               (interval_nr ?
+                share->intervals+interval_nr-1 :
+                (TYPELIB*) 0),
+               share->fieldnames.type_names[field_idx]);
+  if (!reg_field)
+  {
+    // Not supported field type
+    return 4;
+  }
+
+  reg_field->field_index= field_idx;
+  reg_field->comment=comment;
+  reg_field->gcol_info= gcol_info;
+  reg_field->stored_in_db= fld_stored_in_db;
+  if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
+  {
+    if (((*null_bit_pos)+= field_length & 7) > 7)
+    {
+      (*null_pos)++;
+      (*null_bit_pos)-= 8;
+    }
+  }
+  if (!(reg_field->flags & NOT_NULL_FLAG))
+  {
+    if (!(*null_bit_pos= (*null_bit_pos + 1) & 7))
+      (*null_pos)++;
+  }
+  if (f_no_default(pack_flag))
+    reg_field->flags|= NO_DEFAULT_VALUE_FLAG;
+
+  if (reg_field->unireg_check == Field::NEXT_NUMBER)
+    share->found_next_number_field= share->field + field_idx;
+
+  if (use_hash)
+    if (my_hash_insert(&share->name_hash, (uchar*)(share->field + field_idx)))
+    {
+      /*
+        Set return code 8 here to indicate that an error has
+        occurred but that the error message already has been
+        sent (OOM).
+      */
+      return 8;
+    }
+
+  if (format_section_fields)
+  {
+    const uchar field_flags= format_section_fields[field_idx];
+    const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
+    const uchar field_column_format=
+      ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
+    DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
+                         field_flags, field_storage, field_column_format));
+    reg_field->set_storage_type((ha_storage_media)field_storage);
+    reg_field->set_column_format((column_format_type)field_column_format);
+  }
+
+  if (!reg_field->stored_in_db)
+  {
+    share->stored_fields--;
+    if (share->stored_rec_length>=recpos)
+      share->stored_rec_length= recpos-1;
+  }
+
+  return 0;
+}
+
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 
@@ -1216,6 +1512,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   bool use_extended_sk;   // Supported extending of secondary keys with PK parts
   bool use_hash;
   char *keynames, *names, *comment_pos, *gcol_screen_pos;
+  char *orig_comment_pos, *orig_gcol_screen_pos;
   uchar forminfo[288];
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
@@ -1224,13 +1521,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
-  Field  **field_ptr, *reg_field;
+  Field  **field_ptr;
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
   uchar *extra_segment_buff= 0;
   const uint format_section_header_size= 8;
   uchar *format_section_fields= 0;
+  bool has_vgc= false;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -1759,10 +2057,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->intervals= 0;			// For better debugging
   memcpy(names, strpos+(share->fields*field_pack_length),
 	 (uint) (n_length+int_length));
-  comment_pos= names+(n_length+int_length);
+  orig_comment_pos= comment_pos= names+(n_length+int_length);
   memcpy(comment_pos, disk_buff+read_length-com_length-gcol_screen_length, 
          com_length);
-  gcol_screen_pos= names+(n_length+int_length+com_length);
+  orig_gcol_screen_pos= gcol_screen_pos= names+(n_length+int_length+com_length);
   memcpy(gcol_screen_pos, disk_buff+read_length-gcol_screen_length, 
          gcol_screen_length);
 
@@ -1803,10 +2101,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (handler_file->set_ha_share_ref(&share->ha_share))
     goto err;
 
-  record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
   {
-    null_flags= null_pos= record+1;
+    null_flags= null_pos= share->default_values;
     null_bit_pos= (db_create_options & HA_OPTION_PACK_RECORD) ? 0 : 1;
     /*
       null_bytes below is only correct under the condition that
@@ -1818,8 +2115,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   else
   {
     share->null_bytes= (share->null_fields+7)/8;
-    null_flags= null_pos= (uchar*) (record + 1 +share->reclength -
-                                    share->null_bytes);
+    null_flags= null_pos= share->default_values + share->reclength -
+                          share->null_bytes;
     null_bit_pos= 0;
   }
 
@@ -1831,246 +2128,82 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             (my_hash_get_key) get_field_name,0,0,
                             PSI_INSTRUMENT_ME);
 
-  for (i=0 ; i < share->fields; i++, strpos+=field_pack_length, field_ptr++)
+  for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
   {
-    uint pack_flag, interval_nr, unireg_type, recpos, field_length;
-    uint gcol_info_length=0;
-    enum_field_types field_type;
-    const CHARSET_INFO *charset=NULL;
-    Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
-    LEX_STRING comment;
-    Generated_column *gcol_info= 0;
-    bool fld_stored_in_db= true;
-
-    if (new_frm_ver >= 3)
+    if (new_frm_ver >= 3 &&
+        (strpos[10] & Field::GENERATED_FIELD) && // Field::unireg_check
+        ! (bool) (uint) (gcol_screen_pos[3]))    // Field::stored_in_db
     {
-      /* new frm file in 4.1 */
-      field_length= uint2korr(strpos+3);
-      recpos=	    uint3korr(strpos+5);
-      pack_flag=    uint2korr(strpos+8);
-      unireg_type=  (uint) strpos[10];
-      interval_nr=  (uint) strpos[12];
-      uint comment_length=uint2korr(strpos+15);
-      field_type=(enum_field_types) (uint) strpos[13];
+      /*
+        Skip virtual generated columns as we will do separate pass for them.
 
-      /* charset and geometry_type share the same byte in frm */
-      if (field_type == MYSQL_TYPE_GEOMETRY)
-      {
-	geom_type= (Field::geometry_type) strpos[14];
-	charset= &my_charset_bin;
-      }
-      else
-      {
-        uint csid= strpos[14] + (((uint) strpos[11]) << 8);
-        if (!csid)
-          charset= &my_charset_bin;
-        else if (!(charset= get_charset(csid, MYF(0))))
-        {
-          error= 5; // Unknown or unavailable charset
-          errarg= (int) csid;
-          goto err;
-        }
-      }
-
-      if (!comment_length)
-      {
-	comment.str= (char*) "";
-	comment.length=0;
-      }
-      else
-      {
-	comment.str=    comment_pos;
-	comment.length= comment_length;
-	comment_pos+=   comment_length;
-      }
-
-      if (unireg_type & Field::GENERATED_FIELD)
-      {
-        /*
-          Get generated column data stored in the .frm file as follows:
-          byte 1      = 1 (always 1 to allow for future extensions)
-          byte 2,3    = expression length
-          byte 4      = flags, as of now:
-                          0 - no flags
-                          1 - field is physically stored
-          byte 5-...  = generated column expression (text data)
-        */
-        gcol_info= new Generated_column();
-        if ((uint)gcol_screen_pos[0] != 1)
-        {
-          error= 4;
-          goto err;
-        }
-
-        gcol_info_length= uint2korr(gcol_screen_pos + 1);
-        DBUG_ASSERT(gcol_info_length); // Expect non-null expression
-
-        fld_stored_in_db= (bool) (uint) gcol_screen_pos[3];
-        gcol_info->set_field_stored(fld_stored_in_db);
-        gcol_info->expr_str.str= (char *)memdup_root(&share->mem_root,
-                                                     gcol_screen_pos+
-                                                       (uint)FRM_GCOL_HEADER_SIZE,
-                                                     gcol_info_length);
-        gcol_info->expr_str.length= gcol_info_length;
-        gcol_screen_pos+= gcol_info_length + FRM_GCOL_HEADER_SIZE;
-        share->vfields++;
-      }
+        We still need to advance pointers to current comment and generated
+        column info in for such fields.
+      */
+      comment_pos+= uint2korr(strpos+15);
+      gcol_screen_pos+= uint2korr(gcol_screen_pos + 1) + FRM_GCOL_HEADER_SIZE;
+      has_vgc= true;
     }
     else
     {
-      field_length= (uint) strpos[3];
-      recpos=	    uint2korr(strpos+4),
-      pack_flag=    uint2korr(strpos+6);
-      pack_flag&=   ~FIELDFLAG_NO_DEFAULT;     // Safety for old files
-      unireg_type=  (uint) strpos[8];
-      interval_nr=  (uint) strpos[10];
-
-      /* old frm file */
-      field_type= (enum_field_types) f_packtype(pack_flag);
-      if (f_is_binary(pack_flag))
-      {
-        /*
-          Try to choose the best 4.1 type:
-          - for 4.0 "CHAR(N) BINARY" or "VARCHAR(N) BINARY" 
-            try to find a binary collation for character set.
-          - for other types (e.g. BLOB) just use my_charset_bin. 
-        */
-        if (!f_is_blob(pack_flag))
-        {
-          // 3.23 or 4.0 string
-          if (!(charset= get_charset_by_csname(share->table_charset->csname,
-                                               MY_CS_BINSORT, MYF(0))))
-            charset= &my_charset_bin;
-        }
-        else
-          charset= &my_charset_bin;
-      }
-      else
-        charset= share->table_charset;
-      memset(&comment, 0, sizeof(comment));
-    }
-
-    if (interval_nr && charset->mbminlen > 1)
-    {
-      /* Unescape UCS2 intervals from HEX notation */
-      TYPELIB *interval= share->intervals + interval_nr - 1;
-      unhex_type2(interval);
-    }
-
-    if (field_type == MYSQL_TYPE_NEWDECIMAL && !share->mysql_version)
-    {
-      /*
-        Fix pack length of old decimal values from 5.0.3 -> 5.0.4
-        The difference is that in the old version we stored precision
-        in the .frm table while we now store the display_length
-      */
-      uint decimals= f_decimals(pack_flag);
-      field_length= my_decimal_precision_to_length(field_length,
-                                                   decimals,
-                                                   f_is_dec(pack_flag) == 0);
-      sql_print_error("Found incompatible DECIMAL field '%s' in %s; "
-                      "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                      share->fieldnames.type_names[i], share->table_name.str,
-                      share->table_name.str);
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_CRASHED_ON_USAGE,
-                          "Found incompatible DECIMAL field '%s' in %s; "
-                          "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                          share->fieldnames.type_names[i],
-                          share->table_name.str,
-                          share->table_name.str);
-      share->crashed= 1;                        // Marker for CHECK TABLE
-    }
-
-    if (field_type == MYSQL_TYPE_YEAR && field_length != 4)
-    {
-      sql_print_error("Found incompatible YEAR(x) field '%s' in %s; "
-                      "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                      share->fieldnames.type_names[i], share->table_name.str,
-                      share->table_name.str);
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_CRASHED_ON_USAGE,
-                          "Found incompatible YEAR(x) field '%s' in %s; "
-                          "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
-                          share->fieldnames.type_names[i],
-                          share->table_name.str,
-                          share->table_name.str);
-      share->crashed= 1;
-    }
-
-    *field_ptr= reg_field=
-      make_field(share, record+recpos,
-		 (uint32) field_length,
-		 null_pos, null_bit_pos,
-		 pack_flag,
-		 field_type,
-		 charset,
-		 geom_type,
-		 (Field::utype) MTYP_TYPENR(unireg_type),
-		 (interval_nr ?
-		  share->intervals+interval_nr-1 :
-		  (TYPELIB*) 0),
-		 share->fieldnames.type_names[i]);
-    if (!reg_field)				// Not supported field type
-    {
-      error= 4;
-      goto err;			/* purecov: inspected */
-    }
-
-    reg_field->field_index= i;
-    reg_field->comment=comment;
-    reg_field->gcol_info= gcol_info;
-    reg_field->stored_in_db= fld_stored_in_db;
-    if (field_type == MYSQL_TYPE_BIT && !f_bit_as_char(pack_flag))
-    {
-      if ((null_bit_pos+= field_length & 7) > 7)
-      {
-        null_pos++;
-        null_bit_pos-= 8;
-      }
-    }
-    if (!(reg_field->flags & NOT_NULL_FLAG))
-    {
-      if (!(null_bit_pos= (null_bit_pos + 1) & 7))
-        null_pos++;
-    }
-    if (f_no_default(pack_flag))
-      reg_field->flags|= NO_DEFAULT_VALUE_FLAG;
-
-    if (reg_field->unireg_check == Field::NEXT_NUMBER)
-      share->found_next_number_field= field_ptr;
-
-    if (use_hash)
-      if (my_hash_insert(&share->name_hash, (uchar*) field_ptr) )
-      {
-        /*
-          Set return code 8 here to indicate that an error has
-          occurred but that the error message already has been
-          sent (OOM).
-        */
-        error= 8; 
+      if ((error= make_field_from_frm(thd, share,
+                                      new_frm_ver, use_hash,
+                                      i, strpos,
+                                      format_section_fields,
+                                      &comment_pos,
+                                      &gcol_screen_pos,
+                                      &null_pos,
+                                      &null_bit_pos,
+                                      &errarg)))
         goto err;
-      }
-
-    if (format_section_fields)
-    {
-      const uchar field_flags= format_section_fields[i];
-      const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
-      const uchar field_column_format=
-        ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
-      DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
-                           field_flags, field_storage, field_column_format));
-      reg_field->set_storage_type((ha_storage_media)field_storage);
-      reg_field->set_column_format((column_format_type)field_column_format);
-    }
-    if (!reg_field->stored_in_db)
-    {
-      share->stored_fields--;
-      if (share->stored_rec_length>=recpos)
-        share->stored_rec_length= recpos-1;
     }
   }
-  *field_ptr=0;					// End marker
+
+  if (has_vgc)
+  {
+    /*
+      We need to do separate pass through field descriptions for virtual
+      generated columns to ensure that they get allocated null/leftover
+      bits at the tail of record preamble.
+    */
+    strpos= disk_buff+pos;
+    comment_pos= orig_comment_pos;
+    gcol_screen_pos= orig_gcol_screen_pos;
+    // Generated columns can be present only in new .FRMs.
+    DBUG_ASSERT(new_frm_ver >= 3);
+    for (i=0 ; i < share->fields; i++, strpos+=field_pack_length)
+    {
+      if ((strpos[10] & Field::GENERATED_FIELD) && // Field::unireg_check
+          !(bool) (uint) (gcol_screen_pos[3]))     // Field::stored_in_db
+      {
+        if ((error= make_field_from_frm(thd, share,
+                                        new_frm_ver, use_hash,
+                                        i, strpos,
+                                        format_section_fields,
+                                        &comment_pos,
+                                        &gcol_screen_pos,
+                                        &null_pos,
+                                        &null_bit_pos,
+                                        &errarg)))
+          goto err;
+      }
+      else
+      {
+        /*
+          Advance pointers to current comment and generated columns
+          info for stored fields.
+        */
+        comment_pos+= uint2korr(strpos+15);
+        if (strpos[10] & Field::GENERATED_FIELD) // Field::unireg_check
+        {
+          gcol_screen_pos+= uint2korr(gcol_screen_pos + 1) +
+                            FRM_GCOL_HEADER_SIZE;
+        }
+      }
+    }
+  }
+  error= 4;
+  share->field[share->fields]= 0; // End marker
   /* Sanity checks: */
   DBUG_ASSERT(share->fields >= share->stored_fields);
   DBUG_ASSERT(share->reclength >= share->stored_rec_length);
@@ -2282,7 +2415,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   if (share->found_next_number_field)
   {
-    reg_field= *share->found_next_number_field;
+    Field *reg_field= *share->found_next_number_field;
     if ((int) (share->next_number_index= (uint)
 	       find_ref_key(share->key_info, share->keys,
                             share->default_values, reg_field,
