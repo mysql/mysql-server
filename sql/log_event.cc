@@ -3689,13 +3689,6 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 3;
   }
 
-  if (charset_inited)
-  {
-    *start++= Q_CHARSET_CODE;
-    memcpy(start, charset, 6);
-    start+= 6;
-  }
-
   if (thd && thd->binlog_need_explicit_defaults_ts == true)
   {
     *start++= Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP;

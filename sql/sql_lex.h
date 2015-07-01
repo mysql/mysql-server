@@ -3339,7 +3339,11 @@ public:
 
   // Maximum execution time for a statement.
   ulong max_execution_time;
-
+  /*
+    To flag the current statement as dependent for binary logging
+    on explicit_defaults_for_timestamp
+  */
+  bool binlog_need_explicit_defaults_ts;
   LEX();
 
   virtual ~LEX();

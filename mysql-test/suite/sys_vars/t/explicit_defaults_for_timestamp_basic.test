@@ -1,6 +1,8 @@
 #
 # show the global and session values;
 #
+--source include/not_embedded.inc
+
 select @@global.explicit_defaults_for_timestamp into @save_global_explicit_defaults_for_timestamp;
 select @@session.explicit_defaults_for_timestamp into @save_session_explicit_defaults_for_timestamp;
 show global variables like 'explicit_defaults_for_timestamp';
