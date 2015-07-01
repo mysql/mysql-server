@@ -7493,6 +7493,9 @@ ER_VTOKEN_PLUGIN_TOKEN_NOT_FOUND
 ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID
   eng "Variable %-.192s cannot be changed by a client that owns a GTID. The client owns %s. Ownership is released on COMMIT or ROLLBACK."
 
+ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+   eng "%-.192s cannot be performed on channel '%-.192s'."
+
 #
 #  End of 5.7 error messages.
 #

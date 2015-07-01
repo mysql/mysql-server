@@ -550,22 +550,6 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
 
   if (first_event)
   {
-    if (sequence_number == SEQ_UNINIT)
-    {
-      /*
-        Either master is old, or the current group of events is malformed.
-        In either case execution is allowed in effectively sequential mode, and warned.
-      */
-      sql_print_warning("Either event (relay log name:position) (%s:%llu) "
-                        "is from an old master therefore is not tagged "
-                        "with logical timestamps, or the current group of "
-                        "events miss a proper group header event. Execution is "
-                        "proceeded, but it is recommended to make sure "
-                        "replication is resumed from a valid start group "
-                        "position.",
-                        rli->get_event_relay_log_name(),
-                        rli->get_event_relay_log_pos());
-    }
     first_event= false;
   }
   else

@@ -270,6 +270,8 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
     global_system_variables.transaction_write_set_extraction;
   requirements.mi_repository_type= opt_mi_repository_id;
   requirements.rli_repository_type= opt_rli_repository_id;
+  requirements.parallel_applier_type= mts_parallel_option;
+  requirements.parallel_applier_workers= opt_mts_slave_parallel_workers;
 }
 #endif //HAVE_REPLICATION
 
