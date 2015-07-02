@@ -5381,6 +5381,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
           pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
           pfs->m_sql_errno= da->mysql_errno();
           memcpy(pfs->m_sqlstate, da->returned_sqlstate(), SQLSTATE_LENGTH);
+          pfs->m_error_count++;
           break;
         case Diagnostics_area::DA_DISABLED:
           break;
