@@ -2975,7 +2975,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         (rli->curr_group_da.back().data->
          get_type_code() == binary_log::DELETE_FILE_EVENT);
 
-      DBUG_ASSERT(!ends_group() ||
+      DBUG_ASSERT((!ends_group() ||
+                   (get_type_code() == binary_log::QUERY_EVENT &&
+                    static_cast<Query_log_event*>(this)->
+                    is_query_prefix_match(STRING_WITH_LEN("XA ROLLBACK")))) ||
                   empty_group_with_gtids ||
                   (rli->mts_end_group_sets_max_dbs &&
                    (begin_load_query_event || delete_file_event)));
@@ -3475,7 +3478,7 @@ bool Query_log_event::write(IO_CACHE* file)
     logging a query executed by this thread; the slave runs with
     --log-slave-updates). Then this query will be logged with
     thread_id=the_thread_id_of_the_SQL_thread. Imagine that 2 temp tables of
-    the same name were created simultaneously on the master (in the master
+    the same name were created simultaneously on the master (in the masters
     binlog you have
     CREATE TEMPORARY TABLE t; (thread 1)
     CREATE TEMPORARY TABLE t; (thread 2)
