@@ -175,6 +175,9 @@ while ($_rpl_server)
   --dec $_rpl_server
 }
 
+# reset as next test can be any of rpl or group_replication
+--let $using_rpl_group_replication_default_connections= 0
+
 --let $rpl_inited= 0
 --let $_rpl_server_count=
 --let $rpl_multi_source= 0
