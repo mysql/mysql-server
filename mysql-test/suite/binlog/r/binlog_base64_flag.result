@@ -51,9 +51,10 @@ CREATE TABLE t1 (a int) engine = myisam
 BEGIN
 /*!*/;
 # at 305
-<#>DELIMITER ;
+<#>ROLLBACK /* added by mysqlbinlog */ /*!*/;
+SET @@SESSION.GTID_NEXT= 'AUTOMATIC' /* added by mysqlbinlog */ /*!*/;
+DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 ==== Test non-matching FD event and Row event ====

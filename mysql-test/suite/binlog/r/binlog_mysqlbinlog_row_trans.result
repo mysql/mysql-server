@@ -509,12 +509,11 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 TRUNCATE TABLE t2
 /*!*/;
-SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
-ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 #
