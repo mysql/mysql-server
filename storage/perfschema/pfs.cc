@@ -19,6 +19,19 @@
 */
 #include "my_global.h"
 #include "thr_lock.h"
+
+/* Make sure exported prototypes match the implementation. */
+#include "pfs_file_provider.h"
+#include "pfs_idle_provider.h"
+#include "pfs_memory_provider.h"
+#include "pfs_metadata_provider.h"
+#include "pfs_socket_provider.h"
+#include "pfs_stage_provider.h"
+#include "pfs_statement_provider.h"
+#include "pfs_table_provider.h"
+#include "pfs_thread_provider.h"
+#include "pfs_transaction_provider.h"
+
 #include "mysql/psi/psi.h"
 #include "mysql/psi/mysql_thread.h"
 #include "my_thread.h"
@@ -6336,7 +6349,7 @@ void pfs_register_memory_v1(const char *category,
                    register_memory_class)
 }
 
-static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);
@@ -6406,7 +6419,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_t
   return key;
 }
 
-static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner)
+PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread_hdl= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner != NULL);
@@ -6484,7 +6497,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
   return key;
 }
 
-static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);
@@ -6549,7 +6562,7 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_t
   return key;
 }
 
-static void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
+void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
