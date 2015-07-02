@@ -1490,7 +1490,8 @@ public:        /* !!! Public in this patch to allow old usage */
     return
       !strncmp(query, "COMMIT", q_len) ||
       (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
-       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
+       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO "))) ||
+      !strncmp(query, STRING_WITH_LEN("XA ROLLBACK"));
   }
   static size_t get_query(const char *buf, size_t length,
                           const Format_description_log_event *fd_event,
