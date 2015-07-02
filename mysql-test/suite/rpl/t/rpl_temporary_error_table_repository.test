@@ -16,10 +16,9 @@
 # This test case is binary log format agnostic though.
 --source include/have_binlog_format_row.inc
 --source include/not_mts_slave_parallel_workers.inc
- 
-# TODO: Use this in 5.7:
-#--source include/have_slave_repository_type_file.inc
+--source include/have_slave_repository_type_table.inc
 --let $repo_type_name = 'TABLE'
+--source include/not_group_replication_plugin.inc
 
 --source include/master-slave.inc
 
