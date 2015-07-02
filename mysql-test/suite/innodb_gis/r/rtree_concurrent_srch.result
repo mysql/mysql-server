@@ -296,6 +296,7 @@ end|
 start transaction;
 CALL insert_t1(100);
 set @g1 = ST_GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
+SET SESSION debug="+d,rtr_pcur_move_to_next_return";
 SET DEBUG_SYNC= 'rtr_pcur_move_to_next_return SIGNAL siga WAIT_FOR sigb';
 select count(*) from t1 where MBRWithin(t1.c2, @g1);;
 SET DEBUG_SYNC= 'now WAIT_FOR siga';
@@ -303,6 +304,7 @@ rollback;
 SET DEBUG_SYNC= 'now SIGNAL sigb';
 count(*)
 0
+SET SESSION debug="-d,rtr_pcur_move_to_next_return";
 drop procedure insert_t1;
 DROP TABLE t1;
 SET DEBUG_SYNC = 'RESET';
