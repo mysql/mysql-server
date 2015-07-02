@@ -4186,7 +4186,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     bool can_stop_reading= false;
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
-                        rit->c_str(), reached_first_file));
+                        reached_first_file ? "" : rit->c_str(), reached_first_file));
     while (!can_stop_reading && !reached_first_file)
     {
       const char *filename= rit->c_str();
