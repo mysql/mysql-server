@@ -111,7 +111,7 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-# Boost Geometry source has unused local typedefs.
+# Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
@@ -120,6 +120,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     ../sql/item_geofunc_relchecks.cc
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
+    ../sql/item_json_func.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
