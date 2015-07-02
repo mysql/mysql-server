@@ -98,6 +98,12 @@ using std::max;
   case SESSION_TRACK_GTIDS:                                                    \
     dynstr_append(ds, "Tracker : SESSION_TRACK_GTIDS\n");                      \
     break;                                                                     \
+  case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:                              \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_TRANSACTION_CHARACTERISTICS\n");\
+    break;                                                                     \
+  case SESSION_TRACK_TRANSACTION_STATE:                                        \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_TRANSACTION_STATE\n");          \
+    break;                                                                     \
   default:                                                                     \
     dynstr_append(ds, "\n");                                                   \
   }                                                                            \
