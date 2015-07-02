@@ -389,7 +389,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
     DBUG_RETURN(true);
-  gtid_string= slave_gtid_executed.to_string();
+  slave_gtid_executed.to_string(&gtid_string);
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
                       "'%s'.", thd->server_id, name, pos, gtid_string));
 

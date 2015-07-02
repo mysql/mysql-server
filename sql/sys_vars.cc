@@ -5571,10 +5571,10 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   bool error= false;
 
   global_sid_lock->wrlock();
-  char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-  char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-  char *current_gtid_executed= NULL;
-  char *current_gtid_lost= NULL;
+  char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
+    *current_gtid_executed= NULL, *current_gtid_purged= NULL;
+  gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&previous_gtid_purged);
   enum_return_status ret;
   Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
                     &ret, global_sid_lock);
@@ -5591,21 +5591,21 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
     error= true;
     goto end;
   }
-  current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-  current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
   global_sid_lock->unlock();
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   sql_print_information(ER_DEFAULT(ER_GTID_PURGED_WAS_CHANGED),
-                        previous_gtid_lost, current_gtid_lost);
+                        previous_gtid_purged, current_gtid_purged);
   sql_print_information(ER_DEFAULT(ER_GTID_EXECUTED_WAS_CHANGED),
                         previous_gtid_executed, current_gtid_executed);
 
 end:
   my_free(previous_gtid_executed);
-  my_free(previous_gtid_lost);
+  my_free(previous_gtid_purged);
   my_free(current_gtid_executed);
-  my_free(current_gtid_lost);
+  my_free(current_gtid_purged);
   DBUG_RETURN(error);
 #else
   DBUG_RETURN(true);

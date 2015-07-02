@@ -955,10 +955,14 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
     const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
+    char *wait_gtid_set_buf;
+    wait_gtid_set->to_string(&wait_gtid_set_buf);
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
                         "!is_intersection_nonempty: %d",
-      wait_gtid_set->to_string(), wait_gtid_set->is_subset(executed_gtids),
-      !owned_gtids->is_intersection_nonempty(wait_gtid_set)));
+                        wait_gtid_set_buf,
+                        wait_gtid_set->is_subset(executed_gtids),
+                        !owned_gtids->is_intersection_nonempty(wait_gtid_set)));
+    my_free(wait_gtid_set_buf);
     executed_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -1442,7 +1446,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
       if (until_sql_gtids.is_intersection_nonempty(executed_gtids))
       {
-        char *buffer= until_sql_gtids.to_string();
+        char *buffer;
+        until_sql_gtids.to_string(&buffer);
         global_sid_lock->unlock();
         sql_print_information("Slave SQL thread stopped because "
                               "UNTIL SQL_BEFORE_GTIDS %s is already "
@@ -1458,7 +1463,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       global_sid_lock->rdlock();
       if (until_sql_gtids.contains_gtid(gev->get_sidno(false), gev->get_gno()))
       {
-        char *buffer= until_sql_gtids.to_string();
+        char *buffer;
+        until_sql_gtids.to_string(&buffer);
         global_sid_lock->unlock();
         sql_print_information("Slave SQL thread stopped because it reached "
                               "UNTIL SQL_BEFORE_GTIDS %s", buffer);
@@ -1476,7 +1482,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
       if (until_sql_gtids.is_subset(executed_gtids))
       {
-        char *buffer= until_sql_gtids.to_string();
+        char *buffer;
+        until_sql_gtids.to_string(&buffer);
         global_sid_lock->unlock();
         sql_print_information("Slave SQL thread stopped because it reached "
                               "UNTIL SQL_AFTER_GTIDS %s", buffer);

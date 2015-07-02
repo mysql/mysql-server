@@ -4765,6 +4765,9 @@ int mysqld_main(int argc, char **argv)
 
     global_sid_lock->wrlock();
 
+    purged_gtids_from_binlog.dbug_print("purged_gtids_from_binlog");
+    gtids_in_binlog.dbug_print("gtids_in_binlog");
+
     if (!gtids_in_binlog.is_empty() &&
         !gtids_in_binlog.is_subset(executed_gtids))
     {
