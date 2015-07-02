@@ -523,3 +523,11 @@ max-time : 600
 cmd: testNodeRestart
 args: -n GetTabInfoOverload T1
 
+max-time : 600
+cmd: testDict
+args: -n DropTableConcurrentLCP T1
+
+max-time : 600
+cmd: testDict
+args: -n DropTableConcurrentLCP2 T1
+
