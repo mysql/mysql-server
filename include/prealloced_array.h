@@ -428,7 +428,7 @@ public:
     Notice that this function changes the actual content of the
     container by inserting or erasing elements from it.
    */
-  void resize(size_t n, Element_type val= Element_type())
+  void resize(size_t n, const Element_type &val= Element_type())
   {
     if (n == m_size)
       return;

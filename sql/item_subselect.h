@@ -215,6 +215,7 @@ public:
   longlong val_int ();
   String *val_str (String *);
   my_decimal *val_decimal(my_decimal *);
+  bool val_json(Json_wrapper *result);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool val_bool();

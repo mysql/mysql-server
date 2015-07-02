@@ -20384,6 +20384,80 @@ static void test_bug20444737()
   my_fclose(test_file, MYF(0));
 }
 
+
+/**
+  Bug#21104470 WL8132:ASSERTION `! IS_SET()' FAILED.
+*/
+static void test_bug21104470()
+{
+  MYSQL_RES *result;
+  int rc;
+
+  myheader("test_bug21104470");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1(j1 JSON, j2 JSON NOT NULL)");
+  myquery(rc);
+
+  /* This call used to crash the server. */
+  result= mysql_list_fields(mysql, "t1", NULL);
+  mytest(result);
+
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 0);
+
+  verify_prepare_field(result, 0, "j1", "j1", MYSQL_TYPE_JSON,
+                       "t1", "t1", current_db, UINT_MAX32, 0);
+
+  verify_prepare_field(result, 1, "j2", "j2", MYSQL_TYPE_JSON,
+                       "t1", "t1", current_db, UINT_MAX32, 0);
+
+  mysql_free_result(result);
+  myquery(mysql_query(mysql, "DROP TABLE t1"));
+}
+
+
+/**
+  Bug#21293012 ASSERT `!IS_NULL()' FAILED AT FIELD_JSON::VAL_JSON
+  ON NEW CONN TO DB WITH VIEW
+*/
+static void test_bug21293012()
+{
+  MYSQL_RES *result;
+  int rc;
+
+  myheader("test_bug21293012");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1(j1 JSON, j2 JSON NOT NULL)");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE VIEW v1 AS SELECT * FROM t1");
+  myquery(rc);
+
+  /* This call used to crash the server. */
+  result= mysql_list_fields(mysql, "v1", NULL);
+  mytest(result);
+
+  rc= my_process_result_set(result);
+  DIE_UNLESS(rc == 0);
+
+  verify_prepare_field(result, 0, "j1", "j1", MYSQL_TYPE_JSON,
+                       "v1", "v1", current_db, UINT_MAX32, 0);
+
+  verify_prepare_field(result, 1, "j2", "j2", MYSQL_TYPE_JSON,
+                       "v1", "v1", current_db, UINT_MAX32, 0);
+
+  mysql_free_result(result);
+  myquery(mysql_query(mysql, "DROP VIEW v1"));
+  myquery(mysql_query(mysql, "DROP TABLE t1"));
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -20667,6 +20741,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20645725", test_bug20645725 },
   { "test_bug19894382", test_bug19894382},
   { "test_bug20444737", test_bug20444737},
+  { "test_bug21104470", test_bug21104470 },
+  { "test_bug21293012", test_bug21293012 },
   { 0, 0 }
 };
 

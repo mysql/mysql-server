@@ -107,6 +107,7 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
+  ../sql/item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -123,7 +124,7 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
-# Boost Geometry source has logical && with non-zero constant
+# Boost source has logical && with non-zero constant
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
 IF(HAVE_NO_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
@@ -132,6 +133,7 @@ IF(HAVE_NO_LOGICAL_OP)
     ../sql/item_geofunc_relchecks.cc
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
+    ../sql/item_json_func.cc
     COMPILE_FLAGS "-Wno-logical-op"
   )
 ENDIF()

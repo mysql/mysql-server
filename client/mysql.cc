@@ -943,6 +943,24 @@ static COMMANDS commands[] = {
   { "ISNULL", 0, 0, 0, ""},
   { "IS_FREE_LOCK", 0, 0, 0, ""},
   { "IS_USED_LOCK", 0, 0, 0, ""},
+  { "JSON_APPEND", 0, 0, 0, ""},
+  { "JSON_ARRAY", 0, 0, 0, ""},
+  { "JSON_CONTAINS", 0, 0, 0, ""},
+  { "JSON_DEPTH", 0, 0, 0, ""},
+  { "JSON_EXTRACT", 0, 0, 0, ""},
+  { "JSON_INSERT", 0, 0, 0, ""},
+  { "JSON_KEYS", 0, 0, 0, ""},
+  { "JSON_LENGTH", 0, 0, 0, ""},
+  { "JSON_MERGE", 0, 0, 0, ""},
+  { "JSON_QUOTE", 0, 0, 0, ""},
+  { "JSON_REPLACE", 0, 0, 0, ""},
+  { "JSON_ROWOBJECT", 0, 0, 0, ""},
+  { "JSON_SEARCH", 0, 0, 0, ""},
+  { "JSON_SET", 0, 0, 0, ""},
+  { "JSON_TYPE", 0, 0, 0, ""},
+  { "JSON_UNQUOTE", 0, 0, 0, ""},
+  { "JSON_VALID", 0, 0, 0, ""},
+  { "JSON_CONTAINS_PATH", 0, 0, 0, ""},
   { "LAST_INSERT_ID", 0, 0, 0, ""},
   { "ISSIMPLE", 0, 0, 0, ""},
   { "LAST_DAY", 0, 0, 0, ""},
@@ -3748,6 +3766,7 @@ static const char *fieldtype2str(enum enum_field_types type)
     case MYSQL_TYPE_FLOAT:       return "FLOAT";
     case MYSQL_TYPE_GEOMETRY:    return "GEOMETRY";
     case MYSQL_TYPE_INT24:       return "INT24";
+    case MYSQL_TYPE_JSON:        return "JSON";
     case MYSQL_TYPE_LONG:        return "LONG";
     case MYSQL_TYPE_LONGLONG:    return "LONGLONG";
     case MYSQL_TYPE_LONG_BLOB:   return "LONG_BLOB";

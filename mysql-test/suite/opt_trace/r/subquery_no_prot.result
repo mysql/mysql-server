@@ -113,6 +113,10 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -298,6 +302,10 @@ SELECT (SELECT a FROM t1 WHERE t1.a=t2.a), a FROM t2	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -626,6 +634,10 @@ WHERE NOT EXISTS
                                       }
                                     ] /* steps */
                                   } /* condition_processing */
+                                },
+                                {
+                                  "substitute_generated_columns": {
+                                  } /* substitute_generated_columns */
                                 },
                                 {
                                   "table_dependencies": [
@@ -1106,6 +1118,10 @@ field4,field5,field6	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t5` `alias1`",
@@ -1281,6 +1297,10 @@ field4,field5,field6	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t3` `sq4_alias1`",
@@ -1420,6 +1440,10 @@ field4,field5,field6	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1594,6 +1618,10 @@ field4,field5,field6	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1799,6 +1827,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -2182,6 +2214,10 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [

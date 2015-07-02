@@ -2930,6 +2930,7 @@ my_bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_JSON:
       param->store_param_func= store_param_str;
       /*
         For variable length types user must set either length or
@@ -4016,6 +4017,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_DECIMAL:
   case MYSQL_TYPE_NEWDECIMAL:
   case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_JSON:
     DBUG_ASSERT(param->buffer_length != 0);
     param->fetch_result= fetch_result_str;
     break;
@@ -4089,6 +4091,7 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_BIT:
   case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_JSON:
     param->skip_result= skip_result_string;
     break;
   default:

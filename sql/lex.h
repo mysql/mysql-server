@@ -306,6 +306,7 @@ static const SYMBOL symbols[] = {
   { SYM("ITERATE",                  ITERATE_SYM)},
   { SYM("INVOKER",                  INVOKER_SYM)},
   { SYM("JOIN",                     JOIN_SYM)},
+  { SYM("JSON",                     JSON_SYM)},
   { SYM("KEY",                      KEY_SYM)},
   { SYM("KEYS",                     KEYS)},
   { SYM("KEY_BLOCK_SIZE",           KEY_BLOCK_SIZE)},

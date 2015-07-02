@@ -453,6 +453,7 @@ public:
   bool append(const char *s, size_t arg_length);
   bool append(const char *s, size_t arg_length, const CHARSET_INFO *cs);
   bool append_ulonglong(ulonglong val);
+  bool append_longlong(longlong val);
   bool append(IO_CACHE* file, size_t arg_length);
   bool append_with_prefill(const char *s, size_t arg_length, 
 			   size_t full_length, char fill_char);
