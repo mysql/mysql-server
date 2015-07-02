@@ -320,6 +320,9 @@ SET(SERVER_TESTS
   item_timefunc
   item_like
   join_tab_sort
+  json_binary
+  json_dom
+  json_path
   locking_service
   log_throttle
   make_sortkey

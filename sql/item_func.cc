@@ -42,6 +42,7 @@
 #include "sql_show.h"            // append_identifier
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
+#include "item_json_func.h"      // Item_func_json_quote
 
 using std::min;
 using std::max;
@@ -577,6 +578,29 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 }
 
 
+type_conversion_status Item_func::save_possibly_as_json(Field *field,
+                                                        bool no_conversions)
+{
+  if (field->type() == MYSQL_TYPE_JSON)
+  {
+    // Store the value in the JSON binary format.
+    Field_json *f= down_cast<Field_json *>(field);
+    Json_wrapper wr;
+    val_json(&wr);
+
+    if (null_value)
+      return set_field_to_null(field);
+
+    field->set_notnull();
+    return f->store_json(&wr);
+  }
+  else
+  {
+    // TODO Convert the JSON value to text.
+    return Item_func::save_in_field(field, no_conversions);
+  }
+}
+
 String *Item_real_func::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -891,6 +915,174 @@ Item_func::contributes_to_filter(table_map read_tables,
   }
   return (found_comparable ? usable_field : NULL);
 }
+
+/**
+  Return new Item_field if given expression matches GC
+
+  @see JOIN::substitute_gc()
+
+  @param func           Expression to be replaced
+  @param fld            GCs field
+  @param type           Result type to match with Field
+
+  @returns
+    item new Item_field for matched GC
+    NULL otherwise
+*/
+
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type)
+{
+  Item_func *expr= down_cast<Item_func*>(fld->gcol_info->expr_item);
+  /*
+    Skip unquoting function. This is needed to address JSON string
+    comparison issue. All JSON_* functions return quoted strings. In
+    order to create usable index, GC column expression has to include
+    JSON_UNQUOTE function, e.g JSON_UNQUOTE(JSON_EXTRACT(..)).
+    Hence, the unquoting function in column expression have to be
+    skipped in order to correctly match GC expr to expr in
+    WHERE condition.  The exception is if user has explicitly used
+    JSON_QUOTE in WHERE condition.
+  */
+  if (!strcmp(expr->func_name(),"json_unquote") &&
+      strcmp((*func)->func_name(),"json_unquote"))
+  {
+    if (expr->arguments()[0]->type() != Item::FUNC_ITEM)
+      return NULL;
+    expr= (Item_func*)expr->arguments()[0];
+  }
+  DBUG_ASSERT(expr->type() == Item::FUNC_ITEM);
+
+  if (type == fld->result_type() && (*func)->eq(expr, false))
+  {
+    Item_field *field= new Item_field(fld);
+    // Mark field for read
+    bitmap_set_bit(fld->table->read_set, fld->field_index);
+    return field;
+  }
+  return NULL;
+}
+
+
+/**
+  Transformer function for GC substitution.
+
+  @param arg  List of indexed GC field
+
+  @return this item 
+
+  @details This function transforms the WHERE condition. It doesn't change
+  'this' item but rather changes its arguments. It takes list of GC fields
+  and checks whether arguments of 'this' item matches them and index over
+  the GC field isn't disabled with hints. If so, it replaces
+  the argument with newly created Item_field which uses the matched GC
+  field. Following functions' arguments could be transformed:
+  - EQ_FUNC, LT_FUNC, LE_FUNC, GE_FUNC, GT_FUNC
+    - Left _or_ right argument if the opposite argument is a constant.
+  - IN_FUNC, BETWEEN
+    - Left argument if all other arguments are constant and of the same type.
+
+  After transformation comparators are updated to take into account the new
+  field.
+*/
+
+Item *Item_func::gc_subst_transformer(uchar *arg)
+{
+  switch(functype()) {
+  case EQ_FUNC:
+  case LT_FUNC:
+  case LE_FUNC:
+  case GE_FUNC:
+  case GT_FUNC:
+  {
+    Item_func **func= NULL;
+    Item **val= NULL;
+    List<Field> *gc_fields= (List<Field> *)arg;
+    List_iterator<Field> li(*gc_fields);
+    // Check if we can substitute a function with a GC
+    if (args[0]->type() == FUNC_ITEM && args[1]->const_item())
+    {
+      func= (Item_func**)args;
+      val= args + 1;
+    }
+    else if (args[1]->type() == FUNC_ITEM && args[0]->const_item())
+    {
+      func= (Item_func**)args + 1;
+      val= args;
+    }
+    if (func)
+    {
+      Field *fld;
+      while((fld= li++))
+      {
+        // Check whether field has usable keys
+        key_map tkm= fld->part_of_key;
+        tkm.intersect(fld->table->keys_in_use_for_query);
+        Item_field *field;
+
+        if (!tkm.is_clear_all() &&
+            (field= get_gc_for_expr(func, fld, (*val)->result_type())))
+        {
+          // Matching expression is found, substutite arg with the new
+          // field
+          fld->table->in_use->change_item_tree(pointer_cast<Item**>(func),
+                                               field);
+          // Adjust comparator
+          ((Item_bool_func2*)this)->set_cmp_func();
+          break;
+        }
+      }
+    }
+    break;
+  }
+  case BETWEEN:
+  case IN_FUNC:
+  {
+    List<Field> *gc_fields= (List<Field> *)arg;
+    List_iterator<Field> li(*gc_fields);
+    if (args[0]->type() != FUNC_ITEM)
+      break;
+    Item_result type= args[1]->result_type();
+    bool can_do_subst= args[1]->const_item();
+    for (uint i= 2; i < arg_count && can_do_subst; i++)
+      if (!args[i]->const_item() || args[i]->result_type() != type)
+      {
+        can_do_subst= false;
+        break;
+      }
+    if (can_do_subst)
+    {
+      Field *fld;
+      while ((fld= li++))
+      {
+        // Check whether field has usable keys
+        key_map tkm= fld->part_of_key;
+        tkm.intersect(fld->table->keys_in_use_for_query);
+        Item_field *field;
+
+        if (!tkm.is_clear_all() &&
+            (field= get_gc_for_expr(pointer_cast<Item_func**>(args), fld,
+                                    type)))
+        {
+          // Matching expression is found, substutite arg[0] with the new
+          // field
+          fld->table->in_use->change_item_tree(pointer_cast<Item**>(args),
+                                               field);
+          // Adjust comparators
+          if (functype() == IN_FUNC)
+            ((Item_func_in*)this)->cleanup_arrays();
+          fix_length_and_dec();
+          break;
+        }
+      }
+    }
+    break;
+  }
+  default:
+    break;
+  }
+  return this;
+}
+
 
 double Item_int_func::val_real()
 {
@@ -8057,6 +8249,34 @@ void Item_func_sp::fix_length_and_dec()
   unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
 
   DBUG_VOID_RETURN;
+}
+
+
+bool Item_func_sp::val_json(Json_wrapper *result)
+{
+  if (sp_result_field->type() == MYSQL_TYPE_JSON)
+  {
+    if (execute())
+    {
+      return true;
+    }
+
+    Field_json *json_value= down_cast<Field_json *>(sp_result_field);
+    return json_value->val_json(result);
+  }
+
+  /* purecov: begin deadcode */
+  DBUG_ABORT();
+  my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
+  return error_json();
+  /* purecov: end */
+}
+
+
+type_conversion_status
+Item_func_sp::save_in_field(Field *field, bool no_conversions)
+{
+  return save_possibly_as_json(field, no_conversions);
 }
 
 

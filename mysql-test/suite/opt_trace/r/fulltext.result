@@ -49,6 +49,10 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage")	{
             }
           },
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",

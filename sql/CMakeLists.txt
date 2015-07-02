@@ -96,6 +96,7 @@ SET(SQL_SHARED_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -103,6 +104,9 @@ SET(SQL_SHARED_SOURCES
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
+  json_dom.cc
+  json_binary.cc
+  json_path.cc
   key.cc
   keycaches.cc
   lock.cc
@@ -287,6 +291,7 @@ ADD_COMPILE_FLAGS(
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 

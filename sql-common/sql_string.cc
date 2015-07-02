@@ -500,7 +500,9 @@ bool String::append(const char *s)
 }
 
 
-
+/**
+  Append an unsigned longlong to the string.
+*/
 bool String::append_ulonglong(ulonglong val)
 {
   if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
@@ -509,6 +511,20 @@ bool String::append_ulonglong(ulonglong val)
   m_length= end - m_ptr;
   return false;
 }
+
+
+/**
+  Append a signed longlong to the string.
+*/
+bool String::append_longlong(longlong val)
+{
+  if (mem_realloc(m_length + MAX_BIGINT_WIDTH + 2))
+    return true;                              /* purecov: inspected */
+  char *end= longlong10_to_str(val, m_ptr + m_length, -10);
+  m_length= end - m_ptr;
+  return false;
+}
+
 
 /*
   Append a string in the given charset to the string
