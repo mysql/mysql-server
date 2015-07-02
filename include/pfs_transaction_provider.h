@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ void pfs_inc_transaction_rollback_to_savepoint_v1(PSI_transaction_locker *locker
 void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
                                               ulong count);
 
-void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit);
+void pfs_end_transaction_v1(PSI_transaction_locker *locker, my_bool commit);
 
 C_MODE_END
 
