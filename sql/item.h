@@ -1342,17 +1342,18 @@ protected:
 
     The expected pattern is to use the buffer given as parameter to
     val_decimal:
-
+    @verbatim
       my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
       {
         ...
-        if (@<error condition@>)
+        if (<error condition>)
         {
           my_error(...)
           return error_decimal(decimal_buffer);
         }
         ...
       }
+    @endverbatim
 
     @param decimal_buffer Buffer used for returning value.
 

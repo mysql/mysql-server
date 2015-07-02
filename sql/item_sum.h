@@ -606,7 +606,9 @@ class Aggregator_distinct : public Aggregator
       If set deactivates creation and usage of the temporary table (in the
       'table' member) and the Unique instance (in the 'tree' member) as well as
       the calculation of the final value on the first call to
-      Item_[sum|avg|count]::val_xxx().
+      @c Item_sum::val_xxx(),
+      @c Item_avg::val_xxx(),
+      @c Item_count::val_xxx().
      */
     CONST_NULL,
     /**

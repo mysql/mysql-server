@@ -3386,8 +3386,9 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
    @sa enum_query_type.
    For us to be able to print a query (in debugging, optimizer trace, EXPLAIN
    EXTENDED) without changing the query's result, this function must not
-   modify the item's content. Not even a realloc() of str_value is permitted:
-   Item_func_concat/repeat/encode::val_str() depend on the allocated length;
+   modify the item's content. Not even a @c realloc() of @c str_value is permitted:
+   @c Item_func_concat::val_str(), @c Item_func_repeat::val_str(),
+   @c Item_func_encode::val_str() depend on the allocated length;
    a change of this length can influence results of CONCAT(), REPEAT(),
    ENCODE()...
 */

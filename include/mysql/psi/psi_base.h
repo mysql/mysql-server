@@ -92,15 +92,21 @@ extern "C" {
 */
 #define PSI_CURRENT_VERSION 1
 
+#ifdef IN_DOXYGEN
 /**
   @def USE_PSI_1
   Define USE_PSI_1 to use the interface version 1.
 */
+#define USE_PSI_1
+#endif /* IN_DOXYGEN */
 
+#ifdef IN_DOXYGEN
 /**
   @def USE_PSI_2
   Define USE_PSI_2 to use the interface version 2.
 */
+#define USE_PSI_2
+#endif /* IN_DOXYGEN */
 
 /**
   @def HAVE_PSI_1

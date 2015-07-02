@@ -2780,7 +2780,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   @todo
     Support BKA inside SJ-Materialization nests. When doing this, we'll need
     to only store sj-inner tables in the join buffer.
-#if 0
+    @verbatim
         JOIN_TAB *first_tab= join->join_tab+join->const_tables;
         uint n_tables= i-join->const_tables;
         / *
@@ -2799,8 +2799,7 @@ void revise_cache_usage(JOIN_TAB *join_tab)
           n_tables= i - first_sjm_table; // will be >0 if we got here
           first_tab= join->join_tab + first_sjm_table;
         }
-#endif
-
+    @endverbatim
 */
 
 static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)

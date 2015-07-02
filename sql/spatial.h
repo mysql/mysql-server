@@ -1082,12 +1082,12 @@ protected:
     In a polygon usable by boost geometry, the m_ptr points to the outer ring
     object, and m_inn_rings points to the inner rings, thus the polygon's data
     isn't stored in a single WKB. Users should call
-    Gis_polygon::to_wkb_unparsed() before getting the polygon's wkb data,
-    Gis_polygon::to_wkb_unparsed() will form a single WKB for the polygon
+    @c Gis_polygon::to_wkb_unparsed() before getting the polygon's wkb data,
+    @c Gis_polygon::to_wkb_unparsed() will form a single WKB for the polygon
     and refer to it with m_ptr, and release the outer ring object
     and the inner rings objects, and such an polygon isn't usable by BG any
     more, it's exactly what we got with
-    Geometry::create_from_wkt/Geometry::create_from_wkt.
+    @c Geometry::create_from_wkt / @c Geometry::create_from_wkt.
    */
   bool polygon_is_wkb_form() const
   {
