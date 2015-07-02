@@ -197,16 +197,24 @@ enum enum_acl_lists
 int check_change_password(THD *thd, const char *host, const char *user,
                           const char *new_password, size_t new_password_len)
 {
+  Security_context *sctx;
   if (!initialized)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     return(1);
   }
+
+  sctx= thd->security_context();
   if (!thd->slave_thread &&
-      (strcmp(thd->security_context()->user().str, user) ||
+      (strcmp(sctx->user().str, user) ||
        my_strcasecmp(system_charset_info, host,
-                     thd->security_context()->priv_host().str)))
+                     sctx->priv_host().str)))
   {
+    if (sctx->password_expired())
+    {
+      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+      return(1);
+    }
     if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 0))
       return(1);
   }
