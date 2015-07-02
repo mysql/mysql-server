@@ -12099,12 +12099,6 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
-	/* GIS_FIXME: Currently, we can't support estimate records on
-	R-tree index. */
-	if (dict_index_is_spatial(index)) {
-		n_rows = 2;
-		goto func_exit;
-	}
 
 	heap = mem_heap_create(2 * (key->actual_key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
@@ -12149,8 +12143,14 @@ ha_innobase::records_in_range(
 
 	if (mode1 != PAGE_CUR_UNSUPP && mode2 != PAGE_CUR_UNSUPP) {
 
-		n_rows = btr_estimate_n_rows_in_range(
-			index, range_start, mode1, range_end, mode2);
+		if (dict_index_is_spatial(index)) {
+			/*Only min_key used in spatial index. */
+			n_rows = rtr_estimate_n_rows_in_range(
+				index, range_start, mode1);
+		} else {
+			n_rows = btr_estimate_n_rows_in_range(
+				index, range_start, mode1, range_end, mode2);
+		}
 	} else {
 
 		n_rows = HA_POS_ERROR;

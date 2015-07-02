@@ -16,6 +16,9 @@ t1	CREATE TABLE `t1` (
 SELECT count(*) FROM t1;
 count(*)
 150
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 140))'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	gis_key	NULL	NULL	NULL	#	100.00	Using where
