@@ -1364,7 +1364,12 @@ runWriteWithRedoFull(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter restarter;
   Ndb* pNdb = GETNDB(step);
 
-  const NdbDictionary::Table* pTab = g_tabptr[1];
+  /**
+   * Ensure we don't use the same record for the open transaction as for the ones
+   * filling up the REDO log. In that case we get into a deadlock, we solve this
+   * by using a different table for the pending transaction.
+   */
+  const NdbDictionary::Table* pTab = g_tabptr[0];
 
   g_err << "Starting a write and leaving it open so the pending " <<
            "COMMIT indefinitely delays redo log trimming..." << endl;
@@ -1380,6 +1385,11 @@ runWriteWithRedoFull(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Failed to write record: error " << ops.getNdbError() << endl;
     return NDBT_FAILED;
   }
+  if(ops.execute_NoCommit(pNdb) != 0)
+  {
+    g_err << "Error: failed to execute NoCommit" << ops.getNdbError() << endl;
+    return NDBT_FAILED;
+  }
 
   g_err << "Starting PK insert load..." << endl;
   int loop = 0;
@@ -1387,7 +1397,9 @@ runWriteWithRedoFull(NDBT_Context* ctx, NDBT_Step* step)
   while (!ctx->isTestStopped())
   {
     if (loop % 100 == 0)
+    {
       info("write: loop " << loop);
+    }
 
     NdbError err;
     run_write_ops(ctx, step, upval++, err, true);
@@ -1472,7 +1484,7 @@ TESTCASE("RestartFDSR",
 }
 TESTCASE("RedoFull",
          "Fill redo logs, apply load and check queuing aborted"){
-  TC_PROPERTY("TABMASK", (Uint32)(2));
+  TC_PROPERTY("TABMASK", (Uint32)(3));
   TC_PROPERTY("REDOLOGCOUNT", (Uint32)(3));
   TC_PROPERTY("REDOLOGSIZE", (Uint32)(4*1024*1024));
   INITIALIZER(resizeRedoLog);
