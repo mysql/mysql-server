@@ -3673,6 +3673,12 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
+    Transaction_state_tracker *tst= NULL;
+
+    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+      tst= (Transaction_state_tracker *)
+             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
     /*
       Update the isolation level of the next transaction.
       I.e. if one did:
@@ -3693,6 +3699,33 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
       effective for the next transaction that starts.
      */
     thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+
+    if (var->type == OPT_DEFAULT)
+    {
+      enum enum_tx_isol_level l;
+      switch (thd->tx_isolation) {
+      case ISO_READ_UNCOMMITTED:
+        l=  TX_ISOL_UNCOMMITTED;
+        break;
+      case ISO_READ_COMMITTED:
+        l=  TX_ISOL_COMMITTED;
+        break;
+      case ISO_REPEATABLE_READ:
+        l= TX_ISOL_REPEATABLE;
+        break;
+      case ISO_SERIALIZABLE:
+        l= TX_ISOL_SERIALIZABLE;
+        break;
+      default:
+        DBUG_ASSERT(0);
+      }
+      if (tst)
+        tst->set_isol_level(thd, l);
+    }
+    else if (tst)
+    {
+      tst->set_isol_level(thd, TX_ISOL_INHERIT);
+    }
   }
   return FALSE;
 }
@@ -3701,7 +3734,7 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 // NO_CMD_LINE - different name of the option
 static Sys_var_tx_isolation Sys_tx_isolation(
        "tx_isolation", "Default transaction isolation level",
-       SESSION_VAR(tx_isolation), NO_CMD_LINE,
+       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
@@ -3733,6 +3766,18 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
   {
     // @see Sys_var_tx_isolation::session_update() above for the rules.
     thd->tx_read_only= var->save_result.ulonglong_value;
+
+    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    {
+      Transaction_state_tracker *tst= (Transaction_state_tracker *)
+             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
+      if (var->type == OPT_DEFAULT)
+        tst->set_read_flags(thd,
+                            thd->tx_read_only ? TX_READ_ONLY : TX_READ_WRITE);
+      else
+        tst->set_read_flags(thd, TX_READ_INHERIT);
+    }
   }
   return false;
 }
@@ -3740,7 +3785,7 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 
 static Sys_var_tx_read_only Sys_tx_read_only(
        "tx_read_only", "Set default transaction access mode to read only.",
-       SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
@@ -5224,6 +5269,30 @@ static Sys_var_mybool Sys_session_track_schema(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(0),
        ON_UPDATE(update_session_track_schema));
+
+static bool update_session_track_tx_info(sys_var *self, THD *thd,
+                                         enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_tx_info");
+  DBUG_RETURN(thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER)->update(thd));
+}
+
+static const char *session_track_transaction_info_names[]=
+  { "OFF", "STATE", "CHARACTERISTICS", NullS };
+
+static Sys_var_enum Sys_session_track_transaction_info(
+       "session_track_transaction_info",
+       "Track changes to the transaction attributes. OFF to disable; "
+       "STATE to track just transaction state (Is there an active transaction? "
+       "Does it have any data? etc.); CHARACTERISTICS to track transaction "
+       "state "
+       "and report all statements needed to start a transaction with the same "
+       "characteristics (isolation level, read only/read write, snapshot - "
+       "but not any work done / data modified within the transaction).",
+       SESSION_VAR(session_track_transaction_info),
+       CMD_LINE(REQUIRED_ARG), session_track_transaction_info_names,
+       DEFAULT(OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_session_track_tx_info));
 
 static bool update_session_track_state_change(sys_var *self, THD *thd,
                                               enum_var_type type)

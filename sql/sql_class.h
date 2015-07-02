@@ -555,6 +555,7 @@ typedef struct system_variables
   char *track_sysvars_ptr;
   my_bool session_track_schema;
   my_bool session_track_state_change;
+  ulong   session_track_transaction_info;
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
     the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS
@@ -4384,6 +4385,12 @@ my_eof(THD *thd)
 {
   thd->set_row_count_func(-1);
   thd->get_stmt_da()->set_eof_status(thd);
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state(thd, TX_RESULT_SET);
+  }
 }
 
 #define tmp_disable_binlog(A)       \

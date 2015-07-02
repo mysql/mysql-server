@@ -1258,6 +1258,15 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   if (thd->locked_tables_mode || query_cache_size == 0)
     DBUG_VOID_RETURN;
 
+  /*
+    Do not store queries while tracking transaction state.
+    The tracker already flags queries that actually have
+    transaction tracker items, but this will make behavior
+    more straight forward.
+  */
+  if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
+    DBUG_VOID_RETURN;
+
 #ifndef EMBEDDED_LIBRARY
   /*
     Without active vio, net_write_packet() will not be called and
@@ -1408,6 +1417,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	  my_hash_delete(&queries, (uchar *) query_block);
 	  header->unlock_n_destroy();
 	  free_memory_block(query_block);
+
           unlock();
 	  goto end;
 	}
@@ -1417,7 +1427,6 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 	thd->query_cache_tls.first_query_block= query_block;
 	header->writer(&thd->query_cache_tls);
 	header->tables_type(tables_type);
-
         unlock();
 
 	// init_n_lock make query block locked
@@ -1549,6 +1558,14 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     this moment to operate on an InnoDB table.
   */
   if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(false))
+    goto err;
+
+  /*
+    Don't allow serving from Query_cache while tracking transaction
+    state. This is a safeguard in case an otherwise matching query
+    was added to the cache before tracking was turned on.
+  */
+  if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
     goto err;
 
   if (!thd->lex->safe_to_cache_query)

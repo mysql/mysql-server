@@ -1823,7 +1823,6 @@ void THD::cleanup(void)
   DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed= KILL_CONNECTION;
-  session_tracker.deinit();
   if (trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
   {
     transaction_cache_detach(trn_ctx);
@@ -1876,6 +1875,12 @@ void THD::cleanup(void)
    */
   if (tc_log && !trn_ctx->xid_state()->has_state(XID_STATE::XA_PREPARED))
     tc_log->commit(this, true);
+
+  /*
+    Destroy trackers only after finishing manipulations with transaction
+    state to avoid issues with Transaction_state_tracker.
+  */
+  session_tracker.deinit();
 
   cleanup_done=1;
   DBUG_VOID_RETURN;
