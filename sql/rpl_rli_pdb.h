@@ -564,8 +564,20 @@ public:
         - If a statement is executed before any Gtid_log_event, then
           gtid_next is set to anonymous (this is done in
           Gtid_log_event::do_apply_event().
+
+        It is imporant to not set GTID_NEXT=NOT_YET_DETERMINED in the
+        middle of a transaction.  If that would happen when
+        GTID_MODE=ON, the next statement would fail because it
+        implicitly sets GTID_NEXT=ANONYMOUS, which is disallowed when
+        GTID_MODE=ON.  So then there would be no way to end the
+        transaction; any attempt to do so would result in this error.
+        (It is not possible for the slave threads to have
+        gtid_next.type==AUTOMATIC or UNDEFINED in the middle of a
+        transaction, but it is possible for a client thread to have
+        gtid_next.type==AUTOMATIC and issue a BINLOG statement
+        containing this Format_description_log_event.)
       */
-      if (fdle->server_id != ::server_id &&
+      if (!is_in_group() &&
           (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
            info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
       {

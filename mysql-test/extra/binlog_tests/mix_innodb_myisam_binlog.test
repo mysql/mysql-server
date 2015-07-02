@@ -351,8 +351,8 @@ if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
   is not null;
   --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
   eval select
-  @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
-  @a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
+  @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%" OR
+  @a like "%#%error_code=0%ROLLBACK\\r\\n/*!*/;%",
   @a not like "%#%error_code=%error_code=%";
 }
 drop table t1, t2;
