@@ -1,6 +1,7 @@
 # Created: 2014-06-26  Lalit Choudhary
 # WL#7909
 # JSON datatype and funtions testing with replication.
+--source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 
 --connection master
