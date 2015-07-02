@@ -2683,7 +2683,9 @@ fil_space_system_check(
 }
 
 /** Check if an undo tablespace was opened during crash recovery.
+Change name to undo_name if already opened during recovery.
 @param[in]	name		tablespace name
+@param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
 @retval DB_TABLESPACE_NOT_FOUND	if not yet opened
@@ -2692,6 +2694,7 @@ fil_space_system_check(
 dberr_t
 fil_space_undo_check_if_opened(
 	const char*	name,
+	const char*	undo_name,
 	ulint		space_id)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -2715,17 +2718,22 @@ fil_space_undo_check_if_opened(
 			<< "' was loaded during redo log apply with flags "
 			<< space->flags;
 		err = DB_ERROR;
-	} else if (fil_space_belongs_in_lru(space)) {
-		fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+	} else {
+		if (fil_space_belongs_in_lru(space)) {
+			fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
 
-		if (node->is_open) {
-			ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
-			ut_d(UT_LIST_CHECK(fil_system->LRU));
+			if (node->is_open) {
+				ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
+				ut_d(UT_LIST_CHECK(fil_system->LRU));
 
-			/* The node is in the LRU list, remove it */
-			UT_LIST_REMOVE(fil_system->LRU, node);
-			ut_d(UT_LIST_CHECK(fil_system->LRU));
+				/* The node is in the LRU list, remove it */
+				UT_LIST_REMOVE(fil_system->LRU, node);
+				ut_d(UT_LIST_CHECK(fil_system->LRU));
+			}
 		}
+		/* Correct undo tablespace name loaded during recovery. */
+		ut_free(space->name);
+		space->name = mem_strdup(undo_name);
 	}
 
 	mutex_exit(&fil_system->mutex);
