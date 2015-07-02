@@ -254,6 +254,31 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
   return;
 }
 
+ulong get_server_id()
+{
+  return server_id;
+}
+
+ulong get_auto_increment_increment()
+{
+  return global_system_variables.auto_increment_increment;
+}
+
+ulong get_auto_increment_offset()
+{
+  return global_system_variables.auto_increment_offset;
+}
+
+void set_auto_increment_increment(ulong auto_increment_increment)
+{
+  global_system_variables.auto_increment_increment= auto_increment_increment;
+}
+
+void set_auto_increment_offset(ulong auto_increment_offset)
+{
+  global_system_variables.auto_increment_offset= auto_increment_offset;
+}
+
 #ifdef HAVE_REPLICATION
 void
 get_server_startup_prerequirements(Trans_context_info& requirements,
