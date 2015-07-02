@@ -108,3 +108,18 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 show events where Db= 'performance_schema';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 use test;
+use test;
+truncate performance_schema.events_statements_history;
+truncate performance_schema.events_statements_history_long;
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+
+select sql_text, mysql_errno, returned_sqlstate, message_text, errors, warnings
+from performance_schema.events_statements_history where errors > 0;
+sql_text	mysql_errno	returned_sqlstate	message_text	errors	warnings
+select * from t1	1146	42S02	Table 'test.t1' doesn't exist	1	0
+
+select sql_text, mysql_errno, returned_sqlstate, message_text, errors, warnings from 
+performance_schema.events_statements_history_long where errors > 0;
+sql_text	mysql_errno	returned_sqlstate	message_text	errors	warnings
+select * from t1	1146	42S02	Table 'test.t1' doesn't exist	1	0
