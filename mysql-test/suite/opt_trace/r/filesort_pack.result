@@ -92,6 +92,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -229,6 +233,10 @@ select * from t1 order by c1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -368,6 +376,10 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            }
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -505,6 +517,10 @@ select * from t1 order by c1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {
@@ -906,6 +922,10 @@ SELECT * FROM t1 ORDER BY c1	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
           {
             "table_dependencies": [
               {

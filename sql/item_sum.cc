@@ -2158,6 +2158,17 @@ Item_sum_hybrid::val_str(String *str)
 }
 
 
+bool Item_sum_hybrid::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed);
+  if (null_value)
+    return false;
+  bool ok= value->val_json(wr);
+  null_value= value->null_value;
+  return ok;
+}
+
+
 void Item_sum_hybrid::cleanup()
 {
   DBUG_ENTER("Item_sum_hybrid::cleanup");

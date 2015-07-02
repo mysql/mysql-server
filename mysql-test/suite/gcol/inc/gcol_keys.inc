@@ -161,3 +161,107 @@ drop table t1;
 --echo #
 --echo # TODO: CHECK
 
+--echo #
+--echo # Test how optimizer picks indexes defined on a GC
+--echo #
+SET optimizer_trace_max_mem_size=1048576; # 1MB
+SET optimizer_trace="enabled=on,one_line=off";
+SET end_markers_in_json="on";
+
+CREATE TABLE t1 (f1 int, gc int AS (f1 + 1) STORED PRIMARY KEY);
+INSERT INTO t1(f1) VALUES (1),(2),(0),(9),(3),(4),(8),(7),(5),(6);
+ANALYZE TABLE t1;
+--echo # Should use index
+SELECT * FROM t1 WHERE f1 + 1 > 7;
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+
+SELECT * FROM t1 WHERE f1 + 1 = 7;
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 = 7;
+SELECT * FROM t1 WHERE f1 + 1 IN (7,5);
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 IN(7,5);
+SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
+
+--echo # Check that expression isn't transformed for a disabled key
+SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
+EXPLAIN SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
+
+--echo # Check that ORDER BY could be optimized
+SELECT * FROM t1 ORDER BY f1 + 1;
+EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+EXPLAIN SELECT * FROM t1 IGNORE KEY FOR ORDER BY(PRIMARY) ORDER BY f1 + 1;
+
+--echo # Check that GROUP BY could be optimized
+SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
+EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
+SELECT * FROM information_schema.OPTIMIZER_TRACE;
+EXPLAIN SELECT f1 + 1, MAX(GC)
+  FROM t1 IGNORE KEY FOR GROUP BY(PRIMARY) GROUP BY f1 + 1;
+
+--echo # Shouldn't use index
+SELECT * FROM t1 WHERE f1 + 1 > 7.0;
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7.0;
+
+DROP TABLE t1;
+--echo # Pick index with proper type
+CREATE TABLE t1 (f1 int,
+  gc_int int AS (f1 + 1) STORED,
+  gc_date DATE AS (f1 + 1) STORED,
+  KEY gc_int_idx(gc_int),
+  KEY gc_date_idx(gc_date));
+INSERT INTO t1(f1) VALUES
+ (030303),(040404),
+ (050505),(060606),
+ (010101),(020202),
+ (030303),(040404),
+ (050505),(060606),
+ (010101),(020202),
+ (090909),(101010),
+ (010101),(020202),
+ (070707),(080808);
+ANALYZE TABLE t1;
+
+SELECT * FROM t1 WHERE f1 + 1 > 070707;
+--echo # INT column & index should be picked
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 070707;
+SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
+--echo # DATE column & index should be picked
+EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
+
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#21229846: WL8170: SIGNAL 11 IN JOIN::MAKE_SUM_FUNC_LIST
+--echo #
+CREATE TABLE t1 (
+  pk int primary key auto_increment,
+  col_int_key INTEGER ,
+  col_int_gc_key INT GENERATED ALWAYS AS (col_int_key + 1) STORED,
+  KEY col_int_gc_key(col_int_gc_key)
+);
+
+INSERT INTO t1 ( col_int_key) VALUES (7);
+
+ANALYZE TABLE t1;
+
+SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+  FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+  ORDER BY field1, field2;
+
+EXPLAIN SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+  FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+  ORDER BY field1, field2;
+
+SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+  FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+  GROUP BY field1, field2;
+
+EXPLAIN SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
+  FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
+  GROUP BY field1, field2;
+
+DROP TABLE t1;
+--echo #
+

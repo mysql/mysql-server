@@ -1434,6 +1434,15 @@ public:
                 Used to access optimizer_switch
   */
   void update_semijoin_strategies(THD *thd);
+
+  /**
+    Add item to the hidden part of select list
+
+    @param item  item to add
+
+    @return Pointer to ref_ptr for the added item
+  */
+  Item **add_hidden_item(Item *item);
 };
 typedef class st_select_lex SELECT_LEX;
 

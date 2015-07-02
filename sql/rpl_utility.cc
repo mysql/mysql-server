@@ -254,6 +254,10 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     str->set_ascii(STRING_WITH_LEN("geometry"));
     break;
 
+  case MYSQL_TYPE_JSON:
+    str->set_ascii(STRING_WITH_LEN("json"));
+    break;
+
   default:
     str->set_ascii(STRING_WITH_LEN("<unknown type>"));
   }
@@ -554,6 +558,7 @@ can_convert_field_to(Field *field,
     break;
 
   case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_JSON:
   case MYSQL_TYPE_TIMESTAMP:
   case MYSQL_TYPE_DATE:
   case MYSQL_TYPE_TIME:
@@ -775,6 +780,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_JSON:
       pack_length= field_metadata(col) & 0x00ff;
       break;
 
@@ -852,6 +858,7 @@ table_def::table_def(unsigned char *types, ulong size,
       case MYSQL_TYPE_DOUBLE:
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_GEOMETRY:
+      case MYSQL_TYPE_JSON:
       {
         /*
           These types store a single byte.
@@ -1217,13 +1224,14 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     {
       /*
         BLOB and VARCHAR have pointers in their field, we must convert
-        to string; GEOMETRY is implemented on top of BLOB.
+        to string; GEOMETRY and JSON are implemented on top of BLOB.
         BIT may store its data among NULL bits, convert as well.
       */
       switch (f->type()) {
         case MYSQL_TYPE_BLOB:
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_GEOMETRY:
+        case MYSQL_TYPE_JSON:
         case MYSQL_TYPE_BIT:
         {
           String tmp;

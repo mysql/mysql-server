@@ -107,6 +107,7 @@ ADD_COMPILE_FLAGS(
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
+  ../sql/item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 

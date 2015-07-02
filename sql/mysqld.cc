@@ -9007,6 +9007,7 @@ PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_fill_schema_schemata;
 PSI_memory_key key_memory_native_functions;
+PSI_memory_key key_memory_JSON;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -9149,7 +9150,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_write_set_extraction, "write_set_extraction", 0},
   { &key_memory_get_all_tables, "get_all_tables", 0},
   { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
-  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL}
+  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL},
+  { &key_memory_JSON, "JSON", 0 },
 };
 
 /* TODO: find a good header */

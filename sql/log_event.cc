@@ -2298,6 +2298,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       return my_b_printf(file, "NULL");
     return my_b_write_quoted_with_length(file, ptr, length);
 
+  case MYSQL_TYPE_JSON:
+    my_snprintf(typestr, typestr_length, "JSON");
+    if (!ptr)
+      return my_b_printf(file, "NULL");
+    length= uint2korr(ptr);
+    my_b_write_quoted(file, ptr + meta, length);
+    return length + meta;
+
   default:
     {
       char tmp[5];
