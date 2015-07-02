@@ -5768,6 +5768,23 @@ Backup::execSCAN_FRAGREF(Signal* signal)
     case ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR:
       jam();
       break;
+    case ScanFragRef::TABLE_NOT_DEFINED_ERROR:
+    case ScanFragRef::DROP_TABLE_IN_PROGRESS_ERROR:
+      jam();
+      /**
+       * The table was dropped either at start of LCP scan or in the
+       * middle of it. We will complete in the same manner as if we
+       * got a SCAN_FRAGCONF with close flag set. The idea is that
+       * the content of the LCP file in this case is not going to
+       * be used anyways, so we just ensure that we complete things
+       * in an ordered manner and then the higher layers will ensure
+       * that the files are dropped and taken care of.
+       *
+       * This handling will ensure that drop table can complete
+       * much faster.
+       */
+      fragmentCompleted(signal, filePtr);
+      return;
     default:
       jam();
       filePtr.p->errorCode = errCode;
@@ -7545,6 +7562,12 @@ Backup::execEND_LCPREQ(Signal* signal)
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, req->backupPtr);
+  /**
+   * At least one table should exist here, it isn't possible
+   * to drop the system table, so this should always be part
+   * of an LCP. Thus we can be safe that the backupId should
+   * be set (it is set when a LCP is started on a fragment.
+   */
   ndbrequire(ptr.p->backupId == req->backupId);
 
   BackupFilePtr filePtr;

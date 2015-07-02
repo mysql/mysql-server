@@ -56,6 +56,7 @@
 #include <signaldata/CreateTable.hpp>
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
+#include <signaldata/DropTable.hpp>
 
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/AlterTable.hpp>
@@ -2525,7 +2526,7 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   if (tabPtr.p->usageCountR > 0 || tabPtr.p->usageCountW > 0)
   {
     jam();
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
     return;
   }
 
@@ -2544,23 +2545,70 @@ Dblqh::dropTab_wait_usage(Signal* signal){
       {
         jam();
         c_fragment_pool.getPtr(loc_fragptr);
-        if (loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED ||
-            loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTING)
+        if ((loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED) &&
+            (!ERROR_INSERTED(5089)))
         {
+          /**
+           * The fragment is queued up for an LCP scan, but it hasn't
+           * started yet. In this case the LCP scan will be faked anyways,
+           * so we will remove it from the queue immediately and fake its
+           * completion. The only reason to send this signal is to ensure
+           * that DIH and other blocks that wait for this REP signal can
+           * keep track of the outstanding number of outstanding signals.
+           * It will be dropped immediately after that when received in
+           * DIH since the table is being dropped.
+           */
+          LcpRecord::FragOrd fragOrd;
+          jam();
+          CLEAR_ERROR_INSERT_VALUE;
+          c_queued_lcp_frag_ord.remove(loc_fragptr);
+
+          fragOrd.lcpFragOrd.fragmentId = loc_fragptr.i;
+          fragOrd.lcpFragOrd.lcpNo = loc_fragptr.p->lcp_frag_ord_lcp_no;
+          fragOrd.lcpFragOrd.lcpId = loc_fragptr.p->lcp_frag_ord_lcp_id;
+          fragOrd.lcpFragOrd.fragmentId = loc_fragptr.p->fragId;
+          fragOrd.lcpFragOrd.tableId = loc_fragptr.p->tabRef;
+
+          loc_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+
+          sendLCP_FRAG_REP(signal, fragOrd, loc_fragptr.p);
+        }
+        else if (loc_fragptr.p->lcp_frag_ord_state ==
+                 Fragrecord::LCP_EXECUTING)
+        {
+          /**
+           * The LCP scan is ongoing, we need to make sure it has completed
+           * before we can drop the table. Thus we need to continue the
+           * wait for a while longer.
+           */
+          jam();
+          CLEAR_ERROR_INSERT_VALUE;
+          lcpDone = false;
+        }
+        else if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089))
+        {
+          /**
+           * Delay drop table until we reach either LCP_QUEUED or
+           * LCP_EXECUTING.
+           */
           jam();
           lcpDone = false;
         }
       }
     }
   }
+  else if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+  }
   
   if(!lcpDone)
   {
     jam();
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
     return;
   }
-  
   tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
 
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
@@ -3238,11 +3286,11 @@ Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
     break;
   case Tablerec::TABLE_DEFINED:
   case Tablerec::TABLE_READ_ONLY:
-    ndbassert(0);
+    ndbrequire(0);
     return ZTABLE_NOT_DEFINED;
     break;
   }
-  ndbassert(0);
+  ndbrequire(0);
   return ~Uint32(0);
 }
 
@@ -10498,6 +10546,35 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 max_bytes = nextReq->batch_size_bytes;
   scanPtr->m_max_batch_size_bytes = max_bytes;
 
+  {
+    /**
+     * To speed up drop table we check for table being dropped here.
+     * This can speed up drop table by minutes, so even though it is
+     * a small cost at every scan batch, it will provide us a much
+     * more reliable time of execution for drop tables. Drop table
+     * can also be delayed by user transactions. So we could potentially
+     * make this check for all scan types. This will however require
+     * user transactions to add checks for this error, this they should
+     * however already have since it is checked at first SCAN_FRAGREQ.
+     *
+     * We don't need to worry about backups since they will take a lock
+     * before they start, so this won't happen to a backup. No drop tables
+     * can run concurrently with drop table. Also any ALTER TABLE activity
+     * cannot run at the same time as a drop table, so this is also safe
+     * for all sorts of table reorg scans. What remains is node recovery
+     * scans to synchronize data.
+     */
+    TablerecPtr tabPtr;
+    tabPtr.i = tcConnectptr.p->tableref;
+    ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+    if (unlikely(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+                 tabPtr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
+    {
+      tcConnectptr.p->errorCode = get_table_state_error(tabPtr);
+      closeScanRequestLab(signal);
+      return;
+    }
+  }
   if (max_rows > scanPtr->m_max_batch_size_rows)
   {
     jam();
@@ -14843,8 +14920,8 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   tabptr.i = lcpFragOrd->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  if (! (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED ||
-         tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY))
+  if (unlikely(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+               tabptr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
   {
     /**
      * There is no way to discover if we had multiple messages for this
@@ -14855,7 +14932,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
      */
     jam();
     LcpRecord::FragOrd fragOrd;
-    fragOrd.fragPtrI = RNIL;
     fragOrd.lcpFragOrd = * lcpFragOrd;
 
     Fragrecord tmp;
@@ -14949,20 +15025,20 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
    * Only table no longer present is acceptable - anything
    * else is a hard error.
    * This sometimes manifests as error 785 - 'Schema object is busy with another...'
-   * which we treat in the same way.
+   * which we treat in the same way. This happens when the table is dropping when
+   * we ask for the table information. So both are symptoms of a table which is
+   * being dropped or already been dropped.
    */
-  if (ref->errorCode != 723 &&
-      ref->errorCode != 785)
+  if (ref->errorCode != GetTabInfoRef::TableNotDefined &&
+      ref->errorCode != DropTableRef::ActiveSchemaTrans)
   {
     g_eventLogger->critical("Fatal : LCP_PREPARE_REF t%uf%u errorCode %u",
                             ref->tableId,
                             ref->fragmentId,
                             ref->errorCode);
     ndbrequire(false);
+    return;
   };
-
-  ndbrequire(ref->errorCode == 723 || /* No such table existed */
-             ref->errorCode == 785);  /* Table dropping */
 
   /* Carry on with the next table... */
 
@@ -15310,7 +15386,8 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   lcpPtr.p->currentFragment.lcpFragOrd.fragmentId = curr_fragptr.p->fragId;
   lcpPtr.p->currentFragment.lcpFragOrd.tableId = tabPtr.i;
 
-  if(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED)
+  if (unlikely(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+               tabPtr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
   {
     jam();
     /**
@@ -15320,12 +15397,14 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
     return;
   }
 
+  /**
+   * We need to perform LCPs also of read-only tables since there might
+   * have been changes to the table between now and when the table was
+   * made read only.
+   */
   lcpPtr.p->m_error = 0;
   lcpPtr.p->m_outstanding = 1;
 
-  ndbrequire(tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED ||
-             tabPtr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
-  
   lcpPtr.p->lcpState = LcpRecord::LCP_WAIT_FRAGID;
   LcpPrepareReq* req= (LcpPrepareReq*)signal->getDataPtr();
   req->senderData = lcpPtr.i;
