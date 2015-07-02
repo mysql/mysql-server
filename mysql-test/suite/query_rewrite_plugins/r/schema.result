@@ -45,12 +45,12 @@ SELECT * FROM db1.nonexistent_table1;
 Rule #1
 Rule #1
 Warnings:
-Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by a query rewrite plugin
 SELECT * FROM db2.nonexistent_table2;
 Rule #2
 Rule #2
 Warnings:
-Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by a query rewrite plugin
 SELECT * FROM nonexistent_table_db1;
 ERROR 42S02: Table 'test.nonexistent_table_db1' doesn't exist
 SELECT * FROM nonexistent_table_db2;
@@ -59,35 +59,35 @@ SELECT * FROM test.t1;
 Rule #6
 Rule #6
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by a query rewrite plugin
 SELECT 1 FROM t1;
 4
 4
 Warnings:
-Note	1105	Query 'SELECT 1 FROM t1' rewritten to 'SELECT 4 FROM t1' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1 FROM t1' rewritten to 'SELECT 4 FROM t1' by a query rewrite plugin
 USE db1;
 SELECT * FROM db1.nonexistent_table1;
 Rule #1
 Rule #1
 Warnings:
-Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by a query rewrite plugin
 SELECT * FROM db2.nonexistent_table2;
 Rule #2
 Rule #2
 Warnings:
-Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by a query rewrite plugin
 SELECT * FROM nonexistent_table_db1;
 Rule #3
 Rule #3
 Warnings:
-Note	1105	Query 'SELECT * FROM nonexistent_table_db1' rewritten to 'SELECT "Rule #3"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM nonexistent_table_db1' rewritten to 'SELECT "Rule #3"' by a query rewrite plugin
 SELECT * FROM nonexistent_table_db2;
 ERROR 42S02: Table 'db1.nonexistent_table_db2' doesn't exist
 SELECT * FROM test.t1;
 Rule #6
 Rule #6
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by a query rewrite plugin
 SELECT 1 FROM t1;
 ERROR 42S02: Table 'db1.t1' doesn't exist
 USE db2;
@@ -95,28 +95,30 @@ SELECT * FROM db1.nonexistent_table1;
 Rule #1
 Rule #1
 Warnings:
-Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM db1.nonexistent_table1' rewritten to 'SELECT "Rule #1"' by a query rewrite plugin
 SELECT * FROM db2.nonexistent_table2;
 Rule #2
 Rule #2
 Warnings:
-Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM db2.nonexistent_table2' rewritten to 'SELECT "Rule #2"' by a query rewrite plugin
 SELECT * FROM nonexistent_table_db1;
 ERROR 42S02: Table 'db2.nonexistent_table_db1' doesn't exist
 SELECT * FROM nonexistent_table_db2;
 Rule #4
 Rule #4
 Warnings:
-Note	1105	Query 'SELECT * FROM nonexistent_table_db2' rewritten to 'SELECT "Rule #4"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM nonexistent_table_db2' rewritten to 'SELECT "Rule #4"' by a query rewrite plugin
 SELECT * FROM test.t1;
 Rule #6
 Rule #6
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t1' rewritten to 'SELECT "Rule #6"' by a query rewrite plugin
 SELECT 1 FROM t1;
 ERROR 42S02: Table 'db2.t1' doesn't exist
 DROP DATABASE db1;
 DROP DATABASE db2;
 USE test;
 DROP TABLE t1;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

@@ -23,7 +23,7 @@ SELECT 1;
 rewritten
 rewritten
 Warnings:
-Note	1105	Query 'SELECT 1' rewritten to 'SELECT "rewritten"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1' rewritten to 'SELECT "rewritten"' by a query rewrite plugin
 SELECT 'nonrewritten';
 nonrewritten
 nonrewritten
@@ -50,5 +50,7 @@ digest_is_correct
 1
 DROP TABLE error_log;
 DROP FUNCTION search_error_log;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
 SET sql_mode = DEFAULT;

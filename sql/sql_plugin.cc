@@ -61,9 +61,6 @@ using std::max;
 static PSI_memory_key key_memory_plugin_ref;
 #endif
 
-volatile int32 num_pre_parse_plugins= 0;
-volatile int32 num_post_parse_plugins= 0;
-
 static PSI_memory_key key_memory_plugin_mem_root;
 static PSI_memory_key key_memory_plugin_init_tmp;
 static PSI_memory_key key_memory_plugin_int_mem_root;
@@ -103,18 +100,14 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("REPLICATION") },
   { C_STRING_WITH_LEN("AUTHENTICATION") },
   { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
-  { C_STRING_WITH_LEN("QUERY REWRITE PRE PARSE") },
-  { C_STRING_WITH_LEN("QUERY REWRITE POST PARSE") },
   { C_STRING_WITH_LEN("GROUP REPLICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
 
-extern int initialize_rewrite_pre_parse_plugin(st_plugin_int *plugin);
-extern int initialize_rewrite_post_parse_plugin(st_plugin_int *plugin);
-extern int finalize_rewrite_plugin(st_plugin_int *plugin);
-
+extern int initialize_audit_plugin(st_plugin_int *plugin);
+extern int finalize_audit_plugin(st_plugin_int *plugin);
 #ifdef EMBEDDED_LIBRARY
 // Dummy implementations for embedded
 int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
@@ -129,25 +122,13 @@ int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_initialize_handlerton,0,0,initialize_schema_table,
-  initialize_audit_plugin,0,0,0,
-
-  /// Initializer function for pre parse query rewrite plugins.
-  initialize_rewrite_pre_parse_plugin,
-
-  /// Initializer function for post parse query rewrite plugins.
-  initialize_rewrite_post_parse_plugin
+  initialize_audit_plugin,0,0,0
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_finalize_handlerton,0,0,finalize_schema_table,
-  finalize_audit_plugin,0,0,0,
-
-  /* Finalizer function for pre parse query rewrite plugins. */
-  finalize_rewrite_plugin,
-
-  /* Finalizer function for post parse query rewrite plugins. */
-  finalize_rewrite_plugin
+  finalize_audit_plugin,0,0,0
 };
 
 static const char *plugin_interface_version_sym=
@@ -173,8 +154,6 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
-  MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,
-  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION,
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
@@ -188,8 +167,6 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
-  MYSQL_REWRITE_PRE_PARSE_INTERFACE_VERSION,
-  MYSQL_REWRITE_POST_PARSE_INTERFACE_VERSION,
   MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
 };
 
@@ -953,12 +930,6 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         {
           init_alloc_root(key_memory_plugin_int_mem_root,
                           &tmp_plugin_ptr->mem_root, 4096, 4096);
-
-          if (plugin->type == MYSQL_REWRITE_PRE_PARSE_PLUGIN)
-            my_atomic_add32(&num_pre_parse_plugins, 1);
-          if (plugin->type == MYSQL_REWRITE_POST_PARSE_PLUGIN)
-            my_atomic_add32(&num_post_parse_plugins, 1);
-
           DBUG_RETURN(FALSE);
         }
         tmp_plugin_ptr->state= PLUGIN_IS_FREED;
@@ -1033,11 +1004,6 @@ static void plugin_del(st_plugin_int *plugin)
   restore_pluginvar_names(plugin->system_vars);
   plugin_vars_free_values(plugin->system_vars);
   my_hash_delete(&plugin_hash[plugin->plugin->type], (uchar*)plugin);
-
-  if (plugin->plugin->type == MYSQL_REWRITE_PRE_PARSE_PLUGIN)
-    my_atomic_add32(&num_pre_parse_plugins, -1);
-  if (plugin->plugin->type == MYSQL_REWRITE_POST_PARSE_PLUGIN)
-    my_atomic_add32(&num_post_parse_plugins, -1);
 
   if (plugin->plugin_dl)
     plugin_dl_del(&plugin->plugin_dl->dl);
