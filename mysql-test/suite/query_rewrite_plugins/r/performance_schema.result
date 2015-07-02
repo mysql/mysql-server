@@ -26,7 +26,7 @@ SELECT 'original';
 rewritten
 rewritten
 Warnings:
-Note	1105	Query 'SELECT 'original'' rewritten to 'SELECT "rewritten"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'original'' rewritten to 'SELECT "rewritten"' by a query rewrite plugin
 SELECT sql_text, digest
 FROM performance_schema.events_statements_history
 WHERE sql_text LIKE 'SELECT %';
@@ -36,4 +36,6 @@ SELECT load_rewrite_rules() INTO message_text	NULL
 UPDATE performance_schema.setup_consumers
 SET enabled = @original_setting
 WHERE NAME = 'statements_digest';
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

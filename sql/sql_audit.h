@@ -40,6 +40,7 @@ extern void mysql_audit_acquire_plugins(THD *thd, uint event_class);
 extern void mysql_audit_notify(THD *thd, uint event_class,
                                uint event_subtype, ...);
 bool is_any_audit_plugin_active(THD *thd);
+bool is_audit_plugin_class_active(THD *thd, unsigned int event_class);
 #else
 #define mysql_audit_notify(...)
 #endif
