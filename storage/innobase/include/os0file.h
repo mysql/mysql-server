@@ -59,11 +59,6 @@ typedef ib_uint64_t os_offset_t;
 #ifdef _WIN32
 
 /**
-Normalizes a directory path for Windows: converts slashes to backslashes.
-@param[in,out] str A null-terminated Windows directory and file path */
-void os_normalize_path_for_win(char* str);
-
-/**
 Gets the operating system version. Currently works only on Windows.
 @return OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
 OS_WIN7. */
@@ -99,8 +94,6 @@ typedef int	os_file_t;
 @param fd file descriptor
 @return native file handle */
 # define OS_FILE_FROM_FD(fd) fd
-
-# define os_normalize_path_for_win(str)
 
 #endif /* _WIN32 */
 
@@ -1713,6 +1706,41 @@ os_file_decompress_page(
 	byte*		dst,
 	ulint		dst_len)
 	__attribute__((warn_unused_result));
+
+/** Normalizes a directory path for the current OS:
+On Windows, we convert '/' to '\', else we convert '\' to '/'.
+@param[in,out] str A null-terminated directory and file path */
+void os_normalize_path(char*	str);
+
+/** Normalizes a directory path for Windows: converts '/' to '\'.
+@param[in,out] str A null-terminated Windows directory and file path */
+#ifdef _WIN32
+#define os_normalize_path_for_win(str)	os_normalize_path(str)
+#else
+#define os_normalize_path_for_win(str)
+#endif
+
+/* Determine if a path is an absolute path or not.
+@param[in]	OS directory or file path to evaluate
+@retval true if an absolute path
+@retval false if a relative path */
+UNIV_INLINE
+bool
+is_absolute_path(
+	const char*	path)
+{
+	if (path[0] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+
+#ifdef _WIN32
+	if (path[1] == ':' && path[2] == OS_PATH_SEPARATOR) {
+		return(true);
+	}
+#endif /* _WIN32 */
+
+	return(false);
+}
 
 #ifndef UNIV_NONINL
 #include "os0file.ic"

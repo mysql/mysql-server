@@ -292,8 +292,10 @@ t1	CREATE TEMPORARY TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 DROP TABLE t1;
-# Also a warning should be issued if DATA DIR and TEMP is used without
+#
+# A warning should be issued if DATA DIR and TEMP is used without
 # innodb_file_per_table
+#
 SET GLOBAL innodb_file_per_table=OFF;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 Warnings:

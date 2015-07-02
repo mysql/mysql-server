@@ -218,9 +218,10 @@ eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB row_format=comp
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-
---echo # Also a warning should be issued if DATA DIR and TEMP is used without
+--echo #
+--echo # A warning should be issued if DATA DIR and TEMP is used without
 --echo # innodb_file_per_table
+--echo #
 SET GLOBAL innodb_file_per_table=OFF;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB $data_directory_clause;

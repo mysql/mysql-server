@@ -1,0 +1,11 @@
+--echo #
+--echo # Check how the embedded engine handles tablespace filenames
+--echo #
+
+--source include/is_embedded.inc
+--source include/windows.inc
+
+SET DEFAULT_STORAGE_ENGINE=InnoDB;
+
+--source suite/innodb/include/tablespace_filenames.inc
+

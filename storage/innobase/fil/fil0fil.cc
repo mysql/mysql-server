@@ -115,10 +115,11 @@ the count drops to zero. */
 general tablespace before the data dictionary are recovered and available. */
 const char general_space_name[] = "innodb_general";
 
-/** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and mysqlbackup it is not the default
-directory, and we must set the base file path explicitly */
-const char*	fil_path_to_mysql_datadir	= ".";
+/** Reference to the server data directory. Usually it is the
+current working directory ".", but in the MySQL Embedded Server Library
+it is an absolute path. */
+const char*	fil_path_to_mysql_datadir;
+Folder  	folder_mysql_datadir;
 
 /** Common InnoDB file extentions */
 const char* dot_ext[] = { "", ".ibd", ".cfg" };
@@ -3236,9 +3237,12 @@ fil_make_filepath(
 	path and a new name to put back on. */
 	ut_ad(!trim || (path != NULL && name != NULL));
 
+	if (path == NULL) {
+		path = fil_path_to_mysql_datadir;
+	}
+
 	ulint	len		= 0;	/* current length */
-	ulint	path_len	= (path ? strlen(path)
-				  : strlen(fil_path_to_mysql_datadir));
+	ulint	path_len	= strlen(path);
 	ulint	name_len	= (name ? strlen(name) : 0);
 	const char* suffix	= dot_ext[ext];
 	ulint	suffix_len	= strlen(suffix);
@@ -3249,12 +3253,20 @@ fil_make_filepath(
 		return NULL;
 	}
 
-	::memcpy(full_name, (path ? path : fil_path_to_mysql_datadir),
-		 path_len);
-	len = path_len;
-	full_name[len] = '\0';
+	/* If the name is a relative path, do not prepend "./". */
+	if (path[0] == '.'
+	    && (path[1] == '\0' || path[1] == OS_PATH_SEPARATOR)
+	    && name != NULL && name[0] == '.') {
+		path = NULL;
+		path_len = 0;
+	}
 
-	os_normalize_path_for_win(full_name);
+	if (path != NULL) {
+		memcpy(full_name, path, path_len);
+		len = path_len;
+		full_name[len] = '\0';
+		os_normalize_path(full_name);
+	}
 
 	if (trim) {
 		/* Find the offset of the last DIR separator and set it to
@@ -3270,17 +3282,14 @@ fil_make_filepath(
 		if (len && full_name[len - 1] != OS_PATH_SEPARATOR) {
 			/* Add a DIR separator */
 			full_name[len] = OS_PATH_SEPARATOR;
-			full_name[len + 1] = '\0';
-			len++;
+			full_name[++len] = '\0';
 		}
 
-		memcpy(&full_name[len], name, name_len);
+		char*	ptr = &full_name[len];
+		memcpy(ptr, name, name_len);
 		len += name_len;
 		full_name[len] = '\0';
-
-		/* The name might be like "dbname/tablename".
-		So we have to do this again. */
-		os_normalize_path_for_win(full_name);
+		os_normalize_path(ptr);
 	}
 
 	/* Make sure that the specified suffix is at the end of the filepath
@@ -3488,6 +3497,7 @@ fil_ibd_create(
 	byte*		buf2;
 	byte*		page;
 	bool		success;
+	bool		has_shared_space = FSP_FLAGS_GET_SHARED(flags);
 	fil_space_t*	space = NULL;
 
 	ut_ad(!is_system_tablespace(space_id));
@@ -3498,9 +3508,11 @@ fil_ibd_create(
 
 	/* Create the subdirectories in the path, if they are
 	not there already. */
-	err = os_file_create_subdirs_if_needed(path);
-	if (err != DB_SUCCESS) {
-		return(err);
+	if (!has_shared_space) {
+		err = os_file_create_subdirs_if_needed(path);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 	}
 
 	file = os_file_create(
@@ -3755,8 +3767,8 @@ fil_ibd_open(
 		return(DB_CORRUPTION);
 	}
 
-	df.init(space_name, 0, 0);
-	df.make_filepath(NULL);
+	df.init(space_name, flags);
+	df.make_filepath(NULL, space_name, IBD);
 
 	if (path_in) {
 		df.set_filepath(path_in);
@@ -6513,18 +6525,137 @@ fil_set_compression(
 	return(err);
 }
 
-/**
-@param[in]      space_id        Space ID to check
+/** Get the compression algorithm for a tablespace.
+@param[in]	space_id	Space ID to check
 @return the compression algorithm */
 Compression::Type
 fil_get_compression(
-        ulint           space_id)
+	ulint	space_id)
 {
-        fil_space_t*    space = fil_space_get(space_id);
+	fil_space_t*	space = fil_space_get(space_id);
 
-        return(space == NULL ? Compression::NONE : space->compression_type);
+	return(space == NULL ? Compression::NONE : space->compression_type);
 }
 
+/** Build the basic folder name from the path and length provided
+@param[in]	path	pathname (may also include the file basename)
+@param[in]	len	length of the path, in bytes */
+void
+Folder::make_path(const char* path, size_t len)
+{
+	if (is_absolute_path(path)) {
+		m_folder = mem_strdupl(path, len);
+		m_folder_len = len;
+	}
+	else {
+		size_t n = 2 + len + strlen(fil_path_to_mysql_datadir);
+		m_folder = static_cast<char*>(ut_malloc_nokey(n));
+		m_folder_len = 0;
+
+		if (path != fil_path_to_mysql_datadir) {
+			/* Put the mysqld datadir into m_folder first. */
+			ut_ad(fil_path_to_mysql_datadir[0] != '\0');
+			m_folder_len = strlen(fil_path_to_mysql_datadir);
+			memcpy(m_folder, fil_path_to_mysql_datadir,
+			       m_folder_len);
+			if (m_folder[m_folder_len] != OS_PATH_SEPARATOR) {
+				m_folder[m_folder_len++] = OS_PATH_SEPARATOR;
+			}
+		}
+
+		/* Append the path. */
+		memcpy(m_folder + m_folder_len, path, len);
+		m_folder_len += len;
+		m_folder[m_folder_len] = '\0';
+	}
+
+	os_normalize_path(m_folder);
+}
+
+/** Resolve a relative path in m_folder to an absolute path
+in m_abs_path setting m_abs_len. */
+void
+Folder::make_abs_path()
+{
+	my_realpath(m_abs_path, m_folder, MYF(0));
+	m_abs_len = strlen(m_abs_path);
+
+	ut_ad(m_abs_len + 1 < sizeof(m_abs_path));
+
+	/* Folder::related_to() needs a trailing separator. */
+	if (m_abs_path[m_abs_len - 1] != OS_PATH_SEPARATOR) {
+		m_abs_path[m_abs_len] = OS_PATH_SEPARATOR;
+		m_abs_path[++m_abs_len] = '\0';
+	}
+}
+
+/** Constructor
+@param[in]	path	pathname (may also include the file basename)
+@param[in]	len	length of the path, in bytes */
+Folder::Folder(const char* path, size_t len)
+{
+	make_path(path, len);
+	make_abs_path();
+}
+
+/** Assignment operator
+@param[in]	folder	folder string provided */
+class Folder&
+Folder::operator=(const char* path)
+{
+	ut_free(m_folder);
+	make_path(path, strlen(path));
+	make_abs_path();
+
+	return(*this);
+}
+
+/** Determine if two folders are equal
+@param[in]	other	folder to compare to
+@return whether the folders are equal */
+bool Folder::operator==(const Folder& other) const
+{
+	return(m_abs_len == other.m_abs_len
+	       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
+}
+
+/** Determine this folder is a child of another folder.
+@param[in]	other	folder to compare to
+@return whether this is a (grand)parent of the other folder */
+bool Folder::is_child_of(const Folder& other) const
+{
+	return(m_abs_len > other.m_abs_len
+	       && (!memcmp(other.m_abs_path, m_abs_path, other.m_abs_len)));
+}
+
+/** Determine if the directory referenced by m_folder exists.
+@return whether the directory exists */
+bool
+Folder::exists()
+{
+	bool		exists;
+	os_file_type_t	type;
+
+#ifdef _WIN32
+	/* Temporarily strip the trailing_separator since it will
+	cause _stat64() to fail on Windows */
+	size_t	len = strlen(m_abs_path);
+	if (m_abs_path[m_abs_len - 1] == OS_PATH_SEPARATOR) {
+		m_abs_path[m_abs_len - 1] = '\0';
+	}
+#endif /* WIN32 */
+
+	bool ret = os_file_status(m_abs_path, &exists, &type);
+
+#ifdef _WIN32
+	/* Put the separator back on. */
+	if (m_abs_path[m_abs_len - 1] == '\0') {
+		m_abs_path[m_abs_len - 1] = OS_PATH_SEPARATOR;
+	}
+#endif /* WIN32 */
+
+	return(ret && exists && type == OS_FILE_TYPE_DIR);
+}
 
 /* Unit Tests */
 #ifdef UNIV_COMPILE_TEST_FUNCS
