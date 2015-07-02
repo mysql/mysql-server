@@ -4088,7 +4088,8 @@ static int dump_tablespaces(char* ts_where)
                       " EXTRA"
                       " FROM INFORMATION_SCHEMA.FILES"
                       " WHERE FILE_TYPE = 'UNDO LOG'"
-                      " AND FILE_NAME IS NOT NULL",
+                      " AND FILE_NAME IS NOT NULL"
+                      " AND LOGFILE_GROUP_NAME IS NOT NULL",
                       256, 1024);
   if(ts_where)
   {
