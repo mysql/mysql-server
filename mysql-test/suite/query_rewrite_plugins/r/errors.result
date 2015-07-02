@@ -51,7 +51,9 @@ search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
 # Create another table with insufficient number of columns.
 CREATE DATABASE query_rewrite;
 CREATE TABLE query_rewrite.rewrite_rules ( enabled CHAR(1) DEFAULT 'Y' );
@@ -83,7 +85,9 @@ Rewriter_reload_error	ON
 SHOW STATUS LIKE 'Rewriter_number_loaded_rules';
 Variable_name	Value
 Rewriter_number_loaded_rules	0
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
 # Query rewrite plugin was installed.
 #
 # We now try 6 rules with various errors in them:
@@ -252,7 +256,7 @@ abc	def
 ghi	klm
 nop	qrs
 Warnings:
-Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by plugin: Rewriter.
+Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by a query rewrite plugin
 # Fix rule 1 (error in the replacement.)
 UPDATE query_rewrite.rewrite_rules
 SET replacement = 'SELECT c1 FROM test.t2 WHERE c1 = ?', enabled = 'YES'
@@ -265,7 +269,7 @@ Rewriter_number_loaded_rules	3
 SELECT c1 FROM test.t1 WHERE c1 = 'abc';
 c1
 Warnings:
-Note	1105	Query 'SELECT c1 FROM test.t1 WHERE c1 = 'abc'' rewritten to 'SELECT c1 FROM test.t2 WHERE c1 = 'abc'' by plugin: Rewriter.
+Note	1105	Query 'SELECT c1 FROM test.t1 WHERE c1 = 'abc'' rewritten to 'SELECT c1 FROM test.t2 WHERE c1 = 'abc'' by a query rewrite plugin
 SELECT c1 FROM test.t2 WHERE c1 = 'tuv';
 c1
 tuv
@@ -284,7 +288,7 @@ abc	def
 ghi	klm
 nop	qrs
 Warnings:
-Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by plugin: Rewriter.
+Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by a query rewrite plugin
 # Remove all the rules that cause errors.
 DELETE FROM query_rewrite.rewrite_rules WHERE pattern <> 'SELECT c1 FROM test.t1';
 DELETE FROM query_rewrite.rewrite_rules WHERE pattern IS NULL;
@@ -309,7 +313,7 @@ abc	def
 ghi	klm
 nop	qrs
 Warnings:
-Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by plugin: Rewriter.
+Note	1105	Query 'SELECT c1 FROM test.t1' rewritten to 'SELECT * FROM test.t1' by a query rewrite plugin
 # A rule with parse error followed by a correct rule should still turn
 # Rewriter_reload_error to true.
 DELETE FROM query_rewrite.rewrite_rules;
@@ -336,10 +340,10 @@ SELECT 1;
 2
 2
 Warnings:
-Note	1105	Query 'SELECT 1' rewritten to 'select 2' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1' rewritten to 'select 2' by a query rewrite plugin
 PREPARE stmt1 FROM 'SELECT 1';
 Warnings:
-Note	1105	Query 'SELECT 1' rewritten to 'select 2' by plugin: Rewriter.
+Note	1105	Query 'SELECT 1' rewritten to 'select 2' by a query rewrite plugin
 EXECUTE stmt1;
 2
 2
@@ -351,11 +355,13 @@ WHERE NAME = 'statements_digest';
 # script. The library will not be unloaded so we can still call the UDF
 # but it should return an error.
 UNINSTALL PLUGIN rewriter;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
 CALL query_rewrite.flush_rewrite_rules();
 ERROR HY000: Can't initialize function 'load_rewrite_rules'; Rewriter plugin needs to be installed.
 SELECT load_rewrite_rules();
 ERROR HY000: Can't initialize function 'load_rewrite_rules'; Rewriter plugin needs to be installed.
-# Query rewrite plugin was uninstalled.
+# Query rewrite plugin was queued for uninstalling.
 DROP TABLE error_log;
 DROP FUNCTION search_error_log;
 DROP TABLE t1, t2;

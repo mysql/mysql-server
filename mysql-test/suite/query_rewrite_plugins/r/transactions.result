@@ -19,37 +19,39 @@ SELECT "Rewrite me conn 1";
 Rewritten conn 1 rule 1
 Rewritten conn 1 rule 1
 Warnings:
-Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by a query rewrite plugin
 SELECT "Rewrite me conn 2";
 Rewritten conn 2 rule 1
 Rewritten conn 2 rule 1
 Warnings:
-Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
 CALL query_rewrite.flush_rewrite_rules();
 SELECT "Rewrite me conn 1";
 Rewritten conn 1 rule 1
 Rewritten conn 1 rule 1
 Warnings:
-Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by a query rewrite plugin
 SELECT "Rewrite me conn 2";
 Rewritten conn 2 rule 1
 Rewritten conn 2 rule 1
 Warnings:
-Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
 SELECT "Rewrite me conn 1";
 Rewritten conn 1 rule 1
 Rewritten conn 1 rule 1
 Warnings:
-Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT "Rewrite me conn 1"' rewritten to 'SELECT "Rewritten conn 1 rule 1"' by a query rewrite plugin
 SELECT "Rewrite me conn 2";
 Rewritten conn 2 rule 1
 Rewritten conn 2 rule 1
 Warnings:
-Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT "Rewrite me conn 2"' rewritten to 'SELECT "Rewritten conn 2 rule 1"' by a query rewrite plugin
 # This would cause failed assertion unless the mdl locks are released.
 SELECT xxx(pattern) FROM query_rewrite.rewrite_rules;
 ERROR 42000: FUNCTION test.xxx does not exist
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
 #
 # Now make sure that everything works as long we do as we're supposed
 # to, even with autocommit = 0.
@@ -67,14 +69,16 @@ SELECT 'Rewrite me';
 Rewritten w/rule 1
 Rewritten w/rule 1
 Warnings:
-Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by a query rewrite plugin
 SHOW STATUS LIKE 'Rewriter_%';
 Variable_name	Value
 Rewriter_number_loaded_rules	1
 Rewriter_number_reloads	2
 Rewriter_number_rewritten_queries	1
 Rewriter_reload_error	OFF
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
 #
 # Now check that we don't fail even if @@autocommit is 0. In this case
 # InnoDB times out waiting for a lock, the plugin can't load the rules,
@@ -123,14 +127,16 @@ SELECT 'Rewrite me';
 Rewritten w/rule 1
 Rewritten w/rule 1
 Warnings:
-Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by a query rewrite plugin
 SHOW STATUS LIKE 'Rewriter_%';
 Variable_name	Value
 Rewriter_number_loaded_rules	1
 Rewriter_number_reloads	3
 Rewriter_number_rewritten_queries	1
 Rewriter_reload_error	OFF
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
 #
 # Now let's make sure that everything works fine if we run with
 # autocommit.
@@ -165,6 +171,8 @@ SELECT 'Rewrite me';
 Rewritten w/rule 1
 Rewritten w/rule 1
 Warnings:
-Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'Rewrite me'' rewritten to 'SELECT "Rewritten w/rule 1"' by a query rewrite plugin
 SET autocommit = DEFAULT;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.
