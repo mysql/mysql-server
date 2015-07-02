@@ -857,7 +857,8 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 
       set_timespec_nsec(&ts[0], 0);
       // Update thd info as waiting for workers to finish.
-      thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
+      thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue,
+                       old_stage,
                        __func__, __FILE__, __LINE__);
       while (!worker && !thd->killed)
       {
@@ -937,7 +938,8 @@ Mts_submode_logical_clock::
   DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
                           jobs_done));
   // Update thd info as waiting for workers to finish.
-  thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
+  thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue,
+                   old_stage,
                     __func__, __FILE__, __LINE__);
   while (delegated_jobs > jobs_done && !thd->killed && !is_error)
   {
