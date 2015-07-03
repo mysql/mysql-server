@@ -531,3 +531,7 @@ max-time : 600
 cmd: testDict
 args: -n DropTableConcurrentLCP2 T1
 
+max-time : 600
+cmd: testBackup
+args: -n BackupWhenOutOfLDMRecords T1
+

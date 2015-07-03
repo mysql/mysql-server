@@ -67,7 +67,6 @@ void Dblqh::initData()
 
   cLqhTimeOutCount = 0;
   cLqhTimeOutCheckCount = 0;
-  cbookedAccOps = 0;
   cpackedListIndex = 0;
   m_backup_ptr = RNIL;
   clogFileSize = 16;

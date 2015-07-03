@@ -1324,7 +1324,6 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 					&ctcConnectrecFileSize));
   clogFileFileSize = clogPartFileSize * cnoLogFiles;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
-  cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_OP_PER_SCAN;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
   c_o_direct = true;
@@ -4630,26 +4629,36 @@ int Dblqh::saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len)
  * 
  *       GETS A NEW TC CONNECT RECORD FROM FREELIST.
  * ========================================================================= */
-void Dblqh::seizeTcrec() 
+void Dblqh::seizeTcrec()
 {
   TcConnectionrecPtr locTcConnectptr;
 
   locTcConnectptr.i = cfirstfreeTcConrec;
+
+  Uint32 numFree = ctcNumFree;
+  Uint32 timeOutCount = cLqhTimeOutCount;
+
   ptrCheckGuard(locTcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+
   Uint32 nextTc = locTcConnectptr.p->nextTcConnectrec;
+
   locTcConnectptr.p->nextTcConnectrec = RNIL;
   locTcConnectptr.p->clientConnectrec = RNIL;
   locTcConnectptr.p->clientBlockref = RNIL;
-  locTcConnectptr.p->abortState = TcConnectionrec::ABORT_IDLE;
-  locTcConnectptr.p->tcTimer = cLqhTimeOutCount;
   locTcConnectptr.p->tableref = RNIL;
+  locTcConnectptr.p->hashIndex = RNIL;
+
+  ctcNumFree = numFree - 1;
+  cfirstfreeTcConrec = nextTc;
+
+  locTcConnectptr.p->tcTimer = timeOutCount;
+  locTcConnectptr.p->abortState = TcConnectionrec::ABORT_IDLE;
+  locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
   locTcConnectptr.p->savePointId = 0;
   locTcConnectptr.p->gci_hi = 0;
   locTcConnectptr.p->gci_lo = 0;
-  locTcConnectptr.p->hashIndex = RNIL;
-  cfirstfreeTcConrec = nextTc;
+
   tcConnectptr = locTcConnectptr;
-  locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
 }//Dblqh::seizeTcrec()
 
 bool
@@ -4897,7 +4906,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
-  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5031)) {
+  if (ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+      !ERROR_INSERTED_CLEAR(5031)) {
     jamEntry();
     seizeTcrec();
   } else {
@@ -9005,10 +9015,12 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   const Uint32 op = locTcConnectptr.p->operation;
   const Uint32 firstFree = cfirstfreeTcConrec;
+  Uint32 numFree = ctcNumFree;
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
   locTcConnectptr.p->nextTcConnectrec = firstFree;
   cfirstfreeTcConrec = locTcConnectptr.i;
+  ctcNumFree = numFree + 1;
 
   ndbassert(locTcConnectptr.p->tcScanRec == RNIL);
 
@@ -9037,11 +9049,13 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
   jam();
+  Uint32 numFree = ctcNumFree;
   ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
   locTcConnectptr.p->nextTcConnectrec = cfirstfreeTcConrec;
   cfirstfreeTcConrec = locTcConnectptr.i;
+  ctcNumFree = numFree + 1;
 
   TablerecPtr tabPtr;
   tabPtr.i = locTcConnectptr.p->tableref;
@@ -10537,10 +10551,6 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   fragptr.i = tcConnectptr.p->fragmentptr;
   c_fragment_pool.getPtr(fragptr);
 
-  /**
-   * Change parameters while running
-   *   (is currently not supported)
-   */
   ScanRecord * const scanPtr = scanptr.p;
   const Uint32 max_rows = nextReq->batch_size_rows;
   const Uint32 max_bytes = nextReq->batch_size_bytes;
@@ -10580,7 +10590,9 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     /**
      * Extend list...
+     * Will never happen for LCP, Backup and NR.
      */
+    ndbrequire(scanPtr->m_reserved == 0);
     if (!seize_acc_ptr_list(scanPtr, 
                             scanPtr->m_max_batch_size_rows, max_rows))
     {
@@ -10589,13 +10601,11 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
       closeScanRequestLab(signal);
       return;
     }
-    cbookedAccOps += (max_rows - scanPtr->m_max_batch_size_rows);
     scanPtr->m_max_batch_size_rows = max_rows;
   }
   else if (unlikely(max_rows < scanPtr->m_max_batch_size_rows))
   {
     jam();
-    cbookedAccOps -= (scanPtr->m_max_batch_size_rows - max_rows);
     scanPtr->m_max_batch_size_rows = max_rows;
   }
   
@@ -11315,9 +11325,17 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 senderData = scanFragReq->senderData;
   const Uint32 senderBlockRef = signal->senderBlockRef();
 
-  if (likely(cfirstfreeTcConrec != RNIL &&
-             !ERROR_INSERTED_CLEAR(5055)))
+  if (likely(ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+             !ERROR_INSERTED_CLEAR(5055)) ||
+      (ScanFragReq::getLcpScanFlag(scanFragReq->requestInfo)) ||
+      (refToMain(senderBlockRef) == BACKUP))
   {
+    /**
+     * We always keep 3 operation records, one for LCP scans and one for
+     * Node recovery support (to handle COPY_FRAGREQ when we're aiding a
+     * node to startup by synchronizing our data with the starting nodes
+     * recovered data and finally one for backup scans.
+     */
     seizeTcrec();
 
     regTcPtr = tcConnectptr.p;
@@ -11374,15 +11392,10 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       goto error_handler;
     }//if
   
-    // XXX adjust cmaxAccOps for range scans and remove this comment
-    if ((cbookedAccOps + max_rows) > cmaxAccOps) {
-      jam();
-      errorCode = ScanFragRef::ZSCAN_BOOK_ACC_OP_ERROR;
-      goto error_handler;
-    }//if
-
-    if (ScanFragReq::getLcpScanFlag(reqinfo))
+    if (ScanFragReq::getLcpScanFlag(reqinfo) ||
+        refToMain(senderHi) == BACKUP)
     {
+      /* LCP and Backup scans come here */
       jam();
       ndbrequire(m_reserved_scans.first(scanptr));
       m_reserved_scans.remove(scanptr);
@@ -11457,7 +11470,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       jam();
       goto error_handler2;
     }//if
-    cbookedAccOps += max_rows;
 
     /* Check that no equal element already exists */
     ndbassert(findTransaction(regTcPtr->transid[0],
@@ -12895,7 +12907,12 @@ void Dblqh::initScanTc(const ScanFragReq* req,
 bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 {
   ScanRecord * const scanPtr = scanptr.p;
-  release_acc_ptr_list(scanPtr);
+  Uint32 reserved = scanPtr->m_reserved;
+
+  if (reserved == 0)
+  {
+    release_acc_ptr_list(scanPtr);
+  }
 
   Uint32 tupScan = scanPtr->tupScan;
   
@@ -12906,7 +12923,7 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
                                        fragptr.p->m_queuedScans :
                                        fragptr.p->m_queuedTupScans);
     jam();
-    if (scanPtr->m_reserved == 0)
+    if (reserved == 0)
     {
       jam();
       queue.release(scanptr);
@@ -12946,7 +12963,7 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
      * code generated by the object.
      */
     LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
-    if (scanPtr->m_reserved == 0)
+    if (reserved == 0)
     {
       jam();
       scans.release(scanptr);
@@ -13037,11 +13054,9 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 void Dblqh::releaseScanrec(Signal* signal) 
 {
   ScanRecord * const scanPtr = scanptr.p;
-  const Uint32 max_batch_size_rows = scanPtr->m_max_batch_size_rows;
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanType = ScanRecord::ST_IDLE;
   scanPtr->scanTcWaiting = 0;
-  cbookedAccOps -= max_batch_size_rows;
 }//Dblqh::releaseScanrec()
 
 /* ------------------------------------------------------------------------
@@ -13549,6 +13564,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }//if
 
   {
+    /* NR Scans allocate reserved scan records */
     LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     ndbrequire(m_reserved_scans.first(scanptr));
     m_reserved_scans.remove(scanptr);
@@ -13566,6 +13582,13 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   scanPtr->m_max_batch_size_rows = 0;
   scanPtr->rangeScan = 0;
   scanPtr->tupScan = 0;
+  /**
+   * Will always succeed since we can only call this once at a time for
+   * NR operations, LCP scan operation and backup scan operation. All these
+   * 3 operations have a reserved record always available for them.
+   * The seizeTcrec would crash if this wasn't true and we've run out this
+   * resource.
+   */
   seizeTcrec();
   tcConnectptr.p->clientBlockref = userRef;
   
@@ -19628,6 +19651,8 @@ void Dblqh::openExecSrStartLab(Signal* signal)
   logFilePtr.p->currentMbyte = logPartPtr.p->startMbyte;
   /* ------------------------------------------------------------------------
    *     WE NEED A TC CONNECT RECORD TO HANDLE EXECUTION OF LOG RECORDS.
+   *     This will always succeed since we don't interact with user
+   *     operations during recovery when we are applying the REDO log content.
    * ------------------------------------------------------------------------ */
   seizeTcrec();
   logPartPtr.p->logTcConrec = tcConnectptr.i;
@@ -21651,11 +21676,7 @@ void Dblqh::execMEMCHECKREQ(Signal* signal)
   }//for
   index++;
   tcConnectptr.i = cfirstfreeTcConrec;
-  while (tcConnectptr.i != RNIL) {
-    ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-    tcConnectptr.i = tcConnectptr.p->nextTcConnectrec;
-    dataPtr[index]++;
-  }//while
+  dataPtr[index] = ctcNumFree;
   sendSignal(userblockref, GSN_MEMCHECKCONF, signal, 10, JBB);
   return;
 }//Dblqh::execMEMCHECKREQ()
@@ -22554,11 +22575,20 @@ void Dblqh::initialiseScanrec(Signal* signal)
   /**
    * just seize records from pool and put into
    *   dedicated list
+   *
+   * We need to allocate an ACC pointer list that fits
+   * all reserved since we can use the LCP record for NR or Backup and
+   * vice versa for NR scans and Backup scans.
    */
   m_reserved_scans.seizeFirst(scanptr); // LCP
   scanptr.p->m_reserved = 1;
+  ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
   m_reserved_scans.seizeFirst(scanptr); // NR
   scanptr.p->m_reserved = 1;
+  ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
+  m_reserved_scans.seizeFirst(scanptr); // Backup
+  scanptr.p->m_reserved = 1;
+  ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
 
 }//Dblqh::initialiseScanrec()
 
@@ -22614,6 +22644,7 @@ void Dblqh::initialiseTcrec(Signal* signal)
     ptrAss(tcConnectptr, tcConnectionrec);
     tcConnectptr.p->nextTcConnectrec = RNIL;
     cfirstfreeTcConrec = 0;
+    ctcNumFree = ctcConnectrecFileSize;
   } else {
     jam();
     cfirstfreeTcConrec = RNIL;
@@ -25359,15 +25390,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     case 1:
     {
       /* Must get all in one loop, as we're traversing a dynamic list */
-      sum = 0;
-      TcConnectionrecPtr tcp;    
-      tcp.i = cfirstfreeTcConrec;
-      while (tcp.i != RNIL)
-      {
-        sum++;
-        ptrCheckGuard(tcp, ctcConnectrecFileSize, tcConnectionrec);
-        tcp.i = tcp.p->nextTcConnectrec;
-      }
+      sum = ctcNumFree;
       infoEvent("LQH : TcConnection (operation) records in use/total %u/%u (%u bytes each)",
                 ctcConnectrecFileSize - sum, ctcConnectrecFileSize, (Uint32) sizeof(TcConnectionrec));
       resource++;

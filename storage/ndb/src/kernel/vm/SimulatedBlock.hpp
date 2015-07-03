@@ -78,6 +78,13 @@
 #endif
 
 /**
+ * LCP scans and Backup scans always use batch size 16, there are even
+ * optimisations in allocation and handling LCP scans and Backup scans
+ * keeping proper rates using this particular batch size. This is also
+ * true for Node recovery scans as started by COPY_FRAGREQ.
+ */
+#define ZRESERVED_SCAN_BATCH_SIZE 16
+/**
  * Something for filesystem access
  */
 struct  NewBaseAddrBits              /* 32 bits */
