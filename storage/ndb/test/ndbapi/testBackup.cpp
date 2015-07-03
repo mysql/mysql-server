@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,6 +136,77 @@ int runFail(NDBT_Context* ctx, NDBT_Step* step){
     }
   }
 
+  return NDBT_OK;
+}
+
+int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
+{
+  int res;
+  int row = 0;
+  NdbBackup backup;
+  NdbRestarter restarter;
+  unsigned backupId = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  Ndb *pNdb = GETNDB(step);
+
+  if (hugoOps.startTransaction(pNdb) != 0)
+  {
+    g_err << "Failed to start transaction, line: " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  while (true)
+  {
+    if (hugoOps.pkInsertRecord(pNdb, row) != 0)
+    {
+      g_err << "Failed to define insert, line: " << __LINE__ << endl;
+      return NDBT_FAILED;
+    }
+    res = hugoOps.execute_NoCommit(pNdb, AO_IgnoreError);
+    if (res == 0)
+    {
+      row++;
+    }
+    else
+    {
+      break;
+    }
+  }
+  /**
+   * Here we always come with a failure, but we want the failure to
+   * be out of operation records in LDM, any other error isn't
+   * testing what we want, but we will pass the test even with
+   * other error codes. The only indication of the test failing is
+   * when executed as part of the autotest framework when a data node
+   * failure will happen if the test fails. This is what the original
+   * bug caused and what we verify that we actually fixed.
+   *
+   * Getting error code 1217 here means that at least 1 LDM thread is
+   * out of operation records, this is sufficient to test since LCPs
+   * always use all of the LDMs. Backups currently only use 1, so here
+   * the test only is only temporary testing. We ensure that an LCP is
+   * ongoing while we're out of operation records.
+   */
+  if (res == 1217)
+  {
+    ndbout << "Out of LDM operation records as desired" << endl;
+  }
+  else
+  {
+    ndbout << "Result code is " << res << endl;
+    ndbout << "We will continue anyways although test isn't useful" << endl;
+  }
+  /* Ensure an LCP is executed in out of resource state. */
+  int dumpCode=7099;
+  restarter.dumpStateAllNodes(&dumpCode, 1);
+
+  if (backup.start(backupId) == -1)
+  {
+    g_err << "Start backup failed: Line: " << __LINE__ << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Started backup " << backupId << endl;
+  NdbSleep_SecSleep(5); /* Give LCP some time to execute */
+  hugoOps.closeTransaction(pNdb);
   return NDBT_OK;
 }
 
@@ -932,6 +1003,12 @@ TESTCASE("BackupOne",
   INITIALIZER(runDropTablesRestart);
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);
+  FINALIZER(runClearTable);
+}
+TESTCASE("BackupWhenOutOfLDMRecords",
+      "Test that backup works also when we have no LDM records available\n")
+{
+  INITIALIZER(outOfLDMRecords);
   FINALIZER(runClearTable);
 }
 TESTCASE("BackupRandom", 

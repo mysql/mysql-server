@@ -283,6 +283,7 @@ class Lgman;
 #define ZDELETE_STORED_PROC_ID 3
 #define ZWRITE_LOCK 1
 #define ZSCAN_FRAG_CLOSED 2
+#define ZNUM_RESERVED_TC_CONNECT_RECORDS 3
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 0.1 AND 0.2                            */
 /* ------------------------------------------------------------------------- */
@@ -3128,6 +3129,7 @@ private:
   TcConnectionrecPtr tcConnectptr;
   UintR cfirstfreeTcConrec;
   UintR ctcConnectrecFileSize;
+  Uint32 ctcNumFree;
 
 // MAX_NDB_NODES is the size of this array
   TcNodeFailRecord *tcNodeFailRecord;
@@ -3150,14 +3152,8 @@ private:
 /* ------------------------------------------------------------------------- */
 // cmaxWordsAtNodeRec keeps track of how many words that currently are
 // outstanding in a node recovery situation.
-// cbookedAccOps keeps track of how many operation records that have been
-// booked in ACC for the scan processes.
-// cmaxAccOps contains the maximum number of operation records which can be
-// allocated for scan purposes in ACC.
 /* ------------------------------------------------------------------------- */
   UintR cmaxWordsAtNodeRec;
-  UintR cbookedAccOps;
-  UintR cmaxAccOps;
 /* ------------------------------------------------------------------------- */
 /*THIS STATE VARIABLE IS ZTRUE IF AN ADD NODE IS ONGOING. ADD NODE MEANS     */
 /*THAT CONNECTIONS ARE SET-UP TO THE NEW NODE.                               */

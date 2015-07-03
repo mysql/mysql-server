@@ -3981,7 +3981,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     MAX_WORDS_META_FILE,
     4096,    // 16k
     // Max 16 tuples
-    16 * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
+    ZRESERVED_SCAN_BATCH_SIZE *
+      (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
   };
   Uint32 minWrite[] = {
     8192,
@@ -5450,7 +5451,7 @@ Backup::sendScanFragReq(Signal* signal,
     
     Table & table = * tabPtr.p;
     ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
-    const Uint32 parallelism = 16;
+    const Uint32 parallelism = ZRESERVED_SCAN_BATCH_SIZE;
 
     req->senderData = filePtr.i;
     req->resultRef = reference();
@@ -5626,7 +5627,7 @@ Backup::OperationRecord::newFragment(Uint32 tableId, Uint32 fragNo)
 {
   Uint32 * tmp;
   const Uint32 headSz = (sizeof(BackupFormat::DataFile::FragmentHeader) >> 2);
-  const Uint32 sz = headSz + 16 * maxRecordSize;
+  const Uint32 sz = headSz + ZRESERVED_SCAN_BATCH_SIZE * maxRecordSize;
   
   ndbrequire(sz < dataBuffer.getMaxWrite());
   if(dataBuffer.getWritePtr(&tmp, sz)) {
@@ -5709,8 +5710,8 @@ bool
 Backup::OperationRecord::newScan()
 {
   Uint32 * tmp;
-  ndbrequire(16 * maxRecordSize < dataBuffer.getMaxWrite());
-  if(dataBuffer.getWritePtr(&tmp, 16 * maxRecordSize))
+  ndbrequire(ZRESERVED_SCAN_BATCH_SIZE * maxRecordSize < dataBuffer.getMaxWrite());
+  if(dataBuffer.getWritePtr(&tmp, ZRESERVED_SCAN_BATCH_SIZE * maxRecordSize))
   {
     jam();
     opNoDone = opNoConf = opLen = 0;
@@ -5980,7 +5981,7 @@ Backup::checkScan(Signal* signal,
     req->requestInfo = 0;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
-    req->batch_size_rows= 16;
+    req->batch_size_rows= ZRESERVED_SCAN_BATCH_SIZE;
     req->batch_size_bytes= 0;
 
     if (ERROR_INSERTED(10039) && 
