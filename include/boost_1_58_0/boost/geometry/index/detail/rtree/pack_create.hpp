@@ -11,6 +11,7 @@
 #ifndef BOOST_GEOMETRY_INDEX_DETAIL_RTREE_PACK_CREATE_HPP
 #define BOOST_GEOMETRY_INDEX_DETAIL_RTREE_PACK_CREATE_HPP
 
+#include <boost/geometry/algorithms/assign.hpp>
 #include <boost/geometry/algorithms/expand.hpp>
 #include <boost/geometry/index/detail/algorithms/bounds.hpp>
 
@@ -195,7 +196,9 @@ private:
     public:
         expandable_box()
             : m_initialized(false)
-        {}
+        {
+            geometry::assign_zero(m_box);
+        }
 
         template <typename Indexable>
         void expand(Indexable const& indexable)

@@ -1839,7 +1839,6 @@ drop table t1;
 # Correct inserting data check (absence of default value) for view
 # underlying tables (Bug#6443)
 #
-set sql_mode='strict_all_tables';
 CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL);
 CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
 CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
@@ -1849,7 +1848,6 @@ INSERT INTO t1 (col1) VALUES(12);
 INSERT INTO v1 (vcol1) VALUES(12);
 -- error ER_NO_DEFAULT_FOR_VIEW_FIELD
 INSERT INTO v2 (vcol1) VALUES(12);
-set sql_mode=default;
 drop view v2,v1;
 drop table t1;
 
@@ -2878,7 +2876,7 @@ DROP VIEW IF EXISTS v2;
 CREATE TABLE t1(a INT, b INT);
 
 --error ER_WRONG_STRING_LENGTH
-CREATE DEFINER=1234567890abcdefGHIKL@localhost
+CREATE DEFINER=1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost
   VIEW v1 AS SELECT a FROM t1;
 
 --error ER_WRONG_STRING_LENGTH

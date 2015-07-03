@@ -1,6 +1,6 @@
 DESC sys.user_summary_by_statement_type;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 statement	varchar(128)	YES		NULL	
 total	bigint(20) unsigned	NO		NULL	
 total_latency	text	YES		NULL	
@@ -13,7 +13,7 @@ full_scans	bigint(21) unsigned	NO		0
 SELECT * FROM sys.user_summary_by_statement_type;
 DESC sys.x$user_summary_by_statement_type;
 Field	Type	Null	Key	Default	Extra
-user	varchar(16)	YES		NULL	
+user	varchar(32)	YES		NULL	
 statement	varchar(128)	YES		NULL	
 total	bigint(20) unsigned	NO		NULL	
 total_latency	bigint(20) unsigned	NO		NULL	

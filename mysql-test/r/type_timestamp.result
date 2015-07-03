@@ -664,8 +664,9 @@ SET sql_mode = default;
 DROP TABLE IF EXISTS t1, t2, t3;
 SET @org_mode=@@sql_mode;
 #Table creation in strict mode
-SET @@sql_mode='STRICT_ALL_TABLES';
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
 ERROR 42000: Invalid default value for 'c1'
@@ -673,6 +674,23 @@ CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
 ERROR 42000: Invalid default value for 'c1'
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
 ERROR 42000: Invalid default value for 'c1'
+#Table creation in non-strict mode but with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+CREATE TABLE t2 (c1 TIMESTAMP DEFAULT '0000-00-00 00:00:00');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SET @@sql_mode='NO_ZERO_IN_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t3 (c1 TIMESTAMP DEFAULT '2012-02-00 12:12:12');
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DROP TABLE t1, t2, t3;
 #Table creation with out any SQL modes
 SET @@sql_mode='';
 CREATE TABLE t1 (c1 TIMESTAMP DEFAULT 0);
@@ -682,12 +700,17 @@ Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (c1 INT);
-#Alter table in strict mode
-SET @@sql_mode='STRICT_ALL_TABLES';
+#Alter table in strict mode  with NO_ZERO_DATE/NO_ZERO_IN_DATE
+SET @@sql_mode='NO_ZERO_DATE,STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT 0;
 ERROR 42000: Invalid default value for 'c2'
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '0000-00-00';
 ERROR 42000: Invalid default value for 'c2'
+SET @@sql_mode='NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 ALTER TABLE t1 ADD c2 TIMESTAMP DEFAULT '2012-02-00';
 ERROR 42000: Invalid default value for 'c2'
 #Alter table with out any SQL modes

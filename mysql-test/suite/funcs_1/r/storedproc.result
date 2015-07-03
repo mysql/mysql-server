@@ -21642,7 +21642,7 @@ f1
 2005-03-14 01:01:02
 SELECT @@sql_mode;
 @@sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 DROP PROCEDURE sp2;
 drop table temp_table;
 
@@ -21696,10 +21696,10 @@ set @@sql_mode = 'ansi, error_for_division_by_zero';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of ' error_for_division_by_zero'
 set @@sql_mode = 'ansi,error_for_division_by_zero';
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,ERROR_FOR_DIVISION_BY_ZERO
 CREATE PROCEDURE sp4()
 BEGIN
 declare a int;
@@ -21725,6 +21725,9 @@ END	latin1	latin1_swedish_ci	latin1_swedish_ci
 set @@sql_mode='';
 CALL sp4();
 Level	Code	Message
+Warning	1365	Division by 0
+Warnings:
+Warning	1365	Division by 0
 DROP PROCEDURE sp4;
 set @@sql_mode='';
 

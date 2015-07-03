@@ -55,7 +55,7 @@ struct robust_policy
         CalculationType const b = static_cast<CalculationType>(get<Dimension>(m_fp_min));
         CalculationType const result = a + (value - b) * m_multiplier;
 
-        return geometry::math::round<output_ct>(result);
+        return geometry::math::rounding_cast<output_ct>(result);
     }
 
     FpPoint m_fp_min;

@@ -280,23 +280,23 @@ i	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19
 31	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 100	0	0	0	1	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 Warnings:
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '{"a": 2}' from j at row 2
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '[1, 2]' from j at row 35
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}' from j at row 36
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '["here", ["I", "am"], "!!!"]' from j at row 37
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"scalar string"' from j at row 38
-Warning	3155	Invalid JSON value for CAST to DOUBLE: 'null' from j at row 41
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '{}' from j at row 55
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '[]' from j at row 56
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"2015-01-15 23:24:25.000000"' from j at row 57
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"23:24:25.000000"' from j at row 58
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"2015-01-15"' from j at row 59
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"2015-01-15 23:24:25.000000"' from j at row 60
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '{"type": "Point", "coordinates": [1, 1]}' from j at row 61
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '[]' from j at row 62
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"base64:type16:yv4="' from j at row 63
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '"base64:type16:yv66vg=="' from j at row 64
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' from j at row 65
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": 2}' from j at row 2
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2]' from j at row 35
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}' from j at row 36
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '["here", ["I", "am"], "!!!"]' from j at row 37
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"scalar string"' from j at row 38
+Warning	3156	Invalid JSON value for CAST to DOUBLE: 'null' from j at row 41
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '{}' from j at row 55
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[]' from j at row 56
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"2015-01-15 23:24:25.000000"' from j at row 57
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"23:24:25.000000"' from j at row 58
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"2015-01-15"' from j at row 59
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"2015-01-15 23:24:25.000000"' from j at row 60
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"type": "Point", "coordinates": [1, 1]}' from j at row 61
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[]' from j at row 62
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"base64:type16:yv4="' from j at row 63
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '"base64:type16:yv66vg=="' from j at row 64
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' from j at row 65
 SELECT i FROM t1
 WHERE j = CAST(CAST(j AS CHAR CHARACTER SET 'utf8') AS JSON)
 ORDER BY i;
@@ -4258,7 +4258,7 @@ true
 10
 "10"
 Warnings:
-Warning	3155	Invalid JSON value for CAST to DOUBLE: 'null' from j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE: 'null' from j at row 1
 DROP TABLE t;
 CREATE TABLE t(
 j JSON,
@@ -8687,15 +8687,15 @@ select sum(j), sum(cast(j as unsigned)), sum(c) from t;
 sum(j)	sum(cast(j as unsigned))	sum(c)
 9	9	9
 Warnings:
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 1
-Warning	3155	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 1
 Warning	1292	Truncated incorrect DOUBLE value: '[a,b,c]'
 select avg(j), avg(cast(j as unsigned)), avg(c) from t;
 avg(j)	avg(cast(j as unsigned))	avg(c)
 3	3.0000	3
 Warnings:
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 1
-Warning	3155	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 1
 Warning	1292	Truncated incorrect DOUBLE value: '[a,b,c]'
 # ----------------------------------------------------------------------
 # Test of aggregate function GROUP_CONCAT
@@ -10874,7 +10874,7 @@ FROM t1 JOIN t2
 HAVING field1 = 7;
 field1
 Warnings:
-Warning	3155	Invalid JSON value for CAST to DOUBLE: '[]' from ? at row 2
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[]' from ? at row 2
 drop table t1;
 drop table t2;
 # ----------------------------------------------------------------------

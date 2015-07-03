@@ -133,7 +133,7 @@ typedef struct st_mysql_server_auth_info
   unsigned int user_name_length;
   const char *auth_string;
   unsigned long auth_string_length;
-  char authenticated_as[48 +1];
+  char authenticated_as[96 +1];
   char external_user[512];
   int password_used;
   const char *host_or_ip;

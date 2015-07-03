@@ -4415,16 +4415,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
   }
 
-  /*
-    Note:   We do not need to execute reset_one_shot_variables() if this
-            db_ok() test fails.
-    Reason: The db stored in binlog events is the same for SET and for
-            its companion query.  If the SET is ignored because of
-            db_ok(), the companion query will also be ignored, and if
-            the companion query is ignored in the db_ok() test of
-            ::do_apply_event(), then the companion SET also have so
-            we don't need to reset_one_shot_variables().
-  */
   {
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
@@ -4812,11 +4802,6 @@ end:
 
 int Query_log_event::do_update_pos(Relay_log_info *rli)
 {
-  /*
-    Note that we will not increment group* positions if we are just
-    after a SET ONE_SHOT, because SET ONE_SHOT should not be separated
-    from its following updating query.
-  */
   int ret= Log_event::do_update_pos(rli);
 
   DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
@@ -5975,16 +5960,6 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     and then discarding Append_block and al. Another way is do the
     filtering in the I/O thread (more efficient: no disk writes at
     all).
-
-
-    Note:   We do not need to execute reset_one_shot_variables() if this
-            db_ok() test fails.
-    Reason: The db stored in binlog events is the same for SET and for
-            its companion query.  If the SET is ignored because of
-            db_ok(), the companion query will also be ignored, and if
-            the companion query is ignored in the db_ok() test of
-            ::do_apply_event(), then the companion SET also have so
-            we don't need to reset_one_shot_variables().
   */
   if (rpl_filter->db_ok(thd->db().str))
   {

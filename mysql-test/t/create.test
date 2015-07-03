@@ -1151,19 +1151,16 @@ CREATE TABLE t1(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURREN
 
 --echo
 
-SET sql_mode = '';
+SET sql_mode = 'NO_ZERO_DATE';
 
 --echo
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
 DROP TABLE t2;
 
-SET sql_mode = 'STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
 
 --echo
 --error ER_INVALID_DEFAULT
 CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
-
-SET sql_mode = '';
 
 --echo
 --echo # -- Check that NULL column still can be created.
@@ -1662,7 +1659,7 @@ drop table t1;
 create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
 select * from t1;
 drop table t1;
-set @@session.sql_mode='STRICT_ALL_TABLES';
+set @@session.sql_mode=default;
 --error ER_TRUNCATED_WRONG_VALUE
 create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
 --error ER_NO_SUCH_TABLE
@@ -1676,7 +1673,6 @@ select * from t1;
 create table if not exists t1 (a int, b date, c date) 
   ignore select 1 as b, 2 as c;
 select * from t1;
-set @@session.sql_mode=default;
 drop table t1;
 
 create table if not exists t1 (a int unique, b int)
@@ -1772,7 +1768,6 @@ CREATE TABLE t1 (v varchar(65535));
 CREATE TABLE t01234567890123456789012345678901234567890123456789012345678901234567890123456789(a int);
 --error ER_TOO_LONG_IDENT
 CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
-SET sql_mode = default;
 
 --echo #
 --echo # Bug #20573701 DROP DATABASE ASSERT ON DEBUG WHEN OTHER FILES PRESENT IN

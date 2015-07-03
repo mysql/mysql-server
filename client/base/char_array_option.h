@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Option class to get string parameter value and set to char* type object.
  */
@@ -42,7 +40,8 @@ public:
       --name.
     @param desription Description of option to be printed in --help.
    */
-  Char_array_option(char** value, bool allocated, string name, string description);
+  Char_array_option(
+    char** value, bool allocated, std::string name, std::string description);
 
   /**
     Sets value for this option. If it is specified before handling commandline

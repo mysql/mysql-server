@@ -7654,6 +7654,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_MULTIPOLYGONFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_MULTIPOLYGONFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
   { { C_STRING_WITH_LEN("ST_NUMGEOMETRIES") }, GEOM_BUILDER(Create_func_numgeometries)},
+  { { C_STRING_WITH_LEN("ST_NUMINTERIORRING") }, GEOM_BUILDER(Create_func_numinteriorring)},
   { { C_STRING_WITH_LEN("ST_NUMINTERIORRINGS") }, GEOM_BUILDER(Create_func_numinteriorring)},
   { { C_STRING_WITH_LEN("ST_NUMPOINTS") }, GEOM_BUILDER(Create_func_numpoints)},
   { { C_STRING_WITH_LEN("ST_OVERLAPS") }, GEOM_BUILDER(Create_func_overlaps)},
@@ -7969,8 +7970,11 @@ Item *create_temporal_literal(THD *thd,
   MYSQL_TIME ltime;
   Item *item= NULL;
   my_time_flags_t flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags|= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    flags|= TIME_NO_ZERO_DATE;
+
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     flags|= TIME_INVALID_DATES;
 

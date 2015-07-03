@@ -136,6 +136,7 @@ extern my_bool read_only, opt_readonly;
 extern my_bool super_read_only, opt_super_readonly;
 extern my_bool lower_case_file_system;
 extern ulonglong slave_rows_search_algorithms_options;
+extern my_bool opt_require_secure_transport;
 
 #ifdef HAVE_REPLICATION
 extern my_bool opt_slave_preserve_commit_order;
@@ -806,6 +807,8 @@ extern int32 thread_running;
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
+
+extern char *opt_disabled_storage_engines;
 /**
   only options that need special treatment in get_one_option() deserve
   to be listed below

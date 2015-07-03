@@ -21,7 +21,6 @@
 #include "sql_table.h"                          // write_bin_log
 #include "sql_class.h"                          // THD
 
-
 /**
   Check if tablespace name is valid
 
@@ -141,6 +140,12 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
                           ts_info->tablespace_name ? ts_info->tablespace_name
                                                 : ts_info->logfile_group_name);
   }
+
+  // Check if tablespace create or alter is disallowed by the stroage engine.
+  if ((ts_info->ts_cmd_type == CREATE_TABLESPACE ||
+       ts_info->ts_cmd_type == ALTER_TABLESPACE) &&
+      ha_is_storage_engine_disabled(hton))
+    DBUG_RETURN(true);
 
   // If this is a tablespace related command, check the tablespace name
   // and acquire and MDL X lock on it.

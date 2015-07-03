@@ -140,6 +140,7 @@
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
+#include "handler.h"
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -366,10 +367,12 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *innodb_hton;
 
+char *opt_disabled_storage_engines;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool super_read_only= 0, opt_super_readonly= 0;
+my_bool opt_require_secure_transport= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -4183,6 +4186,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
+  if (!opt_bootstrap && !opt_noacl)
+  {
+    std::string disabled_se_str(opt_disabled_storage_engines);
+    ha_set_normalized_disabled_se_str(disabled_se_str);
+  }
+
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
   {
     if (opt_bin_log)
@@ -4809,6 +4818,19 @@ int mysqld_main(int argc, char **argv)
     setbuf(stderr, NULL);
     FreeConsole();        // Remove window
   }
+
+#ifndef EMBEDDED_LIBRARY
+  if (opt_require_secure_transport &&
+      !opt_enable_shared_memory && !opt_use_ssl &&
+      !opt_initialize && !opt_bootstrap)
+  {
+    sql_print_error("Server is started with --require-secure-transport=ON "
+                    "but no secure transports (SSL or Shared Memory) are "
+                    "configured.");
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+#endif
+
 #endif
 
   /*
@@ -7665,7 +7687,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
 
   global_system_variables.sql_mode=
-    expand_sql_mode(global_system_variables.sql_mode);
+    expand_sql_mode(global_system_variables.sql_mode, NULL);
 
   if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
   {

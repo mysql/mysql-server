@@ -5450,7 +5450,7 @@ bool JOIN::estimate_rowcount()
 
       // Only one matching row and one block to read
       tab->set_records(tab->found_records= 1);
-      tab->worst_seeks= cost_model->io_block_read_cost(1.0);
+      tab->worst_seeks= cost_model->page_read_cost(1.0);
       tab->read_time= static_cast<ha_rows>(tab->worst_seeks);
       continue;
     }
@@ -5465,9 +5465,9 @@ bool JOIN::estimate_rowcount()
       are likely to use table scan.
     */
     tab->worst_seeks=
-      min(cost_model->io_block_read_cost((double) tab->found_records / 10),
+      min(cost_model->page_read_cost((double) tab->found_records / 10),
           (double) tab->read_time * 3);
-    const double min_worst_seek= cost_model->io_block_read_cost(2.0);
+    const double min_worst_seek= cost_model->page_read_cost(2.0);
     if (tab->worst_seeks < min_worst_seek)      // Fix for small tables
       tab->worst_seeks= min_worst_seek;
 

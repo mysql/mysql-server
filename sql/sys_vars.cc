@@ -2772,6 +2772,38 @@ static bool check_read_only(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+
+#if !defined(EMBEDDED_LIBRARY)
+
+static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var)
+{
+
+#if !defined (_WIN32)
+  /*
+    always allow require_secure_transport to be enabled on
+    Linux, as socket is secure.
+  */
+  return false;
+#else
+  /*
+    check whether SSL or shared memory transports are enabled before
+    turning require_secure_transport ON, otherwise no connections will
+    be allowed on Windows.
+  */
+
+  if (!var->save_result.ulonglong_value)
+    return false;
+  if ((have_ssl == SHOW_OPTION_YES) || opt_enable_shared_memory)
+    return false;
+  /* reject if SSL and shared memory are both disabled: */
+  my_error(ER_NO_SECURE_TRANSPORTS_CONFIGURED, MYF(0));
+  return true;
+
+#endif
+}
+
+#endif
+
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 {
   bool result= true;
@@ -2902,6 +2934,21 @@ static bool fix_super_read_only(sys_var *self, THD *thd, enum_var_type type)
     super_read_only= opt_super_readonly;
     DBUG_RETURN(result);
 }
+
+#if !defined(EMBEDDED_LIBRARY)
+
+static Sys_var_mybool Sys_require_secure_transport(
+  "require_secure_transport",
+  "When this option is enabled, connections attempted using insecure "
+  "transport will be rejected.  Secure transports are SSL/TLS, "
+  "Unix socket or Shared Memory (on Windows).",
+  GLOBAL_VAR(opt_require_secure_transport),
+  CMD_LINE(OPT_ARG),
+  DEFAULT(FALSE),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG,
+  ON_CHECK(check_require_secure_transport), ON_UPDATE(0));
+
+#endif
 
 /**
   The read_only boolean is always equal to the opt_readonly boolean except
@@ -3409,74 +3456,42 @@ static Sys_var_ulong Sys_sort_buffer(
        BLOCK_SIZE(1));
 
 /**
-  NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
-  removed in 5.7 and their functionality is merged with STRICT MODE.
-  However, For backward compatibility during upgrade, these modes are kept
-  but they are not used. Setting these modes in 5.7 will give warning and
-  have no effect.
+  Check sql modes strict_mode, 'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and
+  'ERROR_FOR_DIVISION_BY_ZERO' are used together. If only subset of it
+  is set then warning is reported.
+
+  @param sql_mode sql mode.
 */
-
-void unset_removed_sql_modes(sql_mode_t &sql_mode)
+static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
 {
-  /**
-    If sql_mode is set throught the client, the warning should
-    go to the client connection. If it is used as server startup option,
-    it will go the error-log if the removed sql_modes are used.
-  */
-  THD *thd= current_thd;
-  if (thd)
-  {
-    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
-                          "ERROR_FOR_DIVISION_BY_ZERO");
-    }
+  const sql_mode_t strict_modes= (MODE_STRICT_TRANS_TABLES |
+                                  MODE_STRICT_ALL_TABLES);
 
-    if (sql_mode & MODE_NO_ZERO_DATE)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
-                          "NO_ZERO_DATE");
-    }
+  const sql_mode_t new_strict_submodes= (MODE_NO_ZERO_IN_DATE |
+                                         MODE_NO_ZERO_DATE |
+                                         MODE_ERROR_FOR_DIVISION_BY_ZERO);
 
-    if (sql_mode & MODE_NO_ZERO_IN_DATE)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_SQL_MODE_NO_EFFECT,
-                          ER(ER_SQL_MODE_NO_EFFECT),
-                          "NO_ZERO_IN_DATE");
-    }
-  }
-  else
+  const sql_mode_t strict_modes_set= (sql_mode & strict_modes);
+  const sql_mode_t new_strict_submodes_set= (sql_mode & new_strict_submodes);
+
+  if (((strict_modes_set | new_strict_submodes_set) !=0) &&
+      ((new_strict_submodes_set != new_strict_submodes) ||
+       (strict_modes_set == 0)))
   {
-    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    {
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
-                        "Setting this will have no effect.");
-    }
-    if (sql_mode & MODE_NO_ZERO_DATE)
-    {
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
-                        "Setting this will have no effect.");
-    }
-    if (sql_mode & MODE_NO_ZERO_IN_DATE)
-    {
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
-                        "Setting this will have no effect.");
-    }
+    if (thd)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                               ER_SQL_MODE_MERGED,
+                               ER_THD(thd, ER_SQL_MODE_MERGED));
+    else
+      sql_print_warning("'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and "
+                        "'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used "
+                        "with strict mode. They will be merged with strict mode "
+                        "in a future release.");
   }
-  /* Unset removed SQL MODES */
-  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
-               MODE_NO_ZERO_IN_DATE);
 }
 
-export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
+export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
 {
-  unset_removed_sql_modes(sql_mode);
-
   if (sql_mode & MODE_ANSI)
   {
     /*
@@ -3518,14 +3533,17 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
     sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
-                MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
+                MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER |
+                MODE_NO_ENGINE_SUBSTITUTION);
 
+  check_sub_modes_of_strict_mode(sql_mode, thd);
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value=
-    expand_sql_mode(var->save_result.ulonglong_value);
+    expand_sql_mode(var->save_result.ulonglong_value, thd);
 
   /* Warning displayed only if the non default sql_mode is specified. */
   if (var->value)
@@ -3595,6 +3613,9 @@ static Sys_var_set Sys_sql_mode(
        DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
                MODE_ONLY_FULL_GROUP_BY |
                MODE_STRICT_TRANS_TABLES |
+               MODE_NO_ZERO_IN_DATE |
+               MODE_NO_ZERO_DATE |
+               MODE_ERROR_FOR_DIVISION_BY_ZERO |
                MODE_NO_AUTO_CREATE_USER),
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
@@ -3783,6 +3804,12 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
+    Transaction_state_tracker *tst= NULL;
+
+    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+      tst= (Transaction_state_tracker *)
+             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
     /*
       Update the isolation level of the next transaction.
       I.e. if one did:
@@ -3803,6 +3830,33 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
       effective for the next transaction that starts.
      */
     thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
+
+    if (var->type == OPT_DEFAULT)
+    {
+      enum enum_tx_isol_level l;
+      switch (thd->tx_isolation) {
+      case ISO_READ_UNCOMMITTED:
+        l=  TX_ISOL_UNCOMMITTED;
+        break;
+      case ISO_READ_COMMITTED:
+        l=  TX_ISOL_COMMITTED;
+        break;
+      case ISO_REPEATABLE_READ:
+        l= TX_ISOL_REPEATABLE;
+        break;
+      case ISO_SERIALIZABLE:
+        l= TX_ISOL_SERIALIZABLE;
+        break;
+      default:
+        DBUG_ASSERT(0);
+      }
+      if (tst)
+        tst->set_isol_level(thd, l);
+    }
+    else if (tst)
+    {
+      tst->set_isol_level(thd, TX_ISOL_INHERIT);
+    }
   }
   return FALSE;
 }
@@ -3811,7 +3865,7 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 // NO_CMD_LINE - different name of the option
 static Sys_var_tx_isolation Sys_tx_isolation(
        "tx_isolation", "Default transaction isolation level",
-       SESSION_VAR(tx_isolation), NO_CMD_LINE,
+       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
        tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
 
@@ -3843,6 +3897,18 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
   {
     // @see Sys_var_tx_isolation::session_update() above for the rules.
     thd->tx_read_only= var->save_result.ulonglong_value;
+
+    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    {
+      Transaction_state_tracker *tst= (Transaction_state_tracker *)
+             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
+      if (var->type == OPT_DEFAULT)
+        tst->set_read_flags(thd,
+                            thd->tx_read_only ? TX_READ_ONLY : TX_READ_WRITE);
+      else
+        tst->set_read_flags(thd, TX_READ_INHERIT);
+    }
   }
   return false;
 }
@@ -3850,7 +3916,7 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 
 static Sys_var_tx_read_only Sys_tx_read_only(
        "tx_read_only", "Set default transaction access mode to read only.",
-       SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
+       UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
 
 static Sys_var_ulonglong Sys_tmp_table_size(
@@ -5335,6 +5401,30 @@ static Sys_var_mybool Sys_session_track_schema(
        ON_CHECK(0),
        ON_UPDATE(update_session_track_schema));
 
+static bool update_session_track_tx_info(sys_var *self, THD *thd,
+                                         enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_tx_info");
+  DBUG_RETURN(thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER)->update(thd));
+}
+
+static const char *session_track_transaction_info_names[]=
+  { "OFF", "STATE", "CHARACTERISTICS", NullS };
+
+static Sys_var_enum Sys_session_track_transaction_info(
+       "session_track_transaction_info",
+       "Track changes to the transaction attributes. OFF to disable; "
+       "STATE to track just transaction state (Is there an active transaction? "
+       "Does it have any data? etc.); CHARACTERISTICS to track transaction "
+       "state "
+       "and report all statements needed to start a transaction with the same "
+       "characteristics (isolation level, read only/read write, snapshot - "
+       "but not any work done / data modified within the transaction).",
+       SESSION_VAR(session_track_transaction_info),
+       CMD_LINE(REQUIRED_ARG), session_track_transaction_info_names,
+       DEFAULT(OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(update_session_track_tx_info));
+
 static bool update_session_track_state_change(sys_var *self, THD *thd,
                                               enum_var_type type)
 {
@@ -5397,3 +5487,10 @@ static Sys_var_mybool Sys_show_old_temporals(
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(0), ON_UPDATE(0),
         DEPRECATED(""));
+
+static Sys_var_charptr Sys_disabled_storage_engines(
+       "disabled_storage_engines",
+       "Limit CREATE TABLE for the storage engines listed",
+       READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
+       CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+       DEFAULT(""));
