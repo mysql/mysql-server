@@ -265,6 +265,7 @@ struct System_variables
   char *track_sysvars_ptr;
   my_bool session_track_schema;
   my_bool session_track_state_change;
+  ulong   session_track_transaction_info;
   /**
     Compatibility option to mark the pre MySQL-5.6.4 temporals columns using
     the old format using comments for SHOW CREATE TABLE and in I_S.COLUMNS

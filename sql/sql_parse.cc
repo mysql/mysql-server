@@ -3913,8 +3913,7 @@ end_with_restore_list:
     else
     {
       /* Reset the isolation level and access mode if no chaining transaction.*/
-      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-      thd->tx_read_only= thd->variables.tx_read_only;
+      trans_reset_one_shot_chistics(thd);
     }
     /* Disconnect the current client connection. */
     if (tx_release)
@@ -3944,8 +3943,7 @@ end_with_restore_list:
     else
     {
       /* Reset the isolation level and access mode if no chaining transaction.*/
-      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-      thd->tx_read_only= thd->variables.tx_read_only;
+      trans_reset_one_shot_chistics(thd);
     }
     /* Disconnect the current client connection. */
     if (tx_release)
@@ -4680,6 +4678,13 @@ finish:
   else if (! thd->in_sub_stmt)
   {
     thd->mdl_context.release_statement_locks();
+  }
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state_from_thd(thd);
   }
 
 #if defined(VALGRIND_DO_QUICK_LEAK_CHECK)

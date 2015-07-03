@@ -22,6 +22,7 @@
 #include "rpl_gtid.h"
 #include "sql_class.h"
 #include "sql_show.h"
+#include "xa.h"
 
 static void store_lenenc_string(String &to, const char *from,
                                 size_t length);
@@ -874,6 +875,531 @@ void Current_schema_tracker::reset()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+/**
+   @brief Constructor for transaction state tracker.
+*/
+
+Transaction_state_tracker::Transaction_state_tracker()
+{
+  m_enabled        = false;
+  tx_changed       = TX_CHG_NONE;
+  tx_curr_state    =
+  tx_reported_state= TX_EMPTY;
+  tx_read_flags    = TX_READ_INHERIT;
+  tx_isol_level    = TX_ISOL_INHERIT;
+}
+
+/**
+  @brief Enable/disable the tracker based on @@session_track_transaction_info's value.
+
+  @param thd [IN]           The thd handle.
+
+  @return
+    true if updating the tracking level failed, false otherwise
+*/
+
+bool Transaction_state_tracker::update(THD *thd)
+{
+#ifdef EMBEDDED_LIBRARY
+  return true;
+
+#else
+  if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
+  {
+    /*
+      If we only just turned reporting on (rather than changing between
+      state and chistics reporting), start from a defined state.
+    */
+    if (!m_enabled)
+    {
+      tx_curr_state     =
+      tx_reported_state = TX_EMPTY;
+      tx_changed       |= TX_CHG_STATE;
+      m_enabled= true;
+    }
+    if (thd->variables.session_track_transaction_info == TX_TRACK_CHISTICS)
+      tx_changed       |= TX_CHG_CHISTICS;
+    mark_as_changed(thd, NULL);
+  }
+  else
+    m_enabled= false;
+
+  return false;
+#endif
+}
+
+
+/**
+  @brief Store the transaction state (and, optionally, characteristics)
+         as length-encoded string in the specified buffer.  Once the data
+         is stored, we reset the flags related to state-change (see reset()).
+
+
+  @param thd [IN]           The thd handle.
+  @paran buf [INOUT]        Buffer to store the information to.
+
+  @return
+    false                   Success
+    true                    Error
+*/
+
+bool Transaction_state_tracker::store(THD *thd, String &buf)
+{
+  /* STATE */
+  if (tx_changed & TX_CHG_STATE)
+  {
+    uchar *to= (uchar *) buf.prep_append(11, EXTRA_ALLOC);
+
+    to= net_store_length((uchar *) to,
+                         (ulonglong) SESSION_TRACK_TRANSACTION_STATE);
+
+    to= net_store_length((uchar *) to, (ulonglong) 9);
+    to= net_store_length((uchar *) to, (ulonglong) 8);
+
+    *(to++)=  (tx_curr_state & TX_EXPLICIT)       ? 'T' :
+             ((tx_curr_state & TX_IMPLICIT)       ? 'I' : '_');
+    *(to++)=  (tx_curr_state & TX_READ_UNSAFE)    ? 'r' : '_';
+    *(to++)= ((tx_curr_state & TX_READ_TRX) ||
+              (tx_curr_state & TX_WITH_SNAPSHOT)) ? 'R' : '_';
+    *(to++)=  (tx_curr_state & TX_WRITE_UNSAFE)   ? 'w' : '_';
+    *(to++)=  (tx_curr_state & TX_WRITE_TRX)      ? 'W' : '_';
+    *(to++)=  (tx_curr_state & TX_STMT_UNSAFE)    ? 's' : '_';
+    *(to++)=  (tx_curr_state & TX_RESULT_SET)     ? 'S' : '_';
+    *(to++)=  (tx_curr_state & TX_LOCKED_TABLES)  ? 'L' : '_';
+  }
+
+  /* CHARACTERISTICS -- How to restart the transaction */
+
+  if ((thd->variables.session_track_transaction_info == TX_TRACK_CHISTICS) &&
+      (tx_changed & TX_CHG_CHISTICS))
+  {
+    bool is_xa= !thd->get_transaction()->xid_state()
+                    ->has_state(XID_STATE::XA_NOTR);
+
+    // worst case: READ UNCOMMITTED + READ WRITE + CONSISTENT SNAPSHOT
+    char buffer[110];
+    String tx(buffer, sizeof(buffer), &my_charset_bin);
+    tx.length(0);
+
+    // Any characteristics to print?
+    {
+      /*
+        We have four basic replay scenarios:
+
+        a) SET TRANSACTION was used, but before an actual transaction
+           was started, the load balancer moves the connection elsewhere.
+           In that case, the same one-shots should be set up in the
+           target session.  (read-only/read-write; isolation-level)
+
+        b) The initial transaction has begun; the relevant characteristics
+           are the session defaults, possibly overridden by previous
+           SET TRANSACTION statements, possibly overridden or extended
+           by options passed to the START TRANSACTION statement.
+           If the load balancer wishes to move this transaction,
+           it needs to be replayed with the correct characteristics.
+           (read-only/read-write from SET or START;
+           isolation-level from SET only, snapshot from START only)
+
+        c) A subsequent transaction started with START TRANSACTION
+           (which is legal syntax in lieu of COMMIT AND CHAIN in MySQL)
+           may add/modify the current one-shots:
+
+           - It may set up a read-only/read-write one-shot.
+             This one-shot will override the value used in the previous
+             transaction (whether that came from the default or a one-shot),
+             and, like all one-shots currently do, it will carry over into
+             any subsequent transactions that don't explicitly override them
+             in turn. This behavior is not guaranteed in the docs and may
+             change in the future, but the tracker item should correctly
+             reflect whatever behavior a given version of mysqld implements.
+
+           - It may also set up a WITH CONSISTENT SNAPSHOT one-shot.
+             This one-shot does not currently carry over into subsequent
+             transactions (meaning that with "traditional syntax", WITH
+             CONSISTENT SNAPSHOT can only be requested for the first part
+             of a transaction chain). Again, the tracker item should reflect
+             mysqld behavior.
+
+        d) A subsequent transaction started using COMMIT AND CHAIN
+           (or, for that matter, BEGIN WORK, which is currently
+           legal and equivalent syntax in MySQL, or START TRANSACTION
+           sans options) will re-use any one-shots set up so far
+           (with SET before the first transaction started, and with
+           all subsequent STARTs), except for WITH CONSISTANT SNAPSHOT,
+           which will never be chained and only applies when explicitly
+           given.
+
+        It bears noting that if we switch sessions in a follow-up
+        transaction, SET TRANSACTION would be illegal in the old
+        session (as a transaction is active), whereas in the target
+        session which is being prepared, it should be legal, as no
+        transaction (chain) should have started yet.
+
+        Therefore, we are free to generate SET TRANSACTION as a replay
+        statement even for a transaction that isn't the first in an
+        ongoing chain. Consider
+
+          SET TRANSACTION ISOLATION LEVEL READ UNCOMMITED;
+          START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT;
+          # work
+          COMMIT AND CHAIN;
+
+        If we switch away at this point, the replay in the new session
+        needs to be
+
+          SET TRANSACTION ISOLATION LEVEL READ UNCOMMITED;
+          START TRANSACTION READ ONLY;
+
+        When a transaction ends (COMMIT/ROLLBACK sans CHAIN), all
+        per-transaction characteristics are reset to the session's
+        defaults.
+
+        This also holds for a transaction ended implicitly!  (transaction.cc)
+        Once again, the aim is to have the tracker item reflect on a
+        given mysqld's actual behavior.
+      */
+
+      /*
+        "ISOLATION LEVEL"
+        Only legal in SET TRANSACTION, so will always be replayed as such.
+      */
+      if (tx_isol_level != TX_ISOL_INHERIT)
+      {
+        /*
+          Unfortunately, we can't re-use tx_isolation_names /
+          tx_isolation_typelib as it hyphenates its items.
+        */
+        LEX_CSTRING isol[]= {
+          { STRING_WITH_LEN("READ UNCOMMITTED") },
+          { STRING_WITH_LEN("READ COMMITTED") },
+          { STRING_WITH_LEN("REPEATABLE READ") },
+          { STRING_WITH_LEN("SERIALIZABLE") }
+        };
+
+        tx.append(STRING_WITH_LEN("SET TRANSACTION ISOLATION LEVEL "));
+        tx.append(isol[tx_isol_level - 1].str, isol[tx_isol_level - 1].length);
+        tx.append(STRING_WITH_LEN("; "));
+      }
+
+      /*
+        Start transaction will usually result in TX_EXPLICIT (transaction
+        started, but no data attached yet), except when WITH CONSISTENT
+        SNAPSHOT, in which case we may have data pending.
+        If it's an XA transaction, we don't go through here so we can
+        first print the trx access mode ("SET TRANSACTION READ ...")
+        separately before adding XA START (whereas with START TRANSACTION,
+        we can merge the access mode into the same statement).
+      */
+      if ((tx_curr_state & TX_EXPLICIT) && !is_xa)
+      {
+        tx.append(STRING_WITH_LEN("START TRANSACTION"));
+
+        /*
+          "WITH CONSISTENT SNAPSHOT"
+          Defaults to no, can only be enabled.
+          Only appears in START TRANSACTION.
+        */
+        if (tx_curr_state & TX_WITH_SNAPSHOT)
+        {
+          tx.append(STRING_WITH_LEN(" WITH CONSISTENT SNAPSHOT"));
+          if (tx_read_flags != TX_READ_INHERIT)
+            tx.append(STRING_WITH_LEN(","));
+        }
+
+        /*
+          "READ WRITE / READ ONLY" can be set globally, per-session,
+          or just for one transaction.
+
+          The latter case can take the form of
+          START TRANSACTION READ (WRITE|ONLY), or of
+          SET TRANSACTION READ (ONLY|WRITE).
+          (Both set thd->read_only for the upcoming transaction;
+          it will ultimately be re-set to the session default.)
+
+          As the regular session-variable tracker does not monitor the one-shot,
+          we'll have to do it here.
+
+          If READ is flagged as set explicitly (rather than just inherited
+          from the session's default), we'll get the actual bool from the THD.
+        */
+        if (tx_read_flags != TX_READ_INHERIT)
+        {
+          if (tx_read_flags == TX_READ_ONLY)
+            tx.append(STRING_WITH_LEN(" READ ONLY"));
+          else
+            tx.append(STRING_WITH_LEN(" READ WRITE"));
+        }
+        tx.append(STRING_WITH_LEN("; "));
+      }
+      else if (tx_read_flags != TX_READ_INHERIT)
+      {
+        /*
+          "READ ONLY" / "READ WRITE"
+          We could transform this to SET TRANSACTION even when it occurs
+          in START TRANSACTION, but for now, we'll resysynthesize the original
+          command as closely as possible.
+        */
+        tx.append(STRING_WITH_LEN("SET TRANSACTION "));
+        if (tx_read_flags == TX_READ_ONLY)
+          tx.append(STRING_WITH_LEN("READ ONLY; "));
+        else
+          tx.append(STRING_WITH_LEN("READ WRITE; "));
+      }
+
+      if ((tx_curr_state & TX_EXPLICIT) && is_xa)
+      {
+        XID *xid=thd->get_transaction()->xid_state()->get_xid();
+        long glen, blen;
+
+        tx.append(STRING_WITH_LEN("XA START"));
+
+        if ((glen= xid->get_gtrid_length()) > 0)
+        {
+          tx.append(STRING_WITH_LEN(" '"));
+          tx.append(xid->get_data(), glen);
+
+          if ((blen= xid->get_bqual_length()) > 0)
+          {
+            tx.append(STRING_WITH_LEN("','"));
+            tx.append(xid->get_data() + glen, blen);
+          }
+          tx.append(STRING_WITH_LEN("'"));
+
+          if (xid->get_format_id() != 1)
+          {
+            tx.append(STRING_WITH_LEN(","));
+            tx.append_ulonglong(xid->get_format_id());
+          }
+        }
+
+        tx.append(STRING_WITH_LEN("; "));
+      }
+
+      // discard trailing space
+      if (tx.length() > 0)
+        tx.chop();
+    }
+
+    {
+      ulonglong length= tx.length();      // length of the string payload ...
+      /*
+        We've set up the info string, now turn it into a proper tracker
+        item we can send!
+      */
+      length += net_length_size(length);  // ... plus that of its length
+
+      uchar *to= (uchar *) buf.prep_append(net_length_size(length) + 1,
+                                           EXTRA_ALLOC);
+
+      /* Session state type (SESSION_TRACK_TRANSACTION_CHARACTERISTICS) */
+      to= net_store_length((uchar *) to,
+                         (ulonglong) SESSION_TRACK_TRANSACTION_CHARACTERISTICS);
+
+      /* Length of the overall entity. */
+      to= net_store_length((uchar *) to, length);
+
+      /* Transaction characteristics (length-encoded string). */
+      store_lenenc_string(buf, tx.c_ptr(), tx.length());
+    }
+  }
+
+  reset();
+
+  return false;
+}
+
+
+/**
+  @brief Mark the tracker as changed.
+
+  @param name [IN]          Always null.
+
+  @return void
+*/
+
+void Transaction_state_tracker::mark_as_changed(THD *thd,
+                                                LEX_CSTRING *tracked_item_name
+                                                __attribute__((unused)))
+{
+  m_changed                    = true;
+}
+
+
+/**
+  @brief Reset the m_changed flag for next statement.
+
+  @return                   void
+*/
+
+void Transaction_state_tracker::reset()
+{
+  m_changed         =  false;
+  tx_reported_state =  tx_curr_state;
+  tx_changed        =  TX_CHG_NONE;
+}
+
+
+/**
+  @brief  Helper function: turn table info into table access flag.
+          Accepts table lock type and engine type flag (transactional/
+          non-transactional), and returns the corresponding access flag
+          out of TX_READ_TRX, TX_READ_UNSAFE, TX_WRITE_TRX, TX_WRITE_UNSAFE.
+
+  @param thd [IN]           The thd handle
+  @param set [IN]           The table's access/lock type
+  @param set [IN]           Whether the table's engine is transactional
+
+  @return                   The table access flag
+*/
+enum_tx_state Transaction_state_tracker::calc_trx_state(THD *thd,
+                                                        thr_lock_type l,
+                                                        bool has_trx)
+{
+  enum_tx_state      s;
+  bool               read= (l <= TL_READ_NO_INSERT);
+
+  if (read)
+    s= has_trx ? TX_READ_TRX  : TX_READ_UNSAFE;
+  else
+    s= has_trx ? TX_WRITE_TRX : TX_WRITE_UNSAFE;
+
+  return s;
+}
+
+/**
+  @brief  Register the end of an (implicit or explicit) transaction.
+
+  @param thd [IN]           The thd handle
+*/
+void Transaction_state_tracker::end_trx(THD *thd)
+{
+  DBUG_ASSERT(thd->variables.session_track_transaction_info > TX_TRACK_NONE);
+
+  if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    return;
+
+  if (tx_curr_state != TX_EMPTY)
+  {
+    if (tx_curr_state & TX_EXPLICIT)
+      tx_changed  |= TX_CHG_CHISTICS;
+    tx_curr_state &= TX_LOCKED_TABLES;
+  }
+  update_change_flags(thd);
+}
+
+/**
+  @brief Clear flags pertaining to the current statement or transaction.
+         May be called repeatedly within the same execution cycle.
+
+  @param thd [IN]           The thd handle.
+  @param set [IN]           The flags to clear
+*/
+void Transaction_state_tracker::clear_trx_state(THD *thd, uint clear)
+{
+  if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    return;
+
+  tx_curr_state &= ~clear;
+  update_change_flags(thd);
+}
+
+/**
+  @brief Add flags pertaining to the current statement or transaction.
+         May be called repeatedly within the same execution cycle,
+         e.g. to add access info for more tables.
+
+  @param thd [IN]           The thd handle.
+  @param set [IN]           The flags to add
+*/
+void Transaction_state_tracker::add_trx_state(THD *thd, uint add)
+{
+  if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+    return;
+
+  if (add == TX_EXPLICIT)
+  {
+    /*
+      Always send chistics item (if tracked), always replace state.
+    */
+    tx_changed |= TX_CHG_CHISTICS;
+    tx_curr_state = TX_EXPLICIT;
+  }
+
+  /*
+    If we're not in an implicit or explicit transaction, but
+    autocommit==0 and tables are accessed, we flag "implicit transaction."
+  */
+  else if (!(tx_curr_state & (TX_EXPLICIT|TX_IMPLICIT)) &&
+           (thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
+           (add &
+            (TX_READ_TRX | TX_READ_UNSAFE | TX_WRITE_TRX | TX_WRITE_UNSAFE)))
+    tx_curr_state |= TX_IMPLICIT;
+
+  /*
+    Only flag state when in transaction or LOCK TABLES is added.
+  */
+  if ((tx_curr_state & (TX_EXPLICIT | TX_IMPLICIT)) ||
+      (add & TX_LOCKED_TABLES))
+    tx_curr_state |= add;
+
+  update_change_flags(thd);
+}
+
+/**
+  @brief Add "unsafe statement" flag if applicable.
+
+  @param thd [IN]           The thd handle.
+  @param set [IN]           The flags to add
+*/
+void Transaction_state_tracker::add_trx_state_from_thd(THD *thd)
+{
+  if (m_enabled)
+  {
+    if (thd->lex->is_stmt_unsafe())
+      add_trx_state(thd, TX_STMT_UNSAFE);
+
+//    update_change_flags(thd); ###
+  }
+}
+
+/**
+  @brief Set read flags (read only/read write) pertaining to the next
+         transaction.
+
+  @param thd [IN]           The thd handle.
+  @param set [IN]           The flags to set
+*/
+void Transaction_state_tracker::set_read_flags(THD *thd,
+                                               enum enum_tx_read_flags flags)
+{
+  if (m_enabled && (tx_read_flags != flags))
+  {
+    tx_read_flags = flags;
+    tx_changed   |= TX_CHG_CHISTICS;
+    mark_as_changed(thd, NULL);
+  }
+}
+
+/**
+  @brief Set isolation level pertaining to the next transaction.
+
+  @param thd [IN]           The thd handle.
+  @param set [IN]           The isolation level to set
+*/
+void Transaction_state_tracker::set_isol_level(THD *thd,
+                                               enum enum_tx_isol_level level)
+{
+  if (m_enabled && (tx_isol_level != level))
+  {
+    tx_isol_level = level;
+    tx_changed   |= TX_CHG_CHISTICS;
+    mark_as_changed(thd, NULL);
+  }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
  
 /** Constructor */
 Session_state_change_tracker::Session_state_change_tracker()
@@ -1011,7 +1537,8 @@ void Session_tracker::init(const CHARSET_INFO *char_set)
     new (std::nothrow) Session_state_change_tracker;
   m_trackers[SESSION_GTIDS_TRACKER]=
     new (std::nothrow) Session_gtids_tracker;
-
+  m_trackers[TRANSACTION_INFO_TRACKER]=
+    new (std::nothrow) Transaction_state_tracker;
 }
 
 void Session_tracker::claim_memory_ownership()
@@ -1148,7 +1675,7 @@ void Session_tracker::store(THD *thd, String &buf)
   @brief Stores the given string in length-encoded format into the specified
          buffer.
 
-  @param to     [IN]        Buffer to store the given string to.
+  @param to     [IN]        Buffer to store the given string in.
   @param from   [IN]        The give string to be stored.
   @param length [IN]        Length of the above string.
 

@@ -28,6 +28,37 @@
 
 
 /**
+  Helper: Tell tracker (if any) that transaction ended.
+*/
+void trans_track_end_trx(THD *thd)
+{
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))->end_trx(thd);
+  }
+}
+
+/**
+  Helper: transaction ended, SET TRANSACTION one-shot variables
+  revert to session values. Let the transaction state tracker know.
+*/
+void trans_reset_one_shot_chistics(THD *thd)
+{
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    Transaction_state_tracker *tst= (Transaction_state_tracker *)
+      thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+
+    tst->set_read_flags(thd, TX_READ_INHERIT);
+    tst->set_isol_level(thd, TX_ISOL_INHERIT);
+  }
+
+  thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+  thd->tx_read_only= thd->variables.tx_read_only;
+}
+
+/**
   Check if we have a condition where the transaction state must
   not be changed (committed or rolled back). Currently we check
   that we are not executing a stored program and that we don't
@@ -76,10 +107,16 @@ bool trans_check_state(THD *thd)
 bool trans_begin(THD *thd, uint flags)
 {
   int res= FALSE;
+  Transaction_state_tracker *tst= NULL;
+
   DBUG_ENTER("trans_begin");
 
   if (trans_check_state(thd))
     DBUG_RETURN(TRUE);
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    tst= (Transaction_state_tracker *)
+      thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
 
   thd->locked_tables_list.unlock_locked_tables(thd);
 
@@ -111,7 +148,11 @@ bool trans_begin(THD *thd, uint flags)
   DBUG_ASSERT(!((flags & MYSQL_START_TRANS_OPT_READ_ONLY) &&
                 (flags & MYSQL_START_TRANS_OPT_READ_WRITE)));
   if (flags & MYSQL_START_TRANS_OPT_READ_ONLY)
+  {
     thd->tx_read_only= true;
+    if (tst)
+      tst->set_read_flags(thd, TX_READ_ONLY);
+  }
   else if (flags & MYSQL_START_TRANS_OPT_READ_WRITE)
   {
     /*
@@ -123,6 +164,12 @@ bool trans_begin(THD *thd, uint flags)
     if (check_readonly(thd, true))
       DBUG_RETURN(true);
     thd->tx_read_only= false;
+    /*
+      This flags that tx_read_only was set explicitly, rather than
+      just from the session's default.
+    */
+    if (tst)
+      tst->set_read_flags(thd, TX_READ_WRITE);
   }
 
   DBUG_EXECUTE_IF("dbug_set_high_prio_trx", {
@@ -136,9 +183,17 @@ bool trans_begin(THD *thd, uint flags)
     thd->server_status|= SERVER_STATUS_IN_TRANS_READONLY;
   DBUG_PRINT("info", ("setting SERVER_STATUS_IN_TRANS"));
 
+  if (tst)
+    tst->add_trx_state(thd, TX_EXPLICIT);
+
   /* ha_start_consistent_snapshot() relies on OPTION_BEGIN flag set. */
   if (flags & MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT)
+  {
+    if (tst)
+      tst->add_trx_state(thd, TX_WITH_SNAPSHOT);
     res= ha_start_consistent_snapshot(thd);
+  }
+
   /*
     Register transaction start in performance schema if not done already.
     We handle explicitly started transactions here, implicitly started
@@ -211,6 +266,8 @@ bool trans_commit(THD *thd)
 
   thd->tx_priority= 0;
 
+  trans_track_end_trx(thd);
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -270,8 +327,9 @@ bool trans_commit_implicit(THD *thd)
     @@session.completion_type since it's documented
     to not have any effect on implicit commit.
   */
-  thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-  thd->tx_read_only= thd->variables.tx_read_only;
+  trans_reset_one_shot_chistics(thd);
+
+  trans_track_end_trx(thd);
 
   DBUG_RETURN(res);
 }
@@ -307,6 +365,8 @@ bool trans_rollback(THD *thd)
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
   thd->tx_priority= 0;
+
+  trans_track_end_trx(thd);
 
   DBUG_RETURN(MY_TEST(res));
 }
@@ -354,6 +414,8 @@ bool trans_rollback_implicit(THD *thd)
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
 
+  trans_track_end_trx(thd);
+
   DBUG_RETURN(MY_TEST(res));
 }
 
@@ -391,10 +453,7 @@ bool trans_commit_stmt(THD *thd)
   {
     res= ha_commit_trans(thd, FALSE);
     if (! thd->in_active_multi_stmt_transaction())
-    {
-      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-      thd->tx_read_only= thd->variables.tx_read_only;
-    }
+      trans_reset_one_shot_chistics(thd);
   }
   else if (tc_log)
     tc_log->commit(thd, false);
@@ -438,10 +497,7 @@ bool trans_rollback_stmt(THD *thd)
   {
     ha_rollback_trans(thd, FALSE);
     if (! thd->in_active_multi_stmt_transaction())
-    {
-      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-      thd->tx_read_only= thd->variables.tx_read_only;
-    }
+      trans_reset_one_shot_chistics(thd);
   }
   else if (tc_log)
     tc_log->rollback(thd, false);

@@ -88,7 +88,8 @@ public:
     SCOPE_MASK=   0x03FF, // 1023
     READONLY=     0x0400, // 1024
     ALLOCATED=    0x0800, // 2048
-    INVISIBLE=    0x1000  // 4096
+    INVISIBLE=    0x1000, // 4096
+    TRI_LEVEL=    0x2000  // 8192 - default is neither GLOBAL nor SESSION
   };
   static const int PARSE_EARLY= 1;
   static const int PARSE_NORMAL= 2;
@@ -153,6 +154,7 @@ public:
   const CHARSET_INFO *charset(THD *thd);
   bool is_readonly() const { return flags & READONLY; }
   bool not_visible() const { return flags & INVISIBLE; }
+  bool is_trilevel() const { return flags & TRI_LEVEL; }
   /**
     the following is only true for keycache variables,
     that support the syntax @@keycache_name.variable_name
