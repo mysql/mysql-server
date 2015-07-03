@@ -24,7 +24,7 @@ SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
 ????
 Warnings:
-Warning	1105	Can't convert the character string from utf8 to latin1: '\xD0\x81\xD0\x82\xD0\x83...'
+Warning	1300	Invalid utf8 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SET @@session.character_set_connection = utf8;
 SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
@@ -33,7 +33,7 @@ utf_text
 SET @@session.character_set_connection = ascii;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
 Warnings:
-Warning	1105	Can't convert the character string from utf8 to ascii: '\xD0\x81\xD0\x82\xD0\x83...'
+Warning	1300	Invalid utf8 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SELECT * FROM t1;
 b
 ????
@@ -44,7 +44,7 @@ SET @@session.character_set_client = latin1;
 SET @@session.character_set_results = latin1;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
 Warnings:
-Warning	1105	Can't convert the character string from latin1 to ascii: '\xD0\x81\xD0\x82\xD0\x83...'
+Warning	1300	Invalid latin1 character string: '\xD0\x81\xD0\x82\xD0\x83...'
 SELECT * FROM t1;
 b
 ????????
