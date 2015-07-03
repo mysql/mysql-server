@@ -12,7 +12,7 @@ SET SESSION sql_log_bin= 1;
 #
 # WL#8132 JSON datatype and binary storage format
 #
-CREATE TABLE t1 (i INT, j JSON);
+CREATE TABLE t1 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t1 VALUES (0, NULL);
 INSERT INTO t1 VALUES (1, '{"a": 2}');
 INSERT INTO t1 VALUES (2, '[1,2]');
@@ -78,7 +78,7 @@ i	j
 29	[]
 30	"base64:type16:yv66vg=="
 # Copy JSON values
-CREATE TABLE t2 (i INT, j JSON);
+CREATE TABLE t2 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t2 SELECT * FROM t1;
 SELECT *, JSON_TYPE(j) FROM t2 ORDER BY i;
 i	j	JSON_TYPE(j)
@@ -114,7 +114,7 @@ i	j	JSON_TYPE(j)
 29	[]	ARRAY
 30	"base64:type16:yv66vg=="	BIT
 # Convert JSON values to TEXT
-CREATE TABLE t3 (i INT, txt TEXT);
+CREATE TABLE t3 (i INT PRIMARY KEY, txt TEXT);
 INSERT INTO t3 SELECT * FROM t1;
 SELECT *, JSON_TYPE(txt) FROM t3 ORDER BY i;
 i	txt	JSON_TYPE(txt)
@@ -150,7 +150,7 @@ i	txt	JSON_TYPE(txt)
 29	[]	ARRAY
 30	"base64:type16:yv66vg=="	STRING
 # Convert TEXT values back to JSON
-CREATE TABLE t4 (i INT, j JSON);
+CREATE TABLE t4 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t4 SELECT * FROM t3;
 SELECT *, JSON_TYPE(j) FROM t4 ORDER BY i;
 i	j	JSON_TYPE(j)
