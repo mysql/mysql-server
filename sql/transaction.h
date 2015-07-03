@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 class THD;
 
 bool trans_check_state(THD *thd);
+void trans_reset_one_shot_chistics(THD *thd);
+void trans_track_end_trx(THD *thd);
 
 bool trans_begin(THD *thd, uint flags= 0);
 bool trans_commit(THD *thd);
