@@ -3148,7 +3148,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "using_mrr": true,
                                               "index_only": false,
                                               "rows": 1,
-                                              "cost": 2.1031,
+                                              "cost": 2.2,
                                               "chosen": false,
                                               "cause": "cost"
                                             },

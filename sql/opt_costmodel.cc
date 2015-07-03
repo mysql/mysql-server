@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "my_config.h"
 #include "opt_costmodel.h"
 #include "opt_costconstantcache.h"              // Cost_constant_cache
+#include "table.h"                              // TABLE
 
 extern Cost_constant_cache *cost_constant_cache;// defined in
                                                 // opt_costconstantcache.cc
@@ -59,6 +60,7 @@ void Cost_model_table::init(const Cost_model_server *cost_model_server,
   DBUG_ASSERT(table != NULL);
 
   m_cost_model_server= cost_model_server;
+  m_table= table;
 
   // Find the cost constant object to be used for this table
   m_se_cost_constants=
@@ -68,4 +70,39 @@ void Cost_model_table::init(const Cost_model_server *cost_model_server,
 #if !defined(DBUG_OFF)
   m_initialized= true;
 #endif
+}
+
+
+double Cost_model_table::page_read_cost(double pages) const
+{
+  DBUG_ASSERT(m_initialized);
+  DBUG_ASSERT(pages >= 0.0);
+
+  const double in_mem= m_table->file->table_in_memory_estimate();
+
+  const double pages_in_mem= pages * in_mem;
+  const double pages_on_disk= pages - pages_in_mem;
+  DBUG_ASSERT(pages_on_disk >= 0.0);
+
+  const double cost= buffer_block_read_cost(pages_in_mem) +
+    io_block_read_cost(pages_on_disk);
+
+  return cost;
+}
+
+
+double Cost_model_table::page_read_cost_index(uint index, double pages) const
+{
+  DBUG_ASSERT(m_initialized);
+  DBUG_ASSERT(pages >= 0.0);
+
+  double in_mem= m_table->file->index_in_memory_estimate(index);
+
+  const double pages_in_mem= pages * in_mem;
+  const double pages_on_disk= pages - pages_in_mem;
+
+  const double cost= buffer_block_read_cost(pages_in_mem) +
+    io_block_read_cost(pages_on_disk);
+
+  return cost;
 }

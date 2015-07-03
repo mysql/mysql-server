@@ -2746,12 +2746,11 @@ int test_quick_select(THD *thd, key_map keys_to_use,
   {
     cost_est.reset();
     // Force to use index
-    cost_est.add_io(head->cost_model()->io_block_read_cost(
+    cost_est.add_io(head->cost_model()->page_read_cost(
       static_cast<double>(records)) + 1);
     cost_est.add_cpu(scan_time);
   }
-  else if (cost_est.total_cost() <= head->cost_model()->io_block_read_cost(2.0) &&
-           !force_quick_range)
+  else if (cost_est.total_cost() <= 2.0 && !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -11634,7 +11633,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type);
 
 static void
-cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
+cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
                    uint group_key_parts, SEL_TREE *range_tree,
                    SEL_ARG *index_tree, ha_rows quick_prefix_records,
                    bool have_min, bool have_max,
@@ -12259,7 +12258,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
       }
 #endif
     }
-    cost_group_min_max(table, cur_index_info, cur_used_key_parts,
+    cost_group_min_max(table, cur_index, cur_used_key_parts,
                        cur_group_key_parts, tree, cur_index_tree,
                        cur_quick_prefix_records, have_min, have_max,
                        &cur_read_cost, &cur_records);
@@ -12762,7 +12761,7 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param)
   SYNOPSIS
     cost_group_min_max()
     table                [in] The table being accessed
-    index_info           [in] The index used to access the table
+    key                  [in] The index used to access the table
     used_key_parts       [in] Number of key parts used to access the index
     group_key_parts      [in] Number of index key parts in the group prefix
     range_tree           [in] Tree of ranges for all indexes
@@ -12816,7 +12815,7 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param)
     None
 */
 
-void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
+void cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
                         uint group_key_parts, SEL_TREE *range_tree,
                         SEL_ARG *index_tree, ha_rows quick_prefix_records,
                         bool have_min, bool have_max,
@@ -12833,6 +12832,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   DBUG_ENTER("cost_group_min_max");
   DBUG_ASSERT(cost_est->is_zero());
 
+  const KEY *const index_info= &table->key_info[key];
   table_records= table->file->stats.records;
   keys_per_block= (table->file->stats.block_size / 2 /
                    (index_info->key_length + table->file->ref_length)
@@ -12896,7 +12896,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     Estimate IO cost.
   */
   const Cost_model_table *const cost_model= table->cost_model();
-  cost_est->add_io(cost_model->io_block_read_cost(io_blocks));
+  cost_est->add_io(cost_model->page_read_cost_index(key, io_blocks));
 
   /*
     CPU cost must be comparable to that of an index scan as computed

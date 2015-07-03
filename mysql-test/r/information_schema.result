@@ -2277,6 +2277,23 @@ LIMIT 1)
 LIMIT 1;
 F1
 1
+#
+# WL#2284: Increase the length of a user name
+#
+set names utf8;
+CREATE USER user_name_len_22_01234@localhost;
+GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
+SELECT user,db FROM information_schema.processlist;
+user	db
+user_name_len_22_01234	test
+CREATE USER очень_очень_очень_длинный_юзер__@localhost;
+GRANT SELECT ON *.* TO очень_очень_очень_длинный_юзер__@localhost;
+SELECT user,db FROM information_schema.processlist;
+user	db
+очень_очень_очень_длинный_юзер__	test
+DROP USER user_name_len_22_01234@localhost;
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+set names default;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

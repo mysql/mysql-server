@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,9 +28,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-using Mysql::Nullable;
-
 /**
   String value option to handle passwords. Removes password from command line
   on UNIX systems to prevent password to be seen when listing processes.
@@ -45,7 +42,8 @@ public:
       --name.
     @param desription Description of option to be printed in --help.
    */
-  Password_option(Nullable<string>* value, string name, string description);
+  Password_option(
+    Nullable<std::string>* value, std::string name, std::string description);
 
 private:
   void password_callback(char*);

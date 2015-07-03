@@ -762,8 +762,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           to->decimals() != from->decimals() /* e.g. TIME vs TIME(6) */ ||
           !compatible_db_low_byte_first ||
           (((to->table->in_use->variables.sql_mode &
-            (MODE_STRICT_ALL_TABLES | MODE_STRICT_TRANS_TABLES |
-             MODE_INVALID_DATES)) &&
+            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
            to->type() == MYSQL_TYPE_DATE) ||
            to->type() == MYSQL_TYPE_DATETIME))
       {
@@ -889,8 +888,7 @@ type_conversion_status field_conv(Field *to,Field *from)
           (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
-           (MODE_STRICT_ALL_TABLES | MODE_STRICT_TRANS_TABLES |
-            MODE_INVALID_DATES)) ||
+           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
           to->type() != MYSQL_TYPE_DATETIME &&
           (!to->table->in_use->variables.explicit_defaults_for_timestamp ||

@@ -7374,11 +7374,12 @@ SET sql_mode = default;
 #
 # Testing values with zeros in dates
 #
-SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+SET sql_mode='NO_ZERO_IN_DATE';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
-INSERT IGNORE INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
+INSERT INTO t1 VALUES ('1999-00-00 00:00:00', '1999-00-00 00:00:00');
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 Warning	1264	Out of range value for column 'b' at row 1

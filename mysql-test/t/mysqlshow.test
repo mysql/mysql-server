@@ -103,5 +103,16 @@ show tables;
 DROP TABLE ```t1`, ```t2`;
 SET GLOBAL sql_mode = @OLD_SQL_MODE;
 
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+
+--exec $MYSQL_SHOW --host=127.0.0.1 -P $MASTER_MYPORT --user=user_with_length_32_abcdefghijkl --protocol=TCP mysql user user
+
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+
 --echo
 --echo End of tests

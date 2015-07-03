@@ -122,6 +122,17 @@ UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_actors WRITE;
 UNLOCK TABLES;
 
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+insert into performance_schema.setup_actors
+  set user='user_name_len_22_01234', host='localhost';
+
+delete from performance_schema.setup_actors
+  where user = 'user_name_len_22_01234' and host = 'localhost';
+
+
 # Restore the setup
 truncate table performance_schema.setup_actors;
 insert into performance_schema.setup_actors

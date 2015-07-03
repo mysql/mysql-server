@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015  Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,6 @@ namespace Mysql{
 namespace Tools{
 namespace Base{
 namespace Options{
-
-using std::string;
 
 /**
   Abstract option to handle integer number option values.
@@ -68,12 +66,14 @@ protected:
     @param desription Description of option to be printed in --help.
    */
   Abstract_integer_number_option(
-    T_value* value, ulong var_type, string name, string description);
+    T_value* value, ulong var_type, std::string name, std::string description);
 };
 
 template<typename T_type, typename T_value>
-Abstract_integer_number_option<T_type, T_value>::Abstract_integer_number_option(
-    T_value* value, ulong var_type, string name, string description)
+  Abstract_integer_number_option<T_type, T_value>::
+    Abstract_integer_number_option(
+      T_value* value, ulong var_type, std::string name,
+      std::string description)
   : Abstract_number_option<T_type, T_value>(
       value, var_type, name, description, 0)
 {

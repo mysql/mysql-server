@@ -115,6 +115,9 @@ SET cost_value=1.0
 WHERE cost_name="disk_temptable_row_cost";
 UPDATE mysql.engine_cost
 SET cost_value=1.0
+WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=1.0
 WHERE cost_name="io_block_read_cost";
 UPDATE mysql.server_cost
 SET cost_value = 2 * cost_value;
@@ -131,6 +134,7 @@ row_evaluate_cost	0.4
 SELECT cost_name, cost_value FROM mysql.engine_cost;
 cost_name	cost_value
 io_block_read_cost	2
+memory_block_read_cost	2
 FLUSH OPTIMIZER_COSTS;
 EXPLAIN FORMAT=JSON SELECT i3 FROM t1 WHERE i1 = 1 AND i2 = 1;
 EXPLAIN
@@ -342,6 +346,9 @@ SET cost_value=1.0
 WHERE cost_name="disk_temptable_row_cost";
 UPDATE mysql.engine_cost
 SET cost_value=1.0
+WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=1.0
 WHERE cost_name="io_block_read_cost";
 UPDATE mysql.server_cost
 SET cost_value = 0.5 * cost_value;
@@ -358,6 +365,7 @@ row_evaluate_cost	0.1
 SELECT cost_name, cost_value FROM mysql.engine_cost;
 cost_name	cost_value
 io_block_read_cost	0.5
+memory_block_read_cost	0.5
 FLUSH OPTIMIZER_COSTS;
 # This should be optimized for the LIMIT. Query plan should
 # use index without filesort
