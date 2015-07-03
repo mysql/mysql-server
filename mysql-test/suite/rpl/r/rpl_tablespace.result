@@ -21,7 +21,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # TEST Bug#21082728: Execute CREATE TABLESPACE inside active transaction
 # with GTID_NEXT set. Check for proper error code and transaction state
 # by verifying table content after issuing a ROLLBACK.
-CREATE TABLE t1 (a INT) ENGINE=INNODB;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=INNODB;
 SET @saved_gtid_next= @@session.gtid_next;
 SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 BEGIN;

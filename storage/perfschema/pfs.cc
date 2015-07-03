@@ -19,6 +19,19 @@
 */
 #include "my_global.h"
 #include "thr_lock.h"
+
+/* Make sure exported prototypes match the implementation. */
+#include "pfs_file_provider.h"
+#include "pfs_idle_provider.h"
+#include "pfs_memory_provider.h"
+#include "pfs_metadata_provider.h"
+#include "pfs_socket_provider.h"
+#include "pfs_stage_provider.h"
+#include "pfs_statement_provider.h"
+#include "pfs_table_provider.h"
+#include "pfs_thread_provider.h"
+#include "pfs_transaction_provider.h"
+
 #include "mysql/psi/psi.h"
 #include "mysql/psi/mysql_thread.h"
 #include "my_thread.h"
@@ -104,7 +117,7 @@ static void report_memory_accounting_error(
   @page PAGE_PFS The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
 
-  @section INTRO Introduction
+  @section PFS_MAIN_INTRO Introduction
   The PERFORMANCE_SCHEMA is a way to introspect the internal execution of
   the server at runtime.
   The performance schema focuses primarily on performance data,
@@ -372,7 +385,7 @@ static void report_memory_accounting_error(
   @page PAGE_PFS_PSI Performance schema: instrumentation interface page.
   MySQL performance schema instrumentation interface.
 
-  @section INTRO Introduction
+  @section PFS_PSI_INTRO Introduction
 
   The instrumentation interface consist of two layers:
   - a raw ABI (Application Binary Interface) layer, that exposes the primitive
@@ -533,7 +546,7 @@ static inline int mysql_mutex_lock(...)
   @page PAGE_PFS_AGGREGATES Performance schema: the aggregates page.
   Performance schema aggregates.
 
-  @section INTRO Introduction
+  @section PFS_AGG_INTRO Introduction
 
   Aggregates tables are tables that can be formally defined as
   SELECT ... from EVENTS_WAITS_HISTORY_INFINITE ... group by 'group clause'.
@@ -5368,6 +5381,7 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
           pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
           pfs->m_sql_errno= da->mysql_errno();
           memcpy(pfs->m_sqlstate, da->returned_sqlstate(), SQLSTATE_LENGTH);
+          pfs->m_error_count++;
           break;
         case Diagnostics_area::DA_DISABLED:
           break;
@@ -6357,7 +6371,7 @@ void pfs_register_memory_v1(const char *category,
                    register_memory_class)
 }
 
-static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);
@@ -6427,7 +6441,7 @@ static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size, PSI_t
   return key;
 }
 
-static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner)
+PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread_hdl= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner != NULL);
@@ -6505,7 +6519,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
   return key;
 }
 
-static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);
@@ -6570,7 +6584,7 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_t
   return key;
 }
 
-static void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
+void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner)
 {
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)

@@ -1863,6 +1863,15 @@ public:
   THD *next_to_commit;
 
   /**
+    The member is served for marking a query that CREATEs or ALTERs
+    a table declared with a TIMESTAMP column as dependent on
+    @@session.explicit_defaults_for_timestamp.
+    Is set to true by parser, unset at the end of the query.
+    Possible marking in checked by binary logger.
+  */
+  bool binlog_need_explicit_defaults_ts;
+
+  /**
      Functions to set and get transaction position.
 
      These functions are used to set the transaction position for the

@@ -99,6 +99,7 @@ SET(SQL_SHARED_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -106,6 +107,9 @@ SET(SQL_SHARED_SOURCES
   item_timefunc.cc 
   item_xmlfunc.cc 
   item_inetfunc.cc
+  json_dom.cc
+  json_binary.cc
+  json_path.cc
   key.cc
   key_spec.cc
   keycaches.cc
@@ -296,10 +300,11 @@ ADD_COMPILE_FLAGS(
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-# Boost Geometry source has unused local typedefs.
+# Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
@@ -308,11 +313,12 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
+    item_json_func.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
 
-# Boost Geometry source has logical && with non-zero constant
+# Boost source has logical && with non-zero constant
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
 IF(HAVE_NO_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
@@ -321,6 +327,7 @@ IF(HAVE_NO_LOGICAL_OP)
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
+    item_json_func.cc
     COMPILE_FLAGS "-Wno-logical-op"
   )
 ENDIF()

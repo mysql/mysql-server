@@ -8,5 +8,5 @@ SELECT 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1
 ####################################
 SELECT event_name, digest, digest_text, sql_text FROM events_statements_history_long;
 event_name	digest	digest_text	sql_text
-statement/sql/truncate	a73a574b31bbbfab3dcff70684bcafab	TRUNCATE TABLE 	truncate t
-statement/sql/select	220cad7966d48d82ed69dd81e2116ed7	SELECT ? + ? + 	SELECT 1+1
+statement/sql/truncate	3e7f213f91cdb7d2fecff50668448616	TRUNCATE TABLE 	truncate t
+statement/sql/select	f07ba9bb11584e93e13620137b542ee8	SELECT ? + ? + 	SELECT 1+1

@@ -228,11 +228,6 @@ struct fil_node_t {
 /** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
-/** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and mysqlbackup it is not the default
-directory, and we must set the base file path explicitly */
-extern const char*	fil_path_to_mysql_datadir;
-
 /** Common InnoDB file extentions */
 enum ib_extention {
 	NO_EXT = 0,
@@ -242,6 +237,95 @@ enum ib_extention {
 extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
 #define DOT_CFG dot_ext[CFG]
+
+/** Wrapper for a path to a directory.
+This folder may or may not yet esist.  Since not all directory paths
+end in "/", we should only use this for a directory path or a filepath
+that has a ".ibd" extension. */
+class Folder
+{
+public:
+	/** Default constructor */
+	Folder() : m_folder(NULL) {}
+
+	/** Constructor
+	@param[in]	path	pathname (not necessarily NUL-terminated)
+	@param[in]	len	length of the path, in bytes */
+	Folder(const char* path, size_t len);
+
+	/** Assignment operator
+	@param[in]	folder	folder string provided */
+	class Folder& operator=(const char* path);
+
+	/** Destructor */
+	~Folder()
+	{
+		ut_free(m_folder);
+	}
+
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator const char*() const
+	{
+		return(m_folder);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	const char* operator()() const
+	{
+		return(m_folder);
+	}
+
+	/** return the length of m_folder
+	@return the length of m_folder */
+	size_t len()
+	{
+		return m_folder_len;
+	}
+
+	/** Determine if two folders are equal
+	@param[in]	other	folder to compare to
+	@return whether the folders are equal */
+	bool operator==(const Folder& other) const;
+
+	/** Determine this folder is a child of another folder.
+	@param[in]	other	folder to compare to
+	@return whether this is a (grand)parent of the other folder */
+	bool is_child_of(const Folder& other) const;
+
+	/** Determine if the directory referenced by m_folder exists.
+	@return whether the directory exists */
+	bool exists();
+
+private:
+	/** Build the basic folder name from the path and length provided
+	@param[in]	path	pathname (not necessarily NUL-terminated)
+	@param[in]	len	length of the path, in bytes */
+	void	make_path(const char* path, size_t len);
+
+	/** Resolve a relative path in m_folder to an absolute path
+	in m_abs_path setting m_abs_len. */
+	void	make_abs_path();
+
+	/** The wrapped folder string */
+	char*	m_folder;
+
+	/** Length of m_folder */
+	size_t	m_folder_len;
+
+	/** A full absolute path to the same file. */
+	char	m_abs_path[FN_REFLEN + 2];
+
+	/** Length of m_abs_path to the deepest folder */
+	size_t	m_abs_len;
+};
+
+/** When mysqld is run, the default directory "." is the mysqld datadir,
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
+directory, and we must set the base file path explicitly */
+extern const char*	fil_path_to_mysql_datadir;
+extern Folder   	folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
@@ -706,7 +790,9 @@ fil_space_system_check(
 	__attribute__((warn_unused_result));
 
 /** Check if an undo tablespace was opened during crash recovery.
+Change name to undo_name if already opened during recovery.
 @param[in]	name		tablespace name
+@param[in]	undo_name	undo tablespace name
 @param[in]	space_id	undo tablespace id
 @retval DB_SUCCESS		if it was already opened
 @retval DB_TABLESPACE_NOT_FOUND	if not yet opened
@@ -714,6 +800,7 @@ fil_space_system_check(
 dberr_t
 fil_space_undo_check_if_opened(
 	const char*	name,
+	const char*	undo_name,
 	ulint		space_id)
 	__attribute__((warn_unused_result));
 

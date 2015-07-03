@@ -1461,6 +1461,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     all || !trn_ctx->is_active(Transaction_ctx::SESSION);
 
   Ha_trx_info *ha_info= trn_ctx->ha_trx_info(trx_scope);
+  XID_STATE *xid_state= trn_ctx->xid_state();
+
   DBUG_ENTER("ha_commit_trans");
 
   DBUG_PRINT("info", ("all=%d thd->in_sub_stmt=%d ha_info=%p is_real_trans=%d",
@@ -1550,6 +1552,19 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
       error= tc_log->prepare(thd, all);
+  }
+  /*
+    The state of XA transaction is changed to Prepared, intermediately.
+    It's going to change to the regular NOTR at the end.
+    The fact of the Prepared state is of interest to binary logger.
+  */
+  if (!error && all && xid_state->has_state(XID_STATE::XA_IDLE))
+  {
+    DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT &&
+                static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+                get_xa_opt() == XA_ONE_PHASE);
+
+    xid_state->set_state(XID_STATE::XA_PREPARED);
   }
   if (error || (error= tc_log->commit(thd, all)))
   {
@@ -5210,8 +5225,6 @@ ha_find_files(THD *thd,const char *db,const char *path,
     HA_ERR_NO_SUCH_TABLE     Table does not exist
   @retval
     HA_ERR_TABLE_EXIST       Table exists
-  @retval
-    \#                  Error code
 */
 struct st_table_exists_in_engine_args
 {
@@ -6806,8 +6819,6 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
     0			Found row
   @retval
     HA_ERR_END_OF_FILE	No rows in range
-  @retval
-    \#			Error code
 */
 int handler::read_range_first(const key_range *start_key,
 			      const key_range *end_key,
@@ -6860,8 +6871,6 @@ int handler::read_range_first(const key_range *start_key,
     0			Found row
   @retval
     HA_ERR_END_OF_FILE	No rows in range
-  @retval
-    \#			Error code
 */
 int handler::read_range_next()
 {

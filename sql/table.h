@@ -2610,7 +2610,7 @@ struct Semijoin_mat_optimize
   bool lookup_allowed;
   /// True if data types allow the MaterializeScan semijoin strategy
   bool scan_allowed;
-  /// Expected #rows in the materialized table
+  /// Expected number of rows in the materialized table
   double expected_rowcount;
   /// Materialization cost - execute sub-join and write rows to temp.table
   Cost_estimate materialization_cost;

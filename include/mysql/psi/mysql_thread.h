@@ -81,7 +81,7 @@
 #endif
 
 /**
-  @defgroup Thread_instrumentation Thread Instrumentation
+  @defgroup Mutex_instrumentation Mutex Instrumentation
   @ingroup Instrumentation_interface
   @{
 */
@@ -113,91 +113,6 @@ struct st_mysql_mutex
   @sa mysql_mutex_destroy
 */
 typedef struct st_mysql_mutex mysql_mutex_t;
-
-/**
-  An instrumented rwlock structure.
-  @sa mysql_rwlock_t
-*/
-struct st_mysql_rwlock
-{
-  /** The real rwlock */
-  native_rw_lock_t m_rwlock;
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c mysql_rwlock_t interface.
-  */
-  struct PSI_rwlock *m_psi;
-};
-
-/**
-  An instrumented prlock structure.
-  @sa mysql_prlock_t
-*/
-struct st_mysql_prlock
-{
-  /** The real prlock */
-  rw_pr_lock_t m_prlock;
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c mysql_rwlock_t interface.
-  */
-  struct PSI_rwlock *m_psi;
-};
-
-/**
-  Type of an instrumented rwlock.
-  @c mysql_rwlock_t is a drop-in replacement for @c pthread_rwlock_t.
-  @sa mysql_rwlock_init
-  @sa mysql_rwlock_rdlock
-  @sa mysql_rwlock_tryrdlock
-  @sa mysql_rwlock_wrlock
-  @sa mysql_rwlock_trywrlock
-  @sa mysql_rwlock_unlock
-  @sa mysql_rwlock_destroy
-*/
-typedef struct st_mysql_rwlock mysql_rwlock_t;
-
-/**
-  Type of an instrumented prlock.
-  A prlock is a read write lock that 'prefers readers' (pr).
-  @c mysql_prlock_t is a drop-in replacement for @c rw_pr_lock_t.
-  @sa mysql_prlock_init
-  @sa mysql_prlock_rdlock
-  @sa mysql_prlock_wrlock
-  @sa mysql_prlock_unlock
-  @sa mysql_prlock_destroy
-*/
-typedef struct st_mysql_prlock mysql_prlock_t;
-
-/**
-  An instrumented cond structure.
-  @sa mysql_cond_t
-*/
-struct st_mysql_cond
-{
-  /** The real condition */
-  native_cond_t m_cond;
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c mysql_cond_t interface.
-  */
-  struct PSI_cond *m_psi;
-};
-
-/**
-  Type of an instrumented condition.
-  @c mysql_cond_t is a drop-in replacement for @c native_cond_t.
-  @sa mysql_cond_init
-  @sa mysql_cond_wait
-  @sa mysql_cond_timedwait
-  @sa mysql_cond_signal
-  @sa mysql_cond_broadcast
-  @sa mysql_cond_destroy
-*/
-typedef struct st_mysql_cond mysql_cond_t;
 
 /*
   Consider the following code:
@@ -358,281 +273,6 @@ typedef struct st_mysql_cond mysql_cond_t;
 #else
   #define mysql_mutex_unlock(M) \
     inline_mysql_mutex_unlock(M)
-#endif
-
-/**
-  @def mysql_rwlock_register(P1, P2, P3)
-  Rwlock registration.
-*/
-#define mysql_rwlock_register(P1, P2, P3) \
-  inline_mysql_rwlock_register(P1, P2, P3)
-
-/**
-  @def mysql_rwlock_init(K, RW)
-  Instrumented rwlock_init.
-  @c mysql_rwlock_init is a replacement for @c pthread_rwlock_init.
-  Note that pthread_rwlockattr_t is not supported in MySQL.
-  @param K The PSI_rwlock_key for this instrumented rwlock
-  @param RW The rwlock to initialize
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_rwlock_init(K, RW) inline_mysql_rwlock_init(K, RW)
-#else
-  #define mysql_rwlock_init(K, RW) inline_mysql_rwlock_init(RW)
-#endif
-
-/**
-  @def mysql_prlock_init(K, RW)
-  Instrumented rw_pr_init.
-  @c mysql_prlock_init is a replacement for @c rw_pr_init.
-  @param K The PSI_rwlock_key for this instrumented prlock
-  @param RW The prlock to initialize
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_prlock_init(K, RW) inline_mysql_prlock_init(K, RW)
-#else
-  #define mysql_prlock_init(K, RW) inline_mysql_prlock_init(RW)
-#endif
-
-/**
-  @def mysql_rwlock_destroy(RW)
-  Instrumented rwlock_destroy.
-  @c mysql_rwlock_destroy is a drop-in replacement
-  for @c pthread_rwlock_destroy.
-*/
-#define mysql_rwlock_destroy(RW) inline_mysql_rwlock_destroy(RW)
-
-/**
-  @def mysql_prlock_destroy(RW)
-  Instrumented rw_pr_destroy.
-  @c mysql_prlock_destroy is a drop-in replacement
-  for @c rw_pr_destroy.
-*/
-#define mysql_prlock_destroy(RW) inline_mysql_prlock_destroy(RW)
-
-/**
-  @def mysql_rwlock_rdlock(RW)
-  Instrumented rwlock_rdlock.
-  @c mysql_rwlock_rdlock is a drop-in replacement
-  for @c pthread_rwlock_rdlock.
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_rwlock_rdlock(RW) \
-    inline_mysql_rwlock_rdlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_rwlock_rdlock(RW) \
-    inline_mysql_rwlock_rdlock(RW)
-#endif
-
-/**
-  @def mysql_prlock_rdlock(RW)
-  Instrumented rw_pr_rdlock.
-  @c mysql_prlock_rdlock is a drop-in replacement
-  for @c rw_pr_rdlock.
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_prlock_rdlock(RW) \
-    inline_mysql_prlock_rdlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_prlock_rdlock(RW) \
-    inline_mysql_prlock_rdlock(RW)
-#endif
-
-/**
-  @def mysql_rwlock_wrlock(RW)
-  Instrumented rwlock_wrlock.
-  @c mysql_rwlock_wrlock is a drop-in replacement
-  for @c pthread_rwlock_wrlock.
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_rwlock_wrlock(RW) \
-    inline_mysql_rwlock_wrlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_rwlock_wrlock(RW) \
-    inline_mysql_rwlock_wrlock(RW)
-#endif
-
-/**
-  @def mysql_prlock_wrlock(RW)
-  Instrumented rw_pr_wrlock.
-  @c mysql_prlock_wrlock is a drop-in replacement
-  for @c rw_pr_wrlock.
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_prlock_wrlock(RW) \
-    inline_mysql_prlock_wrlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_prlock_wrlock(RW) \
-    inline_mysql_prlock_wrlock(RW)
-#endif
-
-/**
-  @def mysql_rwlock_tryrdlock(RW)
-  Instrumented rwlock_tryrdlock.
-  @c mysql_rwlock_tryrdlock is a drop-in replacement
-  for @c pthread_rwlock_tryrdlock.
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_rwlock_tryrdlock(RW) \
-    inline_mysql_rwlock_tryrdlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_rwlock_tryrdlock(RW) \
-    inline_mysql_rwlock_tryrdlock(RW)
-#endif
-
-/**
-  @def mysql_rwlock_trywrlock(RW)
-  Instrumented rwlock_trywrlock.
-  @c mysql_rwlock_trywrlock is a drop-in replacement
-  for @c pthread_rwlock_trywrlock.
-*/
-#ifdef HAVE_PSI_RWLOCK_INTERFACE
-  #define mysql_rwlock_trywrlock(RW) \
-    inline_mysql_rwlock_trywrlock(RW, __FILE__, __LINE__)
-#else
-  #define mysql_rwlock_trywrlock(RW) \
-    inline_mysql_rwlock_trywrlock(RW)
-#endif
-
-/**
-  @def mysql_rwlock_unlock(RW)
-  Instrumented rwlock_unlock.
-  @c mysql_rwlock_unlock is a drop-in replacement
-  for @c pthread_rwlock_unlock.
-*/
-#define mysql_rwlock_unlock(RW) inline_mysql_rwlock_unlock(RW)
-
-/**
-  @def mysql_prlock_unlock(RW)
-  Instrumented rw_pr_unlock.
-  @c mysql_prlock_unlock is a drop-in replacement
-  for @c rw_pr_unlock.
-*/
-#define mysql_prlock_unlock(RW) inline_mysql_prlock_unlock(RW)
-
-/**
-  @def mysql_cond_register(P1, P2, P3)
-  Cond registration.
-*/
-#define mysql_cond_register(P1, P2, P3) \
-  inline_mysql_cond_register(P1, P2, P3)
-
-/**
-  @def mysql_cond_init(K, C)
-  Instrumented cond_init.
-  @c mysql_cond_init is a replacement for @c pthread_cond_init.
-  Note that pthread_condattr_t is not supported in MySQL.
-  @param C The cond to initialize
-  @param K The PSI_cond_key for this instrumented cond
-
-*/
-#ifdef HAVE_PSI_COND_INTERFACE
-  #define mysql_cond_init(K, C) inline_mysql_cond_init(K, C)
-#else
-  #define mysql_cond_init(K, C) inline_mysql_cond_init(C)
-#endif
-
-/**
-  @def mysql_cond_destroy(C)
-  Instrumented cond_destroy.
-  @c mysql_cond_destroy is a drop-in replacement for @c pthread_cond_destroy.
-*/
-#define mysql_cond_destroy(C) inline_mysql_cond_destroy(C)
-
-/**
-  @def mysql_cond_wait(C)
-  Instrumented cond_wait.
-  @c mysql_cond_wait is a drop-in replacement for @c native_cond_wait.
-*/
-#if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
-  #define mysql_cond_wait(C, M) \
-    inline_mysql_cond_wait(C, M, __FILE__, __LINE__)
-#else
-  #define mysql_cond_wait(C, M) \
-    inline_mysql_cond_wait(C, M)
-#endif
-
-/**
-  @def mysql_cond_timedwait(C, M, W)
-  Instrumented cond_timedwait.
-  @c mysql_cond_timedwait is a drop-in replacement
-  for @c native_cond_timedwait.
-*/
-#if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
-  #define mysql_cond_timedwait(C, M, W) \
-    inline_mysql_cond_timedwait(C, M, W, __FILE__, __LINE__)
-#else
-  #define mysql_cond_timedwait(C, M, W) \
-    inline_mysql_cond_timedwait(C, M, W)
-#endif
-
-/**
-  @def mysql_cond_signal(C)
-  Instrumented cond_signal.
-  @c mysql_cond_signal is a drop-in replacement for @c pthread_cond_signal.
-*/
-#define mysql_cond_signal(C) inline_mysql_cond_signal(C)
-
-/**
-  @def mysql_cond_broadcast(C)
-  Instrumented cond_broadcast.
-  @c mysql_cond_broadcast is a drop-in replacement
-  for @c pthread_cond_broadcast.
-*/
-#define mysql_cond_broadcast(C) inline_mysql_cond_broadcast(C)
-
-/**
-  @def mysql_thread_register(P1, P2, P3)
-  Thread registration.
-*/
-#define mysql_thread_register(P1, P2, P3) \
-  inline_mysql_thread_register(P1, P2, P3)
-
-/**
-  @def mysql_thread_create(K, P1, P2, P3, P4)
-  Instrumented my_thread_create.
-  This function creates both the thread instrumentation and a thread.
-  @c mysql_thread_create is a replacement for @c my_thread_create.
-  The parameter P4 (or, if it is NULL, P1) will be used as the
-  instrumented thread "indentity".
-  Providing a P1 / P4 parameter with a different value for each call
-  will on average improve performances, since this thread identity value
-  is used internally to randomize access to data and prevent contention.
-  This is optional, and the improvement is not guaranteed, only statistical.
-  @param K The PSI_thread_key for this instrumented thread
-  @param P1 my_thread_create parameter 1
-  @param P2 my_thread_create parameter 2
-  @param P3 my_thread_create parameter 3
-  @param P4 my_thread_create parameter 4
-*/
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  #define mysql_thread_create(K, P1, P2, P3, P4) \
-    inline_mysql_thread_create(K, P1, P2, P3, P4)
-#else
-  #define mysql_thread_create(K, P1, P2, P3, P4) \
-    my_thread_create(P1, P2, P3, P4)
-#endif
-
-/**
-  @def mysql_thread_set_psi_id(I)
-  Set the thread identifier for the instrumentation.
-  @param I The thread identifier
-*/
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  #define mysql_thread_set_psi_id(I) inline_mysql_thread_set_psi_id(I)
-#else
-  #define mysql_thread_set_psi_id(I) do {} while (0)
-#endif
-
-/**
-  @def mysql_thread_set_psi_THD(T)
-  Set the thread sql session for the instrumentation.
-  @param T The thread sql session
-*/
-#ifdef HAVE_PSI_THREAD_INTERFACE
-  #define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)
-#else
-  #define mysql_thread_set_psi_THD(T) do {} while (0)
 #endif
 
 static inline void inline_mysql_mutex_register(
@@ -804,6 +444,225 @@ static inline int inline_mysql_mutex_unlock(
 
   return result;
 }
+
+#endif /* DISABLE_MYSQL_THREAD_H */
+
+/** @} (end of group Mutex_instrumentation) */
+
+/**
+  @defgroup Rwlock_instrumentation Rwlock Instrumentation
+  @ingroup Instrumentation_interface
+  @{
+*/
+
+/**
+  An instrumented rwlock structure.
+  @sa mysql_rwlock_t
+*/
+struct st_mysql_rwlock
+{
+  /** The real rwlock */
+  native_rw_lock_t m_rwlock;
+  /**
+    The instrumentation hook.
+    Note that this hook is not conditionally defined,
+    for binary compatibility of the @c mysql_rwlock_t interface.
+  */
+  struct PSI_rwlock *m_psi;
+};
+
+/**
+  An instrumented prlock structure.
+  @sa mysql_prlock_t
+*/
+struct st_mysql_prlock
+{
+  /** The real prlock */
+  rw_pr_lock_t m_prlock;
+  /**
+    The instrumentation hook.
+    Note that this hook is not conditionally defined,
+    for binary compatibility of the @c mysql_rwlock_t interface.
+  */
+  struct PSI_rwlock *m_psi;
+};
+
+/**
+  Type of an instrumented rwlock.
+  @c mysql_rwlock_t is a drop-in replacement for @c pthread_rwlock_t.
+  @sa mysql_rwlock_init
+  @sa mysql_rwlock_rdlock
+  @sa mysql_rwlock_tryrdlock
+  @sa mysql_rwlock_wrlock
+  @sa mysql_rwlock_trywrlock
+  @sa mysql_rwlock_unlock
+  @sa mysql_rwlock_destroy
+*/
+typedef struct st_mysql_rwlock mysql_rwlock_t;
+
+/**
+  Type of an instrumented prlock.
+  A prlock is a read write lock that 'prefers readers' (pr).
+  @c mysql_prlock_t is a drop-in replacement for @c rw_pr_lock_t.
+  @sa mysql_prlock_init
+  @sa mysql_prlock_rdlock
+  @sa mysql_prlock_wrlock
+  @sa mysql_prlock_unlock
+  @sa mysql_prlock_destroy
+*/
+typedef struct st_mysql_prlock mysql_prlock_t;
+
+#ifndef DISABLE_MYSQL_THREAD_H
+
+/**
+  @def mysql_rwlock_register(P1, P2, P3)
+  Rwlock registration.
+*/
+#define mysql_rwlock_register(P1, P2, P3) \
+  inline_mysql_rwlock_register(P1, P2, P3)
+
+/**
+  @def mysql_rwlock_init(K, RW)
+  Instrumented rwlock_init.
+  @c mysql_rwlock_init is a replacement for @c pthread_rwlock_init.
+  Note that pthread_rwlockattr_t is not supported in MySQL.
+  @param K The PSI_rwlock_key for this instrumented rwlock
+  @param RW The rwlock to initialize
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_rwlock_init(K, RW) inline_mysql_rwlock_init(K, RW)
+#else
+  #define mysql_rwlock_init(K, RW) inline_mysql_rwlock_init(RW)
+#endif
+
+/**
+  @def mysql_prlock_init(K, RW)
+  Instrumented rw_pr_init.
+  @c mysql_prlock_init is a replacement for @c rw_pr_init.
+  @param K The PSI_rwlock_key for this instrumented prlock
+  @param RW The prlock to initialize
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_prlock_init(K, RW) inline_mysql_prlock_init(K, RW)
+#else
+  #define mysql_prlock_init(K, RW) inline_mysql_prlock_init(RW)
+#endif
+
+/**
+  @def mysql_rwlock_destroy(RW)
+  Instrumented rwlock_destroy.
+  @c mysql_rwlock_destroy is a drop-in replacement
+  for @c pthread_rwlock_destroy.
+*/
+#define mysql_rwlock_destroy(RW) inline_mysql_rwlock_destroy(RW)
+
+/**
+  @def mysql_prlock_destroy(RW)
+  Instrumented rw_pr_destroy.
+  @c mysql_prlock_destroy is a drop-in replacement
+  for @c rw_pr_destroy.
+*/
+#define mysql_prlock_destroy(RW) inline_mysql_prlock_destroy(RW)
+
+/**
+  @def mysql_rwlock_rdlock(RW)
+  Instrumented rwlock_rdlock.
+  @c mysql_rwlock_rdlock is a drop-in replacement
+  for @c pthread_rwlock_rdlock.
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_rwlock_rdlock(RW) \
+    inline_mysql_rwlock_rdlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_rwlock_rdlock(RW) \
+    inline_mysql_rwlock_rdlock(RW)
+#endif
+
+/**
+  @def mysql_prlock_rdlock(RW)
+  Instrumented rw_pr_rdlock.
+  @c mysql_prlock_rdlock is a drop-in replacement
+  for @c rw_pr_rdlock.
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_prlock_rdlock(RW) \
+    inline_mysql_prlock_rdlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_prlock_rdlock(RW) \
+    inline_mysql_prlock_rdlock(RW)
+#endif
+
+/**
+  @def mysql_rwlock_wrlock(RW)
+  Instrumented rwlock_wrlock.
+  @c mysql_rwlock_wrlock is a drop-in replacement
+  for @c pthread_rwlock_wrlock.
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_rwlock_wrlock(RW) \
+    inline_mysql_rwlock_wrlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_rwlock_wrlock(RW) \
+    inline_mysql_rwlock_wrlock(RW)
+#endif
+
+/**
+  @def mysql_prlock_wrlock(RW)
+  Instrumented rw_pr_wrlock.
+  @c mysql_prlock_wrlock is a drop-in replacement
+  for @c rw_pr_wrlock.
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_prlock_wrlock(RW) \
+    inline_mysql_prlock_wrlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_prlock_wrlock(RW) \
+    inline_mysql_prlock_wrlock(RW)
+#endif
+
+/**
+  @def mysql_rwlock_tryrdlock(RW)
+  Instrumented rwlock_tryrdlock.
+  @c mysql_rwlock_tryrdlock is a drop-in replacement
+  for @c pthread_rwlock_tryrdlock.
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_rwlock_tryrdlock(RW) \
+    inline_mysql_rwlock_tryrdlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_rwlock_tryrdlock(RW) \
+    inline_mysql_rwlock_tryrdlock(RW)
+#endif
+
+/**
+  @def mysql_rwlock_trywrlock(RW)
+  Instrumented rwlock_trywrlock.
+  @c mysql_rwlock_trywrlock is a drop-in replacement
+  for @c pthread_rwlock_trywrlock.
+*/
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
+  #define mysql_rwlock_trywrlock(RW) \
+    inline_mysql_rwlock_trywrlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_rwlock_trywrlock(RW) \
+    inline_mysql_rwlock_trywrlock(RW)
+#endif
+
+/**
+  @def mysql_rwlock_unlock(RW)
+  Instrumented rwlock_unlock.
+  @c mysql_rwlock_unlock is a drop-in replacement
+  for @c pthread_rwlock_unlock.
+*/
+#define mysql_rwlock_unlock(RW) inline_mysql_rwlock_unlock(RW)
+
+/**
+  @def mysql_prlock_unlock(RW)
+  Instrumented rw_pr_unlock.
+  @c mysql_prlock_unlock is a drop-in replacement
+  for @c rw_pr_unlock.
+*/
+#define mysql_prlock_unlock(RW) inline_mysql_prlock_unlock(RW)
 
 static inline void inline_mysql_rwlock_register(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
@@ -1120,6 +979,117 @@ static inline int inline_mysql_prlock_unlock(
 }
 #endif
 
+#endif /* DISABLE_MYSQL_THREAD_H */
+
+/** @} (end of group Rwlock_instrumentation) */
+
+/**
+  @defgroup Cond_instrumentation Cond Instrumentation
+  @ingroup Instrumentation_interface
+  @{
+*/
+
+/**
+  An instrumented cond structure.
+  @sa mysql_cond_t
+*/
+struct st_mysql_cond
+{
+  /** The real condition */
+  native_cond_t m_cond;
+  /**
+    The instrumentation hook.
+    Note that this hook is not conditionally defined,
+    for binary compatibility of the @c mysql_cond_t interface.
+  */
+  struct PSI_cond *m_psi;
+};
+
+/**
+  Type of an instrumented condition.
+  @c mysql_cond_t is a drop-in replacement for @c native_cond_t.
+  @sa mysql_cond_init
+  @sa mysql_cond_wait
+  @sa mysql_cond_timedwait
+  @sa mysql_cond_signal
+  @sa mysql_cond_broadcast
+  @sa mysql_cond_destroy
+*/
+typedef struct st_mysql_cond mysql_cond_t;
+
+#ifndef DISABLE_MYSQL_THREAD_H
+
+/**
+  @def mysql_cond_register(P1, P2, P3)
+  Cond registration.
+*/
+#define mysql_cond_register(P1, P2, P3) \
+  inline_mysql_cond_register(P1, P2, P3)
+
+/**
+  @def mysql_cond_init(K, C)
+  Instrumented cond_init.
+  @c mysql_cond_init is a replacement for @c pthread_cond_init.
+  Note that pthread_condattr_t is not supported in MySQL.
+  @param C The cond to initialize
+  @param K The PSI_cond_key for this instrumented cond
+
+*/
+#ifdef HAVE_PSI_COND_INTERFACE
+  #define mysql_cond_init(K, C) inline_mysql_cond_init(K, C)
+#else
+  #define mysql_cond_init(K, C) inline_mysql_cond_init(C)
+#endif
+
+/**
+  @def mysql_cond_destroy(C)
+  Instrumented cond_destroy.
+  @c mysql_cond_destroy is a drop-in replacement for @c pthread_cond_destroy.
+*/
+#define mysql_cond_destroy(C) inline_mysql_cond_destroy(C)
+
+/**
+  @def mysql_cond_wait(C)
+  Instrumented cond_wait.
+  @c mysql_cond_wait is a drop-in replacement for @c native_cond_wait.
+*/
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
+  #define mysql_cond_wait(C, M) \
+    inline_mysql_cond_wait(C, M, __FILE__, __LINE__)
+#else
+  #define mysql_cond_wait(C, M) \
+    inline_mysql_cond_wait(C, M)
+#endif
+
+/**
+  @def mysql_cond_timedwait(C, M, W)
+  Instrumented cond_timedwait.
+  @c mysql_cond_timedwait is a drop-in replacement
+  for @c native_cond_timedwait.
+*/
+#if defined(SAFE_MUTEX) || defined(HAVE_PSI_COND_INTERFACE)
+  #define mysql_cond_timedwait(C, M, W) \
+    inline_mysql_cond_timedwait(C, M, W, __FILE__, __LINE__)
+#else
+  #define mysql_cond_timedwait(C, M, W) \
+    inline_mysql_cond_timedwait(C, M, W)
+#endif
+
+/**
+  @def mysql_cond_signal(C)
+  Instrumented cond_signal.
+  @c mysql_cond_signal is a drop-in replacement for @c pthread_cond_signal.
+*/
+#define mysql_cond_signal(C) inline_mysql_cond_signal(C)
+
+/**
+  @def mysql_cond_broadcast(C)
+  Instrumented cond_broadcast.
+  @c mysql_cond_broadcast is a drop-in replacement
+  for @c pthread_cond_broadcast.
+*/
+#define mysql_cond_broadcast(C) inline_mysql_cond_broadcast(C)
+
 static inline void inline_mysql_cond_register(
 #ifdef HAVE_PSI_COND_INTERFACE
   const char *category,
@@ -1277,6 +1247,70 @@ static inline int inline_mysql_cond_broadcast(
   return result;
 }
 
+#endif /* DISABLE_MYSQL_THREAD_H */
+
+/** @} (end of group Cond_instrumentation) */
+
+/**
+  @defgroup Thread_instrumentation Thread Instrumentation
+  @ingroup Instrumentation_interface
+  @{
+*/
+
+/**
+  @def mysql_thread_register(P1, P2, P3)
+  Thread registration.
+*/
+#define mysql_thread_register(P1, P2, P3) \
+  inline_mysql_thread_register(P1, P2, P3)
+
+/**
+  @def mysql_thread_create(K, P1, P2, P3, P4)
+  Instrumented my_thread_create.
+  This function creates both the thread instrumentation and a thread.
+  @c mysql_thread_create is a replacement for @c my_thread_create.
+  The parameter P4 (or, if it is NULL, P1) will be used as the
+  instrumented thread "indentity".
+  Providing a P1 / P4 parameter with a different value for each call
+  will on average improve performances, since this thread identity value
+  is used internally to randomize access to data and prevent contention.
+  This is optional, and the improvement is not guaranteed, only statistical.
+  @param K The PSI_thread_key for this instrumented thread
+  @param P1 my_thread_create parameter 1
+  @param P2 my_thread_create parameter 2
+  @param P3 my_thread_create parameter 3
+  @param P4 my_thread_create parameter 4
+*/
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  #define mysql_thread_create(K, P1, P2, P3, P4) \
+    inline_mysql_thread_create(K, P1, P2, P3, P4)
+#else
+  #define mysql_thread_create(K, P1, P2, P3, P4) \
+    my_thread_create(P1, P2, P3, P4)
+#endif
+
+/**
+  @def mysql_thread_set_psi_id(I)
+  Set the thread identifier for the instrumentation.
+  @param I The thread identifier
+*/
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  #define mysql_thread_set_psi_id(I) inline_mysql_thread_set_psi_id(I)
+#else
+  #define mysql_thread_set_psi_id(I) do {} while (0)
+#endif
+
+/**
+  @def mysql_thread_set_psi_THD(T)
+  Set the thread sql session for the instrumentation.
+  @param T The thread sql session
+*/
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  #define mysql_thread_set_psi_THD(T) inline_mysql_thread_set_psi_THD(T)
+#else
+  #define mysql_thread_set_psi_THD(T) do {} while (0)
+#endif
+
 static inline void inline_mysql_thread_register(
 #ifdef HAVE_PSI_THREAD_INTERFACE
   const char *category,
@@ -1321,8 +1355,6 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd)
 #endif /* __cplusplus */
 
 #endif
-
-#endif /* DISABLE_MYSQL_THREAD_H */
 
 /** @} (end of group Thread_instrumentation) */
 

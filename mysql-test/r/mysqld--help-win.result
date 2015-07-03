@@ -252,7 +252,9 @@ The following options may be given as the first argument:
  This option causes CREATE TABLE to create all TIMESTAMP
  columns as NULL with DEFAULT NULL attribute, Without this
  option, TIMESTAMP columns are NOT NULL and have implicit
- DEFAULT clauses. The old behavior is deprecated.
+ DEFAULT clauses. The old behavior is deprecated. The
+ variable can only be set by users having the SUPER
+ privilege.
  --external-locking  Use system (external) locking (disabled by default). 
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.

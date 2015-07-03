@@ -6869,6 +6869,16 @@ static bool comparable_in_index(Item *cond_func,
       field->cmp_type() != value->result_type())
     return false;
 
+  /*
+    We can't use indexes when comparing to a JSON value. For example,
+    the string '{}' should compare equal to the JSON string "{}". If
+    we use a string index to compare the two strings, we will be
+    comparing '{}' and '"{}"', which don't compare equal.
+  */
+  if (value->result_type() == STRING_RESULT &&
+      value->field_type() == MYSQL_TYPE_JSON)
+    return false;
+
   return true;
 }
 

@@ -5429,3 +5429,31 @@ a
 DROP TABLE t1;
 DROP TABLE t2;
 DROP DATABASE db_20772273;
+#
+# WL#8132 JSON datatype and binary storage format
+#
+CREATE DATABASE dump_json;
+USE dump_json;
+CREATE TABLE t1 (j JSON);
+INSERT INTO t1 VALUES (JSON_ARRAY(1, 2, 3, "one", "two", "three"));
+SELECT * FROM t1;
+j
+[1, 2, 3, "one", "two", "three"]
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `t1` (
+  `j` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `t1` VALUES ('[1, 2, 3, \"one\", \"two\", \"three\"]');
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `t1` (
+  `j` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `t1` VALUES ('[1, 2, 3, \"one\", \"two\", \"three\"]');
+DROP DATABASE dump_json;
+#
+# End of 5.7 tests
+#

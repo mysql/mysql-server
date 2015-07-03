@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,14 +37,14 @@ void pfs_register_memory_v1
 
 PSI_memory_key
 pfs_memory_alloc_v1
-  (PSI_memory_key key, size_t size);
+  (PSI_memory_key key, size_t size, PSI_thread **owner);
 
 PSI_memory_key
 pfs_memory_realloc_v1
-  (PSI_memory_key key, size_t old_size, size_t new_size);
+  (PSI_memory_key key, size_t old_size, size_t new_size, PSI_thread **owner);
 
 void pfs_memory_free_v1
-  (PSI_memory_key key, size_t size);
+  (PSI_memory_key key, size_t size, PSI_thread *owner);
 
 C_MODE_END
 

@@ -124,7 +124,7 @@ ST_astext(ST_Intersection(ST_GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), 
 POLYGON((21.951219512195124 27.4390243902439,26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.4390243902439))
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
 ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')))
-MULTIPOINT(26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.4390243902439)
+MULTIPOINT(21.951219512195124 27.4390243902439,23.855421686746986 29.819277108433734,26.470588235294116 23.823529411764707,29.28994082840237 26.36094674556213)
 select ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
 ST_astext(ST_Intersection(ST_GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), ST_GeomFromText('LINESTRING(50 5, 55 10, 0 45)')))
 POINT(29.28994082840237 26.36094674556213)
@@ -687,7 +687,7 @@ st_astext(st_union(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 
 POLYGON((1 1,0 1,0 0,1 0,2 0,3 0,3 1,2 1,1 1))
 select st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
 st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')))
-MULTIPOINT(1 0,1 1)
+LINESTRING(1 0,1 1)
 select st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
 st_astext(st_intersection(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')))
 POLYGON((1 1,1 0,2 0,2 1,1 1))
@@ -2072,6 +2072,70 @@ SELECT ST_ASTEXT(ST_ConvexHull(ST_GEOMFROMTEXT('MULTIPOINT(1 2, 1 2)')))
 AS result;
 result
 POINT(1 2)
+#
+# Bug#21109896 POLYGON INTERSECTION POLYGON CAN'T PRODUCE LINESTRINGS AS RESULTS
+#
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 1 0, 1 1, 0 1, 0 0))'),
+st_geomfromtext('polygon((2 0, 3 0, 3 1, 2 1, 2 0))')))
+as result;
+result
+GEOMETRYCOLLECTION()
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 2 0, 2 1, 0 1, 0 0))'),
+st_geomfromtext('polygon((1 0, 3 0, 3 1, 1 1, 1 0))')))
+as result;
+result
+POLYGON((1 1,1 0,2 0,2 1,1 1))
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 1 0, 1 1, 0 1, 0 0))'),
+st_geomfromtext('polygon((1 0, 2 0, 2 1, 1 1, 1 0))')))
+as result;
+result
+LINESTRING(1 0,1 1)
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 0 5))')))
+as result;
+result
+POINT(1 3)
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 5, 0 5))')))
+as result;
+result
+GEOMETRYCOLLECTION(POINT(1 3),LINESTRING(4 3,3 3))
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 2, 6 2, 6 5, 0 5))')))
+as result;
+result
+GEOMETRYCOLLECTION(MULTIPOLYGON(((6 3,2.6666666666666665 3,3 2,6 2,6 3))),POINT(1 3))
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 4 3, 4 2, 6 2, 6 5, 0 5))')))
+as result;
+result
+GEOMETRYCOLLECTION(MULTIPOLYGON(((6 3,4 3,4 2,6 2,6 3))),LINESTRING(4 3,1 3))
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 4 3, 4 0, 6 0, 6 3, 5 3, 5 5, 0 5))')))
+as result;
+result
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 3,4 3,4 0,6 0,6 3,5 3))),LINESTRING(4 3,1 3))
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 2, 6 2, 6 5, 0 5))')))
+as result;
+result
+GEOMETRYCOLLECTION(POINT(1 3),LINESTRING(4 3,3 3),MULTIPOLYGON(((6 3,4 3,4 2,6 2,6 3))))
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 0,
+                          10 0, 10 3, 6 3, 6 5, 0 5))')))
+as result;
+result
+GEOMETRYCOLLECTION(POINT(1 3),LINESTRING(4 3,3 3),MULTIPOLYGON(((6 3,4 3,4 0,10 0,10 3,6 3))))
 #
 # Bug#21198064 GEOMETRY CONSTRUCTION FUNCTIONS ALLOWS INVALID WKT
 #

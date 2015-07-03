@@ -435,14 +435,14 @@ struct PFS_simple_index
     Set this index at a given position.
     @param other a position
   */
-  void set_at(const struct PFS_simple_index *other)
+  void set_at(const PFS_simple_index *other)
   { m_index= other->m_index; }
 
   /**
     Set this index after a given position.
     @param other a position
   */
-  void set_after(const struct PFS_simple_index *other)
+  void set_after(const PFS_simple_index *other)
   { m_index= other->m_index + 1; }
 
   /** Set this index to the next record. */
@@ -480,7 +480,7 @@ struct PFS_double_index
     Set this index at a given position.
     @param other a position
   */
-  void set_at(const struct PFS_double_index *other)
+  void set_at(const PFS_double_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;
@@ -490,7 +490,7 @@ struct PFS_double_index
     Set this index after a given position.
     @param other a position
   */
-  void set_after(const struct PFS_double_index *other)
+  void set_after(const PFS_double_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2 + 1;
@@ -531,7 +531,7 @@ struct PFS_triple_index
     Set this index at a given position.
     @param other a position
   */
-  void set_at(const struct PFS_triple_index *other)
+  void set_at(const PFS_triple_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;
@@ -542,7 +542,7 @@ struct PFS_triple_index
     Set this index after a given position.
     @param other a position
   */
-  void set_after(const struct PFS_triple_index *other)
+  void set_after(const PFS_triple_index *other)
   {
     m_index_1= other->m_index_1;
     m_index_2= other->m_index_2;

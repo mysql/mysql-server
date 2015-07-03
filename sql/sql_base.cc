@@ -1843,8 +1843,8 @@ bool close_temporary_tables(THD *thd)
   @param db_name        Data base name
   @param table_name     Table name
 
+  @returns Pointer to found table.
   @retval NULL  Table not found
-  @retval #     Pointer to found table.
 */
 
 TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,

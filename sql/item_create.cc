@@ -28,6 +28,7 @@
 #include "item_func.h"           // Item_func_udf_str
 #include "item_geofunc.h"        // Item_func_area
 #include "item_inetfunc.h"       // Item_func_inet_ntoa
+#include "item_json_func.h"      // Item_func_json
 #include "item_strfunc.h"        // Item_func_aes_encrypt
 #include "item_sum.h"            // Item_sum_udf_str
 #include "item_timefunc.h"       // Item_func_add_time
@@ -1654,6 +1655,208 @@ protected:
   virtual ~Create_func_issimple() {}
 };
 
+class Create_func_json_valid : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_json_valid s_singleton;
+protected:
+  Create_func_json_valid() {}
+  virtual ~Create_func_json_valid() {}
+};
+
+class Create_func_json_contains : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name, PT_item_list *item_list);
+
+  static Create_func_json_contains s_singleton;
+protected:
+  Create_func_json_contains() {}
+  virtual ~Create_func_json_contains() {}
+};
+
+class Create_func_json_contains_path : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name, PT_item_list *item_list);
+
+  static Create_func_json_contains_path s_singleton;
+protected:
+  Create_func_json_contains_path() {}
+  virtual ~Create_func_json_contains_path() {}
+};
+
+class Create_func_json_length : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name, PT_item_list *item_list);
+
+  static Create_func_json_length s_singleton;
+
+protected:
+  Create_func_json_length() {}
+  virtual ~Create_func_json_length() {}
+};
+
+class Create_func_json_depth : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name, PT_item_list *item_list);
+
+  static Create_func_json_depth s_singleton;
+
+protected:
+  Create_func_json_depth() {}
+  virtual ~Create_func_json_depth() {}
+};
+
+class Create_func_json_type : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_json_type s_singleton;
+protected:
+  Create_func_json_type() {}
+  virtual ~Create_func_json_type() {}
+};
+
+class Create_func_json_keys : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_keys s_singleton;
+protected:
+  Create_func_json_keys() {}
+  virtual ~Create_func_json_keys() {}
+};
+
+class Create_func_json_extract : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_extract s_singleton;
+protected:
+  Create_func_json_extract() {}
+  virtual ~Create_func_json_extract() {}
+};
+
+class Create_func_json_append : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_append s_singleton;
+
+protected:
+  Create_func_json_append() {}
+  virtual ~Create_func_json_append() {}
+
+};
+
+class Create_func_json_insert : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_insert s_singleton;
+
+protected:
+  Create_func_json_insert() {}
+  virtual ~Create_func_json_insert() {}
+
+};
+
+class Create_func_json_row_object : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_row_object s_singleton;
+
+protected:
+  Create_func_json_row_object() {}
+  virtual ~Create_func_json_row_object() {}
+
+};
+
+class Create_func_json_search : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_search s_singleton;
+
+protected:
+  Create_func_json_search() {}
+  virtual ~Create_func_json_search() {}
+
+};
+
+class Create_func_json_set : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_set s_singleton;
+
+protected:
+  Create_func_json_set() {}
+  virtual ~Create_func_json_set() {}
+
+};
+
+class Create_func_json_replace : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_replace s_singleton;
+
+protected:
+  Create_func_json_replace() {}
+  virtual ~Create_func_json_replace() {}
+
+};
+
+class Create_func_json_array : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_array s_singleton;
+
+protected:
+  Create_func_json_array() {}
+  virtual ~Create_func_json_array() {}
+
+};
+
+class Create_func_json_remove : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_remove s_singleton;
+
+protected:
+  Create_func_json_remove() {}
+  virtual ~Create_func_json_remove() {}
+};
 
 class Create_func_isvalid : public Create_func_arg1
 {
@@ -1678,6 +1881,46 @@ public:
 protected:
   Create_func_validate() {}
   virtual ~Create_func_validate() {}
+};
+
+
+class Create_func_json_merge : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_merge s_singleton;
+
+protected:
+  Create_func_json_merge() {}
+  virtual ~Create_func_json_merge() {}
+};
+
+class Create_func_json_quote : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_quote s_singleton;
+
+protected:
+  Create_func_json_quote() {}
+  virtual ~Create_func_json_quote() {}
+};
+
+class Create_func_json_unquote : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_unquote s_singleton;
+
+protected:
+  Create_func_json_unquote() {}
+  virtual ~Create_func_json_unquote() {}
 };
 
 
@@ -3128,14 +3371,14 @@ Create_func_as_geojson::create_native(THD *thd, LEX_STRING name,
   case 1:
     {
       Item *geometry= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_as_geojson(POS(), geometry);
+      func= new (thd->mem_root) Item_func_as_geojson(thd, POS(), geometry);
       break;
     }
   case 2:
     {
       Item *geometry= item_list->pop_front();
       Item *maxdecimaldigits= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_as_geojson(POS(), geometry,
+      func= new (thd->mem_root) Item_func_as_geojson(thd, POS(), geometry,
                                                      maxdecimaldigits);
       break;
     }
@@ -3144,7 +3387,7 @@ Create_func_as_geojson::create_native(THD *thd, LEX_STRING name,
       Item *geometry= item_list->pop_front();
       Item *maxdecimaldigits= item_list->pop_front();
       Item *options= item_list->pop_front();
-      func= new (thd->mem_root) Item_func_as_geojson(POS(), geometry,
+      func= new (thd->mem_root) Item_func_as_geojson(thd, POS(), geometry,
                                                      maxdecimaldigits, options);
       break;
     }
@@ -4480,6 +4723,393 @@ Create_func_issimple::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_json_valid Create_func_json_valid::s_singleton;
+
+Item*
+Create_func_json_valid::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_json_valid(POS(), arg1);
+}
+
+Create_func_json_contains Create_func_json_contains::s_singleton;
+
+Item*
+Create_func_json_contains::create_native(THD *thd, LEX_STRING name,
+                                         PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count == 2 || arg_count == 3)
+  {
+    func= new (thd->mem_root) Item_func_json_contains(thd, POS(), item_list);
+  }
+  else
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+
+  return func;
+}
+
+Create_func_json_contains_path Create_func_json_contains_path::s_singleton;
+
+Item*
+Create_func_json_contains_path::create_native(THD *thd, LEX_STRING name,
+                                              PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (!(arg_count >= 3))
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_contains_path(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_length Create_func_json_length::s_singleton;
+
+Item*
+Create_func_json_length::create_native(THD *thd, LEX_STRING name,
+                                PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  switch (arg_count) {
+  case 1:
+  {
+    Item *param_1= item_list->pop_front();
+    func= new (thd->mem_root) Item_func_json_length(thd, POS(), param_1);
+    break;
+  }
+  case 2:
+  {
+    Item *param_1= item_list->pop_front();
+    Item *param_2= item_list->pop_front();
+    func= new (thd->mem_root) Item_func_json_length(thd, POS(), param_1, param_2);
+    break;
+  }
+  default:
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+  }
+
+  return func;
+}
+
+Create_func_json_depth Create_func_json_depth::s_singleton;
+
+Item*
+Create_func_json_depth::create_native(THD *thd, LEX_STRING name,
+                                PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+  {
+    arg_count= item_list->elements();
+  }
+
+  if (arg_count != 1)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    Item *param_1= item_list->pop_front();
+
+    func= new (thd->mem_root) Item_func_json_depth(POS(), param_1);
+  }
+
+  return func;
+}
+
+Create_func_json_type Create_func_json_type::s_singleton;
+
+Item*
+Create_func_json_type::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_json_type(POS(), arg1);
+}
+
+Create_func_json_keys Create_func_json_keys::s_singleton;
+
+Item*
+Create_func_json_keys::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  switch (arg_count)
+  {
+  case 1:
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_json_keys(thd, POS(), param_1);
+      break;
+    }
+  case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_json_keys(thd, POS(),
+                                                    param_1, param_2);
+      break;
+    }
+  default:
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    break;
+  }
+
+  return func;
+}
+
+Create_func_json_extract Create_func_json_extract::s_singleton;
+
+Item*
+Create_func_json_extract::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_extract(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_append Create_func_json_append::s_singleton;
+
+Item*
+Create_func_json_append::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+
+  if (arg_count % 2 == 0) // 3,5,7, ..., (k*2)+1 args allowed
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_append(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_insert Create_func_json_insert::s_singleton;
+
+Item*
+Create_func_json_insert::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+
+  if (arg_count % 2 == 0) // 3,5,7, ..., (k*2)+1 args allowed
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_insert(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_row_object Create_func_json_row_object::s_singleton;
+
+Item*
+Create_func_json_row_object::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count % 2 != 0) // arguments come in pairs
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_row_object(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_search Create_func_json_search::s_singleton;
+
+Item*
+Create_func_json_search::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_search(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_set Create_func_json_set::s_singleton;
+
+Item*
+Create_func_json_set::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+
+  if (arg_count % 2 == 0) // 3,5,7, ..., (k*2)+1 args allowed
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_set(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_replace Create_func_json_replace::s_singleton;
+
+Item*
+Create_func_json_replace::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+
+  if (arg_count % 2 == 0) // 3,5,7, ..., (k*2)+1 args allowed
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_replace(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_array Create_func_json_array::s_singleton;
+
+Item*
+Create_func_json_array::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  return new (thd->mem_root) Item_func_json_array(thd, POS(), item_list);
+}
+
+Create_func_json_remove Create_func_json_remove::s_singleton;
+
+Item*
+Create_func_json_remove::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+  {
+    arg_count= item_list->elements();
+  }
+
+  if (arg_count < 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_remove(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
 Create_func_isvalid Create_func_isvalid::s_singleton;
 
 Item*
@@ -4497,6 +5127,84 @@ Create_func_validate::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_validate(POS(), arg1);
 }
 
+
+Create_func_json_merge Create_func_json_merge::s_singleton;
+
+Item*
+Create_func_json_merge::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+  {
+    arg_count= item_list->elements();
+  }
+
+  if (arg_count < 2)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_merge(thd, POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_quote Create_func_json_quote::s_singleton;
+
+Item*
+Create_func_json_quote::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+  {
+    arg_count= item_list->elements();
+  }
+
+  if (arg_count != 1)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_quote(POS(), item_list);
+  }
+
+  return func;
+}
+
+Create_func_json_unquote Create_func_json_unquote::s_singleton;
+
+Item*
+Create_func_json_unquote::create_native(THD *thd, LEX_STRING name,
+                                     PT_item_list *item_list)
+{
+  Item* func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+  {
+    arg_count= item_list->elements();
+  }
+
+  if (arg_count != 1)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_unquote(POS(), item_list);
+  }
+
+  return func;
+}
 
 Create_func_last_day Create_func_last_day::s_singleton;
 
@@ -5780,6 +6488,25 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IS_IPV4_MAPPED") }, BUILDER(Create_func_is_ipv4_mapped)},
   { { C_STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
   { { C_STRING_WITH_LEN("ISNULL") }, BUILDER(Create_func_isnull)},
+  { { C_STRING_WITH_LEN("JSON_VALID") }, BUILDER(Create_func_json_valid)},
+  { { C_STRING_WITH_LEN("JSON_CONTAINS") }, BUILDER(Create_func_json_contains)},
+  { { C_STRING_WITH_LEN("JSON_CONTAINS_PATH") }, BUILDER(Create_func_json_contains_path)},
+  { { C_STRING_WITH_LEN("JSON_LENGTH") }, BUILDER(Create_func_json_length)},
+  { { C_STRING_WITH_LEN("JSON_DEPTH") }, BUILDER(Create_func_json_depth)},
+  { { C_STRING_WITH_LEN("JSON_TYPE") }, BUILDER(Create_func_json_type)},
+  { { C_STRING_WITH_LEN("JSON_KEYS") }, BUILDER(Create_func_json_keys)},
+  { { C_STRING_WITH_LEN("JSON_EXTRACT") }, BUILDER(Create_func_json_extract)},
+  { { C_STRING_WITH_LEN("JSON_APPEND") }, BUILDER(Create_func_json_append)},
+  { { C_STRING_WITH_LEN("JSON_INSERT") }, BUILDER(Create_func_json_insert)},
+  { { C_STRING_WITH_LEN("JSON_OBJECT") }, BUILDER(Create_func_json_row_object)},
+  { { C_STRING_WITH_LEN("JSON_SEARCH") }, BUILDER(Create_func_json_search)},
+  { { C_STRING_WITH_LEN("JSON_SET") }, BUILDER(Create_func_json_set)},
+  { { C_STRING_WITH_LEN("JSON_REPLACE") }, BUILDER(Create_func_json_replace)},
+  { { C_STRING_WITH_LEN("JSON_ARRAY") }, BUILDER(Create_func_json_array)},
+  { { C_STRING_WITH_LEN("JSON_REMOVE") }, BUILDER(Create_func_json_remove)},
+  { { C_STRING_WITH_LEN("JSON_MERGE") }, BUILDER(Create_func_json_merge)},
+  { { C_STRING_WITH_LEN("JSON_QUOTE") }, BUILDER(Create_func_json_quote)},
+  { { C_STRING_WITH_LEN("JSON_UNQUOTE") }, BUILDER(Create_func_json_unquote)},
   { { C_STRING_WITH_LEN("IS_FREE_LOCK") }, BUILDER(Create_func_is_free_lock)},
   { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},
   { { C_STRING_WITH_LEN("LAST_DAY") }, BUILDER(Create_func_last_day)},
@@ -6184,6 +6911,12 @@ create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type)
       len= (int) decoded_size;
     }
     res= new (thd->mem_root) Item_char_typecast(POS(), a, len, real_cs);
+    break;
+  }
+  case ITEM_CAST_JSON:
+  {
+    res= new (thd->mem_root) Item_json_typecast(thd, pos, a);
+
     break;
   }
   default:

@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+
+mysql_secure_installation    : Bug#17793901 2015-07-01 Anitha This test fails consistently on PB2

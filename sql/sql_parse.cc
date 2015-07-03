@@ -4952,6 +4952,7 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+  thd->binlog_need_explicit_defaults_ts= false;
 
   thd->m_trans_end_pos= 0;
   thd->m_trans_log_file= NULL;
@@ -5058,23 +5059,18 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
-  int32 num_preparse= my_atomic_load32(&num_pre_parse_plugins);
-  int32 num_postparse= my_atomic_load32(&num_post_parse_plugins);
-
   thd->m_parser_state= parser_state;
-  if (num_preparse > 0)
-    invoke_pre_parse_rewrite_plugins(thd);
+  invoke_pre_parse_rewrite_plugins(thd);
   thd->m_parser_state= NULL;
 
-  if (num_postparse > 0)
-    enable_digest_if_any_plugin_needs_it(thd, parser_state);
+  enable_digest_if_any_plugin_needs_it(thd, parser_state);
 
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
 
     bool err= parse_sql(thd, parser_state, NULL);
-    if (num_postparse > 0 && !err)
+    if (!err)
       err= invoke_post_parse_rewrite_plugins(thd, false);
 
     const char *found_semicolon= parser_state->m_lip.found_semicolon;
@@ -5423,10 +5419,9 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
 
+  @return Pointer to TABLE_LIST element added to the total table list
   @retval
       0		Error
-  @retval
-    \#	Pointer to TABLE_LIST element added to the total table list
 */
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
@@ -5694,10 +5689,9 @@ TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
 
   @param thd         current thread
 
+  @return Pointer to TABLE_LIST element created for the new nested join
   @retval
     0  Error
-  @retval
-    \#  Pointer to TABLE_LIST element created for the new nested join
 */
 
 TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)

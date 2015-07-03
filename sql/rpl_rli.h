@@ -396,7 +396,25 @@ public:
 
   char cached_charset[6];
 
+  /*
+    View_id until which UNTIL_SQL_VIEW_ID condition will wait.
+  */
   std::string until_view_id;
+  /*
+    Flag used to indicate that view_id identified by 'until_view_id'
+    was found on the current UNTIL_SQL_VIEW_ID condition.
+    It is set to false on the beginning of the UNTIL_SQL_VIEW_ID
+    condition, and set to true when view_id is found.
+  */
+  bool until_view_id_found;
+  /*
+    Flag used to indicate that commit event after view_id identified
+    by 'until_view_id' was found on the current UNTIL_SQL_VIEW_ID condition.
+    It is set to false on the beginning of the UNTIL_SQL_VIEW_ID
+    condition, and set to true when commit event after view_id is found.
+  */
+  bool until_view_id_commit_found;
+
   /*
     trans_retries varies between 0 to slave_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0

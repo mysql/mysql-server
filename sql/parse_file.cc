@@ -462,10 +462,8 @@ frm_error:
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
-  @retval
-    0	  error
-  @retval
-    \#	  pointer on symbol after string
+  @return Pointer on symbol after string
+  @retval 0	  error
 */
 
 
@@ -546,7 +544,7 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 
 
 /**
-  parse \\n delimited escaped string.
+  parse @\n delimited escaped string.
 
   @param ptr		  pointer on string beginning
   @param end		  pointer on symbol after parsed string end (still owned
@@ -554,10 +552,9 @@ read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
+  @return Pointer on symbol after string
   @retval
     0	  error
-  @retval
-    \#	  pointer on symbol after string
 */
 
 
@@ -585,10 +582,9 @@ parse_escaped_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
   @param mem_root	  MEM_ROOT for parameter allocation
   @param str		  pointer on string, where results should be stored
 
+  @return Pointer on symbol after string
   @retval
     0	  error
-  @retval
-    \#	  pointer on symbol after string
 */
 
 static const char *

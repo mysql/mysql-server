@@ -645,4 +645,20 @@ int channel_wait_until_apply_queue_empty(char* channel, long long timeout)
   DBUG_RETURN(error);
 }
 
+int channel_flush(const char* channel)
+{
+  DBUG_ENTER("channel_flush(channel)");
+
+  Master_info *mi= msr_map.get_mi(channel);
+
+  if (mi == NULL)
+  {
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+  }
+
+  bool error= flush_relay_logs(mi);
+
+  DBUG_RETURN(error ? 1 : 0);
+}
+
 #endif /* HAVE_REPLICATION */

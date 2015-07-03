@@ -759,7 +759,8 @@ public:
                ptr_binlog_stmt_cache_disk_use_arg),
     trx_cache(TRUE, max_binlog_cache_size_arg,
               ptr_binlog_cache_use_arg,
-              ptr_binlog_cache_disk_use_arg)
+              ptr_binlog_cache_disk_use_arg),
+    has_logged_xid(NULL)
   {  }
 
   binlog_cache_data* get_binlog_cache_data(bool is_transactional)
@@ -838,7 +839,11 @@ public:
 
   binlog_stmt_cache_data stmt_cache;
   binlog_trx_cache_data trx_cache;
-
+  /*
+    The bool flag is for preventing do_binlog_xa_commit_rollback()
+    execution twice which can happen for "external" xa commit/rollback.
+  */
+  bool has_logged_xid;
 private:
 
   binlog_cache_mngr& operator=(const binlog_cache_mngr& info);
@@ -848,7 +853,7 @@ private:
 
 static binlog_cache_mngr *thd_get_cache_mngr(const THD *thd)
 {
-  /* 
+  /*
     If opt_bin_log is not set, binlog_hton->slot == -1 and hence
     thd_get_ha_data(thd, hton) segfaults.
   */
@@ -1590,7 +1595,24 @@ inline enum xa_option_words get_xa_opt(THD *thd)
 
 inline bool is_loggable_xa_prepare(THD *thd)
 {
-  return thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_IDLE);
+  /*
+    simulate_commit_failure is doing a trick with XID_STATE while
+    the ongoing transaction is not XA, and therefore to be errored out,
+    asserted below. In that case because of the
+    latter fact the function returns @c false.
+  */
+  DBUG_EXECUTE_IF("simulate_commit_failure",
+                  {
+                    XID_STATE *xs= thd->get_transaction()->xid_state();
+                    DBUG_ASSERT((thd->is_error() &&
+                                 xs->get_state() == XID_STATE::XA_IDLE) ||
+                                xs->get_state() == XID_STATE::XA_NOTR);
+                  });
+
+  return DBUG_EVALUATE_IF("simulate_commit_failure",
+                          false,
+                          thd->get_transaction()->xid_state()->
+                          has_state(XID_STATE::XA_IDLE));
 }
 
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
@@ -1615,12 +1637,16 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
    two paths: the recovered-or-slave-applier or immediately through
    the  XA-prepared transaction connection itself.
    It fills in appropiate event in the statement cache whenever
-   xid state is marked with is_binlogged() flag.
+   xid state is marked with is_binlogged() flag that indicates
+   the prepared part of the transaction must've been logged.
+
+   About early returns from the function.
    In the recovered-or-slave-applier case the function may be called
-   for the 2nd time which is ineffective thanks to @c cache_mngr test.
-   Not empty cache designates its the 2nd time invocation.
-   ONE_PHASE option to XA-COMMIT is handled to skip writing XA-commit
-   event now.
+   for the 2nd time, which has_logged_xid monitors.
+   ONE_PHASE option to XA-COMMIT is handled to skip
+   writing XA-commit event now.
+   And the final early return check is for the read-only XA that is
+   not to be logged.
 
    @param thd          THD handle
    @param xid          a pointer to XID object that is serialized
@@ -1637,10 +1663,11 @@ inline int do_binlog_xa_commit_rollback(THD *thd, XID *xid, bool commit)
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
 
+  if (cache_mngr != NULL && cache_mngr->has_logged_xid)
+    return 0;
+
   if (get_xa_opt(thd) == XA_ONE_PHASE)
     return 0;
-  if (cache_mngr && !cache_mngr->is_binlog_empty())
-    return 0; // have been there
   if (!xid_state->is_binlogged())
     return 0; // nothing was really logged at prepare
 
@@ -1671,6 +1698,10 @@ inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
 {
   int error= 0;
 
+#ifndef DBUG_OFF
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+  DBUG_ASSERT(!cache_mngr || !cache_mngr->has_logged_xid);
+#endif
   if (!(error= do_binlog_xa_commit_rollback(thd, xid, commit)))
   {
     /*
@@ -1681,10 +1712,16 @@ inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
       stands in the way of implementing a failure simulation
       for XA PREPARE/COMMIT/ROLLBACK.
     */
+    binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+
+    if (cache_mngr)
+      cache_mngr->has_logged_xid= true;
     if (commit)
       (void) mysql_bin_log.commit(thd, true);
     else
       (void) mysql_bin_log.rollback(thd, true);
+    if (cache_mngr)
+      cache_mngr->has_logged_xid= false;
   }
   return error;
 }
@@ -2033,8 +2070,9 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 
   /*
     If there is no cache manager, or if there is nothing in the
-    caches, there are no caches to roll back, so we're trivially done.
-   */
+    caches, there are no caches to roll back, so we're trivially done
+    unless XA-ROLLBACK that yet to run rollback_low().
+  */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty())
   {
     goto end;
@@ -2074,13 +2112,33 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   {
     if (trans_cannot_safely_rollback(thd))
     {
+      const char xa_rollback_str[]= "XA ROLLBACK";
+      /*
+        sizeof(xa_rollback_str) and XID::ser_buf_size both allocate `\0',
+        so one of the two is used for necessary in the xa case `space' char
+      */
+      char query[sizeof(xa_rollback_str) + XID::ser_buf_size]= "ROLLBACK";
+      XID_STATE *xs= thd->get_transaction()->xid_state();
+
+      if (thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
+      {
+        /* this block is relevant only for not prepared yet and "local" xa trx */
+        DBUG_ASSERT(thd->get_transaction()->xid_state()->
+                    has_state(XID_STATE::XA_IDLE));
+        DBUG_ASSERT(!cache_mngr->has_logged_xid);
+
+        sprintf(query, "%s ", xa_rollback_str);
+        xs->get_xid()->serialize(query + sizeof(xa_rollback_str));
+      }
       /*
         If the transaction is being rolled back and contains changes that
         cannot be rolled back, the trx-cache's content is flushed.
       */
       Query_log_event
-        end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
-      error= cache_mngr->trx_cache.finalize(thd, &end_evt);
+        end_evt(thd, query, strlen(query), true, false, true, 0, true);
+      error= thd->lex->sql_command != SQLCOM_XA_ROLLBACK ?
+        cache_mngr->trx_cache.finalize(thd, &end_evt) :
+        cache_mngr->trx_cache.finalize(thd, &end_evt, xs);
       stuff_logged= true;
     }
     else
@@ -2149,10 +2207,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   if (error == 0 && stuff_logged)
     error= ordered_commit(thd, all, /* skip_commit */ true);
 
-  /* Deferred xa rollback to engines */
-  if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
-    error= ha_rollback_low(thd, all);
-
   if (check_write_error(thd))
   {
     /*
@@ -2170,6 +2224,9 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   }
 
 end:
+  /* Deferred xa rollback to engines */
+  if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
+    error= ha_rollback_low(thd, all);
   /*
     When a statement errors out on auto-commit mode it is rollback
     implicitly, so the same should happen to its GTID.
@@ -3973,6 +4030,21 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   mysql_file_close(file, MYF(MY_WME));
   end_io_cache(&log);
 
+  if (all_gtids)
+    all_gtids->dbug_print("all_gtids");
+  else
+    DBUG_PRINT("info", ("all_gtids==NULL"));
+  if (prev_gtids)
+    prev_gtids->dbug_print("prev_gtids");
+  else
+    DBUG_PRINT("info", ("prev_gtids==NULL"));
+  if (first_gtid == NULL)
+    DBUG_PRINT("info", ("first_gtid==NULL"));
+  else if (first_gtid->sidno == 0)
+    DBUG_PRINT("info", ("first_gtid.sidno==0"));
+  else
+    first_gtid->dbug_print(sid_map, "first_gtid");
+
   DBUG_PRINT("info", ("returning %d", ret));
   DBUG_RETURN(ret);
 }
@@ -4097,8 +4169,9 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
                                    bool is_server_starting)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::init_gtid_sets");
-  DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log",
-                      lost_gtids, lost_gtids == NULL ? "relay" : "binary"));
+  DBUG_PRINT("info", ("lost_gtids=%p; so we are recovering a %s log; is_relay_log=%d",
+                      lost_gtids, lost_gtids == NULL ? "relay" : "binary",
+                      is_relay_log));
 
   /*
     If this is a relay log, we must have the IO thread Master_info trx_parser
@@ -4186,7 +4259,8 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     bool can_stop_reading= false;
     reached_first_file= (rit == filename_list.rend());
     DBUG_PRINT("info", ("filename='%s' reached_first_file=%d",
-                        rit->c_str(), reached_first_file));
+                        reached_first_file ? "" : rit->c_str(),
+                        reached_first_file));
     while (!can_stop_reading && !reached_first_file)
     {
       const char *filename= rit->c_str();
@@ -7743,9 +7817,9 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all)
   3. Third part checks any errors resulting from the ordered commit
      and handles them appropriately.
 
-  @retval 0    success
-  @retval 1    error, transaction was neither logged nor committed
-  @retval 2    error, transaction was logged but not committed
+  @retval RESULT_SUCCESS   success
+  @retval RESULT_ABORTED   error, transaction was neither logged nor committed
+  @retval RESULT_INCONSISTENT  error, transaction was logged but not committed
 */
 TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 {
@@ -7782,7 +7856,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
   Transaction_ctx *trn_ctx= thd->get_transaction();
   my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();
   bool stuff_logged= false;
-  bool skip_commit= false;
+  bool skip_commit= is_loggable_xa_prepare(thd);
 
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
@@ -7794,7 +7868,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
    */
   if (cache_mngr == NULL)
   {
-    if (ha_commit_low(thd, all))
+    if (!skip_commit && ha_commit_low(thd, all))
       DBUG_RETURN(RESULT_ABORTED);
     DBUG_RETURN(RESULT_SUCCESS);
   }
@@ -7839,6 +7913,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
     /* The Commit phase of the XA two phase logging. */
 
     DBUG_ASSERT(all);
+    DBUG_ASSERT(!skip_commit || get_xa_opt(thd) == XA_ONE_PHASE);
 
     XID_STATE *xs= thd->get_transaction()->xid_state();
 
@@ -7903,8 +7978,10 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
       XID_STATE *xs= thd->get_transaction()->xid_state();
       XA_prepare_log_event end_evt(thd, xs->get_xid(), one_phase);
 
-      xs->set_binlogged();
-      skip_commit= true;
+      xs->set_binlogged(); // todo: move into ha_prepare()
+
+      DBUG_ASSERT(skip_commit);
+
       err= cache_mngr->trx_cache.finalize(thd, &end_evt, xs);
       if (err)
         DBUG_RETURN(RESULT_ABORTED);
@@ -7970,7 +8047,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
     if (ordered_commit(thd, all, skip_commit))
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
-  else
+  else if (!skip_commit)
   {
     if (ha_commit_low(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
