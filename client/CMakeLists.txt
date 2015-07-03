@@ -87,6 +87,16 @@ IF(HAVE_NO_LOGICAL_OP)
   )
 ENDIF()
 
+# Boost source has unused local typedefs.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  ADD_COMPILE_FLAGS(
+    ${BOOST_INCLUDE_DIR}/libs/thread/src/pthread/once.cpp
+    ${BOOST_INCLUDE_DIR}/libs/thread/src/pthread/thread.cpp
+    COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   ${BOOST_LIB_SOURCES}
   ${BOOST_THREAD_SOURCES}
