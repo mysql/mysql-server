@@ -102,6 +102,28 @@ IF (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro"))
   ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
   TARGET_LINK_LIBRARIES(mysqlpump_lib
      client_base ${LZ4_LIBRARY} boost_lib)
+
+   # Boost source has unused local typedefs.
+   MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs"
+     HAVE_NO_UNUSED_TYPEDEFS)
+   IF(HAVE_NO_UNUSED_TYPEDEFS)
+     ADD_COMPILE_FLAGS(
+       abstract_crawler.cc
+       abstract_mysql_chain_element_extension.cc
+       abstract_progress_watcher.cc
+       mysql_chain_element_options.cc
+       mysqldump_tool_chain_maker.cc
+       mysqldump_tool_chain_maker_options.cc
+       object_filter.cc
+       object_queue.cc
+       program.cc
+       standard_progress_watcher.cc
+       sql_formatter.cc
+       table.cc
+       COMPILE_FLAGS "-Wno-unused-local-typedefs"
+       )
+   ENDIF()
+
   ADD_COMPILE_FLAGS(
     ${MYSQLPUMP_LIB_SOURCES}
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
