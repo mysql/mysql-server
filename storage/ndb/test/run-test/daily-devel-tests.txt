@@ -535,3 +535,7 @@ max-time : 600
 cmd: testBackup
 args: -n BackupWhenOutOfLDMRecords T1
 
+max-time : 600
+cmd: testBackup
+args: -n OutOfScanRecordsInLDM T1
+
