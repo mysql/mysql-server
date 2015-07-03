@@ -104,7 +104,10 @@
 #undef SIZEOF_OFF_T
 #define SIZEOF_OFF_T 8
 
-#define sleep(a) Sleep((a)*1000)
+static inline void sleep(unsigned long seconds)
+{
+  Sleep(seconds * 1000);
+}
 
 /* Define missing access() modes. */
 #define F_OK 0

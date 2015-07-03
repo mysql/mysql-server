@@ -902,6 +902,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqlcheck
 %attr(755, root, root) %{_bindir}/mysqldump
 %attr(755, root, root) %{_bindir}/mysqlimport
+%attr(755, root, root) %{_bindir}/mysqlpump
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
 %attr(755, root, root) %{_bindir}/mysql_config

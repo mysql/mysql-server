@@ -27,8 +27,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Simple boolean option. Does not accept value.
  */
@@ -41,7 +39,7 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Simple_option(string name, string description);
+  Simple_option(std::string name, std::string description);
 };
 
 }

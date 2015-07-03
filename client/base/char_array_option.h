@@ -25,8 +25,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Option class to get string parameter value and set to char* type object.
  */
@@ -42,7 +40,8 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Char_array_option(char** value, bool allocated, string name, string description);
+  Char_array_option(
+    char** value, bool allocated, std::string name, std::string description);
 
   /**
     Sets value for this option. If it is specified before handling commandline

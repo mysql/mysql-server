@@ -39,7 +39,7 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Disabled_option(string name, string description);
+  Disabled_option(std::string name, std::string description);
 };
 
 }

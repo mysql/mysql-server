@@ -27,8 +27,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Boolean option with value specified as argument.
  */
@@ -42,7 +40,7 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Bool_option(bool* value, string name, string description);
+  Bool_option(bool* value, std::string name, std::string description);
 
   /**
     Sets value for this option. If it is specified before handling commandline

@@ -28,8 +28,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   String value option.
  */
@@ -43,7 +41,8 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  String_option(Nullable<string>* value, string name, string description);
+  String_option(
+    Nullable<std::string>* value, std::string name, std::string description);
 };
 
 }

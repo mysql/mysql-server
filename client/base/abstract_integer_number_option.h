@@ -26,8 +26,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-
 /**
   Abstract option to handle integer number option values.
  */
@@ -68,12 +66,14 @@ protected:
     @param description Description of option to be printed in --help.
    */
   Abstract_integer_number_option(
-    T_value* value, ulong var_type, string name, string description);
+    T_value* value, ulong var_type, std::string name, std::string description);
 };
 
 template<typename T_type, typename T_value>
-Abstract_integer_number_option<T_type, T_value>::Abstract_integer_number_option(
-    T_value* value, ulong var_type, string name, string description)
+  Abstract_integer_number_option<T_type, T_value>::
+    Abstract_integer_number_option(
+      T_value* value, ulong var_type, std::string name,
+      std::string description)
   : Abstract_number_option<T_type, T_value>(
       value, var_type, name, description, 0)
 {
