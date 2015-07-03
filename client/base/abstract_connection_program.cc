@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,4 +29,14 @@ Abstract_connection_program::Abstract_connection_program()
 MYSQL* Abstract_connection_program::create_connection()
 {
   return this->m_connection_options.create_connection();
+}
+
+CHARSET_INFO* Abstract_connection_program::get_current_charset() const
+{
+  return m_connection_options.get_current_charset();
+}
+
+void Abstract_connection_program::set_current_charset(CHARSET_INFO* charset)
+{
+  m_connection_options.set_current_charset(charset);
 }

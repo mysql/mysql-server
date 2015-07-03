@@ -1,4 +1,4 @@
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,4 +33,26 @@ ADD_CONVENIENCE_LIBRARY(client_base
 
   abstract_program.cc
   abstract_connection_program.cc
+
+  message_data.cc
+  mysql_query_runner.cc
+  show_variable_query_extractor.cc
+
+  mutex.cc
+
+  ../get_password.c
+
+  ../../sql-common/sql_string.cc
 )
+
+ADD_COMPILE_FLAGS(
+  mutex.cc
+  mysql_query_runner.cc
+  show_variable_query_extractor.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)
+
+TARGET_LINK_LIBRARIES(client_base mysqlclient boost_lib)
+
+# Do not build library unless it is needed by some other target.
+SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)
