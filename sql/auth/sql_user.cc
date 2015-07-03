@@ -1260,7 +1260,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_name= user_list++))
@@ -1405,7 +1405,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_name= user_list++))
@@ -1507,7 +1507,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_from= user_list++))
@@ -1667,7 +1667,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
 
   is_privileged_user= is_privileged_user_for_credential_change(thd);
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   while ((tmp_user_from= user_list++))

@@ -554,11 +554,11 @@ void err_readonly(THD *thd)
 /**
   Wrapper class which simplifies read guard usage for LOCK_grant.
 */
-class LOCK_grant_read_guard : public Partitioned_lock_read_guard
+class LOCK_grant_read_guard : public Partitioned_rwlock_read_guard
 {
 public:
   explicit LOCK_grant_read_guard(THD *thd)
-    : Partitioned_lock_read_guard(&LOCK_grant, thd->thread_id())
+    : Partitioned_rwlock_read_guard(&LOCK_grant, thd->thread_id())
   { }
 };
 
@@ -1312,7 +1312,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   is_privileged_user= is_privileged_user_for_credential_change(thd);
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
@@ -1630,7 +1630,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     create_new_users= test_if_create_new_users(thd);
 
   is_privileged_user= is_privileged_user_for_credential_change(thd);
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   MEM_ROOT *old_root= thd->mem_root;
   thd->mem_root= &memex;
@@ -1891,7 +1891,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   is_privileged_user= is_privileged_user_for_credential_change(thd);
   /* go through users in user_list */
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
   grant_version++;
 
@@ -3245,7 +3245,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     DBUG_RETURN(result != 1);
   }
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   LEX_USER *lex_user, *tmp_lex_user;
@@ -3573,7 +3573,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   /* Be sure to pop this before exiting this scope! */
   thd->push_internal_handler(&error_handler);
 
-  Partitioned_lock_write_guard lock(&LOCK_grant);
+  Partitioned_rwlock_write_guard lock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
   /*
