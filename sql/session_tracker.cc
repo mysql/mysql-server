@@ -510,7 +510,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     overhead.
   */
   if (!thd || session_created)
-    rdlock_plugin_mutex(thd);
+    lock_plugin_mutex();
   while(token)
   {
     LEX_STRING var;
@@ -527,7 +527,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
 	if (insert(NULL, var) == TRUE)
 	{
 	/* Error inserting into the hash. */
-	  rdunlock_plugin_mutex(thd);
+	  unlock_plugin_mutex();
 	  return true;                            /* Error */
 	}
       }
@@ -540,7 +540,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
       }
       else
       {
-	rdunlock_plugin_mutex(thd);
+	unlock_plugin_mutex();
 	return true;
       }
     }
@@ -556,7 +556,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
     token= my_strtok_r(NULL, separator, &lasts);
   }
   if (!thd || session_created)
-    rdunlock_plugin_mutex(thd);
+    unlock_plugin_mutex();
 
   return false;
 }

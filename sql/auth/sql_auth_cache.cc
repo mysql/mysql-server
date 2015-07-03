@@ -1302,13 +1302,13 @@ bool set_user_salt(ACL_USER *acl_user)
    - if there's sha256 users and there's neither SSL nor RSA configured
 */
 static void
-validate_user_plugin_records(THD *thd)
+validate_user_plugin_records()
 {
   DBUG_ENTER("validate_user_plugin_records");
   if (!validate_user_plugins)
     DBUG_VOID_RETURN;
 
-  rdlock_plugin_data(thd);
+  lock_plugin_data();
   for (ACL_USER *acl_user= acl_users->begin();
        acl_user != acl_users->end(); ++acl_user)
   {
@@ -1319,7 +1319,7 @@ validate_user_plugin_records(THD *thd)
       /* rule 1 : plugin does exit */
       if (!auth_plugin_is_built_in(acl_user->plugin.str))
       {
-        plugin= plugin_find_by_type(thd, acl_user->plugin,
+        plugin= plugin_find_by_type(acl_user->plugin,
                                     MYSQL_AUTHENTICATION_PLUGIN);
 
         if (!plugin)
@@ -1352,7 +1352,7 @@ validate_user_plugin_records(THD *thd)
       }
     }
   }
-  rdunlock_plugin_data(thd);
+  unlock_plugin_data();
   DBUG_VOID_RETURN;
 }
 
@@ -1958,7 +1958,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                     "please run mysql_upgrade to create it");
   }
   acl_proxy_users->shrink_to_fit();
-  validate_user_plugin_records(thd);
+  validate_user_plugin_records();
   init_check_host();
 
   initialized=1;
