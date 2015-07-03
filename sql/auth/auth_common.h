@@ -648,6 +648,8 @@ bool check_fk_parent_table_access(THD *thd,
 bool check_readonly(THD *thd, bool err_if_readonly);
 void err_readonly(THD *thd);
 
+bool is_secure_transport(int vio_type);
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
 bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *tables);

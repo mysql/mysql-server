@@ -7555,6 +7555,12 @@ ER_JSON_DOCUMENT_TOO_DEEP 22032
 ER_JSON_DOCUMENT_NULL_KEY 22032
   eng "JSON documents may not contain NULL member names."
 
+ER_SECURE_TRANSPORT_REQUIRED
+  eng "Connections using insecure transport are prohibited while --require_secure_transport=ON."
+
+ER_NO_SECURE_TRANSPORTS_CONFIGURED
+  eng "No secure transports (SSL or Shared Memory) are configured, unable to set --require_secure_transport=ON."
+
 #
 #  End of 5.7 error messages.
 #
