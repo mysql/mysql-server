@@ -176,7 +176,16 @@ static int DEBUG_REDO = 0;
 #define DEBUG_REDO 0
 #endif
 
-const Uint32 NR_ScanNo = 0;
+/**
+ * System reserved scan ids. Scan ids 0-11 are specific for ACC scans.
+ * Scan ids from 12 and up to a maximum of 133 (configurable) are used
+ * for TUX range scans and finally scan ids of from last TUX range scan
+ * id up to a maximum of 252 is used for TUP full table scans. Scan ids
+ * 253, 254 and 255 are reserved for LCP scans, Backup scans and NR scans.
+ */
+const Uint32 NR_ScanNo = 253;
+const Uint32 LCP_ScanNo = 254;
+const Uint32 Backup_ScanNo = 255;
 
 #ifndef NDBD_TRACENR
 #if defined VM_TRACE
@@ -12749,8 +12758,11 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->fragPtrI = fragptr.p->tableFragptr;
   
   /**
-   * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
-   *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
+   * ACC scan uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1) inclusive  =  0-11
+   * Range scans uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-134
+   * TUP scans uses from 135 - 252
+   * The boundary between Range and TUP scans are configurable and is
+   * set in variable c_max_parallel_scans_per_frag.
    */
 
   /**
@@ -12767,55 +12779,97 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   Uint32 max_parallel_scans_per_frag = c_max_parallel_scans_per_frag;
   if (accScan)
   {
-    start = 1;
-    stop = MAX_PARALLEL_SCANS_PER_FRAG - 1;
+    jam();
+    start = 0;
+    stop = MAX_PARALLEL_SCANS_PER_FRAG;
   }
   else if (rangeScan)
   {
+    jam();
     start = MAX_PARALLEL_SCANS_PER_FRAG;
-    stop = start + max_parallel_scans_per_frag - 1;
+    stop = start + max_parallel_scans_per_frag;
   }
   else
   {
+    jam();
     ndbassert(tupScan);
     start = MAX_PARALLEL_SCANS_PER_FRAG + max_parallel_scans_per_frag;
-    stop = start + max_parallel_scans_per_frag - 1;
+    stop = start + max_parallel_scans_per_frag;
+    if (stop > NR_ScanNo)
+    {
+      jam();
+      stop = NR_ScanNo;
+    }
   }
   ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
              (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
 
-  /*
-    This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
-    Checking 5084 twice to ensure that the optimized build will see this as 
-    'testQueue = false' and not generate code to evaluate subsequent terms.
-  */
-  const bool testQueue = ERROR_INSERTED(5084) && rangeScan && 
-    refToMain(resultRef)==DBSPJ && ERROR_INSERTED_CLEAR(5084);
+  const BlockReference senderBlock = refToMain(regTcPtr->clientBlockref);
+  Uint32 free;
 
-  const Uint32 free = testQueue ? Fragrecord::ScanNumberMask::NotFound : 
-    tFragPtr.p->m_scanNumberMask.find(start);
-  
-  if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
-    jam();
-    
-    if(scanPrio == 0){
-      jam();
-      return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
-    }
-
+  if (senderBlock == BACKUP)
+  {
     /**
-     * Put on queue
+     * Both LCP scans and Backup scans have predefined scan numbers.
+     * They will never be queued and so completing them will not
+     * start any queued scans.
      */
-    scanPtr->scanState = ScanRecord::IN_QUEUE;
-    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                       tupScan == 0 ? 
-                                       fragptr.p->m_queuedScans :
-                                       fragptr.p->m_queuedTupScans);
-    queue.addLast(scanptr);
-    fragptr.p->m_useStat.m_queuedScanCount++;
-    return ZOK;
+    if (lcpScan)
+    {
+      jam();
+      free = LCP_ScanNo;
+    }
+    else
+    {
+      /* Backup scan */
+      jam();
+      free = Backup_ScanNo;
+    }
+    ndbassert(tFragPtr.p->m_scanNumberMask.get(free));
   }
+  else
+  {
+    ndbassert(!lcpScan);
+    /*
+      This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
+      Checking 5084 twice to ensure that the optimized build will see this as 
+      'testQueue = false' and not generate code to evaluate subsequent terms.
+    */
+    const bool testQueue = ERROR_INSERTED(5084) && rangeScan && 
+      refToMain(resultRef)==DBSPJ && ERROR_INSERTED_CLEAR(5084);
+
+    free = testQueue ? Fragrecord::ScanNumberMask::NotFound : 
+      tFragPtr.p->m_scanNumberMask.find(start);
   
+    if (free == Fragrecord::ScanNumberMask::NotFound || free >= stop)
+    {
+      /**
+       * stop isn't inclusive, so we allow only ids in the range
+       * [ start, stop ) .
+       */
+      jam();
+    
+      if(scanPrio == 0)
+      {
+        jam();
+        return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
+      }
+
+      /**
+       * Put on queue
+       */
+      scanPtr->scanState = ScanRecord::IN_QUEUE;
+      LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                         rangeScan != 0 ? 
+                                         fragptr.p->m_queuedScans :
+                                         tupScan  != 0 ?
+                                         fragptr.p->m_queuedTupScans :
+                                         fragptr.p->m_queuedAccScans);
+      queue.addLast(scanptr);
+      fragptr.p->m_useStat.m_queuedScanCount++;
+      return ZOK;
+    }
+  }
   scanPtr->scanNumber = free;
   tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
   
@@ -12915,25 +12969,19 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
   }
 
   Uint32 tupScan = scanPtr->tupScan;
+  Uint32 rangeScan = scanPtr->rangeScan;
   
   if (scanPtr->scanState == ScanRecord::IN_QUEUE)
   {
     LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                       tupScan == 0 ? 
+                                       rangeScan != 0 ?
                                        fragptr.p->m_queuedScans :
-                                       fragptr.p->m_queuedTupScans);
+                                       tupScan != 0 ? 
+                                       fragptr.p->m_queuedTupScans :
+                                       fragptr.p->m_queuedAccScans);
     jam();
-    if (reserved == 0)
-    {
-      jam();
-      queue.release(scanptr);
-    }
-    else
-    {
-      jam();
-      queue.remove(scanptr);
-      m_reserved_scans.addFirst(scanptr);
-    }
+    ndbrequire(reserved == 0);
+    queue.release(scanptr);
     return false;
   }
 
@@ -12986,15 +13034,26 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 
   {
     LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                       tupScan == 0 ? 
+                                       rangeScan != 0 ?
                                        fragptr.p->m_queuedScans :
-                                       fragptr.p->m_queuedTupScans);
+                                       tupScan != 0 ? 
+                                       fragptr.p->m_queuedTupScans :
+                                       fragptr.p->m_queuedAccScans);
     /**
      * Start of queued scans
      */
-    if (scanNumber == NR_ScanNo || !queue.first(restart))
+    if (likely(!queue.first(restart)) ||
+         (scanNumber >= NR_ScanNo &&
+          scanNumber <= Backup_ScanNo))
     {
       jam();
+
+      /**
+       * LCP scan, NR scan, Backup scans won't start any queued scans since
+       * no scanNumber useful for normal scans have been freed. Also come
+       * here when no scans are queued.
+       */
+      ndbassert(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
       tFragPtr.p->m_scanNumberMask.set(scanNumber);
       return false;
     }
@@ -14643,65 +14702,6 @@ void Dblqh::scanTcConnectLab(Signal* signal, Uint32 tstartTcConnect, Uint32 frag
   }//if
   return;
 }//Dblqh::scanTcConnectLab()
-
-/*---------------------------------------------------------------------------*/
-/*   A NEW MASTER IS REQUESTING THE STATE IN LQH OF THE COPY FRAGMENT PARTS. */
-/*---------------------------------------------------------------------------*/
-/* ***************>> */
-/*  COPY_STATEREQ  > */
-/* ***************>> */
-void Dblqh::execCOPY_STATEREQ(Signal* signal) 
-{
-  jamEntry();
-  ndbrequire(0)
-#if 0
-  Uint32* dataPtr = &signal->theData[2];
-  BlockReference tmasterBlockref = signal->theData[0];
-  Uint32 tnoCopy = 0;
-  do {
-    jam();
-    arrGuard(tnoCopy, 4);
-    fragptr.i = cactiveCopy[tnoCopy];
-    if (fragptr.i == RNIL) {
-      jam();
-      break;
-    }//if
-    c_fragment_pool.getPtr(fragptr);
-    if (fragptr.p->copyFragState != ZIDLE) {
-      jam();
-/*---------------------------------------------------------------------------*/
-/*   THIS FRAGMENT IS CURRENTLY ACTIVE IN COPYING THE FRAGMENT.              */
-/*---------------------------------------------------------------------------*/
-      scanptr.i = fragptr.p->fragScanRec[NR_ScanNo];
-      c_scanRecordPool.getPtr(scanptr);
-      if (scanptr.p->scanCompletedStatus == ZTRUE) {
-        jam();
-        dataPtr[3 + (tnoCopy << 2)] = ZCOPY_CLOSING;
-      } else {
-        jam();
-        dataPtr[3 + (tnoCopy << 2)] = ZCOPY_ONGOING;
-      }//if
-      dataPtr[2 + (tnoCopy << 2)] = scanptr.p->scanSchemaVersion;
-      scanptr.p->scanApiBlockref = tmasterBlockref;
-    } else {
-      ndbrequire(fragptr.p->activeTcCounter != 0);
-/*---------------------------------------------------------------------------*/
-/*   COPY FRAGMENT IS COMPLETED AND WE ARE CURRENTLY GETTING THE STARTING    */
-/*   GCI OF THE NEW REPLICA OF THIS FRAGMENT.                                */
-/*---------------------------------------------------------------------------*/
-      fragptr.p->masterBlockref = tmasterBlockref;
-      dataPtr[3 + (tnoCopy << 2)] = ZCOPY_ACTIVATION;
-    }//if
-    dataPtr[tnoCopy << 2] = fragptr.p->tabRef;
-    dataPtr[1 + (tnoCopy << 2)] = fragptr.p->fragId;
-    tnoCopy++;
-  } while (tnoCopy < cnoActiveCopy);
-  signal->theData[0] = cownNodeid;
-  signal->theData[1] = tnoCopy;
-  sendSignal(tmasterBlockref, GSN_COPY_STATECONF, signal, 18, JBB);
-#endif
-  return;
-}//Dblqh::execCOPY_STATEREQ()
 
 /* ========================================================================= */
 /* =======              INITIATE TC RECORD AT COPY FRAGMENT          ======= */
@@ -25672,9 +25672,12 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             row.write_uint32(LocalDLCFifoList<ScanRecord>
                              (c_scanRecordPool, frag->m_queuedScans).count());
 
+            row.write_uint32(LocalDLCFifoList<ScanRecord>
+                             (c_scanRecordPool, frag->m_queuedTupScans).count());
+
             row.write_uint32(LocalDLCFifoList<ScanRecord> 
                              (c_scanRecordPool, 
-                              frag->m_queuedTupScans).count());
+                              frag->m_queuedAccScans).count());
             
             row.write_uint64(commitCount);
             ndbinfo_send_row(signal, req, row, rl);

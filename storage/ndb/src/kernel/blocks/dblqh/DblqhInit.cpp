@@ -383,7 +383,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
   addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
   addRecSignal(GSN_COPY_ACTIVEREQ, &Dblqh::execCOPY_ACTIVEREQ);
-  addRecSignal(GSN_COPY_STATEREQ, &Dblqh::execCOPY_STATEREQ);
   addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
   addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
   addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);

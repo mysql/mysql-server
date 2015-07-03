@@ -138,8 +138,6 @@ const GsnName SignalNames [] = {
   ,{ GSN_COPY_FRAGREQ,           "COPY_FRAGREQ" }
   ,{ GSN_COPY_GCICONF,           "COPY_GCICONF" }
   ,{ GSN_COPY_GCIREQ,            "COPY_GCIREQ" }
-  ,{ GSN_COPY_STATECONF,         "COPY_STATECONF" }
-  ,{ GSN_COPY_STATEREQ,          "COPY_STATEREQ" }
   ,{ GSN_COPY_TABCONF,           "COPY_TABCONF" }
   ,{ GSN_COPY_TABREQ,            "COPY_TABREQ" }
   ,{ GSN_UPDATE_FRAG_STATECONF,  "UPDATE_FRAG_STATECONF" }

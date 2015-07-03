@@ -52,6 +52,16 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runLoadTable10000(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = 10000;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), records) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 bool testMaster = true;
 bool testSlave = false;
 
@@ -68,6 +78,207 @@ int setMasterAsSlave(NDBT_Context* ctx, NDBT_Step* step){
 int setSlave(NDBT_Context* ctx, NDBT_Step* step){
   testMaster = false;
   testSlave = true;
+  return NDBT_OK;
+}
+
+struct scan_holder_type
+{
+  NdbScanOperation *pOp;
+  NdbTransaction *pTrans;
+};
+
+int createOrderedPkIndex(NDBT_Context* ctx, NDBT_Step* step)
+{
+  char orderedPkIdxName[255];
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  // Create index
+  BaseString::snprintf(orderedPkIdxName, sizeof(orderedPkIdxName),
+                       "IDC_O_PK_%s", pTab->getName());
+  NdbDictionary::Index pIdx(orderedPkIdxName);
+  pIdx.setTable(pTab->getName());
+  pIdx.setType(NdbDictionary::Index::OrderedIndex);
+  pIdx.setLogging(false);
+
+  for (int c = 0; c< pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if (col->getPrimaryKey())
+    {
+      pIdx.addIndexColumn(col->getName());
+    }
+  }
+  if (pNdb->getDictionary()->createIndex(pIdx) != 0)
+  {
+    ndbout << "FAILED! to create index" << endl;
+    const NdbError err = pNdb->getDictionary()->getNdbError();
+    NDB_ERR(err);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int start_scan_no_close(NDBT_Context *ctx,
+                        Ndb *pNdb,
+                        scan_holder_type *scan_holder,
+                        int scan_flags,
+                        int i)
+{
+  const NdbDictionary::Table *tab = ctx->getTab();
+  scan_holder->pTrans = pNdb->startTransaction();
+  if (scan_holder->pTrans == NULL)
+  {
+    g_err << "Failed to start transaction, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  if (scan_flags != NdbScanOperation::SF_OrderBy)
+  {
+    scan_holder->pOp =
+      scan_holder->pTrans->getNdbScanOperation(tab->getName());
+  }
+  else
+  {
+    char pkIdxName[255];
+    BaseString::snprintf(pkIdxName, 255, "IDC_O_PK_%s", tab->getName());
+    scan_holder->pOp =
+      scan_holder->pTrans->getNdbIndexScanOperation(pkIdxName, tab->getName());
+  }
+  if (scan_holder->pOp == NULL)
+  {
+    g_err << "Failed to get scan op, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  if (scan_holder->pOp->readTuples(NdbOperation::LM_CommittedRead,
+                                   scan_flags,
+                                   240))
+  {
+    g_err << "Failed call to readTuples, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  for (int j = 0; j < tab->getNoOfColumns(); j++)
+  {
+    if (scan_holder->pOp->getValue(tab->getColumn(j)->getName()) == 0)
+    {
+      g_err << "Failed to get value, line: "
+            << __LINE__ << " i = " << i << " j = " << j << endl;
+      return NDBT_FAILED;
+    }
+  }
+  if (scan_holder->pTrans->execute(NoCommit, AbortOnError) == -1)
+  {
+    g_err << "Failed to exec scan op, line: "
+          << __LINE__ << " i = " << i << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
+{
+  NdbBackup backup;
+  unsigned backupId = 0;
+  int i;
+  Ndb* pNdb;
+  scan_holder_type scan_holder_array[256];
+  const static int NUM_ACC_SCANS = 12;
+  const static int NUM_TUX_SCANS = 122;
+  const static int NUM_TUP_SCANS = 119;
+  
+  pNdb = GETNDB(step);
+  for (i = 0; i < NUM_ACC_SCANS; i++)
+  {
+    /**
+     * We start 12 ACC scans, we can have at most 12 ACC scans, if more
+     * are used we will queue up the scans. Here we use up all of them
+     * but don't queue up any.
+     */
+    if (start_scan_no_close(ctx,
+                            pNdb,
+                            &scan_holder_array[i],
+                            0,
+                            i)
+                            == NDBT_FAILED)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS; i++)
+  {
+    /**
+     * In the default config which we assume in this test case, we can
+     * start up 122 parallel range scans on a fragment. Here we use up
+     * all of those slots, so no queueing will occur.
+     */
+    if (start_scan_no_close(ctx,
+                            pNdb,
+                            &scan_holder_array[i],
+                            NdbScanOperation::SF_OrderBy,
+                            i)
+                            == NDBT_FAILED)
+    {
+      return NDBT_FAILED;
+    }
+  }
+  for (; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++)
+  {
+    /**
+     * In the default config we can have up to 119 Tup scans without queueing.
+     * Here we will attempt to start 120 Tup scans. The last one will be
+     * queued. This runs some code where queued scans are handled from
+     * close scan which aborted. This found a bug which we ensure gets
+     * retested by this overallocation.
+     */
+    if (start_scan_no_close(ctx,
+                            pNdb,
+                            &scan_holder_array[i],
+                            NdbScanOperation::SF_TupScan,
+                            i)
+                            == NDBT_FAILED)
+    {
+      return NDBT_FAILED;
+    }
+  }
+
+  /**
+   * Start an LCP to ensure that we test LCP scans while grabbing all
+   * scan number resources.
+   */
+  NdbRestarter restarter;
+  int dumpCode = 7099;
+  restarter.dumpStateAllNodes(&dumpCode, 1);
+
+  /**
+   * At this point we have allocated all scan numbers, so no more scan
+   * numbers are available. Backup should still function since it uses
+   * a reserved scan number, we verify this here.
+   */
+  if (backup.start(backupId) == -1)
+  {
+    return NDBT_FAILED;
+  }
+  ndbout << "Started backup " << backupId << endl;
+  ctx->setProperty("BackupId", backupId);
+
+  /**
+   * We sleep for 5 seconds which randomly leads to execution of LCP
+   * scans. This also uses reserved scan number. To decrease randomness
+   * we programmatically start an LCP above.
+   */
+  NdbSleep_SecSleep(5);
+
+  /**
+   * Close down all connections.
+   */
+  for (i = 0; i < NUM_ACC_SCANS + NUM_TUX_SCANS + NUM_TUP_SCANS + 1; i++)
+  {
+    scan_holder_array[i].pTrans->execute(NdbTransaction::Rollback);
+    pNdb->closeTransaction(scan_holder_array[i].pTrans);
+    scan_holder_array[i].pTrans = NULL;
+  }
   return NDBT_OK;
 }
 
@@ -1131,6 +1342,13 @@ TESTCASE("Bug57650", "")
 TESTCASE("Bug14019036", "")
 {
   INITIALIZER(runBug14019036);
+}
+TESTCASE("OutOfScanRecordsInLDM",
+         "Test that uses up all scan slots before starting backup")
+{
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable10000);
+  INITIALIZER(outOfScanRecordsInLDM);
 }
 TESTCASE("Bug16656639", "")
 {

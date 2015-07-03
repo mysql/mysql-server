@@ -243,8 +243,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_FRAGREQ                171
 #define GSN_COPY_GCICONF                172
 #define GSN_COPY_GCIREQ                 173
-#define GSN_COPY_STATECONF              174
-#define GSN_COPY_STATEREQ               175
+/* 174 used to be COPY_STATECONF, no longer used */
+/* 175 used to be COPY_STATEREQ, no longer used */
 #define GSN_COPY_TABCONF                176
 #define GSN_COPY_TABREQ                 177
 #define GSN_UPDATE_FRAG_STATECONF       178

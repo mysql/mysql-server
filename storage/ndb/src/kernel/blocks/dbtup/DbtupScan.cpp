@@ -1374,19 +1374,26 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
 {
   ScanOp& scan = *scanPtr.p;
   ndbrequire(! (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) && scan.m_accLockOp == RNIL);
-  // unlock all not unlocked by LQH
-  LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
-  ScanLockPtr lockPtr;
-  while (list.first(lockPtr)) {
-    jam();
-    AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
-    lockReq->returnCode = RNIL;
-    lockReq->requestInfo = AccLockReq::Abort;
-    lockReq->accOpPtr = lockPtr.p->m_accLockOp;
-    EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
-    jamEntry();
-    ndbrequire(lockReq->returnCode == AccLockReq::Success);
-    list.release(lockPtr);
+  {
+    /**
+     * unlock all not unlocked by LQH
+     * Ensure that LocalDLFifoList is destroyed before calling
+     * EXECUTE_DIRECT on NEXT_SCANCONF which might end up
+     * creating the same object further down the stack.
+     */
+    LocalDLFifoList<ScanLock> list(c_scanLockPool, scan.m_accLockOps);
+    ScanLockPtr lockPtr;
+    while (list.first(lockPtr)) {
+      jam();
+      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+      lockReq->returnCode = RNIL;
+      lockReq->requestInfo = AccLockReq::Abort;
+      lockReq->accOpPtr = lockPtr.p->m_accLockOp;
+      EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
+      jamEntry();
+      ndbrequire(lockReq->returnCode == AccLockReq::Success);
+      list.release(lockPtr);
+    }
   }
   // send conf
   Uint32 blockNo = refToMain(scanPtr.p->m_userRef);

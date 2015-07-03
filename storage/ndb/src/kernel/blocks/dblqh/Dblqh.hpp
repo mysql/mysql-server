@@ -717,6 +717,7 @@ public:
     DLCList<ScanRecord>::Head m_activeScans;
     DLCFifoList<ScanRecord>::Head m_queuedScans;
     DLCFifoList<ScanRecord>::Head m_queuedTupScans;
+    DLCFifoList<ScanRecord>::Head m_queuedAccScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -2485,7 +2486,6 @@ private:
   void execPREPARE_COPY_FRAG_REQ(Signal* signal);
   void execUPDATE_FRAG_DIST_KEY_ORD(Signal*);
   void execCOPY_ACTIVEREQ(Signal* signal);
-  void execCOPY_STATEREQ(Signal* signal);
   void execLQH_TRANSREQ(Signal* signal);
   void execTRANSID_AI(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
