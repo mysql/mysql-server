@@ -3191,7 +3191,9 @@ int ha_federated::real_connect()
   mysql_options(mysql,MYSQL_SET_CHARSET_NAME,
                 this->table->s->table_charset->csname);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                 "program_name", "federated");
+                "program_name", "mysqld");
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                "_client_role", "federated_storage");
   sql_query.length(0);
 
   if (!mysql_real_connect(mysql,
