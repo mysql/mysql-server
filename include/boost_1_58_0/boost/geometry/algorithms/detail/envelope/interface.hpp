@@ -26,6 +26,7 @@
 #include <boost/geometry/geometries/concepts/check.hpp>
 
 #include <boost/geometry/algorithms/dispatch/envelope.hpp>
+#include <boost/geometry/algorithms/assign.hpp>
 
 
 namespace boost { namespace geometry
@@ -94,6 +95,7 @@ struct envelope<boost::variant<BOOST_VARIANT_ENUM_PARAMS(T)> >
 template<typename Geometry, typename Box>
 inline void envelope(Geometry const& geometry, Box& mbr)
 {
+    geometry::assign_inverse(mbr);
     resolve_variant::envelope<Geometry>::apply(geometry, mbr);
 }
 
