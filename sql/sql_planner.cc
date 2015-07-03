@@ -327,7 +327,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
         {
           cur_read_cost= prev_record_reads(join, idx, table_deps) *
-                         table->cost_model()->io_block_read_cost();
+                         table->cost_model()->page_read_cost(1.0);
           cur_fanout= 1.0;
         }
         else
@@ -418,7 +418,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
           }
           else
             cur_read_cost= prefix_rowcount *
-              min(table->cost_model()->io_block_read_cost(tmp_fanout),
+              min(table->cost_model()->page_read_cost(tmp_fanout),
                   tab->worst_seeks);
         }
       }
@@ -612,7 +612,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
         }
         else
           cur_read_cost= prefix_rowcount *
-            min(table->cost_model()->io_block_read_cost(tmp_fanout),
+            min(table->cost_model()->page_read_cost(tmp_fanout),
                 tab->worst_seeks);
       }
       else
@@ -638,7 +638,7 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
       }
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
       cur_read_cost= prev_record_reads(join, idx, table_deps) *
-                     table->cost_model()->io_block_read_cost();
+                     table->cost_model()->page_read_cost(1.0);
       cur_fanout= 1.0;
     }
 

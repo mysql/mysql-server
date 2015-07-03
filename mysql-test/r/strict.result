@@ -2,7 +2,7 @@ set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';
 select @@sql_mode;
 @@sql_mode
-REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (col1 date);
 INSERT INTO t1 VALUES('2004-01-01'),('2004-02-29');
@@ -27,31 +27,34 @@ INSERT INTO t1 VALUES ('59');
 ERROR 22007: Incorrect date value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-INSERT IGNORE INTO t1 VALUES('2004-01-03'),('2004-0-31');
+INSERT INTO t1 VALUES('2004-01-03'),('2004-0-31');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
 Warnings:
-Warning	1264	Out of range value for column 'col1' at row 2
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES('2004-0-30');
 ERROR 22007: Incorrect date value: '2004-0-30' for column 'col1' at row 1
 INSERT INTO t1 VALUES('2004-01-04'),('2004-0-31'),('2004-01-05');
 ERROR 22007: Incorrect date value: '2004-0-31' for column 'col1' at row 2
-INSERT IGNORE INTO t1 VALUES('0000-00-00');
-Warnings:
-Warning	1264	Out of range value for column 'col1' at row 1
+INSERT INTO t1 VALUES('0000-00-00');
 INSERT IGNORE INTO t1 VALUES('2004-0-29');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('0000-00-00');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
-INSERT IGNORE INTO t1 VALUES ('2004-0-30');
-Warnings:
-Warning	1264	Out of range value for column 'col1' at row 1
+INSERT INTO t1 VALUES ('2004-0-30');
 INSERT INTO t1 VALUES ('2004-2-30');
 ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES ('2004-2-30');
 set @@sql_mode='ansi,traditional';
 Warnings:
@@ -67,12 +70,12 @@ col1
 0000-10-31
 2004-01-02
 2004-01-03
-0000-00-00
+2004-00-31
 2004-01-04
 0000-00-00
 0000-00-00
 0000-00-00
-0000-00-00
+2004-00-30
 2004-02-30
 2004-02-29
 0000-00-00
@@ -80,6 +83,7 @@ col1
 drop table t1;
 set @@sql_mode='strict_trans_tables';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (col1 date) engine=myisam;
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
@@ -96,6 +100,8 @@ INSERT ignore INTO t1 VALUES('2003-02-30');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT ignore INTO t1 VALUES('2003-02-31');
 select * from t1;
 col1
@@ -108,6 +114,8 @@ col1
 2003-02-31
 drop table t1;
 set @@sql_mode='strict_trans_tables';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (col1 date) engine=innodb;
 INSERT INTO t1 VALUES('2004-13-31'),('2004-1-1');
 ERROR 22007: Incorrect date value: '2004-13-31' for column 'col1' at row 1
@@ -122,6 +130,8 @@ INSERT ignore INTO t1 VALUES('2003-02-30');
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT ignore INTO t1 VALUES('2003-02-31');
 select * from t1;
 col1
@@ -191,6 +201,7 @@ INSERT INTO t1 VALUES ('59');
 ERROR 22007: Incorrect datetime value: '59' for column 'col1' at row 1
 set @@sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES('2004-0-31 15:30:00');
 ERROR 22007: Incorrect datetime value: '2004-0-31 15:30:00' for column 'col1' at row 1
@@ -201,12 +212,13 @@ ERROR 22007: Incorrect datetime value: '2004-10-32 15:30:00' for column 'col1' a
 INSERT INTO t1 VALUES('2004-02-30 15:30:04');
 ERROR 22007: Incorrect datetime value: '2004-02-30 15:30:04' for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_IN_DATE';
 Warnings:
-Warning	1264	Out of range value for column 'col1' at row 1
-set @@sql_mode='STRICT_ALL_TABLES';
-INSERT IGNORE INTO t1 VALUES('0000-00-00 00:00:00');
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+INSERT INTO t1 VALUES('0000-00-00 00:00:00');
+set @@sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE';
 Warnings:
-Warning	1264	Out of range value for column 'col1' at row 1
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES('0000-00-00 00:00:00');
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'col1' at row 1
 set @@sql_mode='ansi,traditional';
@@ -369,10 +381,11 @@ UPDATE t1 SET col2=col2 + 50 WHERE col2 > 0;
 ERROR 22003: Out of range value for column 'col2' at row 3
 UPDATE t1 SET col1=col1 / 0 WHERE col1 > 0;
 ERROR 22012: Division by 0
-set @@sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-INSERT IGNORE INTO t1 values (1/0,1/0);
+INSERT INTO t1 values (1/0,1/0);
 Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
@@ -1174,15 +1187,16 @@ insert into t1 (col1) values (convert('0000-00-00',date));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 insert into t1 (col1) values (cast('0000-00-00' as date));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
-set sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+set sql_mode='NO_ZERO_DATE';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-insert ignore into t1 values (0,0,0);
+insert into t1 values (0,0,0);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 Warning	1264	Out of range value for column 'col2' at row 1
 Warning	1264	Out of range value for column 'col3' at row 1
-insert ignore into t1 values (0.0,0.0,0.0);
+insert into t1 values (0.0,0.0,0.0);
 Warnings:
 Warning	1264	Out of range value for column 'col1' at row 1
 Warning	1264	Out of range value for column 'col2' at row 1
@@ -1547,8 +1561,9 @@ create table t1 (f1 set('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in SET
 create table t1 (f1 enum('a','a'));
 ERROR HY000: Column 'f1' has duplicated value 'a' in ENUM
-set @@sql_mode='STRICT_ALL_TABLES';
+set @@sql_mode='NO_ZERO_DATE';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a datetime not null);
 select count(*) from t1 where a is null;
@@ -1563,9 +1578,11 @@ End of 5.0 tests
 # WL#946 TIME/TIMESTAMP/DATETIME with fractional seconds: CAST to DATETIME
 #
 #
-# STR_TO_DATE did not return NULL (with warning)
+# STR_TO_DATE  with NO_ZERO_DATE did not return NULL (with warning)
 # in get_date(). Only did in val_str() and val_int().
-SET sql_mode='STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+SET sql_mode='NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT
 STR_TO_DATE('2001','%Y'),
 CONCAT(STR_TO_DATE('2001','%Y')),
@@ -1580,24 +1597,16 @@ Warning	1411	Incorrect datetime value: '2001' for function str_to_date
 # End of 5.6 tests
 #
 #
-# WL#7467 : Deprecate (5.6) and remove (5.7) ERROR_FOR_DIVISION_BY_ZERO, 
-#           NO_ZERO_DATE, NO_ZERO_IN_DATE SQL MODES and make their
-#           functionality part of STRICT MODE
+# WL#7467 : Deprecate ERROR_FOR_DIVISION_BY_ZERO, NO_ZERO_DATE,
+#             NO_ZERO_IN_DATE SQL MODES and make their
+#             functionality part of STRICT MODE
 #
-# Previously, insertion of ZERO dates used to give error if STRICT MODE 
-# was enabled with NO_ZERO_DATE and NO_ZERO_IN_DATE modes. Also Division
+# Insertion of ZERO dates gives error if STRICT MODE
+# is enabled with NO_ZERO_DATE and NO_ZERO_IN_DATE modes. Also Division
 # by Zero would cause the statement to fail if STRICT MODE was enabled
 # with ERROR_FOR_DIVISION_BY_ZERO mode.
-# With the implementation of this Worklog, since the functionality of 
-# NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO has 
-# become part of STRICT MODE, DML statements inserting Invalid dates or
-# causing division by zero errors are rejected when STRICT MODE is enabled.
-# However, if the user still wants to insert invalid dates in
-# in STRICT MODE, or does not want the statement to fail in case of division
-# by zero error, the same previous behaviour can be achieved by using
-# IGNORE keyword along with the supported DML statements.
 #
-SET @@sql_mode = 'STRICT_ALL_TABLES';
+SET @@sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,NO_ZERO_DATE,NO_ZERO_IN_DATE,STRICT_ALL_TABLES';
 CREATE TABLE t1 (a DATE);
 INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
@@ -1705,6 +1714,8 @@ NULL	NULL
 # Clean-up
 DROP TABLE t1,t2;
 SET @@sql_mode = 'STRICT_ALL_TABLES,ALLOW_INVALID_DATES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 CREATE TABLE t1 (a1 INT, a2 DATETIME);
 UPDATE t1 SET a2={d '1789-07-14'} WHERE a1=0;
 # Clean-up
@@ -1715,8 +1726,9 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 #
 # BUG 11756690 - ERROR 22012 DIVISION BY 0 HANDLED BY HANDLER FOR SQLSTATE 23000 (ER_DUP_ENTRY)
 #
-SET sql_mode = 'STRICT_ALL_TABLES';
+SET sql_mode = 'ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 Id INTEGER NOT NULL AUTO_INCREMENT,
@@ -1809,6 +1821,7 @@ CREATE TABLE t2( a INT, b INT);
 INSERT INTO t1 VALUES (1), (2), (3), (4);
 SET sql_mode= STRICT_ALL_TABLES;
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' FROM t1;
 SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/wl6614.txt');
@@ -1847,6 +1860,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 #
 SET sql_mode='STRICT_ALL_TABLES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 id TINYINT UNSIGNED NOT NULL DEFAULT 0
@@ -1869,6 +1883,7 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 #
 SET sql_mode='STRICT_ALL_TABLES';
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(c1 varchar(50)) engine=InnoDB;
 ALTER TABLE t1 ADD KEY in_c1(c1);

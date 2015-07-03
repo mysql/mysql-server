@@ -779,8 +779,6 @@ rtree_area_overlapping(
 	keyseg_len = 2 * sizeof(double);
 
 	for (key_len = mbr_len; key_len > 0; key_len -= keyseg_len) {
-		double	area;
-
 		amin = mach_double_read(a);
 		bmin = mach_double_read(b);
 		amax = mach_double_read(a + sizeof(double));

@@ -199,12 +199,22 @@ bool sys_var::update(THD *thd, set_var *var)
     if (locked)
       mysql_mutex_unlock(&thd->LOCK_thd_sysvar);
 
-    if ((!ret) &&
-        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
-      thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &(var->var->name));
-    if ((!ret) &&
-        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-      thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, &var->var->name);
+    /*
+      Make sure we don't session-track variables that are not actually
+      part of the session. tx_isolation and and tx_read_only for example
+      exist as GLOBAL, SESSION, and one-shot ("for next transaction only").
+    */
+    if ((var->type == OPT_SESSION) || !is_trilevel())
+    {
+      if ((!ret) &&
+          thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->is_enabled())
+        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->mark_as_changed(thd, &(var->var->name));
+
+      if ((!ret) &&
+          thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+        thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, &var->var->name);
+    }
+
     return ret;
   }
 }

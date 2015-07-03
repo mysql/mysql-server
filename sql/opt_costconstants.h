@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,11 +192,19 @@ private:
 class SE_cost_constants
 {
 public:
-  SE_cost_constants() : m_io_block_read_cost(IO_BLOCK_READ_COST),
+  SE_cost_constants() : m_memory_block_read_cost(MEMORY_BLOCK_READ_COST),
+    m_io_block_read_cost(IO_BLOCK_READ_COST),
+    m_memory_block_read_cost_default(true),
     m_io_block_read_cost_default(true)
   {}
 
   virtual ~SE_cost_constants() {}
+
+  /**
+    Cost of reading one random block from an in-memory database buffer.
+  */
+
+  double memory_block_read_cost() const { return m_memory_block_read_cost; }
 
   /**
     Cost of reading one random block from disk.
@@ -280,12 +288,18 @@ private:
     This section specifies default values for cost constants.
   */
 
+  /// Default cost for reading a random block from an in-memory buffer
+  static const double MEMORY_BLOCK_READ_COST;
+
   /// Default cost for reading a random disk block
   static const double IO_BLOCK_READ_COST;
 
   /*
     This section specifies cost constants for the table
   */
+
+  /// Cost constant for reading a random block from an in-memory buffer
+  double m_memory_block_read_cost;
 
   /// Cost constant for reading a random disk block.
   double m_io_block_read_cost;
@@ -294,6 +308,9 @@ private:
     This section has boolean variables that is used for knowing whether
     the above cost variables is using the default value or not.
   */
+  
+  /// Whether the memory_block_read_cost is a default value or not
+  bool m_memory_block_read_cost_default;
 
   /// Whether the io_block_read_cost is a default value or not
   bool m_io_block_read_cost_default;

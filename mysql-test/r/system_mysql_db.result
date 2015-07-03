@@ -36,7 +36,7 @@ Table	Create Table
 db	CREATE TABLE `db` (
   `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Update_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
@@ -63,7 +63,7 @@ show create table user;
 Table	Create Table
 user	CREATE TABLE `user` (
   `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `Update_priv` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
@@ -123,7 +123,7 @@ Table	Create Table
 tables_priv	CREATE TABLE `tables_priv` (
   `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Table_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Grantor` char(77) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -137,7 +137,7 @@ Table	Create Table
 columns_priv	CREATE TABLE `columns_priv` (
   `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Table_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Column_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -149,7 +149,7 @@ Table	Create Table
 procs_priv	CREATE TABLE `procs_priv` (
   `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `User` char(16) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Routine_name` char(64) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `Routine_type` enum('FUNCTION','PROCEDURE') COLLATE utf8_bin NOT NULL,
   `Grantor` char(77) COLLATE utf8_bin NOT NULL DEFAULT '',

@@ -1955,4 +1955,35 @@ LIMIT 1;
 eval EXPLAIN $query;
 eval $query;
 
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+connection default;
+
+--character_set utf8
+set names utf8;
+
+CREATE USER user_name_len_22_01234@localhost;
+GRANT SELECT ON *.* TO user_name_len_22_01234@localhost;
+connect (con_user22,localhost,user_name_len_22_01234,,test);
+connection con_user22;
+SELECT user,db FROM information_schema.processlist;
+connection default;
+
+# 32 characters user name
+CREATE USER очень_очень_очень_длинный_юзер__@localhost;
+GRANT SELECT ON *.* TO очень_очень_очень_длинный_юзер__@localhost;
+connect (con_user32_utf8,localhost,очень_очень_очень_длинный_юзер__,,test);
+connection con_user32_utf8;
+SELECT user,db FROM information_schema.processlist;
+connection default;
+
+# cleanup
+disconnect con_user22;
+disconnect con_user32_utf8;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER очень_очень_очень_длинный_юзер__@localhost;
+set names default;
+
 set sql_mode= @orig_sql_mode;

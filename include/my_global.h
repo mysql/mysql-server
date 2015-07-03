@@ -115,7 +115,10 @@
 #undef SIZEOF_OFF_T
 #define SIZEOF_OFF_T 8
 
-#define sleep(a) Sleep((a)*1000)
+static inline void sleep(unsigned long seconds)
+{
+  Sleep(seconds * 1000);
+}
 
 /* Define missing access() modes. */
 #define F_OK 0
@@ -765,4 +768,7 @@ static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2
 #define DEFAULT_SSL_SERVER_CERT "server-cert.pem"
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
+#if defined(_WIN32) || defined(_WIN64)
+  #define strcasecmp _stricmp
+#endif
 #endif  // MY_GLOBAL_INCLUDED

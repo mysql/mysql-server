@@ -658,7 +658,7 @@ DROP TABLE t1;
 --echo #
 SET @old_mode= @@sql_mode;
 CREATE TABLE t1 (fld1 INT);
-SET sql_mode='strict_all_tables';
+SET sql_mode=default;
 
 --copy_file $EXE_MYSQL $MYSQLTEST_VARDIR/mysql
 

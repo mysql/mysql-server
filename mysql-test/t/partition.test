@@ -2189,7 +2189,7 @@ drop table t1, t2;
 # Bug #38083 Error-causing row inserted into partitioned table despite error
 #
 SET @orig_sql_mode = @@SQL_MODE;
-SET SQL_MODE='STRICT_ALL_TABLES';
+SET SQL_MODE='STRICT_ALL_TABLES,ERROR_FOR_DIVISION_BY_ZERO';
 CREATE TABLE t1 (c1 INT)
        PARTITION BY LIST(1 DIV c1) (
        PARTITION p0 VALUES IN (NULL),

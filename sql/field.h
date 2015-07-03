@@ -2548,7 +2548,7 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
 
     Flags depend on the session sql_mode settings, such as
-    MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES.
+    MODE_NO_ZERO_DATE, MODE_NO_ZERO_IN_DATE.
     Also, Field_newdate, Field_datetime, Field_datetimef add TIME_FUZZY_DATE
     to the session sql_mode settings, to allow relaxed date format,
     while Field_timestamp, Field_timestampf do not.
