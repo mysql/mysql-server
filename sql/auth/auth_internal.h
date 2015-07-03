@@ -58,10 +58,10 @@ ACL_PROXY_USER * acl_find_proxy_user(const char *user,
                                      const char *ip,
                                      char *authenticated_as,
                                      bool *proxy_used);
-bool set_user_salt(THD *, ACL_USER *acl_user);
+bool set_user_salt(ACL_USER *acl_user);
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value);
 
-void acl_update_user(THD* thd, const char *user, const char *host,
+void acl_update_user(const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -73,7 +73,7 @@ void acl_update_user(THD* thd, const char *user, const char *host,
                      MYSQL_TIME password_change_time,
                      LEX_ALTER password_life,
                      ulong what_is_set);
-void acl_insert_user(THD *thd, const char *user, const char *host,
+void acl_insert_user(const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,

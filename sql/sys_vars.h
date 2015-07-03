@@ -1517,24 +1517,24 @@ public:
     var->save_result.plugin= plugin;
     return false;
   }
-  void do_update(THD *thd, plugin_ref *valptr, plugin_ref newval)
+  void do_update(plugin_ref *valptr, plugin_ref newval)
   {
     plugin_ref oldval= *valptr;
     if (oldval != newval)
     {
-      *valptr= plugin_lock_ext(thd, &newval, FALSE);
-      plugin_unlock_ext(thd, oldval, FALSE);
+      *valptr= my_plugin_lock(NULL, &newval);
+      plugin_unlock(NULL, oldval);
     }
   }
   bool session_update(THD *thd, set_var *var)
   {
-    do_update(thd, (plugin_ref*)session_var_ptr(thd),
+    do_update((plugin_ref*)session_var_ptr(thd),
               var->save_result.plugin);
     return false;
   }
   bool global_update(THD *thd, set_var *var)
   {
-    do_update(thd, (plugin_ref*)global_var_ptr(),
+    do_update((plugin_ref*)global_var_ptr(),
               var->save_result.plugin);
     return false;
   }

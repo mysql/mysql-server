@@ -460,8 +460,8 @@ bool set_and_validate_user_attributes(THD *thd,
       Str->plugin= default_auth_plugin_name;
   }
 
-  plugin= plugin_lock_by_name_ext(thd, Str->plugin,
-                                  MYSQL_AUTHENTICATION_PLUGIN, FALSE);
+  plugin= my_plugin_lock_by_name(0, Str->plugin,
+                                 MYSQL_AUTHENTICATION_PLUGIN);
 
   /* check if plugin is loaded */
   if (!plugin)
@@ -491,7 +491,7 @@ bool set_and_validate_user_attributes(THD *thd,
                  thd->security_context()->priv_user().str,
                  thd->security_context()->priv_host().str,
                  thd->password ? ER_THD(thd, ER_YES) : ER_THD(thd, ER_NO));
-        plugin_unlock_ext(thd, plugin, FALSE);
+        plugin_unlock(0, plugin);
         return (1);
       }
     }
@@ -513,7 +513,7 @@ bool set_and_validate_user_attributes(THD *thd,
         push_warning(thd, Sql_condition::SL_NOTE,
                      ER_SET_PASSWORD_AUTH_PLUGIN,
                      warning_buffer);
-        plugin_unlock_ext(thd, plugin, FALSE);
+        plugin_unlock(0, plugin);
         what_to_set= NONE_ATTR;
         return (0);
       }
@@ -535,7 +535,7 @@ bool set_and_validate_user_attributes(THD *thd,
                                              inbuf,
                                              inbuflen))
     {
-      plugin_unlock_ext(thd, plugin, FALSE);
+      plugin_unlock(0, plugin);
       return(1);
     }
     if (buflen)
@@ -573,12 +573,12 @@ bool set_and_validate_user_attributes(THD *thd,
                                                Str->auth.length))
       {
         my_error(ER_PASSWORD_FORMAT, MYF(0));
-        plugin_unlock_ext(thd, plugin, FALSE);
+        plugin_unlock(0, plugin);
         return(1);
       }
     }
   }
-  plugin_unlock_ext(thd, plugin, FALSE);
+  plugin_unlock(0, plugin);
   return(0);
 }
 

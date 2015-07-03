@@ -838,34 +838,9 @@ static plugin_ref my_intern_plugin_lock(uint thr_id, LEX *lex, plugin_ref rc)
 }
 
 
-/**
-  Protects a plugin from unloading by adding a reference to it.
-
-  Released by plugin_unlock_ext()/plugin_unlock_list_ex().
-  Takes a "read" lock on LOCK_plugin.
-  Make sure the THD you use to lock is the same you use to unlock.
-  Otherwise, since the LOCK_plugin is a partitioned mutex, you'll
-  end up trying to unlock a mutex you didn't lock.
-  passing down NULL thd is ok too, but it removes the scalabilty effect
-  since all of these will end up using the first sub-mutex in LOCK_plugin.
-  Note also that the function (my_intern_plugin_lock() actually) may end up
-  adding the plugin to the thd->lex->plugins structure. If you don't want this
-  pass register_plugin as FALSE. This is useful for quick plugin lock unlock
-  where you don't need the overhead of maintaining the thd->lex list or when
-  there's no proper thd->lex yet.
-  Please avoid using the convenience macros unless necessary and make sure
-  you always put the THD and unlock_plugin in the right way.
-
-  @param thd              thread id to use.
-  @param ptr              the plugin to lock
-  @param register_plugin  TRUE if you want the plugin added
-                          to thd->lex->plugins, FALSE otherwise
-  @return                 a plugin reference to pass to plugin_unlock_ext()
-*/
-
-plugin_ref plugin_lock_ext(THD *thd, plugin_ref *ptr, my_bool register_plugin)
+plugin_ref plugin_lock(THD *thd, plugin_ref *ptr)
 {
-  LEX *lex= (thd && TRUE == register_plugin) ? thd->lex : 0;
+  LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
   DBUG_ENTER("plugin_lock");
 
@@ -876,23 +851,9 @@ plugin_ref plugin_lock_ext(THD *thd, plugin_ref *ptr, my_bool register_plugin)
 }
 
 
-/**
-  Locks a plugin by name.
-
-  Same logic as plugin_lock_ext(), but searched by name & type.
-
-  @param thd              thread id to use.
-  @param name             name of the plugin to seach for
-  @param type             plugin type to search for
-  @param register_plugin  TRUE if you want the plugin added
-                          to thd->lex->plugins, FALSE otherwise
-  @return                 a plugin reference to pass to plugin_unlock_ext()
-*/
-
-plugin_ref plugin_lock_by_name_ext(THD *thd, const LEX_CSTRING &name, int type,
-                                   my_bool register_plugin)
+plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name, int type)
 {
-  LEX *lex= (thd && TRUE == register_plugin) ? thd->lex : 0;
+  LEX *lex= thd ? thd->lex : 0;
   uint thr_id= thd ? thd->thread_id() : 0;
   plugin_ref rc= NULL;
   st_plugin_int *plugin;
@@ -1177,24 +1138,9 @@ static void intern_plugin_unlock(uint thr_id, LEX *lex, plugin_ref plugin)
 }
 
 
-/**
-  Releases a reference to a plugin
-  
-  Effectively unlocks the plugin by releasing the refernce to it.
-  Calls reap_plugins() too to unload all plugins that can be unloaded after 
-  the reference is freed.
-  Takes a "write" lock on LOCK_plugin (to support the reaping).
-  See plugin_lock_ext() for constraints on THD and unregister_plugin values.
-
-  @param thd                thread id to use.
-  @param plugin             the plugin reference to release
-  @param unregister_plugin  TRUE if you want the plugin added
-                            to thd->lex->plugins, FALSE otherwise
-*/
-
-void plugin_unlock_ext(THD *thd, plugin_ref plugin, my_bool unregister_plugin)
+void plugin_unlock(THD *thd, plugin_ref plugin)
 {
-  LEX *lex= (thd && TRUE == unregister_plugin) ? thd->lex : 0;
+  LEX *lex= thd ? thd->lex : 0;
   uint thr_id= thd ? thd->thread_id() : 0;
   DBUG_ENTER("plugin_unlock");
   if (!plugin)
@@ -1211,23 +1157,9 @@ void plugin_unlock_ext(THD *thd, plugin_ref plugin, my_bool unregister_plugin)
 }
 
 
-/**
-  Releases a list of plugin references as an atomic operation
-
-  Same as plugin_unlock_ext(), but releases multiple references.
-  See plugin_lock_ext() for constraints on THD and unregister_plugin values.
-
-  @param thd                thread id to use.
-  @param list               the list of plugin references to release
-  @param count              length of the list argument
-  @param unregister_plugin  TRUE if you want the plugin added
-                            to thd->lex->plugins, FALSE otherwise
-*/
-
-void plugin_unlock_list_ext(THD *thd, plugin_ref *list, size_t count,
-                            my_bool unregister_plugin)
+void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count)
 {
-  LEX *lex= (thd && TRUE == unregister_plugin) ? thd->lex : 0;
+  LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
   DBUG_ASSERT(list);
 
@@ -3070,7 +3002,6 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
   if (enable_plugins)
   {
     LOCK_plugin_read_guard guard(thd);
-    /*FIXME: the thd_id is 0 at this point */
     uint thr_id= thd ? thd->thread_id() : 0;
     thd->variables.table_plugin=
       my_intern_plugin_lock(thr_id, NULL, global_system_variables.table_plugin);
