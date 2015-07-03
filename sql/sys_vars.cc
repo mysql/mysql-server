@@ -5418,3 +5418,10 @@ static Sys_var_mybool Sys_show_old_temporals(
         DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
         ON_CHECK(0), ON_UPDATE(0),
         DEPRECATED(""));
+
+static Sys_var_charptr Sys_disabled_storage_engines(
+       "disabled_storage_engines",
+       "Limit CREATE TABLE for the storage engines listed",
+       READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
+       CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
+       DEFAULT(""));

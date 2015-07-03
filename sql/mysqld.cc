@@ -140,6 +140,7 @@
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
+#include "handler.h"
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -366,6 +367,7 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *innodb_hton;
 
+char *opt_disabled_storage_engines;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
@@ -4180,6 +4182,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (initialize_storage_engine(default_tmp_storage_engine, " temp",
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  if (!opt_bootstrap && !opt_noacl)
+  {
+    std::string disabled_se_str(opt_disabled_storage_engines);
+    ha_set_normalized_disabled_se_str(disabled_se_str);
+  }
 
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
   {

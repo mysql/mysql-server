@@ -214,6 +214,8 @@ The following options may be given as the first argument:
  client that does INSERT DELAYED will wait until there is
  room in the queue again. This variable is deprecated
  along with INSERT DELAYED.
+ --disabled-storage-engines=name 
+ Limit CREATE TABLE for the storage engines listed
  --disconnect-on-expired-password 
  Give clients that don't signal password expiration
  support execution time error(s) instead of connection
@@ -1249,6 +1251,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disabled-storage-engines 
 disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
 div-precision-increment 4
