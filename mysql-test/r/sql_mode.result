@@ -470,10 +470,14 @@ select @@sql_mode;
 @@sql_mode
 ANSI_QUOTES
 set sql_mode=2097152;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 select @@sql_mode;
 @@sql_mode
 STRICT_TRANS_TABLES
 set sql_mode=4194304;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 select @@sql_mode;
 @@sql_mode
 STRICT_ALL_TABLES
@@ -757,22 +761,22 @@ SET @org_mode= @@sql_mode;
 # Setting these modes in 5.7 will give warning and have no effect.
 SET sql_mode= 'NO_ZERO_DATE';
 Warnings:
-Warning	3027	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@sql_mode;
 @@sql_mode
-
+NO_ZERO_DATE
 SET sql_mode= 'NO_ZERO_IN_DATE';
 Warnings:
-Warning	3027	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@sql_mode;
 @@sql_mode
-
+NO_ZERO_IN_DATE
 SET sql_mode= 'ERROR_FOR_DIVISION_BY_ZERO';
 Warnings:
-Warning	3027	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT @@sql_mode;
 @@sql_mode
-
+ERROR_FOR_DIVISION_BY_ZERO
 #
 # Restore sql mode
 #

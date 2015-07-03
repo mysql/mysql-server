@@ -251,7 +251,7 @@ END|
 delimiter ;|
 SELECT f1(-25);
 SELECT f1(25);
-SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+SET sql_mode=default;
 # Passing invalid argument from STRICT mode gives error.
 --error ER_WARN_DATA_OUT_OF_RANGE
 SELECT f1(-25);
@@ -269,7 +269,7 @@ END|
 delimiter ;|
 CALL f1(-25);
 CALL f1(25);
-SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET sql_mode=default;
 # Passing invalid argument from STRICT mode gives error.
 --error ER_WARN_DATA_OUT_OF_RANGE
 CALL f1(-25);
@@ -324,7 +324,7 @@ DROP FUNCTION fn2;
 #Create a function without STRICT mode
 CREATE FUNCTION fn1() RETURNS float deterministic RETURN floor('1.1a');
 # Create a function and Trigger in STRICT mode
-SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET sql_mode=default;
 CREATE TABLE t1(a INT);
 CREATE FUNCTION fn2() RETURNS float deterministic RETURN floor('1.1a');
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a=fn2();

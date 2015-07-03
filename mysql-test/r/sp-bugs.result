@@ -247,7 +247,7 @@ f1(25)
 1
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
-SET sql_mode='STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
+SET sql_mode=default;
 SELECT f1(-25);
 ERROR 22003: Out of range value for column 'arg' at row 1
 SELECT f1(10);
@@ -257,6 +257,8 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
 DROP FUNCTION f1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE f1(IN arg TINYINT UNSIGNED)
 BEGIN
 DECLARE arg1 TINYINT;
@@ -269,7 +271,7 @@ Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
 CALL f1(25);
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
-SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET sql_mode=default;
 CALL f1(-25);
 ERROR 22003: Out of range value for column 'arg' at row 1
 CALL f1(10);
@@ -316,12 +318,14 @@ ERROR 22003: Out of range value for column 'arg' at row 1
 SELECT fn2();
 ERROR 22003: Out of range value for column 'v1' at row 1
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT fn1(-25);
 ERROR 22007: Truncated incorrect DOUBLE value: '1abcd'
 DROP FUNCTION fn1;
 DROP FUNCTION fn2;
 CREATE FUNCTION fn1() RETURNS float deterministic RETURN floor('1.1a');
-SET sql_mode='STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET sql_mode=default;
 CREATE TABLE t1(a INT);
 CREATE FUNCTION fn2() RETURNS float deterministic RETURN floor('1.1a');
 CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @a=fn2();
@@ -335,8 +339,6 @@ DROP FUNCTION fn2;
 DROP TRIGGER tr1;
 DROP TABLE t1;
 SET sql_mode=traditional;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1/0;
 1/0
 NULL
