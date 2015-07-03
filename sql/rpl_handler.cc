@@ -244,7 +244,7 @@ void delegates_destroy()
   for (; info; info= iter++)                                            \
   {                                                                     \
     plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
+      plugin_lock_ext(thd, &info->plugin, FALSE);                       \
     if (!plugin)                                                        \
     {                                                                   \
       /* plugin is not intialized or deleted, this is not an error */   \
@@ -270,7 +270,7 @@ void delegates_destroy()
      order to remove the observers.
   */                                                                    \
   if (!plugins.empty())                                                 \
-    plugin_unlock_list(0, &plugins[0], plugins.size());
+    plugin_unlock_list_ext(thd, &plugins[0], plugins.size(), FALSE);
 
 #define FOREACH_OBSERVER_ERROR_OUT(r, f, thd, args, out)                \
   /*
@@ -286,7 +286,7 @@ void delegates_destroy()
   for (; info; info= iter++)                                            \
   {                                                                     \
     plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
+      plugin_lock_ext(thd, &info->plugin, FALSE);                       \
     if (!plugin)                                                        \
     {                                                                   \
       /* plugin is not intialized or deleted, this is not an error */   \
@@ -316,7 +316,7 @@ void delegates_destroy()
      order to remove the observers.
   */                                                                    \
   if (!plugins.empty())                                                 \
-    plugin_unlock_list(0, &plugins[0], plugins.size());
+    plugin_unlock_list_ext(thd, &plugins[0], plugins.size(), FALSE);
 
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   IO_CACHE *trx_cache_log,

@@ -63,7 +63,7 @@ public:
   {
     for (uint i=0; i < 1000; ++i)
     {
-      Partitioned_rwlock_read_guard lock(m_rwlock, m_thread_id);
+      Partitioned_lock_read_guard lock(m_rwlock, m_thread_id);
       /*
         With correct rwlock implementation readers should not
         observe counter values not divisible by 100.
@@ -88,7 +88,7 @@ public:
   {
     for (uint i=0; i < 1000; ++i)
     {
-      Partitioned_rwlock_write_guard lock(m_rwlock);
+      Partitioned_lock_write_guard lock(m_rwlock);
       /*
         Add 100 to counter value using 100 single increments. We rely
         on counter being "volatile" to prevent compiler optimizations.
