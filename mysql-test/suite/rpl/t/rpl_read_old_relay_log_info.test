@@ -5,6 +5,7 @@
 
 --source include/not_gtid_enabled.inc
 --source include/master-slave.inc
+--source include/not_relay_log_info_table.inc
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1);
