@@ -173,7 +173,7 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
     return 0;
   
   /* lock the plugin and add it to the list */
-  plugin= plugin_lock_ext(thd, &plugin, FALSE);
+  plugin= my_plugin_lock(NULL, &plugin);
   thd->audit_class_plugins.push_back(plugin);
 
   return 0;
@@ -254,9 +254,9 @@ void mysql_audit_release(THD *thd)
     data->release_thd(thd);
   }
 
-  /* Now we actually unlock the plugins */
-  plugin_unlock_list_ext(thd, thd->audit_class_plugins.begin(),
-                         thd->audit_class_plugins.size(), FALSE);
+  /* Now we actually unlock the plugins */  
+  plugin_unlock_list(NULL, thd->audit_class_plugins.begin(),
+                     thd->audit_class_plugins.size());
   
   /* Reset the state of thread values */
   thd->audit_class_plugins.clear();

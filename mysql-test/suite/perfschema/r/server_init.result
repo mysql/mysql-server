@@ -114,7 +114,7 @@ count(name)
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_plugin";
 count(name)
-32
+1
 select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/tz_LOCK";
 count(name)

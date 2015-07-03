@@ -1249,13 +1249,13 @@ public:
     @retval true Hash is of wrong length or format
 */
 
-static bool set_user_salt(THD *thd, ACL_USER *acl_user)
+static bool set_user_salt(ACL_USER *acl_user)
 {
   bool result= false;
   plugin_ref plugin= NULL;
 
-  plugin= plugin_lock_by_name_ext(thd, acl_user->plugin,
-                                  MYSQL_AUTHENTICATION_PLUGIN, FALSE);
+  plugin= my_plugin_lock_by_name(0, acl_user->plugin,
+                                 MYSQL_AUTHENTICATION_PLUGIN);
   if (plugin)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
@@ -1263,7 +1263,7 @@ static bool set_user_salt(THD *thd, ACL_USER *acl_user)
                             acl_user->auth_string.length,
                             acl_user->salt,
                             &acl_user->salt_len);
-    plugin_unlock_ext(thd, plugin, FALSE);
+    plugin_unlock(0, plugin);
   }
   return result;
 }
@@ -1275,13 +1275,13 @@ static bool set_user_salt(THD *thd, ACL_USER *acl_user)
    - if there's sha256 users and there's neither SSL nor RSA configured
 */
 static void
-validate_user_plugin_records(THD *thd)
+validate_user_plugin_records()
 {
   DBUG_ENTER("validate_user_plugin_records");
   if (!validate_user_plugins)
     DBUG_VOID_RETURN;
 
-  rdlock_plugin_data(thd);
+  lock_plugin_data();
   for (ACL_USER *acl_user= acl_users->begin();
        acl_user != acl_users->end(); ++acl_user)
   {
@@ -1292,7 +1292,7 @@ validate_user_plugin_records(THD *thd)
       /* rule 1 : plugin does exit */
       if (!auth_plugin_is_built_in(acl_user->plugin.str))
       {
-        plugin= plugin_find_by_type(thd, acl_user->plugin,
+        plugin= plugin_find_by_type(acl_user->plugin,
                                     MYSQL_AUTHENTICATION_PLUGIN);
 
         if (!plugin)
@@ -1325,7 +1325,7 @@ validate_user_plugin_records(THD *thd)
       }
     }
   }
-  rdunlock_plugin_data(thd);
+  unlock_plugin_data();
   DBUG_VOID_RETURN;
 }
 
@@ -1615,9 +1615,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
             //We only support native hash, we do not support pre 4.1 hashes
             plugin_ref native_plugin= NULL;
-            native_plugin= plugin_lock_by_name_ext(thd,
+            native_plugin= my_plugin_lock_by_name(0,
                                        native_password_plugin_name,
-                                       MYSQL_AUTHENTICATION_PLUGIN, FALSE);
+                                       MYSQL_AUTHENTICATION_PLUGIN);
             if (native_plugin)
             {
               uint password_len= password ? strlen(password) : 0;
@@ -1646,10 +1646,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                 "login with this user anymore.",
                 user.user ? user.user : "",
                 user.host.get_host() ? user.host.get_host() : "");
-                plugin_unlock_ext(thd, native_plugin, FALSE);
+                plugin_unlock(0, native_plugin);
                 continue;
               }
-              plugin_unlock_ext(thd, native_plugin, FALSE);
+              plugin_unlock(0, native_plugin);
             }
           }
 
@@ -1690,8 +1690,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
         /* Validate the hash string. */
         plugin_ref plugin= NULL;
-        plugin= plugin_lock_by_name_ext(thd, user.plugin,
-                                        MYSQL_AUTHENTICATION_PLUGIN, FALSE);
+        plugin= my_plugin_lock_by_name(0, user.plugin,
+                                       MYSQL_AUTHENTICATION_PLUGIN);
         if (plugin)
         {
           st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
@@ -1701,10 +1701,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             sql_print_warning("Found invalid password for user: '%s@%s'; "
                               "Ignoring user", user.user ? user.user : "",
                               user.host.get_host() ? user.host.get_host() : "");
-            plugin_unlock_ext(thd, plugin, FALSE);
+            plugin_unlock(0, plugin);
             continue;
           }
-          plugin_unlock_ext(thd, plugin, FALSE);
+          plugin_unlock(0, plugin);
         }
 
         if (table->s->fields > table_schema->password_expired_idx())
@@ -1793,7 +1793,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= SUPER_ACL | EXECUTE_ACL;
       }
 
-      set_user_salt(thd, &user);
+      set_user_salt(&user);
       user.password_expired= password_expired;
 
       acl_users->push_back(user);
@@ -1921,7 +1921,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                     "please run mysql_upgrade to create it");
   }
   acl_proxy_users->shrink_to_fit();
-  validate_user_plugin_records(thd);
+  validate_user_plugin_records();
   init_check_host();
 
   initialized=1;
@@ -2525,7 +2525,7 @@ end:
 }
 
 
-void acl_update_user(THD *thd, const char *user, const char *host,
+void acl_update_user(const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2567,7 +2567,7 @@ void acl_update_user(THD *thd, const char *user, const char *host,
               acl_user->auth_string.str= strmake_root(&global_acl_memory,
                               auth.str, auth.length);
             acl_user->auth_string.length= auth.length;
-            set_user_salt(thd, acl_user);
+            set_user_salt(acl_user);
             acl_user->password_last_changed= password_change_time;
           }
         }
@@ -2619,7 +2619,7 @@ void acl_update_user(THD *thd, const char *user, const char *host,
 }
 
 
-void acl_insert_user(THD *thd, const char *user, const char *host,
+void acl_insert_user(const char *user, const char *host,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2686,7 +2686,7 @@ void acl_insert_user(THD *thd, const char *user, const char *host,
   acl_user.password_last_changed= password_change_time;
   acl_user.account_locked= password_life.account_locked;
 
-  set_user_salt(thd, &acl_user);
+  set_user_salt(&acl_user);
 
   acl_users->push_back(acl_user);
   if (acl_user.host.check_allow_all_hosts())

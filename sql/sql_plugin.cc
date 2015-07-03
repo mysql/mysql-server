@@ -42,7 +42,6 @@
 #include "sys_vars_shared.h"   // intern_find_sys_var
 #include "template_utils.h"    // pointer_cast
 #include "transaction.h"       // trans_rollback_stmt
-#include "partitioned_mutex.h"  // Partitioned_mutex
 
 #include "mysql/psi/mysql_memory.h"
 
@@ -186,7 +185,7 @@ mysql_mutex_t LOCK_plugin_delete;
   following variables/structures.
   We are always manipulating ref count, so a rwlock here is unneccessary.
 */
-static Partitioned_mutex LOCK_plugin;
+mysql_mutex_t LOCK_plugin;
 static Prealloced_array<st_plugin_dl*, 16> *plugin_dl_array;
 static Prealloced_array<st_plugin_int*, 16> *plugin_array;
 static HASH plugin_hash[MYSQL_MAX_PLUGIN_TYPE_NUM];
@@ -322,8 +321,10 @@ static void plugin_var_memalloc_free(struct System_variables *vars);
 static void restore_pluginvar_names(sys_var *first);
 static void plugin_opt_set_limits(struct my_option *,
                                   const st_mysql_sys_var *);
-static plugin_ref my_intern_plugin_lock(uint thr_id, LEX *lex, plugin_ref plugin);
-static void intern_plugin_unlock(uint thr_id, LEX *lex, plugin_ref plugin);
+#define my_intern_plugin_lock(A,B) intern_plugin_lock(A,B)
+#define my_intern_plugin_lock_ci(A,B) intern_plugin_lock(A,B)
+static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin);
+static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
 
 static void report_error(int where_to, uint error, ...)
@@ -516,7 +517,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   (void) unpack_filename(dlpath, dlpath);
   plugin_dl.ref_count= 1;
   /* Open new dll handle */
-  LOCK_plugin.assert_wrlock_owner();
+  mysql_mutex_assert_owner(&LOCK_plugin);
   if (!(plugin_dl.handle= dlopen(dlpath, RTLD_NOW)))
   {
     const char *errmsg;
@@ -694,7 +695,7 @@ static void plugin_dl_del(const LEX_STRING *dl)
 {
   DBUG_ENTER("plugin_dl_del");
 
-  LOCK_plugin.assert_wrlock_owner();
+  mysql_mutex_assert_owner(&LOCK_plugin);
 
   for (st_plugin_dl **it= plugin_dl_array->begin();
        it != plugin_dl_array->end(); ++it)
@@ -718,7 +719,7 @@ static void plugin_dl_del(const LEX_STRING *dl)
 }
 
 
-static st_plugin_int *plugin_find_internal(uint thr_id, const LEX_CSTRING &name,
+static st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
                                                   int type)
 {
   uint i;
@@ -726,7 +727,7 @@ static st_plugin_int *plugin_find_internal(uint thr_id, const LEX_CSTRING &name,
   if (! initialized)
     DBUG_RETURN(NULL);
 
-  LOCK_plugin.assert_rdlock_owner(thr_id);
+  mysql_mutex_assert_owner(&LOCK_plugin);
 
   if (type == MYSQL_ANY_PLUGIN)
   {
@@ -748,33 +749,19 @@ static st_plugin_int *plugin_find_internal(uint thr_id, const LEX_CSTRING &name,
 }
 
 
-/**
-  Wrapper class which simplifies read guard usage for LOCK_plugin.
-*/
-class LOCK_plugin_read_guard : public Partitioned_lock_read_guard
-{
-public:
-  explicit LOCK_plugin_read_guard(THD *thd)
-    : Partitioned_lock_read_guard(&LOCK_plugin, thd ? thd->thread_id(): 0)
-  {}
-};
-
-
 static SHOW_COMP_OPTION plugin_status(const LEX_CSTRING &name, int type)
 {
   SHOW_COMP_OPTION rc= SHOW_OPTION_NO;
   st_plugin_int *plugin;
-  THD *thd= current_thd;
   DBUG_ENTER("plugin_is_ready");
-
-  LOCK_plugin_read_guard guard(thd);
-  if ((plugin= plugin_find_internal(thd ? thd->thread_id() : 0,
-                                    name, type)))
+  mysql_mutex_lock(&LOCK_plugin);
+  if ((plugin= plugin_find_internal(name, type)))
   {
     rc= SHOW_OPTION_DISABLED;
     if (plugin->state == PLUGIN_IS_READY)
       rc= SHOW_OPTION_YES;
   }
+  mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }
 
@@ -795,12 +782,12 @@ SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type)
 }
 
 
-static plugin_ref my_intern_plugin_lock(uint thr_id, LEX *lex, plugin_ref rc)
+static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
 {
   st_plugin_int *pi= plugin_ref_to_int(rc);
   DBUG_ENTER("intern_plugin_lock");
 
-  LOCK_plugin.assert_rdlock_owner(thr_id);
+  mysql_mutex_assert_owner(&LOCK_plugin);
 
   if (pi->state & (PLUGIN_IS_READY | PLUGIN_IS_UNINITIALIZED))
   {
@@ -834,69 +821,28 @@ static plugin_ref my_intern_plugin_lock(uint thr_id, LEX *lex, plugin_ref rc)
 }
 
 
-/**
-  Protects a plugin from unloading by adding a reference to it.
-
-  Released by plugin_unlock_ext()/plugin_unlock_list_ex().
-  Takes a "read" lock on LOCK_plugin.
-  Make sure the THD you use to lock is the same you use to unlock.
-  Otherwise, since the LOCK_plugin is a partitioned mutex, you'll
-  end up trying to unlock a mutex you didn't lock.
-  passing down NULL thd is ok too, but it removes the scalabilty effect
-  since all of these will end up using the first sub-mutex in LOCK_plugin.
-  Note also that the function (my_intern_plugin_lock() actually) may end up
-  adding the plugin to the thd->lex->plugins structure. If you don't want this
-  pass register_plugin as FALSE. This is useful for quick plugin lock unlock
-  where you don't need the overhead of maintaining the thd->lex list or when
-  there's no proper thd->lex yet.
-  Please avoid using the convenience macros unless necessary and make sure
-  you always put the THD and unlock_plugin in the right way.
-
-  @param thd              thread id to use.
-  @param ptr              the plugin to lock
-  @param register_plugin  TRUE if you want the plugin added
-                          to thd->lex->plugins, FALSE otherwise
-  @return                 a plugin reference to pass to plugin_unlock_ext()
-*/
-
-plugin_ref plugin_lock_ext(THD *thd, plugin_ref *ptr, my_bool register_plugin)
+plugin_ref plugin_lock(THD *thd, plugin_ref *ptr)
 {
-  LEX *lex= (thd && TRUE == register_plugin) ? thd->lex : 0;
+  LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
   DBUG_ENTER("plugin_lock");
-
-  LOCK_plugin_read_guard guard(thd);
-  rc= my_intern_plugin_lock(thd ? thd->thread_id() : 0,
-                            lex, *ptr);
+  mysql_mutex_lock(&LOCK_plugin);
+  rc= my_intern_plugin_lock_ci(lex, *ptr);
+  mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }
 
 
-/**
-  Locks a plugin by name.
-
-  Same logic as plugin_lock_ext(), but searched by name & type.
-
-  @param thd              thread id to use.
-  @param name             name of the plugin to seach for
-  @param type             plugin type to search for
-  @param register_plugin  TRUE if you want the plugin added
-                          to thd->lex->plugins, FALSE otherwise
-  @return                 a plugin reference to pass to plugin_unlock_ext()
-*/
-
-plugin_ref plugin_lock_by_name_ext(THD *thd, const LEX_CSTRING &name, int type,
-                                   my_bool register_plugin)
+plugin_ref plugin_lock_by_name(THD *thd, const LEX_CSTRING &name, int type)
 {
-  LEX *lex= (thd && TRUE == register_plugin) ? thd->lex : 0;
-  uint thr_id= thd ? thd->thread_id() : 0;
+  LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc= NULL;
   st_plugin_int *plugin;
   DBUG_ENTER("plugin_lock_by_name");
-
-  LOCK_plugin_read_guard guard(thd);
-  if ((plugin= plugin_find_internal(thr_id, name, type)))
-    rc= my_intern_plugin_lock(thr_id, lex, plugin_int_to_ref(plugin));
+  mysql_mutex_lock(&LOCK_plugin);
+  if ((plugin= plugin_find_internal(name, type)))
+    rc= my_intern_plugin_lock_ci(lex, plugin_int_to_ref(plugin));
+  mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }
 
@@ -934,19 +880,9 @@ static bool plugin_add(MEM_ROOT *tmp_root,
 {
   st_plugin_int tmp;
   st_mysql_plugin *plugin;
-  /*
-    No need to call current_thd, since thr_id can be a anything
-    because of plugin_add operating under a write lock on
-    LOCK_plugin. All plugin_find_internal() needs is a read lock.
-    Thus any thr_id is good, since they're all locked by the
-    write lock.
-  */
-  uint thr_id= 0;
   DBUG_ENTER("plugin_add");
   LEX_CSTRING name_cstr= {name->str, name->length};
-
-  LOCK_plugin.assert_wrlock_owner();
-  if (plugin_find_internal(thr_id, name_cstr, MYSQL_ANY_PLUGIN))
+  if (plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN))
   {
     report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(TRUE);
@@ -1021,7 +957,7 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
     deinitialization to deadlock if plugins have worker threads
     with plugin locks
   */
-  LOCK_plugin.assert_not_owner();
+  mysql_mutex_assert_not_owner(&LOCK_plugin);
 
   if (plugin->plugin->status_vars)
   {
@@ -1059,7 +995,7 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
 static void plugin_del(st_plugin_int *plugin)
 {
   DBUG_ENTER("plugin_del(plugin)");
-  LOCK_plugin.assert_wrlock_owner();
+  mysql_mutex_assert_owner(&LOCK_plugin);
   mysql_mutex_assert_owner(&LOCK_plugin_delete);
   /* Free allocated strings before deleting the plugin. */
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -1081,7 +1017,7 @@ static void reap_plugins(void)
 {
   st_plugin_int *plugin, **reap, **list;
 
-  LOCK_plugin.assert_wrlock_owner();
+  mysql_mutex_assert_owner(&LOCK_plugin);
 
   if (!reap_needed)
     return;
@@ -1102,7 +1038,7 @@ static void reap_plugins(void)
     }
   }
 
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
 
   list= reap;
   while ((plugin= *(--list)))
@@ -1113,7 +1049,7 @@ static void reap_plugins(void)
   }
 
   mysql_mutex_lock(&LOCK_plugin_delete);
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
 
   while ((plugin= *(--reap)))
     plugin_del(plugin);
@@ -1121,12 +1057,12 @@ static void reap_plugins(void)
   mysql_mutex_unlock(&LOCK_plugin_delete);
 }
 
-static void intern_plugin_unlock(uint thr_id, LEX *lex, plugin_ref plugin)
+static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
 {
   st_plugin_int *pi;
   DBUG_ENTER("intern_plugin_unlock");
 
-  LOCK_plugin.assert_rdlock_owner(thr_id);
+  mysql_mutex_assert_owner(&LOCK_plugin);
 
   if (!plugin)
     DBUG_VOID_RETURN;
@@ -1173,25 +1109,9 @@ static void intern_plugin_unlock(uint thr_id, LEX *lex, plugin_ref plugin)
 }
 
 
-/**
-  Releases a reference to a plugin
-  
-  Effectively unlocks the plugin by releasing the refernce to it.
-  Calls reap_plugins() too to unload all plugins that can be unloaded after 
-  the reference is freed.
-  Takes a "write" lock on LOCK_plugin (to support the reaping).
-  See plugin_lock_ext() for constraints on THD and unregister_plugin values.
-
-  @param thd                thread id to use.
-  @param plugin             the plugin reference to release
-  @param unregister_plugin  TRUE if you want the plugin added
-                            to thd->lex->plugins, FALSE otherwise
-*/
-
-void plugin_unlock_ext(THD *thd, plugin_ref plugin, my_bool unregister_plugin)
+void plugin_unlock(THD *thd, plugin_ref plugin)
 {
-  LEX *lex= (thd && TRUE == unregister_plugin) ? thd->lex : 0;
-  uint thr_id= thd ? thd->thread_id() : 0;
+  LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock");
   if (!plugin)
     DBUG_VOID_RETURN;
@@ -1200,30 +1120,17 @@ void plugin_unlock_ext(THD *thd, plugin_ref plugin, my_bool unregister_plugin)
   if (!plugin_dlib(plugin))
     DBUG_VOID_RETURN;
 #endif
-  Partitioned_lock_write_guard wrguard(&LOCK_plugin);
-  intern_plugin_unlock(thr_id, lex, plugin);
+  mysql_mutex_lock(&LOCK_plugin);
+  intern_plugin_unlock(lex, plugin);
   reap_plugins();
+  mysql_mutex_unlock(&LOCK_plugin);
   DBUG_VOID_RETURN;
 }
 
 
-/**
-  Releases a list of plugin references as an atomic operation
-
-  Same as plugin_unlock_ext(), but releases multiple references.
-  See plugin_lock_ext() for constraints on THD and unregister_plugin values.
-
-  @param thd                thread id to use.
-  @param list               the list of plugin references to release
-  @param count              length of the list argument
-  @param unregister_plugin  TRUE if you want the plugin added
-                            to thd->lex->plugins, FALSE otherwise
-*/
-
-void plugin_unlock_list_ext(THD *thd, plugin_ref *list, size_t count,
-                            my_bool unregister_plugin)
+void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count)
 {
-  LEX *lex= (thd && TRUE == unregister_plugin) ? thd->lex : 0;
+  LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
   DBUG_ASSERT(list);
 
@@ -1234,10 +1141,11 @@ void plugin_unlock_list_ext(THD *thd, plugin_ref *list, size_t count,
   if (count == 0)
     DBUG_VOID_RETURN;
 
-  Partitioned_lock_write_guard wrguard(&LOCK_plugin);
+  mysql_mutex_lock(&LOCK_plugin);
   while (count--)
-    intern_plugin_unlock(thd ? thd->thread_id() : 0, lex, *list++);
+    intern_plugin_unlock(lex, *list++);
   reap_plugins();
+  mysql_mutex_unlock(&LOCK_plugin);
   DBUG_VOID_RETURN;
 }
 
@@ -1246,11 +1154,11 @@ static int plugin_initialize(st_plugin_int *plugin)
   int ret= 1;
   DBUG_ENTER("plugin_initialize");
 
-  LOCK_plugin.assert_wrlock_owner();
+  mysql_mutex_assert_owner(&LOCK_plugin);
   uint state= plugin->state;
   DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
 
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1306,7 +1214,7 @@ static int plugin_initialize(st_plugin_int *plugin)
   ret= 0;
 
 err:
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
   plugin->state= state;
 
   DBUG_RETURN(ret);
@@ -1349,13 +1257,13 @@ static inline void convert_underscore_to_dash(char *str, size_t len)
 }
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_plugin_delete;
 static PSI_mutex_key key_LOCK_plugin;
+static PSI_mutex_key key_LOCK_plugin_delete;
 
 static PSI_mutex_info all_plugin_mutexes[]=
 {
-  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL},
-  { &key_LOCK_plugin, "LOCK_plugin", 0}
+  { &key_LOCK_plugin, "LOCK_plugin", PSI_FLAG_GLOBAL},
+  { &key_LOCK_plugin_delete, "LOCK_plugin_delete", PSI_FLAG_GLOBAL}
 };
 
 
@@ -1401,7 +1309,6 @@ int plugin_init(int *argc, char **argv, int flags)
   MEM_ROOT tmp_root;
   bool reaped_mandatory_plugin= false;
   bool mandatory= true;
-  const uint LOCK_PLUGIN_PARTITIONS= 32;
   DBUG_ENTER("plugin_init");
 
   if (initialized)
@@ -1424,7 +1331,7 @@ int plugin_init(int *argc, char **argv, int flags)
                    key_memory_plugin_bookmark))
       goto err;
 
-  LOCK_plugin.init(LOCK_PLUGIN_PARTITIONS, key_LOCK_plugin, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_plugin, &LOCK_plugin, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_plugin_delete, &LOCK_plugin_delete, MY_MUTEX_INIT_FAST);
 
   plugin_dl_array= new (std::nothrow)
@@ -1442,7 +1349,7 @@ int plugin_init(int *argc, char **argv, int flags)
       goto err;
   }
 
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
 
   initialized= 1;
 
@@ -1522,17 +1429,10 @@ int plugin_init(int *argc, char **argv, int flags)
       {
         DBUG_ASSERT(!global_system_variables.table_plugin);
         DBUG_ASSERT(!global_system_variables.temp_table_plugin);
-
-        /*
-          thr_id can be a zero since plugin_add operates under
-          a write lock on LOCK_plugin, so any thr_is is good.
-        */
-        uint thr_id= 0;
-
         global_system_variables.table_plugin=
-          my_intern_plugin_lock(thr_id, NULL, plugin_int_to_ref(plugin_ptr));
+          my_intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
         global_system_variables.temp_table_plugin=
-          my_intern_plugin_lock(thr_id, NULL, plugin_int_to_ref(plugin_ptr));
+          my_intern_plugin_lock(NULL, plugin_int_to_ref(plugin_ptr));
         DBUG_ASSERT(plugin_ptr->ref_count == 2);
       }
     }
@@ -1542,7 +1442,7 @@ int plugin_init(int *argc, char **argv, int flags)
   DBUG_ASSERT(global_system_variables.table_plugin);
   DBUG_ASSERT(global_system_variables.temp_table_plugin);
 
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
 
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
@@ -1563,7 +1463,7 @@ int plugin_init(int *argc, char **argv, int flags)
     Now we initialize all remaining plugins
   */
 
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
   reap= (st_plugin_int **) my_alloca((plugin_array->size()+1) * sizeof(void*));
   *(reap++)= NULL;
 
@@ -1586,18 +1486,18 @@ int plugin_init(int *argc, char **argv, int flags)
   */
   while ((plugin_ptr= *(--reap)))
   {
-    LOCK_plugin.wrunlock();
+    mysql_mutex_unlock(&LOCK_plugin);
     if (plugin_ptr->load_option == PLUGIN_FORCE ||
         plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
       reaped_mandatory_plugin= TRUE;
     plugin_deinitialize(plugin_ptr, true);
     mysql_mutex_lock(&LOCK_plugin_delete);
-    LOCK_plugin.wrlock();
+    mysql_mutex_lock(&LOCK_plugin);
     plugin_del(plugin_ptr);
     mysql_mutex_unlock(&LOCK_plugin_delete);
   }
 
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   if (reaped_mandatory_plugin)
     goto err;
 
@@ -1607,7 +1507,7 @@ end:
   DBUG_RETURN(0);
 
 err_unlock:
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
 err:
   free_root(&tmp_root, MYF(0));
   DBUG_RETURN(1);
@@ -1696,7 +1596,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
     environment, and it uses mysql_mutex_assert_owner(), so we lock
     the mutex here to satisfy the assert
   */
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
   while (!(error= read_record_info.read_record(&read_record_info)))
   {
     DBUG_PRINT("info", ("init plugin record"));
@@ -1712,7 +1612,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
                         str_name.c_ptr(), str_dl.c_ptr());
     free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
   }
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   if (error > 0)
     sql_print_error(ER_THD(new_thd, ER_GET_ERRNO), my_errno);
   end_read_record(&read_record_info);
@@ -1762,7 +1662,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         }
 
         dl= name;
-        LOCK_plugin.wrlock();
+        mysql_mutex_lock(&LOCK_plugin);
         if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG)))
         {
           for (plugin= plugin_dl->plugins; plugin->info; plugin++)
@@ -1780,11 +1680,11 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
       else
       {
         free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
-        LOCK_plugin.wrlock();
+        mysql_mutex_lock(&LOCK_plugin);
         if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
           goto error;
       }
-      LOCK_plugin.wrunlock();
+      mysql_mutex_unlock(&LOCK_plugin);
       name.length= dl.length= 0;
       dl.str= NULL; name.str= p= buffer;
       str= &name;
@@ -1805,7 +1705,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   }
   DBUG_RETURN(FALSE);
 error:
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   sql_print_error("Couldn't load plugin named '%s' with soname '%s'.",
                   name.str, dl.str);
   DBUG_RETURN(TRUE);
@@ -1829,10 +1729,10 @@ void memcached_shutdown(void)
       {
 	plugin_deinitialize(plugin, true);
 
-        LOCK_plugin.wrlock();
+        mysql_mutex_lock(&LOCK_plugin);
 	plugin->state= PLUGIN_IS_DYING;
 	plugin_del(plugin);
-        LOCK_plugin.wrunlock();
+        mysql_mutex_unlock(&LOCK_plugin);
       }
     }
 
@@ -1851,7 +1751,7 @@ void plugin_shutdown(void)
   if (initialized)
   {
     size_t count= plugin_array->size();
-    LOCK_plugin.wrlock();
+    mysql_mutex_lock(&LOCK_plugin);
 
     reap_needed= true;
 
@@ -1902,7 +1802,7 @@ void plugin_shutdown(void)
       if (plugins[i]->state == PLUGIN_IS_DELETED)
         plugins[i]->state= PLUGIN_IS_DYING;
     }
-    LOCK_plugin.wrunlock();
+    mysql_mutex_unlock(&LOCK_plugin);
 
     /*
       We loop through all plugins and call deinit() if they have one.
@@ -1926,7 +1826,7 @@ void plugin_shutdown(void)
       here use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
     */
     mysql_mutex_lock(&LOCK_plugin_delete);
-    LOCK_plugin.wrlock();
+    mysql_mutex_lock(&LOCK_plugin);
 
     /*
       We defer checking ref_counts until after all plugins are deinitialized
@@ -1947,11 +1847,11 @@ void plugin_shutdown(void)
 
     cleanup_variables(NULL, &global_system_variables);
     cleanup_variables(NULL, &max_system_variables);
-    LOCK_plugin.wrunlock();
+    mysql_mutex_unlock(&LOCK_plugin);
     mysql_mutex_unlock(&LOCK_plugin_delete);
 
     initialized= 0;
-    LOCK_plugin.destroy();
+    mysql_mutex_destroy(&LOCK_plugin);
     mysql_mutex_destroy(&LOCK_plugin_delete);
   }
 
@@ -2035,7 +1935,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 #endif
 
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
   DEBUG_SYNC(thd, "acquired_LOCK_plugin");
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
@@ -2050,8 +1950,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     free_defaults(argv);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
-  if (error || !(tmp= plugin_find_internal(thd ? thd->thread_id() : 0,
-                                           name_cstr, MYSQL_ANY_PLUGIN)))
+  if (error || !(tmp= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)))
     goto err;
 
   if (tmp->state == PLUGIN_IS_DISABLED)
@@ -2065,7 +1964,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   {
     if (plugin_initialize(tmp))
     {
-      LOCK_plugin.wrunlock();
+      mysql_mutex_unlock(&LOCK_plugin);
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
                "Plugin initialization function failed.");
       goto deinit;
@@ -2077,7 +1976,7 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     of the insert into the plugin table, so that it is not replicated in
     row based mode.
   */
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   tmp_disable_binlog(thd);
   table->use_all_columns();
   restore_record(table, s->default_values);
@@ -2097,12 +1996,12 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
   close_mysql_tables(thd);
   DBUG_RETURN(false);
 deinit:
-  LOCK_plugin.wrlock();
+  mysql_mutex_lock(&LOCK_plugin);
   tmp->state= PLUGIN_IS_DELETED;
   reap_needed= true;
   reap_plugins();
 err:
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   trans_rollback_stmt(thd);
   close_mysql_tables(thd);
 
@@ -2167,9 +2066,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 #endif
 
-  LOCK_plugin.wrlock();
-  if (!(plugin= plugin_find_internal(thd ? thd->thread_id() : 0,
-                                     name_cstr, MYSQL_ANY_PLUGIN)) ||
+  mysql_mutex_lock(&LOCK_plugin);
+  if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||
       plugin->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_DYING))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
@@ -2245,7 +2143,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   else
     reap_needed= true;
   reap_plugins();
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
 
   uchar user_key[MAX_KEY_LENGTH];
   table->use_all_columns();
@@ -2281,7 +2179,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   DBUG_RETURN(error);
 err:
-  LOCK_plugin.wrunlock();
+  mysql_mutex_unlock(&LOCK_plugin);
   trans_rollback_stmt(thd);
   close_mysql_tables(thd);
 
@@ -2295,7 +2193,6 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
   size_t idx, total;
   st_plugin_int *plugin, **plugins;
   int version=plugin_array_version;
-  my_thread_id thr_id= thd ? thd->thread_id() : 0;
   DBUG_ENTER("plugin_foreach_with_mask");
 
   if (!initialized)
@@ -2303,7 +2200,7 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
 
   state_mask= ~state_mask; // do it only once
 
-  LOCK_plugin.rdlock(thr_id);
+  mysql_mutex_lock(&LOCK_plugin);
   total= type == MYSQL_ANY_PLUGIN ? plugin_array->size()
                                   : plugin_hash[type].records;
   /*
@@ -2328,17 +2225,17 @@ bool plugin_foreach_with_mask(THD *thd, plugin_foreach_func *func,
       plugins[idx]= !(plugin->state & state_mask) ? plugin : NULL;
     }
   }
-  LOCK_plugin.rdunlock(thr_id);
+  mysql_mutex_unlock(&LOCK_plugin);
 
   for (idx= 0; idx < total; idx++)
   {
     if (unlikely(version != plugin_array_version))
     {
-      LOCK_plugin.rdlock(thr_id);
+      mysql_mutex_lock(&LOCK_plugin);
       for (size_t i=idx; i < total; i++)
         if (plugins[i] && plugins[i]->state & state_mask)
           plugins[i]=0;
-      LOCK_plugin.rdunlock(thr_id);
+      mysql_mutex_unlock(&LOCK_plugin);
     }
     plugin= plugins[idx];
     /* It will stop iterating on first engine error when "func" returns TRUE */
@@ -2665,16 +2562,14 @@ static void update_func_double(THD *thd, st_mysql_sys_var *var,
   the function is outside mutex.
 */
 
-void rdlock_plugin_mutex(THD *thd)
+void lock_plugin_mutex()
 {
-  my_thread_id thr_id= thd ? thd->thread_id() : 0;
-  LOCK_plugin.rdlock(thr_id);
+  mysql_mutex_lock(&LOCK_plugin);
 }
 
-void rdunlock_plugin_mutex(THD *thd)
+void unlock_plugin_mutex()
 {
-  my_thread_id thr_id= thd ? thd->thread_id() : 0;
-  LOCK_plugin.rdunlock(thr_id);
+  mysql_mutex_unlock(&LOCK_plugin);
 }
 
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length,
@@ -2683,31 +2578,30 @@ sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length,
   sys_var *var;
   sys_var_pluginvar *pi= NULL;
   plugin_ref plugin;
-  my_thread_id thr_id= thd ? thd->thread_id() : 0;
   DBUG_ENTER("find_sys_var_ex");
 
   if (!locked)
-    rdlock_plugin_mutex(thd);
+    mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   if ((var= intern_find_sys_var(str, length)) &&
       (pi= var->cast_pluginvar()))
   {
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     LEX *lex= thd ? thd->lex : 0;
-    if (!(plugin= my_intern_plugin_lock(thr_id, lex, plugin_int_to_ref(pi->plugin))))
+    if (!(plugin= my_intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin))))
       var= NULL; /* failed to lock it, it must be uninstalling */
     else
     if (!(plugin_state(plugin) & PLUGIN_IS_READY))
     {
       /* initialization not completed */
       var= NULL;
-      intern_plugin_unlock(thr_id, lex, plugin);
+      intern_plugin_unlock(lex, plugin);
     }
   }
   else
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
   if (!locked)
-    rdunlock_plugin_mutex(thd);
+    mysql_mutex_unlock(&LOCK_plugin);
 
   if (!throw_error && !var)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), (char*) str);
@@ -3070,15 +2964,14 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 
   if (enable_plugins)
   {
-    LOCK_plugin_read_guard guard(thd);
-    /*FIXME: the thd_id is 0 at this point */
-    uint thr_id= thd ? thd->thread_id() : 0;
+    mysql_mutex_lock(&LOCK_plugin);
     thd->variables.table_plugin=
-      my_intern_plugin_lock(thr_id, NULL, global_system_variables.table_plugin);
-    intern_plugin_unlock(thr_id, NULL, old_table_plugin);
+      my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
+    intern_plugin_unlock(NULL, old_table_plugin);
     thd->variables.temp_table_plugin=
-      my_intern_plugin_lock(thr_id, NULL, global_system_variables.temp_table_plugin);
-    intern_plugin_unlock(thr_id, NULL, old_temp_table_plugin);
+      my_intern_plugin_lock(NULL, global_system_variables.temp_table_plugin);
+    intern_plugin_unlock(NULL, old_temp_table_plugin);
+    mysql_mutex_unlock(&LOCK_plugin);
   }
 
   /* Initialize all Sys_var_charptr variables here. */
@@ -3095,9 +2988,8 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
 */
 static void unlock_variables(THD *thd, struct System_variables *vars)
 {
-  uint thr_id= thd ? thd->thread_id() : 0;
-  intern_plugin_unlock(thr_id, NULL, vars->table_plugin);
-  intern_plugin_unlock(thr_id, NULL, vars->temp_table_plugin);
+  intern_plugin_unlock(NULL, vars->table_plugin);
+  intern_plugin_unlock(NULL, vars->temp_table_plugin);
   vars->table_plugin= NULL;
   vars->temp_table_plugin= NULL;
 }
@@ -3132,16 +3024,15 @@ void plugin_thdvar_cleanup(THD *thd, bool enable_plugins)
 
   if (enable_plugins)
   {
-    Partitioned_lock_write_guard guard(&LOCK_plugin);
+    Mutex_lock plugin_lock(&LOCK_plugin);
     unlock_variables(thd, &thd->variables);
     size_t idx;
-    uint thr_id= thd ? thd->thread_id() : 0;
     if ((idx= thd->lex->plugins.size()))
     {
       plugin_ref *list= thd->lex->plugins.end() - 1;
       DBUG_PRINT("info",("unlocking %u plugins", static_cast<uint>(idx)));
       while (list >= thd->lex->plugins.begin())
-        intern_plugin_unlock(thr_id, thd->lex, *list--);
+        intern_plugin_unlock(thd->lex, *list--);
     }
 
     reap_plugins();
@@ -4172,13 +4063,12 @@ void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
   @param type     type of the plugin (0-MYSQL_MAX_PLUGIN_TYPE_NUM)
   @return plugin, or NULL if not found
 */
-st_plugin_int *plugin_find_by_type(THD *thd, const LEX_CSTRING &plugin, int type)
+st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type)
 {
   st_plugin_int *ret;
-  uint thr_id= thd ? thd->thread_id() : 0;
   DBUG_ENTER("plugin_find_by_type");
 
-  ret= plugin_find_internal(thr_id, plugin, type);
+  ret= plugin_find_internal(plugin, type);
   DBUG_RETURN(ret && ret->state == PLUGIN_IS_READY ? ret : NULL);
 }
 
@@ -4188,20 +4078,20 @@ st_plugin_int *plugin_find_by_type(THD *thd, const LEX_CSTRING &plugin, int type
 
   Must be followed by unlock_plugin_data.
 */
-int rdlock_plugin_data(THD *thd)
+int lock_plugin_data()
 {
   DBUG_ENTER("lock_plugin_data");
-  DBUG_RETURN(LOCK_plugin.rdlock(thd ? thd->thread_id(): 0));
+  DBUG_RETURN(mysql_mutex_lock(&LOCK_plugin));
 }
 
 
 /** 
   Unlocks the plugin strucutres as locked by lock_plugin_data()
 */
-int rdunlock_plugin_data(THD *thd)
+int unlock_plugin_data()
 {
   DBUG_ENTER("unlock_plugin_data");
-  DBUG_RETURN(LOCK_plugin.rdunlock(thd ? thd->thread_id(): 0));
+  DBUG_RETURN(mysql_mutex_unlock(&LOCK_plugin));
 }
 
 

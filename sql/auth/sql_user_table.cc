@@ -740,7 +740,7 @@ end:
       password_change_time.time_type= MYSQL_TIMESTAMP_ERROR;
     acl_cache->clear(1);			// Clear privilege cache
     if (old_row_exists)
-      acl_update_user(thd, combo->user.str, combo->host.str,
+      acl_update_user(combo->user.str, combo->host.str,
 		      lex->ssl_type,
 		      lex->ssl_cipher,
 		      lex->x509_issuer,
@@ -753,7 +753,7 @@ end:
                       combo->alter_status,
                       what_to_replace);
     else
-      acl_insert_user(thd, combo->user.str, combo->host.str,
+      acl_insert_user(combo->user.str, combo->host.str,
 		      lex->ssl_type,
 		      lex->ssl_cipher,
 		      lex->x509_issuer,
