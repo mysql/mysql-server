@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "password_option.h"
 
 using namespace Mysql::Tools::Base::Options;
+using Mysql::Nullable;
+using std::string;
 
 Password_option::Password_option(Nullable<string>* value, string name, string description)
   : Abstract_string_option<Password_option>(value, GET_PASSWORD, name, description)

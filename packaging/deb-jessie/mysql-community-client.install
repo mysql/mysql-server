@@ -26,6 +26,7 @@ usr/bin/mysqldumpslow
 usr/bin/mysqlimport
 usr/bin/mysqlshow
 usr/bin/mysqlslap
+usr/bin/mysqlpump
 # man pages
 usr/share/man/man1/innochecksum.1
 usr/share/man/man1/myisam_ftdump.1

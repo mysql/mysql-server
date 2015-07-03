@@ -2223,7 +2223,19 @@ sub mysql_client_test_arguments(){
   return mtr_args2str($exe, @$args);
 }
 
+sub mysqlpump_arguments ($) {
+  my($group_suffix) = @_;
+  my $exe= mtr_exe_exists(vs_config_dirs('client/dump','mysqlpump'),
+                          "$basedir/client/mysqlpump",
+                          "$path_client_bindir/mysqlpump");
 
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
+  client_debug_arg($args, "mysqlpump-$group_suffix");
+  return mtr_args2str($exe, @$args);
+}
 #
 # Set environment to be used by childs of this process for
 # things that are constant during the whole lifetime of mysql-test-run
@@ -2495,6 +2507,8 @@ sub environment_setup {
   $ENV{'MYSQL_IMPORT'}=                client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=                  client_arguments("mysqlshow");
   $ENV{'MYSQL_CONFIG_EDITOR'}=         client_arguments_no_grp_suffix("mysql_config_editor");
+  $ENV{'MYSQL_PUMP'}=                  mysqlpump_arguments(".1");
+
   if (!IS_WINDOWS)
   {
     $ENV{'MYSQL_INSTALL_DB'}=         client_arguments_no_grp_suffix("mysql_install_db");

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,6 @@ namespace Tools{
 namespace Base{
 namespace Options{
 
-using std::string;
-using Mysql::Nullable;
-
 /**
   Abstract option to handle options accepting string value argument.
  */
@@ -43,7 +40,7 @@ public:
     Sets value for this option. If it is specified before handling commandline
     options then supplied value is used as default value of this option.
    */
-  T_type* set_value(string value);
+  T_type* set_value(std::string value);
 
 protected:
   /**
@@ -55,9 +52,10 @@ protected:
     @param desription Description of option to be printed in --help.
    */
   Abstract_string_option(
-    Nullable<string>* value, ulong var_type, string name, string description);
+    Nullable<std::string>* value, ulong var_type, std::string name,
+    std::string description);
 
-  Nullable<string>* m_destination_value;
+  Nullable<std::string>* m_destination_value;
 
 private:
   void string_callback(char* argument);
@@ -67,23 +65,23 @@ private:
 
 
 template<typename T_type> Abstract_string_option<T_type>::Abstract_string_option(
-  Nullable<string>* value, ulong var_type, string name, string description)
+  Nullable<std::string>* value, ulong var_type, std::string name, std::string description)
   : Abstract_value_option<T_type>(
   &this->m_original_value, var_type, name, description, (uint64)NULL),
   m_destination_value(value)
 {
-  *value= Nullable<string>();
+  *value= Nullable<std::string>();
   this->m_original_value= NULL;
 
-  this->add_callback(new Base::Instance_callback
+  this->add_callback(new Instance_callback
     <void, char*, Abstract_string_option<T_type> >(
       this, &Abstract_string_option<T_type>::string_callback));
 }
 
 template<typename T_type> T_type* Abstract_string_option<T_type>::set_value(
-  string value)
+  std::string value)
 {
-  *this->m_destination_value= Nullable<string>(value);
+  *this->m_destination_value= Nullable<std::string>(value);
   this->m_original_value= this->m_destination_value->value().c_str();
   this->m_option_structure.def_value= (uint64)this->m_destination_value
     ->value().c_str();
@@ -95,8 +93,8 @@ template<typename T_type> void Abstract_string_option<T_type>::string_callback(
 {
   if (argument != NULL)
   {
-    // Copy argument value from char* to destination string
-    *this->m_destination_value= Nullable<string>(this->m_original_value);
+    // Copy argument value from char* to destination string.
+    *this->m_destination_value= Nullable<std::string>(this->m_original_value);
   }
   else
   {
