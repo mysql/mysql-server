@@ -202,5 +202,41 @@ DROP USER test_user1, test_user2;
 --echo # normally.
 --exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2>&1
 
+--echo
+--echo ######################
+--echo # WL#2284 Testing client tools with 32 user name
+--echo ######################
+--echo #
+--echo # Inserting login paths default & test-login-path_user_26
+--exec $MYSQL_CONFIG_EDITOR --verbose set --user=user_name_len_25_01234567 --host=localhost 2>&1
+--exec $MYSQL_CONFIG_EDITOR --verbose set --login-path=test-login-path_user_26 --user=user_name_len_26_012345678 --host=127.0.0.1 2>&1
+--echo # done..
+--echo
+--echo # Creating users for login
+CREATE USER user_name_len_25_01234567@localhost;
+CREATE USER user_name_len_26_012345678@localhost;
+
+--echo # Connecting using 'user_name_len_25_01234567'
+--echo #
+--exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--echo
+--echo # Connecting using 'user_name_len_26_012345678'
+--echo #
+--exec $MYSQLADMIN --login-path=test-login-path_user_26 --port=$MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults --login-path=test-login-path_user_26 --port=$MASTER_MYPORT ping 2>&1
+
+# Cleanup
+--echo
+--echo # Dropping users 'user_name_len_25_01234567@localhost' & 'CREATE USER user_name_len_26_012345678@localhost'
+DROP USER user_name_len_25_01234567@localhost,user_name_len_26_012345678@localhost;
+--echo
+--echo ###############################
+--echo # Resetting the test login file
+--echo ###############################
+--exec $MYSQL_CONFIG_EDITOR reset
+--echo # done..
+
+
 --echo #### End of test ####
 

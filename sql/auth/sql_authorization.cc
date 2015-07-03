@@ -3760,7 +3760,7 @@ int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   int error= 0;
   ACL_USER *acl_user;
   ulong want_access;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);
@@ -3833,7 +3833,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
   int error= 0;
   ACL_DB *acl_db;
   ulong want_access;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);
@@ -3908,7 +3908,7 @@ int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   uint index;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);
@@ -3991,7 +3991,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond)
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   int error= 0;
   uint index;
-  char buff[100];
+  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
   TABLE *table= tables->table;
   bool no_global_access= check_access(thd, SELECT_ACL, "mysql",
                                       NULL, NULL, 1, 1);

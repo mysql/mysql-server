@@ -2639,3 +2639,42 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 set SESSION sql_mode= @orig_sql_mode_session;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+int_field INTEGER UNSIGNED NOT NULL,
+char_field CHAR(10),
+INDEX(`int_field`)
+);
+use test;
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_32_012345678901234@localhost;
+# Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect  con_user_22,localhost,user_name_len_22_01234,,test;
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_22_01234'@'localhost' for table 't1'
+# Check that user_name_len_32_012345678901234 has no SELECT permission ON t1
+connect  con_user_32,localhost,user_name_len_32_012345678901234,,test;
+SELECT * FROM test1.t1;
+ERROR 42000: SELECT command denied to user 'user_name_len_32_012345678901234'@'localhost' for table 't1'
+connection default;
+GRANT ALL ON test1.* TO user_name_len_32_012345678901234@localhost;
+CREATE DEFINER=user_name_len_32_012345678901234@localhost
+VIEW test1.v1 AS SELECT int_field FROM test1.t1;
+GRANT SELECT ON test1.v1 TO user_name_len_22_01234@localhost;
+# Now user_name_len_22_01234 should be able to SELECT int_field FROM
+# test1.t1 by using test1.v1
+connection con_user_22;
+SELECT * FROM test1.v1;
+int_field
+connection default;
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost
+VIEW test1.v2 AS SELECT int_field FROM test1.t1;
+ERROR HY000: String 'user_name_len_33_0123456789012345' is too long for user name (should be no longer than 32)
+DROP DATABASE test1;
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
