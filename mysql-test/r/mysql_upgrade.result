@@ -112,9 +112,6 @@ DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
 mysql_upgrade: Got error: 2005: Unknown MySQL server host 'not_existing_host' (errno) when trying to connect
 Upgrade process encountered error and will not continue.
-set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -149,7 +146,6 @@ mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
-set GLOBAL sql_mode=default;
 #
 # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table
 # but does not set values.

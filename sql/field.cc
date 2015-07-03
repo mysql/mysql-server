@@ -5642,7 +5642,7 @@ my_time_flags_t Field_timestamp::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   my_time_flags_t date_flags= TIME_NO_ZERO_IN_DATE;
-  if (thd->is_strict_mode())
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     date_flags|= TIME_NO_ZERO_DATE;
   return date_flags;
 }
@@ -5840,7 +5840,7 @@ my_time_flags_t Field_timestampf::date_flags(const THD *thd)
 {
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
   my_time_flags_t date_flags= TIME_NO_ZERO_IN_DATE;
-  if (thd->is_strict_mode())
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     date_flags|= TIME_NO_ZERO_DATE;
   return date_flags;
 }
@@ -6423,8 +6423,10 @@ void Field_year::sql_type(String &res) const
 my_time_flags_t Field_newdate::date_flags(const THD *thd)
 {
   my_time_flags_t date_flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    date_flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
   return date_flags;
@@ -6572,8 +6574,10 @@ void Field_newdate::sql_type(String &res) const
 my_time_flags_t Field_datetime::date_flags(const THD *thd)
 {
   my_time_flags_t date_flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    date_flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
   return date_flags;
@@ -6764,8 +6768,10 @@ void Field_datetime::sql_type(String &res) const
 my_time_flags_t Field_datetimef::date_flags(const THD *thd)
 {
   my_time_flags_t date_flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    date_flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    date_flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    date_flags|= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     date_flags|= TIME_INVALID_DATES;
   return date_flags;

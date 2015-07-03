@@ -1217,21 +1217,25 @@ DROP TABLE IF EXISTS t3;
 
 CREATE TABLE t1(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00');
 
-SET sql_mode = '';
+SET sql_mode = 'NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 
 CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
 DROP TABLE t2;
-SET sql_mode = 'STRICT_ALL_TABLES,STRICT_TRANS_TABLES';
 
 CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
 ERROR 42000: Invalid default value for 'c2'
-SET sql_mode = '';
 
 # -- Check that NULL column still can be created.
 CREATE TABLE t2(c1 TIMESTAMP NULL);
 
 # -- Check ALTER TABLE.
 ALTER TABLE t1 ADD INDEX(c1);
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
 
 # -- Check DATETIME.
 SET sql_mode = '';
@@ -1766,7 +1770,7 @@ select * from t1;
 a	b	c
 NULL	0000-00-00	0000-00-00
 drop table t1;
-set @@session.sql_mode='STRICT_ALL_TABLES';
+set @@session.sql_mode=default;
 create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
 ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
 select * from t1;
@@ -1784,7 +1788,6 @@ Warning	1265	Data truncated for column 'c' at row 1
 select * from t1;
 a	b	c
 NULL	0000-00-00	0000-00-00
-set @@session.sql_mode=default;
 drop table t1;
 create table if not exists t1 (a int unique, b int)
 replace select 1 as a, 1 as b union select 1 as a, 2 as b;
@@ -1864,7 +1867,6 @@ CREATE TABLE t012345678901234567890123456789012345678901234567890123456789012345
 ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
 CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
 ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
-SET sql_mode = default;
 #
 # Bug #20573701 DROP DATABASE ASSERT ON DEBUG WHEN OTHER FILES PRESENT IN
 #               DB FOLDER.

@@ -923,8 +923,7 @@ public:
     THD *thd= to_field->table->in_use;
     enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
     sql_mode_t sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode&= ~(MODE_STRICT_ALL_TABLES |
-                                MODE_STRICT_TRANS_TABLES);
+    thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
 
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 

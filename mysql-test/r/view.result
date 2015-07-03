@@ -2050,9 +2050,6 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select var_samp(`t1`.`s1`) AS `var_samp(s1)` from `t1`	latin1	latin1_swedish_ci
 drop view v1;
 drop table t1;
-set sql_mode='strict_all_tables';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (col1 INT NOT NULL, col2 INT NOT NULL);
 CREATE VIEW v1 (vcol1) AS SELECT col1 FROM t1;
 CREATE VIEW v2 (vcol1) AS SELECT col1 FROM t1 WHERE col2 > 2;
@@ -2062,7 +2059,6 @@ INSERT INTO v1 (vcol1) VALUES(12);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
 INSERT INTO v2 (vcol1) VALUES(12);
 ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
-set sql_mode=default;
 drop view v2,v1;
 drop table t1;
 create table t1 (f1 int);
@@ -2826,6 +2822,7 @@ Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 SET SQL_MODE = STRICT_ALL_TABLES;
 Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO v1 (b) VALUES (4);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value

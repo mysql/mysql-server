@@ -4422,7 +4422,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     default 0 value of timestamp. When explicit-defaults-for-timestamp server
     option is removed, whole set of check can be removed.
   */
-  if (thd->is_strict_mode()  && !thd->variables.explicit_defaults_for_timestamp)
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
+      !thd->variables.explicit_defaults_for_timestamp)
   {
     while ((sql_field=it++))
     {
