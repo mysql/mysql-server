@@ -1404,6 +1404,11 @@ public:
   {
     return (get<0>() == pt.get<0>() && get<1>() == pt.get<1>());
   }
+
+  bool operator!=(const Gis_point &pt) const
+  {
+    return !(operator==(pt));
+  }
 };
 
 
