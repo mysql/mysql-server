@@ -45,10 +45,13 @@ create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual null;
 drop table t1;
 
---echo # Added columns mixed with virtual GC and other columns  
+--echo # Added columns mixed with virtual GC and other columns
 create table t1 (a int);
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column (d int, e int generated always as (a+1) virtual);
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
 alter table t1 add column (h int generated always as (a+1) virtual, i int as(5) virtual);
 drop table t1;
@@ -70,24 +73,36 @@ alter table t1 add column b int generated always as (a+1) virtual AUTO_INCREMENT
 drop table t1;
 
 --echo # [PRIMARY] KEY
---error ER_KEY_BASED_ON_GENERATED_COLUMN
+if ($support_virtual_index)
+{
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 create table t1 (a int, b int generated always as (a+1) virtual key);
+}
 create table t1 (a int, b int generated always as (a+1) stored key);
 insert into t1 (a) values (3),(1),(2);
 select * from t1;
 drop table t1;
---error ER_KEY_BASED_ON_GENERATED_COLUMN
+if ($support_virtual_index)
+{
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 create table t1 (a int, b int generated always as (a+1) virtual primary key);
+}
 create table t1 (a int, b int generated always as (a+1) stored primary key);
 insert into t1 (a) values (3),(1),(2);
 select * from t1;
 drop table t1;
 create table t1 (a int);
---error ER_KEY_BASED_ON_GENERATED_COLUMN
+if ($support_virtual_index)
+{
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column b int generated always as (a+1) virtual key;
+}
 alter table t1 add column b int generated always as (a+1) stored key;
---error ER_KEY_BASED_ON_GENERATED_COLUMN
+if ($support_virtual_index)
+{
+--error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 alter table t1 add column c int generated always as (a+2) virtual primary key;
+}
 show create table t1;
 --error 1068
 alter table t1 add column c int generated always as (a+2) stored primary key;
@@ -144,8 +159,11 @@ create table t1(a int,  b int as (a % 2), c int as (a) stored);
 create table t2 (a int);
 --error ER_KEY_COLUMN_DOES_NOT_EXITS
 alter table t1 add constraint foreign key fk(d) references t2(a);
---error ER_KEY_BASED_ON_GENERATED_COLUMN
+if ($support_virtual_index)
+{
+--error ER_CANNOT_ADD_FOREIGN
 alter table t1 add constraint foreign key fk(b) references t2(a);
+}
 --error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
 --error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
@@ -198,11 +216,32 @@ select * from t1;
 select * from tt;
 drop table t1,tt;
 
+if (!$support_virtual_index)
+{
+--echo # Bug#20769299: INCORRECT KEY ERROR WHEN TRYING TO CREATE INDEX ON
+--echo #               VIRTUAL GC FOR MYISAM
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE A (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER,
+col_int_key INTEGER GENERATED ALWAYS AS (pk + col_int_nokey) VIRTUAL, KEY
+(col_int_key));
+}
+
 --echo # Bug#20745142: GENERATED COLUMNS: ASSERTION FAILED:
 --echo #   THD->CHANGE_LIST.IS_EMPTY()
---echo # 
+--echo #
 --error ER_GENERATED_COLUMN_NON_PRIOR
 CREATE TABLE t1(a bigint AS (a between 1 and 1));
+
+--echo # Bug#20757211: GENERATED COLUMNS: ALTER TABLE CRASHES
+--echo #  IN FIND_FIELD_IN_TABLE
+--echo #
+CREATE TABLE t1(a int);
+--error 1064
+ALTER TABLE t1 ADD COLUMN z int GENERATED ALWAYS AS
+( 1 NOT IN (SELECT 1 FROM t1 WHERE c0006) ) virtual;
+DROP TABLE t1;
 
 --echo # Bug#20566243: ERROR WHILE DOING CREATE TABLE T1 SELECT (QUERY ON GC COLUMNS)
 CREATE TABLE t1(a int, b int as (a + 1),
@@ -220,6 +259,21 @@ SHOW CREATE TABLE t4;
 SELECT * FROM t4;
 DROP TABLE t1,t2,t3,t4;
 
+--echo # Bug#21025003:WL8149:ASSERTION `CTX->NUM_TO_DROP_FK
+--echo #  == HA_ALTER_INFO->ALTER_INFO-> FAILED
+--echo #
+CREATE TABLE t1 (
+  col1 int(11) DEFAULT NULL,
+  col2 int(11) DEFAULT NULL,
+  col3 int(11) DEFAULT NULL,
+  col4 int(11) DEFAULT NULL,
+  col5 int(11) GENERATED ALWAYS AS (col4 / col2) VIRTUAL,
+  col6 text
+);
+INSERT INTO t1(col1,col2,col3,col4,col6) VALUES(NULL,1,4,0,REPEAT(2,1000));
+--error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t1 DROP PRIMARY KEY , ADD KEY idx ( col5, col2 ); 
+DROP TABLE t1;
 --echo # Bug#20949226:i CAN ASSIGN NON-DEFAULT() VALUE TO GENERATED COLUMN
 --echo # 
 --error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
@@ -231,6 +285,29 @@ CREATE TABLE t1 (c1 INT, c2 INT AS (c1 * 2)) SELECT 1 AS c1, a AS c2 from t2;
 CREATE TABLE t1 (c1 INT, c2 INT AS (c1 * 2)) SELECT 1 AS c1, 5;
 SELECT * FROM t1;
 DROP TABLE t1, t2;
+
+if ($support_virtual_index)
+{
+--echo # Bug#21074624:i WL8149:SIG 11 INNOBASE_GET_COMPUTED_VALUE |
+--echo #  INNOBASE/HANDLER/HA_INNODB.CC:19082
+CREATE TABLE t1 (
+  col1 int(11) NOT NULL,
+  col2 int(11) DEFAULT NULL,
+  col3 int(11) NOT NULL,
+  col4 int(11) DEFAULT NULL,
+  col5 int(11) GENERATED ALWAYS AS (col2 % col4) VIRTUAL,
+  col6 int(11) GENERATED ALWAYS AS (col3 + col3) VIRTUAL,
+  col7 int(11) GENERATED ALWAYS AS (col5 / col5) VIRTUAL,
+  col8 int(11) GENERATED ALWAYS AS (col6 / col5) VIRTUAL,
+  col9 text,
+  extra int(11) DEFAULT NULL,
+  KEY idx (col5)
+);
+INSERT INTO t1(col1,col2,col3,col4,col9,extra)
+VALUES(0,6,3,4,REPEAT(4,1000),0);
+ALTER TABLE t1 DROP COLUMN col1;
+DROP TABLE t1;
+}
 
 --echo # Bug#20757211: GENERATED COLUMNS: ALTER TABLE CRASHES
 --echo #  IN FIND_FIELD_IN_TABLE

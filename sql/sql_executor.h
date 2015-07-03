@@ -475,6 +475,9 @@ public:
   void push_index_cond(const JOIN_TAB *join_tab,
                        uint keyno, Opt_trace_object *trace_obj);
 
+  /// @return the index used for a table in a QEP
+  uint effective_index() const;
+
   bool pfs_batch_update(JOIN *join);
 
 public:

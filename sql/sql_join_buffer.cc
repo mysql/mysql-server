@@ -162,19 +162,6 @@ uint add_table_data_fields_to_join_cache(QEP_TAB *tab,
 
 void JOIN_CACHE::calc_record_fields()
 {
-  /*
-    If there is a previous cache, start with the corresponding table, otherwise:
-    - if in a regular execution, start with the first non-const table.
-    - if in a materialized subquery, start with the first table of the subquery.
-  */
-  QEP_TAB *tab =
-    prev_cache ?
-    prev_cache->qep_tab :
-    sj_is_materialize_strategy(qep_tab->get_sj_strategy()) ?
-    &QEP_AT(qep_tab, first_sj_inner()) :
-    &join->qep_tab[join->const_tables];
-
-  tables= qep_tab - tab;
 
   fields= 0;
   blobs= 0;
@@ -182,6 +169,8 @@ void JOIN_CACHE::calc_record_fields()
   data_field_count= 0;
   data_field_ptr_count= 0;
   referenced_fields= 0;
+
+  QEP_TAB *tab= qep_tab - tables;
 
   for ( ; tab < qep_tab ; tab++)
   {
@@ -474,6 +463,76 @@ bool JOIN_CACHE::alloc_buffer()
   return buff == NULL;
 }
 
+/**
+  Filter the base columns of virtual generated columns if using a covering index
+  scan.
+
+  For a virtual generated column, all base columns are added to the read_set
+  of the table. The storage engine will then copy all base column values so
+  that the value of the GC can be calculated inside the executor.
+  But when a virtual GC is fetched using a covering index, the actual GC
+  value is fetched by the storage engine and the base column values are not
+  needed. Join buffering code must not try to copy them (in
+  create_remaining_fields()).
+  So, we eliminate from read_set those columns that are available from the
+  covering index.
+
+  @param qep_tab the table to check
+*/
+
+void JOIN_CACHE::filter_virtual_gcol_base_cols()
+{
+  for (QEP_TAB *tab= qep_tab - tables; tab < qep_tab; tab++)
+  {
+    TABLE *table= tab->table();
+    if (table->vfield == NULL)
+      continue;
+
+    const uint index= tab->effective_index();
+    if (index != MAX_KEY &&
+        table->index_contains_some_virtual_gcol(index) &&
+        /*
+          There are two cases:
+          - If the table scan uses covering index scan, we can get the value
+            of virtual generated column from index
+          - If not, JOIN_CACHE only needs the value of virtual generated
+            columns (This is why the index can be chosen as a covering index).
+            After restore the base columns, the value of virtual generated
+            columns can be calculated correctly.
+        */
+        table->covering_keys.is_set(index))
+    {
+      DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
+      // Keep table->read_set in tmp_set so that it can be restored
+      bitmap_copy(&table->tmp_set, table->read_set);
+      bitmap_clear_all(table->read_set);
+      table->mark_columns_used_by_index_no_reset(index, table->read_set);
+      if (table->s->primary_key != MAX_KEY)
+        table->mark_columns_used_by_index_no_reset(table->s->primary_key,
+                                                   table->read_set);
+      bitmap_intersect(table->read_set, &table->tmp_set);
+    }
+  }
+}
+
+
+/**
+  After JOIN_CACHE initialization, the table->read_set is restored so that the virtual generated
+  column can be calculated during later time.
+*/
+
+void JOIN_CACHE::restore_virtual_gcol_base_cols()
+{
+  for (QEP_TAB *tab= qep_tab - tables; tab < qep_tab; tab++)
+  {
+    TABLE *table= tab->table();
+    if (!bitmap_is_clear_all(&table->tmp_set))
+    {
+      bitmap_copy(table->read_set, &table->tmp_set);
+      bitmap_clear_all(&table->tmp_set);
+    }
+  }
+}
 
 /* 
   Initialize a BNL cache       
@@ -505,6 +564,22 @@ int JOIN_CACHE_BNL::init()
 {
   DBUG_ENTER("JOIN_CACHE::init");
 
+  /*
+    If there is a previous cache, start with the corresponding table, otherwise:
+    - if in a regular execution, start with the first non-const table.
+    - if in a materialized subquery, start with the first table of the subquery.
+  */
+  QEP_TAB *tab =
+    prev_cache ?
+    prev_cache->qep_tab :
+    sj_is_materialize_strategy(qep_tab->get_sj_strategy()) ?
+    &QEP_AT(qep_tab, first_sj_inner()) :
+    &join->qep_tab[join->const_tables];
+
+  tables= qep_tab - tab;
+
+  filter_virtual_gcol_base_cols();
+
   calc_record_fields();
 
   if (alloc_fields(0))
@@ -513,6 +588,8 @@ int JOIN_CACHE_BNL::init()
   create_flag_fields();
   
   create_remaining_fields(TRUE);
+
+  restore_virtual_gcol_base_cols();
 
   set_constants();
 
@@ -576,6 +653,18 @@ int JOIN_CACHE_BKA::init()
   local_key_arg_fields= 0;
   external_key_arg_fields= 0;
   DBUG_ENTER("JOIN_CACHE_BKA::init");
+
+  /*
+    Reference JOIN_CACHE_BNL::init() for details.
+  */
+  QEP_TAB *tab =
+    prev_cache ?
+    prev_cache->qep_tab :
+    sj_is_materialize_strategy(qep_tab->get_sj_strategy()) ?
+    &QEP_AT(qep_tab, first_sj_inner()) :
+    &join->qep_tab[join->const_tables];
+
+  tables= qep_tab - tab;
 
   calc_record_fields();
 

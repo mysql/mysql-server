@@ -302,7 +302,7 @@ row_merge_buf_encode(
 	ulint	extra_size;
 
 	size = rec_get_converted_size_temp(
-		index, entry->fields, n_fields, &extra_size);
+		index, entry->fields, n_fields, NULL, &extra_size);
 	ut_ad(size >= extra_size);
 
 	/* Encode extra_size + 1 */
@@ -315,7 +315,7 @@ row_merge_buf_encode(
 	}
 
 	rec_convert_dtuple_to_temp(*b + extra_size, index,
-				   entry->fields, n_fields);
+				   entry->fields, n_fields, NULL);
 
 	*b += size;
 }
@@ -469,6 +469,7 @@ row_merge_buf_redundant_convert(
 @param[in,out]	buf		sort buffer
 @param[in]	fts_index	fts index to be created
 @param[in]	old_table	original table
+@param[in]	new_table	new table
 @param[in,out]	psort_info	parallel sort info
 @param[in]	row		table row
 @param[in]	ext		cache of externally stored
@@ -481,6 +482,7 @@ row_merge_buf_redundant_convert(
 				row_merge_buf_redundant_convert()
 @param[in,out]	exceed_page	set if the record size exceeds the page size
 				when converting to ROW_FORMAT=REDUNDANT
+@param[in,out]	v_heap		heap memory to process data for virtual column
 @return number of rows added, 0 if out of space */
 static
 ulint
@@ -488,12 +490,14 @@ row_merge_buf_add(
 	row_merge_buf_t*	buf,
 	dict_index_t*		fts_index,
 	const dict_table_t*	old_table,
+	const dict_table_t*	new_table,
 	fts_psort_t*		psort_info,
 	const dtuple_t*		row,
 	const row_ext_t*	ext,
 	doc_id_t*		doc_id,
 	mem_heap_t*		conv_heap,
-	bool*			exceed_page)
+	bool*			exceed_page,
+	mem_heap_t**		v_heap)
 {
 	ulint			i;
 	const dict_index_t*	index;
@@ -540,11 +544,16 @@ row_merge_buf_add(
 	for (i = 0; i < n_fields; i++, field++, ifield++) {
 		ulint			len;
 		const dict_col_t*	col;
+		const dict_v_col_t*	v_col = NULL;
 		ulint			col_no;
 		ulint			fixed_len;
 		const dfield_t*		row_field;
 
 		col = ifield->col;
+		if (dict_col_is_virtual(col)) {
+			v_col = reinterpret_cast<const dict_v_col_t*>(col);
+		}
+
 		col_no = dict_col_get_no(col);
 
 		/* Process the Doc ID column */
@@ -566,9 +575,19 @@ row_merge_buf_add(
 			field->type.mbminmaxlen = DATA_MBMINMAXLEN(0, 0);
 			field->type.len = ifield->col->len;
 		} else {
-			row_field = dtuple_get_nth_field(row, col_no);
+			/* Use callback to get the virtual column value */
+			if (dict_col_is_virtual(col)) {
+				dict_index_t*	clust_index
+					= dict_table_get_first_index(new_table);
+				row_field = innobase_get_computed_value(
+					row, v_col, clust_index, NULL,
+					v_heap, NULL);
+				dfield_copy(field, row_field);
+			} else {
+				row_field = dtuple_get_nth_field(row, col_no);
+				dfield_copy(field, row_field);
+			}
 
-			dfield_copy(field, row_field);
 
 			/* Tokenize and process data for FTS */
 			if (index->type & DICT_FTS) {
@@ -759,7 +778,7 @@ row_merge_buf_add(
 		ulint	extra;
 
 		size = rec_get_converted_size_temp(
-			index, entry->fields, n_fields, &extra);
+			index, entry->fields, n_fields, NULL, &extra);
 
 		ut_ad(data_size + extra_size == size);
 		ut_ad(extra_size == extra);
@@ -1624,6 +1643,8 @@ row_merge_read_clustered_index(
 	mem_heap_t*		row_heap;	/* Heap memory to create
 						clustered index tuples */
 	row_merge_buf_t**	merge_buf;	/* Temporary list for records*/
+	mem_heap_t*		v_heap = NULL;	/* Heap memory to process large
+						data for virtual column */
 	btr_pcur_t		pcur;		/* Cursor on the clustered
 						index */
 	mtr_t			mtr;		/* Mini transaction */
@@ -1964,7 +1985,7 @@ end_of_index:
 				row_vers_build_for_consistent_read(
 					rec, &mtr, clust_index, &offsets,
 					trx->read_view, &row_heap,
-					row_heap, &old_vers);
+					row_heap, &old_vers, NULL);
 
 				rec = old_vers;
 
@@ -2118,9 +2139,10 @@ write_buffers:
 
 			if (UNIV_LIKELY
 			    (row && (rows_added = row_merge_buf_add(
-					buf, fts_index, old_table,
+					buf, fts_index, old_table, new_table,
 					psort_info, row, ext, &doc_id,
-					conv_heap, &exceed_page)))) {
+					conv_heap, &exceed_page,
+					&v_heap)))) {
 
 				/* If we are creating FTS index,
 				a single row can generate more
@@ -2415,9 +2437,9 @@ write_buffers:
 				if (UNIV_UNLIKELY
 				    (!(rows_added = row_merge_buf_add(
 						buf, fts_index, old_table,
-						psort_info, row, ext,
+						new_table, psort_info, row, ext,
 						&doc_id, conv_heap,
-						&exceed_page)))) {
+						&exceed_page, &v_heap)))) {
 					/* An empty buffer should have enough
 					room for at least one record. */
 					ut_error;
@@ -2441,6 +2463,9 @@ write_buffers:
 		}
 
 		mem_heap_empty(row_heap);
+		if (v_heap) {
+			mem_heap_empty(v_heap);
+		}
 	}
 
 func_exit:
@@ -2460,6 +2485,10 @@ all_done:
 	if (prev_fields != NULL) {
 		ut_free(prev_fields);
 		mem_heap_free(mtuple_heap);
+	}
+
+	if (v_heap) {
+		mem_heap_free(v_heap);
 	}
 
 	if (conv_heap != NULL) {
@@ -4116,11 +4145,17 @@ row_merge_create_index(
 	index->set_committed(index_def->rebuild);
 
 	for (i = 0; i < n_fields; i++) {
+		const char*	name;
 		index_field_t*	ifield = &index_def->fields[i];
 
-		dict_mem_index_add_field(
-			index, dict_table_get_col_name(table, ifield->col_no),
-			ifield->prefix_len);
+		if (ifield->is_v_col) {
+			name = dict_table_get_v_col_name(
+				table, ifield->col_no);
+		} else {
+			name = dict_table_get_col_name(table, ifield->col_no);
+		}
+
+		dict_mem_index_add_field(index, name, ifield->prefix_len);
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */

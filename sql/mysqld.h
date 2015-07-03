@@ -456,6 +456,7 @@ extern PSI_thread_key key_thread_bootstrap,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
 extern PSI_thread_key key_thread_timer_notifier;
+extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_map;
 extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,

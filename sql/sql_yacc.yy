@@ -6396,6 +6396,19 @@ generated_column_func:
               (char* ) sql_memdup(@1.cpp.start, expr_len);
             Lex->gcol_info->expr_str.length= expr_len;
             Lex->gcol_info->expr_item= $1;
+            /*
+              @todo: problems:
+              - here we have a call to the constructor of
+              Generated_column, which takes no argument and builds a
+              non-functional object
+              - then we fill it member by member; either by assignment to
+              public members (!) or by call to a public setter. Both these
+              techniques allow changing, at any future point in time, vital
+              properties of the object which should rather be constant.
+              Class should rather have a constructor which takes arguments,
+              sets members, and members should be constant after that.
+              This would also get rid of some setters like set_field_stored();
+            */
           }
         ;
 
@@ -8053,10 +8066,13 @@ alter_list_item:
           add_column column_def opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+            if (Lex->gcol_info)
+            {
+              if (Lex->gcol_info->get_field_stored())
+                Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+              else
+                Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+            }
           }
         | ADD key_def
           {
@@ -8081,10 +8097,13 @@ alter_list_item:
           field_spec opt_place
           {
             Lex->create_last_non_select_table= Lex->last_table();
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+            if (Lex->gcol_info)
+            {
+              if (Lex->gcol_info->get_field_stored())
+                Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+              else
+                Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+            }
           }
         | MODIFY_SYM opt_column field_ident
           {
@@ -8108,10 +8127,13 @@ alter_list_item:
                                   lex->uint_geom_type,
                                   lex->gcol_info))
               MYSQL_YYABORT;
-            if (Lex->gcol_info && Lex->gcol_info->get_field_stored())
-              Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
-            else if (Lex->gcol_info)
-              Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+            if (Lex->gcol_info)
+            {
+              if (Lex->gcol_info->get_field_stored())
+                Lex->alter_info.flags|= Alter_info::ALTER_STORED_GCOLUMN;
+              else
+                Lex->alter_info.flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+            }  
           }
           opt_place
           {

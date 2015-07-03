@@ -510,6 +510,7 @@ que_graph_free_recursive(
 
 		que_graph_free_recursive(cre_tab->tab_def);
 		que_graph_free_recursive(cre_tab->col_def);
+		que_graph_free_recursive(cre_tab->v_col_def);
 
 		mem_heap_free(cre_tab->heap);
 

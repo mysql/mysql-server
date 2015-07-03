@@ -243,7 +243,12 @@ public:
   };
 
 
-  // Columns and keys to be dropped.
+  /**
+     Columns and keys to be dropped.
+     After mysql_prepare_alter_table() it contains only foreign keys and
+     virtual generated columns to be dropped. This information is necessary
+     for the storage engine to do in-place alter.
+  */
   List<Alter_drop>              drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
   List<Alter_column>            alter_list;

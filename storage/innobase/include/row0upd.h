@@ -92,6 +92,17 @@ upd_field_set_field_no(
 					index */
 	dict_index_t*	index,		/*!< in: index */
 	trx_t*		trx);		/*!< in: transaction */
+
+/** set field number to a update vector field, marks this field is updated
+@param[in,out]	upd_field	update vector field
+@param[in]	field_no	virtual column sequence num
+@param[in]	index		index */
+UNIV_INLINE
+void
+upd_field_set_v_field_no(
+	upd_field_t*	upd_field,
+	ulint		field_no,
+	dict_index_t*	index);
 /*********************************************************************//**
 Returns a field of an update vector by field_no.
 @return update vector field, or NULL */
@@ -100,7 +111,8 @@ const upd_field_t*
 upd_get_field_by_field_no(
 /*======================*/
 	const upd_t*	update,	/*!< in: update vector */
-	ulint		no)	/*!< in: field_no */
+	ulint		no,	/*!< in: field_no */
+	bool		is_virtual) /*!< in: if it is a virtual column */
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
@@ -285,6 +297,23 @@ row_upd_replace(
 	const upd_t*		update,	/*!< in: an update vector built for the
 					clustered index */
 	mem_heap_t*		heap);	/*!< in: memory heap */
+/** Replaces the virtual column values stored in a dtuple with that of
+a update vector.
+@param[in,out]	row	dtuple whose column to be updated
+@param[in]	table	table
+@param[in]	update	an update vector built for the clustered index
+@param[in]	upd_new	update to new or old value
+@param[in,out]	undo_row undo row (if needs to be updated)
+@param[in]	ptr	remaining part in update undo log */
+void
+row_upd_replace_vcol(
+	dtuple_t*		row,
+	const dict_table_t*	table,
+	const upd_t*		update,
+	bool			upd_new,
+	dtuple_t*		undo_row,
+	const byte*		ptr);
+
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 
@@ -416,13 +445,25 @@ struct upd_field_t{
 					query graph */
 #endif /* !UNIV_HOTBACKUP */
 	dfield_t	new_val;	/*!< new value for the column */
+	dfield_t*	old_v_val;	/*!< old value for the virtual column */
 };
+
+
+/* check whether an update field is on virtual column */
+#define upd_fld_is_virtual_col(upd_fld)			\
+	(((upd_fld)->new_val.type.prtype & DATA_VIRTUAL) == DATA_VIRTUAL)
+
+/* set DATA_VIRTUAL bit on update field to show it is a virtual column */
+#define upd_fld_set_virtual_col(upd_fld)			\
+	((upd_fld)->new_val.type.prtype |= DATA_VIRTUAL)
 
 /* Update vector structure */
 struct upd_t{
 	mem_heap_t*	heap;		/*!< heap from which memory allocated */
 	ulint		info_bits;	/*!< new value of info bits to record;
 					default is 0 */
+	dtuple_t*	old_vrow;	/*!< pointer to old row, used for
+					virtual column update now */
 	ulint		n_fields;	/*!< number of update fields */
 	upd_field_t*	fields;		/*!< array of update fields */
 

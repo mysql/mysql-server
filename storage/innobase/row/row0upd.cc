@@ -52,6 +52,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "pars0sym.h"
 #include "eval0eval.h"
 #include "buf0lru.h"
+#include "trx0rec.h"
 #include "fts0fts.h"
 #include "fts0types.h"
 #include <algorithm>
@@ -515,6 +516,13 @@ row_upd_rec_in_place(
 
 	for (i = 0; i < n_fields; i++) {
 		upd_field = upd_get_nth_field(update, i);
+
+		/* No need to update virtual columns for non-virtual index */
+		if (upd_fld_is_virtual_col(upd_field)
+		    && !dict_index_has_virtual(index)) {
+			continue;
+		}
+
 		new_val = &(upd_field->new_val);
 		ut_ad(!dfield_is_ext(new_val) ==
 		      !rec_offs_nth_extern(offsets, upd_field->field_no));
@@ -830,7 +838,7 @@ row_upd_build_difference_binary(
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 {
 	upd_field_t*	upd_field;
-	const dfield_t*	dfield;
+	dfield_t*	dfield;
 	const byte*	data;
 	ulint		len;
 	upd_t*		update;
@@ -838,12 +846,14 @@ row_upd_build_difference_binary(
 	ulint		trx_id_pos;
 	ulint		i;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint		n_fld = dtuple_get_n_fields(entry);
+	ulint		n_v_fld = dtuple_get_n_v_fields(entry);
 	rec_offs_init(offsets_);
 
 	/* This function is used only for a clustered index */
 	ut_a(dict_index_is_clust(index));
 
-	update = upd_create(dtuple_get_n_fields(entry), heap);
+	update = upd_create(n_fld + n_v_fld, heap);
 
 	n_diff = 0;
 
@@ -859,7 +869,7 @@ row_upd_build_difference_binary(
 		ut_ad(rec_offs_validate(rec, index, offsets));
 	}
 
-	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+	for (i = 0; i < n_fld; i++) {
 
 		data = rec_get_nth_field(rec, offsets, i, &len);
 
@@ -891,6 +901,61 @@ row_upd_build_difference_binary(
 			upd_field_set_field_no(upd_field, i, index, trx);
 
 			n_diff++;
+		}
+	}
+
+	/* Check the virtual columns updates, but there must be some non-virtual
+	column (base columns) change */
+	if (n_diff && n_v_fld) {
+		row_ext_t*	ext;
+		mem_heap_t*	v_heap = NULL;
+
+		ut_ad(!update->old_vrow);
+
+		for (i = 0; i < n_v_fld; i++) {
+			const dict_v_col_t*     col
+                                = dict_table_get_nth_v_col(index->table, i);
+
+			if (!col->m_col.ord_part) {
+				continue;
+			}
+
+			if (update->old_vrow == NULL) {
+				update->old_vrow = row_build(
+					ROW_COPY_POINTERS, index, rec, offsets,
+					index->table, NULL, NULL, &ext, heap);
+			}
+
+			dfield = dtuple_get_nth_v_field(entry, i);
+
+			dfield_t*	vfield = innobase_get_computed_value(
+				update->old_vrow, col, index, NULL,
+				&v_heap, heap);
+
+			if (!dfield_data_is_binary_equal(
+				dfield, vfield->len,
+				static_cast<byte*>(vfield->data))) {
+				upd_field = upd_get_nth_field(update, n_diff);
+
+				upd_field->old_v_val = static_cast<dfield_t*>(
+					mem_heap_alloc(
+						heap,
+						sizeof *upd_field->old_v_val));
+
+				dfield_copy(upd_field->old_v_val, vfield);
+
+				dfield_copy(&(upd_field->new_val), dfield);
+
+				upd_field_set_v_field_no(
+					upd_field, i, index);
+
+				n_diff++;
+
+			}
+		}
+
+		if (v_heap) {
+			mem_heap_free(v_heap);
 		}
 	}
 
@@ -1071,7 +1136,17 @@ row_upd_index_replace_new_col_vals_index_pos(
 
 		field = dict_index_get_nth_field(index, i);
 		col = dict_field_get_col(field);
-		uf = upd_get_field_by_field_no(update, i);
+		if (dict_col_is_virtual(col)) {
+			const dict_v_col_t*	vcol = reinterpret_cast<
+							const dict_v_col_t*>(
+								col);
+
+			uf = upd_get_field_by_field_no(
+				update, vcol->v_pos, true);
+		} else {
+			uf = upd_get_field_by_field_no(
+				update, i, false);
+		}
 
 		if (uf) {
 			row_upd_index_replace_new_col_val(
@@ -1113,13 +1188,141 @@ row_upd_index_replace_new_col_vals(
 
 		field = dict_index_get_nth_field(index, i);
 		col = dict_field_get_col(field);
-		uf = upd_get_field_by_field_no(
-			update, dict_col_get_clust_pos(col, clust_index));
+		if (dict_col_is_virtual(col)) {
+			const dict_v_col_t*	vcol = reinterpret_cast<
+							const dict_v_col_t*>(
+								col);
+
+			uf = upd_get_field_by_field_no(
+				update, vcol->v_pos, true);
+		} else {
+			uf = upd_get_field_by_field_no(
+				update,
+				dict_col_get_clust_pos(col, clust_index),
+				false);
+		}
 
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
 				field, col, uf, heap, page_size);
+		}
+	}
+}
+
+/** Replaces the virtual column values stored in the update vector.
+@param[in,out]	row	row whose column to be set
+@param[in]	field	data to set
+@param[in]	len	data length
+@param[in]	vcol	virtual column info */
+static
+void
+row_upd_set_vcol_data(
+	dtuple_t*		row,
+	const byte*             field,
+	ulint                   len,
+	dict_v_col_t*		vcol)
+{
+	dfield_t*	dfield = dtuple_get_nth_v_field(row, vcol->v_pos);
+
+	if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
+		dict_col_copy_type(&vcol->m_col, dfield_get_type(dfield));
+
+		dfield_set_data(dfield, field, len);
+	}
+}
+
+/** Replaces the virtual column values stored in a dtuple with that of
+a update vector.
+@param[in,out]	row	row whose column to be updated
+@param[in]	table	table
+@param[in]	update	an update vector built for the clustered index
+@param[in]	upd_new	update to new or old value
+@param[in,out]	undo_row undo row (if needs to be updated)
+@param[in]	ptr	remaining part in update undo log */
+void
+row_upd_replace_vcol(
+	dtuple_t*		row,
+	const dict_table_t*	table,
+	const upd_t*		update,
+	bool			upd_new,
+	dtuple_t*		undo_row,
+	const byte*		ptr)
+{
+	ulint			col_no;
+	ulint			i;
+	ulint			n_cols;
+
+	n_cols = dtuple_get_n_v_fields(row);
+	for (col_no = 0; col_no < n_cols; col_no++) {
+		dfield_t*		dfield;
+
+		const dict_v_col_t*	col
+			= dict_table_get_nth_v_col(table, col_no);
+
+		/* If there is no index on the column, do not bother for
+		value update */
+		if (!col->m_col.ord_part) {
+			continue;
+		}
+
+		dfield = dtuple_get_nth_v_field(row, col_no);
+
+		for (i = 0; i < upd_get_n_fields(update); i++) {
+			const upd_field_t*	upd_field
+				= upd_get_nth_field(update, i);
+			if (!upd_fld_is_virtual_col(upd_field)
+			    || upd_field->field_no != col->v_pos) {
+				continue;
+			}
+
+			if (upd_new) {
+				dfield_copy_data(dfield, &upd_field->new_val);
+			} else {
+				dfield_copy_data(dfield, upd_field->old_v_val);
+			}
+
+			dfield_get_type(dfield)->mtype =
+				upd_field->new_val.type.mtype;
+			dfield_get_type(dfield)->prtype =
+				upd_field->new_val.type.prtype;
+			dfield_get_type(dfield)->mbminmaxlen =
+				upd_field->new_val.type.mbminmaxlen;
+			break;
+		}
+	}
+
+	/* We will read those unchanged (but indexed) virtual columns in */
+	if (ptr != NULL) {
+		const byte*	end_ptr;
+
+		end_ptr = ptr + mach_read_from_2(ptr);
+		ptr += 2;
+
+		while (ptr != end_ptr) {
+			const byte*             field;
+			ulint                   field_no;
+			ulint                   len;
+			ulint                   orig_len;
+
+			field_no = mach_read_next_compressed(&ptr);
+
+			ptr = trx_undo_rec_get_col_val(
+				ptr, &field, &len, &orig_len);
+
+			if (field_no >= REC_MAX_N_FIELDS) {
+				field_no -= REC_MAX_N_FIELDS;
+				dict_v_col_t* vcol = dict_table_get_nth_v_col(
+							table, field_no);
+
+				row_upd_set_vcol_data(row, field, len, vcol);
+
+				if (undo_row) {
+					row_upd_set_vcol_data(
+						undo_row, field, len, vcol);
+				}
+			}
+			ut_ad(ptr<= end_ptr);
 		}
 	}
 }
@@ -1187,7 +1390,8 @@ row_upd_replace(
 			const upd_field_t*	upd_field
 				= upd_get_nth_field(update, i);
 
-			if (upd_field->field_no != clust_pos) {
+			if (upd_field->field_no != clust_pos
+			    || upd_fld_is_virtual_col(upd_field)) {
 
 				continue;
 			}
@@ -1207,6 +1411,8 @@ row_upd_replace(
 	} else {
 		*ext = NULL;
 	}
+
+	row_upd_replace_vcol(row, table, update, true, NULL, NULL);
 }
 
 /***********************************************************//**
@@ -1259,13 +1465,25 @@ row_upd_changes_ord_field_binary_func(
 		dfield_t		dfield_ext;
 		ulint			dfield_len;
 		const byte*		buf;
+		bool			is_virtual;
+		const dict_v_col_t*	vcol = NULL;
 
 		ind_field = dict_index_get_nth_field(index, i);
 		col = dict_field_get_col(ind_field);
 		col_no = dict_col_get_no(col);
+		is_virtual = dict_col_is_virtual(col);
 
-		upd_field = upd_get_field_by_field_no(
-			update, dict_col_get_clust_pos(col, clust_index));
+		if (is_virtual) {
+			vcol = reinterpret_cast<const dict_v_col_t*>(col);
+
+			upd_field = upd_get_field_by_field_no(
+				update, vcol->v_pos, true);
+		} else {
+			upd_field = upd_get_field_by_field_no(
+				update,
+				dict_col_get_clust_pos(col, clust_index),
+				false);
+		}
 
 		if (upd_field == NULL) {
 			continue;
@@ -1276,7 +1494,12 @@ row_upd_changes_ord_field_binary_func(
 			return(TRUE);
 		}
 
-		dfield = dtuple_get_nth_field(row, col_no);
+		if (is_virtual) {
+			dfield = dtuple_get_nth_v_field(
+				row,  vcol->v_pos);
+		} else {
+			dfield = dtuple_get_nth_field(row, col_no);
+		}
 
 		/* For spatial index update, since the different geometry
 		data could generate same MBR, so, if the new index entry is
@@ -1455,11 +1678,17 @@ row_upd_changes_some_index_ord_field_binary(
 
 		upd_field = upd_get_nth_field(update, i);
 
-		if (dict_field_get_col(dict_index_get_nth_field(
-					       index, upd_field->field_no))
-		    ->ord_part) {
-
-			return(TRUE);
+		if (upd_fld_is_virtual_col(upd_field)) {
+			if (dict_table_get_nth_v_col(index->table,
+						     upd_field->field_no)
+			    ->m_col.ord_part) {
+				return(TRUE);
+			}
+		} else {
+			if (dict_field_get_col(dict_index_get_nth_field(
+				index, upd_field->field_no))->ord_part) {
+				return(TRUE);
+			}
 		}
 	}
 
@@ -1501,13 +1730,19 @@ row_upd_changes_fts_column(
 	dict_index_t*	clust_index;
 	fts_t*		fts = table->fts;
 
-	clust_index = dict_table_get_first_index(table);
+	if (upd_fld_is_virtual_col(upd_field)) {
+		col_no = upd_field->field_no;
+		return(dict_table_is_fts_column(fts->indexes, col_no, true));
+	} else {
+		clust_index = dict_table_get_first_index(table);
 
-	/* Convert from index-specific column number to table-global
-	column number. */
-	col_no = dict_index_get_nth_col_no(clust_index, upd_field->field_no);
+		/* Convert from index-specific column number to table-global
+		column number. */
+		col_no = dict_index_get_nth_col_no(clust_index,
+						   upd_field->field_no);
+		return(dict_table_is_fts_column(fts->indexes, col_no, false));
+	}
 
-	return(dict_table_is_fts_column(fts->indexes, col_no));
 }
 
 /***********************************************************//**
@@ -1615,6 +1850,72 @@ row_upd_eval_new_vals(
 	}
 }
 
+/** Stores to the heap the virtual columns that need for any indexes
+@param[in,out]	node	row update node
+@param[in]	update	an update vector if it is update */
+static
+void
+row_upd_store_v_row(
+	upd_node_t*	node,
+	const upd_t*	update)
+{
+	mem_heap_t*	heap = NULL;
+	dict_index_t*	index = dict_table_get_first_index(node->table);
+
+	for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(node->table);
+	     col_no++) {
+
+		const dict_v_col_t*     col
+			= dict_table_get_nth_v_col(node->table, col_no);
+
+		if (col->m_col.ord_part) {
+			dfield_t*	dfield
+				= dtuple_get_nth_v_field(node->row, col_no);
+			ulint		n_upd
+				= update ? upd_get_n_fields(update) : 0;
+			ulint		i = 0;
+
+			/* Check if the value is already in update vector */
+			for (i = 0; i < n_upd; i++) {
+				const upd_field_t*      upd_field
+					= upd_get_nth_field(update, i);
+				if (!(upd_field->new_val.type.prtype
+				      & DATA_VIRTUAL)
+				    || upd_field->field_no != col->v_pos) {
+					continue;
+				}
+
+				dfield_copy_data(dfield, upd_field->old_v_val);
+				break;
+			}
+
+			/* Not updated */
+			if (i >= n_upd) {
+				/* If this is an update, then the value
+				should be in update->old_vrow */
+				if (update) {
+					ut_ad(update->old_vrow);
+					dfield_t*       vfield
+						= dtuple_get_nth_v_field(
+							update->old_vrow,
+							col_no);
+					dfield_copy_data(dfield, vfield);
+				} else {
+					/* Need to compute, this happens when
+					deleting row */
+					innobase_get_computed_value(
+						node->row, col, index, NULL,
+						&heap, node->heap);
+				}
+			}
+		}
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
+}
+
 /***********************************************************//**
 Stores to the heap the row on which the node->pcur is positioned. */
 void
@@ -1658,6 +1959,12 @@ row_upd_store_row(
 
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
 			      NULL, NULL, NULL, ext, node->heap);
+
+	if (node->table->n_v_cols) {
+		row_upd_store_v_row(node, node->is_delete
+						? NULL : node->update);
+	}
+
 	if (node->is_delete) {
 		node->upd_row = NULL;
 		node->upd_ext = NULL;
@@ -1986,9 +2293,9 @@ row_upd_clust_rec_by_insert_inherit_func(
 		ut_ad(!offsets
 		      || !rec_offs_nth_extern(offsets, i)
 		      == !dfield_is_ext(dfield)
-		      || upd_get_field_by_field_no(update, i));
+		      || upd_get_field_by_field_no(update, i, false));
 		if (!dfield_is_ext(dfield)
-		    || upd_get_field_by_field_no(update, i)) {
+		    || upd_get_field_by_field_no(update, i, false)) {
 			continue;
 		}
 
@@ -2077,8 +2384,8 @@ row_upd_clust_rec_by_insert(
 
 	heap = mem_heap_create(1000);
 
-	entry = row_build_index_entry(node->upd_row, node->upd_ext,
-				      index, heap);
+	entry = row_build_index_entry_low(node->upd_row, node->upd_ext,
+					  index, heap, ROW_BUILD_FOR_INSERT);
 	ut_ad(dtuple_get_info_bits(entry) == 0);
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
@@ -2115,7 +2422,7 @@ row_upd_clust_rec_by_insert(
 
 		err = btr_cur_del_mark_set_clust_rec(
 			flags, btr_cur_get_block(btr_cur), rec, index, offsets,
-			thr, mtr);
+			thr, node->row, mtr);
 		if (err != DB_SUCCESS) {
 err_exit:
 			mtr_commit(mtr);
@@ -2288,9 +2595,18 @@ row_upd_clust_rec(
 	if (err == DB_SUCCESS) {
 success:
 		if (dict_index_is_online_ddl(index)) {
+			dtuple_t*	new_v_row = NULL;
+			dtuple_t*	old_v_row = NULL;
+
+			if (!(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
+				new_v_row = node->upd_row;
+				old_v_row = node->update->old_vrow;
+			}
+
 			row_log_table_update(
 				btr_cur_get_rec(btr_cur),
-				index, offsets, rebuilt_old_pk);
+				index, offsets, rebuilt_old_pk, new_v_row,
+				old_v_row);
 		}
 	}
 
@@ -2346,7 +2662,7 @@ row_upd_del_mark_clust_rec(
 
 	err = btr_cur_del_mark_set_clust_rec(
 		flags, btr_cur_get_block(btr_cur), btr_cur_get_rec(btr_cur),
-		index, offsets, thr, mtr);
+		index, offsets, thr, node->row, mtr);
 	if (err == DB_SUCCESS && referenced) {
 		/* NOTE that the following call loses the position of pcur ! */
 

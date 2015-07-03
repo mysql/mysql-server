@@ -2430,6 +2430,12 @@ files_checked:
 	}
 	srv_sys_tablespaces_open = true;
 
+	/* Create the SYS_VIRTUAL system table */
+	err = dict_create_or_check_sys_virtual();
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
+	}
+
 	srv_is_being_started = false;
 
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
@@ -2674,7 +2680,7 @@ innobase_shutdown_for_mysql(void)
 
 	/* This must be disabled before closing the buffer pool
 	and closing the data dictionary.  */
-	btr_search_disable();
+	btr_search_disable(true);
 
 	ibuf_close();
 	log_shutdown();

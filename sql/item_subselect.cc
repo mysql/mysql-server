@@ -3034,14 +3034,15 @@ bool subselect_single_select_engine::exec()
               DBUG_ASSERT(!(tab->op && tab->op->type() == QEP_operation::OT_CACHE &&
                             static_cast<JOIN_CACHE*>(tab->op)->is_key_access()));
 
+              TABLE *table= tab->table();
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
               tab->save_read_record= tab->read_record.read_record;
               tab->read_record.read_record= rr_sequential;
               tab->read_first_record= read_first_record_seq;
-              tab->read_record.record= tab->table()->record[0];
+              tab->read_record.record= table->record[0];
               tab->read_record.thd= join->thd;
-              tab->read_record.ref_length= tab->table()->file->ref_length;
+              tab->read_record.ref_length= table->file->ref_length;
               tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;

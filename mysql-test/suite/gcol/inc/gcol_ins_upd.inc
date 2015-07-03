@@ -314,6 +314,24 @@ UPDATE t1 SET col7 = DEFAULT;
 UPDATE t1 SET col8 = DEFAULT;
 DROP TABLE t1;
 
+if ($support_virtual_index)
+{
+--echo Bug#20797344: WL#8149: ALLOCATED SPACE FOR INDEXED BLOB VGC CAN BE
+--echo               OVERWRITTEN FOR UPDATE
+--echo #
+CREATE TABLE t (a varchar(100), b blob,
+c blob GENERATED ALWAYS AS (concat(a,b)) VIRTUAL,
+d blob GENERATED ALWAYS AS (b) VIRTUAL,
+e int(11) GENERATED ALWAYS AS (10) VIRTUAL,
+h int(11) NOT NULL, PRIMARY KEY (h), key(c(20)));
+INSERT INTO t(a,b,h) VALUES('aaaaaaa','1111111', 11);
+INSERT INTO t(a,b,h) VALUES('bbbbbbb','2222222', 22);
+SELECT c FROM t;
+UPDATE t SET a='ccccccc';
+SELECT c FROM t;
+DROP TABLE t;
+}
+
 --echo # Bug#21081742: ASSERTION !TABLE || (!TABLE->WRITE_SET || 
 --echo # BITMAP_IS_SET(TABLE->WRITE_SET
 --echo #

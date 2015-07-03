@@ -71,8 +71,9 @@ combination of types */
 				other flags */
 #define	DICT_SPATIAL	64	/* SPATIAL index; can't be combined with the
 				other flags */
+#define	DICT_VIRTUAL	128	/* Index on Virtual column */
 
-#define	DICT_IT_BITS	7	/*!< number of bits used for
+#define	DICT_IT_BITS	8	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -293,7 +294,10 @@ dict_mem_table_create(
 	const char*	name,		/*!< in: table name */
 	ulint		space,		/*!< in: space where the clustered index
 					of the table is placed */
-	ulint		n_cols,		/*!< in: number of columns */
+	ulint		n_cols,		/*!< in: total number of columns
+					including virtual and non-virtual
+					columns */
+	ulint		n_v_cols,	/*!< in: number of virtual columns */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
@@ -314,6 +318,30 @@ dict_mem_table_add_col(
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len)	/*!< in: precision */
 	__attribute__((nonnull(1)));
+/** Adds a virtual column definition to a table.
+@param[in,out]	table		table
+@param[in]	heap		temporary memory heap, or NULL. It is
+				used to store name when we have not finished
+				adding all columns. When all columns are
+				added, the whole name will copy to memory from
+				table->heap
+@param[in]	name		column name
+@param[in]	mtype		main datatype
+@param[in]	prtype		precise type
+@param[in]	len		length
+@param[in]	pos		position in a table
+@param[in]	num_base	number of base columns
+@return the virtual column definition */
+dict_v_col_t*
+dict_mem_table_add_v_col(
+	dict_table_t*	table,
+	mem_heap_t*	heap,
+	const char*	name,
+	ulint		mtype,
+	ulint		prtype,
+	ulint		len,
+	ulint		pos,
+	ulint		num_base);
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -322,8 +350,9 @@ dict_mem_table_col_rename(
 	dict_table_t*	table,	/*!< in/out: table */
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
-	const char*	to)	/*!< in: new column name */
-	__attribute__((nonnull));
+	const char*	to,	/*!< in: new column name */
+	bool		is_virtual);
+				/*!< in: if this is a virtual column */
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */
@@ -529,6 +558,21 @@ struct dict_col_t{
 	unsigned	max_prefix:12;	/*!< maximum index prefix length on
 					this column. Our current max limit is
 					3072 for Barracuda table */
+};
+
+/** Data structure for a virtual column in a table */
+struct dict_v_col_t{
+	/** column structure */
+	dict_col_t		m_col;
+
+	/** array of base column ptr */
+	dict_col_t**		base_col;
+
+	/** number of base column */
+	ulint			num_base;
+
+	/** column pos in table */
+	ulint			v_pos;
 };
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
@@ -1145,6 +1189,7 @@ if table->memcached_sync_count == DICT_TABLE_IN_DDL means there's DDL running on
 the table, DML from memcached will be blocked. */
 #define DICT_TABLE_IN_DDL -1
 
+struct innodb_col_templ_t;
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
@@ -1228,11 +1273,23 @@ struct dict_table_t {
 	dict_operation_lock. */
 	unsigned				to_be_dropped:1;
 
-	/** Number of columns defined so far. */
+	/** Number of non-virtual columns defined so far. */
 	unsigned				n_def:10;
 
-	/** Number of columns. */
+	/** Number of non-virtual columns. */
 	unsigned				n_cols:10;
+
+	/** Number of total columns (inlcude virtual and non-virtual) */
+	unsigned				n_t_cols:10;
+
+	/** Number of total columns defined so far. */
+	unsigned                                n_t_def:10;
+
+	/** Number of virtual columns defined so far. */
+	unsigned                                n_v_def:10;
+
+	/** Number of virtual columns. */
+	unsigned                                n_v_cols:10;
 
 	/** TRUE if it's not an InnoDB system table or a table that has no FK
 	relationships. */
@@ -1248,11 +1305,17 @@ struct dict_table_t {
 	/** Array of column descriptions. */
 	dict_col_t*				cols;
 
+	/** Array of virtual column descriptions. */
+	dict_v_col_t*				v_cols;
+
 	/** Column names packed in a character string
 	"name1\0name2\0...nameN\0". Until the string contains n_cols, it will
 	be allocated from a temporary heap. The final string will be allocated
 	from table->heap. */
 	const char*				col_names;
+
+	/** Virtual column names */
+	const char*				v_col_names;
 
 #ifndef UNIV_HOTBACKUP
 	/** Hash chain node. */
@@ -1516,6 +1579,12 @@ public:
 	/** Magic number. */
 	ulint					magic_n;
 #endif /* UNIV_DEBUG */
+	/** mysql_row_templ_t for base columns used for compute the virtual
+	columns */
+	innodb_col_templ_t*			vc_templ;
+
+	/** whether above vc_templ comes from purge allocation */
+	bool					vc_templ_purge;
 };
 
 /*******************************************************************//**

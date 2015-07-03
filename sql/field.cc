@@ -1500,7 +1500,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
-   is_created_from_null_item(FALSE),
+   is_created_from_null_item(FALSE), m_indexed(false),
    m_warnings_pushed(0),
    gcol_info(0), stored_in_db(TRUE)
 
@@ -2141,6 +2141,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   tmp->key_start.init(0);
   tmp->part_of_key.init(0);
   tmp->part_of_sortkey.init(0);
+  tmp->m_indexed= false;
   /*
     todo: We should never alter unireg_check after an object is constructed,
     and the member should be made const. But a lot of code depends upon this
@@ -7912,7 +7913,7 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
                  null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
                  cs),
-   packlength(blob_pack_length)
+   packlength(blob_pack_length), keep_old_value(false)
 {
   DBUG_ASSERT(blob_pack_length <= 4); // Only pack lengths 1-4 supported currently
   flags|= BLOB_FLAG;
@@ -8096,8 +8097,24 @@ Field_blob::store_internal(const char *from, size_t length,
   }
 
   new_length= min<size_t>(max_data_length(), field_charset->mbmaxlen * length);
+
+  /*
+    For UPDATE statements that update a virtual generated column,
+    the storage engine might need to have access to the old value
+    for the generated column. If that is the case, we can not update
+    directly into the existing value but need to keep it. To do
+    this, we transfer the value string to old_value. A new string
+    will be allocated for the updated value.
+  */
+  if (keep_old_value)
+  {
+    DBUG_ASSERT(is_virtual_gcol());
+    old_value.takeover(value);
+  }
+
   if (value.alloc(new_length))
     goto oom_error;
+
   tmp= const_cast<char*>(value.ptr());
 
   {
