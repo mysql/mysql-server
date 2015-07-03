@@ -69,17 +69,16 @@ CREATE TABLESPACE s-bad ADD DATAFILE 's_bad.ibd';
 CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
-LET $TWOFIFTYFIVE=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
 --error ER_CREATE_FILEGROUP_FAILED
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
-SHOW WARNINGS;
 --error ER_FILEGROUP_OPTION_ONLY_ONCE
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=3k;
 --error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=65k;
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_WRONG_FILE_NAME
 CREATE TABLESPACE `s_bad` ADD DATAFILE 'sub/dir/////s_bad.ibd';
 SHOW WARNINGS;
 # Show that those directories were not created.
@@ -241,18 +240,20 @@ DROP TABLESPACE `undo002`;
 --echo #
 --echo # Test various forms of ADD DATAFILE
 --echo #
+
+--mkdir $MYSQL_TMP_DIR/tablespace.ibd
+--rmdir $MYSQL_TMP_DIR/tablespace.ibd
+--mkdir $MYSQL_TMP_DIR/tablespace.ibd
+--mkdir $MYSQL_TMP_DIR/s2_#_dir
+--mkdir $MYSQL_TMP_DIR/test
+
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd' ENGINE=InnoDB;
-CREATE TABLESPACE s1_def ADD DATAFILE 's1_dir/s1.ibd';
-CREATE TABLESPACE s2_def ADD DATAFILE 's2_dir/../s2_dir/s2.ibd';
-CREATE TABLESPACE s3_def ADD DATAFILE 's3_dir/s3_subdir/s3.ibd';
+CREATE TABLESPACE `s1_#_hash` ADD DATAFILE 's1_#_hash.ibd';
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE s1_remote ADD DATAFILE '$MYSQL_TMP_DIR/s1.ibd.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_dir/s2.ibd';
-
-CREATE TABLESPACE `s1_#_hash` ADD DATAFILE 's1_#_hash.ibd';
-CREATE TABLESPACE `s2_#_hash` ADD DATAFILE 's2_#_dir/s2_#_hash.ibd';
+eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_#_dir/../s2_#_dir/s2.ibd';
 
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE s_bad ADD DATAFILE '.ibd';
@@ -263,6 +264,7 @@ SHOW WARNINGS;
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
 SHOW WARNINGS;
+
 # A colon is always rejected on Linux, but it could be part of a valid absolute path on Windows.
 # These should be rejected even on Windows.
 --error ER_WRONG_FILE_NAME
@@ -272,38 +274,40 @@ SHOW WARNINGS;
 CREATE TABLESPACE s_bad ADD DATAFILE 'cc:/s_bad.ibd';
 SHOW WARNINGS;
 --error ER_WRONG_FILE_NAME
-CREATE TABLESPACE s_bad ADD DATAFILE 'c:/drive:/s_bad.ibd';
+CREATE TABLESPACE s_bad ADD DATAFILE './drive:/s_bad.ibd';
 SHOW WARNINGS;
 
 --echo #
 --echo # Try to create a tablespace where a same-named directory and file exist.
 --echo #
-CREATE TABLESPACE s4_def ADD DATAFILE 'tablespace.ibd/s4.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE s4_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_CREATE_FILEGROUP_FAILED
-CREATE TABLESPACE s5_bad ADD DATAFILE 'tablespace.ibd/s4.ibd';
+eval CREATE TABLESPACE s5_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_CREATE_FILEGROUP_FAILED
-CREATE TABLESPACE s6_bad ADD DATAFILE 'tablespace.ibd';
---error ER_CREATE_FILEGROUP_FAILED
-CREATE TABLESPACE s7_bad ADD DATAFILE 's_def.ibd/tablespace.ibd';
+eval CREATE TABLESPACE s6_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd';
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
---echo # Directory listing of MYSQLD_DATADIR/s1_dir/
---list_files $MYSQLD_DATADIR/s1_dir/ *.ibd
---echo # Directory listing of MYSQLD_DATADIR/s2_dir/
---list_files $MYSQLD_DATADIR/s2_dir/ *.ibd
---echo # Directory listing of MYSQLD_DATADIR/s3_dir/s3_subdir/
---list_files $MYSQLD_DATADIR/s3_dir/s3_subdir/ *.ibd
---echo # Directory listing of MYSQLD_DATADIR/tablespace.ibd/
---list_files $MYSQLD_DATADIR/tablespace.ibd/ *.ibd
---echo # Directory listing of MYSQL_TMP_DIR/
---list_files $MYSQL_TMP_DIR/ *.ibd
---echo # Directory listing of MYSQL_TMP_DIR/s2_dir/
---list_files $MYSQL_TMP_DIR/s2_dir/ *.ibd
+
 --echo # Directory listing of MYSQLD_DATADIR/
 --list_files $MYSQLD_DATADIR/ *.ibd
---echo # Directory listing of MYSQLD_DATADIR/s2_#_dir/
---list_files $MYSQLD_DATADIR/s2_#_dir/ *.ibd
+
+--echo # Directory listing of MYSQL_TMP_DIR/
+--list_files $MYSQL_TMP_DIR/ *.ibd
+
+--echo # Directory listing of MYSQL_TMP_DIR/tablespace.ibd/
+--list_files $MYSQL_TMP_DIR/tablespace.ibd/ *.ibd
+
+--echo # Directory listing of MYSQL_TMP_DIR/s2_#_dir/
+--list_files $MYSQL_TMP_DIR/s2_#_dir/ *.ibd
+
+DROP TABLESPACE s4_def;
+DROP TABLESPACE s1_remote;
+DROP TABLESPACE s2_remote;
+DROP TABLESPACE `s1_#_hash`;
 
 --echo #
 --echo # Try to create a tablespace that already exists.
@@ -351,14 +355,6 @@ CREATE TABLESPACE `TEST/T_SINGLE` ADD DATAFILE 's_single.ibd';
 SHOW WARNINGS;
 
 DROP TABLE t_single;
-DROP TABLESPACE s1_def;
-DROP TABLESPACE s2_def;
-DROP TABLESPACE s3_def;
-DROP TABLESPACE s4_def;
-DROP TABLESPACE s1_remote;
-DROP TABLESPACE s2_remote;
-DROP TABLESPACE `s1_#_hash`;
-DROP TABLESPACE `s2_#_hash`;
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
@@ -461,9 +457,13 @@ DROP TABLE s_single;
 --echo #
 --echo # Try to use both TABLESPACE and DATA DIRECTORY in the same CREATE TABLE.
 --echo #
-# Strict mode, file_format and file_per_table should make no difference
-# when using general tablespaces.
+--echo # Strict mode, file_format and file_per_table should make no difference
+--echo # when using general tablespaces. If TABLESPACE=innodb_file-per-table,
+--echo # innodb_strict_mode apply.
+--echo #
+SET GLOBAL innodb_file_per_table = OFF;
 SET innodb_strict_mode = OFF;
+
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_ILLEGAL_HA_CREATE_OPTION
 eval CREATE TABLE t3 (a int, b text) DATA DIRECTORY='$MYSQL_TMP_DIR' TABLESPACE s_def;
@@ -475,32 +475,36 @@ SHOW WARNINGS;
 eval CREATE TABLE t4 (a int, b text) TABLESPACE=s_def DATA DIRECTORY='$MYSQL_TMP_DIR';
 SHOW WARNINGS;
 
---echo # Do not allow an empty string in DATA DIRECTORY=''
---error ER_WRONG_TABLE_NAME
-CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
-SHOW WARNINGS;
-
---echo # TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY='...'
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
-SHOW WARNINGS;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE t4;
-DROP TABLE t4;
-
---echo # If you use TABLESPACE=innodb_file_per_table, the config setting does not matter.
-SET GLOBAL innodb_file_per_table = OFF;
+--echo # TABLESPACE=innodb_file_per_table can be used with DATA DIRECTORY
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
 
---echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY=
+--echo # An altered table should retain both TABLESPACE=innodb_file_per_table and the DATA DIRECTORY
 ALTER TABLE t4 ROW_FORMAT=dynamic, algorithm=copy;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t4;
 DROP TABLE t4;
+
+--echo # An empty string in DATA DIRECTORY='' indicates the current directory,
+--echo # which is not allowed.
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
+SHOW WARNINGS;
+
 SET GLOBAL innodb_file_per_table = ON;
+SET innodb_strict_mode = ON;
+
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
+SHOW WARNINGS;
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='.';
+SHOW WARNINGS;
+--error ER_WRONG_TABLE_NAME
+CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='test';
+SHOW WARNINGS;
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
@@ -920,41 +924,10 @@ USE test;
 DROP DATABASE test1;
 --source suite/innodb/include/show_i_s_tables.inc
 --source suite/innodb/include/show_i_s_tablespaces.inc
-
---echo #
---echo # DROP DATABASE has a bug#19573998 in which it will seem to fail when it cannot
---echo # delete a directory for the database because of unexpected files.
---echo # But it actually succeeds in dropping all of the database tables,
---echo # just not the directory.
---echo # Show this by putting an empty tablespace into the test1 directory.
---echo #
-
-CREATE DATABASE test1;
-USE test1;
-CREATE TABLESPACE s_empty2 ADD DATAFILE 'test1/s_empty2.ibd' ENGINE InnoDB;
-CREATE TABLE t_system (a serial key, b text);
-CREATE TABLE t_general (a serial key, b text) TABLESPACE s_def;
-CREATE TABLE t_single (a serial key, b text) TABLESPACE=`innodb_file_per_table`;
---source suite/innodb/include/show_i_s_tablespaces.inc
---source suite/innodb/include/show_i_s_tables.inc
-
-USE test;
---replace_regex /can't rmdir '.*test1', errno: [0-9][0-9]/can't rmdir 'test1', errno: ##/
---error ER_DB_DROP_RMDIR
-DROP DATABASE test1;
---source suite/innodb/include/show_i_s_tablespaces.inc
---source suite/innodb/include/show_i_s_tables.inc
-DROP TABLESPACE s_empty2;
-DROP DATABASE test1;
---source suite/innodb/include/show_i_s_tablespaces.inc
---source suite/innodb/include/show_i_s_tables.inc
 DROP TABLE t_system;
 DROP TABLE t_general;
 DROP TABLE t_single;
 DROP TABLESPACE s_empty1;
---source suite/innodb/include/show_i_s_tablespaces.inc
---source suite/innodb/include/show_i_s_tables.inc
-DROP TABLESPACE s_def;
 
 --echo #
 --echo # Assign different tablespace for PK-FK tables
@@ -1006,16 +979,14 @@ DROP TABLESPACE s1;
 --echo # Clean-up.
 --echo #
 
-SET GLOBAL innodb_file_per_table=default;
+DROP TABLESPACE s_def;
 
---rmdir $MYSQLD_DATADIR/s1_dir
---rmdir $MYSQLD_DATADIR/s2_dir
---rmdir $MYSQLD_DATADIR/s3_dir/s3_subdir
---rmdir $MYSQLD_DATADIR/s3_dir
---rmdir $MYSQLD_DATADIR/tablespace.ibd
---rmdir $MYSQL_TMP_DIR/s2_dir
---rmdir $MYSQLD_DATADIR/s2_#_dir
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_strict_mode=default;
+
+--rmdir $MYSQL_TMP_DIR/s2_#_dir
 --rmdir $MYSQL_TMP_DIR/test
+--rmdir $MYSQL_TMP_DIR/tablespace.ibd
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*\.ibd: 'create' returned OS error .*");
@@ -1024,6 +995,7 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means mysqld does not ha
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Invalid use of ':' in");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though the corresponding table did not exist in the InnoDB data dictionary");
 --enable_query_log
 

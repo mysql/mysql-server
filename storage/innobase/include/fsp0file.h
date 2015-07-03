@@ -65,12 +65,13 @@ public:
 		m_first_page_buf(),
 		m_first_page(),
 		m_atomic_write(),
-		m_last_os_error()
+		m_last_os_error(),
+		m_file_info()
 	{
 		/* No op */
 	}
 
-	Datafile(const char* name, ulint size, ulint order)
+	Datafile(const char* name, ulint flags, ulint size, ulint order)
 		:
 		m_name(mem_strdup(name)),
 		m_filepath(),
@@ -81,14 +82,14 @@ public:
 		m_order(order),
 		m_type(SRV_NOT_RAW),
 		m_space_id(ULINT_UNDEFINED),
-		m_flags(),
+		m_flags(flags),
 		m_exists(),
 		m_is_valid(),
 		m_first_page_buf(),
 		m_first_page(),
 		m_atomic_write(),
-		m_last_os_error()
-
+		m_last_os_error(),
+		m_file_info()
 	{
 		ut_ad(m_name != NULL);
 		/* No op */
@@ -108,7 +109,8 @@ public:
 		m_first_page_buf(),
 		m_first_page(),
 		m_atomic_write(file.m_atomic_write),
-		m_last_os_error()
+		m_last_os_error(),
+		m_file_info()
 	{
 		m_name = mem_strdup(file.m_name);
 		ut_ad(m_name != NULL);
@@ -172,12 +174,10 @@ public:
 		return(*this);
 	}
 
-	/** Initialize the name, size and order of this datafile
+	/** Initialize the name and flags of this datafile.
 	@param[in]	name	tablespace name, will be copied
-	@param[in]	size	size in database pages
-	@param[in]	order	ordinal position or the datafile
-	in the tablespace */
-	void init(const char* name, ulint size, ulint order);
+	@param[in]	flags	tablespace flags */
+	void init(const char* name, ulint flags);
 
 	/** Release the resources. */
 	virtual void shutdown();
@@ -197,21 +197,24 @@ public:
 	virtual dberr_t open_read_write(bool read_only_mode)
 		__attribute__((warn_unused_result));
 
+	/** Initialize OS specific file info. */
+	void init_file_info();
+
 	/** Close a data file.
 	@return DB_SUCCESS or error code */
 	dberr_t close();
 
-	/** Make physical filename from the Tablespace::m_path
-	plus the Datafile::m_name and store it in Datafile::m_filepath.
-	@param path	NULL or full path for this datafile.
-	@param suffix	File extension for this tablespace datafile. */
-	void make_filepath(const char* path);
-
-	/** Make physical filename from the Tablespace::m_path
-	plus the Datafile::m_name and store it in Datafile::m_filepath.
-	@param path	NULL or full path for this datafile.
-	@param suffix	File extension for this tablespace datafile. */
-	void make_filepath_no_ext(const char* path);
+	/** Make a full filepath from a directory path and a filename.
+	Prepend the dirpath to filename using the extension given.
+	If dirpath is NULL, prepend the default datadir to filepath.
+	Store the result in m_filepath.
+	@param[in]	dirpath		directory path
+	@param[in]	filename	filename or filepath
+	@param[in]	ext		filename extension */
+	void make_filepath(
+		const char*	dirpath,
+		const char*	filename,
+		ib_extention	ext);
 
 	/** Set the filepath by duplicating the filepath sent in */
 	void set_filepath(const char* filepath);
@@ -273,19 +276,6 @@ public:
 		return(m_filepath);
 	}
 
-	/** Test if the filepath provided is the same as this object.
-	When lower_case_table_names != 0 we store the filename as it is given,
-	but compare it case insensitive.
-	@return true if it is the same file, else false */
-	bool	same_filepath_as(const char* other_filepath)
-	{
-		if (innobase_get_lower_case_table_names() == 0) {
-			return(0 == strcmp(m_filepath, other_filepath));
-		}
-
-		return(0 == innobase_strcasecmp(m_filepath, other_filepath));
-	}
-
 	/** Get Datafile::m_handle.
 	@return m_handle */
 	os_file_t	handle()	const
@@ -334,6 +324,19 @@ public:
 	{
 		return(m_last_os_error);
 	}
+
+	/** Test if the filepath provided looks the same as this filepath
+	by string comparison. If they are two different paths to the same
+	file, same_as() will be used to show that after the files are opened.
+	@param[in]	other	filepath to compare with
+	@retval true if it is the same filename by char comparison
+	@retval false if it looks different */
+	bool same_filepath_as(const char* other) const;
+
+	/** Test if another opened datafile is the same file as this object.
+	@param[in]	other	Datafile to compare with
+	@return true if it is the same file, else false */
+	bool same_as(const Datafile&	other) const;
 
 private:
 	/** Free the filepath buffer. */
@@ -456,6 +459,16 @@ private:
 protected:
 	/** Last OS error received so it can be reported if needed. */
 	ulint			m_last_os_error;
+
+public:
+	/** Use the following to determine the uniqueness of this datafile. */
+#ifdef _WIN32
+	/* Use fields dwVolumeSerialNumber, nFileIndexLow, nFileIndexHigh. */
+	BY_HANDLE_FILE_INFORMATION	m_file_info;
+#else
+	/* Use field st_ino. */
+	struct stat			m_file_info;
+#endif	/* WIN32 */
 };
 
 
@@ -497,6 +510,15 @@ public:
 		return(m_link_filepath);
 	}
 
+	/** Set the link filepath. Use default datadir, the base name of
+	the path provided without its suffix, plus DOT_ISL.
+	@param[in]	path	filepath which contains a basename to use.
+				If NULL, use m_name as the basename. */
+	void set_link_filepath(const char* path);
+
+	/** Delete an InnoDB Symbolic Link (ISL) file. */
+	void delete_link_file(void);
+
 	/** Open a handle to the file linked to in an InnoDB Symbolic Link file
 	in read-only mode so that it can be validated.
 	@param[in]	strict	whether to issue error messages
@@ -523,29 +545,31 @@ public:
 	the path ".".
 	@param[in]	name		tablespace name
 	@param[in]	filepath	remote filepath of tablespace datafile
+	@param[in]	is_shared	true for general tablespace,
+					false for file-per-table
 	@return DB_SUCCESS or error code */
 	static dberr_t create_link_file(
 		const char*	name,
-		const char*	filepath);
+		const char*	filepath,
+		bool		is_shared = false);
 
 	/** Delete an InnoDB Symbolic Link (ISL) file by name.
 	@param[in]	name	tablespace name */
 	static void delete_link_file(const char* name);
 
-	/** Reads an InnoDB Symbolic Link (ISL) file.
-	It is always created under the 'datadir' of MySQL.  The name is of
-	the form {databasename}/{tablename}. and the isl file is expected
-	to be in a '{databasename}' directory called '{tablename}.isl'.
-	The caller must free the memory of the null-terminated path returned
-	if it is not null.
-	@param[in]	name		tablespace name
-	@param[out]	link_filepath	filepath of the ISL file
-	@param[out]	ibd_filepath	filepath of the IBD file read from
-					the ISL file */
-	static void read_link_file(
-		const char*	name,
-		char**		link_filepath,
-		char**		ibd_filepath);
-
+	/** Read an InnoDB Symbolic Link (ISL) file by name.
+	It is always created under the datadir of MySQL.
+	For file-per-table tablespaces, the isl file is expected to be
+	in a 'database' directory and called 'tablename.isl'.
+	For general tablespaces, there will be no 'database' directory.
+	The 'basename.isl' will be in the datadir.
+	The caller must free the memory returned if it is not null.
+	@param[in]	link_filepath	filepath of the ISL file
+	@param[in]	is_shared	true for general tablespace,
+					false for file-per-table
+	@return Filepath of the IBD file read from the ISL file */
+	static char* read_link_file(
+		const char*	link_filepath,
+		bool		is_shared);
 };
 #endif /* fsp0file_h */

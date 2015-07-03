@@ -3033,6 +3033,17 @@ int prepare_create_field(Create_field *sql_field,
     sql_field->unireg_check=Field::BLOB_FIELD;
     (*blob_columns)++;
     break;
+  case MYSQL_TYPE_JSON:
+    // JSON fields are stored as BLOBs.
+    sql_field->pack_flag=FIELDFLAG_JSON |
+      pack_length_to_packflag(sql_field->pack_length -
+                              portable_sizeof_char_ptr);
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    sql_field->length=8;                        // Unireg field length
+    sql_field->unireg_check=Field::BLOB_FIELD;
+    (*blob_columns)++;
+    break;
   case MYSQL_TYPE_VARCHAR:
     if (table_flags & HA_NO_VARCHAR)
     {
@@ -4075,6 +4086,13 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
             DBUG_RETURN(TRUE);
           }
+        }
+
+        // JSON columns cannot be used as keys.
+        if (f_is_json(sql_field->pack_flag))
+        {
+          my_error(ER_JSON_USED_AS_KEY, MYF(0), column->field_name.str);
+          DBUG_RETURN(TRUE);
         }
 
 	if (f_is_blob(sql_field->pack_flag) ||

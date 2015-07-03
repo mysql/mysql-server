@@ -117,6 +117,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
   auto_increment_increment(1), auto_increment_offset(1),
   time_zone_len(0), catalog_len(0), lc_time_names_number(0),
   charset_database_number(0), table_map_for_update(0), master_data_written(0),
+  explicit_defaults_ts(TERNARY_UNSET),
   mts_accessed_dbs(OVER_MAX_DBS_IN_EVENT_MTS)
 {
   //buf is advanced in Binary_log_event constructor to point to
@@ -357,7 +358,12 @@ break;
         return;
       break;
     }
-
+    case Q_EXPLICIT_DEFAULTS_FOR_TIMESTAMP:
+    {
+      CHECK_SPACE(pos, end, 1);
+      explicit_defaults_ts= *pos++ == 0 ? TERNARY_OFF : TERNARY_ON;
+      break;
+    }
     default:
       /* That's why you must write status vars in growing order of code */
       pos= (const unsigned char*) end;         // Break loop

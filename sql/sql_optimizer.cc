@@ -90,6 +90,7 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
 
 static Item_func_match *test_if_ft_index_order(ORDER *order);
 
+
 static uint32 get_key_length_tmp_table(Item *item);
 
 /**
@@ -344,6 +345,9 @@ JOIN::optimize()
   }
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
+
+  if (where_cond || group_list || order)
+    substitute_gc();
 
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
@@ -719,6 +723,124 @@ setup_subq_exit:
 
   set_plan_state(ZERO_RESULT);
   DBUG_RETURN(0);
+}
+
+
+/*
+  Substitute all expressions in the WHERE condition and ORDER/GROUP lists
+  that matches generated columns (GC) expressions with GC fields, if any.
+
+  @details This function does 3 things:
+  1) Creates list of all GC fields that are a part of a key and the GC
+    expression is a function. All query tables are scanned. If there's no
+    such fields, function exits.
+  2) By means of Item::compile() WHERE clause is transformed.
+    @see Item_func::gc_subst_transformer() for details.
+  3) If there's ORDER/GROUP BY clauses, this function tries to substitute
+    expressions in these lists with GC too. It removes from the list of
+    indexed GC all elements which index blocked by hints. This is done to
+    reduce amount of further work. Next it goes through ORDER/GROUP BY list
+    and matches the expression in it against GC expressions in indexed GC
+    list. When a match is found, the expression is replaced with a new
+    Item_field for the matched GC field. Also, this new field is added to
+    the hidden part of all_fields list.
+*/
+
+void JOIN::substitute_gc()
+{
+  List<Field> indexed_gc;
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object subst_gc(trace, "substitute_generated_columns");
+
+  // Collect all GCs that are a part of a key
+  for (TABLE_LIST *tl= select_lex->leaf_tables;
+       tl;
+       tl= tl->next_leaf)
+  {
+    if (tl->table->s->keys == 0)
+      continue;
+    for (uint i= 0; i < tl->table->s->fields; i++)
+    {
+      Field *fld= tl->table->field[i];
+      if (!fld->gcol_info || fld->part_of_key.is_clear_all() ||
+           fld->gcol_info->expr_item->type() != Item::FUNC_ITEM)
+        continue;
+      // Don't check allowed keys here as conditions/group/order use
+      // different keymaps for that
+      indexed_gc.push_back(fld);
+    }
+  }
+  // No GC in the tables used in the query
+  if (indexed_gc.elements == 0)
+    return;
+
+  if (where_cond)
+  {
+    // Item_func::compile will dereference this pointer, provide valid value.
+    uchar i, *dummy= &i;
+    where_cond->compile(&Item::gc_subst_analyzer, &dummy,
+                        &Item::gc_subst_transformer, (uchar*) &indexed_gc);
+    subst_gc.add("resulting_condition", where_cond);
+  }
+
+  if (!(group_list || order))
+    return;
+  // Filter out GCs that do not have index usable for GROUP/ORDER
+  Field *gc;
+  List_iterator<Field> li(indexed_gc);
+
+  while ((gc= li++))
+  {
+    key_map tkm= gc->part_of_key;
+    tkm.intersect(group_list ? gc->table->keys_in_use_for_group_by :
+                  gc->table->keys_in_use_for_order_by);
+    if (tkm.is_clear_all())
+      li.remove();
+  }
+  if (!indexed_gc.elements)
+    return;
+
+  // Index could be used for ORDER only if there is no GROUP
+  ORDER *list= group_list ? group_list : order;
+  bool changed= false;
+  for (ORDER *ord= list; ord; ord= ord->next)
+  {
+    li.rewind();
+    if ((*ord->item)->type() != Item::FUNC_ITEM)
+      continue;
+    while ((gc= li++))
+    {
+      Item_func *tmp= pointer_cast<Item_func*>(*ord->item);
+      Item_field *field;
+      if ((field= get_gc_for_expr(&tmp, gc, gc->result_type())))
+      {
+
+        changed= true;
+        /* Add new field to field list. */
+        ord->item= select_lex->add_hidden_item(field);
+        break;
+      }
+    }
+  }
+  if (changed)
+  {
+    // We added hidden fields to the all_fields list, count them.
+    count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
+                      false, false);
+    if (trace->is_started())
+    {
+      String str;
+      st_select_lex::print_order(&str, list,
+                                 enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                 QT_SHOW_SELECT_NUMBER |
+                                                 QT_NO_DEFAULT_DB));
+      subst_gc.add_utf8(group_list ? "resulting_GROUP_BY" :
+                          "resulting_ORDER_BY",
+                        str.ptr(), str.length());
+    }
+  }
+  return;
 }
 
 
@@ -6669,6 +6791,19 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
           }
         }
       }
+
+      /*
+        We can't use indexes when comparing to a JSON value. For example,
+        the string '{}' should compare equal to the JSON string "{}". If
+        we use a string index to compare the two strings, we will be
+        comparing '{}' and '"{}"', which don't compare equal.
+      */
+      if (value[0]->result_type() == STRING_RESULT &&
+          value[0]->field_type() == MYSQL_TYPE_JSON)
+      {
+        warn_index_not_applicable(stat->join()->thd, field, possible_keys);
+        return;
+      }
     }
   }
   /*
@@ -10006,7 +10141,6 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
 {
   List_iterator<Item> li(fields);
   Item *item;
-  Ref_ptr_array orig_ref_pointer_array= ref_pointer_array;
   ORDER *order,*group,**prev;
 
   *all_order_by_fields_used= 1;
@@ -10058,10 +10192,7 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
           @note setup_ref_array() needs to account for the extra space.
         */
         Item_field *new_item= new Item_field(thd, (Item_field*)item);
-        int el= all_fields.elements;
-        orig_ref_pointer_array[el]= new_item;
-        all_fields.push_front(new_item);
-        ord->item= &orig_ref_pointer_array[el];
+        ord->item= thd->lex->current_select()->add_hidden_item(new_item);
       }
       else
       {

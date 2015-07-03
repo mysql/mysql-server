@@ -733,4 +733,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 DROP TABLE t1, t2;
 # End WL#4897
+#
+# Bug#21139522 PREPARED STATEMENT EXPLAIN DELETE .. WITH STRICT
+#              MODE VIOLATION FLATLINES
+#
+CREATE TABLE t1(a INT);
+PREPARE s FROM "EXPLAIN DELETE FROM t1 WHERE a || 'a' LIMIT 1";
+EXECUTE s;
+ERROR 22007: Truncated incorrect INTEGER value: 'a'
+EXECUTE s;
+ERROR 22007: Truncated incorrect INTEGER value: 'a'
+DROP TABLE t1;
+# End of test Bug#21139522
 End of 6.0 tests.

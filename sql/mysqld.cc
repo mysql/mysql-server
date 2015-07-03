@@ -4049,9 +4049,17 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   tc_log= &tc_log_dummy;
 
+  /*
+    Skip reading the plugin table when starting with --help in order
+    to also skip initializing InnoDB. This provides a simpler and more
+    uniform handling of various startup use cases, e.g. when the data
+    directory does not exist, exists but is empty, exists with InnoDB
+    system tablespaces present etc.
+  */
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-                  (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
+                  (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
+                               PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     sql_print_error("Failed to initialize plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -4694,6 +4702,9 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(MYSQLD_ABORT_EXIT);
 
     global_sid_lock->wrlock();
+
+    purged_gtids_from_binlog.dbug_print("purged_gtids_from_binlog");
+    gtids_in_binlog.dbug_print("gtids_in_binlog");
 
     if (!gtids_in_binlog.is_empty() &&
         !gtids_in_binlog.is_subset(executed_gtids))
@@ -8657,6 +8668,7 @@ PSI_stage_info stage_checking_privileges_on_cached_query= { 0, "checking privile
 PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache for query", 0};
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
+PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
 PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
 PSI_stage_info stage_converting_heap_to_ondisk= { 0, "converting HEAP to ondisk", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
@@ -8709,6 +8721,12 @@ PSI_stage_info stage_sending_cached_result_to_client= { 0, "sending cached resul
 PSI_stage_info stage_sending_data= { 0, "Sending data", 0};
 PSI_stage_info stage_setup= { 0, "setup", 0};
 PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for more updates", 0};
+PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
+PSI_stage_info stage_slave_waiting_for_workers_to_process_queue= { 0, "Waiting for slave workers to process their queues", 0};
+PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
+PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
+PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
+PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -8724,7 +8742,7 @@ PSI_stage_info stage_updating_reference_tables= { 0, "updating reference tables"
 PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
-PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
+PSI_stage_info stage_waiting_for_gtid_to_be_committed= { 0, "Waiting for GTID to be committed", 0};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0};
@@ -8739,19 +8757,11 @@ PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
 PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
-PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
-PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
-PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
-PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
-PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
-PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
-PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
+PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for preceding transaction to commit", 0};
+PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0};
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
-#ifdef HAVE_REPLICATION
-PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
-PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit.", 0};
-#endif
 PSI_stage_info stage_starting= { 0, "starting", 0};
+
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -8768,6 +8778,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_checking_query_cache_for_query,
   & stage_cleaning_up,
   & stage_closing_tables,
+  & stage_compressing_gtid_table,
   & stage_connecting_to_master,
   & stage_converting_heap_to_ondisk,
   & stage_copying_to_group_table,
@@ -8820,6 +8831,12 @@ PSI_stage_info *all_server_stages[]=
   & stage_sending_data,
   & stage_setup,
   & stage_slave_has_read_all_relay_log,
+  & stage_slave_waiting_event_from_coordinator,
+  & stage_slave_waiting_for_workers_to_process_queue,
+  & stage_slave_waiting_worker_queue,
+  & stage_slave_waiting_worker_to_free_events,
+  & stage_slave_waiting_worker_to_release_partition,
+  & stage_slave_waiting_workers_to_exit,
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,
@@ -8835,12 +8852,14 @@ PSI_stage_info *all_server_stages[]=
   & stage_upgrading_lock,
   & stage_user_sleep,
   & stage_verifying_table,
+  & stage_waiting_for_gtid_to_be_committed,
   & stage_waiting_for_handler_insert,
   & stage_waiting_for_handler_lock,
   & stage_waiting_for_handler_open,
   & stage_waiting_for_insert,
   & stage_waiting_for_master_to_send_event,
   & stage_waiting_for_master_update,
+  & stage_waiting_for_relay_log_space,
   & stage_waiting_for_slave_mutex_on_exit,
   & stage_waiting_for_slave_thread_to_start,
   & stage_waiting_for_table_flush,
@@ -8848,7 +8867,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
-  & stage_compressing_gtid_table,
+  & stage_worker_waiting_for_its_turn_to_commit,
+  & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
   & stage_starting
 };
@@ -8990,6 +9010,7 @@ PSI_memory_key key_memory_THD_Session_sysvar_resource_manager;
 PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_fill_schema_schemata;
 PSI_memory_key key_memory_native_functions;
+PSI_memory_key key_memory_JSON;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
@@ -9132,7 +9153,8 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_write_set_extraction, "write_set_extraction", 0},
   { &key_memory_get_all_tables, "get_all_tables", 0},
   { &key_memory_fill_schema_schemata, "fill_schema_schemata", 0},
-  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL}
+  { &key_memory_native_functions, "native_functions", PSI_FLAG_GLOBAL},
+  { &key_memory_JSON, "JSON", 0 },
 };
 
 /* TODO: find a good header */

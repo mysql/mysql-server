@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -427,7 +427,7 @@ public:
     Notice that this function changes the actual content of the
     container by inserting or erasing elements from it.
    */
-  void resize(size_t n, Element_type val= Element_type())
+  void resize(size_t n, const Element_type &val= Element_type())
   {
     if (n == m_size)
       return;

@@ -3134,7 +3134,7 @@ innodb_log_checksum_func_update(ulint	algorithm)
 	case SRV_CHECKSUM_ALGORITHM_NONE:
 		log_checksum_algorithm_ptr = log_block_calc_checksum_none;
 		break;
-       }
+	}
 }
 
 /*********************************************************************//**
@@ -3245,7 +3245,6 @@ innobase_init(
 
 	if (mysqld_embedded) {
 		default_path = mysql_real_data_home;
-		fil_path_to_mysql_datadir = mysql_real_data_home;
 	} else {
 		/* It's better to use current lib, to keep paths short */
 		current_dir[0] = FN_CURLIB;
@@ -3255,6 +3254,9 @@ innobase_init(
 	}
 
 	ut_a(default_path);
+
+	fil_path_to_mysql_datadir = default_path;
+	folder_mysql_datadir = fil_path_to_mysql_datadir;
 
 	/* Set InnoDB initialization parameters according to the values
 	read from MySQL .cnf file */
@@ -3351,8 +3353,7 @@ innobase_init(
 		srv_log_group_home_dir = default_path;
 	}
 
-
-	os_normalize_path_for_win(srv_log_group_home_dir);
+	os_normalize_path(srv_log_group_home_dir);
 
 	if (strchr(srv_log_group_home_dir, ';')) {
 		sql_print_error("syntax error in innodb_log_group_home_dir");
@@ -5976,6 +5977,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
 	case MYSQL_TYPE_LONG_BLOB:
+        case MYSQL_TYPE_JSON:   // JSON fields are stored as BLOBs
 		return(DATA_BLOB);
 	case MYSQL_TYPE_NULL:
 		/* MySQL currently accepts "NULL" datatype, but will
@@ -9893,7 +9895,6 @@ create_table_info_t::parse_table_name(
 	}
 #endif
 
-	normalize_table_name(m_table_name, name);
 	m_temp_path[0] = '\0';
 	m_remote_path[0] = '\0';
 	m_tablespace[0] = '\0';
@@ -10493,6 +10494,8 @@ create_table_info_t::prepare_create_table(
 	ut_ad(m_form->s->row_type == m_create_info->row_type);
 
 	set_tablespace_type(false);
+
+	normalize_table_name(m_table_name, name);
 
 	/* Validate the create options if innodb_strict_mode is set.
 	Do not use the regular message for ER_ILLEGAL_HA_CREATE_OPTION
@@ -11344,8 +11347,9 @@ validate_create_tablespace_info(
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
 	if (space_id != ULINT_UNDEFINED) {
 		my_printf_error(ER_TABLESPACE_EXISTS,
-			"InnoDB: A tablespace named `%s` already exists.",
-			MYF(0), alter_info->tablespace_name);
+				"InnoDB: A tablespace named `%s`"
+				" already exists.", MYF(0),
+				alter_info->tablespace_name);
 		error = HA_ERR_TABLESPACE_EXISTS;
 	}
 
@@ -11355,61 +11359,109 @@ validate_create_tablespace_info(
 		    || alter_info->file_block_size < UNIV_ZIP_SIZE_MIN
 		    || alter_info->file_block_size > UNIV_PAGE_SIZE_MAX) {
 			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB does not support"
-				" FILE_BLOCK_SIZE=%llu", MYF(0),
-				alter_info->file_block_size);
+					"InnoDB does not support"
+					" FILE_BLOCK_SIZE=%llu", MYF(0),
+					alter_info->file_block_size);
 			error = HA_WRONG_CREATE_OPTION;
 
 		/* Don't allow a file block size larger than UNIV_PAGE_SIZE. */
 		} else if (alter_info->file_block_size > UNIV_PAGE_SIZE) {
 			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: Cannot create a tablespace with "
-				"FILE_BLOCK_SIZE=%llu because "
-				"INNODB_PAGE_SIZE=%lu.", MYF(0),
-				alter_info->file_block_size, UNIV_PAGE_SIZE);
+					"InnoDB: Cannot create a tablespace"
+					" with FILE_BLOCK_SIZE=%llu because"
+					" INNODB_PAGE_SIZE=%lu.", MYF(0),
+					alter_info->file_block_size,
+					UNIV_PAGE_SIZE);
 			error = HA_WRONG_CREATE_OPTION;
 
 		/* Don't allow a compressed tablespace when page size > 16k. */
 		} else if (UNIV_PAGE_SIZE > UNIV_PAGE_SIZE_DEF
 			   && alter_info->file_block_size != UNIV_PAGE_SIZE) {
 			my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: Cannot create a COMPRESSED tablespace"
-				" when innodb_page_size > 16k.", MYF(0));
+					"InnoDB: Cannot create a COMPRESSED"
+					" tablespace when innodb_page_size >"
+					" 16k.", MYF(0));
 			error = HA_WRONG_CREATE_OPTION;
 		}
 	}
 
-	/* The ADD DATAFILE path in alter_info can have either / or \ as
-	a separator on Windows.  But it must end in '.ibd' and contain a
-	basename of at least 1 character before the .ibd extension. */
-	const char* basename = innobase_basename(alter_info->data_file_name);
-	ulint	flen = strlen(basename);
-	if (flen < 5 || memcmp(&basename[flen - 4], DOT_IBD, 5)) {
-		my_printf_error(ER_WRONG_FILE_NAME,
-			"InnoDB requires that ADD DATAFILE has a filename"
-			" ending in `%s`, the filename `%s` is invalid.",
-			MYF(0), DOT_IBD, alter_info->data_file_name);
-		error = HA_ERR_WRONG_FILE_NAME;
-	}
+	/* Validate the ADD DATAFILE name. */
+	char*	filepath = mem_strdup(alter_info->data_file_name);
+	os_normalize_path(filepath);
 
-	const char* colon = strchr(alter_info->data_file_name, ':');
-#ifdef _WIN32
-	/* Do not allow names like "C:name.ibd" because it specifies the
-	"C:" drive but allows a relative location. It should be "c:\".
-	If a single colon is used it must be the second byte.*/
-	const char* colon2 = (colon == NULL) ? NULL : strchr(&colon[1], ':');
-	if (colon2 != NULL
-	    || (colon != NULL
-	        && ((colon[1] != '/' && colon[1] != '\\')
-	            || colon != &alter_info->data_file_name[1]))) {
-#else
-	/* Do not allow a colon in the file name. */
-	if (colon != NULL) {
-#endif /* _WIN32 */
+	/* It must end with '.ibd' and contain a basename of at least
+	1 character before the.ibd extension. */
+	ulint dirname_len = dirname_length(filepath);
+	const char* basename = filepath + dirname_len;
+	ulint	basename_len = strlen(basename);
+	if (basename_len < 5) {
+		my_error(ER_WRONG_FILE_NAME, MYF(0),
+		alter_info->data_file_name);
+		return(HA_WRONG_CREATE_OPTION);
+	}
+	if (memcmp(&basename[basename_len - 4], DOT_IBD, 5)) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
-		error = HA_ERR_WRONG_FILE_NAME;
+		my_printf_error(ER_WRONG_FILE_NAME,
+				"An IBD filepath must end with `.ibd`.",
+				MYF(0));
+		return(HA_WRONG_CREATE_OPTION);
 	}
+
+	/* Do not allow an invalid colon in the file name. */
+	const char* colon = strchr(filepath, ':');
+	if (colon != NULL) {
+#ifdef _WIN32
+		/* Do not allow names like "C:name.ibd" because it
+		specifies the "C:" drive but allows a relative location.
+		It should be like "c:\". If a single colon is used it must
+		be the second byte the the third byte must be a separator. */
+		if (colon != &filepath[1]
+		    || (colon[1] != OS_PATH_SEPARATOR)
+		    || NULL != strchr(&colon[1], ':')) {
+#endif /* _WIN32 */
+			my_error(ER_WRONG_FILE_NAME, MYF(0),
+				 alter_info->data_file_name);
+			my_printf_error(ER_WRONG_FILE_NAME,
+					"Invalid use of ':'.", MYF(0));
+			return(HA_WRONG_CREATE_OPTION);
+#ifdef _WIN32
+		}
+#endif /* _WIN32 */
+	}
+
+#ifndef _WIN32
+	/* On Non-Windows platforms, '\\' is a valid file name character.
+	But for InnoDB datafiles, we always assume it is a directory
+	separator and convert these to '/' */
+	if (strchr(alter_info->data_file_name, '\\') != NULL) {
+		ib::warn() << "Converting backslash to forward slash in"
+			" ADD DATAFILE " << alter_info->data_file_name;
+	}
+#endif /* _WIN32 */
+
+	/* The directory path must be pre-existing. */
+	Folder folder(filepath, dirname_len);
+	if (!folder.exists()) {
+		my_error(ER_WRONG_FILE_NAME, MYF(0),
+			 alter_info->data_file_name);
+		my_printf_error(ER_WRONG_FILE_NAME,
+				"The directory does not exist.", MYF(0));
+		return(HA_WRONG_CREATE_OPTION);
+	}
+
+	/* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
+	the datadir.*/
+	if (folder.is_child_of(folder_mysql_datadir)) {
+		my_error(ER_WRONG_FILE_NAME, MYF(0),
+			 alter_info->data_file_name);
+		my_printf_error(ER_WRONG_FILE_NAME,
+				"CREATE TABLESPACE data file"
+				" cannot be under the datadir.", MYF(0));
+		error = HA_WRONG_CREATE_OPTION;
+	}
+
+	ut_free(filepath);
 
 	return(error);
 }
@@ -12098,12 +12150,6 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
-	/* GIS_FIXME: Currently, we can't support estimate records on
-	R-tree index. */
-	if (dict_index_is_spatial(index)) {
-		n_rows = 2;
-		goto func_exit;
-	}
 
 	heap = mem_heap_create(2 * (key->actual_key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
@@ -12148,8 +12194,14 @@ ha_innobase::records_in_range(
 
 	if (mode1 != PAGE_CUR_UNSUPP && mode2 != PAGE_CUR_UNSUPP) {
 
-		n_rows = btr_estimate_n_rows_in_range(
-			index, range_start, mode1, range_end, mode2);
+		if (dict_index_is_spatial(index)) {
+			/*Only min_key used in spatial index. */
+			n_rows = rtr_estimate_n_rows_in_range(
+				index, range_start, mode1);
+		} else {
+			n_rows = btr_estimate_n_rows_in_range(
+				index, range_start, mode1, range_end, mode2);
+		}
 	} else {
 
 		n_rows = HA_POS_ERROR;

@@ -66,7 +66,7 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
+                  EXTRACT_FUNC, TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
                   NEG_FUNC, GSYSVAR_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
@@ -256,6 +256,24 @@ public:
 
   my_decimal *val_decimal(my_decimal *);
 
+  /**
+    Same as save_in_field except that special logic is added
+    to handle JSON values. If the target field has JSON type,
+    then do NOT first serialize the JSON value into a string form.
+
+    A better solution might be to put this logic into
+    Item_func::save_in_field() or even Item::save_in_field().
+    But that would mean providing val_json() overrides for
+    more Item subclasses. And that feels like pulling on a
+    ball of yarn late in the release cycle for 5.7. FIXME.
+
+    @param[out] field  The field to set the value to.
+    @retval 0         On success.
+    @retval > 0       On error.
+  */
+  virtual type_conversion_status save_possibly_as_json(Field *field,
+                                                       bool no_conversions);
+
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
                         uint flags, int item_sep)
   {
@@ -432,6 +450,7 @@ public:
   {
     return functype() == *(Functype *) arg;
   }
+  virtual Item *gc_subst_transformer(uchar *arg);
 
 protected:
   /**
@@ -749,6 +768,7 @@ public:
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
+  enum Functype functype() const { return TYPECAST_FUNC; }
 };
 
 
@@ -762,6 +782,7 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   longlong val_int();
   virtual void print(String *str, enum_query_type query_type);
+  enum Functype functype() const { return TYPECAST_FUNC; }
 };
 
 
@@ -793,6 +814,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
   void fix_length_and_dec() {};
   const char *func_name() const { return "decimal_typecast"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -2042,6 +2064,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "gtid_subset"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  bool is_bool_func() { return true; }
 };
 
 
@@ -2646,7 +2669,7 @@ enum Cast_target
 {
   ITEM_CAST_BINARY, ITEM_CAST_SIGNED_INT, ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE, ITEM_CAST_TIME, ITEM_CAST_DATETIME, ITEM_CAST_CHAR,
-  ITEM_CAST_DECIMAL
+  ITEM_CAST_DECIMAL, ITEM_CAST_JSON
 };
 
 
@@ -2783,6 +2806,10 @@ public:
     return str;
   }
 
+  bool val_json(Json_wrapper *result);
+
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
+
   virtual bool change_context_processor(uchar *cntx)
   {
     context= reinterpret_cast<Name_resolution_context *>(cntx);
@@ -2872,6 +2899,7 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(Item *cond);
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;
 

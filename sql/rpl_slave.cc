@@ -4845,7 +4845,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   */
   if ((rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS ||
        rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-       rli->until_condition == Relay_log_info::UNTIL_RELAY_POS) &&
+       rli->until_condition == Relay_log_info::UNTIL_RELAY_POS ||
+       rli->until_condition == Relay_log_info::UNTIL_SQL_VIEW_ID) &&
        rli->is_until_satisfied(thd, NULL))
   {
     rli->abort_slave= 1;
@@ -5035,6 +5036,12 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         if (rli->trans_retries < slave_trans_retries)
         {
           /*
+            The transactions has to be rolled back before global_init_info is
+            called. Because global_init_info will starts a new transaction if
+            master_info_repository is TABLE.
+          */
+          rli->cleanup_context(thd, 1);
+          /*
              We need to figure out if there is a test case that covers
              this part. \Alfranio.
           */
@@ -5050,7 +5057,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK;
-            rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
@@ -5976,6 +5982,25 @@ int mts_recovery_groups(Relay_log_info *rli)
   */
   if (rli->is_mts_recovery())
     DBUG_RETURN(0);
+
+  /*
+    Parallel applier recovery is based on master log name and
+    position, on Group Replication we have several masters what
+    makes impossible to recover parallel applier from that information.
+    Since we always have GTID_MODE=ON on Group Replication, we can
+    ignore the positions completely, seek the current relay log to the
+    beginning and start from there. Already applied transactions will be
+    skipped due to GTIDs auto skip feature and applier will resume from
+    the last applied transaction.
+  */
+  if (msr_map.is_group_replication_channel_name(rli->get_channel(), true))
+  {
+    rli->recovery_parallel_workers= 0;
+    rli->mts_recovery_group_cnt= 0;
+    rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
+    rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+    DBUG_RETURN(0);
+  }
 
   /*
     Save relay log position to compare with worker's position.
@@ -9189,7 +9214,35 @@ bool flush_relay_logs_cmd(THD *thd)
     mi= msr_map.get_mi(lex->mi.channel);
 
     if (mi)
-      error= flush_relay_logs(mi);
+    {
+      /*
+        Disallow flush on Group Replication applier channel to avoid
+        split transactions among relay log files due to DBA action.
+      */
+      if (msr_map.is_group_replication_channel_name(lex->mi.channel, true))
+      {
+        if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+            thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+        {
+          /*
+            Log warning on SQL or worker threads.
+          */
+          sql_print_warning(ER(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED),
+                            "FLUSH RELAY LOGS", lex->mi.channel);
+        }
+        else
+        {
+          /*
+            Return error on client sessions.
+          */
+          error= true;
+          my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED,
+                   MYF(0), "FLUSH RELAY LOGS", lex->mi.channel);
+        }
+      }
+      else
+        error= flush_relay_logs(mi);
+    }
     else
     {
       if (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
@@ -9527,6 +9580,8 @@ int start_slave(THD* thd,
           mi->rli->until_condition= Relay_log_info::UNTIL_SQL_VIEW_ID;
           mi->rli->until_view_id.clear();
           mi->rli->until_view_id.append(master_param->view_id);
+          mi->rli->until_view_id_found= false;
+          mi->rli->until_view_id_commit_found= false;
         }
         else
           mi->rli->clear_until_condition();
@@ -9727,29 +9782,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel)
 }
 
 /**
-  Delete slave info objects (mi, rli and workers) corresponding to a channel.
-
-  @param[in]       mi        master_info corresponding to a channel
-
-  @return
-    @retval   0                           OK.
-    @retval   ER_SLAVE_CHANNEL_DELETE     The channel is not present
-*/
-int delete_slave_info_object(Master_info *mi)
-{
-
-  if (msr_map.delete_mi(mi->get_channel()))
-  {
-    sql_print_error("Slave%s: Couldn't delete slave info objects",
-                    mi->get_for_channel_str());
-    my_error(ER_SLAVE_CHANNEL_DELETE, MYF(0), mi->get_channel());
-
-    return ER_SLAVE_CHANNEL_DELETE;
-  }
-  return 0;
-}
-
-/**
   Execute a RESET SLAVE (for all channels), used in Multisource replication.
   If resetting of a particular channel fails, it exits out.
 
@@ -9765,7 +9797,7 @@ int reset_slave(THD *thd)
 
   Master_info *mi= 0;
   int result= 0;
-  mi_map::iterator it= msr_map.begin();
+  mi_map::iterator it;
   if (thd->lex->reset_slave_info.all)
   {
     /* First do reset_slave for default channel */
@@ -9773,7 +9805,8 @@ int reset_slave(THD *thd)
     if (mi && reset_slave(thd, mi, thd->lex->reset_slave_info.all))
       DBUG_RETURN(1);
     /* Do while iteration for rest of the channels */
-    while (it!= msr_map.end())
+    it= msr_map.begin();
+    while (it != msr_map.end())
     {
       if (!it->first.compare(msr_map.get_default_channel()))
       {
@@ -9789,6 +9822,7 @@ int reset_slave(THD *thd)
   }
   else
   {
+    it= msr_map.begin();
     while (it!= msr_map.end())
     {
       mi= it->second;
@@ -9861,8 +9895,6 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
 
   /* Clear master's log coordinates and associated information */
   DBUG_ASSERT(!mi->rli || !mi->rli->slave_running); // none writes in rli table
-  mi->clear_in_memory_info(reset_all);
-
   if (remove_info(mi))
   {
     error= ER_UNKNOWN_ERROR;
@@ -9870,19 +9902,36 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
     unlock_slave_threads(mi);
     goto err;
   }
+  if (!reset_all)
+    mi->init_master_log_pos();
 
   unlock_slave_threads(mi);
 
   (void) RUN_HOOK(binlog_relay_io, after_reset_slave, (thd, mi));
 
   /*
-     delete the channel if reset_slave_info.all is set,
-     except the default channel
+     RESET SLAVE ALL deletes the channels(except default channel), so their mi
+     and rli objects are removed. For default channel, its mi and rli are
+     deleted and recreated to keep in clear status.
   */
-  if (!error && reset_all &&
-      strcmp(mi->get_channel(), msr_map.get_default_channel()))
+  if (reset_all)
   {
-    error= delete_slave_info_object(mi);
+    bool is_default= !strcmp(mi->get_channel(), msr_map.get_default_channel());
+
+    msr_map.delete_mi(mi->get_channel());
+
+    if (is_default)
+    {
+      if (Rpl_info_factory::
+          create_slave_per_channel(opt_mi_repository_id, opt_rli_repository_id,
+                                   msr_map.get_default_channel(),
+                                   true, &msr_map, SLAVE_REPLICATION_CHANNEL)
+          == NULL)
+      {
+        error= ER_MASTER_INFO;
+        my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
+      }
+    }
   }
 
 err:

@@ -834,6 +834,7 @@ private:
       use by 'execute' or 'explain'
   */
   void test_skip_sort();
+  void substitute_gc();
 };
 
 /// RAII class to ease the call of LEX::mark_broken() if error.

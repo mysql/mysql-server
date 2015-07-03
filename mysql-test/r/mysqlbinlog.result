@@ -755,7 +755,7 @@ CREATE TABLE t1 (a INT, b CHAR(64));
 flush logs;
 INSERT INTO t1 VALUES (1,USER());
 flush logs;
-mysqlbinlog var/log/master-bin.000018 > var/tmp/bug31611.sql
+mysqlbinlog var/log/master_binlog_file > var/tmp/bug31611.sql
 mysql mysqltest1 -uuntrusted < var/tmp/bug31611.sql
 INSERT INTO t1 VALUES (1,USER());
 ERROR 42000: INSERT command denied to user 'untrusted'@'localhost' for table 't1'
@@ -781,7 +781,7 @@ an_int	1000
 a_decimal	907.79
 a_string	Just a test
 DROP TABLE t1;
->> mysqlbinlog var/log/master-bin.000020 > var/tmp/bug32580.sql
+>> mysqlbinlog var/log/master_binlog_file > var/tmp/bug32580.sql
 >> mysql test < var/tmp/bug32580.sql
 SELECT * FROM t1;
 a_real	158.883

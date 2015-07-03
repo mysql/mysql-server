@@ -362,6 +362,10 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`v1`",
@@ -466,6 +470,10 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -677,6 +685,10 @@ select `col
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [

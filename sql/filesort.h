@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +74,6 @@ void change_double_for_sort(double nr,uchar *to);
 
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
-                bool *multi_byte_charset);
+                bool *multi_byte_charset, bool *use_hash);
 
 #endif /* FILESORT_INCLUDED */

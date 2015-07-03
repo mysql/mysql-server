@@ -111,6 +111,7 @@ public:
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Linestring Linestring;
   typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Polygon::ring_type Polygon_ring;
   typedef typename Geom_types::Multipoint Multipoint;
   typedef typename Geom_types::Multilinestring Multilinestring;
   typedef typename Geom_types::Multipolygon Multipolygon;
@@ -449,30 +450,141 @@ public:
   }
 
 
+  /**
+    Compute the multilinestring result if any for intersection of two polygons.
+    First get the multilinestrings mls1 and mls2 from polygons, then compute
+    mls3 = mls1 intersection mls2, and finally return mls3 - mls4 as result,
+    where mls4 is got from rings of the multipolygon intersection result of
+    plgn1 and plgn2.
+
+    @param plgn1 the 1st polygon operand
+    @param plgn2 the 2nd polygon operand
+    @param mplgn the areal intersection result of plgn1 and plgn2
+    @param [out] mls the result multilinestring
+   */
+  template<typename Polygon_type1, typename Polygon_type2>
+  void plgn_intersection_plgn_mls(const Polygon_type1 &plgn1,
+                                  const Polygon_type2 &plgn2,
+                                  const Multipolygon &mplgn,
+                                  Multilinestring &mls)
+  {
+    if (mplgn.size() > 0)
+    {
+      /*
+        Remove the linestring parts that are part of the result polygon rings.
+        The discrete intersection points that are also removed here.
+      */
+      Multilinestring mls3;
+      bg::intersection(plgn1, plgn2, mls3);
+      bg::detail::boundary_view<Multipolygon const> view(mplgn);
+      bg::difference(mls3, view, mls);
+    }
+    else
+      bg::intersection(plgn1, plgn2, mls);
+  }
+
+
   Geometry *polygon_intersection_polygon(Geometry *g1, Geometry *g2,
                                          String *result)
   {
     Geometry::wkbType gt2= g2->get_type();
-    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
+    Geometry *retgeo= NULL;
+
+    const void *pg1= g1->normalize_ring_order();
+    const void *pg2= g2->normalize_ring_order();
+    if (pg1 == NULL || pg2 == NULL)
+    {
+      null_value= true;
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
+      return NULL;
+    }
+
+    Multilinestring mls;
+    Polygon plgn1(pg1, g1->get_data_size(), g1->get_flags(),
+                  g1->get_srid());
+
+    auto_ptr<Multipolygon> mplgn_result(new Multipolygon());
+    mplgn_result->set_srid(g1->get_srid());
 
     if (gt2 == Geometry::wkb_polygon)
     {
-      BGOPCALL(Multipolygon, tmp1, intersection,
-               Polygon, g1, Polygon, g2, NULL, null_value);
-      BGOPCALL(Multipoint, tmp2, intersection,
-               Polygon, g1, Polygon, g2, NULL, null_value);
+      Polygon plgn2(pg2, g2->get_data_size(), g2->get_flags(),
+                    g2->get_srid());
+      bg::intersection(plgn1, plgn2, *mplgn_result);
+      plgn_intersection_plgn_mls(plgn1, plgn2, *mplgn_result, mls);
     }
     else
     {
-      BGOPCALL(Multipolygon, tmp1, intersection,
-               Polygon, g1, Multipolygon, g2, NULL, null_value);
-      BGOPCALL(Multipoint, tmp2, intersection,
-               Polygon, g1, Multipolygon, g2, NULL, null_value);
+      Multipolygon mplgn2(pg2, g2->get_data_size(), g2->get_flags(),
+                          g2->get_srid());
+      bg::intersection(plgn1, mplgn2, *mplgn_result);
+      plgn_intersection_plgn_mls(plgn1, mplgn2, *mplgn_result, mls);
     }
 
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
-      (tmp1, tmp2, result);
+    retgeo= combine_mls_mplgn_results(&mls, mplgn_result, result);
     copy_ifso_state();
+
+    return retgeo;
+  }
+
+  Geometry *combine_mls_mplgn_results(Multilinestring *mls,
+                                      auto_ptr<Multipolygon> mplgn_result,
+                                      String *result)
+  {
+    Geometry *geom= NULL, *retgeo= NULL;
+    DBUG_ASSERT(mls != NULL);
+
+    if (mls->size() > 0)
+      geom= m_ifso->simplify_multilinestring(mls, result);
+
+    if (mplgn_result->size() > 0)
+    {
+      if (mls->size() == 0)
+      {
+        // The multipolygon is the only result.
+        DBUG_ASSERT(result->length() == 0);
+        null_value= post_fix_result(&(m_ifso->bg_resbuf_mgr),
+                                    *mplgn_result, result);
+        if (null_value)
+          return NULL;
+        else
+          retgeo= mplgn_result.release();
+      }
+      else
+      {
+        String mplgn_resbuf;
+        null_value= post_fix_result(&(m_ifso->bg_resbuf_mgr),
+                                    *mplgn_result, &mplgn_resbuf);
+        if (null_value)
+          return NULL;
+        if (geom->get_type() == Geometry::wkb_geometrycollection)
+        {
+          down_cast<Gis_geometry_collection *>(geom)->
+            append_geometry(&(*mplgn_result), result);
+          retgeo= geom;
+        }
+        else
+        {
+          /*
+            The geom created from mls isn't a GC, so we have to create a GC to
+            hole both geom and mplgn_result.
+           */
+          String tmp_mls_resbuf;
+          tmp_mls_resbuf.takeover(*result);
+
+          Gis_geometry_collection *tmp_gc=
+            new Gis_geometry_collection(&(*mplgn_result), result);
+          tmp_gc->append_geometry(geom, result);
+          retgeo= tmp_gc;
+          delete geom;
+        }
+      }
+    }
+    else
+      retgeo= geom;
+
+    if (retgeo == NULL)
+      retgeo= m_ifso->empty_result(result, mplgn_result->get_srid());
 
     return retgeo;
   }
@@ -560,15 +672,30 @@ public:
   Geometry *multipolygon_intersection_multipolygon(Geometry *g1, Geometry *g2,
                                                    String *result)
   {
-    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
-    BGOPCALL(Multipolygon, tmp1, intersection,
-             Multipolygon, g1, Multipolygon, g2, NULL, null_value);
+    Geometry *retgeo= NULL;
 
-    BGOPCALL(Multipoint, tmp2, intersection,
-             Multipolygon, g1, Multipolygon, g2, NULL, null_value);
+    const void *pg1= g1->normalize_ring_order();
+    const void *pg2= g2->normalize_ring_order();
+    if (pg1 == NULL || pg2 == NULL)
+    {
+      null_value= true;
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_intersection");
+      return NULL;
+    }
 
-    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
-      (tmp1, tmp2, result);
+    Multilinestring mls;
+    Multipolygon mplgn1(pg1, g1->get_data_size(), g1->get_flags(),
+                        g1->get_srid());
+
+    auto_ptr<Multipolygon> mplgn_result(new Multipolygon());
+    mplgn_result->set_srid(g1->get_srid());
+
+    Multipolygon mplgn2(pg2, g2->get_data_size(), g2->get_flags(),
+                        g2->get_srid());
+    bg::intersection(mplgn1, mplgn2, *mplgn_result);
+    plgn_intersection_plgn_mls(mplgn1, mplgn2, *mplgn_result, mls);
+    retgeo= combine_mls_mplgn_results(&mls, mplgn_result, result);
+
     copy_ifso_state();
 
     return retgeo;
@@ -2553,24 +2680,50 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
   auto_ptr<Gis_multi_point> points(new Gis_multi_point());
   linestrings->set_srid(mls->get_srid());
   points->set_srid(mls->get_srid());
+  // BG may return duplicate points, so use a point set to get unique
+  // points before storing them into 'points'.
+  typedef std::set<Gis_point, bgpt_lt> Point_set;
+  Point_set point_set(points->begin(), points->end());
+  Gis_point prev_point;
+  bool has_prev_point= false;
+
   for (Gis_multi_line_string::iterator i= mls->begin();
        i != mls->end();
        ++i)
   {
     if (i->size() != 2)
     {
+      DBUG_ASSERT(i->size() > 2);
       linestrings->push_back(*i);
       continue;
     }
 
     const Gis_point &start= (*i)[0];
     const Gis_point &end= (*i)[1];
-
     if (start == end)
-      points->push_back(start);
+    {
+      if (!has_prev_point || prev_point != start)
+      {
+        has_prev_point= true;
+        prev_point= start;
+        point_set.insert(start);
+      }
+    }
     else
       linestrings->push_back(*i);
   }
+
+  for (TYPENAME Point_set::iterator i= point_set.begin();
+       i != point_set.end(); ++i)
+  {
+    /*
+      When computing [m]ls intersection [m]ls, BG may return points that are
+      on the linestrings, so here we have to exclude such points.
+    */
+    if (bg::disjoint(*i, *linestrings))
+      points->push_back(*i);
+  }
+
   String dummy;
   post_fix_result(&bg_resbuf_mgr, *linestrings, &dummy);
   post_fix_result(&bg_resbuf_mgr, *points, &dummy);

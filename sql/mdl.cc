@@ -4588,6 +4588,32 @@ bool MDL_context::has_lock(const MDL_savepoint &mdl_savepoint,
 
 
 /**
+  Does this context have an lock of the given namespace?
+
+  @retval true    At least one lock of given namespace held
+  @retval false   No locks of the given namespace held
+*/
+
+bool MDL_context::has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const
+{
+  MDL_ticket *ticket;
+
+  for (int i=0; i < MDL_DURATION_END; i++)
+  {
+    enum_mdl_duration duration= static_cast<enum_mdl_duration>(i);
+
+    Ticket_iterator it(m_tickets[duration]);
+    while ((ticket= it++))
+    {
+      if (ticket->get_key()->mdl_namespace() == mdl_namespace)
+        return true;
+    }
+  }
+  return false;
+}
+
+
+/**
   Change lock duration for transactional lock.
 
   @param ticket   Ticket representing lock.
