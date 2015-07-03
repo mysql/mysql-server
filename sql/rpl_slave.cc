@@ -8405,6 +8405,13 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
     DBUG_RETURN(1);
   }
 
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                "program_name", "mysqld");
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                "_client_role", "binary_log_listener");
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                "_client_replication_channel_name", mi->get_channel());
+
   while (!(slave_was_killed = io_slave_killed(thd,mi))
          && (reconnect ? mysql_reconnect(mysql) != 0 :
              mysql_real_connect(mysql, mi->host, user,
