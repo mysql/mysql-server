@@ -841,6 +841,8 @@ void read_ok_ex(MYSQL *mysql, ulong length)
               }
             }
             break;
+          case SESSION_TRACK_TRANSACTION_STATE:
+          case SESSION_TRACK_TRANSACTION_CHARACTERISTICS:
           case SESSION_TRACK_SCHEMA:
 
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info,
@@ -867,21 +869,24 @@ void read_ok_ex(MYSQL *mysql, ulong length)
             pos += len;
 
             element->data= data;
-            ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
+            ADD_INFO(info, element, type);
 
-            if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
-              data->length + 1, MYF(MY_WME))))
+            if (type == SESSION_TRACK_SCHEMA)
             {
-              set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
-              return;
+              if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
+                                           data->length + 1, MYF(MY_WME))))
+              {
+                set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+                return;
+              }
+
+              if (mysql->db)
+                my_free(mysql->db);
+
+              memcpy(db, data->str, data->length);
+              db[data->length]= '\0';
+              mysql->db= db;
             }
-
-            if (mysql->db)
-              my_free(mysql->db);
-
-            memcpy(db, data->str, data->length);
-            db[data->length]= '\0';
-            mysql->db= db;
 
             break;
           case SESSION_TRACK_GTIDS:

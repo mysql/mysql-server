@@ -995,6 +995,15 @@ The following options may be given as the first argument:
  Track changes to the 'session state'.
  --session-track-system-variables=name 
  Track changes in registered system variables.
+ --session-track-transaction-info=name 
+ Track changes to the transaction attributes. OFF to
+ disable; STATE to track just transaction state (Is there
+ an active transaction? Does it have any data? etc.);
+ CHARACTERISTICS to track transaction state and report all
+ statements needed to start a transaction with the same
+ characteristics (isolation level, read only/read write,
+ snapshot - but not any work done / data modified within
+ the transaction).
  --sha256-password-proxy-users 
  If set to FALSE (the default), then the sha256_password
  authentication plugin will not signal for authenticated
@@ -1479,6 +1488,7 @@ session-track-gtids OFF
 session-track-schema TRUE
 session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
+session-track-transaction-info OFF
 sha256-password-proxy-users FALSE
 show-compatibility-56 FALSE
 show-old-temporals FALSE
