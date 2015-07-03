@@ -2777,6 +2777,38 @@ static bool check_read_only(sys_var *self, THD *thd, set_var *var)
   }
   return false;
 }
+
+#if !defined(EMBEDDED_LIBRARY)
+
+static bool check_require_secure_transport(sys_var *self, THD *thd, set_var *var)
+{
+
+#if !defined (_WIN32)
+  /*
+    always allow require_secure_transport to be enabled on
+    Linux, as socket is secure.
+  */
+  return false;
+#else
+  /*
+    check whether SSL or shared memory transports are enabled before
+    turning require_secure_transport ON, otherwise no connections will
+    be allowed on Windows.
+  */
+
+  if (!var->save_result.ulonglong_value)
+    return false;
+  if ((have_ssl == SHOW_OPTION_YES) || opt_enable_shared_memory)
+    return false;
+  /* reject if SSL and shared memory are both disabled: */
+  my_error(ER_NO_SECURE_TRANSPORTS_CONFIGURED, MYF(0));
+  return true;
+
+#endif
+}
+
+#endif
+
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
 {
   bool result= true;
@@ -2907,6 +2939,21 @@ static bool fix_super_read_only(sys_var *self, THD *thd, enum_var_type type)
     super_read_only= opt_super_readonly;
     DBUG_RETURN(result);
 }
+
+#if !defined(EMBEDDED_LIBRARY)
+
+static Sys_var_mybool Sys_require_secure_transport(
+  "require_secure_transport",
+  "When this option is enabled, connections attempted using insecure "
+  "transport will be rejected.  Secure transports are SSL/TLS, "
+  "Unix socket or Shared Memory (on Windows).",
+  GLOBAL_VAR(opt_require_secure_transport),
+  CMD_LINE(OPT_ARG),
+  DEFAULT(FALSE),
+  NO_MUTEX_GUARD, NOT_IN_BINLOG,
+  ON_CHECK(check_require_secure_transport), ON_UPDATE(0));
+
+#endif
 
 /**
   The read_only boolean is always equal to the opt_readonly boolean except

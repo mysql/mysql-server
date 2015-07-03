@@ -1,0 +1,14 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+--source include/windows.inc
+
+SET @start_value = @@global.require_secure_transport;
+
+--Error ER_NO_SECURE_TRANSPORTS_CONFIGURED
+SET @@global.require_secure_transport = ON;
+
+SELECT @@global.require_secure_transport;
+
+SET @@global.require_secure_transport = @start_value;
+
+
