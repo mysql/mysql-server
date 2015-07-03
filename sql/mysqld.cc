@@ -370,6 +370,7 @@ uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool super_read_only= 0, opt_super_readonly= 0;
+my_bool opt_require_secure_transport= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -4806,6 +4807,19 @@ int mysqld_main(int argc, char **argv)
     setbuf(stderr, NULL);
     FreeConsole();        // Remove window
   }
+
+#ifndef EMBEDDED_LIBRARY
+  if (opt_require_secure_transport &&
+      !opt_enable_shared_memory && !opt_use_ssl &&
+      !opt_initialize && !opt_bootstrap)
+  {
+    sql_print_error("Server is started with --require-secure-transport=ON "
+                    "but no secure transports (SSL or Shared Memory) are "
+                    "configured.");
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+#endif
+
 #endif
 
   /*

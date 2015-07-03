@@ -955,6 +955,10 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
+ --require-secure-transport 
+ When this option is enabled, connections attempted using
+ insecure transport will be rejected.  Secure transports
+ are SSL/TLS, Unix socket or Shared Memory (on Windows).
  --rpl-stop-slave-timeout=# 
  Timeout in seconds to wait for slave to stop before
  returning a warning.
@@ -1458,6 +1462,7 @@ report-host (No default value)
 report-password (No default value)
 report-port 0
 report-user (No default value)
+require-secure-transport FALSE
 rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 secure-auth TRUE
