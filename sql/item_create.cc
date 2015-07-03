@@ -6950,8 +6950,11 @@ Item *create_temporal_literal(THD *thd,
   MYSQL_TIME ltime;
   Item *item= NULL;
   my_time_flags_t flags= TIME_FUZZY_DATE;
-  if (thd->is_strict_mode())
-    flags|= TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags|= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    flags|= TIME_NO_ZERO_DATE;
+
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     flags|= TIME_INVALID_DATES;
 

@@ -3451,13 +3451,13 @@ drop procedure avg|
 --disable_warnings ONCE
 drop procedure if exists bug6129|
 set @old_mode= @@sql_mode;
-set @@sql_mode= "STRICT_ALL_TABLES";
+set @@sql_mode= "ERROR_FOR_DIVISION_BY_ZERO";
 create procedure bug6129()
   select @@sql_mode|
 call bug6129()|
-set @@sql_mode= "STRICT_ALL_TABLES"|
+set @@sql_mode= "STRICT_ALL_TABLES,NO_ZERO_DATE"|
 call bug6129()|
-set @@sql_mode= "STRICT_ALL_TABLES"|
+set @@sql_mode= "NO_ZERO_IN_DATE"|
 call bug6129()|
 set @@sql_mode=@old_mode;
 

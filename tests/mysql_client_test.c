@@ -15133,11 +15133,7 @@ static void test_bug15510()
 
   myheader("test_bug15510");
 
-  /* Behavior change introduced by WL#7467 */
-  if (mysql_get_server_version(mysql) < 50704)
-    rc= mysql_query(mysql, "set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO'");
-  else
-    rc= mysql_query(mysql, "set @@sql_mode='STRICT_ALL_TABLES'");
+  rc= mysql_query(mysql, "set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO'");
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);

@@ -2613,6 +2613,8 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON test1.v1_all TO user1@localhost;
 FLUSH PRIVILEGES;
 connect  con1,localhost,user1,,;
 SET sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 UPDATE test1.v1_all SET cn='x';
 ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 SHOW WARNINGS;

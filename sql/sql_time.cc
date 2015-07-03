@@ -388,7 +388,7 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
 {
   MYSQL_TIME_STATUS status;
   THD *thd= current_thd;
-  if (thd->is_strict_mode())
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
     flags|= TIME_NO_ZERO_DATE;
   if (thd->variables.sql_mode & MODE_INVALID_DATES)
     flags|= TIME_INVALID_DATES;

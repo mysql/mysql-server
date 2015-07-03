@@ -62,9 +62,7 @@ DROP USER mysqltest1@'%';
 # for the session to make sure the SQL is legal.
 
 # Test by setting sql_mode before running mysql_upgrade
-set GLOBAL sql_mode='STRICT_ALL_TABLES,ANSI_QUOTES';
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
-eval set GLOBAL sql_mode=default;
 
 --echo #
 --echo # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table

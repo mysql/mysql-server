@@ -3843,73 +3843,42 @@ static Sys_var_ulong Sys_sort_buffer(
        BLOCK_SIZE(1));
 
 /**
-  NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
-  removed in 5.7 and their functionality is merged with STRICT MODE.
-  However, For backward compatibility during upgrade, these modes are kept
-  but they are not used. Setting these modes in 5.7 will give warning and
-  have no effect.
+  Check sql modes strict_mode, 'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and
+  'ERROR_FOR_DIVISION_BY_ZERO' are used together. If only subset of it
+  is set then warning is reported.
+
+  @param sql_mode sql mode.
 */
-
-static void unset_removed_sql_modes(THD *thd, sql_mode_t &sql_mode)
+static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
 {
-  /**
-    If sql_mode is set throught the client, the warning should
-    go to the client connection. If it is used as server startup option,
-    it will go the error-log if the removed sql_modes are used.
-  */
-  if (thd)
-  {
-    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_SQL_MODE_NO_EFFECT,
-                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
-                          "ERROR_FOR_DIVISION_BY_ZERO");
-    }
+  const sql_mode_t strict_modes= (MODE_STRICT_TRANS_TABLES |
+                                  MODE_STRICT_ALL_TABLES);
 
-    if (sql_mode & MODE_NO_ZERO_DATE)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_SQL_MODE_NO_EFFECT,
-                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
-                          "NO_ZERO_DATE");
-    }
+  const sql_mode_t new_strict_submodes= (MODE_NO_ZERO_IN_DATE |
+                                         MODE_NO_ZERO_DATE |
+                                         MODE_ERROR_FOR_DIVISION_BY_ZERO);
 
-    if (sql_mode & MODE_NO_ZERO_IN_DATE)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_SQL_MODE_NO_EFFECT,
-                          ER_THD(thd, ER_SQL_MODE_NO_EFFECT),
-                          "NO_ZERO_IN_DATE");
-    }
-  }
-  else
+  const sql_mode_t strict_modes_set= (sql_mode & strict_modes);
+  const sql_mode_t new_strict_submodes_set= (sql_mode & new_strict_submodes);
+
+  if (((strict_modes_set | new_strict_submodes_set) !=0) &&
+      ((new_strict_submodes_set != new_strict_submodes) ||
+       (strict_modes_set == 0)))
   {
-    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    {
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
-                        "Setting this will have no effect.");
-    }
-    if (sql_mode & MODE_NO_ZERO_DATE)
-    {
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
-                        "Setting this will have no effect.");
-    }
-    if (sql_mode & MODE_NO_ZERO_IN_DATE)
-    {
-      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
-                        "Setting this will have no effect.");
-    }
+    if (thd)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                               ER_SQL_MODE_MERGED,
+                               ER_THD(thd, ER_SQL_MODE_MERGED));
+    else
+      sql_print_warning("'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and "
+                        "'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used "
+                        "with strict mode. They will be merged with strict mode "
+                        "in a future release.");
   }
-  /* Unset removed SQL MODES */
-  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
-               MODE_NO_ZERO_IN_DATE);
 }
 
-export sql_mode_t expand_sql_mode(THD *thd, sql_mode_t sql_mode)
+export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd)
 {
-  unset_removed_sql_modes(thd, sql_mode);
-
   if (sql_mode & MODE_ANSI)
   {
     /*
@@ -3951,14 +3920,17 @@ export sql_mode_t expand_sql_mode(THD *thd, sql_mode_t sql_mode)
     sql_mode|= MODE_HIGH_NOT_PRECEDENCE;
   if (sql_mode & MODE_TRADITIONAL)
     sql_mode|= (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES |
-                MODE_NO_AUTO_CREATE_USER | MODE_NO_ENGINE_SUBSTITUTION);
+                MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_AUTO_CREATE_USER |
+                MODE_NO_ENGINE_SUBSTITUTION);
 
+  check_sub_modes_of_strict_mode(sql_mode, thd);
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
 {
   var->save_result.ulonglong_value=
-    expand_sql_mode(thd, var->save_result.ulonglong_value);
+    expand_sql_mode(var->save_result.ulonglong_value, thd);
 
   /* Warning displayed only if the non default sql_mode is specified. */
   if (var->value)
@@ -4028,6 +4000,9 @@ static Sys_var_set Sys_sql_mode(
        DEFAULT(MODE_NO_ENGINE_SUBSTITUTION |
                MODE_ONLY_FULL_GROUP_BY |
                MODE_STRICT_TRANS_TABLES |
+               MODE_NO_ZERO_IN_DATE |
+               MODE_NO_ZERO_DATE |
+               MODE_ERROR_FOR_DIVISION_BY_ZERO |
                MODE_NO_AUTO_CREATE_USER),
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
