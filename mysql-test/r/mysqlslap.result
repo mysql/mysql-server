@@ -267,5 +267,11 @@ End of tests
 # Bug #11762644: MYSQLSLAP OPTION --AUTO-GENERATE-SQL-SECONDARY-INDEXES DOESNT WORK
 #
 #
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
 # End of 5.7 tests
 #

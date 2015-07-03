@@ -25,9 +25,6 @@ namespace Mysql{
 namespace Tools{
 namespace Check{
 
-using std::string;
-using std::vector;
-
 enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
 extern void mysql_check(MYSQL* connection, int what_to_do, my_bool opt_alldbs,
@@ -39,8 +36,9 @@ extern void mysql_check(MYSQL* connection, int what_to_do, my_bool opt_alldbs,
                 my_bool opt_frm, my_bool opt_fix_table_names,
                 my_bool opt_fix_db_names, my_bool opt_upgrade,
                 my_bool opt_write_binlog, uint verbose,
-                string opt_skip_database, vector<string> arguments,
-                void (*dberror)(MYSQL *mysql, string when));
+                std::string opt_skip_database,
+                std::vector<std::string> arguments,
+                void (*dberror)(MYSQL *mysql, std::string when));
 
 /**
   This class is object wrapper to mysql_check function. It looks like
@@ -58,7 +56,7 @@ public:
   /**
     Checks specified databases on MySQL server.
    */
-  int check_databases(MYSQL* connection, vector<string> databases);
+  int check_databases(MYSQL* connection, std::vector<std::string> databases);
   /**
     Checks all databases on MySQL server.
    */
@@ -66,7 +64,7 @@ public:
   /**
     Upgrades specified on MySQL server.
    */
-  int upgrade_databases(MYSQL* connection, vector<string> databases);
+  int upgrade_databases(MYSQL* connection, std::vector<std::string> databases);
   /**
     Upgrades all databases on MySQL server.
    */
@@ -103,12 +101,12 @@ public:
   /**
     Sets a name of database to ignore during process.
    */
-  Program* set_skip_database(string database);
+  Program* set_skip_database(std::string database);
   /**
     Sets error callback to be called when error is encountered.
    */
   Program* set_error_callback(
-    void (*error_callback)(MYSQL *mysql, string when));
+    void (*error_callback)(MYSQL *mysql, std::string when));
 
 private:
   /**
@@ -118,7 +116,7 @@ private:
   /**
     Starts mysqlcheck process.
    */
-  int execute(vector<string> positional_options);
+  int execute(std::vector<std::string> positional_options);
 
   int m_what_to_do;
   bool m_auto_repair;
@@ -130,8 +128,8 @@ private:
   bool m_fix_table_names;
   bool m_fix_db_names;
   MYSQL* m_connection;
-  string m_database_to_skip;
-  void (*m_error_callback)(MYSQL *mysql, string when);
+  std::string m_database_to_skip;
+  void (*m_error_callback)(MYSQL *mysql, std::string when);
 };
 
 }

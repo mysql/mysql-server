@@ -24,7 +24,8 @@
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /* Field/table name length */
-#define USERNAME_CHAR_LENGTH 16
+#define USERNAME_CHAR_LENGTH 32
+#define USERNAME_CHAR_LENGTH_STR "32"
 #ifndef NAME_LEN
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif

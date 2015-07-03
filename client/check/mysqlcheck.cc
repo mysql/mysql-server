@@ -27,6 +27,8 @@
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 using namespace Mysql::Tools::Check;
+using std::string;
+using std::vector;
 
 /* Exit codes */
 

@@ -450,5 +450,12 @@ CREATE DATABASE b12688860_db;
 mysqlcheck: [Warning] Using a password on the command line interface can be insecure.
 WARNING: --fix-db-names is deprecated and will be removed in a future version
 DROP DATABASE b12688860_db;
+#
+# WL#2284: Increase the length of a user name
+#
+CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
+GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
+mysql.user                                         OK
+DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
 
 End of tests

@@ -409,8 +409,10 @@ longlong Item::val_date_temporal()
 {
   MYSQL_TIME ltime;
   my_time_flags_t flags= TIME_FUZZY_DATE | TIME_INVALID_DATES;
-  if (current_thd->is_strict_mode())
-    flags|= TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE;
+  if (current_thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags|= TIME_NO_ZERO_IN_DATE;
+  if (current_thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    flags|= TIME_NO_ZERO_DATE;
   if ((null_value= get_date(&ltime, flags)))
     return 0;
   return TIME_to_longlong_datetime_packed(&ltime);
@@ -1648,8 +1650,16 @@ Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   enum_check_fields tmp= thd->count_cuted_fields;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   sql_mode_t sql_mode= thd->variables.sql_mode;
-  thd->variables.sql_mode&= ~((MODE_STRICT_ALL_TABLES |
-                               MODE_STRICT_TRANS_TABLES));
+  /*
+    For cases like data truncation still warning is reported here. Which was
+    avoided before with THD::abort_on_warning flag. Since the flag is removed
+    now, until MODE_NO_ZERO_IN_DATE, MODE_NO_ZERO_DATE and
+    MODE_ERROR_FOR_DIVISION_BY_ZERO are merged with strict mode, removing even
+    strict modes from sql_mode here to avoid warnings.
+  */
+  thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
+                              MODE_STRICT_ALL_TABLES |
+                              MODE_STRICT_TRANS_TABLES);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   const type_conversion_status res= save_in_field(field, no_conversions);

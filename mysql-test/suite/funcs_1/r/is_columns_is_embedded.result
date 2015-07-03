@@ -193,7 +193,7 @@ def	information_schema	PROCESSLIST	ID	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NUL
 def	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext					
 def	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)					
 def	information_schema	PROCESSLIST	TIME	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(7)					
-def	information_schema	PROCESSLIST	USER	2		NO	varchar	16	48	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(16)					
+def	information_schema	PROCESSLIST	USER	2		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)					
 def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1		NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)					
 def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)					
 def	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)					
@@ -584,7 +584,7 @@ NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21
 3.0000	information_schema	PLUGINS	PLUGIN_LICENSE	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 3.0000	information_schema	PLUGINS	LOAD_OPTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-3.0000	information_schema	PROCESSLIST	USER	varchar	16	48	utf8	utf8_general_ci	varchar(16)
+3.0000	information_schema	PROCESSLIST	USER	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	PROCESSLIST	HOST	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	DB	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	COMMAND	varchar	16	48	utf8	utf8_general_ci	varchar(16)

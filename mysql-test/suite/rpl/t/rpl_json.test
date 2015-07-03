@@ -1,7 +1,6 @@
 # Created: 2014-06-26  Lalit Choudhary
 # WL#7909
 # JSON datatype and funtions testing with replication.
---source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 
 --connection master
@@ -20,7 +19,7 @@ SET SESSION sql_log_bin= 1;
 --echo # WL#8132 JSON datatype and binary storage format
 --echo #
 
-CREATE TABLE t1 (i INT, j JSON);
+CREATE TABLE t1 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t1 VALUES (0, NULL);
 INSERT INTO t1 VALUES (1, '{"a": 2}');
 INSERT INTO t1 VALUES (2, '[1,2]');
@@ -55,17 +54,17 @@ INSERT INTO t1 VALUES (30, CAST(x'cafebabe' AS JSON));
 SELECT * FROM t1 ORDER BY i;
 
 --echo # Copy JSON values
-CREATE TABLE t2 (i INT, j JSON);
+CREATE TABLE t2 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t2 SELECT * FROM t1;
 SELECT *, JSON_TYPE(j) FROM t2 ORDER BY i;
 
 --echo # Convert JSON values to TEXT
-CREATE TABLE t3 (i INT, txt TEXT);
+CREATE TABLE t3 (i INT PRIMARY KEY, txt TEXT);
 INSERT INTO t3 SELECT * FROM t1;
 SELECT *, JSON_TYPE(txt) FROM t3 ORDER BY i;
 
 --echo # Convert TEXT values back to JSON
-CREATE TABLE t4 (i INT, j JSON);
+CREATE TABLE t4 (i INT PRIMARY KEY, j JSON);
 INSERT INTO t4 SELECT * FROM t3;
 SELECT *, JSON_TYPE(j) FROM t4 ORDER BY i;
 

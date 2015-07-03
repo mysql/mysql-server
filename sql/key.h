@@ -111,6 +111,7 @@ typedef struct st_key {
   */
   ulong *rec_per_key;
 
+private:
   /**
     Estimate for how much of the index data that is currently
     available in a memory buffer. Valid range is [0..1]. This will be
@@ -120,7 +121,6 @@ typedef struct st_key {
   */
   double m_in_memory_estimate;
 
-private:
   /**
     Array of AVG(#records with the same field value) for 1st ... Nth
     key part. For internally created temporary tables this member is

@@ -79,6 +79,8 @@ select @@global.example_ulong_var;
 @@global.example_ulong_var
 1000
 set session sql_mode='STRICT_ALL_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 set global example_ulong_var=500;
 select @@global.example_ulong_var;
 @@global.example_ulong_var
