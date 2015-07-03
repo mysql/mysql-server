@@ -87,7 +87,6 @@ IF(HAVE_NO_LOGICAL_OP)
   )
 ENDIF()
 
-<<<<<<< HEAD
 # Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
@@ -98,8 +97,6 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
-=======
->>>>>>> mysql-5.7
 ADD_COMPILE_FLAGS(
   ${BOOST_LIB_SOURCES}
   ${BOOST_THREAD_SOURCES}
