@@ -2713,7 +2713,7 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
       linestrings->push_back(*i);
   }
 
-  for (TYPENAME Point_set::iterator i= point_set.begin();
+  for (Point_set::iterator i= point_set.begin();
        i != point_set.end(); ++i)
   {
     /*
