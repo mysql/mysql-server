@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -381,8 +381,8 @@ DECLARE_NDBINFO_TABLE(DISK_WRITE_SPEED_AGGREGATE, 16) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 27) =
-{ { "frag_operations", 27, 0, "Per fragment operational information" },
+DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 28) =
+{ { "frag_operations", 28, 0, "Per fragment operational information" },
   {
     {"node_id",                 Ndbinfo::Number,    "node id"},
     {"block_instance",          Ndbinfo::Number,    "LQH instance no"},
@@ -429,9 +429,11 @@ DECLARE_NDBINFO_TABLE(FRAG_OPERATIONS, 27) =
     {"conc_frag_scans",         Ndbinfo::Number,
      "Number of frag scans currently running"},
     {"conc_qd_plain_frag_scans", Ndbinfo::Number,
-     "Number of non-tup frag scans currently queued"},
+     "Number of tux frag scans currently queued"},
     {"conc_qd_tup_frag_scans",  Ndbinfo::Number,
      "Number of tup frag scans currently queued"},
+    {"conc_qd_acc_frag_scans",  Ndbinfo::Number,
+     "Number of acc frag scans currently queued"},
     {"tot_commits",  Ndbinfo::Number64,
      "Total number of committed row changes"}
   }
