@@ -2571,7 +2571,6 @@ Dblqh::dropTab_wait_usage(Signal* signal){
           CLEAR_ERROR_INSERT_VALUE;
           c_queued_lcp_frag_ord.remove(loc_fragptr);
 
-          fragOrd.lcpFragOrd.fragmentId = loc_fragptr.i;
           fragOrd.lcpFragOrd.lcpNo = loc_fragptr.p->lcp_frag_ord_lcp_no;
           fragOrd.lcpFragOrd.lcpId = loc_fragptr.p->lcp_frag_ord_lcp_id;
           fragOrd.lcpFragOrd.fragmentId = loc_fragptr.p->fragId;
@@ -22704,6 +22703,9 @@ void Dblqh::initFragrec(Signal* signal,
   fragptr.p->activeTcCounter = 0;
   fragptr.p->tableFragptr = RNIL;
   fragptr.p->m_copy_started_state = 0;
+  fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+  fragptr.p->lcp_frag_ord_lcp_no = 0;
+  fragptr.p->lcp_frag_ord_lcp_id = 0;
 }//Dblqh::initFragrec()
 
 /* ========================================================================== 
