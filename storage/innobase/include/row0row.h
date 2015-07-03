@@ -71,9 +71,10 @@ row_get_rec_roll_ptr(
 	__attribute__((nonnull, warn_unused_result));
 
 /* Flags for row build type. */
-#define ROW_BUILD_NORMAL	0	/*!< build row for insert. */
+#define ROW_BUILD_NORMAL	0	/*!< build index row */
 #define ROW_BUILD_FOR_PURGE	1	/*!< build row for purge. */
 #define ROW_BUILD_FOR_UNDO	2	/*!< build row for undo. */
+#define ROW_BUILD_FOR_INSERT	3	/*!< build row for insert. */
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.

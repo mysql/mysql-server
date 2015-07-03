@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "data0data.h"
 #include "rem0types.h"
 #include "page0types.h"
+#include "row0log.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "que0types.h"
@@ -249,10 +250,19 @@ trx_undo_prev_version_build(
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
 				needed is allocated */
-	rec_t**		old_vers)/*!< out, own: previous version, or NULL if
+	rec_t**		old_vers,/*!< out, own: previous version, or NULL if
 				rec is the first inserted version, or if
 				history data has been deleted */
-	__attribute__((nonnull));
+	mem_heap_t*	v_heap,	/* !< in: memory heap used to create vrow
+				dtuple if it is not yet created. This heap
+				diffs from "heap" above in that it could be
+				prebuilt->old_vers_heap for selection */
+	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
+	bool*		in_purge_view);
+				/*!< in/out: returns whether the undo rec
+				we looking at is already in purge view
+				for possible truncation */
+
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.
@@ -273,6 +283,34 @@ trx_undo_parse_erase_page_end(
 	byte*	end_ptr,/*!< in: buffer end */
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr);	/*!< in: mtr or NULL */
+
+/** Read from an undo log record a non-virtual column value.
+@param[in,out]	ptr		pointer to remaining part of the undo record
+@param[in,out]	field		stored field
+@param[in,out]	len		length of the field, or UNIV_SQL_NULL
+@param[in,out]	orig_len	original length of the locally stored part
+of an externally stored column, or 0
+@return remaining part of undo log record after reading these values */
+byte*
+trx_undo_rec_get_col_val(
+        const byte*     ptr,
+        const byte**    field,
+        ulint*          len,
+        ulint*          orig_len);
+
+/** Read virtual column value from undo log
+@param[in]	table		the table
+@param[in]	ptr		undo log pointer
+@param[in,out]	row		the dtuple to fill
+@param[in]	in_purge        called by purge thread
+@param[in]	col_map		online rebuild column map */
+void
+trx_undo_read_v_cols(
+	const dict_table_t*	table,
+	byte*			ptr,
+	const dtuple_t*		row,
+	bool			in_purge,
+	const ulint*		col_map);
 
 #ifndef UNIV_HOTBACKUP
 

@@ -375,48 +375,85 @@ dtuple_get_n_fields(
 	return(tuple->n_fields);
 }
 
+/** Gets the number of virtual fields in a data tuple.
+@param[in]	tuple	dtuple to check
+@return number of fields */
+UNIV_INLINE
+ulint
+dtuple_get_n_v_fields(
+	const dtuple_t*	tuple)
+{
+	ut_ad(tuple);
+
+	return(tuple->n_v_fields);
+}
 #ifdef UNIV_DEBUG
-/*********************************************************************//**
-Gets nth field of a tuple.
+/** Gets nth field of a tuple.
+@param[in]	tuple	tuple
+@param[in]	n	index of field
 @return nth field */
 UNIV_INLINE
 dfield_t*
 dtuple_get_nth_field(
-/*=================*/
-	const dtuple_t*	tuple,	/*!< in: tuple */
-	ulint		n)	/*!< in: index of field */
+	const dtuple_t*	tuple,
+	ulint		n)
 {
 	ut_ad(tuple);
 	ut_ad(n < tuple->n_fields);
 
 	return((dfield_t*) tuple->fields + n);
 }
+/** Gets nth virtual field of a tuple.
+@param[in]	tuple	tuple
+@oaran[in]	n	the nth field to get
+@return nth field */
+UNIV_INLINE
+dfield_t*
+dtuple_get_nth_v_field(
+	const dtuple_t*	tuple,
+	ulint		n)
+{
+	ut_ad(tuple);
+	ut_ad(n < tuple->n_v_fields);
+
+	return(static_cast<dfield_t*>(tuple->v_fields + n));
+}
 #endif /* UNIV_DEBUG */
 
-/**********************************************************//**
-Creates a data tuple from an already allocated chunk of memory.
+/** Creates a data tuple from an already allocated chunk of memory.
 The size of the chunk must be at least DTUPLE_EST_ALLOC(n_fields).
 The default value for number of fields used in record comparisons
 for this tuple is n_fields.
+@param[in,out]	buf		buffer to use
+@param[in]	buf_size	buffer size
+@param[in]	n_fields	number of field
+@param[in]	n_v_fields	number of fields on virtual columns
 @return created tuple (inside buf) */
 UNIV_INLINE
 dtuple_t*
 dtuple_create_from_mem(
-/*===================*/
-	void*	buf,		/*!< in, out: buffer to use */
-	ulint	buf_size,	/*!< in: buffer size */
-	ulint	n_fields)	/*!< in: number of fields */
+	void*	buf,
+	ulint	buf_size,
+	ulint	n_fields,
+	ulint	n_v_fields)
 {
 	dtuple_t*	tuple;
+	ulint		n_t_fields = n_fields + n_v_fields;
 
 	ut_ad(buf != NULL);
-	ut_a(buf_size >= DTUPLE_EST_ALLOC(n_fields));
+	ut_a(buf_size >= DTUPLE_EST_ALLOC(n_t_fields));
 
 	tuple = (dtuple_t*) buf;
 	tuple->info_bits = 0;
 	tuple->n_fields = n_fields;
+	tuple->n_v_fields = n_v_fields;
 	tuple->n_fields_cmp = n_fields;
 	tuple->fields = (dfield_t*) &tuple[1];
+	if (n_v_fields > 0) {
+		tuple->v_fields = &tuple->fields[n_fields];
+	} else {
+		tuple->v_fields = NULL;
+	}
 
 #ifdef UNIV_DEBUG
 	tuple->magic_n = DATA_TUPLE_MAGIC_N;
@@ -424,20 +461,55 @@ dtuple_create_from_mem(
 	{	/* In the debug version, initialize fields to an error value */
 		ulint	i;
 
-		for (i = 0; i < n_fields; i++) {
+		for (i = 0; i < n_t_fields; i++) {
 			dfield_t*       field;
 
-			field = dtuple_get_nth_field(tuple, i);
+			if (i >= n_fields) {
+				field = dtuple_get_nth_v_field(
+					tuple, i - n_fields);
+			} else {
+				field = dtuple_get_nth_field(tuple, i);
+			}
 
 			dfield_set_len(field, UNIV_SQL_NULL);
 			field->data = &data_error;
 			dfield_get_type(field)->mtype = DATA_ERROR;
+			dfield_get_type(field)->prtype = DATA_ERROR;
 		}
 	}
 #endif
-	UNIV_MEM_ASSERT_W(tuple->fields, n_fields * sizeof *tuple->fields);
-	UNIV_MEM_INVALID(tuple->fields, n_fields * sizeof *tuple->fields);
+	UNIV_MEM_ASSERT_W(tuple->fields, n_t_fields * sizeof *tuple->fields);
+	UNIV_MEM_INVALID(tuple->fields, n_t_fields * sizeof *tuple->fields);
 	return(tuple);
+}
+
+/** Duplicate the virtual field data in a dtuple_t
+@param[in,out]		vrow	dtuple contains the virtual fields
+@param[in]		heap	heap memory to use */
+UNIV_INLINE
+void
+dtuple_dup_v_fld(
+	const dtuple_t*	vrow,
+	mem_heap_t*	heap)
+{
+	for (ulint i = 0; i < vrow->n_v_fields; i++) {
+		dfield_t*       dfield = dtuple_get_nth_v_field(vrow, i);
+		dfield_dup(dfield, heap);
+	}
+}
+
+/** Initialize the virtual field data in a dtuple_t
+@param[in,out]		vrow	dtuple contains the virtual fields */
+UNIV_INLINE
+void
+dtuple_init_v_fld(
+	const dtuple_t*	vrow)
+{
+	for (ulint i = 0; i < vrow->n_v_fields; i++) {
+		dfield_t*       dfield = dtuple_get_nth_v_field(vrow, i);
+		dfield_get_type(dfield)->mtype = DATA_MISSING;
+		dfield_set_len(dfield, UNIV_SQL_NULL);
+	}
 }
 
 /**********************************************************//**
@@ -453,18 +525,52 @@ dtuple_create(
 				bytes will be allocated from this heap */
 	ulint		n_fields) /*!< in: number of fields */
 {
+	return(dtuple_create_with_vcol(heap, n_fields, 0));
+}
+
+/** Creates a data tuple with virtual columns to a memory heap.
+@param[in]	heap		memory heap where the tuple is created
+@param[in]	n_fields	number of fields
+@param[in]	n_v_fields	number of fields on virtual col
+@return own: created tuple */
+UNIV_INLINE
+dtuple_t*
+dtuple_create_with_vcol(
+	mem_heap_t*	heap,
+	ulint		n_fields,
+	ulint		n_v_fields)
+{
 	void*		buf;
 	ulint		buf_size;
 	dtuple_t*	tuple;
 
 	ut_ad(heap);
 
-	buf_size = DTUPLE_EST_ALLOC(n_fields);
+	buf_size = DTUPLE_EST_ALLOC(n_fields + n_v_fields);
 	buf = mem_heap_alloc(heap, buf_size);
 
-	tuple = dtuple_create_from_mem(buf, buf_size, n_fields);
+	tuple = dtuple_create_from_mem(buf, buf_size, n_fields, n_v_fields);
 
 	return(tuple);
+}
+
+/** Copies a data tuple's virtual fields to another. This is a shallow copy;
+@param[in,out]	d_tuple		destination tuple
+@param[in]	s_tuple		source tuple */
+UNIV_INLINE
+void
+dtuple_copy_v_fields(
+	dtuple_t*	d_tuple,
+	const dtuple_t*	s_tuple)
+{
+
+	ulint		n_v_fields	= dtuple_get_n_v_fields(d_tuple);
+	ut_ad(n_v_fields == dtuple_get_n_v_fields(s_tuple));
+
+	for (ulint i = 0; i < n_v_fields; i++) {
+		dfield_copy(dtuple_get_nth_v_field(d_tuple, i),
+			    dtuple_get_nth_v_field(s_tuple, i));
+	}
 }
 
 /*********************************************************************//**
@@ -480,12 +586,19 @@ dtuple_copy(
 				where the tuple is created */
 {
 	ulint		n_fields	= dtuple_get_n_fields(tuple);
-	dtuple_t*	new_tuple	= dtuple_create(heap, n_fields);
+	ulint		n_v_fields	= dtuple_get_n_v_fields(tuple);
+	dtuple_t*	new_tuple	= dtuple_create_with_vcol(
+						heap, n_fields, n_v_fields);
 	ulint		i;
 
 	for (i = 0; i < n_fields; i++) {
 		dfield_copy(dtuple_get_nth_field(new_tuple, i),
 			    dtuple_get_nth_field(tuple, i));
+	}
+
+	for (i = 0; i < n_v_fields; i++) {
+		dfield_copy(dtuple_get_nth_v_field(new_tuple, i),
+			    dtuple_get_nth_v_field(tuple, i));
 	}
 
 	return(new_tuple);

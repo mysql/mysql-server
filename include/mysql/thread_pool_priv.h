@@ -37,6 +37,7 @@
 #include <sql_profile.h>
 #include <table.h>
 #include "field.h"
+#include "sql_thd_internal_api.h"
 #include <set>
 
 #ifdef __cplusplus
@@ -93,8 +94,6 @@ void inc_thread_created();
 
 void thd_lock_thread_count(THD *thd);
 void thd_unlock_thread_count(THD *thd);
-/* Remove the THD from the set of global threads. */
-void remove_global_thread(THD *thd);
 
 #ifdef __cplusplus
 }
@@ -116,10 +115,8 @@ void thd_set_psi(THD *thd, PSI_thread *psi);
 /* Interface to THD variables and functions */
 void thd_set_killed(THD *thd);
 void thd_clear_errors(THD *thd);
-void thd_set_thread_stack(THD *thd, char *stack_start);
 void thd_close_connection(THD *thd);
 THD *thd_get_current_thd();
-void thd_new_connection_setup(THD *thd, char *stack_start);
 void thd_lock_data(THD *thd);
 void thd_unlock_data(THD *thd);
 bool thd_is_transaction_active(THD *thd);
@@ -164,10 +161,6 @@ bool thd_is_connection_alive(THD *thd);
 void close_connection(THD *thd, uint errcode);
 /* End the connection before closing it */
 void end_connection(THD *thd);
-/* Release resources of the THD object */
-void thd_release_resources(THD *thd);
-/* Destroy THD object */
-void destroy_thd(THD *thd);
 /* Reset thread globals */
 void reset_thread_globals(THD *thd);
 

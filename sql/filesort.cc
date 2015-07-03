@@ -216,8 +216,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
   table->sort.sorted_result, or left in the main filesort buffer.
 
   @param      thd            Current thread
-  @param      table          Table to sort
-  @param      filesort       How to sort the table
+  @param      filesort       Table and how to sort it
   @param      sort_positions Set to TRUE if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
                               when rowids are required by executor)
@@ -227,21 +226,19 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @param[out] found_rows     Store the number of found rows here.
                              This is the number of found rows after
                              applying WHERE condition.
+  @param[out] returned_rows  Number of rows in the result, could be less than
+                             found_rows if LIMIT is provided.
 
   @note
     If we sort by position (like if sort_positions is 1) filesort() will
     call table->prepare_for_position().
 
-  @returns
-    HA_POS_ERROR	Error
-  @returns
-    \#			Number of rows in the result, could be less than
-                        found_rows if LIMIT were provided.
+  @returns   False if success, true if error
 */
 
-ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
-                 bool sort_positions, ha_rows *examined_rows,
-                 ha_rows *found_rows)
+bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
+              ha_rows *examined_rows, ha_rows *found_rows,
+              ha_rows *returned_rows)
 {
   int error;
   ulong memory_available= thd->variables.sortbuff_size;
@@ -256,14 +253,15 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
     pq((Malloc_allocator<uchar*>
         (key_memory_Filesort_info_record_pointers)));
   Opt_trace_context * const trace= &thd->opt_trace;
-  TABLE *const table= qep_tab->table();
+  QEP_TAB *const tab= filesort->tab;
+  TABLE *const table= tab->table();
   ha_rows max_rows= filesort->limit;
   uint s_length= 0;
 
   DBUG_ENTER("filesort");
 
   if (!(s_length= filesort->make_sortorder()))
-    DBUG_RETURN(HA_POS_ERROR);  /* purecov: inspected */
+    DBUG_RETURN(true);  /* purecov: inspected */
 
   /*
     We need a nameless wrapper, since we may be inside the "steps" of
@@ -273,10 +271,9 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
   DBUG_ASSERT(!table->reginfo.join_tab);
-  Item_subselect *const subselect=
-    (table->reginfo.qep_tab &&
-     table->reginfo.qep_tab->join()) ?
-    table->reginfo.qep_tab->join()->select_lex->master_unit()->item : NULL;
+  DBUG_ASSERT(tab == table->reginfo.qep_tab);
+  Item_subselect *const subselect= tab && tab->join() ?
+    tab->join()->select_lex->master_unit()->item : NULL;
 
   MYSQL_FILESORT_START(const_cast<char*>(table->s->db.str),
                        const_cast<char*>(table->s->table_name.str));
@@ -313,7 +310,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
 
   table_sort.addon_fields= param.addon_fields;
 
-  if (qep_tab->quick())
+  if (tab->quick())
     thd->inc_status_sort_range();
   else
     thd->inc_status_sort_scan();
@@ -417,7 +414,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows= find_all_keys(&param, qep_tab,
+    num_rows= find_all_keys(&param, tab,
                             &table_sort,
                             &chunk_file,
                             &tempfile,
@@ -565,6 +562,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
   else
     thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
+  *returned_rows= num_rows;
 
   /* table->sort.io_cache should be free by this time */
   DBUG_ASSERT(NULL == table->sort.io_cache);
@@ -576,7 +574,7 @@ ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
              ("num_rows: %ld examined_rows: %ld found_rows: %ld",
               (long) num_rows, (long) *examined_rows, (long) *found_rows));
   MYSQL_FILESORT_DONE(error, num_rows);
-  DBUG_RETURN(error ? HA_POS_ERROR : num_rows);
+  DBUG_RETURN(error);
 } /* filesort */
 
 
@@ -1568,13 +1566,8 @@ static void register_used_fields(Sort_param *param)
       if (field->table == table)
       {
         bitmap_set_bit(bitmap, field->field_index);
-        // Add base columns if it's a virtual generated column
-        if (field->gcol_info && !field->stored_in_db)
-        {
-          bitmap_fast_test_and_set(table->write_set, field->field_index);
-          field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                                            Item::WALK_PREFIX, (uchar *)&mf);
-        }
+        if (field->is_virtual_gcol())
+          table->mark_gcol_in_maps(field);
       }
     }
     else
@@ -1591,13 +1584,8 @@ static void register_used_fields(Sort_param *param)
     {
       Field *field= addonf->field;
       bitmap_set_bit(bitmap, field->field_index);
-      // Add base columns if it's a virtual generated column
-      if (field->gcol_info && !field->stored_in_db)
-      {
-        bitmap_fast_test_and_set(table->write_set, field->field_index);
-        field->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                                          Item::WALK_PREFIX, (uchar *)&mf);
-      }
+      if (field->is_virtual_gcol())
+          table->mark_gcol_in_maps(field);
     }
   }
   else
@@ -2456,7 +2444,25 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
   uint packable_length= 0;
   uint num_fields= 0;
   uint null_fields= 0;
-  MY_BITMAP *read_set= (*ptabfield)->table->read_set;
+  TABLE *const table= tab->table();
+  MY_BITMAP *read_set= table->read_set;
+
+  // Locate the effective index for the table to be sorted (if any)
+  const uint index= tab->effective_index();
+  /*
+    filter_covering is true if access is via an index that is covering,
+    regardless of whether the access is by the covering index or by
+    index and base table, since the query has to be fulfilled with fields
+    from that index only.
+    This information is later used to filter out base columns for virtual
+    generated columns, since these are only needed when reading the table.
+    During sorting, trust that values for all generated columns have been
+    materialized, which means that base columns are no longer necessary.
+  */
+  const bool filter_covering=
+    index != MAX_KEY &&
+    table->covering_keys.is_set(index) &&
+    table->index_contains_some_virtual_gcol(index);
 
   /*
     If there is a reference to a field in the query add it
@@ -2473,11 +2479,14 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
   {
     if (!bitmap_is_set(read_set, field->field_index))
       continue;
+    // part_of_key is empty for a BLOB, so apply this check before the next.
     if (field->flags & BLOB_FLAG)
     {
       DBUG_ASSERT(addon_fields == NULL);
       return NULL;
     }
+    if (filter_covering && !field->part_of_key.is_set(index))
+      continue;                   // See explanation above filter_covering
 
     const uint field_length= field->max_packed_col_length();
     total_length+= field_length;
@@ -2533,6 +2542,8 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
   for (pfield= ptabfield; (field= *pfield) ; pfield++)
   {
     if (!bitmap_is_set(read_set, field->field_index))
+      continue;
+    if (filter_covering && !field->part_of_key.is_set(index))
       continue;
     DBUG_ASSERT(addonf != addon_fields->end());
 

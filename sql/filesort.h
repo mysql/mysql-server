@@ -35,18 +35,21 @@ class QEP_TAB;
 class Filesort: public Sql_alloc
 {
 public:
-  /** List of expressions to order the table by */
+  /// The QEP entry for the table to be sorted
+  QEP_TAB *const tab;
+  /// List of expressions to order the table by
   st_order *order;
-  /** Number of records to return */
+  /// Maximum number of rows to return
   ha_rows limit;
-  /** ORDER BY list with some precalculated info for filesort */
+  /// ORDER BY list with some precalculated info for filesort
   st_sort_field *sortorder;
-  /** true means we are using Priority Queue for order by with limit. */
+  /// true means we are using Priority Queue for order by with limit.
   bool using_pq;
-  /** Addon fields descriptor */
+  /// Addon fields descriptor
   Addon_fields *addon_fields;
 
-  Filesort(st_order *order_arg, ha_rows limit_arg):
+  Filesort(QEP_TAB *tab_arg, st_order *order_arg, ha_rows limit_arg):
+    tab(tab_arg),
     order(order_arg),
     limit(limit_arg),
     sortorder(NULL),
@@ -67,8 +70,9 @@ private:
   void cleanup();
 };
 
-ha_rows filesort(THD *thd, QEP_TAB *qep_tab, Filesort *fsort, bool sort_positions,
-                 ha_rows *examined_rows, ha_rows *found_rows);
+bool filesort(THD *thd, Filesort *fsort, bool sort_positions,
+              ha_rows *examined_rows, ha_rows *found_rows,
+              ha_rows *returned_rows);
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,uchar *to);
 

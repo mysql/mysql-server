@@ -3632,7 +3632,10 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   // In this case we do an unpushed index_read based on 'Plain old' NdbOperations
   if (unlikely(!check_is_pushed()))
   {
-    DBUG_RETURN(index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT));
+    int res= index_read_map(buf, key, keypart_map, HA_READ_KEY_EXACT);
+    if (!res && table->vfield)
+      res= update_generated_read_fields(buf, table);
+    DBUG_RETURN(res);
   }
 
   // Might need to re-establish first result row (wrt. its parents which may have been navigated)
@@ -3672,7 +3675,10 @@ int ha_ndbcluster::index_next_pushed(uchar *buf)
   // In this case we do an unpushed index_read based on 'Plain old' NdbOperations
   if (unlikely(!check_is_pushed()))
   {
-    DBUG_RETURN(index_next(buf));
+    int res= index_next(buf);
+    if (!res && table->vfield)
+      res= update_generated_read_fields(buf, table);
+    DBUG_RETURN(res);
   }
 
   DBUG_ASSERT(m_pushed_join_operation>PUSHED_ROOT);  // Child of a pushed join

@@ -139,7 +139,7 @@ public:
 		dict_index_t*	sys_index;
 		byte		buf[DTUPLE_EST_ALLOC(1)];
 		dtuple_t*	tuple =
-			dtuple_create_from_mem(buf, sizeof(buf), 1);
+			dtuple_create_from_mem(buf, sizeof(buf), 1, 0);
 		dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
 
 		dfield_set_data(
@@ -1416,6 +1416,9 @@ row_truncate_update_table_id(
 		"UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"UPDATE SYS_INDEXES"
+		" SET TABLE_ID = :new_id\n"
+		" WHERE TABLE_ID = :old_id;\n"
+		"UPDATE SYS_VIRTUAL"
 		" SET TABLE_ID = :new_id\n"
 		" WHERE TABLE_ID = :old_id;\n"
 		"END;\n", reserve_dict_mutex, trx);

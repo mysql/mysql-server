@@ -303,18 +303,26 @@ btr_search_disable_ref_count(
 	}
 }
 
-/** Disable the adaptive hash search system and empty the index. */
+/** Disable the adaptive hash search system and empty the index.
+@param[in]	need_mutex	need to acquire dict_sys->mutex */
 void
-btr_search_disable()
+btr_search_disable(
+	bool	need_mutex)
 {
 	dict_table_t*	table;
 
-	mutex_enter(&dict_sys->mutex);
+	if (need_mutex) {
+		mutex_enter(&dict_sys->mutex);
+	}
 
+	ut_ad(mutex_own(&dict_sys->mutex));
 	btr_search_x_lock_all();
 
 	if (!btr_search_enabled) {
-		mutex_exit(&dict_sys->mutex);
+		if (need_mutex) {
+			mutex_exit(&dict_sys->mutex);
+		}
+
 		btr_search_x_unlock_all();
 		return;
 	}
@@ -335,7 +343,9 @@ btr_search_disable()
 		btr_search_disable_ref_count(table);
 	}
 
-	mutex_exit(&dict_sys->mutex);
+	if (need_mutex) {
+		mutex_exit(&dict_sys->mutex);
+	}
 
 	/* Set all block->index = NULL. */
 	buf_pool_clear_hash_index();

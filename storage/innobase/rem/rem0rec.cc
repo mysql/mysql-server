@@ -35,6 +35,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "fts0fts.h"
 #include "gis0geo.h"
 #include "trx0sys.h"
+#include "mach0data.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
 			===========================
@@ -793,6 +794,8 @@ rec_get_converted_size_comp_prefix_low(
 					it does not */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
+	const dtuple_t*		v_entry,/*!< in: dtuple contains virtual column
+					data */
 	ulint*			extra,	/*!< out: extra size */
 	bool			temp)	/*!< in: whether this is a
 					temporary file record */
@@ -800,10 +803,15 @@ rec_get_converted_size_comp_prefix_low(
 	ulint	extra_size;
 	ulint	data_size;
 	ulint	i;
-	ulint	n_null	= index->n_nullable;
-	ut_ad(n_fields > 0);
+	ulint	n_null	= (n_fields > 0) ? index->n_nullable : 0;
+	ulint	n_v_fields;
 	ut_ad(n_fields <= dict_index_get_n_fields(index));
 	ut_ad(!temp || extra);
+
+	/* At the time being, only temp file record could possible
+	store virtual columns */
+	ut_ad(!v_entry || (dict_index_is_clust(index) && temp));
+	n_v_fields = v_entry ? dtuple_get_n_v_fields(v_entry) : 0;
 
 	extra_size = temp
 		? UT_BITS_IN_BYTES(n_null)
@@ -912,6 +920,41 @@ rec_get_converted_size_comp_prefix_low(
 		*extra = extra_size;
 	}
 
+	/* Log virtual columns */
+	if (n_v_fields != 0) {
+		/* length marker */
+		data_size += 2;
+
+		for (i = 0; i < n_v_fields; i++) {
+			dfield_t*       vfield;
+			ulint		flen;
+
+                        const dict_v_col_t*     col
+                                = dict_table_get_nth_v_col(index->table, i);
+
+			/* Only those indexed needs to be logged */
+                        if (col->m_col.ord_part) {
+				data_size += mach_get_compressed_size(
+					i + REC_MAX_N_FIELDS);
+				vfield = dtuple_get_nth_v_field(
+                                                v_entry, col->v_pos);
+
+                                flen = vfield->len;
+
+				if (flen != UNIV_SQL_NULL) {
+                                        flen = ut_min(
+                                                flen,
+                                                static_cast<ulint>(
+                                                DICT_MAX_FIELD_LEN_BY_FORMAT(
+                                                        index->table)));
+					data_size += flen;
+                                }
+
+				data_size += mach_get_compressed_size(flen);
+			}
+		}
+	}
+
 	return(extra_size + data_size);
 }
 
@@ -928,7 +971,7 @@ rec_get_converted_size_comp_prefix(
 {
 	ut_ad(dict_table_is_comp(index->table));
 	return(rec_get_converted_size_comp_prefix_low(
-		       index, fields, n_fields, extra, false));
+		       index, fields, n_fields, NULL, extra, false));
 }
 
 /**********************************************************//**
@@ -974,7 +1017,7 @@ rec_get_converted_size_comp(
 	}
 
 	return(size + rec_get_converted_size_comp_prefix_low(
-		       index, fields, n_fields, extra, false));
+		       index, fields, n_fields, NULL, extra, false));
 }
 
 /***********************************************************//**
@@ -1149,7 +1192,7 @@ rec_convert_dtuple_to_rec_old(
 
 /*********************************************************//**
 Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
-UNIV_INLINE __attribute__((nonnull))
+UNIV_INLINE
 void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
@@ -1157,6 +1200,8 @@ rec_convert_dtuple_to_rec_comp(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
+	const dtuple_t*		v_entry,/*!< in: dtuple contains
+					virtual column data */
 	ulint			status,	/*!< in: status bits of the record */
 	bool			temp)	/*!< in: whether to use the
 					format for temporary files in
@@ -1173,9 +1218,9 @@ rec_convert_dtuple_to_rec_comp(
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
 	ulint		n_null;
+	ulint		num_v = v_entry ? dtuple_get_n_v_fields(v_entry) : 0;
 
 	ut_ad(temp || dict_table_is_comp(index->table));
-	ut_ad(n_fields > 0);
 
 	if (temp) {
 		ut_ad(status == REC_STATUS_ORDINARY);
@@ -1188,6 +1233,8 @@ rec_convert_dtuple_to_rec_comp(
 			temp = false;
 		}
 	} else {
+		ut_ad(v_entry == NULL);
+		ut_ad(num_v == 0);
 		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
 
 		switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
@@ -1213,15 +1260,21 @@ rec_convert_dtuple_to_rec_comp(
 	}
 
 	end = rec;
-	n_null = index->n_nullable;
-	lens = nulls - UT_BITS_IN_BYTES(n_null);
-	/* clear the SQL-null flags */
-	memset(lens + 1, 0, nulls - lens);
+
+	if (n_fields != 0) {
+		n_null = index->n_nullable;
+		lens = nulls - UT_BITS_IN_BYTES(n_null);
+		/* clear the SQL-null flags */
+		memset(lens + 1, 0, nulls - lens);
+	}
 
 	/* Store the data and the offsets */
 
-	for (i = 0, field = fields; i < n_fields; i++, field++) {
+	for (i = 0; i < n_fields; i++) {
 		const dict_field_t*	ifield;
+		dict_col_t*		col = NULL;
+
+		field = &fields[i];
 
 		type = dfield_get_type(field);
 		len = dfield_get_len(field);
@@ -1259,10 +1312,12 @@ rec_convert_dtuple_to_rec_comp(
 
 		ifield = dict_index_get_nth_field(index, i);
 		fixed_len = ifield->fixed_len;
+		col = ifield->col;
 		if (temp && fixed_len
-		    && !dict_col_get_fixed_size(ifield->col, temp)) {
+		    && !dict_col_get_fixed_size(col, temp)) {
 			fixed_len = 0;
 		}
+
 		/* If the maximum length of a variable-length field
 		is up to 255 bytes, the actual length is always stored
 		in one byte. If the maximum length is more than 255
@@ -1271,10 +1326,8 @@ rec_convert_dtuple_to_rec_comp(
 		it is 128 or more, or when the field is stored externally. */
 		if (fixed_len) {
 #ifdef UNIV_DEBUG
-			ulint	mbminlen = DATA_MBMINLEN(
-				ifield->col->mbminmaxlen);
-			ulint	mbmaxlen = DATA_MBMAXLEN(
-				ifield->col->mbminmaxlen);
+			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
 
 			ut_ad(len <= fixed_len);
 			ut_ad(!mbmaxlen || len >= mbminlen
@@ -1282,7 +1335,7 @@ rec_convert_dtuple_to_rec_comp(
 			ut_ad(!dfield_is_ext(field));
 #endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(field)) {
-			ut_ad(DATA_BIG_COL(ifield->col));
+			ut_ad(DATA_BIG_COL(col));
 			ut_ad(len <= REC_ANTELOPE_MAX_INDEX_COL_LEN
 			      + BTR_EXTERN_FIELD_REF_SIZE);
 			*lens-- = (byte) (len >> 8) | 0xc0;
@@ -1308,6 +1361,56 @@ rec_convert_dtuple_to_rec_comp(
 		memcpy(end, dfield_get_data(field), len);
 		end += len;
 	}
+
+	if (!num_v) {
+		return;
+	}
+
+	/* reserve 2 bytes for writing length */
+	byte*	ptr = end;
+	ptr += 2;
+
+	/* Now log information on indexed virtual columns */
+	for (ulint col_no = 0; col_no < num_v; col_no++) {
+		dfield_t*       vfield;
+		ulint		flen;
+
+		const dict_v_col_t*     col
+			= dict_table_get_nth_v_col(index->table, col_no);
+
+		if (col->m_col.ord_part) {
+			ulint   pos = col_no;
+
+			pos += REC_MAX_N_FIELDS;
+
+			ptr += mach_write_compressed(ptr, pos);
+
+			vfield = dtuple_get_nth_v_field(
+				v_entry, col->v_pos);
+
+			flen = vfield->len;
+
+			if (flen != UNIV_SQL_NULL) {
+				/* The virtual column can only be in sec
+				index, and index key length is bound by
+				DICT_MAX_FIELD_LEN_BY_FORMAT */
+				flen = ut_min(
+					flen,
+					static_cast<ulint>(
+					DICT_MAX_FIELD_LEN_BY_FORMAT(
+						index->table)));
+			}
+
+			ptr += mach_write_compressed(ptr, flen);
+
+			if (flen != UNIV_SQL_NULL) {
+				ut_memcpy(ptr, dfield_get_data(vfield), flen);
+				ptr += flen;
+			}
+		}
+	}
+
+	mach_write_to_2(end, ptr - end);
 }
 
 /*********************************************************//**
@@ -1333,7 +1436,8 @@ rec_convert_dtuple_to_rec_new(
 	rec = buf + extra_size;
 
 	rec_convert_dtuple_to_rec_comp(
-		rec, index, dtuple->fields, dtuple->n_fields, status, false);
+		rec, index, dtuple->fields, dtuple->n_fields, NULL,
+		status, false);
 
 	/* Set the info bits of the record */
 	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
@@ -1406,10 +1510,12 @@ rec_get_converted_size_temp(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
+	const dtuple_t*		v_entry,/*!< in: dtuple contains virtual column
+					data */
 	ulint*			extra)	/*!< out: extra size */
 {
 	return(rec_get_converted_size_comp_prefix_low(
-		       index, fields, n_fields, extra, true));
+		       index, fields, n_fields, v_entry, extra, true));
 }
 
 /******************************************************//**
@@ -1435,9 +1541,11 @@ rec_convert_dtuple_to_temp(
 	rec_t*			rec,		/*!< out: record */
 	const dict_index_t*	index,		/*!< in: record descriptor */
 	const dfield_t*		fields,		/*!< in: array of data fields */
-	ulint			n_fields)	/*!< in: number of fields */
+	ulint			n_fields,	/*!< in: number of fields */
+	const dtuple_t*		v_entry)	/*!< in: dtuple contains
+						virtual column data */
 {
-	rec_convert_dtuple_to_rec_comp(rec, index, fields, n_fields,
+	rec_convert_dtuple_to_rec_comp(rec, index, fields, n_fields, v_entry,
 				       REC_STATUS_ORDINARY, true);
 }
 
@@ -2015,6 +2123,14 @@ rec_print_new(
 	ut_ad(rec);
 	ut_ad(offsets);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+#ifdef UNIV_DEBUG
+	if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+		fprintf(stderr, "deleted ");
+	} else {
+		fprintf(stderr, "not-deleted ");
+	}
+#endif /* UNIV_DEBUG */
 
 	if (!rec_offs_comp(offsets)) {
 		rec_print_old(file, rec);

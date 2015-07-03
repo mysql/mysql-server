@@ -2324,6 +2324,15 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace)
 {
+  /*
+    For internal tmp table, we don't support generated columns.
+    Because gcol_info is copied during create_tmp_field_from_field,
+    we have to clear it.
+    @todo it would be better to do it when creating the field.
+  */
+  for (uint i= 0; i < table->s->fields; i++)
+    table->field[i]->gcol_info= NULL;
+
   if (table->s->db_type() == innodb_hton)
   {
     if (create_innodb_tmp_table(table, keyinfo))
