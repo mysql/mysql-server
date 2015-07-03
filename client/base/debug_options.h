@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,10 +29,8 @@ class Abstract_program;
 
 namespace Options{
 
-using std::string;
-
 /**
-  Options provider providing debuging options.
+  Options provider providing debugging options.
  */
 class Debug_options : public Abstract_options_provider
 {
@@ -59,7 +57,7 @@ private:
   Abstract_program* m_program;
   bool m_debug_info_flag;
   bool m_debug_check_flag;
-  Nullable<string> m_dbug_option;
+  Nullable<std::string> m_dbug_option;
 };
 
 }
