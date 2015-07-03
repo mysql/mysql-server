@@ -1044,9 +1044,13 @@ int init_recovery(Master_info* mi, const char** errmsg)
                                                rli->get_group_master_log_pos()));
     mi->set_master_log_name(rli->get_group_master_log_name());
 
-    sql_print_warning("Recovery from master pos %ld and file %s%s.",
+    sql_print_warning("Recovery from master pos %ld and file %s%s. "
+                      "Previous relay log pos and relay log file had "
+                      "been set to %lld, %s respectively.",
                       (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
-                      mi->get_for_channel_str());
+                      mi->get_for_channel_str(),
+                      (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
+                      rli->get_group_relay_log_pos(), rli->get_group_relay_log_name());
 
     rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
     rli->set_event_relay_log_name(rli->relay_log.get_log_fname());
