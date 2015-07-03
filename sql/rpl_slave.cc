@@ -1049,7 +1049,6 @@ int init_recovery(Master_info* mi, const char** errmsg)
                       "been set to %lld, %s respectively.",
                       (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
                       mi->get_for_channel_str(),
-                      (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
                       rli->get_group_relay_log_pos(), rli->get_group_relay_log_name());
 
     rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
