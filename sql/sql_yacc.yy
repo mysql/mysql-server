@@ -729,6 +729,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ISSUER_SYM
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
+%token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
 %token  KEY_SYM                       /* SQL-2003-N */
@@ -6532,6 +6533,13 @@ type:
               */
               if (!YYTHD->variables.explicit_defaults_for_timestamp)
                 Lex->type|= NOT_NULL_FLAG;
+              /*
+                To flag the current statement as dependent for binary
+                logging on the session var. Extra copying to Lex is
+                done in case prepared stmt.
+              */
+              Lex->binlog_need_explicit_defaults_ts=
+                YYTHD->binlog_need_explicit_defaults_ts= true;
 
               $$=MYSQL_TYPE_TIMESTAMP2;
             }
@@ -6649,6 +6657,11 @@ type:
             $$=MYSQL_TYPE_LONGLONG;
             Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
               UNIQUE_FLAG);
+          }
+        | JSON_SYM
+          {
+            Lex->charset=&my_charset_bin;
+            $$=MYSQL_TYPE_JSON;
           }
         ;
 
@@ -10156,6 +10169,14 @@ cast_type:
             $$.length= $2.length;
             $$.dec= $2.dec;
           }
+        | JSON_SYM
+          {
+            $$.target=ITEM_CAST_JSON;
+            $$.charset= NULL;
+            $$.type_flags= 0;
+            $$.length= NULL;
+            $$.dec= NULL;
+          }
         ;
 
 opt_expr_list:
@@ -13321,6 +13342,7 @@ keyword_sp:
         | ISOLATION                {}
         | ISSUER_SYM               {}
         | INSERT_METHOD            {}
+        | JSON_SYM                 {}
         | KEY_BLOCK_SIZE           {}
         | LAST_SYM                 {}
         | LEAVES                   {}

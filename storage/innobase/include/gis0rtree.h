@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -555,6 +555,16 @@ rtr_info_reinit_in_cursor(
 	bool		need_prdt);	/*!< in: Whether predicate lock is
 					needed */
 
+/** Estimates the number of rows in a given area.
+@param[in]	index	index
+@param[in]	tuple	range tuple containing mbr, may also be empty tuple
+@param[in]	mode	search mode
+@return estimated number of rows */
+int64_t
+rtr_estimate_n_rows_in_range(
+	dict_index_t*	index,
+	const dtuple_t*	tuple,
+	page_cur_mode_t	mode);
 
 #ifndef UNIV_NONINL
 #include "gis0rtree.ic"

@@ -224,6 +224,7 @@ CREATE TABLE t1 (c1 CHAR(10));
 # we need this for getting fixed timestamps inside of this test
 FLUSH LOGS;
 INSERT INTO t1 VALUES ('0123456789');
+let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 FLUSH LOGS;
 DROP TABLE t1;
 
@@ -234,7 +235,7 @@ DROP TABLE t1;
 
 --disable_query_log
 CREATE TABLE patch (a BLOB);
---exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000012 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat
+--exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/$master_binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat'
      INTO TABLE patch FIELDS TERMINATED BY '' LINES STARTING BY '#';
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_tmp.dat
@@ -254,9 +255,10 @@ FLUSH LOGS;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(connection_id());
 let $a= `SELECT a FROM t1`;
+let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 FLUSH LOGS;
 let $outfile= $MYSQLTEST_VARDIR/tmp/bug29928.sql;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000015 > $outfile
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file > $outfile
 DROP TABLE t1;
 connect (con1, localhost, root, , test);
 connection con1;
@@ -280,9 +282,10 @@ set timestamp= default;
 # Test --disable-force-if-open and --force-if-open
 #
 FLUSH LOGS;
+let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 --error 1
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000017 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000017 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/$master_binlog_file >/dev/null 2>/dev/null
 
 --echo Bug#31611 Security risk with BINLOG statement
 
@@ -296,9 +299,10 @@ USE mysqltest1;
 CREATE TABLE t1 (a INT, b CHAR(64));
 flush logs;
 INSERT INTO t1 VALUES (1,USER());
+let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 flush logs;
-echo mysqlbinlog var/log/master-bin.000018 > var/tmp/bug31611.sql;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000018 > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
+echo mysqlbinlog var/log/master_binlog_file > var/tmp/bug31611.sql;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
 connect (unsecure,localhost,untrusted,,mysqltest1);
 echo mysql mysqltest1 -uuntrusted < var/tmp/bug31611.sql;
 error 1;
@@ -327,12 +331,12 @@ SET @an_int = 1000;
 SET @a_decimal = CAST(rand(19) * 999 AS DECIMAL(5,2));
 SET @a_string = 'Just a test';
 INSERT INTO t1 VALUES (@a_real, @an_int, @a_decimal, @a_string);
+let $master_binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 FLUSH LOGS;
 query_vertical SELECT * FROM t1;
 DROP TABLE t1;
-
-echo >> mysqlbinlog var/log/master-bin.000020 > var/tmp/bug32580.sql;
-exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000020 > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
+echo >> mysqlbinlog var/log/master_binlog_file > var/tmp/bug32580.sql;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog_file > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 echo >> mysql test < var/tmp/bug32580.sql;
 exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 remove_file $MYSQLTEST_VARDIR/tmp/bug32580.sql;

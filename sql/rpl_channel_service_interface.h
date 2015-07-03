@@ -271,6 +271,15 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
 int channel_wait_until_apply_queue_empty(char* channel, long long timeout);
 
 /**
+  Flush the channel.
+
+  @return the operation status
+    @retval 0      OK
+    @retval != 0   Error on flush
+*/
+int channel_flush(const char* channel);
+
+/**
   Initializes channel structures if needed.
 
   @return the operation status

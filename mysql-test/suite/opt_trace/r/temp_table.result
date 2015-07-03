@@ -36,6 +36,10 @@ SELECT uniq, col1 FROM t1 GROUP BY col2,uniq LIMIT 3	{
         "select#": 1,
         "steps": [
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t1`",
@@ -199,6 +203,10 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
           {
             "table_dependencies": [
               {
@@ -369,6 +377,10 @@ SELECT uniq, col1, col2 FROM t1 GROUP BY uniq	{
       "join_optimization": {
         "select#": 1,
         "steps": [
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
           {
             "table_dependencies": [
               {
@@ -1008,6 +1020,10 @@ ORDER BY cc	{
                 }
               ] /* steps */
             } /* join_optimization */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [

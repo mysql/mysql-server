@@ -880,6 +880,8 @@ public:
              m_tickets[MDL_EXPLICIT].is_empty());
   }
 
+  bool has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const;
+
   MDL_savepoint mdl_savepoint()
   {
     return MDL_savepoint(m_tickets[MDL_STATEMENT].front(),

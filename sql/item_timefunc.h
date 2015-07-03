@@ -1513,6 +1513,7 @@ public:
 
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_date"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date);
   const char *cast_type() const { return "date"; }
 };
@@ -1539,6 +1540,7 @@ public:
   }
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_time"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "time"; }
   void fix_length_and_dec()
@@ -1573,6 +1575,7 @@ public:
   }
   void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_datetime"; }
+  enum Functype functype() const { return TYPECAST_FUNC; }
   const char *cast_type() const { return "datetime"; }
   void fix_length_and_dec()
   {

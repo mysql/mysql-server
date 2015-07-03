@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -148,4 +148,15 @@ rtree_area_increase(
 	const uchar*	b,		/*!< in: second mbr. */
 	int		a_len,		/*!< in: mbr length. */
 	double*		ab_area);	/*!< out: increased area. */
+
+/** Calculates overlapping area
+@param[in]	a	mbr a
+@param[in]	b	mbr b
+@param[in]	mbr_len	mbr length
+@return overlapping area */
+double
+rtree_area_overlapping(
+	const uchar*	a,
+	const uchar*	b,
+	int		mbr_len);
 #endif

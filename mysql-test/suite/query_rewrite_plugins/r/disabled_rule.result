@@ -30,7 +30,7 @@ SELECT * FROM test.t2;
 c1	c2	c1
 abc	def	abc
 Warnings:
-Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by plugin: Rewriter.
+Note	1105	Query 'SELECT * FROM test.t2' rewritten to 'SELECT * FROM test.t1 JOIN test.t2 ON test.t1.c1 = test.t2.c1' by a query rewrite plugin
 # Disable via UPDATE...
 UPDATE query_rewrite.rewrite_rules
 SET enabled = 'NO'
@@ -42,4 +42,6 @@ c1
 abc
 klm
 DROP TABLE t1, t2;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

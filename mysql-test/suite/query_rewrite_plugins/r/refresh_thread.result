@@ -40,9 +40,11 @@ SELECT 'Rewrite';
 Rewritten
 Rewritten
 Warnings:
-Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by plugin: Rewriter.
+Note	1105	Query 'SELECT 'Rewrite'' rewritten to 'SELECT "Rewritten"' by a query rewrite plugin
 SHOW PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <id>	root	<host>	<db>	<command>	<time>	<state>	<info>
 SET @@global.rewriter_enabled = DEFAULT;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

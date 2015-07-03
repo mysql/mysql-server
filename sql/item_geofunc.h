@@ -23,6 +23,7 @@
 #include "prealloced_array.h"
 #include "spatial.h"           // gis_wkb_raw_free
 #include "item_strfunc.h"      // Item_str_func
+#include "item_json_func.h"    // Item_json_func
 
 #include <vector>
 #include <set>
@@ -329,9 +330,10 @@ public:
                           Geometry::wkbType type, bool *rollback,
                           String *buffer, bool is_parent_featurecollection,
                           Geometry **geometry);
-  bool check_argument_valid_integer(Item *argument);
+  static bool check_argument_valid_integer(Item *argument);
   bool parse_crs_object(const rapidjson::Value *crs_object);
-  bool is_member_valid(const rapidjson::Value::Member *member,
+  bool is_member_valid(const rapidjson::Value *parent,
+                       rapidjson::Value::ConstMemberIterator member,
                        const char *member_name, rapidjson::Type expected_type,
                        bool allow_null, bool *was_null);
   rapidjson::Value::ConstMemberIterator
@@ -374,6 +376,70 @@ private:
   longlong m_srid_found_in_document;
   /// rapidjson document to hold the parsed GeoJSON.
   rapidjson::Document m_document;
+};
+
+
+/// Max width of long CRS URN supported + max width of SRID + '\0'.
+static const int MAX_CRS_WIDTH= (22 + MAX_INT_WIDTH + 1);
+
+/**
+  This class handles the following function:
+
+  <json> = ST_ASGEOJSON(<geometry>[, <maxdecimaldigits>[, <options>]])
+
+  It converts a GEOMETRY into a valid GeoJSON string. If maxdecimaldigits is
+  specified, the coordinates written are rounded to the number of decimals
+  specified (e.g with decimaldigits = 3: 10.12399 => 10.124).
+
+  Options is a bitmask with the following flags:
+  0  No options (default values).
+  1  Add a bounding box to the output.
+  2  Add a short CRS URN to the output. The default format is a
+     short format ("EPSG:<srid>").
+  4  Add a long format CRS URN ("urn:ogc:def:crs:EPSG::<srid>"). This
+     implies 2. This means that, e.g., bitmask 5 and 7 mean the
+     same: add a bounding box and a long format CRS URN.
+*/
+class Item_func_as_geojson :public Item_json_func
+{
+private:
+  /// Maximum number of decimal digits in printed coordinates.
+  int m_max_decimal_digits;
+  /// If true, the output GeoJSON has a bounding box for each GEOMETRY.
+  bool m_add_bounding_box;
+  /**
+    If true, the output GeoJSON has a CRS object in the short
+    form (e.g "EPSG:4326").
+  */
+  bool m_add_short_crs_urn;
+  /**
+    If true, the output GeoJSON has a CRS object in the long
+    form (e.g "urn:ogc:def:crs:EPSG::4326").
+  */
+  bool m_add_long_crs_urn;
+  /// The SRID found in the input GEOMETRY.
+  uint32 m_geometry_srid;
+public:
+  Item_func_as_geojson(THD *thd, const POS &pos, Item *geometry)
+    :Item_json_func(thd, pos, geometry), m_add_bounding_box(false),
+    m_add_short_crs_urn(false), m_add_long_crs_urn(false)
+  {}
+  Item_func_as_geojson(THD *thd, const POS &pos, Item *geometry, Item *maxdecimaldigits)
+    :Item_json_func(thd, pos, geometry, maxdecimaldigits),
+    m_add_bounding_box(false), m_add_short_crs_urn(false),
+    m_add_long_crs_urn(false)
+  {}
+  Item_func_as_geojson(THD *thd, const POS &pos, Item *geometry, Item *maxdecimaldigits,
+                       Item *options)
+    :Item_json_func(thd, pos, geometry, maxdecimaldigits, options),
+    m_add_bounding_box(false), m_add_short_crs_urn(false),
+    m_add_long_crs_urn(false)
+  {}
+  bool fix_fields(THD *thd, Item **ref);
+  bool val_json(Json_wrapper *wr);
+  const char *func_name() const { return "st_asgeojson"; }
+  bool parse_options_argument();
+  bool parse_maxdecimaldigits_argument();
 };
 
 

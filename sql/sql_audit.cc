@@ -116,10 +116,23 @@ static void connection_class_handler(THD *thd, uint event_subclass, va_list ap)
   event_class_dispatch(thd, MYSQL_AUDIT_CONNECTION_CLASS, &event);
 }
 
+static void parse_class_handler(THD *thd, uint event_subclass, va_list ap)
+{
+  mysql_event_parse event;
+  event.event_subclass= event_subclass;
+  event.flags= va_arg(ap, int *);
+  event.query= va_arg(ap, const char *);
+  event.query_length= va_arg(ap, size_t);
+  event.rewritten_query= va_arg(ap, char **);
+  event.rewritten_query_length= va_arg(ap, size_t *);
+  event_class_dispatch(thd, MYSQL_AUDIT_PARSE_CLASS, &event);
+}
+
+
 
 static audit_handler_t audit_handlers[] =
 {
-  general_class_handler, connection_class_handler
+  general_class_handler, connection_class_handler, parse_class_handler
 };
 
 #ifndef DBUG_OFF
@@ -491,6 +504,16 @@ bool is_any_audit_plugin_active(THD *thd __attribute__((unused)))
 {
   return (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK);
 }
+
+/**  There's at least one active audit plugin tracking a specified class */
+bool is_audit_plugin_class_active(THD *thd __attribute__((unused)),
+                                  unsigned int event_class)
+{
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  set_audit_mask(event_class_mask, event_class);
+  return !check_audit_mask(mysql_global_audit_mask, event_class_mask);
+}
+
 
 
 #else /* EMBEDDED_LIBRARY */

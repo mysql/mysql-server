@@ -1090,6 +1090,7 @@ protected:
   bool get_time(MYSQL_TIME *ltime);
   void reset_field();
   String *val_str(String *);
+  bool val_json(Json_wrapper *wr);
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }

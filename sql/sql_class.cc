@@ -1213,6 +1213,7 @@ THD::THD(bool enable_plugins)
    m_server_idle(false),
    user_var_events(key_memory_user_var_entry),
    next_to_commit(NULL),
+   binlog_need_explicit_defaults_ts(false),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(false),

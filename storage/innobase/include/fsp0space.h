@@ -92,14 +92,22 @@ public:
 	}
 
 	/** Set tablespace path and filename members.
-        @param[in]      path	where tablespace file(s) resides */
-	void set_path(const char* path)
+	@param[in]	path	where tablespace file(s) resides
+	@param[in]	len	length of the file path */
+	void set_path(const char* path, size_t len)
 	{
 		ut_ad(m_path == NULL);
-		m_path = mem_strdup(path);
+		m_path = mem_strdupl(path, len);
 		ut_ad(m_path != NULL);
 
 		os_normalize_path_for_win(m_path);
+	}
+
+	/** Set tablespace path and filename members.
+	@param[in]	path	where tablespace file(s) resides */
+	void set_path(const char* path)
+	{
+		set_path(path, strlen(path));
 	}
 
 	/** Get tablespace path

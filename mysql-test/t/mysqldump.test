@@ -2558,3 +2558,21 @@ SELECT * FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP DATABASE db_20772273;
+
+--echo #
+--echo # WL#8132 JSON datatype and binary storage format
+--echo #
+
+CREATE DATABASE dump_json;
+USE dump_json;
+CREATE TABLE t1 (j JSON);
+INSERT INTO t1 VALUES (JSON_ARRAY(1, 2, 3, "one", "two", "three"));
+SELECT * FROM t1;
+--exec $MYSQL_DUMP --compact dump_json t1
+# Expect JSON values to be dumped as text, also with --hex-blob.
+--exec $MYSQL_DUMP --compact --hex-blob dump_json t1
+DROP DATABASE dump_json;
+
+--echo #
+--echo # End of 5.7 tests
+--echo #

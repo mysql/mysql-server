@@ -33,6 +33,9 @@ while ($1)
 --enable_query_log
 
 SELECT count(*) FROM t1;
+
+ANALYZE TABLE t1;
+
 --replace_column 10 #
 EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 140))'));
 SELECT fid, ST_AsText(g) FROM t1 WHERE ST_Within(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;

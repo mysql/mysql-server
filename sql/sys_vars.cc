@@ -787,6 +787,16 @@ static bool check_outside_trx(sys_var *self, THD *thd, set_var *var)
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
     return true;
   }
+  if (!thd->owned_gtid.is_empty())
+  {
+    char buf[Gtid::MAX_TEXT_LENGTH + 1];
+    if (thd->owned_gtid.sidno > 0)
+      thd->owned_gtid.to_string(thd->owned_sid, buf);
+    else
+      strcpy(buf, "ANONYMOUS");
+    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->var->name.str, buf);
+    return true;
+  }
   return false;
 }
 
@@ -804,12 +814,26 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
   return false;
 }
 
+static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd, set_var *var)
+{
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (thd->in_active_multi_stmt_transaction())
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
+    return true;
+  }
+  if (self->scope() != sys_var::GLOBAL)
+    return check_has_super(self, thd, var);
+  return false;
+}
+
 #ifdef HAVE_REPLICATION
 /**
-  Check-function to @@GTID_NEXT system variable. Essentially it's a
-  wrapper to @c check_super_outside_trx_outside_sf whose task is
-  temporarily mask server_status of prepared XA transaction before to
-  call the function.
+  Check-function to @@GTID_NEXT system variable.
 
   @param self   a pointer to the sys_var, i.e. gtid_next
   @param thd    a reference to THD object
@@ -818,25 +842,22 @@ static bool check_super_outside_trx_outside_sf(sys_var *self, THD *thd, set_var 
   @return @c false if the change is allowed, otherwise @c true.
 */
 
-static bool check_super_outside_prepared_trx_outside_sf(sys_var *self, THD *thd,
-                                                        set_var *var)
+static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 {
   bool is_prepared_trx=
     thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
-  bool rc=false;
 
-  if (is_prepared_trx)
+  if (thd->in_sub_stmt)
   {
-    DBUG_ASSERT(thd->in_active_multi_stmt_transaction());
-    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), var->var->name.str);
+    return true;
   }
-  rc= check_super_outside_trx_outside_sf(self, thd, var);
-  if (is_prepared_trx)
+  if (!is_prepared_trx && thd->in_active_multi_stmt_transaction())
   {
-    thd->server_status|= SERVER_STATUS_IN_TRANS;
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
+    return true;
   }
-
-  return rc;
+  return check_has_super(self, thd, var);
 }
 #endif
 
@@ -1043,9 +1064,11 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
        "This option causes CREATE TABLE to create all TIMESTAMP columns "
        "as NULL with DEFAULT NULL attribute, Without this option, "
        "TIMESTAMP columns are NOT NULL and have implicit DEFAULT clauses. "
-       "The old behavior is deprecated.",
-       READ_ONLY SESSION_VAR(explicit_defaults_for_timestamp),
-       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+       "The old behavior is deprecated. "
+       "The variable can only be set by users having the SUPER privilege.",
+       SESSION_VAR(explicit_defaults_for_timestamp),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_explicit_defaults_for_timestamp));
 
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
 {
@@ -5125,7 +5148,7 @@ static Sys_var_gtid_next Sys_gtid_next(
        "transaction.",
        SESSION_ONLY(gtid_next), NO_CMD_LINE,
        DEFAULT("AUTOMATIC"), NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_super_outside_prepared_trx_outside_sf));
+       NOT_IN_BINLOG, ON_CHECK(check_gtid_next));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
 static Sys_var_gtid_executed Sys_gtid_executed(
@@ -5156,10 +5179,10 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   bool error= false;
 
   global_sid_lock->wrlock();
-  char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-  char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
-  char *current_gtid_executed= NULL;
-  char *current_gtid_lost= NULL;
+  char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
+    *current_gtid_executed= NULL, *current_gtid_purged= NULL;
+  gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&previous_gtid_purged);
   enum_return_status ret;
   Gtid_set gtid_set(global_sid_map, var->save_result.string_value.str,
                     &ret, global_sid_lock);
@@ -5176,21 +5199,21 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
     error= true;
     goto end;
   }
-  current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
-  current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+  gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
+  gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
   global_sid_lock->unlock();
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
-                        previous_gtid_lost, current_gtid_lost);
+                        previous_gtid_purged, current_gtid_purged);
   sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
                         previous_gtid_executed, current_gtid_executed);
 
 end:
   my_free(previous_gtid_executed);
-  my_free(previous_gtid_lost);
+  my_free(previous_gtid_purged);
   my_free(current_gtid_executed);
-  my_free(current_gtid_lost);
+  my_free(current_gtid_purged);
   DBUG_RETURN(error);
 #else
   DBUG_RETURN(true);
