@@ -2733,8 +2733,13 @@ fil_space_undo_check_if_opened(
 			}
 		}
 		/* Correct undo tablespace name loaded during recovery. */
+		HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
+			    ut_fold_string(space->name), space);
 		ut_free(space->name);
+
 		space->name = mem_strdup(undo_name);
+		HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
+			    ut_fold_string(space->name), space);
 	}
 
 	mutex_exit(&fil_system->mutex);
