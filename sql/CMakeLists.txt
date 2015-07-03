@@ -286,6 +286,7 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  handler.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_relchecks.cc
@@ -299,6 +300,7 @@ ADD_COMPILE_FLAGS(
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    handler.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
     item_geofunc_relchecks.cc

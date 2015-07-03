@@ -7564,6 +7564,9 @@ ER_SECURE_TRANSPORT_REQUIRED
 ER_NO_SECURE_TRANSPORTS_CONFIGURED
   eng "No secure transports (SSL or Shared Memory) are configured, unable to set --require_secure_transport=ON."
 
+ER_DISABLED_STORAGE_ENGINE
+  eng "Storage engine %s is disabled (Table creation is disallowed)."
+
 #
 #  End of 5.7 error messages.
 #
