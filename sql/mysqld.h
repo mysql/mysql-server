@@ -657,6 +657,7 @@ extern int32 thread_running;
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
+extern char *opt_disabled_storage_engines;
 
 /* query_id */
 typedef int64 query_id_t;

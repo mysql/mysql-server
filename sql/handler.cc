@@ -60,6 +60,11 @@
 #include "opt_hints.h"
 
 #include <list>
+#include <cstring>
+#include <string>
+#include <boost/foreach.hpp>
+#include <boost/tokenizer.hpp>
+#include <boost/algorithm/string.hpp>
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -435,6 +440,58 @@ redo:
   }
 
   return NULL;
+}
+
+std::string normalized_se_str= "";
+
+/*
+  Parse comma separated list of disabled storage engine names
+  and create a normalized string by appending storage names that
+  have aliases. This normalized string is used to disallow
+  table/tablespace creation under the storage engines specified.
+*/
+void ha_set_normalized_disabled_se_str(const std::string &disabled_se)
+{
+  boost::char_separator<char> sep(",");
+  boost::tokenizer< boost::char_separator<char> > tokens(disabled_se, sep);
+  normalized_se_str.append(",");
+  BOOST_FOREACH (std::string se_name, tokens)
+  {
+    const LEX_STRING *table_alias;
+    boost::algorithm::to_upper(se_name);
+    for (table_alias= sys_table_aliases; table_alias->str; table_alias+= 2)
+    {
+      if (!strcasecmp(se_name.c_str(), table_alias->str) ||
+          !strcasecmp(se_name.c_str(), (table_alias+1)->str))
+      {
+        normalized_se_str.append(std::string(table_alias->str) + "," +
+                                 std::string((table_alias+1)->str) + ",");
+        break;
+      }
+    }
+
+    if (table_alias->str == NULL)
+      normalized_se_str.append(se_name+",");
+  }
+}
+
+// Check if storage engine is disabled for table/tablespace creation.
+bool ha_is_storage_engine_disabled(handlerton *se_handle)
+{
+  if (normalized_se_str.size())
+  {
+    std::string se_name(",");
+    se_name.append(ha_resolve_storage_engine_name(se_handle));
+    se_name.append(",");
+    boost::algorithm::to_upper(se_name);
+    if(strstr(normalized_se_str.c_str(), se_name.c_str()))
+    {
+      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name(se_handle));
+      return true;
+    }
+  }
+  return false;
 }
 
 

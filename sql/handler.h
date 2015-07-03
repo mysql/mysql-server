@@ -35,6 +35,7 @@
 #include "mysql/psi/psi.h"
 
 #include <algorithm>
+#include <string>
 
 class Alter_info;
 class handler;
@@ -3810,4 +3811,6 @@ const char *table_case_name(HA_CREATE_INFO *info, const char *name);
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
+void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
+bool ha_is_storage_engine_disabled(handlerton *se_engine);
 #endif /* HANDLER_INCLUDED */
