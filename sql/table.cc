@@ -41,6 +41,7 @@
 #include "strfunc.h"                     // unhex_type2
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
+#include "template_utils.h"              // down_cast
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -3372,24 +3373,24 @@ void free_blobs(TABLE *table)
 
 
 /**
-  Reclaim temporary blob storage which is bigger than 
-  a threshold.
- 
+  Reclaims temporary blob storage which is bigger than a threshold.
+  Resets blob pointer.
+
   @param table A handle to the TABLE object containing blob fields
   @param size The threshold value.
- 
 */
 
-void free_field_buffers_larger_than(TABLE *table, uint32 size)
+void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 {
   uint *ptr, *end;
-  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+  for (ptr= table->s->blob_field, end= ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
   {
-    Field_blob *blob= (Field_blob*) table->field[*ptr];
+    Field_blob *blob= down_cast<Field_blob*>(table->field[*ptr]);
     if (blob->get_field_buffer_size() > size)
-        blob->mem_free();
+      blob->mem_free();
+    blob->reset();
   }
 }
 
