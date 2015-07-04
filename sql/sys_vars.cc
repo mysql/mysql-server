@@ -1896,7 +1896,7 @@ static Sys_var_mybool Sys_use_v1_row_events(
 
 static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
-       READ_ONLY GLOBAL_VAR(log_error_file_ptr),
+       READ_ONLY GLOBAL_VAR(log_error_dest),
        CMD_LINE(OPT_ARG, OPT_LOG_ERROR),
        IN_FS_CHARSET, DEFAULT(disabled_my_option));
 

@@ -105,7 +105,7 @@ extern CHARSET_INFO *character_set_filesystem;
 
 extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
-extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern bool opt_update_log, opt_bin_log;
 extern my_bool opt_log_slave_updates;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern my_bool opt_backup_history_log;
@@ -206,7 +206,7 @@ extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
-extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
+extern char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH+1];
 extern const char *server_uuid_ptr;
 extern const double log_10[309];
@@ -605,7 +605,8 @@ extern struct st_VioSSLFd * ssl_acceptor_fd;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
 extern char lc_messages_dir[FN_REFLEN];
-extern char *lc_messages_dir_ptr, *log_error_file_ptr;
+extern char *lc_messages_dir_ptr;
+extern const char *log_error_dest;
 extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -634,7 +635,7 @@ extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
  */
 extern mysql_mutex_t
        LOCK_item_func_sleep, LOCK_status,
-       LOCK_error_log, LOCK_uuid_generator,
+       LOCK_uuid_generator,
        LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_msr_map, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,

@@ -25,6 +25,7 @@
 #include "psi_memory_key.h"     // key_memory_XID
 #include "sql_class.h"          // THD
 #include "sql_plugin.h"         // plugin_foreach
+#include "tc_log.h"             // tc_log
 #include "transaction.h"        // trans_begin, trans_rollback
 
 #include <pfs_transaction_provider.h>

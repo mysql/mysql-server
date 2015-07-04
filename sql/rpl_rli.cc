@@ -16,6 +16,7 @@
 #include "rpl_rli.h"
 
 #include "my_dir.h"                // MY_STAT
+#include "log.h"                   // sql_print_error
 #include "log_event.h"             // Log_event
 #include "mysqld.h"                // sync_relaylog_period ...
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...

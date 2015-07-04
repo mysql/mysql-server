@@ -263,7 +263,7 @@ int before_commit_tests(Trans_param *param,
   {
     my_plugin_log_message(&plugin_info_ptr,
                           MY_ERROR_LEVEL,
-                          "Unable to update transaction context service on server, thread_id: %lu",
+                          "Unable to update transaction context service on server, thread_id: %u",
                           param->thread_id);
     return 1;
   }

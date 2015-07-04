@@ -264,7 +264,7 @@ bool reload(MYSQL_THD thd)
     message= MESSAGE_OOM;
   }
   DBUG_ASSERT(message != NULL);
-  my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, message);
+  my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", message);
   return true;
 }
 
@@ -322,7 +322,7 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
                      "literals.");
     else
       message.append("did not match any rule.");
-    my_plugin_log_message(&plugin_info, MY_INFORMATION_LEVEL, message.c_str());
+    my_plugin_log_message(&plugin_info, MY_INFORMATION_LEVEL, "%s", message.c_str());
   }
 }
 
@@ -360,7 +360,7 @@ static void rewrite_query_notify(MYSQL_THD thd, unsigned int event_class,
   }
   catch (std::bad_alloc &ba)
   {
-    my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, MESSAGE_OOM);
+    my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", MESSAGE_OOM);
   }
 
   mysql_rwlock_unlock(&LOCK_table);

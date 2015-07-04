@@ -32,6 +32,7 @@
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "sql_cache.h"   // query_cache
+#include "log.h"         // query_logger
 
 
 /**
@@ -122,15 +123,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   }
 
   if (options & REFRESH_ERROR_LOG)
-    if (flush_error_log())
-    {
-      /*
-        When flush_error_log() failed, my_error() has not been called.
-        So, we have to do it here to keep the protocol.
-      */
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
+    if (reopen_error_log())
       result= 1;
-    }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
     query_logger.reopen_log_file(QUERY_LOG_SLOW);

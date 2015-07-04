@@ -24,6 +24,7 @@
 #include "binlog.h"                     /* mysql_bin_log */
 #include "sp.h"                         /* sp_exist_routines */
 #include "sql_insert.h"                 /* Sql_cmd_insert_base */
+#include "log.h"                        /* sql_print_warning */
 #include "sql_class.h"
 #include "derror.h"
 

@@ -35,7 +35,7 @@ void raise_query_rewritten_note(THD *thd,
   const char *message= "Query '%s' rewritten to '%s' by a query rewrite plugin";
   push_warning_printf(thd, sl, ER_UNKNOWN_ERROR, message,
                       original_query, rewritten_query);
-};
+}
 
 
 void invoke_pre_parse_rewrite_plugins(THD *thd)

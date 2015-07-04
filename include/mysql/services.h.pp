@@ -70,10 +70,12 @@ enum plugin_log_level
 };
 extern struct my_plugin_log_service
 {
-  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...);
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...)
+    __attribute__((format(printf, 3, 4)));
 } *my_plugin_log_service;
 int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
-                          const char *format, ...);
+                          const char *format, ...)
+  __attribute__((format(printf, 3, 4)));
 #include <mysql/service_mysql_string.h>
 typedef void *mysql_string_iterator_handle;
 typedef void *mysql_string_handle;
