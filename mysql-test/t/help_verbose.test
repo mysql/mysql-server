@@ -19,10 +19,10 @@
 
 --echo # There should be no errors or warnings
 --let SEARCH_FILE=    $LOG_FILE
---let SEARCH_PATTERN= ERROR
+--let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= WARNING
+--let SEARCH_PATTERN= \[Warning\]
 --source include/search_pattern.inc
 
 # Cleanup
@@ -44,10 +44,10 @@
 
 --echo # There should be no errors or warnings
 --let SEARCH_FILE=    $LOG_FILE
---let SEARCH_PATTERN= ERROR
+--let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= WARNING
+--let SEARCH_PATTERN= \[Warning\]
 --source include/search_pattern.inc
 
 --echo # There should be no leftovers in the datadir.
@@ -72,10 +72,10 @@
 
 --echo # There should be no errors or warnings
 --let SEARCH_FILE=    $LOG_FILE
---let SEARCH_PATTERN= ERROR
+--let SEARCH_PATTERN= \[ERROR\]
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= WARNING
+--let SEARCH_PATTERN= \[Warning\]
 --source include/search_pattern.inc
 
 # Cleanup
