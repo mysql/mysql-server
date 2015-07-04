@@ -30,6 +30,8 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 #include "fsp0fsp.h"
 #include "os0file.h"
 
+#include "my_sys.h"
+
 
 /** Check if two tablespaces have common data file names.
 @param other_space	Tablespace to check against this.
