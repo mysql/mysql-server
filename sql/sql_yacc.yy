@@ -2300,10 +2300,12 @@ create:
           }
           view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER clear_privileges grant_list require_clause
+        | CREATE USER opt_if_not_exists clear_privileges grant_list require_clause
                       connect_options opt_account_lock_password_expire_options
           {
-            Lex->sql_command = SQLCOM_CREATE_USER;
+            LEX *lex=Lex;
+            lex->sql_command = SQLCOM_CREATE_USER;
+            lex->create_info.options=$3;
           }
         | CREATE LOGFILE_SYM GROUP_SYM logfile_group_info
           {
@@ -7578,9 +7580,11 @@ alter:
         ;
 
 alter_user_command:
-          ALTER USER clear_privileges
+          ALTER USER if_exists clear_privileges
           {
-            Lex->sql_command= SQLCOM_ALTER_USER;
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_ALTER_USER;
+            lex->drop_if_exists= $3;
           }
         ;
 
@@ -11069,9 +11073,11 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP USER clear_privileges user_list
+        | DROP USER if_exists clear_privileges user_list
           {
-            Lex->sql_command = SQLCOM_DROP_USER;
+             LEX *lex=Lex;
+             lex->sql_command= SQLCOM_DROP_USER;
+             lex->drop_if_exists= $3;
           }
         | DROP VIEW_SYM if_exists
           {
@@ -11992,8 +11998,9 @@ show_param:
           }
         | CREATE USER clear_privileges user
           {
-            Lex->sql_command= SQLCOM_SHOW_CREATE_USER;
-            Lex->grant_user=$4;
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_SHOW_CREATE_USER;
+            lex->grant_user=$4;
           }
         ;
 

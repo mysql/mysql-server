@@ -3621,7 +3621,8 @@ end_with_restore_list:
         check_global_access(thd,CREATE_USER_ACL))
       break;
     /* Conditionally writes to binlog */
-    if (!(res= mysql_create_user(thd, lex->users_list)))
+    HA_CREATE_INFO create_info(lex->create_info);
+    if (!(res = mysql_create_user(thd, lex->users_list, create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)))
       my_ok(thd);
     break;
   }
@@ -3631,7 +3632,7 @@ end_with_restore_list:
         check_global_access(thd,CREATE_USER_ACL))
       break;
     /* Conditionally writes to binlog */
-    if (!(res= mysql_drop_user(thd, lex->users_list)))
+    if (!(res = mysql_drop_user(thd, lex->users_list, lex->drop_if_exists)))
       my_ok(thd);
     break;
   }
@@ -4569,7 +4570,7 @@ end_with_restore_list:
     }
 
     /* Conditionally writes to binlog */
-    if (!(res= mysql_alter_user(thd, lex->users_list)))
+    if (!(res = mysql_alter_user(thd, lex->users_list, lex->drop_if_exists)))
       my_ok(thd);
     break;
   }

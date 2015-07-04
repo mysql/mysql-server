@@ -1304,7 +1304,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     TRUE        Error.
 */
 
-bool mysql_create_user(THD *thd, List <LEX_USER> &list)
+bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
 {
   int result;
   String wrong_users;
@@ -1372,9 +1372,23 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     */
     if (handle_grant_data(thd, tables, 0, user_name, NULL))
     {
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
-                  false);
-      result= TRUE;
+      if (if_not_exists &&
+          (opt_general_log_raw
+           || !user_name->uses_identified_by_clause))
+      {
+        String warn_user;
+        append_user(thd, &warn_user, user_name, FALSE, FALSE);
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+                            ER_USER_ALREADY_EXISTS,
+                            ER_THD(thd, ER_USER_ALREADY_EXISTS),
+                            warn_user.c_ptr_safe());
+      }
+      else
+      {
+        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
+                    false);
+        result= TRUE;
+      }
       continue;
     }
 
@@ -1399,7 +1413,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
   }
 
-  if (some_users_created)
+  if (some_users_created || if_not_exists)
   {
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
@@ -1443,7 +1457,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     TRUE        Error.
 */
 
-bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 {
   int result;
   String wrong_users;
@@ -1488,8 +1502,20 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }  
     if (handle_grant_data(thd, tables, 1, user_name, NULL) <= 0)
     {
-      append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
-      result= TRUE;
+      if (if_exists)
+      {
+        String warn_user;
+        append_user(thd, &warn_user, user_name, FALSE, FALSE);
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+                            ER_USER_DOES_NOT_EXIST,
+                            ER_THD(thd, ER_USER_DOES_NOT_EXIST),
+                            warn_user.c_ptr_safe());
+      }
+      else
+      {
+        append_user(thd, &wrong_users, user_name, wrong_users.length() > 0, FALSE);
+        result= TRUE;
+      }
       continue;
     }
     some_users_deleted= TRUE;
@@ -1503,7 +1529,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
-  if (some_users_deleted)
+  if (some_users_deleted || if_exists)
     result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
@@ -1639,7 +1665,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     TRUE        Error.
 */
 
-bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
+bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 {
   bool result= false;
   bool is_anonymous_user= false;
@@ -1719,9 +1745,23 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
     if (!(acl_user= find_acl_user(user_from->host.str,
                                    user_from->user.str, TRUE)))
     {
-      result= true;
-      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
-                  false);
+      if (if_exists && (opt_general_log_raw
+          || !user_from->uses_identified_by_clause))
+      {
+        String warn_user;
+        append_user(thd, &warn_user, user_from, FALSE, FALSE);
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
+          ER_USER_DOES_NOT_EXIST,
+          ER_THD(thd, ER_USER_DOES_NOT_EXIST),
+          warn_user.c_ptr_safe());
+      }
+      else
+      {
+        result= TRUE;
+        append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+          false);
+      }
+
       continue;
     }
 
@@ -1783,17 +1823,17 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list)
       my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
   }
 
-  if (!result && some_user_altered)
+  if (some_user_altered || if_exists)
   {
     /* do query rewrite for ALTER USER */
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
     mysql_rewrite_create_alter_user(thd, rlb);
 
-    result= (write_bin_log(thd, false,
-                           thd->rewritten_query.c_ptr_safe(),
-                           thd->rewritten_query.length(),
-                           table->file->has_transactions()) != 0);
+    result|= (write_bin_log(thd, false,
+                            thd->rewritten_query.c_ptr_safe(),
+                            thd->rewritten_query.length(),
+                            table->file->has_transactions()) != 0);
   }
 
   lock.unlock();

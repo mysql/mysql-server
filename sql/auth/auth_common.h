@@ -566,9 +566,9 @@ int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
-bool mysql_create_user(THD *thd, List <LEX_USER> &list);
-bool mysql_alter_user(THD *thd, List <LEX_USER> &list);
-bool mysql_drop_user(THD *thd, List <LEX_USER> &list);
+bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists);
+bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
+bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 
 bool set_and_validate_user_attributes(THD *thd,
