@@ -3849,6 +3849,7 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
         break;
       default:
         DBUG_ASSERT(0);
+        return TRUE;
       }
       if (tst)
         tst->set_isol_level(thd, l);
