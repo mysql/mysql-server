@@ -20,6 +20,7 @@
 
 #include "my_global.h"
 #include "my_thread.h"
+#include "my_sys.h"
 
 namespace my_boost{
 
@@ -28,6 +29,7 @@ class this_thread
 public:
   template<typename TPeriod> static void sleep(TPeriod time)
   {
+    my_sleep(time.total_microseconds());
     my_thread_yield();
   }
 };
