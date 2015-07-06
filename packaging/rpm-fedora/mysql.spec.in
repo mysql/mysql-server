@@ -18,8 +18,6 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
-%global milestone    rc
-
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
@@ -40,7 +38,7 @@
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{version}
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -64,7 +62,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.2%{?milestone:.%{milestone}}%{?dist}
+Release:        0.1%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -773,6 +771,9 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Jul 6 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-0.1
+- Updated for 5.7.9
+
 * Wed May 20 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.8-0.2.rc
 - Added libtest_framework.so, libtest_services.so, libtest_services_threaded.so plugins
 - Build and ship mecab plugin
