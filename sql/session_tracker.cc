@@ -1204,7 +1204,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
       to= net_store_length((uchar *) to, length);
 
       /* Transaction characteristics (length-encoded string). */
-      store_lenenc_string(buf, tx.c_ptr(), tx.length());
+      store_lenenc_string(buf, tx.ptr(), tx.length());
     }
   }
 
