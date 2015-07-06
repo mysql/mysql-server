@@ -421,6 +421,11 @@ bool mysql_update(THD *thd,
     if (conds)
     {
       conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      if (conds == NULL)
+      {
+        error= true;
+        goto exit_without_my_ok;
+      }
       conds->update_used_tables();
     }
   }
