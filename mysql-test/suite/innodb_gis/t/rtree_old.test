@@ -27,7 +27,6 @@ while ($1)
 }
 
 SELECT count(*) FROM t1;
-EXPLAIN SELECT fid, ST_AsText(g) FROM t1 WHERE MBRWithin(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;
 SELECT fid, ST_AsText(g) FROM t1 WHERE MBRWithin(g, ST_GeomFromText('Polygon((140 140,160 140,160 160,140 160,140 140))')) ORDER BY fid;
 
 DROP TABLE t1;
