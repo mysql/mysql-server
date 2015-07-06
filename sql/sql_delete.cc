@@ -227,6 +227,11 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     if (conds)
     {
       conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      if (conds == NULL)
+      {
+        err= true;
+        goto exit_without_my_ok;
+      }
       conds->update_used_tables();
     }
   }
