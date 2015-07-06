@@ -71,6 +71,7 @@ Ndb_inet_ntop(int af,
       sockaddr_in sa;
       memset(&sa, 0, sizeof(sa));
       memcpy(&sa.sin_addr, src, sizeof(sa.sin_addr));
+      sa.sin_family = AF_INET;
       ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
                         sizeof(sockaddr_in),
                         dst,
@@ -89,6 +90,7 @@ Ndb_inet_ntop(int af,
       sockaddr_in6 sa;
       memset(&sa, 0, sizeof(sa));
       memcpy(&sa.sin6_addr, src, sizeof(sa.sin6_addr));
+      sa.sin6_family = AF_INET6;
       ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
                         sizeof(sockaddr_in6),
                         dst,
