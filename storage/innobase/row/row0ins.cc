@@ -1178,10 +1178,15 @@ row_ins_foreign_check_on_constraint(
 
 		for (i = 0; i < foreign->n_fields; i++) {
 			upd_field_t*	ufield = &update->fields[i];
+			ulint		col_no = dict_index_get_nth_col_no(
+						index, i);
 
 			ufield->field_no = dict_table_get_nth_col_pos(
-				table,
-				dict_index_get_nth_col_no(index, i));
+				table, col_no);
+			dict_col_t*	col = dict_table_get_nth_col(
+				table, col_no);
+			dict_col_copy_type(col, dfield_get_type(&ufield->new_val));
+
 			ufield->orig_len = 0;
 			ufield->exp = NULL;
 			dfield_set_null(&ufield->new_val);
