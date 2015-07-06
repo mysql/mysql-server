@@ -249,7 +249,6 @@
 #cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
 #cmakedefine INSTALL_INFODIR "@default_prefix@/@INSTALL_INFODIR@"
 #cmakedefine INSTALL_MYSQLTESTDIR "@default_prefix@/@INSTALL_MYSQLTESTDIR@"
-#cmakedefine INSTALL_SQLBENCHDIR "@default_prefix@/@INSTALL_SQLBENCHDIR@"
 #cmakedefine INSTALL_DOCREADMEDIR "@default_prefix@/@INSTALL_DOCREADMEDIR@"
 #cmakedefine INSTALL_DOCDIR "@default_prefix@/@INSTALL_DOCDIR@"
 #cmakedefine INSTALL_MANDIR "@default_prefix@/@INSTALL_MANDIR@"
