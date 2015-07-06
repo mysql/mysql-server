@@ -2613,6 +2613,10 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   if(!lcpDone)
   {
     jam();
+    signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = senderRef;
+    signal->theData[3] = senderData;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
     return;
   }
