@@ -14,8 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Additional license file is needed so overriding this warning
-libmysqlclient20: extra-license-file usr/share/doc/libmysqlclient20/LICENSE.mysql
-libmysqlclient20: extra-license-file usr/share/doc/libmysqlclient20/COPYING.gz
-libmysqlclient20: copyright-should-refer-to-common-license-file-for-lgpl
+libmysqlclient21: extra-license-file usr/share/doc/libmysqlclient21/LICENSE.mysql
+libmysqlclient21: extra-license-file usr/share/doc/libmysqlclient21/COPYING.gz
+libmysqlclient21: copyright-should-refer-to-common-license-file-for-lgpl
 # Due to static linking this cannot be avoided and hence being overridden
-libmysqlclient20: embedded-library
+libmysqlclient21: embedded-library

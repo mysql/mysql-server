@@ -91,7 +91,7 @@ Description: MySQL Client and client tools
  Oracle. This package contains the standard MySQL clients and
  administration tools.
 
-Package: libmysqlclient20
+Package: libmysqlclient21
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
@@ -125,7 +125,7 @@ Description: MySQL configuration for client and server
 Package: libmysqlclient-dev
 Architecture: any
 Section: libdevel
-Depends: libmysqlclient20 (= ${binary:Version}),
+Depends: libmysqlclient21 (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
 Description: MySQL development headers
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,

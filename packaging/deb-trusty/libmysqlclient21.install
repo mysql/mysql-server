@@ -15,5 +15,5 @@
 
 usr/lib/*/libmysqlclient.so.*
 # legal
-usr/share/doc/libmysqlclient20/COPYING
-usr/share/doc/libmysqlclient20/README
+usr/share/doc/libmysqlclient21/COPYING
+usr/share/doc/libmysqlclient21/README
