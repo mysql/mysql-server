@@ -339,7 +339,14 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen= sizeof(addr);
   if (my_getpeername(sock, (struct sockaddr*)&addr, &addrlen) == 0)
-    m_name.assfmt("%s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  {
+    char addr_buf[NDB_ADDR_STRLEN];
+    char *addr_str = Ndb_inet_ntop(AF_INET,
+                                   static_cast<void*>(&addr.sin_addr),
+                                   addr_buf,
+                                   (socklen_t)sizeof(addr_buf));
+    m_name.assfmt("%s:%d", addr_str, ntohs(addr.sin_port));
+  }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));
 
   DBUG_VOID_RETURN;
@@ -1004,9 +1011,13 @@ printNodeStatus(OutputStream *output,
       connectCount = 0;
     bool system;
     const char *address= NULL;
+    char addr_buf[NDB_ADDR_STRLEN];
+
     mgmsrv.status(nodeId, &status, &version, &mysql_version, &startPhase,
 		  &system, &dynamicId, &nodeGroup, &connectCount,
-		  &address);
+		  &address,
+                  addr_buf,
+                  sizeof(addr_buf));
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));

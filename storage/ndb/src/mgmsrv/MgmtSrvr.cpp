@@ -1033,12 +1033,19 @@ void
 MgmtSrvr::status_api(int nodeId,
                      ndb_mgm_node_status& node_status,
                      Uint32& version, Uint32& mysql_version,
-                     const char **address)
+                     const char **address,
+                     char *addr_buf,
+                     size_t addr_buf_size)
 {
   assert(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API);
   assert(version == 0 && mysql_version == 0);
 
-  if (sendVersionReq(nodeId, version, mysql_version, address) != 0)
+  if (sendVersionReq(nodeId,
+                     version,
+                     mysql_version,
+                     address,
+                     addr_buf,
+                     addr_buf_size) != 0)
   {
     // Couldn't get version from any NDB node.
     assert(version == 0);
@@ -1064,7 +1071,9 @@ int
 MgmtSrvr::sendVersionReq(int v_nodeId,
 			 Uint32 &version,
 			 Uint32& mysql_version,
-			 const char **address)
+			 const char **address,
+                         char *addr_buf,
+                         size_t addr_buf_size)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -1111,7 +1120,10 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 	mysql_version = 0;
       struct in_addr in;
       in.s_addr= conf->m_inet_addr;
-      *address= inet_ntoa(in);
+      *address= Ndb_inet_ntop(AF_INET,
+                              static_cast<void*>(&in),
+                              addr_buf,
+                              (socklen_t)addr_buf_size);
 
       return 0;
     }
@@ -1926,8 +1938,10 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
       Uint32 connectCount = 0;
       bool system;
       const char *address= NULL;
+      char addr_buf[NDB_ADDR_STRLEN];
       status(nodeId, &s, &version, &mysql_version, &startPhase, 
-             &system, &dynamicId, &nodeGroup, &connectCount, &address);
+             &system, &dynamicId, &nodeGroup, &connectCount,
+             &address, addr_buf, sizeof(addr_buf));
       NdbSleep_MilliSleep(100);  
     }
   }
@@ -2024,8 +2038,10 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
       Uint32 connectCount = 0;
       bool system;
       const char *address;
+      char addr_buf[NDB_ADDR_STRLEN];
       status(nodeId, &s, &version, &mysql_version, &startPhase, 
-	     &system, &dynamicId, &nodeGroup, &connectCount, &address);
+	     &system, &dynamicId, &nodeGroup, &connectCount,
+             &address, addr_buf, sizeof(addr_buf));
       NdbSleep_MilliSleep(100);  
     }
   }
@@ -2106,7 +2122,9 @@ void
 MgmtSrvr::status_mgmd(NodeId node_id,
                       ndb_mgm_node_status& node_status,
                       Uint32& version, Uint32& mysql_version,
-                      const char **address)
+                      const char **address,
+                      char *addr_buf,
+                      size_t addr_buf_size)
 {
   assert(getNodeType(node_id) == NDB_MGM_NODE_TYPE_MGM);
 
@@ -2119,7 +2137,12 @@ MgmtSrvr::status_mgmd(NodeId node_id,
         else use HostName from config
     */
     Uint32 tmp_version = 0, tmp_mysql_version = 0;
-    sendVersionReq(node_id, tmp_version, tmp_mysql_version, address);
+    sendVersionReq(node_id,
+                   tmp_version,
+                   tmp_mysql_version,
+                   address,
+                   addr_buf,
+                   addr_buf_size);
     // Check that the version returned is equal to compiled in version
     assert(tmp_version == 0 ||
            (tmp_version == NDB_VERSION &&
@@ -2141,7 +2164,12 @@ MgmtSrvr::status_mgmd(NodeId node_id,
       */
       struct in_addr addr;
       if (Ndb_getInAddr(&addr, *address) == 0)
-        *address = inet_ntoa(addr);
+      {
+        *address = Ndb_inet_ntop(AF_INET,
+                                 static_cast<void*>(&addr),
+                                 addr_buf,
+                                 (socklen_t)addr_buf_size);
+      }
     }
 
     node_status = NDB_MGM_NODE_STATUS_CONNECTED;
@@ -2158,7 +2186,9 @@ MgmtSrvr::status_mgmd(NodeId node_id,
     version = node.m_info.m_version;
     mysql_version = node.m_info.m_mysql_version;
     node_status = NDB_MGM_NODE_STATUS_CONNECTED;
-    *address= get_connect_address(node_id);
+    *address= get_connect_address(node_id,
+                                  addr_buf,
+                                  addr_buf_size);
   }
   else
   {
@@ -2180,16 +2210,30 @@ MgmtSrvr::status(int nodeId,
 		 Uint32 * dynamic,
 		 Uint32 * nodegroup,
 		 Uint32 * connectCount,
-		 const char **address)
+		 const char **address,
+                 char *addr_buf,
+                 size_t addr_buf_size)
 {
   switch(getNodeType(nodeId)){
   case NDB_MGM_NODE_TYPE_API:
-    status_api(nodeId, *_status, *version, *mysql_version, address);
+    status_api(nodeId,
+               *_status,
+               *version,
+               *mysql_version,
+               address,
+               addr_buf,
+               addr_buf_size);
     return 0;
     break;
 
   case NDB_MGM_NODE_TYPE_MGM:
-    status_mgmd(nodeId, *_status, *version, *mysql_version, address);
+    status_mgmd(nodeId,
+                *_status,
+                *version,
+                *mysql_version,
+                address,
+                addr_buf,
+                addr_buf_size);
     return 0;
     break;
 
@@ -2213,7 +2257,7 @@ MgmtSrvr::status(int nodeId,
   * version = node.m_info.m_version;
   * mysql_version = node.m_info.m_mysql_version;
 
-  *address= get_connect_address(nodeId);
+  *address= get_connect_address(nodeId, addr_buf, addr_buf_size);
 
   * dynamic = node.m_state.dynamicId;
   * nodegroup = node.m_state.nodeGroup;
@@ -3110,7 +3154,9 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
 
 
 const char*
-MgmtSrvr::get_connect_address(NodeId node_id)
+MgmtSrvr::get_connect_address(NodeId node_id,
+                              char *addr_buf,
+                              size_t addr_buf_size)
 {
   assert(node_id < NDB_ARRAY_SIZE(m_connect_address));
 
@@ -3127,7 +3173,10 @@ MgmtSrvr::get_connect_address(NodeId node_id)
   }
 
   // Return the cached connect address
-  return inet_ntoa(m_connect_address[node_id]);
+  return Ndb_inet_ntop(AF_INET,
+                       static_cast<void*>(&m_connect_address[node_id]),
+                       addr_buf,
+                       (socklen_t)addr_buf_size);
 }
 
 
@@ -3501,14 +3550,25 @@ MgmtSrvr::find_node_type(NodeId node_id,
     }
     if (found_config_hostname)
     {
+      char addr_buf[NDB_ADDR_STRLEN];
+      char *addr_str;
       struct in_addr config_addr= {0};
+      struct in_addr conn_addr =
+        ((struct sockaddr_in*)(client_addr))->sin_addr;
       int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
+      addr_str = Ndb_inet_ntop(AF_INET,
+                               static_cast<void*>(&conn_addr),
+                               addr_buf,
+                               (socklen_t)sizeof(addr_buf));
       error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-                          node_id, inet_ntoa(((struct sockaddr_in *)
-                                              (client_addr))->sin_addr));
+                          node_id, addr_str);
+      addr_str = Ndb_inet_ntop(AF_INET,
+                               static_cast<void*>(&config_addr),
+                               addr_buf,
+                               (socklen_t)sizeof(addr_buf));
       error_string.appfmt(" expected %s(%s).", found_config_hostname,
                           r_config_addr ?
-                          "lookup failed" : inet_ntoa(config_addr));
+                          "lookup failed" : addr_str);
       return -1;
     }
     error_string.appfmt("No node defined with id=%d in config file.", node_id);
@@ -3518,10 +3578,15 @@ MgmtSrvr::find_node_type(NodeId node_id,
   // node_id == 0 and nodes.size() == 0
   if (found_config_hostname)
   {
+    char addr_buf[NDB_ADDR_STRLEN];
+    struct in_addr conn_addr =
+      ((struct sockaddr_in*)(client_addr))->sin_addr;
+    char *addr_str = Ndb_inet_ntop(AF_INET,
+                                   static_cast<void*>(&conn_addr),
+                                   addr_buf,
+                                   (socklen_t)sizeof(addr_buf));
     error_string.appfmt("Connection done from wrong host ip %s.",
-                        (client_addr)?
-                        inet_ntoa(((struct sockaddr_in *)
-                                   (client_addr))->sin_addr):"");
+                        (client_addr) ? addr_str : "");
     return -1;
   }
 
@@ -3819,8 +3884,13 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
                         bool log_event,
                         Uint32 timeout_s)
 {
+  char addr_buf[NDB_ADDR_STRLEN];
+  struct in_addr conn_addr = ((sockaddr_in*)client_addr)->sin_addr;
   const char* type_str = ndb_mgm_get_node_type_string(type);
-  const char* addr_str = inet_ntoa(((sockaddr_in*)client_addr)->sin_addr);
+  char* addr_str = Ndb_inet_ntop(AF_INET,
+                                 static_cast<void*>(&conn_addr),
+                                 addr_buf,
+                                 (socklen_t)sizeof(addr_buf));
 
   g_eventLogger->debug("Trying to allocate nodeid for %s" \
                        "(nodeid: %u, type: %s)",
