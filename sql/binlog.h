@@ -18,8 +18,10 @@
 
 #include "my_global.h"
 #include "my_atomic.h"                 // my_atomic_load32
+#include "m_string.h"                  // llstr
+#include "mysql_com.h"                 // Item_result
 #include "binlog_event.h"              // enum_binlog_checksum_alg
-#include "log.h"                       // TC_LOG
+#include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
 
 class Relay_log_info;

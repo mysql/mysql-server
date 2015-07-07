@@ -16,6 +16,7 @@
 #include "rpl_mts_submode.h"
 
 #include "hash.h"                           // HASH
+#include "log.h"                            // sql_print_information
 #include "log_event.h"                      // Query_log_event
 #include "mysqld.h"                         // stage_worker_....
 #include "rpl_rli.h"                        // Relay_log_info
@@ -550,22 +551,6 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
 
   if (first_event)
   {
-    if (sequence_number == SEQ_UNINIT)
-    {
-      /*
-        Either master is old, or the current group of events is malformed.
-        In either case execution is allowed in effectively sequential mode, and warned.
-      */
-      sql_print_warning("Either event (relay log name:position) (%s:%llu) "
-                        "is from an old master therefore is not tagged "
-                        "with logical timestamps, or the current group of "
-                        "events miss a proper group header event. Execution is "
-                        "proceeded, but it is recommended to make sure "
-                        "replication is resumed from a valid start group "
-                        "position.",
-                        rli->get_event_relay_log_name(),
-                        rli->get_event_relay_log_pos());
-    }
     first_event= false;
   }
   else
@@ -873,7 +858,8 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
 
       set_timespec_nsec(&ts[0], 0);
       // Update thd info as waiting for workers to finish.
-      thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
+      thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue,
+                       old_stage,
                        __func__, __FILE__, __LINE__);
       while (!worker && !thd->killed)
       {
@@ -953,7 +939,8 @@ Mts_submode_logical_clock::
   DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
                           jobs_done));
   // Update thd info as waiting for workers to finish.
-  thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
+  thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue,
+                   old_stage,
                     __func__, __FILE__, __LINE__);
   while (delegated_jobs > jobs_done && !thd->killed && !is_error)
   {

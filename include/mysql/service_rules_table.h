@@ -1,4 +1,3 @@
-#ifdef __cplusplus
 #ifndef SERVICE_RULES_TABLE_INCLUDED
 #define SERVICE_RULES_TABLE_INCLUDED
 
@@ -189,4 +188,3 @@ Cursor end();
 }
 
 #endif // SERVICE_RULES_TABLE_INCLUDED
-#endif // __cplusplus

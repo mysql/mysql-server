@@ -26,9 +26,6 @@
 
   @brief This file contains classes handling old formats of row-based
   binlog events.
-
-  @addtogroup Replication
-  @{
 */
 /*
   Around 2007-10-31, I made these classes completely separated from
@@ -562,10 +559,5 @@ private:
   virtual int do_exec_row(TABLE *table);
 #endif
 };
-
-/**
-  @} (end of group Replication)
-*/
-
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,13 +23,13 @@
 #include "composite_options_provider.h"
 #include "abstract_program.h"
 #include "i_connection_factory.h"
+#include "nullable.h"
+#include "base/mutex.h"
 
 namespace Mysql{
 namespace Tools{
 namespace Base{
 namespace Options{
-
-using std::vector;
 
 /**
   Options provider providing options to specify connection to MySQL server.
@@ -63,7 +63,8 @@ private:
 
 public:
   /**
-    Constructs new MySQL server connection options provider.
+    Constructs new MySQL server connection options provider. Calling this
+    function from multiple threads simultaneously is not thread safe.
     @param program Pointer to main program class.
    */
   Mysql_connection_options(Abstract_program *program);
@@ -81,17 +82,28 @@ public:
    */
   MYSQL* create_connection();
 
+  /**
+    Retrieves charset that will be used in new MySQL connections.. Can be NULL
+    if none was set explicitly.
+   */
+  CHARSET_INFO* get_current_charset() const;
+
+  /**
+    Sets charset that will be used in new MySQL connections.
+   */
+  void set_current_charset(CHARSET_INFO* charset);
+
 private:
   /**
     Returns pointer to constant array containing specified string or NULL
     value if string has length 0.
    */
-  const char* get_null_or_string(Nullable<string>& maybeString);
+  const char* get_null_or_string(Nullable<std::string>& maybeString);
 
   /**
     Prints database connection error and exits program.
    */
-  void db_error(MYSQL* connection, const char* error_message);
+  void db_error(MYSQL* connection, const char* when);
 #ifdef _WIN32
   void pipe_protocol_callback(char* not_used __attribute__((unused)));
 #endif
@@ -104,28 +116,28 @@ private:
    List of created connections. As we don't have memory management for
    C structs we must clear it by options provider destruction.
    */
-  vector<MYSQL*> m_allocated_connections;
-
+  std::vector<MYSQL*> m_allocated_connections;
+  my_boost::mutex m_connection_mutex;
   Ssl_options m_ssl_options_provider;
   Abstract_program *m_program;
-  Nullable<string> m_protocol_string;
+  Nullable<std::string> m_protocol_string;
   uint32 m_protocol;
-  Nullable<string> m_bind_addr;
-  Nullable<string> m_host;
+  Nullable<std::string> m_bind_addr;
+  Nullable<std::string> m_host;
   uint32 m_mysql_port;
-  Nullable<string> m_mysql_unix_port;
+  Nullable<std::string> m_mysql_unix_port;
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
-  Nullable<string> m_shared_memory_base_name;
+  Nullable<std::string> m_shared_memory_base_name;
 #endif
-  Nullable<string> m_default_auth;
+  Nullable<std::string> m_default_auth;
   bool m_secure_auth;
-  Nullable<string> m_plugin_dir;
+  Nullable<std::string> m_plugin_dir;
   uint32 m_net_buffer_length;
   uint32 m_max_allowed_packet;
   bool m_compress;
-  Nullable<string> m_user;
-  Nullable<string> m_password;
-  Nullable<string> m_default_charset;
+  Nullable<std::string> m_user;
+  Nullable<std::string> m_password;
+  Nullable<std::string> m_default_charset;
 };
 
 }

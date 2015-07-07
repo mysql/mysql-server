@@ -2976,6 +2976,17 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
     sql_field->unireg_check=Field::BLOB_FIELD;
     (*blob_columns)++;
     break;
+  case MYSQL_TYPE_JSON:
+    // JSON fields are stored as BLOBs.
+    sql_field->pack_flag=FIELDFLAG_JSON |
+      pack_length_to_packflag(sql_field->pack_length -
+                              portable_sizeof_char_ptr);
+    if (sql_field->charset->state & MY_CS_BINSORT)
+      sql_field->pack_flag|=FIELDFLAG_BINARY;
+    sql_field->length=8;                        // Unireg field length
+    sql_field->unireg_check=Field::BLOB_FIELD;
+    (*blob_columns)++;
+    break;
   case MYSQL_TYPE_VARCHAR:
     if (table_flags & HA_NO_VARCHAR)
     {
@@ -4016,6 +4027,13 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           }
         }
 
+        // JSON columns cannot be used as keys.
+        if (f_is_json(sql_field->pack_flag))
+        {
+          my_error(ER_JSON_USED_AS_KEY, MYF(0), column->field_name.str);
+          DBUG_RETURN(TRUE);
+        }
+
 	if (f_is_blob(sql_field->pack_flag) ||
             (f_is_geom(sql_field->pack_flag) && key->type != KEYTYPE_SPATIAL))
 	{
@@ -4341,7 +4359,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     default 0 value of timestamp. When explicit-defaults-for-timestamp server
     option is removed, whole set of check can be removed.
   */
-  if (thd->is_strict_mode()  && !thd->variables.explicit_defaults_for_timestamp)
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
+      !thd->variables.explicit_defaults_for_timestamp)
   {
     while ((sql_field=it++))
     {
@@ -4648,6 +4667,12 @@ bool create_table_impl(THD *thd,
     my_error(ER_TABLE_MUST_HAVE_COLUMNS, MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  // Check if new table creation is disallowed by the storage engine.
+  if (!internal_tmp_table &&
+      ha_is_storage_engine_disabled(create_info->db_type))
+    DBUG_RETURN(true);
+
   if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
 
@@ -8380,6 +8405,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   DEBUG_SYNC(thd, "alter_opened_table");
 
   if (error)
+    DBUG_RETURN(true);
+
+  // Check if ALTER TABLE ... ENGINE is disallowed by the storage engine.
+  if (table_list->table->s->db_type() != create_info->db_type &&
+      (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
+      (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+       ha_is_storage_engine_disabled(create_info->db_type))
     DBUG_RETURN(true);
 
   TABLE *table= table_list->table;

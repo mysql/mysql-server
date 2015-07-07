@@ -553,16 +553,12 @@ DROP TABLE t1;
 #
 SET @old_mode= @@sql_mode;
 CREATE TABLE t1 (fld1 INT);
-SET sql_mode='strict_all_tables';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET sql_mode=default;
 # Without fix, load data hangs forever.
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
 FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
 Got one of the listed errors
 SET @@sql_mode= @old_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 #
 # Bug#20683959 LOAD DATA INFILE IGNORES A SPECIFIC ROW SILENTLY

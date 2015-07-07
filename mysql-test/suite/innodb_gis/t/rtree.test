@@ -16,6 +16,8 @@ insert into t1 values (1, POINT(3,3));
 insert into t1 values (1, POINT(3.1,3.1));
 insert into t1 values (1, POINT(5,5));
 
+analyze table t1;
+
 # Select by R-tree index.
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
@@ -133,6 +135,8 @@ insert into t1 values (2, "222", POINT(1.5,1.5));
 insert into t1 values (3, "333", POINT(3,3));
 insert into t1 values (4, "444", POINT(3.1,3.1));
 insert into t1 values (5, "555", POINT(5,5));
+
+analyze table t1;
 
 # Select by R-tree index.
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');

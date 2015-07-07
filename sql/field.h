@@ -30,6 +30,8 @@
 #include "mysql_version.h"                      // FRM_VER
 
 class Create_field;
+class Json_dom;
+class Json_wrapper;
 class Protocol;
 class Relay_log_info;
 class Send_field;
@@ -64,6 +66,7 @@ Field (abstract)
 |  |  +--Field_varstring
 |  |  +--Field_blob
 |  |     +--Field_geom
+|  |     +--Field_json
 |  |
 |  +--Field_null
 |  +--Field_enum
@@ -2538,7 +2541,7 @@ protected:
     check_date(), number_to_datetime(), str_to_datetime().
 
     Flags depend on the session sql_mode settings, such as
-    MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES.
+    MODE_NO_ZERO_DATE, MODE_NO_ZERO_IN_DATE.
     Also, Field_newdate, Field_datetime, Field_datetimef add TIME_FUZZY_DATE
     to the session sql_mode settings, to allow relaxed date format,
     while Field_timestamp, Field_timestampf do not.
@@ -3820,6 +3823,104 @@ public:
 };
 
 
+/// A field that stores a JSON value.
+class Field_json :public Field_blob
+{
+  type_conversion_status unsupported_conversion();
+  type_conversion_status store_dom(const Json_dom *dom);
+  type_conversion_status store_binary(const char *ptr, size_t length);
+public:
+  Field_json(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
+             enum utype unireg_check_arg, const char *field_name_arg,
+             TABLE_SHARE *share, uint blob_pack_length)
+    : Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, unireg_check_arg,
+                 field_name_arg, share, blob_pack_length, &my_charset_bin)
+  {}
+
+  Field_json(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg)
+    : Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin)
+  {}
+
+  enum_field_types type() const { return MYSQL_TYPE_JSON; }
+  void sql_type(String &str) const;
+  /**
+    Return a text charset so that string functions automatically
+    convert the field value to string and treat it as a non-binary
+    string.
+  */
+  const CHARSET_INFO *charset() const { return &my_charset_utf8mb4_bin; }
+  /**
+    Sort should treat the field as binary and not attempt any
+    conversions.
+  */
+  const CHARSET_INFO *sort_charset() const { return field_charset; }
+  /**
+    JSON columns don't have an associated charset. Returning false
+    here prevents SHOW CREATE TABLE from attaching a CHARACTER SET
+    clause to the column.
+  */
+  bool has_charset() const { return false; }
+  type_conversion_status store(const char *to, size_t length,
+                               const CHARSET_INFO *charset);
+  type_conversion_status store(double nr);
+  type_conversion_status store(longlong nr, bool unsigned_val);
+  type_conversion_status store_decimal(const my_decimal *);
+  type_conversion_status store_json(Json_wrapper *json);
+  type_conversion_status store_time(MYSQL_TIME *ltime, uint8 dec_arg);
+  type_conversion_status store(Field_json *field);
+
+  /**
+    Retrieve the field's value as a JSON wrapper. It
+    there is an error, wr is not modified and we return
+    false, else true.
+
+    @param[out]    wr   the JSON value
+    @return true if a value is retrieved (or NULL), false if error
+  */
+  bool val_json(Json_wrapper *wr);
+
+  /**
+    Retrieve the JSON as an int if possible. This requires a JSON scalar
+    of suitable type.
+
+    @returns the JSON value as an int
+  */
+  longlong val_int();
+
+  /**
+   Retrieve the JSON as a double if possible. This requires a JSON scalar
+   of suitable type.
+
+   @returns the JSON value as a double
+   */
+  double val_real();
+
+  /**
+    Retrieve the JSON value stored in this field as text
+
+    @param[in,out] buf1 string buffer for converting JSON value to string
+    @param[in,out] buf2 unused
+  */
+  String *val_str(String *tmp, String *str);
+  my_decimal *val_decimal(my_decimal *m);
+  bool get_time(MYSQL_TIME *ltime);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  Field_json *clone(MEM_ROOT *mem_root) const;
+  Field_json *clone() const;
+  uint is_equal(Create_field *new_field);
+  Item_result cast_to_int_type () const { return INT_RESULT; }
+  void make_sort_key(uchar *to, size_t length);
+
+  /**
+    Make a hash key that can be used by sql_executor.cc/unique_hash
+    in order to support SELECT DISTINCT
+
+    @param[in]  hash_val  An initial hash value.
+  */
+  ulonglong make_hash_key(ulonglong *hash_val);
+};
+
+
 class Field_enum :public Field_str {
 protected:
   uint packlength;
@@ -4292,6 +4393,8 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 #define FIELDFLAG_BITFIELD		512	// mangled with decimals!
 #define FIELDFLAG_BLOB			1024	// mangled with decimals!
 #define FIELDFLAG_GEOM			2048    // mangled with decimals!
+#define FIELDFLAG_JSON                  4096    /* mangled with decimals and
+                                                   with bitfields! */
 
 #define FIELDFLAG_TREAT_BIT_AS_CHAR     4096    /* use Field_bit_as_char */
 
@@ -4356,6 +4459,11 @@ inline int f_is_blob(int x)
 inline int f_is_geom(int x)
 {
   return ((x & (FIELDFLAG_GEOM | FIELDFLAG_NUMBER)) == FIELDFLAG_GEOM);
+}
+inline int f_is_json(int x)
+{
+  return ((x & (FIELDFLAG_JSON | FIELDFLAG_NUMBER | FIELDFLAG_BITFIELD)) ==
+          FIELDFLAG_JSON);
 }
 inline int f_is_equ(int x)
 {

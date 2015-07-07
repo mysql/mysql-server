@@ -52,7 +52,6 @@ void setup_server_for_unit_tests()
                    const_cast<char*>("--datadir=" DATA_DIR),
                    const_cast<char*>("--lc-messages-dir=" ERRMSG_DIR), 0 };
   set_remaining_args(6, argv);
-  mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
   init_common_variables();
@@ -73,7 +72,6 @@ void teardown_server_for_unit_tests()
   delegates_destroy();
   transaction_cache_free();
   gtid_server_cleanup();
-  mysql_mutex_destroy(&LOCK_error_log);
   query_logger.cleanup();
   delete_optimizer_cost_module();
 }

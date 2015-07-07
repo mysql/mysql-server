@@ -19,6 +19,7 @@
 #include "debug_sync.h"              // debug_sync_set_action
 #include "derror.h"                  // ER_THD
 #include "item_func.h"               // user_var_entry
+#include "log.h"                     // sql_print_information
 #include "log_event.h"               // MAX_MAX_ALLOWED_PACKET
 #include "mysqld.h"                  // global_system_variables ...
 #include "rpl_constants.h"           // BINLOG_DUMP_NON_BLOCK

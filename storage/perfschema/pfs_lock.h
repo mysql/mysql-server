@@ -245,7 +245,7 @@ struct pfs_lock
     @param [out] copy Saved lock state
     @sa end_optimist_lock.
   */
-  void begin_optimistic_lock(struct pfs_optimistic_state *copy)
+  void begin_optimistic_lock(pfs_optimistic_state *copy)
   {
     copy->m_version_state= PFS_atomic::load_u32(&m_version_state);
   }
@@ -256,7 +256,7 @@ struct pfs_lock
     @param copy Saved lock state
     @return true if the data read is safe to use.
   */
-  bool end_optimistic_lock(const struct pfs_optimistic_state *copy)
+  bool end_optimistic_lock(const pfs_optimistic_state *copy)
   {
     uint32 version_state;
 

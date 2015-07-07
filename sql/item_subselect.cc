@@ -1274,6 +1274,21 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 }
 
 
+bool Item_singlerow_subselect::val_json(Json_wrapper *result)
+{
+  if (!no_rows && !exec() && !value->null_value)
+  {
+    null_value= false;
+    return value->val_json(result);
+  }
+  else
+  {
+    reset();
+    return false;
+  }
+}
+
+
 bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,
                                         my_time_flags_t fuzzydate)
 {

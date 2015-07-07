@@ -56,9 +56,6 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_status";
 
 select count(name) from mutex_instances
- where name like "wait/synch/mutex/sql/LOCK_error_log";
-
-select count(name) from mutex_instances
  where name like "wait/synch/mutex/sql/LOCK_uuid_generator";
 
 select count(name) from mutex_instances

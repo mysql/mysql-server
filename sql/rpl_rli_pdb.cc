@@ -17,6 +17,7 @@
 
 #include "current_thd.h"
 #include "psi_memory_key.h"
+#include "log.h"                            // sql_print_error
 #include "mysqld.h"                         // key_mutex_slave_parallel_worker
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 

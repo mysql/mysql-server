@@ -1336,39 +1336,6 @@ public:
     Gtid_set, false otherwise.
   */
   static bool is_valid(const char *text);
-  /**
-    Return a newly allocated string containing this Gtid_set, or NULL
-    on out of memory.
-  */
-  char *to_string() const
-  {
-    char *str= (char *)my_malloc(key_memory_Gtid_set_to_string,
-                                 get_string_length() + 1, MYF(MY_WME));
-    if (str != NULL)
-      to_string(str);
-    return str;
-  }
-#ifndef DBUG_OFF
-  /// Debug only: Print this Gtid_set to stdout.
-  void print() const
-  {
-    char *str= to_string();
-    printf("%s\n", str);
-    my_free(str);
-  }
-#endif
-  /**
-    Print this Gtid_set to the trace file if debug is enabled; no-op
-    otherwise.
-  */
-  void dbug_print(const char *text= "") const
-  {
-#ifndef DBUG_OFF
-    char *str= to_string();
-    DBUG_PRINT("info", ("%s%s'%s'", text, *text ? ": " : "", str));
-    my_free(str);
-#endif
-  }
 
   /**
     Class Gtid_set::String_format defines the separators used by
@@ -1415,20 +1382,58 @@ public:
 
     @param[out] buf Pointer to the buffer where the string should be
     stored. This should have size at least get_string_length()+1.
+    @param need_lock If this Gtid_set has a sid_lock, then the write
+    lock must be held while generating the string. If this parameter
+    is true, then this function acquires and releases the lock;
+    otherwise it asserts that the caller holds the lock.
     @param string_format String_format object that specifies
     separators in the resulting text.
     @return Length of the generated string.
   */
-  int to_string(char *buf, const String_format *string_format= NULL) const;
+  int to_string(char *buf, bool need_lock= false,
+                const String_format *string_format= NULL) const;
 
   /**
     Formats a Gtid_set as a string and saves in a newly allocated buffer.
     @param[out] buf Pointer to pointer to string. The function will
     set it to point to the newly allocated buffer, or NULL on out of memory.
+    @param need_lock If this Gtid_set has a sid_lock, then the write
+    lock must be held while generating the string. If this parameter
+    is true, then this function acquires and releases the lock;
+    otherwise it asserts that the caller holds the lock.
     @param string_format Specifies how to format the string.
     @retval Length of the generated string, or -1 on out of memory.
   */
-  int to_string(char **buf, const String_format *string_format= NULL) const;
+  int to_string(char **buf, bool need_lock= false,
+                const String_format *string_format= NULL) const;
+#ifndef DBUG_OFF
+  /// Debug only: Print this Gtid_set to stdout.
+  void print(bool need_lock= false,
+             const Gtid_set::String_format *sf= NULL) const
+  {
+    char *str;
+    to_string(&str, need_lock, sf);
+    printf("%s\n", str ? str : "out of memory in Gtid_set::print");
+    my_free(str);
+  }
+#endif
+  /**
+    Print this Gtid_set to the trace file if debug is enabled; no-op
+    otherwise.
+  */
+  void dbug_print(const char *text= "", bool need_lock= false,
+                  const Gtid_set::String_format *sf= NULL) const
+  {
+#ifndef DBUG_OFF
+    char *str;
+    to_string(&str, need_lock, sf);
+    DBUG_PRINT("info", ("%s%s'%s'",
+                        text,
+                        *text ? ": " : "",
+                        str ? str : "out of memory in Gtid_set::dbug_print"));
+    my_free(str);
+#endif
+  }
   /**
     Gets all gtid intervals from this Gtid_set.
 

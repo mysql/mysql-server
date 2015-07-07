@@ -22,6 +22,8 @@ ${CMAKE_BINARY_DIR}/storage/ndb/include
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/ndbapi
 ${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi)
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
 # Default install component for the files is Server here
 SET(MYSQL_INSTALL_COMPONENT Server)
 

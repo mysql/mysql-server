@@ -105,7 +105,7 @@ extern CHARSET_INFO *character_set_filesystem;
 
 extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
-extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern bool opt_update_log, opt_bin_log;
 extern my_bool opt_log_slave_updates;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern my_bool opt_backup_history_log;
@@ -141,6 +141,7 @@ enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
 extern ulonglong slave_rows_search_algorithms_options;
+extern my_bool opt_require_secure_transport;
 
 #ifdef HAVE_REPLICATION
 extern my_bool opt_slave_preserve_commit_order;
@@ -205,7 +206,7 @@ extern char *my_bind_addr_str;
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
 extern char default_logfile_name[FN_REFLEN];
-extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
+extern char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH+1];
 extern const char *server_uuid_ptr;
 extern const double log_10[309];
@@ -478,6 +479,7 @@ extern PSI_stage_info stage_checking_privileges_on_cached_query;
 extern PSI_stage_info stage_checking_query_cache_for_query;
 extern PSI_stage_info stage_cleaning_up;
 extern PSI_stage_info stage_closing_tables;
+extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_connecting_to_master;
 extern PSI_stage_info stage_converting_heap_to_ondisk;
 extern PSI_stage_info stage_copying_to_group_table;
@@ -530,6 +532,12 @@ extern PSI_stage_info stage_sending_cached_result_to_client;
 extern PSI_stage_info stage_sending_data;
 extern PSI_stage_info stage_setup;
 extern PSI_stage_info stage_slave_has_read_all_relay_log;
+extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
+extern PSI_stage_info stage_slave_waiting_for_workers_to_process_queue;
+extern PSI_stage_info stage_slave_waiting_worker_queue;
+extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
+extern PSI_stage_info stage_slave_waiting_worker_to_release_partition;
+extern PSI_stage_info stage_slave_waiting_workers_to_exit;
 extern PSI_stage_info stage_sorting_for_group;
 extern PSI_stage_info stage_sorting_for_order;
 extern PSI_stage_info stage_sorting_result;
@@ -545,7 +553,7 @@ extern PSI_stage_info stage_updating_reference_tables;
 extern PSI_stage_info stage_upgrading_lock;
 extern PSI_stage_info stage_user_sleep;
 extern PSI_stage_info stage_verifying_table;
-extern PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log;
+extern PSI_stage_info stage_waiting_for_gtid_to_be_committed;
 extern PSI_stage_info stage_waiting_for_handler_insert;
 extern PSI_stage_info stage_waiting_for_handler_lock;
 extern PSI_stage_info stage_waiting_for_handler_open;
@@ -560,18 +568,9 @@ extern PSI_stage_info stage_waiting_for_table_flush;
 extern PSI_stage_info stage_waiting_for_the_next_event_in_relay_log;
 extern PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position;
 extern PSI_stage_info stage_waiting_to_finalize_termination;
-extern PSI_stage_info stage_slave_waiting_worker_to_release_partition;
-extern PSI_stage_info stage_slave_waiting_worker_to_free_events;
-extern PSI_stage_info stage_slave_waiting_worker_queue;
-extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
-extern PSI_stage_info stage_slave_waiting_workers_to_exit;
-extern PSI_stage_info stage_slave_waiting_for_workers_to_finish;
-extern PSI_stage_info stage_compressing_gtid_table;
-extern PSI_stage_info stage_suspending;
-#ifdef HAVE_REPLICATION
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
 extern PSI_stage_info stage_worker_waiting_for_commit_parent;
-#endif
+extern PSI_stage_info stage_suspending;
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
@@ -606,7 +605,8 @@ extern struct st_VioSSLFd * ssl_acceptor_fd;
 extern my_bool opt_large_pages;
 extern uint opt_large_page_size;
 extern char lc_messages_dir[FN_REFLEN];
-extern char *lc_messages_dir_ptr, *log_error_file_ptr;
+extern char *lc_messages_dir_ptr;
+extern const char *log_error_dest;
 extern MYSQL_PLUGIN_IMPORT char reg_ext[FN_EXTLEN];
 extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
@@ -635,7 +635,7 @@ extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
  */
 extern mysql_mutex_t
        LOCK_item_func_sleep, LOCK_status,
-       LOCK_error_log, LOCK_uuid_generator,
+       LOCK_uuid_generator,
        LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_msr_map, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
@@ -658,6 +658,7 @@ extern int32 thread_running;
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
+extern char *opt_disabled_storage_engines;
 
 /* query_id */
 typedef int64 query_id_t;

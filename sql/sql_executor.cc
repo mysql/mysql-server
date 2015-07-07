@@ -28,6 +28,8 @@
 
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "item_sum.h"         // Item_sum
+#include "json_binary.h"      // json_binary::Value
+#include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
 #include "filesort.h"         // Filesort
@@ -3107,6 +3109,43 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
 
   const size_t src_len= field->data_length();
   const size_t dst_len= field->data_length(diff);
+
+  if (field->type() == MYSQL_TYPE_JSON)
+  {
+    if (field->is_real_null())
+    {
+      return false;
+    }
+
+    Field_json *json_field= down_cast<Field_json *>(field);
+
+    char *left_data;
+    json_field->get_ptr(pointer_cast<uchar **>(&left_data));
+    json_binary::Value left_value(json_binary::parse_binary(left_data, src_len));
+    if (left_value.type() == json_binary::Value::ERROR)
+    {
+      /* purecov: begin inspected */
+      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      return true;
+      /* purecov: end */
+    }
+    Json_wrapper left_wrapper(left_value);
+
+    char *right_data;
+    json_field->get_ptr(pointer_cast<uchar **>(&right_data), diff);
+    json_binary::Value right_value(json_binary::parse_binary(right_data, dst_len));
+    if (right_value.type() == json_binary::Value::ERROR)
+    {
+      /* purecov: begin inspected */
+      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+      return true;
+      /* purecov: end */
+    }
+    Json_wrapper right_wrapper(right_value);
+
+    return (left_wrapper.compare(right_wrapper) != 0);
+  }
+
   // Trailing space can't be skipped and length is different
   if (!field->is_text_key_type() && src_len != dst_len)     // 2
     return true;
@@ -3190,7 +3229,14 @@ ulonglong unique_hash(Field *field, ulonglong *hash_val)
 
   field->get_ptr(&pos);
   end= pos + field->data_length();
-  if (field->key_type() == HA_KEYTYPE_TEXT ||
+
+  if (field->type() == MYSQL_TYPE_JSON)
+  {
+    Field_json *json_field= down_cast<Field_json *>(field);
+
+    crc= json_field->make_hash_key(hash_val);
+  }
+  else if (field->key_type() == HA_KEYTYPE_TEXT ||
       field->key_type() == HA_KEYTYPE_VARTEXT1 ||
       field->key_type() == HA_KEYTYPE_VARTEXT2)
   {

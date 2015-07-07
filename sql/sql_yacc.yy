@@ -698,6 +698,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ISSUER_SYM
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
+%token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
 %token  KEY_SYM                       /* SQL-2003-N */
@@ -2299,10 +2300,12 @@ create:
           }
           view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER clear_privileges grant_list require_clause
+        | CREATE USER opt_if_not_exists clear_privileges grant_list require_clause
                       connect_options opt_account_lock_password_expire_options
           {
-            Lex->sql_command = SQLCOM_CREATE_USER;
+            LEX *lex=Lex;
+            lex->sql_command = SQLCOM_CREATE_USER;
+            lex->create_info.options=$3;
           }
         | CREATE LOGFILE_SYM GROUP_SYM logfile_group_info
           {
@@ -6500,10 +6503,12 @@ type:
               if (!YYTHD->variables.explicit_defaults_for_timestamp)
                 Lex->type|= NOT_NULL_FLAG;
               /*
-                To flag the current statement as dependent for binary logging
-                on the session var
+                To flag the current statement as dependent for binary
+                logging on the session var. Extra copying to Lex is
+                done in case prepared stmt.
               */
-              YYTHD->binlog_need_explicit_defaults_ts= true;
+              Lex->binlog_need_explicit_defaults_ts=
+                YYTHD->binlog_need_explicit_defaults_ts= true;
 
               $$=MYSQL_TYPE_TIMESTAMP2;
             }
@@ -6621,6 +6626,11 @@ type:
             $$=MYSQL_TYPE_LONGLONG;
             Lex->type|= (AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG |
               UNIQUE_FLAG);
+          }
+        | JSON_SYM
+          {
+            Lex->charset=&my_charset_bin;
+            $$=MYSQL_TYPE_JSON;
           }
         ;
 
@@ -7570,9 +7580,11 @@ alter:
         ;
 
 alter_user_command:
-          ALTER USER clear_privileges
+          ALTER USER if_exists clear_privileges
           {
-            Lex->sql_command= SQLCOM_ALTER_USER;
+            LEX *lex= Lex;
+            lex->sql_command= SQLCOM_ALTER_USER;
+            lex->drop_if_exists= $3;
           }
         ;
 
@@ -10119,6 +10131,14 @@ cast_type:
             $$.length= $2.length;
             $$.dec= $2.dec;
           }
+        | JSON_SYM
+          {
+            $$.target=ITEM_CAST_JSON;
+            $$.charset= NULL;
+            $$.type_flags= 0;
+            $$.length= NULL;
+            $$.dec= NULL;
+          }
         ;
 
 opt_expr_list:
@@ -11053,9 +11073,11 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP USER clear_privileges user_list
+        | DROP USER if_exists clear_privileges user_list
           {
-            Lex->sql_command = SQLCOM_DROP_USER;
+             LEX *lex=Lex;
+             lex->sql_command= SQLCOM_DROP_USER;
+             lex->drop_if_exists= $3;
           }
         | DROP VIEW_SYM if_exists
           {
@@ -11976,8 +11998,9 @@ show_param:
           }
         | CREATE USER clear_privileges user
           {
-            Lex->sql_command= SQLCOM_SHOW_CREATE_USER;
-            Lex->grant_user=$4;
+            LEX *lex=Lex;
+            lex->sql_command= SQLCOM_SHOW_CREATE_USER;
+            lex->grant_user=$4;
           }
         ;
 
@@ -13286,6 +13309,7 @@ keyword_sp:
         | ISOLATION                {}
         | ISSUER_SYM               {}
         | INSERT_METHOD            {}
+        | JSON_SYM                 {}
         | KEY_BLOCK_SIZE           {}
         | LAST_SYM                 {}
         | LEAVES                   {}

@@ -199,6 +199,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`where_subselect_19379`",
@@ -279,6 +283,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -776,6 +784,10 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
             } /* condition_processing */
           },
           {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t4`",
@@ -1014,6 +1026,10 @@ FROM t1
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -1599,6 +1615,10 @@ ON table2 .col_int_key = table1 .col_int_key
                 }
               ] /* steps */
             } /* condition_processing */
+          },
+          {
+            "substitute_generated_columns": {
+            } /* substitute_generated_columns */
           },
           {
             "table_dependencies": [
@@ -2888,6 +2908,10 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                       }
                                     ] /* steps */
                                   } /* condition_processing */
+                                },
+                                {
+                                  "substitute_generated_columns": {
+                                  } /* substitute_generated_columns */
                                 },
                                 {
                                   "table_dependencies": [

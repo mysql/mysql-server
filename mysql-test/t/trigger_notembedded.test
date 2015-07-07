@@ -991,3 +991,62 @@ DROP USER mysqltest_u1@localhost;
 USE test;
 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # WL#2284: Increase the length of a user name
+--echo #
+
+CREATE DATABASE test1;
+CREATE TABLE test1.t1 (
+  int_field INTEGER UNSIGNED NOT NULL,
+  char_field CHAR(10),
+  INDEX(`int_field`)
+);
+
+use test;
+
+CREATE USER user_name_len_22_01234@localhost;
+CREATE USER user_name_len_32_012345678901234@localhost;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_22_01234@localhost;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM user_name_len_32_012345678901234@localhost;
+
+--echo # Check that user_name_len_22_01234 has no SELECT permission ON t1
+connect (con_user_22,localhost,user_name_len_22_01234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+--echo # Check that user_name_len_32_012345678901234 has no SELECT permission ON t1
+connect (con_user_32,localhost,user_name_len_32_012345678901234,,test);
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM test1.t1;
+
+connection default;
+
+GRANT ALL ON test1.* TO user_name_len_32_012345678901234@localhost;
+
+CREATE DEFINER=user_name_len_32_012345678901234@localhost
+  TRIGGER test1.t1_ai AFTER INSERT ON test1.t1 FOR EACH ROW SET @a = (SELECT COUNT(*) FROM test1.t1);
+
+GRANT INSERT ON test1.t1 TO user_name_len_22_01234@localhost;
+
+--echo # Now user_name_len_22_01234 should be able to "SELECT" COUNT(*) FROM
+--echo # test1.t1 by using the trigger
+
+connection con_user_22;
+set @a:=0;
+INSERT INTO test1.t1 VALUES (1,'haha');
+SELECT @a;
+
+connection default;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_len_33_0123456789012345@localhost
+  TRIGGER test1.t1_bi BEFORE INSERT ON test1.t1 FOR EACH ROW SET @a = (SELECT COUNT(*) FROM test1.t1);
+
+#Cleanup
+DROP DATABASE test1;
+
+DROP USER user_name_len_22_01234@localhost;
+DROP USER user_name_len_32_012345678901234@localhost;
+

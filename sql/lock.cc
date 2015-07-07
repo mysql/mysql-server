@@ -83,6 +83,7 @@
 #include "auth_common.h"                   // SUPER_ACL
 #include "sql_class.h"
 #include "mysqld.h"                        // opt_readonly
+#include "session_tracker.h"
 #include "my_atomic.h"
 
 /**
@@ -249,6 +250,35 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
 
 
 /**
+  Scan array of tables for access types; update transaction tracker
+  accordingly.
+
+   @param thd          The current thread.
+   @param tables       An array of pointers to the tables to lock.
+   @param count        The number of tables to lock.
+*/
+
+static void track_table_access(THD *thd, TABLE **tables, size_t count)
+{
+  Transaction_state_tracker *tst= (Transaction_state_tracker *)
+    thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
+  enum enum_tx_state         s;
+
+  while (count--)
+  {
+    TABLE *t= tables[count];
+
+    if (t)
+    {
+      s= tst->calc_trx_state(thd, t->reginfo.lock_type,
+                             t->file->has_transactions());
+      tst->add_trx_state(thd, s);
+    }
+  }
+}
+
+
+/**
   Reset lock type in lock data and free.
 
   @param mysql_lock Lock structures to reset.
@@ -323,6 +353,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
     if (! thd->killed)
       my_error(rc, MYF(0));
   }
+
 end:
   if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
   {
@@ -333,6 +364,9 @@ end:
       sql_lock= 0;
     }
   }
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+    track_table_access(thd, tables, count);
 
   thd->set_time_after_lock();
   DBUG_RETURN(sql_lock);

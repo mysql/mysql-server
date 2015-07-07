@@ -180,6 +180,7 @@
 #include "partitioning/partition_handler.h" // partitioning_init
 #include "item_cmpfunc.h"               // arg_cmp_func
 #include "item_strfunc.h"               // Item_func_uuid
+#include "handler.h"
 
 #ifdef _WIN32
 #include "named_pipe.h"
@@ -343,7 +344,6 @@ bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
-bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
 bool opt_skip_name_resolve=0;
 my_bool opt_character_set_client_handshake= 1;
@@ -408,10 +408,12 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *innodb_hton;
 
+char *opt_disabled_storage_engines;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
 my_bool read_only= 0, opt_readonly= 0;
 my_bool super_read_only= 0, opt_super_readonly= 0;
+my_bool opt_require_secure_transport= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_allow_suspicious_udfs;
@@ -589,12 +591,14 @@ const char *server_uuid_ptr;
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char default_logfile_name[FN_REFLEN];
 char *default_tz_name;
-char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
+static char errorlog_filename_buff[FN_REFLEN];
+const char *log_error_dest;
+char glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN],
      lc_messages_dir[FN_REFLEN], reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
-char *lc_messages_dir_ptr, *log_error_file_ptr;
+char *lc_messages_dir_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
 size_t mysql_real_data_home_len, mysql_data_home_len= 1;
@@ -666,7 +670,7 @@ thread_local_key_t THR_MALLOC;
 bool THR_MALLOC_initialized= false;
 
 mysql_mutex_t
-  LOCK_status, LOCK_error_log, LOCK_uuid_generator,
+  LOCK_status, LOCK_uuid_generator,
   LOCK_crypt,
   LOCK_global_system_variables,
   LOCK_user_conn, LOCK_slave_list, LOCK_msr_map,
@@ -963,6 +967,10 @@ static void buffered_option_error_reporter(enum loglevel level,
 */
 static void charset_error_reporter(enum loglevel level,
                                    const char *format, ...)
+  __attribute__((format(printf, 2, 3)));
+
+static void charset_error_reporter(enum loglevel level,
+                                   const char *format, ...)
 {
   va_list args;
   va_start(args, format);
@@ -985,7 +993,8 @@ static my_thread_t main_thread_id;
 #ifdef _WIN32
 #include <process.h>
 
-static bool start_mode=0, use_opt_args;
+static bool windows_service= false;
+static bool use_opt_args;
 static int opt_argc;
 static char **opt_argv;
 
@@ -1297,17 +1306,6 @@ void kill_mysql(void)
 }
 
 
-static void init_error_log_mutex()
-{
-  mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
-}
-
-
-static void clean_up_error_log_mutex()
-{
-  mysql_mutex_destroy(&LOCK_error_log);
-}
-
 extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
@@ -1349,12 +1347,12 @@ static void mysqld_exit(int exit_code)
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
   local_message_hook= my_message_local_stderr;
-  clean_up_error_log_mutex();
+  destroy_error_log();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
 #endif
 #if defined(_WIN32)
-  if (Service.IsNT() && start_mode)
+  if (Service.IsNT() && windows_service)
   {
     Service.Stop();
   }
@@ -3867,41 +3865,53 @@ static int init_server_components()
     Enable old-fashioned error log, except when the user has requested
     help information. Since the implementation of plugin server
     variables the help output is now written much later.
+
+    log_error_dest can be:
+    disabled_my_option     --log-error was not used or --log-error=
+    ""                     --log-error without arguments (no '=')
+    filename               --log-error=filename
   */
-  if (opt_error_log && !opt_help)
-  {
-    if (!log_error_file_ptr[0])
-      fn_format(log_error_file, pidfile_name, mysql_data_home, ".err",
-                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
-    else
-      fn_format(log_error_file, log_error_file_ptr, mysql_data_home, ".err",
-                MY_UNPACK_FILENAME | MY_SAFE_PATH);
-    /*
-      _ptr may have been set to my_disabled_option or "" if no argument was
-      passed, but we need to show the real name in SHOW VARIABLES:
-    */
-    log_error_file_ptr= log_error_file;
-    if (!log_error_file[0])
-      opt_error_log= 0;                         // Too long file name
-    else
-    {
-      my_bool res;
-#ifndef EMBEDDED_LIBRARY
-      res= reopen_fstreams(log_error_file, stdout, stderr);
+#ifdef _WIN32
+  /*
+    Enable the error log file only if console option is not specified
+    and MySQL is not running as a service.
+  */
+  bool log_errors_to_file= !opt_help && !opt_console && !windows_service;
 #else
-      res= reopen_fstreams(log_error_file, NULL, stderr);
+  /*
+    Enable the error log file only if --log-error=filename or --log-error
+    was used. Logging to file is disabled by default unlike on Windows.
+  */
+  bool log_errors_to_file= !opt_help && (log_error_dest != disabled_my_option);
 #endif
 
-      if (res)
-      {
-        sql_print_error("Could not open %s file for error logging: %s.",
-                        log_error_file, strerror(errno));
-        unireg_abort(MYSQLD_ABORT_EXIT);
-      }
+  if (log_errors_to_file)
+  {
+    // Construct filename if no filename was given by the user.
+    if (!log_error_dest[0] || log_error_dest == disabled_my_option)
+      fn_format(errorlog_filename_buff, pidfile_name, mysql_data_home, ".err",
+                MY_REPLACE_EXT); /* replace '.<domain>' by '.err', bug#4997 */
+    else
+      fn_format(errorlog_filename_buff, log_error_dest, mysql_data_home, ".err",
+                MY_UNPACK_FILENAME);
+    /*
+      log_error_dest may have been set to disabled_my_option or "" if no
+      argument was passed, but we need to show the real name in SHOW VARIABLES.
+    */
+    log_error_dest= errorlog_filename_buff;
+
+    if (open_error_log(errorlog_filename_buff))
+    {
+      sql_print_error("Could not open %s file for error logging: %s.",
+                      log_error_dest, strerror(errno));
+      unireg_abort(MYSQLD_ABORT_EXIT);
     }
+#ifdef _WIN32
+    FreeConsole();        // Remove window
+#endif
   }
-  else
-    log_error_file_ptr= const_cast<char*>("stderr");
+  else // We are logging to stderr and SHOW VARIABLES should reflect that.
+    log_error_dest= "stderr";
 
   enter_cond_hook= thd_enter_cond;
   exit_cond_hook= thd_exit_cond;
@@ -4111,9 +4121,17 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   tc_log= &tc_log_dummy;
 
+  /*
+    Skip reading the plugin table when starting with --help in order
+    to also skip initializing InnoDB. This provides a simpler and more
+    uniform handling of various startup use cases, e.g. when the data
+    directory does not exist, exists but is empty, exists with InnoDB
+    system tablespaces present etc.
+  */
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-                  (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
+                  (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
+                               PLUGIN_INIT_SKIP_PLUGIN_TABLE) : 0)))
   {
     sql_print_error("Failed to initialize plugins.");
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -4233,6 +4251,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (initialize_storage_engine(default_tmp_storage_engine, " temp",
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  if (!opt_bootstrap && !opt_noacl)
+  {
+    std::string disabled_se_str(opt_disabled_storage_engines);
+    ha_set_normalized_disabled_se_str(disabled_se_str);
+  }
 
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
   {
@@ -4557,7 +4581,7 @@ int mysqld_main(int argc, char **argv)
   }
 #endif /* HAVE_PSI_INTERFACE */
 
-  init_error_log_mutex();
+  init_error_log();
   local_message_hook= error_log_print;  // we never change this in embedded
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
@@ -4757,6 +4781,9 @@ int mysqld_main(int argc, char **argv)
 
     global_sid_lock->wrlock();
 
+    purged_gtids_from_binlog.dbug_print("purged_gtids_from_binlog");
+    gtids_in_binlog.dbug_print("gtids_in_binlog");
+
     if (!gtids_in_binlog.is_empty() &&
         !gtids_in_binlog.is_subset(executed_gtids))
     {
@@ -4850,13 +4877,18 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
-  if (!opt_console)
+#ifndef EMBEDDED_LIBRARY
+  if (opt_require_secure_transport &&
+      !opt_enable_shared_memory && !opt_use_ssl &&
+      !opt_initialize && !opt_bootstrap)
   {
-    if (reopen_fstreams(log_error_file, stdout, stderr))
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    setbuf(stderr, NULL);
-    FreeConsole();        // Remove window
+    sql_print_error("Server is started with --require-secure-transport=ON "
+                    "but no secure transports (SSL or Shared Memory) are "
+                    "configured.");
+    unireg_abort(MYSQLD_ABORT_EXIT);
   }
+#endif
+
 #endif
 
   /*
@@ -5197,24 +5229,24 @@ int mysqld_main(int argc, char **argv)
     char file_path[FN_REFLEN];
     my_path(file_path, argv[0], "");          /* Find name in path */
     fn_format(file_path,argv[0],file_path,"",
-        MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
+              MY_REPLACE_DIR | MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
 
     if (argc == 2)
     {
       if (!default_service_handling(argv, MYSQL_SERVICENAME, MYSQL_SERVICENAME,
-           file_path, "", NULL))
-  return 0;
+                                    file_path, "", NULL))
+        return 0;
       if (Service.IsService(argv[1]))        /* Start an optional service */
       {
-  /*
-    Only add the service name to the groups read from the config file
-    if it's not "MySQL". (The default service name should be 'mysqld'
-    but we started a bad tradition by calling it MySQL from the start
-    and we are now stuck with it.
-  */
-  if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
-    load_default_groups[load_default_groups_sz-2]= argv[1];
-        start_mode= 1;
+        /*
+          Only add the service name to the groups read from the config file
+          if it's not "MySQL". (The default service name should be 'mysqld'
+          but we started a bad tradition by calling it MySQL from the start
+          and we are now stuck with it.
+        */
+        if (my_strcasecmp(system_charset_info, argv[1],"mysql"))
+          load_default_groups[load_default_groups_sz-2]= argv[1];
+        windows_service= true;
         Service.Init(argv[1], mysql_service);
         return 0;
       }
@@ -5223,21 +5255,21 @@ int mysqld_main(int argc, char **argv)
     {
       if (!default_service_handling(argv, argv[2], argv[2], file_path, "",
                                     NULL))
-  return 0;
+        return 0;
       if (Service.IsService(argv[2]))
       {
-  /*
-    mysqld was started as
-    mysqld --defaults-file=my_path\my.ini service-name
-  */
-  use_opt_args=1;
-  opt_argc= 2;        // Skip service-name
-  opt_argv=argv;
-  start_mode= 1;
-  if (my_strcasecmp(system_charset_info, argv[2],"mysql"))
-    load_default_groups[load_default_groups_sz-2]= argv[2];
-  Service.Init(argv[2], mysql_service);
-  return 0;
+        /*
+          mysqld was started as
+          mysqld --defaults-file=my_path\my.ini service-name
+        */
+        use_opt_args=1;
+        opt_argc= 2;        // Skip service-name
+        opt_argv=argv;
+        windows_service= true;
+        if (my_strcasecmp(system_charset_info, argv[2],"mysql"))
+          load_default_groups[load_default_groups_sz-2]= argv[2];
+        Service.Init(argv[2], mysql_service);
+        return 0;
       }
     }
     else if (argc == 4 || argc == 5)
@@ -5268,7 +5300,7 @@ int mysqld_main(int argc, char **argv)
     else if (argc == 1 && Service.IsService(MYSQL_SERVICENAME))
     {
       /* start the default service */
-      start_mode= 1;
+      windows_service= true;
       Service.Init(MYSQL_SERVICENAME, mysql_service);
       return 0;
     }
@@ -6914,7 +6946,7 @@ static int mysql_init_variables(void)
 {
   /* Things reset to zero */
   opt_skip_slave_start= opt_reckless_slave = 0;
-  mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
+  mysql_home[0]= pidfile_name[0]= 0;
   myisam_test_invalid_symlink= test_if_data_home_dir;
   opt_general_log= opt_slow_log= false;
   opt_bin_log= 0;
@@ -6962,7 +6994,6 @@ static int mysql_init_variables(void)
   opt_specialflag= 0;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
-  log_error_file_ptr= log_error_file;
   lc_messages_dir_ptr= lc_messages_dir;
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
@@ -7006,7 +7037,6 @@ static int mysql_init_variables(void)
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
            "d:t:i:o,/tmp/mysqld.trace");
 #endif
-  opt_error_log= IF_WIN(1,0);
 #ifdef ENABLED_PROFILING
     have_profiling = SHOW_OPTION_YES;
 #else
@@ -7260,10 +7290,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_SKIP_STACK_TRACE:
     test_flags|=TEST_NO_STACKTRACE;
     break;
-  case OPT_CONSOLE:
-    if (opt_console)
-      opt_error_log= 0;     // Force logs to stdout
-    break;
   case OPT_BOOTSTRAP:
     opt_bootstrap= 1;
     break;
@@ -7301,7 +7327,7 @@ mysqld_get_one_option(int optid,
       "--log-error without argument" == "write errors to a file".
     */
     if (argument == NULL) /* no argument */
-      log_error_file_ptr= const_cast<char*>("");
+      log_error_dest= "";
     break;
 
   case OPT_IGNORE_DB_DIRECTORY:
@@ -7520,6 +7546,9 @@ mysql_getopt_value(const char *keyname, size_t key_length,
 }
 
 static void option_error_reporter(enum loglevel level, const char *format, ...)
+  __attribute__((format(printf, 2, 3)));
+
+static void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
   va_start(args, format);
@@ -7653,19 +7682,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                       "Please use --explicit_defaults_for_timestamp server "
                       "option (see documentation for more details).");
 
-  if (log_error_file_ptr != disabled_my_option)
-#ifdef _WIN32
-    /*
-      Enable the error log only if console option is not specified 
-      and MySQL is not running as a service.
-    */
-    opt_error_log= (opt_console && !start_mode ) ? false : true;
-#else
-    opt_error_log= true;
-#endif
-  else
-    log_error_file_ptr= const_cast<char*>("");
-
   opt_init_connect.length=strlen(opt_init_connect.str);
   opt_init_slave.length=strlen(opt_init_slave.str);
 
@@ -7709,7 +7725,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
      ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
 
   global_system_variables.sql_mode=
-    expand_sql_mode(NULL, global_system_variables.sql_mode);
+    expand_sql_mode(global_system_variables.sql_mode, NULL);
 
   if (!(global_system_variables.sql_mode & MODE_NO_AUTO_CREATE_USER))
   {
@@ -8733,6 +8749,7 @@ PSI_stage_info stage_checking_privileges_on_cached_query= { 0, "checking privile
 PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache for query", 0};
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
+PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
 PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
 PSI_stage_info stage_converting_heap_to_ondisk= { 0, "converting HEAP to ondisk", 0};
 PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
@@ -8785,6 +8802,12 @@ PSI_stage_info stage_sending_cached_result_to_client= { 0, "sending cached resul
 PSI_stage_info stage_sending_data= { 0, "Sending data", 0};
 PSI_stage_info stage_setup= { 0, "setup", 0};
 PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for more updates", 0};
+PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
+PSI_stage_info stage_slave_waiting_for_workers_to_process_queue= { 0, "Waiting for slave workers to process their queues", 0};
+PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
+PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
+PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
+PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -8800,7 +8823,7 @@ PSI_stage_info stage_updating_reference_tables= { 0, "updating reference tables"
 PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
-PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
+PSI_stage_info stage_waiting_for_gtid_to_be_committed= { 0, "Waiting for GTID to be committed", 0};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
 PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0};
@@ -8815,19 +8838,11 @@ PSI_stage_info stage_waiting_for_query_cache_lock= { 0, "Waiting for query cache
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
 PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
-PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
-PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
-PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
-PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
-PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
-PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
-PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
+PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for preceding transaction to commit", 0};
+PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0};
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
-#ifdef HAVE_REPLICATION
-PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
-PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit.", 0};
-#endif
 PSI_stage_info stage_starting= { 0, "starting", 0};
+
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_stage_info *all_server_stages[]=
@@ -8844,6 +8859,7 @@ PSI_stage_info *all_server_stages[]=
   & stage_checking_query_cache_for_query,
   & stage_cleaning_up,
   & stage_closing_tables,
+  & stage_compressing_gtid_table,
   & stage_connecting_to_master,
   & stage_converting_heap_to_ondisk,
   & stage_copying_to_group_table,
@@ -8896,6 +8912,12 @@ PSI_stage_info *all_server_stages[]=
   & stage_sending_data,
   & stage_setup,
   & stage_slave_has_read_all_relay_log,
+  & stage_slave_waiting_event_from_coordinator,
+  & stage_slave_waiting_for_workers_to_process_queue,
+  & stage_slave_waiting_worker_queue,
+  & stage_slave_waiting_worker_to_free_events,
+  & stage_slave_waiting_worker_to_release_partition,
+  & stage_slave_waiting_workers_to_exit,
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,
@@ -8911,12 +8933,14 @@ PSI_stage_info *all_server_stages[]=
   & stage_upgrading_lock,
   & stage_user_sleep,
   & stage_verifying_table,
+  & stage_waiting_for_gtid_to_be_committed,
   & stage_waiting_for_handler_insert,
   & stage_waiting_for_handler_lock,
   & stage_waiting_for_handler_open,
   & stage_waiting_for_insert,
   & stage_waiting_for_master_to_send_event,
   & stage_waiting_for_master_update,
+  & stage_waiting_for_relay_log_space,
   & stage_waiting_for_slave_mutex_on_exit,
   & stage_waiting_for_slave_thread_to_start,
   & stage_waiting_for_table_flush,
@@ -8924,7 +8948,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
-  & stage_compressing_gtid_table,
+  & stage_worker_waiting_for_its_turn_to_commit,
+  & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
   & stage_starting
 };

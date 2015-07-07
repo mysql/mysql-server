@@ -53,4 +53,9 @@ while ($wait_counter)
 if (!$success)
 {
   echo Timeout in wait_condition.inc for $wait_condition;
+  if ($show_rpl_debug_info)
+  {
+    --source include/show_rpl_debug_info.inc
+    --die Timeout in wait_condition.inc for $wait_condition
+  }
 }

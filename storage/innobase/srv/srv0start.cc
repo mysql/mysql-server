@@ -635,7 +635,7 @@ srv_undo_tablespace_open(
 		return(DB_ERROR);
 	}
 
-	err = fil_space_undo_check_if_opened(name, space_id);
+	err = fil_space_undo_check_if_opened(name, undo_name, space_id);
 
 	if (err != DB_TABLESPACE_NOT_FOUND) {
 		return(err);

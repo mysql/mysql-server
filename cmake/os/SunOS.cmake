@@ -51,7 +51,7 @@ ADD_DEFINITIONS(-D__EXTENSIONS__)
 
 # Solaris threads with POSIX semantics:
 # http://docs.oracle.com/cd/E19455-01/806-5257/6je9h033k/index.html
-ADD_DEFINITIONS(-D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT)
+ADD_DEFINITIONS(-D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT -D_PTHREADS)
 
 IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
   EXECUTE_PROCESS(COMMAND isainfo -b
@@ -74,7 +74,7 @@ SET(LIBM m)
 
 # CMake defined -lthread as thread flag. This crashes in dlopen 
 # when trying to load plugins workaround with -lpthread
-SET(CMAKE_THREADS_LIBS_INIT -lpthread CACHE INTERNAL "" FORCE)
+SET(CMAKE_THREAD_LIBS_INIT -lpthread CACHE INTERNAL "" FORCE)
 
 # Solaris specific large page support
 CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_SOLARIS_LARGE_PAGES)

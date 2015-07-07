@@ -24,6 +24,7 @@ usr/bin/mysqlcheck
 usr/bin/mysqldump
 usr/bin/mysqldumpslow
 usr/bin/mysqlimport
+usr/bin/mysqlpump
 usr/bin/mysqlshow
 usr/bin/mysqlslap
 # man pages

@@ -102,7 +102,7 @@ minus this count gives us the total number of documents. */
 /** The minimum length of an FTS auxiliary table names's id component
 e.g., For an auxiliary table name
 
-	FTS_<TABLE_ID>_SUFFIX
+	FTS_@<TABLE_ID@>_SUFFIX
 
 This constant is for the minimum length required to store the <TABLE_ID>
 component.

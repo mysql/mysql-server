@@ -32,6 +32,7 @@ ALTER TABLE mysql.slave_worker_info ADD PRIMARY KEY (`channel_name`,`id`);
 DELETE FROM mysql.slave_worker_info WHERE channel_name like 'ch_a';
 STOP SLAVE IO_THREAD;
 Warnings:
+Note	3084	Replication thread(s) for channel 'ch_a' are already stopped.
 Note	3084	Replication thread(s) for channel 'ch_b' are already stopped.
 CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch_b';
 Warnings:

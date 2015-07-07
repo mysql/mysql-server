@@ -71,7 +71,9 @@ Note	1003	/* select#1 */ select DATE'2010-01-01' AS `DATE'2010-01-01'`
 #
 # Testing DATE literals in non-default sql_mode
 #
-SET sql_mode='STRICT_ALL_TABLES';
+SET sql_mode='NO_ZERO_IN_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 SELECT DATE'2001-00-00';
 ERROR HY000: Incorrect DATE value: '2001-00-00'
 SELECT DATE'2001-01-00';

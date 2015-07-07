@@ -606,7 +606,9 @@ class Aggregator_distinct : public Aggregator
       If set deactivates creation and usage of the temporary table (in the
       'table' member) and the Unique instance (in the 'tree' member) as well as
       the calculation of the final value on the first call to
-      Item_[sum|avg|count]::val_xxx().
+      @c Item_sum::val_xxx(),
+      @c Item_avg::val_xxx(),
+      @c Item_count::val_xxx().
      */
     CONST_NULL,
     /**
@@ -1091,6 +1093,7 @@ protected:
   bool get_time(MYSQL_TIME *ltime);
   void reset_field();
   String *val_str(String *);
+  bool val_json(Json_wrapper *wr);
   bool keep_field_type(void) const { return 1; }
   enum Item_result result_type () const { return hybrid_type; }
   enum enum_field_types field_type() const { return hybrid_field_type; }

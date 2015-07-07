@@ -29,6 +29,7 @@
 #include "my_getopt.h"            // get_opt_arg_type
 #include "mysql/plugin.h"         // enum_mysql_show_type
 #include "item.h"                 // Item
+#include "log.h"                  // sql_print_information
 #include "set_var.h"              // sys_var
 #include "sql_class.h"            // THD
 #include "sql_plugin.h"           // my_plugin_lock_by_name
@@ -65,6 +66,7 @@
 #define ON_UPDATE(X) X
 #define READ_ONLY sys_var::READONLY+
 #define NOT_VISIBLE sys_var::INVISIBLE+
+#define UNTRACKED_DEFAULT sys_var::TRI_LEVEL+
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED+
 /*

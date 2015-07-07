@@ -26,6 +26,7 @@
 
 
 class user_var_entry;
+class Json_wrapper;
 
 typedef Bounds_checked_array<Item*> Ref_ptr_array;
 
@@ -129,7 +130,7 @@ public:
     derivation= derivation_arg;
     set_repertoire_from_charset(collation_arg);
   }
-  void set(DTCollation &dt)
+  void set(const DTCollation &dt)
   { 
     collation= dt.collation;
     derivation= dt.derivation;
@@ -1264,6 +1265,27 @@ public:
   virtual String *val_nodeset(String*) { return 0; }
 
   /**
+    Get a JSON value from an Item.
+
+    All subclasses that can return a JSON value, should override this
+    function. The function in the base class is not expected to be
+    called. If it is called, it most likely means that some subclass
+    is missing an override of val_json().
+
+    @param[in,out] result The resulting Json_wrapper.
+
+    @return false if successful, true on failure
+  */
+  /* purecov: begin deadcode */
+  virtual bool val_json(Json_wrapper *result)
+  {
+    DBUG_ABORT();
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
+    return error_json();
+  }
+  /* purecov: end */
+
+  /**
     Calculate the filter contribution that is relevant for table
     'filter_for_table' for this item.
 
@@ -1292,6 +1314,21 @@ public:
     DBUG_ASSERT((read_tables & filter_for_table) == 0);
     return COND_FILTER_ALLPASS;
   }
+
+
+  /**
+    Get the value to return from val_json() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_json() should return, which is true.
+  */
+  bool error_json()
+  {
+    null_value= maybe_null;
+    return true;
+  }
+
 
 protected:
   /* Helper functions, see item_sum.cc */
@@ -1342,17 +1379,18 @@ protected:
 
     The expected pattern is to use the buffer given as parameter to
     val_decimal:
-
+    @verbatim
       my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
       {
         ...
-        if (@<error condition@>)
+        if (<error condition>)
         {
           my_error(...)
           return error_decimal(decimal_buffer);
         }
         ...
       }
+    @endverbatim
 
     @param decimal_buffer Buffer used for returning value.
 
@@ -2127,6 +2165,15 @@ public:
     if (has_subquery())
       walk(&Item::subq_opt_away_processor, WALK_POSTFIX, NULL);
   }
+
+  /**
+    Analyzer function for GC substitution. @see JOIN::substitute_gc()
+  */
+  virtual bool gc_subst_analyzer(uchar **arg) { return false; }
+  /**
+    Transformer function for GC substitution. @see JOIN::substitute_gc()
+  */
+  virtual Item *gc_subst_transformer(uchar *arg) { return this; }
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
 };
@@ -2290,6 +2337,7 @@ public:
   inline enum Type type() const;
   inline Item_result result_type() const;
   inline enum_field_types field_type() const { return m_field_type; }
+  bool val_json(Json_wrapper *result);
 
 private:
   bool set_value(THD *thd, sp_rcontext *ctx, Item **it);
@@ -2664,6 +2712,7 @@ public:
   longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
+  bool val_json(Json_wrapper *result);
   double val_result();
   longlong val_int_result();
   longlong val_time_temporal_result();
@@ -2883,6 +2932,7 @@ public:
   {
     return true;
   }
+  bool val_json(Json_wrapper *wr);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
   type_conversion_status save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
@@ -3889,6 +3939,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   String *val_str(String* tmp);
+  bool val_json(Json_wrapper *result);
   bool is_null();
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   double val_result();
@@ -4481,6 +4532,14 @@ public:
   virtual bool get_time(MYSQL_TIME *ltime)= 0;
   virtual type_conversion_status save_in_field(Field *field,
                                                bool no_conversions) = 0;
+  /* purecov: begin deadcode */
+  virtual bool val_json(Json_wrapper *wr)
+  {
+    DBUG_ABORT();
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
+    return error_json();
+  }
+  /* purecov: end */
 };
 
 /**
@@ -4501,6 +4560,24 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   virtual bool copy(const THD *thd);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
+};
+
+class Item_copy_json : public Item_copy
+{
+  Json_wrapper *m_value;
+public:
+  explicit Item_copy_json(Item *item);
+  virtual ~Item_copy_json();
+  virtual bool copy(const THD *thd);
+  virtual bool val_json(Json_wrapper *);
+  virtual String *val_str(String*);
+  virtual my_decimal *val_decimal(my_decimal *);
+  virtual double val_real();
+  virtual longlong val_int();
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
+  virtual type_conversion_status save_in_field(Field *field,
+                                               bool no_conversions);
 };
 
 
@@ -4625,6 +4702,18 @@ public:
   Cached_item_str(THD *thd, Item *arg);
   bool cmp(void);
   ~Cached_item_str();                           // Deallocate String:s
+};
+
+
+/// Cached_item subclass for JSON values.
+class Cached_item_json : public Cached_item
+{
+  Item *m_item;              ///< The item whose value to cache.
+  Json_wrapper *m_value;     ///< The cached JSON value.
+public:
+  explicit Cached_item_json(Item *item);
+  ~Cached_item_json();
+  bool cmp();
 };
 
 
@@ -5226,6 +5315,31 @@ public:
   bool cache_value_int();
   bool cache_value();
   void clear() { Item_cache::clear(); str_value_cached= FALSE; }
+};
+
+
+/// An item cache for values of type JSON.
+class Item_cache_json: public Item_cache
+{
+  Json_wrapper *m_value;
+public:
+  Item_cache_json();
+  ~Item_cache_json();
+  bool cache_value();
+  bool val_json(Json_wrapper *wr);
+  longlong val_int();
+  String *val_str(String *str);
+  Item_result result_type() const
+  {
+    if (!example)
+      return STRING_RESULT; // override default int
+    return Field::result_merge_type(example->field_type());
+  }
+
+  double val_real();
+  my_decimal *val_decimal(my_decimal *val);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
 };
 
 

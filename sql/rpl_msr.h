@@ -176,12 +176,10 @@ public:
     replication_channel_map and sets index in the  multisource_mi to 0;
     And also delete the {mi, rli} pair corresponding to this channel
 
-    @param[in]    channel_name     Name of the channel for a Master_info object
-    @return
-      @retval     false            succesfully deleted.
-      @retval     true             not ok
+    @param[in]    channel_name     Name of the channel for a Master_info
+                                   object which must exist.
   */
-  bool delete_mi(const char* channel_name);
+  void delete_mi(const char* channel_name);
 
   /**
     Get the default channel for this multisourced_slave;

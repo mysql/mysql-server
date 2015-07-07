@@ -24,7 +24,8 @@
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN	64              /* Field/table name length */
-#define USERNAME_CHAR_LENGTH 16
+#define USERNAME_CHAR_LENGTH 32
+#define USERNAME_CHAR_LENGTH_STR "32"
 #ifndef NAME_LEN
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #endif
@@ -488,12 +489,14 @@ enum enum_session_state_type
   SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
   SESSION_TRACK_SCHEMA,                          /* Current schema */
   SESSION_TRACK_STATE_CHANGE,                  /* track session state changes */
-  SESSION_TRACK_GTIDS
+  SESSION_TRACK_GTIDS,
+  SESSION_TRACK_TRANSACTION_CHARACTERISTICS,  /* Transaction chistics */
+  SESSION_TRACK_TRANSACTION_STATE             /* Transaction state */
 };
 
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
 
-#define SESSION_TRACK_END SESSION_TRACK_GTIDS
+#define SESSION_TRACK_END SESSION_TRACK_TRANSACTION_STATE
 
 #define IS_SESSION_STATE_TYPE(T) \
   (((int)(T) >= SESSION_TRACK_BEGIN) && ((T) <= SESSION_TRACK_END))

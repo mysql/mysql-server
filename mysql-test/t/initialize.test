@@ -317,7 +317,6 @@ $DDIR=$ENV{"DDIR"};
 rmtree([ "$DDIR" ]);
 EOF
 
-
 --echo #
 --echo # Cleanup
 --echo #

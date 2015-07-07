@@ -2323,6 +2323,14 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       return my_b_printf(file, "NULL");
     return my_b_write_quoted_with_length(file, ptr, length);
 
+  case MYSQL_TYPE_JSON:
+    my_snprintf(typestr, typestr_length, "JSON");
+    if (!ptr)
+      return my_b_printf(file, "NULL");
+    length= uint2korr(ptr);
+    my_b_write_quoted(file, ptr + meta, length);
+    return length + meta;
+
   default:
     {
       char tmp[5];
@@ -2967,7 +2975,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         (rli->curr_group_da.back().data->
          get_type_code() == binary_log::DELETE_FILE_EVENT);
 
-      DBUG_ASSERT(!ends_group() ||
+      DBUG_ASSERT((!ends_group() ||
+                   (get_type_code() == binary_log::QUERY_EVENT &&
+                    static_cast<Query_log_event*>(this)->
+                    is_query_prefix_match(STRING_WITH_LEN("XA ROLLBACK")))) ||
                   empty_group_with_gtids ||
                   (rli->mts_end_group_sets_max_dbs &&
                    (begin_load_query_event || delete_file_event)));
@@ -3467,7 +3478,7 @@ bool Query_log_event::write(IO_CACHE* file)
     logging a query executed by this thread; the slave runs with
     --log-slave-updates). Then this query will be logged with
     thread_id=the_thread_id_of_the_SQL_thread. Imagine that 2 temp tables of
-    the same name were created simultaneously on the master (in the master
+    the same name were created simultaneously on the master (in the masters
     binlog you have
     CREATE TEMPORARY TABLE t; (thread 1)
     CREATE TEMPORARY TABLE t; (thread 2)
@@ -3687,13 +3698,6 @@ bool Query_log_event::write(IO_CACHE* file)
     get_time();
     int3store(start, common_header->when.tv_usec);
     start+= 3;
-  }
-
-  if (charset_inited)
-  {
-    *start++= Q_CHARSET_CODE;
-    memcpy(start, charset, 6);
-    start+= 6;
   }
 
   if (thd && thd->binlog_need_explicit_defaults_ts == true)
@@ -4436,16 +4440,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
   }
 
-  /*
-    Note:   We do not need to execute reset_one_shot_variables() if this
-            db_ok() test fails.
-    Reason: The db stored in binlog events is the same for SET and for
-            its companion query.  If the SET is ignored because of
-            db_ok(), the companion query will also be ignored, and if
-            the companion query is ignored in the db_ok() test of
-            ::do_apply_event(), then the companion SET also have so
-            we don't need to reset_one_shot_variables().
-  */
   {
     thd->set_time(&(common_header->when));
     thd->set_query(query_arg, q_len_arg);
@@ -4835,11 +4829,6 @@ end:
 
 int Query_log_event::do_update_pos(Relay_log_info *rli)
 {
-  /*
-    Note that we will not increment group* positions if we are just
-    after a SET ONE_SHOT, because SET ONE_SHOT should not be separated
-    from its following updating query.
-  */
   int ret= Log_event::do_update_pos(rli);
 
   DBUG_EXECUTE_IF("crash_after_commit_and_update_pos",
@@ -5998,16 +5987,6 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     and then discarding Append_block and al. Another way is do the
     filtering in the I/O thread (more efficient: no disk writes at
     all).
-
-
-    Note:   We do not need to execute reset_one_shot_variables() if this
-            db_ok() test fails.
-    Reason: The db stored in binlog events is the same for SET and for
-            its companion query.  If the SET is ignored because of
-            db_ok(), the companion query will also be ignored, and if
-            the companion query is ignored in the db_ok() test of
-            ::do_apply_event(), then the companion SET also have so
-            we don't need to reset_one_shot_variables().
   */
   if (rpl_filter->db_ok(thd->db().str))
   {
@@ -12986,7 +12965,8 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   *ptr_buffer= LOGICAL_TIMESTAMP_TYPECODE;
   ptr_buffer+= LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
 
-  DBUG_ASSERT(sequence_number > last_committed);
+  DBUG_ASSERT((sequence_number == 0 && last_committed == 0) ||
+              (sequence_number > last_committed));
   DBUG_EXECUTE_IF("set_commit_parent_100",
                   { last_committed= max<int64>(sequence_number > 1 ? 1 : 0,
                                                sequence_number - 100); });
@@ -13142,9 +13122,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
 int Previous_gtids_log_event::pack_info(Protocol *protocol)
 {
   size_t length= 0;
-  global_sid_lock->rdlock();
   char *str= get_str(&length, &Gtid_set::default_string_format);
-  global_sid_lock->unlock();
   if (str == NULL)
     return 1;
   protocol->store(str, length, &my_charset_bin);
@@ -13158,10 +13136,7 @@ void Previous_gtids_log_event::print(FILE *file,
                                      PRINT_EVENT_INFO *print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
-
-  global_sid_lock->rdlock();
   char *str= get_str(NULL, &Gtid_set::commented_string_format);
-  global_sid_lock->unlock();
   if (str != NULL)
   {
     if (!print_event_info->short_form)
@@ -13191,7 +13166,7 @@ int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 char *Previous_gtids_log_event::get_str(
   size_t *length_p, const Gtid_set::String_format *string_format) const
 {
-  DBUG_ENTER("Previous_gtids_log_event::get_str(size_t *)");
+  DBUG_ENTER("Previous_gtids_log_event::get_str(size_t *, const Gtid_set::String_format *)");
   Sid_map sid_map(NULL);
   Gtid_set set(&sid_map, NULL);
   DBUG_PRINT("info", ("temp_buf=%p buf=%p", temp_buf, buf));
@@ -13204,7 +13179,7 @@ char *Previous_gtids_log_event::get_str(
                                length + 1, MYF(MY_WME));
   if (str != NULL)
   {
-    set.to_string(str, string_format);
+    set.to_string(str, false/*need_lock*/, string_format);
     if (length_p != NULL)
       *length_p= length;
   }
@@ -13616,8 +13591,6 @@ void View_change_log_event::print(FILE *file,
    }
 
    written_to_binlog= true;
-   //Set the event as sequencial to guarantee the correct order on MTS
-   common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
    return mysql_bin_log.write_event(this);
  }
 

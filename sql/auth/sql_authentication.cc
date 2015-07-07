@@ -2335,6 +2335,14 @@ acl_authenticate(THD *thd, enum_server_command command)
       DBUG_RETURN(1);
     }
 
+    if (opt_require_secure_transport &&
+        !is_secure_transport(thd->active_vio->type))
+    {
+      my_error(ER_SECURE_TRANSPORT_REQUIRED, MYF(0));
+      DBUG_RETURN(1);
+    }
+
+
     /* checking password_time_expire for connecting user */
     password_time_expired= check_password_lifetime(thd, mpvio.acl_user);
 
@@ -2459,6 +2467,18 @@ acl_authenticate(THD *thd, enum_server_command command)
 
   /* Ready to handle queries */
   DBUG_RETURN(0);
+}
+
+bool is_secure_transport(int vio_type)
+{
+  switch (vio_type)
+  {
+    case VIO_TYPE_SSL:
+    case VIO_TYPE_SHARED_MEMORY:
+    case VIO_TYPE_SOCKET:
+      return TRUE;
+  }
+  return FALSE;
 }
 
 static int generate_native_password(char *outbuf, unsigned int *buflen,

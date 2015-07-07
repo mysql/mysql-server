@@ -35,6 +35,7 @@
 #include "mysql/psi/psi.h"
 
 #include <algorithm>
+#include <string>
 
 class Alter_info;
 class handler;
@@ -2999,7 +3000,7 @@ public:
  }
 
   /**
-    Reports #tables included in pushed join which this
+    Reports number of tables included in pushed join which this
     handler instance is part of. ==0 -> Not pushed
   */
   virtual uint number_of_pushed_joins() const
@@ -3406,14 +3407,14 @@ private:
     from the table. This call is prefixed with a call to handler::store_lock()
     and is invoked only for those handler instances that stored the lock.
 
-    Calls to rnd_init/index_init are prefixed with this call. When table
-    IO is complete, we call external_lock(F_UNLCK).
+    Calls to @c rnd_init / @c index_init are prefixed with this call. When table
+    IO is complete, we call @c external_lock(F_UNLCK).
     A storage engine writer should expect that each call to
-    ::external_lock(F_[RD|WR]LOCK is followed by a call to
-    ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+    @code ::external_lock(F_[RD|WR]LOCK @endcode is followed by a call to
+    @c ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
 
     The name and signature originate from the first implementation
-    in MyISAM, which would call fcntl to set/clear an advisory
+    in MyISAM, which would call @c fcntl to set/clear an advisory
     lock on the data file in this method.
 
     @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
@@ -3810,4 +3811,6 @@ const char *table_case_name(HA_CREATE_INFO *info, const char *name);
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
+void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
+bool ha_is_storage_engine_disabled(handlerton *se_engine);
 #endif /* HANDLER_INCLUDED */

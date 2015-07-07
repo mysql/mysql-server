@@ -67,7 +67,7 @@ COUNT(*)
 0
 EXPLAIN DELETE FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	index_merge	i1,i3,i4,i6	i4,i1	4,4	NULL	#	100.00	Using union(i4,i1); Using where
+1	DELETE	t1	NULL	index_merge	i1,i3,i4,i6	i4,i1,i3	4,4,4	NULL	#	100.00	Using union(i4,intersect(i1,i3)); Using where
 SELECT COUNT(*) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6);
 COUNT(*)
 1

@@ -27,30 +27,26 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "fsp0file.h"
 #include "fil0fil.h"
+#include "fsp0types.h"
 #include "fsp0sysspace.h"
 #include "os0file.h"
 #include "page0page.h"
 #include "srv0start.h"
 #include "ut0new.h"
 
-/** Initialize the name, size and order of this datafile
+/** Initialize the name and flags of this datafile.
 @param[in]	name	tablespace name, will be copied
-@param[in]	size	size in database pages
-@param[in]	order	ordinal position or the datafile
-in the tablespace */
-
+@param[in]	flags	tablespace flags */
 void
 Datafile::init(
 	const char*	name,
-	ulint		size,
-	ulint		order)
+	ulint		flags)
 {
 	ut_ad(m_name == NULL);
 	ut_ad(name != NULL);
 
 	m_name = mem_strdup(name);
-	m_size = size;
-	m_order = order;
+	m_flags = flags;
 }
 
 /** Release the resources. */
@@ -113,6 +109,8 @@ Datafile::open_read_only(bool strict)
 
 	if (success) {
 		m_exists = true;
+		init_file_info();
+
 		return(DB_SUCCESS);
 	}
 
@@ -155,9 +153,21 @@ Datafile::open_read_write(bool read_only_mode)
 
 	m_exists = true;
 
+	init_file_info();
+
 	return(DB_SUCCESS);
 }
 
+/** Initialize OS specific file info. */
+void
+Datafile::init_file_info()
+{
+#ifdef _WIN32
+	GetFileInformationByHandle(m_handle, &m_file_info);
+#else
+	fstat(m_handle, &m_file_info);
+#endif	/* WIN32 */
+}
 
 /** Close a data file.
 @return DB_SUCCESS or error code */
@@ -174,36 +184,26 @@ Datafile::close()
 	return(DB_SUCCESS);
 }
 
-/** Make physical filename from the Tablespace::m_path
-plus the Datafile::m_name and store it in Datafile::m_filepath.
-@param path	NULL or full path for this datafile.
-@param suffix	File extension for this tablespace datafile. */
+/** Make a full filepath from a directory path and a filename.
+Prepend the dirpath to filename using the extension given.
+If dirpath is NULL, prepend the default datadir to filepath.
+Store the result in m_filepath.
+@param[in]	dirpath		directory path
+@param[in]	filename	filename or filepath
+@param[in]	ext		filename extension */
 void
 Datafile::make_filepath(
-	const char*	path)
+	const char*	dirpath,
+	const char*	filename,
+	ib_extention	ext)
 {
-	ut_ad(m_name != NULL);
+	ut_ad(dirpath != NULL || filename != NULL);
 
 	free_filepath();
-	m_filepath = fil_make_filepath(path, m_name, IBD, false);
 
-	if (m_filepath != NULL) {
-		set_filename();
-	}
-}
+	m_filepath = fil_make_filepath(dirpath, filename, ext, false);
 
-/** Make physical filename from the Tablespace::m_path
-plus the Datafile::m_name and store it in Datafile::m_filepath.
-@param path	NULL or full path for this datafile.
-@param suffix	File extension for this tablespace datafile. */
-void
-Datafile::make_filepath_no_ext(
-	const char*	path)
-{
-	ut_ad(m_name != NULL);
-
-	free_filepath();
-	m_filepath = fil_make_filepath(path, m_name, NO_EXT, false);
+	ut_ad(m_filepath != NULL);
 
 	set_filename();
 }
@@ -229,6 +229,39 @@ Datafile::free_filepath()
 		m_filepath = NULL;
 		m_filename = NULL;
 	}
+}
+
+/** Do a quick test if the filepath provided looks the same as this filepath
+byte by byte. If they are two different looking paths to the same file,
+same_as() will be used to show that after the files are opened.
+@param[in]	other	filepath to compare with
+@retval true if it is the same filename by byte comparison
+@retval false if it looks different */
+bool
+Datafile::same_filepath_as(
+	const char* other) const
+{
+	return(0 == strcmp(m_filepath, other));
+}
+
+/** Test if another opened datafile is the same file as this object.
+@param[in]	other	Datafile to compare with
+@return true if it is the same file, else false */
+bool
+Datafile::same_as(
+	const Datafile&	other) const
+{
+#ifdef _WIN32
+	return(m_file_info.dwVolumeSerialNumber
+	       == other.m_file_info.dwVolumeSerialNumber
+	       && m_file_info.nFileIndexHigh
+	          == other.m_file_info.nFileIndexHigh
+	       && m_file_info.nFileIndexLow
+	          == other.m_file_info.nFileIndexLow);
+#else
+	return(m_file_info.st_ino == other.m_file_info.st_ino
+	       && m_file_info.st_dev == other.m_file_info.st_dev);
+#endif /* WIN32 */
 }
 
 /** Allocate and set the datafile or tablespace name in m_name.

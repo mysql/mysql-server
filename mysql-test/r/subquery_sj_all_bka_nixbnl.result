@@ -5534,7 +5534,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	it	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t3)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t4`.`a` AS `a` from `test`.`t` `t1` semi join (`test`.`v` `it2`) left join (`test`.`t2` left join (`test`.`t` `t3` semi join (`test`.`t` `it`)) on(((`test`.`it`.`a` = `test`.`t3`.`a`) and 1)) join `test`.`t4`) on(((`test`.`t4`.`a` = 100) and 1)) where (`test`.`it2`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t4`.`a` AS `a` from `test`.`t` `t1` semi join (`test`.`v` `it2`) left join (`test`.`t2` left join (`test`.`t` `t3` semi join (`test`.`t` `it`)) on(((`test`.`it`.`a` = `test`.`t3`.`a`) and 1)) join `test`.`t4`) on(((`test`.`t4`.`a` = 100) and TRUE)) where (`test`.`it2`.`a` = `test`.`t1`.`a`)
 SELECT *
 FROM t AS t1
 LEFT JOIN
@@ -7063,10 +7063,11 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using MRR; FirstMatch(t1)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk
 2
@@ -7141,7 +7142,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.69"
+      "query_cost": "6.79"
     },
     "duplicates_removal": {
       "using_temporary_table": true,
@@ -7165,9 +7166,9 @@ EXPLAIN
             "index_condition": "(`test`.`t1`.`Population` > 5000000)",
             "using_MRR": true,
             "cost_info": {
-              "read_cost": "2.10",
+              "read_cost": "2.20",
               "eval_cost": "0.20",
-              "prefix_cost": "2.30",
+              "prefix_cost": "2.40",
               "data_read_per_join": "48"
             },
             "used_columns": [
@@ -7199,7 +7200,7 @@ EXPLAIN
             "cost_info": {
               "read_cost": "1.00",
               "eval_cost": "0.15",
-              "prefix_cost": "5.80",
+              "prefix_cost": "5.90",
               "data_read_per_join": "54"
             },
             "used_columns": [
@@ -7235,7 +7236,7 @@ EXPLAIN
             "cost_info": {
               "read_cost": "0.75",
               "eval_cost": "0.14",
-              "prefix_cost": "6.69",
+              "prefix_cost": "6.79",
               "data_read_per_join": "28"
             },
             "used_columns": [
@@ -7584,11 +7585,12 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))')), (2,'f','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff','ffff',ST_GeomFromText('POLYGON((0 0, 0 2, 2 2, 2 0, 0 0))'));
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	25.00	Using index condition; Using where; Using MRR; FirstMatch(t1)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	11	test.t1.a,test.t1.b	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`b` = `test`.`t1`.`b`) and (`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 pk
 2
@@ -8189,7 +8191,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	b1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	b2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` semi join (`test`.`t1` left join (`test`.`t2` `b1` join `test`.`t2` `b2`) on((1 and 1))) where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
+Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2` from `test`.`t2` semi join (`test`.`t1` left join (`test`.`t2` `b1` join `test`.`t2` `b2`) on((TRUE and TRUE))) where (`test`.`t2`.`f2` = `test`.`t1`.`f1`)
 SELECT * FROM t2
 WHERE f2 IN (SELECT t1.f1
 FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);

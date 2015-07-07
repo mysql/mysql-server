@@ -22,7 +22,7 @@
 
 #include "my_config.h"
 #include <my_global.h>
-#include <mysql/plugin_query_rewrite.h>
+#include <mysql/plugin_audit.h>
 
 bool refresh_rules_table();
 

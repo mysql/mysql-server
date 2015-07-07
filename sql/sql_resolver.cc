@@ -329,10 +329,7 @@ bool SELECT_LEX::prepare(THD *thd)
           (*ord->item)->field_type() == MYSQL_TYPE_BIT)
       {
         Item_field *field= new Item_field(thd, *(Item_field**)ord->item);
-        int el= all_fields.elements;
-        ref_ptrs[el]= field;
-        all_fields.push_front(field);
-        ord->item= &ref_ptrs[el];
+        ord->item= add_hidden_item(field);
       }
     }
   }
@@ -2843,15 +2840,12 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
     */
     if (!ref_ptrs.is_null() && !ref->found_in_select_list)
     {
-      int el= all_fields.elements;
-      ref_ptrs[el]= item;
-      /* Add the field item to the select list of the current select. */
-      all_fields.push_front(item);
-      /*
+      /* 
+        Add the field item to the select list of the current select.
         If it's needed reset each Item_ref item that refers this field with
         a new reference taken from ref_pointer_array.
       */
-      item_ref= &ref_ptrs[el];
+      item_ref= add_hidden_item(item);
     }
 
     if (ref->in_sum_func)
@@ -3654,6 +3648,22 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Add item to the hidden part of select list.
+
+  @param item  item to add
+
+  @return Pointer to ref_ptr for the added item
+*/
+
+Item **SELECT_LEX::add_hidden_item(Item *item)
+{
+  uint el= all_fields.elements;
+  ref_ptrs[el]= item;
+  all_fields.push_front(item);
+  return &ref_ptrs[el];
+}
 
 /**
   @} (end of group Query_Resolver)

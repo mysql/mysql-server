@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.2;
 const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 40.0;
 const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 1.0;
 const double Server_cost_constants::ROW_EVALUATE_COST= 0.2;
+const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 1.0;
 const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;
 
 /* purecov: begin inspected */

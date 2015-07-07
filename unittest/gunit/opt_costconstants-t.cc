@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,8 +51,11 @@ const double default_disk_temptable_create_cost= 40.0;
 // Default value for Server_cost_constants::DISK_TEMPTABLE_ROW_COST
 const double default_disk_temptable_row_cost= 1.0;
 
-//  Default value SE_cost_constants::BLOCK_READ_COST
-const double default_block_read_cost= 1.0;
+//  Default value SE_cost_constants::MEMORY_BLOCK_READ_COST
+const double default_memory_block_read_cost= 1.0;
+
+//  Default value SE_cost_constants::IO_BLOCK_READ_COST
+const double default_io_block_read_cost= 1.0;
 
 
 class CostConstantsTest : public ::testing::Test
@@ -333,7 +336,9 @@ TEST_F(CostConstantsTest, CostConstantsStorageEngine)
   SE_cost_constants se_constants;
 
   // Validate expected default values for cost constants
-  EXPECT_EQ(se_constants.io_block_read_cost(), default_block_read_cost);
+  EXPECT_EQ(se_constants.memory_block_read_cost(), 
+            default_memory_block_read_cost);
+  EXPECT_EQ(se_constants.io_block_read_cost(), default_io_block_read_cost);
 
   /*
     Test updating values for cost constants
@@ -343,7 +348,60 @@ TEST_F(CostConstantsTest, CostConstantsStorageEngine)
   const double new_value1= 2.74;
   const double new_value2= 3.14;
 
-  // io_block_read_cost
+  /*
+    Test memory_block_read_cost
+  */
+  const LEX_CSTRING memory_block_read_name=
+    {STRING_WITH_LEN("MEMORY_BLOCK_READ_COST")};
+
+  // Update the default value, first time
+  EXPECT_EQ(se_constants2.test_update_default_func(memory_block_read_name,
+                                                   new_value1),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value1);
+
+  // Update the default value, second time
+  EXPECT_EQ(se_constants2.test_update_default_func(memory_block_read_name,
+                                                   new_value2),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value2);
+
+  // Update with a engine specific value, first time
+  EXPECT_EQ(se_constants2.test_update_func(memory_block_read_name, new_value1),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value1);
+
+  // Update with a engine specific value, second time
+  EXPECT_EQ(se_constants2.test_update_func(memory_block_read_name, new_value2),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value2);
+
+  // Update the default value, this should not change the value
+  EXPECT_EQ(se_constants2.test_update_default_func(memory_block_read_name,
+                                                   new_value1),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value2);
+
+  /*
+    Test with upper, lower and mixed case for cost constant name.
+  */
+  const LEX_CSTRING mem_name_upper= {STRING_WITH_LEN("MEMORY_BLOCK_READ_COST")};
+  const LEX_CSTRING mem_name_lower= {STRING_WITH_LEN("memory_block_read_cost")};
+  const LEX_CSTRING mem_name_mixed= {STRING_WITH_LEN("mEmOrY_bLoCk_ReAd_CoSt")};
+
+  EXPECT_EQ(se_constants2.test_update_func(mem_name_upper, new_value1),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value1);
+  EXPECT_EQ(se_constants2.test_update_func(mem_name_lower, new_value2),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value2);
+  EXPECT_EQ(se_constants2.test_update_func(mem_name_mixed, new_value1),
+            COST_CONSTANT_OK);
+  EXPECT_EQ(se_constants2.memory_block_read_cost(), new_value1);
+
+  /*
+    Test io_block_read_cost
+  */
   const LEX_CSTRING io_block_read_name= {STRING_WITH_LEN("IO_BLOCK_READ_COST")};
 
   // Update the default value, first time
@@ -377,17 +435,17 @@ TEST_F(CostConstantsTest, CostConstantsStorageEngine)
   /*
     Test with upper, lower and mixed case for cost constant name.
   */
-  const LEX_CSTRING name_upper= {STRING_WITH_LEN("IO_BLOCK_READ_COST")};
-  const LEX_CSTRING name_lower= {STRING_WITH_LEN("io_block_read_cost")};
-  const LEX_CSTRING name_mixed= {STRING_WITH_LEN("iO_bLoCk_ReAd_CoSt")};
+  const LEX_CSTRING io_name_upper= {STRING_WITH_LEN("IO_BLOCK_READ_COST")};
+  const LEX_CSTRING io_name_lower= {STRING_WITH_LEN("io_block_read_cost")};
+  const LEX_CSTRING io_name_mixed= {STRING_WITH_LEN("iO_bLoCk_ReAd_CoSt")};
 
-  EXPECT_EQ(se_constants2.test_update_func(name_upper, new_value1),
+  EXPECT_EQ(se_constants2.test_update_func(io_name_upper, new_value1),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_constants2.io_block_read_cost(), new_value1);
-  EXPECT_EQ(se_constants2.test_update_func(name_lower, new_value2),
+  EXPECT_EQ(se_constants2.test_update_func(io_name_lower, new_value2),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_constants2.io_block_read_cost(), new_value2);
-  EXPECT_EQ(se_constants2.test_update_func(name_mixed, new_value1),
+  EXPECT_EQ(se_constants2.test_update_func(io_name_mixed, new_value1),
             COST_CONSTANT_OK);
   EXPECT_EQ(se_constants2.io_block_read_cost(), new_value1);
 
@@ -417,11 +475,11 @@ TEST_F(CostConstantsTest, CostConstantsStorageEngine)
   TapeEngine_cost_constants tape_constants;
 
   // Validate expected default values for cost constants
-  EXPECT_EQ(tape_constants.io_block_read_cost(), default_block_read_cost);
+  EXPECT_EQ(tape_constants.io_block_read_cost(), default_io_block_read_cost);
   EXPECT_EQ(tape_constants.tape_io_cost(), 200.0);
 
   // change io_block_read_cost
-  EXPECT_EQ(tape_constants.io_block_read_cost(), default_block_read_cost);
+  EXPECT_EQ(tape_constants.io_block_read_cost(), default_io_block_read_cost);
   EXPECT_EQ(tape_constants.test_update_func(io_block_read_name, new_value1),
             COST_CONSTANT_OK);
   EXPECT_EQ(tape_constants.io_block_read_cost(), new_value1);
@@ -481,7 +539,8 @@ TEST_F(CostConstantsTest, CostConstants)
     cost_constants.get_se_cost_constants(&table);
 
   // Validate expected default values for cost constants
-  EXPECT_EQ(se_const->io_block_read_cost(), default_block_read_cost);
+  EXPECT_EQ(se_const->memory_block_read_cost(), default_memory_block_read_cost);
+  EXPECT_EQ(se_const->io_block_read_cost(), default_io_block_read_cost);
 
   /*
     Test updating server constants.
@@ -590,8 +649,8 @@ TEST_F(CostConstantsTest, CostConstants)
     cost_constants2.get_se_cost_constants(&table_se2);
 
   // Verify that both tables have the same default value
-  EXPECT_EQ(se_cost1->io_block_read_cost(), default_block_read_cost);
-  EXPECT_EQ(se_cost2->io_block_read_cost(), default_block_read_cost);
+  EXPECT_EQ(se_cost1->io_block_read_cost(), default_io_block_read_cost);
+  EXPECT_EQ(se_cost2->io_block_read_cost(), default_io_block_read_cost);
 
   // Update the default value and verify that the cost constant for both
   // tables are changed.
@@ -625,8 +684,8 @@ TEST_F(CostConstantsTest, CostConstants)
     cost_constants3.get_se_cost_constants(&table_baktus);
 
   // Verify that both tables have the same default value
-  EXPECT_EQ(se_cost_karius->io_block_read_cost(), default_block_read_cost);
-  EXPECT_EQ(se_cost_baktus->io_block_read_cost(), default_block_read_cost);
+  EXPECT_EQ(se_cost_karius->io_block_read_cost(), default_io_block_read_cost);
+  EXPECT_EQ(se_cost_baktus->io_block_read_cost(), default_io_block_read_cost);
 
   // Update the default value and verify that the cost constant for both
   // tables are changed.

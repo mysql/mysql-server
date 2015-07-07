@@ -38,6 +38,7 @@ PSI_memory_key key_memory_Gis_read_stream_err_msg;
 PSI_memory_key key_memory_Gtid_state_to_string;
 PSI_memory_key key_memory_HASH_ROW_ENTRY;
 PSI_memory_key key_memory_JOIN_CACHE;
+PSI_memory_key key_memory_JSON;
 PSI_memory_key key_memory_LOG_POS_COORD;
 PSI_memory_key key_memory_LOG_name;
 PSI_memory_key key_memory_MPVIO_EXT_auth_info;

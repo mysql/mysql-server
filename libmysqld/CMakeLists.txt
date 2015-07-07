@@ -102,28 +102,32 @@ SET(SQL_EMBEDDED_SOURCES
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  ../sql/handler.cc
   ../sql/item_geofunc.cc
   ../sql/item_geofunc_buffer.cc
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
+  ../sql/item_json_func.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
-# Boost Geometry source has unused local typedefs.
+# Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    ../sql/handler.cc
     ../sql/item_geofunc.cc
     ../sql/item_geofunc_buffer.cc
     ../sql/item_geofunc_relchecks.cc
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
+    ../sql/item_json_func.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
 
-# Boost Geometry source has logical && with non-zero constant
+# Boost source has logical && with non-zero constant
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
 IF(HAVE_NO_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
@@ -132,6 +136,7 @@ IF(HAVE_NO_LOGICAL_OP)
     ../sql/item_geofunc_relchecks.cc
     ../sql/item_geofunc_relchecks_bgwrap.cc
     ../sql/item_geofunc_setops.cc
+    ../sql/item_json_func.cc
     COMPILE_FLAGS "-Wno-logical-op"
   )
 ENDIF()

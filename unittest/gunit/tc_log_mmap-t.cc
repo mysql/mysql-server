@@ -15,7 +15,7 @@
 
 #include "my_config.h"
 #include <gtest/gtest.h>
-#include "log.h"
+#include "tc_log.h"
 #include "sql_class.h"
 #include "test_utils.h"
 #include "thread_utils.h"

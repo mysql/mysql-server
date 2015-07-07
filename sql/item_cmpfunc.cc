@@ -27,6 +27,7 @@
 #include "current_thd.h"        // current_thd
 #include "item_subselect.h"     // Item_subselect
 #include "item_sum.h"           // Item_sum_hybrid
+#include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "mysqld.h"             // log_10
 #include "parse_tree_helpers.h" // PT_item_list
 #include "sql_class.h"          // THD
@@ -531,8 +532,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       dbug_tmp_use_all_columns(table, old_maps, 
                                table->read_set, table->write_set);
     /* For comparison purposes allow invalid dates like 2000-01-32 */
-    thd->variables.sql_mode= (orig_sql_mode & ~(MODE_STRICT_ALL_TABLES |
-                                                MODE_STRICT_TRANS_TABLES)) |
+    thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) |
                              MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
@@ -696,6 +696,15 @@ void Item_bool_func2::fix_length_and_dec()
 }
 
 
+void Arg_comparator::cleanup()
+{
+  delete[] comparators;
+  comparators= 0;
+  delete_json_scalar_holder(json_scalar);
+  json_scalar= 0;
+}
+
+
 int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
 {
   owner= item;
@@ -835,8 +844,11 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   bool value;
   MYSQL_TIME_STATUS status;
   my_time_flags_t flags= TIME_FUZZY_DATE | TIME_INVALID_DATES;
-  if (thd->is_strict_mode())
-    flags|= TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE;
+
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags|= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE)
+    flags|= TIME_NO_ZERO_DATE;
 
   if (!str_to_datetime(str, l_time, flags, &status) &&
       (l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||
@@ -1111,10 +1123,19 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   a= a1;
   b= a2;
 
+  if (((*a)->result_type() == STRING_RESULT &&
+       (*a)->field_type() == MYSQL_TYPE_JSON) ||
+      ((*b)->result_type() == STRING_RESULT &&
+       (*b)->field_type() == MYSQL_TYPE_JSON))
+  {
+    // Use the JSON comparator if at least one of the arguments is JSON.
+    is_nulls_eq= is_owner_equal_func();
+    func= &Arg_comparator::compare_json;
+    return 0;
+  }
+
   if (can_compare_as_dates(*a, *b, &const_value))
   {
-    a_type= (*a)->field_type();
-    b_type= (*b)->field_type();
     a_cache= 0;
     b_cache= 0;
 
@@ -1288,8 +1309,6 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   owner= owner_arg;
   a= a1;
   b= b1;
-  a_type= (*a)->field_type();
-  b_type= (*b)->field_type();
   a_cache= 0;
   b_cache= 0;
   is_nulls_eq= FALSE;
@@ -1486,6 +1505,135 @@ int Arg_comparator::compare_datetime()
   if (is_nulls_eq)
     return (a_value == b_value);
   return a_value < b_value ? -1 : (a_value > b_value ? 1 : 0);
+}
+
+
+/**
+  Get one of the arguments to the comparator as a JSON value.
+
+  @param[in]     arg     pointer to the argument
+  @param[in,out] value   buffer used for reading the JSON value
+  @param[in,out] tmp     buffer used for converting string values to the
+                         correct charset, if necessary
+  @param[out]    result  where to store the result
+  @param[in,out] scalar  pointer to a location with pre-allocated memory
+                         used for JSON scalars that are converted from
+                         SQL scalars
+
+  @retval false on success
+  @retval true on failure
+*/
+static bool get_json_arg(Item* arg, String *value, String *tmp,
+                         Json_wrapper *result, Json_scalar_holder **scalar)
+{
+  Json_scalar_holder *holder= NULL;
+
+  /*
+    If the argument is a non-JSON type, it gets converted to a JSON
+    scalar. Use the pre-allocated memory passed in via the "scalar"
+    argument. Note, however, that geometry types are not converted
+    to scalars. They are converted to JSON objects by get_json_atom_wrapper().
+  */
+  if ((arg->field_type() != MYSQL_TYPE_JSON) &&
+      (arg->field_type() != MYSQL_TYPE_GEOMETRY))
+  {
+    /*
+      If it's a constant item, and we've already read it, just return
+      the value that's cached in the pre-allocated memory.
+    */
+    if (*scalar && arg->const_item())
+    {
+      Json_wrapper tmp(get_json_scalar_from_holder(*scalar));
+      tmp.set_alias();
+      result->steal(&tmp);
+      return false;
+    }
+
+    /*
+      Allocate memory to hold the scalar, if we haven't already done
+      so. Otherwise, we reuse the previously allocated memory.
+    */
+    if (!*scalar)
+      *scalar= create_json_scalar_holder();
+
+    holder= *scalar;
+  }
+
+  return get_json_atom_wrapper(&arg, 0, "<=", value, tmp, result, holder, true);
+}
+
+
+/**
+  Compare two Item objects as JSON.
+
+  If one of the arguments is NULL, and the owner is not EQUAL_FUNC,
+  the null_value flag of the owner will be set to true.
+
+  @return
+
+    If is_nulls_eq is true, return 1 if both items are not NULL and
+    they are equal, or if both items are NULL; otherwise, return 0.
+
+    If is_nulls_eq is false, return -1 if at least one of the items is
+    NULL or if the first item is less than the second item, return 0
+    if the two items are equal, return 1 if the first item is greater
+    than the second item.
+*/
+int Arg_comparator::compare_json()
+{
+  char buf[STRING_BUFFER_USUAL_SIZE];
+  String tmp(buf, sizeof(buf), &my_charset_bin);
+
+  // Get the JSON value in the a Item.
+  Json_wrapper aw;
+  if (get_json_arg(*a, &value1, &tmp, &aw, &json_scalar))
+    return 1;
+
+  bool a_is_null= (*a)->null_value;
+  if (a_is_null)
+  {
+    if (!is_nulls_eq)
+    {
+      if (set_null)
+        owner->null_value= true;
+      return -1;
+    }
+  }
+
+  // Get the JSON value in the b Item.
+  Json_wrapper bw;
+  if (get_json_arg(*b, &value1, &tmp, &bw, &json_scalar))
+    return 1;
+
+  bool b_is_null= (*b)->null_value;
+  if (b_is_null)
+  {
+    if (!is_nulls_eq)
+    {
+      if (set_null)
+        owner->null_value= true;
+      return -1;
+    }
+  }
+
+  if (set_null)
+    owner->null_value= false;
+
+  /*
+    If we were called by the <=> operator, we should return 0/1
+    instead of -1/0/1. 0 means not equal, 1 means equal. The <=>
+    operator considers two NULLs equal.
+  */
+  if (is_nulls_eq)
+  {
+    if (a_is_null || b_is_null)
+      return a_is_null == b_is_null;
+    else
+      return aw.compare(bw) == 0;
+  }
+
+  // Otherwise, return -1/0/1.
+  return aw.compare(bw);
 }
 
 
@@ -3219,6 +3367,23 @@ my_decimal *Item_func_ifnull::decimal_op(my_decimal *decimal_value)
 }
 
 
+bool Item_func_ifnull::val_json(Json_wrapper *result)
+{
+  null_value= 0;
+  if (json_value(args, 0, result))
+    return error_json();
+
+  if (!args[0]->null_value)
+    return false;
+
+  if (json_value(args, 1, result))
+    return error_json();
+
+  null_value= args[1]->null_value;
+  return false;
+}
+
+
 bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
@@ -3441,6 +3606,17 @@ Item_func_if::val_decimal(my_decimal *decimal_value)
   my_decimal *value= arg->val_decimal(decimal_value);
   null_value= arg->null_value;
   return value;
+}
+
+
+bool Item_func_if::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed == 1);
+  Item *arg= args[0]->val_bool() ? args[1] : args[2];
+  Item *args[]= {arg};
+  bool ok= json_value(args, 0, wr);
+  null_value= arg->null_value;
+  return ok;
 }
 
 
@@ -3703,6 +3879,24 @@ my_decimal *Item_func_case::val_decimal(my_decimal *decimal_value)
   res= item->val_decimal(decimal_value);
   null_value= item->null_value;
   return res;
+}
+
+
+bool Item_func_case::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String dummy_str(buff, sizeof(buff), default_charset());
+  Item *item= find_item(&dummy_str);
+
+  if (!item)
+  {
+    null_value= true;
+    return false;
+  }
+
+  Item *args[]= {item};
+  return json_value(args, 0, wr);
 }
 
 
@@ -4011,6 +4205,25 @@ String *Item_func_coalesce::str_op(String *str)
   null_value=1;
   return 0;
 }
+
+
+bool Item_func_coalesce::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed == 1);
+  null_value= false;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (json_value(args, i, wr))
+      return error_json();
+
+    if (!args[i]->null_value)
+      return false;
+  }
+
+  null_value= true;
+  return false;
+}
+
 
 longlong Item_func_coalesce::int_op()
 {

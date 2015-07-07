@@ -19,4 +19,6 @@ SELECT * FROM t1;
 a	b
 1	2
 DROP TABLE t1;
-# Query rewrite plugin was uninstalled.
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+# Query rewrite plugin was queued for uninstalling.

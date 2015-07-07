@@ -6443,14 +6443,14 @@ dict_table_schema_check(
 
 /*********************************************************************//**
 Converts a database and table name from filesystem encoding
-(e.g. d@i1b/a@q1b@1Kc, same format as used in dict_table_t::name) in two
+(e.g. @code d@i1b/a@q1b@1Kc @endcode, same format as used in dict_table_t::name) in two
 strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
 at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
 void
 dict_fs2utf8(
 /*=========*/
 	const char*	db_and_table,	/*!< in: database and table names,
-					e.g. d@i1b/a@q1b@1Kc */
+					e.g. @code d@i1b/a@q1b@1Kc @endcode */
 	char*		db_utf8,	/*!< out: database name, e.g. dцb */
 	size_t		db_utf8_size,	/*!< in: dbname_utf8 size */
 	char*		table_utf8,	/*!< out: table name, e.g. aюbØc */

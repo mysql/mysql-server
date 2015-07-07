@@ -1453,6 +1453,61 @@ SELECT ST_ASTEXT(ST_ConvexHull(ST_GEOMFROMTEXT(
 SELECT ST_ASTEXT(ST_ConvexHull(ST_GEOMFROMTEXT('MULTIPOINT(1 2, 1 2)')))
 AS result;
 
+--echo #
+--echo # Bug#21109896 POLYGON INTERSECTION POLYGON CAN'T PRODUCE LINESTRINGS AS RESULTS
+--echo #
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 1 0, 1 1, 0 1, 0 0))'),
+st_geomfromtext('polygon((2 0, 3 0, 3 1, 2 1, 2 0))')))
+as result; # empty
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 2 0, 2 1, 0 1, 0 0))'),
+st_geomfromtext('polygon((1 0, 3 0, 3 1, 1 1, 1 0))')))
+as result; #areal
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 1 0, 1 1, 0 1, 0 0))'),
+st_geomfromtext('polygon((1 0, 2 0, 2 1, 1 1, 1 0))')))
+as result; # linear
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 0 5))')))
+as result; #point
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 5, 0 5))')))
+as result; #point&linear
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 2, 6 2, 6 5, 0 5))')))
+as result; #point&areal
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 4 3, 4 2, 6 2, 6 5, 0 5))')))
+as result; #linear&areal
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 4 3, 4 0, 6 0, 6 3, 5 3, 5 5, 0 5))')))
+as result; #linear&areal
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 2, 6 2, 6 5, 0 5))')))
+as result; #point&linear&areal
+
+select st_astext(st_intersection(
+st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
+st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 0,
+                          10 0, 10 3, 6 3, 6 5, 0 5))')))
+as result; #point&linear&areal
+
+# More tests with multipolygon arguments.
 
 --echo #
 --echo # Bug#21198064 GEOMETRY CONSTRUCTION FUNCTIONS ALLOWS INVALID WKT

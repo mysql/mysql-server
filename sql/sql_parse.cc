@@ -3621,7 +3621,8 @@ end_with_restore_list:
         check_global_access(thd,CREATE_USER_ACL))
       break;
     /* Conditionally writes to binlog */
-    if (!(res= mysql_create_user(thd, lex->users_list)))
+    HA_CREATE_INFO create_info(lex->create_info);
+    if (!(res = mysql_create_user(thd, lex->users_list, create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)))
       my_ok(thd);
     break;
   }
@@ -3631,7 +3632,7 @@ end_with_restore_list:
         check_global_access(thd,CREATE_USER_ACL))
       break;
     /* Conditionally writes to binlog */
-    if (!(res= mysql_drop_user(thd, lex->users_list)))
+    if (!(res = mysql_drop_user(thd, lex->users_list, lex->drop_if_exists)))
       my_ok(thd);
     break;
   }
@@ -3913,8 +3914,7 @@ end_with_restore_list:
     else
     {
       /* Reset the isolation level and access mode if no chaining transaction.*/
-      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-      thd->tx_read_only= thd->variables.tx_read_only;
+      trans_reset_one_shot_chistics(thd);
     }
     /* Disconnect the current client connection. */
     if (tx_release)
@@ -3944,8 +3944,7 @@ end_with_restore_list:
     else
     {
       /* Reset the isolation level and access mode if no chaining transaction.*/
-      thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-      thd->tx_read_only= thd->variables.tx_read_only;
+      trans_reset_one_shot_chistics(thd);
     }
     /* Disconnect the current client connection. */
     if (tx_release)
@@ -4571,7 +4570,7 @@ end_with_restore_list:
     }
 
     /* Conditionally writes to binlog */
-    if (!(res= mysql_alter_user(thd, lex->users_list)))
+    if (!(res = mysql_alter_user(thd, lex->users_list, lex->drop_if_exists)))
       my_ok(thd);
     break;
   }
@@ -4680,6 +4679,13 @@ finish:
   else if (! thd->in_sub_stmt)
   {
     thd->mdl_context.release_statement_locks();
+  }
+
+  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+  {
+    ((Transaction_state_tracker *)
+     thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
+      ->add_trx_state_from_thd(thd);
   }
 
 #if defined(VALGRIND_DO_QUICK_LEAK_CHECK)
@@ -5059,23 +5065,18 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   mysql_reset_thd_for_next_command(thd);
   lex_start(thd);
 
-  int32 num_preparse= my_atomic_load32(&num_pre_parse_plugins);
-  int32 num_postparse= my_atomic_load32(&num_post_parse_plugins);
-
   thd->m_parser_state= parser_state;
-  if (num_preparse > 0)
-    invoke_pre_parse_rewrite_plugins(thd);
+  invoke_pre_parse_rewrite_plugins(thd);
   thd->m_parser_state= NULL;
 
-  if (num_postparse > 0)
-    enable_digest_if_any_plugin_needs_it(thd, parser_state);
+  enable_digest_if_any_plugin_needs_it(thd, parser_state);
 
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
 
     bool err= parse_sql(thd, parser_state, NULL);
-    if (num_postparse > 0 && !err)
+    if (!err)
       err= invoke_post_parse_rewrite_plugins(thd, false);
 
     const char *found_semicolon= parser_state->m_lip.found_semicolon;
@@ -5424,10 +5425,9 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
 
+  @return Pointer to TABLE_LIST element added to the total table list
   @retval
       0		Error
-  @retval
-    \#	Pointer to TABLE_LIST element added to the total table list
 */
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
@@ -5695,10 +5695,9 @@ TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
 
   @param thd         current thread
 
+  @return Pointer to TABLE_LIST element created for the new nested join
   @retval
     0  Error
-  @retval
-    \#  Pointer to TABLE_LIST element created for the new nested join
 */
 
 TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)

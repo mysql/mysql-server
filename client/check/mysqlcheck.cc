@@ -28,6 +28,8 @@
 #include "mysql/service_mysql_alloc.h"
 
 using namespace Mysql::Tools::Check;
+using std::string;
+using std::vector;
 
 /* Exit codes */
 

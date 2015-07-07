@@ -177,18 +177,6 @@ Description: MySQL Test Run MTR - The MySQL testsuite
  Oracle. This package contains the MySQL regression test suite for MySQL
  database server.
 
-Package: mysql-community-bench
-Architecture: any
-Depends: mysql-community-server (= ${binary:Version}),
- ${shlibs:Depends}, ${misc:Depends}
-Conflicts: mysql, mysql-commercial-bench
-Description: MySQL Bench
- The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
- and robust SQL (Structured Query Language) database server. MySQL Server
- is intended for mission-critical, heavy-load production systems as well
- as for embedding into mass-deployed software. MySQL is a trademark of
- Oracle.
-
 Package: mysql-community-source
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}

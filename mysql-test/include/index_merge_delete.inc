@@ -46,6 +46,14 @@ ANALYZE TABLE t2;
 --eval DELETE $query
 --eval SELECT COUNT(*) $query
 
+# The following query could produce different query plans due to variations
+# in statistics
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 --let $query = FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1=4 AND key3=6)
 --replace_column 10 #
 --eval EXPLAIN DELETE $query

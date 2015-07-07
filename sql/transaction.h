@@ -24,6 +24,8 @@ typedef struct st_mysql_lex_string LEX_STRING;
 
 
 bool trans_check_state(THD *thd);
+void trans_reset_one_shot_chistics(THD *thd);
+void trans_track_end_trx(THD *thd);
 
 bool trans_begin(THD *thd, uint flags= 0);
 bool trans_commit(THD *thd);

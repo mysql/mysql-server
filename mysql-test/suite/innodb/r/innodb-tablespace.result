@@ -258,10 +258,10 @@ Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Error	1031	Table storage engine for 't1' doesn't have this option
 # CREATE TEMPORARY compressed TABLE with DATA DIRECTORY is rejected in strict mode.
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB row_format=compressed DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-ERROR HY000: Table storage engine for 't1' doesn't have this option
+ERROR HY000: CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
+Error	3500	CREATE TEMPORARY TABLE is not allowed with ROW_FORMAT=COMPRESSED or KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't1' doesn't have this option
 SET SESSION innodb_strict_mode = OFF;
 # DATA DIRECTORY is ignored in CREATE TEMPORARY TABLE in non-strict mode.
@@ -280,6 +280,8 @@ DROP TABLE t1;
 # DATA DIRECTORY is ignored in CREATE TEMPORARY compressed TABLE in non-strict mode.
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB row_format=compressed DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 Warnings:
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Warning	1618	<DATA DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
@@ -290,8 +292,10 @@ t1	CREATE TEMPORARY TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
 DROP TABLE t1;
-# Also a warning should be issued if DATA DIR and TEMP is used without
+#
+# A warning should be issued if DATA DIR and TEMP is used without
 # innodb_file_per_table
+#
 SET GLOBAL innodb_file_per_table=OFF;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 Warnings:

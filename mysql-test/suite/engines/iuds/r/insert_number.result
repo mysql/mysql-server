@@ -2396,6 +2396,8 @@ Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
 Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -7990,6 +7992,8 @@ Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
 Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -13689,6 +13693,8 @@ Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
 Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -19493,6 +19499,8 @@ Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
 Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -25402,6 +25410,8 @@ Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
 Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';
@@ -31311,6 +31321,8 @@ Warnings:
 Warning	1364	Field 'c1' doesn't have a default value
 Warning	1364	Field 'c6' doesn't have a default value
 SET SQL_MODE=STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t2 SET c3=5,c4=6;
 ERROR HY000: Field 'c1' doesn't have a default value
 SET SQL_MODE='';

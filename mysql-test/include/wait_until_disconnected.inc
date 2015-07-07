@@ -17,6 +17,11 @@ while (!$mysql_errno)
   dec $counter;
   if (!$counter)
   {
+    if ($show_rpl_debug_info)
+    {
+      --source include/show_rpl_debug_info.inc
+      --echo current_connectio= $CURRENT_CONNECTION
+    }
     --die Server failed to dissapear
   }
   --sleep 0.1

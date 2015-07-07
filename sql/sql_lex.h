@@ -1479,6 +1479,15 @@ public:
                 Used to access optimizer_switch
   */
   void update_semijoin_strategies(THD *thd);
+
+  /**
+    Add item to the hidden part of select list
+
+    @param item  item to add
+
+    @return Pointer to ref_ptr for the added item
+  */
+  Item **add_hidden_item(Item *item);
 };
 typedef class SELECT_LEX SELECT_LEX;
 
@@ -3339,7 +3348,11 @@ public:
 
   // Maximum execution time for a statement.
   ulong max_execution_time;
-
+  /*
+    To flag the current statement as dependent for binary logging
+    on explicit_defaults_for_timestamp
+  */
+  bool binlog_need_explicit_defaults_ts;
   LEX();
 
   virtual ~LEX();

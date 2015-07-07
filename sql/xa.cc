@@ -25,6 +25,7 @@
 #include "psi_memory_key.h"     // key_memory_XID
 #include "sql_class.h"          // THD
 #include "sql_plugin.h"         // plugin_foreach
+#include "tc_log.h"             // tc_log
 #include "transaction.h"        // trans_begin, trans_rollback
 
 #include <pfs_transaction_provider.h>
@@ -429,6 +430,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
   transaction_cache_delete(thd->get_transaction());
   xid_state->set_state(XID_STATE::XA_NOTR);
   xid_state->unset_binlogged();
+  trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL || res);
   DBUG_RETURN(res);
@@ -445,9 +447,8 @@ bool Sql_cmd_xa_commit::execute(THD *thd)
     /*
         We've just done a commit, reset transaction
         isolation level and access mode to the session default.
-     */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
+    */
+    trans_reset_one_shot_chistics(thd);
 
     my_ok(thd);
   }
@@ -516,6 +517,7 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
   transaction_cache_delete(thd->get_transaction());
   xid_state->set_state(XID_STATE::XA_NOTR);
   xid_state->unset_binlogged();
+  trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
   DBUG_ASSERT(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
@@ -533,8 +535,7 @@ bool Sql_cmd_xa_rollback::execute(THD *thd)
       We've just done a rollback, reset transaction
       isolation level and access mode to the session default.
     */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
+    trans_reset_one_shot_chistics(thd);
     my_ok(thd);
   }
 

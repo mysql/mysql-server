@@ -143,13 +143,19 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     DBUG_ASSERT(item->collation.collation);
   
     /*
-      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
+      DATE/TIME, GEOMETRY and JSON fields have STRING_RESULT result type.
       To preserve type they needed to be handled separately.
     */
-    if (item->is_temporal() || item->field_type() == MYSQL_TYPE_GEOMETRY)
+    if (item->is_temporal() ||
+        item->field_type() == MYSQL_TYPE_GEOMETRY ||
+        item->field_type() == MYSQL_TYPE_JSON)
+    {
       new_field= item->tmp_table_field_from_field_type(table, 1);
+    }
     else
+    {
       new_field= item->make_string_field(table);
+    }
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
@@ -630,6 +636,9 @@ static void register_hidden_field(TABLE *table,
           MAX_FIELDS columns. This prevents any MyISAM temp table
           made when materializing the view from hitting the 64k
           MyISAM header size limit.
+
+  @remark We may actually end up with a table without any columns at all.
+          See comment below: We don't have to store this.
 */
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128

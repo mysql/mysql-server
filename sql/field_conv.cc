@@ -28,6 +28,7 @@
 #include "sql_time.h"
 #include <m_ctype.h>
 #include "item_timefunc.h"               // Item_func_now_local
+#include "template_utils.h"              // down_cast
 
 static void do_field_eq(Copy_field *copy)
 {
@@ -319,6 +320,17 @@ static void do_save_blob(Copy_field *copy)
   ((Field_blob *) copy->to_field())->store(copy->tmp.ptr(),
                                            copy->tmp.length(),
                                            copy->tmp.charset());
+}
+
+
+/**
+  Copy the contents of one Field_json into another Field_json.
+*/
+static void do_save_json(Copy_field *copy)
+{
+  Field_json *from= down_cast<Field_json *>(copy->from_field());
+  Field_json *to= down_cast<Field_json *>(copy->to_field());
+  to->store(from);
 }
 
 
@@ -676,7 +688,13 @@ void Copy_field::set(Field *to,Field *from,bool save)
    m_do_copy=           NULL;
 
   if ((to->flags & BLOB_FLAG) && save)
-    m_do_copy2= do_save_blob;
+  {
+    if (to->real_type() == MYSQL_TYPE_JSON &&
+        from->real_type() == MYSQL_TYPE_JSON)
+      m_do_copy2= do_save_json;
+    else
+      m_do_copy2= do_save_blob;
+  }
   else
     m_do_copy2= get_copy_func(to,from);
 
@@ -744,8 +762,7 @@ Copy_field::get_copy_func(Field *to,Field *from)
           to->decimals() != from->decimals() /* e.g. TIME vs TIME(6) */ ||
           !compatible_db_low_byte_first ||
           (((to->table->in_use->variables.sql_mode &
-            (MODE_STRICT_ALL_TABLES | MODE_STRICT_TRANS_TABLES |
-             MODE_INVALID_DATES)) &&
+            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
            to->type() == MYSQL_TYPE_DATE) ||
            to->type() == MYSQL_TYPE_DATETIME))
       {
@@ -834,6 +851,16 @@ static inline bool is_blob_type(Field *to)
 
 type_conversion_status field_conv(Field *to,Field *from)
 {
+  const int from_type= from->type();
+  const int to_type= to->type();
+
+  if ((to_type == MYSQL_TYPE_JSON) && (from_type == MYSQL_TYPE_JSON))
+  {
+    Field_json *to_json= down_cast<Field_json*>(to);
+    Field_json *from_json= down_cast<Field_json*>(from);
+    return to_json->store(from_json);
+  }
+
   if (to->real_type() == from->real_type() &&
       !((is_blob_type(to)) &&
         to->table->copy_blobs) && to->charset() == from->charset())
@@ -861,8 +888,7 @@ type_conversion_status field_conv(Field *to,Field *from)
           (((Field_num*)to)->dec == ((Field_num*)from)->dec))) &&
 	to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
         (!(to->table->in_use->variables.sql_mode &
-           (MODE_STRICT_ALL_TABLES | MODE_STRICT_TRANS_TABLES |
-            MODE_INVALID_DATES)) ||
+           (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to->type() != MYSQL_TYPE_DATE &&
           to->type() != MYSQL_TYPE_DATETIME &&
           (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
@@ -927,6 +953,35 @@ type_conversion_status field_conv(Field *to,Field *from)
   else if (from->is_temporal() && to->is_temporal())
   {
     return copy_time_to_time(from, to);
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           (to_type == MYSQL_TYPE_TINY ||
+            to_type == MYSQL_TYPE_SHORT ||
+            to_type == MYSQL_TYPE_INT24 ||
+            to_type == MYSQL_TYPE_LONG ||
+            to_type == MYSQL_TYPE_LONGLONG))
+  {
+    return to->store(from->val_int(), from->flags & UNSIGNED_FLAG);
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           to_type == MYSQL_TYPE_NEWDECIMAL)
+  {
+    my_decimal buff;
+    return to->store_decimal(from->val_decimal(&buff));
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           (to_type == MYSQL_TYPE_FLOAT ||
+            to_type == MYSQL_TYPE_DOUBLE))
+  {
+    return to->store(from->val_real());
+  }
+  else if (from_type == MYSQL_TYPE_JSON &&
+           to->is_temporal())
+  {
+    MYSQL_TIME ltime;
+    if (from->get_time(&ltime))
+      return TYPE_ERR_BAD_VALUE;
+    return to->store_time(&ltime);
   }
   else if ((from->result_type() == STRING_RESULT &&
             (to->result_type() == STRING_RESULT ||

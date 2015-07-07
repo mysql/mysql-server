@@ -158,6 +158,15 @@ struct mysql_event_connection
   unsigned int database_length;
   int connection_type;
 };
+struct mysql_event_parse
+{
+  unsigned int event_subclass;
+  int *flags;
+  const char *query;
+  size_t query_length;
+  char **rewritten_query;
+  size_t *rewritten_query_length;
+};
 struct st_mysql_audit
 {
   int interface_version;

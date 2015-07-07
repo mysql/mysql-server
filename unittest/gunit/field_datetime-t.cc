@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,13 +179,15 @@ static const sql_mode_t strict_modes[no_modes]=
    MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES
  };
 
+
 /**
   Strictness mode test 1:
 
-  Try storing dates when NO SQL MODE is set. There
-  should be no errors.
+  Try storing dates with zeroes when no zero-restrictions apply
+  (neither NO_ZERO_DATE or NO_ZERO_IN_DATE are set). There should be
+  no errors, warnings or notes.
 */
-TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNothing)
+TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroRestrictions)
 {
   Mock_field_datetime field_dt;
   Fake_TABLE table(&field_dt);
@@ -194,18 +196,80 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNothing)
   field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
-  // Without STRICT MODE, Everything is valid
+  for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_dt,
                            STRING_WITH_LEN("0000-00-00 00:00:00"),
                            "0000-00-00 00:00:00",
-                           TYPE_OK,
-                           0,
-                           0);
+                           TYPE_OK, strict_modes[i], 0);
   }
 
-  // Year 0 is valid in strict mode too
+  for (int i= 0; i < no_modes; i++)
+  {
+    SCOPED_TRACE("");
+    store_zero_in_sql_mode(&field_dt,
+                           STRING_WITH_LEN("0000-01-01 00:00:00"),
+                           "0000-01-01 00:00:00",
+                           TYPE_OK, strict_modes[i], 0);
+  }
+
+  for (int i= 0; i < no_modes; i++)
+  {
+    SCOPED_TRACE("");
+    store_zero_in_sql_mode(&field_dt,
+                           STRING_WITH_LEN("2001-00-01 00:00:00"),
+                           "2001-00-01 00:00:00",
+                           TYPE_OK, strict_modes[i], 0);
+  }
+
+  for (int i= 0; i < no_modes; i++)
+  {
+    SCOPED_TRACE("");
+    store_zero_in_sql_mode(&field_dt,
+                           STRING_WITH_LEN("2001-01-00 00:00:00"),
+                           "2001-01-00 00:00:00",
+                           TYPE_OK, strict_modes[i], 0);
+  }
+}
+
+
+static const type_conversion_status nozero_expected_status[]=
+  {
+    TYPE_ERR_BAD_VALUE,
+    TYPE_ERR_BAD_VALUE,
+    TYPE_ERR_BAD_VALUE
+  };
+
+/**
+  Strictness mode test 2:
+
+  Try storing dates with zeroes when NO_ZERO_DATE flag is set. There
+  should be no errors, warnings or notes unless the entire date is
+  zero: "0000-00-00"
+*/
+TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroDate)
+{
+  Mock_field_datetime field_dt;
+  Fake_TABLE table(&field_dt);
+  table.in_use= thd();
+  field_dt.make_writable();
+  field_dt.make_readable();
+  thd()->count_cuted_fields= CHECK_FIELD_WARN;
+
+  // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
+  for (int i= 0; i < no_modes; i++)
+  {
+    SCOPED_TRACE("");
+    store_zero_in_sql_mode(&field_dt,
+                           STRING_WITH_LEN("0000-00-00 00:00:00"),
+                           "0000-00-00 00:00:00",
+                           nozero_expected_status[i],
+                           MODE_NO_ZERO_DATE | strict_modes[i],
+                           ER_TRUNCATED_WRONG_VALUE);
+  }
+
+  // Zero year, month or day is fine
   for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
@@ -213,11 +277,10 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNothing)
                            STRING_WITH_LEN("0000-01-01 00:00:00"),
                            "0000-01-01 00:00:00",
                            TYPE_OK,
-                           0,
+                           MODE_NO_ZERO_DATE | strict_modes[i],
                            0);
   }
 
-  // Month 0 is NOT valid in strict mode, stores all-zero date
   for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
@@ -225,11 +288,10 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNothing)
                            STRING_WITH_LEN("2001-00-01 00:00:00"),
                            "2001-00-01 00:00:00",
                            TYPE_OK,
-                           0,
+                           MODE_NO_ZERO_DATE | strict_modes[i],
                            0);
   }
 
-  // Day 0 is NOT valid in strict mode, stores all-zero date
   for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
@@ -237,18 +299,18 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNothing)
                            STRING_WITH_LEN("2001-01-00 00:00:00"),
                            "2001-01-00 00:00:00",
                            TYPE_OK,
-                           0,
+                           MODE_NO_ZERO_DATE | strict_modes[i],
                            0);
   }
 }
 
 /**
-  Strictness mode test 2:
+  Strictness mode test 3:
 
-  Try storing dates with zeroes when STRICT MODE is set. There
+  Try storing dates with zeroes when NO_ZERO_IN_DATE flag is set. There
   should be no errors unless either month or day is zero.
 */
-TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeStrict)
+TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroInDate)
 {
   Mock_field_datetime field_dt;
   Fake_TABLE table(&field_dt);
@@ -257,16 +319,16 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeStrict)
   field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
-  // With strict mode set - Entire date zero is not ok
+  // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok
   for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_dt,
                            STRING_WITH_LEN("0000-00-00 00:00:00"),
                            "0000-00-00 00:00:00",
-                           TYPE_ERR_BAD_VALUE,
-                           strict_modes[i],
-                           ER_TRUNCATED_WRONG_VALUE);
+                           TYPE_OK,
+                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
+                           0);
   }
 
   // Year 0 is valid in strict mode too
@@ -277,7 +339,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeStrict)
                            STRING_WITH_LEN("0000-01-01 00:00:00"),
                            "0000-01-01 00:00:00",
                            TYPE_OK,
-                           strict_modes[i],
+                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
                            0);
   }
 
@@ -288,8 +350,8 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeStrict)
     store_zero_in_sql_mode(&field_dt,
                            STRING_WITH_LEN("2001-00-01 00:00:00"),
                            "0000-00-00 00:00:00",
-                           TYPE_ERR_BAD_VALUE,
-                           strict_modes[i],
+                           nozero_expected_status[i],
+                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
                            ER_TRUNCATED_WRONG_VALUE);
   }
 
@@ -300,8 +362,8 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeStrict)
     store_zero_in_sql_mode(&field_dt,
                            STRING_WITH_LEN("2001-01-00 00:00:00"),
                            "0000-00-00 00:00:00",
-                           TYPE_ERR_BAD_VALUE,
-                           strict_modes[i],
+                           nozero_expected_status[i],
+                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
                            ER_TRUNCATED_WRONG_VALUE);
   }
 }
