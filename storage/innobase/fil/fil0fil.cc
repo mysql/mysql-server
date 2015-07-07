@@ -6563,7 +6563,7 @@ Folder::make_path(const char* path, size_t len)
 			m_folder_len = strlen(fil_path_to_mysql_datadir);
 			memcpy(m_folder, fil_path_to_mysql_datadir,
 			       m_folder_len);
-			if (m_folder[m_folder_len] != OS_PATH_SEPARATOR) {
+			if (m_folder[m_folder_len - 1] != OS_PATH_SEPARATOR) {
 				m_folder[m_folder_len++] = OS_PATH_SEPARATOR;
 			}
 		}
