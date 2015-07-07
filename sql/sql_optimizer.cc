@@ -4234,8 +4234,10 @@ Item* substitute_for_best_equal_field(Item *cond,
     Item *item;
     while ((item= li++))
     {
-      Item *new_item =substitute_for_best_equal_field(item, cond_equal,
+      Item *new_item= substitute_for_best_equal_field(item, cond_equal,
                                                       table_join_idx);
+      if (new_item == NULL)
+        return NULL;
       /*
         This works OK with PS/SP re-execution as changes are made to
         the arguments of AND/OR items only
