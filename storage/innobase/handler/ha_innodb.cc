@@ -19669,14 +19669,14 @@ innobase_get_computed_value(
 
 		handler::my_eval_gcolumn_expr(
 			current_thd, false, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, 1 << col->m_col.ind,
+			index->table->vc_templ->tb_name, 1ULL << col->m_col.ind,
 			(uchar *)mysql_rec);
         }
 
 	else {
 		handler::my_eval_gcolumn_expr(
 			current_thd, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, 1 << col->m_col.ind,
+			index->table->vc_templ->tb_name, 1ULL << col->m_col.ind,
 			(uchar *)mysql_rec);
 	}
 
