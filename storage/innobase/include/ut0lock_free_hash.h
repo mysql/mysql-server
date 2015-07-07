@@ -293,11 +293,21 @@ public:
 				return(v);
 			}
 
+			/* Prevent reorder of the below m_next.load() with
+			the above m_val.load().
+			We want to be sure that if m_val is GOTO_NEXT_ARRAY,
+			then the next array exists. It would be the same to
+			m_val.load(memory_order_acquire)
+			but that would impose the more expensive
+			memory_order_acquire in all cases, whereas in the most
+			common execution path m_val is not GOTO_NEXT_ARRAY and
+			we return earlier, only using the cheaper
+			memory_order_relaxed. */
+			boost::atomic_thread_fence(boost::memory_order_acquire);
+
 			arr = arr->m_next.load(boost::memory_order_relaxed);
 
-			if (arr == NULL) {
-				return(NOT_FOUND);
-			}
+			ut_a(arr != NULL);
 		}
 	}
 
@@ -381,11 +391,23 @@ public:
 				into 'v'. */
 			}
 
+			/* Prevent reorder of the below m_next.load() with
+			the above m_val.load() or the load from
+			m_val.compare_exchange_strong().
+			We want to be sure that if m_val is GOTO_NEXT_ARRAY,
+			then the next array exists. It would be the same to
+			m_val.load(memory_order_acquire) or
+			m_val.compare_exchange_strong(memory_order_acquire)
+			but that would impose the more expensive
+			memory_order_acquire in all cases, whereas in the most
+			common execution path m_val is not GOTO_NEXT_ARRAY and
+			we return earlier, only using the cheaper
+			memory_order_relaxed. */
+			boost::atomic_thread_fence(boost::memory_order_acquire);
+
 			arr = arr->m_next.load(boost::memory_order_relaxed);
 
-			if (arr == NULL) {
-				return;
-			}
+			ut_a(arr != NULL);
 		}
 	}
 
@@ -693,8 +715,17 @@ private:
 			for (;;) {
 				insert_or_update(k, v, false, dst_arr);
 
+				/* Prevent any preceding memory operations (the
+				stores from insert_or_update() in particular)
+				to be reordered past the store from
+				m_val.compare_exchange_strong() below. We want
+				to be sure that if m_val is GOTO_NEXT_ARRAY,
+				then the entry is indeed present in some of the
+				next arrays (ie that insert_or_update() has
+				completed and that its effects are visible to
+				other threads). */
 				boost::atomic_thread_fence(
-					boost::memory_order_acq_rel);
+					boost::memory_order_release);
 
 				/* Now that we know (k, v) is present in some
 				of the next arrays, try to CAS the tuple
@@ -712,8 +743,8 @@ private:
 				changed in the meantime and the CAS will store
 				m_val's most recent value in 'v'. Retry both
 				operations (this time the insert_or_update()
-				call will be an update, rather than an insert
-				one). */
+				call will be an update, rather than an
+				insert). */
 			}
 		}
 	}
@@ -758,7 +789,8 @@ private:
 				return(true);
 			}
 
-			/* When CAS fails it sets the value of m_val into v. */
+			/* When CAS fails it sets the most recent value of
+			m_val into v. */
 		}
 	}
 
@@ -809,6 +841,12 @@ private:
 		new_entry->m_arr = arr;
 		new_entry->m_next.store(NULL, boost::memory_order_relaxed);
 
+		/* Prevent any preceding memory operations (the construction of
+		new_entry in particular) to be reordered past any subsequent
+		stores (the publishing of new_entry via the CAS instructions
+		below). */
+		boost::atomic_thread_fence(boost::memory_order_release);
+
 		garbage_t*	expected = NULL;
 
 		if (m_garbage.compare_exchange_strong(
@@ -817,6 +855,9 @@ private:
 				boost::memory_order_relaxed)) {
 			return;
 		}
+
+		/* m_garbage (the head of the list) is not NULL and its value
+		is now in 'expected'. */
 
 		garbage_t*	a = expected;
 
@@ -837,7 +878,8 @@ private:
 	/** Free the memory occupied by arrays stored in the garbage bin.
 	This is not thread safe because other threads could still be using
 	some of the arrays to be freed, thus this is only called from
-	the destructor of the lock free hash. */
+	the destructor of the lock free hash where it is guaranteed to be
+	called only once, by a single thread. */
 	void
 	garbage_collect()
 	{
@@ -862,6 +904,17 @@ private:
 			}
 
 			g = next;
+
+			/* 'next' is loaded above and in the subsequent
+			iteration it is de-referenced via g (the UT_DELETE()
+			calls). Prevent a reorder between this load
+			(read-acquire) and the subsequent operations on g.
+			Like this:
+			next = load()
+			g = next
+			acquire fence
+			dereference g and rely that it is a complete object. */
+			boost::atomic_thread_fence(boost::memory_order_acquire);
 		}
 	}
 
@@ -871,7 +924,7 @@ private:
 	the current value is changed to be current value + val, otherwise it
 	is overwritten to be val.
 	@param[in]	key		key to insert or whose value to update
-	@param[in]	val		value to set, if the tuple does not
+	@param[in]	val		value to set; if the tuple does not
 	exist or if is_delta is false, then the new value is set to val,
 	otherwise it is set to old + val
 	@param[in]	is_delta	if true then set the new value to
@@ -909,6 +962,12 @@ private:
 
 			if (next_arr != NULL) {
 				arr = next_arr;
+				/* Prevent any subsequent memory operations
+				(the reads from the next array in particular)
+				to be reordered before the m_next.load()
+				above. */
+				boost::atomic_thread_fence(
+					boost::memory_order_acquire);
 				continue;
 			}
 
