@@ -3936,12 +3936,15 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	break;
     }
 
+    key_info->algorithm= key->key_create_info.algorithm;
+
     switch (key->type) {
     case KEYTYPE_MULTIPLE:
 	key_info->flags= 0;
 	break;
     case KEYTYPE_FULLTEXT:
 	key_info->flags= HA_FULLTEXT;
+        key_info->algorithm= HA_KEY_ALG_FULLTEXT;
 	if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
           key_info->flags|= HA_USES_PARSER;
         else
@@ -3964,7 +3967,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->actual_key_parts= key_info->user_defined_key_parts;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
-    key_info->algorithm= key->key_create_info.algorithm;
 
     if (key->type == KEYTYPE_FULLTEXT)
     {
@@ -9031,6 +9033,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         Also note that we ignore the LOCK clause here.
       */
       close_temporary_table(thd, altered_table, true, false);
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP | NO_HA_TABLE);
       goto end_inplace;
     }
 
