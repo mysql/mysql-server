@@ -523,6 +523,16 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
           digest_storage->m_byte_count-= 2*SIZE_OF_A_TOKEN;
           token= TOK_ROW_SINGLE_VALUE_LIST;
         }
+        else if (last_token == IN_SYM)
+        {
+          /*
+            REDUCE:
+            TOK_IN_GENERIC_VALUE_EXPRESSION :=
+              IN_SYM TOK_ROW_SINGLE_VALUE
+          */
+          digest_storage->m_byte_count -= SIZE_OF_A_TOKEN;
+          token = TOK_IN_GENERIC_VALUE_EXPRESSION;
+        }
       }
       else if (last_token == TOK_GENERIC_VALUE_LIST &&
                last_token2 == '(')
@@ -554,6 +564,16 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
           */
           digest_storage->m_byte_count-= 2*SIZE_OF_A_TOKEN;
           token= TOK_ROW_MULTIPLE_VALUE_LIST;
+        }
+        else if (last_token == IN_SYM)
+        {
+          /*
+          REDUCE:
+          TOK_IN_GENERIC_VALUE_EXPRESSION :=
+          IN_SYM TOK_ROW_MULTIPLE_VALUE
+          */
+          digest_storage->m_byte_count -= SIZE_OF_A_TOKEN;
+          token = TOK_IN_GENERIC_VALUE_EXPRESSION;
         }
       }
       /*
