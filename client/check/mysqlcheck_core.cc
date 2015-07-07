@@ -313,6 +313,7 @@ static void print_result()
 
   prev[0] = '\0';
   prev_alter[0]= 0;
+
   for (i = 0; (row = mysql_fetch_row(res)); i++)
   {
     int changed = strcmp(prev, row[0]);
@@ -351,7 +352,14 @@ static void print_result()
       printf("%-50s %s", row[0], row[3]);
     else if (!status && changed)
     {
-      printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      if (opt_auto_repair && what_to_do != DO_REPAIR)
+      {
+        printf("%-50s To be repaired, cause follows:\nServer issued %-9s: %s", row[0], row[2], row[3]);
+      }
+      else
+      {
+        printf("%s\n%-9s: %s", row[0], row[2], row[3]);
+      }
       if (opt_auto_repair && strcmp(row[2],"note"))
       {
         const char *alter_txt= strstr(row[3], "ALTER TABLE");
