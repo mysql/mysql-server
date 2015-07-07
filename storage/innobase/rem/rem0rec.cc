@@ -2126,9 +2126,9 @@ rec_print_new(
 
 #ifdef UNIV_DEBUG
 	if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
-		fprintf(stderr, "deleted ");
+		DBUG_PRINT("info", ("deleted "));
 	} else {
-		fprintf(stderr, "not-deleted ");
+		DBUG_PRINT("info", ("not-deleted "));
 	}
 #endif /* UNIV_DEBUG */
 
