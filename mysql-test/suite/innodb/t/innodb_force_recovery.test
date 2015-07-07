@@ -1,0 +1,50 @@
+# Not supported in embedded
+--source include/not_embedded.inc
+
+# This test case needs InnoDB.
+-- source include/have_innodb.inc
+
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+
+create table t1(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
+insert into t1 values(1, 2);
+
+SET GLOBAL innodb_fast_shutdown = 0;
+
+let $restart_parameters = restart: --innodb-force-recovery=4;
+--source include/restart_mysqld.inc
+
+select * from t1;
+
+--error ER_OPEN_AS_READONLY
+insert into t1 values(2, 3);
+
+--error ER_INNODB_READ_ONLY
+alter table t1 add f3 int not null, algorithm=copy;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+alter table t1 add f3 int not null, algorithm=inplace;
+
+--error ER_INNODB_READ_ONLY
+drop index idx on t1;
+
+--error ER_OPEN_AS_READONLY
+update t1 set f1=3 where f2=2;
+
+--error ER_INNODB_READ_ONLY
+create table t3(f1 int not null)engine=innodb;
+
+--error ER_BAD_TABLE_ERROR
+drop table t3;
+
+--error ER_ERROR_ON_RENAME
+rename table t1 to t3;
+
+--error ER_OPEN_AS_READONLY
+truncate table t1;
+
+--error ER_CREATE_FILEGROUP_FAILED
+create tablespace t1 add datafile 't1.ibd' Engine=InnoDB;
+
+drop table t1;
+show tables;

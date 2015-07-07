@@ -2984,7 +2984,7 @@ ha_innopart::truncate()
 
 	DBUG_ENTER("ha_innopart::truncate");
 
-	if (srv_read_only_mode) {
+	if (high_level_read_only) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
