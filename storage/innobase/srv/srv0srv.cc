@@ -150,6 +150,9 @@ ibool	srv_locks_unsafe_for_binlog = FALSE;
 ulong	srv_sort_buf_size = 1048576;
 /** Maximum modification log file size for online index creation */
 unsigned long long	srv_online_max_size;
+/** Set if InnoDB operates in read-only mode or innodb-force-recovery
+is greater than SRV_FORCE_NO_TRX_UNDO. */
+my_bool        high_level_read_only;
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
