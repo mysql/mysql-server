@@ -1522,5 +1522,14 @@ public:
   ulonglong make_hash_key(ulonglong *hash_val);
 };
 
+/**
+  Check if a string contains valid JSON text, without generating a
+  Json_dom representation of the document.
+
+  @param[in] text    pointer to the beginning of the string
+  @param[in] length  the length of the string
+  @return true if the string is valid JSON text, false otherwise
+*/
+bool is_valid_json_syntax(const char *text, size_t length);
 
 #endif /* JSON_DOM_INCLUDED */
