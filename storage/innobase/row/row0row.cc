@@ -132,8 +132,9 @@ row_build_index_entry_low(
 			ut_ad(dfield_is_null(dfield2) || dfield2->data);
 		} else {
 			dfield2 = dtuple_get_nth_field(row, col_no);
-			ut_ad(!(dfield_get_type(dfield2)->prtype
-				& DATA_VIRTUAL));
+			ut_ad(dfield_get_type(dfield2)->mtype == DATA_MISSING
+			      || (!(dfield_get_type(dfield2)->prtype
+				    & DATA_VIRTUAL)));
 		}
 
 		if (UNIV_UNLIKELY(dfield_get_type(dfield2)->mtype
