@@ -19,11 +19,19 @@ The rapidjson library included in this directory is based on
 https://github.com/miloyip/rapidjson, upstream commit
 3a4835e080d213c60842f58f207991fbb1c97f74.
 
-There are two changes made to the library:
+There are three changes made to the library:
 
-1) Two lines has been added to reader.h, which fixes an assertion in the library
-   when a JSON document contains illegaly escaped unicode characters. See
+1) Two lines have been added to reader.h, which fix an assertion in the library
+   when a JSON document contains illegally escaped unicode characters. See
    upstream commit b7e34100ed167b8134b41fcff0918895dd4e61fb for the changes.
 
 2) Rapidjson-specific changes in commit 91153f3385c4917a215aa4c7818b3f6265608286
-   has been applied, so that negative zero is handled properly.
+   have been applied, so that negative zero is handled properly (bug#19504183).
+
+3) The fix for a bug in the parsing of floating point numbers has been
+   applied to reader.h (bug#21384048). See details in the upstream bug
+   report at https://github.com/miloyip/rapidjson/issues/313 and the
+   following upstream commits:
+     - 93d13ad2acc6a52d58e09d84e76826cd36ee64f0
+     - 735354efd328709a8efb6a2a43a584bb85f2de6b
+     - 7708215b609733bcfa06074b67463920c03782e8
