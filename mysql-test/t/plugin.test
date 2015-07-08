@@ -299,5 +299,28 @@ disconnect con2;
 --error ER_PLUGIN_DELETE_BUILTIN
 UNINSTALL PLUGIN innodb;
 
+--echo #
+--echo # Bug #19917521: MEMORY LEAK WITH STRING THREAD VARIABLE 
+--echo #                THAT SET MEMALLOC FLAG
+--echo #
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+SET SESSION example_create_count_thdvar = 0;
+SET SESSION example_last_create_thdvar = '';
+
+CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+SELECT @@SESSION.example_last_create_thdvar;
+
+CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+SELECT @@SESSION.example_last_create_thdvar;
+
+DROP TABLE t10, t20;
+
+UNINSTALL PLUGIN example;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
