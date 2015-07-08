@@ -260,6 +260,7 @@ static bool json_is_valid(Item **args,
   switch (get_normalized_field_type(arg_item))
   {
   case MYSQL_TYPE_NULL:
+    arg_item->update_null_value();
     DBUG_ASSERT(arg_item->null_value);
     return true;
   case MYSQL_TYPE_JSON:
@@ -1007,6 +1008,7 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result)
 
   if (arg->field_type() == MYSQL_TYPE_NULL)
   {
+    arg->update_null_value();
     DBUG_ASSERT(arg->null_value);
     return false;
   }
@@ -1533,9 +1535,16 @@ bool val_json_func_field_subselect(Item* arg,
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "old decimal type");
     return true;
 
-  case MYSQL_TYPE_NULL:                         // possible?
+  case MYSQL_TYPE_NULL:
+    /*
+      This shouldn't happen, since the only caller of this function
+      returns earlier if it sees that the type is MYSQL_TYPE_NULL.
+    */
+    /* purecov: begin inspected */
+    arg->update_null_value();
     DBUG_ASSERT(arg->null_value);
     return false;
+    /* purecov: end */
 
   case MYSQL_TYPE_JSON:
     DBUG_ABORT();                               /* purecov: inspected */
