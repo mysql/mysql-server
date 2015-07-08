@@ -143,7 +143,6 @@ mkdir release
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
-           -DINSTALL_SQLBENCHDIR="" \
            -DINSTALL_MYSQLTESTDIR="" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
@@ -173,8 +172,8 @@ make DESTDIR=%{buildroot} install
 install -D -m 0644 $MBD/release/packaging/rpm-docker/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
 
-# Remove man, sql-bench, include, and libs
-for f in %{_mandir} %{_datadir}/sql-bench %{_includedir} %{_datadir}/aclocal/mysql.m4 ; do
+# Remove man, include, and libs
+for f in %{_mandir} %{_includedir} %{_datadir}/aclocal/mysql.m4 ; do
     rm -rf %{buildroot}$f
 done
 rm -rf %{buildroot}%{_libdir}/mysql/libmysql*

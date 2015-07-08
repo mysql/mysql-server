@@ -137,6 +137,7 @@ Requires:       procps
 Requires:       net-tools
 Requires:       perl-base
 %if 0%{?commercial}
+Obsoletes:      mysql-commercial-bench < 5.7.8
 Provides:       MySQL-server-advanced = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
@@ -147,6 +148,7 @@ Provides:       MySQL-server = %{version}-%{release}
 Requires:       mysql-community-client = %{version}-%{release}
 Requires:       mysql-community-common = %{version}-%{release}
 %endif
+Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql < %{version}-%{release}
 Obsoletes:      mysql-tools < %{version}-%{release}
