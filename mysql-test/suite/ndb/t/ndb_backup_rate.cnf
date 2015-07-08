@@ -8,3 +8,4 @@ BackupLogBufferSize = 3M
 BackupMaxWriteSize=10M
 DiskCheckpointSpeed=1M
 DefaultOperationRedoProblemAction=abort
+NoOfFragmentLogFiles=3
