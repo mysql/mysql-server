@@ -182,9 +182,9 @@ truncate performance_schema.events_statements_history_long;
 select * from t1;
 
 --echo 
-select sql_text, mysql_errno, returned_sqlstate, message_text, errors, warnings
+select mysql_errno, returned_sqlstate, message_text, errors, warnings
   from performance_schema.events_statements_history where errors > 0;
   
 --echo
-select sql_text, mysql_errno, returned_sqlstate, message_text, errors, warnings from 
+select mysql_errno, returned_sqlstate, message_text, errors, warnings from 
   performance_schema.events_statements_history_long where errors > 0;
