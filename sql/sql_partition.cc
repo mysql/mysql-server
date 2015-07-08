@@ -4824,7 +4824,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   thd->work_part_info= thd->lex->part_info;
 
   if (thd->work_part_info &&
-      !(thd->work_part_info= thd->lex->part_info->get_clone()))
+      !(thd->work_part_info= thd->lex->part_info->get_clone(true)))
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
