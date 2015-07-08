@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4718,7 +4718,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   thd->work_part_info= thd->lex->part_info;
 
   if (thd->work_part_info &&
-      !(thd->work_part_info= thd->lex->part_info->get_clone()))
+      !(thd->work_part_info= thd->lex->part_info->get_clone(true)))
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */

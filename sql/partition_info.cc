@@ -31,7 +31,7 @@
 #include "ha_partition.h"
 
 
-partition_info *partition_info::get_clone()
+partition_info *partition_info::get_clone(bool reset /* = false */)
 {
   if (!this)
     return 0;
@@ -57,6 +57,26 @@ partition_info *partition_info::get_clone()
       return NULL;
     }
     memcpy(part_clone, part, sizeof(partition_element));
+
+    /*
+      Mark that RANGE and LIST values needs to be fixed so that we don't
+      use old values. fix_column_value_functions would evaluate the values
+      from Item expression.
+    */
+    if (reset)
+    {
+      clone->defined_max_value = false;
+      List_iterator<part_elem_value> list_it(part_clone->list_val_list);
+      while (part_elem_value *list_value= list_it++)
+      {
+        part_column_list_val *col_val= list_value->col_val_array;
+        for (uint i= 0; i < num_columns; col_val++, i++)
+        {
+          col_val->fixed= 0;
+        }
+      }
+    }
+
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
