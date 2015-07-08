@@ -2909,7 +2909,7 @@ case SQLCOM_PREPARE:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     {
       partition_info *part_info= thd->lex->part_info;
-      if (part_info && !(part_info= thd->lex->part_info->get_clone()))
+      if (part_info && !(part_info= thd->lex->part_info->get_clone(true)))
       {
         res= -1;
         goto end_with_restore_list;
