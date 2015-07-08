@@ -4114,3 +4114,15 @@ ST_SRID(ST_GeomFromGeoJSON(geojson_value))
 1
 200004
 DROP TABLE geojson;
+#
+# Bug#21384048 ASSERTION FAILED: N >= 0 && N <= 308
+#              IN RAPIDJSON::INTERNAL::FASTPATH
+#
+SELECT ST_GEOMFROMGEOJSON('1E-36181012216111515851075235238');
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
+SELECT ST_GEOMFROMGEOJSON('-1E-36181012216111515851075235238');
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson
+SELECT ST_GEOMFROMGEOJSON('1E+36181012216111515851075235238');
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 6 in '1E+36181012216111515851075235238'.
+SELECT ST_GEOMFROMGEOJSON('-1E+36181012216111515851075235238');
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Number too big to be stored in double." at position 7 in '-1E+36181012216111515851075235238'.
