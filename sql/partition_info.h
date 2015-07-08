@@ -408,7 +408,7 @@ public:
   }
   ~partition_info() {}
 
-  partition_info *get_clone();
+  partition_info *get_clone(bool reset = false);
   partition_info *get_full_clone();
   bool set_named_partition_bitmap(const char *part_name, size_t length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
