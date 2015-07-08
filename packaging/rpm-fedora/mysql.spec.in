@@ -34,7 +34,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
 %{!?src_base:                    %global src_base mysql}
 
-%global compatver             5.6.21
+%global compatver             5.6.25
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 
@@ -116,6 +116,7 @@ Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
 %if 0%{?commercial}
+Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}
 Requires:       mysql-commercial-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
@@ -123,6 +124,7 @@ Requires:       mysql-commercial-common%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
 Obsoletes:      community-mysql-server < %{version}-%{release}
