@@ -39,7 +39,7 @@ namespace TaoCrypt {
 namespace { // locals
 
 
-// to the minute
+// to the second
 bool operator>(tm& a, tm& b)
 {
     if (a.tm_year > b.tm_year)
@@ -58,6 +58,11 @@ bool operator>(tm& a, tm& b)
     if (a.tm_year == b.tm_year && a.tm_mon == b.tm_mon &&
         a.tm_mday == b.tm_mday && a.tm_hour == b.tm_hour &&
         a.tm_min > b.tm_min)
+        return true;
+
+    if (a.tm_year == b.tm_year && a.tm_mon == b.tm_mon &&
+        a.tm_mday == b.tm_mday && a.tm_hour == b.tm_hour &&
+        a.tm_min  == b.tm_min  && a.tm_sec > b.tm_sec)
         return true;
 
     return false;
