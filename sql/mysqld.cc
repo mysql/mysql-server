@@ -1739,14 +1739,12 @@ static bool network_init(void)
     if (mysqld_socket_acceptor == NULL)
     {
       delete mysqld_socket_listener;
+      mysqld_socket_listener= NULL;
       return true;
     }
 
     if (mysqld_socket_acceptor->init_connection_acceptor())
-    {
-      delete mysqld_socket_acceptor;
-      return true;
-    }
+      return true; // mysqld_socket_acceptor would be freed in unireg_abort.
 
     if (report_port == 0)
       report_port= mysqld_port;
@@ -1770,14 +1768,12 @@ static bool network_init(void)
     if (named_pipe_acceptor == NULL)
     {
       delete named_pipe_listener;
+      named_pipe_listener= NULL;
       return true;
     }
 
     if (named_pipe_acceptor->init_connection_acceptor())
-    {
-      delete named_pipe_acceptor;
-      return true;
-    }
+      return true; // named_pipe_acceptor would be freed in unireg_abort.
   }
 
   // Setup shared_memory acceptor
@@ -1794,15 +1790,13 @@ static bool network_init(void)
       new (std::nothrow) Connection_acceptor<Shared_mem_listener>(shared_mem_listener);
     if (shared_mem_acceptor == NULL)
     {
-      delete shared_mem_acceptor;
+      delete shared_mem_listener;
+      shared_mem_listener= NULL;
       return true;
     }
 
     if (shared_mem_acceptor->init_connection_acceptor())
-    {
-      delete shared_mem_acceptor;
-      return true;
-    }
+      return true; // shared_mem_acceptor would be freed in unireg_abort.
   }
 #endif // _WIN32
   return false;

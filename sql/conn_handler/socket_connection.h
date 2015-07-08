@@ -171,6 +171,12 @@ public:
     Close the listener.
   */
   void close_listener();
+
+  ~Mysqld_socket_listener()
+  {
+    if (!m_socket_map.empty())
+      close_listener();
+  }
 };
 
 #endif // SOCKET_CONNECTION_INCLUDED.
