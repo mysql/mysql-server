@@ -179,7 +179,7 @@ FTS_AUX_DELETED_CACHE.ibd
 t1.frm
 t1.ibd
 SET DEBUG = '+d,ib_fts_index_table_error';
-ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
+ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
 ERROR HY000: Got error 1000 from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
@@ -348,7 +348,7 @@ test/t1	s_def	129	7	Compact	0	General
 # list files in datadir/test
 t1.frm
 SET DEBUG = '+d,ib_fts_index_table_error';
-ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a,b);
+ALTER TABLE t1 DROP INDEX fts_idx, ADD FULLTEXT INDEX fts_idx(a);
 ERROR HY000: Got error 1000 from storage engine
 SET DEBUG = '-d,ib_fts_index_table_error';
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===

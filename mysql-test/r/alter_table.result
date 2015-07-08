@@ -3399,3 +3399,27 @@ ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
 ALTER TABLE t1 CHARACTER SET latin1, CONVERT TO CHARACTER SET utf8 COLLATE latin1_danish_ci;
 ERROR 42000: COLLATION 'latin1_danish_ci' is not valid for CHARACTER SET 'utf8'
 DROP TABLE t1;
+#
+# BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
+#               INDEX IS NOT INPLACE/FAST.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES('ABCD');
+#Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+#Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+#Test with InnoDB engine.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=INNODB;
+INSERT INTO t1 VALUES('ABCD');
+#Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+#Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;

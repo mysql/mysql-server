@@ -1981,6 +1981,33 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
   return false;
 }
 
+/**
+  If there is no parent in v, we must have a path that specifified either
+  - the root ('$'), or
+  - an array cell at index 0 that any non-array element at the top level could
+    have been autowrapped to (since we got a hit), i.e. '$[0]' or
+    $[0][0]...[0]'.
+ 
+  @param[in] path the specified path which gave a match
+  @param[in] v    the JSON item matched
+  @return true if v is a top level item
+*/
+static inline bool wrapped_top_level_item(Json_path *path, Json_dom *v)
+{
+  if (v->parent())
+    return false;
+
+#ifndef DBUG_OFF
+  for (size_t i= 0; i < path->leg_count(); i++)
+  {
+    DBUG_ASSERT(path->get_leg_at(i)->get_type() == jpl_array_cell);
+    DBUG_ASSERT(path->get_leg_at(i)->get_array_cell_index() == 0);
+  }
+#endif
+  
+  return true;
+}
+
 
 bool Item_func_json_append::val_json(Json_wrapper *wr)
 {
@@ -2068,7 +2095,7 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
             inside an array or object, we need to find the parent DOM to be
             able to replace it in situ.
           */
-          if (path->leg_count() == 0) // root
+          if (wrapped_top_level_item(path, (*it)))
           {
             Json_wrapper newroot(arr);
             docw.steal(&newroot);
@@ -2076,7 +2103,6 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
           else
           {
             Json_dom *parent= (*it)->parent();
-            DBUG_ASSERT(parent);
             parent->replace_dom_in_container(*it, arr);
           }
         }
