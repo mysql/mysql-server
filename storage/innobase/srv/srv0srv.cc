@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -126,6 +126,9 @@ UNIV_INTERN ulint	srv_file_format = 0;
 UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
 set it to the highest format we support. */
 UNIV_INTERN ulint	srv_max_file_format_at_startup = UNIV_FORMAT_MAX;
+/** Set if InnoDB operates in read-only mode or innodb-force-recovery
+is greater than SRV_FORCE_NO_TRX_UNDO. */
+UNIV_INTERN my_bool	high_level_read_only;
 
 #if UNIV_FORMAT_A
 # error "UNIV_FORMAT_A must be 0!"
