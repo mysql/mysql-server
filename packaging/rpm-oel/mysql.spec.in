@@ -58,7 +58,7 @@
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.21
+%global compatver             5.6.25
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -168,6 +168,7 @@ Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
 %if 0%{?commercial}
+Obsoletes:      mysql-commercial-bench < 5.7.8
 Provides:       MySQL-server-advanced%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
@@ -178,6 +179,7 @@ Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mariadb-server
