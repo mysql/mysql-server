@@ -426,6 +426,9 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
+
   defaults_argv= argv;
   my_getopt_use_args_separator= FALSE;
   my_getopt_skip_unknown= TRUE;
@@ -661,6 +664,8 @@ int main(int argc, char *argv[])
   info << "Success!" << endl;
 
 end:
+
+  umask(saved_umask);
   free_resources();
 
   DBUG_RETURN(ret_val);
