@@ -231,6 +231,19 @@ trx_undo_get_undo_rec_low(
 	mem_heap_t*	heap,		/*!< in: memory heap where copied */
 	bool		is_redo_rseg)	/*!< in: true if redo rseg. */
 	__attribute__((nonnull, warn_unused_result));
+
+/** status bit used for trx_undo_prev_version_build() */
+
+/** TRX_UNDO_PREV_IN_PURGE tells trx_undo_prev_version_build() that it
+is being called purge view and we would like to get the purge record
+even it is in the purge view (in normal case, it will return without
+fetching the purge record */
+#define		TRX_UNDO_PREV_IN_PURGE		0x1
+
+/** This tells trx_undo_prev_version_build() to fetch the old value in
+the undo log (which is the after image for an update) */
+#define		TRX_UNDO_GET_OLD_V_VALUE	0x2
+
 /*******************************************************************//**
 Build a previous version of a clustered index record. The caller must
 hold a latch on the index page of the clustered index record.
@@ -258,10 +271,10 @@ trx_undo_prev_version_build(
 				diffs from "heap" above in that it could be
 				prebuilt->old_vers_heap for selection */
 	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
-	bool*		in_purge_view);
-				/*!< in/out: returns whether the undo rec
-				we looking at is already in purge view
-				for possible truncation */
+	ulint		v_status);
+				/*!< in: status determine if it is going
+				into this function by purge thread or not.
+				And if we read "after image" of undo log */
 
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
