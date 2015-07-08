@@ -5909,10 +5909,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
     set_field(from_field);
     if (thd->lex->in_sum_func &&
-        thd->lex->in_sum_func->nest_level == 
-        thd->lex->current_select()->nest_level)
+        thd->lex->in_sum_func->nest_level == context->select_lex->nest_level)
       set_if_bigger(thd->lex->in_sum_func->max_arg_level,
-                    thd->lex->current_select()->nest_level);
+                    context->select_lex->nest_level);
   }
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
