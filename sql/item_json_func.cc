@@ -27,9 +27,6 @@
 #include "sql_time.h"
 #include "sql_alloc.h"
 #include "template_utils.h"     // down_cast
-#include "rapidjson/reader.h"
-#include "rapidjson/memorystream.h"
-#include "rapidjson/error/en.h"
 
 #include <boost/variant.hpp>                    // boost::variant
 #include <boost/variant/polymorphic_get.hpp>    // boost::polymorphic_get
@@ -121,10 +118,7 @@ static bool parse_json(String *res,
   if (!dom)
   {
     DBUG_ASSERT(!require_str_or_json);
-    rapidjson::Reader reader;
-    rapidjson::MemoryStream ss(safep, safe_length);
-    rapidjson::BaseReaderHandler<> handler;
-    return !reader.Parse<rapidjson::kParseDefaultFlags>(ss, handler);
+    return !is_valid_json_syntax(safep, safe_length);
   }
 
   const char *parse_err;
