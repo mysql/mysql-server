@@ -634,7 +634,8 @@ extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
-extern my_bool my_chmod(const char *filename, ulong PermFlags, myf my_flags);
+extern MY_MODE get_file_perm(ulong perm_flags);
+extern my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
 
 #ifdef EXTRA_DEBUG
 void my_print_open_files(void);
