@@ -2631,6 +2631,16 @@ ERROR HY000: View 'test1.v1_all' references invalid table(s) or column(s) or fun
 SHOW WARNINGS;
 Level	Code	Message
 Error	1356	View 'test1.v1_all' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+
+# Bug21338077 HANDLE_FATAL_SIGNAL (SIG=11) IN __STPCPY_SSE2_UNALIGNED FROM MY_STPCPY
+
+CREATE VIEW v1 AS SELECT 1 FROM (SELECT 1) AS d1;
+PREPARE stmt FROM 'SELECT * FROM v1';
+EXECUTE stmt;
+1
+1
+DROP PREPARE stmt;
+DROP VIEW v1;
 connection default;
 disconnect con1;
 DROP USER 'user1'@'localhost';
