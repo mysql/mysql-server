@@ -226,7 +226,9 @@ GRANT_INFO::GRANT_INFO()
   grant_table= 0;
   version= 0;
   privilege= NO_ACCESS;
+#ifndef DBUG_OFF
   want_privilege= 0;
+#endif
 }
 
 
