@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1138,3 +1138,17 @@ SET(CMAKE_EXTRA_INCLUDE_FILES)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_ino "dirent.h"  STRUCT_DIRENT_HAS_D_INO)
 CHECK_STRUCT_HAS_MEMBER("struct dirent" d_namlen "dirent.h"  STRUCT_DIRENT_HAS_D_NAMLEN)
 SET(SPRINTF_RETURNS_INT 1)
+
+CHECK_INCLUDE_FILES (numaif.h HAVE_NUMAIF_H)
+SET(WITH_NUMA 1 CACHE BOOL "Explicitly set NUMA memory allocation policy")
+IF(HAVE_NUMAIF_H AND WITH_NUMA)
+    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
+    CHECK_C_SOURCE_COMPILES(
+    "
+    #include <numaif.h>
+    int main()
+    {
+       set_mempolicy(MPOL_DEFAULT, 0, 0);
+    }"
+    HAVE_LIBNUMA)
+ENDIF()

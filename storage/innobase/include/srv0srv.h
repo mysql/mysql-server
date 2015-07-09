@@ -220,6 +220,7 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+extern my_bool	srv_numa_interleave;
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
 #endif /* __WIN__ */
@@ -878,6 +879,7 @@ struct srv_slot_t{
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
 # define srv_use_native_aio			FALSE
+# define srv_numa_interleave			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
 # define srv_reset_io_thread_op_info()		((void) 0)

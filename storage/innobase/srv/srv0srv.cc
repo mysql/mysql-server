@@ -147,6 +147,7 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 UNIV_INTERN my_bool	srv_use_native_aio = TRUE;
+UNIV_INTERN my_bool	srv_numa_interleave = FALSE;
 
 #ifdef __WIN__
 /* Windows native condition variables. We use runtime loading / function
