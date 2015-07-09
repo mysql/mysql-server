@@ -3603,7 +3603,6 @@ ConfigInfo::ConfigInfo()
     Properties pinfo(true); 
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
-    pinfo.put("Description", param._description);
 
     /*
       Check that flags are set according to current rules
@@ -3641,6 +3640,23 @@ ConfigInfo::ConfigInfo()
             status == CI_NOTIMPLEMENTED ||
             status == CI_INTERNAL);
     pinfo.put("Status", status);
+
+    // Check description
+    const char* desc = param._description;
+    if (status == CI_DEPRECATED)
+    {
+      // The description of a deprecated parameter may be the name
+      // of another parameter to use or NULL(in such case use empty
+      // string as description)
+      if (desc == NULL)
+        desc = "";
+    }
+    else
+    {
+      // The description may not be NULL
+      require(desc);
+    }
+    pinfo.put("Description", desc);
 
     switch (param._type) {
       case CI_BOOL:

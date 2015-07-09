@@ -774,7 +774,7 @@ drop table t3, t1;
 create table t1 (
 pk1 int not null primary key,
 b int,
-foreign key (b) references t2(pk2)
+foreign key fk1 (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t1;
@@ -782,6 +782,15 @@ set foreign_key_checks=0;
 set @@ndb_show_foreign_key_mock_tables= 1;
 truncate table t1;
 set @@ndb_show_foreign_key_mock_tables= 0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk1`),
+  KEY `fk1` (`b`),
+  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t1;
 #
 # Truncating referenced table -> not allowed
@@ -837,7 +846,7 @@ c int
 create table t1 (
 pk1 int not null primary key,
 b int,
-foreign key (b) references t2(pk2)
+foreign key fk1 (b) references t2(pk2)
 ) engine=ndb;
 set @@ndb_show_foreign_key_mock_tables= 1;
 set foreign_key_checks=1;
@@ -851,7 +860,51 @@ t1	CREATE TABLE `t1` (
   `pk1` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
-  KEY `b` (`b`)
+  KEY `fk1` (`b`),
+  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table t1, t2;
+#
+# Truncate with multiple foreign keys
+#
+create table t2 (
+pk2 int not null primary key,
+c int
+) engine=ndb;
+create table t1 (
+pk1 int not null primary key,
+b int,
+c int,
+d int,
+e int,
+foreign key fk1 (b) references t2(pk2),
+foreign key fk2 (c) references t3(pk3),
+foreign key fk3 (d) references t3(pk4),
+foreign key fk4 (e) references t4(pk5)
+) engine=ndb;
+set @@ndb_show_foreign_key_mock_tables= 1;
+set foreign_key_checks=1;
+truncate table t1;
+set foreign_key_checks=0;
+truncate table t1;
+set @@ndb_show_foreign_key_mock_tables= 0;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `pk1` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk1`),
+  KEY `fk1` (`b`),
+  KEY `fk2` (`c`),
+  KEY `fk3` (`d`),
+  KEY `fk4` (`e`),
+  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `fk4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 drop table t1, t2;
 #

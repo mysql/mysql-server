@@ -191,9 +191,9 @@ CHECK_CXX_SOURCE_RUNS("
     HAVE_FUNC_IN_CXX)
 
 # Define DEBUG_OUTPUT by default (enables runtime "debug" option in memcached)
-if(HAVE_FUNC_IN_CXX) 
+# if(HAVE_FUNC_IN_CXX)
   add_definitions(-DDEBUG_OUTPUT)
-endif()
+# endif()
 
 
 ########### GENERATED FILES #############

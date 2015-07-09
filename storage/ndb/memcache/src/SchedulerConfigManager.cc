@@ -32,13 +32,15 @@ SchedulerConfigManager::SchedulerConfigManager(int _thread, int _cluster) :
   thread(_thread),
   cluster(_cluster),
   current_plans(0),
-  old_plans(0)
+  old_plans(0),
+  nstatreq(0)
 {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
 }
 
 
 SchedulerConfigManager::~SchedulerConfigManager() {
+  DEBUG_ENTER_DETAIL();
   if(current_plans) delete current_plans;
   if(old_plans) delete old_plans;
 }
@@ -93,6 +95,7 @@ void SchedulerConfigManager::add_stats(const char *stat_key,
     int gen = current_plans->getConfiguration()->generation;
     int value_len = snprintf(buffer, 16, "%d", gen);
     add_stat(key, strlen(key), buffer, value_len, cookie);
+    DEBUG_PRINT("stats reconf [req %d]: running %d", ++nstatreq, gen);
   }
 }
 

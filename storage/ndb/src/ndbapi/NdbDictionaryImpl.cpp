@@ -2555,10 +2555,18 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_timeout_gettabinforeq", {
+    fprintf(stderr, "NdbDictInterface::getTable() times out in dictSignal WAIT_GET_TAB_INFO_REQ\n");
+    timeout = 1000; 
+  });
+
   int r = dictSignal(signal, ptr, noOfSections,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
+                     timeout,  // parse stage
+                     100, 
+                     errCodes); 
 
   if (r)
     return 0;
@@ -6813,7 +6821,7 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
   {
     const NdbDictionary::Column* col= recSpec[rs].column;
     Uint64 elementByteOffset= recSpec[rs].offset;
-    Uint64 elementByteLength= col->getSizeInBytes();
+    Uint64 elementByteLength= col->getSizeInBytesForRecord();
     Uint64 nullLength= col->getNullable() ? 1 : 0;
 
     /*
@@ -6834,17 +6842,7 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
       return false;
     }
 
-    /* Blobs 'data' just occupies the size of an NdbBlob ptr */
     const NdbDictionary::Column::Type type= col->getType();
-    const bool isBlob= 
-      (type == NdbDictionary::Column::Blob) || 
-      (type == NdbDictionary::Column::Text);
-
-    if (isBlob)
-    {
-      elementByteLength= sizeof(NdbBlob*);
-    }
-    
     if ((type == NdbDictionary::Column::Bit) &&
         (flags & NdbDictionary::RecMysqldBitfield))
     {
@@ -7185,7 +7183,7 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
   recCol->column_no= col->m_column_no;
   recCol->index_attrId= ~0;
   recCol->offset= recSpec->offset;
-  recCol->maxSize= col->m_attrSize*col->m_arraySize;
+  recCol->maxSize= col->getSizeInBytesForRecord();
   recCol->orgAttrSize= col->m_orgAttrSize;
   if (recCol->offset+recCol->maxSize > rec->m_row_size)
     rec->m_row_size= recCol->offset+recCol->maxSize;

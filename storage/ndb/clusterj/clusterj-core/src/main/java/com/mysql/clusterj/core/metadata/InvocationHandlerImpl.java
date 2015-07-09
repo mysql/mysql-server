@@ -96,6 +96,10 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
         this.objectManager = null;
     }
 
+    public boolean wasReleased() {
+        return this.domainTypeHandler == null;
+    }
+
     public void setProxy(Object proxy) {
         this.proxy = proxy;
     }

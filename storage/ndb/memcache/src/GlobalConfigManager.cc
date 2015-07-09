@@ -66,9 +66,9 @@ void GlobalConfigManager::configureSchedulers() {
 
 
 bool GlobalConfigManager::reconfigure(Configuration * new_cf) {
-  DEBUG_ENTER_METHOD("SchedulerGlobal::reconfigure");
   conf = new_cf;
   conf->generation = ++generation;
+  DEBUG_PRINT("SchedulerGlobal::reconfigure generation %d", generation);
   configureSchedulers();
   atomic_barrier();
   return true;

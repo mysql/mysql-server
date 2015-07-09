@@ -22,10 +22,12 @@
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <signaldata/TupCommit.hpp>
+#include <EventLogger.hpp>
 #include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 416
 
+extern EventLogger *g_eventLogger;
 
 void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
 {
@@ -698,6 +700,8 @@ int Dbtup::retrieve_log_page(Signal *signal,
     signal->theData[0] = 1;
     return res;
   case -1:
+    g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS resource,"
+                           " increase config parameter GlobalSharedMemory");
     ndbrequire("NOT YET IMPLEMENTED" == 0);
     break;
   default:

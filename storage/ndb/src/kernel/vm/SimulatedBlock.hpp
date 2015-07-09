@@ -78,6 +78,13 @@
 #endif
 
 /**
+ * LCP scans and Backup scans always use batch size 16, there are even
+ * optimisations in allocation and handling LCP scans and Backup scans
+ * keeping proper rates using this particular batch size. This is also
+ * true for Node recovery scans as started by COPY_FRAGREQ.
+ */
+#define ZRESERVED_SCAN_BATCH_SIZE 16
+/**
  * Something for filesystem access
  */
 struct  NewBaseAddrBits              /* 32 bits */
@@ -384,7 +391,9 @@ struct PackedWordsContainer
    live system.
 */
 
-class SimulatedBlock {
+class SimulatedBlock :
+  public SegmentUtils  /* SimulatedBlock implements the Interface */
+{
   friend class TraceLCP;
   friend class SafeCounter;
   friend class SafeCounterManager;
@@ -405,7 +414,7 @@ class SimulatedBlock {
 public:
   friend class BlockComponent;
   virtual ~SimulatedBlock();
-  
+
   static const Uint32 BOUNDED_DELAY = 0xFFFFFF00;
 protected:
   /**
@@ -1361,6 +1370,18 @@ public:
                               DbinfoScanReq& req,
                               const Ndbinfo::Ratelimit& rl) const;
 
+
+protected:
+  /**
+   * SegmentUtils methods
+   */
+  virtual SectionSegment* getSegmentPtr(Uint32 iVal);
+  virtual bool seizeSegment(Ptr<SectionSegment>& p);
+  virtual void releaseSegment(Uint32 iVal);
+
+  virtual void releaseSegmentList(Uint32 firstSegmentIVal);
+
+  /** End of SegmentUtils methods */
 };
 
 // outside blocks e.g. within a struct

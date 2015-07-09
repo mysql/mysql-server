@@ -56,6 +56,7 @@
 #include <signaldata/CreateTable.hpp>
 #include <signaldata/PrepDropTab.hpp>
 #include <signaldata/DropTab.hpp>
+#include <signaldata/DropTable.hpp>
 
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/AlterTable.hpp>
@@ -175,7 +176,16 @@ static int DEBUG_REDO = 0;
 #define DEBUG_REDO 0
 #endif
 
-const Uint32 NR_ScanNo = 0;
+/**
+ * System reserved scan ids. Scan ids 0-11 are specific for ACC scans.
+ * Scan ids from 12 and up to a maximum of 133 (configurable) are used
+ * for TUX range scans and finally scan ids of from last TUX range scan
+ * id up to a maximum of 252 is used for TUP full table scans. Scan ids
+ * 253, 254 and 255 are reserved for LCP scans, Backup scans and NR scans.
+ */
+const Uint32 NR_ScanNo = 253;
+const Uint32 LCP_ScanNo = 254;
+const Uint32 Backup_ScanNo = 255;
 
 #ifndef NDBD_TRACENR
 #if defined VM_TRACE
@@ -1323,7 +1333,6 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 					&ctcConnectrecFileSize));
   clogFileFileSize = clogPartFileSize * cnoLogFiles;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_LQH_SCAN, &cscanrecFileSize));
-  cmaxAccOps = cscanrecFileSize * MAX_PARALLEL_OP_PER_SCAN;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &c_diskless));
   c_o_direct = true;
@@ -2525,7 +2534,7 @@ Dblqh::dropTab_wait_usage(Signal* signal){
   if (tabPtr.p->usageCountR > 0 || tabPtr.p->usageCountW > 0)
   {
     jam();
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
     return;
   }
 
@@ -2544,23 +2553,73 @@ Dblqh::dropTab_wait_usage(Signal* signal){
       {
         jam();
         c_fragment_pool.getPtr(loc_fragptr);
-        if (loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED ||
-            loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_EXECUTING)
+        if ((loc_fragptr.p->lcp_frag_ord_state == Fragrecord::LCP_QUEUED) &&
+            (!ERROR_INSERTED(5089)))
         {
+          /**
+           * The fragment is queued up for an LCP scan, but it hasn't
+           * started yet. In this case the LCP scan will be faked anyways,
+           * so we will remove it from the queue immediately and fake its
+           * completion. The only reason to send this signal is to ensure
+           * that DIH and other blocks that wait for this REP signal can
+           * keep track of the outstanding number of outstanding signals.
+           * It will be dropped immediately after that when received in
+           * DIH since the table is being dropped.
+           */
+          LcpRecord::FragOrd fragOrd;
+          jam();
+          CLEAR_ERROR_INSERT_VALUE;
+          c_queued_lcp_frag_ord.remove(loc_fragptr);
+
+          fragOrd.lcpFragOrd.lcpNo = loc_fragptr.p->lcp_frag_ord_lcp_no;
+          fragOrd.lcpFragOrd.lcpId = loc_fragptr.p->lcp_frag_ord_lcp_id;
+          fragOrd.lcpFragOrd.fragmentId = loc_fragptr.p->fragId;
+          fragOrd.lcpFragOrd.tableId = loc_fragptr.p->tabRef;
+
+          loc_fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+
+          sendLCP_FRAG_REP(signal, fragOrd, loc_fragptr.p);
+        }
+        else if (loc_fragptr.p->lcp_frag_ord_state ==
+                 Fragrecord::LCP_EXECUTING)
+        {
+          /**
+           * The LCP scan is ongoing, we need to make sure it has completed
+           * before we can drop the table. Thus we need to continue the
+           * wait for a while longer.
+           */
+          jam();
+          CLEAR_ERROR_INSERT_VALUE;
+          lcpDone = false;
+        }
+        else if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089))
+        {
+          /**
+           * Delay drop table until we reach either LCP_QUEUED or
+           * LCP_EXECUTING.
+           */
           jam();
           lcpDone = false;
         }
       }
     }
   }
+  else if (ERROR_INSERTED(5088) || ERROR_INSERTED(5089))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+  }
   
   if(!lcpDone)
   {
     jam();
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 4);
+    signal->theData[0] = ZDROP_TABLE_WAIT_USAGE;
+    signal->theData[1] = tabPtr.i;
+    signal->theData[2] = senderRef;
+    signal->theData[3] = senderData;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10, 4);
     return;
   }
-  
   tabPtr.p->tableStatus = Tablerec::DROP_TABLE_WAIT_DONE;
 
   DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
@@ -3238,11 +3297,11 @@ Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
     break;
   case Tablerec::TABLE_DEFINED:
   case Tablerec::TABLE_READ_ONLY:
-    ndbassert(0);
+    ndbrequire(0);
     return ZTABLE_NOT_DEFINED;
     break;
   }
-  ndbassert(0);
+  ndbrequire(0);
   return ~Uint32(0);
 }
 
@@ -4582,26 +4641,36 @@ int Dblqh::saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len)
  * 
  *       GETS A NEW TC CONNECT RECORD FROM FREELIST.
  * ========================================================================= */
-void Dblqh::seizeTcrec() 
+void Dblqh::seizeTcrec()
 {
   TcConnectionrecPtr locTcConnectptr;
 
   locTcConnectptr.i = cfirstfreeTcConrec;
+
+  Uint32 numFree = ctcNumFree;
+  Uint32 timeOutCount = cLqhTimeOutCount;
+
   ptrCheckGuard(locTcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
+
   Uint32 nextTc = locTcConnectptr.p->nextTcConnectrec;
+
   locTcConnectptr.p->nextTcConnectrec = RNIL;
   locTcConnectptr.p->clientConnectrec = RNIL;
   locTcConnectptr.p->clientBlockref = RNIL;
-  locTcConnectptr.p->abortState = TcConnectionrec::ABORT_IDLE;
-  locTcConnectptr.p->tcTimer = cLqhTimeOutCount;
   locTcConnectptr.p->tableref = RNIL;
+  locTcConnectptr.p->hashIndex = RNIL;
+
+  ctcNumFree = numFree - 1;
+  cfirstfreeTcConrec = nextTc;
+
+  locTcConnectptr.p->tcTimer = timeOutCount;
+  locTcConnectptr.p->abortState = TcConnectionrec::ABORT_IDLE;
+  locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
   locTcConnectptr.p->savePointId = 0;
   locTcConnectptr.p->gci_hi = 0;
   locTcConnectptr.p->gci_lo = 0;
-  locTcConnectptr.p->hashIndex = RNIL;
-  cfirstfreeTcConrec = nextTc;
+
   tcConnectptr = locTcConnectptr;
-  locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
 }//Dblqh::seizeTcrec()
 
 bool
@@ -4849,7 +4918,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
-  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5031)) {
+  if (ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+      !ERROR_INSERTED_CLEAR(5031)) {
     jamEntry();
     seizeTcrec();
   } else {
@@ -8957,10 +9027,12 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
   ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   const Uint32 op = locTcConnectptr.p->operation;
   const Uint32 firstFree = cfirstfreeTcConrec;
+  Uint32 numFree = ctcNumFree;
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
   locTcConnectptr.p->nextTcConnectrec = firstFree;
   cfirstfreeTcConrec = locTcConnectptr.i;
+  ctcNumFree = numFree + 1;
 
   ndbassert(locTcConnectptr.p->tcScanRec == RNIL);
 
@@ -8989,11 +9061,13 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
   jam();
+  Uint32 numFree = ctcNumFree;
   ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
   locTcConnectptr.p->nextTcConnectrec = cfirstfreeTcConrec;
   cfirstfreeTcConrec = locTcConnectptr.i;
+  ctcNumFree = numFree + 1;
 
   TablerecPtr tabPtr;
   tabPtr.i = locTcConnectptr.p->tableref;
@@ -10245,6 +10319,14 @@ Dblqh::scanMarkers(Signal* signal,
  *  directly if OK.
  */
 
+Uint32 Dblqh::get_is_scan_prioritised(Uint32 scan_ptr_i)
+{
+  ScanRecordPtr scanPtr;
+  scanPtr.i = scan_ptr_i;
+  c_scanRecordPool.getPtr(scanPtr);
+  return is_prioritised_scan(scanPtr.p->scanApiBlockref);
+}
+
 /* ************>> */
 /*  ACC_SCANREF > */
 /* ************>> */
@@ -10398,7 +10480,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     jam();
     DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
-    ndbrequire(nextReq->requestInfo == ScanFragNextReq::ZCLOSE);
+    ndbrequire(ScanFragNextReq::getCloseFlag(nextReq->requestInfo));
     return;
   }
 
@@ -10462,7 +10544,7 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
    * continue execution else set flags and wait until the scan 
    * completes itself
    * ------------------------------------------------------------------ */
-  if (nextReq->requestInfo == ScanFragNextReq::ZCLOSE)
+  if (ScanFragNextReq::getCloseFlag(nextReq->requestInfo))
   {
     jam();
     if(ERROR_INSERTED(5034)){
@@ -10475,25 +10557,54 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     closeScanRequestLab(signal);
     return;
   }//if
+  scanptr.p->prioAFlag = ScanFragNextReq::getPrioAFlag(nextReq->requestInfo);
+  scanptr.p->m_exec_direct_batch_size_words = 0;
 
   fragptr.i = tcConnectptr.p->fragmentptr;
   c_fragment_pool.getPtr(fragptr);
 
-  /**
-   * Change parameters while running
-   *   (is currently not supported)
-   */
   ScanRecord * const scanPtr = scanptr.p;
   const Uint32 max_rows = nextReq->batch_size_rows;
   const Uint32 max_bytes = nextReq->batch_size_bytes;
   scanPtr->m_max_batch_size_bytes = max_bytes;
 
+  {
+    /**
+     * To speed up drop table we check for table being dropped here.
+     * This can speed up drop table by minutes, so even though it is
+     * a small cost at every scan batch, it will provide us a much
+     * more reliable time of execution for drop tables. Drop table
+     * can also be delayed by user transactions. So we could potentially
+     * make this check for all scan types. This will however require
+     * user transactions to add checks for this error, this they should
+     * however already have since it is checked at first SCAN_FRAGREQ.
+     *
+     * We don't need to worry about backups since they will take a lock
+     * before they start, so this won't happen to a backup. No drop tables
+     * can run concurrently with drop table. Also any ALTER TABLE activity
+     * cannot run at the same time as a drop table, so this is also safe
+     * for all sorts of table reorg scans. What remains is node recovery
+     * scans to synchronize data.
+     */
+    TablerecPtr tabPtr;
+    tabPtr.i = tcConnectptr.p->tableref;
+    ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+    if (unlikely(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+                 tabPtr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
+    {
+      tcConnectptr.p->errorCode = get_table_state_error(tabPtr);
+      closeScanRequestLab(signal);
+      return;
+    }
+  }
   if (max_rows > scanPtr->m_max_batch_size_rows)
   {
     jam();
     /**
      * Extend list...
+     * Will never happen for LCP, Backup and NR.
      */
+    ndbrequire(scanPtr->m_reserved == 0);
     if (!seize_acc_ptr_list(scanPtr, 
                             scanPtr->m_max_batch_size_rows, max_rows))
     {
@@ -10502,13 +10613,11 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
       closeScanRequestLab(signal);
       return;
     }
-    cbookedAccOps += (max_rows - scanPtr->m_max_batch_size_rows);
     scanPtr->m_max_batch_size_rows = max_rows;
   }
   else if (unlikely(max_rows < scanPtr->m_max_batch_size_rows))
   {
     jam();
-    cbookedAccOps -= (scanPtr->m_max_batch_size_rows - max_rows);
     scanPtr->m_max_batch_size_rows = max_rows;
   }
   
@@ -10824,7 +10933,7 @@ Dblqh::seize_acc_ptr_list(ScanRecord* scanP,
   {
     for (Uint32 i = 1 + scanP->scan_acc_segments; i <= segments; i++)
     {
-      Uint32 seg= seizeSegment();
+      Uint32 seg= seizeSingleSegment();
       if (unlikely(seg == RNIL))
       {
         jam();
@@ -10854,7 +10963,7 @@ Dblqh::release_acc_ptr_list(ScanRecord* scanP)
 }
 
 Uint32
-Dblqh::seizeSegment()
+Dblqh::seizeSingleSegment()
 {
   Uint32 junk= 0;
   Uint32 iVal= RNIL;
@@ -11228,9 +11337,17 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   const Uint32 senderData = scanFragReq->senderData;
   const Uint32 senderBlockRef = signal->senderBlockRef();
 
-  if (likely(cfirstfreeTcConrec != RNIL &&
-             !ERROR_INSERTED_CLEAR(5055)))
+  if (likely(ctcNumFree > ZNUM_RESERVED_TC_CONNECT_RECORDS &&
+             !ERROR_INSERTED_CLEAR(5055)) ||
+      (ScanFragReq::getLcpScanFlag(scanFragReq->requestInfo)) ||
+      (refToMain(senderBlockRef) == BACKUP))
   {
+    /**
+     * We always keep 3 operation records, one for LCP scans and one for
+     * Node recovery support (to handle COPY_FRAGREQ when we're aiding a
+     * node to startup by synchronizing our data with the starting nodes
+     * recovered data and finally one for backup scans.
+     */
     seizeTcrec();
 
     regTcPtr = tcConnectptr.p;
@@ -11287,15 +11404,10 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       goto error_handler;
     }//if
   
-    // XXX adjust cmaxAccOps for range scans and remove this comment
-    if ((cbookedAccOps + max_rows) > cmaxAccOps) {
-      jam();
-      errorCode = ScanFragRef::ZSCAN_BOOK_ACC_OP_ERROR;
-      goto error_handler;
-    }//if
-
-    if (ScanFragReq::getLcpScanFlag(reqinfo))
+    if (ScanFragReq::getLcpScanFlag(reqinfo) ||
+        refToMain(senderHi) == BACKUP)
     {
+      /* LCP and Backup scans come here */
       jam();
       ndbrequire(m_reserved_scans.first(scanptr));
       m_reserved_scans.remove(scanptr);
@@ -11314,6 +11426,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
                ZNIL,
                senderHi);
 
+    regTcPtr->opExec =
+      (1 ^ ScanFragReq::getNotInterpretedFlag(reqinfo));
     {
       const Uint32 applRef = scanFragReq->resultRef;
 
@@ -11344,7 +11458,12 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
           c_fragment_pool.getPtr(tcConnectptr.p->fragmentptr)->m_useStat;
         useStat.m_scanFragReqCount++;
         useStat.m_scanBoundWords+= keyLen;
-        useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+        if (!ScanFragReq::getNotInterpretedFlag(reqinfo))
+        {
+          /* Backup scans do not use interpreted mode. */
+          jam();
+          useStat.m_scanProgramWords+= getProgramWordCount(attrInfoPtr);
+        }
       }
     }
 
@@ -11363,7 +11482,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       jam();
       goto error_handler2;
     }//if
-    cbookedAccOps += max_rows;
 
     /* Check that no equal element already exists */
     ndbassert(findTransaction(regTcPtr->transid[0],
@@ -11995,6 +12113,7 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   const Uint32 fragPtr = fragPtrP->tupFragptr;
   Uint32 reqinfo = 0;
   TupKeyReq::setDirtyFlag(reqinfo, (scanPtr->scanLockHold == ZFALSE));
+  TupKeyReq::setPrioAFlag(reqinfo, scanPtr->prioAFlag);
   TupKeyReq::setOperation(reqinfo, regTcPtr->operation);
   TupKeyReq::setInterpretedFlag(reqinfo, regTcPtr->opExec);
   TupKeyReq::setReorgFlag(reqinfo, regTcPtr->m_reorg);
@@ -12224,6 +12343,7 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
     tdata4 += sendKeyinfo20(signal, scanPtr, tcConnectptr.p);
   }//if
   ndbrequire(scanPtr->m_curr_batch_size_rows < MAX_PARALLEL_OP_PER_SCAN);
+  scanPtr->m_exec_direct_batch_size_words += tdata4;
   scanPtr->m_curr_batch_size_bytes+= tdata4 * sizeof(Uint32);
   scanPtr->m_curr_batch_size_rows = rows + 1;
   scanPtr->m_last_row = tdata5;
@@ -12535,7 +12655,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->copyPtr = RNIL;
   scanPtr->scanStoredProcId = RNIL;
   scanPtr->scanNumber = ~0;
-  scanPtr->scan_direct_count = ZSCAN_DIRECT_INITIAL;
+  scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
   scanPtr->scanType = ScanRecord::SCAN;
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanCompletedStatus = ZFALSE;
@@ -12544,6 +12664,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->m_stop_batch = 0;
   scanPtr->m_curr_batch_size_rows = 0;
   scanPtr->m_curr_batch_size_bytes= 0;
+  scanPtr->m_exec_direct_batch_size_words = 0;
   scanPtr->m_last_row = 0;
   scanptr.p->scan_acc_segments = 0;
   scanPtr->m_row_id.setNull();
@@ -12554,10 +12675,12 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   const Uint32 scanLockMode = ScanFragReq::getLockMode(reqinfo);
   const Uint32 readCommitted = ScanFragReq::getReadCommittedFlag(reqinfo);
   const Uint32 rangeScan = ScanFragReq::getRangeScanFlag(reqinfo);
+  const Uint32 prioAFlag = ScanFragReq::getPrioAFlag(reqinfo);
 
   scanPtr->scanLockMode = scanLockMode;
   scanPtr->readCommitted = readCommitted;
   scanPtr->rangeScan = rangeScan;
+  scanPtr->prioAFlag = prioAFlag;
 
   const Uint32 descending = ScanFragReq::getDescendingFlag(reqinfo);
   Uint32 tupScan = ScanFragReq::getTupScanFlag(reqinfo);
@@ -12638,8 +12761,11 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   scanPtr->fragPtrI = fragptr.p->tableFragptr;
   
   /**
-   * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
-   *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
+   * ACC scan uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1) inclusive  =  0-11
+   * Range scans uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-134
+   * TUP scans uses from 135 - 252
+   * The boundary between Range and TUP scans are configurable and is
+   * set in variable c_max_parallel_scans_per_frag.
    */
 
   /**
@@ -12656,55 +12782,97 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   Uint32 max_parallel_scans_per_frag = c_max_parallel_scans_per_frag;
   if (accScan)
   {
-    start = 1;
-    stop = MAX_PARALLEL_SCANS_PER_FRAG - 1;
+    jam();
+    start = 0;
+    stop = MAX_PARALLEL_SCANS_PER_FRAG;
   }
   else if (rangeScan)
   {
+    jam();
     start = MAX_PARALLEL_SCANS_PER_FRAG;
-    stop = start + max_parallel_scans_per_frag - 1;
+    stop = start + max_parallel_scans_per_frag;
   }
   else
   {
+    jam();
     ndbassert(tupScan);
     start = MAX_PARALLEL_SCANS_PER_FRAG + max_parallel_scans_per_frag;
-    stop = start + max_parallel_scans_per_frag - 1;
+    stop = start + max_parallel_scans_per_frag;
+    if (stop > NR_ScanNo)
+    {
+      jam();
+      stop = NR_ScanNo;
+    }
   }
   ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
              (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
 
-  /*
-    This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
-    Checking 5084 twice to ensure that the optimized build will see this as 
-    'testQueue = false' and not generate code to evaluate subsequent terms.
-  */
-  const bool testQueue = ERROR_INSERTED(5084) && rangeScan && 
-    refToMain(resultRef)==DBSPJ && ERROR_INSERTED_CLEAR(5084);
+  const BlockReference senderBlock = refToMain(regTcPtr->clientBlockref);
+  Uint32 free;
 
-  const Uint32 free = testQueue ? Fragrecord::ScanNumberMask::NotFound : 
-    tFragPtr.p->m_scanNumberMask.find(start);
-  
-  if(free == Fragrecord::ScanNumberMask::NotFound || free >= stop){
-    jam();
-    
-    if(scanPrio == 0){
-      jam();
-      return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
-    }
-
+  if (senderBlock == BACKUP)
+  {
     /**
-     * Put on queue
+     * Both LCP scans and Backup scans have predefined scan numbers.
+     * They will never be queued and so completing them will not
+     * start any queued scans.
      */
-    scanPtr->scanState = ScanRecord::IN_QUEUE;
-    LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                       tupScan == 0 ? 
-                                       fragptr.p->m_queuedScans :
-                                       fragptr.p->m_queuedTupScans);
-    queue.addLast(scanptr);
-    fragptr.p->m_useStat.m_queuedScanCount++;
-    return ZOK;
+    if (lcpScan)
+    {
+      jam();
+      free = LCP_ScanNo;
+    }
+    else
+    {
+      /* Backup scan */
+      jam();
+      free = Backup_ScanNo;
+    }
+    ndbassert(tFragPtr.p->m_scanNumberMask.get(free));
   }
+  else
+  {
+    ndbassert(!lcpScan);
+    /*
+      This error insert causes an SPJ index scan to be queued (see ndbinfo.test).
+      Checking 5084 twice to ensure that the optimized build will see this as 
+      'testQueue = false' and not generate code to evaluate subsequent terms.
+    */
+    const bool testQueue = ERROR_INSERTED(5084) && rangeScan && 
+      refToMain(resultRef)==DBSPJ && ERROR_INSERTED_CLEAR(5084);
+
+    free = testQueue ? Fragrecord::ScanNumberMask::NotFound : 
+      tFragPtr.p->m_scanNumberMask.find(start);
   
+    if (free == Fragrecord::ScanNumberMask::NotFound || free >= stop)
+    {
+      /**
+       * stop isn't inclusive, so we allow only ids in the range
+       * [ start, stop ) .
+       */
+      jam();
+    
+      if(scanPrio == 0)
+      {
+        jam();
+        return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
+      }
+
+      /**
+       * Put on queue
+       */
+      scanPtr->scanState = ScanRecord::IN_QUEUE;
+      LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
+                                         rangeScan != 0 ? 
+                                         fragptr.p->m_queuedScans :
+                                         tupScan  != 0 ?
+                                         fragptr.p->m_queuedTupScans :
+                                         fragptr.p->m_queuedAccScans);
+      queue.addLast(scanptr);
+      fragptr.p->m_useStat.m_queuedScanCount++;
+      return ZOK;
+    }
+  }
   scanPtr->scanNumber = free;
   tFragPtr.p->m_scanNumberMask.clear(free);// Update mask  
   
@@ -12796,28 +12964,27 @@ void Dblqh::initScanTc(const ScanFragReq* req,
 bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 {
   ScanRecord * const scanPtr = scanptr.p;
-  release_acc_ptr_list(scanPtr);
+  Uint32 reserved = scanPtr->m_reserved;
+
+  if (reserved == 0)
+  {
+    release_acc_ptr_list(scanPtr);
+  }
 
   Uint32 tupScan = scanPtr->tupScan;
+  Uint32 rangeScan = scanPtr->rangeScan;
   
   if (scanPtr->scanState == ScanRecord::IN_QUEUE)
   {
     LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                       tupScan == 0 ? 
+                                       rangeScan != 0 ?
                                        fragptr.p->m_queuedScans :
-                                       fragptr.p->m_queuedTupScans);
+                                       tupScan != 0 ? 
+                                       fragptr.p->m_queuedTupScans :
+                                       fragptr.p->m_queuedAccScans);
     jam();
-    if (scanPtr->m_reserved == 0)
-    {
-      jam();
-      queue.release(scanptr);
-    }
-    else
-    {
-      jam();
-      queue.remove(scanptr);
-      m_reserved_scans.addFirst(scanptr);
-    }
+    ndbrequire(reserved == 0);
+    queue.release(scanptr);
     return false;
   }
 
@@ -12847,7 +13014,7 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
      * code generated by the object.
      */
     LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
-    if (scanPtr->m_reserved == 0)
+    if (reserved == 0)
     {
       jam();
       scans.release(scanptr);
@@ -12870,15 +13037,26 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 
   {
     LocalDLCFifoList<ScanRecord> queue(c_scanRecordPool,
-                                       tupScan == 0 ? 
+                                       rangeScan != 0 ?
                                        fragptr.p->m_queuedScans :
-                                       fragptr.p->m_queuedTupScans);
+                                       tupScan != 0 ? 
+                                       fragptr.p->m_queuedTupScans :
+                                       fragptr.p->m_queuedAccScans);
     /**
      * Start of queued scans
      */
-    if (scanNumber == NR_ScanNo || !queue.first(restart))
+    if (likely(!queue.first(restart)) ||
+         (scanNumber >= NR_ScanNo &&
+          scanNumber <= Backup_ScanNo))
     {
       jam();
+
+      /**
+       * LCP scan, NR scan, Backup scans won't start any queued scans since
+       * no scanNumber useful for normal scans have been freed. Also come
+       * here when no scans are queued.
+       */
+      ndbassert(!tFragPtr.p->m_scanNumberMask.get(scanNumber));
       tFragPtr.p->m_scanNumberMask.set(scanNumber);
       return false;
     }
@@ -12938,11 +13116,9 @@ bool Dblqh::finishScanrec(Signal* signal, ScanRecordPtr &restart_scan)
 void Dblqh::releaseScanrec(Signal* signal) 
 {
   ScanRecord * const scanPtr = scanptr.p;
-  const Uint32 max_batch_size_rows = scanPtr->m_max_batch_size_rows;
   scanPtr->scanState = ScanRecord::SCAN_FREE;
   scanPtr->scanType = ScanRecord::ST_IDLE;
   scanPtr->scanTcWaiting = 0;
-  cbookedAccOps -= max_batch_size_rows;
 }//Dblqh::releaseScanrec()
 
 /* ------------------------------------------------------------------------
@@ -13078,7 +13254,134 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 	     KeyInfo20::HeaderLength+1, JBB, ptr, 1);
   return keyLen;
 }
-  
+
+/**
+ * Function used to send NEXT_SCANREQ, we need to decide whether to
+ * continue in the same signal or sending a new signal and if sending
+ * a new signal we need to decide whether B-level, Bounded delay or
+ * even A-level signal.
+ *
+ * We need to ensure that we keep track of how many outstanding NEXT_SCANREQ
+ * we have, each time we send a NEXT_SCANREQ with ZSCAN_NEXT we need to
+ * increment this counter to ensure that we don't end up in calling too
+ * deep into the stack which otherwise can happen when we use multiple
+ * ranges.
+ */
+void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
+                                   SimulatedBlock* block,
+                                   ExecFunction f,
+                                   ScanRecord * const scanPtr)
+{
+  /**
+   * We have a number of different cases here. There are normal
+   * scan operations, these always execute at B-level such that
+   * they are scheduled among the other user level transactions.
+   *
+   * We also have prioritised scans, these could be scans for
+   * LCPs, Backups, Node recovery or various ALTER TABLE activities.
+   *
+   * All internal scan activities are treated as prioritised scans.
+   * These need to operate with a bounded delay. Therefore we send
+   * these signals with a bounded delay signal (implemented through
+   * a delayed signal with delay 0). These signals can also set the
+   * priority flag to A-level to ensure that they process more rows
+   * per scheduling slot than otherwise. This can be necessary at
+   * very high loads when we scan for rather small rows.
+   *
+   * For efficiency reasons we try to execute a number of rows before
+   * we send a new signal. We will never go beyond ZMAX_SCAN_DIRECT_COUNT
+   * to avoid using too much of the CPU stack and also to avoid executing
+   * for too long without putting ourselves back in the job buffer.
+   *
+   * We try to maintain the coding rule of NDB to never execute for more
+   * than about 5-10 microseconds. Executing a 100 byte row scan on normal
+   * CPUs in 2015 will take about 1 microsecond. If we instead scan 1000
+   * bytes we estimate the time to be about 3 microseconds. So we use the
+   * formula 750 ns of fixed cost per row + 8 ns per word. With this formula
+   * we want to avoid that current cost has exceeded 5000 ns. If it has we
+   * we will schedule a signal rather than execute directly again. Given that
+   * the exactness of the formula isn't perfect and that we want scheduling
+   * to happen at least before 10 microseconds we will use a simplified
+   * formula. We know that scan_direct_count must be between 0 and 3 when
+   * coming here and not being immediately decided to send signal, so the
+   * fixed part of the cost here is between 750 ns and 3000 ns. So we will
+   * allow for up to 4000 ns of words before we decide to send a signal.
+   * This means that when the number of words sent exceeds 500, then we
+   * we will send a signal.
+   *
+   * These calculations are valid for HW of 2015. Future HW is likely to be
+   * faster and also we're likely to improve the efficiency of creating
+   * LCPs by optimising the code. The coding rules for how long a signal
+   * can execute should stay more or less constant over time. We had the
+   * same coding rules also in the 1990s as we have now. However if we
+   * can execute 300 MByte per second in a CPU rather than 150 MByte per
+   * second then we can increase those limits. So effectively we should
+   * not change the coding rules, but we should adapt our algorithms to
+   * make use of the coding rules in an optimal manner. Not fixing this
+   * when HW gets faster means isn't likely to cause much problems given
+   * that also signals from user transactions are likely to execute faster.
+   * So mainly when we optimise the LCP code we should consider changing
+   * those values and when we start allowing more computations due to
+   * higher CPU throughput also in signals part of user transactions.
+   */
+#define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 500
+#define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 4000
+
+  Uint32 prioAFlag = scanPtr->prioAFlag;
+  const Uint32 scan_direct_count = scanPtr->scan_direct_count;
+  const Uint32 exec_direct_batch_size_words =
+              scanPtr->m_exec_direct_batch_size_words;
+  const Uint32 exec_direct_limit = prioAFlag ?
+                            ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO :
+                            ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO;
+
+  if (scan_direct_count >= ZMAX_SCAN_DIRECT_COUNT ||
+      exec_direct_batch_size_words > exec_direct_limit)
+  {
+    BlockReference blockRef = scanPtr->scanBlockref;
+    BlockReference resultRef = scanPtr->scanApiBlockref;
+    scanPtr->scan_direct_count = 0;
+
+    if (!is_prioritised_scan(resultRef))
+    {
+      /* Normal user scans */
+      jam();
+      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
+      return;
+    }
+    if (exec_direct_batch_size_words > ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO)
+    {
+      /**
+       * See Backup.cpp for explanation of this limit and how it is derived */
+      jam();
+      prioAFlag = false;
+    }
+    scanPtr->m_exec_direct_batch_size_words = 0;
+    if (prioAFlag)
+    {
+      /* Prioritised scan at high load situation */
+      jam();
+      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBA);
+      return;
+    }
+    else
+    {
+      /* Prioritised scan operation */
+      jam();
+      sendSignalWithDelay(blockRef, GSN_NEXT_SCANREQ,
+                          signal, BOUNDED_DELAY, 3);
+      return;
+    }
+  }
+  else
+  {
+    scanPtr->scan_direct_count = scan_direct_count + 1;
+    jam();
+    block->EXECUTE_DIRECT(f, signal);
+    return;
+  }
+}
+
 /* ------------------------------------------------------------------------
  * -------        SEND SCAN_FRAGCONF TO TC THAT CONTROLS THE SCAN   ------- 
  *
@@ -13134,8 +13437,15 @@ void Dblqh::sendScanFragConf(Signal* signal, Uint32 scanCompleted)
   conf->transId1 = trans_id1;
   conf->transId2 = trans_id2;
   conf->total_len= total_len;
+
+  JobBufferLevel prio_level = JBB;
+  if (scanPtr->prioAFlag)
+  {
+    jam();
+    prio_level = JBA;
+  }
   sendSignal(blockRef, GSN_SCAN_FRAGCONF, 
-             signal, ScanFragConf::SignalLength, JBB);
+             signal, ScanFragConf::SignalLength, prio_level);
 }//Dblqh::sendScanFragConf()
 
 /* ######################################################################### */
@@ -13316,6 +13626,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }//if
 
   {
+    /* NR Scans allocate reserved scan records */
     LocalDLCList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
     ndbrequire(m_reserved_scans.first(scanptr));
     m_reserved_scans.remove(scanptr);
@@ -13333,6 +13644,13 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   scanPtr->m_max_batch_size_rows = 0;
   scanPtr->rangeScan = 0;
   scanPtr->tupScan = 0;
+  /**
+   * Will always succeed since we can only call this once at a time for
+   * NR operations, LCP scan operation and backup scan operation. All these
+   * 3 operations have a reserved record always available for them.
+   * The seizeTcrec would crash if this wasn't true and we've run out this
+   * resource.
+   */
   seizeTcrec();
   tcConnectptr.p->clientBlockref = userRef;
   
@@ -13366,8 +13684,9 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     scanPtr->scanLockHold = ZFALSE;
     scanPtr->m_curr_batch_size_rows = 0;
     scanPtr->m_curr_batch_size_bytes= 0;
+    scanPtr->m_exec_direct_batch_size_words = 0;
     scanPtr->readCommitted = 0;
-    scanPtr->scan_direct_count = ZSCAN_DIRECT_INITIAL;
+    scanPtr->scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 1;
     fragptr.p->m_scanNumberMask.clear(NR_ScanNo);
   }
   
@@ -13878,6 +14197,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
 /*---------------------------------------------------------------------------*/
   UintR TnoOfWords = readLength + len;
   scanP->m_curr_batch_size_bytes += 4 * TnoOfWords;
+  scanP->m_exec_direct_batch_size_words += readLength;
   TnoOfWords = TnoOfWords + MAGIC_CONSTANT;
   TnoOfWords = TnoOfWords + (TnoOfWords >> 2);
 
@@ -14386,65 +14706,6 @@ void Dblqh::scanTcConnectLab(Signal* signal, Uint32 tstartTcConnect, Uint32 frag
   return;
 }//Dblqh::scanTcConnectLab()
 
-/*---------------------------------------------------------------------------*/
-/*   A NEW MASTER IS REQUESTING THE STATE IN LQH OF THE COPY FRAGMENT PARTS. */
-/*---------------------------------------------------------------------------*/
-/* ***************>> */
-/*  COPY_STATEREQ  > */
-/* ***************>> */
-void Dblqh::execCOPY_STATEREQ(Signal* signal) 
-{
-  jamEntry();
-  ndbrequire(0)
-#if 0
-  Uint32* dataPtr = &signal->theData[2];
-  BlockReference tmasterBlockref = signal->theData[0];
-  Uint32 tnoCopy = 0;
-  do {
-    jam();
-    arrGuard(tnoCopy, 4);
-    fragptr.i = cactiveCopy[tnoCopy];
-    if (fragptr.i == RNIL) {
-      jam();
-      break;
-    }//if
-    c_fragment_pool.getPtr(fragptr);
-    if (fragptr.p->copyFragState != ZIDLE) {
-      jam();
-/*---------------------------------------------------------------------------*/
-/*   THIS FRAGMENT IS CURRENTLY ACTIVE IN COPYING THE FRAGMENT.              */
-/*---------------------------------------------------------------------------*/
-      scanptr.i = fragptr.p->fragScanRec[NR_ScanNo];
-      c_scanRecordPool.getPtr(scanptr);
-      if (scanptr.p->scanCompletedStatus == ZTRUE) {
-        jam();
-        dataPtr[3 + (tnoCopy << 2)] = ZCOPY_CLOSING;
-      } else {
-        jam();
-        dataPtr[3 + (tnoCopy << 2)] = ZCOPY_ONGOING;
-      }//if
-      dataPtr[2 + (tnoCopy << 2)] = scanptr.p->scanSchemaVersion;
-      scanptr.p->scanApiBlockref = tmasterBlockref;
-    } else {
-      ndbrequire(fragptr.p->activeTcCounter != 0);
-/*---------------------------------------------------------------------------*/
-/*   COPY FRAGMENT IS COMPLETED AND WE ARE CURRENTLY GETTING THE STARTING    */
-/*   GCI OF THE NEW REPLICA OF THIS FRAGMENT.                                */
-/*---------------------------------------------------------------------------*/
-      fragptr.p->masterBlockref = tmasterBlockref;
-      dataPtr[3 + (tnoCopy << 2)] = ZCOPY_ACTIVATION;
-    }//if
-    dataPtr[tnoCopy << 2] = fragptr.p->tabRef;
-    dataPtr[1 + (tnoCopy << 2)] = fragptr.p->fragId;
-    tnoCopy++;
-  } while (tnoCopy < cnoActiveCopy);
-  signal->theData[0] = cownNodeid;
-  signal->theData[1] = tnoCopy;
-  sendSignal(tmasterBlockref, GSN_COPY_STATECONF, signal, 18, JBB);
-#endif
-  return;
-}//Dblqh::execCOPY_STATEREQ()
-
 /* ========================================================================= */
 /* =======              INITIATE TC RECORD AT COPY FRAGMENT          ======= */
 /*                                                                           */
@@ -14472,7 +14733,6 @@ void Dblqh::initCopyTc(Signal* signal, Operation_t op)
   tcConnectptr.p->tcBlockref = cownref;
   tcConnectptr.p->readlenAi = 0;
   tcConnectptr.p->storedProcId = ZNIL;
-  tcConnectptr.p->opExec = 0;
   tcConnectptr.p->nextSeqNoReplica = 0;
   tcConnectptr.p->dirtyOp = ZFALSE;
   tcConnectptr.p->lastReplicaNo = 0;
@@ -14686,8 +14946,8 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
   tabptr.i = lcpFragOrd->tableId;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   
-  if (! (tabptr.p->tableStatus == Tablerec::TABLE_DEFINED ||
-         tabptr.p->tableStatus == Tablerec::TABLE_READ_ONLY))
+  if (unlikely(tabptr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+               tabptr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
   {
     /**
      * There is no way to discover if we had multiple messages for this
@@ -14698,7 +14958,6 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
      */
     jam();
     LcpRecord::FragOrd fragOrd;
-    fragOrd.fragPtrI = RNIL;
     fragOrd.lcpFragOrd = * lcpFragOrd;
 
     Fragrecord tmp;
@@ -14787,6 +15046,27 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
    */
   ndbrequire(refToMain(signal->getSendersBlockRef()) == BACKUP);
   lcpPtr.p->m_error = ref->errorCode;
+
+  /**
+   * Only table no longer present is acceptable - anything
+   * else is a hard error.
+   * This sometimes manifests as error 785 - 'Schema object is busy with another...'
+   * which we treat in the same way. This happens when the table is dropping when
+   * we ask for the table information. So both are symptoms of a table which is
+   * being dropped or already been dropped.
+   */
+  if (ref->errorCode != GetTabInfoRef::TableNotDefined &&
+      ref->errorCode != DropTableRef::ActiveSchemaTrans)
+  {
+    g_eventLogger->critical("Fatal : LCP_PREPARE_REF t%uf%u errorCode %u",
+                            ref->tableId,
+                            ref->fragmentId,
+                            ref->errorCode);
+    ndbrequire(false);
+    return;
+  };
+
+  /* Carry on with the next table... */
 
   stopLcpFragWatchdog();
 
@@ -15132,7 +15412,8 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   lcpPtr.p->currentFragment.lcpFragOrd.fragmentId = curr_fragptr.p->fragId;
   lcpPtr.p->currentFragment.lcpFragOrd.tableId = tabPtr.i;
 
-  if(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED)
+  if (unlikely(tabPtr.p->tableStatus != Tablerec::TABLE_DEFINED &&
+               tabPtr.p->tableStatus != Tablerec::TABLE_READ_ONLY))
   {
     jam();
     /**
@@ -15142,12 +15423,14 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
     return;
   }
 
+  /**
+   * We need to perform LCPs also of read-only tables since there might
+   * have been changes to the table between now and when the table was
+   * made read only.
+   */
   lcpPtr.p->m_error = 0;
   lcpPtr.p->m_outstanding = 1;
 
-  ndbrequire(tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED ||
-             tabPtr.p->tableStatus == Tablerec::TABLE_READ_ONLY);
-  
   lcpPtr.p->lcpState = LcpRecord::LCP_WAIT_FRAGID;
   LcpPrepareReq* req= (LcpPrepareReq*)signal->getDataPtr();
   req->senderData = lcpPtr.i;
@@ -17209,6 +17492,12 @@ Dblqh::execFSWRITEREQ(Signal* signal)
   /**
    * This is currently run in other thread -> no jam
    *   and no global variables
+   *
+   * This method is called from NDB file system while initialising a REDO log
+   * file, so we need to ensure that we don't touch any block variables other
+   * than to read stable variables. This is only called during initial
+   * restart. The pages are allocated by NDBFS from DataMemory, so these can
+   * be written to safely since they are owned by the file system thread.
    */
   Ptr<GlobalPage> page_ptr;
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
@@ -19365,6 +19654,8 @@ void Dblqh::openExecSrStartLab(Signal* signal)
   logFilePtr.p->currentMbyte = logPartPtr.p->startMbyte;
   /* ------------------------------------------------------------------------
    *     WE NEED A TC CONNECT RECORD TO HANDLE EXECUTION OF LOG RECORDS.
+   *     This will always succeed since we don't interact with user
+   *     operations during recovery when we are applying the REDO log content.
    * ------------------------------------------------------------------------ */
   seizeTcrec();
   logPartPtr.p->logTcConrec = tcConnectptr.i;
@@ -21388,11 +21679,7 @@ void Dblqh::execMEMCHECKREQ(Signal* signal)
   }//for
   index++;
   tcConnectptr.i = cfirstfreeTcConrec;
-  while (tcConnectptr.i != RNIL) {
-    ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
-    tcConnectptr.i = tcConnectptr.p->nextTcConnectrec;
-    dataPtr[index]++;
-  }//while
+  dataPtr[index] = ctcNumFree;
   sendSignal(userblockref, GSN_MEMCHECKCONF, signal, 10, JBB);
   return;
 }//Dblqh::execMEMCHECKREQ()
@@ -22291,11 +22578,20 @@ void Dblqh::initialiseScanrec(Signal* signal)
   /**
    * just seize records from pool and put into
    *   dedicated list
+   *
+   * We need to allocate an ACC pointer list that fits
+   * all reserved since we can use the LCP record for NR or Backup and
+   * vice versa for NR scans and Backup scans.
    */
   m_reserved_scans.seizeFirst(scanptr); // LCP
   scanptr.p->m_reserved = 1;
+  ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
   m_reserved_scans.seizeFirst(scanptr); // NR
   scanptr.p->m_reserved = 1;
+  ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
+  m_reserved_scans.seizeFirst(scanptr); // Backup
+  scanptr.p->m_reserved = 1;
+  ndbrequire(seize_acc_ptr_list(scanptr.p, 0, ZRESERVED_SCAN_BATCH_SIZE));
 
 }//Dblqh::initialiseScanrec()
 
@@ -22351,6 +22647,7 @@ void Dblqh::initialiseTcrec(Signal* signal)
     ptrAss(tcConnectptr, tcConnectionrec);
     tcConnectptr.p->nextTcConnectrec = RNIL;
     cfirstfreeTcConrec = 0;
+    ctcNumFree = ctcConnectrecFileSize;
   } else {
     jam();
     cfirstfreeTcConrec = RNIL;
@@ -22410,6 +22707,9 @@ void Dblqh::initFragrec(Signal* signal,
   fragptr.p->activeTcCounter = 0;
   fragptr.p->tableFragptr = RNIL;
   fragptr.p->m_copy_started_state = 0;
+  fragptr.p->lcp_frag_ord_state = Fragrecord::LCP_EXECUTED;
+  fragptr.p->lcp_frag_ord_lcp_no = 0;
+  fragptr.p->lcp_frag_ord_lcp_id = 0;
 }//Dblqh::initFragrec()
 
 /* ========================================================================== 
@@ -25096,15 +25396,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     case 1:
     {
       /* Must get all in one loop, as we're traversing a dynamic list */
-      sum = 0;
-      TcConnectionrecPtr tcp;    
-      tcp.i = cfirstfreeTcConrec;
-      while (tcp.i != RNIL)
-      {
-        sum++;
-        ptrCheckGuard(tcp, ctcConnectrecFileSize, tcConnectionrec);
-        tcp.i = tcp.p->nextTcConnectrec;
-      }
+      sum = ctcNumFree;
       infoEvent("LQH : TcConnection (operation) records in use/total %u/%u (%u bytes each)",
                 ctcConnectrecFileSize - sum, ctcConnectrecFileSize, (Uint32) sizeof(TcConnectionrec));
       resource++;
@@ -25386,9 +25678,12 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             row.write_uint32(LocalDLCFifoList<ScanRecord>
                              (c_scanRecordPool, frag->m_queuedScans).count());
 
+            row.write_uint32(LocalDLCFifoList<ScanRecord>
+                             (c_scanRecordPool, frag->m_queuedTupScans).count());
+
             row.write_uint32(LocalDLCFifoList<ScanRecord> 
                              (c_scanRecordPool, 
-                              frag->m_queuedTupScans).count());
+                              frag->m_queuedAccScans).count());
             
             row.write_uint64(commitCount);
             ndbinfo_send_row(signal, req, row, rl);

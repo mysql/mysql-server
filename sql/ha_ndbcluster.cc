@@ -9963,6 +9963,7 @@ int ha_ndbcluster::create(const char *name,
   bool ndb_sys_table= FALSE;
   int result= 0;
   NdbDictionary::ObjectId objId;
+  Ndb_fk_list fk_list_for_truncate;
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -10019,6 +10020,16 @@ int ha_ndbcluster::create(const char *name,
 
     ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
                                    m_dbname, m_tabname, form);
+    if (my_errno == HA_ERR_TABLE_EXIST)
+    {
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_TABLE_EXISTS_ERROR,
+                          "Failed to setup replication of table %s.%s",
+                          m_dbname, m_tabname);
+      my_errno= 0;
+    }
+
+
     DBUG_RETURN(my_errno);
   }
 
@@ -10080,9 +10091,15 @@ int ha_ndbcluster::create(const char *name,
       DBUG_RETURN(1);
     }
 
+    /* save the foreign key information in fk_list */
+    int err;
+    if ((err= get_fk_data_for_truncate(dict, ndbtab_g.get_table(),
+                                       fk_list_for_truncate)))
+      DBUG_RETURN(err);
+
     DBUG_PRINT("info", ("Dropping and re-creating table for TRUNCATE"));
-    if ((my_errno= delete_table(name)))
-      DBUG_RETURN(my_errno);
+    if ((err= delete_table(name)))
+      DBUG_RETURN(err);
     ndbtab_g.reinit();
   }
 
@@ -10458,13 +10475,23 @@ int ha_ndbcluster::create(const char *name,
     my_errno= create_fks(thd, ndb);
   }
 
-  if ((is_alter || is_truncate) && my_errno == 0)
+  if (is_alter && my_errno == 0)
   {
     /**
      * mysql doesnt know/care about FK (buhhh)
      *   so we need to copy the old ones ourselves
      */
     my_errno= copy_fk_for_offline_alter(thd, ndb, &tab);
+  }
+
+  if (!fk_list_for_truncate.is_empty() && my_errno == 0)
+  {
+    /*
+     create FKs for the new table from the list got from old table.
+     for truncate table.
+     */
+    my_errno= recreate_fk_for_truncate(thd, ndb, tab.getName(),
+                                       fk_list_for_truncate);
   }
 
   m_table= 0;
@@ -11421,22 +11448,20 @@ extern bool ndb_fk_util_is_mock_name(const char* table_name);
 bool
 ha_ndbcluster::drop_table_and_related(THD* thd, Ndb* ndb, NdbDictionary::Dictionary* dict,
                                       const NdbDictionary::Table* table,
-                                      int drop_flags)
+                                      int drop_flags, bool skip_related)
 {
   DBUG_ENTER("drop_table_and_related");
-  DBUG_PRINT("enter", ("cascade_constraints: %d dropdb: %d",
+  DBUG_PRINT("enter", ("cascade_constraints: %d dropdb: %d skip_related: %d",
                        MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraints),
-                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB)));
+                       MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraintsDropDB),
+                       skip_related));
 
   /*
     Build list of objects which should be dropped after the table
-    unless cascade constraint is used and they will be dropped anyway
+    unless the caller ask to skip dropping related
   */
-  const bool cascade_constraints =
-    MY_TEST(drop_flags & NDBDICT::DropTableCascadeConstraints);
-
   List<char> drop_list;
-  if (!cascade_constraints &&
+  if (!skip_related &&
       !ndb_fk_util_build_list(thd, dict, table, drop_list))
   {
     DBUG_RETURN(false);
@@ -11500,13 +11525,16 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
                              share->key_string(), share->use_count));
   }
 
-  /* Copying alter can leave #sql table which is parent of old FKs */
+  bool skip_related= false;
   int drop_flags = 0;
+  /* Copying alter can leave #sql table which is parent of old FKs */
   if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
       strncmp(table_name, "#sql", 4) == 0)
   {
     DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
     drop_flags |= NDBDICT::DropTableCascadeConstraints;
+    // Cascade constraint is used and related will be dropped anyway
+    skip_related = true;
   }
 
   if (thd->lex->sql_command == SQLCOM_DROP_DB)
@@ -11515,12 +11543,19 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
     drop_flags |= NDBDICT::DropTableCascadeConstraintsDropDB;
   }
 
+  if (thd->lex->sql_command == SQLCOM_TRUNCATE)
+  {
+    DBUG_PRINT("info", ("Deleting table for TRUNCATE, skip dropping related"));
+    skip_related= true;
+  }
+
   /* Drop the table from NDB */
   int res= 0;
   if (h && h->m_table)
   {
 retry_temporary_error1:
-    if (drop_table_and_related(thd, ndb, dict, h->m_table, drop_flags))
+    if (drop_table_and_related(thd, ndb, dict, h->m_table,
+                               drop_flags, skip_related))
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
@@ -11552,7 +11587,7 @@ retry_temporary_error1:
       {
     retry_temporary_error2:
         if (drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
-                                   drop_flags))
+                                   drop_flags, skip_related))
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
@@ -12290,16 +12325,28 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
 
+  // Check if the database directory for the table to discover exists
+  // as otherwise there is no place to put the discovered .frm file.
+  build_table_filename(key, sizeof(key) - 1, db, "", "", 0);
+  const int database_exists= !my_access(key, F_OK);
+  if (!database_exists)
+  {
+    sql_print_information("NDB: Could not find database directory '%s' "
+                          "while trying to discover table '%s'", db, name);
+    // Can't discover table when database directory does not exist
+    DBUG_RETURN(1);
+  }
+
   if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);  
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
   if (ndb->setDatabaseName(db))
   {
     ERR_RETURN(ndb->getNdbError());
   }
-  NDBDICT* dict= ndb->getDictionary();
+
   build_table_filename(key, sizeof(key) - 1, db, name, "", 0);
   /* ndb_share reference temporary */
-  NDB_SHARE *share= get_share(key, 0, FALSE);
+  NDB_SHARE* share= get_share(key, 0, FALSE);
   if (share)
   {
     DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
@@ -12317,6 +12364,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
   }
   else
   {
+    NDBDICT* dict= ndb->getDictionary();
     Ndb_table_guard ndbtab_g(dict, name);
     const NDBTAB *tab= ndbtab_g.get_table();
     if (!tab)
@@ -17617,11 +17665,13 @@ int ha_ndbcluster::alter_frm(const char *file,
   if (readfrm(file, &data, &length) ||
       packfrm(data, length, &pack_data, &pack_length))
   {
+    char errbuf[MYSYS_STRERROR_SIZE];
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
     error= 1;
-    my_error(ER_FILE_NOT_FOUND, MYF(0), file); 
+    my_error(ER_FILE_NOT_FOUND, MYF(0), file,
+             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno)); 
   }
   else
   {
@@ -17635,7 +17685,7 @@ int ha_ndbcluster::alter_frm(const char *file,
     {
       DBUG_PRINT("info", ("On-line alter of table %s failed", m_tabname));
       error= ndb_to_mysql_error(&dict->getNdbError());
-      my_error(error, MYF(0));
+      my_error(error, MYF(0), m_tabname);
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));

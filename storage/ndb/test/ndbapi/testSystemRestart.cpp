@@ -2591,31 +2591,27 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-int runAddNodeAndRestart(NDBT_Context* ctx, NDBT_Step* step)
+int runAddNodes(NDBT_Context* ctx, NDBT_Step* step)
 {
   /*
-   New nodes are already up in cluster, but they dont have
-   a nodegroup. To include them in cluster,
-   1. do a rolling restart of all old nodes running
-   2. execute create nodegroup for the new nodes
+   To add new nodes online, the two nodes should be already up in the cluster,
+   with nodegroup 65536. Then they can be added to the cluster online using the
+   ndb_mgm command create nodegroup. Here,
+   1. we retrieve the list of such nodes with ng 65536(internally -256) and
+   2. add them to the cluster by passing them to the mgmapi function
+      ndb_mgm_create_nodegroup().
    */
   NdbRestarter restarter;
 
-  Vector<int> nodes, newNodes;
+  Vector<int> newNodes;
   int ng;
-  int result = NDBT_OK;
 
-  /* restart existing nodes (which already have a nodegroup) */
+  /* Retrieve the list of nodes with nodegroup 65536(-256) */
   for(int i= 0; i < restarter.getNumDbNodes(); i++ )
   {
     int _node_id= restarter.getDbNodeId(i);
-    if(restarter.getNodeGroup(_node_id) >= 0)
+    if(restarter.getNodeGroup(_node_id) == -256)
     {
-      /* node is actually up */
-      g_info << "Restarting : " << _node_id << endl;
-      CHECK(restarter.restartOneDbNode(_node_id, false, false, false) == 0);
-      CHECK(restarter.waitNodesStarted(&_node_id, 1) == 0);
-    } else {
       /* nodes that don't have a nodegroup yet */
       newNodes.push_back(_node_id);
     }
@@ -2633,7 +2629,8 @@ int runAddNodeAndRestart(NDBT_Context* ctx, NDBT_Step* step)
 
   /* end of array value for newNodes */
   newNodes.push_back(0);
-  /* create nodegroup */
+
+  /* include the new nodes into cluster using ndb_mgm_create_nodegroup() */
   if(ndb_mgm_create_nodegroup(restarter.handle, newNodes.getBase(),
                               &ng, NULL) != 0)
   {
@@ -2644,7 +2641,7 @@ int runAddNodeAndRestart(NDBT_Context* ctx, NDBT_Step* step)
   }
   g_info << "New nodes added to nodegroup " << ng << endl;
 
-  return result;
+  return NDBT_OK;
 }
 
 int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
@@ -3413,20 +3410,20 @@ TESTCASE("Bug56961", "")
 }
 TESTCASE("MTR_AddNodesAndRestart1",
          "1. Insert few rows to table"
-         "2. Add nodes and restart cluster"
+         "2. Add nodes to the cluster"
          "3. Reorganize partition and optimize table"
          "Should be run only once")
 {
   ALL_TABLES();
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
-  INITIALIZER(runAddNodeAndRestart);
+  INITIALIZER(runAddNodes);
   STEP(runAlterTableAndOptimize);
   VERIFIER(runVerifyFilledTables);
 }
 TESTCASE("MTR_AddNodesAndRestart2",
          "1. Fill the table fully"
-         "2. Add nodes and restart cluster"
+         "2. Add nodes to the cluster"
          "3. Reorganize partition and optimize table"
          "4. Kill 2 nodes during reorganization"
          "Should be run only once")
@@ -3435,7 +3432,7 @@ TESTCASE("MTR_AddNodesAndRestart2",
   TC_PROPERTY("NodesKilledDuringStep", true);
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
-  INITIALIZER(runAddNodeAndRestart);
+  INITIALIZER(runAddNodes);
   STEP(runAlterTableAndOptimize);
   STEP(runKillTwoNodes);
   VERIFIER(runVerifyFilledTables);
