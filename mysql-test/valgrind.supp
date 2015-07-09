@@ -875,7 +875,7 @@
    write(buf)
    ...
    fun:my_b_flush_io_cache
-   fun:_Z8filesortP3THDP7QEP_TABP8FilesortbPyS5_
+   fun:_Z8filesortP3THDP8FilesortbPyS3_S3_
 }
 
 {
