@@ -34,10 +34,10 @@ perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collectio
 
 # Run innodb suite including big-test with innodb-page-size=4k and 8k
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force  --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
 
 # Run innodb_undo suite with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60  --parallel=auto --comment=innodb_undo-2 --vardir=var-innodb-undo-2 --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
+perl mysql-test-run.pl --timer --force   --parallel=auto --comment=innodb_undo-2 --vardir=var-innodb-undo-2 --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo-3-64k --vardir=var-innodb-undo-3-64k --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_undo_logs=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
 
 # Engine independent tests
