@@ -2630,7 +2630,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
   Ndb_table_guard child_tab(dict, tab_name);
   if (child_tab.get_table() == 0)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_CANNOT_ADD_FOREIGN,
                         "INTERNAL ERROR: Could not find created child table '%s'",
                         tab_name);
@@ -2655,7 +2655,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
         const NDBCOL * ndbcol= tab->getColumn(fk->getChildColumnNo(i));
         if (ndbcol == 0)
         {
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CANNOT_ADD_FOREIGN,
                               "Child table %s has no column referred by the FK %s",
                               tab->getName(), fk->getName());
@@ -2694,7 +2694,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
       if (sscanf(fk->getName(), "%u/%u/%s",
                  &parent_id, &child_id, name) != 3)
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_CANNOT_ADD_FOREIGN,
                             "Skip, failed to parse name of fk: %s",
                             fk->getName());

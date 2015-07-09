@@ -10022,7 +10022,7 @@ int ha_ndbcluster::create(const char *name,
                                    m_dbname, m_tabname, form);
     if (my_errno == HA_ERR_TABLE_EXIST)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_TABLE_EXISTS_ERROR,
                           "Failed to setup replication of table %s.%s",
                           m_dbname, m_tabname);
