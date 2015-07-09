@@ -3936,15 +3936,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	break;
     }
 
-    key_info->algorithm= key->key_create_info.algorithm;
-
     switch (key->type) {
     case KEYTYPE_MULTIPLE:
 	key_info->flags= 0;
 	break;
     case KEYTYPE_FULLTEXT:
 	key_info->flags= HA_FULLTEXT;
-        key_info->algorithm= HA_KEY_ALG_FULLTEXT;
 	if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
           key_info->flags|= HA_USES_PARSER;
         else
@@ -3963,6 +3960,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->generated)
       key_info->flags|= HA_GENERATED_KEY;
 
+    key_info->algorithm= key->key_create_info.algorithm;
     key_info->user_defined_key_parts=(uint8) key->columns.elements;
     key_info->actual_key_parts= key_info->user_defined_key_parts;
     key_info->key_part=key_part_info;
@@ -3970,6 +3968,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
     if (key->type == KEYTYPE_FULLTEXT)
     {
+      key_info->algorithm= HA_KEY_ALG_FULLTEXT;
       if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
       {
         if (is_ha_partition_handlerton(file->ht))
