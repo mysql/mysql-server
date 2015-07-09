@@ -18,20 +18,28 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 
-/* Enable TEST_STD_MAP or TEST_STD_UNORDERED_MAP below to perf test std::map
-or std::unordered_map instead of the InnoDB lock free hash. */
-
+/* Enable to perf test std::map instead of
+the InnoDB lock free hash. */
 #if 0
-#define TEST_STD_MAP
+#define TEST_STD_MAP 1
 #endif
 
-/* To test this, compile with -std=c++11 */
+/* Enable to perf test std::unordered_map instead of
+the InnoDB lock free hash, compile with -std=c++11 */
 #if 0
-#define TEST_STD_UNORDERED_MAP
+#define TEST_STD_UNORDERED_MAP 1
 #endif
 
-#if defined(TEST_STD_MAP) && defined(TEST_STD_UNORDERED_MAP)
-#error Both TEST_STD_MAP and TEST_STD_UNORDERED_MAP are defined.
+/* Enable to perf test tbb::concurrent_hash_map instead of
+the InnoDB lock free hash, download from
+https://www.threadingbuildingblocks.org/ and also adjust
+unittest/gunit/innodb/CMakeLists.txt */
+#if 0
+#define TEST_TBB 1
+#endif
+
+#if TEST_STD_MAP + TEST_STD_UNORDERED_MAP + TEST_TBB > 1
+#error TEST_STD_MAP, TEST_STD_UNORDERED_MAP and TEST_TBB are mutually exclusive
 #endif /* TEST_STD_MAP && TEST_STD_UNORDERED_MAP */
 
 #ifdef TEST_STD_UNORDERED_MAP
@@ -41,6 +49,10 @@ or std::unordered_map instead of the InnoDB lock free hash. */
 #ifdef TEST_STD_MAP
 #include <map>
 #endif /* TEST_STD_MAP */
+
+#ifdef TEST_TBB
+#include <tbb/concurrent_hash_map.h>
+#endif
 
 #define __STDC_LIMIT_MACROS
 
@@ -170,7 +182,105 @@ private:
 	map_t				m_map;
 	mutable OSTrackMutex<NoPolicy>	m_map_latch;
 };
-#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+
+#elif defined(TEST_TBB)
+
+class tbb_hash_t : public ut_hash_interface_t {
+public:
+	typedef	uint64_t				key_t;
+	typedef	int64_t					val_t;
+	typedef tbb::concurrent_hash_map<key_t, val_t>	map_t;
+
+	/** Constructor. */
+	tbb_hash_t()
+	{
+	}
+
+	/** Destructor. */
+	~tbb_hash_t()
+	{
+	}
+
+	int64_t
+	get(
+		uint64_t	key) const
+	{
+		map_t::const_accessor	a;
+
+		if (m_map.find(a, key)) {
+			return(a->second);
+		}
+
+		return(NOT_FOUND);
+	}
+
+	void
+	set(
+		uint64_t	key,
+		int64_t		val)
+	{
+		map_t::accessor	a;
+
+		if (m_map.insert(a, map_t::value_type(key, val))) {
+			/* Insert succeeded, do nothing. */
+		} else {
+			/* A tuple with the given key already exists,
+			overwrite its value. */
+			a->second = val;
+		}
+	}
+
+	void
+	del(
+		uint64_t	key)
+	{
+		m_map.erase(key);
+	}
+
+	void
+	inc(
+		uint64_t	key)
+	{
+		delta(key, 1);
+	}
+
+	void
+	dec(
+		uint64_t	key)
+	{
+		delta(key, -1);
+	}
+
+#ifdef UT_HASH_IMPLEMENT_PRINT_STATS
+	void
+	print_stats()
+	{
+	}
+#endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+
+private:
+	void
+	delta(
+		uint64_t	key,
+		int64_t		delta)
+	{
+		map_t::accessor	a;
+
+		if (m_map.insert(a, map_t::value_type(key, delta))) {
+			/* Insert succeeded because a tuple with this key
+			did not exist before, do nothing. */
+		} else {
+			/* A tuple with the given key already exists,
+			apply the delta to its value. */
+			os_atomic_increment_uint64(
+				static_cast<uint64_t*>(&a->second),
+				delta);
+		}
+	}
+
+	map_t	m_map;
+};
+#endif
 
 /** Generate a key to use in the (key, value) tuples.
 @param[in]	i		some sequential number
@@ -294,9 +404,11 @@ TEST_F(ut0lock_free_hash, single_threaded)
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	ut_hash_interface_t*	hash = new std_hash_t();
-#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+#elif defined(TEST_TBB)
+	ut_hash_interface_t*	hash = new tbb_hash_t();
+#else
 	ut_hash_interface_t*	hash = new ut_lock_free_hash_t(1048576, true);
-#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+#endif
 
 	const size_t	n_elements = 16 * 1024;
 
@@ -394,9 +506,11 @@ run_multi_threaded(
 
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	hash = new std_hash_t();
-#else /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+#elif defined(TEST_TBB)
+	hash = new tbb_hash_t();
+#else
 	hash = new ut_lock_free_hash_t(initial_hash_size, true);
-#endif /* TEST_STD_MAP || TEST_STD_UNORDERED_MAP */
+#endif
 
 	thread_params_t*	params = new thread_params_t[n_threads];
 

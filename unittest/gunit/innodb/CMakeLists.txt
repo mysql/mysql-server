@@ -63,6 +63,12 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
     sql binlog rpl master slave sql)
 
+  # Download TBB from https://www.threadingbuildingblocks.org
+  #SET(TBB_INCDIR /path/to/tbb43_20150611oss/include)
+  #SET(TBB_LIBDIR /path/to/tbb43_20150611oss/build/linux_intel64_gcc_cc4.9.1_libc2.12_kernel2.6.39_release)
+  #TARGET_LINK_LIBRARIES(merge_innodb_tests-t tbb -L${TBB_LIBDIR} -Wl,-rpath=${TBB_LIBDIR})
+  #INCLUDE_DIRECTORIES(${TBB_INCDIR})
+
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
   ENDIF()
