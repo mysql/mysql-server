@@ -4936,6 +4936,18 @@ json_VALID(t)
 select JSON_VALID('123');
 JSON_VALID('123')
 1
+select JSON_VALID('-123');
+JSON_VALID('-123')
+1
+select JSON_VALID('5000000000');
+JSON_VALID('5000000000')
+1
+select JSON_VALID('-5000000000');
+JSON_VALID('-5000000000')
+1
+select JSON_VALID('1.23');
+JSON_VALID('1.23')
+1
 select JSON_VALID('"123"');
 JSON_VALID('"123"')
 1
@@ -11827,6 +11839,14 @@ JSON_DEPTH(CAST(jobject AS CHAR)),
 JSON_DEPTH(CAST(jmix AS CHAR)) FROM t;
 JSON_DEPTH(CAST(jarray AS CHAR))	JSON_DEPTH(CAST(jobject AS CHAR))	JSON_DEPTH(CAST(jmix AS CHAR))
 100	100	100
+SELECT JSON_VALID(jarray), JSON_VALID(jobject), JSON_VALID(jmix) FROM t;
+JSON_VALID(jarray)	JSON_VALID(jobject)	JSON_VALID(jmix)
+1	1	1
+SELECT JSON_VALID(CAST(jarray AS CHAR)),
+JSON_VALID(CAST(jobject AS CHAR)),
+JSON_VALID(CAST(jmix AS CHAR)) FROM t;
+JSON_VALID(CAST(jarray AS CHAR))	JSON_VALID(CAST(jobject AS CHAR))	JSON_VALID(CAST(jmix AS CHAR))
+1	1	1
 INSERT INTO t(jarray) SELECT JSON_ARRAY(jarray) FROM t;
 ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jobject) SELECT JSON_OBJECT('a', jobject) FROM t;
@@ -11849,11 +11869,15 @@ SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=8;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=8;
 ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=8;
+ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=8;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=7;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=7;
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=7;
 ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=7;
 ERROR 22032: The JSON document exceeds the maximum depth.
@@ -11861,11 +11885,15 @@ SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=6;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=6;
 ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=6;
+ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=6;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=5;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=5;
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=5;
 ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=5;
 ERROR 22032: The JSON document exceeds the maximum depth.
@@ -11873,11 +11901,15 @@ SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=4;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=4;
 ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=4;
+ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=4;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=3;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=3;
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=3;
 ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=3;
 ERROR 22032: The JSON document exceeds the maximum depth.
@@ -11885,11 +11917,15 @@ SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=2;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=2;
 ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=2;
+ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=2;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT CAST(x AS JSON) FROM too_deep_docs WHERE id=1;
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT JSON_DEPTH(x) FROM too_deep_docs WHERE id=1;
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(x) FROM too_deep_docs WHERE id=1;
 ERROR 22032: The JSON document exceeds the maximum depth.
 INSERT INTO t(jarray) SELECT x FROM too_deep_docs WHERE id=1;
 ERROR 22032: The JSON document exceeds the maximum depth.
@@ -12549,6 +12585,10 @@ drop table t;
 CREATE TABLE t (j JSON);
 INSERT INTO t VALUES (CONCAT(REPEAT('{"v":', 5000), '1', REPEAT('}', 5000)));
 ERROR 22032: The JSON document exceeds the maximum depth.
+INSERT INTO t VALUES (CONCAT(REPEAT('{"v":[', 5000), '1', REPEAT(']}', 5000)));
+ERROR 22032: The JSON document exceeds the maximum depth.
+INSERT INTO t VALUES (CONCAT(REPEAT('[{"v":', 5000), '1', REPEAT('}]', 5000)));
+ERROR 22032: The JSON document exceeds the maximum depth.
 DROP TABLE t;
 #
 # JSON should work with INSERT .. ON DUPLICATE KEY UPDATE
@@ -12678,3 +12718,99 @@ Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP TABLE t1;
 #
+# Bug#21377136 STACK OVERFLOW IN RAPIDJSON::GENERICREADER
+#
+SELECT JSON_VALID(REPEAT('[', 100000));
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(REPEAT('{"a":', 100000));
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(REPEAT('{"a":[', 100000));
+ERROR 22032: The JSON document exceeds the maximum depth.
+SELECT JSON_VALID(REPEAT('[{"a":', 100000));
+ERROR 22032: The JSON document exceeds the maximum depth.
+#
+# Bug#21381806 JSON: ASSERTION FAILED: ARG->NULL_VALUE
+#
+SELECT JSON_SET(CASE WHEN 1 THEN NULL ELSE NULL END, '{}', '{}');
+JSON_SET(CASE WHEN 1 THEN NULL ELSE NULL END, '{}', '{}')
+NULL
+SELECT JSON_VALID(CASE WHEN 1 THEN NULL ELSE NULL END);
+JSON_VALID(CASE WHEN 1 THEN NULL ELSE NULL END)
+NULL
+SELECT JSON_ARRAY(CASE WHEN 1 THEN NULL ELSE NULL END);
+JSON_ARRAY(CASE WHEN 1 THEN NULL ELSE NULL END)
+[null]
+#
+# Bug#21383497 DBUG_ABORT() IN VAL_JSON
+#
+CREATE TABLE t(a INT PRIMARY KEY);
+INSERT INTO t VALUES (1), (2), (3), (4), (5);
+SELECT 1 FROM t GROUP BY ST_ASGEOJSON(POINT(1, 1)) WITH ROLLUP;
+1
+1
+1
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, COUNT(DISTINCT a)
+FROM t GROUP BY je WITH ROLLUP;
+je	COUNT(DISTINCT a)
+1	5
+NULL	5
+SELECT JSON_EXTRACT(NULL, '$.a') AS je, COUNT(DISTINCT a)
+FROM t GROUP BY je WITH ROLLUP;
+je	COUNT(DISTINCT a)
+NULL	5
+NULL	5
+SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, a, COUNT(DISTINCT a)
+FROM t GROUP BY je, a WITH ROLLUP;
+je	a	COUNT(DISTINCT a)
+1	1	1
+1	2	1
+1	3	1
+1	4	1
+1	5	1
+1	NULL	5
+NULL	NULL	5
+SELECT JSON_EXTRACT('{"a":1}', '$.a') AS je, a, COUNT(DISTINCT a)
+FROM t GROUP BY a, je WITH ROLLUP;
+je	a	COUNT(DISTINCT a)
+1	1	1
+NULL	1	1
+1	2	1
+NULL	2	1
+1	3	1
+NULL	3	1
+1	4	1
+NULL	4	1
+1	5	1
+NULL	5	1
+NULL	NULL	5
+DROP TABLE t;
+#
+# Bug#21384048 ASSERTION FAILED: N >= 0 && N <= 308
+#              IN RAPIDJSON::INTERNAL::FASTPATH
+#
+SELECT JSON_EXTRACT('-1E-36181012216111515851075235238', '$');
+JSON_EXTRACT('-1E-36181012216111515851075235238', '$')
+-0
+SELECT JSON_EXTRACT('1E-36181012216111515851075235238', '$');
+JSON_EXTRACT('1E-36181012216111515851075235238', '$')
+0
+SELECT JSON_EXTRACT('1E-325', '$');
+JSON_EXTRACT('1E-325', '$')
+0
+SELECT JSON_EXTRACT('1E-324', '$');
+JSON_EXTRACT('1E-324', '$')
+0
+SELECT JSON_EXTRACT('1E-323', '$');
+JSON_EXTRACT('1E-323', '$')
+1e-323
+SELECT JSON_EXTRACT('1E+308', '$');
+JSON_EXTRACT('1E+308', '$')
+1e308
+SELECT JSON_EXTRACT('1E+309', '$');
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 6 in '1E+309'.
+SELECT JSON_EXTRACT('1E+36181012216111515851075235238', '$');
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 6 in '1E+36181012216111515851075235238'.
+SELECT JSON_EXTRACT('-1E+36181012216111515851075235238', '$');
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 7 in '-1E+36181012216111515851075235238'.

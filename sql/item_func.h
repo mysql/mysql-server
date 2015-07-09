@@ -1393,6 +1393,7 @@ public:
   longlong val_int();
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *dec);
+  bool val_json(Json_wrapper *result);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     return (null_value= args[0]->get_date(ltime, fuzzydate));
