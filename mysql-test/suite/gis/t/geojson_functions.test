@@ -3597,6 +3597,43 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMGEOJSON(
 "      \"crs\": null                                      "
 "  }"));
 
+--echo # Check that GeomFromGeoJSON can read data from a JSON field.
+
+CREATE TABLE json_tbl
+(
+  id INT NOT NULL AUTO_INCREMENT,
+  json_value JSON,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO json_tbl (json_value) VALUES
+('{ "type": "Point", "coordinates": [100.0, 0.0] }'),
+('{
+  "type": "LineString",
+  "coordinates":
+    [ [100.0, 0.0], [101.0, 1.0] ]
+}'),
+('{
+  "type": "Polygon",
+  "coordinates":
+    [ [ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0] ] ]
+}'),
+('{
+  "type": "Polygon",
+  "coordinates": [
+    [ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0] ],
+    [ [100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2] ]
+  ]
+}'),
+('{
+  "type": "MultiPoint",
+  "coordinates": [ [100.0, 0.0], [101.0, 1.0] ]
+}'),
+('{ "type": "Point", "coordinates": [-12.144, 13.736489] }');
+
+SELECT ST_AsText(ST_GeomFromGeoJSON(json_value)) FROM json_tbl;
+DROP TABLE json_tbl;
+
 #####################################################################
 # Bug#19342661
 #####################################################################
@@ -3812,3 +3849,15 @@ SELECT ST_GEOMFROMGEOJSON('-1E-36181012216111515851075235238');
 SELECT ST_GEOMFROMGEOJSON('1E+36181012216111515851075235238');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT ST_GEOMFROMGEOJSON('-1E+36181012216111515851075235238');
+
+
+--echo #
+--echo # Bug#21389101 ST_GEOMFROMGEOJSON: STACK OVERFLOW IN
+--echo #              RAPIDJSON::GENERICREADER
+--echo #
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT ST_GeomFromGeoJSON(REPEAT('[', 1000));
+
+--error ER_JSON_DOCUMENT_TOO_DEEP
+SELECT ST_GeomFromGeoJSON(REPEAT('{"foo":', 1000));

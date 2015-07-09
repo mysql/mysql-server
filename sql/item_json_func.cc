@@ -92,6 +92,12 @@ bool ensure_utf8mb4(String *val, String *buf,
   @param[in]     require_str_or_json
                             If true, generate an error if other types used
                             as input
+  @param[in]  preserve_neg_zero_int
+                           Whether integer negative zero should be preserved.
+                           If set to TRUE, -0 is handled as a DOUBLE. Double
+                           negative zero (-0.0) is preserved regardless of what
+                           this parameter is set to.
+
   @returns false if the arg parsed as valid JSON, true otherwise
 */
 static bool parse_json(String *res,
@@ -99,7 +105,8 @@ static bool parse_json(String *res,
                        const char *func_name,
                        bool *need_parse,
                        Json_dom **dom,
-                       bool require_str_or_json)
+                       bool require_str_or_json,
+                       bool preserve_neg_zero_int= false)
 {
   char buff[MAX_FIELD_WIDTH];
   String utf8_res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
@@ -123,7 +130,8 @@ static bool parse_json(String *res,
 
   const char *parse_err;
   size_t err_offset;
-  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset);
+  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset,
+                        preserve_neg_zero_int);
 
   if (*dom == NULL && parse_err != NULL)
   {
@@ -244,6 +252,11 @@ static bool get_json_string(Item *arg_item,
   @param[in]     require_str_or_json
                             If true, generate an error if other types used
                             as input
+  @param[in]  preserve_neg_zero_int
+                            Whether integer negative zero should be preserved.
+                            If set to TRUE, -0 is handled as a DOUBLE. Double
+                            negative zero (-0.0) is preserved regardless of what
+                            this parameter is set to.
 
   @returns true if the text is valid JSON (or NULL), else false
 */
@@ -253,7 +266,8 @@ static bool json_is_valid(Item **args,
                           const char *func_name,
                           bool *need_parse,
                           Json_dom **dom,
-                          bool require_str_or_json)
+                          bool require_str_or_json,
+                          bool preserve_neg_zero_int= false)
 {
   Item *const arg_item= args[arg_idx];
 
@@ -292,7 +306,8 @@ static bool json_is_valid(Item **args,
         return true;
 
       const bool success= parse_json(res, arg_idx, func_name,
-                                     need_parse, dom, require_str_or_json);
+                                     need_parse, dom, require_str_or_json,
+                                     preserve_neg_zero_int);
       return !success;
     }
   default:
@@ -1027,7 +1042,8 @@ bool get_json_wrapper(Item **args,
                       uint arg_idx,
                       String *str,
                       const char *func_name,
-                      Json_wrapper *wrapper)
+                      Json_wrapper *wrapper,
+                      bool preserve_neg_zero_int)
 {
   if (!json_value(args, arg_idx, wrapper))
   {
@@ -1054,7 +1070,8 @@ bool get_json_wrapper(Item **args,
   bool needed_parse= false ; //@< true indicates a JSON string
   Json_dom *dom; //@< we'll receive a DOM here from a successful text parse
 
-  if (!json_is_valid(args, arg_idx, str, func_name, &needed_parse, &dom, true))
+  if (!json_is_valid(args, arg_idx, str, func_name, &needed_parse, &dom, true,
+                     preserve_neg_zero_int))
   {
     return true;
   }
