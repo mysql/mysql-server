@@ -179,11 +179,16 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
   @param[out] result        the JSON value wrapper
-
+  @param[in]  preserve_neg_zero_int
+                            Whether integer negative zero should be preserved.
+                            If set to TRUE, -0 is handled as a DOUBLE. Double
+                            negative zero (-0.0) is preserved regardless of what
+                            this parameter is set to.
   @result false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
-                      const char *func_name, Json_wrapper *wrapper);
+                      const char *func_name, Json_wrapper *wrapper,
+                      bool preserve_neg_zero_int= false);
 
 /**
   Convert Json values or MySQL values to JSON.
