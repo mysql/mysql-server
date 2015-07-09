@@ -317,6 +317,7 @@ SET(SERVER_TESTS
   insert_delayed
   item
   item_filter
+  item_func_case
   item_func_now_local
   item_timefunc
   item_like
