@@ -3899,6 +3899,16 @@ my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec)
   return res;
 }
 
+
+bool Item_func_rollup_const::val_json(Json_wrapper *result)
+{
+  DBUG_ASSERT(fixed == 1);
+  bool res= args[0]->val_json(result);
+  null_value= args[0]->null_value;
+  return res;
+}
+
+
 longlong Item_func_length::val_int()
 {
   DBUG_ASSERT(fixed == 1);

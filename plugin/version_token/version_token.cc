@@ -46,6 +46,8 @@ struct version_token_st {
 };
 
 
+#define VTOKEN_LOCKS_NAMESPACE "version_token_locks"
+
 static HASH version_tokens_hash;
 
 static MYSQL_THDVAR_ULONG(session_number,
@@ -171,18 +173,18 @@ PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
 PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
 					  char *null_value, char *error);
-PLUGIN_EXPORT my_bool vtoken_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                 char *message);
-PLUGIN_EXPORT long long vtoken_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                              char *is_null, char *error);
-PLUGIN_EXPORT my_bool vtoken_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                  char *message);
-PLUGIN_EXPORT long long vtoken_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                               char *is_null, char *error);
-PLUGIN_EXPORT my_bool vtoken_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                char *message);
-PLUGIN_EXPORT long long vtoken_release_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                             char *is_null, char *error);
+PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message);
+PLUGIN_EXPORT long long version_tokens_lock_shared(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
+PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message);
+PLUGIN_EXPORT long long version_tokens_lock_exclusive(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
+PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message);
+PLUGIN_EXPORT long long version_tokens_unlock(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
 
 enum command {
   SET_VTOKEN= 0,
@@ -337,7 +339,7 @@ static int parse_vtokens(char *input, enum command type)
       {
 	version_token_st *token_obj;
         char error_str[MYSQL_ERRMSG_SIZE];
-        if (!mysql_acquire_locking_service_locks(NULL, "version_token_locks",
+        if (!mysql_acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
 	                                         (const char **) &(token_name.str), 1,
 					         LOCKING_SERVICE_READ, 1) && !vtokens_unchanged)
 	{
@@ -445,7 +447,7 @@ static void version_token_check(MYSQL_THD thd,
     }
     case MYSQL_AUDIT_GENERAL_STATUS:
     {
-      mysql_release_locking_service_locks(NULL, "version_token_locks");
+      mysql_release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
       break;
     }
     default:
@@ -519,7 +521,7 @@ mysql_declare_plugin(version_tokens)
   PLUGIN_LICENSE_GPL,
   version_tokens_init,               /* init function (when loaded)     */
   version_tokens_deinit,             /* deinit function (when unloaded) */
-  0x0100,                            /* version          */
+  0x0101,                            /* version          */
   NULL,                              /* status variables */
   system_variables,                  /* system variables */
   NULL,
@@ -945,45 +947,61 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
   return FALSE;
 }
 
-PLUGIN_EXPORT my_bool vtoken_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                 char *message)
+PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-PLUGIN_EXPORT long long vtoken_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                              char *is_null, char *error)
+PLUGIN_EXPORT long long version_tokens_lock_shared(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
+
+  if (timeout < 0 || timeout > LONG_MAX)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
+             "version_tokens_lock_shared");
+    *error= 1;
+  }
+
   // For the UDF 1 == success, 0 == failure.
-  return !acquire_locking_service_locks(NULL, "version_token_locks",
+  return !acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
                                         const_cast<const char**>(&args->args[0]),
 					args->arg_count - 1,
-					LOCKING_SERVICE_READ, timeout);
+					LOCKING_SERVICE_READ, (unsigned long) timeout);
 }
 
 
-PLUGIN_EXPORT my_bool vtoken_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                  char *message)
+PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-PLUGIN_EXPORT long long vtoken_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                               char *is_null, char *error)
+PLUGIN_EXPORT long long version_tokens_lock_exclusive(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
+
+  if (timeout < 0 || timeout > LONG_MAX)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
+             "version_tokens_lock_exclusive");
+    *error= 1;
+  }
+
   // For the UDF 1 == success, 0 == failure.
-  return !acquire_locking_service_locks(NULL, "version_token_locks",
+  return !acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
                                         const_cast<const char**>(&args->args[0]),
 					args->arg_count - 1,
-					LOCKING_SERVICE_WRITE, timeout);
+					LOCKING_SERVICE_WRITE, (unsigned long) timeout);
 }
 
-PLUGIN_EXPORT my_bool vtoken_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                char *message)
+PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   THD *thd= current_thd;
 
@@ -1003,11 +1021,11 @@ PLUGIN_EXPORT my_bool vtoken_release_locks_init(UDF_INIT *initid, UDF_ARGS *args
 }
 
 
-long long vtoken_release_locks(UDF_INIT *initid, UDF_ARGS *args,
+long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
                                              char *is_null, char *error)
 {
   // For the UDF 1 == success, 0 == failure.
-  return !release_locking_service_locks(NULL, "version_token_locks");
+  return !release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
 }
 
 

@@ -159,8 +159,20 @@ static
 int execute_command(const Sql_string_t &command,
                     const Sql_string_t &error_message)
 {
-  info << "Executing : " << command << endl;
-  if (system(command.c_str()))
+  stringstream cmd_string;
+
+  cmd_string << command;
+  if (!opt_verbose)
+  {
+#ifndef _WIN32
+    cmd_string << " > /dev/null 2>&1";
+#else
+    cmd_string << " > NUL 2>&1";
+#endif /* _WIN32 */
+  }
+
+  info << "Executing : " << cmd_string.str() << endl;
+  if (system(cmd_string.str().c_str()))
   {
     error << error_message << endl;
     return 1;
@@ -414,6 +426,9 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
+
   defaults_argv= argv;
   my_getopt_use_args_separator= FALSE;
   my_getopt_skip_unknown= TRUE;
@@ -649,6 +664,8 @@ int main(int argc, char *argv[])
   info << "Success!" << endl;
 
 end:
+
+  umask(saved_umask);
   free_resources();
 
   DBUG_RETURN(ret_val);

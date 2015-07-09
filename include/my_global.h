@@ -691,6 +691,12 @@ static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2
 #endif
 }
 
+#ifdef _WIN32
+typedef int MY_MODE;
+#else
+typedef mode_t MY_MODE;
+#endif /* _WIN32 */
+
 /* File permissions */
 #define USER_READ       (1L << 0)
 #define USER_WRITE      (1L << 1)

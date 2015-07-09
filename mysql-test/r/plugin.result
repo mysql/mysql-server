@@ -44,9 +44,11 @@ EXAMPLE_STATUS_VAR5	OFF
 EXAMPLE_STATUS_VAR6	8250
 show variables like 'example%';
 Variable_name	Value
+example_create_count_thdvar	1
 example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
+example_last_create_thdvar	Last creation './test/t1'
 example_ulong_var	500
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN EXAMPLE;
@@ -248,3 +250,26 @@ disconnect con2;
 #
 UNINSTALL PLUGIN innodb;
 ERROR HY000: Built-in plugins cannot be deleted
+#
+# Bug #19917521: MEMORY LEAK WITH STRING THREAD VARIABLE 
+#                THAT SET MEMALLOC FLAG
+#
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SET SESSION example_create_count_thdvar = 0;
+SET SESSION example_last_create_thdvar = '';
+CREATE TABLE t10(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+@@SESSION.example_create_count_thdvar
+1
+SELECT @@SESSION.example_last_create_thdvar;
+@@SESSION.example_last_create_thdvar
+Last creation './test/t10'
+CREATE TABLE t20(a INT) ENGINE=EXAMPLE;
+SELECT @@SESSION.example_create_count_thdvar;
+@@SESSION.example_create_count_thdvar
+2
+SELECT @@SESSION.example_last_create_thdvar;
+@@SESSION.example_last_create_thdvar
+Last creation './test/t20'
+DROP TABLE t10, t20;
+UNINSTALL PLUGIN example;

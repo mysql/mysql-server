@@ -23,3 +23,10 @@
 # CN of Server certificate should be MySQL_Server_.*_Auto_Generated_Server_Certificate
 # CN of Client certificate should be MySQL_Server_.*_Auto_Generated_Client_Certificate
 # Global Cleanup
+#
+# Bug#21025377: CAN'T CONNECT TO SSL ENABLED SERVER FIRST 30 SEC AFTER
+# INITIAL STARTUP
+#
+# Restart the server
+# Restart completed.
+No ssl errors found after running mysql server with newely created certs.

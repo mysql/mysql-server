@@ -12,6 +12,16 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Patch notes, version 2.3.7d (6/22/2015)
+    This release of yaSSL includes a fix for input_buffer set_current with
+    index 0.  SSL_peek() at front of waiting data could trigger.  Robert
+    Golebiowski of Oracle identified and suggested a fix, thanks!
+
+yaSSL Patch notes, version 2.3.7c (6/12/2015)
+    This release of yaSSL does certificate DATE comparisons to the second
+    instead of to the minute, helpful when using freshly generated certs.
+    Though keep in mind that time sync differences could still show up.
+
 yaSSL Patch notes, version 2.3.7b (3/18/2015)
     This release of yaSSL fixes a potential crash with corrupted private keys.
     Also detects bad keys earlier for user.

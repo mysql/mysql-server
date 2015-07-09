@@ -3527,6 +3527,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   File_IO *x509_ca_key_file_istream= NULL;
   File_IO *x509_ca_cert_file_istream= NULL;
   X509_gen x509_gen;
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   x509_key_file_ostream= filecr(key_filename);
 
@@ -3658,6 +3660,8 @@ end:
     X509_free(x509);
   if (ca_x509)
     X509_free(ca_x509);
+
+  umask(saved_umask);
   return ret_val;
 }
 
@@ -3688,6 +3692,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
   bool ret_val= true;
   File_IO * priv_key_file_ostream= NULL;
   File_IO * pub_key_file_ostream= NULL;
+  MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
+  MY_MODE saved_umask= umask(~(file_creation_mode));
 
   DBUG_ASSERT(priv_key_filename.size() && pub_key_filename.size());
 
@@ -3753,6 +3759,8 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
 end:
   if (rsa)
     RSA_free(rsa);
+
+  umask(saved_umask);
   return ret_val;
 }
 

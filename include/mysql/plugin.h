@@ -457,6 +457,10 @@ DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
 #define THDVAR(thd, name) \
   (*(MYSQL_SYSVAR_NAME(name).resolve(thd, MYSQL_SYSVAR_NAME(name).offset)))
 
+#define THDVAR_SET(thd, name, value) \
+  plugin_thdvar_safe_update(thd, MYSQL_SYSVAR(name), \
+                            (char **) &THDVAR(thd, name), \
+                            (const char *) value);
 
 /*
   Plugin description structure.

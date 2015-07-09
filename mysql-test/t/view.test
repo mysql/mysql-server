@@ -5744,3 +5744,28 @@ INSERT INTO v1(z) VALUES(1);
 
 DROP VIEW  v1;
 DROP TABLE t1;
+
+--echo # Bug#21277074: crash (segfault) in THD::change_item_tree on exec of prep
+
+CREATE TABLE t (i INTEGER);
+
+PREPARE s1 FROM
+  "SELECT (SELECT MAX(i)) AS field1
+   FROM (SELECT * FROM t) AS table1"
+;
+
+EXECUTE s1;
+
+CREATE VIEW v AS SELECT * FROM t;
+
+PREPARE s2 FROM
+  "SELECT (SELECT MAX(i)) AS field1
+   FROM v AS table1"
+;
+
+EXECUTE s2;
+
+DEALLOCATE PREPARE s1;
+DEALLOCATE PREPARE s2;
+DROP VIEW v;
+DROP TABLE t;

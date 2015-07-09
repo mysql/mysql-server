@@ -274,6 +274,7 @@ typedef struct st_grant_internal_info GRANT_INTERNAL_INFO;
  */
 struct GRANT_INFO
 {
+  GRANT_INFO();
   /**
      @brief A copy of the privilege information regarding the current host,
      database, object and user.

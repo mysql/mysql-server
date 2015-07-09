@@ -68,6 +68,12 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-
 # Run default suites with innodb_undo_tablespace set to > 0
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-innodb-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
 
+# Run innodb suites with innodb_undo_table_spaces >0  and different pagesizes
+perl mysql-test-run.pl --timer  --force --big-test --parallel=auto --comment=innodb_undo_3_4k --vardir=var-innodb-undo-3-4k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb-page-size=4k 
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_32_8k --vardir=var-innodb-undo-32-8k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=32 --mysqld=--innodb-page-size=8k
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_16_32k --vardir=var-innodb-undo-16-32k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=16 --mysqld=--innodb-page-size=32k
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo_8_64k --vardir=var-innodb-undo-8-64k --experimental=collections/default.experimental --suite=innodb_undo,innodb_zip,innodb --mysqld=--innodb_undo_tablespaces=8 --mysqld=--innodb-page-size=64k
+
 # Additional run to test rpl HASH_SCAN & INDEX_SCAN
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --skip-test-list=collection/disabled-weekly.list
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl,binlog  -mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --skip-test-list=collection/disabled-weekly.list

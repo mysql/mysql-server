@@ -6333,3 +6333,11 @@ SELECT ST_IsValid(
                                    '((-2.6035109435630504 -13.058121512403435,26.839412016794036 43.97610638055074, '
                                      '26.974733141577826 43.72289807427111,26.97470368529088 43.722907009738066, '
                                      '-2.6035109435630504 -13.058121512403435)))'));
+
+--echo # BUG#21383714: Assertion failed: !thd->is_error() in select_lex::prepare
+
+CREATE TABLE t(a INTEGER);
+--error ER_WRONG_ARGUMENTS
+SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
+DROP TABLE t;
+

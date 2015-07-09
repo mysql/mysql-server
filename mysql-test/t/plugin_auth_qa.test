@@ -15,7 +15,7 @@ CREATE USER plug IDENTIFIED WITH test_plugin_server;
 --sorted_result
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server;
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server BY '123';
 --sorted_result
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
@@ -25,7 +25,7 @@ CREATE USER plug IDENTIFIED WITH 'test_plugin_server';
 --sorted_result
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 DROP USER plug;
-GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
+GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' BY '123';
 --sorted_result
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
@@ -35,11 +35,8 @@ CREATE USER plug IDENTIFIED WITH test_plugin_server AS '';
 --sorted_result
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 DROP USER plug;
+--error 1133
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS '';
---sorted_result
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
-REVOKE ALL PRIVILEGES ON test_user_db.* FROM plug;
-DROP USER plug;
 # with '', AS part empty without ''
 --error ER_PARSE_ERROR
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS ;

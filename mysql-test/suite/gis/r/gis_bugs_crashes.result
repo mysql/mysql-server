@@ -6502,3 +6502,8 @@ ST_GeomFromText('MULTIPOLYGON(((-40.314872143936725 -85.6567579487603,-53.147364
                                    '-41.29168745244485 -90.56754012573627,-40.314872143936725 -85.6567579487603)), '
                 
 1
+# BUG#21383714: Assertion failed: !thd->is_error() in select_lex::prepare
+CREATE TABLE t(a INTEGER);
+SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
+ERROR HY000: Incorrect arguments to min(
+DROP TABLE t;

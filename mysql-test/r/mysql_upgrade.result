@@ -1622,8 +1622,8 @@ mysql.user                                         OK
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 sys.sys_config                                     OK
-test.t1
-error    : Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+test.t1                                            To be repaired, cause follows:
+Server issued error    : Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 
 Repairing tables
 test.t1
