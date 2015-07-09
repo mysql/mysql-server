@@ -3065,9 +3065,11 @@ SET @cmd='CREATE TABLE ndbinfo.ndb$frag_operations (
     "Total number of fragment scans queued before exec",
   conc_frag_scans INT UNSIGNED COMMENT "Number of frag scans currently running",
   conc_qd_plain_frag_scans INT UNSIGNED COMMENT
-    "Number of non-tup frag scans currently queued",
+    "Number of tux frag scans currently queued",
   conc_qd_tup_frag_scans INT UNSIGNED COMMENT
     "Number of tup frag scans currently queued",
+  conc_qd_acc_frag_scans INT UNSIGNED COMMENT
+    "Number of acc frag scans currently queued",
   tot_commits BIGINT UNSIGNED COMMENT "Total number of committed row changes")
 COMMENT="Per fragment operational information" ENGINE=NDBINFO;';
 
@@ -3307,7 +3309,8 @@ SET @cmd='CREATE OR REPLACE DEFINER=`root`@`localhost`
     tot_scan_rows_returned, tot_scan_bytes_returned, tot_scan_prog_bytes, 
     tot_scan_bound_bytes, tot_scan_inst_exec, tot_qd_frag_scans, 
     conc_frag_scans,
-    conc_qd_plain_frag_scans+conc_qd_tup_frag_scans AS conc_qd_frag_scans, 
+    conc_qd_plain_frag_scans+conc_qd_tup_frag_scans+conc_qd_acc_frag_scans
+    AS conc_qd_frag_scans, 
     tot_commits 
     FROM ndbinfo.ndb$frag_operations AS ops 
     JOIN ndbinfo.ndb$dict_obj_info AS name 

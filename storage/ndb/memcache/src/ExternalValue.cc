@@ -31,6 +31,7 @@
 #include "ExpireTime.h"
 #include "ExternalValue.h"
 #include "TabSeparatedValues.h"
+#include "ndb_error_logger.h"
 
 /* Externs */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -152,7 +153,7 @@ op_status_t ExternalValue::do_write(workitem *item) {
 op_status_t ExternalValue::do_read_header(workitem *item,
                                           ndb_async_callback the_callback,
                                           worker_step the_next_step) {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
   Operation op(item->plan, OP_READ);
   op.key_buffer = item->ndb_key_buffer;
   
@@ -170,10 +171,11 @@ op_status_t ExternalValue::do_read_header(workitem *item,
   
   NdbTransaction *tx = op.startTransaction(item->ndb_instance->db);
   if(! tx) {
+    log_ndb_error(item->ndb_instance->db->getNdbError());
     return op_failed;
   }
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
-    logger->log(LOG_WARNING, 0, "readTuple(): %s\n", tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     tx->close();
     return op_failed;
   }
@@ -185,7 +187,7 @@ op_status_t ExternalValue::do_read_header(workitem *item,
 
 
 void ExternalValue::append_after_read(NdbTransaction *tx, workitem *item) {
-  DEBUG_PRINT(" %d.%d", item->pipeline->id, item->id);
+  DEBUG_PRINT_DETAIL(" %d.%d", item->pipeline->id, item->id);
   
   char * inline_val = 0;
   size_t current_len = 0;
@@ -262,6 +264,7 @@ ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
   value_size_in_header(item->plan->row_record->value_length),
   stored_cas(0)
 {
+  DEBUG_ENTER();
   do_server_cas = (item->prefix_info.has_cas_col && item->cas);
   wqitem->ext_val = this;
   pool = pipeline_create_memory_pool(wqitem->pipeline);
@@ -270,7 +273,7 @@ ExternalValue::ExternalValue(workitem *item, NdbTransaction *t) :
 
 /* Destructor */
 ExternalValue::~ExternalValue() {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
   memory_pool_free(pool);
   memory_pool_destroy(pool);
   wqitem->ext_val = 0;
@@ -323,7 +326,7 @@ bool ExternalValue::Spec::readFromHeader(Operation &op) {
     return false;
   
   setLength(op.getIntValue(COL_STORE_EXT_SIZE));
-  DEBUG_PRINT("%llu/%lu (%d parts of size %lu)", id, length, nparts, part_size);
+  DEBUG_PRINT_DETAIL("%llu/%lu (%d parts of size %lu)", id, length, nparts, part_size);
   return true;
 }
 
@@ -363,7 +366,7 @@ void ExternalValue::insert_after_header_read() {
   if(r)
     finalize_write();
   else {
-    DEBUG_PRINT("%s", tx->getNdbError().message);
+    log_ndb_error(tx->getNdbError());
     wqitem->status = & status_block_misc_error;
     worker_commit(tx, wqitem);
   }
@@ -372,7 +375,7 @@ void ExternalValue::insert_after_header_read() {
 
 void ExternalValue::update_after_header_read() {
   /* Read the length, id, and stored cas from the header row */
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
   Operation read_op(wqitem->plan, OP_READ);
   read_op.buffer = wqitem->row_buffer_1;
   old_hdr.readFromHeader(read_op);
@@ -597,14 +600,14 @@ void ExternalValue::setValueColumns(Operation & op) const {
   
   if(shouldExternalize(new_hdr.length)) {
     /* Long value */
-    DEBUG_PRINT("[long]");
+    DEBUG_PRINT_DETAIL(" [long]");
     op.setColumnNull(COL_STORE_VALUE);
     op.setColumnInt(COL_STORE_EXT_ID, new_hdr.id);
     op.setColumnInt(COL_STORE_EXT_SIZE, new_hdr.length);
   }
   else {
     /* Short value */
-    DEBUG_PRINT("[short]");
+    DEBUG_PRINT_DETAIL(" [short]");
     op.setColumn(COL_STORE_VALUE, value, new_hdr.length);
     op.setColumnNull(COL_STORE_EXT_SIZE);
   }
@@ -616,16 +619,14 @@ bool ExternalValue::startTransaction(Operation &op) {
     tx = op.startTransaction(wqitem->ndb_instance->db);
   }
   if(! tx) {
-    logger->log(LOG_WARNING, 0, "startTransaction(): %s %d\n", 
-                wqitem->ndb_instance->db->getNdbError().message,
-                wqitem->ndb_instance->db->getNdbError().code);
+    log_ndb_error(wqitem->ndb_instance->db->getNdbError());
   }
   return (bool) tx;
 }
   
 
 bool ExternalValue::insert() {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
 
   /* Set the id, length, and parts count */
   new_hdr.setLength(wqitem->cache_item->nbytes);
@@ -670,8 +671,8 @@ bool ExternalValue::insert() {
 
 /* Take the existing short inline value and affix the new value to it */
 void ExternalValue::affix_short(int current_len, char * current_val) {
-  DEBUG_ENTER();
-  
+  DEBUG_ENTER_DETAIL();
+
   const char * affix_val = hash_item_get_data(wqitem->cache_item);
   const size_t affix_len = wqitem->cache_item->nbytes;
   const size_t len = current_len + affix_len;
@@ -711,7 +712,7 @@ void ExternalValue::affix_short(int current_len, char * current_val) {
 
 
 void ExternalValue::prepend() {
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
   assert(wqitem->base.verb == OPERATION_PREPEND);
   /* So far: we have read the header into old_hdr via wqitem->row_buffer_1 
      and read the parts into this->value.  Now rewrite the value. */
@@ -854,7 +855,7 @@ void ExternalValue::build_hash_item() const {
 /* Callbacks and worker steps */
 
 void delete_after_header_read(NdbTransaction *tx, workitem *wqitem) {
-  DEBUG_PRINT(" %d.%d", wqitem->pipeline->id, wqitem->id);
+  DEBUG_PRINT_DETAIL(" %d.%d", wqitem->pipeline->id, wqitem->id);
   
   Operation op(wqitem->plan, OP_READ);
   op.key_buffer = wqitem->ndb_key_buffer;  // The key is already set.
@@ -875,7 +876,7 @@ void delete_after_header_read(NdbTransaction *tx, workitem *wqitem) {
 
 void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
   workitem *wqitem = (workitem *) itemptr;
-  DEBUG_PRINT(" %d.%d", wqitem->pipeline->id, wqitem->id);
+  DEBUG_PRINT_DETAIL(" %d.%d", wqitem->pipeline->id, wqitem->id);
   assert(wqitem->ext_val);
   
   if(tx->getNdbError().classification == NdbError::NoError) {
@@ -897,8 +898,11 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
   else if(tx->getNdbError().classification == NdbError::NoDataFound) {
     wqitem->ext_val->warnMissingParts();
   }
+  else {
+    log_ndb_error(tx->getNdbError());
+  }
 
-  wqitem->status = & status_block_misc_error;  
+  wqitem->status = & status_block_misc_error;
   worker_commit(tx, wqitem);
 }
  
@@ -910,7 +914,7 @@ void callback_ext_parts_read(int, NdbTransaction *tx, void *itemptr) {
 */
 void callback_ext_write(int result,  NdbTransaction *tx, void *itemptr) {
   workitem * wqitem = (workitem *) itemptr;
-  DEBUG_PRINT(" %d.%d", wqitem->pipeline->id, wqitem->id);
+  DEBUG_PRINT_DETAIL(" %d.%d", wqitem->pipeline->id, wqitem->id);
 
   assert(wqitem->ext_val == 0);
   wqitem->ext_val = new ExternalValue(wqitem, tx);

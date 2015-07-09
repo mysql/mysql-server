@@ -769,6 +769,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
      op_struct.bit_field.primary_replica= primaryReplica;
      op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+     req_struct.m_prio_a_flag = TupKeyReq::getPrioAFlag(TrequestInfo);
      req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
      regOperPtr->op_struct.op_bit_fields = op_struct.op_bit_fields;
      regOperPtr->op_type= TupKeyReq::getOperation(TrequestInfo);

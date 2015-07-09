@@ -87,8 +87,15 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
-// Foreign key data cached under handler instance
-struct Ndb_fk_data;
+// Wrapper class for list to hold NDBFKs
+class Ndb_fk_list :public List<NdbDictionary::ForeignKey>
+{
+public:
+  ~Ndb_fk_list()
+  {
+    delete_elements();
+  }
+};
 
 typedef enum ndb_write_op {
   NDB_INSERT = 0,
@@ -427,9 +434,14 @@ private:
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
                                const NdbDictionary::Table*);
+  static int get_fk_data_for_truncate(NdbDictionary::Dictionary*,
+                                      const NdbDictionary::Table*,
+                                      Ndb_fk_list&);
+  static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
+                                      Ndb_fk_list&);
   static bool drop_table_and_related(THD*, Ndb*, NdbDictionary::Dictionary*,
                                      const NdbDictionary::Table*,
-                                     int drop_flags);
+                                     int drop_flags, bool skip_related);
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
@@ -642,7 +654,7 @@ private:
   key_map btree_keys;
   static const size_t fk_root_block_size= 1024;
   MEM_ROOT m_fk_mem_root;
-  Ndb_fk_data *m_fk_data;
+  struct Ndb_fk_data *m_fk_data;
 
   /*
     Pointer to row returned from scan nextResult().

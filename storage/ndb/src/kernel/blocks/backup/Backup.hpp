@@ -341,6 +341,8 @@ public:
     Uint32 errorCode;
     BackupFormat::FileType fileType;
     OperationRecord operation;
+    Uint32 m_sent_words_in_scan_batch;
+    Uint32 m_num_scan_req_on_prioa;
     
     Array<Page32> pages;
     Uint32 nextList;
@@ -444,6 +446,8 @@ public:
     NDB_TICKS m_prev_report;
 
     Uint32 m_gsn;
+    Uint32 m_lastSignalId;
+    Uint32 m_prioA_scan_batches_to_execute;
     CompoundState slaveState; 
     
     Uint32 clientRef;
@@ -690,7 +694,7 @@ public:
   ArrayPool<TriggerRecord> c_triggerPool;
 
   void checkFile(Signal*, BackupFilePtr);
-  void checkScan(Signal*, BackupFilePtr);
+  void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
   void fragmentCompleted(Signal*, BackupFilePtr);
   
   void backupAllData(Signal* signal, BackupRecordPtr);
@@ -728,6 +732,9 @@ public:
                        TablePtr,
                        FragmentPtr,
                        Uint32 delay);
+
+  void init_scan_prio_level(Signal *signal, BackupRecordPtr ptr);
+  bool check_scan_if_raise_prio(Signal *signal, BackupRecordPtr ptr);
 
   void sendDropTrig(Signal*, BackupRecordPtr ptr);
   void sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr);

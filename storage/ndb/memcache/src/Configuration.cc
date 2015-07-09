@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -39,6 +39,7 @@
 #include "TableSpec.h"
 #include "QueryPlan.h"
 #include "Operation.h"
+#include "ndb_error_logger.h"
 
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 
@@ -335,14 +336,18 @@ bool Configuration::fetch_meta_record(QueryPlan *plan, Ndb *db,
   op.buffer     = (char *) malloc(op.requiredBuffer());
   
   NdbTransaction *tx = db->startTransaction();
-
-  op.setKeyPart(COL_STORE_KEY + 0, "ndbmemcache", strlen("ndbmemcache"));
-  op.setKeyPart(COL_STORE_KEY + 1, version, strlen(version));
-  op.readTuple(tx);
-  tx->execute(NdbTransaction::Commit);  
-  if(tx->getNdbError().classification == NdbError::NoError)
-    result = true;
-  tx->close();
+  if(tx) {
+    op.setKeyPart(COL_STORE_KEY + 0, "ndbmemcache", strlen("ndbmemcache"));
+    op.setKeyPart(COL_STORE_KEY + 1, version, strlen(version));
+    op.readTuple(tx);
+    tx->execute(NdbTransaction::Commit);
+    if(tx->getNdbError().classification == NdbError::NoError)
+      result = true;
+    tx->close();
+  }
+  else {
+    log_ndb_error(db->getNdbError());
+  }
   
   free(op.key_buffer);
   free(op.buffer);

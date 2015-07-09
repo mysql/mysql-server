@@ -384,6 +384,7 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
   const Ndbinfo::ScanCursor* cursor =
     CAST_CONSTPTR(Ndbinfo::ScanCursor, DbinfoScan::getCursorPtr(&req));
   Ndbinfo::Ratelimit rl;
+  char addr_buf[NDB_ADDR_STRLEN];
 
   jamEntry();
 
@@ -420,7 +421,13 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
           if (globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
           {
             jam();
-            row.write_string(inet_ntoa(globalTransporterRegistry.get_connect_address(rnode)));
+            struct in_addr conn_addr = globalTransporterRegistry.
+                                         get_connect_address(rnode);
+            char *addr_str = Ndb_inet_ntop(AF_INET,
+                                           static_cast<void*>(&conn_addr),
+                                           addr_buf,
+                                           (socklen_t)sizeof(addr_buf));
+            row.write_string(addr_str);
           }
           else
           {

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -39,7 +39,7 @@ const char * workitem_get_key_suffix(workitem *item) {
 bool workitem_allocate_rowbuffer_1(workitem *i, size_t buffersize) {  
   i->rowbuf1_cls = pipeline_get_size_class_id(buffersize);
   i->row_buffer_1 = pipeline_alloc(i->pipeline, i->rowbuf1_cls);
-  DEBUG_PRINT(" %d [cls %d]", buffersize, i->rowbuf1_cls);
+  DEBUG_PRINT_DETAIL(" %d [cls %d]", buffersize, i->rowbuf1_cls);
 
   return (i->row_buffer_1);
 }
@@ -47,7 +47,7 @@ bool workitem_allocate_rowbuffer_1(workitem *i, size_t buffersize) {
 bool workitem_allocate_rowbuffer_2(workitem *i, size_t buffersize) {  
   i->rowbuf2_cls = pipeline_get_size_class_id(buffersize);
   i->row_buffer_2 = pipeline_alloc(i->pipeline, i->rowbuf2_cls);
-  DEBUG_PRINT(" %d [cls %d]", buffersize, i->rowbuf2_cls);
+  DEBUG_PRINT_DETAIL(" %d [cls %d]", buffersize, i->rowbuf2_cls);
   
   return (i->row_buffer_2);
 }
