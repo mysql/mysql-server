@@ -474,10 +474,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       /*
         If NO_AUTO_CREATE_USER SQL mode is set and GRANT is not specified
-        with authentication information then report error
+        with authentication information or the authentication_string
+        is empty then report error
       */
       if ((thd->variables.sql_mode & MODE_NO_AUTO_CREATE_USER) &&
-          (what_to_replace & DEFAULT_AUTH_ATTR))
+          ((what_to_replace & DEFAULT_AUTH_ATTR) || !combo->auth.length))
       {
         my_error(ER_PASSWORD_NO_MATCH, MYF(0), combo->user.str, combo->host.str);
         goto end;

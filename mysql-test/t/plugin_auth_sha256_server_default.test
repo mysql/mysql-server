@@ -16,8 +16,8 @@ connection default;
 disconnect con1;
 DROP USER 'kristofer';
 
-GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
-GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
+GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password' BY '123';
 ALTER USER 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 ALTER USER 'kristofer2'@'localhost' IDENTIFIED BY 'secret2';
 connect(con2,localhost,kristofer,secret2,,);
