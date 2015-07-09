@@ -3782,6 +3782,11 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
                        sctx->ip().str : "(NULL)"),
                        (priv_user.str ? priv_user.str : "(NULL)"),
                        db, table));
+  /*
+    This function is not intended for derived tables which doesn't have a 
+    name. If this happens something is wrong.
+  */
+  DBUG_ASSERT(table != 0);
   /* --skip-grants */
   if (!initialized)
   {

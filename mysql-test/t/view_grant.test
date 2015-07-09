@@ -2951,6 +2951,16 @@ SHOW WARNINGS;
 --error ER_VIEW_INVALID
 UPDATE IGNORE test1.v1_all SET cn='x';
 SHOW WARNINGS;
+
+--echo
+--echo # Bug21338077 HANDLE_FATAL_SIGNAL (SIG=11) IN __STPCPY_SSE2_UNALIGNED FROM MY_STPCPY
+--echo
+CREATE VIEW v1 AS SELECT 1 FROM (SELECT 1) AS d1;
+PREPARE stmt FROM 'SELECT * FROM v1';
+EXECUTE stmt;
+DROP PREPARE stmt;
+DROP VIEW v1;
+
 --connection default
 disconnect con1;
 DROP USER 'user1'@'localhost';

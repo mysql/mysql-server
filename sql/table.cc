@@ -221,6 +221,15 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 
 /*************************************************************************/
 
+GRANT_INFO::GRANT_INFO()
+{
+  grant_table= 0;
+  version= 0;
+  privilege= NO_ACCESS;
+  want_privilege= 0;
+}
+
+
 /* Get column name from column hash */
 
 static uchar *get_field_name(Field **buff, size_t *length,
@@ -5372,10 +5381,16 @@ bool TABLE_LIST::prepare_security(THD *thd)
   {
     DBUG_ASSERT(tbl->referencing_view);
     const char *local_db, *local_table_name;
-    if (tbl->view)
+    if (tbl->is_view())
     {
       local_db= tbl->view_db.str;
       local_table_name= tbl->view_name.str;
+    }
+    else if (tbl->is_derived())
+    {
+      /* Initialize privileges for derived tables */
+      tbl->grant.privilege= SELECT_ACL;
+      continue;
     }
     else
     {
