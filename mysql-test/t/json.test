@@ -5651,6 +5651,15 @@ SELECT JSON_CONTAINS('[]', '{"a" : [1, 2, 3, 4, 5]}');
 SELECT JSON_CONTAINS('[]', '[]');
 
 --echo #
+--echo # Bug#21376088 JSON: CRASH IN VAL_JSON_FUNC_FIELD_SUBSELECT
+--echo #
+create table t(a json);
+insert into t values('{}');
+select a from t where (select a from t where 1) in (select 1 from t); # repro
+select a from t where (select a from t where 1) in (select cast('{}' as json) from t);
+drop table t;
+
+--echo #
 --echo # Bug#21054516:QUERY HAVING SQL_BIG_RESULT ON JSON DATA GIVES EXTRA
 --echo #              ROWS IN OUTPUT
 --echo #

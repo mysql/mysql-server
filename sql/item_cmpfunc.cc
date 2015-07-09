@@ -1123,10 +1123,11 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   a= a1;
   b= a2;
 
-  if (((*a)->result_type() == STRING_RESULT &&
-       (*a)->field_type() == MYSQL_TYPE_JSON) ||
-      ((*b)->result_type() == STRING_RESULT &&
-       (*b)->field_type() == MYSQL_TYPE_JSON))
+  if (type != ROW_RESULT &&
+      (((*a)->result_type() == STRING_RESULT &&
+        (*a)->field_type() == MYSQL_TYPE_JSON) ||
+       ((*b)->result_type() == STRING_RESULT &&
+        (*b)->field_type() == MYSQL_TYPE_JSON)))
   {
     // Use the JSON comparator if at least one of the arguments is JSON.
     is_nulls_eq= is_owner_equal_func();
