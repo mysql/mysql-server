@@ -20358,6 +20358,113 @@ static void test_bug21293012()
   myquery(mysql_query(mysql, "DROP TABLE t1"));
 }
 
+static void test_bug21199582()
+{
+  int rc= 0;
+  int recCnt[]={3,4,1};
+  int i= 0;
+	char query[512]={0};
+	MYSQL_BIND in_param_bind;
+  MYSQL_BIND out_param_bind2;
+  int in_data= 0;
+  char cout_data[100]={0};
+  int rows_number= 0;
+  int num_fields= 0;
+  MYSQL_RES *result = NULL;
+  MYSQL_STMT *stmt;
+  unsigned long cur_type= CURSOR_TYPE_READ_ONLY;
+  int iLoop= 0;
+
+  myheader("test_bug21199582");
+
+  for (; i < 2; ++i)
+  {
+    iLoop= 0;
+
+    myquery(mysql_query(mysql, "drop procedure if exists p3"));
+    myquery(mysql_query(mysql, "drop table if exists abcd"));
+    myquery(mysql_query(mysql, "create table abcd(id int,c char(4))"));
+    myquery(mysql_query(mysql, "insert into abcd values(1,'a'),(2,'b'),(3,'c')"));
+
+    if(i)
+    {
+      sprintf(query,"create procedure p3(INOUT p1 Integer) BEGIN select c from abcd;insert into abcd values(4,'d');"
+      "select id from abcd;SET NAMES 'utf8';set autocommit = ON;SET p1 = 9999;END");
+    }
+    else
+    {
+      sprintf(query,"create procedure p3(INOUT p1 Integer) BEGIN select id from abcd;insert into abcd values(4,'d');"
+      "select id from abcd;SET NAMES 'utf8';set autocommit = ON;SET p1 = 9999;END");
+    }
+
+    rc = mysql_query(mysql, query);
+    DIE_UNLESS(rc == 0);
+
+    stmt= mysql_stmt_init(mysql);
+    DIE_UNLESS(stmt);
+
+    rc = mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void*) &cur_type);
+    DIE_UNLESS(rc == 0);
+
+    sprintf(query,"call p3(?)");
+    rc = mysql_stmt_prepare(stmt, query, strlen(query));
+    DIE_UNLESS(rc == 0);
+
+    memset(&in_param_bind,0,sizeof(in_param_bind));
+    memset(&out_param_bind2,0,sizeof(out_param_bind2));
+    in_data= 0;
+    in_param_bind.buffer_type= MYSQL_TYPE_LONG;
+    in_param_bind.buffer= (char *) &in_data;
+    in_param_bind.length= 0;
+    in_param_bind.is_null= 0;
+
+    out_param_bind2.buffer_type= MYSQL_TYPE_STRING;
+    out_param_bind2.buffer= (char *) cout_data;
+    out_param_bind2.length= 0;
+    out_param_bind2.is_null= 0;
+    out_param_bind2.buffer_length= (ulong)sizeof(cout_data);
+
+    rc= mysql_stmt_bind_param(stmt, &in_param_bind);
+    check_execute(stmt, rc);
+
+    rc= mysql_stmt_execute(stmt);
+    check_execute(stmt, rc);
+
+    rows_number= 0;
+
+    do
+    {
+      num_fields = mysql_stmt_field_count(stmt);
+
+      if(num_fields > 0)
+      {
+        memset(cout_data,0,sizeof(cout_data));
+        result = mysql_stmt_result_metadata(stmt);
+        if(result)
+        {
+          rows_number= mysql_stmt_num_rows(stmt);
+          DIE_UNLESS(rows_number == recCnt[iLoop]);
+
+          rc= mysql_stmt_bind_result(stmt, &out_param_bind2);
+          check_execute(stmt, rc);
+
+          while (!mysql_stmt_fetch(stmt));
+
+          mysql_free_result(result);
+        }
+      }
+      rc= mysql_stmt_next_result(stmt);
+      ++iLoop;
+    }
+    while(rc==0);
+
+    rc= mysql_stmt_free_result(stmt);
+    DIE_UNLESS(rc == 0);
+
+    mysql_stmt_close(stmt);
+  }
+}
+
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -20643,6 +20750,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20444737", test_bug20444737},
   { "test_bug21104470", test_bug21104470 },
   { "test_bug21293012", test_bug21293012 },
+  { "test_bug21199582", test_bug21199582 },
   { 0, 0 }
 };
 
