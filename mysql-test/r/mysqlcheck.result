@@ -416,8 +416,8 @@ test.bug47205
 error    : Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
 
 Repairing tables
-bug47205
-Running  : ALTER TABLE `bug47205` FORCE
+`test`.`bug47205`
+Running  : ALTER TABLE `test`.`bug47205` FORCE
 status   : OK
 # Table should now be ok
 CHECK TABLE bug47205 FOR UPGRADE;
@@ -457,5 +457,24 @@ CREATE USER 'user_with_length_32_abcdefghijkl'@'localhost';
 GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
 mysql.user                                         OK
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+#
+# Bug#20868496: MYSQL_UPGRADE IN 5.7.7+ REPAIR LOOKS USER TABLES
+#               IN TEST WHEN LOAD FROM 50/51/55
+#
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 (a INT) ENGINE=MYISAM;
+CREATE TABLE db2.t2 (a INT);
+db1.t1
+Error    : Incorrect file format 't1'
+error    : Corrupt
+db2.t2                                             OK
+
+Repairing tables
+db1.t1
+Error    : Incorrect file format 't1'
+error    : Corrupt
+DROP DATABASE db1;
+DROP DATABASE db2;
 
 End of tests
