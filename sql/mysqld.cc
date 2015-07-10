@@ -1496,7 +1496,10 @@ void clean_up(bool print_message)
   delete_optimizer_cost_module();
   ha_end();
   if (tc_log)
+  {
     tc_log->close();
+    tc_log= NULL;
+  }
   delegates_destroy();
   transaction_cache_free();
   table_def_free();
@@ -8663,6 +8666,7 @@ PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
 PSI_thread_key key_thread_timer_notifier;
+PSI_thread_key key_thread_background;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
@@ -8680,7 +8684,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_one_connection, "one_connection", 0},
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
-  { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL}
+  { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
+  { &key_thread_background, "background", PSI_FLAG_GLOBAL}
 };
 #endif // !EMBEDDED_LIBRARY
 

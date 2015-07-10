@@ -961,7 +961,7 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type)
   {
     Item_field *field= new Item_field(fld);
     // Mark field for read
-    bitmap_set_bit(fld->table->read_set, fld->field_index);
+    fld->table->mark_column_used(fld->table->in_use, fld, MARK_COLUMNS_READ);
     return field;
   }
   return NULL;

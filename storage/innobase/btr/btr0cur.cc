@@ -4815,6 +4815,8 @@ btr_cur_del_mark_set_clust_rec(
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	que_thr_t*	thr,	/*!< in: query thread */
+	const dtuple_t*	entry,	/*!< in: dtuple for the deleting record, also
+				contains the virtual cols if there are any */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	roll_ptr_t	roll_ptr;
@@ -4844,7 +4846,7 @@ btr_cur_del_mark_set_clust_rec(
 	}
 
 	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
-					    index, NULL, NULL, 0, rec, offsets,
+					    index, entry, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
@@ -4878,7 +4880,7 @@ btr_cur_del_mark_set_clust_rec(
 			      rec_printer(rec, offsets).str().c_str()));
 
 	if (dict_index_is_online_ddl(index)) {
-		row_log_table_delete(rec, index, offsets, NULL);
+		row_log_table_delete(rec, entry, index, offsets, NULL);
 	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
@@ -6413,7 +6415,7 @@ btr_cur_disown_inherited_fields(
 
 	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
 		if (rec_offs_nth_extern(offsets, i)
-		    && !upd_get_field_by_field_no(update, i)) {
+		    && !upd_get_field_by_field_no(update, i, false)) {
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
 		}

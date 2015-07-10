@@ -51,13 +51,13 @@ void thd_release_resources(THD *thd)
   Delete the THD object.
 
   @param    THD   pointer to THD object.
-*/
 
 void destroy_thd(THD *thd)
 {
   delete thd;
 }
 
+*/
 
 /**
   Get reference to scheduler data object
@@ -157,12 +157,12 @@ void thd_clear_errors(THD *thd)
 
   @param thd              Thread object
   @param stack_start      Start of stack to set in THD object
-*/
 
 void thd_set_thread_stack(THD *thd, char *stack_start)
 {
   thd->thread_stack= stack_start;
 }
+*/
 
 
 /**

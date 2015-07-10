@@ -114,7 +114,7 @@ Database: information_schema
 | INNODB_TRX                            |
 | INNODB_SYS_DATAFILES                  |
 | INNODB_FT_CONFIG                      |
-| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_VIRTUAL                    |
 | INNODB_CMP                            |
 | INNODB_FT_BEING_DELETED               |
 | INNODB_CMP_RESET                      |
@@ -139,6 +139,7 @@ Database: information_schema
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_TABLESTATS                 |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -179,7 +180,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_TRX                            |
 | INNODB_SYS_DATAFILES                  |
 | INNODB_FT_CONFIG                      |
-| INNODB_SYS_TABLESTATS                 |
+| INNODB_SYS_VIRTUAL                    |
 | INNODB_CMP                            |
 | INNODB_FT_BEING_DELETED               |
 | INNODB_CMP_RESET                      |
@@ -204,6 +205,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
+| INNODB_SYS_TABLESTATS                 |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

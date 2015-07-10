@@ -217,6 +217,7 @@ SET(SQL_SHARED_SOURCES
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
+  sql_thd_internal_api.cc
   sql_thd_api.cc
   sql_time.cc
   sql_timer.cc

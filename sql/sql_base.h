@@ -205,6 +205,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 			   const char *table_name,
                            bool add_to_temporary_tables_list,
                            bool open_in_engine);
+TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list,

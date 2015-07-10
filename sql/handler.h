@@ -323,6 +323,10 @@ enum enum_alter_inplace_result {
 */
 #define HA_GENERATED_COLUMNS            (1LL << 46)
 
+/**
+  Supports index on virtual generated column
+*/
+#define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -3529,6 +3533,29 @@ public:
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+
+  /**
+    Callback function that will be called by my_prepare_gcolumn_template
+    once the table has been opened.
+  */
+  typedef void (*my_gcolumn_template_callback_t)(const TABLE*, void*);
+  static bool my_prepare_gcolumn_template(THD *thd,
+                                          const char *db_name,
+                                          const char *table_name,
+                                          my_gcolumn_template_callback_t myc,
+                                          void *ib_table);
+  static bool my_eval_gcolumn_expr(THD *thd,
+                                   bool open_in_engine,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   ulonglong fields,
+                                   uchar *record);
+  static bool my_eval_gcolumn_expr(THD *thd,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   ulonglong fields,
+                                   uchar *record);
+
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler()
   { return NULL; }

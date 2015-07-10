@@ -48,10 +48,11 @@ btr_search_sys_resize(ulint hash_size);
 void
 btr_search_sys_free();
 
-/** Disable the adaptive hash search system and empty the index. */
+/** Disable the adaptive hash search system and empty the index.
+@param  need_mutex      need to acquire dict_sys->mutex */
 void
-btr_search_disable();
-
+btr_search_disable(
+	bool	need_mutex);
 /** Enable the adaptive hash search system. */
 void
 btr_search_enable();

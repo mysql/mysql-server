@@ -488,11 +488,15 @@ public:
   LEX_STRING expr_str;
   /* It's used to free the items created in parsing generated expression */
   Item *item_free_list;
-  List<Field> base_columns_list;
-  Generated_column() 
-  : expr_item(0), item_free_list(0),
-    field_type(MYSQL_TYPE_LONG),
-    stored_in_db(FALSE)
+  /*
+    A list of all stored (non-generated and stored generated) columns which a
+    generated column depends on. It is used by storage engines.
+  */
+  List<Field> base_columns;
+
+  Generated_column()
+    : expr_item(0), item_free_list(0), base_columns(),
+    field_type(MYSQL_TYPE_LONG), stored_in_db(false)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -516,6 +520,8 @@ public:
   {
     stored_in_db= stored;
   }
+  bool register_base_columns(TABLE *table);
+
 private:
   /*
     The following data is only updated by the parser and read
@@ -651,7 +657,11 @@ public:
 
    */
   bool is_created_from_null_item;
-
+  /**
+     True if this field belongs to some index (unlike part_of_key, the index
+     might have only a prefix).
+  */
+  bool m_indexed;
 private:
   enum enum_pushed_warnings
   {
@@ -676,6 +686,8 @@ public:
     As of now, FALSE can only be set for virtual generated columns.
   */
   bool stored_in_db;
+  bool is_gcol() const { return gcol_info; }
+  bool is_virtual_gcol() const { return gcol_info && !stored_in_db; }
 
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
@@ -3595,6 +3607,21 @@ protected:
   */
   String value;
 
+private:
+  /**
+    In order to support update virtual generated columns of blob type,
+    we need to allocate the space blob needs on server for old_row and
+    new_row respectively. This variable is used to record the
+    allocated blob space for old_row.
+  */
+  String old_value;
+  /**
+    Mark if we should copy the content of 'value' to 'old_value'
+    before doing the update. This is used to support update of
+    indexes on virtual generated columns of blob type.
+  */
+  bool keep_old_value;
+protected:
   /**
     Store ptr and length.
   */
@@ -3612,14 +3639,14 @@ public:
              const CHARSET_INFO *cs)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
-    packlength(4)
+    packlength(4), keep_old_value(false)
   {
     flags|= BLOB_FLAG;
   }
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
 	     const CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, cs)
+                   NONE, field_name_arg, cs), keep_old_value(false)
   {
     flags|= BLOB_FLAG;
     packlength= 4;
@@ -3632,6 +3659,7 @@ public:
     }
   }
   explicit Field_blob(uint32 packlength_arg);
+  ~Field_blob() { mem_free(); }
 
   /* Note that the default copy constructor is used, in clone() */
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
@@ -3679,7 +3707,11 @@ public:
     memset(ptr, 0, packlength+sizeof(uchar*));
     return TYPE_OK;
   }
-  void reset_fields() { memset(&value, 0, sizeof(value)); }
+  void reset_fields()
+  { 
+    memset(&value, 0, sizeof(value)); 
+    memset(&old_value, 0, sizeof(old_value));
+  }
   size_t get_field_buffer_size() { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
@@ -3754,7 +3786,12 @@ public:
                               uint param_data, bool low_byte_first);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length();
-  void mem_free() { value.mem_free(); }
+  void mem_free()
+  {
+    // Free all allocated space
+    value.mem_free();
+    old_value.mem_free();
+  }
   inline void clear_temporary() { memset(&value, 0, sizeof(value)); }
   friend type_conversion_status field_conv(Field *to,Field *from);
   bool has_charset(void) const
@@ -3765,6 +3802,29 @@ public:
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
   virtual bool is_text_key_type() const { return binary() ? false : true; }
+
+  /**
+    Whether to update the current value object or create a new value object.
+
+    This is used when updating virtual generated columns that are BLOBs.
+    In this case we will not update the existing 'value' but move it
+    to 'old_value' and then allocate a new string for storing the new value.
+    This is needed for supporting storage engines that requires the current
+    value for virtual generated columns to be available during an update.
+
+    @param value whether to create a new value string for the blob or just
+                 update the current value
+  */
+  void set_keep_old_value(bool value) { keep_old_value= value; }
+
+  /**
+    Use to store the blob value into an allocated space.
+  */ 
+  void store_in_allocated_space(const char *from, uint32 length)
+  {
+    store_ptr_and_length(from, length);
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };

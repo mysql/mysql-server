@@ -323,12 +323,6 @@ void thd_unlock_thread_count(THD *)
 }
 
 
-void remove_global_thread(THD *thd)
-{
-  Global_THD_manager::get_instance()->remove_thd(thd);
-}
-
-
 template <typename T>
 class Run_free_function : public Do_THD_Impl
 {

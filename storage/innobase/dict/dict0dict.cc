@@ -603,7 +603,7 @@ dict_table_close_and_drop(
 	row_merge_drop_table(trx, table);
 }
 
-/** Check if the table has a given column.
+/** Check if the table has a given (non_virtual) column.
 @param[in]	table		table object
 @param[in]	col_name	column name
 @param[in]	col_nr		column number guessed, 0 as default
@@ -665,6 +665,105 @@ dict_table_get_col_name(
 	}
 
 	return(s);
+}
+
+/** Returns a virtual column's name.
+@param[in]	table	target table
+@param[in]	col_nr	virtual column number (nth virtual column)
+@return column name or NULL if column number out of range. */
+const char*
+dict_table_get_v_col_name(
+	const dict_table_t*	table,
+	ulint			col_nr)
+{
+	const char*	s;
+
+	ut_ad(table);
+	ut_ad(col_nr < table->n_v_def);
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	if (col_nr >= table->n_v_def) {
+		return(NULL);
+	}
+
+	s = table->v_col_names;
+
+	if (s != NULL) {
+		for (ulint i = 0; i < col_nr; i++) {
+			s += strlen(s) + 1;
+		}
+	}
+
+	return(s);
+}
+
+/** Search virtual column's position in InnoDB according to its position
+in original table's position
+@param[in]	table	target table
+@param[in]	col_nr	column number (nth column in the MySQL table)
+@return virtual column's position in InnoDB, ULINT_UNDEFINED if not find */
+static
+ulint
+dict_table_get_v_col_pos_for_mysql(
+	const dict_table_t*	table,
+	ulint			col_nr)
+{
+	ulint	i;
+
+	ut_ad(table);
+	ut_ad(col_nr < static_cast<ulint>(table->n_t_def));
+	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+	for (i = 0; i < table->n_v_def; i++) {
+		if (col_nr == dict_get_v_col_mysql_pos(
+				table->v_cols[i].m_col.ind)) {
+			break;
+		}
+	}
+
+	if (i == table->n_v_def) {
+		return(ULINT_UNDEFINED);
+	}
+
+	return(i);
+}
+
+/** Returns a virtual column's name according to its original
+MySQL table position.
+@param[in]	table	target table
+@param[in]	col_nr	column number (nth column in the table)
+@return column name. */
+static
+const char*
+dict_table_get_v_col_name_mysql(
+	const dict_table_t*	table,
+	ulint			col_nr)
+{
+	ulint	i = dict_table_get_v_col_pos_for_mysql(table, col_nr);
+
+	if (i == ULINT_UNDEFINED) {
+		return(NULL);
+	}
+
+	return(dict_table_get_v_col_name(table, i));
+}
+
+/** Get nth virtual column according to its original MySQL table position
+@param[in]	table	target table
+@param[in]	col_nr	column number in MySQL Table definition
+@return dict_v_col_t ptr */
+dict_v_col_t*
+dict_table_get_nth_v_col_mysql(
+	const dict_table_t*	table,
+	ulint			col_nr)
+{
+	ulint	i = dict_table_get_v_col_pos_for_mysql(table, col_nr);
+
+	if (i == ULINT_UNDEFINED) {
+		return(NULL);
+	}
+
+	return(dict_table_get_nth_v_col(table, i));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -807,17 +906,19 @@ dict_table_autoinc_unlock(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/********************************************************************//**
-Looks for column n in an index.
+/** Looks for column n in an index.
+@param[in]	index		index
+@param[in]	n		column number
+@param[in]	inc_prefix	true=consider column prefixes too
+@param[in]	is_virtual	true==virtual column
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
 ulint
 dict_index_get_nth_col_or_prefix_pos(
-/*=================================*/
-	const dict_index_t*	index,		/*!< in: index */
-	ulint			n,		/*!< in: column number */
-	ibool			inc_prefix)	/*!< in: TRUE=consider
-						column prefixes too */
+	const dict_index_t*	index,
+	ulint			n,
+	bool			inc_prefix,
+	bool			is_virtual)
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
@@ -827,7 +928,11 @@ dict_index_get_nth_col_or_prefix_pos(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
-	col = dict_table_get_nth_col(index->table, n);
+	if (is_virtual) {
+		col = &(dict_table_get_nth_v_col(index->table, n)->m_col);
+	} else {
+		col = dict_table_get_nth_col(index->table, n);
+	}
 
 	if (dict_index_is_clust(index)) {
 
@@ -850,14 +955,16 @@ dict_index_get_nth_col_or_prefix_pos(
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-Returns TRUE if the index contains a column or a prefix of that column.
+/** Returns TRUE if the index contains a column or a prefix of that column.
+@param[in]	index		index
+@param[in]	n		column number
+@param[in]	is_virtual	whether it is a virtual col
 @return TRUE if contains the column or its prefix */
 ibool
 dict_index_contains_col_or_prefix(
-/*==============================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
+	const dict_index_t*	index,
+	ulint			n,
+	bool			is_virtual)
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
@@ -872,7 +979,11 @@ dict_index_contains_col_or_prefix(
 		return(TRUE);
 	}
 
-	col = dict_table_get_nth_col(index->table, n);
+	if (is_virtual) {
+		col = &dict_table_get_nth_v_col(index->table, n)->m_col;
+	} else {
+		col = dict_table_get_nth_col(index->table, n);
+	}
 
 	n_fields = dict_index_get_n_fields(index);
 
@@ -2256,6 +2367,31 @@ is_ord_part:
 		undo_page_len += 5 + max_size;
 	}
 
+	/* If there are indexes on any virtual columns, we could log
+	additional virtual column (or its prefix) to the undo log */
+	for (i = 0; i < table->n_v_def; i++) {
+		const dict_col_t*	col
+			= &dict_table_get_nth_v_col(table, i)->m_col;
+		ulint			max_size = 0;
+
+		if (col->ord_part) {
+			ulint	max_fld_size = DICT_MAX_FIELD_LEN_BY_FORMAT(
+						table);
+			ulint	fixed_size
+				= dict_col_get_fixed_size(
+					col, dict_table_is_comp(table));
+			max_size = dict_col_get_max_size(col);
+
+			if (fixed_size) {
+				max_size = fixed_size;
+			} else if (max_size > max_fld_size) {
+				max_size = max_fld_size;
+			}
+		}
+
+		undo_page_len += max_size;
+	}
+
 	return(undo_page_len >= UNIV_PAGE_SIZE);
 }
 #endif
@@ -2857,6 +2993,7 @@ dict_index_find_cols(
 	dict_index_t*	index)	/*!< in: index */
 {
 	std::vector<ulint, ut_allocator<ulint> >	col_added;
+	std::vector<ulint, ut_allocator<ulint> >	v_col_added;
 
 	ut_ad(table != NULL && index != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
@@ -2879,7 +3016,7 @@ dict_index_find_cols(
 
 				if (exists) {
 					/* Duplicate column found. */
-					break;
+					goto dup_err;
 				}
 
 				field->col = dict_table_get_nth_col(table, j);
@@ -2890,6 +3027,32 @@ dict_index_find_cols(
 			}
 		}
 
+		/* Let's check if it is a virtual column */
+		for (j = 0; j < table->n_v_cols; j++) {
+			if (!strcmp(dict_table_get_v_col_name(table, j),
+				    field->name)) {
+
+				/* Check if same column is being assigned again
+				which suggest that column has duplicate name. */
+				bool exists =
+					std::find(v_col_added.begin(),
+						  v_col_added.end(), j)
+					!= v_col_added.end();
+
+				if (exists) {
+					/* Duplicate column found. */
+					break;
+				}
+
+				field->col = reinterpret_cast<dict_col_t*>(
+					dict_table_get_nth_v_col(table, j));
+
+				v_col_added.push_back(j);
+
+				goto found;
+			}
+		}
+dup_err:
 #ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
 		ib::error() << "No matching column for " << field->name
@@ -2919,7 +3082,12 @@ dict_index_add_col(
 	dict_field_t*	field;
 	const char*	col_name;
 
-	col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+	if (dict_col_is_virtual(col)) {
+		col_name = dict_table_get_v_col_name_mysql(
+			table, dict_col_get_no(col));
+	} else {
+		col_name = dict_table_get_col_name(table, dict_col_get_no(col));
+	}
 
 	dict_mem_index_add_field(index, col_name, prefix_len);
 
@@ -2987,6 +3155,7 @@ dict_index_copy(
 	for (i = start; i < end; i++) {
 
 		field = dict_index_get_nth_field(index2, i);
+
 		dict_index_add_col(index1, table, field->col,
 				   field->prefix_len);
 	}
@@ -3024,6 +3193,28 @@ dict_index_copy_types(
 	}
 }
 
+/** Copies types of virtual columns contained in table to tuple and sets all
+fields of the tuple to the SQL NULL value.  This function should
+be called right after dtuple_create().
+@param[in,out]	tuple	data tuple
+@param[in]	table	table
+*/
+void
+dict_table_copy_v_types(
+	dtuple_t*		tuple,
+	const dict_table_t*	table)
+{
+	for (ulint i = 0; i < dtuple_get_n_v_fields(tuple); i++) {
+
+		dfield_t*	dfield	= dtuple_get_nth_v_field(tuple, i);
+		dtype_t*	dtype	= dfield_get_type(dfield);
+
+		dfield_set_null(dfield);
+		dict_col_copy_type(
+			&(dict_table_get_nth_v_col(table, i)->m_col),
+			dtype);
+	}
+}
 /*******************************************************************//**
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should
@@ -3044,6 +3235,8 @@ dict_table_copy_types(
 		dfield_set_null(dfield);
 		dict_col_copy_type(dict_table_get_nth_col(table, i), dtype);
 	}
+
+	dict_table_copy_v_types(tuple, table);
 }
 
 /********************************************************************
@@ -3292,6 +3485,10 @@ dict_index_build_internal_non_clust(
 
 		field = dict_index_get_nth_field(new_index, i);
 
+		if (dict_col_is_virtual(field->col)) {
+			continue;
+		}
+
 		/* If there is only a prefix of the column in the index
 		field, do not mark the column as contained in the index */
 
@@ -3503,6 +3700,7 @@ dict_foreign_find_index(
 		if (types_idx != index
 		    && !(index->type & DICT_FTS)
 		    && !dict_index_is_spatial(index)
+		    && !dict_index_has_virtual(index)
 		    && !index->to_be_dropped
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,
@@ -6073,7 +6271,7 @@ dict_ind_init(void)
 	dict_table_t*		table;
 
 	/* create dummy table and index for REDUNDANT infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0);
+	table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0);
 	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
 			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -6738,6 +6936,8 @@ dict_foreign_qualify_index(
 		field = dict_index_get_nth_field(index, i);
 		col_no = dict_col_get_no(field->col);
 
+		ut_ad(!dict_col_is_virtual(field->col));
+
 		if (field->prefix_len != 0) {
 			/* We do not accept column prefix
 			indexes here */
@@ -7151,7 +7351,7 @@ DDTableBuffer::init()
 	dict_table_t*	table;
 	const char*	table_name = "SYS_TABLE_INFO_BUFFER";
 
-	table = dict_mem_table_create(table_name, DICT_HDR_SPACE, 2, 0, 0);
+	table = dict_mem_table_create(table_name, DICT_HDR_SPACE, 2, 0, 0, 0);
 
 	dict_mem_table_add_col(table, table->heap, "TABLE_ID",
 			       DATA_BINARY, DATA_NOT_NULL, 8);

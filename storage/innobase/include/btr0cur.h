@@ -503,6 +503,7 @@ btr_cur_del_mark_set_clust_rec(
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	que_thr_t*	thr,	/*!< in: query thread */
+	const dtuple_t*	entry,	/*!< in: dtuple for the deleting record */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((warn_unused_result));
 /***********************************************************//**

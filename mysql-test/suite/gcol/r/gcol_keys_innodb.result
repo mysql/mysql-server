@@ -7,7 +7,18 @@ SET @@session.default_storage_engine = 'InnoDB';
 #            - CHECK (allowed but not used)
 # UNIQUE
 create table t1 (a int, b int generated always as (a*2) virtual unique);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) VIRTUAL,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	UNI	NULL	VIRTUAL GENERATED
+drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored unique);
 show create table t1;
 Table	Create Table
@@ -22,7 +33,18 @@ a	int(11)	YES		NULL
 b	int(11)	YES	UNI	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual, unique key (b));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) VIRTUAL,
+  UNIQUE KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	UNI	NULL	VIRTUAL GENERATED
+drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, unique (b));
 show create table t1;
 Table	Create Table
@@ -38,21 +60,31 @@ b	int(11)	YES	UNI	NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual);
 alter table t1 add unique key (b);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add unique key (b);
 drop table t1;
-# Testing data manipulation operations involving UNIQUE keys 
+# Testing data manipulation operations involving UNIQUE keys
 # on generated columns can be found in:
 #  - gcol_ins_upd.inc
 #  - gcol_select.inc
-# 
+#
 # INDEX
 create table t1 (a int, b int generated always as (a*2) virtual, index (b));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) GENERATED ALWAYS AS (a*2) VIRTUAL,
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	int(11)	YES		NULL	
+b	int(11)	YES	MUL	NULL	VIRTUAL GENERATED
+drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual, index (a,b));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored, index (b));
 show create table t1;
 Table	Create Table
@@ -81,9 +113,7 @@ b	int(11)	YES		NULL	STORED GENERATED
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) virtual);
 alter table t1 add index (b);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 alter table t1 add index (a,b);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
 drop table t1;
 create table t1 (a int, b int generated always as (a*2) stored);
 alter table t1 add index (b);
@@ -120,10 +150,10 @@ ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a gener
 drop table t1;
 create table t1 (a int, b int generated always as (a+1) virtual,
 foreign key (b) references t2(a));
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+ERROR HY000: Cannot add foreign key constraint
 create table t1 (a int, b int generated always as (a+1) virtual);
 alter table t1 add foreign key (b) references t2(a);
-ERROR HY000: Key/Index cannot be defined on a virtual generated column.
+ERROR HY000: Cannot add foreign key constraint
 drop table t1;
 # Allowed FK options.
 create table t2 (a int primary key, b char(5));
@@ -141,9 +171,191 @@ foreign key (b) references t2(a) on delete cascade);
 drop table t1;
 create table t1 (a int, b int generated always as (a % 10) stored,
 foreign key (b) references t2(a) on delete no action);
-drop table t1;
+drop table t1,t2;
+#
+# Bug#20553262: WL8149: ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED
+#
+CREATE TABLE c (
+pk integer AUTO_INCREMENT,
+col_datetime_nokey DATETIME /*! NULL */,
+col_time_nokey TIME /*! NULL */,
+col_datetime_key DATETIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_time_key TIME GENERATED ALWAYS AS
+(ADDTIME(col_datetime_nokey, col_time_nokey)),
+col_varchar_nokey VARCHAR(1) /*! NULL */,
+PRIMARY KEY (pk),
+KEY (col_time_key),
+KEY (col_datetime_key));
+INSERT INTO c ( col_time_nokey,col_datetime_nokey,col_varchar_nokey) values
+('14:03:03.042673','2001-11-28 00:50:27.051028', 'c'),
+('01:46:09.016386','2007-10-09 19:53:04.008332', NULL),
+('16:21:18.052408','2001-11-08 21:02:12.009395', 'x'),
+('18:56:33.027423','2003-04-01 00:00:00', 'i');
+EXPLAIN SELECT
+outr.col_time_key AS x
+FROM c as outr
+WHERE
+outr.col_varchar_nokey in ('c', 'x', 'i')
+AND (outr.col_time_key IS NULL OR
+outr.col_datetime_key = '2009-09-27');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	outr	NULL	ALL	col_time_key,col_datetime_key	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`outr`.`col_time_key` AS `x` from `test`.`c` `outr` where ((`test`.`outr`.`col_varchar_nokey` in ('c','x','i')) and (isnull(`test`.`outr`.`col_time_key`) or (`test`.`outr`.`col_datetime_key` = '2009-09-27')))
+SELECT
+outr.col_time_key AS x
+FROM c AS outr
+WHERE
+outr.col_varchar_nokey in ('c', 'x', 'i')
+AND (outr.col_time_key IS NULL OR
+outr.col_datetime_key = '2009-09-27');
+x
+DROP TABLE c;
+#
+# Bug#20913803: WL8149: SIG 11 IN DFIELD_DUP |
+# INNOBASE/INCLUDE/DATA0DATA.IC:253
+#
+CREATE TABLE A (
+col_varchar_nokey TEXT ,
+col_varchar_key TEXT GENERATED ALWAYS AS (REPEAT(col_varchar_nokey, 1000)),
+KEY (col_varchar_key(50))
+);
+INSERT INTO A (col_varchar_nokey) VALUES ('');
+CREATE TABLE D (
+pk INTEGER AUTO_INCREMENT,
+col_date_nokey BLOB,
+col_date_key BLOB GENERATED ALWAYS AS (REPEAT(col_date_nokey,1000)) VIRTUAL,
+col_datetime_nokey LONGBLOB,
+col_time_nokey LONGTEXT,
+col_datetime_key LONGBLOB GENERATED ALWAYS AS (REPEAT(col_datetime_nokey, 1000)),
+col_time_key LONGTEXT GENERATED ALWAYS AS (REPEAT(col_datetime_nokey, 1000)),
+col_varchar_nokey TEXT,
+col_varchar_key TEXT GENERATED ALWAYS AS (REPEAT(col_varchar_nokey, 1000)),
+PRIMARY KEY (pk),
+KEY (col_varchar_key(50)),
+KEY (col_date_key(20)),
+KEY (col_time_key(20)),
+KEY (col_datetime_key(20)),
+KEY (col_varchar_key(10), col_date_key(10), col_time_key(5), col_datetime_key(5))
+);
+INSERT INTO D (
+col_date_nokey,
+col_time_nokey,
+col_datetime_nokey,
+col_varchar_nokey
+) VALUES ('', '', '', ''),('', '', '', '');
+DELETE FROM OUTR1.* USING D AS OUTR1 RIGHT JOIN A AS OUTR2 ON 
+( OUTR1 . `col_varchar_nokey` = OUTR2 . `col_varchar_nokey` );
+DROP TABLE IF EXISTS A,D;
+#
+# Bug#21024896: SIG 11 INNOBASE_ADD_ONE_VIRTUAL |
+# INNOBASE/HANDLER/HANDLER0ALTER.CC
+#
+CREATE TABLE t1 (
+col1 int(11) DEFAULT NULL,
+col2 int(11) DEFAULT NULL,
+col3 int(11) NOT NULL,
+col4 int(11) DEFAULT NULL,
+col5 int(11) GENERATED ALWAYS AS (col2 / col2) VIRTUAL,
+col7 int(11) GENERATED ALWAYS AS (col5 + col5) VIRTUAL,
+col8 int(11) GENERATED ALWAYS AS (col5 * col5) VIRTUAL,
+col9 text,
+col6 int(11) DEFAULT NULL,
+PRIMARY KEY (`col3`),
+UNIQUE KEY uidx (`col2`),
+KEY idx (`col5`)
+);
+INSERT INTO t1(col1,col2,col3,col4,col9,col6)
+VALUES(1,1,0,1,REPEAT(col1,1000),0), (3,2,1,1,REPEAT(col1,1000),NULL);
+ALTER TABLE t1 ADD COLUMN extra INT;
+DROP TABLE t1;
+#
+# Bug#21316860: WL8149:INNODB: FAILING ASSERTION:
+# TEMPL->CLUST_REC_FIELD_NO != ULINT_UNDEFINED
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+col_int_nokey int(11),
+col_int_key int(11) GENERATED ALWAYS AS (col_int_nokey) VIRTUAL NOT NULL,
+col_date_nokey date,
+col_date_key date GENERATED ALWAYS AS (col_date_nokey) VIRTUAL NOT NULL,
+PRIMARY KEY (pk),
+UNIQUE KEY col_int_key (col_int_key)
+);
+ALTER TABLE t1 DROP COLUMN pk;
+DROP TABLE t1;
+# Remove the impact on PK choose by index on virtual generated column
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+col_int_nokey int(11) DEFAULT NULL,
+col_int_key int(11) GENERATED ALWAYS AS (col_int_nokey) VIRTUAL NOT NULL,
+UNIQUE KEY col_int_key (col_int_key)
+);
+ALTER TABLE t1 add unique index idx(pk), algorithm=inplace;
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+pk	int(11)	NO	PRI	NULL	
+col_int_nokey	int(11)	YES		NULL	
+col_int_key	int(11)	NO	UNI	NULL	VIRTUAL GENERATED
+DROP TABLE t1;
+#
+# Bug#21346132: WL8149:INNODB: FAILING ASSERTION:
+# PRIMARY_KEY_NO == -1 || PRIMARY_KEY_NO == 0
+#
+CREATE TABLE t1 (
+col_int_nokey int(11) NOT NULL,
+col_int_key int(11) GENERATED ALWAYS AS (col_int_nokey) NOT NULL,
+col_varchar_nokey varchar(1) NOT NULL,
+col_varchar_key varchar(2) GENERATED ALWAYS AS (col_varchar_nokey) NOT NULL,
+UNIQUE KEY col_int_key (col_int_key),
+UNIQUE KEY col_varchar_key (col_varchar_key),
+UNIQUE KEY col_int_key_2 (col_int_key,col_varchar_key),
+UNIQUE KEY col_varchar_key_2 (col_varchar_key,col_varchar_nokey),
+KEY col_int_key_3 (col_int_key,col_int_nokey)
+);
+ALTER TABLE t1 DROP COLUMN col_varchar_key;
+Warnings:
+Warning	1831	Duplicate index 'col_int_key_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+DROP TABLE t1;
+#
+# Bug#21320151 WL8149: WRONG RESULT WITH INDEX SCAN
+#
+CREATE TABLE t1 (
+id INTEGER NOT NULL,
+b INTEGER GENERATED ALWAYS AS (id+1) VIRTUAL NOT NULL,
+UNIQUE KEY (b)
+);
+INSERT INTO t1 (id) VALUES (2),(3),(4),(5),(6),(7),(8),(9),(10);
+EXPLAIN SELECT b FROM t1 FORCE INDEX(b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	b	4	NULL	9	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`)
+SELECT b FROM t1 FORCE INDEX(b);
+b
+3
+4
+5
+6
+7
+8
+9
+10
+11
+EXPLAIN SELECT b FROM t1 FORCE INDEX(b) WHERE b BETWEEN 1 AND 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	b	b	4	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` FORCE INDEX (`b`) where (`test`.`t1`.`b` between 1 and 5)
+SELECT b FROM t1 FORCE INDEX(b) WHERE b BETWEEN 1 AND 5;
+b
+3
+4
+5
+DROP TABLE t1;
 
-# Testing data manipulation operations involving FOREIGN KEY 
+# Testing data manipulation operations involving FOREIGN KEY
 # on generated columns can be found in:
 #  - gcol_ins_upd.inc
 #  - gcol_select.inc
@@ -817,6 +1029,65 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) group by `col_int_gc_key`,`field2`
 DROP TABLE t1;
+#
+#
+# BUG#21365158 WL8149:ASSERTION `!TABLE || (!TABLE->WRITE_SET 
+#
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 ( col_int_nokey, col_varchar_nokey)
+VALUES (4, 'b'),(9, 'o'),(4, 'k'),(5, 'a'),(5, 'f'),
+(9, 't'),(3, 'c'),(8, 'c'),(0, 'r'),(98, 'k');
+CREATE TABLE t2 (
+pk INTEGER AUTO_INCREMENT,
+col_int_nokey INTEGER NOT NULL,
+col_varchar_nokey VARCHAR(1) NOT NULL,
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL not null,
+PRIMARY KEY (pk),
+UNIQUE KEY (col_varchar_key)
+);
+INSERT INTO t2 ( col_int_nokey, col_varchar_nokey)
+VALUES (1, 'c'),(8, 'm'),(9, 'd'), (6, 'y'),(1, 't'),
+(2, 's'),(4, 'r');
+SELECT
+CONCAT( t2.col_varchar_nokey , t2.col_varchar_nokey ) AS f2,
+t1.col_varchar_key AS f5
+FROM
+t2 LEFT JOIN t1 ON t2.col_int_nokey > t1.col_int_nokey
+ORDER BY f2, f5;
+f2	f5
+cc	rr
+dd	aa
+dd	bb
+dd	cc
+dd	cc
+dd	ff
+dd	kk
+dd	rr
+mm	aa
+mm	bb
+mm	cc
+mm	ff
+mm	kk
+mm	rr
+rr	cc
+rr	rr
+ss	rr
+tt	rr
+yy	aa
+yy	bb
+yy	cc
+yy	ff
+yy	kk
+yy	rr
+DROP TABLE t1,t2;
 #
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;

@@ -3370,7 +3370,7 @@ err_unlock:
    @return Pointer to the TABLE object found, 0 if no table found.
 */
 
-static TABLE *find_locked_table(TABLE *list, const char *db,
+TABLE *find_locked_table(TABLE *list, const char *db,
                                 const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];

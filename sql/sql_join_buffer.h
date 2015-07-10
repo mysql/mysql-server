@@ -290,6 +290,8 @@ protected:
   /** Cached value of calc_check_only_first_match(join_tab) */
   bool check_only_first_match;
 
+  void filter_virtual_gcol_base_cols();
+  void restore_virtual_gcol_base_cols();
   void calc_record_fields();     
   int alloc_fields(uint external_fields);
   void create_flag_fields();

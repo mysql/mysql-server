@@ -2773,16 +2773,21 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
 }
 
 /*
-  Sort keys in the following order:
-  - PRIMARY KEY
-  - UNIQUE keys where all column are NOT NULL
-  - UNIQUE keys that don't contain partial segments
-  - Other UNIQUE keys
-  - Normal keys
-  - Fulltext keys
+   Sort keys according to the following properties, in decreasing order of
+   importance:
+   - PRIMARY KEY
+   - UNIQUE with all columns NOT NULL
+   - UNIQUE without partial segments
+   - UNIQUE
+   - without fulltext columns
+   - without virtual generated columns
 
-  This will make checking for duplicated keys faster and ensure that
-  PRIMARY keys are prioritized.
+   This allows us to
+   - check for duplicate key values faster (PK and UNIQUE are first)
+   - prioritize PKs
+   - be sure that, if there is no PK, the set of UNIQUE keys candidate for
+   promotion starts at number 0, and we can choose #0 as PK (it is required
+   that PK has number 0).
 */
 
 static int sort_keys(KEY *a, KEY *b)
@@ -2813,6 +2818,12 @@ static int sort_keys(KEY *a, KEY *b)
   {
     return (a_flags & HA_FULLTEXT) ? 1 : -1;
   }
+
+  if ((a_flags ^ b_flags) & HA_VIRTUAL_GEN_KEY)
+  {
+    return (a_flags & HA_VIRTUAL_GEN_KEY) ? 1 : -1;
+  }
+
   /*
     Prefer original key order.	usable_key_parts contains here
     the original key position.
@@ -3976,6 +3987,29 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
 	DBUG_RETURN(TRUE);
       }
+      if (sql_field->gcol_info &&
+          !sql_field->gcol_info->get_field_stored())
+      {
+        const char *errmsg= NULL;
+        if (key->type == KEYTYPE_FULLTEXT)
+          errmsg= "Fulltext index on virtual generated column";
+        else if (key->type == KEYTYPE_SPATIAL)
+          errmsg= "Spatial index on virtual generated column";
+        if (errmsg)
+        {
+          my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0), errmsg);
+          DBUG_RETURN(TRUE);
+        }
+        key_info->flags|= HA_VIRTUAL_GEN_KEY;
+        /* Check if the storage engine supports indexes on virtual columns. */
+        if (!(file->ha_table_flags() & HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN))
+        {
+          my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+                   ha_resolve_storage_engine_name(file->ht),
+                   "Index on virtual generated column");
+          DBUG_RETURN(TRUE);
+        }
+      }
       while ((dup_column= cols2++) != column)
       {
         if (!my_strcasecmp(system_charset_info,
@@ -4108,12 +4142,16 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
           DBUG_RETURN(true);
         }
-        if (!sql_field->stored_in_db)
+        // Primary key on virtual generated column is not supported.
+        if (key->type == KEYTYPE_PRIMARY &&
+            !sql_field->stored_in_db)
         {
-          /* Key fields must always be physically stored. */
-          my_error(ER_KEY_BASED_ON_GENERATED_COLUMN, MYF(0));
+          /* Primary key fields must always be physically stored. */
+          my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
+                   "Defining a virtual generated column as primary key");
           DBUG_RETURN(TRUE);
         }
+
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == KEYTYPE_PRIMARY)
@@ -5831,7 +5869,7 @@ err:
 
 /**
   Check if key is a candidate key, i.e. a unique index with no index
-  fields partial or nullable.
+  fields partial, nullable or virtual generated.
 */
 
 static bool is_candidate_key(KEY *key)
@@ -5840,6 +5878,9 @@ static bool is_candidate_key(KEY *key)
   KEY_PART_INFO *key_part_end= key->key_part + key->user_defined_key_parts;
 
   if (!(key->flags & HA_NOSAME) || (key->flags & HA_NULL_PART_KEY))
+    return false;
+
+  if (key->flags & HA_VIRTUAL_GEN_KEY)
     return false;
 
   for (key_part= key->key_part; key_part < key_part_end; key_part++)
@@ -7348,6 +7389,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List<Create_field> new_create_list;
   /* New key definitions are added here */
   List<Key_spec> new_key_list;
+  // DROP instructions for foreign keys and virtual generated columns
+  List<Alter_drop> new_drop_list;
+
   /*
     Alter_info::alter_rename_key_list is also used by fill_alter_inplace_info()
     call. So this function should not modify original list but rather work with
@@ -7364,9 +7408,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List<Key_part_spec> key_parts;
   uint db_create_options= (table->s->db_create_options
                            & ~(HA_OPTION_PACK_RECORD));
-  uint used_fields= create_info->used_fields;
+  uint used_fields= create_info->used_fields, new_vgcol= 0;
   KEY *key_info=table->key_info;
-  bool rc= TRUE;
+  bool rc= true;
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
@@ -7431,21 +7475,27 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  create_info->auto_increment_value=0;
 	  create_info->used_fields|=HA_CREATE_USED_AUTO;
 	}
-  /*
-    If the base column has a generated column dependency, it's not allowed
-    to be dropped.
-  */
-  if (table->vfield &&
-      table->is_field_dependent_on_generated_columns(field->field_index))
-    my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
+        /*
+          If a generated column is dependent on this column, this column
+          cannot be dropped.
+        */
+        if (table->vfield &&
+            table->is_field_used_by_generated_columns(field->field_index))
+        {
+          my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
+          goto err;
+        }
 
-  /*
-    Mark the drop_column operation is on virtual GC so that a non-rebuild
-    on table can be done.
-  */
-  if (field->gcol_info && !field->stored_in_db)
-    alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
-	break;
+        /*
+          Mark the drop_column operation is on virtual GC so that a non-rebuild
+          on table can be done.
+        */
+        if (field->is_virtual_gcol())
+        {
+          alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+          new_drop_list.push_back(drop);
+        }
+	break; // Column was found.
       }
     }
     if (drop)
@@ -7488,6 +7538,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         */
         def_it.remove();
       }
+      if (field->is_virtual_gcol())
+        alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
     }
     else
     {
@@ -7544,6 +7596,11 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       goto err;
     }
 
+    if (def->gcol_info && !def->gcol_info->get_field_stored())
+    {
+      ++new_vgcol;
+      alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+    }
     /*
       Check that the DATE/DATETIME not null field we are going to add is
       either has a default value or the '0000-00-00' is allowed by the
@@ -7618,6 +7675,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!new_create_list.elements)
   {
     my_error(ER_CANT_REMOVE_ALL_FIELDS, MYF(0));
+    goto err;
+  }
+  if (new_vgcol != 0 && new_vgcol != alter_info->create_list.elements)
+  {
+    // Can't add virtual GCs and other columns at the same time
+    my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
+             "Adding virtual generated columns and other columns "
+             "in one single ALTER statement");
     goto err;
   }
 
@@ -7806,6 +7871,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   if (alter_info->drop_list.elements)
   {
+    // Now this contains only DROP for foreign keys and not-found objects
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++)) {
@@ -7816,10 +7882,14 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                  alter_info->drop_list.head()->name);
         goto err;
       case Alter_drop::FOREIGN_KEY:
-        // Leave the DROP FOREIGN KEY names in the alter_info->drop_list.
+        break;
+      default:
+        DBUG_ASSERT(false);
         break;
       }
     }
+    // new_drop_list has DROP for virtual generated columns; add foreign keys:
+    new_drop_list.concat(&alter_info->drop_list);
   }
   if (rename_key_list.elements)
   {
@@ -7865,9 +7935,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (table->s->tmp_table)
     create_info->options|=HA_LEX_CREATE_TMP_TABLE;
 
-  rc= FALSE;
+  rc= false;
   alter_info->create_list.swap(new_create_list);
   alter_info->key_list.swap(new_key_list);
+  alter_info->drop_list.swap(new_drop_list);
 err:
   DBUG_RETURN(rc);
 }
@@ -9425,8 +9496,7 @@ copy_data_between_tables(THD * thd,
   TABLE_LIST   tables;
   List<Item>   fields;
   List<Item>   all_fields;
-  ha_rows examined_rows;
-  ha_rows found_rows;
+  ha_rows examined_rows, found_rows, returned_rows;
   bool auto_increment_field_copied= 0;
   sql_mode_t save_sql_mode;
   QEP_TAB_standalone qep_tab_st;
@@ -9513,12 +9583,12 @@ copy_data_between_tables(THD * thd,
                       &tables, fields, all_fields, order))
         goto err;
       qep_tab.set_table(from);
-      Filesort fsort(order, HA_POS_ERROR);
-      if ((from->sort.found_records= filesort(thd, &qep_tab, &fsort,
-                                              true,
-                                              &examined_rows, &found_rows)) ==
-          HA_POS_ERROR)
+      Filesort fsort(&qep_tab, order, HA_POS_ERROR);
+      if (filesort(thd, &fsort, true,
+                   &examined_rows, &found_rows, &returned_rows))
         goto err;
+
+      from->sort.found_records= returned_rows;
     }
   };
 

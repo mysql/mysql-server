@@ -277,6 +277,8 @@ enum ha_base_keytype {
         new definition.
 */
 #define HA_KEY_RENAMED          (1 << 17)
+/** Set if a key is on any virtual generated columns */
+#define HA_VIRTUAL_GEN_KEY      (1 << 18)
 
 	/* Automatic bits in key-flag */
 

@@ -7383,8 +7383,8 @@ ER_TRANSACTION_ROLLBACK_DURING_COMMIT
 ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED
   eng "Expression of generated column '%s' contains a disallowed function."
 
-ER_KEY_BASED_ON_GENERATED_COLUMN
-  eng "Key/Index cannot be defined on a virtual generated column."
+ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN
+  eng "INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions"
 
 ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
   eng "Cannot define foreign key with %s clause on a generated column."
@@ -7402,7 +7402,7 @@ ER_DEPENDENT_BY_GENERATED_COLUMN
   eng "Column '%s' has a generated column dependency."
 
 ER_GENERATED_COLUMN_REF_AUTO_INC
-  eng "Stored generated column '%s' cannot refer auto-increment column."
+  eng "Generated column '%s' cannot refer to auto-increment column."
 
 ER_FEATURE_NOT_AVAILABLE
   eng "The '%-.64s' feature is not available; you need to remove '%-.64s' or use MySQL built with '%-.64s'"

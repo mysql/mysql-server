@@ -26,6 +26,7 @@
 #include "sql_class.h"                   // THD
 #include "sql_connect.h"                 // close_connection
 #include "sql_parse.h"                   // do_command
+#include "sql_thd_internal_api.h"        // thd_set_thread_stack
 #include "log.h"                         // Error_log_throttle
 
 
@@ -206,7 +207,7 @@ static THD* init_new_thd(Channel_info *channel_info)
     need to know the start of the stack so that we could check for
     stack overruns.
   */
-  thd->thread_stack= (char*) &thd;
+  thd_set_thread_stack(thd, (char*) &thd);
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);

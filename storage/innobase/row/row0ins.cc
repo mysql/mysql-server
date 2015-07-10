@@ -124,8 +124,9 @@ ins_node_create_entry_list(
 	     index != 0;
 	     index = dict_table_get_next_index(index)) {
 
-		entry = row_build_index_entry(
-			node->row, NULL, index, node->entry_sys_heap);
+		entry = row_build_index_entry_low(
+			node->row, NULL, index, node->entry_sys_heap,
+			ROW_BUILD_FOR_INSERT);
 
 		UT_LIST_ADD_LAST(node->entry_list, entry);
 	}
@@ -645,7 +646,8 @@ row_ins_cascade_calc_update_vec(
 				if (table->fts
 				    && dict_table_is_fts_column(
 					table->fts->indexes,
-					dict_col_get_no(col))
+					dict_col_get_no(col),
+					dict_col_is_virtual(col))
 					!= ULINT_UNDEFINED) {
 					*fts_col_affected = TRUE;
 				}
@@ -1192,8 +1194,10 @@ row_ins_foreign_check_on_constraint(
 			dfield_set_null(&ufield->new_val);
 
 			if (table->fts && dict_table_is_fts_column(
-				    table->fts->indexes,
-				    dict_index_get_nth_col_no(index, i))
+				table->fts->indexes,
+				dict_index_get_nth_col_no(index, i),
+				dict_col_is_virtual(
+					dict_index_get_nth_col(index, i)))
 			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
@@ -1206,8 +1210,10 @@ row_ins_foreign_check_on_constraint(
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
 		for (i = 0; i < foreign->n_fields; i++) {
 			if (table->fts && dict_table_is_fts_column(
-				    table->fts->indexes,
-				    dict_index_get_nth_col_no(index, i))
+				table->fts->indexes,
+				dict_index_get_nth_col_no(index, i),
+				dict_col_is_virtual(
+					dict_index_get_nth_col(index, i)))
 			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
@@ -2340,7 +2346,8 @@ row_ins_index_entry_big_rec_func(
 
 	if (error == DB_SUCCESS
 	    && dict_index_is_online_ddl(index)) {
-		row_log_table_insert(btr_pcur_get_rec(&pcur), index, offsets);
+		row_log_table_insert(btr_pcur_get_rec(&pcur), entry,
+				     index, offsets);
 	}
 
 	mtr_commit(&mtr);
@@ -2524,7 +2531,7 @@ err_exit:
 			entry_heap, entry, thr, &mtr);
 
 		if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
-			row_log_table_insert(btr_cur_get_rec(cursor),
+			row_log_table_insert(btr_cur_get_rec(cursor), entry,
 					     index, offsets);
 		}
 
@@ -2584,7 +2591,7 @@ err_exit:
 			if (err == DB_SUCCESS
 			    && dict_index_is_online_ddl(index)) {
 				row_log_table_insert(
-					insert_rec, index, offsets);
+					insert_rec, entry, index, offsets);
 			}
 
 			mtr_commit(&mtr);
@@ -3376,22 +3383,43 @@ row_ins_index_entry_set_vals(
 {
 	ulint	n_fields;
 	ulint	i;
+	ulint	num_v = dtuple_get_n_v_fields(entry);
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	for (i = 0; i < n_fields; i++) {
-		dict_field_t*	ind_field;
+	for (i = 0; i < n_fields + num_v; i++) {
+		dict_field_t*	ind_field = NULL;
 		dfield_t*	field;
 		const dfield_t*	row_field;
 		ulint		len;
+		dict_col_t*	col;
 
-		field = dtuple_get_nth_field(entry, i);
-		ind_field = dict_index_get_nth_field(index, i);
-		row_field = dtuple_get_nth_field(row, ind_field->col->ind);
+		if (i >= n_fields) {
+			/* This is virtual field */
+			field = dtuple_get_nth_v_field(entry, i - n_fields);
+			col = &dict_table_get_nth_v_col(
+				index->table, i - n_fields)->m_col;
+		} else {
+			field = dtuple_get_nth_field(entry, i);
+			ind_field = dict_index_get_nth_field(index, i);
+			col = ind_field->col;
+		}
+
+		if (dict_col_is_virtual(col)) {
+			const dict_v_col_t*     v_col
+				= reinterpret_cast<const dict_v_col_t*>(col);
+			ut_ad(dtuple_get_n_fields(row)
+			      == dict_table_get_n_cols(index->table));
+			row_field = dtuple_get_nth_v_field(row, v_col->v_pos);
+		} else {
+			row_field = dtuple_get_nth_field(
+				row, ind_field->col->ind);
+		}
+
 		len = dfield_get_len(row_field);
 
 		/* Check column prefix indexes */
-		if (ind_field->prefix_len > 0
+		if (ind_field != NULL && ind_field->prefix_len > 0
 		    && dfield_get_len(row_field) != UNIV_SQL_NULL) {
 
 			const	dict_col_t*	col

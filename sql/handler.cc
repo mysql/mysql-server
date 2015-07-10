@@ -2677,7 +2677,7 @@ int handler::ha_rnd_next(uchar *buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_next(buf); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table);
   DBUG_RETURN(result);
 }
 
@@ -2705,7 +2705,7 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_pos(buf, pos); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table);
   DBUG_RETURN(result);
 }
 
@@ -2749,7 +2749,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
 
@@ -2766,10 +2766,9 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
-
 
 /**
   Initializes an index and read it.
@@ -2790,7 +2789,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, index);
   return result;
 }
 
@@ -2818,7 +2817,7 @@ int handler::ha_index_next(uchar * buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
 
@@ -2846,7 +2845,7 @@ int handler::ha_index_prev(uchar * buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
 
@@ -2874,7 +2873,7 @@ int handler::ha_index_first(uchar * buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
 
@@ -2902,7 +2901,7 @@ int handler::ha_index_last(uchar * buf)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
 
@@ -2932,7 +2931,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
   if (!result && table->vfield)
-    result= update_generated_read_fields(table);
+    result= update_generated_read_fields(buf, table, active_index);
   DBUG_RETURN(result);
 }
 
@@ -2960,7 +2959,7 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   {
     if (!(error= ha_rnd_init(1)))
     {
-      while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED)
+      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
         /* skip deleted row */;
       const int end_error= ha_rnd_end();
       if (!error)
@@ -2978,8 +2977,6 @@ int handler::read_first_row(uchar * buf, uint primary_key)
         error= end_error;
     }
   }
-  if (!error && table->vfield)
-    error= update_generated_read_fields(table);
   DBUG_RETURN(error);
 }
 
@@ -7693,3 +7690,344 @@ void handler::unlock_shared_ha_data()
   if (table_share->tmp_table == NO_TMP_TABLE)
     mysql_mutex_unlock(&table_share->LOCK_ha_data);
 }
+
+
+/**
+  This structure is a helper structure for passing the length and pointer of
+  blob space allocated by storage engine.
+*/
+struct blob_len_ptr{
+  uint length;  // length of the blob
+  uchar *ptr;   // pointer of the value
+};
+
+
+/**
+  Get the blob length and pointer of allocated space from the record buffer.
+
+  During evaluating the blob virtual generated columns, the blob space will
+  be allocated by server. In order to keep the blob data after the table is
+  closed, we need write the data into a specified space allocated by storage
+  engine. Here, we have to extract the space pointer and length from the
+  record buffer.
+  After we get the value of virtual generated columns, copy the data into
+  the specified space and store it in the record buffer (@see copy_blob_data()).
+
+  @param table                    the pointer of table
+  @param fields                   bitmap of field index of evaluated
+                                  generated column
+  @param[out] blob_len_ptr_array  an array to record the length and pointer
+                                  of allocated space by storage engine.
+  @note The caller should provide the blob_len_ptr_array with a size of
+        MAX_FIELDS.
+*/
+
+static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
+                                           ulonglong fields,
+                                           blob_len_ptr *blob_len_ptr_array)
+{
+  int num= 0;
+  for (Field **vfield= table->vfield; *vfield; vfield++)
+  {
+    if (!(fields & (1ULL << (*vfield)->field_index)))
+      continue;         // Skip unneeded fields
+
+    if ((*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    {
+      blob_len_ptr_array[num].length= (*vfield)->data_length();
+      // TODO: The following check is only for Innodb.
+      DBUG_ASSERT(blob_len_ptr_array[num].length == 768 ||
+                  blob_len_ptr_array[num].length == 3073);
+
+      uchar *ptr;
+      (*vfield)->get_ptr(&ptr);
+      blob_len_ptr_array[num].ptr= ptr;
+
+      // Let server allocate the space for BLOB virtual generated columns
+      (*vfield)->reset();
+
+      num++;
+      DBUG_ASSERT(num <= MAX_FIELDS);
+    }
+  }
+}
+
+
+/**
+  Copy the value of BLOB virtual generated columns into the space allocated
+  by storage engine.
+
+  This is because the table is closed after evaluating the value. In order to
+  keep the BLOB value after the table is closed, we have to copy the value into
+  the place where storage engine prepares for.
+
+  @param table              pointer of the table to be operated on
+  @param fields             bitmap of field index of evaluated generated column
+  @param blob_len_ptr_array array of length and pointer of allocated space by
+                            storage engine.
+*/
+
+static void copy_blob_data(const TABLE *table,
+                           ulonglong fields,
+                           blob_len_ptr *blob_len_ptr_array)
+{
+  uint  num= 0;
+  for (Field **vfield= table->vfield; *vfield; vfield++)
+  {
+    if (!(fields & (1ULL << (*vfield)->field_index)))
+      continue;         // Skip unneeded fields
+
+    if ((*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    {
+      DBUG_ASSERT(blob_len_ptr_array[num].length > 0);
+      DBUG_ASSERT(blob_len_ptr_array[num].ptr != NULL);
+
+      /*
+        Only copy as much of the blob as the storage engine has
+        allocated space for. This is sufficient since the only use of the
+        blob in the storage engine is for using a prefix of it in a
+        secondary index.
+      */
+      uint length= (*vfield)->data_length();
+      const uint alloc_len= blob_len_ptr_array[num].length;
+      length= length > alloc_len ? alloc_len : length;
+
+      uchar *ptr;
+      (*vfield)->get_ptr(&ptr);
+      memcpy(blob_len_ptr_array[num].ptr, ptr, length);
+      (down_cast<Field_blob *>(*vfield))->store_in_allocated_space(
+                            pointer_cast<char *>(blob_len_ptr_array[num].ptr),
+                            length);
+      num++;
+      DBUG_ASSERT(num <= MAX_FIELDS);
+    }
+  }
+}
+
+
+/*
+  Evaluate generated column's value. This is an internal helper reserved for
+  handler::my_eval_gcolumn_expr().
+
+  @param thd        pointer of THD
+  @param table      The pointer of table where evaluted generated
+                    columns are in
+  @param fields     bitmap of field index of evaluated generated column
+  @param[in,out] record record buff of base columns generated column depends.
+                        After calling this function, it will be used to return
+                        the value of generated column.
+  @param in_purge   whehter the function is called by purge thread
+
+  @return true in case of error, false otherwise.
+*/
+
+static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
+                                        ulonglong fields,
+                                        uchar *record,
+                                        bool in_purge)
+{
+  DBUG_ENTER("my_eval_gcolumn_expr_helper");
+  DBUG_ASSERT(table && table->vfield);
+
+  uchar *old_buf= table->record[0];
+  repoint_field_to_record(table, old_buf, record);
+
+  blob_len_ptr blob_len_ptr_array[MAX_FIELDS];
+  
+  /*
+    If it's purge thread, we need get the space allocated by storage engine
+    for blob.
+  */
+  if (in_purge)
+    extract_blob_space_and_length_from_record_buff(table, fields, blob_len_ptr_array);
+
+  bool res= false;
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *field= *vfield_ptr;
+    if (!(fields & (1ULL << field->field_index)))
+      continue;         // Skip unneeded fields
+
+    DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
+    if (in_purge)
+    {
+      /*
+        Adding to read_set/write_set is normally done up-front by high-level
+        layers before calling any handler's read/delete/etc functions.
+        But, for the specific case of the purge thread, it has no high-level
+        layer to manage read_set/write_set.
+      */
+      table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
+    }
+
+    res= field->gcol_info->expr_item->save_in_field(field, 0);
+    DBUG_ASSERT(!thd->is_error() || res);
+    if (res)
+      break;
+  }
+
+  /*
+    If it's a purge thread, we need copy the blob data into specified place
+    allocated by storage engine so that the blob data still can be accessed
+    after table is closed.
+  */
+  if (in_purge)
+    copy_blob_data(table, fields, blob_len_ptr_array);
+
+  repoint_field_to_record(table, record, old_buf);
+  DBUG_RETURN(res);
+}
+
+
+/**
+   Callback to allow InnoDB to prepare a template for generated
+   column processing. This function will open the table without
+   opening in the engine and call the provided function with
+   the TABLE object made. The function will then close the TABLE.
+
+   @param thd            Thread handle
+   @param db_name        Name of database containing the table
+   @param table_name     Name of table to open
+   @param myc            InnoDB function to call for processing TABLE
+   @param ib_table       Argument for InnoDB function
+
+   @return true in case of error, false otherwise.
+*/
+
+bool handler::my_prepare_gcolumn_template(THD *thd,
+                                          const char *db_name,
+                                          const char *table_name,
+                                          my_gcolumn_template_callback_t myc,
+                                          void* ib_table)
+{
+  /*
+    This is a background thread, so we can re-initialize the main LEX, its
+    current content is not important.
+  */
+  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+  char path[FN_REFLEN + 1];
+  bool was_truncated;
+  build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
+                       db_name, table_name, "", 0, &was_truncated);
+  DBUG_ASSERT(!was_truncated);
+  lex_start(thd);
+  bool rc= true;
+  TABLE *table= open_table_uncached(thd, path, db_name, table_name,
+                                    false, false);
+  if (table)
+  {
+    myc(table, ib_table);
+    intern_close_table(table);
+    rc= false;
+  }
+  lex_end(thd->lex);
+  return rc;
+}
+
+
+/**
+   Callback for generated columns processing. Will open the table
+   and call my_eval_gcolumn_expr_helper() to do the actual
+   processing. This function is a variant of the other
+   handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
+   object already exists - e.g. from purge threads.
+
+   @param thd             Thread handle
+   @param open_in_engine  Should ha_open() be called?
+   @param db_name         Database containing the table to open
+   @param table_name      Name of table to open
+   @param fields          Bitmap of field index of evaluated generated column
+   @param record          Record buffer
+
+   @return true in case of error, false otherwise.
+*/
+
+bool handler::my_eval_gcolumn_expr(THD *thd,
+                                   bool open_in_engine,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   ulonglong fields,
+                                   uchar *record)
+{
+  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+  bool retval= true;
+  lex_start(thd);
+
+  if (open_in_engine)
+  {
+    TABLE_LIST table_list;
+    table_list.init_one_table(db_name, strlen(db_name),
+                              table_name, strlen(table_name),
+                              table_name, TL_READ);
+
+    TABLE *table= open_ltable(thd, &table_list, table_list.lock_type,
+                              MYSQL_LOCK_IGNORE_TIMEOUT);
+    if (table)
+    {
+      retval=
+        my_eval_gcolumn_expr_helper(thd, table_list.table, fields, record, true);
+      trans_commit_stmt(thd);
+      close_thread_tables(thd);
+    }
+  }
+  else
+  {
+    char path[FN_REFLEN + 1];
+    bool was_truncated;
+    build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
+                         db_name, table_name, "", 0, &was_truncated);
+    DBUG_ASSERT(!was_truncated);
+
+    TABLE *table= open_table_uncached(thd, path, db_name, table_name,
+                                      false, false);
+    if (table)
+    {
+      retval= my_eval_gcolumn_expr_helper(thd, table, fields, record, true);
+      intern_close_table(table);
+    }
+  }
+
+  lex_end(thd->lex);
+  return retval;
+}
+
+
+/*
+  Evaluate generated Column's value. If the engine has to write an index entry
+  to its UNDO log (in a DELETE or UPDATE), and the index is on a virtual
+  generated column, engine needs to calculate the column's value. This variant
+  of handler::my_eval_gcolumn_expr() is used by client threads which have a
+  TABLE.
+
+  @param thd        Thread handle
+  @param db_name    name of database
+  @param table_name name of the opened table
+  @param fields     bitmap of field index of evaluated generated column
+  @param[in,out]    record buff of base columns generated column depends.
+                    After calling this function, it will be used to return
+                    the value of generated column.
+
+  @return true in case of error, false otherwise.
+*/
+
+bool handler::my_eval_gcolumn_expr(THD *thd,
+                                   const char *db_name,
+                                   const char *table_name,
+                                   ulonglong fields,
+                                   uchar *record)
+{
+  DBUG_ENTER("my_eval_gcolumn_expr");
+
+  TABLE *table= find_locked_table(thd->open_tables, db_name, table_name);
+  if (!table)
+  {
+    if (!(table= find_temporary_table(thd, db_name, table_name)))
+    {
+      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
+      DBUG_RETURN(true);
+    }
+  }
+  const bool res= my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+  DBUG_RETURN(res);
+}
+

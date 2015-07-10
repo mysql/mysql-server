@@ -28,6 +28,7 @@ extern "C"
 }
 
 #include "../sql/mysqld.cc"
+#include "../sql/sql_thd_internal_api.h"
 
 extern "C" {
 

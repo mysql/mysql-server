@@ -701,3 +701,4 @@ next_loop:
   } while (key_info); /* no more keys to test */
   DBUG_RETURN(0);
 }
+

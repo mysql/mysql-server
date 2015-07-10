@@ -1007,6 +1007,12 @@ public:
      to provide. Three-value logic: asc/desc/don't care
   */
   ORDER::enum_order order_direction;
+
+  /// Control whether the various index merge strategies are allowed
+  bool index_merge_allowed;
+  bool index_merge_union_allowed;
+  bool index_merge_sort_union_allowed;
+  bool index_merge_intersect_allowed;
 };
 
 class TABLE_READ_PLAN;
@@ -2803,6 +2809,22 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
     param.force_default_mrr= (interesting_order == ORDER::ORDER_DESC);
     param.order_direction= interesting_order;
     param.use_index_statistics= false;
+    /*
+      Set index_merge_allowed from OPTIMIZER_SWITCH_INDEX_MERGE.
+      Notice also that OPTIMIZER_SWITCH_INDEX_MERGE disables all
+      index merge sub strategies.
+    */
+    param.index_merge_allowed=
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE);
+    param.index_merge_union_allowed=
+      param.index_merge_allowed &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION);
+    param.index_merge_sort_union_allowed=
+      param.index_merge_allowed &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION);
+    param.index_merge_intersect_allowed=
+      param.index_merge_allowed &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(key_memory_test_quick_select_exec,
@@ -3001,7 +3023,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
           descending order
         */
         if ((thd->lex->sql_command != SQLCOM_DELETE) && 
-            thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
+            param.index_merge_allowed &&
             interesting_order != ORDER::ORDER_DESC)
         {
           /*
@@ -3020,7 +3042,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
       if (!tree->merges.is_empty())
       {
         // Cannot return rows in descending order.
-        if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
+        if (param.index_merge_allowed &&
             interesting_order != ORDER::ORDER_DESC &&
             param.table->file->stats.records)
         {
@@ -4562,7 +4584,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
     disabled in @@optimizer_switch
   */
   if (all_scans_rors && 
-      param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
+      param->index_merge_union_allowed)
   {
     roru_read_plans= (TABLE_READ_PLAN**)range_scans;
     trace_best_disjunct.add("use_roworder_union", true).
@@ -4597,7 +4619,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   DBUG_PRINT("info",("index_merge cost with rowid-to-row scan: %g",
                      imerge_cost.total_cost()));
   if (imerge_cost > read_cost || 
-      !param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION))
+      !param->index_merge_sort_union_allowed)
   {
     trace_best_disjunct.add("use_roworder_index_merge", true).
       add_alnum("cause", "cost");
@@ -4653,7 +4675,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 build_ror_index_merge:
   if (!all_scans_ror_able || 
       param->thd->lex->sql_command == SQLCOM_DELETE ||
-      !param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_UNION))
+      !param->index_merge_union_allowed)
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
@@ -5439,7 +5461,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
   min_cost.set_max_cost();
 
   if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
-      !param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
+      !param->index_merge_intersect_allowed)
   {
     trace_ror.add("usable", false);
     if (tree->n_ror_scans < 2)
@@ -9910,6 +9932,17 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
   }
   if (param->table->file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
     param->is_ror_scan= FALSE;
+
+  /*
+    QUICK_ROR_INTERSECT_SELECT and QUICK_ROR_UNION_SELECT do read_set
+    manipulations in reset(), which breaks virtual generated column's
+    computation logic, which is used when reading index values.
+    So, disable index merge intersection/union for any index on such column.
+    @todo lift this implementation restriction
+  */
+  if (param->table->index_contains_some_virtual_gcol(keynr))
+    param->is_ror_scan= false;
+
   DBUG_PRINT("exit", ("Records: %lu", (ulong) rows));
   DBUG_RETURN(rows);
 }

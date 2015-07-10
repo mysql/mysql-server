@@ -605,21 +605,19 @@ static bool mysql_update(THD *thd,
           to update
           NOTE: filesort will call table->prepare_for_position()
         */
-        ha_rows examined_rows;
-        ha_rows found_rows;
-        Filesort fsort(order, limit);
+        ha_rows examined_rows, found_rows, returned_rows;
+        Filesort fsort(&qep_tab, order, limit);
 
         DBUG_ASSERT(table->sort.io_cache == NULL);
         table->sort.io_cache= (IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
                                                     sizeof(IO_CACHE),
                                                     MYF(MY_FAE | MY_ZEROFILL));
 
-        if ((table->sort.found_records= filesort(thd, &qep_tab, &fsort, true,
-                                                 &examined_rows, &found_rows))
-            == HA_POS_ERROR)
-        {
+        if (filesort(thd, &fsort, true,
+                     &examined_rows, &found_rows, &returned_rows))
           goto exit_without_my_ok;
-        }
+
+        table->sort.found_records= returned_rows;
         thd->inc_examined_row_count(examined_rows);
         /*
           Filesort has already found and selected the rows we want to update,

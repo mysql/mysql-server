@@ -37,6 +37,7 @@ eval SET @@session.default_storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#
 # Execute the tests to be applied to all storage engines
+let $support_virtual_index= 1;
 --source suite/gcol/inc/gcol_column_def_options.inc
 
 #------------------------------------------------------------------------------#

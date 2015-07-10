@@ -1069,6 +1069,36 @@ bool Item_field::mark_field_in_map(uchar *arg)
   return false;
 }
 
+
+bool Item_field::check_gcol_func_processor(uchar *int_arg)
+{
+  int *args= reinterpret_cast<int *>(int_arg);
+  int fld_idx= args[0];
+  DBUG_ASSERT(field);
+  // Don't allow GC to refer itself or another GC that is defined after it.
+  if (field->gcol_info && field->field_index >= fld_idx)
+  {
+    args[1]= ER_GENERATED_COLUMN_NON_PRIOR;
+    return true;
+  }
+  /*
+    If a generated column depends on an auto_increment column:
+    - calculation of the generated column's value is done before
+    write_row(),
+    - but the auto_increment value is determined in write_row() by the
+    engine.
+    So this case is forbidden.
+  */
+  if (field->flags & AUTO_INCREMENT_FLAG)
+  {
+    args[1]= ER_GENERATED_COLUMN_REF_AUTO_INC;
+    return true;
+  }
+
+  return false;
+}
+
+
 /**
   Check privileges of base table column
 */

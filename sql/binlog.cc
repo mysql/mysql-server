@@ -1142,6 +1142,17 @@ static int binlog_init(void *p)
   return 0;
 }
 
+
+static int binlog_deinit(void *p)
+{
+  /* Using binlog as TC after the binlog has been unloaded, won't work */
+  if (tc_log == &mysql_bin_log)
+    tc_log= NULL;
+  binlog_hton= NULL;
+  return 0;
+}
+
+
 static int binlog_close_connection(handlerton *hton, THD *thd)
 {
   DBUG_ENTER("binlog_close_connection");
@@ -11119,7 +11130,7 @@ mysql_declare_plugin(binlog)
   "This is a pseudo storage engine to represent the binlog in a transaction",
   PLUGIN_LICENSE_GPL,
   binlog_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
+  binlog_deinit, /* Plugin Deinit */
   0x0100 /* 1.0 */,
   NULL,                       /* status variables                */
   NULL,                       /* system variables                */

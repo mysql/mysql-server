@@ -612,6 +612,7 @@ struct mysql_row_templ_t {
 	ulint	is_unsigned;		/*!< if a column type is an integer
 					type and this field is != 0, then
 					it is an unsigned integer type */
+	ulint	is_virtual;		/*!< if a column is a virtual column */
 };
 
 #define MYSQL_FETCH_CACHE_SIZE		8
@@ -877,7 +878,24 @@ struct SysIndexCallback {
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
 
-
+/** Get the computed value by supplying the base column values.
+@param[in,out]	row		the data row
+@param[in]	col		virtual column
+@param[in]	index		index on the virtual column
+@param[in,out]	my_rec		MySQL record to store the rows
+@param[in,out]	local_heap	heap memory for processing large data etc.
+@param[in]	heap		memory heap that copies the actual index row
+@param[in]	in_purge	whether this is called by purge
+@return the field filled with computed value */
+dfield_t*
+innobase_get_computed_value(
+	const dtuple_t*		row,
+	const dict_v_col_t*	col,
+	const dict_index_t*	index,
+	byte*			my_rec,
+	mem_heap_t**		local_heap,
+	mem_heap_t*		heap,
+	bool			in_purge= false);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

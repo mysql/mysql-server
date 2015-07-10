@@ -352,7 +352,7 @@ dict_boot(void)
 	/* Insert into the dictionary cache the descriptions of the basic
 	system tables */
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0);
+	table = dict_mem_table_create("SYS_TABLES", DICT_HDR_SPACE, 8, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0,
 			       MAX_FULL_NAME_LEN);
@@ -405,7 +405,8 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE, 7, 0, 0);
+	table = dict_mem_table_create("SYS_COLUMNS", DICT_HDR_SPACE,
+				      7, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);
@@ -438,7 +439,7 @@ dict_boot(void)
 
 	/*-------------------------*/
 	table = dict_mem_table_create("SYS_INDEXES", DICT_HDR_SPACE,
-				      DICT_NUM_COLS__SYS_INDEXES, 0, 0);
+				      DICT_NUM_COLS__SYS_INDEXES, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "TABLE_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 8);
@@ -471,7 +472,7 @@ dict_boot(void)
 	ut_a(error == DB_SUCCESS);
 
 	/*-------------------------*/
-	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0);
+	table = dict_mem_table_create("SYS_FIELDS", DICT_HDR_SPACE, 3, 0, 0, 0);
 
 	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 8);
 	dict_mem_table_add_col(table, heap, "POS", DATA_INT, 0, 4);

@@ -1923,7 +1923,7 @@ buf_pool_resize()
 		btr_search_s_unlock_all();
 	}
 
-	btr_search_disable();
+	btr_search_disable(true);
 
 	if (btr_search_disabled) {
 		ib::info() << "disabled adaptive hash index.";

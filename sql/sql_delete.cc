@@ -360,23 +360,22 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
 
     if (need_sort)
     {
-      ha_rows examined_rows;
-      ha_rows found_rows;
+      ha_rows examined_rows, found_rows, returned_rows;
 
       {
-        Filesort fsort(order, HA_POS_ERROR);
+        Filesort fsort(&qep_tab, order, HA_POS_ERROR);
         DBUG_ASSERT(usable_index == MAX_KEY);
         table->sort.io_cache= (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
                                                      sizeof(IO_CACHE),
                                                      MYF(MY_FAE | MY_ZEROFILL));
 
-        if ((table->sort.found_records= filesort(thd, &qep_tab, &fsort, true,
-                                                 &examined_rows, &found_rows))
-            == HA_POS_ERROR)
+        if (filesort(thd, &fsort, true,
+                     &examined_rows, &found_rows, &returned_rows))
         {
           err= true;
           goto exit_without_my_ok;
         }
+        table->sort.found_records= returned_rows;
         thd->inc_examined_row_count(examined_rows);
         free_underlaid_joins(thd, select_lex);
         /*
