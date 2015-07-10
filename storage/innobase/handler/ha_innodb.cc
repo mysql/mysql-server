@@ -3709,14 +3709,24 @@ innobase_change_buffering_inited_ok:
 	srv_mon_default_on();
 
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
 	/* Unit Tests */
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+	unit_test_os_file_get_parent_dir();
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
+
+#ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 	test_make_filepath();
-//	test_dict_stats_all();
-#ifdef HAVE_UT_CHRONO_T
+#endif /*UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
+
+#ifdef UNIV_ENABLE_DICT_STATS_TEST
+	test_dict_stats_all();
+#endif /*UNIV_ENABLE_DICT_STATS_TEST */
+
+#ifdef UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT
+# ifdef HAVE_UT_CHRONO_T
 	test_row_raw_format_int();
-#endif /* HAVE_UT_CHRONO_T */
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+# endif /* HAVE_UT_CHRONO_T */
+#endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
 
 	DBUG_RETURN(0);
 }

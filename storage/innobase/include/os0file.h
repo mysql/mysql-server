@@ -1455,38 +1455,6 @@ os_file_status(
 	bool*		exists,
 	os_file_type_t* type);
 
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string.  In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' characters
-are not counted as part of the pathname.
-
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
-@param[in]	path		pathname
-@return own: directory component of the pathname */
-char*
-os_file_dirname(
-	const char*	path);
-
 /** This function returns a new path name after replacing the basename
 in an old path with a new basename.  The old_path is a full path
 name including the extension.  The tablename is in the normal
@@ -1525,6 +1493,12 @@ os_file_make_data_dir_path(
 dberr_t
 os_file_create_subdirs_if_needed(
 	const char*	path);
+
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+/* Test the function os_file_get_parent_dir. */
+void
+unit_test_os_file_get_parent_dir();
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
 
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each

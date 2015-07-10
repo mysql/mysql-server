@@ -1546,9 +1546,9 @@ fil_fusionio_enable_atomic_write(os_file_t file);
 @param[in,out]	node		Node to set */
 void fil_no_punch_hole(fil_node_t* node);
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 void test_make_filepath();
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 
 #endif /* !UNIV_INNOCHECKSUM */
 
