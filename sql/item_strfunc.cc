@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2652,7 +2652,9 @@ String *Item_func_char::val_str(String *str)
     }
   }
   str->realloc(str->length());			// Add end 0 (for Purify)
-  return check_well_formed_result(str);
+  return check_well_formed_result(str,
+                                  false,  // send warning
+                                  true);  // truncate
 }
 
 
@@ -2818,7 +2820,9 @@ String *Item_func_rpad::val_str(String *str)
   if (use_mb(rpad->charset()))
   {
     // This will chop off any trailing illegal characters from rpad.
-    String *well_formed_pad= args[2]->check_well_formed_result(rpad, false);
+    String *well_formed_pad= args[2]->check_well_formed_result(rpad,
+                                                               false, //send warning
+                                                               true); //truncate
     if (!well_formed_pad)
       goto err;
   }
@@ -2931,7 +2935,9 @@ String *Item_func_lpad::val_str(String *str)
   if (use_mb(pad->charset()))
   {
     // This will chop off any trailing illegal characters from pad.
-    String *well_formed_pad= args[2]->check_well_formed_result(pad, false);
+    String *well_formed_pad= args[2]->check_well_formed_result(pad,
+                                                               false, // send warning
+                                                               true); // truncate
     if (!well_formed_pad)
       goto err;
   }
@@ -3047,7 +3053,9 @@ String *Item_func_conv_charset::val_str(String *str)
   }
   null_value= tmp_value.copy(arg->ptr(), arg->length(), arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : check_well_formed_result(&tmp_value);
+  return null_value ? 0 : check_well_formed_result(&tmp_value,
+                                                   false, // send warning
+                                                   true); // truncate
 }
 
 void Item_func_conv_charset::fix_length_and_dec()

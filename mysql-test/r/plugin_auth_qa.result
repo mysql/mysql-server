@@ -214,15 +214,24 @@ plüg_dest		NULL
 DROP USER plüg_dest;
 SET NAMES ascii;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg'
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 pl??g	test_plugin_server	pl??g_dest
 DROP USER 'plüg';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg'
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 pl??g_dest		NULL
 DROP USER 'plüg_dest';
+Warnings:
+Warning	1300	Invalid ascii character string: 'pl\xC3\xBCg_...'
 SET NAMES latin1;
 ========== test 1.1.1.5 ====================================
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
