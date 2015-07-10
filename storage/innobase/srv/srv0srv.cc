@@ -173,6 +173,7 @@ OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 my_bool	srv_use_native_aio = TRUE;
+my_bool	srv_numa_interleave = FALSE;
 
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
