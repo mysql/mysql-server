@@ -1849,15 +1849,12 @@ buf_pool_init(
 
 #ifdef HAVE_LIBNUMA
 	if (srv_numa_interleave) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Setting NUMA memory policy to MPOL_INTERLEAVE");
+		ib::info() << "Setting NUMA memory policy to MPOL_INTERLEAVE";
 		if (set_mempolicy(MPOL_INTERLEAVE,
 				  numa_all_nodes_ptr->maskp,
 				  numa_all_nodes_ptr->size) != 0) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to set NUMA memory policy to"
-				" MPOL_INTERLEAVE (error: %s).",
-				strerror(errno));
+			ib::warn() << "Failed to set NUMA memory policy to"
+				" MPOL_INTERLEAVE: " << strerror(errno);
 		}
 	}
 #endif // HAVE_LIBNUMA
@@ -1894,12 +1891,10 @@ buf_pool_init(
 
 #ifdef HAVE_LIBNUMA
 	if (srv_numa_interleave) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Setting NUMA memory policy to MPOL_DEFAULT");
+		ib::info() << "Setting NUMA memory policy to MPOL_DEFAULT";
 		if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"Failed to set NUMA memory policy to"
-				" MPOL_DEFAULT (error: %s).", strerror(errno));
+			ib::warn() << "Failed to set NUMA memory policy to"
+				" MPOL_DEFAULT: " << strerror(errno);
 		}
 	}
 #endif // HAVE_LIBNUMA
