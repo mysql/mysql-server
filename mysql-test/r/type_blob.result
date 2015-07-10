@@ -1215,3 +1215,28 @@ SET @g3 = ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))');
 select @g1 > @g3;
 @g1 > @g3
 1
+#
+# Bug#21153489 VALGRIND ERRORS IN ITEM_BOOL_FUNC2::IS_NULL 
+#              LEAD TO CRASH LATER
+#
+set sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(a LONGBLOB NOT NULL) engine=innodb default charset=latin1;
+INSERT INTO t1 VALUES (''),(''),(''),('');
+CREATE TABLE t2 (b LONGTEXT) engine=innodb default charset=latin1;
+INSERT INTO t2 VALUES ('a');
+SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
+( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1)
+1
+1
+1
+1
+SELECT ( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1) FROM t1;
+( SELECT ( b <> 1 ) FROM t2) <> ALL(SELECT 1681007452 FROM t1)
+1
+1
+1
+1
+DROP TABLE t1,t2;
+set sql_mode=default;
