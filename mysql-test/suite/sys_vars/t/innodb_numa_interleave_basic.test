@@ -1,0 +1,13 @@
+--source include/have_innodb.inc
+--source include/have_numa.inc
+
+SELECT @@GLOBAL.innodb_numa_interleave;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_numa_interleave=off;
+
+SELECT @@GLOBAL.innodb_use_native_aio;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.innodb_use_native_aio;
+
