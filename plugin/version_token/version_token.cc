@@ -959,7 +959,7 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
 
-  if (timeout < 0 || timeout > ((long long) ULONG_MAX))
+  if (timeout < 0)
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
              "version_tokens_lock_shared");
@@ -986,7 +986,7 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
 
-  if (timeout < 0 || timeout > ((long long) ULONG_MAX))
+  if (timeout < 0)
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
              "version_tokens_lock_exclusive");

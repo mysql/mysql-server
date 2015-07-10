@@ -54,15 +54,9 @@ select version_tokens_unlock("Takes no arguments");
 
 --error ER_DATA_OUT_OF_RANGE
 select version_tokens_lock_shared("gizmo", -1);
---echo # 0xffffffff = 4294967295 = ULONG_MAX
---error ER_DATA_OUT_OF_RANGE
-select version_tokens_lock_shared("gizmo", 4294967295 + 1);
 
 --error ER_DATA_OUT_OF_RANGE
 select version_tokens_lock_exclusive("gizmo", -1);
---echo # 0xffffffff = 4294967295 = ULONG_MAX
---error ER_DATA_OUT_OF_RANGE
-select version_tokens_lock_exclusive("gizmo", 4294967295 + 1);
 
 -- echo
 CREATE USER vbhagi@localhost;
