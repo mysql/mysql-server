@@ -38,7 +38,7 @@ spins
 NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
-wait	CYCLE
+wait	{CYCLE_OR_NANOSECOND}
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -53,7 +53,7 @@ spins
 NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
-wait	CYCLE
+wait	{CYCLE_OR_NANOSECOND}
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1

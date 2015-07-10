@@ -1,5 +1,4 @@
-/* Copyright (c) 2008 MySQL AB, 2010 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -89,6 +88,46 @@ void init_timers(void)
                                      (double)pfs_timer_info.ticks.frequency);
   else
     tick_to_pico= 0;
+
+  /*
+    Depending on the platform and build options, some timers may not be
+    available. Pick best replacements.
+  */
+
+  /*
+    For WAIT, the cycle timer is used by default. However, it is not available
+    on all architectures. Fall back to the nanosecond timer in this case. It is
+    unlikely that neither cycle nor nanosecond are available, but we continue
+    probing less resolution timers anyway for consistency with other events.
+  */
+  if (cycle_to_pico != 0)
+  {
+    /* Normal case. */
+    wait_timer= TIMER_NAME_CYCLE;
+  }
+  else if (nanosec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    wait_timer= TIMER_NAME_NANOSEC;
+  }
+  else if (microsec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    wait_timer= TIMER_NAME_MICROSEC;
+  }
+  else if (millisec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    wait_timer= TIMER_NAME_MILLISEC;
+  }
+  else
+  {
+    /*
+       Will never be reached on any architecture, but must provide a default if
+       no other timers are available.
+    */
+    wait_timer= TIMER_NAME_TICK;
+  }
 }
 
 ulonglong get_timer_value(enum_timer_name timer_name)
