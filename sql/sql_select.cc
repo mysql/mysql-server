@@ -882,12 +882,8 @@ void JOIN::reset()
 
   if (select_lex->has_ft_funcs())
   {
-#ifdef DBUG_OFF
+    /* TODO: move the code to JOIN::exec */
     (void)init_ftfuncs(thd, select_lex);
-#else
-    // Should not return an error on second execution
-    DBUG_ASSERT(!init_ftfuncs(thd, select_lex));
-#endif
   }
 
   DBUG_VOID_RETURN;
