@@ -393,9 +393,24 @@ static int parse_vtokens(char *input, enum command type)
 }
 
 
-// Plugin audit function to compare session version tokens
-// with the global ones.
-// TODO: Release locks in MYSQL_AUDIT_GENERAL_STATUS subclass.
+/**
+  Audit API entry point for the version token pluign
+
+  Plugin audit function to compare session version tokens with
+  the global ones.
+  At the start of each query (MYSQL_AUDIT_GENERAL_LOG
+  currently) if there's a session version token vector it will
+  acquire the GET_LOCK shared locks for the session version tokens
+  and then will try to find them in the global version lock and
+  compare their values with the ones found. Throws errors if not
+  found or the version values do not match. See parse_vtokens().
+  At query end (MYSQL_AUDIT_GENERAL_STATUS currently) it releases
+  the GET_LOCK shared locks it has aquired.
+
+  @param thd          The current thread
+  @param event_class  audit API event class
+  @param event        pointer to the audit API event data
+*/
 static void version_token_check(MYSQL_THD thd,
                                 unsigned int event_class,
                                 const void *event __attribute__((unused)))
@@ -445,7 +460,14 @@ static void version_token_check(MYSQL_THD thd,
     }
     case MYSQL_AUDIT_GENERAL_STATUS:
     {
-      mysql_release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
+      /*
+        Release locks only if the session variable is set.
+
+        This relies on the fact that MYSQL_AUDIT_GENERAL_STATUS
+        is always generated at the end of query execution.
+      */
+      if (THDVAR(thd, session))
+        mysql_release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
       break;
     }
     default:
