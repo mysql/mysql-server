@@ -1073,13 +1073,8 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
 {
   bool ret= FALSE;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
-  {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+  if (check_super_outside_trx_outside_sf(self, thd, var))
     return TRUE;
-  }
-#endif
 #ifdef HAVE_REPLICATION
   Master_info *mi;
   int running= 0;
