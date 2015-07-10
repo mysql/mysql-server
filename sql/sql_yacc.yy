@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11070,7 +11070,9 @@ literal:
                                     str ? str->length() : 0,
                                     $1);
             if (!item_str ||
-                !item_str->check_well_formed_result(&item_str->str_value, TRUE))
+                !item_str->check_well_formed_result(&item_str->str_value,
+                                                    true, //send error
+                                                    true))  //truncate
             {
               MYSQL_YYABORT;
             }
@@ -11099,7 +11101,9 @@ literal:
                                     str ? str->length() : 0,
                                     $1);
             if (!item_str ||
-                !item_str->check_well_formed_result(&item_str->str_value, TRUE))
+                !item_str->check_well_formed_result(&item_str->str_value,
+                                                    true, //send error
+                                                    true)) //truncate
             {
               MYSQL_YYABORT;
             }
