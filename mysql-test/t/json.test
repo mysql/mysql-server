@@ -2588,6 +2588,9 @@ select json_search( '{ "a": "foo" }', 'one', 'foo', null, '$a' );
 --error ER_INVALID_JSON_PATH
 select json_search( '{ "a": "foo" }', 'all', 'foo', null, '$.a', '$b' );
 
+--error ER_BAD_FIELD_ERROR
+select json_search(a, b, c);
+
 # simple tests for search without path arguments
 select json_search( '{ "a": "foobar" }', 'one', 'foo%' );
 select json_search( '{ "a": "foobar", "b": "focus", "c": [ "arm", "foot", "shoulder" ] }', 'one', 'foo%' );
@@ -5753,6 +5756,14 @@ SELECT JSON_EXTRACT('1E+309', '$');
 SELECT JSON_EXTRACT('1E+36181012216111515851075235238', '$');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_EXTRACT('-1E+36181012216111515851075235238', '$');
+
+--echo #
+--echo # Bug#21383284: ASSERTION IN SELECT_LEX::SETUP_CONDS
+--echo #
+--error ER_WRONG_ARGUMENTS
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
 
 
 # Local Variables:
