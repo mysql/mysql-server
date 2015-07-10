@@ -22,7 +22,7 @@
 
 int thd_init(THD *thd, char *stack_start)
 {
-  DBUG_ENTER("thd_new_connection_setup");
+  DBUG_ENTER("thd_init");
   thd->set_time();
   thd->thr_create_utime= thd->start_utime= my_micro_time();
 

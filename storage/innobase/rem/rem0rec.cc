@@ -1208,7 +1208,7 @@ rec_convert_dtuple_to_rec_comp(
 	const dtype_t*	type;
 	byte*		end;
 	byte*		nulls;
-	byte*		lens;
+	byte*		lens = NULL;
 	ulint		len;
 	ulint		i;
 	ulint		n_node_ptr_field;

@@ -10,4 +10,3 @@
 #
 ##############################################################################
 innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186
-innodb.innodb_v_purge	: WL#8149 2015-07-10 Need to fix create_thd link issue
