@@ -3789,7 +3789,7 @@ dict_stats_rename_index(
 }
 
 /* tests @{ */
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
 
 /* The following unit tests test some of the functions in this file
 individually, such testing cannot be performed by the mysql-test framework
@@ -3961,7 +3961,7 @@ test_dict_stats_save()
 	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
+	table.name.m_name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	table.stat_n_rows = TEST_N_ROWS;
 	table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
 	table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
@@ -4113,7 +4113,7 @@ test_dict_stats_fetch_from_ps()
 	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
-	table.name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
+	table.name.m_name = (char*) (TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
 	UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
 	UT_LIST_ADD_LAST(table.indexes, &index1);
 	UT_LIST_ADD_LAST(table.indexes, &index2);
@@ -4174,7 +4174,7 @@ test_dict_stats_all()
 }
 /* @} */
 
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 /* @} */
 
 #endif /* UNIV_HOTBACKUP */

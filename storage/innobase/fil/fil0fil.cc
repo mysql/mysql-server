@@ -6815,10 +6815,12 @@ Folder::exists()
 	os_file_type_t	type;
 
 #ifdef _WIN32
-	/* Temporarily strip the trailing_separator since it will
-	cause _stat64() to fail on Windows */
+	/* Temporarily strip the trailing_separator since it will cause
+	_stat64() to fail on Windows unless the path is the root of some
+	drive; like "c:\".  _stat64() will fail if it is "c:". */
 	size_t	len = strlen(m_abs_path);
-	if (m_abs_path[m_abs_len - 1] == OS_PATH_SEPARATOR) {
+	if (m_abs_path[m_abs_len - 1] == OS_PATH_SEPARATOR
+	    && m_abs_path[m_abs_len - 2] != ':') {
 		m_abs_path[m_abs_len - 1] = '\0';
 	}
 #endif /* WIN32 */
@@ -6836,7 +6838,7 @@ Folder::exists()
 }
 
 /* Unit Tests */
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 #define MF  fil_make_filepath
 #define DISPLAY ib::info() << path
 void
@@ -6879,5 +6881,5 @@ test_make_filepath()
 	path = MF(long_path, "tablespacename", IBD, false); DISPLAY;
 	path = MF(long_path, "tablespacename", IBD, true); DISPLAY;
 }
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH */
 /* @} */

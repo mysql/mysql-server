@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -169,7 +169,7 @@ test_ha_storage()
 
 		if (p != stored[i]) {
 			ib::warn() << "ha_storage_put() returned " << p
-				" instead of " << stored[i] << ", i=" << i;
+				<< " instead of " << stored[i] << ", i=" << i;
 			return;
 		}
 	}

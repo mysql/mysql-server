@@ -1702,58 +1702,154 @@ os_file_make_data_dir_path(
 	ptr[tablename_len] = '\0';
 }
 
-/** The function os_file_dirname returns a directory component of a
-null-terminated pathname string. In the usual case, dirname returns
-the string up to, but not including, the final '/', and basename
-is the component following the final '/'. Trailing '/' characters
-are not counted as part of the pathname.
+/** Check if the path refers to the root of a drive using a pointer
+to the last directory separator that the caller has fixed.
+@param[in]	path	path name
+@param[in]	path	last directory separator in the path
+@return true if this path is a drive root, false if not */
+UNIV_INLINE
+bool
+os_file_is_root(
+	const char*	path,
+	const char*	last_slash)
+{
+	return(
+#ifdef _WIN32
+	       (last_slash == path + 2 && path[1] == ':') ||
+#endif /* _WIN32 */
+	       last_slash == path);
+}
 
-If path does not contain a slash, dirname returns the string ".".
-
-Concatenating the string returned by dirname, a "/", and the basename
-yields a complete pathname.
-
-The return value is a copy of the directory component of the pathname.
-The copy is allocated from heap. It is the caller responsibility
-to free it after it is no longer needed.
-
-The following list of examples (taken from SUSv2) shows the strings
-returned by dirname and basename for different paths:
-
-       path	      dirname	     basename
-       "/usr/lib"     "/usr"	     "lib"
-       "/usr/"	      "/"	     "usr"
-       "usr"	      "."	     "usr"
-       "/"	      "/"	     "/"
-       "."	      "."	     "."
-       ".."	      "."	     ".."
-
+/** Return the parent directory component of a null-terminated path.
+Return a new buffer containing the string up to, but not including,
+the final component of the path.
+The path returned will not contain a trailing separator.
+Do not return a root path, return NULL instead.
+The final component trimmed off may be a filename or a directory name.
+If the final component is the only component of the path, return NULL.
+It is the caller's responsibility to free the returned string after it
+is no longer needed.
 @param[in]	path		Path name
-@return own: directory component of the pathname */
+@return own: parent directory of the path */
+static
 char*
-os_file_dirname(
+os_file_get_parent_dir(
 	const char*	path)
 {
+	bool	has_trailing_slash = false;
+
 	/* Find the offset of the last slash */
 	const char* last_slash = strrchr(path, OS_PATH_SEPARATOR);
-	if (!last_slash) {
-		/* No slash in the path, return "." */
 
-		return(mem_strdup("."));
+	if (!last_slash) {
+		/* No slash in the path, return NULL */
+		return(NULL);
 	}
 
-	/* Ok, there is a slash */
+	/* Ok, there is a slash. Is there anything after it? */
+	if (static_cast<size_t>(last_slash - path + 1) == strlen(path)) {
+		has_trailing_slash = true;
+	}
 
-	if (last_slash == path) {
-		/* last slash is the first char of the path */
+	/* Reduce repetative slashes. */
+	while (last_slash > path
+		&& last_slash[-1] == OS_PATH_SEPARATOR) {
+		last_slash--;
+	}
 
-		return(mem_strdup("/"));
+	/* Check for the root of a drive. */
+	if (os_file_is_root(path, last_slash)) {
+		return(NULL);
+	}
+
+	/* If a trailing slash prevented the first strrchr() from trimming
+	the last component of the path, trim that component now. */
+	if (has_trailing_slash) {
+		/* Back up to the previous slash. */
+		last_slash--;
+		while (last_slash > path
+		       && last_slash[0] != OS_PATH_SEPARATOR) {
+			last_slash--;
+		}
+
+		/* Reduce repetative slashes. */
+		while (last_slash > path
+			&& last_slash[-1] == OS_PATH_SEPARATOR) {
+			last_slash--;
+		}
+	}
+
+	/* Check for the root of a drive. */
+	if (os_file_is_root(path, last_slash)) {
+		return(NULL);
 	}
 
 	/* Non-trivial directory component */
 
 	return(mem_strdupl(path, last_slash - path));
 }
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+
+/* Test the function os_file_get_parent_dir. */
+void
+test_os_file_get_parent_dir(
+	const char*	child_dir,
+	const char*	expected_dir)
+{
+	char* child = mem_strdup(child_dir);
+	char* expected = expected_dir == NULL ? NULL
+			 : mem_strdup(expected_dir);
+
+	/* os_file_get_parent_dir() assumes that separators are
+	converted to OS_PATH_SEPARATOR. */
+	os_normalize_path(child);
+	os_normalize_path(expected);
+
+	char* parent = os_file_get_parent_dir(child);
+
+	bool unexpected = (expected == NULL
+			  ? (parent != NULL)
+			  : (0 != strcmp(parent, expected)));
+	if (unexpected) {
+		ib::fatal() << "os_file_get_parent_dir('" << child
+			<< "') returned '" << parent
+			<< "', instead of '" << expected << "'.";
+	}
+	ut_free(parent);
+	ut_free(child);
+	ut_free(expected);
+}
+
+/* Test the function os_file_get_parent_dir. */
+void
+unit_test_os_file_get_parent_dir()
+{
+	test_os_file_get_parent_dir("/usr/lib/a", "/usr/lib");
+	test_os_file_get_parent_dir("/usr/", NULL);
+	test_os_file_get_parent_dir("//usr//", NULL);
+	test_os_file_get_parent_dir("usr", NULL);
+	test_os_file_get_parent_dir("usr//", NULL);
+	test_os_file_get_parent_dir("/", NULL);
+	test_os_file_get_parent_dir("//", NULL);
+	test_os_file_get_parent_dir(".", NULL);
+	test_os_file_get_parent_dir("..", NULL);
+# ifdef _WIN32
+	test_os_file_get_parent_dir("D:", NULL);
+	test_os_file_get_parent_dir("D:/", NULL);
+	test_os_file_get_parent_dir("D:\\", NULL);
+	test_os_file_get_parent_dir("D:/data", NULL);
+	test_os_file_get_parent_dir("D:/data/", NULL);
+	test_os_file_get_parent_dir("D:\\data\\", NULL);
+	test_os_file_get_parent_dir("D:///data/////", NULL);
+	test_os_file_get_parent_dir("D:\\\\\\data\\\\\\\\", NULL);
+	test_os_file_get_parent_dir("D:/data//a", "D:/data");
+	test_os_file_get_parent_dir("D:\\data\\\\a", "D:\\data");
+	test_os_file_get_parent_dir("D:///data//a///b/", "D:///data//a");
+	test_os_file_get_parent_dir("D:\\\\\\data\\\\a\\\\\\b\\", "D:\\\\\\data\\\\a");
+#endif  /* _WIN32 */
+}
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
+
 
 /** Creates all missing subdirectories along the given path.
 @param[in]	path		Path name
@@ -1772,19 +1868,10 @@ os_file_create_subdirs_if_needed(
 
 	}
 
-	char*	subdir = os_file_dirname(path);
+	char*	subdir = os_file_get_parent_dir(path);
 
-	if (strlen(path) - strlen(subdir) == 1) {
-		ut_free(subdir);
-
-		return(DB_WRONG_FILE_NAME);
-	}
-
-	if (strlen(subdir) == 1
-	    && (*subdir == OS_PATH_SEPARATOR || *subdir == '.')) {
+	if (subdir == NULL) {
 		/* subdir is root or cwd, nothing to do */
-		ut_free(subdir);
-
 		return(DB_SUCCESS);
 	}
 
