@@ -35,6 +35,7 @@
 #include "rpl_rli.h"             // Relay_log_info
 #include "sp.h"                  // sp_find_routine
 #include "sp_head.h"             // sp_name
+#include "sql_audit.h"           // audit_global_variable
 #include "sql_base.h"            // Internal_error_handler_holder
 #include "sql_class.h"           // THD
 #include "sql_optimizer.h"       // JOIN
@@ -7979,6 +7980,24 @@ longlong Item_func_bit_xor::val_int()
 ****************************************************************************/
 
 /**
+  @class Silence_deprecation_warnings
+
+  @brief Disable deprecation warnings handler class
+*/
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    return sql_errno == ER_WARN_DEPRECATED_SYNTAX;
+  }
+};
+
+/**
   Return value of an system variable base[.name] as a constant item.
 
   @param pc                     Current parse context
@@ -8030,8 +8049,40 @@ Item *get_system_var(Parse_context *pc,
   
   var->do_deprecated_warning(thd);
 
-  return new Item_func_get_system_var(var, var_type, component_name,
-                                      NULL, 0);
+  Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
+                                                               component_name,
+                                                               NULL, 0);
+#ifndef EMBEDDED_LIBRARY
+  if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
+  {
+    String str;
+    String *outStr;
+    /* This object is just created for variable to string conversion.
+       item object cannot be used after the conversion of the variable
+       to string. It caches the data. */
+    Item_func_get_system_var *si= new Item_func_get_system_var(var, var_type,
+                                                               component_name,
+                                                               NULL, 0);
+
+    /* Disable deprecation warning during var to string conversion. */
+    Silence_deprecation_warnings silencer;
+    thd->push_internal_handler(&silencer);
+
+    outStr= si ? si->val_str(&str) : &str;
+
+    thd->pop_internal_handler();
+
+    if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                           var->name.str,
+                           outStr ? outStr->c_ptr() : NULL,
+                           outStr ? outStr->length() : 0))
+      {
+        return 0;
+      }
+  }
+#endif
+
+  return item;
 }
 
 

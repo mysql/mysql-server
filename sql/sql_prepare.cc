@@ -2541,6 +2541,8 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
     DBUG_VOID_RETURN;
   }
 
+
+
 #if defined(ENABLED_PROFILING)
   thd->profiling.set_query_source(stmt->m_query_string.str,
                                   stmt->m_query_string.length);
@@ -2556,7 +2558,7 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
   thd->set_protocol(&thd->protocol_binary);
 
   MYSQL_EXECUTE_PS(thd->m_statement_psi, stmt->m_prepared_stmt);
-
+  
   stmt->execute_loop(&expanded_query, open_cursor, params,
                     params + params_length);
   thd->set_protocol(save_protocol);
@@ -3257,9 +3259,13 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
 #ifndef EMBEDDED_LIBRARY
-  if (is_any_audit_plugin_active(thd))
+  if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_GENERAL_CLASS))
     parser_state.m_input.m_compute_digest= true;
 #endif
+
+  thd->m_parser_state = &parser_state;
+  invoke_pre_parse_rewrite_plugins(thd);
+  thd->m_parser_state = NULL;
 
   error= parse_sql(thd, &parser_state, NULL) ||
     thd->is_error() ||
@@ -3931,7 +3937,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         rewrite_query_if_needed(thd);
         log_execute_line(thd);
         thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
-        error= mysql_execute_command(thd);
+        error= mysql_execute_command(thd, true);
         MYSQL_QUERY_EXEC_DONE(error);
       }
     }

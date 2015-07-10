@@ -1883,7 +1883,6 @@ void THD::release_resources()
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  mysql_audit_release(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
   DBUG_ASSERT(timer == NULL);
