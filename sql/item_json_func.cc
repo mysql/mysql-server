@@ -2590,67 +2590,72 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
 
 bool Item_func_json_search::fix_fields(THD *thd, Item **items)
 {
-  bool retval= Item_json_func::fix_fields(thd, items);
+  if (Item_json_func::fix_fields(thd, items))
+    return true;
 
-  if (!retval)
+  // Fabricate a LIKE node
+
+  m_source_string_item= new Item_string(&my_charset_utf8mb4_bin);
+  Item_string *default_escape= new Item_string(&my_charset_utf8mb4_bin);
+  if (m_source_string_item == NULL || default_escape == NULL)
+    return true;                              /* purecov: inspected */
+
+  Item *like_string_item= args[2];
+  bool escape_initialized= false;
+
+  // Get the escape character, if any
+  if (arg_count > 3)
   {
-    // Fabricate a LIKE node
+    Item *orig_escape= args[3];
 
-    m_source_string_item= new Item_string(&my_charset_utf8mb4_bin);
-    Item *like_string_item= args[2];
-
-    Item_string *default_escape= new Item_string(&my_charset_utf8mb4_bin);
-    bool escape_initialized= false;
-
-    // Get the escape character, if any
-    if (arg_count > 3)
+    /*
+      Evaluate the escape clause. For a standalone LIKE expression,
+      the escape clause only has to be constant during execution.
+      However, we require a stronger condition: it must be constant.
+      That means that we can evaluate the escape clause at resolution time
+      and copy the results from the JSON_SEARCH() args into the arguments
+      for the LIKE node which we're fabricating.
+    */
+    if (!orig_escape->const_item())
     {
-      Item *orig_escape= args[3];
-
-      /*
-       Evaluate the escape clause. For a standalone LIKE expression,
-       the escape clause only has to be constant during execution.
-       However, we require a stronger condition: it must be constant.
-       That means that we can evaluate the escape clause at resolution time
-       and copy the results from the JSON_SEARCH() args into the arguments
-       for the LIKE node which we're fabricating.
-      */
-      if (!orig_escape->const_item())
-      {
-        my_error(ER_WRONG_ARGUMENTS,MYF(0),"ESCAPE");
-        return true;
-      }
-
-      String *escape_str= orig_escape->val_str(&m_escape);
-      if (!orig_escape->null_value)
-      {
-        uint escape_length= static_cast<uint>(escape_str->length());
-        default_escape->set_str_with_copy(escape_str->ptr(), escape_length);
-        escape_initialized= true;
-      }
-    }
-    if (!escape_initialized)
-    {
-      default_escape->set_str_with_copy("\\", 1);
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
     }
 
-    m_like_node= new Item_func_like(m_source_string_item,
-                                    like_string_item,
-                                    default_escape, true);
-
-    Item *like_args[3];
-    like_args[0]= m_source_string_item;
-    like_args[1]= like_string_item;
-    like_args[2]= default_escape;
-
-    m_like_node->fix_fields(thd, like_args);
-
-    // resolving the LIKE node may overwrite its arguments
-    Item **resolved_like_args= m_like_node->arguments();
-    m_source_string_item= down_cast<Item_string *>(resolved_like_args[0]);
+    String *escape_str= orig_escape->val_str(&m_escape);
+    if (thd->is_error())
+      return true;
+    if (escape_str)
+    {
+      uint escape_length= static_cast<uint>(escape_str->length());
+      default_escape->set_str_with_copy(escape_str->ptr(), escape_length);
+      escape_initialized= true;
+    }
   }
 
-  return retval;
+  if (!escape_initialized)
+  {
+    default_escape->set_str_with_copy("\\", 1);
+  }
+
+  m_like_node= new Item_func_like(m_source_string_item, like_string_item,
+                                  default_escape, true);
+  if (m_like_node == NULL)
+    return true;                              /* purecov: inspected */
+
+  Item *like_args[3];
+  like_args[0]= m_source_string_item;
+  like_args[1]= like_string_item;
+  like_args[2]= default_escape;
+
+  if (m_like_node->fix_fields(thd, like_args))
+    return true;
+
+  // resolving the LIKE node may overwrite its arguments
+  Item **resolved_like_args= m_like_node->arguments();
+  m_source_string_item= down_cast<Item_string *>(resolved_like_args[0]);
+
+  return false;
 }
 
 
