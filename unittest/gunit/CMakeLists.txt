@@ -230,6 +230,7 @@ ADD_LIBRARY(gunit_small STATIC
   strnxfrm.cc
   tap_event_listener.cc
   thread_utils.cc
+  fake_table.cc
 )
 ADD_LIBRARY(gunit_large STATIC
   gunit_test_main_server.cc
