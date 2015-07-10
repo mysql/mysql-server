@@ -168,6 +168,7 @@ my_bool	srv_use_native_aio = TRUE; /* enabled by default on Windows */
 #else
 my_bool	srv_use_native_aio;
 #endif
+my_bool	srv_numa_interleave = FALSE;
 
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
