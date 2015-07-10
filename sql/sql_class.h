@@ -2776,7 +2776,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  Prealloced_array<unsigned long, 1> audit_class_mask;
+  Prealloced_array<unsigned long, 11> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)
