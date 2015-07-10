@@ -31,10 +31,7 @@ DECLARE ret LONGTEXT DEFAULT '';
 SET ret:=CONCAT(REPEAT("(a=1 and b=2) or ",GREATEST(p_numterms-1,1)),"(a=2 and b=1)");
 RETURN RET;
 END|
-SET @min:=950000;
-SET @max:=950000;
-SET @incr:=100000;
-CALL p1(@min, @max, @incr);
+CALL p1(950000, 950000, 100000);
 numterms	query lengt	increment
 950000	16150017	100000
 SELECT LENGTH(@terms);
