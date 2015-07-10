@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,6 +33,24 @@ IF(NOT WIN32)
 ENDIF()
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
 TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
+
+FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
+ADD_TEST(NAME check_testcase_files
+         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+         COMMAND atrt --check-testcase-files ${testcase_files})
+
+ADD_CUSTOM_COMMAND(OUTPUT check_testcase_files.passed
+                   COMMAND atrt
+                           --check-testcase-files ${testcase_files}
+                           > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
+                   COMMAND echo See output in ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.output
+                           > ${CMAKE_CURRENT_BINARY_DIR}/check_testcase_files.passed
+                   MAIN_DEPENDENCY atrt
+                   DEPENDS ${testcase_files}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+ADD_CUSTOM_TARGET(check_testcase_files ALL
+                  SOURCES check_testcase_files.passed)
 
 INSTALL(TARGETS atrt DESTINATION mysql-test/ndb)
 INSTALL(PROGRAMS   atrt-testBackup atrt-mysql-test-run
