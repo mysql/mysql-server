@@ -678,7 +678,19 @@ static int check_connection(THD *thd)
     return 1; /* The error is set by alloc(). */
   }
 
+  if (mysql_audit_notify(thd,
+                        AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE)))
+  {
+    return 1;
+  }
+
   auth_rc= acl_authenticate(thd, COM_CONNECT);
+
+  if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
+  {
+    return 1;
+  }
+
   if (auth_rc == 0 && connect_errors != 0)
   {
     /*
@@ -861,7 +873,7 @@ bool thd_prepare_connection(THD *thd)
   bool rc;
   lex_start(thd);
   rc= login_connection(thd);
-  MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd);
+
   if (rc)
     return rc;
 
@@ -899,7 +911,9 @@ void close_connection(THD *thd, uint sql_errno)
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
-  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, sql_errno);
+
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_DISCONNECT),
+                     sql_errno);
   DBUG_VOID_RETURN;
 }
 

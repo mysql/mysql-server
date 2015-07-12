@@ -781,6 +781,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_security_context.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
@@ -791,6 +792,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_interface.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*

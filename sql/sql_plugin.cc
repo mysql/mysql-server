@@ -106,8 +106,6 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 extern int initialize_schema_table(st_plugin_int *plugin);
 extern int finalize_schema_table(st_plugin_int *plugin);
 
-extern int initialize_audit_plugin(st_plugin_int *plugin);
-extern int finalize_audit_plugin(st_plugin_int *plugin);
 #ifdef EMBEDDED_LIBRARY
 // Dummy implementations for embedded
 int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
@@ -1932,7 +1930,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
     protects only what it supposed to protect.
   */
 #ifndef EMBEDDED_LIBRARY
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                                   MYSQL_AUDIT_GENERAL_ALL);
 #endif
 
   mysql_mutex_lock(&LOCK_plugin);
@@ -2063,7 +2062,8 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     protects only what it supposed to protect.
   */
 #ifndef EMBEDDED_LIBRARY
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                                   MYSQL_AUDIT_GENERAL_ALL);
 #endif
 
   mysql_mutex_lock(&LOCK_plugin);

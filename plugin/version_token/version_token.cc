@@ -413,16 +413,16 @@ static int parse_vtokens(char *input, enum command type)
   @param event_class  audit API event class
   @param event        pointer to the audit API event data
 */
-static void version_token_check(MYSQL_THD thd,
-                                unsigned int event_class,
-                                const void *event)
+static int version_token_check(MYSQL_THD thd,
+                               mysql_event_class_t event_class,
+                               const void *event)
 {
   char *sess_var;
 
   const struct mysql_event_general *event_general=
     (const struct mysql_event_general *) event;
-  const uchar *command= (const uchar *) event_general->general_command;
-  unsigned int length= event_general->general_command_length;
+  const uchar *command= (const uchar *) event_general->general_command.str;
+  unsigned int length= event_general->general_command.length;
 
   DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
@@ -439,7 +439,7 @@ static void version_token_check(MYSQL_THD thd,
                                                  command, length,
                                                  (const uchar *) STRING_WITH_LEN("Prepare"),
                                                  0))
-        return;
+        return 0;
 
 
       if (THDVAR(thd, session))
@@ -448,7 +448,7 @@ static void version_token_check(MYSQL_THD thd,
                              strlen(THDVAR(thd, session)),
 			     MYF(MY_FAE));
       else
-	return;
+	return 0;
 
       // Lock the hash before checking for values.
       mysql_rwlock_rdlock(&LOCK_vtoken_hash);
@@ -476,7 +476,7 @@ static void version_token_check(MYSQL_THD thd,
       break;
   }
 
-  return;
+  return 0;
 }
 
 
@@ -485,7 +485,7 @@ static struct st_mysql_audit version_token_descriptor=
   MYSQL_AUDIT_INTERFACE_VERSION,                       /* interface version */
   NULL,                                                /* release_thd()     */
   version_token_check,                                 /* event_notify()    */
-  { (unsigned long) MYSQL_AUDIT_GENERAL_CLASSMASK }    /* class mask        */
+  { (unsigned long) MYSQL_AUDIT_GENERAL_ALL, }         /* class mask        */
 };
 
 

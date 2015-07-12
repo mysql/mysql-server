@@ -40,6 +40,7 @@
 #include "sp.h"                             // MYSQL_PROC_FIELD_DB
 #include "sp_head.h"                        // sp_head
 #include "sp_pcontext.h"                    // sp_pcontext
+#include "sql_audit.h"                      // audit_global_variable_get
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
 #include "sql_db.h"                         // check_db_dir_existence
@@ -3031,6 +3032,17 @@ static bool show_status_array(THD *thd, const char *wild,
           res= TRUE;
           goto end;
         }
+
+#ifndef EMBEDDED_LIBRARY
+        if (variables->type != SHOW_FUNC && value_type == OPT_GLOBAL &&
+            mysql_audit_notify(thd,
+                               AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                               var->name, pos, length))
+        {
+          res= TRUE;
+          goto end;
+        }
+#endif
       }
     }
   }

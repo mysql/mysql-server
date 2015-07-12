@@ -6,6 +6,7 @@ mysql-community (5.8.0-m17-1debian8) jessie; urgency=low
     libtest_services
     libtest_services_threaded
     locking_service
+    test_security_context
     version_token
   * added support for MECAB in
     d/{control,rules,mysql-*-server.install,source/include-binaries}

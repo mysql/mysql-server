@@ -7571,6 +7571,9 @@ ER_USER_DOES_NOT_EXIST
 ER_USER_ALREADY_EXISTS
   eng "User %s already exists."
 
+ER_AUDIT_API_ABORT
+  eng "Aborted by Audit API ('%-.48s';%d)."
+
 #
 #  End of 5.7 error messages.
 #
