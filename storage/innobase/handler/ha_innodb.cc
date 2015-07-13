@@ -4408,6 +4408,7 @@ innobase_close_connection(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx_t*	trx = thd_to_trx(thd);
+	bool	free_trx = false;
 
 	/* During server initialization MySQL layer will try to open
 	some of the master-slave tables those residing in InnoDB.
@@ -4453,7 +4454,7 @@ innobase_close_connection(
 				} else {
 					trx_rollback_for_mysql(trx);
 					trx_deregister_from_2pc(trx);
-					trx_free_for_mysql(trx);
+					free_trx = true;
 				}
 			} else {
 				sql_print_warning(
@@ -4467,12 +4468,17 @@ innobase_close_connection(
 				     << innobase_basename(trx->start_file)
 				     << ":" << trx->start_line);
 				innobase_rollback_trx(trx);
-				trx_free_for_mysql(trx);
+				free_trx = true;
 			}
 		} else {
 			innobase_rollback_trx(trx);
-			trx_free_for_mysql(trx);
+			free_trx = true;
 		}
+	}
+
+	/* Free trx only after TrxInInnoDB is deleted. */
+	if (free_trx) {
+		trx_free_for_mysql(trx);
 	}
 
 	UT_DELETE(thd_to_innodb_session(thd));
