@@ -82,7 +82,7 @@ public:
 	/** Get the number of pages in the buffer pool for a given index.
 	@param[in]	id	id of the index whose pages to peek
 	@return number of pages */
-	uintptr_t
+	uint64_t
 	get(
 		const index_id_t&	id)
 	{
@@ -98,7 +98,7 @@ public:
 			return(0);
 		}
 
-		return(ret);
+		return(static_cast<uint64_t>(ret >= 0 ? ret : 0));
 	}
 
 private:

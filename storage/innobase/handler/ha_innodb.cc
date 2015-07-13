@@ -12616,7 +12616,7 @@ index_pct_cached(
 		return(0.0);
 	}
 
-	const int64_t	n_in_mem = buf_stat_per_index->get(
+	const uint64_t	n_in_mem = buf_stat_per_index->get(
 		index_id_t(index->space, index->id));
 
 	const double	ratio = static_cast<double>(n_in_mem) / n_leaf;
