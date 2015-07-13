@@ -18376,7 +18376,8 @@ i_s_innodb_sys_fields,
 i_s_innodb_sys_foreign,
 i_s_innodb_sys_foreign_cols,
 i_s_innodb_sys_tablespaces,
-i_s_innodb_sys_datafiles
+i_s_innodb_sys_datafiles,
+i_s_innodb_cached_indexes
 
 mysql_declare_plugin_end;
 

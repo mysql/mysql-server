@@ -36,6 +36,7 @@ Created July 18, 2007 Vasil Dimov
 #include "dict0load.h"
 #include "buf0buddy.h"
 #include "buf0buf.h"
+#include "buf0stats.h"
 #include "ibuf0ibuf.h"
 #include "dict0mem.h"
 #include "dict0types.h"
@@ -8661,3 +8662,209 @@ i_s_files_table_fill(
 
 	DBUG_RETURN(0);
 }
+
+/** INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
+
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
+static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
+{
+#define CACHED_INDEXES_INDEX_ID		0
+	{STRUCT_FLD(field_name,		"INDEX_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define CACHED_INDEXES_N_CACHED_PAGES	1
+	{STRUCT_FLD(field_name,		"N_CACHED_PAGES"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/** Populate INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
+@param[in]	thd 		user thread
+@param[in]	index		populated dict_index_t struct with index info
+@param[in,out]	table_to_fill	fill this table
+@return 0 on success */
+static
+int
+i_s_fill_innodb_cached_indexes_row(
+	THD*		thd,
+	dict_index_t*	index,
+	TABLE*		table_to_fill)
+{
+	DBUG_ENTER("i_s_fill_innodb_cached_indexes_row");
+
+	const index_id_t	index_id(index->space, index->id);
+	const uint64_t		n = buf_stat_per_index->get(index_id);
+
+	if (n == 0) {
+		DBUG_RETURN(0);
+	}
+
+	Field**	fields = table_to_fill->field;
+
+	OK(fields[CACHED_INDEXES_INDEX_ID]->store(
+			static_cast<longlong>(index->id), true));
+
+	OK(fields[CACHED_INDEXES_N_CACHED_PAGES]->store(
+			static_cast<longlong>(n), true));
+
+	OK(schema_table_store_record(thd, table_to_fill));
+
+	DBUG_RETURN(0);
+}
+
+/** Go through each record in SYS_INDEXES, and fill
+INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
+@param[in]	thd	thread
+@param[in,out]	tables	tables to fill
+@return 0 on success */
+static
+int
+i_s_innodb_cached_indexes_fill_table(
+	THD*		thd,
+	TABLE_LIST*	tables,
+	Item*		/* not used */)
+{
+	DBUG_ENTER("i_s_innodb_cached_indexes_fill_table");
+
+	/* deny access to user without PROCESS_ACL privilege */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	mem_heap_t*	heap = mem_heap_create(1000);
+
+	mutex_enter(&dict_sys->mutex);
+
+	mtr_t		mtr;
+
+	mtr_start(&mtr);
+
+	/* Start the scan of SYS_INDEXES. */
+	btr_pcur_t	pcur;
+	const rec_t*	rec = dict_startscan_system(&pcur, &mtr, SYS_INDEXES);
+
+	/* Process each record in the table. */
+	while (rec != NULL) {
+		table_id_t	table_id;
+		dict_index_t	index;
+
+		/* Populate a dict_index_t structure with an information
+		from a SYS_INDEXES row. */
+		const char*	err_msg = dict_process_sys_indexes_rec(
+			heap, rec, &index, &table_id);
+
+		mtr_commit(&mtr);
+
+		mutex_exit(&dict_sys->mutex);
+
+		if (err_msg == NULL) {
+			i_s_fill_innodb_cached_indexes_row(
+				thd, &index, tables->table);
+		} else {
+			push_warning_printf(
+				thd, Sql_condition::SL_WARNING,
+				ER_CANT_FIND_SYSTEM_REC, "%s", err_msg);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record. */
+		mutex_enter(&dict_sys->mutex);
+
+		mtr_start(&mtr);
+
+		rec = dict_getnext_system(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+
+	mutex_exit(&dict_sys->mutex);
+
+	mem_heap_free(heap);
+
+	DBUG_RETURN(0);
+}
+
+/** Bind the dynamic table INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
+@param[in,out]	p	table schema object
+@return 0 on success */
+static
+int
+innodb_cached_indexes_init(
+	void*	p)
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_cached_indexes_init");
+
+	schema = static_cast<ST_SCHEMA_TABLE*>(p);
+
+	schema->fields_info = innodb_cached_indexes_fields_info;
+	schema->fill_table = i_s_innodb_cached_indexes_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+struct st_mysql_plugin	i_s_innodb_cached_indexes =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_CACHED_INDEXES"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB cached indexes"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_cached_indexes_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};

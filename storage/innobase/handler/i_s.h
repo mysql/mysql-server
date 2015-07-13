@@ -57,6 +57,7 @@ extern struct st_mysql_plugin	i_s_innodb_sys_foreign;
 extern struct st_mysql_plugin	i_s_innodb_sys_foreign_cols;
 extern struct st_mysql_plugin	i_s_innodb_sys_tablespaces;
 extern struct st_mysql_plugin	i_s_innodb_sys_datafiles;
+extern struct st_mysql_plugin	i_s_innodb_cached_indexes;
 
 /** Fill handlerton based INFORMATION_SCHEMA.FILES table.
 @param[in,out]	thd	thread/connection descriptor
