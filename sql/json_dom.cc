@@ -512,12 +512,13 @@ private:
   enum_state m_state;
   Compound_vector m_stack;
   Json_dom *m_dom_as_built;
-
+  bool m_preserve_neg_zero_int;
 public:
-  Rapid_json_handler()
+  Rapid_json_handler(bool preserve_neg_zero_int= false)
     : m_state(expect_anything),
       m_stack(key_memory_JSON),
-      m_dom_as_built(NULL)
+      m_dom_as_built(NULL),
+      m_preserve_neg_zero_int(preserve_neg_zero_int)
   {}
 
   ~Rapid_json_handler()
@@ -636,7 +637,7 @@ public:
 
   bool Double(double d, bool is_int= false)
   {
-    if (is_int)
+    if (is_int && !m_preserve_neg_zero_int)
     {
       /*
         The is_int flag is true only if -0 was seen. Handle it as an
@@ -860,9 +861,10 @@ public:
 
 
 Json_dom *Json_dom::parse(const char *text, size_t length,
-                          const char **syntaxerr, size_t *offset)
+                          const char **syntaxerr, size_t *offset,
+                          bool preserve_neg_zero_int)
 {
-  Rapid_json_handler handler;
+  Rapid_json_handler handler(preserve_neg_zero_int);
   MemoryStream ss(text, length);
   Reader reader;
   bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
