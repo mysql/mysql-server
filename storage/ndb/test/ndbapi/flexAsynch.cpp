@@ -351,7 +351,8 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
     }
   }
 
-  if (tNdbRecord && !tNew)
+  if (returnValue == NDBT_OK &&
+      tNdbRecord && !tNew)
   {
     Uint32 sz = NdbDictionary::getRecordRowLength(g_record[0]);
     sz += 3;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
   return true;
 }
 
+#define MAX_SOCKET_SERVER_TCP_BACKLOG 64
 bool
 SocketServer::setup(SocketServer::Service * service, 
 		    unsigned short * port,
@@ -139,7 +140,8 @@ SocketServer::setup(SocketServer::Service * service,
 
   DBUG_PRINT("info",("bound to %u", *port));
 
-  if (my_listen(sock, m_maxSessions > 32 ? 32 : m_maxSessions) == -1)
+  if (my_listen(sock, m_maxSessions > MAX_SOCKET_SERVER_TCP_BACKLOG ?
+                      MAX_SOCKET_SERVER_TCP_BACKLOG : m_maxSessions) == -1)
   {
     DBUG_PRINT("error",("listen() - %d - %s",
 			socket_errno, strerror(socket_errno)));

@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,8 +64,16 @@ public:
 
   virtual void createDirectories();
 
+  virtual Uint32 get_fileinfo() const {
+    Uint32 ft = (Uint32)m_filetype;
+    Uint32 fd = (Uint32)theFd;
+    return (ft << 16) | (fd & 0xFFFF);
+  }
+
 private:
   int theFd;
+  int m_filetype;
+  void set_or_check_filetype(bool set);
 
   int use_gz;
   ndbzio_stream nzf;

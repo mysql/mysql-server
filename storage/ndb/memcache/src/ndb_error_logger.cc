@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -32,6 +32,7 @@
 #include "memcached/server_api.h"
 
 #include "ndb_error_logger.h"
+#include "debug.h"
 
 
 /* ***********************************************************************
@@ -186,16 +187,25 @@ void manage_error(int err_code, const char * err_mesg,
       if(entry->count < (10 * i) && (entry->count % i == 0))
         { flood = true; break; }
   
-  if(verbose_logging || first_ever || interval_passed || flood) 
+  /* All errors go to the debug log */
+  DEBUG_PRINT("%s %d: %s", type_mesg, err_code, err_mesg);
+
+  if(verbose_logging || first_ever || interval_passed || flood)
   {
     if(flood) 
       snprintf(note, 256, "[occurrence %d of this error]", entry->count);
     else
       note[0] = '\0';
 
-    logger->log(LOG_WARNING, 0, "%s %d: %s %s\n", 
+    logger->log(LOG_WARNING, 0, "%s %d: %s %s\n",
                 type_mesg, err_code, err_mesg, note);
   }
+}
+
+
+int record_ndb_error(const NdbError &error) {
+  (void) error_table_lookup(error.code, core_api->get_current_time());
+  return error.status;
 }
 
 

@@ -613,7 +613,7 @@ extent_size 2M
 engine ndb;
 select distinct tablespace_name, file_type, file_name
 from information_schema.files
-where tablespace_name is not null
+where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 tablespace_name	file_type	file_name
 ts1	DATAFILE	datafile.dat
@@ -623,7 +623,7 @@ drop datafile 'datafile.dat'
 engine ndb;
 select distinct tablespace_name, file_type, file_name
 from information_schema.files
-where tablespace_name is not null
+where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 tablespace_name	file_type	file_name
 ts1	TABLESPACE	NULL
@@ -675,7 +675,7 @@ undofile.dat	3276800
 undofile02.dat	3276800
 select tablespace_name, logfile_group_name, extent_size
 from information_schema.files
-where file_type = 'TABLESPACE';
+where engine = 'ndbcluster' and file_type = 'TABLESPACE';
 tablespace_name	logfile_group_name	extent_size
 ts1	lg1	327680
 select distinct file_name, initial_size, extent_size, total_extents, free_extents

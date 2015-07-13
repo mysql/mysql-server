@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -252,10 +252,7 @@ extern "C" {
      *  management server
      */
     int connect_count;
-    /** IP address of node when it connected to the management server.
-     *  @note This value will be empty if the management server has restarted
-     *        since the node last connected.
-     */
+    /** IP address of node as seen by the other nodes in the cluster. */
     char connect_address[
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 			 sizeof("000.000.000.000")+1
@@ -1405,7 +1402,7 @@ extern "C" {
   /**
    *   Struct containing array of ndb_logevents
    *   of the requested type, describing for example
-   *   memoryusage or baclupstatus for the whole cluster,
+   *   memoryusage or backupstatus for the whole cluster,
    *   returned from ndb_mgm_dump_events()
    */
   struct ndb_mgm_events {

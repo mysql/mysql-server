@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,6 +90,7 @@ public:
   Uint32 getLength() const;
   Uint32 getTrace() const;
   Uint32 getSendersBlockRef() const;
+  Uint32 getSignalId() const;
 
   const Uint32* getDataPtr() const ;
   Uint32* getDataPtrSend() ;
@@ -113,7 +114,7 @@ public:
 #if VMS_DATA_SIZE > 8192
 #error "VMSignal buffer is too small"
 #endif
-  
+
   Uint32 m_sectionPtrI[3];
   SignalHeader header; // 28 bytes
   union {
@@ -158,6 +159,13 @@ inline
 Uint32
 Signal::getLength() const {
   return header.theLength;
+}
+
+inline
+Uint32
+Signal::getSignalId() const
+{
+  return header.theSignalId;
 }
 
 inline

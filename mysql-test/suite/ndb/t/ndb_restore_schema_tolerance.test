@@ -8,7 +8,6 @@
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 --echo Test ndb_restore ability to ignore some schema differences
 
