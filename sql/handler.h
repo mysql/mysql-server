@@ -40,6 +40,7 @@ class Alter_info;
 class SE_cost_constants;     // see opt_costconstants.h
 class String;
 struct TABLE_LIST;
+typedef struct st_bitmap MY_BITMAP;
 typedef struct st_hash HASH;
 typedef struct st_key_cache KEY_CACHE;
 typedef struct xid_t XID;
@@ -3628,12 +3629,12 @@ public:
                                    bool open_in_engine,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record);
   static bool my_eval_gcolumn_expr(THD *thd,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
