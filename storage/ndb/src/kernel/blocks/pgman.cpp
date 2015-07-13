@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_FSWRITECONF, &Pgman::execFSWRITECONF);
 
   addRecSignal(GSN_LCP_FRAG_ORD, &Pgman::execLCP_FRAG_ORD);
-  addRecSignal(GSN_END_LCP_REQ, &Pgman::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCPREQ, &Pgman::execEND_LCPREQ);
 
   addRecSignal(GSN_DATA_FILE_ORD, &Pgman::execDATA_FILE_ORD);
   addRecSignal(GSN_RELEASE_PAGES_REQ, &Pgman::execRELEASE_PAGES_REQ);
@@ -305,7 +305,7 @@ Pgman::execCONTINUEB(Signal* signal)
       EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
       conf->senderData = m_end_lcp_req.senderData;
       conf->senderRef = reference();
-      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF,
+      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCPCONF,
                  signal, EndLcpConf::SignalLength, JBB);
       m_lcp_state = LS_LCP_OFF;
     }
@@ -1248,7 +1248,7 @@ Pgman::execLCP_FRAG_ORD(Signal* signal)
 }
 
 void
-Pgman::execEND_LCP_REQ(Signal* signal)
+Pgman::execEND_LCPREQ(Signal* signal)
 {
   if (ERROR_INSERTED(11008))
   {
@@ -1259,12 +1259,12 @@ Pgman::execEND_LCP_REQ(Signal* signal)
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtr();
   m_end_lcp_req = *req;
 
-  DBG_LCP("execEND_LCP_REQ" << endl);
+  DBG_LCP("execEND_LCPREQ" << endl);
 
   ndbrequire(!m_lcp_outstanding);
   m_lcp_curr_bucket = 0;
   
-  D("execEND_LCP_REQ"
+  D("execEND_LCPREQ"
     << " this=" << m_last_lcp
     << " last_complete=" << m_last_lcp_complete
     << " bucket=" << m_lcp_curr_bucket
@@ -1383,7 +1383,7 @@ Pgman::process_lcp(Signal* signal)
       EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
       conf->senderData = m_end_lcp_req.senderData;
       conf->senderRef = reference();
-      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCP_CONF,
+      sendSignal(m_end_lcp_req.senderRef, GSN_END_LCPCONF,
                  signal, EndLcpConf::SignalLength, JBB);
       return LS_LCP_OFF;
     }

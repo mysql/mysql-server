@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -35,12 +35,14 @@ public:
   ~ConnQueryPlanSet();
 
   void buildSetForConfiguration(const Configuration *, int cluster_id);
-  QueryPlan * getPlanForPrefix(const KeyPrefix *);
+  QueryPlan * getPlanForPrefix(const KeyPrefix *) const;
+  const Configuration * getConfiguration() const { return config; };
 
 private:
   Ndb *db;
   int nplans;
-  QueryPlan **plans;  
+  QueryPlan **plans;
+  const Configuration * config;
 };
 
 

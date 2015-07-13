@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,6 +94,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_NDBREQUIRE                  2341
 #define NDBD_EXIT_ERROR_INSERT                2342
 #define NDBD_EXIT_NDBASSERT                   2343
+#define NDBD_EXIT_TIME_QUEUE_ZERO             2344
 #define NDBD_EXIT_INVALID_CONFIG              2350
 #define NDBD_EXIT_OUT_OF_LONG_SIGNAL_MEMORY   2351
 #define NDBD_EXIT_NO_MORE_REDOLOG             2354

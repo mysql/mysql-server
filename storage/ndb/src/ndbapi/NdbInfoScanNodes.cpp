@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "NdbInfo.hpp"
+#include "NdbInfoScanNodes.hpp"
 #include "SignalSender.hpp"
 #include <kernel/GlobalSignalNumbers.h>
 #include <AttributeHeader.hpp>
@@ -23,21 +24,17 @@
 #include <signaldata/TransIdAI.hpp>
 #include <signaldata/NodeFailRep.hpp>
 
-struct NdbInfoScanOperationImpl
-{
-  NodeBitmask m_nodes_to_scan;
-};
-
-NdbInfoScanOperation::NdbInfoScanOperation(const NdbInfo& info,
-                                           Ndb_cluster_connection* connection,
-                                           const NdbInfo::Table* table,
-                                           Uint32 max_rows, Uint32 max_bytes) :
-  m_impl(*new NdbInfoScanOperationImpl),
+NdbInfoScanNodes::NdbInfoScanNodes(const NdbInfo& info,
+                                   Ndb_cluster_connection* connection,
+                                   const NdbInfo::Table* table,
+                                   Uint32 max_rows, Uint32 max_bytes,
+                                   Uint32 max_nodes) :
   m_info(info),
   m_state(Undefined),
   m_connection(connection),
   m_signal_sender(NULL),
   m_table(table),
+  m_recAttrs(table->columns()),
   m_node_id(0),
   m_max_rows(max_rows),
   m_max_bytes(max_bytes),
@@ -45,27 +42,24 @@ NdbInfoScanOperation::NdbInfoScanOperation(const NdbInfo& info,
   m_rows_received(0),
   m_rows_confirmed(0),
   m_nodes(0),
-  m_max_nodes(0)
+  m_max_nodes(max_nodes)
 {
 }
 
-bool
-NdbInfoScanOperation::init(Uint32 id)
+int
+NdbInfoScanNodes::init(Uint32 id)
 {
-  DBUG_ENTER("NdbInfoScanoperation::init");
+  DBUG_ENTER("NdbInfoScanNodes::init");
   if (m_state != Undefined)
-    DBUG_RETURN(false);
+    DBUG_RETURN(NdbInfo::ERR_WrongState);
 
   m_signal_sender = new SignalSender(m_connection);
   if (!m_signal_sender)
-    DBUG_RETURN(false);
+    DBUG_RETURN(NdbInfo::ERR_OutOfMemory);
 
   m_transid0 = id;
   m_transid1 = m_table->getTableId();
   m_result_ref = m_signal_sender->getOwnRef();
-
-  for (unsigned i = 0; i < m_table->columns(); i++)
-    m_recAttrs.push_back(NULL);
 
   /*
     Build a bitmask of nodes that will be scanned if
@@ -73,23 +67,21 @@ NdbInfoScanOperation::init(Uint32 id)
     own node since it will always be "connected"
   */
   for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
-    m_impl.m_nodes_to_scan.set(i);
-  m_impl.m_nodes_to_scan.clear(refToNode(m_result_ref));
+    m_nodes_to_scan.set(i);
+  m_nodes_to_scan.clear(refToNode(m_result_ref));
 
   m_state = Initial;
-  DBUG_RETURN(true);
+  DBUG_RETURN(NdbInfo::ERR_NoError);
 
 }
 
-NdbInfoScanOperation::~NdbInfoScanOperation()
+NdbInfoScanNodes::~NdbInfoScanNodes()
 {
-  close();
   delete m_signal_sender;
-  delete &m_impl;
 }
 
 int
-NdbInfoScanOperation::readTuples()
+NdbInfoScanNodes::readTuples()
 {
   if (m_state != Initial)
     return NdbInfo::ERR_WrongState;
@@ -99,7 +91,7 @@ NdbInfoScanOperation::readTuples()
 }
 
 const NdbInfoRecAttr *
-NdbInfoScanOperation::getValue(const char * anAttrName)
+NdbInfoScanNodes::getValue(const char * anAttrName)
 {
   if (m_state != Prepared)
     return NULL;
@@ -111,34 +103,32 @@ NdbInfoScanOperation::getValue(const char * anAttrName)
 }
 
 const NdbInfoRecAttr *
-NdbInfoScanOperation::getValue(Uint32 anAttrId)
+NdbInfoScanNodes::getValue(Uint32 anAttrId)
 {
   if (m_state != Prepared)
     return NULL;
 
-  if (anAttrId >= m_recAttrs.size())
+  if (anAttrId >= m_table->columns())
     return NULL;
 
-  NdbInfoRecAttr *recAttr = new NdbInfoRecAttr;
-  m_recAttrs[anAttrId] = recAttr;
-  return recAttr;
+  return m_recAttrs.get_value(anAttrId);
 }
 
 
 bool
-NdbInfoScanOperation::find_next_node()
+NdbInfoScanNodes::find_next_node()
 {
-  DBUG_ENTER("NdbInfoScanOperation::find_next_node");
+  DBUG_ENTER("NdbInfoScanNodes::find_next_node");
 
   const NodeId next =
-    m_signal_sender->find_confirmed_node(m_impl.m_nodes_to_scan);
+    m_signal_sender->find_confirmed_node(m_nodes_to_scan);
   if (next == 0)
   {
     DBUG_PRINT("info", ("no more alive nodes"));
     DBUG_RETURN(false);
   }
   assert(m_node_id != next);
-  m_impl.m_nodes_to_scan.clear(next);
+  m_nodes_to_scan.clear(next);
   m_node_id = next;
   m_nodes++;
 
@@ -155,9 +145,9 @@ NdbInfoScanOperation::find_next_node()
 }
 
 
-int NdbInfoScanOperation::execute()
+int NdbInfoScanNodes::execute()
 {
-  DBUG_ENTER("NdbInfoScanOperation::execute");
+  DBUG_ENTER("NdbInfoScanNodes::execute");
   DBUG_PRINT("info", ("name: '%s', id: %d",
              m_table->getName(), m_table->getTableId()));
 
@@ -182,9 +172,9 @@ int NdbInfoScanOperation::execute()
 }
 
 int
-NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
+NdbInfoScanNodes::sendDBINFO_SCANREQ(void)
 {
-  DBUG_ENTER("NdbInfoScanOperation::sendDBINFO_SCANREQ");
+  DBUG_ENTER("NdbInfoScanNodes::sendDBINFO_SCANREQ");
 
   SimpleSignal ss;
   DbinfoScanReq * req = CAST_PTR(DbinfoScanReq, ss.getDataPtrSend());
@@ -221,7 +211,7 @@ NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
   assert((m_rows_received == 0 && m_rows_confirmed == (Uint32)~0) || // first
          m_rows_received == m_rows_confirmed);                       // subsequent
 
-  // No rows received in this batch yet
+  // No rows recieved in this batch yet
   m_rows_received = 0;
 
   // Number of rows returned by batch is not yet known
@@ -239,9 +229,9 @@ NdbInfoScanOperation::sendDBINFO_SCANREQ(void)
   DBUG_RETURN(0);
 }
 
-int NdbInfoScanOperation::receive(void)
+int NdbInfoScanNodes::receive(void)
 {
-  DBUG_ENTER("NdbInfoScanOperation::receive");
+  DBUG_ENTER("NdbInfoScanNodes::receive");
   while (true)
   {
     const SimpleSignal* sig = m_signal_sender->waitFor();
@@ -260,7 +250,7 @@ int NdbInfoScanOperation::receive(void)
       if (m_rows_received < m_rows_confirmed)
         DBUG_RETURN(1); // Row available
 
-      // All rows in this batch received
+      // All rows in this batch recieved
       assert(m_rows_received == m_rows_confirmed);
 
       if (m_cursor.size() == 0 && !find_next_node())
@@ -293,7 +283,7 @@ int NdbInfoScanOperation::receive(void)
       if (m_rows_received < m_rows_confirmed)
         continue;  // Continue waiting(for late TRANSID_AI signals)
 
-      // All rows in this batch received
+      // All rows in this batch recieved
       assert(m_rows_received == m_rows_confirmed);
 
       if (m_cursor.size() == 0 && !find_next_node())
@@ -362,9 +352,9 @@ int NdbInfoScanOperation::receive(void)
 }
 
 int
-NdbInfoScanOperation::nextResult()
+NdbInfoScanNodes::nextResult()
 {
-  DBUG_ENTER("NdbInfoScanOperation::nextResult");
+  DBUG_ENTER("NdbInfoScanNodes::nextResult");
 
   switch(m_state)
   {
@@ -385,27 +375,11 @@ NdbInfoScanOperation::nextResult()
   DBUG_RETURN(-1);
 }
 
-void
-NdbInfoScanOperation::close()
-{
-  DBUG_ENTER("NdbInfoScanOperation::close");
-
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    if (m_recAttrs[i])
-    {
-      delete m_recAttrs[i];
-      m_recAttrs[i] = NULL;
-    }
-  }
-
-  DBUG_VOID_RETURN;
-}
 
 bool
-NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
+NdbInfoScanNodes::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
 {
-  DBUG_ENTER("NdbInfoScanOperation::execDBINFO_TRANSID_AI");
+  DBUG_ENTER("NdbInfoScanNodes::execDBINFO_TRANSID_AI");
   const TransIdAI* transid =
           CAST_CONSTPTR(TransIdAI, signal->getDataPtr());
   if (transid->connectPtr != m_result_data ||
@@ -420,11 +394,7 @@ NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
   DBUG_PRINT("info", ("rows received: %d", m_rows_received));
 
   // Reset all recattr values before reading the new row
-  for (unsigned i = 0; i < m_recAttrs.size(); i++)
-  {
-    if (m_recAttrs[i])
-      m_recAttrs[i]->m_defined = false;
-  }
+  m_recAttrs.reset_recattrs();
 
   // Read attributes from long signal section
   AttributeHeader* attr = (AttributeHeader*)signal->ptr[0].p;
@@ -435,15 +405,14 @@ NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
     const Uint32 col = attr->getAttributeId();
     const Uint32 len = attr->getByteSize();
     DBUG_PRINT("info", ("col: %u, len: %u", col, len));
-    if (col < m_recAttrs.size())
+    if (col < m_table->columns())
     {
-      NdbInfoRecAttr* rec_attr = m_recAttrs[col];
-      if (rec_attr)
+      if (m_recAttrs.is_requested(col))
       {
         // Update NdbInfoRecAttr pointer, length and defined flag
-        rec_attr->m_data = (const char*)attr->getDataPtr();
-        rec_attr->m_len = len;
-        rec_attr->m_defined = true;
+        m_recAttrs.set_recattr(col,
+                               (const char*)attr->getDataPtr(),
+                               len);
       }
     }
 
@@ -454,9 +423,9 @@ NdbInfoScanOperation::execDBINFO_TRANSID_AI(const SimpleSignal * signal)
 }
 
 bool
-NdbInfoScanOperation::execDBINFO_SCANCONF(const SimpleSignal * sig)
+NdbInfoScanNodes::execDBINFO_SCANCONF(const SimpleSignal * sig)
 {
-  DBUG_ENTER("NdbInfoScanOperation::execDBINFO_SCANCONF");
+  DBUG_ENTER("NdbInfoScanNodes::execDBINFO_SCANCONF");
   const DbinfoScanConf* conf =
           CAST_CONSTPTR(DbinfoScanConf, sig->getDataPtr());
   if (conf->resultData != m_result_data ||
@@ -501,10 +470,10 @@ NdbInfoScanOperation::execDBINFO_SCANCONF(const SimpleSignal * sig)
 }
 
 bool
-NdbInfoScanOperation::execDBINFO_SCANREF(const SimpleSignal * signal,
+NdbInfoScanNodes::execDBINFO_SCANREF(const SimpleSignal * signal,
                                          int& error_code)
 {
-  DBUG_ENTER("NdbInfoScanOperation::execDBINFO_SCANREF");
+  DBUG_ENTER("NdbInfoScanNodes::execDBINFO_SCANREF");
   const DbinfoScanRef* ref =
           CAST_CONSTPTR(DbinfoScanRef, signal->getDataPtr());
 
@@ -522,6 +491,3 @@ NdbInfoScanOperation::execDBINFO_SCANREF(const SimpleSignal * signal,
   m_state = Error;
   DBUG_RETURN(false);
 }
-
-
-template class Vector<NdbInfoRecAttr*>;

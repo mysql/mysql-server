@@ -271,4 +271,3 @@ extern "C" BOOL WINAPI DllMain(
 
 	return TRUE;
 }
-

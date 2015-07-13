@@ -4,7 +4,6 @@
 --source include/force_myisam_default.inc
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 echo == 1 ==;
 --exec $NDB_CONFIG --no-defaults --query=type,nodeid,host 2> /dev/null

@@ -283,6 +283,7 @@ class Lgman;
 #define ZDELETE_STORED_PROC_ID 3
 #define ZWRITE_LOCK 1
 #define ZSCAN_FRAG_CLOSED 2
+#define ZNUM_RESERVED_TC_CONNECT_RECORDS 3
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 0.1 AND 0.2                            */
 /* ------------------------------------------------------------------------- */
@@ -524,6 +525,8 @@ public:
     Uint32 m_curr_batch_size_rows;
     Uint32 m_curr_batch_size_bytes;
 
+    Uint32 m_exec_direct_batch_size_words;
+
     bool check_scan_batch_completed() const;
     
     UintR copyPtr;
@@ -570,24 +573,30 @@ public:
     Uint8 scanFlag;
     Uint8 scanLockHold;
     Uint8 scanLockMode;
+
     Uint8 readCommitted;
     Uint8 rangeScan;
     Uint8 descending;
     Uint8 tupScan;
+
     Uint8 lcpScan;
     Uint8 scanKeyinfoFlag;
     Uint8 m_last_row;
     Uint8 m_reserved;
+
     Uint8 statScan;
     Uint8 m_stop_batch;
     Uint8 scan_direct_count;
-    Uint8 dummy; // align?
+    Uint8 prioAFlag;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
-/* Constants for scan_direct_count */
-#define ZSCAN_DIRECT_INITIAL 3
-#define ZSCAN_DIRECT_COUNT 4
+/**
+ * Constants for scan_direct_count
+ * Mainly used to avoid overextending the stack and to some
+ * extent keeping the scheduling rules.
+ */
+#define ZMAX_SCAN_DIRECT_COUNT 5
 
   struct Fragrecord {
     Fragrecord() {}
@@ -708,6 +717,7 @@ public:
     DLCList<ScanRecord>::Head m_activeScans;
     DLCFifoList<ScanRecord>::Head m_queuedScans;
     DLCFifoList<ScanRecord>::Head m_queuedTupScans;
+    DLCFifoList<ScanRecord>::Head m_queuedAccScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -1246,6 +1256,7 @@ public:
     Uint32 tableId;
     Uint32 fragId;
     Uint64 completionStatus;
+    Uint32 lcpScannedPages;
 
     /* Total elapsed milliseconds with no LCP progress observed */ 
     Uint32 elapsedNoProgressMillis; /* milliseconds */
@@ -1258,7 +1269,8 @@ public:
     void handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
                             Uint32 repTableId,
                             Uint32 repFragId,
-                            Uint64 repCompletionStatus);
+                            Uint64 repCompletionStatus,
+                            Uint32 repLcpScannedPages);
   };
   
   LCPFragWatchdog c_lcpFragWatchdog;
@@ -1617,6 +1629,15 @@ public:
      */
     Uint16 logPartNo;
 
+    /**
+     * Keep track of the first invalid log page found in our search. This
+     * enables us to print information about irregular writes of log pages
+     * at the end of the REDO log.
+     */
+    Uint16 endInvalidMByteSearch;
+    Uint16 firstInvalidateFileNo;
+    Uint16 firstInvalidatePageNo;
+    bool firstInvalidatePageFound;
     /**
      * IO tracker...
      */
@@ -2361,10 +2382,31 @@ public:
 
   void receive_keyinfo(Signal*, Uint32 * data, Uint32 len);
   void receive_attrinfo(Signal*, Uint32 * data, Uint32 len);
-  
+
   void execTUPKEYCONF(Signal* signal);
+  Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
+
+  Uint32 get_is_scan_prioritised(Uint32 scan_ptr_i);
 private:
+
   BLOCK_DEFINES(Dblqh);
+
+  bool is_prioritised_scan(BlockReference resultRef)
+  {
+    /**
+     * Scans that return data within the same thread to the
+     * BACKUP and DBLQH block are always prioritised (LCP
+     * scans, Backup scans and node recovery scans.
+     */
+    NodeId nodeId = refToNode(resultRef);
+    Uint32 block = refToMain(resultRef);
+    if (nodeId != getOwnNodeId())
+      return false;
+    if (block == BACKUP ||
+        block == DBLQH)
+      return true;
+    return false;
+  }
 
   void execPACKED_SIGNAL(Signal* signal);
   void execDEBUG_SIG(Signal* signal);
@@ -2444,7 +2486,6 @@ private:
   void execPREPARE_COPY_FRAG_REQ(Signal* signal);
   void execUPDATE_FRAG_DIST_KEY_ORD(Signal*);
   void execCOPY_ACTIVEREQ(Signal* signal);
-  void execCOPY_STATEREQ(Signal* signal);
   void execLQH_TRANSREQ(Signal* signal);
   void execTRANSID_AI(Signal* signal);
   void execINCL_NODEREQ(Signal* signal);
@@ -2486,7 +2527,6 @@ private:
   void execDROP_TAB_CONF(Signal*);
   void dropTable_nextStep(Signal*, AddFragRecordPtr);
 
-  void execLQH_ALLOCREQ(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
   void execLQH_WRITELOG_REQ(Signal* signal);
 
@@ -2551,32 +2591,10 @@ private:
   void sendTCKEYREF(Signal*, Uint32 dst, Uint32 route, Uint32 cnt);
   void sendScanFragConf(Signal* signal, Uint32 scanCompleted);
 
-/**
- * We need to ensure that we keep track of how many outstanding NEXT_SCANREQ
- * we have, each time we send a NEXT_SCANREQ with ZSCAN_NEXT we need to
- * increment this counter to ensure that we don't end up in calling too
- * deep into the stack which otherwise can happen when we use multiple
- * ranges.
- */
-  inline void send_next_NEXT_SCANREQ(Signal* signal,
-                                     SimulatedBlock* block,
-                                     ExecFunction f,
-                                     ScanRecord * const scanPtr)
-  {
-    if (scanPtr->scan_direct_count >= ZSCAN_DIRECT_COUNT)
-    {
-      BlockReference blockRef = scanPtr->scanBlockref;
-      scanPtr->scan_direct_count = 0;
-      jam();
-      sendSignal(blockRef, GSN_NEXT_SCANREQ, signal, 3, JBB);
-    }
-    else
-    {
-      scanPtr->scan_direct_count++;
-      jam();
-      block->EXECUTE_DIRECT(f, signal);
-    }
-  }
+  void send_next_NEXT_SCANREQ(Signal* signal,
+                              SimulatedBlock* block,
+                              ExecFunction f,
+                              ScanRecord * const scanPtr);
 
   void initCopyrec(Signal* signal);
   void initCopyTc(Signal* signal, Operation_t);
@@ -2619,7 +2637,10 @@ private:
   void checkReadExecSr(Signal* signal);
   void checkScanTcCompleted(Signal* signal);
   void closeFile(Signal* signal, LogFileRecordPtr logFilePtr, Uint32 place);
-  void completedLogPage(Signal* signal, Uint32 clpType, Uint32 place);
+  void completedLogPage(Signal* signal,
+                        Uint32 clpType,
+                        Uint32 place,
+                        bool sync_flag = false);
 
   void commit_reorg(TablerecPtr tablePtr);
   void wait_reorg_suma_filter_enabled(Signal*);
@@ -2692,7 +2713,7 @@ private:
   Uint32 returnExecLog(Signal* signal);
   int saveAttrInfoInSection(const Uint32* dataPtr, Uint32 len);
   void seizeAddfragrec(Signal* signal);
-  Uint32 seizeSegment();
+  Uint32 seizeSingleSegment();
   Uint32 copyNextRange(Uint32 * dst, TcConnectionrec*);
 
   void seizeFragmentrec(Signal* signal);
@@ -3108,6 +3129,7 @@ private:
   TcConnectionrecPtr tcConnectptr;
   UintR cfirstfreeTcConrec;
   UintR ctcConnectrecFileSize;
+  Uint32 ctcNumFree;
 
 // MAX_NDB_NODES is the size of this array
   TcNodeFailRecord *tcNodeFailRecord;
@@ -3130,14 +3152,8 @@ private:
 /* ------------------------------------------------------------------------- */
 // cmaxWordsAtNodeRec keeps track of how many words that currently are
 // outstanding in a node recovery situation.
-// cbookedAccOps keeps track of how many operation records that have been
-// booked in ACC for the scan processes.
-// cmaxAccOps contains the maximum number of operation records which can be
-// allocated for scan purposes in ACC.
 /* ------------------------------------------------------------------------- */
   UintR cmaxWordsAtNodeRec;
-  UintR cbookedAccOps;
-  UintR cmaxAccOps;
 /* ------------------------------------------------------------------------- */
 /*THIS STATE VARIABLE IS ZTRUE IF AN ADD NODE IS ONGOING. ADD NODE MEANS     */
 /*THAT CONNECTIONS ARE SET-UP TO THE NEW NODE.                               */

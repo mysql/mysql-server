@@ -1322,7 +1322,7 @@ int runSystemRestart1(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 
-#define CHECK2(b, t) if(!b){ g_err << __LINE__ << ": " << t << endl; break;}
+#define CHECK2(b, t) if(!(b)){ g_err << __LINE__ << ": " << t << endl; break;}
 #define CHECKOKORTIMEOUT(e, t) { int rc= (e);        \
     if (rc != 0) {                                      \
       if (rc == 266) {                                  \
@@ -1415,7 +1415,7 @@ runMixedUpdateInterleaved(Ndb* pNdb,
                           int updatesValue,
                           bool ixFirst)
 {
-  Uint32 execRc= 0;
+  int execRc= 0;
   if ((pkFailRec != -1) || (ixFailRec != -1))
   {
     execRc= 626;

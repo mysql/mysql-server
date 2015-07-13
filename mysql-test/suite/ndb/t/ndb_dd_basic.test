@@ -579,7 +579,7 @@ engine ndb;
 
 select distinct tablespace_name, file_type, file_name
 from information_schema.files
-where tablespace_name is not null
+where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 
 alter tablespace ts1
@@ -588,7 +588,7 @@ engine ndb;
 
 select distinct tablespace_name, file_type, file_name
 from information_schema.files
-where tablespace_name is not null
+where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 
 drop tablespace ts1
@@ -649,7 +649,7 @@ order by file_name;
 # check tablespace
 select tablespace_name, logfile_group_name, extent_size
 from information_schema.files
-where file_type = 'TABLESPACE';
+where engine = 'ndbcluster' and file_type = 'TABLESPACE';
 
 # check datafiles
 select distinct file_name, initial_size, extent_size, total_extents, free_extents

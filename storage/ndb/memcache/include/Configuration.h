@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -101,6 +101,7 @@ class Configuration {
     
   /* public instance variables */
 
+  unsigned int generation;   /* Set by GlobalConfigManager */
   unsigned int nclusters;
   unsigned int nprefixes;
   unsigned int max_tps;      /* target throughput, transactions per second */

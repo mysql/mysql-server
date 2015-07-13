@@ -57,9 +57,6 @@ void my_free(void* ptr, myf MyFlags)
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION
 
-/* thd->binlog_query has new parameter "direct" */
-#define NDB_THD_BINLOG_QUERY_HAS_DIRECT
-
 /* No mysql_rm_table_part2 anymore in 5.5.8 */
 #define NDB_NO_MYSQL_RM_TABLE_PART2
 
@@ -159,60 +156,5 @@ int mysql_cond_timedwait(mysql_cond_t* cond, mysql_mutex_t* mutex,
 }
 
 #endif
-
-static inline
-uint partition_info_num_full_part_fields(const partition_info* part_info)
-{
-#if MYSQL_VERSION_ID < 50500
-  return part_info->no_full_part_fields;
-#else
-  /* renamed to 'num_full_part_fields' and no accessor function*/
-  return part_info->num_full_part_fields;
-#endif
-}
-
-static inline
-uint partition_info_num_parts(const partition_info* part_info)
-{
-#if MYSQL_VERSION_ID < 50500
-  return part_info->no_parts;
-#else
-  /* renamed to 'num_parts' and no accessor function */
-  return part_info->num_parts;
-#endif
-}
-
-static inline
-uint partition_info_num_list_values(const partition_info* part_info)
-{
-#if MYSQL_VERSION_ID < 50500
-  return part_info->no_list_values;
-#else
-  /* renamed to 'num_list_values' and no accessor function */
-  return part_info->num_list_values;
-#endif
-}
-
-static inline
-bool partition_info_use_default_num_partitions(const partition_info* part_info)
-{
-#if MYSQL_VERSION_ID < 50500
-  return part_info->use_default_no_partitions;
-#else
-  /* renamed to 'use_default_num_partitions' and no accessor function */
-  return part_info->use_default_num_partitions;
-#endif
-}
-
-static inline
-uint partition_info_num_subparts(const partition_info* part_info)
-{
-#if MYSQL_VERSION_ID < 50500
-  return part_info->no_subparts;
-#else
-  /* renamed to 'num_subparts' and no accessor function */
-  return part_info->num_subparts;
-#endif
-}
 
 #endif

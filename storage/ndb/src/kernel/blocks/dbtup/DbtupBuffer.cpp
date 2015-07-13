@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,7 +160,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     return;
   
   const BlockReference recBlockref= req_struct->rec_blockref;
-  const Uint32 block= refToMain(recBlockref);
   const Uint32 nodeId= refToNode(recBlockref);
 
   bool connectedToNode= getNodeInfo(nodeId).m_connected;
@@ -245,6 +244,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       /**
        * Send long signal to DBUTIL.
        */
+      const Uint32 block= refToMain(recBlockref);
       if ((block == DBUTIL || block == DBSPJ) && !old_dest) {
 	jam();
 	LinearSectionPtr ptr[3];
@@ -288,7 +288,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     }
 
     /**
-     * BACKUP/SUMA/LQH run in our thread, so we can EXECUTE_DIRECT().
+     * BACKUP/LQH run in our thread, so we can EXECUTE_DIRECT().
      *
      * The UTIL/TC blocks are in another thread (in multi-threaded ndbd), so
      * must use sendSignal().
@@ -296,21 +296,14 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
      * In MT LQH only LQH and BACKUP are in same thread, and BACKUP only
      * in LCP case since user-backup uses single worker.
      */
-    BlockNumber blockMain = blockToMain(block);
-    const bool sameInstance = blockToInstance(block) == instance();
-    if (blockMain == DBLQH)
+    const bool sameInstance = refToInstance(recBlockref) == instance();
+    const Uint32 blockNumber= refToMain(recBlockref);
+    if (sameInstance &&
+        (blockNumber == BACKUP ||
+         blockNumber == DBLQH ||
+         blockNumber == SUMA))
     {
-      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
-      jamEntry();
-    }
-    else if (blockMain == SUMA && sameInstance)
-    {
-      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
-      jamEntry();
-    }
-    else if (blockMain == BACKUP && sameInstance)
-    {
-      EXECUTE_DIRECT(blockMain, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
+      EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
       jamEntry();
     }
     else
@@ -330,7 +323,25 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       }
       else
       {
-        sendSignal(recBlockref, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+        /**
+         * We are sending to the same node, it is important that we maintain
+         * signal order with SCAN_FRAGCONF and other signals. So we make sure
+         * that TRANSID_AI is sent at the same priority level as the
+         * SCAN_FRAGCONF will be sent at.
+         *
+         * One case for this is Backups, the receiver is the first LDM thread
+         * which could have raised priority of scan executions to Priority A.
+         * To ensure that TRANSID_AI arrives there before SCAN_FRAGCONF we
+         * send also TRANSID_AI on priority A if the signal is sent on prio A.
+         */
+        JobBufferLevel prioLevel = req_struct->m_prio_a_flag ? JBA : JBB;
+        sendSignal(recBlockref,
+                   GSN_TRANSID_AI,
+                   signal,
+                   3,
+                   prioLevel,
+                   ptr,
+                   1);
       }
     }
     return;

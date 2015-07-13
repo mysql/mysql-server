@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -402,7 +402,8 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
   if (undo.m_actions & Proxy_undo::SendUndoNext) {
     jam();
     signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
-    sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+    signal->theData[1] = 0; /* Not applied flag */
+    sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
   }
 
   if (undo.m_actions & Proxy_undo::NoExecute) {
