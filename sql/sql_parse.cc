@@ -5588,9 +5588,12 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
   for (; i < number && tables != first_not_own_table && tables;
        tables= tables->next_global, i++)
   {
+    TABLE_LIST *const table_ref= tables->correspondent_table ?
+      tables->correspondent_table : tables;
+
     ulong want_access= requirements;
-    if (tables->security_ctx)
-      sctx= tables->security_ctx;
+    if (table_ref->security_ctx)
+      sctx= table_ref->security_ctx;
     else
       sctx= backup_ctx;
 
@@ -5598,7 +5601,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
        Register access for view underlying table.
        Remove SHOW_VIEW_ACL, because it will be checked during making view
      */
-    tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
+    table_ref->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
 
     /*
       We should not encounter table list elements for reformed SHOW
@@ -5608,20 +5611,20 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
       (see check_show_access()). This check is carried out by caller,
       but only for the first table list element from the main select.
     */
-    DBUG_ASSERT(!tables->schema_table_reformed ||
-                tables == thd->lex->select_lex.table_list.first);
+    DBUG_ASSERT(!table_ref->schema_table_reformed ||
+                table_ref == thd->lex->select_lex.table_list.first);
 
-    DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
-                        tables->view != 0));
+    DBUG_PRINT("info", ("derived: %d  view: %d", table_ref->derived != 0,
+                        table_ref->view != 0));
 
-    if (tables->is_anonymous_derived_table())
+    if (table_ref->is_anonymous_derived_table())
       continue;
 
     thd->security_ctx= sctx;
 
-    if (check_access(thd, want_access, tables->get_db_name(),
-                     &tables->grant.privilege,
-                     &tables->grant.m_internal,
+    if (check_access(thd, want_access, table_ref->get_db_name(),
+                     &table_ref->grant.privilege,
+                     &table_ref->grant.m_internal,
                      0, no_errors))
       goto deny;
   }
