@@ -6174,12 +6174,12 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   {
     THD *thd= field->table->in_use;
     key++;
-    entry= new (thd->stmt_arena->mem_root) Derived_key();
+    entry= new (thd->mem_root) Derived_key();
     if (!entry)
       return TRUE;
     entry->referenced_by= ref_by_tbl;
     entry->used_fields.clear_all();
-    if (derived_key_list.push_back(entry, thd->stmt_arena->mem_root))
+    if (derived_key_list.push_back(entry, thd->mem_root))
       return TRUE;
     field->table->max_keys++;
   }
