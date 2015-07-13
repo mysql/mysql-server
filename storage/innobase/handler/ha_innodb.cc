@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <my_check_opt.h>
+#include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 
@@ -19683,6 +19684,15 @@ innobase_get_computed_value(
 
 	field = dtuple_get_nth_v_field(row, col->v_pos);
 
+	/* Bitmap for specifying which virtual columns the server
+	should evaluate */
+	MY_BITMAP column_map;
+	my_bitmap_map col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
+	bitmap_init(&column_map, col_map_storage, REC_MAX_N_FIELDS, false);
+
+	/* Specify the column the server should evaluate */
+	bitmap_set_bit(&column_map, col->m_col.ind);
+
 	if (in_purge) {
 		if (vctempl->type == DATA_BLOB) {
 			ulint   max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(
@@ -19697,14 +19707,14 @@ innobase_get_computed_value(
 
 		handler::my_eval_gcolumn_expr(
 			current_thd, false, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, 1ULL << col->m_col.ind,
+			index->table->vc_templ->tb_name, &column_map,
 			(uchar *)mysql_rec);
         }
 
 	else {
 		handler::my_eval_gcolumn_expr(
 			current_thd, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, 1ULL << col->m_col.ind,
+			index->table->vc_templ->tb_name, &column_map,
 			(uchar *)mysql_rec);
 	}
 

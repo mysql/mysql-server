@@ -30,6 +30,7 @@
 #include "discover.h"                 // writefrm
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
+#include "my_bitmap.h"                // MY_BITMAP
 #include "probes_mysql.h"             // MYSQL_HANDLER_WRLOCK_START
 #include "opt_costconstantcache.h"    // reload_optimizer_cost_constants
 #include "rpl_handler.h"              // RUN_HOOK
@@ -7796,16 +7797,15 @@ struct blob_len_ptr{
 */
 
 static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
-                                           ulonglong fields,
+                                           const MY_BITMAP *const fields,
                                            blob_len_ptr *blob_len_ptr_array)
 {
   int num= 0;
   for (Field **vfield= table->vfield; *vfield; vfield++)
   {
-    if (!(fields & (1ULL << (*vfield)->field_index)))
-      continue;         // Skip unneeded fields
-
-    if ((*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    // Check if this field should be included
+    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+        (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
     {
       blob_len_ptr_array[num].length= (*vfield)->data_length();
       // TODO: The following check is only for Innodb.
@@ -7841,16 +7841,15 @@ static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
 */
 
 static void copy_blob_data(const TABLE *table,
-                           ulonglong fields,
+                           const MY_BITMAP *const fields,
                            blob_len_ptr *blob_len_ptr_array)
 {
   uint  num= 0;
   for (Field **vfield= table->vfield; *vfield; vfield++)
   {
-    if (!(fields & (1ULL << (*vfield)->field_index)))
-      continue;         // Skip unneeded fields
-
-    if ((*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
+    // Check if this field should be included
+    if (bitmap_is_set(fields, (*vfield)->field_index) &&
+        (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB)
     {
       DBUG_ASSERT(blob_len_ptr_array[num].length > 0);
       DBUG_ASSERT(blob_len_ptr_array[num].ptr != NULL);
@@ -7895,7 +7894,7 @@ static void copy_blob_data(const TABLE *table,
 */
 
 static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
-                                        ulonglong fields,
+                                        const MY_BITMAP *const fields,
                                         uchar *record,
                                         bool in_purge)
 {
@@ -7912,31 +7911,37 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     for blob.
   */
   if (in_purge)
-    extract_blob_space_and_length_from_record_buff(table, fields, blob_len_ptr_array);
+    extract_blob_space_and_length_from_record_buff(table, fields,
+                                                   blob_len_ptr_array);
 
   bool res= false;
   for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     Field *field= *vfield_ptr;
-    if (!(fields & (1ULL << field->field_index)))
-      continue;         // Skip unneeded fields
 
-    DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
-    if (in_purge)
+    // Validate that the field number is less than the bit map size
+    DBUG_ASSERT(field->field_index < fields->n_bits);
+
+    // Check if we should evaluate this field
+    if (bitmap_is_set(fields, field->field_index))
     {
-      /*
-        Adding to read_set/write_set is normally done up-front by high-level
-        layers before calling any handler's read/delete/etc functions.
-        But, for the specific case of the purge thread, it has no high-level
-        layer to manage read_set/write_set.
-      */
-      table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
-    }
+      DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
+      if (in_purge)
+      {
+        /*
+          Adding to read_set/write_set is normally done up-front by high-level
+          layers before calling any handler's read/delete/etc functions.
+          But, for the specific case of the purge thread, it has no high-level
+          layer to manage read_set/write_set.
+        */
+        table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
+      }
 
-    res= field->gcol_info->expr_item->save_in_field(field, 0);
-    DBUG_ASSERT(!thd->is_error() || res);
-    if (res)
-      break;
+      res= field->gcol_info->expr_item->save_in_field(field, 0);
+      DBUG_ASSERT(!thd->is_error() || res);
+      if (res)
+        break;
+    }
   }
 
   /*
@@ -8019,7 +8024,7 @@ bool handler::my_eval_gcolumn_expr(THD *thd,
                                    bool open_in_engine,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
@@ -8086,7 +8091,7 @@ bool handler::my_eval_gcolumn_expr(THD *thd,
 bool handler::my_eval_gcolumn_expr(THD *thd,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ENTER("my_eval_gcolumn_expr");
