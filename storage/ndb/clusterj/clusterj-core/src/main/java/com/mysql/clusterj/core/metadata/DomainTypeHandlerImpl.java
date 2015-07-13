@@ -372,15 +372,20 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     public ValueHandler getValueHandler(Object instance)
             throws IllegalArgumentException {
+        ValueHandler handler = null;
         if (instance instanceof ValueHandler) {
-            return (ValueHandler)instance;
+            handler = (ValueHandler)instance;
         } else if (instance instanceof DynamicObject) {
-            return (ValueHandler)((DynamicObject)instance).delegate();
+            DynamicObject dynamicObject = (DynamicObject)instance;
+            handler = (ValueHandler)dynamicObject.delegate();
         } else {
-            ValueHandler handler = (ValueHandler)
-                    Proxy.getInvocationHandler(instance);
-            return handler;
+            handler = (ValueHandler)Proxy.getInvocationHandler(instance);
         }
+        // make sure the value handler has not been released
+        if (handler.wasReleased()) {
+            throw new ClusterJUserException(local.message("ERR_Cannot_Access_Object_After_Release"));
+        }
+        return handler;
     }
 
     public void objectMarkModified(ValueHandler handler, String fieldName) {

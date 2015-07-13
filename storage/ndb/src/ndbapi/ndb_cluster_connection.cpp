@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -345,13 +345,13 @@ Ndb_cluster_connection::wait_until_ready(int timeout,
   int milliCounter = 0;
   int noChecksSinceFirstAliveFound = 0;
   do {
-    unsigned int foundAliveNode = get_no_ready();
+    const Uint32 unconnected_nodes = m_impl.get_unconnected_nodes();
 
-    if (foundAliveNode == no_db_nodes())
+    if (unconnected_nodes == 0)
     {
       DBUG_RETURN(0);
     }
-    else if (foundAliveNode > 0)
+    else if (unconnected_nodes < no_db_nodes())
     {
       noChecksSinceFirstAliveFound++;
       // 100 ms delay -> 10*
@@ -759,6 +759,45 @@ Ndb_cluster_connection_impl::get_db_nodes(Uint8 arr[MAX_NDB_NODES]) const
   for (Uint32 i = 0; i<cnt; i++)
     arr[i] = (Uint8)nodes[i].id;
   return cnt;
+}
+
+Uint32
+Ndb_cluster_connection_impl::get_unconnected_nodes() const
+{
+  TransporterFacade *tp = m_transporter_facade;
+
+  NodeBitmask db_nodes;  // All data nodes known by configuration
+  NodeBitmask connected; // All nodes connected
+  NodeBitmask started;   // All started nodes known by connected db nodes
+
+  tp->lock_poll_mutex();
+  for(unsigned i= 0; i < m_all_nodes.size(); i++)
+  {
+    const Uint32 node_id = m_all_nodes[i].id;
+    db_nodes.set(node_id);
+    const trp_node& node = tp->theClusterMgr->getNodeInfo(node_id);
+    if (!node.m_alive)
+    {
+      continue;
+    }
+    connected.set(node_id);
+    started.bitOR(node.m_state.m_connected_nodes);
+  }
+  tp->unlock_poll_mutex();
+
+  if (connected.count() == 0)
+  {
+    /**
+     * No db nodes connected, means all unconnected.
+     */
+    return m_all_nodes.size();
+  }
+
+  /**
+   * Return count of started but not connected db nodes
+   */
+  started.bitAND(db_nodes);
+  return started.bitANDC(connected).count();
 }
 
 int

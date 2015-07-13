@@ -50,6 +50,10 @@ public class NdbOpenJPAValueHandler implements ValueHandler {
         this.store = null;
     }
 
+    public boolean wasReleased() {
+        return this.sm == null;
+    }
+
     protected OpenJPAStateManager getStateManager() {
         return sm;
     }

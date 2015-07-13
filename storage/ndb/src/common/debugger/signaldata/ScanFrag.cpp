@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006, 2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +32,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
   fprintf(output, " flags: ");
   if (ScanFragReq::getLockMode(sig->requestInfo))
     fprintf(output, "X");
+  if (ScanFragReq::getPrioAFlag(sig->requestInfo))
+    fprintf(output, "a");
   if (ScanFragReq::getHoldLockFlag(sig->requestInfo))
     fprintf(output, "h");
   if (ScanFragReq::getKeyinfoFlag(sig->requestInfo))
@@ -55,6 +56,8 @@ printSCAN_FRAGREQ(FILE * output, const Uint32 * theData,
           ScanFragReq::getCorrFactorFlag(sig->requestInfo));
   fprintf(output, " stat: %u",
           ScanFragReq::getStatScanFlag(sig->requestInfo));
+  fprintf(output, " ni: %u",
+          ScanFragReq::getNotInterpretedFlag(sig->requestInfo));
   fprintf(output, "\n");
 
   fprintf(output, " tableId: %u\n", sig->tableId);
