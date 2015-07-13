@@ -4671,6 +4671,7 @@ row_search_mvcc(
 
 	if (UNIV_UNLIKELY(direction == 0)
 	    && unique_search
+	    && btr_search_enabled
 	    && dict_index_is_clust(index)
 	    && !prebuilt->templ_contains_blob
 	    && !prebuilt->used_in_HANDLER

@@ -180,6 +180,18 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor);
 bool
 btr_search_validate();
 
+/** X-Lock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_x_lock(const dict_index_t* index);
+
+/** X-Unlock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_x_unlock(const dict_index_t* index);
+
 /** Lock all search latches in exclusive mode. */
 UNIV_INLINE
 void
@@ -189,6 +201,18 @@ btr_search_x_lock_all();
 UNIV_INLINE
 void
 btr_search_x_unlock_all();
+
+/** S-Lock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_s_lock(const dict_index_t* index);
+
+/** S-Unlock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_s_unlock(const dict_index_t* index);
 
 /** Lock all search latches in shared mode. */
 UNIV_INLINE
