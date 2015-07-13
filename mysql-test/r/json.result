@@ -7738,6 +7738,8 @@ select json_search( '{ "a": "foo" }', 'one', 'foo', null, '$a' );
 ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '$a'.
 select json_search( '{ "a": "foo" }', 'all', 'foo', null, '$.a', '$b' );
 ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '$b'.
+select json_search(a, b, c);
+ERROR 42S22: Unknown column 'a' in 'field list'
 select json_search( '{ "a": "foobar" }', 'one', 'foo%' );
 json_search( '{ "a": "foobar" }', 'one', 'foo%' )
 "$.a"
@@ -12814,3 +12816,10 @@ SELECT JSON_EXTRACT('1E+36181012216111515851075235238', '$');
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 6 in '1E+36181012216111515851075235238'.
 SELECT JSON_EXTRACT('-1E+36181012216111515851075235238', '$');
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 7 in '-1E+36181012216111515851075235238'.
+#
+# Bug#21383284: ASSERTION IN SELECT_LEX::SETUP_CONDS
+#
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
+ERROR HY000: Incorrect arguments to ESCAPE
+SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0 in ''.
