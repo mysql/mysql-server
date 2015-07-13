@@ -2555,10 +2555,18 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
 			   Uint32 noOfSections, bool fullyQualifiedNames)
 {
   int errCodes[] = {GetTabInfoRef::Busy, 0 };
+  int timeout = DICT_WAITFOR_TIMEOUT;
+  DBUG_EXECUTE_IF("ndb_timeout_gettabinforeq", {
+    fprintf(stderr, "NdbDictInterface::getTable() times out in dictSignal WAIT_GET_TAB_INFO_REQ\n");
+    timeout = 1000; 
+  });
+
   int r = dictSignal(signal, ptr, noOfSections,
 		     -1, // any node
 		     WAIT_GET_TAB_INFO_REQ,
-		     DICT_WAITFOR_TIMEOUT, 100, errCodes);
+                     timeout,  // parse stage
+                     100, 
+                     errCodes); 
 
   if (r)
     return 0;
@@ -5156,17 +5164,15 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 }
 
 int
-NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op,
-                                         Uint32 & buckets)
+NdbDictionaryImpl::executeSubscribeEvent(NdbEventOperationImpl & ev_op)
 {
   // NdbDictInterface m_receiver;
-  return m_receiver.executeSubscribeEvent(m_ndb, ev_op, buckets);
+  return m_receiver.executeSubscribeEvent(m_ndb, ev_op);
 }
 
 int
 NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
-					NdbEventOperationImpl & ev_op,
-                                        Uint32 & buckets)
+					NdbEventOperationImpl & ev_op)
 {
   DBUG_ENTER("NdbDictInterface::executeSubscribeEvent");
   NdbApiSignal tSignal(m_reference);
@@ -5195,10 +5201,6 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
                        WAIT_CREATE_INDX_REQ /*WAIT_CREATE_EVNT_REQ*/,
                        -1, 100,
                        errCodes, -1);
-  if (ret == 0)
-  {
-    buckets = m_data.m_sub_start_conf.m_buckets;
-  }
 
   DBUG_RETURN(ret);
 }
@@ -5430,6 +5432,7 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
   const SubStopConf * const subStopConf=
     CAST_CONSTPTR(SubStopConf, signal->getDataPtr());
+  const Uint32 sigLen = signal->getLength();
 
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subStopConf->subscriptionId,
@@ -5449,6 +5452,12 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   data[0] = gci_hi;
   data[1] = gci_lo;
 
+  /*
+   * If this is the last subscription stopped NdbEventBuffer needs
+   * to be notified.  NdbEventBuffer will clear eventbuffer and
+   * start ignoring Suma signals such as SUB_GCP_COMPLETE_REP.
+   */
+  m_impl->m_ndb.theEventBuffer->execSUB_STOP_CONF(subStopConf, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -5460,6 +5469,7 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
   const SubStopRef * const subStopRef=
     CAST_CONSTPTR(SubStopRef, signal->getDataPtr());
+  const Uint32 sigLen = signal->getLength();
 
   m_error.code= subStopRef->errorCode;
 
@@ -5473,6 +5483,12 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   {
     m_masterNodeId = subStopRef->m_masterNodeId;
   }
+  /*
+   * If this is the last subscription stopped NdbEventBuffer needs
+   * to be notified.  NdbEventBuffer will clear eventbuffer and
+   * start ignoring Suma signals such as SUB_GCP_COMPLETE_REP.
+   */
+  m_impl->m_ndb.theEventBuffer->execSUB_STOP_REF(subStopRef, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -5484,6 +5500,7 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_START_CONF");
   const SubStartConf * const subStartConf=
     CAST_CONSTPTR(SubStartConf, signal->getDataPtr());
+  const Uint32 sigLen = signal->getLength();
 
   SubscriptionData::Part part = 
     (SubscriptionData::Part)subStartConf->part;
@@ -5505,22 +5522,17 @@ NdbDictInterface::execSUB_START_CONF(const NdbApiSignal * signal,
   }
   }
 
-  if (signal->getLength() == SubStartConf::SignalLength)
-  {
-    m_data.m_sub_start_conf.m_buckets = subStartConf->bucketCount;
-  }
-  else
-  {
-    /* 6.3 <-> 7.0 upgrade 
-     * 6.3 doesn't send required bucketCount.  
-     * ~0 indicates no bucketCount received
-     */
-    m_data.m_sub_start_conf.m_buckets = ~0;
-  }
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subStartConf->subscriptionId,
                      subStartConf->subscriptionKey,
                      subStartConf->subscriberData));
+  /*
+   * If this is the first subscription NdbEventBuffer needs to be
+   * notified.  NdbEventBuffer will start listen to Suma signals
+   * such as SUB_GCP_COMPLETE_REP.  Also NdbEventBuffer will use
+   * the total bucket count from signal.
+   */
+  m_impl->m_ndb.theEventBuffer->execSUB_START_CONF(subStartConf, sigLen);
   m_impl->theWaiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }
@@ -6809,7 +6821,7 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
   {
     const NdbDictionary::Column* col= recSpec[rs].column;
     Uint64 elementByteOffset= recSpec[rs].offset;
-    Uint64 elementByteLength= col->getSizeInBytes();
+    Uint64 elementByteLength= col->getSizeInBytesForRecord();
     Uint64 nullLength= col->getNullable() ? 1 : 0;
 
     /*
@@ -6830,17 +6842,7 @@ NdbDictionaryImpl::validateRecordSpec(const NdbDictionary::RecordSpecification *
       return false;
     }
 
-    /* Blobs 'data' just occupies the size of an NdbBlob ptr */
     const NdbDictionary::Column::Type type= col->getType();
-    const bool isBlob= 
-      (type == NdbDictionary::Column::Blob) || 
-      (type == NdbDictionary::Column::Text);
-
-    if (isBlob)
-    {
-      elementByteLength= sizeof(NdbBlob*);
-    }
-    
     if ((type == NdbDictionary::Column::Bit) &&
         (flags & NdbDictionary::RecMysqldBitfield))
     {
@@ -7181,7 +7183,7 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
   recCol->column_no= col->m_column_no;
   recCol->index_attrId= ~0;
   recCol->offset= recSpec->offset;
-  recCol->maxSize= col->m_attrSize*col->m_arraySize;
+  recCol->maxSize= col->getSizeInBytesForRecord();
   recCol->orgAttrSize= col->m_orgAttrSize;
   if (recCol->offset+recCol->maxSize > rec->m_row_size)
     rec->m_row_size= recCol->offset+recCol->maxSize;

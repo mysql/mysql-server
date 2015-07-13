@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "FastScheduler.hpp"
+#include "ThreadConfig.hpp"
 #include "RefConvert.hpp"
 
 #include "Emulator.hpp"
@@ -85,8 +86,8 @@ FastScheduler::activateSendPacked()
 // packed signals we do another turn in the loop (unless we have already
 // executed too many signals in the loop).
 //------------------------------------------------------------------------
-void 
-FastScheduler::doJob()
+Uint32
+FastScheduler::doJob(Uint32 loopStartCount)
 {
   Uint32 loopCount = 0;
   Uint32 TminLoops = getBOccupancy() + EXTRA_SIGNALS_PER_DO_JOB;
@@ -105,6 +106,18 @@ FastScheduler::doJob()
       /* Find reading / propagation of junk */
       signal->garbage_register();
 #endif 
+      if (unlikely(loopStartCount >
+          MAX_SIGNALS_EXECUTED_BEFORE_ZERO_TIME_QUEUE_SCAN))
+      {
+        /**
+         * This implements the bounded delay signal concept. This
+         * means that we will never execute more than 160 signals
+         * before getting the signals with delay 0 put into the
+         * A-level job buffer.
+         */
+        loopStartCount = 0;
+        globalEmulatorData.theThreadConfig->scanZeroTimeQueue();
+      }
       // To ensure we find bugs quickly
       register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
       // also strip any instance bits since this is non-MT code
@@ -150,6 +163,7 @@ FastScheduler::doJob()
         globalData.highestAvailablePrio = tHighPrio;
       }//if
       loopCount++;
+      loopStartCount++;
     }//while
     sendPacked();
     tHighPrio = globalData.highestAvailablePrio;
@@ -171,7 +185,7 @@ FastScheduler::doJob()
     theDoJobCallCounter = 0;
     theDoJobTotalCounter = 0;
   }//if
-
+  return loopStartCount;
 }//FastScheduler::doJob()
 
 void

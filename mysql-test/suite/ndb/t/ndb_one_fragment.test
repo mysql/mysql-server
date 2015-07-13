@@ -33,6 +33,17 @@ select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on 
 
 --echo verify that it is not possible to reinsert all rows in t1 to itself
 --echo affected rows should be zero
+
+# All the below INSERT IGNORE statements generate 10000 duplicate key
+# warnings each. By default only the first 64 warnings are saved on the
+# warning stack (and thus printed to the .result file). Since the order of
+# the inserts are slightly random the first 64 warnings are also random.
+# Fix by setting the number of saved warnigns to zero, since the test are
+# only interested  in checking that no records are allowed to be inserted
+# by looking at "affected_rows"
+set @save_max_error_count = @@max_error_count;
+set @@max_error_count = 0;
+
 --enable_info
 insert ignore into t1 select a from t2 limit      0, 10000;
 insert ignore into t1 select a from t2 limit  10000, 10000;
@@ -51,5 +62,7 @@ insert ignore into t1 select a from t2 limit 130000, 10000;
 insert ignore into t1 select a from t2 limit 140000, 10000;
 insert ignore into t1 select a from t2 limit 150000, 10000;
 --disable_info
+
+set @@max_error_count = @save_max_error_count;
 
 drop table t1, t2;

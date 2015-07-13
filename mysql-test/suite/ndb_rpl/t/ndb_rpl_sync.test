@@ -4,7 +4,6 @@
 --source include/force_myisam_default.inc
 
 --source include/have_ndb.inc
---source include/ndb_default_cluster.inc
 --source include/not_embedded.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc

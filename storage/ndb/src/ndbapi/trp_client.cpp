@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -383,6 +383,7 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     else if (state == WAIT_NODE_FAILURE)
     {
       ret_val= -2;
+      m_waiter->set_state(NO_WAIT);
       break;
     }
     if (wait_time == -1)
@@ -412,7 +413,6 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
   ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
   ndbout << m_waiter->get_state() << endl;
 #endif
-  m_waiter->set_state(NO_WAIT);
   return ret_val;
 }
 

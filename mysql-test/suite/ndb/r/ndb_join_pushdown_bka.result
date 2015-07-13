@@ -6,8 +6,7 @@ where variable_name in
 ('Ndb_pruned_scan_count',
 'Ndb_sorted_scan_count',
 'Ndb_pushed_queries_defined',
-'Ndb_pushed_queries_dropped',
-'Ndb_pushed_queries_executed');
+'Ndb_pushed_queries_dropped');
 set @save_debug = @@global.debug;
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
@@ -5176,7 +5175,6 @@ where variable_name in
 'Ndb_sorted_scan_count',
 'Ndb_pushed_queries_defined',
 'Ndb_pushed_queries_dropped',
-'Ndb_pushed_queries_executed',
 'Ndb_pushed_reads');
 select * from t1 t1, t1 t2 
 where t1.a = 11 and t1.b = 11 and 
@@ -5203,7 +5201,6 @@ variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	1
 NDB_PUSHED_QUERIES_DEFINED	0
 NDB_PUSHED_QUERIES_DROPPED	0
-NDB_PUSHED_QUERIES_EXECUTED	0
 NDB_PUSHED_READS	0
 NDB_SCAN_COUNT	2
 NDB_SORTED_SCAN_COUNT	0
@@ -7124,15 +7121,15 @@ select count(*) from t1 where
 t1.c in (select c from t1 as subq1) and
 t1.d in (select d from t1 as subq2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Start temporary
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c,d	c	4	test.subq1.c	2	100.00	End temporary; Using join buffer (Batched Key Access)
-1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	d	d	4	test.t1.d	2	100.00	FirstMatch(t1); Using join buffer (Batched Key Access)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c,d	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1); Using join buffer (Batched Key Access)
+1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	d	d	4	test.t1.d	2	100.00	FirstMatch(subq1); Using join buffer (Batched Key Access)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	Cannot push table 't1' as child of table 'subq1'. Doing so would prevent using join buffer for table 't1'.
-Note	1003	Cannot push table 'subq2' as child of table 'subq1'. Doing so would prevent using join buffer for table 'subq2'.
+Note	1003	Cannot push table 'subq1' as child of table 't1'. Doing so would prevent using join buffer for table 'subq1'.
 Note	1003	Cannot push table 'subq2' as child of table 't1'. Doing so would prevent using join buffer for table 'subq2'.
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1`) semi join (`test`.`t1` `subq2`) where ((`test`.`subq2`.`d` = `test`.`t1`.`d`) and (`test`.`t1`.`c` = `test`.`subq1`.`c`))
+Note	1003	Cannot push table 'subq2' as child of table 'subq1'. Doing so would prevent using join buffer for table 'subq2'.
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1`) semi join (`test`.`t1` `subq2`) where ((`test`.`subq2`.`d` = `test`.`t1`.`d`) and (`test`.`subq1`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1) and
 t1.d in (select d from t1 as subq2);
@@ -7238,7 +7235,6 @@ variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	24
 NDB_PUSHED_QUERIES_DEFINED	0
 NDB_PUSHED_QUERIES_DROPPED	0
-NDB_PUSHED_QUERIES_EXECUTED	0
 NDB_SORTED_SCAN_COUNT	0
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

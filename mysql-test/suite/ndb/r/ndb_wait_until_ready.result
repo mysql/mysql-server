@@ -1,0 +1,17 @@
+# Restart mysqld with all data nodes started
+# restart
+# Check that there are still 4 connections from second mysqld
+Node 2 is being restarted
+
+Node 4 is being restarted
+
+# Check that there are only _2_ connections from second mysqld
+# Restart one mysqld with 2 data nodes down and check how long it took
+# restart
+# Check that there are 2 connections from second mysqld
+# Start all data nodes again.
+Database node 2 is being started.
+
+Database node 4 is being started.
+
+# Check that there are again 4 connections from second mysqld
