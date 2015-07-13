@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -44,17 +44,17 @@ class Configuration;
 /* Scheduler is an interface */
 
 class Scheduler {
-protected:
-  virtual ~Scheduler() {};
-  
+
 public:
   /* Public Interface */
   Scheduler() {};
 
+  virtual ~Scheduler() {};
+
   /* Static class method calls prepare on a workitem */
   static void execute(NdbTransaction *, NdbTransaction::ExecType, 
                       NdbAsynchCallback, struct workitem *, 
-                      prepare_flags flags=YIELD);
+                      prepare_flags flags);
  
   /** init() is the called from the main thread, 
       after configuration has been read. 
@@ -78,10 +78,13 @@ public:
   virtual void prepare(NdbTransaction *, 
                        NdbTransaction::ExecType, NdbAsynchCallback, 
                        workitem *, prepare_flags flags) = 0;
- 
-     /** release() is called from the NDB Engine thread after an operation has
-      completed.  It allows the scheduler to release any resources (such as
-      the Ndb object) that were allocated in schedule(). */
+
+  /** close() is a callback into the scheduler to close a transaction. */
+  virtual void close(NdbTransaction *, workitem *) = 0;
+
+  /** release() is called from the NDB Engine thread after an operation has
+       completed.  It allows the scheduler to release any resources (such as
+       the Ndb object) that were allocated in schedule(). */
   virtual void release(workitem *) = 0;
   
   /** add_stats() allows the engine to delegate certain statistics

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ Tsman::Tsman(Block_context& ctx) :
   addRecSignal(GSN_START_RECREQ, &Tsman::execSTART_RECREQ);
 
   addRecSignal(GSN_LCP_FRAG_ORD, &Tsman::execLCP_FRAG_ORD);
-  addRecSignal(GSN_END_LCP_REQ, &Tsman::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCPREQ, &Tsman::execEND_LCPREQ);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Tsman::execGET_TABINFOREQ);
 
@@ -652,10 +652,7 @@ Tsman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       break;
     }
 
-    if (!handle.m_cnt == 1)
-    {
-      ndbrequire(false);
-    }
+    ndbrequire(handle.m_cnt > 0);
     
     if (!m_file_pool.seize(file_ptr))
     {
@@ -923,6 +920,14 @@ Tsman::execFSWRITEREQ(Signal* signal)
 {
   /**
    * This is currently run in other thread -> no jam
+   *
+   * We only run this code when initialising a datafile during its creation.
+   * This method is called from NDBFS file system thread to initialise the
+   * content in the original pages in the datafile when the datafile is
+   * first created. The pages used in this creation is allocated from the
+   * DataMemory and is owned by the file system thread, so these can be
+   * safely written to. Other than that we can only read stable variables
+   * that won't change during the execution in the file system thread.
    */
   //jamEntry();
   Ptr<Datafile> ptr;
@@ -2228,7 +2233,7 @@ Tsman::execLCP_FRAG_ORD(Signal* signal)
 }
 
 void
-Tsman::execEND_LCP_REQ(Signal* signal)
+Tsman::execEND_LCPREQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(m_lcp_ongoing);

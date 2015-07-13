@@ -11,12 +11,6 @@ connection ddl;
 drop table if exists t1,t2,t3,t4;
 --enable_warnings
 
-#######################################
-# Enable ndb$info counters for SPJ block.
-
-connection ddl;
---source ndbinfo_create.inc
-
 connection spj;
 # Save old mysqld counter values.
 --disable_warnings ONCE
@@ -26,8 +20,7 @@ create temporary table server_counts_at_startup
        ('Ndb_pruned_scan_count',
         'Ndb_sorted_scan_count',
         'Ndb_pushed_queries_defined',
-        'Ndb_pushed_queries_dropped',
-        'Ndb_pushed_queries_executed');
+        'Ndb_pushed_queries_dropped');
 
 ##############
 # Test start
@@ -2915,7 +2908,6 @@ create temporary table server_counts
         'Ndb_sorted_scan_count',
         'Ndb_pushed_queries_defined',
         'Ndb_pushed_queries_dropped',
-        'Ndb_pushed_queries_executed',
 	'Ndb_pushed_reads');
 
 # Run some queries that should increment the counters.
@@ -4682,8 +4674,6 @@ select new.variable_name, new.variable_value - old.variable_value
        order by new.variable_name;
 
 drop table server_counts_at_startup;
-
---source ndbinfo_drop.inc
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 

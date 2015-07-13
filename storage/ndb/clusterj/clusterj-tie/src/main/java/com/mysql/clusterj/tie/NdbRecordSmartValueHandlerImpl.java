@@ -90,13 +90,29 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
      */
     public void release() {
         if (logger.isDetailEnabled()) logger.detail("NdbRecordSmartValueHandler.release");
+        if (wasReleased()) {
+            return;
+        }
         // NdbRecordOperationImpl holds references to key buffer and value buffer ByteBuffers
         operation.release();
+        operation = null;
         domainTypeHandler = null;
         domainFieldHandlers = null;
         fieldNumberToColumnNumberMap = null;
         transientValues = null;
         proxy = null;
+    }
+
+    /** Was this value handler released? */
+    public boolean wasReleased() {
+        return operation == null;
+    }
+
+    /** Assert that this value handler was not released */
+    void assertNotReleased() {
+        if (wasReleased()) {
+            throw new ClusterJUserException(local.message("ERR_Cannot_Access_Object_After_Release"));
+        }
     }
 
     protected NdbRecordOperationImpl operation;
@@ -708,6 +724,7 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
      * @return the value from data storage
      */
     public Object get(int fieldNumber) {
+        assertNotReleased();
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         if (columnId < 0) {
             return transientValues[-1 - columnId];
@@ -716,6 +733,7 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
     }
 
     public void set(int fieldNumber, Object value) {
+        assertNotReleased();
         int columnId = fieldNumberToColumnNumberMap[fieldNumber];
         if (columnId < 0) {
             transientValues[-1 - columnId] = value;
@@ -735,6 +753,7 @@ public class NdbRecordSmartValueHandlerImpl implements SmartValueHandler {
         String propertyName = propertyHead.toLowerCase() + propertyTail;
         int fieldNumber;
         Object result;
+        assertNotReleased();
         if (methodName.startsWith("get")) {
             // get the field number from the name
             fieldNumber = domainTypeHandler.getFieldNumber(propertyName);

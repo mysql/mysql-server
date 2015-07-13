@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ enum enum_conflicting_op_type
   Type of function used to prepare for conflict detection on
   an NdbApi operation
 */
-typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn_share,
+typedef int (* prepare_detect_func) (struct NDB_CONFLICT_FN_SHARE* cfn_share,
                                      enum_conflicting_op_type op_type,
                                      const NdbRecord* data_record,
                                      const uchar* old_data,
@@ -176,11 +176,11 @@ static const int NDB_MAX_KEY_PARTS = MAX_REF_PARTS;
 */
 class ExceptionsTableWriter
 {
-typedef enum column_version {
-  DEFAULT = 0,
-  OLD = 1,
-  NEW = 2
-} COLUMN_VERSION;
+  enum COLUMN_VERSION {
+    DEFAULT = 0,
+    OLD = 1,
+    NEW = 2
+  };
 
 public:
   ExceptionsTableWriter()
@@ -323,7 +323,7 @@ bool find_column_name_ci(CHARSET_INFO *cs,
                          int *no_key_cols);
 };
 
-typedef struct st_ndbcluster_conflict_fn_share {
+struct NDB_CONFLICT_FN_SHARE{
   const st_conflict_fn_def* m_conflict_fn;
 
   /* info about original table */
@@ -332,7 +332,7 @@ typedef struct st_ndbcluster_conflict_fn_share {
   uint8 m_flags;
 
   ExceptionsTableWriter m_ex_tab_writer;
-} NDB_CONFLICT_FN_SHARE;
+};
 
 
 /* HAVE_NDB_BINLOG */
@@ -509,7 +509,6 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
 int
 setup_conflict_fn(Ndb* ndb,
                   NDB_CONFLICT_FN_SHARE** ppcfn_share,
-                  MEM_ROOT* share_mem_root,
                   const char* dbName,
                   const char* tabName,
                   bool tableUsesBlobs,
@@ -520,7 +519,11 @@ setup_conflict_fn(Ndb* ndb,
                   const st_conflict_fn_arg* args,
                   const Uint32 num_args);
 
-void 
+void
+teardown_conflict_fn(Ndb* ndb,
+                     NDB_CONFLICT_FN_SHARE* cfn_share);
+
+void
 slave_reset_conflict_fn(NDB_CONFLICT_FN_SHARE *cfn_share);
 
 bool 

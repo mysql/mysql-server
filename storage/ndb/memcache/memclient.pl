@@ -2,8 +2,8 @@
 
 # -*- cperl -*-
 
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved. All rights reserved. 
-# 
+# Copyright (c) 2013, 2015, Oracle and/or its affiliates. 
+# All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,7 +65,9 @@ my %help = (
   "decr"      => "<key> <delta>",
   "stats"     => "[stat-key]",
   "flags:"    => "<value>    -- Set default flags for storage operations",
-  "expires:"  => "<value>    -- Set default expire time for storage operations"
+  "expires:"  => "<value>    -- Set default expire time for storage operations",
+  "quit"      => "quit memclient",
+  "reconnect" => "reconnect to server"
 );
 
 if($opt_b)
@@ -97,9 +99,10 @@ $attribs->{completion_function} = sub {
 my $OUT = $term->OUT || \*STDOUT;
 print $OUT "Memclient $VERSION using " .  $term->ReadLine . "\n";
 
+
 # Connect
-print "Attempting $proto connection to $host:$port ...\n";
 $mc = $opt_b ? $mc = My::Memcache::Binary->new() : My::Memcache->new();
+print "Attempting $proto connection to $host:$port ...\n";
 my $r = $mc->connect($host, $port);
 print ($r ? "Connected.\n" : "Connection failed.\n");
 exit(1) unless($r);
@@ -118,7 +121,7 @@ sub run_get_cmd {
   push @keys, split(" ", $_[1]);
   my $value = $mc->get(@keys);
   my $with_cas = ( $proto eq "binary" || $mc->{has_cas} );
-  return "NOT_FOUND" if $mc->{error} eq "NOT_FOUND";
+  return $mc->{error} if $mc->{error} ne "OK";
 
   ### Header line
   my $response = UNDERSCORE . "       KEY        | FLAGS |";
@@ -182,6 +185,15 @@ sub run_math_cmd {
   return $mc->$cmd($key, $delta);
 }
 
+sub run_quit_cmd {
+  exit;
+}
+
+sub run_reconnect_cmd {
+  my $r = $mc->connect($host, $port);
+  return ($r ? "Connected.\n" : "Connection failed.\n");
+}
+
 sub run_cmd {
   my %storage_cmds = ("set"=>1,"add"=>1,"replace"=>1,"append"=>1,"prepend"=>1);
   my %math_cmds  = ("incr"=>1,"decr"=>1);
@@ -197,6 +209,8 @@ sub run_cmd {
     return $mc->set_flags($arg1)                 if $_ eq "flags:";
     return $mc->set_expires($arg1)               if $_ eq "expires:";
     return stats($arg1)                          if $_ eq "stats";
+    return run_quit_cmd()                        if $_ eq "quit";
+    return run_reconnect_cmd()                   if $_ eq "reconnect";
     return help();
   }
 }

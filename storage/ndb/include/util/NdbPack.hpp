@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -270,7 +270,6 @@ public:
     int cmp(const DataC& d2, Uint32 cnt, Uint32& num_eq) const;
     // getters
     const Spec& get_spec() const;
-    bool get_all_nullable() const;
     const void* get_data_buf() const;
     Uint32 get_cnt() const;
     bool is_empty() const;
@@ -647,12 +646,6 @@ inline const NdbPack::Spec&
 NdbPack::DataC::get_spec() const
 {
   return m_spec;
-}
-
-inline bool
-NdbPack::DataC::get_all_nullable() const
-{
-  return &m_allNullable;
 }
 
 inline const void*

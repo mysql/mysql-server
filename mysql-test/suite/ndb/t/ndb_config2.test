@@ -4,7 +4,6 @@
 --source include/force_myisam_default.inc
 
 -- source include/have_ndb.inc
--- source include/ndb_default_cluster.inc
 
 # Following doesn't work in all configurations (if shm is not defined)
 

@@ -120,10 +120,7 @@ WHERE User = 'billy1';
 connection server2;
 # The SET PASSWORD query should fail when it tries to update the same row
 # as the first connection.
-
-# Allow error 1296 while waiting for BUG20561087
---error 1296
-#--error ER_PASSWORD_NO_MATCH
+--error ER_LOCK_WAIT_TIMEOUT
 SET PASSWORD FOR 'billy1'@'127.0.0.1' = 'newpass';
 SHOW WARNINGS;
 

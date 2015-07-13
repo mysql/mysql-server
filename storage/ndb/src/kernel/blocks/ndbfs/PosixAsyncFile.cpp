@@ -41,7 +41,11 @@
 #include <sys/uio.h>
 #include <dirent.h>
 
+#include <EventLogger.hpp>
+
 #define JAM_FILE_ID 384
+
+extern EventLogger* g_eventLogger;
 
 
 PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
@@ -79,7 +83,29 @@ int PosixAsyncFile::init()
 
   nzf.stream.opaque= &nz_mempool;
 
+  m_filetype = 0;
+
   return 0;
+}
+
+void PosixAsyncFile::set_or_check_filetype(bool set)
+{
+  struct stat sb;
+  if (fstat(theFd, &sb) == -1)
+  {
+    g_eventLogger->error("fd=%d: fstat errno=%d",
+                          theFd, errno);
+    abort();
+  }
+  int ft = sb.st_mode >> 12; // posix
+  if (set)
+    m_filetype = ft;
+  else if (m_filetype != ft)
+  {
+    g_eventLogger->error("fd=%d: type old=%d new=%d",
+                          theFd, m_filetype, ft);
+    abort();
+  }
 }
 
 #ifdef O_DIRECT
@@ -195,10 +221,14 @@ void PosixAsyncFile::openReq(Request *request)
   }
 #endif
 
+  m_always_sync = false;
+
   if ((flags & FsOpenReq::OM_SYNC) && ! (flags & FsOpenReq::OM_INIT))
   {
 #ifdef O_SYNC
     new_flags |= O_SYNC;
+#else
+    m_always_sync = true;
 #endif
   }
 
@@ -470,6 +500,8 @@ no_odirect:
     {
       request->error = errno;
     }
+#else
+    m_always_sync = true;
 #endif
   }
 
@@ -500,6 +532,9 @@ no_odirect:
       abort();
     }
   }
+
+  set_or_check_filetype(true);
+  request->m_fileinfo = get_fileinfo();
 }
 
 int PosixAsyncFile::readBuffer(Request *req, char *buf,
@@ -683,6 +718,7 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
 
 void PosixAsyncFile::closeReq(Request *request)
 {
+  set_or_check_filetype(false);
   if (m_open_flags & (
       FsOpenReq::OM_WRITEONLY |
       FsOpenReq::OM_READWRITE |
@@ -722,7 +758,9 @@ bool PosixAsyncFile::isOpen(){
 
 void PosixAsyncFile::syncReq(Request *request)
 {
-  if(m_auto_sync_freq && m_write_wo_sync == 0){
+  if ((m_auto_sync_freq && m_write_wo_sync == 0) ||
+      m_always_sync)
+  {
     return;
   }
   if (-1 == ::fsync(theFd)){
@@ -734,6 +772,7 @@ void PosixAsyncFile::syncReq(Request *request)
 
 void PosixAsyncFile::appendReq(Request *request)
 {
+  set_or_check_filetype(false);
   const char * buf = request->par.append.buf;
   Uint32 size = request->par.append.size;
 
@@ -763,7 +802,9 @@ void PosixAsyncFile::appendReq(Request *request)
     buf += n;
   }
 
-  if(m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq){
+  if ((m_auto_sync_freq && m_write_wo_sync > m_auto_sync_freq) ||
+      m_always_sync)
+  {
     syncReq(request);
   }
 }

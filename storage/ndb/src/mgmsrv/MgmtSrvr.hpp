@@ -150,7 +150,9 @@ public:
 	     Uint32 * dynamicId,
 	     Uint32 * nodeGroup,
 	     Uint32 * connectCount,
-	     const char **address);
+	     const char **address,
+             char *addr_buf,
+             size_t addr_buf_size);
 
   /**
    *   Stop a list of nodes
@@ -348,14 +350,22 @@ private:
   void status_api(int nodeId,
                   ndb_mgm_node_status& node_status,
                   Uint32& version, Uint32& mysql_version,
-                  const char **address);
+                  const char **address,
+                  char *addr_buf,
+                  size_t addr_buf_size);
   void status_mgmd(NodeId node_id,
                    ndb_mgm_node_status& node_status,
                    Uint32& version, Uint32& mysql_version,
-                   const char **address);
+                   const char **address,
+                   char *addr_buf,
+                   size_t addr_buf_size);
 
-  int sendVersionReq(int processId, Uint32 &version,
-                     Uint32& mysql_version, const char **address);
+  int sendVersionReq(int processId,
+                     Uint32 &version,
+                     Uint32& mysql_version,
+                     const char **address,
+                     char *addr_buf,
+                     size_t addr_buf_size);
 
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
@@ -410,7 +420,9 @@ private:
   bool m_need_restart;
 
   struct in_addr m_connect_address[MAX_NODES];
-  const char *get_connect_address(NodeId node_id);
+  const char *get_connect_address(NodeId node_id,
+                                  char *addr_buf,
+                                  size_t addr_buf_size);
   void clear_connect_address_cache(NodeId nodeid);
 
   /**

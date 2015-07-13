@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -84,19 +84,19 @@ ENGINE_ERROR_CODE ndb_flush_all(ndb_pipeline *pipeline) {
       if(plan.pk_access) {
         // To flush, scan the table and delete every row
         if(plan.canHaveExternalValue()) {
-          DEBUG_PRINT("prefix %d - doing ExternalValue delete", i);
+          DEBUG_PRINT_DETAIL("prefix %d - doing ExternalValue delete", i);
           r = scan_delete_ext_val(pipeline, &inst, &plan);
         }
         else {
-          DEBUG_PRINT("prefix %d - deleting from %s", i, pfx->table->table_name);
+          DEBUG_PRINT_DETAIL("prefix %d - deleting from %s", i, pfx->table->table_name);
           r = scan_delete(&inst, &plan);
         }
         if(! r) logger->log(LOG_WARNING, 0, "-- FLUSH_ALL Failed.\n");
       }
-      else DEBUG_PRINT("prefix %d - not scanning table %s -- accees path "
+      else DEBUG_PRINT_DETAIL("prefix %d - not scanning table %s -- accees path "
                        "is not primary key", i, pfx->table->table_name);
     }
-    else DEBUG_PRINT("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
+    else DEBUG_PRINT_DETAIL("prefix %d - not scanning table %s -- use_ndb:%d flush:%d",
                      i, pfx->table ? pfx->table->table_name : "",
                      pfx->info.use_ndb, pfx->info.do_db_flush);
   }

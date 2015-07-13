@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3704,16 +3704,23 @@ TESTCASE("TestSetConfigParallel",
   STEPS(runTestSetConfigParallel, 5);
 }
 TESTCASE("GetConfig", "Run ndb_mgm_get_configuration in parallel"){
-  STEPS(runGetConfig, 100);
+  STEPS(runGetConfig, 64);
 }
 TESTCASE("TestStatus",
 	 "Test status and status2"){
   INITIALIZER(runTestStatus);
 
 }
-TESTCASE("TestStatus200",
-	 "Test status and status2 with 200 threads"){
-  STEPS(runTestStatus, 200);
+TESTCASE("TestStatusMultiple",
+	 "Test status and status2 with 64 threads"){
+  /**
+   * For this and other tests we are limited in how much TCP backlog
+   * the MGM server socket has. It is currently set to a maximum of
+   * 64, so if we need to test more than 64 threads in parallel we
+   * need to introduce some sort of wait state to ensure that we
+   * don't get all threads sending TCP connect at the same time.
+   */
+  STEPS(runTestStatus, 64);
 
 }
 TESTCASE("TestGetNodeId",

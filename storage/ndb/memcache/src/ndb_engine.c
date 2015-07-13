@@ -1,5 +1,6 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
+ reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -131,6 +132,7 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
   ndb_eng->startup_options.server_role   = "default_role";
   ndb_eng->startup_options.scheduler     = 0;
   ndb_eng->startup_options.debug_enable  = false;
+  ndb_eng->startup_options.debug_detail  = false;
   ndb_eng->startup_options.reconf_enable = true;
 
   /* Now let NDB_CONNECTSRING environment variable override the default */
@@ -170,7 +172,7 @@ static const engine_info* ndb_get_info(ENGINE_HANDLE* handle)
 static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
                                         const char* config_str) 
 {   
-  int i, nthreads;
+  int i, nthreads, debug_level;
   time_point_t pump_time = 0;
   ENGINE_ERROR_CODE return_status;
   struct ndb_engine *ndb_eng = ndb_handle(handle);
@@ -181,7 +183,12 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
   read_cmdline_options(ndb_eng, def_eng, config_str);
 
   /* Initalize the debug library */
-  DEBUG_INIT(NULL, ndb_eng->startup_options.debug_enable);
+  if(ndb_eng->startup_options.debug_detail)
+    debug_level = 2;
+  else if(ndb_eng->startup_options.debug_enable)
+    debug_level = 1;
+  else debug_level = 0;
+  DEBUG_INIT(NULL, debug_level);
   DEBUG_ENTER();
   
   /* Connect to the Primary cluster */
@@ -236,12 +243,9 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
      will all get stitched together.
   */  
   ndb_eng->pipelines  = malloc(nthreads * sizeof(void *));
-  ndb_eng->schedulers = malloc(nthreads * sizeof(void *));
   for(i = 0 ; i < nthreads ; i++) {
     ndb_eng->pipelines[i] = get_request_pipeline(i, ndb_eng);
-    ndb_eng->schedulers[i] = scheduler_initialize(ndb_eng->pipelines[i], 
-                                                  & sched_opts);
-    if(ndb_eng->schedulers[i] == 0) {
+    if(! scheduler_initialize(ndb_eng->pipelines[i], & sched_opts)) {
       logger->log(LOG_WARNING, NULL, "Illegal scheduler: \"%s\"\n", 
                   ndb_eng->startup_options.scheduler); 
       abort();
@@ -262,7 +266,7 @@ static ENGINE_ERROR_CODE ndb_initialize(ENGINE_HANDLE* handle,
 
   /* Listen for reconfiguration signals */
   if(ndb_eng->startup_options.reconf_enable) {
-    start_reconfig_listener(ndb_eng->schedulers[0]);
+    start_reconfig_listener(ndb_eng->pipelines[0]);
   }
   
   return return_status;
@@ -279,10 +283,12 @@ static void ndb_destroy(ENGINE_HANDLE* handle, bool force)
   ndb_eng = ndb_handle(handle);
   def_eng = default_handle(ndb_eng);
 
-  for(unsigned int i = 0 ; i < ndb_eng->npipelines; i ++) {
+  // TODO: Shutdown just the Scheduler Global
+  for(atomic_int32_t i = 0 ; i < ndb_eng->npipelines; i ++) {
     ndb_pipeline *p = ndb_eng->pipelines[i];
     if(p) {
       scheduler_shutdown(p);
+      ndb_pipeline_free(p);
     }
   }
 
@@ -331,7 +337,7 @@ static ENGINE_ERROR_CODE ndb_allocate(ENGINE_HANDLE* handle,
 {
   struct ndb_engine* ndb_eng;
   struct default_engine *def_eng;
-  DEBUG_ENTER();
+  DEBUG_ENTER_DETAIL();
 
   ndb_eng = ndb_handle(handle);
   def_eng = default_handle(ndb_eng);
@@ -359,14 +365,14 @@ static ENGINE_ERROR_CODE ndb_remove(ENGINE_HANDLE* handle,
   /* Is this a callback after completed I/O? */
   wqitem = ndb_eng->server.cookie->get_engine_specific(cookie);
   if(wqitem) {
-    DEBUG_PRINT("Got callback: %s", wqitem->status->comment);
+    DEBUG_PRINT_DETAIL("Got callback: %s", wqitem->status->comment);
     ndb_eng->server.cookie->store_engine_specific(cookie, wqitem->previous); //pop
     release_and_free(wqitem);
     return wqitem->status->status;
   }
 
   prefix = get_prefix_info_for_key(nkey, key);
-  DEBUG_PRINT("prefix: %d", prefix.prefix_id);
+  DEBUG_PRINT_DETAIL("prefix: %d", prefix.prefix_id);
 
   /* DELETE.  
      You should attempt the cache delete, regardless of whether the database 
@@ -423,7 +429,7 @@ static void ndb_release(ENGINE_HANDLE* handle, const void *cookie,
   }
   
   if(item && (item != wqitem)) {
-    DEBUG_PRINT("Releasing a hash item.");
+    DEBUG_PRINT_DETAIL("Releasing a hash item.");
     item_release(def_eng, (hash_item *) item);
   }
 }  
@@ -447,8 +453,8 @@ static ENGINE_ERROR_CODE ndb_get(ENGINE_HANDLE* handle,
 
   /* Is this a callback after completed I/O? */
   if(wqitem && ! wqitem->base.complete) {  
-    DEBUG_PRINT("Got read callback on workitem %d.%d: %s", 
-                pipeline->id, wqitem->id, wqitem->status->comment);
+    DEBUG_PRINT_DETAIL("Got read callback on workitem %d.%d: %s",
+                wqitem->pipeline->id, wqitem->id, wqitem->status->comment);
     *item = wqitem->cache_item;
     wqitem->base.complete = 1;
     return_status = wqitem->status->status;
@@ -503,19 +509,13 @@ static ENGINE_ERROR_CODE ndb_get_stats(ENGINE_HANDLE* handle,
   struct default_engine *def_eng = default_handle(ndb_eng);
   ndb_pipeline *pipeline = get_my_pipeline_config(ndb_eng); 
     
-  DEBUG_ENTER(); 
+  DEBUG_ENTER_DETAIL();
   
   if(stat_key) { 
     if(strncasecmp(stat_key, "menu", 4) == 0)
       return stats_menu(add_stat, cookie);
     
-    if(strncasecmp(stat_key, "log", 3) == 0) {
-      ndbmc_debug_flush();
-      add_stat("log", 3, "flushed", 7, cookie);
-      return ENGINE_SUCCESS;
-    }
-  
-    if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
+   if((strncasecmp(stat_key, "ndb", 3) == 0)       || 
        (strncasecmp(stat_key, "scheduler", 9) == 0) ||
        (strncasecmp(stat_key, "reconf", 6) == 0)    ||
        (strncasecmp(stat_key, "errors", 6) == 0))
@@ -561,24 +561,25 @@ static ENGINE_ERROR_CODE ndb_store(ENGINE_HANDLE* handle,
   /* Is this a callback after completed I/O? */  
   workitem *wqitem = ndb_eng->server.cookie->get_engine_specific(cookie);  
   if(wqitem) {
-    DEBUG_PRINT("Got callback: %s", wqitem->status->comment);
+    DEBUG_PRINT_DETAIL("Got callback on workitem %d.%d: %s",
+                pipeline->id, wqitem->id, wqitem->status->comment);
     return wqitem->status->status;
   }
 
   prefix = get_prefix_info_for_key(hash_item_get_key_len(item), 
                                    hash_item_get_key(item));
 
-  DEBUG_PRINT("[%s] prefix %d; CAS %llu; use mc/db: %d/%d", 
-                     set_ops[op], prefix.prefix_id, cas ? *cas : 0, 
-                     prefix.do_mc_write, prefix.do_db_write);
-                     
+
   /* Build and send the NDB transaction. 
      If there is also a cache operation, it must be deferred until we know
      whether the database operation has succeeded or failed.
   */
   if(prefix.do_db_write) {
     wqitem = new_workitem_for_store_op(pipeline, op, prefix, cookie, item, cas);
-    DEBUG_PRINT("creating workitem %d.%d", pipeline->id, wqitem->id);
+    DEBUG_PRINT("[%s] prefix %d; CAS %llu; use mc/db: %d/%d  --  creating workitem %d.%d",
+                set_ops[op], prefix.prefix_id, cas ? *cas : 0,
+                prefix.do_mc_write, prefix.do_db_write,
+                pipeline->id, wqitem->id);
     return_status = scheduler_schedule(pipeline, wqitem);
     if(! ((return_status == ENGINE_EWOULDBLOCK) || (return_status == ENGINE_SUCCESS))) {
       ndb_eng->server.cookie->store_engine_specific(cookie, wqitem->previous);//pop
@@ -586,7 +587,9 @@ static ENGINE_ERROR_CODE ndb_store(ENGINE_HANDLE* handle,
     }
   }
   else if(prefix.do_mc_write) {
-    DEBUG_PRINT(" cache-only store.");
+    DEBUG_PRINT("[%s] prefix %d; CAS %llu; use mc/db: %d/%d --  cache-only store.",
+                set_ops[op], prefix.prefix_id, cas ? *cas : 0,
+                prefix.do_mc_write, prefix.do_db_write);
     return_status = store_item(default_handle(ndb_eng), item, cas, op, cookie);
   }
   
@@ -618,7 +621,7 @@ static ENGINE_ERROR_CODE ndb_arithmetic(ENGINE_HANDLE* handle,
   /* Is this a callback after completed I/O? */
   wqitem = ndb_eng->server.cookie->get_engine_specific(cookie);
   if(wqitem && ! wqitem->base.complete) {
-    DEBUG_PRINT("Got arithmetic callback: %s", wqitem->status->comment);
+    DEBUG_PRINT_DETAIL("Got arithmetic callback: %s", wqitem->status->comment);
     return_status = wqitem->status->status;  
     wqitem->base.complete = 1;
     *result = wqitem->math_value;
@@ -682,6 +685,7 @@ static ENGINE_ERROR_CODE ndb_flush(ENGINE_HANDLE* handle,
   pipeline = get_my_pipeline_config(ndb_eng);
 
   (void) def_eng->engine.flush(ndb_eng->m_default_engine, cookie, when);
+  // TODO: Why not return ENGINE_EWOULDBLOCK first?
   return pipeline_flush_all(pipeline);
 }
 
@@ -716,12 +720,12 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
   workitem *wqitem = ndb_eng->server.cookie->get_engine_specific(cookie);
 
   if(wqitem == NULL) {
-    DEBUG_PRINT(" cache-only");
+    DEBUG_PRINT_DETAIL(" cache-only");
     return def_eng->engine.get_item_info(handle, cookie, item, item_info);
   }
 
   if (item_info->nvalue < 1) {
-    DEBUG_PRINT("nvalue too small.");
+    DEBUG_PRINT_DETAIL("nvalue too small.");
     return false;
   }
   
@@ -737,7 +741,7 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
     item_info->key = wqitem->key;
     item_info->value[0].iov_base = wqitem->value_ptr;
     item_info->value[0].iov_len = wqitem->value_size;   
-    DEBUG_PRINT("workitem %d.%d [%s].", wqitem->pipeline->id, wqitem->id, 
+    DEBUG_PRINT_DETAIL("workitem %d.%d [%s].", wqitem->pipeline->id, wqitem->id,
                        workitem_get_operation(wqitem));
     return true;
   }
@@ -755,11 +759,11 @@ static bool ndb_get_item_info(ENGINE_HANDLE *handle,
     item_info->value[0].iov_base = hash_item_get_data(it);
     item_info->value[0].iov_len = item_info->nbytes;
     if(item_info->nbytes) {
-      DEBUG_PRINT("hash_item [KEY: %.*s][CAS: %llu][nbytes: %d].", it->nkey,
-                  hash_item_get_key(it), item_info->cas, item_info->nbytes);
+      DEBUG_PRINT_DETAIL("hash_item [KEY: %.*s][CAS: %llu][nbytes: %d].", it->nkey,
+                          hash_item_get_key(it), item_info->cas, item_info->nbytes);
     }
     else {
-      DEBUG_PRINT(" new hash_item");
+      DEBUG_PRINT_DETAIL(" new hash_item");
     }
     return true;
   }
@@ -795,6 +799,9 @@ void read_cmdline_options(struct ndb_engine *ndb, struct default_engine *se,
       { .key = "debug",
         .datatype = DT_BOOL,
         .value.dt_bool = &(ndb->startup_options.debug_enable) },
+      { .key = "detail",
+        .datatype = DT_BOOL,
+        .value.dt_bool = &(ndb->startup_options.debug_detail) },
 #endif
       { .key = "reconf",
         .datatype = DT_BOOL,

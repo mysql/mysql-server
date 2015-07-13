@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,9 @@ class OperationImpl implements Operation {
 
     protected ClusterTransactionImpl clusterTransaction;
 
-    /** The size of the receive buffer for this operation (may be zero for non-read operations) */
+    protected VariableByteBufferPoolImpl byteBufferPool;
+
+   /** The size of the receive buffer for this operation (may be zero for non-read operations) */
     protected int bufferSize;
 
     /** The maximum column id for this operation (may be zero for non-read operations) */
@@ -177,7 +179,7 @@ class OperationImpl implements Operation {
     public Blob getBlobHandle(Column storeColumn) {
         NdbBlob blobHandle = ndbOperation.getBlobHandleM(storeColumn.getColumnId());
         handleError(blobHandle, ndbOperation);
-        return new BlobImpl(blobHandle);
+        return new BlobImpl(blobHandle, this.byteBufferPool);
     }
 
     /** Specify the columns to be used for the operation.
@@ -341,7 +343,7 @@ class OperationImpl implements Operation {
     }
 
     public void freeResourcesAfterExecute() {
-        
+        System.out.println("OperationImpl.freeResourcesAfterExecute()");
     }
 
 }

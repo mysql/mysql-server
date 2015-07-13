@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -40,7 +40,7 @@ bool open_connections_to_all_clusters();
 bool prefetch_dictionary_objects();
 prefix_info_t get_prefix_info_for_key(int nkey, const char *key);
 void disconnect_all();
-void set_initial_cas_ids(unsigned int *hi, ndbmc_atomic32_t *lo);
+void set_initial_cas_ids(unsigned int *hi, atomic_int32_t *lo);
 void print_debug_startup_info();
 void start_reconfig_listener(void *scheduler);
 
