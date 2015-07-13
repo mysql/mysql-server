@@ -65,14 +65,20 @@ bool String::real_alloc(uint32 length)
      - If the requested length is less or equal to what fits in the buffer, a
        null character is inserted at the appropriate position.
 
-   - If the String does not keep a private buffer on the heap, such a buffer
-     will be allocated and the string copied accoring to its length, as found
-     in String::length().
+   - If the String does not keep a private buffer on the heap:
+
+      - If the requested length is greater than what fits in the buffer, or
+        force_on_heap is true, a new buffer is allocated, data is copied.
+      - If the requested length is less or equal to what fits in the buffer,
+        and force_on_heap is false, a null character is inserted at the
+        appropriate position.
  
    For C compatibility, the new string buffer is null terminated.
 
    @param alloc_length The requested string size in characters, excluding any
    null terminator.
+   @param force_on_heap If the caller wants String's 'str' buffer to be on the
+   heap in all cases.
 
    @retval false Either the copy operation is complete or, if the size of the
    new buffer is smaller than the currently allocated buffer (if one exists),
@@ -80,12 +86,19 @@ bool String::real_alloc(uint32 length)
 
    @retval true An error occured when attempting to allocate memory.
 */
-bool String::realloc(uint32 alloc_length)
+bool String::realloc(uint32 alloc_length, bool force_on_heap)
 {
   uint32 len=ALIGN_SIZE(alloc_length+1);
   DBUG_ASSERT(len > alloc_length);
   if (len <= alloc_length)
     return TRUE;                                 /* Overflow */
+
+  if (force_on_heap && !alloced)
+  {
+    /* Bytes will be allocated on the heap.*/
+    Alloced_length= 0;
+  }
+
   if (Alloced_length < len)
   {
     char *new_ptr;
@@ -420,6 +433,8 @@ void String::strip_sp()
 
 bool String::append(const String &s)
 {
+  DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
+  DBUG_ASSERT(!s.uses_buffer_owned_by(this));
   if (s.length())
   {
     if (realloc(str_length+s.length()))
@@ -784,18 +799,42 @@ int stringcmp(const String *s,const String *t)
   return (cmp) ? cmp : (int) (s_len - t_len);
 }
 
+/**
+  Makes a copy of a String's buffer unless it's already heap-allocated.
 
+  If the buffer ('str') of 'from' is on the heap, this function returns
+  'from', possibly re-allocated to be at least from_length bytes long.
+  It is also the case if from==to or to==NULL.
+  Otherwise, this function makes and returns a copy of "from" into "to"; the
+  buffer of "to" is heap-allocated; a pre-condition is that from->str and
+  to->str must point to non-overlapping buffers.
+  The logic behind this complex design, is that a caller, typically a
+  val_str() function, sometimes has an input String ('from') which buffer it
+  wants to modify; but this String's buffer may or not be heap-allocated; if
+  it's not heap-allocated it is possibly in static storage or belongs to an
+  outer context, and thus should not be modified; in that case the caller
+  wants a heap-allocated copy which it can freely modify.
+
+  @param  to    destination string
+  @param  from  source string
+  @param  from_length  destination string will hold at least from_length bytes.
+*/
 String *copy_if_not_alloced(String *to,String *from,uint32 from_length)
 {
-  if (from->Alloced_length >= from_length)
+  if (from->alloced && from->Alloced_length >= from_length)
     return from;
   if ((from->alloced && (from->Alloced_length != 0)) || !to || from == to)
   {
-    (void) from->realloc(from_length);
+    (void) from->realloc(from_length, true);
     return from;
   }
-  if (to->realloc(from_length))
+  if (to->realloc(from_length, true))
     return from;				// Actually an error
+
+  // from and to should not be overlapping
+  DBUG_ASSERT(!to->uses_buffer_owned_by(from));
+  DBUG_ASSERT(!from->uses_buffer_owned_by(to));
+
   if ((to->str_length=min(from->str_length,from_length)))
     memcpy(to->Ptr,from->Ptr,to->str_length);
   to->str_charset=from->str_charset;
