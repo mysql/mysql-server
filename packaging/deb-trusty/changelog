@@ -1,3 +1,9 @@
+mysql-community (5.7.9-1ubuntu14.04) trusty; urgency=low
+
+  * new upstream release
+
+ -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 13 Jul 2015 13:07:01 +0530
+
 mysql-community (5.7.8-rc-1ubuntu14.04) trusty; urgency=low
 
   * new upstream release
