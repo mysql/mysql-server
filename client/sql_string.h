@@ -1,7 +1,7 @@
 #ifndef CLIENT_SQL_STRING_INCLUDED
 #define CLIENT_SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,7 +197,7 @@ public:
     return real_alloc(arg_length);
   }
   bool real_alloc(uint32 arg_length);			// Empties old string
-  bool realloc(uint32 arg_length);
+  bool realloc(uint32 arg_length, bool force_on_heap= false);
 
   // Shrink the buffer, but only if it is allocated on the heap.
   inline void shrink(uint32 arg_length)
