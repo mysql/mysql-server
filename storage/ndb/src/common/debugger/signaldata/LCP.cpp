@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,6 +110,7 @@ printLCP_STATUS_CONF(FILE * output, const Uint32 * theData,
           (((Uint64)sig->completionStateHi) << 32) + sig->completionStateLo,
           (((Uint64)sig->lcpDoneRowsHi) << 32) + sig->lcpDoneRowsLo,
           (((Uint64)sig->lcpDoneBytesHi) << 32) + sig->lcpDoneBytesLo);
+  fprintf(output, "lcpScannedPages : %u", sig->lcpScannedPages);
   return true;
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -261,6 +261,7 @@ private:
 
 public:
   class Dblqh *c_lqh;
+  class Backup *c_backup;
   Tsman* c_tsman;
   Lgman* c_lgman;
   Pgman* c_pgman;
@@ -627,7 +628,14 @@ struct Fragrecord {
   // No of allocated but unused words for var-sized fields.
   Uint64 m_varWordsFree;
 
-  Uint32 m_max_page_no;
+  /**
+   * m_max_page_cnt contains the next page number to use when allocating
+   * a new page and all pages with lower page numbers are filled with
+   * rows. At fragment creation it is 0 since no pages are yet allocated.
+   * With 1 page allocated it is set to 1. The actual max page number with
+   * 1 page is however 0 since we start with page numbers from 0.
+   */
+  Uint32 m_max_page_cnt;
   Uint32 m_free_page_id_list;
   DynArr256::Head m_page_map;
   DLFifoList<Page>::Head thFreeFirst;   // pages with atleast 1 free record
@@ -1563,6 +1571,7 @@ struct KeyReqStruct {
   bool            last_row;
   bool            m_use_rowid;
   Uint8           m_reorg;
+  Uint8           m_prio_a_flag;
   bool            m_deferred_constraints;
   bool            m_disable_fk_checks;
 
@@ -2765,7 +2774,7 @@ private:
 //------------------------------------------------------------------
   void tupkeyErrorLab(KeyReqStruct*);
   void do_tup_abortreq(Signal*, Uint32 flags);
-  bool do_tup_abort_operation(Signal*, Tuple_header *,
+  void do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
                               Fragrecord*,
                               Tablerec*);
@@ -2874,9 +2883,14 @@ private:
 		  Tablerec* regTabPtr,
 		  bool disk);
   
-  Uint32 calculateChecksum(Tuple_header*, Tablerec* regTabPtr);
-  void setChecksum(Tuple_header*, Tablerec* regTabPtr);
-  int corruptedTupleDetected(KeyReqStruct*);
+  Uint32 calculateChecksum(Tuple_header*, const Tablerec* regTabPtr);
+  void setChecksum(Tuple_header*, const Tablerec* regTabPtr);
+  void setInvalidChecksum(Tuple_header*, const Tablerec* regTabPtr);
+  void updateChecksum(Tuple_header *,
+                      const Tablerec *,
+                      Uint32 old_header,
+                      Uint32 new_header);
+  int corruptedTupleDetected(KeyReqStruct*, Tablerec*);
 
   void complexTrigger(Signal* signal,
                       KeyReqStruct *req_struct,
@@ -3405,7 +3419,7 @@ private:
   Dbtup::Apply_undo f_undo;
   Uint32 c_proxy_undo_data[20 + MAX_TUPLE_SIZE_IN_WORDS];
 
-  void disk_restart_undo_next(Signal*);
+  void disk_restart_undo_next(Signal*, Uint32 applied = 0);
   void disk_restart_undo_lcp(Uint32, Uint32, Uint32 flag, Uint32 lcpId);
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
   void disk_restart_undo_alloc(Apply_undo*);
@@ -3420,8 +3434,9 @@ private:
 #endif
   
   void findFirstOp(OperationrecPtr&);
-  bool is_rowid_lcp_scanned(const Local_key& key1,
-                           const Dbtup::ScanOp& op);
+  bool is_rowid_in_remaining_lcp_set(const Page* page,
+                                     const Local_key& key1,
+                                     const Dbtup::ScanOp& op) const;
   void commit_operation(Signal*,
                         Uint32,
                         Uint32,

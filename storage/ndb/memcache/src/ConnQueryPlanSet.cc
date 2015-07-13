@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,7 +23,8 @@
 
 ConnQueryPlanSet::ConnQueryPlanSet(Ndb_cluster_connection *conn, int n) :
   nplans(n),
-  plans(new QueryPlan *[n])
+  plans(new QueryPlan *[n]),
+  config(0)
 {
   memset(plans, 0, (nplans * sizeof(QueryPlan *)));  
   db = new Ndb(conn);
@@ -34,28 +35,29 @@ ConnQueryPlanSet::ConnQueryPlanSet(Ndb_cluster_connection *conn, int n) :
 ConnQueryPlanSet::~ConnQueryPlanSet() 
 {
   delete db;
-  delete plans;
+  delete[] plans;
 }
 
 
-void ConnQueryPlanSet:: buildSetForConfiguration(const Configuration *cf,
-                                                 int cluster_id)
+void ConnQueryPlanSet::buildSetForConfiguration(const Configuration *cf,
+                                                int cluster_id)
 {
-  const KeyPrefix *k = cf->getNextPrefixForCluster(cluster_id, NULL);
-  while(k) {
-    getPlanForPrefix(k);
-    k = cf->getNextPrefixForCluster(cluster_id, k);
+  int n = 0;
+  config = cf;
+  const KeyPrefix *prefix = cf->getNextPrefixForCluster(cluster_id, NULL);
+  while(prefix) {
+    n++;
+    plans[prefix->info.prefix_id] = new QueryPlan(db, prefix->table);
+    prefix = cf->getNextPrefixForCluster(cluster_id, prefix);
   }
+  DEBUG_PRINT("Built %d QueryPlans", n);
 }
 
 
-QueryPlan * ConnQueryPlanSet::getPlanForPrefix(const KeyPrefix *prefix) { 
+QueryPlan * ConnQueryPlanSet::getPlanForPrefix(const KeyPrefix *prefix) const
+{
   int plan_id = prefix->info.prefix_id;
-  
-  if(plans[plan_id] == 0) {
-    plans[plan_id] = new QueryPlan(db, prefix->table);
-  }
-  
+
   if(plans[plan_id]->initialized)
     return plans[plan_id];
   else

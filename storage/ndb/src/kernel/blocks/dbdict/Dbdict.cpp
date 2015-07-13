@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -557,6 +557,10 @@ void Dbdict::execCONTINUEB(Signal* signal)
     sendSignal(calcDictBlockRef(c_masterNodeId), GSN_GET_TABINFOREQ, signal,
                GetTabInfoReq::SignalLength, JBB);
     break;
+  case ZNEXT_GET_TAB_REQ:
+    jam();
+    startNextGetTabInfoReq(signal);
+    break;
   default :
     ndbrequire(false);
     break;
@@ -598,7 +602,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
       jam();
       sendGET_TABINFOREF(signal, &req_copy,
                          GetTabInfoRef::TableNotDefined, __LINE__);
-      initRetrieveRecord(0, 0, 0);
+      initRetrieveRecord(signal, 0, 0);
       return;
     }
 
@@ -618,7 +622,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
         // cannot see another uncommitted trans
         sendGET_TABINFOREF(signal, &req_copy,
                            (GetTabInfoRef::ErrorCode)err, __LINE__);
-        initRetrieveRecord(0, 0, 0);
+        initRetrieveRecord(signal, 0, 0);
         return;
       }
     }
@@ -646,7 +650,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
       jam();
       sendGET_TABINFOREF(signal, &req_copy,
                          GetTabInfoRef::TableNotDefined, __LINE__);
-      initRetrieveRecord(0, 0, 0);
+      initRetrieveRecord(signal, 0, 0);
       return;
     }
 
@@ -663,7 +667,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
       Uint32 dstRef = c_retrieveRecord.blockRef;
       sendSignal(dstRef, GSN_GET_TABINFOREF, signal,
                  GetTabInfoRef::SignalLength, JBB);
-      initRetrieveRecord(0,0,0);
+      initRetrieveRecord(signal,0,0);
       return;
     }
     break;
@@ -2099,6 +2103,7 @@ Dbdict::Dbdict(Block_context& ctx):
   c_attributeRecordHash(c_attributeRecordPool),
   c_obj_name_hash(c_obj_pool),
   c_obj_id_hash(c_obj_pool),
+  c_gettabinforeq_q(*this),
   c_schemaOpHash(c_schemaOpPool),
   c_schemaTransHash(c_schemaTransPool),
   c_schemaTransList(c_schemaTransPool),
@@ -2450,7 +2455,7 @@ void Dbdict::initWriteSchemaRecord()
 
 void Dbdict::initRetrieveRecord(Signal* signal, Uint32 i, Uint32 returnCode)
 {
-  c_retrieveRecord.busyState = false;
+  jam();
   c_retrieveRecord.blockRef = 0;
   c_retrieveRecord.m_senderData = RNIL;
   c_retrieveRecord.tableId = RNIL;
@@ -2458,6 +2463,26 @@ void Dbdict::initRetrieveRecord(Signal* signal, Uint32 i, Uint32 returnCode)
   c_retrieveRecord.retrievedNoOfPages = 0;
   c_retrieveRecord.retrievedNoOfWords = 0;
   c_retrieveRecord.m_useLongSig = false;
+
+  if (!c_gettabinforeq_q.isEmpty())
+  {
+    jam();
+    ndbrequire(signal != NULL);
+
+    /* Take a real-time break now, CONTINUEB will
+     * start processing the next request.
+     * busyState = true will maintain fairness
+     */
+    signal->theData[0] = ZNEXT_GET_TAB_REQ;
+    sendSignal(reference(), GSN_CONTINUEB, signal,
+               1, JBB);
+  }
+  else
+  {
+    /* Done */
+    c_retrieveRecord.busyState = false;
+  }
+
 }//initRetrieveRecord()
 
 void Dbdict::initSchemaRecord()
@@ -2985,6 +3010,9 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   bat[1].ClusterSize = ZSIZE_OF_PAGES_IN_WORDS * 4;
   bat[1].bits.q = ZLOG_SIZE_OF_PAGES_IN_WORDS; // 2**13 = 8192 elements
   bat[1].bits.v = 5;  // 32 bits per element
+
+  /* Initialize Segment Sub pool in GetTabInfoReq queue */
+  ndbrequire(c_gettabinforeq_q.init(jamBuffer()));
 
   initCommonData();
   initRecords();
@@ -4558,8 +4586,10 @@ Dbdict::restart_fromWriteSchemaFile(Signal* signal,
 }
 
 void
-Dbdict::execGET_TABINFOREF(Signal* signal){
+Dbdict::execGET_TABINFOREF(Signal* signal)
+{
   jamEntry();
+
   /** 
    * Make copy of 'ref' such that we can build 'req' without overwriting 
    * source.
@@ -4570,6 +4600,13 @@ Dbdict::execGET_TABINFOREF(Signal* signal){
   if (ref_copy.errorCode == GetTabInfoRef::Busy)
   {
     jam();
+
+    const Uint32 senderRef = ref_copy.senderRef;
+    ndbout_c("DICT : GET_TABINFOREF(Busy)  Retained for upgrade "
+             "compatibility.  Sender node : %u block : %u version : %x",
+             refToNode(senderRef),
+             refToMain(senderRef),
+             getNodeInfo(refToNode(senderRef)).m_version);
 
     /**
      * Master is busy. Send delayed CONTINUEB to self to add some delay, then
@@ -10450,22 +10487,22 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     return;
   }
 
-  GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
-  SectionHandle handle(this, signal);
-
   /**
-   * If I get a GET_TABINFO_REQ from myself
-   * it's is a one from the time queue
+   * First stage response / queueing handled here
+   * Actual processing is done in doGET_TABINFOREQ()
    */
-  bool fromTimeQueue = (signal->senderBlockRef() == reference());
 
-  if (ERROR_INSERTED(6215) && fromTimeQueue == false)
+  GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
+
+  if (ERROR_INSERTED(6215) &&
+      (signal->senderBlockRef() != reference()))
   {
     jam();
     // API tries 100 times and (80/100)^100 is quite small..
     if (rand() % 100 >= 20)
     {
       jam();
+      SectionHandle handle(this, signal);
       releaseSections(handle);
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
       return;
@@ -10473,62 +10510,69 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     // no CLEAR_ERROR_INSERT_VALUE
   }
 
-  if (c_retrieveRecord.busyState && fromTimeQueue == true) {
-    jam();
-
-    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 30,
-			signal->length(),
-			&handle);
-    return;
-  }//if
-
-  const Uint32 MAX_WAITERS = (MAX_NDB_NODES*3)/2;
-
-  // Test sending GET_TABINFOREF to DICT (Bug#14647210).
-  const bool testRef = refToMain(signal->senderBlockRef()) == DBDICT &&
-    ERROR_INSERTED_CLEAR(6026);
-  
-  if ((c_retrieveRecord.busyState || testRef) && fromTimeQueue == false)
+  const bool testRef = (ERROR_INSERTED(6026) &&
+                        refToMain(signal->senderBlockRef()) == DBDICT &&
+                        (signal->senderBlockRef() != reference()));
+  if (testRef)
   {
-    jam();
-
-    const Uint32 senderVersion = 
-      getNodeInfo(refToNode(signal->senderBlockRef())).m_version;
-
-    /**
-     * DBDICT may possibly generate large numbers of signals if many nodes
-     * are started at the same time, so we do not want to queue those using
-     * sendSignalWithDelay(). See also Bug#14647210. Signals from other 
-     * blocks we do queue localy, since these blocks may not retry on
-     * GET_TABINFOREF with error==busy, and since they also should not 
-     * generate large bursts of GET_TABINFOREQ.
-     */
-    if (c_retrieveRecord.noOfWaiters < MAX_WAITERS &&
-        (refToMain(signal->senderBlockRef()) != DBDICT ||
-         !ndbd_dict_get_tabinforef_implemented(senderVersion)))
-    {
-      jam();
-      c_retrieveRecord.noOfWaiters++;
-
-      sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 30,
-			  signal->length(),
-			  &handle);
-      return;
-    }
-
-    if (!c_retrieveRecord.busyState)
-    {
-      ndbout << "Sending extra TABINFOREF to node"
-             << refToNode(signal->senderBlockRef()) << endl;
-    }
+    ndbout_c("DICT : ERROR_INSERT(6026) simulating old internal "
+             "GET_TABINFOREF");
+    CLEAR_ERROR_INSERT_VALUE;
+    SectionHandle handle(this, signal);
     releaseSections(handle);
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
     return;
   }
 
-  if(fromTimeQueue){
+  if (c_retrieveRecord.busyState)
+  {
     jam();
-    c_retrieveRecord.noOfWaiters--;
+    NodeInfo sendersNI = getNodeInfo(refToNode(req->senderRef));
+    bool internalReq = (sendersNI.m_type == NodeInfo::DB);
+
+    /* Queue request
+     * Will be processed later when current requests + queue are completed
+     */
+    if (!c_gettabinforeq_q.tryEnqReq(internalReq,
+                                     signal))
+    {
+      jam();
+      /**
+       * Enqueue failure resulting in Busy signal only allowed for
+       * external requests
+       */
+      ndbrequire(!internalReq);
+
+      SectionHandle handle(this, signal);
+      releaseSections(handle);
+
+      sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
+    }
+
+    return;
+  }
+
+  /* Not busy, cannot be anything queued... */
+  ndbrequire(c_gettabinforeq_q.isEmpty());
+
+  doGET_TABINFOREQ(signal);
+} // execGET_TABINFOREQ()
+
+void
+Dbdict::doGET_TABINFOREQ(Signal* signal)
+{
+  jam();
+  GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
+
+  SectionHandle handle(this, signal);
+
+  if(ERROR_INSERTED(6216))
+  {
+    ndbout_c("Delaying GSN_GET_TABINFOREQ\n");
+    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 10000,
+                       signal->length(),
+                       &handle);
+    return;
   }
 
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
@@ -10579,7 +10623,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
 
   // If istable/index, allow ADD_STARTED (not to ref)
 
-  D("execGET_TABINFOREQ" << V(transId) << " " << *objEntry);
+  D("doGET_TABINFOREQ" << V(transId) << " " << *objEntry);
 
   if (transId != 0 && transId == objEntry->m_transId)
   {
@@ -10599,6 +10643,15 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       return;
     }
   }
+
+  /**
+   * From this point we agree to process this request
+   * and are 'busy' w.r.t. GETTABINFOREQ.
+   * Further incoming GETTABINFOREQ signals will
+   * be queued or rejected.
+   * When we finish processing this one, we must
+   * start any queued req.
+   */
 
   c_retrieveRecord.busyState = true;
   c_retrieveRecord.blockRef = req->senderRef;
@@ -10676,7 +10729,7 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   signal->theData[2] = objEntry->m_tableType;
   signal->theData[3] = c_retrieveRecord.retrievePage;
   sendSignal(reference(), GSN_CONTINUEB, signal, len, JBB);
-}//execGET_TABINFOREQ()
+}//doGET_TABINFOREQ()
 
 void Dbdict::sendGetTabResponse(Signal* signal)
 {
@@ -32498,4 +32551,59 @@ Dbdict::send_event(Signal* signal,
   signal->theData[3] = type;
   signal->theData[4] = refToNode(trans_ptr.p->m_clientRef);
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
+}
+
+void
+Dbdict::startNextGetTabInfoReq(Signal* signal)
+{
+  jam();
+
+  /* Retrieve record should be in busy state to block
+   * queue-jumpers.  We can clear it now as we will
+   * execute direct from the head of the queue(s)
+   */
+  ndbrequire(c_retrieveRecord.busyState);
+  ndbrequire(!c_gettabinforeq_q.isEmpty());
+
+  /* Directly start next queued request
+   * Prefer internalQueue, but give externalQueue entries
+   * a proportional share to avoid starvation.
+   */
+  ndbrequire(c_gettabinforeq_q.deqReq(signal));
+
+  signal->header.theLength = GetTabInfoReq::SignalLength;
+
+  c_retrieveRecord.busyState = false;
+
+  /**
+   * Todo : Queue + jam signal id to indicate which req
+   * we are starting in trace file
+   */
+  doGET_TABINFOREQ(signal);
+
+  if (!c_retrieveRecord.busyState)
+  {
+    jam();
+    /* That GET_TABINFOREQ is done with no
+     * blocking work.
+     * Any more on the queue?
+     */
+    if (!c_gettabinforeq_q.isEmpty())
+    {
+      jam();
+      /* We will trigger starting the next 
+       * entry.
+       */
+      /* TODO : Option to do immediate DIRECT 
+       * exec of next req up to limit of n
+       */
+
+      /* Stop queue-jumpers */
+      c_retrieveRecord.busyState = true;
+
+      signal->theData[0] = ZNEXT_GET_TAB_REQ;
+      sendSignal(reference(), GSN_CONTINUEB, signal,
+                 1, JBB);
+    }
+  }
 }

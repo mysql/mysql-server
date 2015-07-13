@@ -1,0 +1,3 @@
+!include suite/ndb/t/ndb_addnode.cnf
+[ENV]
+MYSQL_UNIX_PORT= @mysqld.1.1.socket

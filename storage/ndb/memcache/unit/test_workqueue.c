@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -69,56 +69,51 @@ void express_nanosec(Uint64 nsec);
 int sleep_microseconds(int);
 
 int main() {
+  const char * status;
   struct workqueue *queue=
       (struct workqueue *) calloc(1, sizeof(struct workqueue));
 
   struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 10000000, 1000000 };
   struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 10000000, 1000000 };
-  struct threadinfo test2 = { queue, 8192, 2, 10, 800, 200, 200000, 25000 };
+  struct threadinfo test2 = { queue, 8192, 2, 10, 800, 200, 100000, 25000 };
   struct threadinfo test3 = { queue, 8192, 2, 1, 850, 50, 125000, 25000 };
-  struct threadinfo test4 = { queue, 8192, 2, 20, 50, 500, 200000, 25000 };
+  struct threadinfo test4 = { queue, 8192, 2, 20, 50, 500, 100000, 25000 };
   struct threadinfo test5 = { queue, 8192, 2, 1, 50, 0, 150000, 50000 };
   struct threadinfo test6 = { queue, 16384, 8, 1, 20, 160, 200000, 50000 };
   
   seed_randomizer(1);
 
+  /* Note! Note! For TAP, tests are numbered 1 to 7 */
+  printf("1..7\n");
+
   /* Test 0: no-sleep with 1 consumer */
-  printf("No-sleep test with 1 consumer\n");
-  if(run_test(& test0)) printf("Test OK \n\n");
-  else exit(1);
+  status = run_test(& test0) ? "ok" : "not ok";
+  printf("%s 1 No-sleep test with 1 consumer\n", status);
 
   /* Test 1: the no-sleep test */
-  printf("No-sleep wham!bam! test with %d iterations: \n", test1.iterations);
-  if(run_test(& test1)) printf("Test OK \n\n");
-  else exit(1);
+  status = run_test(& test1) ? "ok" : "not ok";
+  printf("%s 2 No-sleep wham!bam! test with %d iterations\n", status,
+         test1.iterations);
   
   /* Test 2: fast producer, slow consumer */
-  printf("Fast producer / slow consumer test: \n");
-  if(run_test(& test2)) printf("Test OK \n\n");
-  else exit(1);
+  status = run_test(& test2) ? "ok" : "not ok";
+  printf("%s 3 Fast producer / slow consumer test\n", status);
 
   /* Test 3: slow producer, fast consumer */
-  printf("Slow producer / fast consumer test : \n");  
-  if(run_test(& test3)) printf("Test OK \n\n");
-  else exit(1);
+  status = run_test(& test3) ? "ok" : "not ok";
+  printf("%s 4 Slow producer / fast consumer test\n", status);
 
   /* Test 4: very slow consumer */  
-  printf("very slow consumer test: \n");  
-  if(run_test(& test4)) printf("Test OK \n\n");
-  else exit(1);
+  status = run_test(& test4) ? "ok" : "not ok";
+  printf("%s 5 very slow consumer test\n", status);
 
   /* Test 5: whambam! consumer */  
-  printf("Sluggish producer, whambam! consumer test: \n");  
-  if(run_test(& test5)) printf("Test OK \n\n");
-  else exit(1);
+  status = run_test(& test5) ? "ok" : "not ok";
+  printf("%s 6 Sluggish producer, whambam! consumer test\n", status);
 
   /* Test 6: simulation */
-  printf("Memcached simluation test: \n");  
-  if(run_test(& test6)) printf("Test OK \n\n");
-  else exit(1);
-
-  printf("Passed.\n");
-  exit(0);
+  status = run_test(& test6) ? "ok" : "not ok";
+  printf("%s 7 Memcached simluation test\n", status);
 }
 
 int run_test(struct threadinfo *params) {
@@ -130,7 +125,7 @@ int run_test(struct threadinfo *params) {
   consumer_thd_ids = calloc(sizeof(pthread_t), params->nconsumers);
 
   if(workqueue_init(params->q, params->queue_size, params->nconsumers) ) {
-    printf("Workqueue init failed.\n");
+    printf("Bail out!  Workqueue init failed.\n");
     exit(1);
   }
   
@@ -193,7 +188,7 @@ void * producer_thread(void *arg) {
     }
   }
 
-  printf("Producer thread sent %d. Slept for %f sec.  Average depth: %d\n", 
+  printf(" .. Producer thread sent %d. Slept for %f sec.  Average depth: %d\n",
          (int) i-1, (double) total_sleep / 1000000, total_depth / nsamples);
 
   workqueue_abort(queue);
@@ -224,14 +219,14 @@ void * consumer_thread(void *arg) {
     i = (size_t) workqueue_consumer_wait(queue);
     if(i) {
       ret->nrecv++;
-      if(i == 10) printf("read 10.\n");
-      if(i % testinfo->report_interval == 0) printf("read %d.\n", (int) i);
+      if(i == 10) printf(" .. read 10.\n");
+      if(i % testinfo->report_interval == 0) printf(" .. read %d.\n", (int) i);
       assert(i > last_i);
       last_i = i;
       if(sleeptime) total_sleep += sleep_microseconds(slp);
     }
     else {    
-      printf("Consumer thread read %d; slept for %f sec. \n", ret->nrecv,
+      printf("  .. Consumer thread read %d; slept for %f sec. \n", ret->nrecv,
              (double) total_sleep / 1000000);
       return (void *) ret;
     }

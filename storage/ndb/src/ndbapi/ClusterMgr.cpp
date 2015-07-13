@@ -559,6 +559,11 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
     theFacade.perform_close_clnt(this);
     return;
   }
+  case GSN_EXPAND_CLNT:
+  {
+    theFacade.expand_clnt();
+    return;
+  }
   default:
     break;
 

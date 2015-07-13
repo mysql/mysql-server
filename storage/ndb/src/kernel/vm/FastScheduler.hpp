@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 #define JAM_FILE_ID 244
 
 
+#define MAX_SIGNALS_EXECUTED_BEFORE_ZERO_TIME_QUEUE_SCAN 100
 #define MAX_OCCUPANCY 1024
 
 #define JBASIZE   1280 // Jobs which have dead lines to meet use this level
@@ -96,7 +97,7 @@ public:
    FastScheduler();
    ~FastScheduler();
 
-  void doJob();
+  Uint32 doJob(Uint32 loopStartCount);
   void postPoll();
   int checkDoJob();
 
@@ -175,7 +176,8 @@ FastScheduler::checkDoJob()
   if (getBOccupancy() < MAX_OCCUPANCY) {
     return 0;
   } else {
-    doJob();
+    Uint32 loopStartCount = 0;
+    doJob(loopStartCount);
     return 1;
   }//if
 }//FastScheduler::checkDoJob()

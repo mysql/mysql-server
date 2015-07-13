@@ -5,8 +5,7 @@ where variable_name in
 ('Ndb_pruned_scan_count',
 'Ndb_sorted_scan_count',
 'Ndb_pushed_queries_defined',
-'Ndb_pushed_queries_dropped',
-'Ndb_pushed_queries_executed');
+'Ndb_pushed_queries_dropped');
 set @save_debug = @@global.debug;
 set @save_ndb_join_pushdown = @@session.ndb_join_pushdown;
 set ndb_join_pushdown = true;
@@ -4598,7 +4597,6 @@ where variable_name in
 'Ndb_sorted_scan_count',
 'Ndb_pushed_queries_defined',
 'Ndb_pushed_queries_dropped',
-'Ndb_pushed_queries_executed',
 'Ndb_pushed_reads');
 select * from t1 t1, t1 t2 
 where t1.a = 11 and t1.b = 11 and 
@@ -4625,7 +4623,6 @@ variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	1
 NDB_PUSHED_QUERIES_DEFINED	3
 NDB_PUSHED_QUERIES_DROPPED	0
-NDB_PUSHED_QUERIES_EXECUTED	3
 NDB_PUSHED_READS	4
 NDB_SCAN_COUNT	2
 NDB_SORTED_SCAN_COUNT	1
@@ -6508,7 +6505,6 @@ variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	11
 NDB_PUSHED_QUERIES_DEFINED	428
 NDB_PUSHED_QUERIES_DROPPED	13
-NDB_PUSHED_QUERIES_EXECUTED	580
 NDB_SORTED_SCAN_COUNT	93
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;

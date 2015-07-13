@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,6 +56,62 @@ Ndb_getInAddr(struct in_addr * dst, const char *address)
   return 0;
 }
 
+char*
+Ndb_inet_ntop(int af,
+              const void *src,
+              char *dst,
+              socklen_t size)
+{
+  int ret;
+  const char *null_str = "null";
+  switch (af)
+  {
+    case AF_INET:
+    {
+      sockaddr_in sa;
+      memset(&sa, 0, sizeof(sa));
+      memcpy(&sa.sin_addr, src, sizeof(sa.sin_addr));
+      sa.sin_family = AF_INET;
+      ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
+                        sizeof(sockaddr_in),
+                        dst,
+                        size,
+                        NULL,
+                        0,
+                        NI_NUMERICHOST);
+      if (ret != 0)
+      {
+        break;
+      }
+      return dst;
+    }
+    case AF_INET6:
+    {
+      sockaddr_in6 sa;
+      memset(&sa, 0, sizeof(sa));
+      memcpy(&sa.sin6_addr, src, sizeof(sa.sin6_addr));
+      sa.sin6_family = AF_INET6;
+      ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
+                        sizeof(sockaddr_in6),
+                        dst,
+                        size,
+                        NULL,
+                        0,
+                        NI_NUMERICHOST);
+      if (ret != 0)
+      {
+        break;
+      }
+      return dst;
+    }
+    default:
+    {
+      break;
+    }
+  }
+  return (char*)null_str;
+}
+
 #ifdef TEST_NDBGETINADDR
 #include <NdbTap.hpp>
 
@@ -63,6 +119,9 @@ static void
 CHECK(const char* address, int expected_res, bool is_numeric= false)
 {
   struct in_addr addr;
+  char *addr_str1, *addr_str2;
+  char buf1[NDB_ADDR_STRLEN];
+  char buf2[NDB_ADDR_STRLEN];
 
   fprintf(stderr, "Testing '%s'\n", address);
 
@@ -84,16 +143,27 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     none.s_addr = INADDR_NONE;
     if (memcmp(&addr, &none, sizeof(none)) != 0)
     {
+      addr_str1 = Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&addr),
+                                buf1,
+                                (socklen_t)sizeof(buf1));
+      addr_str2 = Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&none),
+                                buf2,
+                                (socklen_t)sizeof(buf2));
       fprintf(stderr, "> didn't return INADDR_NONE after failure, "
-             "got: '%s', expected; '%s'\n",
-             inet_ntoa(addr), inet_ntoa(none));
+             "got: '%s', expected; '%s'\n", addr_str1, addr_str2);
       abort();
     }
     fprintf(stderr, "> ok\n");
     return;
   }
 
-  fprintf(stderr, "> '%s' -> '%s'\n", address, inet_ntoa(addr));
+  addr_str1 = Ndb_inet_ntop(AF_INET,
+                            static_cast<void*>(&addr),
+                            buf1,
+                            (socklen_t)sizeof(buf1));
+  fprintf(stderr, "> '%s' -> '%s'\n", address, addr_str1);
 
   if (is_numeric)
   {
@@ -102,12 +172,20 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     fprintf(stderr, "> Checking numeric address against inet_addr\n");
     struct in_addr addr2;
     addr2.s_addr = inet_addr(address);
-    fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, inet_ntoa(addr2));
+    addr_str2 = Ndb_inet_ntop(AF_INET,
+                              static_cast<void*>(&addr2),
+                              buf2,
+                              (socklen_t)sizeof(buf2));
+    fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, addr_str2);
 
     if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
     {
+      addr_str2 = Ndb_inet_ntop(AF_INET,
+                                static_cast<void*>(&addr2),
+                                buf2,
+                                (socklen_t)sizeof(buf2));
       fprintf(stderr, "> numeric address '%s' didn't map to same value as "
-              "inet_addr: '%s'", address, inet_ntoa(addr2));
+              "inet_addr: '%s'", address, addr_str2);
       abort();
     }
     fprintf(stderr, "> ok\n");
@@ -197,6 +275,7 @@ TAPTEST(NdbGetInAddr)
   CHECK("127.0.0.1", 0, true);
 
   char hostname_buf[256];
+  char addr_buf[NDB_ADDR_STRLEN];
   if (gethostname(hostname_buf, sizeof(hostname_buf)) == 0 &&
       can_resolve_hostname(hostname_buf))
   {
@@ -206,7 +285,12 @@ TAPTEST(NdbGetInAddr)
     struct in_addr addr;
     Ndb_getInAddr(&addr, hostname_buf);
     // Convert hostname to dotted decimal string ip and check
-    CHECK(inet_ntoa(addr), 0, true);
+    CHECK(Ndb_inet_ntop(AF_INET,
+                        static_cast<void*>(&addr),
+                        addr_buf,
+                        (socklen_t)sizeof(addr_buf)),
+                        0,
+                        true);
   }
   CHECK("unknown_?host", -1); // Does not exist
   CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", -1); // No IPv6

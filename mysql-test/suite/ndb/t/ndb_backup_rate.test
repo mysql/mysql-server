@@ -53,7 +53,7 @@ insert into t1 select * from t1_8192;
 --disable_query_log
 --disable_result_log
 let $mysql_errno= 0;
-let $counter= 50;
+let $counter= 100;
 while (!$mysql_errno)
 {
   --error 0,1297
