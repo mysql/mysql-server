@@ -180,8 +180,11 @@ Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      mysql-community-bench < 5.7.8
+Obsoletes:      community-mysql-bench
+Obsoletes:      mysql-bench
 Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
+Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
 Provides:       mysql-server = %{version}-%{release}
