@@ -925,6 +925,53 @@ uint QEP_TAB::get_sj_strategy() const
   return s;
 }
 
+/**
+  Return the index used for a table in a QEP
+
+  The various access methods have different places where the index/key
+  number is stored, so this function is needed to return the correct value.
+
+  @returns index number, or MAX_KEY if not applicable.
+
+  JT_SYSTEM and JT_ALL does not use an index, and will always return MAX_KEY.
+
+  JT_INDEX_MERGE supports more than one index. Hence MAX_KEY is returned and
+  a further inspection is needed.
+*/
+uint QEP_TAB::effective_index() const
+{
+  switch (type())
+  {
+  case JT_SYSTEM:
+    DBUG_ASSERT(ref().key == -1);
+    return MAX_KEY;
+
+  case JT_CONST:
+  case JT_EQ_REF:
+  case JT_REF_OR_NULL:
+  case JT_REF:
+    DBUG_ASSERT(ref().key != -1);
+    return uint(ref().key);
+
+  case JT_INDEX_SCAN:
+  case JT_FT:
+    return index();
+
+  case JT_INDEX_MERGE:
+    DBUG_ASSERT(quick()->index == MAX_KEY);
+    return MAX_KEY;
+
+  case JT_RANGE:
+    return quick()->index;
+
+  case JT_ALL:
+  default:
+    // @todo Check why JT_UNKNOWN is a valid value here.
+    DBUG_ASSERT(type() == JT_ALL || type() == JT_UNKNOWN);
+    return MAX_KEY;
+  }
+}
+
 uint JOIN_TAB::get_sj_strategy() const
 {
   if (first_sj_inner() == NO_PLAN_IDX)

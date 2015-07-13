@@ -48,10 +48,11 @@ btr_search_sys_resize(ulint hash_size);
 void
 btr_search_sys_free();
 
-/** Disable the adaptive hash search system and empty the index. */
+/** Disable the adaptive hash search system and empty the index.
+@param  need_mutex      need to acquire dict_sys->mutex */
 void
-btr_search_disable();
-
+btr_search_disable(
+	bool	need_mutex);
 /** Enable the adaptive hash search system. */
 void
 btr_search_enable();
@@ -178,6 +179,18 @@ btr_search_update_hash_on_delete(btr_cur_t* cursor);
 bool
 btr_search_validate();
 
+/** X-Lock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_x_lock(const dict_index_t* index);
+
+/** X-Unlock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_x_unlock(const dict_index_t* index);
+
 /** Lock all search latches in exclusive mode. */
 UNIV_INLINE
 void
@@ -187,6 +200,18 @@ btr_search_x_lock_all();
 UNIV_INLINE
 void
 btr_search_x_unlock_all();
+
+/** S-Lock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_s_lock(const dict_index_t* index);
+
+/** S-Unlock the search latch (corresponding to given index)
+@param[in]	index	index handler */
+UNIV_INLINE
+void
+btr_search_s_unlock(const dict_index_t* index);
 
 /** Lock all search latches in shared mode. */
 UNIV_INLINE

@@ -34,13 +34,7 @@ select version_tokens_unlock("Takes no arguments");
 ERROR HY000: Can't initialize function 'version_tokens_unlock'; Requires no arguments.
 select version_tokens_lock_shared("gizmo", -1);
 ERROR 22003: timeout value is out of range in 'version_tokens_lock_shared'
-# 0xffffffff = 4294967295 = ULONG_MAX
-select version_tokens_lock_shared("gizmo", 4294967295 + 1);
-ERROR 22003: timeout value is out of range in 'version_tokens_lock_shared'
 select version_tokens_lock_exclusive("gizmo", -1);
-ERROR 22003: timeout value is out of range in 'version_tokens_lock_exclusive'
-# 0xffffffff = 4294967295 = ULONG_MAX
-select version_tokens_lock_exclusive("gizmo", 4294967295 + 1);
 ERROR 22003: timeout value is out of range in 'version_tokens_lock_exclusive'
 
 CREATE USER vbhagi@localhost;

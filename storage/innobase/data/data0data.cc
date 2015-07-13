@@ -688,6 +688,7 @@ skip_field:
 			upd_field.field_no = longest_i;
 			upd_field.orig_len = 0;
 			upd_field.exp = NULL;
+			upd_field.old_v_val = NULL;
 			dfield_copy(&upd_field.new_val,
 				    dfield->clone(upd->heap));
 			upd->append(upd_field);

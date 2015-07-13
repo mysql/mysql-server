@@ -49,6 +49,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "read0read.h"
 #include "ut0mem.h"
 #include "gis0geo.h"
+#include "row0mysql.h"
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -74,10 +75,16 @@ row_build_index_entry_low(
 	dtuple_t*	entry;
 	ulint		entry_len;
 	ulint		i;
-
+	ulint		num_v = 0;
 
 	entry_len = dict_index_get_n_fields(index);
-	entry = dtuple_create(heap, entry_len);
+
+	if (flag == ROW_BUILD_FOR_INSERT && dict_index_is_clust(index)) {
+		num_v = dict_table_get_n_v_cols(index->table);
+		entry = dtuple_create_with_vcol(heap, entry_len, num_v);
+	} else {
+		entry = dtuple_create(heap, entry_len);
+	}
 
 	if (dict_index_is_ibuf(index)) {
 		dtuple_set_n_fields_cmp(entry, entry_len);
@@ -89,28 +96,59 @@ row_build_index_entry_low(
 			entry, dict_index_get_n_unique_in_tree(index));
 	}
 
-	for (i = 0; i < entry_len; i++) {
-		const dict_field_t*	ind_field
-			= dict_index_get_nth_field(index, i);
-		const dict_col_t*	col
-			= ind_field->col;
-		ulint			col_no
-			= dict_col_get_no(col);
-		dfield_t*		dfield
-			= dtuple_get_nth_field(entry, i);
-		const dfield_t*		dfield2
-			= dtuple_get_nth_field(row, col_no);
+	for (i = 0; i < entry_len + num_v; i++) {
+		const dict_field_t*	ind_field = NULL;
+		const dict_col_t*	col;
+		ulint			col_no = 0;
+		dfield_t*		dfield;
+		dfield_t*		dfield2;
 		ulint			len;
 
+		if (i >= entry_len) {
+			/* This is to insert new rows to cluster index */
+			ut_ad(dict_index_is_clust(index)
+			      && flag == ROW_BUILD_FOR_INSERT);
+			dfield = dtuple_get_nth_v_field(entry, i - entry_len);
+			col = &dict_table_get_nth_v_col(
+				index->table, i - entry_len)->m_col;
+
+		} else {
+			ind_field = dict_index_get_nth_field(index, i);
+			col = ind_field->col;
+			col_no = dict_col_get_no(col);
+			dfield = dtuple_get_nth_field(entry, i);
+		}
 #if DATA_MISSING != 0
 # error "DATA_MISSING != 0"
 #endif
+
+		if (dict_col_is_virtual(col)) {
+			const dict_v_col_t*	v_col
+				= reinterpret_cast<const dict_v_col_t*>(col);
+
+			ut_ad(v_col->v_pos < dtuple_get_n_v_fields(row));
+			dfield2 = dtuple_get_nth_v_field(row, v_col->v_pos);
+
+			ut_ad(dfield_is_null(dfield2) || dfield2->data);
+		} else {
+			dfield2 = dtuple_get_nth_field(row, col_no);
+			ut_ad(!(dfield_get_type(dfield2)->prtype
+				& DATA_VIRTUAL));
+		}
+
 		if (UNIV_UNLIKELY(dfield_get_type(dfield2)->mtype
 				  == DATA_MISSING)) {
 			/* The field has not been initialized in the row.
 			This should be from trx_undo_rec_get_partial_row(). */
 			return(NULL);
 		}
+
+#ifdef UNIV_DEBUG
+		if (dfield_get_type(dfield2)->prtype & DATA_VIRTUAL
+		    && dict_index_is_clust(index)) {
+			ut_ad(flag == ROW_BUILD_FOR_INSERT);
+		}
+#endif /* UNIV_DEBUG */
 
 		/* Special handle spatial index, set the first field
 		which is for store MBR. */
@@ -212,13 +250,14 @@ row_build_index_entry_low(
 			continue;
 		}
 
-		if (ind_field->prefix_len == 0
+		if ((!ind_field || ind_field->prefix_len == 0)
 		    && (!dfield_is_ext(dfield)
 			|| dict_index_is_clust(index))) {
 			/* The dfield_copy() above suffices for
 			columns that are stored in-page, or for
 			clustered index record columns that are not
-			part of a column prefix in the PRIMARY KEY. */
+			part of a column prefix in the PRIMARY KEY,
+			or for virtaul columns in cluster index record. */
 			continue;
 		}
 
@@ -399,7 +438,9 @@ row_build(
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else {
-		row = dtuple_create(heap, dict_table_get_n_cols(col_table));
+		row = dtuple_create_with_vcol(
+			heap, dict_table_get_n_cols(col_table),
+			dict_table_get_n_v_cols(col_table));
 		dict_table_copy_types(row, col_table);
 	}
 

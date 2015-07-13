@@ -327,16 +327,18 @@ row_undo_mod_clust(
 		switch (node->rec_type) {
 		case TRX_UNDO_DEL_MARK_REC:
 			row_log_table_insert(
-				btr_pcur_get_rec(pcur), index, offsets);
+				btr_pcur_get_rec(pcur), node->row,
+				index, offsets);
 			break;
 		case TRX_UNDO_UPD_EXIST_REC:
 			row_log_table_update(
 				btr_pcur_get_rec(pcur), index, offsets,
-				rebuilt_old_pk);
+				rebuilt_old_pk, node->undo_row, node->row);
 			break;
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
-				btr_pcur_get_rec(pcur), index, offsets, sys);
+				btr_pcur_get_rec(pcur), node->row,
+				index, offsets, sys);
 			break;
 		default:
 			ut_ad(0);
@@ -492,7 +494,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 
 	old_has = row_vers_old_has_index_entry(FALSE,
 					       btr_pcur_get_rec(&(node->pcur)),
-					       &mtr_vers, index, entry);
+					       &mtr_vers, index, entry,
+					       0, 0);
 	if (old_has) {
 		err = btr_cur_del_mark_set_sec_rec(BTR_NO_LOCKING_FLAG,
 						   btr_cur, TRUE, thr, &mtr);
@@ -1143,7 +1146,7 @@ row_undo_mod_parse_undo_rec(
 	ptr = trx_undo_rec_get_row_ref(ptr, clust_index, &(node->ref),
 				       node->heap);
 
-	trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
+	ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
 				       roll_ptr, info_bits, node->trx,
 				       node->heap, &(node->update));
 	node->new_trx_id = trx_id;
@@ -1154,6 +1157,14 @@ row_undo_mod_parse_undo_rec(
 		dict_table_close(node->table, dict_locked, FALSE);
 
 		node->table = NULL;
+	}
+
+	/* Extract indexed virtual columns from undo log */
+	if (node->table && node->table->n_v_cols) {
+		row_upd_replace_vcol(node->row, node->table,
+				     node->update, false, node->undo_row,
+				     (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)
+					? NULL : ptr);
 	}
 }
 

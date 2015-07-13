@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -243,8 +243,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_FRAGREQ                171
 #define GSN_COPY_GCICONF                172
 #define GSN_COPY_GCIREQ                 173
-#define GSN_COPY_STATECONF              174
-#define GSN_COPY_STATEREQ               175
+/* 174 used to be COPY_STATECONF, no longer used */
+/* 175 used to be COPY_STATEREQ, no longer used */
 #define GSN_COPY_TABCONF                176
 #define GSN_COPY_TABREQ                 177
 #define GSN_UPDATE_FRAG_STATECONF       178
@@ -348,9 +348,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIVERIFYREQ                 241
 #define GSN_ENABLE_COMREQ               242 /* local */
 #define GSN_END_LCPCONF                 243
-#define GSN_END_LCP_CONF                243
 #define GSN_END_LCPREQ                  244
-#define GSN_END_LCP_REQ                 244
 #define GSN_END_TOCONF                  245
 #define GSN_END_TOREQ                   246
 #define GSN_END_TOREF                   286
@@ -454,12 +452,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_COPY_DATA_REF               337
 #define GSN_COPY_DATA_CONF              338
 
-/*
-   jonas 2012-01-10 unused currently...
-     so rename REQ to ORD
-#define GSN_OPEN_COMCONF                339
-#define GSN_OPEN_COMREF                 340
-*/
+#define GSN_EXPAND_CLNT                 340
 #define GSN_OPEN_COMORD                 341
 #define GSN_PACKED_SIGNAL               342
 #define GSN_PREP_FAILCONF               343
@@ -479,8 +472,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SEND_PACKED                 357
 #define GSN_SET_LOGLEVELORD             358
 
-#define GSN_LQH_ALLOCREQ                359
-#define GSN_TUP_ALLOCREQ                360
+/* 359 used to be LQH_ALLOCREQ, no longer used */
+/* 360 used to be TUP_ALLOCREQ, no longer used */
 #define GSN_TUP_DEALLOCREQ              361
 
 /* 362 not unused */

@@ -1,0 +1,17 @@
+CREATE TABLE `t` (
+`a` BLOB,
+`b` BLOB,
+`c` BLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+`h` VARCHAR(10) DEFAULT NULL,
+`i` int
+) ENGINE=InnoDB;
+INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 16000), REPEAT('b', 16000), DEFAULT, "mm", 2);
+CREATE INDEX idx ON t(c(100));
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t SET a = REPEAT('m', 16000) WHERE a like "aaa%";
+select sleep(3);
+sleep(3)
+0
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t;

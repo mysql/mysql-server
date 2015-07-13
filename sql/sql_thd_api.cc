@@ -36,30 +36,6 @@ using std::min;
 //////////////////////////////////////////////////////////
 
 /**
-  Release resources of the THD, prior to destruction.
-
-  @param    THD   pointer to THD object.
-*/
-
-void thd_release_resources(THD *thd)
-{
-  thd->release_resources();
-}
-
-
-/**
-  Delete the THD object.
-
-  @param    THD   pointer to THD object.
-*/
-
-void destroy_thd(THD *thd)
-{
-  delete thd;
-}
-
-
-/**
   Get reference to scheduler data object
 
   @param thd            THD object
@@ -153,19 +129,6 @@ void thd_clear_errors(THD *thd)
 
 
 /**
-  Set thread stack in THD object
-
-  @param thd              Thread object
-  @param stack_start      Start of stack to set in THD object
-*/
-
-void thd_set_thread_stack(THD *thd, char *stack_start)
-{
-  thd->thread_stack= stack_start;
-}
-
-
-/**
   Close the socket used by this connection
 
   @param thd                THD object
@@ -199,38 +162,6 @@ void reset_thread_globals(THD* thd)
 {
   thd->restore_globals();
   thd->set_mysys_var(NULL);
-}
-
-
-/**
-  Set up various THD data for a new connection
-
-  thd_new_connection_setup
-
-  @param              thd            THD object
-  @param              stack_start    Start of stack for connection
-*/
-
-void thd_new_connection_setup(THD *thd, char *stack_start)
-{
-  DBUG_ENTER("thd_new_connection_setup");
-  thd->set_new_thread_id();
-#ifdef HAVE_PSI_INTERFACE
-  thd_set_psi(thd,
-              PSI_THREAD_CALL(new_thread)
-              (key_thread_one_connection, thd, thd->thread_id()));
-#endif
-  thd->set_time();
-  thd->thr_create_utime= thd->start_utime= my_micro_time();
-
-  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  thd_manager->add_thd(thd);
-
-  DBUG_PRINT("info", ("init new connection. thd: 0x%lx fd: %d",
-          (ulong)thd, mysql_socket_getfd(
-            thd->get_protocol_classic()->get_vio()->mysql_socket)));
-  thd_set_thread_stack(thd, stack_start);
-  DBUG_VOID_RETURN;
 }
 
 

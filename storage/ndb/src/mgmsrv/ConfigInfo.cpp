@@ -615,8 +615,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "ExecuteOnComputer",
     DB_TOKEN,
-    "String referencing an earlier defined COMPUTER",
-    ConfigInfo::CI_USED,
+    "HostName",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_STRING,
     0,
@@ -1624,7 +1624,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupMemory",
     DB_TOKEN,
     "Total memory allocated for backups per node (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "32M", // sum of BackupDataBufferSize and BackupLogBufferSize
@@ -1640,7 +1640,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "16M", // remember to change BackupMemory
-    "0",
+    "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1652,7 +1652,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "16M", // remember to change BackupMemory
-    "0",
+    "2M",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1664,7 +1664,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "256K",
-    "2K",
+    "32K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -1676,7 +1676,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "1M",
-    "2K",
+    "256K",
     STR_VALUE(MAX_INT_RNIL) },
 
   { 
@@ -2458,8 +2458,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "ExecuteOnComputer",
     API_TOKEN,
-    "String referencing an earlier defined COMPUTER",
-    ConfigInfo::CI_USED,
+    "HostName",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_STRING,
     0,
@@ -2767,8 +2767,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "ExecuteOnComputer",
     MGM_TOKEN,
-    "String referencing an earlier defined COMPUTER",
-    ConfigInfo::CI_USED,
+    "HostName",
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_STRING,
     0,
@@ -2778,8 +2778,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     KEY_INTERNAL,
     "MaxNoOfSavedEvents",
     MGM_TOKEN,
-    "",
-    ConfigInfo::CI_USED,
+    0, // No new parameter to use instead of deprecated
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "100",
@@ -3603,7 +3603,6 @@ ConfigInfo::ConfigInfo()
     Properties pinfo(true); 
     pinfo.put("Id",          param._paramId);
     pinfo.put("Fname",       param._fname);
-    pinfo.put("Description", param._description);
 
     /*
       Check that flags are set according to current rules
@@ -3633,6 +3632,7 @@ ConfigInfo::ConfigInfo()
 
     pinfo.put("Type",        param._type);
 
+    // Check that status is an enum and not used as a bitmask
     const Status status = param._status;
     require(status == CI_USED ||
             status == CI_EXPERIMENTAL ||
@@ -3640,6 +3640,23 @@ ConfigInfo::ConfigInfo()
             status == CI_NOTIMPLEMENTED ||
             status == CI_INTERNAL);
     pinfo.put("Status", status);
+
+    // Check description
+    const char* desc = param._description;
+    if (status == CI_DEPRECATED)
+    {
+      // The description of a deprecated parameter may be the name
+      // of another parameter to use or NULL(in such case use empty
+      // string as description)
+      if (desc == NULL)
+        desc = "";
+    }
+    else
+    {
+      // The description may not be NULL
+      require(desc);
+    }
+    pinfo.put("Description", desc);
 
     switch (param._type) {
       case CI_BOOL:
@@ -4159,7 +4176,13 @@ public:
   virtual void parameter(const char* section_name,
                          const Properties* section,
                          const char* param_name,
-                         const ConfigInfo& info){
+                         const ConfigInfo& info)
+  {
+    // Don't print deprecated parameters
+    const Uint32 status = info.getStatus(section, param_name);
+    if (status == ConfigInfo::CI_DEPRECATED)
+      return;
+
     switch (info.getType(section, param_name)) {
     case ConfigInfo::CI_BOOL:
       fprintf(m_out, "%s (Boolean value)\n", param_name);
@@ -4392,13 +4415,16 @@ public:
       pairs.put("initial", "true");
 
     // Get "supported" flag
-    Uint32 status = info.getStatus(section, param_name);
+    const Uint32 status = info.getStatus(section, param_name);
     buf.clear();
-    if (status & ConfigInfo::CI_EXPERIMENTAL)
+    if (status == ConfigInfo::CI_EXPERIMENTAL)
       buf.append("experimental");
 
     if (buf.length())
       pairs.put("supported", buf.c_str());
+
+    if (status == ConfigInfo::CI_DEPRECATED)
+      pairs.put("deprecated", "true");
 
     print_xml("param", pairs);
   }
@@ -4451,7 +4477,6 @@ void ConfigInfo::print_impl(const char* section_filter,
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       // Skip entries with different F- and P-names
       if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-      if (getStatus(sec, n) == ConfigInfo::CI_DEPRECATED) continue;
       if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
       printer.parameter(s, sec, n, *this);
     }
@@ -4471,7 +4496,6 @@ void ConfigInfo::print_impl(const char* section_filter,
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       // Skip entries with different F- and P-names
       if (getStatus(sec, n) == ConfigInfo::CI_INTERNAL) continue;
-      if (getStatus(sec, n) == ConfigInfo::CI_DEPRECATED) continue;
       if (getStatus(sec, n) == ConfigInfo::CI_NOTIMPLEMENTED) continue;
       printer.parameter(s, sec, n, *this);
     }

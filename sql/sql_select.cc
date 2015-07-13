@@ -882,12 +882,8 @@ void JOIN::reset()
 
   if (select_lex->has_ft_funcs())
   {
-#ifdef DBUG_OFF
+    /* TODO: move the code to JOIN::exec */
     (void)init_ftfuncs(thd, select_lex);
-#else
-    // Should not return an error on second execution
-    DBUG_ASSERT(!init_ftfuncs(thd, select_lex));
-#endif
   }
 
   DBUG_VOID_RETURN;
@@ -1709,6 +1705,11 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
       tbl->s->tmp_table != NO_TMP_TABLE &&
       tbl->s->tmp_table != TRANSACTIONAL_TMP_TABLE)
     DBUG_VOID_RETURN;
+
+  // TODO: Currently, index on virtual generated column doesn't support ICP
+  if (tbl->vfield && tbl->index_contains_some_virtual_gcol(keyno))
+    DBUG_VOID_RETURN;
+
   /*
     Fields of other non-const tables aren't allowed in following cases:
        type is:
@@ -1751,6 +1752,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab,
        of pushing an index condition on a clustered key is much lower 
        than on a non-clustered key. This restriction should be 
        re-evaluated when WL#6061 is implemented.
+    7. The index on virtual generated columns is not supported for ICP.
   */
   if (condition() &&
       tbl->file->index_flags(keyno, 0, 1) &
@@ -3882,7 +3884,7 @@ JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order)
   explain_flags.set(sort_order->src, ESP_USING_FILESORT);
   QEP_TAB *const tab= &qep_tab[idx]; 
   tab->filesort=
-    new (thd->mem_root) Filesort(*sort_order, HA_POS_ERROR);
+    new (thd->mem_root) Filesort(tab, *sort_order, HA_POS_ERROR);
   if (!tab->filesort)
     return true;
   {

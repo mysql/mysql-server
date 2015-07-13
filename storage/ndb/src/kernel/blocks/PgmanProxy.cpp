@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,9 +26,9 @@ PgmanProxy::PgmanProxy(Block_context& ctx) :
   // GSN_LCP_FRAG_ORD
   addRecSignal(GSN_LCP_FRAG_ORD, &PgmanProxy::execLCP_FRAG_ORD);
 
-  // GSN_END_LCP_REQ
-  addRecSignal(GSN_END_LCP_REQ, &PgmanProxy::execEND_LCP_REQ);
-  addRecSignal(GSN_END_LCP_CONF, &PgmanProxy::execEND_LCP_CONF);
+  // GSN_END_LCPREQ
+  addRecSignal(GSN_END_LCPREQ, &PgmanProxy::execEND_LCPREQ);
+  addRecSignal(GSN_END_LCPCONF, &PgmanProxy::execEND_LCPCONF);
   addRecSignal(GSN_RELEASE_PAGES_CONF, &PgmanProxy::execRELEASE_PAGES_CONF);
 }
 
@@ -65,14 +65,14 @@ PgmanProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId, SectionHandle* handle)
                       signal, LcpFragOrd::SignalLength, JBB, handle);
 }
 
-// GSN_END_LCP_REQ
+// GSN_END_LCPREQ
 
 void
-PgmanProxy::execEND_LCP_REQ(Signal* signal)
+PgmanProxy::execEND_LCPREQ(Signal* signal)
 {
   const EndLcpReq* req = (const EndLcpReq*)signal->getDataPtr();
   Uint32 ssId = getSsId(req);
-  Ss_END_LCP_REQ& ss = ssSeize<Ss_END_LCP_REQ>(ssId);
+  Ss_END_LCPREQ& ss = ssSeize<Ss_END_LCPREQ>(ssId);
   ss.m_req = *req;
 
   const Uint32 sb = refToBlock(ss.m_req.senderRef);
@@ -105,36 +105,36 @@ PgmanProxy::execRELEASE_PAGES_CONF(Signal* signal)
 {
   const ReleasePagesConf* conf = (const ReleasePagesConf*)signal->getDataPtr();
   Uint32 ssId = getSsId(conf);
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
   sendREQ(signal, ss);
 }
 
 void
-PgmanProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
+PgmanProxy::sendEND_LCPREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
 
   EndLcpReq* req = (EndLcpReq*)signal->getDataPtrSend();
   *req = ss.m_req;
   req->senderData = ssId;
   req->senderRef = reference();
-  sendSignalNoRelease(workerRef(ss.m_worker), GSN_END_LCP_REQ,
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_END_LCPREQ,
                       signal, EndLcpReq::SignalLength, JBB, handle);
 }
 
 void
-PgmanProxy::execEND_LCP_CONF(Signal* signal)
+PgmanProxy::execEND_LCPCONF(Signal* signal)
 {
   const EndLcpConf* conf = (EndLcpConf*)signal->getDataPtr();
   Uint32 ssId = conf->senderData;
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
   recvCONF(signal, ss);
 }
 
 void
-PgmanProxy::sendEND_LCP_CONF(Signal* signal, Uint32 ssId)
+PgmanProxy::sendEND_LCPCONF(Signal* signal, Uint32 ssId)
 {
-  Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
+  Ss_END_LCPREQ& ss = ssFind<Ss_END_LCPREQ>(ssId);
   BlockReference senderRef = ss.m_req.senderRef;
 
   if (!lastReply(ss)) {
@@ -158,13 +158,13 @@ PgmanProxy::sendEND_LCP_CONF(Signal* signal, Uint32 ssId)
     EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
     conf->senderData = ss.m_req.senderData;
     conf->senderRef = reference();
-    sendSignal(senderRef, GSN_END_LCP_CONF,
+    sendSignal(senderRef, GSN_END_LCPCONF,
                signal, EndLcpConf::SignalLength, JBB);
   } else {
     ndbrequire(false);
   }
 
-  ssRelease<Ss_END_LCP_REQ>(ssId);
+  ssRelease<Ss_END_LCPREQ>(ssId);
 }
 
 // client methods

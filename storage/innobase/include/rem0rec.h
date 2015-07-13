@@ -764,6 +764,8 @@ rec_get_converted_size_temp(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
+	const dtuple_t*		v_entry,/*!< in: dtuple contains virtual column
+					data */
 	ulint*			extra)	/*!< out: extra size */
 	__attribute__((warn_unused_result));
 
@@ -787,7 +789,9 @@ rec_convert_dtuple_to_temp(
 	rec_t*			rec,		/*!< out: record */
 	const dict_index_t*	index,		/*!< in: record descriptor */
 	const dfield_t*		fields,		/*!< in: array of data fields */
-	ulint			n_fields);	/*!< in: number of fields */
+	ulint			n_fields,	/*!< in: number of fields */
+	const dtuple_t*		v_entry);	/*!< in: dtuple contains
+						virtual column data */
 
 /**************************************************************//**
 Copies the first n fields of a physical record to a new physical record in

@@ -635,8 +635,6 @@ typedef enum monotonicity_info
    MONOTONIC_STRICT_INCREASING_NOT_NULL  /* But only for valid/real x and y */
 } enum_monotonicity_info;
 
-/* This enum is used to return invalid refer by GC */
-enum invalid_ref_by_gc {REF_INVALID_GC, REF_INVALID_AUTO_INC};
 
 /**
    A type for SQL-like 3-valued Booleans: true/false/unknown.
@@ -1968,23 +1966,16 @@ public:
   }
 
  /**
-   @brief  check_gcol_func_processor
-     Check if an expression/function is allowed for a virtual column
+   Check if an expression/function is allowed for a virtual column
 
-   @param int_arg It is only used for Item_field
+   @param[in,out] int_arg  An array of two integers. Used only for
+   Item_field. The first cell passes the field's number in the table. The
+   second cell is an out parameter containing the error code.
 
-   @return
-     TRUE                           Function not accepted
-   @return
-     FALSE                          Function accepted
+   @returns true if function is not accepted
   */
-  virtual bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  virtual bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -2764,31 +2755,7 @@ public:
   bool add_field_to_cond_set_processor(uchar *unused);
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
-  /**
-    @param int_arg It has two kinds of uses. One is used for passing the
-    field index before calling. The other is as a carrier to return the
-    error code.
-  */
-  bool check_gcol_func_processor(uchar *int_arg)
-  {
-    int *args= (int *)int_arg;
-    int fld_idx= args[0];
-    // Don't allow GC to refer itself or another GC that is defined after it.
-    if (field && field->gcol_info && field->field_index >= fld_idx)
-    {
-      args[1]= REF_INVALID_GC;
-      return true;
-    }
-    // Auto-increment field can't be referenced by stored generated columns
-    if (field->flags & AUTO_INCREMENT_FLAG &&  
-          field->table->field[fld_idx]->stored_in_db)
-    {
-      args[1]= REF_INVALID_AUTO_INC;
-      return true;
-    }
-
-    return false;
-  }
+  bool check_gcol_func_processor(uchar *int_arg);
   bool mark_field_in_map(uchar *arg);
   bool check_column_privileges(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) { return false; }
@@ -2980,12 +2947,7 @@ public:
   enum_field_types field_type() const { return fld_type; }
   Item_result result_type() const { return res_type; }
   bool check_gcol_func_processor(uchar *int_arg)
-  {
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_PRINT("info", ("  Item name: %s", full_name()));
-    return TRUE;
-  }
+  { return true; }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -3315,7 +3277,6 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
-  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -3699,13 +3660,8 @@ public:
   }
 
   bool check_partition_func_processor(uchar *int_arg) {return true;}
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_static_string_func::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 
@@ -3868,7 +3824,7 @@ public:
     also to make printing of items inherited from Item_sum uniform.
   */
   virtual const char *func_name() const= 0;
-  bool check_gcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
 
 
@@ -4856,13 +4812,8 @@ public:
            arg->walk(processor, walk, args) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
-  bool check_gcol_func_processor(uchar *int_arg) 
-  {
-    DBUG_ENTER("Item_insert_value::check_gcol_func_processor");
-    DBUG_PRINT("info",
-      ("check_gcol_func_processor returns TRUE: unsupported function"));
-    DBUG_RETURN(TRUE);
-  }
+  bool check_gcol_func_processor(uchar *int_arg)
+  { return true; }
 };
 
 

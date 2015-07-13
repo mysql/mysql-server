@@ -2257,22 +2257,31 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
   {
     ndbout  << "loop: " << i << endl;
     int val1 = DumpStateOrd::DihMaxTimeBetweenLCP;
-    int val2 = 7099; // Force start
+    int val2 = DumpStateOrd::DihStartLcpImmediately; // Force start
 
+    ndbout << " ... dumpState set 'MaxTimeBetweenLCP'" << endl;
     CHK1(restarter.dumpStateAllNodes(&val1, 1) == 0);
+
     int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    ndbout << " ... dumpState set 'RestartOnErrorInsert = NoStart'" << endl;
     CHK1(restarter.dumpStateAllNodes(val, 2) == 0);
 
+    ndbout << " ... insert error 932" << endl;
     CHK1(restarter.insertErrorInAllNodes(932) ==0); // prevent arbit shutdown
 
     HugoTransactions hugoTrans(*pTab);
+    ndbout << " ... loadTable" << endl;
     CHK1(hugoTrans.loadTable(pNdb, 20) == 0);
 
+    ndbout << " ... dumpState set 'StartLcpImmediately'" << endl;
     CHK1(restarter.dumpStateAllNodes(&val2, 1) == 0);
 
+    ndbout << " ... sleep for 15 sec" << endl;
     NdbSleep_SecSleep(15);
+    ndbout << " ... clearTable" << endl;
     CHK1(hugoTrans.clearTable(pNdb) == 0);
 
+    ndbout << " ... Hugo txn" << endl;
     CHK1(hugoTransCopy.pkReadRecords(pNdb, rows) == 0);
 
     HugoOperations hugoOps(*pTab);
@@ -2280,8 +2289,13 @@ runBug54986(NDBT_Context* ctx, NDBT_Step* step)
     CHK1(hugoOps.pkInsertRecord(pNdb, 1) == 0);
     CHK1(hugoOps.execute_NoCommit(pNdb) == 0);
 
+    ndbout << " ... insert error 5056 (Crash on LCP_COMPLETE_REP)" << endl;
     CHK1(restarter.insertErrorInAllNodes(5056) == 0);
+
+    ndbout << " ... dumpState set 'StartLcpImmediately'" << endl;
     CHK1(restarter.dumpStateAllNodes(&val2, 1) == 0);
+
+    ndbout << " ... waitClusterNoStart" << endl;
     CHK1(restarter.waitClusterNoStart() == 0);
     int vall = 11009;
     CHK1(restarter.dumpStateAllNodes(&vall, 1) == 0);

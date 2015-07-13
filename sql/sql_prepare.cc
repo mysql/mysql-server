@@ -3253,9 +3253,13 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   enable_digest_if_any_plugin_needs_it(thd, &parser_state);
 #ifndef EMBEDDED_LIBRARY
-  if (is_any_audit_plugin_active(thd))
+  if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_GENERAL_CLASS))
     parser_state.m_input.m_compute_digest= true;
 #endif
+
+  thd->m_parser_state = &parser_state;
+  invoke_pre_parse_rewrite_plugins(thd);
+  thd->m_parser_state = NULL;
 
   error= parse_sql(thd, &parser_state, NULL) ||
     thd->is_error() ||
@@ -3927,7 +3931,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
         rewrite_query_if_needed(thd);
         log_execute_line(thd);
         thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
-        error= mysql_execute_command(thd);
+        error= mysql_execute_command(thd, true);
         MYSQL_QUERY_EXEC_DONE(error);
       }
     }

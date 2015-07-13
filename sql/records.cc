@@ -402,6 +402,7 @@ static int rr_quick(READ_RECORD *info)
       break;
     }
   }
+
   return tmp;
 }
 

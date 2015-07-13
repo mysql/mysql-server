@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -41,6 +41,7 @@ class NdbInstance {
 public:
   /* Public Methods */
   NdbInstance(Ndb_cluster_connection *, int);
+  NdbInstance(Ndb *, workitem *);
   ~NdbInstance();
   void link_workitem(workitem *);
   void unlink_workitem(workitem *);
@@ -50,7 +51,8 @@ public:
   Ndb *db;
   NdbInstance *next;
   workitem *wqitem;
- 
+  bool ndb_owner;
+
 private:
   char cache_line_padding[PADDING];
 };

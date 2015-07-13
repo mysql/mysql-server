@@ -333,7 +333,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --disable_reconnect
 --echo # Restart completed.
 
---exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK --user=unknown_mysql_user ping --ssl > $mysqladmin_log 2>&1
+--exec $MYSQLADMIN --no-defaults --host=127.0.0.1 -P $MASTER_MYPORT --user=unknown_mysql_user ping --ssl > $mysqladmin_log 2>&1
 
 --perl
   my $file= $ENV{'mysqladmin_log'};

@@ -1315,6 +1315,8 @@ extern "C" void unireg_abort(int exit_code)
   if (exit_code)
     sql_print_error("Aborting\n");
 
+  mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
+                     MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_ABORT, exit_code);
 #ifndef _WIN32
   if (signal_thread_id.thread != 0)
   {
@@ -1496,7 +1498,10 @@ void clean_up(bool print_message)
   delete_optimizer_cost_module();
   ha_end();
   if (tc_log)
+  {
     tc_log->close();
+    tc_log= NULL;
+  }
   delegates_destroy();
   transaction_cache_free();
   table_def_free();
@@ -4707,6 +4712,10 @@ int mysqld_main(int argc, char **argv)
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
+  if (mysql_audit_notify(MYSQL_AUDIT_SERVER_STARTUP_STARTUP,
+                         (const char**)argv, argc))
+    unireg_abort(MYSQLD_ABORT_EXIT);
+
   /*
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
@@ -5038,6 +5047,10 @@ int mysqld_main(int argc, char **argv)
   mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
+
+  mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
+                     MYSQL_AUDIT_SERVER_SHUTDOWN_REASON_SHUTDOWN,
+                     MYSQLD_SUCCESS_EXIT);
 
   terminate_compress_gtid_table_thread();
   /*
@@ -8663,6 +8676,7 @@ PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
 PSI_thread_key key_thread_timer_notifier;
+PSI_thread_key key_thread_background;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
@@ -8680,7 +8694,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_one_connection, "one_connection", 0},
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
-  { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL}
+  { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
+  { &key_thread_background, "background", PSI_FLAG_GLOBAL}
 };
 #endif // !EMBEDDED_LIBRARY
 

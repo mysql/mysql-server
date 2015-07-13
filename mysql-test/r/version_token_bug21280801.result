@@ -1,0 +1,64 @@
+# Check if the plugin is present
+# initialize the version token plugin
+INSTALL PLUGIN version_tokens SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_set RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_show RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_edit RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_delete RETURNS STRING SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_lock_shared RETURNS INT SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_lock_exclusive RETURNS INT SONAME 'version_token.so';
+CREATE FUNCTION version_tokens_unlock RETURNS INT SONAME 'version_token.so';
+# Initialize performance_schema
+UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name IN ('wait/io/table/sql/handler',
+'wait/lock/table/sql/handler',
+'wait/lock/metadata/sql/mdl');
+INSERT INTO performance_schema.setup_objects (object_type, object_schema, object_name, enabled, timed)
+VALUES ('TABLE', 'mtr', '%', 'NO', 'NO');
+#
+# Bug 21280801: VERSION TOKEN LOCKING DOES NOT WORK
+#
+DO version_tokens_set('vt1=11;vt2=22;vt3=33;vt4=44;vt5=55');
+SELECT version_tokens_show();
+version_tokens_show()
+vt1=11;vt2=22;vt5=55;vt4=44;vt3=33;
+DO version_tokens_lock_exclusive('vt3', 'vt5', 'vt1', 0);
+# Must return 3 rows
+SELECT OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_NAME in ('vt1','vt3','vt5') AND
+LOCK_TYPE='EXCLUSIVE'
+  ORDER BY OBJECT_NAME;
+OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+vt1	EXCLUSIVE	EXPLICIT	GRANTED
+vt3	EXCLUSIVE	EXPLICIT	GRANTED
+vt5	EXCLUSIVE	EXPLICIT	GRANTED
+DO version_tokens_lock_exclusive('vt3', 'vt5', 'vt1', 4);
+ERROR HY000: Service lock wait timeout exceeded.
+DO version_tokens_unlock();
+# Must return 0 rows
+SELECT OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_NAME in ('vt1','vt3','vt5') AND
+LOCK_TYPE='EXCLUSIVE'
+  ORDER BY OBJECT_NAME;
+OBJECT_NAME	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS
+# End of 5.7 tests
+# Cleanup
+# wait for all sessions to disconnect
+# Cleanup performance schema
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+DELETE FROM performance_schema.setup_objects WHERE object_schema='mtr';
+# clean up version token plugin
+UNINSTALL PLUGIN version_tokens;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+DROP FUNCTION version_tokens_set;
+DROP FUNCTION version_tokens_show;
+DROP FUNCTION version_tokens_edit;
+DROP FUNCTION version_tokens_delete;
+DROP FUNCTION version_tokens_lock_shared;
+DROP FUNCTION version_tokens_lock_exclusive;
+DROP FUNCTION version_tokens_unlock;
+# Cleanup done

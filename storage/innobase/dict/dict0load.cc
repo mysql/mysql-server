@@ -61,7 +61,8 @@ static const char* SYSTEM_TABLE_NAME[] = {
 	"SYS_FOREIGN",
 	"SYS_FOREIGN_COLS",
 	"SYS_TABLESPACES",
-	"SYS_DATAFILES"
+	"SYS_DATAFILES",
+	"SYS_VIRTUAL"
 };
 
 /** Loads a table definition and also all its index definitions.
@@ -537,6 +538,9 @@ dict_process_sys_indexes_rec(
 	return(err_msg);
 }
 
+/** Error message for a delete-marked record in dict_load_column_low() */
+static const char* dict_load_column_del = "delete-marked record in SYS_COLUMN";
+
 /** Load a table column definition from a SYS_COLUMNS record to
 dict_table_t.
 @return error message, or NULL on success */
@@ -553,7 +557,10 @@ dict_load_column_low(
 					or NULL if table != NULL */
 	table_id_t*	table_id,	/*!< out: table id */
 	const char**	col_name,	/*!< out: column name */
-	const rec_t*	rec)		/*!< in: SYS_COLUMNS record */
+	const rec_t*	rec,		/*!< in: SYS_COLUMNS record */
+	ulint*		nth_v_col)	/*!< out: if not NULL, this
+					records the "n" of "nth" virtual
+					column */
 {
 	char*		name;
 	const byte*	field;
@@ -562,11 +569,12 @@ dict_load_column_low(
 	ulint		prtype;
 	ulint		col_len;
 	ulint		pos;
+	ulint		num_base;
 
 	ut_ad(table || column);
 
 	if (rec_get_deleted_flag(rec, 0)) {
-		return("delete-marked record in SYS_COLUMNS");
+		return(dict_load_column_del);
 	}
 
 	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_COLUMNS) {
@@ -594,10 +602,6 @@ err_len:
 	}
 
 	pos = mach_read_from_4(field);
-
-	if (table && table->n_def != pos) {
-		return("SYS_COLUMNS.POS mismatch");
-	}
 
 	rec_get_nth_field_offs_old(
 		rec, DICT_FLD__SYS_COLUMNS__DB_TRX_ID, &len);
@@ -658,6 +662,10 @@ err_len:
 		}
 	}
 
+	if (table && table->n_def != pos && !(prtype & DATA_VIRTUAL)) {
+		return("SYS_COLUMNS.POS mismatch");
+	}
+
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_COLUMNS__LEN, &len);
 	if (len != 4) {
@@ -670,10 +678,28 @@ err_len:
 		goto err_len;
 	}
 
-	if (!column) {
-		dict_mem_table_add_col(table, heap, name, mtype,
-				       prtype, col_len);
+	num_base = mach_read_from_4(field);
+
+	if (column == NULL) {
+		if (prtype & DATA_VIRTUAL) {
+#ifdef UNIV_DEBUG
+			dict_v_col_t*   vcol =
+#endif
+			dict_mem_table_add_v_col(
+				table, heap, name, mtype,
+				prtype, col_len,
+				dict_get_v_col_mysql_pos(pos), num_base);
+			ut_ad(vcol->v_pos == dict_get_v_col_pos(pos));
+		} else {
+			ut_ad(num_base == 0);
+			dict_mem_table_add_col(table, heap, name, mtype,
+					       prtype, col_len);
+		}
 	} else {
+		if (nth_v_col != NULL) {
+			*nth_v_col = dict_get_v_col_pos(pos);
+		}
+
 		dict_mem_fill_column_struct(column, pos, mtype,
 					    prtype, col_len);
 	}
@@ -692,17 +718,245 @@ dict_process_sys_columns_rec(
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
 	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name)	/*!< out: column name */
+	const char**	col_name,	/*!< out: column name */
+	ulint*		nth_v_col)	/*!< out: if virtual col, this is
+					record's sequence number */
 {
 	const char*	err_msg;
 
 	/* Parse the record, and get "dict_col_t" struct filled */
 	err_msg = dict_load_column_low(NULL, heap, column,
-				       table_id, col_name, rec);
+				       table_id, col_name, rec, nth_v_col);
 
 	return(err_msg);
 }
 
+/** Error message for a delete-marked record in dict_load_virtual_low() */
+static const char* dict_load_virtual_del = "delete-marked record in SYS_VIRTUAL";
+
+/** Loads a virtual column "mapping" (to base columns) information
+from a SYS_VIRTUAL record
+@param[in,out]	table		table
+@param[in,out]	heap		memory heap
+@param[in,out]	column		mapped base column's dict_column_t
+@param[in,out]	table_id	table id
+@param[in,out]	pos		virtual column position
+@param[in,out]	base_pos	base column position
+@param[in]	rec		SYS_VIRTUAL record
+@return error message, or NULL on success */
+const char*
+dict_load_virtual_low(
+	dict_table_t*	table,
+	mem_heap_t*	heap,
+	dict_col_t**	column,
+	table_id_t*	table_id,
+	ulint*		pos,
+	ulint*		base_pos,
+	const rec_t*	rec)
+{
+	const byte*	field;
+	ulint		len;
+	ulint		base;
+
+	if (rec_get_deleted_flag(rec, 0)) {
+		return(dict_load_virtual_del);
+	}
+
+	if (rec_get_n_fields_old(rec) != DICT_NUM_FIELDS__SYS_VIRTUAL) {
+		return("wrong number of columns in SYS_VIRTUAL record");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_VIRTUAL__TABLE_ID, &len);
+	if (len != 8) {
+err_len:
+		return("incorrect column length in SYS_VIRTUAL");
+	}
+
+	if (table_id != NULL) {
+		*table_id = mach_read_from_8(field);
+	} else if (table->id != mach_read_from_8(field)) {
+		return("SYS_VIRTUAL.TABLE_ID mismatch");
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_VIRTUAL__POS, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	if (pos != NULL) {
+		*pos = mach_read_from_4(field);
+	}
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_VIRTUAL__BASE_POS, &len);
+	if (len != 4) {
+		goto err_len;
+	}
+
+	base = mach_read_from_4(field);
+
+	if (base_pos != NULL) {
+		*base_pos = base;
+	}
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_VIRTUAL__DB_TRX_ID, &len);
+	if (len != DATA_TRX_ID_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	rec_get_nth_field_offs_old(
+		rec, DICT_FLD__SYS_VIRTUAL__DB_ROLL_PTR, &len);
+	if (len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL) {
+		goto err_len;
+	}
+
+	if (column != NULL) {
+		*column = dict_table_get_nth_col(table, base);
+	}
+
+	return(NULL);
+}
+
+/** This function parses a SYS_VIRTUAL record and extracts virtual column
+information
+@param[in,out]	heap		heap memory
+@param[in]	rec		current SYS_COLUMNS rec
+@param[in,out]	table_id	table id
+@param[in,out]	pos		virtual column position
+@param[in,out]	base_pos	base column position
+@return error message, or NULL on success */
+const char*
+dict_process_sys_virtual_rec(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	table_id_t*	table_id,
+	ulint*		pos,
+	ulint*		base_pos)
+{
+	const char*	err_msg;
+
+	/* Parse the record, and get "dict_col_t" struct filled */
+	err_msg = dict_load_virtual_low(NULL, heap, NULL, table_id,
+				       pos, base_pos, rec);
+
+	return(err_msg);
+}
+
+/** Loads SYS_VIRTUAL info for one virtual column
+@param[in,out]	table		table
+@param[in]	nth_v_col	virtual column sequence num
+@param[in,out]	v_col		virtual column
+@param[in,out]	heap		memory heap
+*/
+static
+void
+dict_load_virtual_one_col(
+	dict_table_t*	table,
+	ulint		nth_v_col,
+	dict_v_col_t*	v_col,
+	mem_heap_t*	heap)
+{
+	dict_table_t*	sys_virtual;
+	dict_index_t*	sys_virtual_index;
+	btr_pcur_t	pcur;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	const rec_t*	rec;
+	byte*		buf;
+	ulint		i = 0;
+	mtr_t		mtr;
+	ulint		skipped = 0;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	if (v_col->num_base == 0) {
+		return;
+	}
+
+	mtr_start(&mtr);
+
+	sys_virtual = dict_table_get_low("SYS_VIRTUAL");
+	sys_virtual_index = UT_LIST_GET_FIRST(sys_virtual->indexes);
+	ut_ad(!dict_table_is_comp(sys_virtual));
+
+	ut_ad(name_of_col_is(sys_virtual, sys_virtual_index,
+			     DICT_FLD__SYS_VIRTUAL__POS, "POS"));
+
+	tuple = dtuple_create(heap, 2);
+
+	/* table ID field */
+	dfield = dtuple_get_nth_field(tuple, 0);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(buf, table->id);
+
+	dfield_set_data(dfield, buf, 8);
+
+	/* virtual column pos field */
+	dfield = dtuple_get_nth_field(tuple, 1);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 4));
+	ulint	vcol_pos = dict_create_v_col_pos(nth_v_col, v_col->m_col.ind);
+	mach_write_to_4(buf, vcol_pos);
+
+	dfield_set_data(dfield, buf, 4);
+
+	dict_index_copy_types(tuple, sys_virtual_index, 2);
+
+	btr_pcur_open_on_user_rec(sys_virtual_index, tuple, PAGE_CUR_GE,
+				  BTR_SEARCH_LEAF, &pcur, &mtr);
+
+	for (i = 0; i < v_col->num_base + skipped; i++) {
+		const char*	err_msg;
+		ulint		pos;
+
+		ut_ad(btr_pcur_is_on_user_rec(&pcur));
+
+		rec = btr_pcur_get_rec(&pcur);
+
+		ut_a(btr_pcur_is_on_user_rec(&pcur));
+
+		err_msg = dict_load_virtual_low(table, heap,
+						&v_col->base_col[i - skipped],
+						NULL,
+					        &pos, NULL, rec);
+
+		if (err_msg) {
+			if (err_msg != dict_load_virtual_del) {
+				ib::fatal() << err_msg;
+			} else {
+				skipped++;
+			}
+		} else {
+			ut_ad(pos == vcol_pos);
+		}
+
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+}
+
+/** Loads info from SYS_VIRTUAL for virtual columns.
+@param[in,out]	table	table
+@param[in]	heap	memory heap
+*/
+static
+void
+dict_load_virtual(
+	dict_table_t*	table,
+	mem_heap_t*	heap)
+{
+	for (ulint i = 0; i < table->n_v_cols; i++) {
+		dict_v_col_t*	v_col = dict_table_get_nth_v_col(table, i);
+
+		dict_load_virtual_one_col(table, i, v_col, heap);
+	}
+}
 /** Error message for a delete-marked record in dict_load_field_low() */
 static const char* dict_load_field_del = "delete-marked record in SYS_FIELDS";
 
@@ -1882,6 +2136,7 @@ dict_load_columns(
 	byte*		buf;
 	ulint		i;
 	mtr_t		mtr;
+	ulint		n_skipped = 0;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1907,7 +2162,13 @@ dict_load_columns(
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
-	for (i = 0; i + DATA_N_SYS_COLS < (ulint) table->n_cols; i++) {
+
+	ut_ad(table->n_t_cols == static_cast<ulint>(
+	     table->n_cols) + static_cast<ulint>(table->n_v_cols));
+
+	for (i = 0;
+	     i + DATA_N_SYS_COLS < table->n_t_cols + n_skipped;
+	     i++) {
 		const char*	err_msg;
 		const char*	name = NULL;
 
@@ -1916,9 +2177,12 @@ dict_load_columns(
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_column_low(table, heap, NULL, NULL,
-					       &name, rec);
+					       &name, rec, NULL);
 
-		if (err_msg) {
+		if (err_msg == dict_load_column_del) {
+			n_skipped++;
+			goto next_rec;
+		} else if (err_msg) {
 			ib::fatal() << err_msg;
 		}
 
@@ -1942,7 +2206,7 @@ dict_load_columns(
 
 			ut_a(table->fts->doc_col == ULINT_UNDEFINED);
 
-			col = dict_table_get_nth_col(table, i);
+			col = dict_table_get_nth_col(table, i - n_skipped);
 
 			ut_ad(col->len == sizeof(doc_id_t));
 
@@ -1953,9 +2217,9 @@ dict_load_columns(
 					table, DICT_TF2_FTS_ADD_DOC_ID);
 			}
 
-			table->fts->doc_col = i;
+			table->fts->doc_col = i - n_skipped;
 		}
-
+next_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
@@ -2209,7 +2473,7 @@ dict_load_indexes(
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
 				    | DICT_CORRUPT | DICT_FTS
-				    | DICT_SPATIAL)) {
+				    | DICT_SPATIAL | DICT_VIRTUAL)) {
 
 			ib::error() << "Unknown type " << index->type
 				<< " of index " << index->name
@@ -2315,8 +2579,10 @@ dict_load_table_low(
 	table_id_t	table_id;
 	ulint		space_id;
 	ulint		n_cols;
+	ulint		t_num;
 	ulint		flags;
 	ulint		flags2;
+	ulint		n_v_col;
 
 	const char* error_text = dict_sys_tables_rec_check(rec);
 	if (error_text != NULL) {
@@ -2324,14 +2590,16 @@ dict_load_table_low(
 	}
 
 	dict_sys_tables_rec_read(rec, name, &table_id, &space_id,
-				 &n_cols, &flags, &flags2);
+				 &t_num, &flags, &flags2);
 
 	if (flags == ULINT_UNDEFINED) {
 		return("incorrect flags in SYS_TABLES");
 	}
 
+	dict_table_decode_n_col(t_num, &n_cols, &n_v_col);
+
 	*table = dict_mem_table_create(
-		name.m_name, space_id, n_cols, flags, flags2);
+		name.m_name, space_id, n_cols + n_v_col, n_v_col, flags, flags2);
 
 	(*table)->id = table_id;
 	(*table)->ibd_file_missing = FALSE;
@@ -2760,6 +3028,8 @@ err_exit:
 	dict_load_tablespace(table, heap, ignore_err);
 
 	dict_load_columns(table, heap);
+
+	dict_load_virtual(table, heap);
 
 	if (cached) {
 		dict_table_add_to_cache(table, TRUE, heap);
@@ -3373,7 +3643,7 @@ dict_load_foreigns(
 	ut_ad(!dict_index_is_clust(sec_index));
 start_load:
 
-	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1);
+	tuple = dtuple_create_from_mem(tuple_buf, sizeof(tuple_buf), 1, 0);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
 	dfield_set_data(dfield, table_name, ut_strlen(table_name));

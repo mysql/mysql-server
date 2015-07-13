@@ -519,7 +519,8 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_WORKER= 16,
   SYSTEM_THREAD_INFO_REPOSITORY= 32,
   SYSTEM_THREAD_SLAVE_WORKER= 64,
-  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128
+  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128,
+  SYSTEM_THREAD_BACKGROUND= 256
 };
 
 inline char const *
@@ -537,6 +538,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_BACKGROUND);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -2102,7 +2104,7 @@ public:
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
   */
-  Prealloced_array<unsigned long, 1> audit_class_mask;
+  Prealloced_array<unsigned long, 11> audit_class_mask;
 #endif
 
 #if defined(ENABLED_DEBUG_SYNC)

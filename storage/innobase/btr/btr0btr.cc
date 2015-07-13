@@ -4332,6 +4332,11 @@ btr_index_rec_validate(
 		return(TRUE);
 	}
 
+#ifdef VIRTUAL_INDEX_DEBUG
+	if (dict_index_has_virtual(index)) {
+		fprintf(stderr, "index name is %s\n", index->name());
+	}
+#endif
 	if ((ibool)!!page_is_comp(page) != dict_table_is_comp(index->table)) {
 		btr_index_rec_validate_report(page, rec, index);
 
@@ -4424,6 +4429,12 @@ btr_index_rec_validate(
 			return(FALSE);
 		}
 	}
+
+#ifdef VIRTUAL_INDEX_DEBUG
+	if (dict_index_has_virtual(index)) {
+		rec_print_new(stderr, rec, offsets);
+	}
+#endif
 
 	if (heap) {
 		mem_heap_free(heap);

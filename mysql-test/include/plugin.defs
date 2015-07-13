@@ -43,6 +43,7 @@ ha_partition       storage/partition  PARTITION_PLUGIN  partition
 mypluglib          plugin/fulltext    SIMPLE_PARSER
 libpluginmecab     plugin/fulltext    MECAB
 adt_null           plugin/audit_null  AUDIT_NULL
+test_security_context  plugin/audit_null  TEST_SECURITY_CONTEXT  test_security_context
 libdaemon_example  plugin/daemon_example DAEMONEXAMPLE
 replication_observers_example_plugin    plugin/replication_observers_example RPL_OBS_EXAMPLE
 libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED

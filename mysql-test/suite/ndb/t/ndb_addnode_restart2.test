@@ -1,0 +1,11 @@
+#Test is using error insert, check that binaries support it
+--source have_ndb_error_insert.inc
+
+#create the necessary tables and setup
+--source suite/ndb/include/ndb_addnode_restart_setup.inc
+
+let NDBAPITEST_NAME=testSystemRestart;
+let NDBAPITEST_ARGS=-nMTR_AddNodesAndRestart2 -l1 --noddl -v T1;
+let NDBAPITEST_CLEANUP_QUERY=DROP DATABASE TEST_DB;
+call mtr.add_suppression("Node failure caused abort of transaction");
+--source suite/ndb/include/run_ndbapitest.inc

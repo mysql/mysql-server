@@ -141,7 +141,6 @@ mach_write_compressed(
 /*==================*/
 	byte*	b,	/*!< in: pointer to memory where to store */
 	ulint	n);	/*!< in: ulint integer to be stored */
-#ifdef UNIV_LOG_LSN_DEBUG
 /*********************************************************//**
 Returns the size of an ulint when written in the compressed form.
 @return compressed size in bytes */
@@ -151,7 +150,6 @@ mach_get_compressed_size(
 /*=====================*/
 	ulint	n)	/*!< in: ulint integer to be stored */
 	__attribute__((const));
-#endif /* UNIV_LOG_LSN_DEBUG */
 /** Read a 32-bit integer in a compressed form.
 @param[in,out]	b	pointer to memory where to read;
 advanced by the number of bytes consumed

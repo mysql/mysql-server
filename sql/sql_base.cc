@@ -1535,7 +1535,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
     /* Avoid having MERGE tables with attached children in unused_tables. */
     table->file->extra(HA_EXTRA_DETACH_CHILDREN);
     /* Free memory and reset for next loop. */
-    free_field_buffers_larger_than(table, MAX_TDC_BLOB_SIZE);
+    free_blob_buffers_and_reset(table, MAX_TDC_BLOB_SIZE);
     table->file->ha_reset();
   }
 
@@ -3370,7 +3370,7 @@ err_unlock:
    @return Pointer to the TABLE object found, 0 if no table found.
 */
 
-static TABLE *find_locked_table(TABLE *list, const char *db,
+TABLE *find_locked_table(TABLE *list, const char *db,
                                 const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];

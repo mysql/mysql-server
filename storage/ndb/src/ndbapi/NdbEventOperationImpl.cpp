@@ -590,8 +590,18 @@ NdbEventOperationImpl::execute_nolock()
   }
 
   bool schemaTrans = false;
-  if (m_ndb->theEventBuffer->m_total_buckets == TOTAL_BUCKETS_INIT)
+  if (m_ndb->theEventBuffer->m_prevent_nodegroup_change)
   {
+    /*
+     * Since total count of sub data streams (Suma buckets)
+     * are initially set when the first subscription are setup,
+     * a dummy schema transaction are used to stop add or drop
+     * node to occur for first subscription.  Otherwise count may
+     * change before we are in a state to detect that correctly.
+     * This should not be needed since the handling of
+     * SUB_GCP_COMPLETE_REP in recevier thread(s) should handle
+     * this, but until sure this behaviour is kept.
+     */
     int res = NdbDictionaryImpl::getImpl(* myDict).beginSchemaTrans(false);
     if (res != 0)
     {
@@ -618,24 +628,15 @@ NdbEventOperationImpl::execute_nolock()
   m_magic_number= NDB_EVENT_OP_MAGIC_NUMBER;
   m_state= EO_EXECUTING;
   mi_type= m_eventImpl->mi_type;
-  m_ndb->theEventBuffer->add_op();
   // add kernel reference
   // removed on TE_STOP, TE_CLUSTER_FAILURE, or error below
   m_ref_count++;
   m_stop_gci= ~(Uint64)0;
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", m_ref_count, this));
-  Uint32 buckets = 0;
-  int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this,
-                                                                   buckets);
+  int r= NdbDictionaryImpl::getImpl(*myDict).executeSubscribeEvent(*this);
   if (r == 0) 
   {
-    /* Pre-7.0 kernel nodes do not return the number of buckets
-     * Assume it's == theNoOfDBnodes as was the case in 6.3
-     */
-    if (buckets == ~ (Uint32)0)
-      buckets = m_ndb->theImpl->theNoOfDBnodes;
-
-    m_ndb->theEventBuffer->set_total_buckets(buckets);
+    m_ndb->theEventBuffer->m_prevent_nodegroup_change = false;
     if (schemaTrans)
     {
       schemaTrans = false;
@@ -673,7 +674,6 @@ NdbEventOperationImpl::execute_nolock()
   mi_type= 0;
   m_magic_number= 0;
   m_error.code= myDict->getNdbError().code;
-  m_ndb->theEventBuffer->remove_op();
 
   if (schemaTrans)
   {
@@ -722,7 +722,6 @@ NdbEventOperationImpl::stop()
 
   m_ndb->theEventBuffer->add_drop_lock();
   int r= NdbDictionaryImpl::getImpl(*myDict).stopSubscribeEvent(*this);
-  m_ndb->theEventBuffer->remove_op();
   m_state= EO_DROPPED;
   mi_type= 0;
   if (r == 0) {
@@ -786,7 +785,7 @@ NdbEventOperationImpl::isErrorEpoch(NdbDictionary::Event::TableEvent *error_type
 {
   const NdbDictionary::Event::TableEvent type = getEventType2();
   // Error types are defined from TE_INCONSISTENT
-  if (type > NdbDictionary::Event::TE_INCONSISTENT)
+  if (type >= NdbDictionary::Event::TE_INCONSISTENT)
   {
     if (error_type)
       *error_type = type;
@@ -1121,7 +1120,8 @@ NdbEventOperationImpl::printAll()
   }
 }
 
-EventBufferManager::EventBufferManager() :
+EventBufferManager::EventBufferManager(const Ndb* const ndb) :
+  m_ndb(ndb),
   m_pre_gap_epoch(0), // equivalent to setting state COMPLETELY_BUFFERING
   m_begin_gap_epoch(0),
   m_end_gap_epoch(0),
@@ -1183,7 +1183,8 @@ EventBufferManager::onEventDataReceived(Uint32 memory_usage_percent,
       // New gap is starting before the on-going gap ends.
       report_status = true;
 
-      g_eventLogger->warning("Ndb Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
+      g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: Ending gap epoch %u/%u (%llu) lacks event buffer memory. Overbuffering.",
+              m_ndb->getReference(), m_ndb->getNdbObjectName(),
               Uint32(m_begin_gap_epoch >> 32), Uint32(m_begin_gap_epoch),
               m_begin_gap_epoch);
       g_eventLogger->warning("Check how many epochs the eventbuffer_free_percent memory can accommodate.\n");
@@ -1252,7 +1253,8 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
     m_event_buffer_manager_state = EBM_COMPLETELY_DISCARDING;
     gap_begins = true;
     report_status = true;
-    g_eventLogger->warning("Ndb Event Buffer : New gap begins at epoch : %u/%u (%llu)",
+    g_eventLogger->warning("Ndb 0x%x %s: Event Buffer: New gap begins at epoch : %u/%u (%llu)",
+                           m_ndb->getReference(), m_ndb->getNdbObjectName(),
                            (Uint32)(m_begin_gap_epoch >> 32),
                            (Uint32)m_begin_gap_epoch, m_begin_gap_epoch);
   }
@@ -1260,7 +1262,9 @@ EventBufferManager::onEpochCompleted(Uint64 completed_epoch, bool& gap_begins)
   {
     // The completed_epoch marks the first completely buffered post_gap epoch
     // Transition PARTIALLY_BUFFERNG -> COMPLETELY_BUFFERING
-    g_eventLogger->warning("Ndb Event Buffer : Gap began at epoch : %u/%u (%llu) ends at epoch %u/%u (%llu)",
+    g_eventLogger->warning("Ndb 0x%x %s: Event Buffer : Gap began at epoch : %u/%u (%llu) ends at epoch %u/%u (%llu)",
+                           m_ndb->getReference(),
+                           m_ndb->getNdbObjectName(),
                            (Uint32)(m_begin_gap_epoch >> 32),
                            (Uint32)m_begin_gap_epoch, m_begin_gap_epoch,
                            (Uint32)(completed_epoch >> 32),
@@ -1326,8 +1330,11 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_latestGCI(0), m_latest_complete_GCI(0),
   m_highest_sub_gcp_complete_GCI(0),
   m_latest_poll_GCI(0),
+  m_failure_detected(false),
+  m_prevent_nodegroup_change(true),
   m_total_alloc(0),
   m_max_alloc(0),
+  m_event_buffer_manager(ndb),
   m_free_thresh(0),
   m_min_free_thresh(0),
   m_max_free_thresh(0),
@@ -1394,6 +1401,9 @@ NdbEventBuffer::~NdbEventBuffer()
     free_list(m_available_data);
   if(!m_used_data.is_empty())
     free_list(m_used_data);
+  // Return event queue leftovers to free list
+  clear_event_queue();
+
 
   for (j= 0; j < m_allocated_data.size(); j++)
   {
@@ -1426,6 +1436,18 @@ NdbEventBuffer::set_eventbuffer_free_percent(unsigned free)
 void
 NdbEventBuffer::add_op()
 {
+  /*
+   * When m_active_op_count is zero, SUB_GCP_COMPLETE_REP is
+   * ignored and no event data will reach application.
+   * Positive values will enable event data to reach application.
+   */
+  m_active_op_count++;
+}
+
+void
+NdbEventBuffer::remove_op()
+{
+  m_active_op_count--;
   if(m_active_op_count == 0)
   {
     // Return EventBufData to free list and release GCI ops before clearing.
@@ -1443,13 +1465,6 @@ NdbEventBuffer::add_op()
     }
     init_gci_containers();
   }
-  m_active_op_count++;
-}
-
-void
-NdbEventBuffer::remove_op()
-{
-  m_active_op_count--;
 }
 
 void
@@ -1457,13 +1472,15 @@ NdbEventBuffer::init_gci_containers()
 {
   m_startup_hack = true;
   bzero(&m_complete_data, sizeof(m_complete_data));
-  m_latest_complete_GCI = m_latestGCI = m_latest_poll_GCI = 0;
+  m_latest_complete_GCI = m_latestGCI = 0;
   m_active_gci.clear();
   m_active_gci.fill(3, g_empty_gci_container);
   m_min_gci_index = m_max_gci_index = 1;
   Uint64 gci = 0;
   m_known_gci.clear();
   m_known_gci.fill(7, gci);
+  // Reset cluster failure marker
+  m_failure_detected= false;
 }
 
 int NdbEventBuffer::expand(unsigned sz)
@@ -1496,12 +1513,20 @@ int NdbEventBuffer::expand(unsigned sz)
 }
 
 int
-NdbEventBuffer::pollEvents2(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
+NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
+  if (aMillisecondNumber < 0)
+  {
+    g_eventLogger->error("NdbEventBuffer::pollEvents: negative aMillisecondNumber %d 0x%x %s",
+                         aMillisecondNumber,
+                         m_ndb->getReference(),
+                         m_ndb->getNdbObjectName());
+    return -1;
+  }
   int ret= 1;
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
-  m_latest_command= "NdbEventBuffer::pollEvents2";
+  m_latest_command= "NdbEventBuffer::pollEvents";
 #endif
 
   NdbMutex_Lock(m_mutex);
@@ -1712,11 +1737,13 @@ NdbEventBuffer::nextEvent2()
 
         if (gci_ops && (gci != gci_ops->m_gci))
 	{
-           ndbout << "nextEvent2: gci " << gci << " "
-                  << " gci_ops->m_gci " << gci_ops->m_gci
+           ndbout << "nextEvent2: gci_ops->m_gci " << gci_ops->m_gci
+                  << " (" << Uint32(gci_ops->m_gci >> 32)
+                  << "/" << Uint32(gci_ops->m_gci) << ") "
+                  << " gci " << gci
                   << " (" << Uint32(gci >> 32)
                   << "/" << Uint32(gci) << ") type "
-                  << hex << op->getEventType()
+                  << hex << op->getEventType2()
                   << " data's operation " << hex
                   <<  SubTableData::getOperation(data->sdata->requestInfo)
                   << " " << m_ndb->getNdbObjectName() << endl;
@@ -2358,6 +2385,43 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
 }
 
 void
+NdbEventBuffer::execSUB_START_CONF(const SubStartConf * const rep,
+                                   Uint32 len)
+{
+  Uint32 buckets;
+  if (len >= SubStartConf::SignalLength)
+  {
+    buckets = rep->bucketCount;
+  }
+  else
+  {
+    /*
+     * Pre-7.0 kernel nodes do not return the number of buckets
+     * Assume it's == theNoOfDBnodes as was the case in 6.3
+     */
+    buckets = m_ndb->theImpl->theNoOfDBnodes;
+  }
+
+  set_total_buckets(buckets);
+
+  add_op();
+}
+
+void
+NdbEventBuffer::execSUB_STOP_CONF(const SubStopConf * const rep,
+                                   Uint32 len)
+{
+  remove_op();
+}
+
+void
+NdbEventBuffer::execSUB_STOP_REF(const SubStopRef * const rep,
+                                 Uint32 len)
+{
+  remove_op();
+}
+
+void
 NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
                                          Uint32 len, int complete_cluster_failure)
 {
@@ -2376,6 +2440,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
   if (!complete_cluster_failure)
   {
     m_alive_node_bit_mask.set(refToNode(rep->senderRef));
+    // Reset cluster failure marker
+    m_failure_detected= false;
 
     if (unlikely(m_active_op_count == 0))
     {
@@ -2424,8 +2490,8 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     }
     else
     {
-      ndbout_c("bucket == 0 due to an ongoing gap, completed epoch: %u/%u (%llu)",
-               Uint32(gci >> 32), Uint32(gci), gci);
+      DBUG_PRINT_EVENT("info", ("bucket == 0 due to an ongoing gap, completed epoch: %u/%u (%llu)",
+                                Uint32(gci >> 32), Uint32(gci), gci));
     }
     DBUG_VOID_RETURN_EVENT;
   }
@@ -2935,6 +3001,11 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   // no need to lock()/unlock(), receive thread calls this
   insert_event(&op->m_impl, data, ptr, data.senderData);
 
+  /**
+   * Mark that event buffer is containing a failure event
+   */
+  m_failure_detected= true;
+
 #ifdef VM_TRACE
   m_flush_gci = 0;
 #endif
@@ -2967,7 +3038,18 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 Uint64
 NdbEventBuffer::getLatestGCI()
 {
+  /*
+   * TODO: Fix data race with m_latestGCI.
+   * m_latestGCI is changed by receiver thread, and getLatestGCI
+   * is called from application thread.
+   */
   return m_latestGCI;
+}
+
+Uint64
+NdbEventBuffer::getHighestQueuedEpoch()
+{
+  return m_latest_poll_GCI;
 }
 
 int
@@ -3911,11 +3993,32 @@ end:
   DBUG_VOID_RETURN_EVENT;
 }
 
+void
+NdbEventBuffer::clear_event_queue()
+{
+  if(!m_available_data.is_empty())
+  {
+    free_list(m_available_data);
+  }
+  else
+  {
+    // no event data found, remove any lingering gci_ops
+    // belonging to consumed epochs
+    m_available_data.~EventBufData_list();
+  }
+}
+
 NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
 				     NdbError &theError)
 {
   DBUG_ENTER("NdbEventBuffer::createEventOperation");
+
+  if (m_ndb->theImpl->m_ev_op == NULL)
+  {
+    clear_event_queue();
+  }
+
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
   if (tOp == 0)
   {

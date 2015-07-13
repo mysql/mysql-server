@@ -5,6 +5,9 @@ mysql-community (5.8.0-m17-1debian7) wheezy; urgency=low
     libtest_framework
     libtest_services
     libtest_services_threaded
+    locking_service
+    test_security_context
+    version_token
   * added support for MECAB in
     d/{control,rules,mysql-*-server.install,source/include-binaries}
     (Closes: #20315007)

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -126,6 +126,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
         this.ndbDictionary = ndbDictionary;
         this.joinTransactionId = joinTransactionId;
         this.bufferManager = db.getBufferManager();
+    }
+
+    public ClusterConnectionImpl getClusterConnection() {
+        return this.clusterConnectionImpl;
     }
 
     public void close() {
@@ -574,6 +578,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
                 try {
                     runnable.run();
                 } catch (Throwable t) {
+                    t.printStackTrace();
                     exceptionMessages.append(t.getMessage());
                     exceptionMessages.append('\n');
                 }

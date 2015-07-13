@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011 Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -105,6 +105,7 @@ private:
   void setMiscColumns(Operation &) const;
   void setValueColumns(Operation &) const;
   bool shouldExternalize(size_t len) const;
+  int readLongValueIntoBuffer(char *) const;
 };
 
 /* Inline Methods */

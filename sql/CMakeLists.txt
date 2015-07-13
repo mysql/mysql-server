@@ -72,6 +72,7 @@ SET(SQL_SHARED_SOURCES
   auth/password.c
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
+  auth/service_security_context.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
@@ -217,6 +218,7 @@ SET(SQL_SHARED_SOURCES
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
+  sql_thd_internal_api.cc
   sql_thd_api.cc
   sql_time.cc
   sql_timer.cc

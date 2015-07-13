@@ -23,6 +23,7 @@ ${CMAKE_CURRENT_BINARY_DIR}/sql_state.h
 SET(HEADERS_ABI 
   mysql.h 
   mysql_com.h
+  my_command.h
   mysql_time.h 
   my_list.h
   my_alloc.h

@@ -68,6 +68,10 @@ Created 11/5/1995 Heikki Tuuri
 
 #include <new>
 #include <map>
+#ifdef HAVE_LIBNUMA
+#include <numa.h>
+#include <numaif.h>
+#endif // HAVE_LIBNUMA
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -1297,6 +1301,18 @@ buf_pool_init(
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
 
+#ifdef HAVE_LIBNUMA
+	if (srv_numa_interleave) {
+		ib::info() << "Setting NUMA memory policy to MPOL_INTERLEAVE";
+		if (set_mempolicy(MPOL_INTERLEAVE,
+				  numa_all_nodes_ptr->maskp,
+				  numa_all_nodes_ptr->size) != 0) {
+			ib::warn() << "Failed to set NUMA memory policy to"
+				" MPOL_INTERLEAVE: " << strerror(errno);
+		}
+	}
+#endif // HAVE_LIBNUMA
+
 	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
 
@@ -1329,6 +1345,16 @@ buf_pool_init(
 
 	buf_stat_per_index = UT_NEW(buf_stat_per_index_t(),
 				    mem_key_buf_stat_per_index_t);
+
+#ifdef HAVE_LIBNUMA
+	if (srv_numa_interleave) {
+		ib::info() << "Setting NUMA memory policy to MPOL_DEFAULT";
+		if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
+			ib::warn() << "Failed to set NUMA memory policy to"
+				" MPOL_DEFAULT: " << strerror(errno);
+		}
+	}
+#endif // HAVE_LIBNUMA
 
 	return(DB_SUCCESS);
 }
@@ -1933,7 +1959,7 @@ buf_pool_resize()
 		btr_search_s_unlock_all();
 	}
 
-	btr_search_disable();
+	btr_search_disable(true);
 
 	if (btr_search_disabled) {
 		ib::info() << "disabled adaptive hash index.";

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,4 +51,36 @@ void Ndb_event_data::print(const char* where, FILE* file) const
           where,
           shadow_table, shadow_table->s->db.str,
           shadow_table->s->table_name.str);
+
+  // Print stats for the MEM_ROOT where Ndb_event_data
+  // has allocated the shadow_table etc.
+  {
+    USED_MEM *mem_block;
+    size_t mem_root_used = 0;
+    size_t mem_root_size = 0;
+
+    /* iterate through (partially) free blocks */
+    for (mem_block= mem_root.free; mem_block; mem_block= mem_block->next)
+    {
+      const size_t block_used =
+          mem_block->size - // Size of block
+          ALIGN_SIZE(sizeof(USED_MEM)) - // Size of header
+          mem_block->left; // What's unused in block
+      mem_root_used += block_used;
+      mem_root_size += mem_block->size;
+    }
+
+    /* iterate through the used blocks */
+    for (mem_block= mem_root.used; mem_block; mem_block= mem_block->next)
+    {
+      const size_t block_used =
+          mem_block->size - // Size of block
+          ALIGN_SIZE(sizeof(USED_MEM)) - // Size of header
+          mem_block->left; // What's unused in block
+      mem_root_used += block_used;
+      mem_root_size += mem_block->size;
+    }
+    fprintf(file, "  - mem_root size: %lu\n", mem_root_size);
+    fprintf(file, "  - mem_root used: %lu\n", mem_root_used);
+  }
 }

@@ -543,6 +543,15 @@ dict_table_get_col_name(
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((warn_unused_result));
 
+/** Returns a virtual column's name.
+@param[in]	table		table object
+@param[in]	col_nr		virtual column number(nth virtual column)
+@return column name. */
+const char*
+dict_table_get_v_col_name(
+	const dict_table_t*	table,
+	ulint			col_nr);
+
 /** Check if the table has a given column.
 @param[in]	table		table object
 @param[in]	col_name	column name
@@ -690,6 +699,13 @@ dict_index_is_spatial(
 /*==================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((warn_unused_result));
+/** Check whether the index contains a virtual column.
+@param[in]	index	index
+@return	nonzero for index on virtual column, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_has_virtual(
+	const dict_index_t*	index);
 /********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
@@ -719,15 +735,24 @@ dict_table_get_all_fts_indexes(
 	ib_vector_t*		indexes);
 
 /********************************************************************//**
-Gets the number of user-defined columns in a table in the dictionary
-cache.
-@return number of user-defined (e.g., not ROW_ID) columns of a table */
+Gets the number of user-defined non-virtual columns in a table in the
+dictionary cache.
+@return number of user-defined (e.g., not ROW_ID) non-virtual
+columns of a table */
 UNIV_INLINE
 ulint
 dict_table_get_n_user_cols(
 /*=======================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((warn_unused_result));
+/** Gets the number of user-defined virtual and non-virtual columns in a table
+in the dictionary cache.
+@param[in]	table	table
+@return number of user-defined (e.g., not ROW_ID) columns of a table */
+UNIV_INLINE
+ulint
+dict_table_get_n_tot_u_cols(
+	const dict_table_t*	table);
 /********************************************************************//**
 Gets the number of system columns in a table.
 For intrinsic table on ROW_ID column is added for all other
@@ -740,8 +765,8 @@ dict_table_get_n_sys_cols(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((warn_unused_result));
 /********************************************************************//**
-Gets the number of all columns (also system) in a table in the dictionary
-cache.
+Gets the number of all non-virtual columns (also system) in a table
+in the dictionary cache.
 @return number of columns of a table */
 UNIV_INLINE
 ulint
@@ -749,6 +774,23 @@ dict_table_get_n_cols(
 /*==================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((warn_unused_result));
+
+/** Gets the number of virtual columns in a table in the dictionary cache.
+@param[in]	table	the table to check
+@return number of virtual columns of a table */
+UNIV_INLINE
+ulint
+dict_table_get_n_v_cols(
+	const dict_table_t*	table);
+
+/** Check if a table has indexed virtual columns
+@param[in]	table	the table to check
+@return true is the table has indexed virtual columns */
+UNIV_INLINE
+bool
+dict_table_has_indexed_v_cols(
+	const dict_table_t*	table);
+
 /********************************************************************//**
 Gets the approximately estimated number of rows in the table.
 @return estimated number of rows */
@@ -776,6 +818,16 @@ void
 dict_table_n_rows_dec(
 /*==================*/
 	dict_table_t*	table);	/*!< in/out: table */
+
+/** Get nth virtual column
+@param[in]	table	target table
+@param[in]	col_nr	column number in MySQL Table definition
+@return dict_v_col_t ptr */
+dict_v_col_t*
+dict_table_get_nth_v_col_mysql(
+	const dict_table_t*	table,
+	ulint			col_nr);
+
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the nth column of a table.
@@ -787,6 +839,17 @@ dict_table_get_nth_col(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			pos)	/*!< in: position of column */
 	__attribute__((warn_unused_result));
+
+/** Gets the nth virtual column of a table.
+@param[in]	table	table
+@param[in]	pos	position of virtual column
+@return pointer to virtual column object */
+UNIV_INLINE
+dict_v_col_t*
+dict_table_get_nth_v_col(
+	const dict_table_t*	table,
+	ulint			pos);
+
 /********************************************************************//**
 Gets the given system column of a table.
 @return pointer to column object */
@@ -803,6 +866,8 @@ dict_table_get_sys_col(
 #define dict_table_get_sys_col(table, sys)	\
 ((table)->cols + (table)->n_cols + (sys)	\
  - (dict_table_get_n_sys_cols(table)))
+/* Get nth virtual columns */
+#define dict_table_get_nth_v_col(table, pos)	((table)->v_cols + (pos))
 #endif /* UNIV_DEBUG */
 /********************************************************************//**
 Gets the given system column number of a table.
@@ -953,6 +1018,15 @@ dict_table_has_fts_index(
 /*=====================*/
 	dict_table_t*   table)		/*!< in: table */
 	__attribute__((warn_unused_result));
+/** Copies types of virtual columns contained in table to tuple and sets all
+fields of the tuple to the SQL NULL value.  This function should
+be called right after dtuple_create().
+@param[in,out]	tuple	data tuple
+@param[in]	table	table */
+void
+dict_table_copy_v_types(
+	dtuple_t*		tuple,
+	const dict_table_t*	table);
 /*******************************************************************//**
 Copies types of columns contained in table to tuple and sets all
 fields of the tuple to the SQL NULL value.  This function should
@@ -1127,8 +1201,9 @@ dict_index_get_nth_col_or_prefix_pos(
 /*=================================*/
 	const dict_index_t*	index,		/*!< in: index */
 	ulint			n,		/*!< in: column number */
-	ibool			inc_prefix)	/*!< in: TRUE=consider
+	bool			inc_prefix,	/*!< in: TRUE=consider
 						column prefixes too */
+	bool			is_virtual)	/*!< in: is a virtual column */
 	__attribute__((warn_unused_result));
 /********************************************************************//**
 Returns TRUE if the index contains a column or a prefix of that column.
@@ -1137,7 +1212,9 @@ ibool
 dict_index_contains_col_or_prefix(
 /*==============================*/
 	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
+	ulint			n,	/*!< in: column number */
+	bool			is_virtual)
+					/*!< in: whether it is a virtual col */
 	__attribute__((warn_unused_result));
 /********************************************************************//**
 Looks for a matching field in an index. The column has to be the same. The
@@ -1458,10 +1535,11 @@ UNIV_INLINE
 ulint
 dict_table_is_fts_column(
 /*=====================*/
-				/* out: ULINT_UNDEFINED if no match else
+				/*!< out: ULINT_UNDEFINED if no match else
 				the offset within the vector */
-	ib_vector_t*	indexes,/* in: vector containing only FTS indexes */
-	ulint		col_no)	/* in: col number to search for */
+	ib_vector_t*	indexes,/*!< in: vector containing only FTS indexes */
+	ulint		col_no,	/*!< in: col number to search for */
+	bool		is_virtual)/*!< in: whether it is a virtual column */
 	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Prevent table eviction by moving a table to the non-LRU list from the
@@ -1533,6 +1611,7 @@ struct dict_sys_t{
 	dict_table_t*	sys_columns;	/*!< SYS_COLUMNS table */
 	dict_table_t*	sys_indexes;	/*!< SYS_INDEXES table */
 	dict_table_t*	sys_fields;	/*!< SYS_FIELDS table */
+	dict_table_t*	sys_virtual;	/*!< SYS_VIRTUAL table */
 
 	/*=============================*/
 	UT_LIST_BASE_NODE_T(dict_table_t)
@@ -2001,6 +2080,36 @@ dict_table_get_index_on_first_col(
 	const dict_table_t*	table,		/*!< in: table */
 	ulint			col_index);	/*!< in: position of column
 						in table */
+/** Check if a column is a virtual column
+@param[in]	col	column
+@return true if it is a virtual column, false otherwise */
+UNIV_INLINE
+bool
+dict_col_is_virtual(
+	const dict_col_t*	col);
+
+/** encode number of columns and number of virtual columns in one
+4 bytes value. We could do this because the number of columns in
+InnoDB is limited to 1017
+@param[in]	n_col	number of non-virtual column
+@param[in]	n_v_col	number of virtual column
+@return encoded value */
+UNIV_INLINE
+ulint
+dict_table_encode_n_col(
+	ulint	n_col,
+	ulint	n_v_col);
+
+/** Decode number of virtual and non-virtual columns in one 4 bytes value.
+@param[in]	encoded	encoded value
+@param[in,out]	n_col	number of non-virtual column
+@param[in,out]	n_v_col	number of virtual column */
+UNIV_INLINE
+void
+dict_table_decode_n_col(
+	ulint	encoded,
+	ulint*	n_col,
+	ulint*	n_v_col);
 
 /** Look for any dictionary objects that are found in the given tablespace.
 @param[in]	space	Tablespace ID to search for.

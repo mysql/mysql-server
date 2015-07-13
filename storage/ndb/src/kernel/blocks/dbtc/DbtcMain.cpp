@@ -13186,7 +13186,8 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
    */
   
   ScanFragNextReq * nextReq = (ScanFragNextReq*)&signal->theData[0];
-  nextReq->requestInfo = ScanFragNextReq::ZCLOSE;
+  nextReq->requestInfo = 0;
+  ScanFragNextReq::setCloseFlag(nextReq->requestInfo, 1);
   nextReq->transId1 = apiConnectptr.p->transid[0];
   nextReq->transId2 = apiConnectptr.p->transid[1];
   

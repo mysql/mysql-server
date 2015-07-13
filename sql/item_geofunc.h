@@ -24,10 +24,10 @@
 #include "spatial.h"           // gis_wkb_raw_free
 #include "item_strfunc.h"      // Item_str_func
 #include "item_json_func.h"    // Item_json_func
+#include "json_dom.h"          // JSON
 
 #include <vector>
 #include <set>
-#include <rapidjson/document.h>
 
 
 /**
@@ -315,25 +315,24 @@ public:
   bool fix_fields(THD *, Item **ref);
   const char *func_name() const { return "st_geomfromgeojson"; }
   Geometry::wkbType get_wkbtype(const char *typestring);
-  bool get_positions(const rapidjson::Value *coordinates, Gis_point *point);
-  bool get_linestring(const rapidjson::Value *data_array,
+  bool get_positions(const Json_array *coordinates, Gis_point *point);
+  bool get_linestring(const Json_array *data_array,
                       Gis_line_string *linestring);
-  bool get_polygon(const rapidjson::Value *data_array, Gis_polygon *polygon);
-  bool parse_object(const rapidjson::Value *object, bool *rollback,
+  bool get_polygon(const Json_array *data_array, Gis_polygon *polygon);
+  bool parse_object(const Json_object *object, bool *rollback,
                     String *buffer, bool is_parent_featurecollection,
                     Geometry **geometry);
-  bool parse_object_array(const rapidjson::Value *points,
+  bool parse_object_array(const Json_array *points,
                           Geometry::wkbType type, bool *rollback,
                           String *buffer, bool is_parent_featurecollection,
                           Geometry **geometry);
   static bool check_argument_valid_integer(Item *argument);
-  bool parse_crs_object(const rapidjson::Value *crs_object);
-  bool is_member_valid(const rapidjson::Value *parent,
-                       rapidjson::Value::ConstMemberIterator member,
-                       const char *member_name, rapidjson::Type expected_type,
-                       bool allow_null, bool *was_null);
-  rapidjson::Value::ConstMemberIterator
-  my_find_member_ncase(const rapidjson::Value *v, const char *member_name);
+  bool parse_crs_object(const Json_object *crs_object);
+  bool is_member_valid(const Json_dom *member, const char *member_name,
+                       Json_dom::enum_json_type expected_type, bool allow_null,
+                       bool *was_null);
+  const Json_dom *
+  my_find_member_ncase(const Json_object *object, const char *member_name);
 
   static const char *TYPE_MEMBER;
   static const char *CRS_MEMBER;
@@ -370,8 +369,6 @@ private:
     defaults to -1.
   */
   longlong m_srid_found_in_document;
-  /// rapidjson document to hold the parsed GeoJSON.
-  rapidjson::Document m_document;
 };
 
 

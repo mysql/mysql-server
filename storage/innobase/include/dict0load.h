@@ -50,6 +50,7 @@ enum dict_system_id_t {
 	SYS_FOREIGN_COLS,
 	SYS_TABLESPACES,
 	SYS_DATAFILES,
+	SYS_VIRTUAL,
 
 	/* This must be last item. Defines the number of system tables. */
 	SYS_NUM_SYSTEM_TABLES
@@ -231,7 +232,25 @@ dict_process_sys_columns_rec(
 	const rec_t*	rec,		/*!< in: current SYS_COLUMNS rec */
 	dict_col_t*	column,		/*!< out: dict_col_t to be filled */
 	table_id_t*	table_id,	/*!< out: table id */
-	const char**	col_name);	/*!< out: column name */
+	const char**	col_name,	/*!< out: column name */
+	ulint*		nth_v_col);	/*!< out: if virtual col, this is
+					records its sequence number */
+
+/** This function parses a SYS_VIRTUAL record and extract virtual column
+information
+@param[in,out]	heap		heap memory
+@param[in]	rec		current SYS_COLUMNS rec
+@param[in,out]	table_id	table id
+@param[in,out]	pos		virtual column position
+@param[in,out]	base_pos	base column position
+@return error message, or NULL on success */
+const char*
+dict_process_sys_virtual_rec(
+	mem_heap_t*	heap,
+	const rec_t*	rec,
+	table_id_t*	table_id,
+	ulint*		pos,
+	ulint*		base_pos);
 /********************************************************************//**
 This function parses a SYS_FIELDS record and populate a dict_field_t
 structure with the information from the record.

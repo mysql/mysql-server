@@ -395,19 +395,34 @@ static int parse_vtokens(char *input, enum command type)
 }
 
 
-// Plugin audit function to compare session version tokens
-// with the global ones.
-// TODO: Release locks in MYSQL_AUDIT_GENERAL_STATUS subclass.
-static void version_token_check(MYSQL_THD thd,
-                                unsigned int event_class,
-                                const void *event)
+/**
+  Audit API entry point for the version token pluign
+
+  Plugin audit function to compare session version tokens with
+  the global ones.
+  At the start of each query (MYSQL_AUDIT_GENERAL_LOG
+  currently) if there's a session version token vector it will
+  acquire the GET_LOCK shared locks for the session version tokens
+  and then will try to find them in the global version lock and
+  compare their values with the ones found. Throws errors if not
+  found or the version values do not match. See parse_vtokens().
+  At query end (MYSQL_AUDIT_GENERAL_STATUS currently) it releases
+  the GET_LOCK shared locks it has aquired.
+
+  @param thd          The current thread
+  @param event_class  audit API event class
+  @param event        pointer to the audit API event data
+*/
+static int version_token_check(MYSQL_THD thd,
+                               mysql_event_class_t event_class,
+                               const void *event)
 {
   char *sess_var;
 
   const struct mysql_event_general *event_general=
     (const struct mysql_event_general *) event;
-  const uchar *command= (const uchar *) event_general->general_command;
-  unsigned int length= event_general->general_command_length;
+  const uchar *command= (const uchar *) event_general->general_command.str;
+  unsigned int length= event_general->general_command.length;
 
   DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
@@ -424,7 +439,7 @@ static void version_token_check(MYSQL_THD thd,
                                                  command, length,
                                                  (const uchar *) STRING_WITH_LEN("Prepare"),
                                                  0))
-        return;
+        return 0;
 
 
       if (THDVAR(thd, session))
@@ -433,7 +448,7 @@ static void version_token_check(MYSQL_THD thd,
                              strlen(THDVAR(thd, session)),
 			     MYF(MY_FAE));
       else
-	return;
+	return 0;
 
       // Lock the hash before checking for values.
       mysql_rwlock_rdlock(&LOCK_vtoken_hash);
@@ -447,14 +462,21 @@ static void version_token_check(MYSQL_THD thd,
     }
     case MYSQL_AUDIT_GENERAL_STATUS:
     {
-      mysql_release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
+      /*
+        Release locks only if the session variable is set.
+
+        This relies on the fact that MYSQL_AUDIT_GENERAL_STATUS
+        is always generated at the end of query execution.
+      */
+      if (THDVAR(thd, session))
+        mysql_release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
       break;
     }
     default:
       break;
   }
 
-  return;
+  return 0;
 }
 
 
@@ -463,7 +485,7 @@ static struct st_mysql_audit version_token_descriptor=
   MYSQL_AUDIT_INTERFACE_VERSION,                       /* interface version */
   NULL,                                                /* release_thd()     */
   version_token_check,                                 /* event_notify()    */
-  { (unsigned long) MYSQL_AUDIT_GENERAL_CLASSMASK }    /* class mask        */
+  { (unsigned long) MYSQL_AUDIT_GENERAL_ALL, }         /* class mask        */
 };
 
 
@@ -959,7 +981,7 @@ PLUGIN_EXPORT long long version_tokens_lock_shared(
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
 
-  if (timeout < 0 || timeout > ((long long) ULONG_MAX))
+  if (timeout < 0)
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
              "version_tokens_lock_shared");
@@ -986,7 +1008,7 @@ PLUGIN_EXPORT long long version_tokens_lock_exclusive(
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
 
-  if (timeout < 0 || timeout > ((long long) ULONG_MAX))
+  if (timeout < 0)
   {
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
              "version_tokens_lock_exclusive");
