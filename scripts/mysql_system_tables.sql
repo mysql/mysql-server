@@ -3310,7 +3310,7 @@ SET @cmd='CREATE OR REPLACE DEFINER=`root`@`localhost`
     tot_scan_bound_bytes, tot_scan_inst_exec, tot_qd_frag_scans, 
     conc_frag_scans,
     conc_qd_plain_frag_scans+conc_qd_tup_frag_scans+conc_qd_acc_frag_scans
-    AS conc_qd_frag_scans, 
+    AS conc_qd_frag_scans,
     tot_commits 
     FROM ndbinfo.ndb$frag_operations AS ops 
     JOIN ndbinfo.ndb$dict_obj_info AS name 
