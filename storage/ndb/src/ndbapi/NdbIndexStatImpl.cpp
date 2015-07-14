@@ -2579,7 +2579,10 @@ NdbIndexStatImpl::drop_listener(Ndb* ndb)
   if (m_eventOp != 0)
   {
     // NOTE! dropEventoperation always return 0
-    (void)ndb->dropEventOperation(m_eventOp);
+    int ret;
+    (void)ret; //USED
+    ret = ndb->dropEventOperation(m_eventOp);
+    assert(ret == 0);
     m_eventOp = 0;
   }
   return 0;
