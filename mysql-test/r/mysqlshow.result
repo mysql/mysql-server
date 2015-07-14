@@ -129,17 +129,18 @@ Database: information_schema
 | INNODB_SYS_FIELDS                     |
 | INNODB_CMP_PER_INDEX_RESET            |
 | INNODB_BUFFER_PAGE                    |
-| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_SYS_FOREIGN_COLS               |
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_SYS_TABLESPACES                |
 | INNODB_METRICS                        |
-| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_CACHED_INDEXES                 |
 | INNODB_CMPMEM                         |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_TABLESTATS                 |
+| INNODB_FT_DEFAULT_STOPWORD            |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -195,17 +196,18 @@ Database: INFORMATION_SCHEMA
 | INNODB_SYS_FIELDS                     |
 | INNODB_CMP_PER_INDEX_RESET            |
 | INNODB_BUFFER_PAGE                    |
-| INNODB_FT_DEFAULT_STOPWORD            |
+| INNODB_SYS_FOREIGN_COLS               |
 | INNODB_FT_INDEX_TABLE                 |
 | INNODB_FT_INDEX_CACHE                 |
 | INNODB_SYS_TABLESPACES                |
 | INNODB_METRICS                        |
-| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_CACHED_INDEXES                 |
 | INNODB_CMPMEM                         |
 | INNODB_BUFFER_POOL_STATS              |
 | INNODB_SYS_COLUMNS                    |
 | INNODB_SYS_FOREIGN                    |
 | INNODB_SYS_TABLESTATS                 |
+| INNODB_FT_DEFAULT_STOPWORD            |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+
