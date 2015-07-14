@@ -37,3 +37,6 @@ if ($is_enable_off)
 --echo # ndb_index_stat_enable - after
 show global variables like 'ndb_index_stat_enable';
 show local variables like 'ndb_index_stat_enable';
+
+# wait for stats thread to notice any change
+source include/ndb_index_stat_wait.inc;
