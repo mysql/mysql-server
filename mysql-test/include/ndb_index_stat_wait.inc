@@ -8,5 +8,5 @@ while(!`select count(*) from dual
          where variable_name = 'NDB_INDEX_STAT_STATUS'
          and concat(',',variable_value,',') like '%,allow:1,%')`)
 {
-  sleep 1;
+  sleep 0.1;
 }

@@ -614,20 +614,25 @@ static Ndb_index_stat_glob ndb_index_stat_glob;
   Check if stats thread is running and has initialized required
   objects.  Sync the value with global status ("allow" field).
 */
+
 static bool ndb_index_stat_allow_flag= false;
+
 static bool
-ndb_index_stat_allow(int flag= -1)
+ndb_index_stat_get_allow()
 {
-  if (flag != -1)
+  return ndb_index_stat_allow_flag;
+}
+
+static bool
+ndb_index_stat_set_allow(bool flag)
+{
+  if (ndb_index_stat_allow_flag != flag)
   {
-    if (ndb_index_stat_allow_flag != (bool)flag)
-    {
-      ndb_index_stat_allow_flag= (bool)flag;
-      Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-      pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
-      glob.set_status();
-      pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-    }
+    ndb_index_stat_allow_flag= flag;
+    Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    glob.set_status();
+    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
   return ndb_index_stat_allow_flag;
 }
@@ -640,7 +645,7 @@ Ndb_index_stat_glob::set_status()
   char* p= status[status_i];
 
   // stats thread
-  th_allow= ndb_index_stat_allow();
+  th_allow= ndb_index_stat_get_allow();
   sprintf(p, "allow:%d,enable:%d,busy:%d,loop:%u",
              th_allow, th_enable, th_busy, th_loop);
   p+= strlen(p);
@@ -1059,7 +1064,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   struct Ndb_index_stat *st_last= 0;
   do
   {
-    if (unlikely(!ndb_index_stat_allow()))
+    if (unlikely(!ndb_index_stat_get_allow()))
     {
       err_out= NdbIndexStat::MyNotAllow;
       break;
@@ -2345,11 +2350,11 @@ ndb_index_stat_create_ndb(Ndb_index_stat_proc &pr,
   assert(pr.ndb == NULL);
   assert(connection != NULL);
 
-  Ndb* tmp= NULL;
+  Ndb* ndb= NULL;
   do
   {
-    tmp= new Ndb(connection, "");
-    if (tmp == NULL)
+    ndb= new Ndb(connection, "");
+    if (ndb == NULL)
     {
       sql_print_error("create index stats Ndb failed: error %d %s",
                       connection->get_latest_error(),
@@ -2357,36 +2362,36 @@ ndb_index_stat_create_ndb(Ndb_index_stat_proc &pr,
       break;
     }
 
-    if (tmp->setNdbObjectName("Ndb Index Statistics monitoring"))
+    if (ndb->setNdbObjectName("Ndb Index Statistics monitoring"))
     {
       sql_print_error("set index stats Ndb object name failed: error code %d",
-                      tmp->getNdbError().code);
+                      ndb->getNdbError().code);
       break;
     }
 
-    if (tmp->init() != 0)
+    if (ndb->init() != 0)
     {
       sql_print_error("init index stat Ndb failed: error code %d",
-                      tmp->getNdbError().code);
+                      ndb->getNdbError().code);
       break;
     }
 
-    if (tmp->setDatabaseName(NDB_INDEX_STAT_DB) != 0)
+    if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0)
     {
       sql_print_error("set index stats Ndb database %s failed: error code %d",
-                      NDB_INDEX_STAT_DB, tmp->getNdbError().code);
+                      NDB_INDEX_STAT_DB, ndb->getNdbError().code);
       break;
     }
 
     sql_print_information("created index stats Ndb object:"
                           " reference 0x%x, name: '%s'",
-                          tmp->getReference(), tmp->getNdbObjectName());
-    pr.ndb= tmp;
+                          ndb->getReference(), ndb->getNdbObjectName());
+    pr.ndb= ndb;
     DBUG_RETURN(0);
   } while (0);
 
-  if (tmp != NULL)
-    delete tmp;
+  if (ndb != NULL)
+    delete ndb;
   DBUG_RETURN(-1);
 }
 
@@ -2458,7 +2463,7 @@ ndb_index_stat_restart()
 {
   DBUG_ENTER("ndb_index_stat_restart");
   ndb_index_stat_restart_flag= true;
-  ndb_index_stat_allow(false);
+  ndb_index_stat_set_allow(false);
   DBUG_VOID_RETURN;
 }
 
@@ -2467,7 +2472,7 @@ Ndb_index_stat_thread::is_setup_complete()
 {
   if (ndb_index_stat_get_enable(NULL))
   {
-    return ndb_index_stat_allow();
+    return ndb_index_stat_get_allow();
   }
   return true;
 }
@@ -2578,7 +2583,7 @@ Ndb_index_stat_thread::do_run()
       if (ndb_index_stat_restart_flag)
       {
         ndb_index_stat_restart_flag= false;
-        ndb_index_stat_allow(false);
+        ndb_index_stat_set_allow(false);
         ndb_index_stat_drop_ndb(pr);
         check_sys= true; // sys objects are gone
       }
@@ -2600,7 +2605,7 @@ Ndb_index_stat_thread::do_run()
       if (!enable_ok)
       {
         DBUG_PRINT("index_stat", ("Index stats is not enabled"));
-        ndb_index_stat_allow(false);
+        ndb_index_stat_set_allow(false);
         ndb_index_stat_drop_ndb(pr);
         break;
       }
@@ -2630,7 +2635,7 @@ Ndb_index_stat_thread::do_run()
 
       // normal processing
       check_sys= false;
-      ndb_index_stat_allow(true);
+      ndb_index_stat_set_allow(true);
       pr.busy= false;
       ndb_index_stat_proc(pr);
     } while (0);
@@ -2662,7 +2667,7 @@ ndb_index_stat_thread_end:
   log_info("Stopping...");
 
   /* Prevent clients */
-  ndb_index_stat_allow(false);
+  ndb_index_stat_set_allow(false);
 
   if (pr.is_util)
   {
