@@ -4,6 +4,19 @@
 
 -- source include/have_innodb.inc
 
+# Restart mysqld to ensure that the status variables below do not contain
+# stale value from previous executions of this or other tests. The following
+# race could happen without this restart:
+# 0. innodb_buffer_pool_load_status is 'Buffer pool(s) load completed ...'
+# 1. SET innodb_buffer_pool_load_now = ON
+# (1. does not start executing yet)
+# 2. Wait for innodb_buffer_pool_load_status to become '... completed ...',
+#    the condition is satisfied immediately
+# (1. starts executing now)
+# 3. Query innodb_buffer_pool_load_status, expecting 'completed', but it
+#    contains something like 'Loading page 100/150'
+-- source include/restart_mysqld.inc
+
 # Check the default value
 SET @orig = @@global.innodb_buffer_pool_load_now;
 SELECT @orig;
