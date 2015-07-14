@@ -256,7 +256,16 @@ public:
 	{
 		garbage_collect();
 
-		UT_DELETE(m_data.load(boost::memory_order_relaxed));
+		arr_node_t*	cur = m_data.load(boost::memory_order_relaxed);
+
+		do {
+			arr_node_t*	next = cur->m_next.load(
+				boost::memory_order_relaxed);
+
+			UT_DELETE(cur);
+
+			cur = next;
+		} while (cur != NULL);
 	}
 
 	/** Get the value mapped to a given key.
