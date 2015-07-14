@@ -1127,6 +1127,8 @@ btr_create(
 
 	ut_ad(page_get_max_insert_size(page, 2) > 2 * BTR_PAGE_MAX_REC_SIZE);
 
+	buf_stat_per_index->inc(index_id_t(space, index_id));
+
 	return(page_no);
 }
 
