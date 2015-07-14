@@ -186,7 +186,7 @@ private:
     Creates error message from mysql_errno and mysql_error and passes it to
     callbacks.
    */
-  int64 report_message(Message_data message);
+  int64 report_message(Message_data &message);
   /**
     Returns parsed Message_type from given MySQL severity string.
    */

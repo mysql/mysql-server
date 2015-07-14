@@ -1115,6 +1115,23 @@ SHOW CREATE TABLE performance_schema.memory_summary_by_account_by_event_name;
 SHOW CREATE TABLE performance_schema.events_transactions_summary_by_user_by_event_name;
 SHOW CREATE TABLE performance_schema.events_transactions_summary_by_account_by_event_name;
 
+--echo #
+--echo # Bug #20968596: MYSQL_UPGRADE IN 5.7 FAILS ON MYSQL.PROC TABLE, WORKS WHEN RUN AGAIN
+--echo #
+--echo Abuse mysql.proc
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.proc
+  MODIFY comment BLOB NOT NULL;
+#  MODIFY modified TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL;
+SET sql_mode= @orig_sql_mode;
+--echo Run mysql_upgrade
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+--echo Check mysql.proc structure
+SHOW CREATE TABLE mysql.proc;
+
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo

@@ -1050,7 +1050,7 @@ FLUSH PRIVILEGES;
 # let's check for the presense of the warning
 # end of check for the presense of the warning
 # repair the user's plugin
-mysql_upgrade: [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -1730,7 +1730,7 @@ Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	D
 #mysql.user table should have 5.7 layout thus no need to restore the
 #dropped columns from the begining of the test
 mysql_upgrade: [Warning] Using a password on the command line interface can be insecure.
-mysql_upgrade: [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -1827,7 +1827,7 @@ INSERT INTO mysql.user VALUES
 FLUSH PRIVILEGES;
 # check the presents of the warnings in the log file
 # end of check for the presense of the warning
-mysql_upgrade: [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+mysql_upgrade: (non fatal) [WARNING] 1642: Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
@@ -2556,5 +2556,80 @@ events_transactions_summary_by_account_by_event_name	CREATE TABLE `events_transa
   `AVG_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL,
   `MAX_TIMER_READ_ONLY` bigint(20) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+#
+# Bug #20968596: MYSQL_UPGRADE IN 5.7 FAILS ON MYSQL.PROC TABLE, WORKS WHEN RUN AGAIN
+#
+Abuse mysql.proc
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.proc
+MODIFY comment BLOB NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Run mysql_upgrade
+mysql_upgrade: (non fatal) [ERROR] 1728: Cannot load from mysql.proc. The table is probably corrupted
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+Check mysql.proc structure
+SHOW CREATE TABLE mysql.proc;
+Table	Create Table
+proc	CREATE TABLE `proc` (
+  `db` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `name` char(64) NOT NULL DEFAULT '',
+  `type` enum('FUNCTION','PROCEDURE') NOT NULL,
+  `specific_name` char(64) NOT NULL DEFAULT '',
+  `language` enum('SQL') NOT NULL DEFAULT 'SQL',
+  `sql_data_access` enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA') NOT NULL DEFAULT 'CONTAINS_SQL',
+  `is_deterministic` enum('YES','NO') NOT NULL DEFAULT 'NO',
+  `security_type` enum('INVOKER','DEFINER') NOT NULL DEFAULT 'DEFINER',
+  `param_list` blob NOT NULL,
+  `returns` longblob NOT NULL,
+  `body` longblob NOT NULL,
+  `definer` char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `modified` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') NOT NULL DEFAULT '',
+  `comment` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `character_set_client` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `collation_connection` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `db_collation` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `body_utf8` longblob,
+  PRIMARY KEY (`db`,`name`,`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Stored Procedures'
 
 End of tests

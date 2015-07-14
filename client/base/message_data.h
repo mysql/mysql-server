@@ -52,13 +52,24 @@ public:
   /**
     Prints errors, warnings and notes to standard error.
   */
-  void print_error(std::string program_name) const;
+  virtual void print_error(std::string program_name) const;
 
 private:
   uint64 m_code;
   std::string m_message;
   Message_type m_message_type;
 };
+
+
+class Warning_data: public Message_data
+{
+public:
+  Warning_data(uint64 code, std::string message, Message_type message_type):
+    Message_data(code, message, message_type)
+  { }
+  void print_error(std::string program_name) const;
+};
+
 
 }
 }
