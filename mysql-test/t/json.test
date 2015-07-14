@@ -5765,6 +5765,23 @@ SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
 
+--echo #
+--echo # Bug#21437989: ASSERTION FAILED:
+--echo #               JSON_BINARY::PARSE_BINARY(PTR, LENGTH).IS_VALID()
+--echo #
+CREATE TABLE t(j JSON NOT NULL);
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t VALUES ();
+--error ER_BAD_NULL_ERROR
+INSERT INTO t VALUES (NULL);
+INSERT IGNORE INTO t VALUES ();
+INSERT IGNORE INTO t VALUES (NULL);
+SELECT * FROM t;
+# The next two statements used to trigger an assertion.
+INSERT INTO t SELECT j FROM t;
+REPLACE INTO t SELECT j FROM t;
+SELECT * FROM t;
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

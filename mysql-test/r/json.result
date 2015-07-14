@@ -12823,3 +12823,35 @@ SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
 ERROR HY000: Incorrect arguments to ESCAPE
 SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0 in ''.
+#
+# Bug#21437989: ASSERTION FAILED:
+#               JSON_BINARY::PARSE_BINARY(PTR, LENGTH).IS_VALID()
+#
+CREATE TABLE t(j JSON NOT NULL);
+INSERT INTO t VALUES ();
+ERROR HY000: Field 'j' doesn't have a default value
+INSERT INTO t VALUES (NULL);
+ERROR 23000: Column 'j' cannot be null
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+INSERT IGNORE INTO t VALUES (NULL);
+Warnings:
+Warning	1048	Column 'j' cannot be null
+SELECT * FROM t;
+j
+null
+null
+INSERT INTO t SELECT j FROM t;
+REPLACE INTO t SELECT j FROM t;
+SELECT * FROM t;
+j
+null
+null
+null
+null
+null
+null
+null
+null
+DROP TABLE t;

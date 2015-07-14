@@ -8820,7 +8820,22 @@ type_conversion_status Field_json::unsupported_conversion()
 */
 type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
 {
-  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
+  /*
+    We expect that a valid binary representation of a JSON document is
+    passed to us.
+
+    We make an exception for the case of an empty binary string. Even
+    though an empty binary string is not a valid representation of a
+    JSON document, we might be served one as a result of inserting
+    NULL or DEFAULT into a not nullable JSON column using INSERT
+    IGNORE, or inserting DEFAULT into a not nullable JSON column in
+    non-strict SQL mode.
+
+    We accept an empty binary string in those cases. Such values will
+    be converted to the JSON null literal when they are read with
+    Field_json::val_json().
+  */
+  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
 
   if (value.length() > UINT_MAX32)
   {
@@ -8915,6 +8930,12 @@ bool Field_json::val_json(Json_wrapper *wr)
     should have returned an error. However, sometimes an empty
     Field_json object is created in order to retrieve meta-data.
     Return a dummy value instead of raising an error. Bug#21104470.
+
+    The field could also contain an empty string after forcing NULL or
+    DEFAULT into a not nullable JSON column using lax error checking
+    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
+    literal is used to represent the empty value in this case.
+    Bug#21437989.
   */
   if (s->length() == 0)
   {
