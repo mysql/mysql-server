@@ -888,7 +888,8 @@ private:
 	This is not thread safe because other threads could still be using
 	some of the arrays to be freed, thus this is only called from
 	the destructor of the lock free hash where it is guaranteed to be
-	called only once, by a single thread. */
+	called only once, by a single thread and without any other threads
+	accessing the hash table. */
 	void
 	garbage_collect()
 	{
