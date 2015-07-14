@@ -62,3 +62,11 @@ const char* Message_data::message_type_strings[]={
 
 const int Message_data::message_type_strings_count=
   array_elements(Message_data::message_type_strings);
+
+
+void Warning_data::print_error(std::string program_name) const
+{
+  std::cerr << program_name << ": (non fatal) ["
+    << get_message_type_string() << "] " << get_code()
+    << ": " << get_message() << std::endl;
+}

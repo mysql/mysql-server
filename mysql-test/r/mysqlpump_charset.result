@@ -302,7 +302,10 @@ Warning	1300	Invalid ujis character string: 'ED959C'
 Warning	1366	Incorrect string value: '\xED\x95\x9C\xEA\xB8\x80' for column '饽紴缽菠' at row 1
 SELECT * FROM `±í¸ñ`;
 ????其?ﾃ?損
-1
+
+Warnings:
+Warning	1300	Invalid ujis character string: 'C397C3'
+Warning	1366	Incorrect string value: '\xC3\x97\xC3\x96\xC2\xB6...' for column '????其?ﾃ?損' at row 1
 DROP DATABASE `Êý¾Ý¿â`;
 SET NAMES utf8;
 CREATE DATABASE `Êý¾Ý¿â`;
