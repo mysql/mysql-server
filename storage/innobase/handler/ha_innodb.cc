@@ -4304,6 +4304,7 @@ innobase_close_connection(
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
 	trx_t*	trx = thd_to_trx(thd);
+	bool	free_trx = false;
 
 	/* During server initialization MySQL layer will try to open
 	some of the master-slave tables those residing in InnoDB.
@@ -4349,7 +4350,7 @@ innobase_close_connection(
 				} else {
 					trx_rollback_for_mysql(trx);
 					trx_deregister_from_2pc(trx);
-					trx_free_for_mysql(trx);
+					free_trx = true;
 				}
 			} else {
 				sql_print_warning(
@@ -4363,12 +4364,17 @@ innobase_close_connection(
 				     << innobase_basename(trx->start_file)
 				     << ":" << trx->start_line);
 				innobase_rollback_trx(trx);
-				trx_free_for_mysql(trx);
+				free_trx = true;
 			}
 		} else {
 			innobase_rollback_trx(trx);
-			trx_free_for_mysql(trx);
+			free_trx = true;
 		}
+	}
+
+	/* Free trx only after TrxInInnoDB is deleted. */
+	if (free_trx) {
+		trx_free_for_mysql(trx);
 	}
 
 	UT_DELETE(thd_to_innodb_session(thd));
@@ -11971,6 +11977,7 @@ validate_create_tablespace_info(
 		my_printf_error(ER_WRONG_FILE_NAME,
 				"An IBD filepath must end with `.ibd`.",
 				MYF(0));
+		ut_free(filepath);
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
@@ -11990,6 +11997,7 @@ validate_create_tablespace_info(
 				 alter_info->data_file_name);
 			my_printf_error(ER_WRONG_FILE_NAME,
 					"Invalid use of ':'.", MYF(0));
+			ut_free(filepath);
 			return(HA_WRONG_CREATE_OPTION);
 #ifdef _WIN32
 		}
@@ -12008,6 +12016,7 @@ validate_create_tablespace_info(
 
 	/* The directory path must be pre-existing. */
 	Folder folder(filepath, dirname_len);
+	ut_free(filepath);
 	if (!folder.exists()) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
@@ -12026,8 +12035,6 @@ validate_create_tablespace_info(
 				" cannot be under the datadir.", MYF(0));
 		error = HA_WRONG_CREATE_OPTION;
 	}
-
-	ut_free(filepath);
 
 	return(error);
 }
@@ -18991,6 +18998,13 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
+#ifdef HAVE_LIBNUMA
+static MYSQL_SYSVAR_BOOL(numa_interleave, srv_numa_interleave,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Use NUMA interleave memory policy to allocate InnoDB buffer pool.",
+  NULL, NULL, FALSE);
+#endif // HAVE_LIBNUMA
+
 static MYSQL_SYSVAR_BOOL(api_enable_binlog, ib_binlog_enabled,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Enable binlog for applications direct access InnoDB through InnoDB APIs",
@@ -19282,6 +19296,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_native_aio),
+#ifdef HAVE_LIBNUMA
+  MYSQL_SYSVAR(numa_interleave),
+#endif // HAVE_LIBNUMA
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(change_buffer_max_size),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG

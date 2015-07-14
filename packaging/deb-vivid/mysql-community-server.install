@@ -25,6 +25,9 @@ usr/bin/mysql_secure_installation
 usr/bin/mysql_ssl_rsa_setup
 usr/bin/mysql_tzinfo_to_sql
 usr/bin/mysql_upgrade
+usr/bin/mysqlbinlog
+usr/bin/mysqld_multi
+usr/bin/mysqld_safe
 usr/bin/perror
 usr/bin/replace
 usr/bin/resolveip
@@ -39,14 +42,17 @@ usr/share/man/man1/myisamchk.1
 usr/share/man/man1/myisamlog.1
 usr/share/man/man1/myisampack.1
 usr/share/man/man1/my_print_defaults.1
+usr/share/man/man1/mysql.server.1
+usr/share/man/man1/mysql-stress-test.pl.1
 usr/share/man/man1/mysql_install_db.1
 usr/share/man/man1/mysql_plugin.1
 usr/share/man/man1/mysql_secure_installation.1
 usr/share/man/man1/mysql_ssl_rsa_setup.1
-usr/share/man/man1/mysql.server.1
-usr/share/man/man1/mysql-stress-test.pl.1
 usr/share/man/man1/mysql_tzinfo_to_sql.1
 usr/share/man/man1/mysql_upgrade.1
+usr/share/man/man1/mysqlbinlog.1
+usr/share/man/man1/mysqld_multi.1
+usr/share/man/man1/mysqld_safe.1
 usr/share/man/man1/perror.1
 usr/share/man/man1/replace.1
 usr/share/man/man1/resolveip.1
@@ -71,6 +77,7 @@ usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/rewriter.so
 usr/lib/mysql/plugin/semisync_master.so
 usr/lib/mysql/plugin/semisync_slave.so
+usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/debug/adt_null.so
@@ -84,6 +91,7 @@ usr/lib/mysql/plugin/debug/mysql_no_login.so
 usr/lib/mysql/plugin/debug/rewriter.so
 usr/lib/mysql/plugin/debug/semisync_master.so
 usr/lib/mysql/plugin/debug/semisync_slave.so
+usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
 # support files

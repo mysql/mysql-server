@@ -64,6 +64,10 @@ public class KeyValueHandlerImpl implements ValueHandler {
         this.values = null;
     }
 
+    public boolean wasReleased() {
+        return this.values == null;
+    }
+
     public boolean isNull(int fieldNumber) {
         return values[fieldNumber] == null;
     }

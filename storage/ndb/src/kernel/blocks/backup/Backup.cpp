@@ -92,6 +92,23 @@ static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
 #define SEND_BACKUP_STARTED_FLAG(A) (((A) & 0x3) > 0)
 #define SEND_BACKUP_COMPLETED_FLAG(A) (((A) & 0x3) > 1)
 
+/**
+ * "Magic" constants used for adaptive LCP speed algorithm. These magic
+ * constants tries to ensure a smooth LCP load which is high enough to
+ * avoid slowing down LCPs such that we run out of REDO logs. Also low
+ * enough to avoid that we use so much CPU on LCPs that we block out
+ * most user transactions. We also want to avoid destroying real-time
+ * characteristics due to LCPs.
+ *
+ * See much longer explanation of these values below.
+ */
+#define MAX_LCP_WORDS_PER_BATCH (1500)
+
+#define HIGH_LOAD_LEVEL 32
+#define VERY_HIGH_LOAD_LEVEL 48
+#define NUMBER_OF_SIGNALS_PER_SCAN_BATCH 3
+#define MAX_RAISE_PRIO_MEMORY 16
+
 void
 Backup::execSTTOR(Signal* signal) 
 {
@@ -718,8 +735,22 @@ Backup::execCONTINUEB(Signal* signal)
   {
     jam();
     BackupFilePtr filePtr;
+    BackupRecordPtr ptr;
     c_backupFilePool.getPtr(filePtr, Tdata1);
-    checkScan(signal, filePtr);
+    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    /**
+     * Given that we've been waiting a few milliseconds for buffers to become
+     * free, we need to initialise the priority mode algorithm to ensure that
+     * we select the correct priority mode.
+     *
+     * We get the number of jobs waiting at B-level to assess the current
+     * activity level to get a new starting point of the algorithm.
+     * Any load level below 16 signals in the buffer we ignore, if we have
+     * a higher level we provide a value that will ensure that we most likely
+     * will start at A-level.
+     */
+    init_scan_prio_level(signal, ptr);
+    checkScan(signal, ptr, filePtr);
     return;
   }
   break;
@@ -3240,7 +3271,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
       BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
       NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
       sendSignal(rg, GSN_BACKUP_FRAGMENT_COMPLETE_REP, signal,
-                 BackupFragmentCompleteRep::SignalLength, JBB);
+                 BackupFragmentCompleteRep::SignalLength, JBA);
     }
     nextFragment(signal, ptr);
   }
@@ -3858,7 +3889,7 @@ Backup::defineBackupRef(Signal* signal, BackupRecordPtr ptr, Uint32 errCode)
     ref->fragmentId = fragPtr.p->fragmentId;
     ref->errorCode = errCode;
     sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_REF, 
-	       signal, LcpPrepareRef::SignalLength, JBB);
+	       signal, LcpPrepareRef::SignalLength, JBA);
     return;
   }
 
@@ -3934,6 +3965,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   ptr.p->currGCP = 0;
   ptr.p->startGCP = 0;
   ptr.p->stopGCP = 0;
+  ptr.p->m_prioA_scan_batches_to_execute = 0;
+  ptr.p->m_lastSignalId = 0;
 
   /**
    * Allocate files
@@ -3948,7 +3981,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     MAX_WORDS_META_FILE,
     4096,    // 16k
     // Max 16 tuples
-    16 * (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
+    ZRESERVED_SCAN_BATCH_SIZE *
+      (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
   };
   Uint32 minWrite[] = {
     8192,
@@ -3997,6 +4031,8 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     files[i].p->filePointer = RNIL;
     files[i].p->m_flags = 0;
     files[i].p->errorCode = 0;
+    files[i].p->m_sent_words_in_scan_batch = 0;
+    files[i].p->m_num_scan_req_on_prioa = 0;
 
     if(ERROR_INSERTED(10035) || files[i].p->pages.seize(noOfPages[i]) == false)
     {
@@ -4671,8 +4707,6 @@ Backup::parseTableDescription(Signal* signal,
   tabPtr.p->maxRecordSize = 1; // LEN word
   bzero(tabPtr.p->attrInfo, sizeof(tabPtr.p->attrInfo));
 
-  Uint32 *list = tabPtr.p->attrInfo + 1;
-
   if (lcp)
   {
     jam();
@@ -4725,7 +4759,7 @@ Backup::parseTableDescription(Signal* signal,
     }
   }
 
-  tabPtr.p->attrInfoLen = Uint32(list - tabPtr.p->attrInfo);
+  tabPtr.p->attrInfoLen = 1;
 
   if (lcp)
   {
@@ -5025,6 +5059,382 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
   sendScanFragReq(signal, ptr, filePtr, tabPtr, fragPtr, 0);
 }
 
+/**
+ * Backups and LCPs are actions that operate on a long time-scale compared to
+ * other activities in the cluster. We also have a number of similar
+ * activities that operate on a longer time scale. These operations have to
+ * continue to operate at some decent level even if user transactions are
+ * arriving at extreme rates.
+ *
+ * Not providing sufficient activity for LCPs might mean that we run out of
+ * REDO log, this means that no writing user transactions are allowed until
+ * we have completed an LCP. Clearly this is not a desirable user experience.
+ * So we need to find a balance between long-term needs and short-term needs
+ * in scheduling LCPs and Backups versus normal user transactions.
+ *
+ * When designing those scheduling algorithms we need to remember the design
+ * aim for the NDB storage engine. We want to ensure that NDB can be used in
+ * soft real-time applications such as financial applications, telecom
+ * applications. We do not aim for hard real-time applications such as
+ * controlling power plants where missing a deadline can lead to major
+ * catastrophies.
+ *
+ * Using NDB for a soft real-time application can still be done at different
+ * levels of real-time requirements. If the aim is to provide that more or
+ * less 100% of the transactions complete in say 100 microseconds then a
+ * certain level of control is needed also from the application.
+ *
+ * Things that will affect scheduling in NDB are:
+ * 1) Use of large rows
+ *   NDB will schedule at least one row at a time. There are currently very
+ *   few places where execution of one row operation contains breaks for
+ *   scheduling. Executing a row operation on the maximum row size of
+ *   around 14 kBytes means that signals can execute for up to about 20
+ *   microseconds as of 2015. Clearly using smaller rows can give a better
+ *   response time experience.
+ *
+ * 2) Using complex conditions per row
+ *   NDB supports pushing down conditions on rows in both key operations and
+ *   scan operations and even on join operations. Clearly if these pushed
+ *   conditions are very complex the time to execute them per row can extend
+ *   the time spent in executing one particular signal. Normal conditions
+ *   involving one or a number of columns doesn't present a problem but
+ *   SQL have no specific limits on conditions, so extremely complex
+ *   conditions are possible to construct.
+ *
+ * 3) Metadata operations
+ *   Creating tables, indexes can contain some operations that take a bit
+ *   longer to execute. However using the multi-threaded data nodes (ndbmtd)
+ *   means that most of these signals are executed in threads that are not
+ *   used for normal user transactions. So using ndbmtd is here a method to
+ *   decrease impact of response time of metadata operations.
+ *
+ * 4) Use of ndbd vs ndbmtd
+ *   ndbd is a single threaded data node, ndbd does receive data, operate on
+ *   the data and send the data all in one thread. In low load cases with
+ *   very high requirements on response time and strict control of the
+ *   application layer the use of ndbd for real-time operation can be
+ *   beneficial.
+ *
+ *   Important here is to understand that the single-threaded nature of ndbd
+ *   means that it is limited in throughput. One data node using ndbd is
+ *   limited to handling on the order of 100.000 row operations per second
+ *   with maintained responsiveness as of 2015. ndbmtd can achieve a few
+ *   million row operations in very large configurations with maintained
+ *   responsiveness.
+ *
+ * When looking at maintaining a balance between various operations long-term
+ * it is important to consider what types of operations that can go in parallel
+ * in an NDB data node. These are the activities currently possible.
+ *
+ * 1) Normal user transactions
+ *   These consist of primary key row operations, unique key row operations
+ *   (these are implemented as two primary key row operations), scan operations
+ *   and finally a bit more complex operations that can have both key
+ *   operations and scan operations as part of them. The last category is
+ *   created as part of executing SPJ operation trees that currently is used
+ *   for executing complex SQL queries.
+ *
+ * 2) Local checkpoints (LCPs)
+ *   These can operate continously without user interaction. The LCPs are
+ *   needed to ensure that we can cut the REDO log. If LCPs execute too slow
+ *   the we won't have sufficient REDO log to store all user transactions that
+ *   are writing on logging tables.
+ *
+ * 3) Backups
+ *   These are started by a user, only one backup at a time is allowed. These
+ *   can be stored offsite and used by the user to restore NDB to a former
+ *   state, either as an emergency fix, it can also be used to start up a
+ *   new cluster or as part of setting up a slave cluster. A backup consists
+ *   of a data file per data node and one log file of changes since the backup
+ *   started and a control file. It is important that the backup maintains a
+ *   level of speed such that the system doesn't run out of disk space for the
+ *   log file.
+ *
+ * 4) Metadata operations
+ *   There are many different types of metadata operations. One can define
+ *   new tables, indexes, foreign keys, tablespaces. One can also rearrange
+ *   the tables for a new number of nodes as part of adding nodes to the
+ *   cluster. There are also operations to analyse tables, optimise tables
+ *   and so forth. Most of these are fairly short in duration and usage of
+ *   resources. But there are a few of them such as rearranging tables for
+ *   a new set of nodes that require shuffling data around in the cluster.
+ *   This can be a fairly long-running operation.
+ *
+ * 5) Event operations
+ *   To support replication from one MySQL Cluster to another MySQL Cluster
+ *   or a different MySQL storage engine we use event operations.
+ *   These operate always as part of the normal user transactions, so they
+ *   do not constitute anything to consider in the balance between long-term
+ *   and short-term needs. In addition in ndbmtd much of the processing happens
+ *   in a special thread for event operations.
+ *
+ * 6) Node synchronisation during node recovery
+ *   Recovery as such normally happens when no user transactions are happening
+ *   so thus have no special requirements on maintaining a balance between
+ *   short-term needs and long-term needs since recovery is always a long-term
+ *   operation that has no competing short-term operations. There is however
+ *   one exception to this and this is during node recovery when the starting
+ *   node needs to synchronize its data with a live node. In this case the
+ *   starting node has recovered an old version of the data node using LCPs
+ *   and REDO logs and have rebuilt the indexes. At this point it needs to
+ *   synchronize the data in each table with a live node within the same node
+ *   group.
+ *
+ *   This synchronization happens row by row controlled by the live node. The
+ *   live scans its own data and checks each row to the global checkpoint id
+ *   (GCI) that the starting node has restored. If the row has been updated
+ *   with a more recent GCI then the row needs to be sent over to the starting
+ *   node.
+ *
+ *   Only one node recovery per node group at a time is possible when using
+ *   two replicas.
+ *
+ * So there can be as many as 4 long-term operations running in parallel to
+ * the user transactions. These are 1 LCP scan, 1 Backup scan, 1 node recovery
+ * scan and finally 1 metadata scan. All of these long-running operations
+ * perform scans of table partitions (fragments). LCPs scan a partition and
+ * write rows into a LCP file. Backups scan a partition and write its result
+ * into a backup file. Node recovery scans searches for rows that have been
+ * updated since the GCI recovered in the starting node and for each row
+ * found it is sent over to the starting node. Metadata scans for either
+ * all rows or using some condition and then can use this information to
+ * send the row to another node, to build an index, to build a foreign key
+ * index or other online operation which is performed in parallel to user
+ * transactions.
+ *
+ * From this analysis it's clear that we don't want any long-running operation
+ * to consume any major part of the resources. It's desirable that user
+ * transactions can use at least about half of the resources even when running
+ * in parallel with all four of those activities. Node recovery is slightly
+ * more important than the other activities, this means that our aim should
+ * be to ensure that LCPs, Backups and metadata operations can at least use
+ * about 10% of the CPU resources and that node recovery operations can use
+ * at least about 20% of the CPU resources. Obviously they should be able to
+ * use more resources when there is less user transactions competing for the
+ * resources. But we should try to maintain this level of CPU usage for LCPs
+ * and Backups even when the user load is at extreme levels.
+ *
+ * There is no absolute way of ensuring 10% CPU usage for a certain activity.
+ * We use a number of magic numbers controlling the algorithms to ensure this.
+ * 
+ * At first we use the coding rule that one signal should never execute for
+ * more than 10 microseconds in the normal case. There are exceptions to this
+ * rule as explained above, but it should be outliers that won't affect the
+ * long-term rates very much.
+ *
+ * Second we use the scheduling classes we have access to. The first is B-level
+ * signals, these can have an arbitrary long queue of other jobs waiting before
+ * they are executed, so these have no bound on when they execute. We also
+ * have special signals that execute with a bounded delay, in one signal they
+ * can be delayed more than a B-level signal, but the scheduler ensures that
+ * at most 100 B-level signals execute before they are executed. Normally it
+ * would even operate with at most 75 B-level signals executed even in high
+ * load scenarios and mostly even better than that. We achieve this by calling
+ * sendSignalWithDelay with timeout BOUNDED_DELAY.
+ *
+ * So how fast can an LCP run that is using about 10% of the CPU. In a fairly
+ * standard CPU of 2015, not a high-end, but also not at the very low-end,
+ * the CPU can produce about 150 MBytes of data for LCPs per second. This is
+ * using 100 byte rows. So this constitutes about 1.5M rows per second plus
+ * transporting 150 MBytes of data to the write buffers in the Backup block.
+ * So we use a formula here where we assume that the fixed cost of scanning
+ * a row is about 550 ns and cost per word of data is 4 ns. The reason we
+ * a different formula for LCP scans compared to the formula we assume in
+ * DBLQH for generic scans is that the copy of data is per row for LCPs
+ * whereas it is per column for generic scans. Similarly we never use any
+ * scan filters for LCPs, we only check for LCP_SKIP bits and FREE bits.
+ * This is much more efficient compared to generic scan filters.
+ *
+ * At very high load we will assume that we have to wait about 50 signals
+ * when sending BOUNDED_DELAY signals. Worst case can be up to about 100
+ * signals, but the worst case won't happen very often and more common
+ * will be much less than that.
+ * The mean execution time of signals are about 5 microseconds. This means
+ * that by constantly using bounded delay signals we ensure that we get at
+ * least around 4000 executions per second. So this means that
+ * in extreme overload situations we can allow for execution to go on
+ * for up to about 25 microseconds without giving B-level signals access.
+ * 25 microseconds times 4000 is 100 milliseconds so about 10% of the
+ * CPU usage.
+ *
+ * LCPs and Backups also operate using conditions on how fast they can write
+ * to the disk subsystem. The user can configure these numbers, the LCPs
+ * and Backups gets a quota per 100 millisecond. So if the LCPs and Backups
+ * runs too fast they will pause a part of those 100 milliseconds. However
+ * it is a good idea to set the minimum disk write speed to at least 20%
+ * of the possible CPU speed. So this means setting it to 30 MByte per
+ * second. In high-load scenarios we might not be able to process more
+ * than 15 MByte per second, but as soon as user load and other load
+ * goes down we will get back to the higher write speed.
+ *
+ * Scans operate in the following fashion which is an important input to
+ * the construction of the magic numbers. We start a scan with SCAN_FRAGREQ
+ * and here we don't really know the row sizes other than the maximum row
+ * size. This SCAN_FRAGREQ will return 16 rows and then it will return
+ * SCAN_FRAGCONF. For each row it will return a TRANSID_AI signal.
+ * If we haven't used our quota for writing LCPs and Backups AND there is
+ * still room in the backup write buffer then we will continue with another
+ * set of 16 rows. These will be retrieved using the SCAN_NEXTREQ signal
+ * and the response to this signal will be SCAN_FRAGCONF when done with the
+ * 16 rows (or all rows scanned).
+ * 
+ * Processing 16 rows takes about 8800 ns on standard HW of 2015 and so even
+ * for minimal rows we will use at least 10000 ns if we execute an entire batch
+ * of 16 rows without providing access for other B-level signals. So the
+ * absolute maximum amount of rows that we will ever execute without
+ * giving access for B-level signals are 32 rows so that we don't go beyond
+ * the allowed quota of 25 microsecond without giving B-level priority signal
+ * access, this means two SCAN_FRAGREQ/SCAN_NEXTREQ executions.
+ *
+ * Using the formula we derive that we should never start another set of
+ * 16 rows if we have passed 1500 words in the previous batch of 16 rows.
+ * Even when deciding in the Backup block to send an entire batch of 16
+ * rows at A-level we will never allow to continue gathering when we have
+ * already gathered more than 4000 words. When we reach this limit we will
+ * send another bounded delay signal. The reason is that we've already
+ * reached sufficient CPU usage and going further would go beyond 15%.
+ *
+ * The boundary 1500 and 4000 is actually based on using 15% of the CPU
+ * resources which is better if not all four activities happen at the
+ * same time. When we support rate control on all activities we need to
+ * adaptively decrease this limit to ensure that the total rate controlled
+ * efforts doesn't go beyond 50%.
+ *
+ * The limit 4000 is ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set in DblqhMain.cpp.
+ * This constant limit the impact of wide rows on responsiveness.
+ *
+ * The limit 1500 is MAX_LCP_WORDS_PER_BATCH set in this block.
+ * This constant limit the impact of row writes on LCP writes.
+ *
+ * When operating in normal mode, we will not continue gathering when we
+ * already gathered at least 500 words. However we will only operate in
+ * this mode when we are in low load scenario in which case this speed will
+ * be quite sufficient. This limit is to ensure that we don't go beyond
+ * normal real-time break limits in normal operations. This limits LCP
+ * execution during normal load to around 3-4 microseconds.
+ *
+ * In the following paragraph a high priority of LCPs means that we need to
+ * raise LCP priority to maintain LCP write rate at the expense of user
+ * traffic responsiveness. Low priority means that we can get sufficient
+ * LCP write rates even with normal responsiveness to user requests.
+ *
+ * Finally we have to make a decision when we should execute at high priority
+ * and when operating at normal priority. Obviously we should avoid entering
+ * high priority mode as much as possible since it will affect response times.
+ * At the same time once we have entered this mode we need to have some
+ * memory of it. The reason is that we will have lost some ground while
+ * executing at normal priority when the job buffers were long. We will limit
+ * the memory to at most 16 executions of 16 rows at high priority. Each
+ * time we start a new execution we will see if we need to add to this
+ * "memory". We will add one per 48 signals that we had to wait for between
+ * executing a set of 16 rows (normally this means execution of 3 bounded
+ * delay signals). When the load level is even higher than we will add to
+ * the memory such that we operate in high priority mode a bit longer since
+ * we are likely to have missed a bit more opportunity to perform LCP scans
+ * in this overload situation.
+ *
+ * The following "magic" constants control these algorithms:
+ * 1) ZMAX_SCAN_DIRECT_COUNT set to 5
+ * Means that at most 6 rows will be scanned per execute direct, set in
+ * Dblqh.hpp. This applies to all scan types, not only to LCP scans.
+ *
+ * 2) ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO set to 500
+ * This controls the maximum number of words that is allowed to be gathered
+ * before we decide to do a real-time break when executing at normal
+ * priority level. This is defined in DblqhMain.cpp
+ *
+ * 3) ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO set to 4000
+ * This controls the maximum words gathered before we decide to send the
+ * next row to be scanned in another bounded delay signal. This is defined in
+ * DblqhMain.cpp
+ *
+ * 4) MAX_LCP_WORDS_PER_BATCH set to 1500
+ * This defines the maximum size gathered at A-level to allow for execution
+ * of one more batch at A-level. This is defined here in Backup.cpp.
+ *
+ * 5) HIGH_LOAD_LEVEL set to 32
+ * Limit of how many signals have been executed in this LDM thread since
+ * starting last 16 rowsin order to enter high priority mode.
+ * Defined in this block Backup.cpp.
+ *
+ * 6) VERY_HIGH_LOAD_LEVEL set to 48
+ * For each additional of this we increase the memory. So e.g. with 80 signals
+ * executed since last we will increase the memory by two, with 128 we will
+ * increase it by three. Thus if #signals >= (32 + 48) => 2, #signals >=
+ * (32 + 48 * 2) => 3 and so forth. Memory here means that we will remember
+ * the high load until we have compensated for it in a sufficient manner, so
+ * we will retain executing on high priority for a bit longer to compensate
+ * for what we lost during execution at low priority when load suddenly
+ * increased.
+ * Defined in this block Backup.cpp.
+ *
+ * 7) MAX_RAISE_PRIO_MEMORY set to 16
+ * Max memory of priority raising, so after load disappears we will at most
+ * an additional set of 16*16 rows at high priority mode before going back to
+ * normal priority mode.
+ * Defined in this block Backup.cpp.
+ *
+ * 8) NUMBER_OF_SIGNALS_PER_SCAN_BATCH set to 3
+ * When starting up the algorithm we check how many signals are in the
+ * B-level job buffer. Based on this number we set the initial value to
+ * high priority or not. This is based on that we expect a set of 16
+ * rows to be executed in 3 signals with 6 rows, 6 rows and last signal
+ * 4 rows.
+ * Defined in this block Backup.cpp.
+ */
+
+ /**
+ * These routines are more or less our scheduling logic for LCPs. This is
+ * how we try to achieve a balanced output from LCPs while still
+ * processing normal transactions at a high rate.
+ */
+void Backup::init_scan_prio_level(Signal *signal, BackupRecordPtr ptr)
+{
+  Uint32 level = getSignalsInJBB();
+  if ((level * NUMBER_OF_SIGNALS_PER_SCAN_BATCH) > HIGH_LOAD_LEVEL)
+  {
+    /* Ensure we use prio A and only 1 signal at prio A */
+    jam();
+    level = VERY_HIGH_LOAD_LEVEL;
+  }
+  ptr.p->m_lastSignalId = signal->getSignalId() - level;
+  ptr.p->m_prioA_scan_batches_to_execute = 0;
+}
+
+bool
+Backup::check_scan_if_raise_prio(Signal *signal, BackupRecordPtr ptr)
+{
+  bool flag = false;
+  const Uint32 current_signal_id = signal->getSignalId();
+  const Uint32 lastSignalId = ptr.p->m_lastSignalId;
+  Uint32 prioA_scan_batches_to_execute =
+    ptr.p->m_prioA_scan_batches_to_execute;
+  const Uint32 num_signals_executed = current_signal_id - lastSignalId;
+  
+  if (num_signals_executed > HIGH_LOAD_LEVEL)
+  {
+    jam();
+    prioA_scan_batches_to_execute+= 
+      ((num_signals_executed + (VERY_HIGH_LOAD_LEVEL - 1)) / 
+        VERY_HIGH_LOAD_LEVEL);
+    if (prioA_scan_batches_to_execute > MAX_RAISE_PRIO_MEMORY)
+    {
+      jam();
+      prioA_scan_batches_to_execute = MAX_RAISE_PRIO_MEMORY;
+    }
+  }
+  if (prioA_scan_batches_to_execute > 0)
+  {
+    jam();
+    prioA_scan_batches_to_execute--;
+    flag = true;
+  }
+  ptr.p->m_lastSignalId = current_signal_id;
+  ptr.p->m_prioA_scan_batches_to_execute = prioA_scan_batches_to_execute;
+  return flag;;
+}
+
 void
 Backup::sendScanFragReq(Signal* signal,
                         Ptr<BackupRecord> ptr,
@@ -5041,7 +5451,7 @@ Backup::sendScanFragReq(Signal* signal,
     
     Table & table = * tabPtr.p;
     ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
-    const Uint32 parallelism = 16;
+    const Uint32 parallelism = ZRESERVED_SCAN_BATCH_SIZE;
 
     req->senderData = filePtr.i;
     req->resultRef = reference();
@@ -5055,50 +5465,81 @@ Backup::sendScanFragReq(Signal* signal,
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
     ScanFragReq::setTupScanFlag(req->requestInfo, 1);
+    ScanFragReq::setNotInterpretedFlag(req->requestInfo, 1);
     if (ptr.p->is_lcp())
     {
       ScanFragReq::setScanPrio(req->requestInfo, 1);
       ScanFragReq::setNoDiskFlag(req->requestInfo, 1);
       ScanFragReq::setLcpScanFlag(req->requestInfo, 1);
     }
+    filePtr.p->m_sent_words_in_scan_batch = 0;
+    filePtr.p->m_num_scan_req_on_prioa = 0;
+    init_scan_prio_level(signal, ptr);
+    if (check_scan_if_raise_prio(signal, ptr))
+    {
+      jam();
+      ScanFragReq::setPrioAFlag(req->requestInfo, 1);
+      filePtr.p->m_num_scan_req_on_prioa = 1;
+    }
+
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
     req->clientOpPtr= filePtr.i;
     req->batch_size_rows= parallelism;
     req->batch_size_bytes= 0;
     BlockReference lqhRef = 0;
+    bool delay_possible = true;
     if (ptr.p->is_lcp()) {
       lqhRef = calcInstanceBlockRef(DBLQH);
     } else {
       const Uint32 instanceKey = fragPtr.p->lqhInstanceKey;
       ndbrequire(instanceKey != 0);
       lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
+      if (lqhRef != calcInstanceBlockRef(DBLQH))
+      {
+        /* We can't send delayed signals to other threads. */
+        delay_possible = false;
+      }
     }
 
     Uint32 attrInfo[25];
-    attrInfo[0] = table.attrInfoLen;
-    attrInfo[1] = 0;
-    attrInfo[2] = 0;
-    attrInfo[3] = 0;
-    attrInfo[4] = 0;
-    memcpy(attrInfo + 5, table.attrInfo, 4*table.attrInfoLen);
+    memcpy(attrInfo, table.attrInfo, 4*table.attrInfoLen);
     LinearSectionPtr ptr[3];
     ptr[0].p = attrInfo;
-    ptr[0].sz = 5 + table.attrInfoLen;
-    if (delay == 0)
+    ptr[0].sz = table.attrInfoLen;
+    if (delay_possible)
     {
-      jam();
-      sendSignal(lqhRef, GSN_SCAN_FRAGREQ, signal,
-                 ScanFragReq::SignalLength, JBB, ptr, 1);
-    }
-    else
-    {
-      jam();
       SectionHandle handle(this);
       ndbrequire(import(handle.m_ptr[0], ptr[0].p, ptr[0].sz));
       handle.m_cnt = 1;
-      sendSignalWithDelay(lqhRef, GSN_SCAN_FRAGREQ, signal,
-                          delay, ScanFragReq::SignalLength, &handle);
+      if (delay == 0)
+      {
+        jam();
+        sendSignalWithDelay(lqhRef, GSN_SCAN_FRAGREQ, signal,
+                            BOUNDED_DELAY, ScanFragReq::SignalLength, &handle);
+      }
+      else
+      {
+        jam();
+        sendSignalWithDelay(lqhRef, GSN_SCAN_FRAGREQ, signal,
+                            delay, ScanFragReq::SignalLength, &handle);
+      }
+    }
+    else
+    {
+      /**
+       * There is no way to send signals over to another thread at a rate
+       * level at the moment. So we send at priority B, but the response
+       * back to us will arrive at Priority A if necessary.
+       */
+      jam();
+      sendSignal(lqhRef,
+                 GSN_SCAN_FRAGREQ,
+                 signal,
+                 ScanFragReq::SignalLength,
+                 JBB,
+                 ptr,
+                 1);
     }
   }
 }
@@ -5151,9 +5592,26 @@ Backup::execTRANSID_AI(Signal* signal)
   op.attrSzTotal += dataLen;
   ndbrequire(dataLen < op.maxRecordSize);
 
+  filePtr.p->m_sent_words_in_scan_batch += dataLen;
+
   op.finished(dataLen);
 
   op.newRecord(dst + dataLen + 1);
+}
+
+void
+Backup::update_lcp_pages_scanned(Signal *signal,
+                                 Uint32 filePtrI,
+                                 Uint32 scanned_pages)
+{
+  BackupFilePtr filePtr;
+  jamEntry();
+
+  c_backupFilePool.getPtr(filePtr, filePtrI);
+
+  OperationRecord & op = filePtr.p->operation;
+ 
+  op.set_scanned_pages(scanned_pages);
 }
 
 void 
@@ -5161,6 +5619,7 @@ Backup::OperationRecord::init(const TablePtr & ptr)
 {
   tablePtr = ptr.i;
   maxRecordSize = ptr.p->maxRecordSize;
+  lcpScannedPages = 0;
 }
 
 bool
@@ -5168,7 +5627,7 @@ Backup::OperationRecord::newFragment(Uint32 tableId, Uint32 fragNo)
 {
   Uint32 * tmp;
   const Uint32 headSz = (sizeof(BackupFormat::DataFile::FragmentHeader) >> 2);
-  const Uint32 sz = headSz + 16 * maxRecordSize;
+  const Uint32 sz = headSz + ZRESERVED_SCAN_BATCH_SIZE * maxRecordSize;
   
   ndbrequire(sz < dataBuffer.getMaxWrite());
   if(dataBuffer.getWritePtr(&tmp, sz)) {
@@ -5251,8 +5710,8 @@ bool
 Backup::OperationRecord::newScan()
 {
   Uint32 * tmp;
-  ndbrequire(16 * maxRecordSize < dataBuffer.getMaxWrite());
-  if(dataBuffer.getWritePtr(&tmp, 16 * maxRecordSize))
+  ndbrequire(ZRESERVED_SCAN_BATCH_SIZE * maxRecordSize < dataBuffer.getMaxWrite());
+  if(dataBuffer.getWritePtr(&tmp, ZRESERVED_SCAN_BATCH_SIZE * maxRecordSize))
   {
     jam();
     opNoDone = opNoConf = opLen = 0;
@@ -5310,6 +5769,23 @@ Backup::execSCAN_FRAGREF(Signal* signal)
     case ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR:
       jam();
       break;
+    case ScanFragRef::TABLE_NOT_DEFINED_ERROR:
+    case ScanFragRef::DROP_TABLE_IN_PROGRESS_ERROR:
+      jam();
+      /**
+       * The table was dropped either at start of LCP scan or in the
+       * middle of it. We will complete in the same manner as if we
+       * got a SCAN_FRAGCONF with close flag set. The idea is that
+       * the content of the LCP file in this case is not going to
+       * be used anyways, so we just ensure that we complete things
+       * in an ordered manner and then the higher layers will ensure
+       * that the files are dropped and taken care of.
+       *
+       * This handling will ensure that drop table can complete
+       * much faster.
+       */
+      fragmentCompleted(signal, filePtr);
+      return;
     default:
       jam();
       filePtr.p->errorCode = errCode;
@@ -5370,7 +5846,9 @@ Backup::execSCAN_FRAGCONF(Signal* signal)
   if(completed != 2) {
     jam();
     
-    checkScan(signal, filePtr);
+    BackupRecordPtr ptr;
+    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+    checkScan(signal, ptr, filePtr);
     return;
   }//if
 
@@ -5428,7 +5906,7 @@ Backup::fragmentCompleted(Signal* signal, BackupFilePtr filePtr)
     conf->noOfBytesLow = (Uint32)(op.noOfBytes & 0xFFFFFFFF);
     conf->noOfBytesHigh = (Uint32)(op.noOfBytes >> 32);
     sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	       BackupFragmentConf::SignalLength, JBB);
+	       BackupFragmentConf::SignalLength, JBA);
 
     ptr.p->m_gsn = GSN_BACKUP_FRAGMENT_CONF;
     ptr.p->slaveState.setState(STARTED);
@@ -5455,15 +5933,15 @@ Backup::backupFragmentRef(Signal * signal, BackupFilePtr filePtr)
   sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_REF, signal,
 	     BackupFragmentRef::SignalLength, JBB);
 }
- 
+
 void
-Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
+Backup::checkScan(Signal* signal,
+                  BackupRecordPtr ptr,
+                  BackupFilePtr filePtr)
 {  
   OperationRecord & op = filePtr.p->operation;
   BlockReference lqhRef = 0;
-  BackupRecordPtr ptr;
   {
-    c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
     if (ptr.p->is_lcp()) {
       lqhRef = calcInstanceBlockRef(DBLQH);
     } else {
@@ -5486,7 +5964,8 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     op.closeScan();
     ScanFragNextReq * req = (ScanFragNextReq *)signal->getDataPtrSend();
     req->senderData = filePtr.i;
-    req->requestInfo = ScanFragNextReq::ZCLOSE;
+    req->requestInfo = 0;
+    ScanFragNextReq::setCloseFlag(req->requestInfo, 1);
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
     sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
@@ -5502,7 +5981,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     req->requestInfo = 0;
     req->transId1 = 0;
     req->transId2 = (BACKUP << 20) + (getOwnNodeId() << 8);
-    req->batch_size_rows= 16;
+    req->batch_size_rows= ZRESERVED_SCAN_BATCH_SIZE;
     req->batch_size_bytes= 0;
 
     if (ERROR_INSERTED(10039) && 
@@ -5549,20 +6028,99 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
 #endif
     else
     {
-      sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
-		 ScanFragNextReq::SignalLength, JBB);
+      /**
+       * We send all interactions with bounded delay, this means that we will
+       * wait for at most 128 signals before the signal is put into the A-level
+       * job buffer. After this we will execute at A-level until we arrive
+       * back with a SCAN_FRAGCONF. After SCAN_FRAGCONF we get back to here
+       * again, so this means we will execute at least 16 rows before any
+       * B-level signals are allowed again. So this means that the LCP will
+       * scan at least 16 rows per 128 signals even at complete overload.
+       *
+       * We will even send yet one more row of 16 rows at A-priority level
+       * per 100 B-level signals if we have difficulties in even meeting the
+       * minimum desired checkpoint level.
+       */
+      JobBufferLevel prio_level = JBB;
+      if (check_scan_if_raise_prio(signal, ptr))
+      {
+        OperationRecord & op = filePtr.p->operation;
+        Uint32 *tmp = NULL;
+        Uint32 sz = 0;
+        bool eof = FALSE;
+        bool file_buf_contains_min_write_size =
+          op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
 
+        ScanFragNextReq::setPrioAFlag(req->requestInfo, 1);
+        if (file_buf_contains_min_write_size ||
+            filePtr.p->m_num_scan_req_on_prioa >= 2 ||
+            (filePtr.p->m_num_scan_req_on_prioa == 1 &&
+             filePtr.p->m_sent_words_in_scan_batch > MAX_LCP_WORDS_PER_BATCH))
+        {
+          jam();
+          /**
+           * There are three reasons why we won't continue executing at
+           * prio A level.
+           *
+           * 1) Last two executions was on prio A, this means that we have now
+           *    executed 2 sets of 16 rows at prio A level. So it is time to
+           *    give up the prio A level and allow back in some B-level jobs.
+           *
+           * 2) The last execution at prio A generated more than the max words
+           *    per A-level batch, so we get back to a bounded delay signal.
+           *
+           * 3) We already have a buffer ready to be sent to the file
+           *    system. No reason to execute at a very high priority simply
+           *    to fill buffers not waiting to be filled.
+           */
+          filePtr.p->m_sent_words_in_scan_batch = 0;
+          filePtr.p->m_num_scan_req_on_prioa = 0;
+        }
+        else
+        {
+          jam();
+          /* Continue at prio A level 16 more rows */
+          filePtr.p->m_num_scan_req_on_prioa++;
+          prio_level = JBA;
+        }
+      }
+      else
+      {
+        jam();
+        filePtr.p->m_sent_words_in_scan_batch = 0;
+        filePtr.p->m_num_scan_req_on_prioa = 0;
+      }
+      if (lqhRef == calcInstanceBlockRef(DBLQH) && (prio_level == JBB))
+      {
+        sendSignalWithDelay(lqhRef, GSN_SCAN_NEXTREQ, signal,
+                            BOUNDED_DELAY, ScanFragNextReq::SignalLength);
+      }
+      else
+      {
+        /* Cannot send delayed signals to other threads. */
+        sendSignal(lqhRef,
+                   GSN_SCAN_NEXTREQ,
+                   signal,
+                   ScanFragNextReq::SignalLength,
+                   prio_level);
+      }
       /*
         check if it is time to report backup status
       */
       BackupRecordPtr ptr;
       c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
       if (!ptr.p->is_lcp())
+      {
+        jam();
         checkReportStatus(signal, ptr);
+      }
     }
     return;
   }//if
   
+  filePtr.p->m_sent_words_in_scan_batch = 0; 
+  filePtr.p->m_num_scan_req_on_prioa = 0;
+
   signal->theData[0] = BackupContinueB::BUFFER_FULL_SCAN;
   signal->theData[1] = filePtr.i;
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
@@ -6625,7 +7183,174 @@ Backup::execFSREMOVECONF(Signal* signal){
 }
 
 /**
- * LCP
+ * LCP execution starts.
+ *
+ * Description of local LCP handling when checkpointing one fragment locally in
+ * this data node. DBLQH, BACKUP are executing always in the same thread. DICT
+ * and NDBFS mostly execute in different threads.
+ *
+
+ DBLQH                        BACKUP             DICT              NDBFS
+  |                             |
+  |   LCP_PREPARE_REQ           |
+  |---------------------------->|
+  |                             |    FSOPENREQ
+  |                             |----------------------------------->|
+  |                             |    FSOPENCONF                      |
+  |                             |<-----------------------------------|
+  |                             |  GET_TABINFOREQ  |
+  |                             |----------------->|
+  |                             | GET_TABINFO_CONF |
+  |                             |<-----------------|
+  |   LCP_PREPARE_CONF          |
+  |<----------------------------|
+  |   BACKUP_FRAGMENT_REQ       |-------> CONTINUEB(START_FILE_THREAD)|
+  |---------------------------->|
+  |   SCAN_FRAGREQ              |
+  |<----------------------------|
+  |
+  | Potential CONTINUEB(ZTUP_SCAN) while scanning for tuples to record in LCP
+  |
+  |  TRANSID_AI                 |
+  |---------------------------->|
+  |.... More TRANSID_AI         | (Up to 16 TRANSID_AI, 1 per record)
+  |  SCAN_FRAGCONF(close_flag)  |
+  |---------------------------->|
+  |  SCAN_NEXTREQ               |
+  |<----------------------------|
+  |
+  | Potential CONTINUEB(ZTUP_SCAN) while scanning for tuples to record in LCP
+  |
+  |  TRANSID_AI                 |
+  |---------------------------->|
+  |.... More TRANSID_AI         | (Up to 16 TRANSID_AI, 1 per record)
+  |  SCAN_FRAGCONF(close_flag)  |
+  |---------------------------->|
+  
+  After each SCAN_FRAGCONF we check of there is enough space in the Backup
+  buffer used for the LCP. We will not check it until here, so the buffer
+  must be big enough to be able to store the maximum size of 16 records
+  in the buffer. Given that maximum record size is about 16kB, this means
+  that we must have at least 256 kB of buffer space for LCPs. The default
+  is 2MB, so should not set it lower than this unless trying to achieve
+  a really memory optimised setup.
+
+  If there is currently no space in the LCP buffer, then the buffer is either
+  waiting to be written to disk, or it is being written to disk. In this case
+  we will send a CONTINUEB(BUFFER_FULL_SCAN) delayed signal until the buffer
+  is available again.
+
+  When the buffer is available again we send a new SCAN_NEXTREQ for the next
+  set of rows to be recorded in LCP.
+
+  CONTINUEB(START_FILE_THREAD) will either send a FSAPPENDREQ to the opened
+  file or it will send a delayed CONTINUEB(BUFFER_UNDERFLOW).
+
+  When FSAPPENDCONF arrives it will make the same check again and either
+  send one more file write through FSAPPENDREQ or another
+  CONTINUEB(BUFFER_UNDERFLOW). It will continue like this until the
+  SCAN_FRAGCONF has been sent with close_flag set to true AND all the buffers
+  have been written to disk.
+
+  After the LCP file write have been completed the close of the fragment LCP
+  is started.
+
+  An important consideration when executing LCPs is that they conflict with
+  the normal processing of user commands such as key lookups, scans and so
+  forth. If we execute on normal JBB-level everything we are going to get
+  problems in that we could have job buffers of thousands of signals. This
+  means that we will run the LCP extremely slow which will be a significant
+  problem.
+
+  The other approach is to use JBA-level. This will obviously give the
+  LCP too high priority, we will run LCPs until we have filled up the
+  buffer or even until we have filled up our quota for the 100ms timeslot
+  where we check for those things. This could end up in producing 10
+  MByte of LCP data before allowing user level transactions again. This
+  is also obviously not a good idea.
+
+  So most of the startup and shutdown logic for LCPs, both for the entire
+  LCP and messages per fragment LCP is ok to raise to JBA level. They are
+  short and concise messages and won't bother the user transactions at any
+  noticable level. We will avoid fixing GET_TABINFO for that since it
+  is only one signal per fragment LCP and also the code path is also used
+  many other activitites which are not suitable to run at JBA-level.
+
+  So the major problem to handle is the actual scanning towards LQH. Here
+  we need to use a mechanism that keeps the rate at appropriate levels.
+  We will use a mix of keeping track of how many jobs were executed since
+  last time we executed together with sending JBA-level signals to speed
+  up LCP processing for a short time and using signals sent with delay 0
+  to avoid being delayed for more than 128 signals (the maximum amount
+  of signals executed before we check timed signals).
+
+  The first step to handle this is to ensure that we can send SCAN_FRAGREQ
+  on priority A and that this also causes the resulting signals that these
+  messages generate also to be sent on priority A level. Then each time
+  we can continue the scan immediately after receiving SCAN_FRAGCONF we
+  need to make a decision at which level to send the signal. We can
+  either send it as delayed signal with 0 delay or we could send them
+  at priority A level to get another chunk of data for the LCP at a high
+  priority.
+
+  We send the information about Priority A-level as a flag in the
+  SCAN_FRAGREQ signal. This will ensure that all resulting signals
+  will be sent on Priority A except the CONTINUEB(ZTUP_SCAN) which
+  will get special treatment where it increases the length of the
+  loop counter and sends the signal with delay 0. We cannot send
+  this signal on priority level A since there is no bound on how
+  long it will execute.
+
+ DBLQH                        BACKUP             DICT              NDBFS
+  |                             |     FSCLOSEREQ
+  |                             |------------------------------------>|
+  |                             |     FSCLOSECONF
+  |                             |<------------------------------------|
+  | BACKUP_FRAGMENT_CONF        |
+  |<----------------------------|
+  |
+  |                     DIH
+  |  LCP_FRAG_REP        |
+  |--------------------->|
+
+  Finally after completing all fragments we have a number of signals sent to
+  complete the LCP processing.
+
+  |   END_LCPREQ                |
+  |---------------------------->|
+  |   END_LCPCONF               |
+  |<----------------------------|
+  |
+                             LQH Proxy   PGMAN(extra)     LGMAN  TSMAN
+  | LCP_COMPLETE_REP            |
+  |---------------------------->|
+
+  Here the LQH Proxy block will wait for all DBLQH instances to complete.
+  After all have complete the following signals will be sent.
+                             LQH Proxy   PGMAN(extra)     LGMAN  TSMAN
+
+                                | END_LCPREQ |
+                                |----------->|
+                                | END_LCPCONF|
+                                |<-----------|
+                                | END_LCPREQ                        |
+                                |---------------------------------->|
+                                | END_LCPREQ                |
+                                |-------------------------->|
+                                | END_LCPCONF               |
+                                |<--------------------------|
+                                |
+                                | LCP_COMPLETE_REP(DBLQH) sent to DIH
+
+  The TSMAN block doesn't respond to END_LCPREQ. The LGMAN is required to be
+  involved at the end of the LCP to ensure that the UNDO log have been fully
+  synched to disk before we report the LCP as complete. We won't use any
+  fragment LCPs until the full LCP is complete for disk data due to this.
+
+  As preparation for this DBLQH sent DEFINE_BACKUP_REQ to setup a backup
+  record in restart phase 4. It must get the response DEFINE_BACKUP_CONF for
+  the restart to successfully complete. This signal allocates memory for the
+  LCP buffers.
  */
 void
 Backup::execLCP_PREPARE_REQ(Signal* signal)
@@ -6749,7 +7474,7 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   conf->noOfBytesLow = (op.noOfBytes & 0xFFFFFFFF);
   conf->noOfBytesHigh = (op.noOfBytes >> 32);
   sendSignal(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	     BackupFragmentConf::SignalLength, JBB);
+	     BackupFragmentConf::SignalLength, JBA);
 }
 
 void
@@ -6818,7 +7543,7 @@ Backup::lcp_open_file_done(Signal* signal, BackupRecordPtr ptr)
   conf->tableId = tabPtr.p->tableId;
   conf->fragmentId = fragPtr.p->fragmentId;
   sendSignal(ptr.p->masterRef, GSN_LCP_PREPARE_CONF, 
-	     signal, LcpPrepareConf::SignalLength, JBB);
+	     signal, LcpPrepareConf::SignalLength, JBA);
 
   /**
    * Start file thread
@@ -6838,6 +7563,12 @@ Backup::execEND_LCPREQ(Signal* signal)
 
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, req->backupPtr);
+  /**
+   * At least one table should exist here, it isn't possible
+   * to drop the system table, so this should always be part
+   * of an LCP. Thus we can be safe that the backupId should
+   * be set (it is set when a LCP is started on a fragment.
+   */
   ndbrequire(ptr.p->backupId == req->backupId);
 
   BackupFilePtr filePtr;
@@ -6865,7 +7596,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   conf->senderData = ptr.p->clientData;
   conf->senderRef = reference();
   sendSignal(ptr.p->masterRef, GSN_END_LCPCONF,
-	     signal, EndLcpConf::SignalLength, JBB);
+	     signal, EndLcpConf::SignalLength, JBA);
 }
 
 inline
@@ -6941,6 +7672,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       setWords(ptr.p->noOfBytes,
                conf->lcpDoneBytesHi,
                conf->lcpDoneBytesLo);
+      conf->lcpScannedPages = 0;
       
       if (state == LcpStatusConf::LCP_SCANNING ||
           state == LcpStatusConf::LCP_SCANNED)
@@ -6976,6 +7708,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           setWords(filePtr.p->operation.noOfRecords,
                    conf->completionStateHi,
                    conf->completionStateLo);
+          conf->lcpScannedPages = filePtr.p->operation.lcpScannedPages;
         }
         else if (state == LcpStatusConf::LCP_SCANNED)
         {

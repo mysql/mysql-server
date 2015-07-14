@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -61,15 +60,19 @@ extern int do_debug;
 #define DEBUG_INIT(OUTFILE, LEVEL) ndbmc_debug_init(OUTFILE, LEVEL)
 #define DEBUG_ASSERT(X) assert(X)
 #define DEBUG_ENTER() if(do_debug) ndbmc_debug_enter(__func__)
+#define DEBUG_ENTER_DETAIL() if(do_debug > 1) ndbmc_debug_enter(__func__)
 #define DEBUG_ENTER_METHOD(name) if(do_debug) ndbmc_debug_enter(name)
 #define DEBUG_PRINT(...) if(do_debug) ndbmc_debug_print(__func__, __VA_ARGS__)
+#define DEBUG_PRINT_DETAIL(...) if(do_debug > 1) ndbmc_debug_print(__func__, __VA_ARGS__)
 
 #else
 #define DEBUG_INIT(...) 
 #define DEBUG_ASSERT(...)
 #define DEBUG_ENTER()
+#define DEBUG_ENTER_DETAIL()
 #define DEBUG_ENTER_METHOD(...)
 #define DEBUG_PRINT(...) 
+#define DEBUG_PRINT_DETAIL(...)
 
 #endif
 

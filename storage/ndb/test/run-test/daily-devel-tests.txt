@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ cmd: testOIBasic
 args: -case hz
 
 # Bug18408732 added on 17.04.2014
-max-time: 1800
+max-time: 3600
 cmd: testNodeRestart
 args: -n Bug27003 T1
 
@@ -316,22 +316,22 @@ cmd: testSystemRestart
 args: -n SR_DD_1 D1
 
 # Bug18401499 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b D1
 
 # Bug18401521 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b D2
 
 # Bug18401529 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D1
 
 # Bug18401375 added on 17.04.2014
-max-time: 2000
+max-time: 3000
 cmd: testSystemRestart
 args: -n SR_DD_1b_LCP D2
 
@@ -416,6 +416,16 @@ args: T1
 max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
+
+# OJA: Moved from 'basic' to 'devel' due to instability on 15.06.2015
+max-time: 1000
+cmd: test_event
+args: -n Apiv2HQE-latestGCI T1
+
+# OJA: Moved from 'basic' to 'devel' due to instability on 15.06.2015
+max-time: 1200
+cmd: test_event
+args: -n Apiv2-check_event_queue_cleared T1
 
 # Bug18401553 added on 17.04.2014
 max-time: 3600
@@ -508,4 +518,24 @@ args: -n GcpStop T1 --loops=1
 max-time: 3600
 cmd: testNodeRestart
 args: -n GcpStopIsolation T1 --loops=1
+
+max-time : 600
+cmd: testNodeRestart
+args: -n GetTabInfoOverload T1
+
+max-time : 600
+cmd: testDict
+args: -n DropTableConcurrentLCP T1
+
+max-time : 600
+cmd: testDict
+args: -n DropTableConcurrentLCP2 T1
+
+max-time : 600
+cmd: testBackup
+args: -n BackupWhenOutOfLDMRecords T1
+
+max-time : 600
+cmd: testBackup
+args: -n OutOfScanRecordsInLDM T1
 

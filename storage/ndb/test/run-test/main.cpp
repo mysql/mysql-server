@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,9 +193,20 @@ const int p_ndb     = atrt_process::AP_NDB_MGMD | atrt_process::AP_NDBD;
 const int p_servers = atrt_process::AP_MYSQLD;
 const int p_clients = atrt_process::AP_CLIENT | atrt_process::AP_NDB_API;
 
+static int check_testcase_file_main(int argc, char ** argv);
+static void print_testcase_file_syntax();
+
 int
 main(int argc, char ** argv)
 {
+  // If program is called with --check-testcase-files as first option
+  // it is assumed that the rest of command line arguments are
+  // testcase-filenames and those files will be syntax checked.
+  if (argc >= 2 && strcmp(argv[1], "--check-testcase-files") == 0)
+  {
+    exit(check_testcase_file_main(argc, argv));
+  }
+
   ndb_init();
 
   bool restart = true;
@@ -335,8 +346,6 @@ main(int argc, char ** argv)
   }
 #endif
 
-  return_code = 0;
-  
   /**
    * Main loop
    */
@@ -420,8 +429,11 @@ main(int argc, char ** argv)
     // const int start_line = lineno;
     atrt_testcase test_case;
     if(!read_test_case(g_test_case_file, test_case, lineno))
+    {
+      g_logger.critical("Corrupt testcase at line %d)", lineno);
       goto end;
     
+    }
     g_logger.info("#%d - %s",
 		  test_no,
 		  test_case.m_name.c_str());
@@ -547,8 +559,15 @@ main(int argc, char ** argv)
     }
     test_no++;
   }
-  
+  return_code = 0;
+
  end:
+  if(return_code != 0 && g_report_file != 0)
+  {
+    fprintf(g_report_file, "%s ; %d ; %d ; %d\n",
+            "critical error", test_no, ERR_FAILED_TO_START, 0);
+    fflush(g_report_file);
+  }
   if(g_report_file != 0){
     fclose(g_report_file);
     g_report_file = 0;
@@ -581,6 +600,7 @@ get_one_option(int arg, const struct my_option * opt, char * value)
 bool
 parse_args(int argc, char** argv)
 {
+  bool fail_after_help = false;
   char buf[2048];
   if (getcwd(buf, sizeof(buf)) == 0)
   {
@@ -606,7 +626,7 @@ parse_args(int argc, char** argv)
       g_logger.error("Could not find out which config file to use! "
                      "Pass it as last argument to atrt: 'atrt <config file>' "
                      "(default: '%s')", mycnf.c_str());
-      return false;
+      fail_after_help = true;
     }
   }
 
@@ -744,7 +764,12 @@ parse_args(int argc, char** argv)
   {
     my_print_help(g_options);
     my_print_variables(g_options);
+    print_testcase_file_syntax();
     return 0;
+  }
+  if (fail_after_help)
+  {
+    return false;
   }
 
   if(g_test_case_filename)
@@ -1264,27 +1289,41 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
     return false;
   }
 
+  int used_elements = 0;
+
   if(!p.get("cmd", tc.m_cmd.m_exe)){
     g_logger.critical("Invalid test file: cmd is missing near line: %d", line);
     return false;
   }
+  used_elements ++;
   
   if(!p.get("args", tc.m_cmd.m_args))
     tc.m_cmd.m_args = "";
+  else
+    used_elements ++;
 
   const char * mt = 0;
   if(!p.get("max-time", &mt))
     tc.m_max_time = 60000;
   else
+  {
     tc.m_max_time = atoi(mt);
+    used_elements ++;
+  }
 
-  if(p.get("type", &mt) && strcmp(mt, "bench") == 0)
-    tc.m_report= true;
+  if(p.get("type", &mt))
+  {
+    tc.m_report= (strcmp(mt, "bench") == 0);
+    used_elements ++;
+  }
   else
     tc.m_report= false;
 
-  if(p.get("run-all", &mt) && strcmp(mt, "yes") == 0)
-    tc.m_run_all= true;
+  if(p.get("run-all", &mt))
+  {
+    tc.m_run_all = (strcmp(mt, "yes") == 0);
+    used_elements ++;
+  }
   else
     tc.m_run_all= false;
 
@@ -1292,6 +1331,7 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
   if (p.get("mysqld", &str))
   {
     tc.m_mysqld_options.assign(str);
+    used_elements ++;
   }
   else
   {
@@ -1299,9 +1339,11 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
   }
 
   tc.m_cmd.m_cmd_type = atrt_process::AP_NDB_API;
-  if (p.get("cmd-type", &str) && strcmp(str, "mysql") == 0)
+  if (p.get("cmd-type", &str))
   {
-    tc.m_cmd.m_cmd_type = atrt_process::AP_CLIENT;
+    if (strcmp(str, "mysql") == 0)
+      tc.m_cmd.m_cmd_type = atrt_process::AP_CLIENT;
+    used_elements ++;
   }
 
   if (!p.get("name", &mt))
@@ -1313,6 +1355,13 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
   else
   {
     tc.m_name.assign(mt);
+    used_elements ++;
+  }
+
+  if (used_elements != elements)
+  {
+    g_logger.critical("Invalid test file: unknown properties near line: %d", line);
+    return false;
   }
 
   return true;
@@ -1673,3 +1722,99 @@ template class Vector<Vector<SimpleCpcClient::Process> >;
 template class Vector<atrt_host*>;
 template class Vector<atrt_cluster*>;
 template class Vector<atrt_process*>;
+
+int
+check_testcase_file_main(int argc, char ** argv)
+{
+  bool ok = true;
+  int argi = 1;
+  if (strcmp(argv[argi], "--check-testcase-files") == 0)
+  {
+    argi ++;
+  }
+  if (argi == argc)
+  {
+    ok = false;
+    fprintf(stderr, "Error: No files to check!\n");
+  }
+  else for (; argi < argc; argi ++)
+  {
+    FILE* f = fopen(argv[argi], "r");
+    if (f == NULL)
+    {
+      ok = false;
+      perror(argv[argi]);
+      continue;
+    }
+    atrt_testcase tc_dummy;
+    int prev_line_num = 0;
+    int line_num = 0;
+    int ntests = 0;
+    while (read_test_case(f, tc_dummy, line_num))
+    {
+      prev_line_num = line_num;
+      ntests ++;
+    }
+    // If line count does not change that indicates end of file.
+    if (line_num == prev_line_num)
+    {
+      printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests, line_num);
+    }
+    else
+    {
+      ok = false;
+      fprintf(stderr, "%s: Error at line %d\n", argv[argi], line_num);
+    }
+    fclose(f);
+  }
+  return ok ? 0 : 1;
+}
+
+void
+print_testcase_file_syntax()
+{
+  printf("\n"
+         "Test cases to run are described in files passed with the\n"
+         "--testcase-file (-f) option.\n"
+         "\n"
+         "A testcase is defined with some properties, one property per line,\n"
+         "and terminated with exactly one empty line.  No other empty lines\n"
+         "are allowed in the file.  Lines starting with # are comments and\n"
+         "are ignored, note they are not counted as empty lines.\n"
+         "\n"
+         "The properties are:\n"
+         "cmd      - Names the test executable.  The only mandatory property.\n"
+         "args     - The arguments to test executable.\n"
+         "max-time - Maximum run time for test in seconds (default 60000).\n"
+         "type     - Declare the type of the test.  The only recognized value\n"
+         "           is 'bench' which implies that results are stored also for\n"
+         "           successful tests.  Normally if this option is not used\n"
+         "           only results from failed tests will be stored.\n"
+         "run-all  - If 'yes' atrt will start the same command for each defined\n"
+         "           api/mysqld, normally it only starts one instance.\n"
+         "mysqld   - Arguments that atrt will use when starting mysqld.\n"
+         "cmd-type - If 'mysql' change test process type from ndbapi to client.\n"
+         "name     - Change name of test.  Default is given by cmd and args.\n"
+         "\n"
+         "Example:\n"
+         "# BASIC FUNCTIONALITY\n"
+         "max-time: 500\n"
+         "cmd: testBasic\n"
+         "args: -n PkRead\n"
+         "\n"
+         "# 4k record DD\n"
+         "max-time: 600\n"
+         "cmd: flexAsynch\n"
+         "args: -dd -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord -a 25 -s 40\n"
+         "type: bench\n"
+         "\n"
+         "# sql\n"
+         "max-time: 600\n"
+         "cmd: ndb-sql-perf.sh\n"
+         "args: ndb-sql-perf-select.sh t1 1 64\n"
+         "mysqld: --ndb-cluster-connection-pool=1\n"
+         "type: bench\n"
+         "cmd-type: mysql\n"
+         "\n"
+  );
+}

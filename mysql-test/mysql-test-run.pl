@@ -2997,7 +2997,7 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled= 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster";
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache,ndbcluster,ndb_ddl";
   return;
 }
 
@@ -4383,6 +4383,22 @@ sub run_testcase ($) {
       {
 	exit(0);
       }
+    }
+    if ($opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd ||
+        $opt_manual_debug || $opt_manual_dbx)
+    {
+      # The configuration has been set up and user has been prompted for
+      # how to start the servers manually in the requested deugger.
+      # At this time mtr.pl have no knowledge about the server processes
+      # and thus can't wait for them to finish or antyhing. In order to make
+      # it apparent to user what to do next, just print message and hang
+      # around until user kills mtr.pl
+      mtr_print("User prompted how to start server(s) manually in debugger");
+      while (1)
+      {
+        mtr_milli_sleep(100);
+      }
+      exit(0); # Never reached
     }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {

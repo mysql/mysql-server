@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "ndb_event_data.h"
 #include "ndb_dist_priv_util.h"
 #include "ha_ndbcluster_tables.h"
+#include "ndb_conflict.h"
+#include "ndb_name_util.h"
 
 #include <ndbapi/NdbEventOperation.hpp>
 
@@ -33,12 +35,7 @@ NDB_SHARE::destroy(NDB_SHARE* share)
   native_mutex_destroy(&share->mutex);
 
 #ifdef HAVE_NDB_BINLOG
-  if (share->m_cfn_share && 
-      share->m_cfn_share->m_ex_tab_writer.hasTable() && 
-      g_ndb)
-  {
-    share->m_cfn_share->m_ex_tab_writer.mem_free(g_ndb);
-  }
+  teardown_conflict_fn(g_ndb, share->m_cfn_share);
 #endif
   share->new_op= 0;
   Ndb_event_data* event_data = share->event_data;
@@ -47,8 +44,134 @@ NDB_SHARE::destroy(NDB_SHARE* share)
     delete event_data;
     event_data= 0;
   }
-  free_root(&share->mem_root, MYF(0));
+  // Release memory for the variable length strings held by
+  // key but also referenced by db, table_name and shadow_table->db etc.
+  free_key(share->key);
   my_free(share);
+}
+
+/*
+  Struct holding dynamic length strings for NDB_SHARE. The type is
+  opaque to the user of NDB_SHARE and should
+  only be accessed using NDB_SHARE accessor functions.
+
+  All the strings are zero terminated.
+
+  Layout:
+  size_t key_length
+  "key"\0
+  "db\0"
+  "table_name\0"
+*/
+struct NDB_SHARE_KEY {
+  size_t m_key_length;
+  char m_buffer[1];
+};
+
+NDB_SHARE_KEY*
+NDB_SHARE::create_key(const char *new_key)
+{
+  const size_t new_key_length = strlen(new_key);
+
+  char db_name_buf[FN_HEADLEN];
+  ndb_set_dbname(new_key, db_name_buf);
+  const size_t db_name_len = strlen(db_name_buf);
+
+  char table_name_buf[FN_HEADLEN];
+  ndb_set_tabname(new_key, table_name_buf);
+  const size_t table_name_len = strlen(table_name_buf);
+
+  // Calculate total size needed for the variable length strings
+  const size_t size=
+      sizeof(NDB_SHARE_KEY) +
+      new_key_length +
+      db_name_len + 1 +
+      table_name_len + 1;
+
+  NDB_SHARE_KEY* allocated_key=
+      (NDB_SHARE_KEY*) my_malloc(PSI_INSTRUMENT_ME,
+                                 size,
+                                 MYF(MY_WME | ME_FATALERROR));
+
+  allocated_key->m_key_length = new_key_length;
+
+  // Copy key into the buffer
+  char* buf_ptr = allocated_key->m_buffer;
+  my_stpcpy(buf_ptr, new_key);
+  buf_ptr += new_key_length + 1;
+
+  // Copy db_name into the buffer
+  my_stpcpy(buf_ptr, db_name_buf);
+  buf_ptr += db_name_len + 1;
+
+  // Copy table_name into the buffer
+  my_stpcpy(buf_ptr, table_name_buf);
+  buf_ptr += table_name_len;
+
+  // Check that writing has not occured beyond end of allocated memory
+  assert(buf_ptr < reinterpret_cast<char*>(allocated_key) + size);
+
+  DBUG_PRINT("info", ("size: %lu, sizeof(NDB_SHARE_KEY): %lu",
+                      size, sizeof(NDB_SHARE_KEY)));
+  DBUG_PRINT("info", ("new_key: '%s', %lu", new_key, new_key_length));
+  DBUG_PRINT("info", ("db_name: '%s', %lu", db_name_buf, db_name_len));
+  DBUG_PRINT("info", ("table_name: '%s', %lu", table_name_buf, table_name_len));
+  DBUG_DUMP("NDB_SHARE_KEY: ", (const uchar*)allocated_key->m_buffer, size);
+
+  return allocated_key;
+}
+
+
+void NDB_SHARE::free_key(NDB_SHARE_KEY* key)
+{
+  my_free(key);
+}
+
+
+const uchar* NDB_SHARE::key_get_key(NDB_SHARE_KEY* key)
+{
+  assert(key->m_key_length == strlen(key->m_buffer));
+  return (const uchar*)key->m_buffer;
+}
+
+
+size_t NDB_SHARE::key_get_length(NDB_SHARE_KEY* key)
+{
+  assert(key->m_key_length == strlen(key->m_buffer));
+  return key->m_key_length;
+}
+
+
+char* NDB_SHARE::key_get_db_name(NDB_SHARE_KEY* key)
+{
+  char* buf_ptr = key->m_buffer;
+  // Step past the key string and it's zero terminator
+  buf_ptr += key->m_key_length + 1;
+  return buf_ptr;
+}
+
+
+char* NDB_SHARE::key_get_table_name(NDB_SHARE_KEY* key)
+{
+  char* buf_ptr = key_get_db_name(key);
+  const size_t db_name_len = strlen(buf_ptr);
+  // Step past the db name string and it's zero terminator
+  buf_ptr += db_name_len + 1;
+  return buf_ptr;
+}
+
+
+size_t NDB_SHARE::key_length() const
+{
+  assert(key->m_key_length == strlen(key->m_buffer));
+  return key->m_key_length;
+}
+
+
+const char* NDB_SHARE::key_string() const
+{
+  assert(strlen(key->m_buffer) == key->m_key_length);
+  return key->m_buffer;
 }
 
 
@@ -131,11 +254,9 @@ void NDB_SHARE::print(const char* where, FILE* file) const
 {
   fprintf(file, "%s %s.%s: use_count: %u\n",
           where, db, table_name, use_count);
-  fprintf(file, "  - key: '%s', key_length: %d\n", key, key_length);
+  fprintf(file, "  - key: '%s', key_length: %lu\n",
+          key_string(), key_length());
   fprintf(file, "  - commit_count: %llu\n", commit_count);
-  if (new_key)
-    fprintf(file, "  - new_key: %p, '%s'\n",
-            new_key, new_key);
   if (event_data)
     fprintf(file, "  - event_data: %p\n", event_data);
   if (op)

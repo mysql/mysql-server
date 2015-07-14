@@ -796,7 +796,6 @@ CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
 CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
 
-
 CHECK_CXX_SOURCE_COMPILES(
   "
   #include <vector>
@@ -826,3 +825,16 @@ CHECK_CXX_SOURCE_COMPILES(
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 CHECK_FUNCTION_EXISTS(chown HAVE_CHOWN)
+CHECK_INCLUDE_FILES (numaif.h HAVE_NUMAIF_H)
+SET(WITH_NUMA 1 CACHE BOOL "Explicitly set NUMA memory allocation policy")
+IF(HAVE_NUMAIF_H AND WITH_NUMA)
+    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
+    CHECK_C_SOURCE_COMPILES(
+    "
+    #include <numaif.h>
+    int main()
+    {
+       set_mempolicy(MPOL_DEFAULT, 0, 0);
+    }"
+    HAVE_LIBNUMA)
+ENDIF()

@@ -18,11 +18,11 @@ eval create function version_tokens_edit returns string soname '$VERSION_TOKEN';
 --replace_regex /\.dll/.so/
 eval create function version_tokens_delete returns string soname '$VERSION_TOKEN';
 --replace_regex /\.dll/.so/
-eval create function vtoken_get_read_locks returns int soname '$VERSION_TOKEN';
+eval create function version_tokens_lock_shared returns int soname '$VERSION_TOKEN';
 --replace_regex /\.dll/.so/
-eval create function vtoken_get_write_locks returns int soname '$VERSION_TOKEN';
+eval create function version_tokens_lock_exclusive returns int soname '$VERSION_TOKEN';
 --replace_regex /\.dll/.so/
-eval create function vtoken_release_locks returns int soname '$VERSION_TOKEN';
+eval create function version_tokens_unlock returns int soname '$VERSION_TOKEN';
 
 
 -- echo
@@ -42,15 +42,21 @@ select version_tokens_edit(123);
 --error ER_CANT_INITIALIZE_UDF
 select version_tokens_delete(123);
 --error ER_CANT_INITIALIZE_UDF
-select vtoken_get_read_locks("Less arguments");
+select version_tokens_lock_shared("Less arguments");
 --error ER_CANT_INITIALIZE_UDF
-select vtoken_get_read_locks(1,"Wrong argument type");
+select version_tokens_lock_shared(1,"Wrong argument type");
 --error ER_CANT_INITIALIZE_UDF
-select vtoken_get_write_locks("Less arguments");
+select version_tokens_lock_exclusive("Less arguments");
 --error ER_CANT_INITIALIZE_UDF
-select vtoken_get_write_locks(1,"Wrong argument type");
+select version_tokens_lock_exclusive(1,"Wrong argument type");
 --error ER_CANT_INITIALIZE_UDF
-select vtoken_release_locks("Takes no arguments");
+select version_tokens_unlock("Takes no arguments");
+
+--error ER_DATA_OUT_OF_RANGE
+select version_tokens_lock_shared("gizmo", -1);
+
+--error ER_DATA_OUT_OF_RANGE
+select version_tokens_lock_exclusive("gizmo", -1);
 
 -- echo
 CREATE USER vbhagi@localhost;
@@ -228,7 +234,7 @@ drop function version_tokens_set;
 drop function version_tokens_show;
 drop function version_tokens_edit;
 drop function version_tokens_delete;
-drop function vtoken_get_read_locks;
-drop function vtoken_get_write_locks;
-drop function vtoken_release_locks;
+drop function version_tokens_lock_shared;
+drop function version_tokens_lock_exclusive;
+drop function version_tokens_unlock;
 drop user vbhagi@localhost;

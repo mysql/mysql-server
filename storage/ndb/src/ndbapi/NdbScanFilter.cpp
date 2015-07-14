@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,8 +123,6 @@ public:
   }
 
 };
-
-const Uint32 LabelExit = ~0;
 
 
 NdbScanFilter::NdbScanFilter(NdbInterpretedCode* code) :
@@ -458,7 +456,7 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
   
   if (m_error.code != 0) return -1;
 
-  if(op < 0 || op >= tab2_sz){
+  if((int)op < 0 || (int)op >= tab2_sz){
     /* Condition is out of bounds */
     m_error.code= 4262;
     return -1;

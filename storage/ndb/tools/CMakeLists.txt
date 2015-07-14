@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -77,8 +77,6 @@ TARGET_LINK_LIBRARIES(ndb_config ndbclient_static)
 # Build ndbinfo_sql and run it to create ndbinfo.sql
 ADD_EXECUTABLE(ndbinfo_sql
   ndbinfo_sql.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
 )
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient_static)
 GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)

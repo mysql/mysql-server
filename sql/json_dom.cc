@@ -419,6 +419,25 @@ Json_object::~Json_object()
 
 
 /**
+  Check if the depth of a JSON document exceeds the maximum supported
+  depth (JSON_DOCUMENT_MAX_DEPTH). Raise an error if the maximum depth
+  has been exceeded.
+
+  @param[in] depth  the current depth of the document
+  @return true if the maximum depth is exceeded, false otherwise
+*/
+static bool check_json_depth(size_t depth)
+{
+  if (depth > JSON_DOCUMENT_MAX_DEPTH)
+  {
+    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+    return true;
+  }
+  return false;
+}
+
+
+/**
   This class overrides the methods on BaseReaderHandler to make
   out own handler which will construct our DOM from the parsing
   of the JSON text.
@@ -491,30 +510,13 @@ private:
   enum_state m_state;
   Compound_vector m_stack;
   Json_dom *m_dom_as_built;
-  bool m_error;
-
-  /**
-    Check if an error has occurred previously in the parsing of the
-    document, or if the current document depth has exceeded the
-    maximum document we support.
-
-    @return true if an error has occurred or the maximum depth has
-    been exceeded, false otherwise
-  */
-  bool check_for_error()
-  {
-    if (!m_error && m_stack.size() >= JSON_DOCUMENT_MAX_DEPTH)
-    {
-      my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
-      m_error= true;
-    }
-    return m_error;
-  }
+  bool m_preserve_neg_zero_int;
 public:
-  Rapid_json_handler()
+  Rapid_json_handler(bool preserve_neg_zero_int= false)
     : m_state(expect_anything),
       m_stack(key_memory_JSON),
-      m_dom_as_built(NULL), m_error(false)
+      m_dom_as_built(NULL),
+      m_preserve_neg_zero_int(preserve_neg_zero_int)
   {}
 
   ~Rapid_json_handler()
@@ -545,8 +547,6 @@ public:
   */
   Json_dom *get_built_doc()
   {
-    if (m_error)
-      return NULL;                              /* purecov: inspected */
     Json_dom *result= m_dom_as_built;
     m_dom_as_built= NULL;
     return result;
@@ -562,12 +562,9 @@ public:
   */
   bool seeing_scalar(Json_scalar *scalar)
   {
-    if (scalar == NULL || check_for_error())
-    {
-      m_error= true;
-      delete scalar;
+    std::auto_ptr<Json_scalar> aptr(scalar);
+    if (scalar == NULL || check_json_depth(m_stack.size() + 1))
       return false;
-    }
     switch (m_state)
     {
     case expect_anything:
@@ -576,20 +573,14 @@ public:
       break;
     case expect_array_value:
       if (m_stack.back().m_elements.push_back(Current_element(scalar)))
-      {
-        /* purecov: begin inspected */
-        m_error= true;
-        delete scalar;
-        /* purecov: end */
-      }
+        return false;                           /* purecov: inspected */
       break;
     case expect_object_key:
     case expect_eof:
       /* purecov: begin inspected */
       DBUG_ABORT();
-      delete scalar;
-      break;
-      /* purecov: end inspected */
+      return false;
+      /* purecov: end */
     case expect_object_value:
       DBUG_ASSERT(!m_stack.back().m_elements.empty());
       DBUG_ASSERT(m_stack.back().m_elements.back().m_value == NULL);
@@ -598,7 +589,12 @@ public:
       break;
     }
 
-    return !m_error;
+    /*
+      The scalar is owned by the Element_vector or m_dom_as_built now,
+      so release it.
+    */
+    aptr.release();
+    return true;
   }
 
   bool Null()
@@ -639,7 +635,7 @@ public:
 
   bool Double(double d, bool is_int= false)
   {
-    if (is_int)
+    if (is_int && !m_preserve_neg_zero_int)
     {
       /*
         The is_int flag is true only if -0 was seen. Handle it as an
@@ -657,15 +653,15 @@ public:
 
   bool String(const char* str, SizeType length, bool copy)
   {
-    if (check_for_error())
-      return false;                             /* purecov: inspected */
+    if (check_json_depth(m_stack.size() + 1))
+      return false;
     DUMP_CALLBACK("string", state);
     switch (m_state)
     {
     case expect_anything:
       m_dom_as_built= new (std::nothrow) Json_string(std::string(str, length));
       if (!m_dom_as_built)
-        m_error= true;                          /* purecov: inspected */
+        return false;                         /* purecov: inspected */
       m_state= expect_eof;
       break;
     case expect_array_value:
@@ -677,21 +673,21 @@ public:
         {
           /* purecov: begin inspected */
           delete jstr;
-          m_error= true;
+          return false;
           /* purecov: end */
         }
         break;
       }
     case expect_object_key:
-      m_error=
-        m_stack.back().m_elements.push_back(Current_element(true, str,
-                                                            length, NULL));
+      if (m_stack.back().m_elements.push_back(Current_element(true, str,
+                                                              length, NULL)))
+        return false;                         /* purecov: inspected */
       m_state= expect_object_value;
       break;
     case expect_eof:
       /* purecov: begin inspected */
       DBUG_ABORT();
-      break;
+      return false;
       /* purecov: end */
     case expect_object_value:
       DBUG_ASSERT(!m_stack.back().m_elements.empty());
@@ -701,78 +697,67 @@ public:
       m_state= expect_object_key;
       break;
     }
-    return !m_error;
+    return true;
   }
 
   bool StartObject()
   {
-    if (check_for_error())
-      return false;                             /* purecov: inspected */
     DUMP_CALLBACK("start object {", state);
     switch (m_state)
     {
     case expect_anything:
     case expect_array_value:
     case expect_object_value:
-      m_error= m_stack.push_back(Partial_compound(true));
+      if (m_stack.push_back(Partial_compound(true)) ||
+          check_json_depth(m_stack.size()))
+        return false;
       m_state= expect_object_key;
       break;
     case expect_eof:
     case expect_object_key:
       /* purecov: begin inspected */
       DBUG_ABORT();
-      break;
-      /* purecov: end inspected */
+      return false;
+      /* purecov: end */
     }
-    return !m_error;
+    return true;
   }
 
   bool EndObject(SizeType)
   {
-    if (m_error)
-      return false;                             /* purecov: inspected */
     DUMP_CALLBACK("} end object", state);
     switch (m_state)
     {
     case expect_object_key:
       {
-        Json_object *o= new (std::nothrow) Json_object();
-        if (o == NULL)
-        {
-          /* purecov: begin inspected */
-          m_error= true;
-          break;
-          /* purecov: end */
-        }
+        std::auto_ptr<Json_object> o(new (std::nothrow) Json_object());
+        if (o.get() == NULL)
+          return false;                       /* purecov: inspected */
         for (Element_vector::const_iterator iter=
                m_stack.back().m_elements.begin();
              iter != m_stack.back().m_elements.end(); ++iter)
         {
           /* _alias: save superfluous copy/delete */
           if (o->add_alias(iter->m_key, iter->m_value))
-          {
-            /* purecov: begin inspected */
-            delete o;
-            m_error= true;
-            return false;
-            /* purecov: end */
-          }
+            return false;                     /* purecov: inspected */
         }
         m_stack.pop_back();
 
         if (m_stack.empty())
         {
-          m_dom_as_built= o;
+          m_dom_as_built= o.release();
           m_state= expect_eof;
         }
         else if (m_stack.back().m_is_object)
         {
-          m_stack.back().m_elements.back().m_value= o;
+          m_stack.back().m_elements.back().m_value= o.release();
           m_state= expect_object_key;
         }
         else
         {
-          m_error= m_stack.back().m_elements.push_back(o);
+          if (m_stack.back().m_elements.push_back(o.get()))
+            return false;                     /* purecov: inspected */
+          o.release();             // Owned by the Element_vector now.
           m_state= expect_array_value;
         }
       }
@@ -783,81 +768,72 @@ public:
     case expect_anything:
       /* purecov: begin inspected */
       DBUG_ABORT();
-      break;
-      /* purecov: end inspected */
+      return false;
+      /* purecov: end */
     }
-    return !m_error;
+    return true;
   }
 
   bool StartArray()
   {
-    if (check_for_error())
-      return false;
     DUMP_CALLBACK("start array [", state);
     switch (m_state)
     {
     case expect_anything:
     case expect_array_value:
     case expect_object_value:
-      m_error= m_stack.push_back(Partial_compound(false));
+      if (m_stack.push_back(Partial_compound(false)) ||
+          check_json_depth(m_stack.size()))
+        return false;
       m_state= expect_array_value;
       break;
     case expect_eof:
     case expect_object_key:
       /* purecov: begin inspected */
       DBUG_ABORT();
-      break;
-      /* purecov: end inspected */
+      return false;
+      /* purecov: end */
     }
-    return !m_error;
+    return true;
   }
 
   bool EndArray(SizeType)
   {
-    if (m_error)
-      return false;                             /* purecov: inspected */
     DUMP_CALLBACK("] end array", state);
     switch (m_state)
     {
     case expect_array_value:
       {
-        Json_array *a= new (std::nothrow) Json_array();
-        if (a == NULL)
-        {
-          m_error= true;                        /* purecov: inspected */
+        std::auto_ptr<Json_array> a(new (std::nothrow) Json_array());
+        if (a.get() == NULL)
           return false;                         /* purecov: inspected */
-        }
         for (Element_vector::const_iterator iter=
                m_stack.back().m_elements.begin();
              iter != m_stack.back().m_elements.end(); ++iter)
         {
           /* _alias: save superfluous copy/delete */
           if (a->append_alias(iter->m_value))
-          {
-            /* purecov: begin inspected */
-            delete a;
-            m_error= true;
-            return false;
-            /* purecov: end */
-          }
+            return false;                       /* purecov: inspected */
         }
         m_stack.pop_back();
 
         if (m_stack.empty())
         {
-          m_dom_as_built= a;
+          m_dom_as_built= a.release();
           m_state= expect_eof;
         }
         else
         {
           if (m_stack.back().m_is_object)
           {
-            m_stack.back().m_elements.back().m_value= a;
+            m_stack.back().m_elements.back().m_value= a.release();
             m_state= expect_object_key;
           }
           else
           {
-            m_error= m_stack.back().m_elements.push_back(a);
+            if (m_stack.back().m_elements.push_back(a.get()))
+              return false;                     /* purecov: inspected */
+            a.release();                // Owned by the Element_vector now.
             m_state= expect_array_value;
           }
         }
@@ -869,10 +845,10 @@ public:
     case expect_anything:
       /* purecov: begin inspected */
       DBUG_ABORT();
-      break;
-      /* purecov: end inspected */
+      return false;
+      /* purecov: end */
     }
-    return !m_error;
+    return true;
   }
 
   bool Key(const Ch* str, SizeType len, bool copy)
@@ -883,9 +859,10 @@ public:
 
 
 Json_dom *Json_dom::parse(const char *text, size_t length,
-                          const char **syntaxerr, size_t *offset)
+                          const char **syntaxerr, size_t *offset,
+                          bool preserve_neg_zero_int)
 {
-  Rapid_json_handler handler;
+  Rapid_json_handler handler(preserve_neg_zero_int);
   MemoryStream ss(text, length);
   Reader reader;
   bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
@@ -908,6 +885,60 @@ Json_dom *Json_dom::parse(const char *text, size_t length,
     *syntaxerr= GetParseError_En(reader.GetParseErrorCode());
 
   return NULL;
+}
+
+
+/**
+  This class implements a handler for use with rapidjson::Reader when
+  we want to check if a string is a valid JSON text. The handler does
+  not build a DOM structure, so it is quicker than Json_dom::parse()
+  in the cases where we don't care about the DOM, such as in the
+  JSON_VALID() function.
+
+  The handler keeps track of how deeply nested the document is, and it
+  raises an error and stops parsing when the depth exceeds
+  JSON_DOCUMENT_MAX_DEPTH.
+*/
+class Syntax_check_handler
+{
+private:
+  size_t m_depth;        ///< The current depth of the document
+
+  bool seeing_scalar()
+  {
+    return !check_json_depth(m_depth + 1);
+  }
+
+public:
+  Syntax_check_handler() : m_depth(0) {}
+
+  /*
+    These functions are callbacks used by rapidjson::Reader when
+    parsing a JSON document. They all follow the rapidjson convention
+    of returning true on success and false on failure.
+  */
+  bool StartObject() { return !check_json_depth(++m_depth); }
+  bool EndObject(SizeType) { --m_depth; return true; }
+  bool StartArray() { return !check_json_depth(++m_depth); }
+  bool EndArray(SizeType) { --m_depth; return true; }
+  bool Null() { return seeing_scalar(); }
+  bool Bool(bool) { return seeing_scalar(); }
+  bool Int(int) { return seeing_scalar(); }
+  bool Uint(unsigned) { return seeing_scalar(); }
+  bool Int64(int64_t) { return seeing_scalar(); }
+  bool Uint64(uint64_t) { return seeing_scalar(); }
+  bool Double(double, bool is_int= false) { return seeing_scalar(); }
+  bool String(const char*, SizeType, bool) { return seeing_scalar(); }
+  bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
+};
+
+
+bool is_valid_json_syntax(const char *text, size_t length)
+{
+  Syntax_check_handler handler;
+  Reader reader;
+  MemoryStream ms(text, length);
+  return reader.Parse<rapidjson::kParseDefaultFlags>(ms, handler);
 }
 
 
@@ -1911,11 +1942,8 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
                               bool json_quoted, const char *func_name,
                               size_t depth)
 {
-  if (depth >= JSON_DOCUMENT_MAX_DEPTH)
-  {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+  if (check_json_depth(++depth))
     return true;
-  }
 
   switch (wr.type())
   {
@@ -1954,7 +1982,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         if (i > 0 && (reserve(buffer, 2) || buffer->append(", ")))
           return true;                         /* purecov: inspected */
 
-        if (wrapper_to_string(wr[i], buffer, true, func_name, depth + 1))
+        if (wrapper_to_string(wr[i], buffer, true, func_name, depth))
           return true;                         /* purecov: inspected */
       }
       if (reserve(buffer, 1) || buffer->append(']'))
@@ -2032,7 +2060,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
             print_string(buffer, true, key_data, key_length) ||
             reserve(buffer, 2) || buffer->append(": ") ||
             wrapper_to_string(iter.elt().second, buffer, true, func_name,
-                              depth + 1))
+                              depth))
           return true;                         /* purecov: inspected */
       }
       if (reserve(buffer, 1) || buffer->append('}'))

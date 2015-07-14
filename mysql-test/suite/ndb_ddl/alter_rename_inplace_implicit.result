@@ -1,0 +1,7 @@
+ALTER TABLE t1
+ADD COLUMN c INT,
+RENAME TO t1_renamed;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1
+ADD COLUMN c INT,
+RENAME TO t1_renamed'
+== verify_mysql_dd.inc ==

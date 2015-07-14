@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_MEMALLOC, XCE, "Memory allocation failure, "
     "please decrease some configuration parameters"},
    {NDBD_EXIT_BLOCK_JBUFCONGESTION, XIE, "Job buffer congestion"},
+   {NDBD_EXIT_TIME_QUEUE_ZERO, XIE, "Error in zero time queue"},
    {NDBD_EXIT_TIME_QUEUE_SHORT, XIE, "Error in short time queue"},
    {NDBD_EXIT_TIME_QUEUE_LONG, XIE, "Error in long time queue"},
    {NDBD_EXIT_TIME_QUEUE_DELAY, XIE, "Error in time queue, too long delay"},

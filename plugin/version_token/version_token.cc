@@ -44,6 +44,8 @@ struct version_token_st {
 };
 
 
+#define VTOKEN_LOCKS_NAMESPACE "version_token_locks"
+
 static HASH version_tokens_hash;
 
 static MYSQL_THDVAR_ULONG(session_number,
@@ -169,18 +171,18 @@ PLUGIN_EXPORT my_bool version_tokens_delete_init(UDF_INIT *initid,
 PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
 					  char *null_value, char *error);
-PLUGIN_EXPORT my_bool vtoken_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                 char *message);
-PLUGIN_EXPORT long long vtoken_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                              char *is_null, char *error);
-PLUGIN_EXPORT my_bool vtoken_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                  char *message);
-PLUGIN_EXPORT long long vtoken_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                               char *is_null, char *error);
-PLUGIN_EXPORT my_bool vtoken_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                char *message);
-PLUGIN_EXPORT long long vtoken_release_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                             char *is_null, char *error);
+PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message);
+PLUGIN_EXPORT long long version_tokens_lock_shared(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
+PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message);
+PLUGIN_EXPORT long long version_tokens_lock_exclusive(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
+PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message);
+PLUGIN_EXPORT long long version_tokens_unlock(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error);
 
 enum command {
   SET_VTOKEN= 0,
@@ -335,7 +337,7 @@ static int parse_vtokens(char *input, enum command type)
       {
 	version_token_st *token_obj;
         char error_str[MYSQL_ERRMSG_SIZE];
-        if (!mysql_acquire_locking_service_locks(NULL, "version_token_locks",
+        if (!mysql_acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
 	                                         (const char **) &(token_name.str), 1,
 					         LOCKING_SERVICE_READ, 1) && !vtokens_unchanged)
 	{
@@ -391,19 +393,34 @@ static int parse_vtokens(char *input, enum command type)
 }
 
 
-// Plugin audit function to compare session version tokens
-// with the global ones.
-// TODO: Release locks in MYSQL_AUDIT_GENERAL_STATUS subclass.
-static void version_token_check(MYSQL_THD thd,
-                                unsigned int event_class,
-                                const void *event __attribute__((unused)))
+/**
+  Audit API entry point for the version token pluign
+
+  Plugin audit function to compare session version tokens with
+  the global ones.
+  At the start of each query (MYSQL_AUDIT_GENERAL_LOG
+  currently) if there's a session version token vector it will
+  acquire the GET_LOCK shared locks for the session version tokens
+  and then will try to find them in the global version lock and
+  compare their values with the ones found. Throws errors if not
+  found or the version values do not match. See parse_vtokens().
+  At query end (MYSQL_AUDIT_GENERAL_STATUS currently) it releases
+  the GET_LOCK shared locks it has aquired.
+
+  @param thd          The current thread
+  @param event_class  audit API event class
+  @param event        pointer to the audit API event data
+*/
+static int version_token_check(MYSQL_THD thd,
+                               mysql_event_class_t event_class,
+                               const void *event)
 {
   char *sess_var;
 
   const struct mysql_event_general *event_general=
     (const struct mysql_event_general *) event;
-  const uchar *command= (const uchar *) event_general->general_command;
-  unsigned int length= event_general->general_command_length;
+  const uchar *command= (const uchar *) event_general->general_command.str;
+  unsigned int length= event_general->general_command.length;
 
   DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
@@ -420,7 +437,7 @@ static void version_token_check(MYSQL_THD thd,
                                                  command, length,
                                                  (const uchar *) STRING_WITH_LEN("Prepare"),
                                                  0))
-        return;
+        return 0;
 
 
       if (THDVAR(thd, session))
@@ -429,7 +446,7 @@ static void version_token_check(MYSQL_THD thd,
                              strlen(THDVAR(thd, session)),
 			     MYF(MY_FAE));
       else
-	return;
+	return 0;
 
       // Lock the hash before checking for values.
       mysql_rwlock_rdlock(&LOCK_vtoken_hash);
@@ -443,14 +460,21 @@ static void version_token_check(MYSQL_THD thd,
     }
     case MYSQL_AUDIT_GENERAL_STATUS:
     {
-      mysql_release_locking_service_locks(NULL, "version_token_locks");
+      /*
+        Release locks only if the session variable is set.
+
+        This relies on the fact that MYSQL_AUDIT_GENERAL_STATUS
+        is always generated at the end of query execution.
+      */
+      if (THDVAR(thd, session))
+        mysql_release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
       break;
     }
     default:
       break;
   }
 
-  return;
+  return 0;
 }
 
 
@@ -459,7 +483,7 @@ static struct st_mysql_audit version_token_descriptor=
   MYSQL_AUDIT_INTERFACE_VERSION,                       /* interface version */
   NULL,                                                /* release_thd()     */
   version_token_check,                                 /* event_notify()    */
-  { (unsigned long) MYSQL_AUDIT_GENERAL_CLASSMASK }    /* class mask        */
+  { (unsigned long) MYSQL_AUDIT_GENERAL_ALL, }         /* class mask        */
 };
 
 
@@ -517,7 +541,7 @@ mysql_declare_plugin(version_tokens)
   PLUGIN_LICENSE_GPL,
   version_tokens_init,               /* init function (when loaded)     */
   version_tokens_deinit,             /* deinit function (when unloaded) */
-  0x0100,                            /* version          */
+  0x0101,                            /* version          */
   NULL,                              /* status variables */
   system_variables,                  /* system variables */
   NULL,
@@ -943,45 +967,61 @@ static inline my_bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *messa
   return FALSE;
 }
 
-PLUGIN_EXPORT my_bool vtoken_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                 char *message)
+PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-PLUGIN_EXPORT long long vtoken_get_read_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                              char *is_null, char *error)
+PLUGIN_EXPORT long long version_tokens_lock_shared(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
+
+  if (timeout < 0)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
+             "version_tokens_lock_shared");
+    *error= 1;
+  }
+
   // For the UDF 1 == success, 0 == failure.
-  return !acquire_locking_service_locks(NULL, "version_token_locks",
+  return !acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
                                         const_cast<const char**>(&args->args[0]),
 					args->arg_count - 1,
-					LOCKING_SERVICE_READ, timeout);
+					LOCKING_SERVICE_READ, (unsigned long) timeout);
 }
 
 
-PLUGIN_EXPORT my_bool vtoken_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                  char *message)
+PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   return init_acquire(initid, args, message);
 }
 
 
-PLUGIN_EXPORT long long vtoken_get_write_locks(UDF_INIT *initid, UDF_ARGS *args,
-                                               char *is_null, char *error)
+PLUGIN_EXPORT long long version_tokens_lock_exclusive(
+  UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
 {
   long long timeout= *((long long*)args->args[args->arg_count - 1]);
+
+  if (timeout < 0)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "timeout",
+             "version_tokens_lock_exclusive");
+    *error= 1;
+  }
+
   // For the UDF 1 == success, 0 == failure.
-  return !acquire_locking_service_locks(NULL, "version_token_locks",
+  return !acquire_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE,
                                         const_cast<const char**>(&args->args[0]),
 					args->arg_count - 1,
-					LOCKING_SERVICE_WRITE, timeout);
+					LOCKING_SERVICE_WRITE, (unsigned long) timeout);
 }
 
-PLUGIN_EXPORT my_bool vtoken_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                                char *message)
+PLUGIN_EXPORT my_bool version_tokens_unlock_init(
+  UDF_INIT *initid, UDF_ARGS *args, char *message)
 {
   THD *thd= current_thd;
 
@@ -1001,11 +1041,11 @@ PLUGIN_EXPORT my_bool vtoken_release_locks_init(UDF_INIT *initid, UDF_ARGS *args
 }
 
 
-long long vtoken_release_locks(UDF_INIT *initid, UDF_ARGS *args,
+long long version_tokens_unlock(UDF_INIT *initid, UDF_ARGS *args,
                                              char *is_null, char *error)
 {
   // For the UDF 1 == success, 0 == failure.
-  return !release_locking_service_locks(NULL, "version_token_locks");
+  return !release_locking_service_locks(NULL, VTOKEN_LOCKS_NAMESPACE);
 }
 
 

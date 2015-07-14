@@ -68,6 +68,7 @@ usr/lib/mysql/plugin/mysql_no_login.so
 usr/lib/mysql/plugin/rewriter.so
 usr/lib/mysql/plugin/semisync_master.so
 usr/lib/mysql/plugin/semisync_slave.so
+usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/debug/adt_null.so
@@ -81,6 +82,7 @@ usr/lib/mysql/plugin/debug/mysql_no_login.so
 usr/lib/mysql/plugin/debug/rewriter.so
 usr/lib/mysql/plugin/debug/semisync_master.so
 usr/lib/mysql/plugin/debug/semisync_slave.so
+usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
 # support files

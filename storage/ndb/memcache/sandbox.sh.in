@@ -1,5 +1,21 @@
 #!/bin/sh
 
+# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+
 sourcedir=@PROJECT_SOURCE_DIR@
 builddir=@PROJECT_BINARY_DIR@
 installdir=@CMAKE_INSTALL_PREFIX@
@@ -135,7 +151,10 @@ write_cluster_ini() {
 }
 
 do_install_db() {
-  OUTFILE=`mktemp`
+  if test `uname` = "Darwin"
+    then OUTFILE=`mktemp XXXXXX`
+    else OUTFILE=`mktemp`
+  fi
   $SCRIPTS_DIR/mysql_install_db \
     --basedir=$INSTALL_DIR --datadir=$HOME_BASE/sandbox/data \
     --skip-name-resolve --user=$MYSELF > $OUTFILE
@@ -280,7 +299,7 @@ cmd_stop() {
 }  
 
 cmd_start() {
-  test "$1" = "memcached"  &&  start_memcached    && exit
+  test "$1" = "memcached"  &&  start_memcached "$2" "$3" && exit
   test "$1" = "mysqld"     &&  start_mysql_server && exit
   test "$1" = "ndbd"       &&  start_ndbd         && exit
   test "$1" = "ndb_mgmd"   &&  start_mgm_server   && exit
@@ -311,7 +330,7 @@ cmd_start() {
      cmd_stop "$2"
   elif test "$1" = "start"  
    then
-     cmd_start "$2"
+     cmd_start "$2" "$3" "$4"
   elif test "$1" = "status" 
     then
      cmd_status

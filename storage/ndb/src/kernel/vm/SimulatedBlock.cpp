@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -509,6 +509,18 @@ SimulatedBlock::getSendBufferLevel(NodeId node, SB_LevelType &level)
 #else
   globalTransporterRegistry.getSendBufferLevel(node, level);
 #endif
+}
+
+Uint32
+SimulatedBlock::getSignalsInJBB()
+{
+  Uint32 num_signals;
+#ifdef NDBD_MULTITHREADED
+  num_signals = mt_getSignalsInJBB(m_threadId);
+#else
+  num_signals = globalScheduler.getBOccupancy();
+#endif
+  return num_signals;
 }
 
 void 
@@ -4574,6 +4586,38 @@ ErrorReporter::prepare_to_crash(bool first_phase, bool error_insert_crash)
   (void)error_insert_crash;
 }
 #endif
+
+/**
+ * Implementation of SegmentUtils
+ * Here we forward the calls, but
+ * in ndbmtd, add our thread cache
+ * + lock function arguments.
+ */
+
+SectionSegment*
+SimulatedBlock::getSegmentPtr(Uint32 iVal)
+{
+  return g_sectionSegmentPool.getPtr(iVal);
+}
+
+bool
+SimulatedBlock::seizeSegment(Ptr<SectionSegment>& p)
+{
+  return g_sectionSegmentPool.seize(SB_SP_REL_ARG p);
+}
+
+void
+SimulatedBlock::releaseSegment(Uint32 iVal)
+{
+  g_sectionSegmentPool.release(SB_SP_REL_ARG iVal);
+}
+
+void
+SimulatedBlock::releaseSegmentList(Uint32 firstSegmentIVal)
+{
+  ::releaseSection(SB_SP_ARG firstSegmentIVal);
+}
+
 
 /** 
  * #undef is needed since this file is included by SimulatedBlock_nonmt.cpp

@@ -181,6 +181,10 @@ public:
   };
   typedef Ptr<Node> NodePtr;
 
+  void update_lcp_pages_scanned(Signal *signal,
+                                Uint32 filePtrI,
+                                Uint32 scanned_pages);
+
 #define BACKUP_WORDS_PER_PAGE 8191
   struct Page32 {
     union {
@@ -264,6 +268,7 @@ public:
      */
     void newRecord(Uint32 * base);
     void finished(Uint32 len);
+    void set_scanned_pages(Uint32 num_scanned_pages);
     
   private:
     Uint32* base; 
@@ -280,6 +285,7 @@ public:
     Uint64 noOfRecords;
     Uint64 noOfBytes;
     Uint32 maxRecordSize;
+    Uint32 lcpScannedPages;
     
     /*
       keeps track of total written into backup file to be able to show
@@ -335,6 +341,8 @@ public:
     Uint32 errorCode;
     BackupFormat::FileType fileType;
     OperationRecord operation;
+    Uint32 m_sent_words_in_scan_batch;
+    Uint32 m_num_scan_req_on_prioa;
     
     Array<Page32> pages;
     Uint32 nextList;
@@ -438,6 +446,8 @@ public:
     NDB_TICKS m_prev_report;
 
     Uint32 m_gsn;
+    Uint32 m_lastSignalId;
+    Uint32 m_prioA_scan_batches_to_execute;
     CompoundState slaveState; 
     
     Uint32 clientRef;
@@ -684,7 +694,7 @@ public:
   ArrayPool<TriggerRecord> c_triggerPool;
 
   void checkFile(Signal*, BackupFilePtr);
-  void checkScan(Signal*, BackupFilePtr);
+  void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
   void fragmentCompleted(Signal*, BackupFilePtr);
   
   void backupAllData(Signal* signal, BackupRecordPtr);
@@ -722,6 +732,9 @@ public:
                        TablePtr,
                        FragmentPtr,
                        Uint32 delay);
+
+  void init_scan_prio_level(Signal *signal, BackupRecordPtr ptr);
+  bool check_scan_if_raise_prio(Signal *signal, BackupRecordPtr ptr);
 
   void sendDropTrig(Signal*, BackupRecordPtr ptr);
   void sendDropTrig(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr);
@@ -804,6 +817,13 @@ public:
     return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
   }
 };
+
+inline
+void
+Backup::OperationRecord::set_scanned_pages(Uint32 num_pages_scanned)
+{
+  lcpScannedPages = num_pages_scanned;
+}
 
 inline
 void

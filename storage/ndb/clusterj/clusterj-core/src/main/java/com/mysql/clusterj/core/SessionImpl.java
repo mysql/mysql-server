@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.DynamicObject;
+import com.mysql.clusterj.DynamicObjectDelegate;
 import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Transaction;
@@ -54,6 +55,9 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDefinition;
 import com.mysql.clusterj.query.QueryDomainType;
+
+import java.lang.reflect.Proxy;
+import java.lang.reflect.InvocationHandler;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -1510,6 +1514,51 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      */
     public String unloadSchema(Class<?> cls) {
         return factory.unloadSchema(cls, dictionary);
+    }
+
+    /** Release resources associated with an instance. The instance must be a domain object obtained via
+     * session.newInstance(T.class), find(T.class), or query; or Iterable<T>, or array T[].
+     * Resources released can include direct buffers used to hold instance data.
+     * Released resourced may be returned to a pool.
+     * @throws ClusterJUserException if the instance is not a domain object T, Iterable<T>, or array T[],
+     * or if the object is used after calling this method.
+     */
+    public <T> T release(T param) {
+        // is the parameter an Iterable?
+        if (Iterable.class.isAssignableFrom(param.getClass())) {
+            Iterable<?> instances = (Iterable<?>)param;
+            for (Object instance:instances) {
+                release(instance);
+            }
+        } else
+        // is the parameter an array?
+        if (param.getClass().isArray()) {
+            Object[] instances = (Object[])param;
+            for (Object instance:instances) {
+                release(instance);
+            }
+        } else
+        // is the parameter a Dynamic Object?
+        if (DynamicObject.class.isAssignableFrom(param.getClass())) {
+            DynamicObject dynamicObject = (DynamicObject)param;
+            DynamicObjectDelegate delegate = dynamicObject.delegate();
+            if (delegate != null) {
+                delegate.release();
+            }
+        // it must be a Proxy with a clusterj InvocationHandler
+        } else {
+            try {
+                InvocationHandler handler = Proxy.getInvocationHandler(param);
+                if (!ValueHandler.class.isAssignableFrom(handler.getClass())) {
+                    throw new ClusterJUserException(local.message("ERR_Release_Parameter"));
+                }
+                ValueHandler valueHandler = (ValueHandler)handler;
+                valueHandler.release();
+            } catch (Throwable t) {
+                throw new ClusterJUserException(local.message("ERR_Release_Parameter"), t);
+            }
+        }
+        return param;
     }
 
 }
