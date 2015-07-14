@@ -204,7 +204,8 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
     Field *field;
     if (item->max_length > MAX_FIELD_VARCHARLENGTH)
       field= new Field_blob(item->max_length, item->maybe_null,
-                            item->item_name.ptr(), item->collation.collation);
+                            item->item_name.ptr(),
+                            item->collation.collation, false);
     else
     {
       field= new Field_varstring(item->max_length, item->maybe_null,
