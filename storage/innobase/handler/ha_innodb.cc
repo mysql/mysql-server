@@ -12029,6 +12029,7 @@ validate_create_tablespace_info(
 		my_printf_error(ER_WRONG_FILE_NAME,
 				"An IBD filepath must end with `.ibd`.",
 				MYF(0));
+		ut_free(filepath);
 		return(HA_WRONG_CREATE_OPTION);
 	}
 
@@ -12048,6 +12049,7 @@ validate_create_tablespace_info(
 				 alter_info->data_file_name);
 			my_printf_error(ER_WRONG_FILE_NAME,
 					"Invalid use of ':'.", MYF(0));
+			ut_free(filepath);
 			return(HA_WRONG_CREATE_OPTION);
 #ifdef _WIN32
 		}
@@ -12066,6 +12068,7 @@ validate_create_tablespace_info(
 
 	/* The directory path must be pre-existing. */
 	Folder folder(filepath, dirname_len);
+	ut_free(filepath);
 	if (!folder.exists()) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
@@ -12084,8 +12087,6 @@ validate_create_tablespace_info(
 				" cannot be under the datadir.", MYF(0));
 		error = HA_WRONG_CREATE_OPTION;
 	}
-
-	ut_free(filepath);
 
 	return(error);
 }
