@@ -7411,7 +7411,7 @@ ER_CANT_SET_GTID_MODE
   eng "SET @@GLOBAL.GTID_MODE = %-.64s is not allowed because %-.384s."
 
 ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF
-  eng "The replication receiver thread for channel '%s' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
+  eng "The replication receiver thread%-.192s cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF."
 
 ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
   eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."

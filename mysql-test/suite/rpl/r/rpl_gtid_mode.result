@@ -211,7 +211,7 @@ include/assert_grep.inc [While AUTO_POSITION is set, attempt to restart the slav
 #   eng "The replication receiver thread for channel '%s' cannot start in AUTO_POSITION mode: this server uses GTID_MODE = OFF."
 #
 START SLAVE IO_THREAD;
-ERROR HY000: The replication receiver thread for channel '%s' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF.
+ERROR HY000: The replication receiver thread for channel '' cannot start in AUTO_POSITION mode: this server uses @@GLOBAL.GTID_MODE = OFF.
 CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 #
 # ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
