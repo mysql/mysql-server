@@ -71,6 +71,7 @@ SET(SQL_SHARED_SOURCES
   auth/password.c
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
+  auth/service_security_context.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -160,7 +161,6 @@ SET(SQL_SHARED_SOURCES
   sql_alloc_error_handler.cc
   sql_alter.cc
   sql_analyse.cc
-  sql_audit.cc
   sql_base.cc 
   sql_bootstrap.cc
   sql_initialize.cc
@@ -271,6 +271,7 @@ SET(SQL_SOURCE
   mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
+  sql_audit.cc
   sql_client.cc
   )
 

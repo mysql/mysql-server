@@ -13,6 +13,12 @@ struct st_mysql_lex_string
   size_t length;
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+struct st_mysql_const_lex_string
+{
+  const char *str;
+  size_t length;
+};
+typedef struct st_mysql_const_lex_string MYSQL_LEX_CSTRING;
 extern struct thd_alloc_service_st {
   void *(*thd_alloc_func)(void*, size_t);
   void *(*thd_calloc_func)(void*, size_t);
@@ -225,6 +231,30 @@ extern struct transaction_write_set_service_st {
   Transaction_write_set* (*get_transaction_write_set)(unsigned long m_thread_id);
 } *transaction_write_set_service;
 Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id);
+#include <mysql/service_security_context.h>
+typedef char my_svc_bool;
+extern struct security_context_service_st {
+  my_svc_bool (*thd_get_security_context)(void*, void* *out_ctx);
+  my_svc_bool (*thd_set_security_context)(void*, void* in_ctx);
+  my_svc_bool (*security_context_create)(void* *out_ctx);
+  my_svc_bool (*security_context_destroy)(void*);
+  my_svc_bool (*security_context_copy)(void* in_ctx, void* *out_ctx);
+  my_svc_bool (*security_context_lookup)(void* ctx,
+                                         const char *user, const char *host,
+                                         const char *ip, const char *db);
+  my_svc_bool (*security_context_get_option)(void*, const char *name, void *inout_pvalue);
+  my_svc_bool (*security_context_set_option)(void*, const char *name, void *pvalue);
+} *security_context_service;
+  my_svc_bool thd_get_security_context(void*, void* *out_ctx);
+  my_svc_bool thd_set_security_context(void*, void* in_ctx);
+  my_svc_bool security_context_create(void* *out_ctx);
+  my_svc_bool security_context_destroy(void* ctx);
+  my_svc_bool security_context_copy(void* in_ctx, void* *out_ctx);
+  my_svc_bool security_context_lookup(void* ctx,
+                                  const char *user, const char *host,
+                                  const char *ip, const char *db);
+  my_svc_bool security_context_get_option(void*, const char *name, void *inout_pvalue);
+  my_svc_bool security_context_set_option(void*, const char *name, void *pvalue);
 #include <mysql/service_locking.h>
 enum enum_locking_service_lock_type
 { LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };

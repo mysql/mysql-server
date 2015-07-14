@@ -113,6 +113,19 @@ static struct mysql_locking_service_st locking_service_handler=
   mysql_release_locking_service_locks
 };
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+static struct security_context_service_st security_context_handler={
+  thd_get_security_context,
+  thd_set_security_context,
+  security_context_create,
+  security_context_destroy,
+  security_context_copy,
+  security_context_lookup,
+  security_context_get_option,
+  security_context_set_option
+};
+#endif
+
 static struct st_service_ref list_of_services[]=
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
@@ -130,6 +143,10 @@ static struct st_service_ref list_of_services[]=
     VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
   { "transaction_write_set_service",
     VERSION_transaction_write_set_service, &transaction_write_set_handler },
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  { "security_context_service",
+    VERSION_security_context_service, &security_context_handler },
+#endif
   { "mysql_locking_service", VERSION_locking_service, &locking_service_handler }
 };
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,26 +126,71 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
 }
 
 void
-Dbtup::setChecksum(Tuple_header* tuple_ptr,
-                   Tablerec* regTabPtr)
+Dbtup::setInvalidChecksum(Tuple_header *tuple_ptr,
+                          const Tablerec * regTabPtr)
 {
-  tuple_ptr->m_checksum= 0;
-  tuple_ptr->m_checksum= calculateChecksum(tuple_ptr, regTabPtr);
+  if (regTabPtr->m_bits & Tablerec::TR_Checksum)
+  {
+    jam();
+    /**
+     * Set a magic checksum when tuple isn't supposed to be read.
+     */
+    tuple_ptr->m_checksum = 0x87654321;
+  }
+}
+
+void
+Dbtup::updateChecksum(Tuple_header *tuple_ptr,
+                      const Tablerec *regTabPtr,
+                      Uint32 old_header,
+                      Uint32 new_header)
+{
+  /**
+   * This function is used when only updating the header bits in row.
+   * We start by XOR:ing the old header, this negates the impact of the
+   * old header since old_header ^ old_header = 0. Next we XOR with new
+   * header to get the new checksum and finally we store the new checksum.
+   */
+  if (regTabPtr->m_bits & Tablerec::TR_Checksum)
+  {
+    Uint32 checksum = tuple_ptr->m_checksum;
+    jam();
+    checksum ^= old_header;
+    checksum ^= new_header;
+    tuple_ptr->m_checksum = checksum;
+  }
+}
+
+void
+Dbtup::setChecksum(Tuple_header* tuple_ptr,
+                   const Tablerec* regTabPtr)
+{
+  if (regTabPtr->m_bits & Tablerec::TR_Checksum)
+  {
+    jam();
+    tuple_ptr->m_checksum= 0;
+    tuple_ptr->m_checksum= calculateChecksum(tuple_ptr, regTabPtr);
+  }
 }
 
 Uint32
 Dbtup::calculateChecksum(Tuple_header* tuple_ptr,
-                         Tablerec* regTabPtr)
+                         const Tablerec* regTabPtr)
 {
   Uint32 checksum;
   Uint32 rec_size, *tuple_header;
   rec_size= regTabPtr->m_offsets[MM].m_fix_header_size;
-  tuple_header= tuple_ptr->m_data;
+  tuple_header= &tuple_ptr->m_header_bits;
   // includes tupVersion
   //printf("%p - ", tuple_ptr);
 
+  /**
+   * We include every except the first word of the Tuple header
+   * which is only used on copy tuples. We do however include
+   * the header bits.
+   */
   checksum = computeXorChecksum(
-               tuple_header, rec_size-Tuple_header::HeaderSize);
+               tuple_header, (rec_size-Tuple_header::HeaderSize) + 1);
   
   //printf("-> %.8x\n", checksum);
 
@@ -169,9 +214,13 @@ Dbtup::calculateChecksum(Tuple_header* tuple_ptr,
 }
 
 int
-Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct)
+Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct, Tablerec *regTabPtr)
 {
-  ndbout_c("Tuple corruption detected."); 
+  Uint32 checksum = calculateChecksum(req_struct->m_tuple_ptr, regTabPtr);
+  Uint32 header_bits = req_struct->m_tuple_ptr->m_header_bits;
+  ndbout_c("Tuple corruption detected, checksum: 0x%x, header_bits: 0x%x"
+           ", checksum word: 0x%x",
+           checksum, header_bits, req_struct->m_tuple_ptr->m_checksum); 
   if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
     ndbout_c(" Exiting."); 
@@ -720,6 +769,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
      op_struct.bit_field.primary_replica= primaryReplica;
      op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+     req_struct.m_prio_a_flag = TupKeyReq::getPrioAFlag(TrequestInfo);
      req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
      regOperPtr->op_struct.op_bit_fields = op_struct.op_bit_fields;
      regOperPtr->op_type= TupKeyReq::getOperation(TrequestInfo);
@@ -1208,7 +1258,7 @@ int Dbtup::handleReadReq(Signal* signal,
        (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
       ERROR_INSERTED(4036)) {
     jam();
-    return corruptedTupleDetected(req_struct);
+    return corruptedTupleDetected(req_struct, regTabPtr);
   }
 
   const Uint32 node = refToNode(sendBref);
@@ -1328,7 +1378,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) 
   {
     jam();
-    return corruptedTupleDetected(req_struct);
+    return corruptedTupleDetected(req_struct, regTabPtr);
   }
 
   req_struct->m_tuple_ptr= dst;
@@ -1436,10 +1486,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   }
   
   req_struct->m_tuple_ptr->set_tuple_version(tup_version);
-  if (regTabPtr->m_bits & Tablerec::TR_Checksum) {
-    jam();
-    setChecksum(req_struct->m_tuple_ptr, regTabPtr);
-  }
+
+  setChecksum(req_struct->m_tuple_ptr, regTabPtr);
 
   set_tuple_state(operPtrP, TUPLE_PREPARED);
 
@@ -2091,6 +2139,12 @@ int Dbtup::handleInsertReq(Signal* signal,
     base->m_operation_ptr_i= regOperPtr.i;
     base->m_header_bits= Tuple_header::ALLOC |
       (sizes[2+MM] > 0 ? Tuple_header::VAR_PART : 0);
+    /**
+     * No need to set checksum here, the tuple is allocated, but contains
+     * no data, so if we attempt to read it in this state we even want the
+     * checksum to be wrong since it is not allowed to read the tuple in
+     * this state.
+     */
   }
   else 
   {
@@ -2110,7 +2164,14 @@ int Dbtup::handleInsertReq(Signal* signal,
       goto size_change_error;
     }
     req_struct->m_use_rowid = false;
+    Uint32 old_header = base->m_header_bits;
     base->m_header_bits &= ~(Uint32)Tuple_header::FREE;
+    Uint32 new_header = base->m_header_bits;
+    if (old_header != new_header)
+    {
+      jam();
+      updateChecksum(base, regTabPtr, old_header, new_header);
+    }
   }
 
   if (disk_insert)
@@ -2181,11 +2242,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     * accminupdateptr = 0; // No accminupdate should be performed
   }
 
-  if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
-  {
-    jam();
-    setChecksum(req_struct->m_tuple_ptr, regTabPtr);
-  }
+  setChecksum(req_struct->m_tuple_ptr, regTabPtr);
 
   set_tuple_state(regOperPtr.p, TUPLE_PREPARED);
 
@@ -2245,6 +2302,7 @@ exit_error:
 disk_prealloc_error:
   jam();
   base->m_header_bits |= Tuple_header::FREED;
+  setInvalidChecksum(base, regTabPtr);
   goto exit_error;
 }
 
@@ -2436,12 +2494,19 @@ Dbtup::handleRefreshReq(Signal* signal,
       //ndbout_c("case 2");
       jam();
 
-      Uint32 tup_version_save = req_struct->m_tuple_ptr->get_tuple_version();
-      Uint32 new_tup_version = decr_tup_version(tup_version_save);
       Tuple_header* origTuple = req_struct->m_tuple_ptr;
-      origTuple->set_tuple_version(new_tup_version);
+      Uint32 tup_version_save = origTuple->get_tuple_version();
+      {
+        /* Set new row version and update the tuple header */
+        Uint32 old_header = origTuple->m_header_bits;
+        Uint32 new_tup_version = decr_tup_version(tup_version_save);
+        origTuple->set_tuple_version(new_tup_version);
+        Uint32 new_header = origTuple->m_header_bits;
+        updateChecksum(origTuple, regTabPtr, old_header, new_header);
+      }
       int res = handleUpdateReq(signal, regOperPtr.p, regFragPtr.p,
                                 regTabPtr, req_struct, disk);
+
       /* Now we must reset the original tuple header back
        * to the original version.
        * The copy tuple will have the correct version due to
@@ -2450,8 +2515,16 @@ Dbtup::handleRefreshReq(Signal* signal,
        * On abort, the original tuple remains.  If we don't
        * reset it here, then aborts cause the version to
        * decrease
+       *
+       * We also need to recalculate checksum since we're changing the
+       * row here.
        */
-      origTuple->set_tuple_version(tup_version_save);
+      {
+        Uint32 old_header = origTuple->m_header_bits;
+        origTuple->set_tuple_version(tup_version_save);
+        Uint32 new_header = origTuple->m_header_bits;
+        updateChecksum(origTuple, regTabPtr, old_header, new_header);
+      }
       if (res == -1)
         return -1;
     }
@@ -3798,7 +3871,17 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
 
   src->m_header_bits= bits & 
     ~(Uint32)(Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN);
-  
+ 
+  /**
+   * The source tuple only touches the header parts. The updates of the
+   * tuple is applied on the new copy tuple. We still need to ensure that
+   * the checksum is correct on the tuple even after changing the header
+   * parts since the header is part of the checksum. This is not covered
+   * by setting checksum normally since mostly we don't touch the
+   * original tuple.
+   */
+  updateChecksum(src, tabPtrP, bits, src->m_header_bits);
+
   sizes[DD]= 0;
   if(disk && dd_tot)
   {
@@ -4287,11 +4370,11 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
     org->m_header_bits= bits | Tuple_header::MM_GROWN | Tuple_header::VAR_PART;
     new_var_part[needed-1]= orig_size;
 
-    if (regTabPtr->m_bits & Tablerec::TR_Checksum) 
-    {
-      jam();
-      setChecksum(org, regTabPtr);
-    }
+    /**
+     * Here we can change both header bits and the reference to the varpart,
+     * this means that we need to completely recalculate the checksum here.
+     */
+    setChecksum(org, regTabPtr);
   }
   return 0;
 }
@@ -4329,12 +4412,7 @@ Dbtup::optimize_var_part(KeyReqStruct* req_struct,
      */
     move_var_part(regFragPtr, regTabPtr, pagePtr,
                   refptr, var_part_size);
-
-    if (regTabPtr->m_bits & Tablerec::TR_Checksum)
-    {
-      jam();
-      setChecksum(org, regTabPtr);
-    }
+    setChecksum(org, regTabPtr);
   }
 
   return 0;

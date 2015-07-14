@@ -569,7 +569,7 @@ args: -n CheckAfterTerror T6 D1 D2
 #cmd: testScan
 #args: -n ScanReadError5021 T1 D1 D2 
 #
-max-time: 500
+max-time: 720
 cmd: testScan
 args: -n ScanReaderror5022 T1 D1 D2 
 
@@ -647,7 +647,7 @@ args: -n Bug54945 T1
 #args: -n Bug12324191 T1 T6 T13
 #
 # Bug18408732 added on 17.04.2014
-#max-time: 1800
+#max-time: 3600
 #cmd: testNodeRestart
 #args: -n Bug27003 T1
 #
@@ -1158,6 +1158,7 @@ args: -n Bug12598496 T1
 max-time: 1000
 cmd: test_event
 args: -n Bug18703871 T1
+
 #
 max-time: 1000
 cmd: test_event
@@ -1167,6 +1168,11 @@ args: -n Apiv2EmptyEpochs T1
 max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --separate-events --blob-version 1
+
+#
+max-time: 1000
+cmd: test_event
+args: -n Apiv2EventBufferOverflow T1
 
 #
 max-time: 600
@@ -1982,6 +1988,10 @@ args: -n LeakApiConnectObjects T1
 #cmd: testScan
 #args:  -n extraNextResultBug11748194 T1
 #
+max-time: 1200
+cmd: testRedo
+args: -nRedoFull T1
+
 # Bug18379486 added on 17.04.2014
 #max-time: 600
 #cmd: testRedo
@@ -2140,3 +2150,28 @@ args: -n AccCommitOrder T1
 max-time: 1200
 cmd: test_event
 args: -n EmptyUpdates T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollNoWait T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollLongWait T1
+
+max-time: 1200
+cmd: test_event
+args: -n BackwardCompatiblePollInconsistency T1
+
+#max-time: 1000
+#cmd: test_event
+#args: -n Apiv2HQE-latestGCI T1
+#
+#max-time: 1200
+#cmd: test_event
+#args: -n Apiv2-check_event_queue_cleared T1
+#
+max-time: 1200
+cmd: test_event
+args: -n Apiv2-check_event_queue_cleared_initial T1
+

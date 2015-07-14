@@ -243,11 +243,17 @@ public:
     @param[out] errmsg any syntax error message (will be ignored if it is NULL)
     @param[out] offset the position in the parsed string a syntax error was
                        found (will be ignored if it is NULL)
+    @param[in]  preserve_neg_zero_int whether integer negative zero should
+                                      be preserved. If set to TRUE, -0 is
+                                      handled as a DOUBLE. Double negative
+                                      zero (-0.0) is preserved regardless of
+                                      what this parameter is set to.
 
     @result the built DOM if JSON text was parseable, else NULL
   */
   static Json_dom *parse(const char *text, size_t length,
-                         const char **errmsg, size_t *offset);
+                         const char **errmsg, size_t *offset,
+                         bool preserve_neg_zero_int= false);
 
   /**
     Maps the enumeration value of type enum_json_type into a string.
@@ -1522,5 +1528,14 @@ public:
   ulonglong make_hash_key(ulonglong *hash_val);
 };
 
+/**
+  Check if a string contains valid JSON text, without generating a
+  Json_dom representation of the document.
+
+  @param[in] text    pointer to the beginning of the string
+  @param[in] length  the length of the string
+  @return true if the string is valid JSON text, false otherwise
+*/
+bool is_valid_json_syntax(const char *text, size_t length);
 
 #endif /* JSON_DOM_INCLUDED */

@@ -41,6 +41,7 @@
 #include "strfunc.h"                     // unhex_type2
 #include "table_cache.h"                 // table_cache_manager
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
+#include "template_utils.h"              // down_cast
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -220,6 +221,17 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
 }
 
 /*************************************************************************/
+
+GRANT_INFO::GRANT_INFO()
+{
+  grant_table= 0;
+  version= 0;
+  privilege= NO_ACCESS;
+#ifndef DBUG_OFF
+  want_privilege= 0;
+#endif
+}
+
 
 /* Get column name from column hash */
 
@@ -3361,24 +3373,24 @@ void free_blobs(TABLE *table)
 
 
 /**
-  Reclaim temporary blob storage which is bigger than 
-  a threshold.
- 
+  Reclaims temporary blob storage which is bigger than a threshold.
+  Resets blob pointer.
+
   @param table A handle to the TABLE object containing blob fields
   @param size The threshold value.
- 
 */
 
-void free_field_buffers_larger_than(TABLE *table, uint32 size)
+void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 {
   uint *ptr, *end;
-  for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
+  for (ptr= table->s->blob_field, end= ptr + table->s->blob_fields ;
        ptr != end ;
        ptr++)
   {
-    Field_blob *blob= (Field_blob*) table->field[*ptr];
+    Field_blob *blob= down_cast<Field_blob*>(table->field[*ptr]);
     if (blob->get_field_buffer_size() > size)
-        blob->mem_free();
+      blob->mem_free();
+    blob->reset();
   }
 }
 
@@ -5372,10 +5384,16 @@ bool TABLE_LIST::prepare_security(THD *thd)
   {
     DBUG_ASSERT(tbl->referencing_view);
     const char *local_db, *local_table_name;
-    if (tbl->view)
+    if (tbl->is_view())
     {
       local_db= tbl->view_db.str;
       local_table_name= tbl->view_name.str;
+    }
+    else if (tbl->is_derived())
+    {
+      /* Initialize privileges for derived tables */
+      tbl->grant.privilege= SELECT_ACL;
+      continue;
     }
     else
     {
@@ -7114,12 +7132,12 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   {
     THD *thd= field->table->in_use;
     key++;
-    entry= new (thd->stmt_arena->mem_root) Derived_key();
+    entry= new (thd->mem_root) Derived_key();
     if (!entry)
       return TRUE;
     entry->referenced_by= ref_by_tbl;
     entry->used_fields.clear_all();
-    if (derived_key_list.push_back(entry, thd->stmt_arena->mem_root))
+    if (derived_key_list.push_back(entry, thd->mem_root))
       return TRUE;
     field->table->max_keys++;
   }

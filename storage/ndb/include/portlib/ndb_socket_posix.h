@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,10 +59,8 @@ static inline int my_socket_get_fd(ndb_socket_t s)
   return s.fd;
 }
 
-static inline int my_socket_close(ndb_socket_t s)
-{
-  return close(s.fd);
-}
+/* implemented in ndb_socket.cpp */
+extern int my_socket_close(ndb_socket_t s);
 
 static inline int my_socket_errno()
 {

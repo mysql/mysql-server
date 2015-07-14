@@ -1316,9 +1316,11 @@ static bool log_command(THD *thd, enum_server_command command)
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length)
 {
+#ifndef EMBEDDED_LIBRARY
   /* Send a general log message to the audit API. */
   mysql_audit_general_log(thd, command_name[(uint) command].str,
                           command_name[(uint) command].length);
+#endif
 
   /*
     Do we want to log this kind of command?
@@ -1333,7 +1335,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   mysql_rwlock_rdlock(&LOCK_logger);
 
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  size_t user_host_len= make_user_name(thd, user_host_buff);
+  size_t user_host_len= make_user_name(thd->security_context(), user_host_buff);
   ulonglong current_utime= thd->current_utime();
 
   bool error= false;
@@ -1365,9 +1367,11 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
       !opt_general_log ||
       !(*general_log_handler_list))
   {
+#ifndef EMBEDDED_LIBRARY
     /* Send a general log message to the audit API. */
     mysql_audit_general_log(thd, command_name[(uint) command].str,
                             command_name[(uint) command].length);
+#endif
     return false;
   }
 

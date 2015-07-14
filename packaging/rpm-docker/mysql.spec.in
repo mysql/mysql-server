@@ -188,7 +188,8 @@ done
 #  Remove test plugins
 for p in auth.so auth_test_plugin.so daemon_example.ini libdaemon_example.so qa_auth_client.so \
     qa_auth_interface.so qa_auth_server.so replication_observers_example_plugin.so ha_example.so \
-    libtest_framework.so libtest_services.so libtest_services_threaded.so ; do
+    libtest_framework.so libtest_services.so libtest_services_threaded.so \
+    test_security_context.so ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 

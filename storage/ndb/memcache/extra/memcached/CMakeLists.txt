@@ -28,10 +28,14 @@ ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99=all")
 ENDIF()
 
-# memcached cannot currently be built with -Werror; 
-# "ISO C90 forbids mixed declarations and code"
+
+# This is third-party code so we reduce the compiler warnings.
+# These are numerous, so memcached cannot currently be built with -Werror.
 IF(CMAKE_C_FLAGS)
-  STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REPLACE "-Wextra"  "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REPLACE "-Wvla"    "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REPLACE "-Werror"  "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
 ENDIF()
 
 

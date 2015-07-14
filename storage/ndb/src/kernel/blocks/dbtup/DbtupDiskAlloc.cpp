@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,8 +28,18 @@ NdbOut&
 operator<<(NdbOut& out, const Ptr<Dbtup::Page> & ptr)
 {
   out << "[ Page: ptr.i: " << ptr.i 
-      << " [ m_file_no: " << ptr.p->m_file_no
-      << " m_page_no: " << ptr.p->m_page_no << "]"
+      << " ["
+      << " m_m_page_lsn_hi: " << ptr.p->m_page_header.m_page_lsn_hi
+      << " m_m_page_lsn_lo: " << ptr.p->m_page_header.m_page_lsn_lo
+      << " m_page_type: " << ptr.p->m_page_header.m_page_type
+      << " m_file_no: " << ptr.p->m_file_no
+      << " m_page_no: " << ptr.p->m_page_no
+      << " m_table_id: " << ptr.p->m_table_id
+      << " m_fragment_id: " << ptr.p->m_fragment_id
+      << " m_extent_no: " << ptr.p->m_extent_no
+      << " m_extent_info_ptr: " << ptr.p->m_extent_info_ptr
+      << " m_restart_seq: " << ptr.p->m_restart_seq
+      << "]"
       << " list_index: " << ptr.p->list_index 
       << " free_space: " << ptr.p->free_space
       << " uncommitted_used_space: " << ptr.p->uncommitted_used_space
@@ -61,6 +71,12 @@ operator<<(NdbOut& out, const Ptr<Dbtup::Extent_info> & ptr)
   out << "[ Extent_info: ptr.i " << ptr.i
       << " " << ptr.p->m_key
       << " m_first_page_no: " << ptr.p->m_first_page_no
+      << " m_empty_page_no: " << ptr.p->m_empty_page_no
+      << " m_key: ["
+      << " m_file_no=" << ptr.p->m_key.m_file_no
+      << " m_page_no=" << ptr.p->m_key.m_page_no
+      << " m_page_idx=" << ptr.p->m_key.m_page_idx
+      << " ]"
       << " m_free_space: " << ptr.p->m_free_space
       << " m_free_matrix_pos: " << ptr.p->m_free_matrix_pos
       << " m_free_page_count: [";
@@ -606,6 +622,9 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	  case 0:
 	    break;
 	  case -1:
+            g_eventLogger->warning("Out of space in RG_DISK_OPERATIONS"
+                                   " resource, increase config parameter"
+                                   " GlobalSharedMemory");
 	    ndbrequire("NOT YET IMPLEMENTED" == 0);
 	    break;
 	  default:
@@ -852,6 +871,16 @@ Dbtup::disk_page_move_dirty_page(Disk_alloc_info& alloc,
                                  Uint32 old_idx,
                                  Uint32 new_idx)
 {
+  if (extentPtr.p->m_free_page_count[old_idx] == 0)
+  {
+    // Additional printouts when following ddassert fails.
+    // The ddassert prints the alloc argument.
+    ndbout << "Dbtup::disk_page_move_dirty_page" << endl;
+    ndbout << "  extentPtr: " << extentPtr << endl;
+    ndbout << "  pagePtr: " << pagePtr << endl;
+    ndbout << "  old_idx: " << old_idx << endl;
+    ndbout << "  new_idx: " << new_idx << endl;
+  }
   ddassert(extentPtr.p->m_free_page_count[old_idx]);
   extentPtr.p->m_free_page_count[old_idx]--;
   extentPtr.p->m_free_page_count[new_idx]++;
@@ -1613,10 +1642,12 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
 }
 
 void
-Dbtup::disk_restart_undo_next(Signal* signal)
+Dbtup::disk_restart_undo_next(Signal* signal, Uint32 applied)
 {
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+  /* Flag indicating whether UNDO log was applied. */
+  signal->theData[1] = applied;
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
 }
 
 void
@@ -1767,6 +1798,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 //  key.m_file_no = pagePtr.p->m_file_no;
   
   Uint64 lsn = 0;
+  Uint32 applied = 0;
   lsn += pagePtr.p->m_page_header.m_page_lsn_hi;
   lsn <<= 32;
   lsn += pagePtr.p->m_page_header.m_page_lsn_lo;
@@ -1783,6 +1815,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     }
     
     update = true;
+    applied = 1;
     if (DBG_UNDO)
       ndbout_c("applying %lld", undo->m_lsn);
     /**
@@ -1825,7 +1858,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
 	   << " tab: " << tableId << endl;
   }
 
-  disk_restart_undo_next(signal);
+  disk_restart_undo_next(signal, applied);
 }
 
 void
@@ -1877,8 +1910,17 @@ Dbtup::disk_restart_undo_free(Apply_undo* undo)
   {
     abort();
   }  
-  
-  ndbrequire(idx == undo->m_key.m_page_idx);
+
+  if (idx != undo->m_key.m_page_idx)
+  {
+    Uint64 lsn = undo->m_lsn;
+    jam();
+    jamLine(lsn & 0xFFFF);
+    jamLine((lsn >> 16) & 0xFFFF);
+    jamLine((lsn >> 32) & 0xFFFF);
+    jamLine((lsn >> 48) & 0xFFFF);
+    ndbrequire(false);
+  }
   const Disk_undo::Free *free = (const Disk_undo::Free*)undo->m_ptr;
   const Uint32* src= free->m_data;
   memcpy(ptr, src, 4 * len);

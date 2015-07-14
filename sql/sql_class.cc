@@ -287,6 +287,9 @@ THD::Attachable_trx::~Attachable_trx()
     m_thd->lex->restore_backup_query_tables_list(
       &m_trx_state.m_query_tables_list);
   }
+
+  DBUG_ASSERT(m_thd->ha_data[ht->slot].ha_ptr ==
+              m_trx_state.m_ha_data[ht->slot].ha_ptr);
 }
 
 /****************************************************************************
@@ -1883,7 +1886,6 @@ void THD::release_resources()
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-  mysql_audit_release(this);
   plugin_thdvar_cleanup(this, m_enable_plugins);
 
   DBUG_ASSERT(timer == NULL);

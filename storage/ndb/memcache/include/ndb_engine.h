@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -58,6 +58,7 @@ struct ndb_engine {
     const char * server_role;
     const char * scheduler;
     bool debug_enable;
+    bool debug_detail;
     bool reconf_enable;
   } startup_options;
   
@@ -73,14 +74,13 @@ struct ndb_engine {
     char buffer[sizeof(engine_info) * (LAST_REGISTERED_ENGINE_FEATURE + 1)];
   } info;
   
-  ndbmc_atomic32_t npipelines;
+  atomic_int32_t npipelines;
   void **pipelines;
-  void **schedulers;
-   
+
   bool connected;
 
   unsigned int cas_hi;
-  ndbmc_atomic32_t cas_lo;
+  atomic_int32_t cas_lo;
 };
 
 #ifdef __cplusplus

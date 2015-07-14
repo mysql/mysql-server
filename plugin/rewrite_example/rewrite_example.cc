@@ -48,28 +48,31 @@ static int plugin_init(MYSQL_PLUGIN)
 #endif /* HAVE_PSI_INTERFACE */
 
 
-static void rewrite_lower(MYSQL_THD thd, unsigned int event_class,
-                          const void *event)
+static int rewrite_lower(MYSQL_THD thd, mysql_event_class_t event_class,
+                         const void *event)
 {
   if (event_class == MYSQL_AUDIT_PARSE_CLASS)
   {
     const struct mysql_event_parse *event_parse=
       static_cast<const struct mysql_event_parse *>(event);
-    if (event_parse->event_subclass == MYSQL_AUDIT_PREPARSE)
+    if (event_parse->event_subclass == MYSQL_AUDIT_PARSE_PREPARSE)
     {
-      size_t query_length= event_parse->query_length;
+      size_t query_length= event_parse->query.length;
       char *rewritten_query=
         static_cast<char *>(my_malloc(key_memory_rewrite_example,
                                        query_length + 1, MYF(0)));
 
       for (unsigned i= 0; i < query_length + 1; i++)
-        rewritten_query[i]= tolower(event_parse->query[i]);
+        rewritten_query[i]= tolower(event_parse->query.str[i]);
 
-      *(event_parse->rewritten_query)= rewritten_query;
-      *(event_parse->rewritten_query_length)= query_length;
-      *(event_parse->flags)|= FLAG_REWRITE_PLUGIN_QUERY_REWRITTEN;
+      event_parse->rewritten_query->str= rewritten_query;
+      event_parse->rewritten_query->length= query_length;
+      *((int *)event_parse->flags)|=
+                        (int)MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN;
     }
   }
+
+  return 0;
 }
 
 /* Audit plugin descriptor */
@@ -78,7 +81,9 @@ static struct st_mysql_audit rewrite_example_descriptor=
   MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version */
   NULL,                                             /* release_thd()     */
   rewrite_lower,                                    /* event_notify()    */
-  { MYSQL_AUDIT_PARSE_CLASSMASK }                   /* class mask        */
+  { 0,
+    0,
+    (unsigned long) MYSQL_AUDIT_PARSE_ALL, }        /* class mask        */
 };
 
 /* Plugin descriptor */

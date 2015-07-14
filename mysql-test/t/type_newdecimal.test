@@ -1726,3 +1726,18 @@ SELECT 1 FROM t1 WHERE EXISTS
 (SELECT 1 FROM t1 HAVING (a / -7777777777) in ("a"));
 DROP TABLE t1;
 SET sql_mode=default;
+
+--echo #
+--echo # Bug#21383896 DECIMAL FIELD TAKES IN VALUES FROM OTHER FIELDS
+--echo #
+
+CREATE TABLE t1 (
+  d decimal(18,2) unsigned DEFAULT NULL,
+  i int unsigned DEFAULT NULL
+)
+SELECT
+1000 AS d,
+3 AS i;
+
+SELECT * FROM t1;
+DROP TABLE t1;

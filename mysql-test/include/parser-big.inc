@@ -1,4 +1,9 @@
---source include/big_test.inc
+#
+# Input parameters:
+#
+#  $min20087571: minimal number of "(a=1 and b=2)" disjuncts
+#  $max20087571: maximal number of "(a=1 and b=2)" disjuncts
+#
 
 --echo #
 --echo # Bug #20087571: 5.7 EASILY HITS ERROR 1436 (HY000):
@@ -43,10 +48,7 @@ END|
 
 DELIMITER ;|
 
-SET @min:=950000;
-SET @max:=950000;
-SET @incr:=100000;
-CALL p1(@min, @max, @incr);
+eval CALL p1($min20087571, $max20087571, 100000);
 SELECT LENGTH(@terms);
 SELECT @@global.thread_stack, @@global.max_allowed_packet;
 

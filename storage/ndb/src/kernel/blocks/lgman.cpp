@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -42,6 +42,14 @@ extern EventLogger * g_eventLogger;
 
 
 /**
+ *
+ * IMPORTANT NOTE:
+ * ---------------
+ * Although the code in many aspects is prepared to handle multiple logfile
+ * groups, it can at the moment not handle any more than one logfile group.
+ * There is lacking functionality for multiple logfile groups e.g. when
+ * executing the UNDO log records.
+ *
  * ---<a>-----<b>-----<c>-----<d>---> (time)
  *
  * <a> = start of lcp 1
@@ -53,6 +61,512 @@ extern EventLogger * g_eventLogger;
  *   the entire undo log from crash point until <a> has to be applied
  *
  * at <d> the undo log can be cut til <c> 
+ *
+ * LSN = Log Sequence Number, an increasing number which is the id of each
+ * UNDO log record. Each page is marked with the last LSN it has been
+ * updated with. Thus it is easy to check if a log record should be applied
+ * to a page, it should be applied if pageLSN > logLSN. After applying this
+ * log record the pageLSN should be set to logLSN.
+ *
+ * UNDO log entry layout
+ * ---------------------
+ *
+ * There are two types of UNDO log entry types:
+ *
+ * Type 1 variant:
+ * --------------------------------------
+ * | data1 | data2 ... | dataN | header |
+ * --------------------------------------
+ * Type 2 variant:
+ * ---------------------------------------------------------------------
+ * | next_LSN_low | next_LSN_high | data1 | data2 ... | dataN | header |
+ * ---------------------------------------------------------------------
+ *
+ * Header has 3 fields:
+ * Bit 0-15: Length of UNDO log entry
+ * Bit 16-30: Type of UNDO log entry
+ * Bit 31: Set to to 1 for Type 1 of UNDO log entry and 0 for Type 2
+ * (Bit 31 is called UNDO_NEXT_LSN when set to 1)
+ *
+ * In type 1 the previous LSN record have the LSN of the current record
+ * minus one. So we save the 2 words used here. This is the only type
+ * used in production software since we currently only support one
+ * logfile group.
+ *
+ * Type 2 is used when we have introduce support for more than one logfile
+ * group. Then the previous LSN is not necessarily simply minus one. So
+ * here we need to have a back pointer of the LSN value of the previous
+ * record.
+ *
+ * In Type 2 record the length of the UNDO log record doesn't include
+ * the extra LSN words. These words are implied by the bit 31 in the
+ * header not being set.
+ *
+ * The current types of UNDO log records are:
+ * TUP_ALLOC (UNDO allocate in a page)
+ * TUP_UPDATE (UNDO update in a page)
+ * TUP_FREE (UNDO free in a page)
+ * TUP_CREATE (UNDO allocate a page)
+ * TUP_DROP (UNDO deallocate a page)
+ * TUP_ALLOC_EXTENT (UNDO allocate an extent of pages)
+ * TUP_FREE_EXTENT (UNDO deallocate of an extent of pages)
+ *
+ * UNDO Page layout
+ * ----------------
+ * -------------------------------------
+ * |   Page Header                     |
+ * |------------------------------------
+ * |   UNDO log record                 |
+ * |------------------------------------
+ * |   UNDO log record                 |
+ * |------------------------------------
+ * | ........... more UNDO log records |
+ * |------------------------------------
+ *
+ * Page Header Layout
+ * ------------------
+ *
+ * -------------------------------------
+ * |   LSN High Word                   |
+ * -------------------------------------
+ * |   LSN Low Word                    |
+ * -------------------------------------
+ * |   Page type                       |
+ * -------------------------------------
+ * |   Page position                   |
+ * -------------------------------------
+ *
+ * alloc_log_space, get_log_buffer, add_entry, free_log_space
+ * ----------------------------------------------------------
+ * LGMAN receives commands to log an UNDO entry from DBTUP.
+ * During preparation of a transaction we allocate space in the UNDO log
+ * file through the call alloc_log_space in the Logfile_client.
+ * 
+ * At a later time when we are preparing to actually write this entry into
+ * the UNDO log we need a two-step approach, we first ensure there is space
+ * in the log buffer for the UNDO log and then finally we send the UNDO log
+ * entry.
+ * 
+ * So writing an entry into the UNDO log normally requires 3 calls through the
+ * Logfile_client. First at prepare time we allocate space in UNDO log file,
+ * Then at commit time we first allocate space into the UNDO log buffer
+ * whereafter we finally send the UNDO log entry.
+ *
+ * All of this interaction happens between DBTUP in any of the LDM threads
+ * and LGMAN which normally executes in the main thread. LGMAN can however
+ * execute in the LDM threads through the concept of a Logfile_client which
+ * uses a mutex to ensure that access to LGMAN is serialised.
+ *
+ * During allocation of space in the UNDO log buffer we can discover that no
+ * space is available, in this case LGMAN will insert the request into a queue
+ * and service it once space is available. This queueing service is handled by
+ * the CONTINUEB process using PROCESS_LOG_BUFFER_WAITERS. Since this happens
+ * as part of a commit we must continue waiting until we get space, there is
+ * no option to quit waiting here since that would break the commit protocol.
+ * This means that large commits can take quite long time.
+ *
+ * TODO: We should ensure that TC is informed of the delay to ensure that TC
+ * knows that we have a valid reason for waiting. This makes it easier for
+ * TC to track progress on the transaction. It also makes it easier to
+ * implement human supportable tracking through ndbinfo tables and so forth.
+ *
+ * In case we abort the transaction we give back the allocated space in the
+ * transaction through calls to free_log_space using the Logfile_client.
+ *
+ * sync_lsn
+ * --------
+ * LGMAN participates as the Log manager in the WAL protocol. The WAL
+ * (Write Ahead Log) protocol uses the following algorithm. Each time a page
+ * is changed in PGMAN an UNDO log entry has been sent to the UNDO log first.
+ * This UNDO log entry receives an LSN. The page in PGMAN is updated
+ * with the latest LSN. Before writing a page in PGMAN to disk we must
+ * ensure that all UNDO log entries up until the page LSN have been written
+ * to disk.
+ *
+ * This is performed using the call sync_lsn using the Logfile_client. Most
+ * commonly this occurs from PGMAN before writing a page. It can also occur
+ * in relation to LCPs where it is used at end of an LCP to ensure that an LCP
+ * can be fully restored (which requires that all UNDO log entries generated
+ * as part of LCP is flushed to the disk.
+ *
+ * Signal END_LCP_REQ
+ * ------------------
+ * As mentioned in the above section we need to call sync_lsn at end of an LCP.
+ * We are informed of LCP end through the signal END_LCP_REQ and will respond
+ * with END_LCP_CONF when all logfile groups have completed their sync_lsn
+ * calls.
+ *
+ * exec_lcp_frag_ord
+ * -----------------
+ * exec_lcp_frag_ord is called from DBLQH each time a new LCP is discovered
+ * in DBLQH. So effectively this is called at the start of an LCP.
+ *
+ * In order to be able to write the UNDO log continously we need to cut the
+ * log tail every now and then. We enable cutting of the log tail for both
+ * REDO and UNDO logs by running checkpoints. We call our checkpoints, LCPs.
+ * At start of a new LCP we can cut away the log tail back until we reach the
+ * the start of the previous LCP. As explained above we could cut this already
+ * at end of the LCP, but we have no knowledge in LGMAN about when a
+ * distributed LCP is completed, so we cut it away instead at the next start
+ * of an LCP.
+ *
+ * So in short LGMAN receives log entries from DBTUP, before PGMAN can write
+ * any page it ensures that all log entries of the page have been flushed to
+ * disk. To ensure that the log doesn't grow to infinity, we use LCPs to
+ * cut the log tail every now and then.
+ *
+ * Signal START_RECREQ
+ * -------------------
+ * At restart (system restart or node restart) we need to execute the UNDO log
+ * back to the start of an LCP. Given that the UNDO log is used for disk data
+ * we don't need to restore the disk pages at first, we simply execute the UNDO
+ * log records from the end of the UNDO log until we reach the starting LSN
+ * of the LCP. There is an UNDO log entry indicating this.
+ *
+ * This is implemented in a number of steps where we start to find the head and
+ * tail of the UNDO log, then we start reading the UNDO log pages in one
+ * parallel process which runs until it runs out of free pages to read more.
+ * As soon as new free pages becomes available (through the UNDO execution
+ * process) the read undo page process can continue. It sends CONTINUEB
+ * signals to itself to continue the process until it completes. When no
+ * free pages are around it sends CONTINUEB with a 100msec delay.
+ *
+ * The UNDO execution process happens in parallel to the read undo pages.
+ * As soon as there are UNDO pages to execute it will execute those through
+ * use of a DBTUP client. In many cases this will actually send a signal
+ * to the proper LDM thread to apply the UNDO log.
+ * 
+ * TODO:
+ *   There is a fairly apparent possibility to improve parallelism in executing
+ *   the UNDO log by having multiple outstanding UNDO log records. As long as
+ *   they are not directed towards the same page in PGMAN it is safe to send
+ *   another UNDO log record. So even with just one instance of LGMAN it is
+ *   possible to quite easily keep a number of LDM threads busy applying UNDO
+ *   log records.
+ *
+ * Complications in LGMAN
+ * ----------------------
+ * There are some practical problems related to implementing the above. We are
+ * implementing the above on top of a file system. The only guarantees we get
+ * from the file system (and hardly even that) is that all writes issued before
+ * an fsync call of a specific file is safe on disk when the fsync call
+ * completes. For files in LGMAN all FSWRITEREQ calls are done with fsync
+ * integrated as the file is opened with the sync flag set.
+ * 
+ * This gives us at least the following problems to solve in LGMAN:
+ * 1) LGMAN logfile groups can consist of multiple files, we need to ensure
+ * that sync_lsn means that before we report any LSN's as written in a new
+ * file that all LSN entries of the previous file have been sync:ed.
+ * We solve this by special file change logic where we don't report any
+ * LSNs as completed in a new file until the previous file have had all its
+ * writes completed.
+ *
+ * 2) We can have a set of pages in LGMAN in unknown state after the last
+ * sync in a file. This could be a mix of pages not written at all, pages
+ * fully written and even pages that are half-written. It is possible to
+ * start executing UNDO log entries all the way from the first written
+ * page in the log. If we do must however handle two things, we must ignore
+ * all records on unwritten log pages and also on half-written log pages.
+ *
+ * TODO: For us to discover half-written pages we need a checksum on each
+ * page which is currently not supported.
+ *
+ * We must also ensure that we don't allow any unwritten and half-written
+ * log pages once we found the first UNDO log entry that actually needed to
+ * be applied. The reason is that when we have found such an entry we know
+ * that a sync_lsn up until this log entry was performed since the page
+ * had been written only after the sync_lsn returned with success.
+ *
+ * 3) Finding the last written log pages in this lap is not trivial. At first
+ * we can insert new log files at any time. We handle this by performing a
+ * sort of the log files at restart based on the first LSN they have recorded
+ * in the file. To simplify restart logic we always start by writing only the
+ * first page in the file before writing anything more in the file. This means
+ * that the file sort only need to look at the first page of a file to be able
+ * to sort it in the list of files. Second we ensure that at file change we
+ * write the last in the old file and the first page in the new file. This
+ * simplifies the restart logic.
+ *
+ * The above complication is actually only efficiently solvable if we also have
+ * a finite limit on how much UNDO log pages we can write before we synch the
+ * file. If we synch at least once every e.g. 1 MByte then we're certain that
+ * we need not search any further than 1 MByte from the first unwritten page.
+ * However if no such limit exists, than we have no way of knowing when to stop
+ * searching since e.g. the Linux file system could save as much writes in the
+ * file system cache as there is memory in the system (which could be quite
+ * substantial amounts in modern machines).
+ *
+ * To handle this we put a cap on the amount written to the UNDO log per
+ * FSWRITEREQ (that includes both an OS file write and an fsync for LGMAN
+ * files). We also ensure that at restart we continue scanning ahead
+ * as much as the size of this cap, only when we have found a segment of
+ * unwritten pages this long after the first unwritten page will we stop
+ * the search and point to the page before the first unwritten page as the
+ * last written page in the UNDO log.
+ *
+ * We can also have a set of unwritten/half-written pages in the previous
+ * file, but these require no special handling other than skipping them
+ * when applying the UNDO log which is part of the normal check for each
+ * UNDO page before applying.
+ *
+ * Unwritten pages are treated in exactly the same fashion as half-written
+ * pages (we discover half-written pages through the page checksum being
+ * wrong).
+ *
+ * 4) After we found the last written log page in the UNDO log page we will
+ * have to start applying the UNDO log records backwards from this position.
+ * If we reach an unwritten/half-written page while proceeding backwards,
+ * we need to ignore this page. This is safe since it is part of a set of
+ * UNDO log pages which didn't have its synch of the file completed. Thus
+ * none of the LSNs can have been applied to any page yet according to the
+ * WAL protocol that we follow for the UNDO log.
+ *
+ * As an extra security effort we keep track of the first UNDO log entry
+ * that is actually applied on a page, after we found such a record we cannot
+ * find any more unwritten/half-written pages while progressing backwards. If
+ * we found an unwritten page/half-written page after this, then there is a
+ * real issue and the log is corrupted. We check this condition.
+ *
+ * Implementation details
+ * ----------------------
+ *
+ * 1) Maintaining free log file space
+ * ----------------------------------
+ * The amount of free space for an UNDO log file group is maintained by the
+ * variable m_free_file_words on the struct Logfile_group.
+ *
+ * It gets its initial value from either creation of a new log file group
+ * in which case this is calculated in create_file_commit. Otherwise it is
+ * calculated after executing the UNDO log in stop_run_undo_log.
+ *
+ * The free space is decremented each time we call alloc_log_space, at creation
+ * of special LCP UNDO log records in execEND_LCP_CONF, and exec_lcp_frag_ord.
+ * It is also decremented due to changing to a new page where we add a number
+ * of NOOP entries to fill all pages, this happens in get_log_buffer when
+ * page is full and also when we sync pages in flush_log and force_log_sync.
+ *
+ * The free space is incremented each time we call free_log_space, in
+ * add_entry if we discover that we're not changing file group since last
+ * LSN. Most importantly it is incremented in cut_log_tail where we add
+ * free space for each page that we move ahead the tail.
+ * 
+ * So in situations where we get error 1501 (out of UNDO log) we can only
+ * get back to a normal situation after completing an LCP and starting a
+ * new again immediately.
+ *
+ * The error 1501 is immediately reported when the log file is full. Log being
+ * full here means that all the free space of the file have already been
+ * allocated by various transactions. At that point we will report back error
+ * 1501 (Out of UNDO log space) to the application. This error will mean that
+ * any disk data transactions will be blocked for an extended period of time
+ * until a new LCP can free up space again. This is obviously a highly
+ * undesirable state and should be avoided by ensuring that the UNDO log
+ * is sufficiently big and also by ensuring that LCP write speed is high
+ * enough to create new LCPs quicker. This variable is not needed during
+ * restart, so it's only used during normal operation.
+ *
+ * 2) Maintaining free log buffer space
+ * ------------------------------------
+ * The amount of free UNDO log buffer space is maintained by the variable
+ * m_free_buffer_words in the struct Logfile_group.
+ *
+ * This variable is maintained both at restart and during normal operation.
+ * It gets the initial value from the size of the UNDO log buffer which is
+ * specified when creating the log file group.
+ *
+ * During restart we decrement the free space when we allocate a page as
+ * initial page, when we allocate to read the UNDO log. We increase the
+ * free space when we have completed reading the UNDO log page during
+ * UNDO log execution.
+ *
+ * During normal operation we check the amount of free space in the call
+ * get_log_buffer in Logfile_client. If there isn't enough free space the
+ * caller must wait for a callback when receiving the return value 1.
+ * When a wait is started we check that we have CONTINUEB messages sent
+ * with the id PROCESS_LOG_BUFFER_WAITERS, this CONTINUEB calls
+ * regularly process_log_buffer_waiters until there are no more waiters.
+ *
+ * When sending a callback we allocate a list entry that contains the
+ * request information needed to send the callback. This list is using
+ * memory allocated from the GlobalSharedMemory. This is memory that
+ * can be used to some extent by other allocation regions at
+ * overallocation. It is used for all data structures describing log buffer
+ * requests, all data structures describing page requests when needing to read
+ * from disk and finally also for the UNDO log buffer itself.
+ *
+ * If we have set the config parameter InitialLogFileGroup then the size of the
+ * Undo buffer in this specification will be added to the size of
+ * GlobalSharedMemory. So in this case the request lists will get the entire
+ * GlobalSharedMemory except for its use for overallocation. It's likely over
+ * time that more and more resources will be sharing this GlobalSharedMemory,
+ * care then needs to be taken that we have sufficient memory to handle these
+ * lists. Currently we crash when we run out of this resource.
+ *
+ * TODO: Ensure that we handle these kind of resource problems in an
+ * appropriate manner.
+ *
+ * In normal operations we decrement the free space when calling flush_log
+ * to account for NOOP space, same for force_log_sync, we also decrement
+ * it when calling the internal get_log_buffer which is called from
+ * add_entry and also other places where we create special UNDO log records.
+ * Finally we add back space to the UNDO log buffer when FSWRITECONF returns
+ * with the log pages being written and the pages are free to be used for
+ * other log pages.
+ *
+ * Maintaining LSN numbers
+ * -----------------------
+ * We have a number of LSN variables that are used to maintain the LSNs and
+ * their current state:
+ * 1) m_next_lsn
+ * This is the next LSN that we will write into the UNDO log.
+ * This variable exists in two instances. It exists for each logfile group
+ * where it represents the last LSN written in this logfile group. It also
+ * exists as a global variable for the LGMAN block.
+ * Actually LGMAN only supports one log file group, so these numbers will
+ * always be equal.
+ * 2) m_last_sync_req_lsn
+ * This is the highest LSN which is currently in the process of being
+ * written to the UNDO log file. The file write of this LSN isn't completed
+ * yet.
+ * 3) m_last_synced_lsn
+ * This is the highest LSN which have been written safely to disk.
+ * 4) m_max_sync_req_lsn
+ * This is the highest LSN which have been requested for sync to disk by a call
+ * to sync_lsn.
+ *
+ * The condition:
+ * m_next_lsn > m_max_sync_req_lsn >= m_last_sync_req_lsn >= m_last_synced_lsn
+ * will always be true.
+ *
+ * Performing a restart (system restart or node restart)
+ * -----------------------------------------------------
+ * At restart we get started on recovery by receiving the START_RECREQ signal.
+ * This signal contains the LCP id that we will restore. Disk data gets its
+ * data from only one set of pages since the base information is on disk. The
+ * information in LGMAN is used to play the tape backwards figuratively
+ * speakin (UNDO) until we reach an UNDO log record that represents this LCP.
+ * When we reach this log record we have ensured that all data in the disk
+ * data parts are as they were at the time of the LCP. Before completing the
+ * UNDO execution we also ensure that all pages in PGMAN are flushed to disk
+ * to ensure that the UNDO log we have executed is no longer used. Once we
+ * have flushed the PGMAN pages to disk we are done and we can write a new LCP
+ * record for the same LCP id. Once this record reaches the disk we will never
+ * need to replay the UNDO log already executed. There is no specific write of
+ * this record, it will be written as soon as some write of the UNDO log is
+ * performed. However if it isn't written before the next crash it isn't a
+ * problem since we will simply run through a lot of UNDO logs that have
+ * already been applied.
+ *
+ * The place in the code where we flush the pages in PGMAN is marked by:
+ * START_FLUSH_PGMAN_CACHE.
+ * The place where we return from flushing PGMAN cache is marked by:
+ * END_FLUSH_PGMAN_CACHE.
+ *
+ * At this point we're done with our part of the restart and we're ready
+ * to start generating new UNDO log records which will also happen as
+ * part of the processing of REDO log records.
+ *
+ * At restart we need to discover the following things:
+ *
+ * 1) We need to sort the UNDO log files in the correct order.
+ * This is actually the first step in the restart processing.
+ *
+ * 2) We need to find the end of the UNDO log.
+ * Marked by END_OF_UNDO_LOG_FOUND in code below. We reach this code once for
+ * each logfile group defined in the cluster. In most cases we only use one
+ * logfile group per cluster which can even be defined in the config file.
+ *
+ * 3) We need to set up the new head and tail of the UNDO log.
+ * The new head is set up to the first non-written UNDO log page and the tail
+ * is set up to be the page preceding this (could be in previous file). As we
+ * proceed to execute the UNDO log records the tail position will be moved
+ * back to its final position.
+ *
+ * 4) We need to set up the UNDO log such that it starts adding the new
+ *    log records at the new end of the UNDO log.
+ * 
+ * 5) We need to find the next LSN to use for the log records we start to
+ *    produce after the restart.
+ *
+ * 3), 4) and 5) happens when finding the end of the UNDO log.
+ *
+ * 6) We need to initialise the free space in the buffer and in the files.
+ *
+ * The most problematic part here is 2).
+ * The problem is that we can be in the middle of a file change when we
+ * crashed, we can also have large writes to the file system that are in
+ * a half-written state. This means that e.g. if the last write to the
+ * file system was a write of 128 pages, all of those pages can be in one
+ * of 3 states. They can be written, they can be unwritten and they can be
+ * half-written. We detect first if they are half-written by using a checksum
+ * on the log page. If the checksum was ok we look at the starting LSN to
+ * detect whether it was written or not written.
+ *
+ * Finding the end of the UNDO log means finding the very last of the pages
+ * that have been written. If we don't find this log page, then we can end
+ * up in a situation where the written pages ahead of the end we found, are
+ * put together with new log entries generated after the restart. We could
+ * have very complicated bugs in that case which would be more or less
+ * impossible to ever detect and find.
+ *
+ * Also 1) is somewhat tied into 2) and we want this to fairly simple. The
+ * sorting happens by reading page 1. To make this searching easier and
+ * avoiding that we have to look at more than just page 1, we use a special
+ * order of writing at file change.
+ * 
+ * 1) Write the last pages in file X.
+ * 2) Next write page 1 in file X+1.
+ * 3) Continue writing as usual in file X+1 as soon as 2) is done.
+ * 4) sync_lsn for new file cannot move synced_lsn forward until 1) is done.
+ * (Write here means both filesystem write and the fsync to ensure the write
+ * saved on disk, or using O_DIRECT flag in file system).
+ * The UNDO log file is fixed size after creating it since we start by
+ * writing the entire file to ensure that it is allocated on disk. In this
+ * case O_DIRECT means that writes behaves as write + fsynch when O_DIRECT
+ * flag is set. This is explained in detail in:
+ * https://lwn.net/Articles/348739.
+ *
+ * A special problem to handle here is if we get a half-written page 1. In
+ * this case we know that the page must be the next file after the file which
+ * has the most recent change. Page 1 will get a correctly written soon after
+ * completion of restart since it will soon be the next file to use. We need
+ * to crash however if we discover more than one half-written page as page 1.
+ * This should never happen unless we have a corrupted file system. This is
+ * the case since we will never proceed writing in a file until we have
+ * completed writing of page 1, so we can't reach the next file to write
+ * before we have completed writing of page 1 in the previous file.
+ *
+ * Additionally to avoid that we have to search extensive distances for the end
+ * of the UNDO log we will set a limit of file writes to 16 MByte as a constant.
+ * This means that we need to search 128 pages forward in the file before we
+ * can be sure that we have found the end of the UNDO log. We never need to
+ * bother searching beyond end of file into the next file due to the file
+ * change protocol we are using.
+ *
+ * While executing the UNDO log backwards we need to look out for unwritten
+ * pages and half-written pages. No UNDO records from these pages should be
+ * applied. Also we need to get a flag from PGMAN when we reach the first
+ * UNDO log record which is actually applied. This UNDO log record represents
+ * a point in the UNDO log where we are sure that the LSN must have been
+ * sync:ed to this point since the page had been forced to disk which only
+ * happens after the log have been sync:ed to disk according to the WAL
+ * protocol. So when continuing backwards in the UNDO log file we should not
+ * encounter any more unwritten pages or half-written pages. Encountering such
+ * a page is an indication of a corrupt file system and thus we cannot proceed
+ * with the restart.
+ *
+ * When looking for end of UNDO log we use the following state variables what
+ * we are currently doing:
+ *
+ * FS_SEARCHING : Binary search
+ * FS_SEARCHING_END : Forward linear search bounded by 16MB 'rule'
+ * FS_SEARCHING_FINAL_READ : Search completed, re-reading 'final' page before
+ *                           applying UNDO log.
+ *
+ * LSNs are only recorded per page and this represents the last LSN written in
+ * this page. So the page_lsn is the highest LSN represented in the file, then
+ * the UNDO log before the last record has its LSN implied unless the UNDO log
+ * records is a special log record that also stores the LSN.
  */
 
 #define DEBUG_UNDO_EXECUTION 0
@@ -97,17 +611,16 @@ Lgman::Lgman(Block_context & ctx) :
   addRecSignal(GSN_FSREADREF, &Lgman::execFSREADREF, true);
   addRecSignal(GSN_FSREADCONF, &Lgman::execFSREADCONF);
 
-  addRecSignal(GSN_LCP_FRAG_ORD, &Lgman::execLCP_FRAG_ORD);
-  addRecSignal(GSN_END_LCP_REQ, &Lgman::execEND_LCP_REQ);
+  addRecSignal(GSN_END_LCPREQ, &Lgman::execEND_LCPREQ);
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Lgman::execSUB_GCP_COMPLETE_REP);
   addRecSignal(GSN_START_RECREQ, &Lgman::execSTART_RECREQ);
   
-  addRecSignal(GSN_END_LCP_CONF, &Lgman::execEND_LCP_CONF);
+  addRecSignal(GSN_END_LCPCONF, &Lgman::execEND_LCPCONF);
 
   addRecSignal(GSN_GET_TABINFOREQ, &Lgman::execGET_TABINFOREQ);
   addRecSignal(GSN_CALLBACK_ACK, &Lgman::execCALLBACK_ACK);
 
-  m_last_lsn = 1;
+  m_next_lsn = 1;
   m_logfile_group_hash.setSize(10);
 
   if (isNdbMtLqh()) {
@@ -279,6 +792,20 @@ Lgman::execCONTINUEB(Signal* signal){
   }
   case LgmanContinueB::EXECUTE_UNDO_RECORD:
     jam();
+    {
+      Ptr<Logfile_group> ptr;
+      m_logfile_group_list.first(ptr);
+      if (signal->theData[1] == 1 && !ptr.p->m_applied)
+      {
+        /**
+         * The variable m_applied is set the first UNDO log record which is
+         * applied, we signal if an UNDO log record was applied in the
+         * CONTINUEB signal to execute the next UNDO log record.
+         */
+        jam();
+        ptr.p->m_applied = true;
+      }
+    }
     execute_undo_record(signal);
     break;
   case LgmanContinueB::STOP_UNDO_LOG:
@@ -363,11 +890,11 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
     {
       BaseString::snprintf(tmp, sizeof(tmp),
                            "lfg %u state: %x fs: %u lsn "
-                           " [ last: %llu s(req): %llu s:ed: %llu lcp: %llu ] "
+                           " [ next: %llu s(req): %llu s:ed: %llu lcp: %llu ] "
                            " waiters: %d %d",
                            ptr.p->m_logfile_group_id, ptr.p->m_state,
                            ptr.p->m_outstanding_fs,
-                           ptr.p->m_last_lsn, ptr.p->m_last_sync_req_lsn,
+                           ptr.p->m_next_lsn, ptr.p->m_last_sync_req_lsn,
                            ptr.p->m_last_synced_lsn, ptr.p->m_last_lcp_lsn,
                            !ptr.p->m_log_buffer_waiters.isEmpty(),
                            !ptr.p->m_log_sync_waiters.isEmpty());
@@ -863,10 +1390,7 @@ Lgman::execCREATE_FILE_IMPL_REQ(Signal* signal)
       break;
     }
 
-    if (!handle.m_cnt == 1)
-    {
-      ndbrequire(false);
-    }
+    ndbrequire(handle.m_cnt > 0);
     
     if (ERROR_INSERTED(15000) ||
         (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
@@ -950,6 +1474,15 @@ Lgman::open_file(Signal* signal, Ptr<Undofile> ptr,
 	     handle);
 }
 
+/**
+ * This code is called during initialisation of the file to ensure that the
+ * file content is properly set when the file is created, it is a direct
+ * function call via block methods from the file system thread into this
+ * block. So this means that we are not allowed to change any block variables
+ * and even for reading we have to be careful. The pages are allocated in
+ * NDBFS from the DataMemory in DBTUP. So these pages we are allowed to
+ * change since they are owned at this moment by the NDB file system thread.
+ */
 void
 Lgman::execFSWRITEREQ(Signal* signal)
 {
@@ -973,6 +1506,23 @@ Lgman::execFSWRITEREQ(Signal* signal)
     page->m_logfile_group_id = ptr.p->m_create.m_logfile_group_id;
     page->m_logfile_group_version = ptr.p->m_create.m_logfile_group_version;
     page->m_undo_pages = ptr.p->m_file_size - 1; // minus zero page
+  }
+  else if (req->varIndex == 1)
+  {
+    /**
+     * We write an UNDO END log record into the very first page. This is to
+     * ensure that we don't pass this point if we crash before completing
+     * the first synch to the UNDO log. Without this log record we could
+     * have written other pages but not this page. In that case we would
+     * have no way to distinguish when we find the end of the UNDO log.
+     */
+    File_formats::Undofile::Undo_page* page = 
+      (File_formats::Undofile::Undo_page*)page_ptr.p;
+    page->m_page_header.m_page_lsn_hi = 0;
+    page->m_page_header.m_page_lsn_lo = 0;
+    page->m_words_used = 1;
+    page->m_data[0] = (File_formats::Undofile::UNDO_END << 16) | 1 ;
+    page->m_page_header.m_page_type = File_formats::PT_Undopage;
   }
   else
   {
@@ -1229,7 +1779,14 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_outstanding_fs = 0;
   m_next_reply_ptr_i = RNIL;
   
-  m_last_lsn = 0;
+  m_applied = false;
+  /**
+   * We initialise this variable to 0 to indicate that we haven't received
+   * any log records yet, this is used in a number of checks, probably better
+   * to remove those checks and do the same work even when no LSNs have been
+   * produced, but keep it for now as it is easiest.
+   */
+  m_next_lsn = 0;
   m_last_synced_lsn = 0;
   m_last_sync_req_lsn = 0;
   m_max_sync_req_lsn = 0;
@@ -1541,7 +2098,7 @@ Lgman::force_log_sync(Signal* signal,
     if(pos.m_idx) // don't flush empty page...
     {
       jam();
-      Uint64 lsn= ptr.p->m_last_lsn - 1;
+      Uint64 lsn= ptr.p->m_next_lsn - 1;
       
       File_formats::Undofile::Undo_page* undo= 
 	(File_formats::Undofile::Undo_page*)page;
@@ -1657,7 +2214,7 @@ next:
   /**
    * It didn't fit page...fill page with a NOOP log entry
    */
-  Uint64 lsn= ptr.p->m_last_lsn - 1;
+  Uint64 lsn= ptr.p->m_next_lsn - 1;
   File_formats::Undofile::Undo_page* undo= 
     (File_formats::Undofile::Undo_page*)page;
   undo->m_page_header.m_page_lsn_lo = (Uint32)(lsn & 0xFFFFFFFF);
@@ -1842,7 +2399,7 @@ Lgman::flush_log(Signal* signal, Ptr<Logfile_group> ptr, Uint32 force)
                             ptr.p->m_log_buffer_waiters.isEmpty());
 	
 	ndbrequire(pos.m_idx); // don't flush empty page...
-	Uint64 lsn= ptr.p->m_last_lsn - 1;
+	Uint64 lsn= ptr.p->m_next_lsn - 1;
 	
 	File_formats::Undofile::Undo_page* undo= 
 	  (File_formats::Undofile::Undo_page*)page;
@@ -2076,7 +2633,15 @@ Lgman::execCALLBACK_ACK(Signal* signal)
   sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
 }
 
-#define REALLY_SLOW_FS 0
+/**
+ * 512 => 512 * 32 kByte = 16 MByte
+ * This means that we can have at most 16 MBytes of UNDO log pages
+ * outstanding at any time. This number represents a compromise
+ * between not having to search so far ahead in the UNDO log when
+ * restarting and ensuring that we can get good throughput in
+ * writing to the UNDO log.
+ */
+#define MAX_UNDO_PAGES_OUTSTANDING 512
 
 Uint32
 Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
@@ -2108,6 +2673,39 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
     max= tail.m_idx - head.m_idx;
   }
 
+  if (head.m_idx == 0)
+  {
+    /**
+     * The first write in a file is always just one page. The reason is that
+     * we want the restart logic to sort the UNDO log files to be easy. We
+     * need to add a recommendation that the UNDO log should have at least
+     * 2 files if possible and also to be of reasonably large size.
+     *
+     * If we allow larger writes of the first page we also need to adapt the
+     * file sort logic during restarts to look further into the file before
+     * concluding the file sort order of a file.
+     */
+    jam();
+    pages = 1;
+  }
+  if (pages > MAX_UNDO_PAGES_OUTSTANDING)
+  {
+    /**
+     * We will never write more than 16 MBytes per write. If more is
+     * available it will have to wait until we come back after this
+     * write. This is to ensure that we have a limit that can be used
+     * to find the last written UNDO log page during restart.
+     *
+     * LGMAN files are opened with the OM_SYNC flag set, so each
+     * FSWRITEREQ is translated into both a file system write and
+     * a fsync call (unless using O_DIRECT when no fsync call is
+     * needed). See above comment on O_DIRECT and why no fsync calls
+     * are needed.
+     */
+    jam();
+    pages = MAX_UNDO_PAGES_OUTSTANDING;
+  }
+
   FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = filePtr.p->m_fd;
   req->userReference = reference();
@@ -2116,22 +2714,22 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
   req->numberOfPages = pages;
   req->data.pageData[0] = pageId;
   req->operationFlag = 0;
-  FsReadWriteReq::setFormatFlag(req->operationFlag, 
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatSharedPage);
 
   if(max > pages)
   {
+    /**
+     * The write will be entirely within the current file, just proceed with
+     * the write and se states accordingly.
+     */
     jam();
     max= pages;
     head.m_idx += max;
     ptr.p->m_file_pos[HEAD] = head;  
 
-    if (REALLY_SLOW_FS)
-      sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, REALLY_SLOW_FS,
-			  FsReadWriteReq::FixedLength + 1);
-    else
-      sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
-		 FsReadWriteReq::FixedLength + 1, JBA);
+    sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
+               FsReadWriteReq::FixedLength + 1, JBA);
 
     ptr.p->m_outstanding_fs++;
     filePtr.p->m_online.m_outstanding = max;
@@ -2148,16 +2746,15 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
   }
   else
   {
+    /**
+     * We need to write the last part of this UNDO log file, this includes
+     * changing into a new file.
+     */
     jam();
     req->numberOfPages = max;
-    FsReadWriteReq::setSyncFlag(req->operationFlag, 1);
     
-    if (REALLY_SLOW_FS)
-      sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal, REALLY_SLOW_FS, 
-			  FsReadWriteReq::FixedLength + 1);
-    else
-      sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
-		 FsReadWriteReq::FixedLength + 1, JBA);
+    sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 
+               FsReadWriteReq::FixedLength + 1, JBA);
 
     ptr.p->m_outstanding_fs++;
     filePtr.p->m_online.m_outstanding = max;
@@ -2179,9 +2776,10 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
       jam();
       files.first(next);
     }
-    g_eventLogger->info("LGMAN: changing file from %d to %d",
-                        filePtr.i,
-                        next.i);
+    SimulatedBlock* fs = globalData.getBlock(NDBFS);
+    g_eventLogger->info("LGMAN: changing file from %s to %s",
+                        fs->get_filename(filePtr.p->m_fd),
+                        fs->get_filename(next.p->m_fd));
     filePtr.p->m_state |= Undofile::FS_MOVE_NEXT;
     next.p->m_state &= ~(Uint32)Undofile::FS_EMPTY;
 
@@ -2280,15 +2878,6 @@ Lgman::execFSWRITECONF(Signal* signal)
 }
 
 void
-Lgman::execLCP_FRAG_ORD(Signal* signal)
-{
-  jamEntry();
-  client_lock(number(), __LINE__);
-  exec_lcp_frag_ord(signal, this);
-  client_unlock(number(), __LINE__);
-}
-
-void
 Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
 {
   jamBlock(client_block);
@@ -2312,7 +2901,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     client_block->sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
   
-  if(!ptr.isNull() && ptr.p->m_last_lsn)
+  if(!ptr.isNull() && ptr.p->m_next_lsn)
   {
     jamBlock(client_block);
     Uint32 undo[3];
@@ -2320,16 +2909,16 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
     undo[1] = (table_id << 16) | frag_id;
     undo[2] = (entry << 16 ) | (sizeof(undo) >> 2);
 
-    Uint64 last_lsn= m_last_lsn;
+    Uint64 next_lsn= m_next_lsn;
     
-    if(ptr.p->m_last_lsn == last_lsn
+    if(ptr.p->m_next_lsn == next_lsn
 #ifdef VM_TRACE
        && ((rand() % 100) > 50)
 #endif
        )
     {
       jamBlock(client_block);
-      undo[2] |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
+      undo[2] |= (File_formats::Undofile::UNDO_NEXT_LSN << 16);
       Uint32 *dst= get_log_buffer(ptr,
                                   sizeof(undo) >> 2,
                                   client_block->jamBuffer());
@@ -2343,14 +2932,14 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
       Uint32 *dst= get_log_buffer(ptr,
                                   (sizeof(undo) >> 2) + 2,
                                   client_block->jamBuffer());      
-      * dst++ = (Uint32)(last_lsn >> 32);
-      * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
+      * dst++ = (Uint32)(next_lsn >> 32);
+      * dst++ = (Uint32)(next_lsn & 0xFFFFFFFF);
       memcpy(dst, undo, sizeof(undo));
       ndbrequire(ptr.p->m_free_file_words >= (sizeof(undo) >> 2));
       ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
     }
-    ptr.p->m_last_lcp_lsn = last_lsn;
-    m_last_lsn = ptr.p->m_last_lsn = last_lsn + 1;
+    ptr.p->m_last_lcp_lsn = next_lsn;
+    m_next_lsn = ptr.p->m_next_lsn = next_lsn + 1;
 
     validate_logfile_group(ptr, "execLCP_FRAG_ORD", client_block->jamBuffer());
   }
@@ -2358,7 +2947,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
   while(!ptr.isNull())
   {
     jamBlock(client_block);
-    if (ptr.p->m_last_lsn)
+    if (ptr.p->m_next_lsn)
     { 
       jamBlock(client_block);
       /**
@@ -2386,7 +2975,7 @@ Lgman::exec_lcp_frag_ord(Signal* signal, SimulatedBlock* client_block)
 }
 
 void
-Lgman::execEND_LCP_REQ(Signal* signal)
+Lgman::execEND_LCPREQ(Signal* signal)
 {
   jamEntry();
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
@@ -2407,7 +2996,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
       if(signal->getSendersBlockRef() != reference())
       {
         jam();
-        D("Logfile_client - execEND_LCP_REQ");
+        D("Logfile_client - execEND_LCPREQ");
 	Logfile_client tmp(this, this, ptr.p->m_logfile_group_id);
 	Logfile_client::Request req;
 	req.m_callback.m_callbackData = ptr.i;
@@ -2432,7 +3021,7 @@ Lgman::execEND_LCP_REQ(Signal* signal)
   EndLcpConf* conf = (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = m_end_lcp_senderdata;
   conf->senderRef = reference();
-  sendSignal(DBLQH_REF, GSN_END_LCP_CONF,
+  sendSignal(DBLQH_REF, GSN_END_LCPCONF,
              signal, EndLcpConf::SignalLength, JBB);
 }
 
@@ -2442,14 +3031,14 @@ Lgman::endlcp_callback(Signal* signal, Uint32 ptr, Uint32 res)
   EndLcpReq* req= (EndLcpReq*)signal->getDataPtr();
   req->backupId = m_latest_lcp;
   req->senderData = m_end_lcp_senderdata;
-  execEND_LCP_REQ(signal);
+  execEND_LCPREQ(signal);
 }
 
 void
 Lgman::cut_log_tail(Signal* signal, Ptr<Logfile_group> ptr)
 {
   bool done= true;
-  if (likely(ptr.p->m_last_lsn))
+  if (likely(ptr.p->m_next_lsn))
   {
     jam();
     Buffer_idx tmp= ptr.p->m_tail_pos[0];
@@ -2601,7 +3190,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
   }
   
   Uint32 *dst;
-  Uint64 last_lsn= m_lgman->m_last_lsn;
+  Uint64 next_lsn= m_lgman->m_next_lsn;
   {
     Lgman::Logfile_group key;
     key.m_logfile_group_id= m_logfile_group_id;
@@ -2610,8 +3199,8 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
     {
       jamBlock(m_client_block);
       Uint32 callback_buffer = ptr.p->m_callback_buffer_words;
-      Uint64 last_lsn_filegroup= ptr.p->m_last_lsn;
-      if(last_lsn_filegroup == last_lsn
+      Uint64 next_lsn_filegroup= ptr.p->m_next_lsn;
+      if(next_lsn_filegroup == next_lsn
 #ifdef VM_TRACE
 	 && ((rand() % 100) > 50)
 #endif
@@ -2624,7 +3213,7 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	  memcpy(dst, src[i].ptr, 4*src[i].len);
 	  dst += src[i].len;
 	}
-	* (dst - 1) |= File_formats::Undofile::UNDO_NEXT_LSN << 16;
+	* (dst - 1) |= (File_formats::Undofile::UNDO_NEXT_LSN << 16);
 	ptr.p->m_free_file_words += 2;
 	m_lgman->validate_logfile_group(ptr,
                                         (const char*)0,
@@ -2636,8 +3225,8 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
 	dst= m_lgman->get_log_buffer(ptr,
                                      tot + 2,
                                      m_client_block->jamBuffer());
-	* dst++ = (Uint32)(last_lsn >> 32);
-	* dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
+	* dst++ = (Uint32)(next_lsn >> 32);
+	* dst++ = (Uint32)(next_lsn & 0xFFFFFFFF);
 	for(i= 0; i<cnt; i++)
 	{
 	  memcpy(dst, src[i].ptr, 4*src[i].len);
@@ -2657,8 +3246,8 @@ Logfile_client::add_entry(const Change* src, Uint32 cnt)
       }
       ptr.p->m_callback_buffer_words = callback_buffer - tot;
     }
-    m_lgman->m_last_lsn = ptr.p->m_last_lsn = last_lsn + 1;
-    return last_lsn;
+    m_lgman->m_next_lsn = ptr.p->m_next_lsn = next_lsn + 1;
+    return next_lsn;
   }
 }
 
@@ -2706,7 +3295,7 @@ Lgman::execSTART_RECREQ(Signal* signal)
 
   if(ptr.i != RNIL)
   {
-    infoEvent("Applying undo to LCP: %d", m_latest_lcp);
+    infoEvent("LGMAN: Applying undo to LCP: %d", m_latest_lcp);
     g_eventLogger->info("LGMAN: Applying undo to LCP: %d", m_latest_lcp);
     find_log_head(signal, ptr);
     return;
@@ -2768,10 +3357,10 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
     req->numberOfPages = 1;
     req->data.pageData[0] = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag, 
+    FsReadWriteReq::setFormatFlag(req->operationFlag,
 				  FsReadWriteReq::fsFormatSharedPage);
     
-    sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
+    sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
 	       FsReadWriteReq::FixedLength + 1, JBA);
 
     ptr.p->m_outstanding_fs++;
@@ -2809,7 +3398,7 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> ptr)
     req->numberOfPages = 1;
     req->data.pageData[0] = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag, 
+    FsReadWriteReq::setFormatFlag(req->operationFlag,
 				  FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
@@ -2827,49 +3416,49 @@ Lgman::execFSREADCONF(Signal* signal)
   jamEntry();
   client_lock(number(), __LINE__);
 
-  Ptr<Undofile> ptr;  
+  Ptr<Undofile> file_ptr;
   Ptr<Logfile_group> lg_ptr;
   FsConf* conf = (FsConf*)signal->getDataPtr();
   
-  m_file_pool.getPtr(ptr, conf->userPointer);
-  m_logfile_group_pool.getPtr(lg_ptr, ptr.p->m_logfile_group_ptr_i);
+  m_file_pool.getPtr(file_ptr, conf->userPointer);
+  m_logfile_group_pool.getPtr(lg_ptr, file_ptr.p->m_logfile_group_ptr_i);
 
-  ndbrequire(ptr.p->m_state & Undofile::FS_OUTSTANDING);
-  ptr.p->m_state &= ~(Uint32)Undofile::FS_OUTSTANDING;
+  ndbrequire(file_ptr.p->m_state & Undofile::FS_OUTSTANDING);
+  file_ptr.p->m_state &= ~(Uint32)Undofile::FS_OUTSTANDING;
   
   Uint32 cnt= lg_ptr.p->m_outstanding_fs;
   ndbrequire(cnt);
   
-  if((ptr.p->m_state & Undofile::FS_EXECUTING)== Undofile::FS_EXECUTING)
+  if((file_ptr.p->m_state & Undofile::FS_EXECUTING)== Undofile::FS_EXECUTING)
   {
     jam();
     
-    if(lg_ptr.p->m_next_reply_ptr_i == ptr.i)
+    if(lg_ptr.p->m_next_reply_ptr_i == file_ptr.i)
     {
       jam();
       Uint32 tot= 0;
       Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
-      while(cnt && ! (ptr.p->m_state & Undofile::FS_OUTSTANDING))
+      while(cnt && ! (file_ptr.p->m_state & Undofile::FS_OUTSTANDING))
       {
         jam();
-	Uint32 state= ptr.p->m_state;
-	Uint32 pages= ptr.p->m_online.m_outstanding;
+	Uint32 state= file_ptr.p->m_state;
+	Uint32 pages= file_ptr.p->m_online.m_outstanding;
 	ndbrequire(pages);
-	ptr.p->m_online.m_outstanding= 0;
-	ptr.p->m_state &= ~(Uint32)Undofile::FS_MOVE_NEXT;
+	file_ptr.p->m_online.m_outstanding= 0;
+	file_ptr.p->m_state &= ~(Uint32)Undofile::FS_MOVE_NEXT;
 	tot += pages;
 	cnt--;
 	
-	if((state & Undofile::FS_MOVE_NEXT) && !files.prev(ptr))
+	if((state & Undofile::FS_MOVE_NEXT) && !files.prev(file_ptr))
         {
           jam();
-	  files.last(ptr);
+	  files.last(file_ptr);
         }
       }
       
       lg_ptr.p->m_outstanding_fs = cnt;
       lg_ptr.p->m_pos[PRODUCER].m_current_pos.m_idx += tot;
-      lg_ptr.p->m_next_reply_ptr_i = ptr.i;
+      lg_ptr.p->m_next_reply_ptr_i = file_ptr.i;
     }
     client_unlock(number(), __LINE__);
     return;
@@ -2878,8 +3467,8 @@ Lgman::execFSREADCONF(Signal* signal)
   lg_ptr.p->m_outstanding_fs = cnt - 1;
 
   Ptr<GlobalPage> page_ptr;
-  m_shared_page_pool.getPtr(page_ptr, ptr.p->m_online.m_outstanding);
-  ptr.p->m_online.m_outstanding= 0;
+  m_shared_page_pool.getPtr(page_ptr, file_ptr.p->m_online.m_outstanding);
+  file_ptr.p->m_online.m_outstanding= 0;
   
   File_formats::Undofile::Undo_page* page = 
     (File_formats::Undofile::Undo_page*)page_ptr.p;
@@ -2888,13 +3477,23 @@ Lgman::execFSREADCONF(Signal* signal)
   lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
   lsn += page->m_page_header.m_page_lsn_lo;
 
-  switch(ptr.p->m_state){
+  switch(file_ptr.p->m_state){
   case Undofile::FS_SORTING:
     jam();
     break;
   case Undofile::FS_SEARCHING:
     jam();
-    find_log_head_in_file(signal, lg_ptr, ptr, lsn);
+    find_log_head_in_file(signal, lg_ptr, file_ptr, lsn);
+    client_unlock(number(), __LINE__);
+    return;
+  case Undofile::FS_SEARCHING_END:
+    jam();
+    find_log_head_end_check(signal, lg_ptr, file_ptr, lsn);
+    client_unlock(number(), __LINE__);
+    return;
+  case Undofile::FS_SEARCHING_FINAL_READ:
+    jam();
+    find_log_head_complete(signal, lg_ptr, file_ptr);
     client_unlock(number(), __LINE__);
     return;
   default:
@@ -2905,15 +3504,16 @@ Lgman::execFSREADCONF(Signal* signal)
   case Undofile::FS_OPENING:
   case Undofile::FS_EMPTY:
     jam();
-    jamLine(ptr.p->m_state);
+    jamLine(file_ptr.p->m_state);
     ndbrequire(false);
   }
 
   /**
    * Prepare for execution
    */
-  ptr.p->m_state = Undofile::FS_EXECUTING;
-  ptr.p->m_online.m_lsn = lsn;
+  file_ptr.p->m_state = Undofile::FS_EXECUTING;
+  file_ptr.p->m_online.m_lsn = lsn;
+  file_ptr.p->m_start_lsn = lsn;
   
   /**
    * Insert into m_files
@@ -2921,7 +3521,7 @@ Lgman::execFSREADCONF(Signal* signal)
   {
     Local_undofile_list meta(m_file_pool, lg_ptr.p->m_meta_files);  
     Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
-    meta.remove(ptr);
+    meta.remove(file_ptr);
 
     Ptr<Undofile> loop;  
     files.first(loop);
@@ -2937,7 +3537,7 @@ Lgman::execFSREADCONF(Signal* signal)
        * File has highest lsn, add last
        */
       jam();
-      files.addLast(ptr);
+      files.addLast(file_ptr);
     }
     else
     {
@@ -2945,7 +3545,7 @@ Lgman::execFSREADCONF(Signal* signal)
       /**
        * Insert file in correct position in file list
        */
-      files.insertBefore(ptr, loop);
+      files.insertBefore(file_ptr, loop);
     }
   }
   find_log_head(signal, lg_ptr);
@@ -2960,14 +3560,20 @@ Lgman::execFSREADREF(Signal* signal)
   ndbrequire(false);
 }
 
+/**
+ * We're performing a binary search to find the end of the UNDO log.
+ * We're comparing with the LSN number found so far in the file.
+ * At start we know the LSN of the first page, so any pages with
+ * larger LSN have been written after this page, so when the page
+ * LSN is greater than the highest found so far, then we move forward
+ * in the binary search, otherwise we will move backwards.
+ */
 void
 Lgman::find_log_head_in_file(Signal* signal, 
-			     Ptr<Logfile_group> ptr, 
-			     Ptr<Undofile> file_ptr,
-			     Uint64 last_lsn)
+                             Ptr<Logfile_group> ptr, 
+                             Ptr<Undofile> file_ptr,
+                             Uint64 last_lsn)
 { 
-  //     a b
-  // 3 4 5 0 1 
   Uint32 curr= ptr.p->m_file_pos[HEAD].m_ptr_i;
   Uint32 head= ptr.p->m_file_pos[HEAD].m_idx;
   Uint32 tail= ptr.p->m_file_pos[TAIL].m_idx;
@@ -2981,6 +3587,10 @@ Lgman::find_log_head_in_file(Signal* signal,
 	   head, curr, last_lsn);
   if(last_lsn > file_ptr.p->m_online.m_lsn)
   {
+    /**
+     * Move forward in binary search since page LSN is higher than the largest
+     * LSN found so far.
+     */
     jam();
     if(DEBUG_SEARCH_LOG_HEAD)
       printf("moving tail ");
@@ -2990,6 +3600,12 @@ Lgman::find_log_head_in_file(Signal* signal,
   }
   else
   {
+    /**
+     * A page with lower LSN than the highest is found, this means that the
+     * page wasn't written in this log lap. This means that we're now close
+     * to the end of the UNDO log. We'll continue the binary search to the
+     * left in the log file.
+     */
     jam();
     if(DEBUG_SEARCH_LOG_HEAD)
       printf("moving head ");
@@ -3019,7 +3635,7 @@ Lgman::find_log_head_in_file(Signal* signal,
     req->numberOfPages = 1;
     req->data.pageData[0] = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag, 
+    FsReadWriteReq::setFormatFlag(req->operationFlag,
 				  FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
@@ -3031,18 +3647,43 @@ Lgman::find_log_head_in_file(Signal* signal,
   }
   
   ndbrequire(diff == 1);
+  /**
+   * We have found the end of the UNDO log through a binary search of the
+   * UNDO log pages. There can still be pages up to 16 MByte ahead of us.
+   * We will look for more pages up to 16 MBytes ahead or until we find the
+   * end of the file.
+   *
+   * The reason is that we synch up to 16 MByte at a time to the
+   * UNDO log, so this means that we must take into account the
+   * case that the UNDO log is not written consecutively at the
+   * end.
+   *
+   * We want to find the last page which have been written to
+   * avoid weirdness later when applying the UNDO log. We will
+   * keep track that no records are applied until we have executed
+   * backwards until we have found this end since it is impossible
+   * that a log record is applied if it lies in this region of
+   * written/unwritten log pages. This is because of that we
+   * use the WAL protocol to write pages to disk.
+   */
+
   if(DEBUG_SEARCH_LOG_HEAD)    
-    ndbout_c("-> found last page: %d", tail);
-  
-  ptr.p->m_state = 0;
-  file_ptr.p->m_state = Undofile::FS_EXECUTING;
-  ptr.p->m_last_lsn = file_ptr.p->m_online.m_lsn;
+    ndbout_c("-> found last page in binary search: %d", tail);
+
+  /**
+   * m_next_lsn indicates next LSN to write, so we step this forward one
+   * step to ensure that we don't write one more record with the same
+   * LSN number.
+   */
+  m_next_lsn = ptr.p->m_next_lsn = (file_ptr.p->m_online.m_lsn + 1);
   ptr.p->m_last_read_lsn = file_ptr.p->m_online.m_lsn;
   ptr.p->m_last_synced_lsn = file_ptr.p->m_online.m_lsn;
-  m_last_lsn = file_ptr.p->m_online.m_lsn;
   
   /**
-   * Set HEAD position
+   * Set HEAD and TAIL position to use when we start logging again.
+   * We might have to change those during the check of the end of
+   * the log file search check. But we won't change the file, only
+   * end page index.
    */
   ptr.p->m_file_pos[HEAD].m_ptr_i = file_ptr.i;
   ptr.p->m_file_pos[HEAD].m_idx = tail;
@@ -3050,15 +3691,140 @@ Lgman::find_log_head_in_file(Signal* signal,
   ptr.p->m_file_pos[TAIL].m_ptr_i = file_ptr.i;
   ptr.p->m_file_pos[TAIL].m_idx = tail - 1;
   ptr.p->m_next_reply_ptr_i = file_ptr.i;
-  
+
+
+  file_ptr.p->m_state = Undofile::FS_SEARCHING_END;
+
+  file_ptr.p->m_online.m_current_scan_index = curr;
+  file_ptr.p->m_online.m_current_scanned_pages = 0;
+  file_ptr.p->m_online.m_binary_search_end = true;
+  find_log_head_end_check(signal, ptr, file_ptr, last_lsn);
+}
+
+void
+Lgman::find_log_head_end_check(Signal* signal,
+                               Ptr<Logfile_group> ptr,
+                               Ptr<Undofile> file_ptr,
+                               Uint64 last_lsn)
+{
+  Uint32 curr = file_ptr.p->m_online.m_current_scan_index;
+  Uint32 scanned_pages = file_ptr.p->m_online.m_current_scanned_pages;
+
+  if(last_lsn > file_ptr.p->m_online.m_lsn)
+  {
+    /**
+     * We did actually find a written page after the end which the binary
+     * search found. We need to record this as the new end of the UNDO
+     * log.
+     */
+    jam();
+    if (file_ptr.p->m_online.m_binary_search_end)
+    {
+      jam();
+      file_ptr.p->m_online.m_binary_search_end = false;
+      g_eventLogger->info("LGMAN: Found written page after end found by binary"
+                          " search, binary search head found: %u",
+                          ptr.p->m_file_pos[HEAD].m_idx);
+    }
+    ptr.p->m_file_pos[HEAD].m_idx = curr;
+    ptr.p->m_file_pos[TAIL].m_idx = curr - 1;
+
+    /**
+     * m_next_lsn indicates next LSN to write, so we step this forward one
+     * step to ensure that we don't write one more record with the same
+     * LSN number.
+     */
+    m_next_lsn = ptr.p->m_next_lsn = (file_ptr.p->m_online.m_lsn + 1);
+    ptr.p->m_last_read_lsn = file_ptr.p->m_online.m_lsn;
+    ptr.p->m_last_synced_lsn = file_ptr.p->m_online.m_lsn;
+  }
+
+  curr++;
+  scanned_pages++;
+  file_ptr.p->m_online.m_current_scan_index = curr;
+  file_ptr.p->m_online.m_current_scanned_pages = scanned_pages;
+  if ((curr < file_ptr.p->m_file_size) &&
+      (scanned_pages <= MAX_UNDO_PAGES_OUTSTANDING))
+  {
+    jam();
+    Uint32 page_id = ptr.p->m_pos[CONSUMER].m_current_pos.m_ptr_i;
+    file_ptr.p->m_online.m_outstanding= page_id;
+
+    FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtrSend();
+    req->filePointer = file_ptr.p->m_fd;
+    req->userReference = reference();
+    req->userPointer = file_ptr.i;
+    req->varIndex = curr;
+    req->numberOfPages = 1;
+    req->data.pageData[0] = page_id;
+    req->operationFlag = 0;
+    FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                  FsReadWriteReq::fsFormatSharedPage);
+
+    sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+               FsReadWriteReq::FixedLength + 1, JBA);
+
+    ptr.p->m_outstanding_fs++;
+    file_ptr.p->m_state |= Undofile::FS_OUTSTANDING;
+    return;
+  }
+  jam();
+
+  /**
+   * Now we are done with the search for the end. However when starting to
+   * execute the UNDO log we expect the first page to be already read. So
+   * we reread the last page in the UNDO log that we found.
+   */
+  Uint32 page_id = ptr.p->m_pos[CONSUMER].m_current_pos.m_ptr_i;
+  file_ptr.p->m_online.m_outstanding= page_id;
+  curr = ptr.p->m_file_pos[HEAD].m_idx;
+
+  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = file_ptr.p->m_fd;
+  req->userReference = reference();
+  req->userPointer = file_ptr.i;
+  req->varIndex = curr;
+  req->numberOfPages = 1;
+  req->data.pageData[0] = page_id;
+  req->operationFlag = 0;
+  FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                FsReadWriteReq::fsFormatSharedPage);
+
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
+             FsReadWriteReq::FixedLength + 1, JBA);
+
+  ptr.p->m_outstanding_fs++;
+  file_ptr.p->m_state = Undofile::FS_SEARCHING_FINAL_READ;
+  file_ptr.p->m_state |= Undofile::FS_OUTSTANDING;
+  return;
+}
+
+void
+Lgman::find_log_head_complete(Signal *signal,
+                              Ptr<Logfile_group> ptr,
+                              Ptr<Undofile> file_ptr)
+{
+  Uint32 head = ptr.p->m_file_pos[HEAD].m_idx;
+  /**
+   * END_OF_UNDO_LOG_FOUND
+   *
+   * We have found the end of the UNDO log. This is the position
+   * from which we will start the UNDO execution and the position
+   * from which we later will start adding new UNDO log records.
+   * We have just reread the last UNDO log page, so we are ready
+   * to start executing the UNDO log.
+   */
+  ptr.p->m_state = 0;
+  file_ptr.p->m_state = Undofile::FS_EXECUTING;
+
   {
     Local_undofile_list files(m_file_pool, ptr.p->m_files);
-    if(tail == 1)
+    if(head == 1)
     {
       jam();
       /**
        * HEAD is first page in a file...
-       *   -> PREV should be in previous file
+       *   -> TAIL should be last page in previous file
        */
       Ptr<Undofile> prev = file_ptr;
       if(!files.prev(prev))
@@ -3072,12 +3838,12 @@ Lgman::find_log_head_in_file(Signal* signal,
     }
     
     SimulatedBlock* fs = globalData.getBlock(NDBFS);
-    infoEvent("Undo head - %s page: %d lsn: %lld",
+    infoEvent("LGMAN: Undo head - %s page: %d lsn: %lld",
 	      fs->get_filename(file_ptr.p->m_fd), 
-	      tail, file_ptr.p->m_online.m_lsn);
-    g_eventLogger->info("Undo head - %s page: %d lsn: %lld",
+	      head, file_ptr.p->m_online.m_lsn);
+    g_eventLogger->info("LGMAN: Undo head - %s page: %d lsn: %lld",
                         fs->get_filename(file_ptr.p->m_fd),
-                        tail, file_ptr.p->m_online.m_lsn);
+                        head, file_ptr.p->m_online.m_lsn);
     
     for(files.prev(file_ptr); !file_ptr.isNull(); files.prev(file_ptr))
     {
@@ -3148,6 +3914,8 @@ Lgman::init_run_undo_log(Signal* signal)
         ptr.p->m_pos[CONSUMER].m_current_pos.m_idx = pageP->m_words_used;
         ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = 1;
         ptr.p->m_last_read_lsn++;
+
+        ptr.p->m_consumer_file_pos = ptr.p->m_file_pos[HEAD];
       }
 
       /**
@@ -3390,23 +4158,32 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> ptr,
 void
 Lgman::execute_undo_record(Signal* signal)
 {
+  /**
+   * This code isn't prepared to handle more than one logfile group.
+   * To support multiple logfile groups one needs to adapt this code
+   * for this requirement.
+   */
+
   Uint64 lsn;
   const Uint32* ptr;
   if((ptr = get_next_undo_record(&lsn)))
   {
     Uint32 len= (* ptr) & 0xFFFF;
     Uint32 type= (* ptr) >> 16;
-    Uint32 mask= type & ~(Uint32)File_formats::Undofile::UNDO_NEXT_LSN;
+    Uint32 mask= type & (~((Uint32)File_formats::Undofile::UNDO_NEXT_LSN));
     switch(mask){
     case File_formats::Undofile::UNDO_END:
       jam();
+      g_eventLogger->info("LGMAN: Stop UNDO log execution at LSN %llu,"
+                          " found END record",
+                          lsn);
       stop_run_undo_log(signal);
       return;
     case File_formats::Undofile::UNDO_LCP:
     case File_formats::Undofile::UNDO_LCP_FIRST:
     {
-      Uint32 lcp = * (ptr - len + 1);
       jam();
+      Uint32 lcp = * (ptr - len + 1);
       if(m_latest_lcp && lcp > m_latest_lcp)
       {
         jam();
@@ -3428,6 +4205,9 @@ Lgman::execute_undo_record(Signal* signal)
 	  mask == File_formats::Undofile::UNDO_LCP_FIRST))
       {
         jam();
+        g_eventLogger->info("LGMAN: Stop UNDO log execution at LSN %llu,"
+                            " found LCP record",
+                            lsn);
 	stop_run_undo_log(signal);
 	return;
       }
@@ -3453,8 +4233,40 @@ Lgman::execute_undo_record(Signal* signal)
     }
   }
   signal->theData[0] = LgmanContinueB::EXECUTE_UNDO_RECORD;
-  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 1, JBB);
+  signal->theData[1] = 0; /* Not applied flag */
+  sendSignal(LGMAN_REF, GSN_CONTINUEB, signal, 2, JBB);
   return;
+}
+
+/**
+ * Move back one page in the file position of the currently
+ * executing UNDO log. Change to previous file if needed.
+ */
+void Lgman::update_consumer_file_pos(Ptr<Logfile_group> lg_ptr)
+{
+  Buffer_idx consumer_file_pos = lg_ptr.p->m_consumer_file_pos;
+  if (consumer_file_pos.m_idx == 1)
+  {
+    /* We switch to a new file now */
+    jam();
+    Ptr<Undofile> filePtr;
+    m_file_pool.getPtr(filePtr, consumer_file_pos.m_ptr_i);
+    Ptr<Undofile> prev = filePtr;
+    Local_undofile_list files(m_file_pool, lg_ptr.p->m_files);
+    if(!files.prev(prev))
+    {
+      jam();
+      files.last(prev);
+    }
+    consumer_file_pos.m_ptr_i = prev.i;
+    consumer_file_pos.m_idx = prev.p->m_file_size - 1;
+  }
+  else
+  {
+    jam();
+    consumer_file_pos.m_idx--;
+  }
+  lg_ptr.p->m_consumer_file_pos = consumer_file_pos;
 }
 
 const Uint32*
@@ -3464,8 +4276,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
   m_logfile_group_list.first(ptr);
 
   Logfile_group::Position consumer= ptr.p->m_pos[CONSUMER];
-  Logfile_group::Position producer= ptr.p->m_pos[PRODUCER];
-  if(producer.m_current_pos.m_idx < 2)
+  if(ptr.p->m_pos[PRODUCER].m_current_pos.m_idx < 2)
   {
     jam();
     /**
@@ -3480,59 +4291,183 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
   File_formats::Undofile::Undo_page* pageP=(File_formats::Undofile::Undo_page*)
     m_shared_page_pool.getPtr(page);
 
-  if(pos == 0)
+
+  if (ptr.p->m_last_read_lsn == (Uint64)1)
   {
     /**
-     * End of log
+     * End of log, we hadn't concluded any LCPs before the crash.
+     * So we find the end of the log by noting that we expect this LSN
+     * number to be 0 which doesn't exist.
+     *
+     * When initialising we have also written an UNDO_END log record
+     * into the first page, so we should not be able to run past that
+     * point even when the first pages in the file are unwritten and
+     * others ahead are written which is a difficult corner case to
+     * handle.
      */
     jam();
     pageP->m_data[0] = (File_formats::Undofile::UNDO_END << 16) | 1 ;
     pageP->m_page_header.m_page_lsn_hi = 0;
     pageP->m_page_header.m_page_lsn_lo = 0;
-    pos= consumer.m_current_pos.m_idx= pageP->m_words_used = 1;
+    ptr.p->m_pos[CONSUMER].m_current_pos.m_idx= pageP->m_words_used = 1;
     this_lsn = 0;
     return pageP->m_data;
   }
 
-  Uint32 *record= pageP->m_data + pos - 1;
-  Uint32 len= (* record) & 0xFFFF;
-  ndbrequire(len);
-  Uint32 *prev= record - len;
-  Uint64 lsn = 0;
+  /**
+   * Before we start using the page we need to verify that the page has a
+   * LSN which is what we expect it to be. It needs to be bigger than the
+   * LSN of the first LSN in the file and it needs to be smaller than the
+   * LSN of the previous UNDO log record applied since we are applying the
+   * UNDO log backwards.
+   *
+   * If we discover a page which has an invalid LSN it means this page was
+   * unwritten and should be ignored. Such pages are ok to encounter at the
+   * end of the UNDO log. If we encounter such a page after we already
+   * applied an UNDO log then the WAL protocol says that this is wrong since
+   * we should have sync:ed everything before that LSN and thus no unwritten
+   * pages are ok to encounter anymore.
+   */
 
-  // Same page
-  if(((* record) >> 16) & File_formats::Undofile::UNDO_NEXT_LSN)
+  Uint32 page_position = pageP->m_words_used;
+  bool ignore_page = false;
+  bool new_page;
+
+  if (page_position == pos)
   {
     jam();
-    lsn = ptr.p->m_last_read_lsn - 1;
-    ndbrequire((Int64)lsn >= 0);
+    /**
+     * This is the first log entry in a new page, we need to
+     * verify this page before we start using it.
+     */
+    Uint64 page_lsn = pageP->m_page_header.m_page_lsn_hi;
+    page_lsn <<= 32;
+    page_lsn += pageP->m_page_header.m_page_lsn_lo;
+    if (page_lsn != (ptr.p->m_last_read_lsn - 1))
+    {
+      jam();
+      /**
+       * The page LSN wasn't the expected one. We need to verify that
+       * it is ok that this page is here.
+       */
+      Ptr<Undofile> filePtr;
+      m_file_pool.getPtr(filePtr, ptr.p->m_consumer_file_pos.m_ptr_i);
+      /**
+       * Due to an old bug we can have rewrite an LSN number, so we can
+       * only assert on that we don't write a second LSN with the same
+       * number, but we require that it isn't more than two LSNs with
+       * the same number.
+       *
+       * We can upgrade this assert to a require when we are sure that
+       * the log wasn't produced by these older versions.
+       */
+      ndbassert(page_lsn < (ptr.p->m_last_read_lsn - 1));
+      ndbrequire(page_lsn < (ptr.p->m_last_read_lsn - 1) ||
+                 page_lsn == ptr.p->m_last_read_lsn);
+      if (filePtr.p->m_start_lsn <= page_lsn)
+      {
+        /**
+         * A normal page, continue as usual.
+         * However given that we now have skipped over a few pages we need to
+         * set back the last read LSN to be the last LSN of the previous page
+         * that was never written, or in other words this pageLSN + 1.
+         */
+        jam();
+        ptr.p->m_last_read_lsn = page_lsn + 1;
+        SimulatedBlock* fs = globalData.getBlock(NDBFS);
+        g_eventLogger->info("LGMAN: Continue applying log records in written"
+                            "page: %u in the file %s",
+                            ptr.p->m_consumer_file_pos.m_idx,
+                            fs->get_filename(filePtr.p->m_fd));
+      }
+      else
+      {
+        jam();
+        if (ptr.p->m_applied)
+        {
+          /**
+           * We need to crash since we found a not OK page after an UNDO log
+           * record have already been applied.
+           */
+          SimulatedBlock* fs = globalData.getBlock(NDBFS);
+          g_eventLogger->info("LGMAN: File %s have wrong pageLSN in page: %u",
+                              fs->get_filename(filePtr.p->m_fd),
+                              ptr.p->m_consumer_file_pos.m_idx);
+          progError(__LINE__, NDBD_EXIT_SR_UNDOLOG);
+        }
+        SimulatedBlock* fs = globalData.getBlock(NDBFS);
+        g_eventLogger->info("LGMAN: Ignoring log records in unwritten page: "
+                            "%u in the file %s",
+                            ptr.p->m_consumer_file_pos.m_idx,
+                            fs->get_filename(filePtr.p->m_fd));
+        ignore_page = true;
+        new_page = true;
+      }
+    }
   }
-  else
+  /**
+   * Read the UNDO record
+   */
+  Uint32 *record = NULL;
+  if (!ignore_page)
   {
-    ndbrequire(pos >= 3);
     jam();
-    lsn += * (prev - 1); lsn <<= 32;
-    lsn += * (prev - 0);
-    len += 2;
-    ndbrequire((Int64)lsn >= 0);
+    record= pageP->m_data + pos - 1;
+    Uint32 len= (* record) & 0xFFFF;
+    ndbrequire(len);
+    Uint32 *prev= record - len;
+    Uint64 lsn = 0;
+
+    if (((* record) >> 16) & (File_formats::Undofile::UNDO_NEXT_LSN))
+    {
+      /* This was a Type 1 record, previous LSN is -1 of current */
+      jam();
+      lsn = ptr.p->m_last_read_lsn - 1;
+      ndbrequire((Int64)lsn >= 0);
+    }
+    else
+    {
+      /**
+       * This was a Type 2 record, previous LSN given by LSNs in the UNDO
+       * log record, see UNDO log record layout in beginning of file.
+       */
+      ndbrequire(pos >= 3);
+      jam();
+      lsn += * (prev - 1); lsn <<= 32;
+      lsn += * (prev - 0);
+      len += 2;
+      ndbrequire((Int64)lsn >= 0);
+    }
+    *this_lsn = ptr.p->m_last_read_lsn = lsn;
+    ndbrequire(pos >= len);
+    new_page = (pos == len);
+    consumer.m_current_pos.m_idx -= len;
   }
-  
-  ndbrequire(pos >= len);
-  
-  if(pos == len)
+
+  /**
+   * Now step back to previous UNDO log record. Also change to new page
+   * if necessary.
+   */
+
+  if (new_page)
   {
     /**
-     * Switching page
+     * Switching to next page in our backwards scan of UNDO log pages.
+     *
+     * The length of the UNDO record is the same as the position of the
+     * header of the UNDO log record which means that this was the first
+     * UNDO log record in the page and thus the last UNDO log record to
+     * apply in the page. We prepare moving to the next page.
      */
     jam();
-    ndbrequire(producer.m_current_pos.m_idx);
-    ptr.p->m_pos[PRODUCER].m_current_pos.m_idx --;
+    ndbrequire(ptr.p->m_pos[PRODUCER].m_current_pos.m_idx);
+    ptr.p->m_pos[PRODUCER].m_current_pos.m_idx--;
 
     if(consumer.m_current_page.m_idx)
     {
       jam();
       consumer.m_current_page.m_idx--;   // left in range
-      consumer.m_current_pos.m_ptr_i --; // page
+      consumer.m_current_pos.m_ptr_i--; // page
     }
     else
     {
@@ -3549,7 +4484,9 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
 	Lgman::Buffer_idx range;
       };
       
-      _tmp[0] = *it.data; map.next(it); _tmp[1] = *it.data;
+      _tmp[0] = *it.data;
+      map.next(it);
+      _tmp[1] = *it.data;
       
       consumer.m_current_page.m_idx = range.m_idx - 1; // left in range
       consumer.m_current_page.m_ptr_i = tmp;           // pos in map
@@ -3560,36 +4497,42 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
     if(DEBUG_UNDO_EXECUTION)
       ndbout_c("reading from %d", consumer.m_current_pos.m_ptr_i);
 
+    ptr.p->m_free_buffer_words += File_formats::UNDO_PAGE_WORDS;
+
+    /**
+     * We have switched to a new page. Before starting to apply this page
+     * we need to ensure that this page is containing valid entries to
+     * apply. We might come to pages that don't have an accurate set of
+     * LSNs. This should however never happen after we reach an UNDO log
+     * record that have been applied due to the WAL protocol. If this
+     * happens the UNDO log is inconsistent and we need to crash with
+     * a report about this.
+     *
+     * We will verify the LSN of the page by checking that the LSN of the
+     * page is bigger than or equal to the LSN of the first page in the
+     * file. To do this we need to keep track of the current file and to
+     * keep track of this we simply keep track of the file position of the
+     * UNDO logs we execute.
+     *
+     * We will then verify that the page LSN is smaller than the highest
+     * we reached so far, but still bigger or equal to the page LSN of the
+     * first page in the file we are currently executing the UNDO log in.
+     */
+    update_consumer_file_pos(ptr);
+
     pageP=(File_formats::Undofile::Undo_page*)
       m_shared_page_pool.getPtr(consumer.m_current_pos.m_ptr_i);
-    
-    pos= consumer.m_current_pos.m_idx= pageP->m_words_used;
-    
-    Uint64 tmp = 0;
-    tmp += pageP->m_page_header.m_page_lsn_hi; tmp <<= 32;
-    tmp += pageP->m_page_header.m_page_lsn_lo;
-    
-    prev = pageP->m_data + pos - 1;
-    
-    if(((* prev) >> 16) & File_formats::Undofile::UNDO_NEXT_LSN)
-    {
-      ndbrequire(lsn + 1 == ptr.p->m_last_read_lsn);
-    }
 
-    ptr.p->m_pos[CONSUMER] = consumer;
-    ptr.p->m_free_buffer_words += File_formats::UNDO_PAGE_WORDS;
+    consumer.m_current_pos.m_idx = pageP->m_words_used;
   }
-  else
-  {
-    jam();
-    ptr.p->m_pos[CONSUMER].m_current_pos.m_idx -= len;
-  }
-  
-  *this_lsn = ptr.p->m_last_read_lsn = lsn;
+  ptr.p->m_pos[CONSUMER] = consumer;
 
   /**
    * Re-sort log file groups
+   * This is code prepared for future use of multiple logfile groups.
+   * We comment it out for now.
    */
+#if 0
   Ptr<Logfile_group> sort = ptr;
   if(m_logfile_group_list.next(sort))
   {
@@ -3615,6 +4558,7 @@ Lgman::get_next_undo_record(Uint64 * this_lsn)
       }
     }
   }
+#endif
   return record;
 }
 
@@ -3626,6 +4570,7 @@ Lgman::stop_run_undo_log(Signal* signal)
   m_logfile_group_list.first(ptr);
   while(!ptr.isNull())
   {
+    jam();
     /**
      * Mark exec thread as completed
      */
@@ -3725,8 +4670,9 @@ Lgman::stop_run_undo_log(Signal* signal)
 	Ptr<Undofile> hf, tf;
 	m_file_pool.getPtr(tf, tail.m_ptr_i);
 	m_file_pool.getPtr(hf,  ptr.p->m_file_pos[HEAD].m_ptr_i);
-	infoEvent("Logfile group: %d ", ptr.p->m_logfile_group_id);
-        g_eventLogger->info("Logfile group: %d ", ptr.p->m_logfile_group_id);
+	infoEvent("LGMAN: Logfile group: %d ", ptr.p->m_logfile_group_id);
+        g_eventLogger->info("LGMAN: Logfile group: %d ",
+                            ptr.p->m_logfile_group_id);
 	infoEvent("  head: %s page: %d",
                   fs->get_filename(hf.p->m_fd),
                   ptr.p->m_file_pos[HEAD].m_idx);
@@ -3757,12 +4703,20 @@ Lgman::stop_run_undo_log(Signal* signal)
     return;
   }
   
-  infoEvent("Flushing page cache after undo completion");
-  g_eventLogger->info("Flushing page cache after undo completion");
+  infoEvent("LGMAN: Flushing page cache after undo completion");
+  g_eventLogger->info("LGMAN: Flushing page cache after undo completion");
 
   /**
-   * Start flushing pages (local, LCP)
+   * START_FLUSH_PGMAN_CACHE
+   * 
+   * Start flushing pages (a form of a local LCP)
+   *
+   * As part of a restart we want to ensure that we don't need to replay
+   * the UNDO log again. This is done by ensuring that all pages
+   * currently in PGMAN cache is flushed to disk. We do this by faking
+   * a LCP to PGMAN by a first LCP_FRAG_ORD followed by END_LCP_REQ.
    */
+
   LcpFragOrd * ord = (LcpFragOrd *)signal->getDataPtr();
   ord->lcpId = m_latest_lcp;
   sendSignal(PGMAN_REF, GSN_LCP_FRAG_ORD, signal, 
@@ -3772,12 +4726,12 @@ Lgman::stop_run_undo_log(Signal* signal)
   req->senderData = 0;
   req->senderRef = reference();
   req->backupId = m_latest_lcp;
-  sendSignal(PGMAN_REF, GSN_END_LCP_REQ, signal, 
+  sendSignal(PGMAN_REF, GSN_END_LCPREQ, signal, 
 	     EndLcpReq::SignalLength, JBB);
 }
 
 void
-Lgman::execEND_LCP_CONF(Signal* signal)
+Lgman::execEND_LCPCONF(Signal* signal)
 {
   {
     Dbtup_client tup(this, m_tup);
@@ -3786,10 +4740,13 @@ Lgman::execEND_LCP_CONF(Signal* signal)
   }
   
   /**
-   * pgman has completed flushing all pages
+   * END_FLUSH_PGMAN_CACHE
    *
-   *   insert "fake" LCP record preventing undo to be "rerun"
+   * PGMAN has completed flushing all pages
+   *
+   * Insert "fake" LCP record preventing undo to be "rerun"
    */
+
   Uint32 undo[3];
   undo[0] = m_latest_lcp;
   undo[1] = (0 << 16) | 0;
@@ -3799,8 +4756,8 @@ Lgman::execEND_LCP_CONF(Signal* signal)
   Ptr<Logfile_group> ptr;
   ndbrequire(m_logfile_group_list.first(ptr));
 
-  Uint64 last_lsn= m_last_lsn;
-  if(ptr.p->m_last_lsn == last_lsn
+  Uint64 next_lsn= m_next_lsn;
+  if(ptr.p->m_next_lsn == next_lsn
 #ifdef VM_TRACE
      && ((rand() % 100) > 50)
 #endif
@@ -3821,23 +4778,23 @@ Lgman::execEND_LCP_CONF(Signal* signal)
     Uint32 *dst= get_log_buffer(ptr,
                                 (sizeof(undo) >> 2) + 2,
                                 jamBuffer());      
-    * dst++ = (Uint32)(last_lsn >> 32);
-    * dst++ = (Uint32)(last_lsn & 0xFFFFFFFF);
+    * dst++ = (Uint32)(next_lsn >> 32);
+    * dst++ = (Uint32)(next_lsn & 0xFFFFFFFF);
     memcpy(dst, undo, sizeof(undo));
     ndbrequire(ptr.p->m_free_file_words >= ((sizeof(undo) >> 2) + 2));
     ptr.p->m_free_file_words -= ((sizeof(undo) >> 2) + 2);
   }
-  m_last_lsn = ptr.p->m_last_lsn = last_lsn + 1;
+  m_next_lsn = ptr.p->m_next_lsn = next_lsn + 1;
 
-  ptr.p->m_last_synced_lsn = last_lsn;
+  ptr.p->m_last_synced_lsn = next_lsn;
   while(m_logfile_group_list.next(ptr))
   {
     jam();
-    ptr.p->m_last_synced_lsn = last_lsn;
+    ptr.p->m_last_synced_lsn = next_lsn;
   }
   
-  infoEvent("Flushing complete");
-  g_eventLogger->info("Flushing complete");
+  infoEvent("LGMAN: Flushing complete");
+  g_eventLogger->info("LGMAN: Flushing complete");
 
   signal->theData[0] = reference();
   sendSignal(DBLQH_REF, GSN_START_RECCONF, signal, 1, JBB);

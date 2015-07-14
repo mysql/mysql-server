@@ -10,3 +10,4 @@ MinDiskWriteSpeed=2M
 MaxDiskWriteSpeed=2M
 MaxDiskWriteSpeedOtherNodeRestart=2M
 DefaultOperationRedoProblemAction=abort
+NoOfFragmentLogFiles=3

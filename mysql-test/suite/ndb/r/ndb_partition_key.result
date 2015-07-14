@@ -323,12 +323,8 @@ a	b	c
 2	22	7
 ndb_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 ndb_pruned_scan_count
 0
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 Single partition scan
 select * from nott1 where a=0 order by c;
 a	b	c
@@ -338,23 +334,15 @@ a	b	c
 0	3	3
 ndb_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 ndb_pruned_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 Single partition scan
 select * from nott1 where a=4 order by c;
 a	b	c
 ndb_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 ndb_pruned_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 MRR scan on one partition
 select * from nott1 where a=0 and (( b > 0 and b < 3) or 
 ( b > 5 and b < 10) or 
@@ -364,12 +352,8 @@ a	b	c
 0	2	2
 ndb_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 ndb_pruned_scan_count
 1
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.SESSION_STATUS' is deprecated and will be removed in a future release. Please use performance_schema.session_status instead
 drop table nott1;
 CREATE TABLE t1 (
 a char(10) NOT NULL,

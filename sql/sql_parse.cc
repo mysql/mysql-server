@@ -1122,6 +1122,30 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
     goto done;
   }
 
+#ifndef EMBEDDED_LIBRARY
+  if (mysql_audit_notify(thd,
+                         AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START), command))
+  {
+    /* Ignore these commands. The plugin cannot abort on these commands. */
+    if (command == COM_QUIT ||
+        command == COM_PING ||
+        command == COM_SLEEP || /* Deprecated commands from here. */
+        command == COM_CONNECT ||
+        command == COM_TIME ||
+        command == COM_DELAYED_INSERT ||
+        command == COM_END)
+    {
+      sql_print_warning("Aborting '%s' command is not recommended. "
+                        "May lead to unspecified behaviour.",
+                        command_name[command].str);
+    }
+    else
+    {
+      goto done;
+    }
+  }
+#endif /* !EMBEDDED_LIBRARY */
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1170,7 +1194,10 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
     Security_context save_security_ctx(*(thd->security_context()));
 
     auth_rc= acl_authenticate(thd, COM_CHANGE_USER);
-    MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
+#ifndef EMBEDDED_LIBRARY
+    auth_rc|= mysql_audit_notify(thd,
+                             AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CHANGE_USER));
+#endif
     if (auth_rc)
     {
       *thd->security_context()= save_security_ctx;
@@ -1284,10 +1311,12 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
       thd->send_statement_status();
       query_cache.end_of_result(thd);
 
+#ifndef EMBEDDED_LIBRARY
       mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
                           thd->get_stmt_da()->is_error() ?
                           thd->get_stmt_da()->mysql_errno() : 0,
                           command_name[command].str);
+#endif
 
       size_t length= static_cast<size_t>(packet_end - beginning_of_next_stmt);
 
@@ -1687,6 +1716,7 @@ done:
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
   query_cache.end_of_result(thd);
 
+#ifndef EMBEDDED_LIBRARY
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
 
@@ -1694,6 +1724,11 @@ done:
                       thd->get_stmt_da()->is_error() ?
                       thd->get_stmt_da()->mysql_errno() : 0,
                       command_name[command].str);
+
+  /* command_end is informational only. The plugin cannot abort
+     execution of the command at thie point. */
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command);
+#endif
 
   log_slow_statement(thd);
 
@@ -2164,7 +2199,7 @@ static inline void binlog_gtid_end_transaction(THD *thd)
 */
 
 int
-mysql_execute_command(THD *thd)
+mysql_execute_command(THD *thd, bool first_level)
 {
   int res= FALSE;
   LEX  *const lex= thd->lex;
@@ -2413,6 +2448,18 @@ mysql_execute_command(THD *thd)
 
   if (gtid_pre_statement_post_implicit_commit_checks(thd))
     DBUG_RETURN(-1);
+
+#ifndef EMBEDDED_LIBRARY
+  if (mysql_audit_notify(thd, first_level ?
+                              MYSQL_AUDIT_QUERY_START :
+                              MYSQL_AUDIT_QUERY_NESTED_START,
+                              first_level ?
+                              "MYSQL_AUDIT_QUERY_START" :
+                              "MYSQL_AUDIT_QUERY_NESTED_START"))
+  {
+    DBUG_RETURN(1);
+  }
+#endif /* !EMBEDDED_LIBRARY */
 
 #ifndef DBUG_OFF
   if (lex->sql_command != SQLCOM_SET_OPTION)
@@ -4211,6 +4258,17 @@ end_with_restore_list:
             goto error;
         }
 
+#ifndef EMBEDDED_LIBRARY
+        if (mysql_audit_notify(thd,
+                              AUDIT_EVENT(MYSQL_AUDIT_STORED_PROGRAM_EXECUTE),
+                              lex->spname->m_db.str,
+                              lex->spname->m_name.str,
+                              NULL))
+        {
+          goto error;
+        }
+#endif /* !EMBEDDED_LIBRARY */
+
 	if (sp->m_flags & sp_head::MULTI_RESULTS)
 	{
 	  if (!thd->get_protocol()->has_client_capability(CLIENT_MULTI_RESULTS))
@@ -4678,6 +4736,14 @@ finish:
 
   if (! thd->in_sub_stmt)
   {
+#ifndef EMBEDDED_LIBRARY
+    mysql_audit_notify(thd,
+                       first_level ? MYSQL_AUDIT_QUERY_STATUS_END :
+                                     MYSQL_AUDIT_QUERY_NESTED_STATUS_END,
+                       first_level ? "MYSQL_AUDIT_QUERY_STATUS_END" :
+                                     "MYSQL_AUDIT_QUERY_NESTED_STATUS_END");
+#endif /* !EMBEDDED_LIBRARY */
+
     /* report error issued during command execution */
     if (thd->killed_errno())
       thd->send_kill_message();
@@ -5252,7 +5318,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             error= 1;
           }
           else
-            error= mysql_execute_command(thd);
+            error= mysql_execute_command(thd, true);
 
           MYSQL_QUERY_EXEC_DONE(error);
 	}

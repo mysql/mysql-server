@@ -46,25 +46,23 @@ void invoke_pre_parse_rewrite_plugins(THD *thd)
   plugin_da->reset_condition_info(thd);
   Diagnostics_area *da= thd->get_parser_da();
   thd->push_diagnostics_area(plugin_da, false);
-  int flags= 0;
-  char *rewritten_query= NULL;
-  size_t rewritten_query_length= 0;
-  mysql_audit_notify(thd, MYSQL_AUDIT_PARSE_CLASS, MYSQL_AUDIT_PREPARSE,
-                     &flags, //flags
-                     thd->query().str, // query
-                     thd->query().length, // length
-                     &rewritten_query,
-                     &rewritten_query_length);
-  if (flags & FLAG_REWRITE_PLUGIN_QUERY_REWRITTEN)
+  mysql_event_parse_rewrite_plugin_flag flags=
+                                        MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
+  LEX_CSTRING rewritten_query = { NULL, 0 };
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_PREPARSE),
+                     &flags,
+                     &rewritten_query);
+
+  if (flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN)
   {
     // It is a rewrite fulltext plugin and we need a rewrite we must have
     // generated a new query then.
-    DBUG_ASSERT(rewritten_query != NULL &&
-                rewritten_query_length > 0);
-    raise_query_rewritten_note(thd, thd->query().str, rewritten_query);
-    alloc_query(thd, rewritten_query, rewritten_query_length);
+    DBUG_ASSERT(rewritten_query.str != NULL &&
+                rewritten_query.length > 0);
+    raise_query_rewritten_note(thd, thd->query().str, rewritten_query.str);
+    alloc_query(thd, rewritten_query.str, rewritten_query.length);
     thd->m_parser_state->init(thd, thd->query().str, thd->query().length);
-    my_free(rewritten_query);
+    my_free((void *)rewritten_query.str);
   }
 
   da->copy_sql_conditions_from_da(thd, plugin_da);
@@ -75,7 +73,8 @@ void invoke_pre_parse_rewrite_plugins(THD *thd)
 
 void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps)
 {
-  if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_PARSE_CLASS))
+  if (is_audit_plugin_class_active(thd,
+                         static_cast<unsigned long>(MYSQL_AUDIT_PARSE_CLASS)))
     ps->m_input.m_compute_digest= true;
 }
 
@@ -109,20 +108,17 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
     DBUG_ASSERT(dummy == 1);
   }
 
-  int flags= is_prepared ? FLAG_REWRITE_PLUGIN_IS_PREPARED_STATEMENT : 0;
+  mysql_event_parse_rewrite_plugin_flag flags=
+       is_prepared ?  MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT :
+                      MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
   bool err= false;
-  const LEX_CSTRING original_query= thd->query();
-  mysql_audit_notify(thd, MYSQL_AUDIT_PARSE_CLASS, MYSQL_AUDIT_POSTPARSE,
-                     &flags,
-                     original_query.str,
-                     original_query.length,
-                     NULL, // rewritten query,
-                     NULL // rewritten query length
-                     );
+  const char *original_query= thd->query().str;
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_POSTPARSE),
+                     &flags, NULL);
 
-  if (flags & FLAG_REWRITE_PLUGIN_QUERY_REWRITTEN)
+  if (flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN)
   {
-    raise_query_rewritten_note(thd, original_query.str, thd->query().str);
+    raise_query_rewritten_note(thd, original_query, thd->query().str);
     thd->lex->safe_to_cache_query= false;
   }
 
