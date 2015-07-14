@@ -3651,33 +3651,30 @@ public:
   Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     TABLE_SHARE *share, uint blob_pack_length, const CHARSET_INFO *cs);
+
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-             const CHARSET_INFO *cs)
+	     const CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
     packlength(4), keep_old_value(false)
   {
     flags|= BLOB_FLAG;
-  }
-  Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     const CHARSET_INFO *cs, bool set_packlength)
-    :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, cs), keep_old_value(false)
-  {
-    flags|= BLOB_FLAG;
-    packlength= 4;
     if (set_packlength)
     {
-      uint32 l_char_length= len_arg/cs->mbmaxlen;
-      packlength= l_char_length <= 255 ? 1 :
-                  l_char_length <= 65535 ? 2 :
-                  l_char_length <= 16777215 ? 3 : 4;
+      packlength= len_arg <= 255 ? 1 :
+                  len_arg <= 65535 ? 2 :
+                  len_arg <= 16777215 ? 3 : 4;
     }
   }
+
   Field_blob(uint32 packlength_arg)
-    :Field_longstr((uchar*) 0, 0, (uchar*) "", 0, NONE, "temp", system_charset_info),
-    packlength(packlength_arg), keep_old_value(false) {}
+    :Field_longstr((uchar*) 0, 0, (uchar*) "", 0,
+                   NONE, "temp", system_charset_info),
+    packlength(packlength_arg), keep_old_value(false)
+  {}
+
   ~Field_blob() { mem_free(); }
+
   /* Note that the default copy constructor is used, in clone() */
   enum_field_types type() const { return MYSQL_TYPE_BLOB;}
   bool match_collation_to_optimize_range() const { return true; }
@@ -3862,7 +3859,7 @@ public:
   { geom_type= geom_type_arg; }
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
 	     TABLE_SHARE *share, enum geometry_type geom_type_arg)
-    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin)
+    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
   { geom_type= geom_type_arg; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
@@ -3915,7 +3912,7 @@ public:
   {}
 
   Field_json(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg)
-    : Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin)
+    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
   {}
 
   enum_field_types type() const { return MYSQL_TYPE_JSON; }
