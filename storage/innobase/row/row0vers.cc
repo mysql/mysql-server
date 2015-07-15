@@ -740,6 +740,9 @@ row_vers_old_has_index_entry(
 		v_heap = mem_heap_create(100);
 	}
 
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
+			DBUG_SUICIDE(););
+
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row_ext_t*	ext;
 
@@ -760,9 +763,6 @@ row_vers_old_has_index_entry(
 #else /* DBUG_OFF */
                         bool    dbug_v_purge = false;
 #endif /* DBUG_OFF */
-
-			DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
-					DBUG_SUICIDE(););
 
 			DBUG_EXECUTE_IF(
 				"ib_purge_virtual_index_callback",
