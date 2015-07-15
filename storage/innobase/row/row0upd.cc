@@ -1524,6 +1524,7 @@ row_upd_changes_ord_field_binary_func(
 
 			ut_ad(dfield->data != NULL
 			      && dfield->len > GEO_DATA_HEADER_SIZE);
+			ut_ad(dict_col_get_spatial_status(col) != SPATIAL_NONE);
 
 			/* Get the old mbr. */
 			if (dfield_is_ext(dfield)) {

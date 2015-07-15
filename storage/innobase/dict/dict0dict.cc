@@ -2342,10 +2342,6 @@ is_ord_part:
 			undo log.  See trx_undo_page_fetch_ext(). */
 			max_size = ut_min(max_size, max_field_len);
 
-			if (is_spatial) {
-				max_size += DATA_MBR_LEN;
-			}
-
 			/* We only store the needed prefix length in undo log */
 			if (max_prefix) {
 			     ut_ad(dict_table_get_format(table)
@@ -2355,6 +2351,16 @@ is_ord_part:
 			}
 
 			max_size += BTR_EXTERN_FIELD_REF_SIZE;
+
+			if (is_spatial || DATA_GEOMETRY_MTYPE(col->mtype)) {
+				/* If the column is only used by gis index,
+				we log MBR; otherwise we log prefix + MBR. */
+				if (max_prefix == 0) {
+					max_size = DATA_MBR_LEN;
+				} else {
+					max_size += DATA_MBR_LEN;
+				}
+			}
 		}
 
 		undo_page_len += 5 + max_size;
