@@ -30,7 +30,7 @@ ELSE()
     SET(CPACK_COMPONENTS_USED
       "${CPACK_COMPONENTS_USED};ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ;nodejs")
   ENDIF()
-ENDIF
+ENDIF()
 
 
 # Some components like Embedded are optional
