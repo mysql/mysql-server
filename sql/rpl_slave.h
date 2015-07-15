@@ -352,16 +352,17 @@ int add_new_channel(Master_info** mi, const char* channel,
 int terminate_slave_threads(Master_info* mi, int thread_mask,
                             ulong stop_wait_timeout,
                             bool need_lock_term= true);
-bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
-                         Master_info* mi, int thread_mask);
-bool start_slave(THD *thd);
+int start_slave_threads(bool need_lock_slave, bool wait_for_start,
+			Master_info* mi, int thread_mask);
+int start_slave(THD *thd);
 int stop_slave(THD *thd);
-bool start_slave(THD* thd,
-                 LEX_SLAVE_CONNECTION* connection_param,
-                 LEX_MASTER_INFO* master_param,
-                 int thread_mask_input,
-                 Master_info* mi,
-                 bool set_mts_settings);
+int start_slave(THD* thd,
+                LEX_SLAVE_CONNECTION* connection_param,
+                LEX_MASTER_INFO* master_param,
+                int thread_mask_input,
+                Master_info* mi,
+                bool set_mts_settings,
+                bool net_report);
 int stop_slave(THD* thd, Master_info* mi, bool net_report,
                bool for_one_channel=true);
 /*
@@ -370,17 +371,17 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report,
   inside the start_lock section, but at the same time we want a
   mysql_cond_wait() on start_cond, start_lock
 */
-bool start_slave_thread(
+int start_slave_thread(
 #ifdef HAVE_PSI_INTERFACE
-                        PSI_thread_key thread_key,
+                       PSI_thread_key thread_key,
 #endif
-                        my_start_routine h_func,
-                        mysql_mutex_t *start_lock,
-                        mysql_mutex_t *cond_lock,
-                        mysql_cond_t *start_cond,
-                        volatile uint *slave_running,
-                        volatile ulong *slave_run_id,
-                        Master_info *mi);
+                       my_start_routine h_func,
+                       mysql_mutex_t *start_lock,
+                       mysql_mutex_t *cond_lock,
+                       mysql_cond_t *start_cond,
+                       volatile uint *slave_running,
+                       volatile ulong *slave_run_id,
+                       Master_info *mi);
 
 /* retrieve table from master and copy to slave*/
 int fetch_master_table(THD* thd, const char* db_name, const char* table_name,
@@ -406,7 +407,7 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
-bool queue_event(Master_info* mi,const char* buf, ulong event_len);
+int queue_event(Master_info* mi,const char* buf, ulong event_len);
 
 extern "C" void *handle_slave_io(void *arg);
 extern "C" void *handle_slave_sql(void *arg);
@@ -428,7 +429,7 @@ extern my_bool master_ssl;
 extern char *master_ssl_ca, *master_ssl_capath, *master_ssl_cert;
 extern char *master_ssl_cipher, *master_ssl_key;
        
-bool mts_recovery_groups(Relay_log_info *rli);
+int mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock);
 bool sql_slave_killed(THD* thd, Relay_log_info* rli);
