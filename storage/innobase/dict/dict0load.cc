@@ -1184,13 +1184,27 @@ dict_check_sys_tablespaces(
 			continue;
 		}
 
-		/* Ignore system and file-per-table tablespaces,
-		and tablespaces that already are in the tablespace cache. */
+		/* Ignore system and file-per-table tablespaces. */
 		if (is_system_tablespace(space_id)
-		    || !fsp_is_shared_tablespace(fsp_flags)
-		    || fil_space_for_table_exists_in_mem(
-			    space_id, space_name,
-			    false, true, NULL, 0)) {
+		    || !fsp_is_shared_tablespace(fsp_flags)) {
+			continue;
+		}
+
+		/* Ignore tablespaces that already are in the tablespace
+		cache. */
+		if (fil_space_for_table_exists_in_mem(
+				space_id, space_name, false, true, NULL, 0)) {
+			/* Recovery can open a datafile that does not
+			match SYS_DATAFILES.  If they don't match, update
+			SYS_DATAFILES. */
+			char *dict_path = dict_get_first_path(space_id);
+			char *fil_path = fil_space_get_first_path(space_id);
+			if (dict_path && fil_path
+			    && strcmp(dict_path, fil_path)) {
+				dict_update_filepath(space_id, fil_path);
+			}
+			ut_free(dict_path);
+			ut_free(fil_path);
 			continue;
 		}
 
@@ -1427,6 +1441,17 @@ dict_check_sys_tables(
 		cache. */
 		if (fil_space_for_table_exists_in_mem(
 			    space_id, space_name, false, true, NULL, 0)) {
+			/* Recovery can open a datafile that does not
+			match SYS_DATAFILES.  If they don't match, update
+			SYS_DATAFILES. */
+			char *dict_path = dict_get_first_path(space_id);
+			char *fil_path = fil_space_get_first_path(space_id);
+			if (dict_path && fil_path
+				&& strcmp(dict_path, fil_path)) {
+				dict_update_filepath(space_id, fil_path);
+			}
+			ut_free(dict_path);
+			ut_free(fil_path);
 			ut_free(table_name.m_name);
 			ut_free(shared_space_name);
 			continue;
