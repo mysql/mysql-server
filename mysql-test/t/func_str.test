@@ -1813,3 +1813,22 @@ FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
 SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
 SELECT length(data) AS len
 FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+
+--echo #
+--echo # Bug#21447969 FILTER USING TRIM RESULTS IN CORRECT
+--echo #
+
+CREATE TABLE t1 (COUNTRY char(100));
+INSERT INTO t1 VALUES ("Norway"), ("Australia");
+
+SELECT COUNTRY FROM t1 
+WHERE trim(leading 'A' FROM  COUNTRY) = 'ustralia';
+
+SELECT  COUNTRY  FROM t1 
+WHERE  trim(trailing 'a' FROM COUNTRY)= 'Australi';
+
+SELECT COUNTRY FROM t1 
+WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'  
+  AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
+
+DROP TABLE t1;

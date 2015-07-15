@@ -2055,9 +2055,29 @@ void Item_func_trim::fix_length_and_dec()
   fix_char_length(args[0]->max_char_length());
 }
 
+/*
+  We need a separate function for print(), in order to do correct printing.
+  The function func_name() is also used e.g. by Item_func::eq() to
+  distinguish between different functions, and we do not want
+  trim(leading) to match trim(trailing) for eq()
+ */
+static const char *trim_func_name(Item_func_trim::TRIM_MODE mode)
+{
+  switch(mode)
+  {
+  case Item_func_trim::TRIM_BOTH_DEFAULT:
+  case Item_func_trim::TRIM_BOTH:
+  case Item_func_trim::TRIM_LEADING:
+  case Item_func_trim::TRIM_TRAILING:     return "trim";
+  case Item_func_trim::TRIM_LTRIM:        return "ltrim";
+  case Item_func_trim::TRIM_RTRIM:        return "rtrim";
+  }
+  return NULL;
+}
+
 void Item_func_trim::print(String *str, enum_query_type query_type)
 {
-  str->append(Item_func_trim::func_name());
+  str->append(trim_func_name(m_trim_mode));
   str->append('(');
   const char *mode_name;
   switch(m_trim_mode) {
