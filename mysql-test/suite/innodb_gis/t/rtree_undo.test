@@ -1,0 +1,28 @@
+#
+# BUG#21340268 INNODB: BOGUS CHECK FOR MAXIMUM RECORD LENGTH WITH SPATIAL KEY
+#
+
+--source include/have_innodb.inc
+
+let $row_format = DYNAMIC;
+
+let $index = spatial_none;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_only;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_mixed;
+--source include/innodb_gis_undo.inc
+
+
+let $row_format = COMPACT;
+
+let $index = spatial_none;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_only;
+--source include/innodb_gis_undo.inc
+
+let $index = spatial_mixed;
+--source include/innodb_gis_undo.inc
