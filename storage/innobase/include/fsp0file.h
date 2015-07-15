@@ -186,8 +186,7 @@ public:
 	so that it can be validated.
 	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_only(bool strict)
-		__attribute__((warn_unused_result));
+	virtual dberr_t open_read_only(bool strict);
 
 	/** Open a data file in read-write mode during start-up so that
 	doublewrite pages can be restored and then it can be validated.
@@ -523,8 +522,7 @@ public:
 	in read-only mode so that it can be validated.
 	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	dberr_t open_read_only(bool strict)
-		__attribute__((warn_unused_result));
+	dberr_t open_read_only(bool strict);
 
 	/** Opens a handle to the file linked to in an InnoDB Symbolic Link
 	file in read-write mode so that it can be restored from doublewrite
