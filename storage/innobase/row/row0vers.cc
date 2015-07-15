@@ -678,6 +678,9 @@ row_vers_old_has_index_entry(
 	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
 			DBUG_SUICIDE(););
 
+	DBUG_EXECUTE_IF("ib_purge_virtual_index_crash",
+			DBUG_SUICIDE(););
+
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row_ext_t*	ext;
 
