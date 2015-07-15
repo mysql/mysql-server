@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -504,7 +504,7 @@ public abstract class AbstractClusterJTest extends TestCase {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             while (reader.ready()) {
                 line = reader.readLine();
-                if (line.contains("#")) {
+                if (line.contains("#") || line.startsWith("--")) {
                     // comment line; ignore
                     continue;
                 }
