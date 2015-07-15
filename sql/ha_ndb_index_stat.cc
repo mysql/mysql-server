@@ -153,21 +153,6 @@ ndb_index_stat_time()
   return now;
 }
 
-/*
-  Return error on stats queries before stats thread starts
-  and after it exits.  This is only a pre-caution since mysqld
-  should not allow clients at these times.
-*/
-static bool ndb_index_stat_allow_flag= false;
-
-static bool
-ndb_index_stat_allow(int flag= -1)
-{
-  if (flag != -1)
-    ndb_index_stat_allow_flag= (bool)flag;
-  return ndb_index_stat_allow_flag;
-}
-
 /* Options */
 
 /* Options in string format buffer size */
@@ -623,6 +608,35 @@ Ndb_index_stat_glob::Ndb_index_stat_glob()
   status_i= 0;
 }
 
+static Ndb_index_stat_glob ndb_index_stat_glob;
+
+/*
+  Check if stats thread is running and has initialized required
+  objects.  Sync the value with global status ("allow" field).
+*/
+
+static bool ndb_index_stat_allow_flag= false;
+
+static bool
+ndb_index_stat_get_allow()
+{
+  return ndb_index_stat_allow_flag;
+}
+
+static bool
+ndb_index_stat_set_allow(bool flag)
+{
+  if (ndb_index_stat_allow_flag != flag)
+  {
+    ndb_index_stat_allow_flag= flag;
+    Ndb_index_stat_glob &glob= ndb_index_stat_glob;
+    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    glob.set_status();
+    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  }
+  return ndb_index_stat_allow_flag;
+}
+
 /* Update status variable (must hold stat_mutex) */
 void
 Ndb_index_stat_glob::set_status()
@@ -631,7 +645,7 @@ Ndb_index_stat_glob::set_status()
   char* p= status[status_i];
 
   // stats thread
-  th_allow= ndb_index_stat_allow();
+  th_allow= ndb_index_stat_get_allow();
   sprintf(p, "allow:%d,enable:%d,busy:%d,loop:%u",
              th_allow, th_enable, th_busy, th_loop);
   p+= strlen(p);
@@ -720,8 +734,6 @@ Ndb_index_stat_glob::zero_total()
   /* Reset highest use seen to current */
   cache_high_bytes= cache_query_bytes + cache_clean_bytes;
 }
-
-static Ndb_index_stat_glob ndb_index_stat_glob;
 
 /* Shared index entries */
 
@@ -1052,7 +1064,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   struct Ndb_index_stat *st_last= 0;
   do
   {
-    if (unlikely(!ndb_index_stat_allow()))
+    if (unlikely(!ndb_index_stat_get_allow()))
     {
       err_out= NdbIndexStat::MyNotAllow;
       break;
@@ -1353,46 +1365,6 @@ struct Ndb_index_stat_proc {
   ~Ndb_index_stat_proc()
   {
     assert(ndb == NULL);
-  }
-
-  bool init_ndb(Ndb_cluster_connection* connection)
-  {
-    assert(ndb == NULL); // Should not have been created yet
-    assert(connection);
-
-    ndb= new Ndb(connection, "");
-    if (!ndb)
-      return false;
-
-    if (ndb->setNdbObjectName("Ndb Index Statistics monitoring"))
-    {
-      sql_print_error("ndb_index_stat_proc: Failed to set object name, "
-                      "error code %d", ndb->getNdbError().code);
-    }
-
-    if (ndb->init() != 0)
-    {
-      sql_print_error("ndb_index_stat_proc: Failed to init Ndb object");
-      return false;
-    }
-
-    if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0)
-    {
-      sql_print_error("ndb_index_stat_proc: Failed to change database to %s",
-                      NDB_INDEX_STAT_DB);
-      return false;
-    }
-
-    sql_print_information("ndb_index_stat_proc: Created Ndb object, "
-                          "reference: 0x%x, name: '%s'",
-			  ndb->getReference(), ndb->getNdbObjectName());
-    return true;
-  }
-
-  void destroy(void)
-  {
-    delete ndb;
-    ndb= NULL;
   }
 };
 
@@ -2371,6 +2343,78 @@ ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
 }
 
 static int
+ndb_index_stat_create_ndb(Ndb_index_stat_proc &pr,
+                          Ndb_cluster_connection* connection)
+{
+  DBUG_ENTER("ndb_index_stat_create_ndb");
+  assert(pr.ndb == NULL);
+  assert(connection != NULL);
+
+  Ndb* ndb= NULL;
+  do
+  {
+    ndb= new Ndb(connection, "");
+    if (ndb == NULL)
+    {
+      sql_print_error("create index stats Ndb failed: error %d %s",
+                      connection->get_latest_error(),
+                      connection->get_latest_error_msg());
+      break;
+    }
+
+    if (ndb->setNdbObjectName("Ndb Index Statistics monitoring"))
+    {
+      sql_print_error("set index stats Ndb object name failed: error code %d",
+                      ndb->getNdbError().code);
+      break;
+    }
+
+    if (ndb->init() != 0)
+    {
+      sql_print_error("init index stat Ndb failed: error code %d",
+                      ndb->getNdbError().code);
+      break;
+    }
+
+    if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0)
+    {
+      sql_print_error("set index stats Ndb database %s failed: error code %d",
+                      NDB_INDEX_STAT_DB, ndb->getNdbError().code);
+      break;
+    }
+
+    sql_print_information("created index stats Ndb object:"
+                          " reference 0x%x, name: '%s'",
+                          ndb->getReference(), ndb->getNdbObjectName());
+    pr.ndb= ndb;
+    DBUG_RETURN(0);
+  } while (0);
+
+  if (ndb != NULL)
+    delete ndb;
+  DBUG_RETURN(-1);
+}
+
+static void ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr);
+
+static void
+ndb_index_stat_drop_ndb(Ndb_index_stat_proc &pr)
+{
+  DBUG_ENTER("ndb_index_stat_drop_ndb");
+
+  if (pr.is_util->has_listener())
+  {
+    ndb_index_stat_stop_listener(pr);
+  }
+  if (pr.ndb != NULL)
+  {
+    delete pr.ndb;
+    pr.ndb= NULL;
+  }
+  DBUG_VOID_RETURN;
+}
+
+static int
 ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_start_listener");
@@ -2397,7 +2441,7 @@ ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
   DBUG_RETURN(0);
 }
 
-static int
+static void
 ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_stop_listener");
@@ -2405,14 +2449,9 @@ ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
   NdbIndexStat *is= pr.is_util;
   Ndb *ndb= pr.ndb;
 
-  if (is->drop_listener(ndb) == -1)
-  {
-    sql_print_warning("drop index stats listener failed: error %d line %d",
-                      is->getNdbError().code, is->getNdbError().line);
-    DBUG_RETURN(-1);
-  }
+  (void)is->drop_listener(ndb);
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 /* Restart things after system restart */
@@ -2424,6 +2463,7 @@ ndb_index_stat_restart()
 {
   DBUG_ENTER("ndb_index_stat_restart");
   ndb_index_stat_restart_flag= true;
+  ndb_index_stat_set_allow(false);
   DBUG_VOID_RETURN;
 }
 
@@ -2432,7 +2472,7 @@ Ndb_index_stat_thread::is_setup_complete()
 {
   if (ndb_index_stat_get_enable(NULL))
   {
-    return ndb_index_stat_allow();
+    return ndb_index_stat_get_allow();
   }
   return true;
 }
@@ -2448,9 +2488,6 @@ Ndb_index_stat_thread::do_run()
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   Ndb_index_stat_proc pr;
-
-  bool have_listener;
-  have_listener= false;
 
   log_info("Starting...");
 
@@ -2500,16 +2537,6 @@ Ndb_index_stat_thread::do_run()
     goto ndb_index_stat_thread_end;
   }
 
-  if (!pr.init_ndb(g_ndb_cluster_connection))
-  {
-    // Error already printed
-    pthread_mutex_lock(&LOCK);
-    goto ndb_index_stat_thread_end;
-  }
-
-  /* Allow clients */
-  ndb_index_stat_allow(1);
-
   /* Fill in initial status variable */
   pthread_mutex_lock(&stat_mutex);
   glob.set_status();
@@ -2519,6 +2546,10 @@ Ndb_index_stat_thread::do_run()
 
   bool enable_ok;
   enable_ok= false;
+
+  // do we need to check or re-check sys objects (expensive)
+  bool check_sys;
+  check_sys= true;
 
   set_timespec(abstime, 0);
   for (;;)
@@ -2537,54 +2568,74 @@ Ndb_index_stat_thread::do_run()
     client_waiting= false;
     pthread_mutex_unlock(&LOCK);
 
-    if (ndb_index_stat_restart_flag)
-    {
-      ndb_index_stat_restart_flag= false;
-      enable_ok= false;
-      if (have_listener)
-      {
-        if (ndb_index_stat_stop_listener(pr) == 0)
-          have_listener= false;
-      }
-    }
-
-    /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
-    const bool enable_ok_new= ndb_index_stat_get_enable(NULL);
-
+    /*
+     * Next processing slice.  Each time we check that global enable
+     * flag is on and that required objects have been found or can be
+     * created.  If not, drop out and try again next time.
+     *
+     * It is allowed to do initial restart of cluster while we are
+     * running.  In such case the Ndb object must be recycled to avoid
+     * some event-related asserts (bug#20888668),
+     */
     do
     {
-      if (enable_ok != enable_ok_new)
+      // initial restart was done while this mysqld was left running
+      if (ndb_index_stat_restart_flag)
       {
-        DBUG_PRINT("index_stat", ("global enable: %d -> %d",
-                                  enable_ok, enable_ok_new));
+        ndb_index_stat_restart_flag= false;
+        ndb_index_stat_set_allow(false);
+        ndb_index_stat_drop_ndb(pr);
+        check_sys= true; // sys objects are gone
+      }
 
-        if (enable_ok_new)
+      // check enable flag
+      {
+        /* const bool enable_ok_new= THDVAR(NULL, index_stat_enable); */
+        const bool enable_ok_new= ndb_index_stat_get_enable(NULL);
+
+        if (enable_ok != enable_ok_new)
         {
-          // at enable check or create stats tables and events
-          if (ndb_index_stat_check_or_create_systables(pr) == -1 ||
-              ndb_index_stat_check_or_create_sysevents(pr) == -1 ||
-              ndb_index_stat_start_listener(pr) == -1)
-          {
-            // try again in next loop
-            break;
-          }
-          have_listener= true;
+          DBUG_PRINT("index_stat", ("global enable: %d -> %d",
+                                    enable_ok, enable_ok_new));
+          enable_ok= enable_ok_new;
+          check_sys= enable_ok; // check sys objects if enabling
         }
-        else
-        {
-          // not a normal use-case
-          if (have_listener)
-          {
-            if (ndb_index_stat_stop_listener(pr) == 0)
-              have_listener= false;
-          }
-        }
-        enable_ok= enable_ok_new;
       }
 
       if (!enable_ok)
+      {
+        DBUG_PRINT("index_stat", ("Index stats is not enabled"));
+        ndb_index_stat_set_allow(false);
+        ndb_index_stat_drop_ndb(pr);
         break;
+      }
 
+      // the Ndb object is needed first
+      if (pr.ndb == NULL)
+      {
+        if (ndb_index_stat_create_ndb(pr, g_ndb_cluster_connection) == -1)
+          break;
+      }
+
+      // sys objects
+      if (check_sys)
+      {
+        // at enable check or create stats tables and events
+        if (ndb_index_stat_check_or_create_systables(pr) == -1 ||
+            ndb_index_stat_check_or_create_sysevents(pr) == -1)
+          break;
+      }
+
+      // listener is not critical but error means something is wrong
+      if (!pr.is_util->has_listener())
+      {
+        if (ndb_index_stat_start_listener(pr) == -1)
+          break;
+      }
+
+      // normal processing
+      check_sys= false;
+      ndb_index_stat_set_allow(true);
       pr.busy= false;
       ndb_index_stat_proc(pr);
     } while (0);
@@ -2616,20 +2667,14 @@ ndb_index_stat_thread_end:
   log_info("Stopping...");
 
   /* Prevent clients */
-  ndb_index_stat_allow(0);
+  ndb_index_stat_set_allow(false);
 
-  if (have_listener)
-  {
-    if (ndb_index_stat_stop_listener(pr) == 0)
-      have_listener= false;
-  }
   if (pr.is_util)
   {
+    ndb_index_stat_drop_ndb(pr);
     delete pr.is_util;
     pr.is_util= 0;
   }
-
-  pr.destroy();
 
   pthread_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));

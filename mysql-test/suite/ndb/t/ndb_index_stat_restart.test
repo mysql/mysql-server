@@ -37,6 +37,8 @@ show status like 'ndb_index_stat_cache%';
 --echo # wait for mysqld
 --disable_query_log
 --source include/ndb_not_readonly.inc
+# wait for stats thread to re-initialize
+--source include/ndb_index_stat_wait.inc
 --enable_query_log
 
 --error 0,1193

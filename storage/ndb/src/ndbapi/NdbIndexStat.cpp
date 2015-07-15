@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -706,6 +706,15 @@ NdbIndexStat::create_listener(Ndb* ndb)
   DBUG_RETURN(0);
 }
 
+bool
+NdbIndexStat::has_listener() const
+{
+  DBUG_ENTER("NdbIndexStat::has_listener");
+  if (m_impl.m_eventOp != 0)
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
 int
 NdbIndexStat::execute_listener(Ndb* ndb)
 {
@@ -739,8 +748,7 @@ int
 NdbIndexStat::drop_listener(Ndb* ndb)
 {
   DBUG_ENTER("NdbIndexStat::drop_listener");
-  if (m_impl.drop_listener(ndb) == -1)
-    DBUG_RETURN(-1);
+  (void)m_impl.drop_listener(ndb);
   DBUG_RETURN(0);
 }
 
