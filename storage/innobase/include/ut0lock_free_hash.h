@@ -137,7 +137,7 @@ public:
 	/** Destructor. */
 	~ut_lock_free_list_node_t()
 	{
-		UT_DELETE(m_base);
+		UT_DELETE_ARRAY(m_base);
 	}
 
 	/** Create and append a new array to this one and store a pointer
