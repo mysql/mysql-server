@@ -630,9 +630,9 @@ ndb_index_stat_set_allow(bool flag)
   {
     ndb_index_stat_allow_flag= flag;
     Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.set_status();
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
   return ndb_index_stat_allow_flag;
 }
