@@ -248,6 +248,8 @@ public:
 			       mem_key_ut_lock_free_hash_t),
 			boost::memory_order_relaxed);
 
+		m_sentinel.store(M_SENTINEL_FREE, boost::memory_order_relaxed);
+
 		m_garbage.store(NULL, boost::memory_order_relaxed);
 	}
 
@@ -1002,15 +1004,40 @@ private:
 			(k, GOTO_NEXT_ARRAY) or
 			(AVOID, NOT_FOUND). */
 
-			arr_node_t*	prev_arr = find_prev_arr(arr);
+			bool	expected = M_SENTINEL_FREE;
+			while (!m_sentinel.compare_exchange_strong(
+					expected,
+					M_SENTINEL_OWNED,
+					boost::memory_order_acquire)) {
+				/* busy loop */
+				expected = M_SENTINEL_FREE;
+			}
 
-			if (prev_arr != NULL) {
+			/* Now we are the only thread that executes the code
+			below. */
+
+			/* Re-read arr->m_next in case it got changed after
+			grow(). Ie if the array that grow() appended was
+			garbage collected and now arr->m_next points to some
+			further entry in the list. */
+			next_arr = arr->m_next.load(
+				boost::memory_order_relaxed);
+
+			if (arr == m_data.load(boost::memory_order_relaxed)) {
+
+				m_data.store(next_arr,
+					     boost::memory_order_relaxed);
+			} else {
+				arr_node_t*	prev_arr = find_prev_arr(arr);
+
+				ut_a(prev_arr != NULL);
+
 				prev_arr->m_next.store(
 					next_arr, boost::memory_order_relaxed);
-			} else {
-				m_data.store(
-					next_arr, boost::memory_order_relaxed);
 			}
+
+			m_sentinel.store(M_SENTINEL_FREE,
+					 boost::memory_order_release);
 
 			add_array_for_garbage_collection(arr);
 
@@ -1020,6 +1047,35 @@ private:
 
 	/** Storage for the (key, val) tuples. */
 	boost::atomic<arr_node_t*>	m_data;
+
+	/** A sentinel to synchronize changes of all arr_node_t::m_next
+	pointers in the list that begins at m_data. Let the list be:
+	...
+	A = (..., next = B)
+	B = (..., next = C)
+	C = (..., next = D)
+	...
+	When removing B from the list for garbage collection we do this:
+	1. Read B.next, it is C
+	2. Change A.next from B to what we read in 1., ie C
+	the problem is that between 1. and 2. C may be garbage collected and
+	removed from the list and B may be changed to B = (..., next = D). In
+	this case in step 2. we will set A.next to C which is already scheduled
+	for garbage collection and C will then be present in both lists - the
+	normal hash table list and the garbage bin list. To avoid this we
+	synchronize all modifications of arr_node_t::m_next pointers.
+	Multiple resizes still happen in parallel in the bulky part that copies
+	elements from the old to the new entry, but just the pointers adjusting
+	is synchronized. */
+	boost::atomic_bool		m_sentinel;
+
+	/** A value of m_sentinel designating that nobody is fiddling with
+	m_next pointers now. */
+	static const bool		M_SENTINEL_FREE = false;
+
+	/** A value of m_sentinel designating that the current thread is
+	fiddling with m_next pointers now. */
+	static const bool		M_SENTINEL_OWNED = true;
 
 	/** A linked list of arr_node_t* elements that are not used anymore
 	and are to be garbage collected. */
