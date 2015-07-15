@@ -5374,7 +5374,6 @@ ha_innobase::innobase_initialize_autoinc()
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */
-static
 void
 free_vc_templ(
 	innodb_col_templ_t*	vc_templ)
@@ -19549,6 +19548,19 @@ innobase_init_vc_templ(
 	dbname[dbnamelen] = 0;
 	strncpy(tbname, name + dbnamelen + 1, tbnamelen);
 	tbname[tbnamelen] =0;
+
+	/* For partition table, remove the partition name and use the
+	"main" table name to build the template */
+#ifdef _WIN32
+        char*	is_part = strstr(tbname, "#p#");
+#else
+        char*	is_part = strstr(tbname, "#P#");
+#endif /* _WIN32 */
+
+	if (is_part != NULL) {
+		*is_part = '\0';
+		tbnamelen = is_part - tbname;
+	}
 
 	table->vc_templ = static_cast<innodb_col_templ_t*>(
 		ut_zalloc_nokey(sizeof *(table->vc_templ)));
