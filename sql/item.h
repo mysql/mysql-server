@@ -4150,6 +4150,7 @@ public:
   virtual my_decimal *val_decimal(my_decimal *dec);
   virtual String *val_str(String *str);
   virtual bool val_bool();
+  virtual bool val_json(Json_wrapper *wr);
   virtual bool is_null();
   virtual bool send(Protocol *prot, String *tmp);
   virtual type_conversion_status save_in_field(Field *field,
