@@ -988,6 +988,13 @@ SET GLOBAL innodb_strict_mode=default;
 --rmdir $MYSQL_TMP_DIR/test
 --rmdir $MYSQL_TMP_DIR/tablespace.ibd
 
+--error 1
+--remove_file $MYSQLD_DATADIR/s1.ibd.isl
+--error 1
+--remove_file $MYSQLD_DATADIR/s2.isl
+--error 1
+--remove_file $MYSQLD_DATADIR/s4.isl
+
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*\.ibd: 'create' returned OS error .*");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");

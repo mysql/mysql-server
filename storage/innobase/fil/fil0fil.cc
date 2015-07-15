@@ -2775,7 +2775,13 @@ fil_delete_tablespace(
 
 	/* Delete the link file pointing to the ibd file we are deleting. */
 	if (FSP_FLAGS_HAS_DATA_DIR(space->flags)) {
+
 		RemoteDatafile::delete_link_file(space->name);
+
+	} else if (FSP_FLAGS_GET_SHARED(space->flags)) {
+
+		RemoteDatafile::delete_link_file(base_name(path));
+
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -3596,10 +3602,9 @@ fil_ibd_create(
 	}
 
 	if (has_data_dir || has_shared_space) {
-		/* Make the ISL file if it is not in the default location. */
-		const char* basename =
-			has_data_dir ? name : base_name(path);
-		err = RemoteDatafile::create_link_file(basename, path,
+		/* Make the ISL file if the IBD file is not
+		in the default location. */
+		err = RemoteDatafile::create_link_file(name, path,
 						       has_shared_space);
 		if (err != DB_SUCCESS) {
 			os_file_close(file);

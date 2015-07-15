@@ -925,12 +925,8 @@ RemoteDatafile::set_link_filepath(const char* path)
 		ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)],
 		      DOT_IBD) == 0);
 
-		basename = mem_strdup(base_name(path));
-		basename[strlen(basename) - strlen(DOT_IBD)] = '\0';
-
-		m_link_filepath = fil_make_filepath(NULL, basename, ISL, false);
-
-		ut_free(basename);
+		m_link_filepath = fil_make_filepath(NULL, base_name(path),
+						    ISL, false);
 	} else {
 		ut_ad(path == NULL);
 		m_link_filepath = fil_make_filepath(NULL, name(), ISL, false);
@@ -978,9 +974,13 @@ RemoteDatafile::create_link_file(
 			/* File is in the datadir. */
 			return(DB_SUCCESS);
 		}
-	}
 
-	link_filepath = fil_make_filepath(NULL, name, ISL, false);
+		/* Use the file basename to build the ISL filepath. */
+		link_filepath = fil_make_filepath(NULL, base_name(filepath),
+						  ISL, false);
+	} else {
+		link_filepath = fil_make_filepath(NULL, name, ISL, false);
+	}
 	if (link_filepath == NULL) {
 		return(DB_ERROR);
 	}
@@ -1047,10 +1047,7 @@ RemoteDatafile::create_link_file(
 void
 RemoteDatafile::delete_link_file(void)
 {
-	if (m_link_filepath == NULL) {
-		m_link_filepath = fil_make_filepath(NULL, name(),
-						    ISL, false);
-	}
+	ut_ad(m_link_filepath != NULL);
 
 	if (m_link_filepath != NULL) {
 		os_file_delete_if_exists(innodb_data_file_key,
