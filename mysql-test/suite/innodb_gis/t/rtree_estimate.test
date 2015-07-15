@@ -3,6 +3,7 @@
 #
 
 --source include/have_innodb.inc
+--source include/have_debug.inc
 
 CREATE TABLE t1 (
   g GEOMETRY NOT NULL

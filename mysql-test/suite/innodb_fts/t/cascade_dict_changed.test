@@ -37,6 +37,7 @@ select f1, f2 from t1_fk;
 delete from t1 where f1 = 1;
 select f1, f2 from t1;
 select f1, f2 from t1_fk;
+SET DEBUG='-d,row_ins_dict_change_err';
 
 drop table t1_fk, t1;
 
