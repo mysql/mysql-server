@@ -1713,7 +1713,7 @@ bool start_slave_thread(
       if (thd->killed)
       {
         int error= thd->killed_errno();
-        my_message(error, ER(error), MYF(0));
+        my_error(error, MYF(0));
         goto err;
       }
     }
@@ -7713,7 +7713,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                                             event_len, checksum_alg))
   {
     mi->report(ERROR_LEVEL, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE,
-               "%s", ER(ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE));
+               "%s", ER_THD(current_thd,
+                            ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE));
     goto err;
   }
 
@@ -7816,7 +7817,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     if (unlikely(process_io_rotate(mi, &rev)))
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
                  "could not queue event from master");
       goto err;
     }
@@ -7909,7 +7910,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     if (new_fdle == NULL)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
                  "could not queue event from master");
       goto err;
     }
@@ -7955,7 +7956,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
               "log_file_name %-.512s log_pos %s",
               hb.get_log_ident(), llstr(hb.common_header->log_pos, llbuf));
       mi->report(ERROR_LEVEL, ER_SLAVE_HEARTBEAT_FAILURE,
-                 ER(ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
+                 ER_THD(current_thd, ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;
     }
     mi->received_heartbeats++;
@@ -8020,7 +8021,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
               "the event's data: log_file_name %-.512s log_pos %s",
               hb.get_log_ident(), llstr(hb.common_header->log_pos, llbuf));
       mi->report(ERROR_LEVEL, ER_SLAVE_HEARTBEAT_FAILURE,
-                 ER(ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
+                 ER_THD(current_thd, ER_SLAVE_HEARTBEAT_FAILURE), errbuf);
       goto err;
     }
     goto end;
@@ -8259,7 +8260,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     if (is_error)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
-                 ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
+                 ER_THD(current_thd, ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
                  "could not queue event from master");
       goto err;
     }
