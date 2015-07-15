@@ -996,3 +996,8 @@ void
 innobase_init_vc_templ(
         dict_table_t*   table);
 
+/** Free the virtual column template
+@param[in,out]  vc_templ        virtual column template */
+void
+free_vc_templ(
+	innodb_col_templ_t*	vc_templ);
