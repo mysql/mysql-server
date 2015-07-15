@@ -450,10 +450,10 @@ public:
   const char *func_name() const
   {
     switch(m_trim_mode) {
-    case TRIM_BOTH_DEFAULT:
-    case TRIM_BOTH:
-    case TRIM_LEADING:
-    case TRIM_TRAILING:     return "trim";
+    case TRIM_BOTH_DEFAULT: return "trim";
+    case TRIM_BOTH:         return "trim";
+    case TRIM_LEADING:      return "ltrim";
+    case TRIM_TRAILING:     return "rtrim";
     case TRIM_LTRIM:        return "ltrim";
     case TRIM_RTRIM:        return "rtrim";
     }
