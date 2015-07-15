@@ -327,7 +327,7 @@ NdbInfoScanVirtual::~NdbInfoScanVirtual()
 }
 
 
-#include "../src/common/debugger/BlockNames.cpp"
+#include "kernel/BlockNames.hpp"
 class BlocksTable : public VirtualTable
 {
 public:
