@@ -2115,9 +2115,24 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if ((error= cache_mngr->stmt_cache.finalize(thd)))
-      goto end;
-    stuff_logged= true;
+    if (thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->lex->select_lex->item_list.elements && /* With select */
+        !(thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+        thd->is_current_stmt_binlog_format_row())
+    {
+      /*
+        In row based binlog format, we reset the binlog statement cache
+        when rolling back a single statement 'CREATE...SELECT' transaction,
+        since the 'CREATE TABLE' event was put in the binlog statement cache.
+      */
+      cache_mngr->stmt_cache.reset();
+    }
+    else
+    {
+      if ((error= cache_mngr->stmt_cache.finalize(thd)))
+        goto end;
+      stuff_logged= true;
+    }
   }
 
   if (ending_trans(thd, all))
@@ -7838,32 +7853,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   DBUG_ENTER("MYSQL_BIN_LOG::commit");
   DBUG_PRINT("info", ("query='%s'",
                       thd == current_thd ? thd->query().str : NULL));
-  TC_LOG::enum_result ret= write_binlog_and_commit_engine(thd, all);
-
-  // In some cases, flush_binlog_and_commit_engine may never call
-  // update_gtids_impl.  So we do it here.
-  if (thd->pending_gtid_state_update)
-  {
-    DBUG_PRINT("info", ("write_binlog_and_commit_engine did not call gtid_state->update_on_[commit|rollback]."));
-    switch (ret)
-    {
-    case RESULT_SUCCESS:
-      gtid_state->update_on_commit(thd);
-      break;
-    case RESULT_ABORTED:
-    case RESULT_INCONSISTENT:
-      gtid_state->update_on_rollback(thd);
-      break;
-    }
-  }
-
-  DBUG_RETURN(ret);
-}
-
-TC_LOG::enum_result MYSQL_BIN_LOG::write_binlog_and_commit_engine(THD *thd,
-                                                                  bool all)
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::write_binlog_and_commit_engine");
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   Transaction_ctx *trn_ctx= thd->get_transaction();
   my_xid xid= trn_ctx->xid_state()->get_xid()->get_my_xid();

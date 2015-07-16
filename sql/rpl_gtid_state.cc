@@ -195,7 +195,6 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
   {
     if (thd->variables.gtid_next.type == GTID_GROUP)
       thd->variables.gtid_next.set_undefined();
-    thd->pending_gtid_state_update= false;
     DBUG_PRINT("info", ("skipping update_gtids_impl because "
                         "thread does not own anything and does not violate "
                         "gtid consistency"));
@@ -371,29 +370,12 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
       - Normally, it is a rollback of an automatic transaction, so
         then is_commit is false and gtid_next=automatic.
 
-      - There is also a corner case. If CREATE...SELECT is logged in
-        row format, it gets logged as CREATE without select, followed
-        by a transaction containing row events.  For this case, there
-        is a commit after the table has been created, before rows have
-        been selected.  After this commit,
-        thd->pending_gtid_state_update is set to true by the
-        CREATE...SELECT code.  This means that later, when the part of
-        the statement that selects rows calls
-        MYSQL_BIN_BINLOG::commit, if there were no matching rows so
-        that there is nothing to commit, MYSQL_BIN_LOG::commit does a
-        direct call to gtid_state->update_on_[commit|rollback] since
-        other functions called from MYSQL_BIN_LOG::commit did not do
-        this.  Then, if GTID_NEXT=AUTOMATIC, nothing will be owned at
-        this point.  Thus, to cover this case we add the
-        '||thd->pending_gtid_state_update' clause.
-
-      - There is another corner case. A transaction with an empty gtid
+      - There is also a corner case. A transaction with an empty gtid
         should call gtid_end_transaction(...) to check a possible
         violation of gtid consistency on commit, if it has set
         has_gtid_consistency_violation to true.
     */
-    DBUG_ASSERT(!is_commit || thd->pending_gtid_state_update ||
-                thd->has_gtid_consistency_violation);
+    DBUG_ASSERT(!is_commit || thd->has_gtid_consistency_violation);
     DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
   }
 
@@ -404,8 +386,6 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit)
 
   thd->owned_gtid.dbug_print(NULL,
                              "set owned_gtid (clear) in update_gtids_impl");
-
-  thd->pending_gtid_state_update= false;
 
   DBUG_VOID_RETURN;
 }
