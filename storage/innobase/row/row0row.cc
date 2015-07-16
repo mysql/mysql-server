@@ -179,7 +179,7 @@ row_build_index_entry_low(
 
 				if (dfield_is_ext(dfield2)) {
 					if (flag == ROW_BUILD_FOR_PURGE) {
-						byte*	ptr;
+						byte*	ptr = NULL;
 
 						switch (spatial_status) {
 						case SPATIAL_ONLY:
