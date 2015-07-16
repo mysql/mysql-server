@@ -111,11 +111,6 @@ MYSQL_ADD_EXECUTABLE(ndb_move_data
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_move_data ndbclient_static ndbNDBT)
 
-IF (MYSQL_VERSION_ID LESS "50501")
-  # Don't build or install this program anymore in 5.5+
-  ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
-ENDIF()
-
 # Install the ndb_dist_priv.sql script
 INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
         DESTINATION ${INSTALL_MYSQLSHAREDIR})
