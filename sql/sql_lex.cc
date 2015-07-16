@@ -3517,6 +3517,7 @@ LEX::LEX()
    option_type(OPT_DEFAULT),
    is_set_password_sql(false),
    // Initialize here to avoid uninitialized variable warnings.
+   contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
   in_update_value_clause(false)
