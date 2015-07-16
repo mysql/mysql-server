@@ -8143,7 +8143,7 @@ Item *get_system_var(Parse_context *pc,
 
     if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
                            var->name.str,
-                           outStr ? outStr->c_ptr() : NULL,
+                           outStr ? outStr->ptr() : NULL,
                            outStr ? outStr->length() : 0))
       {
         return 0;

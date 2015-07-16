@@ -58,8 +58,8 @@ void mysql_audit_finalize();
 
 void mysql_audit_init_thd(THD *thd);
 void mysql_audit_free_thd(THD *thd);
-void mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
-                                 unsigned long event_subclass);
+int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
+                                unsigned long event_subclass);
 void mysql_audit_release(THD *thd);
 
 /**
