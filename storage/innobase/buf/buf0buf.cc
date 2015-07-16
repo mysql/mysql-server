@@ -1428,21 +1428,6 @@ buf_chunk_init(
 		return(NULL);
 	}
 
-#ifdef HAVE_LIBNUMA
-	if (srv_numa_interleave) {
-		int	st = mbind(chunk->mem, chunk->mem_size,
-				   MPOL_INTERLEAVE,
-				   numa_all_nodes_ptr->maskp,
-				   numa_all_nodes_ptr->size,
-				   MPOL_MF_MOVE);
-		if (st != 0) {
-			ib::warn() << "Failed to set NUMA memory policy of"
-				" buffer pool page frames to MPOL_INTERLEAVE"
-				" (error: " << strerror(errno) << ").";
-		}
-	}
-#endif // HAVE_LIBNUMA
-
 	/* Allocate the block descriptors from
 	the start of the memory block. */
 	chunk->blocks = (buf_block_t*) chunk->mem;
