@@ -56,13 +56,6 @@ static int event_class_dispatch_error(THD *thd,
                                       const void *event);
 
 static inline
-void set_audit_mask(unsigned long *mask, mysql_event_class_t event_class)
-{
-  mask[0]= 1;
-  mask[0]<<= event_class;
-}
-
-static inline
 void add_audit_mask(unsigned long *mask, const unsigned long *rhs)
 {
   mask[0]|= rhs[0];
@@ -108,8 +101,9 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
 {
   mysql_event_general event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass= subclass;
   event.general_error_code= error_code;
@@ -159,8 +153,9 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
 {
   mysql_event_connection event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_CONNECTION_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_CONNECTION_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass= subclass;
   event.status= errcode;
@@ -207,7 +202,8 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
 {
   mysql_event_parse event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_PARSE_CLASS, subclass);
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_PARSE_CLASS, subclass))
+    return 0;
 
   event.event_subclass= subclass;
   event.flags= flags;
@@ -257,8 +253,9 @@ int mysql_audit_notify(THD *thd, mysql_event_global_variable_subclass_t subclass
 {
   mysql_event_global_variable event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass= subclass;
   event.connection_id= thd->thread_id();
@@ -282,8 +279,9 @@ int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
 {
   mysql_event_server_startup event;
 
-  mysql_audit_acquire_plugins(0, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(0, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
+                                   static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass= subclass;
   event.argv= argv;
@@ -297,8 +295,9 @@ int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
 {
   mysql_event_server_shutdown event;
 
-  mysql_audit_acquire_plugins(0, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(0, MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass= subclass;
   event.exit_code = exit_code;
@@ -350,8 +349,9 @@ int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
 {
   mysql_event_command event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_COMMAND_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_COMMAND_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass = subclass;
   event.status= thd->get_stmt_da()->is_error() ?
@@ -371,8 +371,9 @@ int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
 {
   mysql_event_query event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_QUERY_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_QUERY_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass = subclass;
   event.status = thd->get_stmt_da()->is_error() ?
@@ -395,8 +396,9 @@ int mysql_audit_notify(THD *thd,
 {
   mysql_event_stored_program event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_STORED_PROGRAM_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_STORED_PROGRAM_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass = subclass;
   event.connection_id= thd->thread_id();
@@ -472,23 +474,31 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   @details Ensure that audit plugins interested in given event
   class are locked by current thread.
 */
-void mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
+int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
                                  unsigned long event_subclass)
 {
   DBUG_ENTER("mysql_audit_acquire_plugins");
+  unsigned long global_mask= mysql_global_audit_mask[event_class];
 
-  if (thd && !check_audit_mask(&mysql_global_audit_mask[event_class],
-                               &event_subclass) &&
-      check_audit_mask(&thd->audit_class_mask[event_class], &event_subclass))
+  if (thd && !check_audit_mask(&global_mask, &event_subclass) &&
+      check_audit_mask(&thd->audit_class_mask[event_class],
+                       &event_subclass))
   {
+    /* There is a plugin registered for the subclass, but THD has not
+       registered yet for this event. Refresh THD class mask. */
+
     unsigned long masks[MYSQL_AUDIT_CLASS_MASK_SIZE]= { 0, };
     st_mysql_subscribe_event evt= { event_class, event_subclass, masks };
     int i;
     plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &evt);
     for (i = MYSQL_AUDIT_GENERAL_CLASS; i < MYSQL_AUDIT_CLASS_MASK_SIZE; i++)
       add_audit_mask(&thd->audit_class_mask[i], &evt.subscribe_mask[i]);
+
+    global_mask= thd->audit_class_mask[event_class];
   }
-  DBUG_VOID_RETURN;
+
+  /* Check whether there is a plugin registered for this event. */
+  DBUG_RETURN(check_audit_mask(&global_mask, &event_subclass) ? 1 : 0);
 }
  
 
