@@ -1525,6 +1525,17 @@ public:
 
   /* Return pointer to the actual data in memory */
   virtual void get_ptr(uchar **str) { *str= ptr; }
+
+/**
+  Checks whether a string field is part of write_set.
+
+  @return
+    FALSE  - If field is not char/varchar/....
+           - If field is char/varchar/.. and is not part of write set.
+    TRUE   - If field is char/varchar/.. and is part of write set.
+*/
+  virtual bool is_updatable() const { return FALSE; }
+
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
@@ -1813,6 +1824,11 @@ public:
 
   type_conversion_status store_decimal(const my_decimal *d);
   uint32 max_data_length() const;
+  bool is_updatable() const
+  {
+    DBUG_ASSERT(table && table->write_set);
+    return bitmap_is_set(table->write_set, field_index);
+  }
 };
 
 /* base class for float and double and decimal (old one) */
