@@ -3762,24 +3762,6 @@ public:
     is_ddl_gtid_consistent or is_dml_gtid_consistent returned false.
   */
   bool has_gtid_consistency_violation;
-  /*
-    Hack used to communicate between MYSQL_BIN_LOG::commit and
-    Gtid_state::update_on_[commit|rollback].
-
-    Normally, MYSQL_BIN_LOG::commit will invoke some function that
-    eventually calls Gtid_state::update_on_commit.  However, in some
-    corner cases it may not happen, for instance if there is nothing
-    commit or in some error cases.  In those cases,
-    MYSQL_BIN_LOG::commit has to call
-    Gtid_state::update_on_[commit|rollback] instead.
-
-    The control flow inside MYSQL_BIN_LOG::commit is very complex, so
-    the easiest way to check if Gtid_state::update_on_commit was
-    called is to set a flag when it gets called and check the flag in
-    MYSQL_BIN_LOG::commit.
-  */
-  bool pending_gtid_state_update;
-
 
   const LEX_CSTRING &db() const
   { return m_db; }
