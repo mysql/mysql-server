@@ -3465,7 +3465,8 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg)
   const uint32 max_characters= max_length / collation.collation->mbminlen;
   if (max_characters > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_characters * collation.collation->mbmaxlen,
-                          maybe_null, item_name.ptr(), collation.collation, TRUE);
+                          maybe_null, item_name.ptr(),
+                          collation.collation, true);
   else
     field= new Field_varstring(max_characters * collation.collation->mbmaxlen,
                                maybe_null, item_name.ptr(), table_arg->s, collation.collation);
