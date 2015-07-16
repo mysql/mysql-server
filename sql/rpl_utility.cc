@@ -876,6 +876,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   {
     Create_field *field_def=
       (Create_field*) alloc_root(thd->mem_root, sizeof(Create_field));
+    bool unsigned_flag= 0;
     if (field_list.push_back(field_def))
       DBUG_RETURN(NULL);
 
@@ -885,8 +886,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     uint32 max_length=
       max_display_length_for_field(type(col), field_metadata(col));
 
-    switch(type(col))
-    {
+    switch(type(col)) {
       int precision;
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
@@ -925,6 +925,18 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
       pack_length= field_metadata(col) & 0x00ff;
       break;
 
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      /*
+        As we don't know if the integer was signed or not on the master,
+        assume we have same sign on master and slave.  This is true when not
+        using conversions so it should be true also when using conversions.
+      */
+      unsigned_flag= ((Field_num*) target_table->field[col])->unsigned_flag;
+      break;
     default:
       break;
     }
@@ -932,12 +944,13 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     DBUG_PRINT("debug", ("sql_type: %d, target_field: '%s', max_length: %d, decimals: %d,"
                          " maybe_null: %d, unsigned_flag: %d, pack_length: %u",
                          type(col), target_table->field[col]->field_name,
-                         max_length, decimals, TRUE, FALSE, pack_length));
+                         max_length, decimals, TRUE, unsigned_flag,
+                         pack_length));
     field_def->init_for_tmp_table(type(col),
                                   max_length,
                                   decimals,
                                   TRUE,         // maybe_null
-                                  FALSE,        // unsigned_flag
+                                  unsigned_flag,
                                   pack_length);
     field_def->charset= target_table->field[col]->charset();
     field_def->interval= interval;
