@@ -8780,6 +8780,17 @@ bool Item_direct_view_ref::val_bool()
 }
 
 
+bool Item_direct_view_ref::val_json(Json_wrapper *wr)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return false;
+  }
+  return super::val_json(wr);
+}
+
+
 bool Item_direct_view_ref::is_null()
 {
   if (has_null_row())

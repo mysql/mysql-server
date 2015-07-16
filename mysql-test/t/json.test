@@ -5765,6 +5765,36 @@ SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
 
+--echo #
+--echo # Bug#21437989: ASSERTION FAILED:
+--echo #               JSON_BINARY::PARSE_BINARY(PTR, LENGTH).IS_VALID()
+--echo #
+CREATE TABLE t(j JSON NOT NULL);
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t VALUES ();
+--error ER_BAD_NULL_ERROR
+INSERT INTO t VALUES (NULL);
+INSERT IGNORE INTO t VALUES ();
+INSERT IGNORE INTO t VALUES (NULL);
+SELECT * FROM t;
+# The next two statements used to trigger an assertion.
+INSERT INTO t SELECT j FROM t;
+REPLACE INTO t SELECT j FROM t;
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#21448719: WRONG RESULT FOR JSON VALUE IN OUTER JOIN WITH VIEW
+--echo #
+CREATE TABLE t1(j1 JSON);
+CREATE TABLE t2(j2 JSON);
+CREATE VIEW v AS SELECT CAST('1' AS JSON) AS jv, j2 FROM t2;
+INSERT INTO t1 VALUES ('1');
+SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
+INSERT INTO t2 VALUES ('1');
+SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
+DROP TABLE t1, t2;
+DROP VIEW v;
 
 # Local Variables:
 # mode: sql

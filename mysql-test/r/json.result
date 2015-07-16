@@ -12823,3 +12823,51 @@ SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', 'too-long-escape');
 ERROR HY000: Incorrect arguments to ESCAPE
 SELECT 1 FROM dual WHERE JSON_SEARCH('{}', 'one', 'foo', JSON_EXTRACT('', '$'));
 ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0 in ''.
+#
+# Bug#21437989: ASSERTION FAILED:
+#               JSON_BINARY::PARSE_BINARY(PTR, LENGTH).IS_VALID()
+#
+CREATE TABLE t(j JSON NOT NULL);
+INSERT INTO t VALUES ();
+ERROR HY000: Field 'j' doesn't have a default value
+INSERT INTO t VALUES (NULL);
+ERROR 23000: Column 'j' cannot be null
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1364	Field 'j' doesn't have a default value
+INSERT IGNORE INTO t VALUES (NULL);
+Warnings:
+Warning	1048	Column 'j' cannot be null
+SELECT * FROM t;
+j
+null
+null
+INSERT INTO t SELECT j FROM t;
+REPLACE INTO t SELECT j FROM t;
+SELECT * FROM t;
+j
+null
+null
+null
+null
+null
+null
+null
+null
+DROP TABLE t;
+#
+# Bug#21448719: WRONG RESULT FOR JSON VALUE IN OUTER JOIN WITH VIEW
+#
+CREATE TABLE t1(j1 JSON);
+CREATE TABLE t2(j2 JSON);
+CREATE VIEW v AS SELECT CAST('1' AS JSON) AS jv, j2 FROM t2;
+INSERT INTO t1 VALUES ('1');
+SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
+j1	jv	j2	JSON_ARRAY(j1, jv, j2)
+1	NULL	NULL	[1, null, null]
+INSERT INTO t2 VALUES ('1');
+SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
+j1	jv	j2	JSON_ARRAY(j1, jv, j2)
+1	1	1	[1, 1, 1]
+DROP TABLE t1, t2;
+DROP VIEW v;
