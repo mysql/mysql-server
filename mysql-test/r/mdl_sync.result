@@ -3967,7 +3967,7 @@ SELECT * FROM t2;
 c1
 # Block IS query just before calling lock_table_names() (before X on t1)
 SET DEBUG_SYNC='recover_ot_repair SIGNAL parked WAIT_FOR go';
-SELECT COUNT(*)FROM information_schema.key_column_usage;
+SELECT COUNT(*) > 1 FROM information_schema.key_column_usage;
 # Create a new conncection which will compete for MDL lock
 # Wait until default becomes blocked
 SET DEBUG_SYNC='now WAIT_FOR parked';
@@ -3983,8 +3983,8 @@ SET DEBUG_SYNC='now SIGNAL go';
 # Wait for IS query which will try repair t1 which requires X.
 # Previously that resulted in deadlock with con1 over t1,
 # but now t1 is skipped and a warning is issued
-COUNT(*)
-66
+COUNT(*) > 1
+1
 Warnings:
 Warning	1194	Table 't1' is marked as crashed and should be repaired
 # Finish XA txn 'test2' to release SR on t2 so that con1

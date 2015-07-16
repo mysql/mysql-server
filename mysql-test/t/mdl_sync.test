@@ -5991,7 +5991,7 @@ XA START 'test2';
 SELECT * FROM t2;
 --echo # Block IS query just before calling lock_table_names() (before X on t1)
 SET DEBUG_SYNC='recover_ot_repair SIGNAL parked WAIT_FOR go';
---send SELECT COUNT(*)FROM information_schema.key_column_usage
+--send SELECT COUNT(*) > 1 FROM information_schema.key_column_usage
 
 --echo # Create a new conncection which will compete for MDL lock
 --connect (con1,localhost,root,,)
