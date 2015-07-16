@@ -1884,10 +1884,11 @@ trx_undo_prev_version_build(
 				diffs from "heap" above in that it could be
 				prebuilt->old_vers_heap for selection */
 	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
-	bool*           in_purge_view)
-				/*!< in/out: if not NULL, returns whether
-				the undo rec we looking at is already in
-				purge view for possible truncation */
+	ulint		v_status)
+				/*!< in: status determine if it is going
+				into this function by purge thread or not.
+				And if we read "after image" of undo log */
+
 
 {
 	trx_undo_rec_t*	undo_rec	= NULL;
@@ -1930,19 +1931,15 @@ trx_undo_prev_version_build(
 	if (trx_undo_get_undo_rec(
 		roll_ptr, rec_trx_id, heap, is_redo_rseg,
 		index->table->name, &undo_rec)) {
-		if (!in_purge_view) {
+		if (v_status & TRX_UNDO_PREV_IN_PURGE) {
+			/* We are fetching the record being purged */
+			undo_rec = trx_undo_get_undo_rec_low(
+				roll_ptr, heap, is_redo_rseg);
+		} else {
 			/* The undo record may already have been purged,
 			during purge or semi-consistent read. */
 			return(false);
-		} else {
-			/* It is in purge view, so it in theory can
-			be truncated  */
-			*in_purge_view = true;
-			undo_rec = trx_undo_get_undo_rec_low(
-				roll_ptr, heap, is_redo_rseg);
 		}
-
-		return(false);
 	}
 
 	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
@@ -2052,8 +2049,9 @@ trx_undo_prev_version_build(
 		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
 	}
 
-	/* Set the value in update vector to dtuple vrow */
-	if (in_purge_view) {
+	/* Set the old value (which is the after image of an update) in the
+	update vector to dtuple vrow */
+	if (v_status & TRX_UNDO_GET_OLD_V_VALUE) {
 		row_upd_replace_vcol((dtuple_t*)*vrow, index->table, update,
 				     false, NULL, NULL);
 	}
@@ -2076,7 +2074,7 @@ trx_undo_prev_version_build(
 
 		ut_ad(index->table->n_v_cols);
 		trx_undo_read_v_cols(index->table, ptr, *vrow,
-				     in_purge_view, NULL);
+				     v_status & TRX_UNDO_PREV_IN_PURGE, NULL);
 	}
 
 	return(true);
