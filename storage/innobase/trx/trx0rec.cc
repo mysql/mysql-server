@@ -571,11 +571,10 @@ trx_undo_page_report_modify_ext(
 	ulint*			len,
 	col_spatial_status	spatial_status)
 {
-	ulint	spatial_len;
+	ulint	spatial_len= 0;
 
 	switch (spatial_status) {
 	case SPATIAL_NONE:
-		spatial_len = 0;
 		break;
 
 	case SPATIAL_MIXED:
