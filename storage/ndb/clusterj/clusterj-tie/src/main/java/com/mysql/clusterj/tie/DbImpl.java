@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -59,26 +59,17 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The Ndb instance that this instance is wrapping */
     private Ndb ndb;
 
-    // TODO change the allocation to a constant in ndbjtie
-    private int errorBufferSize = 300;
-
     /** The ndb error detail buffer */
-    private ByteBuffer errorBuffer = ByteBuffer.allocateDirect(errorBufferSize);
-
-    // TODO change the allocation to a constant in ndbjtie
-    /** The size of the coordinated transaction identifier buffer */
-    private final static int COORDINATED_TRANSACTION_ID_SIZE = 44;
+    private ByteBuffer errorBuffer;
 
     /** The coordinated transaction identifier buffer */
-    private ByteBuffer coordinatedTransactionIdBuffer =
-            ByteBuffer.allocateDirect(COORDINATED_TRANSACTION_ID_SIZE);
+    private ByteBuffer coordinatedTransactionIdBuffer;
 
-    // TODO change the allocation to something reasonable
     /** The partition key scratch buffer */
-    private ByteBuffer partitionKeyScratchBuffer = ByteBuffer.allocateDirect(10000);
+    private ByteBuffer partitionKeyScratchBuffer;
 
     /** The BufferManager for this instance, used for all operations for the session */
-    private BufferManager bufferManager = new BufferManager();
+    private BufferManager bufferManager;
 
     /** The NdbDictionary for this Ndb */
     private Dictionary ndbDictionary;
@@ -131,6 +122,13 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     public DbImpl(ClusterConnectionImpl clusterConnection, Ndb ndb, int maxTransactions) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
+        this.errorBuffer =
+                this.clusterConnection.byteBufferPoolForDBImplError.borrowBuffer();
+        this.partitionKeyScratchBuffer =
+                this.clusterConnection.byteBufferPoolForPartitionKey.borrowBuffer();
+        this.coordinatedTransactionIdBuffer =
+                this.clusterConnection.byteBufferPoolForCoordinatedTransactionId.borrowBuffer();
+        this.bufferManager = new BufferManager(this.clusterConnection.byteBufferPool);
         int returnCode = ndb.init(maxTransactions);
         handleError(returnCode, ndb);
         ndbDictionary = ndb.getDictionary();
@@ -177,6 +175,10 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             Ndb.delete(ndb);
             ndb = null;
         }
+        this.clusterConnection.byteBufferPoolForDBImplError.returnBuffer(this.errorBuffer);
+        this.clusterConnection.byteBufferPoolForPartitionKey.returnBuffer(this.partitionKeyScratchBuffer);
+        this.clusterConnection.byteBufferPoolForCoordinatedTransactionId.returnBuffer(this.coordinatedTransactionIdBuffer);
+        this.bufferManager.release();
         clusterConnection.close(this);
     }
 
@@ -347,14 +349,36 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         /** String storage buffer initial size (used for non-primitive output data) */
         public static final int STRING_STORAGE_BUFFER_INITIAL_SIZE = 500;
 
-        /** Shared buffer for string output operations */
-        private ByteBuffer stringStorageBuffer = ByteBuffer.allocateDirect(STRING_STORAGE_BUFFER_INITIAL_SIZE);
+        /** String storage buffer current size */
+        private int stringStorageBufferCurrentSize = STRING_BYTE_BUFFER_INITIAL_SIZE;
 
-        /** Result data buffer initial size */
-        private static final int RESULT_DATA_BUFFER_INITIAL_SIZE = 8000;
+        /** Shared buffer for string output operations */
+        private ByteBuffer stringStorageBuffer;
+
+        /** Result data buffer initial size; only needed for non-NdbRecord operations */
+        private int resultDataBufferCurrentSize = 0;
 
         /** Buffer to hold result data */
-        private ByteBuffer resultDataBuffer = ByteBuffer.allocateDirect(RESULT_DATA_BUFFER_INITIAL_SIZE);
+        private ByteBuffer resultDataBuffer;
+
+        /** Buffer pool */
+        private VariableByteBufferPoolImpl pool;
+
+        protected BufferManager(VariableByteBufferPoolImpl pool) {
+            this.pool = pool;
+            this.stringStorageBuffer = pool.borrowBuffer(STRING_STORAGE_BUFFER_INITIAL_SIZE);
+            this.stringByteBuffer = pool.borrowBuffer(STRING_BYTE_BUFFER_INITIAL_SIZE);
+            this.stringCharBuffer = stringByteBuffer.asCharBuffer();
+        }
+
+        /** Release resources for this buffer manager. */
+        protected void release() {
+            if (this.resultDataBuffer != null) {
+                pool.returnBuffer(resultDataBufferCurrentSize, this.resultDataBuffer);
+            }
+            pool.returnBuffer(stringStorageBufferCurrentSize, stringStorageBuffer);
+            pool.returnBuffer(stringByteBufferCurrentSize, stringByteBuffer);
+        }
 
         /** Guarantee the size of the string storage buffer to be a minimum size. If the current
          * string storage buffer is not big enough, allocate a bigger one. The current buffer
@@ -362,13 +386,15 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
          * @param size the minimum size required
          */
         public void guaranteeStringStorageBufferSize(int sizeNeeded) {
-            if (sizeNeeded > stringStorageBuffer.capacity()) {
+            if (sizeNeeded > stringStorageBufferCurrentSize) {
                 if (logger.isDebugEnabled()) logger.debug(local.message("MSG_Reallocated_Byte_Buffer",
-                        "string storage", stringStorageBuffer.capacity(), sizeNeeded));
-                // the existing shared buffer will be garbage collected
-                stringStorageBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+                        "string storage", stringStorageBufferCurrentSize, sizeNeeded));
+                // return the existing shared buffer to the pool
+                pool.returnBuffer(stringStorageBufferCurrentSize, stringStorageBuffer);
+                stringStorageBuffer = pool.borrowBuffer(sizeNeeded);
+                stringStorageBufferCurrentSize = sizeNeeded;
             }
-            stringStorageBuffer.limit(stringStorageBuffer.capacity());
+            stringStorageBuffer.limit(stringStorageBufferCurrentSize);
         }
 
         /** Copy the contents of the parameter String into a reused string buffer.
@@ -407,23 +433,23 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         }
 
         /** Guarantee the size of the string byte buffer to be a minimum size. If the current
-         * string byte buffer is not big enough, allocate a bigger one. The current buffer
-         * will be garbage collected.
+         * string byte buffer is not big enough, return the current buffer to the pool and get 
+         * another buffer.
          * @param size the minimum size required
          */
         protected void guaranteeStringByteBufferSize(int sizeNeeded) {
             if (sizeNeeded > stringByteBufferCurrentSize) {
+                pool.returnBuffer(stringByteBufferCurrentSize, stringByteBuffer);
                 stringByteBufferCurrentSize = sizeNeeded;
-                stringByteBuffer = ByteBuffer.allocateDirect(stringByteBufferCurrentSize);
+                stringByteBuffer = pool.borrowBuffer(sizeNeeded);
                 stringCharBuffer = stringByteBuffer.asCharBuffer();
             }
-            if (stringByteBuffer == null) {
-                stringByteBuffer = ByteBuffer.allocateDirect(stringByteBufferCurrentSize);
-                stringCharBuffer = stringByteBuffer.asCharBuffer();
-            } else {
-                stringByteBuffer.clear();
-                stringCharBuffer.clear();
-            }
+            // reset the buffers to the proper position and limit
+            stringByteBuffer.limit(stringByteBufferCurrentSize);
+            stringByteBuffer.position(0);
+            // characters in java are always two bytes (UCS-16)
+            stringCharBuffer.limit(stringByteBufferCurrentSize / 2);
+            stringCharBuffer.position(0);
         }
 
         /** Get the string char buffer. This buffer is paired with the string byte buffer.
@@ -440,13 +466,18 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
          * @return the result data buffer
          */
         public ByteBuffer getResultDataBuffer(int sizeNeeded) {
-            if (sizeNeeded > resultDataBuffer.capacity()) {
+            if (sizeNeeded > resultDataBufferCurrentSize) {
                 if (logger.isDebugEnabled()) logger.debug(local.message("MSG_Reallocated_Byte_Buffer",
-                        "result data", resultDataBuffer.capacity(), sizeNeeded));
-                // the existing result data buffer will be garbage collected
-                resultDataBuffer = ByteBuffer.allocateDirect(sizeNeeded);
+                        "result data", resultDataBufferCurrentSize, sizeNeeded));
+                // return the existing result data buffer to the pool
+                if (resultDataBuffer != null) {
+                    pool.returnBuffer(resultDataBufferCurrentSize, resultDataBuffer);
+                }
+                resultDataBuffer = pool.borrowBuffer(sizeNeeded);
+                resultDataBufferCurrentSize = sizeNeeded;
             }
-            resultDataBuffer.clear();
+            resultDataBuffer.limit(resultDataBufferCurrentSize);
+            resultDataBuffer.position(0);
             return resultDataBuffer;
         }
 
