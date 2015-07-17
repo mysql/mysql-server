@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,15 +19,6 @@
 #define HA_NDB_INDEX_STAT_H
 
 #include "ndb_component.h"
-
-/* for NdbIndexScanOperation::IndexBound */
-#include <ndbapi/NdbIndexScanOperation.hpp>
-
-/* forward declarations */
-struct st_key_range;
-typedef struct st_key_range key_range;
-struct st_key;
-typedef struct st_key KEY;
 
 class Ndb_index_stat_thread : public Ndb_component
 {
@@ -58,17 +49,18 @@ private:
   // Wakeup for stop
   virtual void do_wakeup();
 
+  int check_or_create_systables(struct Ndb_index_stat_proc& pr);
+  int check_or_create_sysevents(struct Ndb_index_stat_proc& pr);
+  void drop_ndb(struct Ndb_index_stat_proc& pr);
+  int start_listener(struct Ndb_index_stat_proc& pr);
+  int create_ndb(struct Ndb_index_stat_proc& pr,
+                 Ndb_cluster_connection* connection);
+  void stop_listener(struct Ndb_index_stat_proc& pr);
 };
 
 /* free entries from share or at end */
 void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
 void ndb_index_stat_free(NDB_SHARE*);
 void ndb_index_stat_end();
-
-void
-compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
-                     const KEY *key_info,
-                     const key_range *start_key, const key_range *end_key,
-                     int from);
 
 #endif

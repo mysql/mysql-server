@@ -2274,10 +2274,10 @@ ndb_index_stat_end()
 
 /* Index stats thread */
 
-static int
-ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
+int
+Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr)
 {
-  DBUG_ENTER("ndb_index_stat_check_or_create_systables");
+  DBUG_ENTER("Ndb_index_stat_thread::check_or_create_systables");
 
   NdbIndexStat *is= pr.is_util;
   Ndb *ndb= pr.ndb;
@@ -2298,21 +2298,21 @@ ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
       is->getNdbError().code == 4244 ||
       is->getNdbError().code == 4009) // no connection
   {
-    // race between mysqlds, maybe
+    // probably race between mysqlds
     DBUG_PRINT("index_stat", ("create index stats tables failed: error %d line %d",
                               is->getNdbError().code, is->getNdbError().line));
     DBUG_RETURN(-1);
   }
 
-  sql_print_information("create index stats tables failed: error %d line %d",
-                        is->getNdbError().code, is->getNdbError().line);
+  log_info("create tables failed, error: %d, line: %d",
+           is->getNdbError().code, is->getNdbError().line);
   DBUG_RETURN(-1);
 }
 
-static int
-ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
+int
+Ndb_index_stat_thread::check_or_create_sysevents(Ndb_index_stat_proc &pr)
 {
-  DBUG_ENTER("ndb_index_stat_check_or_create_sysevents");
+  DBUG_ENTER("Ndb_index_stat_thread::check_or_create_sysevents");
 
   NdbIndexStat *is= pr.is_util;
   Ndb *ndb= pr.ndb;
@@ -2331,22 +2331,22 @@ ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
 
   if (is->getNdbError().code == 746)
   {
-    // race between mysqlds, maybe
+    // Probably race between mysqlds
     DBUG_PRINT("index_stat", ("create index stats events failed: error %d line %d",
                               is->getNdbError().code, is->getNdbError().line));
     DBUG_RETURN(-1);
   }
 
-  sql_print_information("create index stats events failed: error %d line %d",
-                        is->getNdbError().code, is->getNdbError().line);
+  log_info("create events failed, error: %d, line: %d",
+           is->getNdbError().code, is->getNdbError().line);
   DBUG_RETURN(-1);
 }
 
-static int
-ndb_index_stat_create_ndb(Ndb_index_stat_proc &pr,
-                          Ndb_cluster_connection* connection)
+int
+Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
+                                  Ndb_cluster_connection* connection)
 {
-  DBUG_ENTER("ndb_index_stat_create_ndb");
+  DBUG_ENTER("Ndb_index_stat_thread::create_ndb");
   assert(pr.ndb == NULL);
   assert(connection != NULL);
 
@@ -2356,36 +2356,34 @@ ndb_index_stat_create_ndb(Ndb_index_stat_proc &pr,
     ndb= new Ndb(connection, "");
     if (ndb == NULL)
     {
-      sql_print_error("create index stats Ndb failed: error %d %s",
-                      connection->get_latest_error(),
-                      connection->get_latest_error_msg());
+      log_error("failed to create Ndb object");
       break;
     }
 
-    if (ndb->setNdbObjectName("Ndb Index Statistics monitoring"))
+    if (ndb->setNdbObjectName("Ndb Index Stat"))
     {
-      sql_print_error("set index stats Ndb object name failed: error code %d",
-                      ndb->getNdbError().code);
+      log_error("failed to set Ndb object name, error: %d",
+                ndb->getNdbError().code);
       break;
     }
 
     if (ndb->init() != 0)
     {
-      sql_print_error("init index stat Ndb failed: error code %d",
-                      ndb->getNdbError().code);
+      log_error("failed to init Ndb, error: %d",
+                ndb->getNdbError().code);
       break;
     }
 
     if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0)
     {
-      sql_print_error("set index stats Ndb database %s failed: error code %d",
-                      NDB_INDEX_STAT_DB, ndb->getNdbError().code);
+      log_error("failed to set database '%s', error: %d",
+                NDB_INDEX_STAT_DB, ndb->getNdbError().code);
       break;
     }
 
-    sql_print_information("created index stats Ndb object:"
-                          " reference 0x%x, name: '%s'",
-                          ndb->getReference(), ndb->getNdbObjectName());
+    log_info("created Ndb object '%s', ref: 0x%x",
+             ndb->getNdbObjectName(), ndb->getReference());
+
     pr.ndb= ndb;
     DBUG_RETURN(0);
   } while (0);
@@ -2395,16 +2393,14 @@ ndb_index_stat_create_ndb(Ndb_index_stat_proc &pr,
   DBUG_RETURN(-1);
 }
 
-static void ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr);
-
-static void
-ndb_index_stat_drop_ndb(Ndb_index_stat_proc &pr)
+void
+Ndb_index_stat_thread::drop_ndb(Ndb_index_stat_proc &pr)
 {
-  DBUG_ENTER("ndb_index_stat_drop_ndb");
+  DBUG_ENTER("Ndb_index_stat_thread::drop_ndb");
 
   if (pr.is_util->has_listener())
   {
-    ndb_index_stat_stop_listener(pr);
+    stop_listener(pr);
   }
   if (pr.ndb != NULL)
   {
@@ -2414,25 +2410,25 @@ ndb_index_stat_drop_ndb(Ndb_index_stat_proc &pr)
   DBUG_VOID_RETURN;
 }
 
-static int
-ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
+int
+Ndb_index_stat_thread::start_listener(Ndb_index_stat_proc &pr)
 {
-  DBUG_ENTER("ndb_index_stat_start_listener");
+  DBUG_ENTER("Ndb_index_stat_thread::start_listener");
 
   NdbIndexStat *is= pr.is_util;
   Ndb *ndb= pr.ndb;
 
   if (is->create_listener(ndb) == -1)
   {
-    sql_print_information("create index stats listener failed: error %d line %d",
-                          is->getNdbError().code, is->getNdbError().line);
+    log_info("create index stats listener failed: error %d line %d",
+             is->getNdbError().code, is->getNdbError().line);
     DBUG_RETURN(-1);
   }
 
   if (is->execute_listener(ndb) == -1)
   {
-    sql_print_information("execute index stats listener failed: error %d line %d",
-                          is->getNdbError().code, is->getNdbError().line);
+    log_info("execute index stats listener failed: error %d line %d",
+             is->getNdbError().code, is->getNdbError().line);
     // Drop the created listener
     (void)is->drop_listener(ndb);
     DBUG_RETURN(-1);
@@ -2441,10 +2437,10 @@ ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
   DBUG_RETURN(0);
 }
 
-static void
-ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
+void
+Ndb_index_stat_thread::stop_listener(Ndb_index_stat_proc &pr)
 {
-  DBUG_ENTER("ndb_index_stat_stop_listener");
+  DBUG_ENTER("Ndb_index_stat_thread::stop_listener");
 
   NdbIndexStat *is= pr.is_util;
   Ndb *ndb= pr.ndb;
@@ -2484,7 +2480,7 @@ void
 Ndb_index_stat_thread::do_run()
 {
   struct timespec abstime;
-  DBUG_ENTER("ndb_index_stat_thread_func");
+  DBUG_ENTER("Ndb_index_stat_thread::do_run");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   Ndb_index_stat_proc pr;
@@ -2532,8 +2528,8 @@ Ndb_index_stat_thread::do_run()
   /* Get instance used for sys objects check and create */
   if (!(pr.is_util= new NdbIndexStat))
   {
-    sql_print_error("Could not allocate NdbIndexStat is_util object");
-    native_mutex_lock(&LOCK);
+    log_error("Could not allocate NdbIndexStat is_util object");
+    pthread_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2584,7 +2580,7 @@ Ndb_index_stat_thread::do_run()
       {
         ndb_index_stat_restart_flag= false;
         ndb_index_stat_set_allow(false);
-        ndb_index_stat_drop_ndb(pr);
+        drop_ndb(pr);
         check_sys= true; // sys objects are gone
       }
 
@@ -2606,14 +2602,14 @@ Ndb_index_stat_thread::do_run()
       {
         DBUG_PRINT("index_stat", ("Index stats is not enabled"));
         ndb_index_stat_set_allow(false);
-        ndb_index_stat_drop_ndb(pr);
+        drop_ndb(pr);
         break;
       }
 
       // the Ndb object is needed first
       if (pr.ndb == NULL)
       {
-        if (ndb_index_stat_create_ndb(pr, g_ndb_cluster_connection) == -1)
+        if (create_ndb(pr, g_ndb_cluster_connection) == -1)
           break;
       }
 
@@ -2621,15 +2617,15 @@ Ndb_index_stat_thread::do_run()
       if (check_sys)
       {
         // at enable check or create stats tables and events
-        if (ndb_index_stat_check_or_create_systables(pr) == -1 ||
-            ndb_index_stat_check_or_create_sysevents(pr) == -1)
+        if (check_or_create_systables(pr) == -1 ||
+            check_or_create_sysevents(pr) == -1)
           break;
       }
 
       // listener is not critical but error means something is wrong
       if (!pr.is_util->has_listener())
       {
-        if (ndb_index_stat_start_listener(pr) == -1)
+        if (start_listener(pr) == -1)
           break;
       }
 
@@ -2671,7 +2667,7 @@ ndb_index_stat_thread_end:
 
   if (pr.is_util)
   {
-    ndb_index_stat_drop_ndb(pr);
+    drop_ndb(pr);
     delete pr.is_util;
     pr.is_util= 0;
   }
@@ -2853,6 +2849,13 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
                             st->id, snap.sample_version, st->sample_version));
   DBUG_RETURN(0);
 }
+
+
+void
+compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
+                     const KEY *key_info,
+                     const key_range *start_key, const key_range *end_key,
+                     int from);
 
 int
 ha_ndbcluster::ndb_index_stat_query(uint inx,
