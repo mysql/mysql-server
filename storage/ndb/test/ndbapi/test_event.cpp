@@ -4307,14 +4307,19 @@ int runPollBCInconsistency(NDBT_Context* ctx, NDBT_Step* step)
           n_inconsis_next++;
           goto end_test;
         }
-        // Check whether we have processed the entire queue
-        CHK(current_gci == poll_gci, "Expected inconsistent epoch");
       }
     }
-    if (retries-- == 0)
+    
+    if (inconsis_epoch_poll > 0 && inconsis_epoch_next == 0)
+    {
+      g_err << "Processed entire queue without finding the inconsistent epoch:"
+            << endl;
+      g_err << " current gci " << current_gci
+            << " poll gci " << poll_gci << endl;
       goto end_test;
+    }
 
-  } while (ndb->pollEvents(1000, &poll_gci));
+  } while (retries-- > 0 && ndb->pollEvents(1000, &poll_gci));
 
 end_test:
 
@@ -4362,7 +4367,7 @@ runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
   CHK(evOp->execute() == 0, "execute operation execution failed");
 
   Uint64 highestQueuedEpoch = 0;
-  int pollRetries = 60;
+  int pollRetries = 120;
   int res = 0;
   while (res == 0 && pollRetries-- > 0)
   {
@@ -4372,7 +4377,7 @@ runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
 
   // 10 sec waiting should be enough to get an epoch with default
   // TimeBetweenEpochsTimeout (4 sec) and TimeBetweenEpochs (100 millsec).
-  CHK(highestQueuedEpoch != 0, "No epochs received after 10 secs");
+  CHK(highestQueuedEpoch != 0, "No epochs received after 120 secs");
 
 
   // Wait for some more epochs to be buffered.
@@ -4434,7 +4439,7 @@ consumeEpochs(Ndb* ndb, uint nEpochs)
   // to reach the event buffer
   NdbSleep_SecSleep(5);
 
-  int pollRetries = 60;
+  int pollRetries = 120;
   int res = 0;
   Uint64 highestQueuedEpoch = 0;
   while (pollRetries-- > 0)
@@ -4499,7 +4504,7 @@ consumeEpochs(Ndb* ndb, uint nEpochs)
         consumed_gci = curr_gci;
         curr_gci = op_gci;
 
-        if (++consumed_epochs > nEpochs)
+        if (++consumed_epochs == nEpochs)
         {
           g_info << "Consumed epochs " << consumed_epochs << endl;
           g_info << "Empty epochs " << emptyEpochs
@@ -4601,8 +4606,9 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   CHK(hugoTrans1.loadTable(GETNDB(step), 1000, 100) == 0,
       "Failed to generate transaction load after cluster restart");
 
-  // consume all epochs left by giving a high value to eEpochs
-  CHK(consumeEpochs(pNdb, 10000), "Consume after cluster restart failed");
+  // consume some epochs to ensure that the event consumption
+  // has started after recovery from cluster failure
+  CHK(consumeEpochs(pNdb, 1), "Consumption after cluster restart failed");
 
   CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
   CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
@@ -5171,8 +5177,8 @@ TESTCASE("Apiv2HQE-latestGCI",
          "highest queued and latest received epochs")
 {
   INITIALIZER(runCreateEvent);
-  STEP(runCheckHQElatestGCI);
   STEP(runInsertDeleteUntilStopped);
+  STEP(runCheckHQElatestGCI);
   FINALIZER(runDropEvent);
 }
 TESTCASE("Apiv2-check_event_queue_cleared",
