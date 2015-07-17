@@ -541,6 +541,26 @@ public:
 };
 
 /**
+  Represents the JSON function JSON_ARRAY_INSERT()
+*/
+class Item_func_json_array_insert :public Item_json_func
+{
+  String m_doc_value;
+
+public:
+  Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)
+    : Item_json_func(thd, pos, a)
+  {}
+
+  const char *func_name() const
+  {
+    return "json_array_insert";
+  }
+
+  bool val_json(Json_wrapper *wr);
+};
+
+/**
   Common base class for JSON_SET() and JSON_REPLACE().
 */
 class Item_func_json_set_replace :public Item_json_func
