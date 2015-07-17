@@ -41,12 +41,6 @@ class NdbRecordBlobImpl extends BlobImpl {
     /** The store column for this blob */
     private Column storeColumn;
 
-    /** The data holder for this blob */
-    private byte[] data;
-
-    /** The operation */
-    private NdbRecordOperationImpl operation;
-
     public NdbRecordBlobImpl(NdbRecordOperationImpl operation, Column storeColumn, VariableByteBufferPoolImpl byteBufferPool) {
         super(byteBufferPool);
         this.storeColumn = storeColumn;
@@ -66,15 +60,6 @@ class NdbRecordBlobImpl extends BlobImpl {
         this.operation = operation;
         this.storeColumn = ndbRecordBlobImpl2.storeColumn;
         this.data = ndbRecordBlobImpl2.data;
-    }
-
-    /** Release any resources associated with this object.
-     * This method is called by the owner of this object when it is being finalized by garbage collection.
-     */
-    public void release() {
-        if (logger.isDetailEnabled()) logger.detail("NdbRecordBlobImpl.release");
-        this.data = null;
-        this.operation = null;
     }
 
     public int getColumnId() {
