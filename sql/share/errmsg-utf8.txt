@@ -7574,6 +7574,9 @@ ER_USER_ALREADY_EXISTS
 ER_AUDIT_API_ABORT
   eng "Aborted by Audit API ('%-.48s';%d)."
 
+ER_INVALID_JSON_PATH_ARRAY_CELL 42000
+  eng "A path expression is not a path to a cell in an array."
+
 #
 #  End of 5.7 error messages.
 #
