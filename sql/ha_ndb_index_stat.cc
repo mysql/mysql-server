@@ -2529,7 +2529,7 @@ Ndb_index_stat_thread::do_run()
   if (!(pr.is_util= new NdbIndexStat))
   {
     log_error("Could not allocate NdbIndexStat is_util object");
-    pthread_mutex_lock(&LOCK);
+    native_mutex_lock(&LOCK);
     goto ndb_index_stat_thread_end;
   }
 
