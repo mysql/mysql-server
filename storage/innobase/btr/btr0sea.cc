@@ -146,7 +146,6 @@ btr_search_check_free_space_in_heap(dict_index_t* index)
 	hash_table_t*	table;
 	mem_heap_t*	heap;
 
-	ut_ad(btr_search_enabled);
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
@@ -455,7 +454,6 @@ btr_search_info_update_hash(
 	ulint		n_unique;
 	int		cmp;
 
-	ut_ad(btr_search_enabled);
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
@@ -570,7 +568,6 @@ btr_search_update_block_hash_info(
 	buf_block_t*		block,
 	const btr_cur_t*	cursor)
 {
-	ut_ad(btr_search_enabled);
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
 	ut_ad(rw_lock_own(&block->lock, RW_LOCK_S)
@@ -653,7 +650,6 @@ btr_search_update_hash_ref(
 	ulint		fold;
 	const rec_t*	rec;
 
-	ut_ad(btr_search_enabled);
 	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
 	ut_ad(rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
@@ -715,7 +711,6 @@ btr_search_info_update_slow(
 	buf_block_t*	block;
 	ibool		build_index;
 
-	ut_ad(btr_search_enabled);
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_S));
 	ut_ad(!rw_lock_own(btr_get_search_latch(cursor->index), RW_LOCK_X));
 
@@ -742,11 +737,11 @@ btr_search_info_update_slow(
 		btr_search_n_hash_fail++;
 #endif /* UNIV_SEARCH_PERF_STAT */
 
-		rw_lock_x_lock(btr_get_search_latch(cursor->index));
+		btr_search_x_lock(cursor->index);
 
 		btr_search_update_hash_ref(info, block, cursor);
 
-		rw_lock_x_unlock(btr_get_search_latch(cursor->index));
+		btr_search_x_unlock(cursor->index);
 	}
 
 	if (build_index) {
@@ -1561,7 +1556,7 @@ btr_search_build_page_hash_index(
 
 	btr_search_x_lock(index);
 
-	if (UNIV_UNLIKELY(!btr_search_enabled)) {
+	if (!btr_search_enabled) {
 		goto exit_func;
 	}
 
