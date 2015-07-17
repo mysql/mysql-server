@@ -4019,9 +4019,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_basename,
                         opt_relay_logname, default_logfile_name,
                         (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
-    relay_log_index=
-      rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
-                        opt_relaylog_index_name, relay_log_basename, ".index");
+
+    if (relay_log_basename != NULL)
+      relay_log_index=
+        rpl_make_log_name(key_memory_MYSQL_RELAY_LOG_index,
+                          opt_relaylog_index_name, relay_log_basename, ".index");
+
     if (relay_log_basename == NULL || relay_log_index == NULL)
     {
       sql_print_error("Unable to create replication path names:"
