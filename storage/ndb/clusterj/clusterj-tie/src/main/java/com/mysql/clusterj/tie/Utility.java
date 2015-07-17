@@ -2171,7 +2171,7 @@ public class Utility {
             while (!done) {
                 ByteBuffer outputByteBuffer = bufferManager.getStringByteBuffer(sizeNeeded);
                 CharBuffer outputCharBuffer = bufferManager.getStringCharBuffer();
-                int outputLength = outputByteBuffer.capacity();
+                int outputLength = outputByteBuffer.limit();
                 outputByteBuffer.position(0);
                 outputByteBuffer.limit(outputLength);
                 int[] lengths = new int[] {inputLength, outputLength};
