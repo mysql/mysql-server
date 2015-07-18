@@ -2325,8 +2325,8 @@ ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
     DBUG_RETURN(-1);
   }
 
-  sql_print_warning("create index stats tables failed: error %d line %d",
-                    is->getNdbError().code, is->getNdbError().line);
+  sql_print_information("create index stats tables failed: error %d line %d",
+                        is->getNdbError().code, is->getNdbError().line);
   DBUG_RETURN(-1);
 }
 
@@ -2358,8 +2358,8 @@ ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
     DBUG_RETURN(-1);
   }
 
-  sql_print_warning("create index stats events failed: error %d line %d",
-                    is->getNdbError().code, is->getNdbError().line);
+  sql_print_information("create index stats events failed: error %d line %d",
+                        is->getNdbError().code, is->getNdbError().line);
   DBUG_RETURN(-1);
 }
 
@@ -2373,15 +2373,15 @@ ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
 
   if (is->create_listener(ndb) == -1)
   {
-    sql_print_warning("create index stats listener failed: error %d line %d",
-                      is->getNdbError().code, is->getNdbError().line);
+    sql_print_information("create index stats listener failed: error %d line %d",
+                          is->getNdbError().code, is->getNdbError().line);
     DBUG_RETURN(-1);
   }
 
   if (is->execute_listener(ndb) == -1)
   {
-    sql_print_warning("execute index stats listener failed: error %d line %d",
-                      is->getNdbError().code, is->getNdbError().line);
+    sql_print_information("execute index stats listener failed: error %d line %d",
+                          is->getNdbError().code, is->getNdbError().line);
     // Drop the created listener
     (void)is->drop_listener(ndb);
     DBUG_RETURN(-1);
@@ -2400,8 +2400,8 @@ ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
 
   if (is->drop_listener(ndb) == -1)
   {
-    sql_print_warning("drop index stats listener failed: error %d line %d",
-                      is->getNdbError().code, is->getNdbError().line);
+    sql_print_information("drop index stats listener failed: error %d line %d",
+                          is->getNdbError().code, is->getNdbError().line);
     DBUG_RETURN(-1);
   }
 
