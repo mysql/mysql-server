@@ -59,6 +59,7 @@ class VariableByteBufferPoolImpl {
             ByteBuffer buffer = ByteBuffer.allocateDirect(1);
             cleanerField = buffer.getClass().getDeclaredField("cleaner");
             cleanerField.setAccessible(true);
+            clean(buffer);
         } catch (Throwable t) {
             String message = local.message("WARN_Buffer_Cleaning_Unusable", t.getClass().getName(), t.getMessage());
             logger.warn(message);
