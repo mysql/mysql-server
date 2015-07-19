@@ -152,13 +152,9 @@ SELECT COUNT(*) FROM t2;
 FLUSH TABLES;
 
 --echo # Restrict partitioned commands to partitioned tables only
---error ER_PARTITION_MGMT_ON_NONPARTITIONED
 CACHE INDEX t2 PARTITION (p0) KEY (`inx_b`) IN hot_cache;
---error ER_PARTITION_MGMT_ON_NONPARTITIONED
 CACHE INDEX t2 PARTITION (p0,`p1`) INDEX (`PRIMARY`) IN hot_cache;
---error ER_PARTITION_MGMT_ON_NONPARTITIONED
 CACHE INDEX t2 PARTITION (`p1`) INDEX (`PRIMARY`,`inx_b`) IN hot_cache;
---error ER_PARTITION_MGMT_ON_NONPARTITIONED
 CACHE INDEX t2 PARTITION (ALL) KEY (`inx_b`,`PRIMARY`) IN hot_cache;
 --echo # Basic key cache testing
 --echo # The manual correctly says: "The syntax of CACHE INDEX enables you to
@@ -213,7 +209,6 @@ LOAD INDEX INTO CACHE t2 KEY (`PRIMARY`,`inx_b`);
 CACHE INDEX t2 IN default;
 LOAD INDEX INTO CACHE t2 IGNORE LEAVES;
 
---error ER_PARTITION_MGMT_ON_NONPARTITIONED
 LOAD INDEX INTO CACHE t2 PARTITION (p1) INDEX (`PRIMARY`);
 LOAD INDEX INTO CACHE t1, t2;
 --echo # only one table at a time if specifying partitions
@@ -233,7 +228,6 @@ LOAD INDEX INTO CACHE t1 PARTITIONS ALL;
 LOAD INDEX INTO CACHE t1 PARTITION (p1,`p0`) IGNORE LEAVES;
 DROP INDEX `inx_b` on t1;
 DROP INDEX `inx_b` on t2;
---error ER_PARTITION_MGMT_ON_NONPARTITIONED
 CACHE INDEX t2 PARTITION (p0) KEY (`inx_b`) IN hot_cache;
 CACHE INDEX t2 INDEX (`inx_b`) IN hot_cache;
 CACHE INDEX t1 PARTITION (p0) KEY (`inx_b`) IN hot_cache;

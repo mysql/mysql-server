@@ -201,13 +201,21 @@ COUNT(*)
 FLUSH TABLES;
 # Restrict partitioned commands to partitioned tables only
 CACHE INDEX t2 PARTITION (p0) KEY (`inx_b`) IN hot_cache;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t2	assign_to_keycache	Error	Partition management on a not partitioned table is not possible
+test.t2	assign_to_keycache	status	Operation failed
 CACHE INDEX t2 PARTITION (p0,`p1`) INDEX (`PRIMARY`) IN hot_cache;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t2	assign_to_keycache	Error	Partition management on a not partitioned table is not possible
+test.t2	assign_to_keycache	status	Operation failed
 CACHE INDEX t2 PARTITION (`p1`) INDEX (`PRIMARY`,`inx_b`) IN hot_cache;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t2	assign_to_keycache	Error	Partition management on a not partitioned table is not possible
+test.t2	assign_to_keycache	status	Operation failed
 CACHE INDEX t2 PARTITION (ALL) KEY (`inx_b`,`PRIMARY`) IN hot_cache;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t2	assign_to_keycache	Error	Partition management on a not partitioned table is not possible
+test.t2	assign_to_keycache	status	Operation failed
 # Basic key cache testing
 # The manual correctly says: "The syntax of CACHE INDEX enables you to
 # specify that only particular indexes from a table should be assigned
@@ -326,7 +334,9 @@ Table	Op	Msg_type	Msg_text
 test.t2	preload_keys	error	Indexes use different block sizes
 test.t2	preload_keys	status	Operation failed
 LOAD INDEX INTO CACHE t2 PARTITION (p1) INDEX (`PRIMARY`);
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t2	preload_keys	Error	Partition management on a not partitioned table is not possible
+test.t2	preload_keys	status	Operation failed
 LOAD INDEX INTO CACHE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	preload_keys	status	OK
@@ -381,7 +391,9 @@ test.t1	preload_keys	status	Operation failed
 DROP INDEX `inx_b` on t1;
 DROP INDEX `inx_b` on t2;
 CACHE INDEX t2 PARTITION (p0) KEY (`inx_b`) IN hot_cache;
-ERROR HY000: Partition management on a not partitioned table is not possible
+Table	Op	Msg_type	Msg_text
+test.t2	assign_to_keycache	Error	Partition management on a not partitioned table is not possible
+test.t2	assign_to_keycache	status	Operation failed
 CACHE INDEX t2 INDEX (`inx_b`) IN hot_cache;
 Table	Op	Msg_type	Msg_text
 test.t2	assign_to_keycache	Error	Key 'inx_b' doesn't exist in table 't2'
