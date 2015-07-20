@@ -162,7 +162,7 @@ if ($binlog_position)
 {
   --let $statement= $statement FROM $binlog_position
 }
-if ($limit)
+if ($limit != "")
 {
   --let $statement= $statement LIMIT $limit
 }
