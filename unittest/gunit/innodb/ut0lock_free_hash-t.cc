@@ -611,7 +611,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w)
 		1024 * 32 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
-		64, /* n_threads */
+		64 /* n_threads */,
 		reinterpret_cast<os_thread_func_t>(thread_0r100w) /* thr func */
 	);
 }
@@ -623,7 +623,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_few_keys)
 		1024 * 32 /* initial hash size */,
 		16 /* n_common */,
 		0 /* n_priv_per_thread */,
-		64, /* n_threads */
+		64 /* n_threads */,
 		reinterpret_cast<os_thread_func_t>(thread_0r100w) /* thr func */
 	);
 }
@@ -714,7 +714,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_50r50w)
 		1024 * 32 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
-		64, /* n_threads */
+		64 /* n_threads */,
 		reinterpret_cast<os_thread_func_t>(thread_50r50w) /* thr func */
 	);
 }
@@ -785,7 +785,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_100r0w)
 		1024 * 32 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
-		64, /* n_threads */
+		64 /* n_threads */,
 		reinterpret_cast<os_thread_func_t>(thread_100r0w) /* thr func */
 	);
 }
