@@ -991,7 +991,7 @@ longlong Item_func_json_contains_path::val_int()
       Json_path *path= m_path_cache.get_path(i);
 
       hits.clear();
-      if (wrapper.seek(*path, &hits, true, !require_all))
+      if (wrapper.seek(*path, &hits, true, true))
         return error_int();               /* purecov: inspected */
       if (hits.size() > 0)
       {
