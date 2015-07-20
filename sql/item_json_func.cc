@@ -1714,6 +1714,42 @@ bool get_json_atom_wrapper(Item **args,
 }
 
 
+/**
+  Convert JSON values or MySQL values to JSON. Converts SQL NULL
+  to the JSON null literal.
+
+  @param[in]     args       arguments to function
+  @param[in]     arg_idx    the index of the argument to process
+  @param[in]     calling_function    name of the calling function
+  @param[in,out] value      working area (if the returned Json_wrapper points
+                            to a binary value rather than a DOM, this string
+                            will end up holding the binary representation, and
+                            it must stay alive until the wrapper is destroyed
+                            or converted from binary to DOM)
+  @param[in,out] tmp        temporary scratch space for converting strings to
+                            the correct charset; only used if accept_string is
+                            true and conversion is needed
+  @param[in,out] wr         the result wrapper
+  @returns false if we found a value or NULL, true otherwise
+*/
+bool get_atom_null_as_null(Item **args, uint arg_idx,
+                           const char *calling_function, String *value,
+                           String *tmp, Json_wrapper *wr)
+{
+  if (get_json_atom_wrapper(args, arg_idx, calling_function, value,
+                            tmp, wr, NULL, true))
+    return true;
+
+  if (args[arg_idx]->null_value)
+  {
+    Json_wrapper null_wrapper(new (std::nothrow) Json_null());
+    wr->steal(&null_wrapper);
+  }
+
+  return false;
+}
+
+
 bool Item_json_typecast::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
@@ -2081,14 +2117,9 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
       {
         --it;
         Json_wrapper valuew;
-        if (get_json_atom_wrapper(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
-                                   &valuew, NULL, true))
+        if (get_atom_null_as_null(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
+                                  &valuew))
           return error_json();
-        if (args[i + 1]->null_value)
-        {
-          null_value= true;
-          return false;
-        }
 
         if ((*it)->json_type() == Json_dom::J_ARRAY)
         {
@@ -2201,16 +2232,10 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       }
 
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
-                                 &valuew, NULL, true))
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
+                                &valuew))
       {
         return error_json();
-      }
-
-      if(args[i + 1]->null_value)
-      {
-        null_value= true;
-        return false;
       }
 
       /*
@@ -2360,21 +2385,11 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
       }
 
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i + 1, func_name(),
+      if (get_atom_null_as_null(args, i + 1, func_name(),
                                 &m_value, &m_conversion_buffer,
-                                &valuew, NULL, true))
+                                &valuew))
       {
         return error_json();
-      }
-
-      if (args[i + 1]->null_value)
-      {
-        // now restore the leg we removed in case we are caching paths
-        if (path->append(l))
-          return error_json();              /* purecov: inspected */
-
-        null_value= true;
-        return false;
       }
 
       /*
@@ -2454,15 +2469,9 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         return error_json();                  /* purecov: inspected */
 
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
-                                 &valuew, NULL, true))
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
+                                &valuew))
         return error_json();
-
-      if(args[i + 1]->null_value)
-      {
-        null_value= true;
-        return false;
-      }
 
       if (hits.size() == 0)
       {
@@ -2630,17 +2639,10 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     for (uint32 i= 0; i < arg_count; ++i)
     {
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, i, func_name(), &m_value, &m_conversion_buffer,
-                                 &valuew, NULL, true))
+      if (get_atom_null_as_null(args, i, func_name(), &m_value, &m_conversion_buffer,
+                                &valuew))
       {
         return error_json();
-      }
-
-      // translate SQL NULL into the JSON null literal
-      if (args[i]->null_value)
-      {
-        Json_wrapper null_wrapper(new (std::nothrow) Json_null());
-        valuew.steal(&null_wrapper);
       }
 
       if (arr->append_alias(valuew.to_dom()))
@@ -2695,17 +2697,10 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
 
       // value
       Json_wrapper valuew;
-      if (get_json_atom_wrapper(args, value_idx, func_name(), &m_value,
-                                 &m_conversion_buffer, &valuew, NULL, true))
+      if (get_atom_null_as_null(args, value_idx, func_name(), &m_value,
+                                &m_conversion_buffer, &valuew))
       {
         return error_json();
-      }
-
-      // translate SQL NULL into the JSON null literal
-      if (args[i]->null_value)
-      {
-        Json_wrapper null_wrapper(new (std::nothrow) Json_null());
-        valuew.steal(&null_wrapper);
       }
 
       if (object->add_alias(key, valuew.to_dom()))
