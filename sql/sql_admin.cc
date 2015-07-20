@@ -458,7 +458,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-            goto err;
+            result_code= HA_ADMIN_FAILED;
+            goto send_result;
           }
 
           if (set_part_state(alter_info,
@@ -466,21 +467,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                              PART_ADMIN,
                              true))
           {
-            char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
-            size_t length;
-            DBUG_PRINT("admin", ("sending non existent partition error"));
-            protocol->start_row();
-            protocol->store(table_name, system_charset_info);
-            protocol->store(operator_name, system_charset_info);
-            protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-            length= my_snprintf(buff, sizeof(buff),
-                                ER_THD(thd, ER_DROP_PARTITION_NON_EXISTENT),
-                                table_name);
-            protocol->store(buff, length, system_charset_info);
-            if(protocol->end_row())
-              goto err;
-            my_eof(thd);
-            goto err;
+            my_error(ER_DROP_PARTITION_NON_EXISTENT, MYF(0), table_name);
+            result_code= HA_ADMIN_FAILED;
+            goto send_result;
           }
         }
       }
