@@ -644,17 +644,6 @@ public:
 
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
-  static Geometry *scan_header_and_create(wkb_parser *wkb, Geometry_buffer *buffer)
-  {
-    Geometry *geom;
-    wkb_header header;
-
-    if (wkb->scan_wkb_header(&header) ||
-        !(geom= create_by_typeid(buffer, header.wkb_type)))
-      return NULL;
-    geom->set_data_ptr(wkb->data(), wkb->length());
-    return geom;
-  }
 
   static Geometry *construct(Geometry_buffer *buffer,
                              const char *data, uint32 data_len,
@@ -3596,6 +3585,9 @@ public:
 /*********************** GeometryCollection *******************************/
 class Gis_geometry_collection: public Geometry
 {
+private:
+  static Geometry *scan_header_and_create(wkb_parser *wkb,
+                                          Geometry_buffer *buffer);
 public:
   Gis_geometry_collection()
     :Geometry(NULL, 0, Flags_t(wkb_geometrycollection, 0), default_srid)

@@ -6513,3 +6513,15 @@ CREATE TABLE t(a INTEGER);
 SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
 ERROR HY000: Incorrect arguments to min(
 DROP TABLE t;
+#
+# BUG#21397107: ASSERTION FAILED: K < STATIC_CAST<SIZE_T>(GET_DIMENSION())
+#              IN GIS_POINT::GET<0>(
+#
+SELECT ST_MakeEnvelope(POINT(1, 1), CONCAT((POINT(1, 1)), '1'));
+ERROR 22023: Invalid GIS data provided to function st_makeenvelope.
+SELECT ST_MakeEnvelope(POINT(2, -2), CAST(POINT(-7, -7) AS BINARY(48)));
+ERROR 22023: Invalid GIS data provided to function st_makeenvelope.
+SELECT ST_MakeEnvelope(Export_Set(1, POINT(1, 1), 1), POINT(1, 1));
+ERROR 22023: Invalid GIS data provided to function st_makeenvelope.
+SELECT ST_MakeEnvelope(Make_Set("38", 1, POINT(1, 1), 1, 1, 1), POINT(1,1));
+ERROR 22023: Invalid GIS data provided to function st_makeenvelope.
