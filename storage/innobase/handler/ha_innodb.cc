@@ -19528,11 +19528,13 @@ innobase_init_vc_templ(
 	dict_table_t*	table)
 {
 	THD*    thd = current_thd;
-	char    dbname[MAX_DATABASE_NAME_LEN];
-	char    tbname[MAX_TABLE_NAME_LEN];
+	char    dbname[MAX_DATABASE_NAME_LEN + 1];
+	char    tbname[MAX_TABLE_NAME_LEN + 1];
 	char*   name = table->name.m_name;
 	ulint   dbnamelen = dict_get_db_name_len(name);
 	ulint   tbnamelen = strlen(name) - dbnamelen - 1;
+	char    t_dbname[MAX_DATABASE_NAME_LEN + 1];
+	char    t_tbname[MAX_TABLE_NAME_LEN + 1];
 
 	/* Acquire innobase_share_mutex to see if table->vc_templ
 	is assigned with its counter part in the share structure */
@@ -19565,11 +19567,16 @@ innobase_init_vc_templ(
 	table->vc_templ = static_cast<innodb_col_templ_t*>(
 		ut_zalloc_nokey(sizeof *(table->vc_templ)));
 
+	dbnamelen = filename_to_tablename(dbname, t_dbname,
+					  MAX_DATABASE_NAME_LEN + 1);
+	tbnamelen = filename_to_tablename(tbname, t_tbname,
+					  MAX_TABLE_NAME_LEN + 1);
+
 #ifdef UNIV_DEBUG
 	bool ret =
 #endif /* UNIV_DEBUG */
 	handler::my_prepare_gcolumn_template(
-		thd, dbname, tbname,
+		thd, t_dbname, t_tbname,
 		&innobase_build_v_templ_callback,
 		static_cast<void*>(table));
 	ut_ad(!ret);
