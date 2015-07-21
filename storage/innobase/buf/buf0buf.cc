@@ -67,10 +67,11 @@ Created 11/5/1995 Heikki Tuuri
 
 #include <new>
 #include <map>
-#ifdef HAVE_LIBNUMA
+
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 #include <numa.h>
 #include <numaif.h>
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -876,7 +877,7 @@ buf_chunk_init(
 		return(NULL);
 	}
 
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
 		int	st = mbind(chunk->mem, mem_size,
 				   MPOL_INTERLEAVE,
@@ -889,7 +890,7 @@ buf_chunk_init(
 				" (error: " << strerror(errno) << ").";
 		}
 	}
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 	/* Allocate the block descriptors from
 	the start of the memory block. */
@@ -1311,7 +1312,7 @@ buf_pool_init(
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
 
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
 		ib::info() << "Setting NUMA memory policy to MPOL_INTERLEAVE";
 		if (set_mempolicy(MPOL_INTERLEAVE,
@@ -1321,7 +1322,7 @@ buf_pool_init(
 				" MPOL_INTERLEAVE: " << strerror(errno);
 		}
 	}
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
@@ -1353,7 +1354,7 @@ buf_pool_init(
 
 	btr_search_sys_create(buf_pool_get_curr_size() / sizeof(void*) / 64);
 
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
 		ib::info() << "Setting NUMA memory policy to MPOL_DEFAULT";
 		if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
@@ -1361,7 +1362,7 @@ buf_pool_init(
 				" MPOL_DEFAULT: " << strerror(errno);
 		}
 	}
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 	return(DB_SUCCESS);
 }
