@@ -363,7 +363,8 @@ bool start_slave(THD* thd,
                  Master_info* mi,
                  bool set_mts_settings);
 int stop_slave(THD* thd, Master_info* mi, bool net_report,
-               bool for_one_channel=true);
+               bool for_one_channel,
+               bool* push_temp_table_warning);
 /*
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already

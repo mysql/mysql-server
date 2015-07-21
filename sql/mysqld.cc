@@ -437,7 +437,7 @@ ulong table_cache_instances;
 ulong table_cache_size_per_instance;
 ulong what_to_log;
 ulong slow_launch_time;
-int32 slave_open_temp_tables;
+Atomic_int32 slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
 uint  slave_net_timeout;
@@ -6475,6 +6475,13 @@ show_ssl_get_server_not_after(THD *thd, SHOW_VAR *var, char *buff)
 
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
+static int show_slave_open_temp_tables(THD *thd, SHOW_VAR *var, char *buf)
+{
+  var->type= SHOW_INT;
+  var->value= buf;
+  *((int *) buf)= slave_open_temp_tables.atomic_get();
+  return 0;
+}
 
 /*
   Variables shown by SHOW STATUS in alphabetical order
@@ -6578,7 +6585,7 @@ SHOW_VAR status_vars[]= {
   {"Select_range",             (char*) offsetof(STATUS_VAR, select_range_count),       SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
   {"Select_range_check",       (char*) offsetof(STATUS_VAR, select_range_check_count), SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
   {"Select_scan",	       (char*) offsetof(STATUS_VAR, select_scan_count),              SHOW_LONGLONG_STATUS,   SHOW_SCOPE_ALL},
-  {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables,                        SHOW_INT,               SHOW_SCOPE_GLOBAL},
+  {"Slave_open_temp_tables",   (char*) &show_slave_open_temp_tables,                   SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
 #ifdef HAVE_REPLICATION
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
   {"Slave_heartbeat_period",   (char*) &show_heartbeat_period,                         SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
@@ -6801,7 +6808,7 @@ static int mysql_init_variables(void)
   cleanup_done= 0;
   server_id_supplied= false;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
-  slave_open_temp_tables= 0;
+  slave_open_temp_tables.atomic_set(0);
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   abort_loop= false;

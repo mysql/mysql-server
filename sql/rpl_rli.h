@@ -221,6 +221,9 @@ public:
   /* parent Master_info structure */
   Master_info *mi;
 
+  /* number of temporary tables open in this channel */
+  Atomic_int32 channel_open_temp_tables;
+
   /*
     Needed to deal properly with cur_log getting closed and re-opened with
     a different log under our feet

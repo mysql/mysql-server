@@ -24,6 +24,7 @@
 #include "sql_cmd.h"                       /* SQLCOM_END */
 #include "my_thread_local.h"               /* my_get_thread_local */
 #include "my_thread.h"                     /* my_thread_attr_t */
+#include "atomic_class.h"                  /* Atomic_int32 */
 
 class THD;
 struct handlerton;
@@ -220,7 +221,7 @@ extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
 extern ulong delayed_insert_threads, delayed_insert_writes;
 extern ulong delayed_rows_in_use,delayed_insert_errors;
-extern int32 slave_open_temp_tables;
+extern Atomic_int32 slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_time;
 extern ulong table_cache_size, table_def_size;
