@@ -774,10 +774,13 @@ DELIMITER ;|
 
 CREATE TABLE t1 (t INT, u INT, KEY(t));
 INSERT INTO t1 VALUES(10, 10), (11, 11), (12, 12), (12, 13),(14, 15), (15, 16),
-                     (16, 17), (17, 17);
+                     (16, 17), (17, 18);
 ANALYZE TABLE t1;
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
        GROUP BY t HAVING r = 1  ORDER BY t1.u;
+
+# Statement with select distinct so reference to functions in having will
+# result in re-execution of functions.
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
        WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 
@@ -789,7 +792,8 @@ EXECUTE stmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
-# Loose-index scan.
+# In Loose-index scan end_send do not switch to items3, so Item_ref re-evaluate
+# the functions.
 INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
@@ -799,3 +803,20 @@ SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
 DROP TABLE series;
+
+
+--echo #
+--echo #  Bug#21243772: NOT IN SUBQUERY RETURNS INCORRECT RESULTS WHEN INNER
+--echo #                QUERY HAS COUNT DISTINCT.
+--echo #
+
+CREATE TABLE t1 (t TEXT NOT NULL, u TEXT);
+INSERT INTO t1 VALUES('2', '1'), ('3', '1'), ('4', '1');
+ANALYZE TABLE t1;
+SELECT * FROM t1 WHERE (t, u) in (SELECT a.t,  COUNT(DISTINCT a.u)
+                                                       FROM t1 a, t1 b
+                                                       GROUP BY a.t);
+SELECT * FROM t1 WHERE (t, u) not in (SELECT a.t,  COUNT(DISTINCT a.u)
+                                                       FROM t1 a, t1 b
+                                                       GROUP BY a.t);
+DROP TABLE t1;

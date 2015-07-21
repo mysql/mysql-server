@@ -4160,8 +4160,6 @@ private:
   /// @return true if item is from a null-extended row from an outer join
   bool has_null_row() const
   {
-    // result_field is unused for this class.
-    DBUG_ASSERT(result_field == 0);
     return first_inner_table && first_inner_table->table->null_row;
   }
 
