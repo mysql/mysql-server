@@ -18,3 +18,5 @@ mysqld-bin.000001	#	Query	#	#	use `test`; insert t1 values (2)
 mysqld-bin.000001	#	Query	#	#	COMMIT
 drop table t1;
 uninstall plugin innodb;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

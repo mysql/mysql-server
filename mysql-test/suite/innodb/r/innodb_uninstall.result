@@ -1,0 +1,22 @@
+install plugin innodb soname 'ha_innodb';
+create table t1(a int not null primary key) engine=innodb;
+begin;
+insert into t1 values(1);
+flush tables;
+uninstall plugin innodb;
+select sleep(1);
+sleep(1)
+0
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+drop table t1;
+install plugin innodb soname 'ha_innodb';
+create table t2(a int not null primary key) engine=innodb;
+insert into t2 values(1);
+drop table t2;
+uninstall plugin innodb;
+select sleep(1);
+sleep(1)
+0
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown

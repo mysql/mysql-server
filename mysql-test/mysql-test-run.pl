@@ -4806,6 +4806,7 @@ sub extract_warning_lines ($$) {
      qr|Plugin 'FEEDBACK' registration as a INFORMATION SCHEMA failed|,
      qr|Failed to setup SSL|,
      qr|SSL error: Failed to set ciphers to use|,
+     qr/Plugin 'InnoDB' will be forced to shutdown/,
     );
 
   my $matched_lines= [];

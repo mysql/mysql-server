@@ -16,3 +16,6 @@ commit;
 --source include/show_binlog_events.inc
 drop table t1;
 uninstall plugin innodb;
+
+--source include/restart_mysqld.inc
+
