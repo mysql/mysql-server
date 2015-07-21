@@ -12020,6 +12020,7 @@ validate_create_tablespace_info(
 	if (basename_len < 5) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 		alter_info->data_file_name);
+		ut_free(filepath);
 		return(HA_WRONG_CREATE_OPTION);
 	}
 	if (memcmp(&basename[basename_len - 4], DOT_IBD, 5)) {
