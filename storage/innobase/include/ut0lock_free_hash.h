@@ -40,6 +40,7 @@ Created Mar 16, 2015 Vasil Dimov
 #error BOOST_ATOMIC_ADDRESS_LOCK_FREE is not 2
 #endif
 
+#include "os0numa.h" /* os_numa_*() */
 #include "ut0new.h" /* UT_NEW*(), UT_DELETE*() */
 #include "ut0rnd.h" /* ut_fold_ull() */
 
@@ -110,6 +111,134 @@ public:
 	void
 	print_stats() = 0;
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
+};
+
+/** Multi counter. A counter class that uses a few counter variables
+internally to improve performance on machines with lots of CPUs. The get()
+method sums all the internal counters without taking any locks, so due to
+concurrent modification of the counter, get() may return a number which
+never was the sum of all the internal counters. */
+class ut_lock_free_cnt_t {
+public:
+	/** Constructor. */
+	ut_lock_free_cnt_t()
+	{
+		m_numa_available = os_numa_available() != -1;
+
+		if (m_numa_available) {
+			m_cnt_size = os_numa_num_configured_cpus();
+		} else {
+			m_cnt_size = 256;
+		}
+
+		m_cnt = UT_NEW_ARRAY(boost::atomic_int64_t*, m_cnt_size,
+				     mem_key_ut_lock_free_hash_t);
+
+		for (size_t i = 0; i < m_cnt_size; i++) {
+
+			const size_t	s = sizeof(boost::atomic_int64_t);
+			void*		mem;
+
+			if (m_numa_available) {
+				const int	node = os_numa_node_of_cpu(i);
+
+				mem = os_numa_alloc_onnode(s, node);
+			} else {
+				mem = ut_malloc(s,
+						mem_key_ut_lock_free_hash_t);
+			}
+
+			ut_a(mem != NULL);
+
+			m_cnt[i] = new (mem) boost::atomic_int64_t;
+
+			m_cnt[i]->store(0, boost::memory_order_relaxed);
+		}
+	}
+
+	/** Destructor. */
+	~ut_lock_free_cnt_t()
+	{
+		/* Needed in order to be able to explicitly call the
+		destructor of boost::atomic_int64_t below. */
+		using namespace boost;
+
+		for (size_t i = 0; i < m_cnt_size; i++) {
+			m_cnt[i]->~atomic_int64_t();
+
+			if (m_numa_available) {
+				os_numa_free(m_cnt[i],
+					     sizeof(boost::atomic_int64_t));
+			} else {
+				ut_free(m_cnt[i]);
+			}
+		}
+
+		UT_DELETE_ARRAY(m_cnt);
+	}
+
+	/** Increment the counter. */
+	void
+	inc()
+	{
+		const size_t	i = n_cnt_index();
+
+		m_cnt[i]->fetch_add(1, boost::memory_order_relaxed);
+	}
+
+	/** Decrement the counter. */
+	void
+	dec()
+	{
+		const size_t	i = n_cnt_index();
+
+		m_cnt[i]->fetch_sub(1, boost::memory_order_relaxed);
+	}
+
+	/** Get the value of the counter.
+	@return counter's value */
+	int64_t
+	get() const
+	{
+		int64_t	ret = 0;
+
+		for (size_t i = 0; i < m_cnt_size; i++) {
+			ret += m_cnt[i]->load(boost::memory_order_relaxed);
+		}
+
+		return(ret);
+	}
+
+private:
+	/** Derive an appropriate index in m_cnt[] for the current thread.
+	@return index in m_cnt[] for this thread to use */
+	size_t
+	n_cnt_index() const
+	{
+		size_t	cpu;
+
+#ifdef HAVE_OS_GETCPU
+		cpu = static_cast<size_t>(os_getcpu());
+
+		if (cpu >= m_cnt_size) {
+			/* Could happen (rarely) if more CPUs get
+			enabled after m_cnt_size is initialized. */
+			cpu %= m_cnt_size;
+		}
+#else /* HAVE_OS_GETCPU */
+		cpu = static_cast<size_t>(ut_rnd_gen_ulint() % m_cnt_size);
+#endif /* HAVE_OS_GETCPU */
+
+		return(cpu);
+	}
+
+	/** Designate whether os_numa_*() functions can be used. */
+	bool			m_numa_available;
+
+	/** The sum of all the counters in m_cnt[] designates the overall
+	count. */
+	boost::atomic_int64_t**	m_cnt;
+	size_t			m_cnt_size;
 };
 
 /** A node in a linked list of arrays. The pointer to the next node is
