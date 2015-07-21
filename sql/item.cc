@@ -6435,7 +6435,7 @@ Field *Item::make_string_field(TABLE *table)
     field= new Field_json(max_length, maybe_null, item_name.ptr());
   else if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
     field= new Field_blob(max_length, maybe_null, item_name.ptr(),
-                          collation.collation, TRUE);
+                          collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */
   else if (max_length > 0 &&
       (type() != Item::TYPE_HOLDER || field_type() != MYSQL_TYPE_STRING))
@@ -6556,10 +6556,11 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
     if (this->type() == Item::TYPE_HOLDER)
-      field= new Field_blob(max_length, maybe_null, item_name.ptr(), collation.collation,
-                            1);
+      field= new Field_blob(max_length, maybe_null, item_name.ptr(),
+                            collation.collation, true);
     else
-      field= new Field_blob(max_length, maybe_null, item_name.ptr(), collation.collation);
+      field= new Field_blob(max_length, maybe_null, item_name.ptr(),
+                            collation.collation, false);
     break;					// Blob handled outside of case
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null,
@@ -8776,6 +8777,17 @@ bool Item_direct_view_ref::val_bool()
     return false;
   }
   return super::val_bool();
+}
+
+
+bool Item_direct_view_ref::val_json(Json_wrapper *wr)
+{
+  if (has_null_row())
+  {
+    null_value= TRUE;
+    return false;
+  }
+  return super::val_json(wr);
 }
 
 

@@ -557,6 +557,8 @@ size, or NULL when should not fetch a longer prefix
 @param[in,out]	field		the locally stored part of the externally
 stored column
 @param[in,out]	len		length of field, in bytes
+@param[in]	spatial_statis	whether the column is used by spatial index or
+				regular index
 @return undo log position */
 static
 byte*
@@ -567,9 +569,28 @@ trx_undo_page_report_modify_ext(
 	const page_size_t&	page_size,
 	const byte**		field,
 	ulint*			len,
-	bool			is_spatial)
+	col_spatial_status	spatial_status)
 {
-	ulint	spatial_len = is_spatial ? DATA_MBR_LEN : 0;
+	ulint	spatial_len= 0;
+
+	switch (spatial_status) {
+	case SPATIAL_NONE:
+		break;
+
+	case SPATIAL_MIXED:
+		spatial_len = DATA_MBR_LEN;
+		break;
+
+	case SPATIAL_ONLY:
+		spatial_len = DATA_MBR_LEN;
+
+		/* If the column is only used by gis index, log its
+		MBR is enough.*/
+		ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD
+					     + spatial_len);
+
+		return(ptr);
+	}
 
 	if (ext_buf) {
 		ut_a(prefix_len > 0);
@@ -855,7 +876,7 @@ trx_undo_page_report_modify(
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
 					dict_table_page_size(table),
-					&field, &flen, false);
+					&field, &flen, SPATIAL_NONE);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -947,8 +968,10 @@ trx_undo_page_report_modify(
 				= dict_table_get_nth_col(table, col_no);
 
 			if (col->ord_part) {
-				ulint	pos;
-				bool	is_spatial = false;
+				ulint			pos;
+				col_spatial_status	spatial_status;
+
+				spatial_status = SPATIAL_NONE;
 
 				/* Write field number to undo log */
 				if (trx_undo_left(undo_page, ptr) < 5 + 15) {
@@ -975,12 +998,15 @@ trx_undo_page_report_modify(
 					ut_a(prefix_len < sizeof ext_buf);
 
 
-					/* If prefix is 0, and this GEOMETRY
-					col is ord entry, then there is a
-					spatial index on it, log its MBR */
-					if (DATA_GEOMETRY_MTYPE(col->mtype)
-					    && col->max_prefix == 0) {
-						is_spatial = true;
+					spatial_status =
+						dict_col_get_spatial_status(
+							col);
+
+					/* If there is a spatial index on it,
+					log its MBR */
+					if (spatial_status != SPATIAL_NONE) {
+						ut_ad(DATA_GEOMETRY_MTYPE(
+								col->mtype));
 
 						trx_undo_get_mbr_from_ext(
 							mbr,
@@ -996,13 +1022,14 @@ trx_undo_page_report_modify(
 						? ext_buf : NULL, prefix_len,
 						dict_table_page_size(table),
 						&field, &flen,
-						is_spatial);
+						spatial_status);
 				} else {
 					ptr += mach_write_compressed(
 						ptr, flen);
 				}
 
-				if (flen != UNIV_SQL_NULL) {
+				if (flen != UNIV_SQL_NULL
+				    && spatial_status != SPATIAL_ONLY) {
 					if (trx_undo_left(undo_page, ptr)
 					    < flen) {
 
@@ -1013,7 +1040,7 @@ trx_undo_page_report_modify(
 					ptr += flen;
 				}
 
-				if (is_spatial) {
+				if (spatial_status != SPATIAL_NONE) {
 					if (trx_undo_left(undo_page, ptr)
 					    < DATA_MBR_LEN) {
 						return(0);
@@ -1371,24 +1398,38 @@ trx_undo_rec_get_partial_row(
 
 		if (len != UNIV_SQL_NULL
 		    && len >= UNIV_EXTERN_STORAGE_FIELD) {
-			if (DATA_GEOMETRY_MTYPE(col->mtype)
-			    && col->max_prefix == 0
-			    && col->ord_part) {
+			col_spatial_status spatial_status;
+			spatial_status = dict_col_get_spatial_status(col);
+
+			switch (spatial_status) {
+			case SPATIAL_ONLY:
+				ut_ad(len - UNIV_EXTERN_STORAGE_FIELD
+				      == DATA_MBR_LEN);
+				dfield_set_len(
+					dfield,
+					len - UNIV_EXTERN_STORAGE_FIELD);
+				break;
+
+			case SPATIAL_MIXED:
 				dfield_set_len(
 					dfield,
 					len - UNIV_EXTERN_STORAGE_FIELD
 					- DATA_MBR_LEN);
-			} else {
+				break;
+
+			case SPATIAL_NONE:
 				dfield_set_len(
 					dfield,
 					len - UNIV_EXTERN_STORAGE_FIELD);
+				break;
 			}
 
 			dfield_set_ext(dfield);
 			/* If the prefix of this column is indexed,
 			ensure that enough prefix is stored in the
 			undo log record. */
-			if (!ignore_prefix && col->ord_part) {
+			if (!ignore_prefix && col->ord_part
+			    && spatial_status != SPATIAL_ONLY) {
 				ut_a(dfield_get_len(dfield)
 				     >= BTR_EXTERN_FIELD_REF_SIZE);
 				ut_a(dict_table_has_atomic_blobs(index->table)
@@ -1842,10 +1883,11 @@ trx_undo_prev_version_build(
 				diffs from "heap" above in that it could be
 				prebuilt->old_vers_heap for selection */
 	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
-	bool*           in_purge_view)
-				/*!< in/out: if not NULL, returns whether
-				the undo rec we looking at is already in
-				purge view for possible truncation */
+	ulint		v_status)
+				/*!< in: status determine if it is going
+				into this function by purge thread or not.
+				And if we read "after image" of undo log */
+
 
 {
 	trx_undo_rec_t*	undo_rec	= NULL;
@@ -1888,19 +1930,15 @@ trx_undo_prev_version_build(
 	if (trx_undo_get_undo_rec(
 		roll_ptr, rec_trx_id, heap, is_redo_rseg,
 		index->table->name, &undo_rec)) {
-		if (!in_purge_view) {
+		if (v_status & TRX_UNDO_PREV_IN_PURGE) {
+			/* We are fetching the record being purged */
+			undo_rec = trx_undo_get_undo_rec_low(
+				roll_ptr, heap, is_redo_rseg);
+		} else {
 			/* The undo record may already have been purged,
 			during purge or semi-consistent read. */
 			return(false);
-		} else {
-			/* It is in purge view, so it in theory can
-			be truncated  */
-			*in_purge_view = true;
-			undo_rec = trx_undo_get_undo_rec_low(
-				roll_ptr, heap, is_redo_rseg);
 		}
-
-		return(false);
 	}
 
 	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
@@ -2010,8 +2048,9 @@ trx_undo_prev_version_build(
 		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
 	}
 
-	/* Set the value in update vector to dtuple vrow */
-	if (in_purge_view) {
+	/* Set the old value (which is the after image of an update) in the
+	update vector to dtuple vrow */
+	if (v_status & TRX_UNDO_GET_OLD_V_VALUE) {
 		row_upd_replace_vcol((dtuple_t*)*vrow, index->table, update,
 				     false, NULL, NULL);
 	}
@@ -2034,7 +2073,7 @@ trx_undo_prev_version_build(
 
 		ut_ad(index->table->n_v_cols);
 		trx_undo_read_v_cols(index->table, ptr, *vrow,
-				     in_purge_view, NULL);
+				     v_status & TRX_UNDO_PREV_IN_PURGE, NULL);
 	}
 
 	return(true);

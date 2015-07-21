@@ -1530,6 +1530,17 @@ public:
 
   /* Return pointer to the actual data in memory */
   virtual void get_ptr(uchar **str) { *str= ptr; }
+
+/**
+  Checks whether a string field is part of write_set.
+
+  @return
+    FALSE  - If field is not char/varchar/....
+           - If field is char/varchar/.. and is not part of write set.
+    TRUE   - If field is char/varchar/.. and is part of write set.
+*/
+  virtual bool is_updatable() const { return FALSE; }
+
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
@@ -1818,6 +1829,11 @@ public:
 
   type_conversion_status store_decimal(const my_decimal *d);
   uint32 max_data_length() const;
+  bool is_updatable() const
+  {
+    DBUG_ASSERT(table && table->write_set);
+    return bitmap_is_set(table->write_set, field_index);
+  }
 };
 
 /* base class for float and double and decimal (old one) */
@@ -3635,30 +3651,24 @@ public:
   Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
 	     enum utype unireg_check_arg, const char *field_name_arg,
 	     TABLE_SHARE *share, uint blob_pack_length, const CHARSET_INFO *cs);
+
   Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-             const CHARSET_INFO *cs)
+	     const CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
     packlength(4), keep_old_value(false)
   {
     flags|= BLOB_FLAG;
-  }
-  Field_blob(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
-	     const CHARSET_INFO *cs, bool set_packlength)
-    :Field_longstr((uchar*) 0,len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
-                   NONE, field_name_arg, cs), keep_old_value(false)
-  {
-    flags|= BLOB_FLAG;
-    packlength= 4;
     if (set_packlength)
     {
-      uint32 l_char_length= len_arg/cs->mbmaxlen;
-      packlength= l_char_length <= 255 ? 1 :
-                  l_char_length <= 65535 ? 2 :
-                  l_char_length <= 16777215 ? 3 : 4;
+      packlength= len_arg <= 255 ? 1 :
+                  len_arg <= 65535 ? 2 :
+                  len_arg <= 16777215 ? 3 : 4;
     }
   }
+
   explicit Field_blob(uint32 packlength_arg);
+
   ~Field_blob() { mem_free(); }
 
   /* Note that the default copy constructor is used, in clone() */
@@ -3845,7 +3855,7 @@ public:
   { geom_type= geom_type_arg; }
   Field_geom(uint32 len_arg,bool maybe_null_arg, const char *field_name_arg,
 	     TABLE_SHARE *share, enum geometry_type geom_type_arg)
-    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin)
+    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
   { geom_type= geom_type_arg; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_VARBINARY2; }
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
@@ -3898,7 +3908,7 @@ public:
   {}
 
   Field_json(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg)
-    : Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin)
+    :Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin, false)
   {}
 
   enum_field_types type() const { return MYSQL_TYPE_JSON; }

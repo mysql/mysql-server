@@ -48,6 +48,7 @@ struct handlerton;
 struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
+typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef struct st_hash HASH;
 typedef struct st_key_cache KEY_CACHE;
@@ -3548,12 +3549,12 @@ public:
                                    bool open_in_engine,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record);
   static bool my_eval_gcolumn_expr(THD *thd,
                                    const char *db_name,
                                    const char *table_name,
-                                   ulonglong fields,
+                                   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */

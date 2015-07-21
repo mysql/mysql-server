@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_table.h>
 #include <sql_tablespace.h>
 #include <my_check_opt.h>
+#include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 
@@ -5478,7 +5479,6 @@ ha_innobase::innobase_initialize_autoinc()
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */
-static
 void
 free_vc_templ(
 	innodb_col_templ_t*	vc_templ)
@@ -17696,8 +17696,7 @@ buf_flush_list_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+		buf_flush_sync_all_buf_pools();
 	}
 }
 
@@ -18615,12 +18614,12 @@ static MYSQL_SYSVAR_BOOL(use_native_aio, srv_use_native_aio,
   "Use native AIO if supported on this platform.",
   NULL, NULL, TRUE);
 
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 static MYSQL_SYSVAR_BOOL(numa_interleave, srv_numa_interleave,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Use NUMA interleave memory policy to allocate InnoDB buffer pool.",
   NULL, NULL, FALSE);
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 static MYSQL_SYSVAR_BOOL(api_enable_binlog, ib_binlog_enabled,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -18908,9 +18907,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(autoinc_lock_mode),
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(use_native_aio),
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
   MYSQL_SYSVAR(numa_interleave),
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(change_buffer_max_size),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -19144,11 +19143,13 @@ innobase_init_vc_templ(
 	dict_table_t*	table)
 {
 	THD*    thd = current_thd;
-	char    dbname[MAX_DATABASE_NAME_LEN];
-	char    tbname[MAX_TABLE_NAME_LEN];
+	char    dbname[MAX_DATABASE_NAME_LEN + 1];
+	char    tbname[MAX_TABLE_NAME_LEN + 1];
 	char*   name = table->name.m_name;
 	ulint   dbnamelen = dict_get_db_name_len(name);
 	ulint   tbnamelen = strlen(name) - dbnamelen - 1;
+	char    t_dbname[MAX_DATABASE_NAME_LEN + 1];
+	char    t_tbname[MAX_TABLE_NAME_LEN + 1];
 
 	/* Acquire innobase_share_mutex to see if table->vc_templ
 	is assigned with its counter part in the share structure */
@@ -19165,14 +19166,32 @@ innobase_init_vc_templ(
 	strncpy(tbname, name + dbnamelen + 1, tbnamelen);
 	tbname[tbnamelen] =0;
 
+	/* For partition table, remove the partition name and use the
+	"main" table name to build the template */
+#ifdef _WIN32
+        char*	is_part = strstr(tbname, "#p#");
+#else
+        char*	is_part = strstr(tbname, "#P#");
+#endif /* _WIN32 */
+
+	if (is_part != NULL) {
+		*is_part = '\0';
+		tbnamelen = is_part - tbname;
+	}
+
 	table->vc_templ = static_cast<innodb_col_templ_t*>(
 		ut_zalloc_nokey(sizeof *(table->vc_templ)));
+
+	dbnamelen = filename_to_tablename(dbname, t_dbname,
+					  MAX_DATABASE_NAME_LEN + 1);
+	tbnamelen = filename_to_tablename(tbname, t_tbname,
+					  MAX_TABLE_NAME_LEN + 1);
 
 #ifdef UNIV_DEBUG
 	bool ret =
 #endif /* UNIV_DEBUG */
 	handler::my_prepare_gcolumn_template(
-		thd, dbname, tbname,
+		thd, t_dbname, t_tbname,
 		&innobase_build_v_templ_callback,
 		static_cast<void*>(table));
 	ut_ad(!ret);
@@ -19287,6 +19306,15 @@ innobase_get_computed_value(
 
 	field = dtuple_get_nth_v_field(row, col->v_pos);
 
+	/* Bitmap for specifying which virtual columns the server
+	should evaluate */
+	MY_BITMAP column_map;
+	my_bitmap_map col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
+	bitmap_init(&column_map, col_map_storage, REC_MAX_N_FIELDS, false);
+
+	/* Specify the column the server should evaluate */
+	bitmap_set_bit(&column_map, col->m_col.ind);
+
 	if (in_purge) {
 		if (vctempl->type == DATA_BLOB) {
 			ulint   max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(
@@ -19301,14 +19329,14 @@ innobase_get_computed_value(
 
 		handler::my_eval_gcolumn_expr(
 			current_thd, false, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, 1ULL << col->m_col.ind,
+			index->table->vc_templ->tb_name, &column_map,
 			(uchar *)mysql_rec);
         }
 
 	else {
 		handler::my_eval_gcolumn_expr(
 			current_thd, index->table->vc_templ->db_name,
-			index->table->vc_templ->tb_name, 1ULL << col->m_col.ind,
+			index->table->vc_templ->tb_name, &column_map,
 			(uchar *)mysql_rec);
 	}
 

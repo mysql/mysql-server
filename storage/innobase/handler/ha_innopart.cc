@@ -72,7 +72,8 @@ Ha_innopart_share::Ha_innopart_share(
 	m_tot_parts(),
 	m_index_count(),
 	m_ref_count(),
-	m_table_share(table_share)
+	m_table_share(table_share),
+	m_s_templ()
 {}
 
 Ha_innopart_share::~Ha_innopart_share()
@@ -85,6 +86,11 @@ Ha_innopart_share::~Ha_innopart_share()
 	if (m_index_mapping != NULL) {
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
+	}
+	if (m_s_templ != NULL) {
+		free_vc_templ(m_s_templ);
+		ut_free(m_s_templ);
+		m_s_templ = NULL;
 	}
 }
 
@@ -192,6 +198,39 @@ Ha_innopart_share::open_one_table_part(
 	the column names etc. in the internal InnoDB meta-data cache. */
 
 	return(false);
+}
+
+/** Set up the virtual column template for partition table, and points
+all m_table_parts[]->vc_templ to it.
+@param[in]	table		MySQL TABLE object
+@param[in]	ib_table	InnoDB dict_table_t
+@param[in]	table_name	Table name (db/table_name) */
+void
+Ha_innopart_share::set_v_templ(
+	TABLE*		table,
+	dict_table_t*	ib_table,
+	const char*	name)
+{
+#ifndef DBUG_OFF
+	if (m_table_share->tmp_table == NO_TMP_TABLE) {
+		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
+	}
+#endif /* DBUG_OFF */
+
+	if (ib_table->n_v_cols > 0) {
+		if (!m_s_templ) {
+			m_s_templ = static_cast<innodb_col_templ_t*>(
+				ut_zalloc_nokey( sizeof *m_s_templ));
+			innobase_build_v_templ(table, ib_table,
+					       m_s_templ, false, name);
+
+			for (ulint i = 0; i < m_tot_parts; i++) {
+				m_table_parts[i]->vc_templ = m_s_templ;
+			}
+		}
+	} else {
+		ut_ad(!m_s_templ);
+	}
 }
 
 /** Initialize the share with table and indexes per partition.
@@ -409,6 +448,13 @@ Ha_innopart_share::close_table_parts()
 		ut_free(m_index_mapping);
 		m_index_mapping = NULL;
 	}
+
+	if (m_s_templ != NULL) {
+		free_vc_templ(m_s_templ);
+		ut_free(m_s_templ);
+		m_s_templ = NULL;
+	}
+
 	m_tot_parts = 0;
 	m_index_count = 0;
 }
@@ -1063,6 +1109,12 @@ share_error:
 
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
+
+	if (ib_table->n_v_cols > 0) {
+		lock_shared_ha_data();
+		m_part_share->set_v_templ(table, ib_table, name);
+		unlock_shared_ha_data();
+	}
 
 	/* Looks like MySQL-3.23 sometimes has primary key number != 0. */
 	m_primary_key = table->s->primary_key;

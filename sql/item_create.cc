@@ -1775,6 +1775,20 @@ protected:
 
 };
 
+class Create_func_json_array_insert : public Create_native_func
+{
+public:
+  virtual Item *create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+
+  static Create_func_json_array_insert s_singleton;
+
+protected:
+  Create_func_json_array_insert() {}
+  virtual ~Create_func_json_array_insert() {}
+
+};
+
 class Create_func_json_row_object : public Create_native_func
 {
 public:
@@ -4969,6 +4983,39 @@ Create_func_json_insert::create_native(THD *thd, LEX_STRING name,
   return func;
 }
 
+Create_func_json_array_insert Create_func_json_array_insert::s_singleton;
+
+Item*
+Create_func_json_array_insert::create_native(THD *thd,
+                                             LEX_STRING name,
+                                             PT_item_list *item_list)
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  if (arg_count < 3)
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+    return NULL;
+  }
+
+  if (arg_count % 2 == 0) // 3,5,7, ..., (k*2)+1 args allowed
+  {
+    my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+  }
+  else
+  {
+    func= new (thd->mem_root) Item_func_json_array_insert(thd,
+                                                          POS(),
+                                                          item_list);
+  }
+
+  return func;
+}
+
 Create_func_json_row_object Create_func_json_row_object::s_singleton;
 
 Item*
@@ -6498,6 +6545,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_EXTRACT") }, BUILDER(Create_func_json_extract)},
   { { C_STRING_WITH_LEN("JSON_APPEND") }, BUILDER(Create_func_json_append)},
   { { C_STRING_WITH_LEN("JSON_INSERT") }, BUILDER(Create_func_json_insert)},
+  { { C_STRING_WITH_LEN("JSON_ARRAY_INSERT") }, BUILDER(Create_func_json_array_insert)},
   { { C_STRING_WITH_LEN("JSON_OBJECT") }, BUILDER(Create_func_json_row_object)},
   { { C_STRING_WITH_LEN("JSON_SEARCH") }, BUILDER(Create_func_json_search)},
   { { C_STRING_WITH_LEN("JSON_SET") }, BUILDER(Create_func_json_set)},

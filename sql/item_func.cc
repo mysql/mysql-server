@@ -3224,10 +3224,11 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 
 double Item_func_round::real_op()
 {
-  double value= args[0]->val_real();
+  const double value= args[0]->val_real();
+  const longlong decimal_places= args[1]->val_int();
 
   if (!(null_value= args[0]->null_value || args[1]->null_value))
-    return my_double_round(value, args[1]->val_int(), args[1]->unsigned_flag,
+    return my_double_round(value, decimal_places, args[1]->unsigned_flag,
                            truncate);
 
   return 0.0;
@@ -8142,7 +8143,7 @@ Item *get_system_var(Parse_context *pc,
 
     if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
                            var->name.str,
-                           outStr ? outStr->c_ptr() : NULL,
+                           outStr ? outStr->ptr() : NULL,
                            outStr ? outStr->length() : 0))
       {
         return 0;

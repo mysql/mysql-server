@@ -991,7 +991,7 @@ longlong Item_func_json_contains_path::val_int()
       Json_path *path= m_path_cache.get_path(i);
 
       hits.clear();
-      if (wrapper.seek(*path, &hits, true, !require_all))
+      if (wrapper.seek(*path, &hits, true, true))
         return error_int();               /* purecov: inspected */
       if (hits.size() > 0)
       {
@@ -2293,6 +2293,124 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
     wr->steal(&docw);
 
   } CATCH_ALL("json_insert", return error_json()) /* purecov: inspected */
+
+  null_value= false;
+  return false;
+}
+
+bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
+{
+  DBUG_ASSERT(fixed == 1);
+
+  try
+  {
+    Json_wrapper docw;
+
+    if (get_json_wrapper(args, 0, &m_doc_value, func_name(), &docw))
+      return error_json();
+
+    if (args[0]->null_value)
+    {
+      null_value= true;
+      return false;
+    }
+
+    for (uint32 i= 1; i < arg_count; i+= 2)
+    {
+      // Need a DOM to be able to manipulate arrays and objects
+      Json_dom *doc= docw.to_dom();
+      if (!doc)
+        return error_json();              /* purecov: inspected */
+
+      if (m_path_cache.parse_and_cache_path(args, i, true))
+      {
+        // empty path (error signalled already)
+        null_value= true;
+        return false;
+      }
+      Json_path *path= m_path_cache.get_path(i);
+
+      // the path must end in a cell identifier
+      size_t leg_count= path->leg_count();
+      if ((leg_count == 0) ||
+          (path->get_leg_at(leg_count - 1)->get_type() != jpl_array_cell))
+      {
+        my_error(ER_INVALID_JSON_PATH_ARRAY_CELL, MYF(0));
+        return error_json();
+      }
+
+      /*
+        Need to look one step up the path: we need to find the array.
+
+        Remove the last path leg and search again.
+      */
+      Json_dom_vector hits(key_memory_JSON);
+      Json_path_leg l= path->pop();
+      if (doc->seek(*path, &hits, false, true))
+        return error_json();                  /* purecov: inspected */
+
+      if (hits.empty())
+      {
+        // now restore the leg we removed in case we are caching paths
+        if (path->append(l))
+          return error_json();              /* purecov: inspected */
+
+        // no unique object found at parent position, so bail out
+        continue;
+      }
+
+      Json_wrapper valuew;
+      if (get_json_atom_wrapper(args, i + 1, func_name(),
+                                &m_value, &m_conversion_buffer,
+                                &valuew, NULL, true))
+      {
+        return error_json();
+      }
+
+      if (args[i + 1]->null_value)
+      {
+        // now restore the leg we removed in case we are caching paths
+        if (path->append(l))
+          return error_json();              /* purecov: inspected */
+
+        null_value= true;
+        return false;
+      }
+
+      /*
+        Iterate backwards lest we get into trouble with replacing outer
+        parts of the doc before we get to paths to inner parts when we have
+        ellipses in the path. Make sure we do the most nested replacements
+        first. Json_dom::seek returns outermost hits first.
+
+        Note that, later on, we decided to forbid ellipses in the path
+        arguments to json_insert().
+      */
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      {
+        --it;
+        // We found *something* at that parent path
+
+        // NOP if parent is not an array
+
+        if ((*it)->json_type() == Json_dom::J_ARRAY)
+        {
+          // Excellent. Insert the value at that location.
+          Json_array *arr= down_cast<Json_array *>(*it);
+          DBUG_ASSERT(l.get_type() == jpl_array_cell);
+          if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+            return error_json();        /* purecov: inspected */
+        }
+      }
+
+      // now restore the leg we removed in case we are caching paths
+      if (path->append(l))
+        return error_json();              /* purecov: inspected */
+    } // end of loop through paths
+    // docw still owns the augmented doc, so hand it over to result
+    wr->steal(&docw);
+
+  } CATCH_ALL("json_array_insert", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;

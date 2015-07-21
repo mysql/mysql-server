@@ -486,7 +486,6 @@ THD::THD(bool enable_plugins)
    skip_gtid_rollback(false),
    is_commit_in_middle_of_statement(false),
    has_gtid_consistency_violation(false),
-   pending_gtid_state_update(false),
    main_da(false),
    m_parser_da(false),
    m_query_rewrite_plugin_da(false),

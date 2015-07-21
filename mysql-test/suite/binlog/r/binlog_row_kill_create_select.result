@@ -1,0 +1,30 @@
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+RESET MASTER;
+[START] CREATE TABLE t2 ENGINE = InnoDB SELECT c1 FROM t1;
+ERROR 70100: Query execution was interrupted
+[START] CREATE TABLE t3 ENGINE = InnoDB SELECT c1 FROM t1;
+ERROR 70100: Query execution was interrupted
+[START] CREATE TABLE t4 ENGINE = InnoDB SELECT c1 FROM t1;
+ERROR 70100: Query execution was interrupted
+# Verify that 'CREATE TABLE t2', 'CREATE TABLE t3' and
+# 'CREATE TABLE t4' events were not logged.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+RESET MASTER;
+[START] CREATE TABLE t2 ENGINE = MyISAM SELECT c1 FROM t1;
+ERROR 70100: Query execution was interrupted
+[START] CREATE TABLE t3 ENGINE = MyISAM SELECT c1 FROM t1;
+ERROR 70100: Query execution was interrupted
+[START] CREATE TABLE t4 ENGINE = MyISAM SELECT c1 FROM t1;
+ERROR 70100: Query execution was interrupted
+# Verify that 'CREATE TABLE t2', 'CREATE TABLE t3' and
+# 'CREATE TABLE t4' events were not logged.
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+DROP TABLE t1;

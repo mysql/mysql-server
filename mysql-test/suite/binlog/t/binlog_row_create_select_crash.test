@@ -1,0 +1,46 @@
+# ==== Purpose ====
+#
+# Verify that their is no crash any more while executing a
+# 'CREATE...SELECT' statement even if it is interrupted at
+# debug point 'mysql_lock_tables_kill_query' in the middle
+# and 'CREATE TABLE' event was not logged when
+# binlog_format=row, gtid_mode=off and autocommit=0.
+#
+# ==== Implementation ====
+#
+# 1. Disable autocommit.
+# 2. Create a table with select.
+# 3. Drop the table from another connection.
+# 4. Set DEBUG= '+d,mysql_lock_tables_kill_query'.
+# 5. There is no crash while executing a 'CREATE ... SELECT'
+#    statement even if it is interrupted at the above debug
+#    point in the middle.
+# 6. Verify that 'CREATE TABLE' event was not logged.
+#
+# ==== References ====
+#
+# Bug#21114464  CRASHES WITH CONCURRENT DDL+KILL+BIN LOGGING
+
+--source include/have_binlog_format_row.inc
+--source include/not_gtid_enabled.inc
+--source include/have_debug.inc
+
+--connection default
+SET SESSION autocommit= 0;
+CREATE TABLE t1 AS SELECT 1 AS col1;
+
+--connect(con1,localhost,root)
+--connection con1
+DROP TABLE t1;
+
+--connection default
+RESET MASTER;
+SET SESSION DEBUG= '+d,mysql_lock_tables_kill_query';
+--error ER_QUERY_INTERRUPTED
+CREATE TABLE t2 AS SELECT 1 AS col1;
+SET SESSION DEBUG= '-d,mysql_lock_tables_kill_query';
+
+--echo # Verify that 'CREATE TABLE t2' event was not logged.
+--source include/show_binlog_events.inc
+
+SET SESSION autocommit= 1;

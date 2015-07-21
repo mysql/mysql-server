@@ -274,7 +274,6 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
                       proxied_host.get_host() ? proxied_host.get_host() : "",
                       user ? user : "",
                       host.get_host() ? host.get_host() : "");
-    return TRUE;
   }
   return FALSE;
 }
@@ -549,22 +548,12 @@ ulong get_sort(uint count,...)
 
 bool hostname_requires_resolving(const char *hostname)
 {
+
+  /* called only for --skip-name-resolve */
+  DBUG_ASSERT(specialflag & SPECIAL_NO_RESOLVE);
+
   if (!hostname)
     return FALSE;
-
-  /* Check if hostname is the localhost. */
-
-  size_t hostname_len= strlen(hostname);
-  size_t localhost_len= strlen(my_localhost);
-
-  if (hostname == my_localhost ||
-      (hostname_len == localhost_len &&
-       !my_strnncoll(system_charset_info,
-                     (const uchar *) hostname,  hostname_len,
-                     (const uchar *) my_localhost, strlen(my_localhost))))
-  {
-    return FALSE;
-  }
 
   /*
     If the string contains any of {':', '%', '_', '/'}, it is definitely
@@ -1490,7 +1479,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
                         user.host.get_host() ? user.host.get_host() : "");
-      continue;
     }
 
     /* Read password from authentication_string field */
@@ -1857,7 +1845,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                         db.db,
                         db.user ? db.user : "",
                         db.host.get_host() ? db.host.get_host() : "");
-      continue;
     }
     db.access=get_access(table,3,0);
     db.access=fix_rights_for_db(db.access);
@@ -2232,7 +2219,6 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
                             mem_check->tname, mem_check->user,
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
       if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
@@ -2335,7 +2321,6 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
                             mem_check->user ? mem_check->user : "",
                             mem_check->host.get_host() ?
                             mem_check->host.get_host() : "");
-          continue;
         }
       }
 

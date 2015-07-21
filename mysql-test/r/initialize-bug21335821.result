@@ -1,0 +1,34 @@
+# We don't care about innodb warnings at this point
+CALL mtr.add_suppression("InnoDB:");
+# shut server down
+# Server is down
+#
+# Try --initialize with --init-file [UN]INSTALL PLUGIN
+#
+# Create the bootstrap file
+# Run the server with --initialize --init-file
+# Restart the server against DDIR
+# connect as root
+# Check the status of the plugin as loaded by --init-file
+SELECT PLUGIN_STATUS FROM mysql.t1
+WHERE PLUGIN_NAME = 'validate_password';
+PLUGIN_STATUS
+ACTIVE
+# Check the current status of the plugin
+SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.plugins
+WHERE PLUGIN_NAME = 'validate_password';
+PLUGIN_STATUS
+ACTIVE
+# must work as the plugin must be loaded at startup
+UNINSTALL PLUGIN validate_password;
+# shut server down
+# Server is down
+# close the test connection
+# delete mysqld log
+# delete datadir
+# delete the bootsrap file
+#
+# Cleanup
+#
+# Restarting the server
+# End of 5.7 tests

@@ -132,8 +132,9 @@ row_build_index_entry_low(
 			ut_ad(dfield_is_null(dfield2) || dfield2->data);
 		} else {
 			dfield2 = dtuple_get_nth_field(row, col_no);
-			ut_ad(!(dfield_get_type(dfield2)->prtype
-				& DATA_VIRTUAL));
+			ut_ad(dfield_get_type(dfield2)->mtype == DATA_MISSING
+			      || (!(dfield_get_type(dfield2)->prtype
+				    & DATA_VIRTUAL)));
 		}
 
 		if (UNIV_UNLIKELY(dfield_get_type(dfield2)->mtype
@@ -153,7 +154,11 @@ row_build_index_entry_low(
 		/* Special handle spatial index, set the first field
 		which is for store MBR. */
 		if (dict_index_is_spatial(index) && i == 0) {
-			double*		mbr;
+			double*			mbr;
+			col_spatial_status	spatial_status;
+
+			spatial_status = dict_col_get_spatial_status(col);
+			ut_ad(spatial_status != SPATIAL_NONE);
 
 			dfield_copy(dfield, dfield2);
 			dfield->type.prtype |= DATA_GIS_MBR;
@@ -174,12 +179,29 @@ row_build_index_entry_low(
 
 				if (dfield_is_ext(dfield2)) {
 					if (flag == ROW_BUILD_FOR_PURGE) {
-						byte* ptr =
-						static_cast<byte*>(
-							 dfield_get_data(
+						byte*	ptr = NULL;
+
+						switch (spatial_status) {
+						case SPATIAL_ONLY:
+						ptr = static_cast<byte*>(
+							dfield_get_data(
+								dfield2));
+						ut_ad(dfield_get_len(dfield2)
+						      == DATA_MBR_LEN);
+						break;
+
+						case SPATIAL_MIXED:
+						ptr = static_cast<byte*>(
+							dfield_get_data(
 								dfield2))
-							    + dfield_get_len(
+							+ dfield_get_len(
 								dfield2);
+						break;
+
+						case SPATIAL_NONE:
+						ut_ad(0);
+						}
+
 						memcpy(mbr, ptr, DATA_MBR_LEN);
 						continue;
 					}
@@ -187,21 +209,21 @@ row_build_index_entry_low(
 					if (flag == ROW_BUILD_FOR_UNDO
                                             && dict_table_has_atomic_blobs(
 						    index->table)) {
-					        /* For build entry for undo, and
-                                                the table is Barrcuda, we need
-                                                to skip the prefix data. */
-                                                flen = BTR_EXTERN_FIELD_REF_SIZE;
-                                                ut_ad(dfield_get_len(dfield2) >=
-                                                      BTR_EXTERN_FIELD_REF_SIZE);
-                                                dptr = static_cast<byte*>(
-                                                        dfield_get_data(dfield2))
-                                                        + dfield_get_len(dfield2)
-                                                        - BTR_EXTERN_FIELD_REF_SIZE;
+						/* For build entry for undo, and
+						the table is Barrcuda, we need
+						to skip the prefix data. */
+						flen = BTR_EXTERN_FIELD_REF_SIZE;
+						ut_ad(dfield_get_len(dfield2) >=
+						      BTR_EXTERN_FIELD_REF_SIZE);
+						dptr = static_cast<byte*>(
+							dfield_get_data(dfield2))
+							+ dfield_get_len(dfield2)
+							- BTR_EXTERN_FIELD_REF_SIZE;
 					} else {
-                                                flen = dfield_get_len(dfield2);
-                                                dptr = static_cast<byte*>(
-                                                        dfield_get_data(dfield2));
-                                        }
+						flen = dfield_get_len(dfield2);
+						dptr = static_cast<byte*>(
+							dfield_get_data(dfield2));
+					}
 
 					temp_heap = mem_heap_create(1000);
 

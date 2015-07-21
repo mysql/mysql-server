@@ -44,4 +44,5 @@ select f1, f2 from t1_fk;
 f1	f2
 1	opensource
 2	mysql
+SET DEBUG='-d,row_ins_dict_change_err';
 drop table t1_fk, t1;
