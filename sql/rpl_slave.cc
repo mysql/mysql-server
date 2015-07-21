@@ -600,6 +600,7 @@ bool start_slave(THD *thd)
 int stop_slave(THD *thd)
 {
    DBUG_ENTER("stop_slave(THD)");
+   bool push_temp_table_warning= true;
    Master_info *mi=0;
    int error= 0;
    bool channel_configured;
@@ -611,7 +612,8 @@ int stop_slave(THD *thd)
      DBUG_ASSERT(!strcmp(mi->get_channel(),
                          msr_map.get_default_channel()));
 
-     error= stop_slave(thd, mi, 1, false);
+     error= stop_slave(thd, mi, 1,
+                       false /*for_one_channel*/, &push_temp_table_warning);
 
      if (error)
        goto err;
@@ -626,7 +628,8 @@ int stop_slave(THD *thd)
 
        if (channel_configured)
        {
-         error= stop_slave(thd, mi, 1, false);
+         error= stop_slave(thd, mi, 1,
+                           false /*for_one_channel*/, &push_temp_table_warning);
 
          if (error)
          {
@@ -751,6 +754,7 @@ bool stop_slave_cmd(THD *thd)
   DBUG_ENTER("stop_slave_cmd");
 
   Master_info* mi;
+  bool push_temp_table_warning= true;
   LEX *lex= thd->lex;
   bool res= true;    /*default, an error */
 
@@ -799,7 +803,8 @@ bool stop_slave_cmd(THD *thd)
     }
 
     if (mi)
-      res= stop_slave(thd, mi, 1 /*net report */);
+      res= stop_slave(thd, mi, 1 /*net report */,
+                      true /*for_one_channel*/, &push_temp_table_warning);
     else if (strcmp(msr_map.get_default_channel(), lex->mi.channel))
       my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), lex->mi.channel);
   }
@@ -9791,10 +9796,19 @@ bool start_slave(THD* thd,
 
   @param for_one_channel  If the method is being invoked only for one channel
 
+  @param push_temp_tables_warning  If it should push a "have temp tables
+                                   warning" once having open temp tables. This
+                                   avoids multiple warnings when there is more
+                                   than one channel with open temp tables.
+                                   This parameter can be removed when the
+                                   warning is issued with per-channel
+                                   information.
+
   @retval 0 success
   @retval 1 error
 */
-int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel)
+int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel,
+               bool* push_temp_tables_warning)
 {
   DBUG_ENTER("stop_slave(THD, Master_info, bool, bool");
 
@@ -9848,10 +9862,14 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report, bool for_one_channel)
     See WL#7441 regarding this command.
   */
 
-  if (slave_open_temp_tables)
+  if (mi->rli->channel_open_temp_tables.atomic_get() &&
+      *push_temp_tables_warning)
+  {
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));
+    *push_temp_tables_warning= false;
+  }
 
   unlock_slave_threads(mi);
 
@@ -10702,7 +10720,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
   */
   if ((lex_mi->host || lex_mi->port || lex_mi->log_file_name || lex_mi->pos ||
        lex_mi->relay_log_name || lex_mi->relay_log_pos) &&
-      (slave_open_temp_tables > 0))
+      (mi->rli->channel_open_temp_tables.atomic_get() > 0))
     push_warning(thd, Sql_condition::SL_WARNING,
                  ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO,
                  ER(ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO));

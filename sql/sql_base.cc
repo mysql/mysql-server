@@ -52,6 +52,7 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+#include "rpl_rli.h"    //Relay_log_information
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
@@ -395,19 +396,6 @@ static void init_tdc_psi_keys(void)
   mysql_cond_register(category, all_tdc_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
-
-static void modify_slave_open_temp_tables(THD *thd, int inc)
-{
-  if (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER)
-  {
-    my_atomic_add32(&slave_open_temp_tables, inc);
-  }
-  else
-  {
-    slave_open_temp_tables += inc;
-  }
-}
-
 
 HASH table_def_cache;
 static TABLE_SHARE *oldest_unused_share, end_of_unused_share;
@@ -1758,7 +1746,7 @@ static inline uint  tmpkeyval(THD *thd, TABLE *table)
   creates one DROP TEMPORARY TABLE binlog event for each pseudo-thread.
 
   TODO: In future, we should have temporary_table= 0 and
-        modify_slave_open_temp_tables() at one place instead of repeating
+        slave_open_temp_tables.atomic_add() at one place instead of repeating
         it all across the function. An alternative would be to use
         close_temporary_table() instead of close_temporary() that maintains
         the correct invariant regarding empty list of temporary tables
@@ -1774,6 +1762,7 @@ bool close_temporary_tables(THD *thd)
   /* Assume thd->variables.option_bits has OPTION_QUOTE_SHOW_CREATE */
   bool was_quote_show= TRUE;
   bool error= 0;
+  int slave_closed_temp_tables= 0;
 
   if (!thd->temporary_tables)
     DBUG_RETURN(FALSE);
@@ -1795,11 +1784,15 @@ bool close_temporary_tables(THD *thd)
       tmp_next= t->next;
       mysql_lock_remove(thd, thd->lock, t);
       close_temporary(t, 1, 1);
+      slave_closed_temp_tables++;
     }
 
     thd->temporary_tables= 0;
     if (thd->slave_thread)
-      modify_slave_open_temp_tables(thd, -slave_open_temp_tables);
+    {
+      slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+    }
 
     DBUG_RETURN(FALSE);
   }
@@ -1929,6 +1922,7 @@ bool close_temporary_tables(THD *thd)
         next= table->next;
         mysql_lock_remove(thd, thd->lock, table);
         close_temporary(table, 1, 1);
+        slave_closed_temp_tables++;
       }
       thd->clear_error();
       const CHARSET_INFO *cs_save= thd->variables.character_set_client;
@@ -2006,6 +2000,7 @@ bool close_temporary_tables(THD *thd)
     {
       next= table->next;
       close_temporary(table, 1, 1);
+      slave_closed_temp_tables++;
     }
   }
   if (!was_quote_show)
@@ -2013,7 +2008,10 @@ bool close_temporary_tables(THD *thd)
 
   thd->temporary_tables=0;
   if (thd->slave_thread)
-    modify_slave_open_temp_tables(thd, -slave_open_temp_tables);
+  {
+    slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
+  }
 
   DBUG_RETURN(error);
 }
@@ -2427,8 +2425,9 @@ void close_temporary_table(THD *thd, TABLE *table,
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
-    DBUG_ASSERT(slave_open_temp_tables || !thd->temporary_tables);
-    modify_slave_open_temp_tables(thd, -1);
+    DBUG_ASSERT(thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_get() || !thd->temporary_tables);
+    slave_open_temp_tables.atomic_add(-1);
+    thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
   }
   close_temporary(table, free_share, delete_table);
   DBUG_VOID_RETURN;
@@ -6820,7 +6819,10 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
     if (thd->slave_thread)
-      modify_slave_open_temp_tables(thd, 1);
+    {
+      slave_open_temp_tables.atomic_add(1);
+      thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
+    }
   }
   tmp_table->pos_in_table_list= NULL;
 
