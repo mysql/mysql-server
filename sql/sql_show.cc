@@ -63,6 +63,9 @@
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"
+#endif
 
 #include <algorithm>
 #include <functional>
@@ -2089,7 +2092,6 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   Return info about all processes
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
-
 class thread_info : public Sql_alloc
 {
 public:
@@ -2171,7 +2173,8 @@ public:
     LEX_CSTRING inspect_sctx_host= inspect_sctx->host();
     LEX_CSTRING inspect_sctx_host_or_ip= inspect_sctx->host_or_ip();
 
-    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+    if ((!inspect_thd->get_protocol()->connection_alive() &&
+         !inspect_thd->system_thread) ||
         (m_user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                     strcmp(inspect_sctx_user.str, m_user))))
       return;
@@ -2231,14 +2234,31 @@ public:
 
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
-    if (inspect_thd->query().str)
     {
-      const size_t width= min(m_max_query_length,
-                              inspect_thd->query().length);
-      char *q= m_client_thd->strmake(inspect_thd->query().str, width);
-      /* Safety: in case strmake failed, we set length to 0. */
-      thd_info->query_string=
-        CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+      const char *query_str= inspect_thd->query().str;
+      size_t query_length= inspect_thd->query().length;
+#ifndef EMBEDDED_LIBRARY
+      String buf;
+      if (inspect_thd->is_a_srv_session())
+      {
+        buf.append(query_length? "PLUGIN: ":"PLUGIN");
+
+        if (query_length)
+          buf.append(query_str, query_length);
+
+        query_str= buf.c_ptr();
+        query_length= buf.length();
+      }
+      /* No else. We need fall-through */
+#endif
+      if (query_str)
+      {
+        const size_t width= min<size_t>(m_max_query_length, query_length);
+        const char *q= m_client_thd->strmake(query_str, width);
+        /* Safety: in case strmake failed, we set length to 0. */
+        thd_info->query_string=
+          CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+      }
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
@@ -2343,7 +2363,8 @@ public:
       m_client_thd->security_context()->check_access(PROCESS_ACL) ?
         NullS : client_priv_user;
 
-    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+    if ((!inspect_thd->get_protocol()->connection_alive() &&
+         !inspect_thd->system_thread) ||
         (user && (inspect_thd->system_thread || !inspect_sctx_user.str ||
                   strcmp(inspect_sctx_user.str, user))))
       return;
@@ -2418,13 +2439,29 @@ public:
 
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
-    if (inspect_thd->query().str)
     {
-      const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
-                                      inspect_thd->query().length);
-      table->field[7]->store(inspect_thd->query().str, width,
-                             inspect_thd->charset());
-      table->field[7]->set_notnull();
+      const char *query_str= inspect_thd->query().str;
+      size_t query_length= inspect_thd->query().length;
+#ifndef EMBEDDED_LIBRARY
+      String buf;
+      if (inspect_thd->is_a_srv_session())
+      {
+        buf.append(query_length? "PLUGIN: ":"PLUGIN");
+
+        if (query_length)
+          buf.append(query_str, query_length);
+
+        query_str= buf.c_ptr();
+        query_length= buf.length();
+      }
+      /* No else. We need fall-through */
+#endif
+      if (query_str)
+      {
+        const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
+        table->field[7]->store(query_str, width, inspect_thd->charset());
+        table->field[7]->set_notnull();
+      }
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 

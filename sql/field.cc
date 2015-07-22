@@ -3300,6 +3300,15 @@ Field_new_decimal::unpack(uchar* to,
   return from+len;
 }
 
+bool Field_new_decimal::send_binary(Protocol *protocol)
+{
+  my_decimal dec_value;
+  if (is_null())
+    return protocol->store_null();
+  return protocol->store_decimal(val_decimal(&dec_value));
+}
+
+
 /****************************************************************************
 ** tiny int
 ****************************************************************************/
@@ -3451,7 +3460,8 @@ bool Field_tiny::send_binary(Protocol *protocol)
 {
   if (is_null())
     return protocol->store_null();
-  return protocol->store_tiny((longlong) (int8) ptr[0]);
+  return protocol->store_tiny((longlong) unsigned_flag? (uint8) ptr[0]:
+                                                         (int8) ptr[0]);
 }
 
 int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)

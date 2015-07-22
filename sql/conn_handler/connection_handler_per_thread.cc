@@ -288,7 +288,7 @@ extern "C" void *handle_connection(void *arg)
       handler_manager->inc_aborted_connects();
     else
     {
-      while (thd_is_connection_alive(thd))
+      while (thd_connection_alive(thd))
       {
         mysql_audit_release(thd);
         if (do_command(thd))

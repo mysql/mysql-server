@@ -1979,6 +1979,7 @@ public:
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
   static Field *create_from_item (Item *);
+  bool send_binary(Protocol *protocol);
 };
 
 

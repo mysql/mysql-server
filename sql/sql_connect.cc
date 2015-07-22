@@ -893,14 +893,14 @@ bool thd_prepare_connection(THD *thd)
     For the connection that is doing shutdown, this is called twice
 */
 
-void close_connection(THD *thd, uint sql_errno)
+void close_connection(THD *thd, uint sql_errno, bool server_shutdown)
 {
   DBUG_ENTER("close_connection");
 
   if (sql_errno)
     net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
 
-  thd->disconnect();
+  thd->disconnect(server_shutdown);
 
   MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id());
 
@@ -915,14 +915,14 @@ void close_connection(THD *thd, uint sql_errno)
 }
 
 
-bool thd_is_connection_alive(THD *thd)
+bool thd_connection_alive(THD *thd)
 {
   NET *net= thd->get_protocol_classic()->get_net();
   if (!net->error &&
       net->vio != 0 &&
       !(thd->killed == THD::KILL_CONNECTION))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
 #endif /* EMBEDDED_LIBRARY */

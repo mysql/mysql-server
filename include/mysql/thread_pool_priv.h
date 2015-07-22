@@ -156,9 +156,9 @@ bool thd_prepare_connection(THD *thd);
 /* Release auditing before executing statement */
 void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */
-bool thd_is_connection_alive(THD *thd);
+bool thd_connection_alive(THD *thd);
 /* Close connection with possible error code */
-void close_connection(THD *thd, uint errcode);
+void close_connection(THD *thd, uint sql_errno, bool server_shutdown);
 /* End the connection before closing it */
 void end_connection(THD *thd);
 /* Reset thread globals */

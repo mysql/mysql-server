@@ -142,6 +142,10 @@
 #include "item_strfunc.h"               // Item_func_uuid
 #include "handler.h"
 
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"
+#endif
+
 #ifdef _WIN32
 #include "named_pipe.h"
 #include "named_pipe_connection.h"
@@ -310,6 +314,7 @@ bool opt_endinfo, using_udf_functions;
 my_bool locked_in_memory;
 bool opt_using_transactions;
 bool volatile abort_loop;
+static enum_server_operational_state server_operational_state= SERVER_BOOTING;
 ulong log_warnings;
 bool  opt_log_syslog_enable;
 char *opt_log_syslog_tag= NULL;
@@ -956,20 +961,22 @@ public:
 class Call_close_conn : public Do_THD_Impl
 {
 public:
-  Call_close_conn()
+  Call_close_conn(bool server_shutdown) : is_server_shutdown(server_shutdown)
   {}
 
   virtual void operator()(THD *closing_thd)
   {
-    if (closing_thd->vio_ok())
+    if (closing_thd->get_protocol()->connection_alive())
     {
       LEX_CSTRING main_sctx_user= closing_thd->m_main_security_ctx.user();
       sql_print_warning(ER_DEFAULT(ER_FORCING_CLOSE),my_progname,
                         closing_thd->thread_id(),
                         (main_sctx_user.length ? main_sctx_user.str : ""));
-      close_connection(closing_thd);
+      close_connection(closing_thd, 0, is_server_shutdown);
     }
   }
+private:
+  bool is_server_shutdown;
 };
 
 static void close_connections(void)
@@ -1035,7 +1042,7 @@ static void close_connections(void)
   sql_print_information("Forcefully disconnecting %d remaining clients",
                         static_cast<int>(thd_manager->get_thd_count()));
 
-  Call_close_conn call_close_conn;
+  Call_close_conn call_close_conn(true);
   thd_manager->do_for_all_thd(&call_close_conn);
 
   /*
@@ -1128,6 +1135,9 @@ static void mysqld_exit(int exit_code)
               && exit_code <= MYSQLD_FAILURE_EXIT);
   log_syslog_exit();
   mysql_audit_finalize();
+#ifndef EMBEDDED_LIBRARY
+  Srv_session::module_deinit();
+#endif
   delete_optimizer_cost_module();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
@@ -4420,6 +4430,10 @@ int mysqld_main(int argc, char **argv)
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
 
+#ifndef EMBEDDED_LIBRARY
+  Srv_session::module_init();
+#endif
+
   /*
     Perform basic query log initialization. Should be called after
     MY_INIT, as it initializes mutexes.
@@ -4865,6 +4879,7 @@ int mysqld_main(int argc, char **argv)
 
   (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
+  server_operational_state= SERVER_OPERATING;
 #if defined(_WIN32)
   setup_conn_event_handler_threads();
 #else
@@ -4878,6 +4893,8 @@ int mysqld_main(int argc, char **argv)
 
   mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
+  server_operational_state= SERVER_SHUTTING_DOWN;
+
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
   mysql_audit_notify(MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN,
@@ -6788,6 +6805,7 @@ static int mysql_init_variables(void)
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
   abort_loop= false;
+  server_operational_state= SERVER_BOOTING;
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
   delayed_insert_errors= 0;
@@ -8134,6 +8152,20 @@ static void delete_pid_file(myf flags)
 
 
 /**
+  Returns the current state of the server : booting, operational or shutting
+  down.
+
+  @return
+    SERVER_BOOTING        Server is not operational. It is starting.
+    SERVER_OPERATING      Server is fully initialized and operating.
+    SERVER_SHUTTING_DOWN  Server is shutting down.
+*/
+enum_server_operational_state get_server_state()
+{
+  return server_operational_state;
+}
+
+/**
   Reset status for all threads.
 */
 class Reset_thd_status : public Do_THD_Impl
@@ -8465,6 +8497,7 @@ static PSI_cond_info all_server_conds[]=
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
+PSI_thread_key key_thread_daemon_plugin;
 PSI_thread_key key_thread_timer_notifier;
 PSI_thread_key key_thread_background;
 
@@ -8484,7 +8517,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
-  { &key_thread_background, "background", PSI_FLAG_GLOBAL}
+  { &key_thread_background, "background", PSI_FLAG_GLOBAL},
+  { &key_thread_daemon_plugin, "daemon_plugin", PSI_FLAG_GLOBAL}
 };
 
 PSI_file_key key_file_map;

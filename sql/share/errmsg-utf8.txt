@@ -7585,6 +7585,12 @@ ER_BUFPOOL_RESIZE_INPROGRESS
 ER_FEATURE_DISABLED_SEE_DOC
   eng "The '%s' feature is disabled; see the documentation for '%s'"
 
+ER_SERVER_ISNT_AVAILABLE
+  eng "Server isn't available"
+
+ER_SESSION_WAS_KILLED
+  eng "Session was killed"
+
 #
 #  End of 5.7 error messages.
 #

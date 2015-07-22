@@ -63,6 +63,6 @@ void destroy_thd(THD *thd);
   @param thd              Thread object
   @param stack_start      Start of stack to set in THD object
 */
-void thd_set_thread_stack(THD *thd, char *stack_start);
+void thd_set_thread_stack(THD *thd, const char *stack_start);
 
 #endif // SQL_THD_INTERNAL_API_INCLUDED

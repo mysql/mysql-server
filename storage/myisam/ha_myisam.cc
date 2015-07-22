@@ -153,7 +153,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   DBUG_PRINT(msg_type,("message: %s",msgbuf));
 
-  if (!thd->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
   {
     sql_print_error("%s", msgbuf);
     return;

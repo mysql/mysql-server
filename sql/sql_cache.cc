@@ -1273,6 +1273,14 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   if (thd->variables.session_track_transaction_info != TX_TRACK_NONE)
     DBUG_VOID_RETURN;
 
+  /*
+    The query cache is only supported for the classic protocols.
+    Although protocol_callback.cc is not compiled in embedded, there
+    are other protocols. A check outside the non-embedded block is
+    better.
+  */
+  if (!thd->is_classic_protocol())
+    DBUG_VOID_RETURN;
 #ifndef EMBEDDED_LIBRARY
   /*
     Without active vio, net_write_packet() will not be called and
@@ -1280,7 +1288,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     complete query result in this case, it does not make sense to
     register the query in the first place.
   */
-  if (!thd->get_protocol_classic()->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
     DBUG_VOID_RETURN;
 #endif
 

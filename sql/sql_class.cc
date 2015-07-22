@@ -1183,7 +1183,8 @@ THD::THD(bool enable_plugins)
    m_query_rewrite_plugin_da(false),
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da),
-   duplicate_slave_uuid(false)
+   duplicate_slave_uuid(false),
+   is_a_srv_session_thd(false)
 {
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -1852,7 +1853,7 @@ void THD::release_resources()
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
-  if (get_protocol_classic()->get_vio())
+  if (is_classic_protocol() && get_protocol_classic()->get_vio())
   {
     vio_delete(get_protocol_classic()->get_vio());
     get_protocol_classic()->end_net();
@@ -2164,7 +2165,7 @@ void THD::awake(THD::killed_state state_to_set)
           the Vio might be disassociated concurrently.
 */
 
-void THD::disconnect()
+void THD::disconnect(bool server_shutdown)
 {
   Vio *vio= NULL;
 
@@ -2181,10 +2182,11 @@ void THD::disconnect()
   shutdown_active_vio();
 
   /* Disconnect even if a active vio is not associated. */
-  if (get_protocol_classic()->get_vio() != vio &&
-      get_protocol_classic()->vio_ok())
+  if (is_classic_protocol() &&
+      get_protocol_classic()->get_vio() != vio &&
+      get_protocol_classic()->connection_alive())
   {
-    m_protocol->shutdown();
+    m_protocol->shutdown(server_shutdown);
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -2598,10 +2600,8 @@ int THD::send_explain_fields(Query_result *result)
 enum_vio_type THD::get_vio_type()
 {
 #ifndef EMBEDDED_LIBRARY
-  Vio *vio= get_protocol_classic()->get_vio();
-  if (vio != NULL)
-    return vio_type(vio);
-  return NO_VIO_TYPE;
+  DBUG_ENTER("shutdown_active_vio");
+  DBUG_RETURN(get_protocol()->connection_type());
 #else
   return NO_VIO_TYPE;
 #endif
@@ -4168,7 +4168,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     mysql_bin_log.start_union_events(this, this->query_id);
 
   /* Disable result sets */
-  get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
+  if (is_classic_protocol())
+    get_protocol_classic()->remove_client_capability(CLIENT_MULTI_RESULTS);
   in_sub_stmt|= new_state;
   m_examined_row_count= 0;
   m_sent_row_count= 0;
@@ -4218,9 +4219,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     backup->first_successful_insert_id_in_cur_stmt;
   limit_found_rows= backup->limit_found_rows;
   set_sent_row_count(backup->sent_row_count);
-  DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
-              m_protocol->type() == Protocol::PROTOCOL_BINARY);
-  get_protocol_classic()->set_client_capabilities(backup->client_capabilities);
+  if (is_classic_protocol())
+    get_protocol_classic()->set_client_capabilities(backup->client_capabilities);
 
   /*
     If we've left sub-statement mode, reset the fatal error flag.

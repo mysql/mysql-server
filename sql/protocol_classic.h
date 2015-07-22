@@ -118,6 +118,18 @@ public:
   virtual void abort_row() {}
   virtual enum enum_protocol_type type()= 0;
 
+  /**
+    Returns the type of the connection
+
+    @return
+      enum enum_vio_type
+  */
+  virtual enum enum_vio_type connection_type()
+  {
+    Vio *v=get_vio();
+    return v? vio_type(v): NO_VIO_TYPE;
+  }
+
   virtual my_socket get_socket();
   // NET interaction functions
   /* Initialize NET */
@@ -142,11 +154,11 @@ public:
   /* Return SSL descriptor, if any */
   SSL_handle get_ssl();
   /* Deinitialize VIO */
-  virtual int shutdown();
+  virtual int shutdown(bool server_shutdown= false);
   /* Wipe NET with zeros */
   void wipe_net();
   /* Check whether VIO is healhty */
-  bool vio_ok();
+  virtual bool connection_alive();
   /* Returns the client capabilities */
   virtual ulong get_client_capabilities() { return m_client_capabilities; }
   /* Sets the client capabilities */

@@ -36,6 +36,7 @@ typedef struct st_decimal_t {
   decimal_digit_t *buf;
 } decimal_t;
 
+#ifndef MYSQL_ABI_CHECK
 int internal_str2dec(const char *from, decimal_t *to, char **end,
                      my_bool fixed);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
@@ -131,4 +132,6 @@ void max_decimal(int precision, int frac, decimal_t *to);
 #define E_DEC_ERROR            31
 #define E_DEC_FATAL_ERROR      30
 
-#endif  // DECIMAL_INCLUDED
+#endif // !MYSQL_ABI_CHECK
+
+#endif
