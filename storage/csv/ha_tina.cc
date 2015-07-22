@@ -614,7 +614,7 @@ int ha_tina::chain_append()
   else
   {
     /* We set up for the next position */
-    if ((off_t)(chain_ptr - chain) == (chain_size -1))
+    if ((size_t)(chain_ptr - chain) == (chain_size -1))
     {
       my_off_t location= chain_ptr - chain;
       chain_size += DEFAULT_CHAIN_LENGTH;
@@ -623,7 +623,7 @@ int ha_tina::chain_append()
         /* Must cast since my_malloc unlike malloc doesn't have a void ptr */
         if ((chain= (tina_set *) my_realloc(csv_key_memory_tina_set,
                                             (uchar*)chain,
-                                            chain_size, MYF(MY_WME))) == NULL)
+                                            chain_size*sizeof(tina_set), MYF(MY_WME))) == NULL)
           return -1;
       }
       else
