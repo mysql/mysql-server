@@ -383,57 +383,8 @@ DELETE FROM b;
 DROP TABLE b;
 
 
-CREATE TABLE `t` (
-`a` VARCHAR(10000),   `b` VARCHAR(3000),
-`c` VARCHAR(14000) GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
-`d` VARCHAR(5000) GENERATED ALWAYS AS (b) VIRTUAL,
-`e` INT(11) GENERATED ALWAYS AS (10) VIRTUAL,
-`h` INT(11) NOT NULL,
-PRIMARY KEY (`h`) ) ENGINE=InnoDB;
-
-
-INSERT INTO t VALUES (REPEAT('g', 10000), REPEAT('x', 2800), DEFAULT, DEFAULT, DEFAULT, 1);
-
-INSERT INTO t VALUES (REPEAT('a', 9000), REPEAT('b', 2000), DEFAULT, DEFAULT, DEFAULT, 2);
-INSERT INTO t VALUES (REPEAT('m', 8000), REPEAT('n', 3000), DEFAULT, DEFAULT, DEFAULT, 3);
-CREATE INDEX idx ON t(c(100), d(20));
-UPDATE t SET a = REPEAT(CAST(1 AS CHAR), 2000) WHERE h = 1;
-
-delimiter |;
-CREATE PROCEDURE UPDATE_t()
-begin
-        DECLARE i INT DEFAULT 1;
-        WHILE (i <= 200) DO
-                UPDATE t SET a = REPEAT(CAST(i AS CHAR), 2000) WHERE h = 1;
-                SET i = i + 1;
-        END WHILE;
-END|
-
-CREATE PROCEDURE DELETE_insert_t()
-begin
-        DECLARE i INT DEFAULT 1;
-        WHILE (i <= 200) DO
-		DELETE FROM t WHERE h = 1;
-		INSERT INTO t VALUES (REPEAT(CAST(i AS CHAR), 2000) ,  REPEAT('b', 2000), DEFAULT, DEFAULT, DEFAULT, 1);
-                SET i = i + 1;
-        END WHILE;
-END|
-delimiter ;|
-
-
-CALL UPDATE_t();
-
-CALL DELETE_insert_t();
-
-UPDATE t SET a = NULL WHERE h=1;
-
-START TRANSACTION;
-CALL UPDATE_t();
-ROLLBACK;
-
-DROP PROCEDURE DELETE_insert_t;
-DROP PROCEDURE UPDATE_t;
-DROP TABLE t;
+LET $row_format=COMPACT;
+--source suite/innodb/include/innodb_v_large_col.inc
 
 CREATE TABLE `t` (
   `a` BLOB,
@@ -457,8 +408,8 @@ UPDATE t SET a = REPEAT(CAST(1 AS CHAR), 2000) WHERE h = 1;
 
 UPDATE t SET a = REPEAT(CAST(1 AS CHAR), 1000) WHERE h = 1;
 
-
 delimiter |;
+
 CREATE PROCEDURE UPDATE_t()
 begin
         DECLARE i INT DEFAULT 1;
@@ -842,3 +793,12 @@ insert into `t#P#1` values (5,DEFAULT,9);
 select * from `t#P#1`;
 alter table `t#P#1` remove partitioning;
 drop table `t#P#1`;
+
+LET $row_format=DYNAMIC;
+--source suite/innodb/include/innodb_v_large_col.inc
+
+LET $row_format=REDUNDANT;
+--source suite/innodb/include/innodb_v_large_col.inc
+
+LET $row_format=COMPRESSED;
+--source suite/innodb/include/innodb_v_large_col.inc

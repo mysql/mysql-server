@@ -1553,6 +1553,37 @@ dict_max_field_len_store_undo(
 	return(REC_VERSION_56_MAX_INDEX_COL_LEN);
 }
 
+/** Determine maximum bytes of a virtual column need to be stored
+in the undo log.
+@param[in]	table		dict_table_t for the table
+@param[in]	col_no		virtual column number
+@return maximum bytes of virtual column to be stored in the undo log */
+UNIV_INLINE
+ulint
+dict_max_v_field_len_store_undo(
+	dict_table_t*		table,
+	ulint			col_no)
+{
+	const dict_col_t*	col
+		= &dict_table_get_nth_v_col(table, col_no)->m_col;
+	ulint			max_log_len;
+
+	/* This calculation conforms to the non-virtual column
+	maximum log length calculation:
+	1) if No atomic BLOB, upto REC_ANTELOPE_MAX_INDEX_COL_LEN
+	2) if atomic BLOB, upto col->max_prefix or
+	REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
+	if (dict_table_has_atomic_blobs(table)) {
+		max_log_len = col->max_prefix
+			? col->max_prefix
+			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+	} else {
+		max_log_len = REC_ANTELOPE_MAX_INDEX_COL_LEN;
+	}
+
+	return(max_log_len);
+}
+
 /**********************************************************************//**
 Prevent table eviction by moving a table to the non-LRU list from the
 LRU list if it is not already there. */

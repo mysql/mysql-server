@@ -248,8 +248,9 @@ trx_undo_report_insert_virtual(
 
 			if (flen != UNIV_SQL_NULL) {
 				ulint	max_len
-					= DICT_MAX_FIELD_LEN_BY_FORMAT(
-						table);
+					= dict_max_v_field_len_store_undo(
+						table, col_no);
+
 				if (flen > max_len) {
 					flen = max_len;
 				}
@@ -818,6 +819,7 @@ trx_undo_page_report_modify(
 			upd_field_t*	fld = upd_get_nth_field(update, i);
 
 			bool	is_virtual = upd_fld_is_virtual_col(fld);
+			ulint	max_v_log_len = 0;
 
 			ulint	pos = fld->field_no;
 
@@ -836,6 +838,10 @@ trx_undo_page_report_modify(
 
 			/* Save the old value of field */
 			if (is_virtual) {
+				max_v_log_len
+					= dict_max_v_field_len_store_undo(
+						table, fld->field_no);
+
 				field = static_cast<byte*>(
 					fld->old_v_val->data);
 				flen = fld->old_v_val->len;
@@ -844,10 +850,7 @@ trx_undo_page_report_modify(
 				record update */
 				if (flen != UNIV_SQL_NULL) {
 					flen = ut_min(
-						flen,
-						static_cast<ulint>(
-						DICT_MAX_FIELD_LEN_BY_FORMAT(
-							index->table)));
+						flen, max_v_log_len);
 				}
 			} else {
 				field = rec_get_nth_field(rec, offsets,
@@ -904,10 +907,7 @@ trx_undo_page_report_modify(
 				flen = fld->new_val.len;
 				if (flen != UNIV_SQL_NULL) {
 					flen = ut_min(
-						flen,
-						static_cast<ulint>(
-						DICT_MAX_FIELD_LEN_BY_FORMAT(
-							index->table)));
+						flen, max_v_log_len);
 				}
 
 				if (trx_undo_left(undo_page, ptr) < 15) {
@@ -1065,6 +1065,9 @@ trx_undo_page_report_modify(
 
 			if (col->m_col.ord_part) {
 				ulint   pos = col_no;
+				ulint	max_v_log_len
+					= dict_max_v_field_len_store_undo(
+						table, pos);
 
 				/* Write field number to undo log.
 				Make sure there is enought space in log */
@@ -1092,10 +1095,7 @@ trx_undo_page_report_modify(
 
 				if (flen != UNIV_SQL_NULL) {
 					flen = ut_min(
-						flen,
-						static_cast<ulint>(
-						DICT_MAX_FIELD_LEN_BY_FORMAT(
-							index->table)));
+						flen, max_v_log_len);
 				}
 
 				ptr += mach_write_compressed(ptr, flen);
