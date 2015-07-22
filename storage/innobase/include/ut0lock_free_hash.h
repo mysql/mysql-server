@@ -255,6 +255,7 @@ public:
 		size_t		n_elements)
 		:
 		m_n_base_elements(n_elements),
+		M_NEXT_RETRY_FROM_START(reinterpret_cast<next_t>(0x1)),
 		m_next(NULL)
 	{
 		m_base = UT_NEW_ARRAY(T, m_n_base_elements,
@@ -276,10 +277,8 @@ public:
 	by this or another thread).
 	@param[out]	grown_by_this_thread	set to true if the next
 	array was created and appended by this thread; set to false if
-	created and appended by another thread.
-	@return the next array, created and appended by this or another
-	thread */
-	next_t
+	created and appended by another thread. */
+	void
 	grow(
 		bool*	grown_by_this_thread)
 	{
@@ -303,13 +302,61 @@ public:
 			ut_ad(expected != NULL);
 
 			*grown_by_this_thread = false;
-
-			return(expected);
+		} else {
+			*grown_by_this_thread = true;
 		}
+	}
 
-		*grown_by_this_thread = true;
+	/** Get a pointer to the next array in the list.
+	@param[in]	list_start	the beginning of the list, which may
+	be returned if the current array has been garbage collected and its
+	next pointer demolished.
+	@return the next array or NULL if no next */
+	next_t
+	get_next(
+		next_t	list_start) const
+	{
+		next_t	next = m_next.load(boost::memory_order_relaxed);
 
-		return(new_arr);
+		return(next != M_NEXT_RETRY_FROM_START ? next : list_start);
+	}
+
+	/** Change the next pointer to the specified one.
+	@param[in]	new_next	new next pointer to set */
+	void
+	change_next(
+		next_t	new_next)
+	{
+		m_next.store(new_next, boost::memory_order_relaxed);
+	}
+
+	/** Disable the next pointer. Attempts to go to the next pointer will
+	be redirected to the start of the list. */
+	void
+	disable_next()
+	{
+		m_next.store(M_NEXT_RETRY_FROM_START,
+			     boost::memory_order_relaxed);
+	}
+
+	/* This object is only ever destroyed after it is removed from the
+	list of arrays in the hash table (which means that new threads cannot
+	start using it) and the number of threads that use it has decreased
+	to zero. */
+
+	/** Mark the beginning of an access to this object. Used to prevent a
+	destruction of this object while some threads may be accessing it. */
+	void
+	begin_access()
+	{
+		m_n_ref.inc();
+	}
+
+	/** Mark the ending of an access to this object. */
+	void
+	end_access()
+	{
+		m_n_ref.dec();
 	}
 
 	/** Base array. */
@@ -318,8 +365,25 @@ public:
 	/** Number of elements in 'm_base'. */
 	size_t			m_n_base_elements;
 
+private:
+	/** A constant that is set in the m_next member and designates that
+	the search should be retried from the start of the list. This is used
+	for arrays that are garbage collected - their m_next members are set
+	to this so that readers can never traverse from one garbage collected
+	array into another garbage collected array (if the m_next pointer
+	of the first points to the second). When destroying those objects
+	we assume that once an object is garbage collected then new readers
+	can never arrive to it. */
+	next_t			M_NEXT_RETRY_FROM_START;
+
 	/** Pointer to the next node if any or NULL. */
 	boost::atomic<next_t>	m_next;
+
+	/** Counter for the current number of readers and writers to this
+	object. This object is destroyed only after it is removed from the
+	list, so that no new readers or writers may arrive, and after this
+	counter has dropped to zero. */
+	ut_lock_free_cnt_t	m_n_ref;
 };
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
@@ -387,11 +451,15 @@ public:
 	{
 		garbage_collect();
 
-		arr_node_t*	cur = m_data.load(boost::memory_order_relaxed);
+		arr_node_t*	d = m_data.load(boost::memory_order_relaxed);
+		arr_node_t*	cur = d;
 
 		do {
-			arr_node_t*	next = cur->m_next.load(
-				boost::memory_order_relaxed);
+			arr_node_t*	next = cur->get_next(d);
+
+			/* Only garbage collected arrays have their next set
+			to the start of the list (m_data). */
+			ut_a(next != d);
 
 			UT_DELETE(cur);
 
@@ -428,13 +496,15 @@ public:
 				boost::memory_order_relaxed);
 
 			if (v == DELETED) {
+				arr->end_access();
 				return(NOT_FOUND);
 			} else if (v != GOTO_NEXT_ARRAY) {
+				arr->end_access();
 				return(v);
 			}
 
-			/* Prevent reorder of the below m_next.load() with
-			the above m_val.load().
+			/* Prevent reorder of the below m_next.load() (called
+			from get_next()) with the above m_val.load().
 			We want to be sure that if m_val is GOTO_NEXT_ARRAY,
 			then the next array exists. It would be the same to
 			m_val.load(memory_order_acquire)
@@ -445,9 +515,14 @@ public:
 			memory_order_relaxed. */
 			boost::atomic_thread_fence(boost::memory_order_acquire);
 
-			arr = arr->m_next.load(boost::memory_order_relaxed);
+			arr_node_t*	next = arr->get_next(
+				m_data.load(boost::memory_order_relaxed));
 
-			ut_a(arr != NULL);
+			ut_a(next != NULL);
+
+			arr->end_access();
+
+			arr = next;
 		}
 	}
 
@@ -524,6 +599,8 @@ public:
 						v,
 						DELETED,
 						boost::memory_order_relaxed)) {
+
+					arr->end_access();
 					return;
 				}
 
@@ -531,9 +608,9 @@ public:
 				into 'v'. */
 			}
 
-			/* Prevent reorder of the below m_next.load() with
-			the above m_val.load() or the load from
-			m_val.compare_exchange_strong().
+			/* Prevent reorder of the below m_next.load() (called
+			from get_next()) with the above m_val.load() or the
+			load from m_val.compare_exchange_strong().
 			We want to be sure that if m_val is GOTO_NEXT_ARRAY,
 			then the next array exists. It would be the same to
 			m_val.load(memory_order_acquire) or
@@ -545,9 +622,14 @@ public:
 			memory_order_relaxed. */
 			boost::atomic_thread_fence(boost::memory_order_acquire);
 
-			arr = arr->m_next.load(boost::memory_order_relaxed);
+			arr_node_t*	next = arr->get_next(
+				m_data.load(boost::memory_order_relaxed));
 
-			ut_a(arr != NULL);
+			ut_a(next != NULL);
+
+			arr->end_access();
+
+			arr = next;
 		}
 	}
 
@@ -732,20 +814,29 @@ private:
 		arr_node_t**	arr) const
 	{
 		for (;;) {
+			(*arr)->begin_access();
+
 			key_val_t*	t = get_tuple_from_array(
 				(*arr)->m_base,
 				(*arr)->m_n_base_elements,
 				key);
 
 			if (t != NULL) {
+				/* end_access() will be invoked by the
+				caller. */
 				return(t);
 			}
 
-			*arr = (*arr)->m_next.load(boost::memory_order_relaxed);
+			arr_node_t*	next = (*arr)->get_next(
+				m_data.load(boost::memory_order_relaxed));
 
-			if (*arr == NULL) {
+			(*arr)->end_access();
+
+			if (next == NULL) {
 				return(NULL);
 			}
+
+			*arr = next;
 		}
 	}
 
@@ -951,8 +1042,8 @@ private:
 		}
 
 		for (;;) {
-			arr_node_t*	next = a->m_next.load(
-				boost::memory_order_relaxed);
+			arr_node_t*	next = a->get_next(
+				m_data.load(boost::memory_order_relaxed));
 
 			/* Reached the end of the list without finding arr.
 			Should not happen because arr is supposed to be in
@@ -1082,6 +1173,8 @@ private:
 		or until we find a tuple with the specified key and manage to
 		update it. */
 		for (;;) {
+			arr->begin_access();
+
 			key_val_t*	t = insert_or_get_position_in_array(
 				arr->m_base,
 				arr->m_n_base_elements,
@@ -1095,18 +1188,20 @@ private:
 			next array. */
 
 			if (t != NULL && update_tuple(t, val, is_delta)) {
+				arr->end_access();
 				return;
 			}
 
-			arr_node_t*	next_arr = arr->m_next.load(
-				boost::memory_order_relaxed);
+			arr_node_t*	next_arr = arr->get_next(
+				m_data.load(boost::memory_order_relaxed));
 
 			if (next_arr != NULL) {
+				arr->end_access();
 				arr = next_arr;
 				/* Prevent any subsequent memory operations
 				(the reads from the next array in particular)
 				to be reordered before the m_next.load()
-				above. */
+				above (called from get_next()). */
 				boost::atomic_thread_fence(
 					boost::memory_order_acquire);
 				continue;
@@ -1114,14 +1209,33 @@ private:
 
 			bool		grown_by_this_thread;
 
-			next_arr = arr->grow(&grown_by_this_thread);
+			arr->grow(&grown_by_this_thread);
+
+			next_arr = arr->get_next(
+				m_data.load(boost::memory_order_relaxed));
 
 			if (!grown_by_this_thread) {
+				arr->end_access();
 				arr = next_arr;
 				continue;
 			}
 
+			/* The code below is only executed by a single thread
+			(for a given arr) - the winner thread that did the
+			grow and got grown_by_this_thread == true.
+			The garbage collecting of a given array is only done
+			by a single thread (us). So we know that 'arr' will
+			not be garbage collected here by another thread. So
+			there is no need to protect it with begin_access() /
+			end_access() below. */
+
+			arr->end_access();
+
+			next_arr->begin_access();
+
 			copy_to_another_array(arr, next_arr);
+
+			next_arr->end_access();
 
 			boost::atomic_thread_fence(
 				boost::memory_order_acq_rel);
@@ -1149,8 +1263,16 @@ private:
 			grow(). Ie if the array that grow() appended was
 			garbage collected and now arr->m_next points to some
 			further entry in the list. */
-			next_arr = arr->m_next.load(
+			arr_node_t*	d = m_data.load(
 				boost::memory_order_relaxed);
+
+			next_arr = arr->get_next(d);
+
+			/* arr->m_next cannot point to m_data here because
+			the only code that sets it to M_NEXT_RETRY_FROM_START
+			is below and we are guaranteed to be the only thread
+			that ever executes it for arr. */
+			ut_a(next_arr != d);
 
 			if (arr == m_data.load(boost::memory_order_relaxed)) {
 
@@ -1161,9 +1283,14 @@ private:
 
 				ut_a(prev_arr != NULL);
 
-				prev_arr->m_next.store(
-					next_arr, boost::memory_order_relaxed);
+				prev_arr->begin_access();
+
+				prev_arr->change_next(next_arr);
+
+				prev_arr->end_access();
 			}
+
+			arr->disable_next();
 
 			m_sentinel.store(M_SENTINEL_FREE,
 					 boost::memory_order_release);
