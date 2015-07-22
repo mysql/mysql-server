@@ -3,9 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-[connection slave]
-CALL mtr.add_suppression("An unexpected event sequence was detected by the IO thread while queuing the event");
-CALL mtr.add_suppression("GTID_LOG_EVENT or ANONYMOUS_GTID_LOG_EVENT is not expected in an event stream in the middle of a DML");
 [connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 SET @@session.binlog_direct_non_transactional_updates := if(floor(rand()*10)%2,'ON','OFF');
