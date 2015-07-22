@@ -2335,8 +2335,8 @@ void mysql_explain_other(THD *thd)
 
   qp= &query_thd->query_plan;
 
-  if (query_thd->vio_ok() && !query_thd->system_thread &&
-      qp->get_command() != SQLCOM_END)
+  if (query_thd->get_protocol()->connection_alive() &&
+      !query_thd->system_thread && qp->get_command() != SQLCOM_END)
   {
     /*
       Don't explain:

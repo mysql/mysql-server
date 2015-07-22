@@ -1036,7 +1036,7 @@ void reset_statement_timer(THD *thd)
     1   request of thread shutdown, i. e. if command is
         COM_QUIT/COM_SHUTDOWN
 */
-bool dispatch_command(THD *thd, COM_DATA *com_data,
+bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command)
 {
   bool error= 0;
@@ -1137,7 +1137,7 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
     LEX_STRING tmp;
     thd->status_var.com_stat[SQLCOM_CHANGE_DB]++;
     thd->convert_string(&tmp, system_charset_info,
-                        (char*) com_data->com_init_db.db_name,
+                        com_data->com_init_db.db_name,
                         com_data->com_init_db.length, thd->charset());
 
     LEX_CSTRING tmp_cstr= {tmp.str, tmp.length};
@@ -1482,7 +1482,8 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
     query_logger.general_log_print(thd, command, NullS);
     // Don't give 'abort' message
     // TODO: access of protocol_classic should be removed
-    thd->get_protocol_classic()->get_net()->error= 0;
+    if (thd->is_classic_protocol())
+      thd->get_protocol_classic()->get_net()->error= 0;
     thd->get_stmt_da()->disable_status();       // Don't send anything back
     error=TRUE;					// End server
     break;
@@ -5302,8 +5303,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       if (mqh_used && thd->get_user_connect() &&
           check_mqh(thd, lex->sql_command))
       {
-        if (thd->get_protocol()->type() == Protocol::PROTOCOL_TEXT ||
-            thd->get_protocol()->type() == Protocol::PROTOCOL_BINARY)
+        if (thd->is_classic_protocol())
           thd->get_protocol_classic()->get_net()->error = 0;
       }
       else

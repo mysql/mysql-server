@@ -39,6 +39,10 @@
 #include "template_utils.h"    // pointer_cast
 #include "transaction.h"       // trans_rollback_stmt
 
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"       // Srv_session::check_for_stale_threads()
+#endif
+
 #include <algorithm>
 
 #ifdef HAVE_DLFCN_H
@@ -990,6 +994,9 @@ static void plugin_deinitialize(st_plugin_int *plugin, bool ref_check)
   }
   plugin->state= PLUGIN_IS_UNINITIALIZED;
 
+#ifndef EMBEDDED_LIBRARY
+  Srv_session::check_for_stale_threads(plugin);
+#endif
   /*
     We do the check here because NDB has a worker THD which doesn't
     exit until NDB is shut down.

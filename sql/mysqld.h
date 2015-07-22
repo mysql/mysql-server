@@ -101,6 +101,14 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
 
+enum enum_server_operational_state
+{
+  SERVER_BOOTING,      /* Server is not operational. It is starting */
+  SERVER_OPERATING,    /* Server is fully initialized and operating */
+  SERVER_SHUTTING_DOWN /* erver is shutting down */
+};
+enum_server_operational_state get_server_state();
+
 /**
   Character set of the buildin error messages loaded from errmsg.sys.
 */
@@ -461,6 +469,7 @@ extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
   key_thread_compress_gtid_table, key_thread_parser_service;
+extern PSI_thread_key key_thread_daemon_plugin;
 extern PSI_thread_key key_thread_timer_notifier;
 extern PSI_thread_key key_thread_background;
 

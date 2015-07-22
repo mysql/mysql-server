@@ -967,6 +967,45 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_server.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_security_context.so
 
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_in_thd.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_session_info.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_2_sessions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_all_col_types.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_cmds_1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_commit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_complex.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_errors.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_lock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_views_triggers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_x_sessions_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_x_sessions_init.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_detach.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_in_thd.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_session_info.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_2_sessions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_all_col_types.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_cmds_1.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_commit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_complex.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_errors.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_lock.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_views_triggers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_x_sessions_deinit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_x_sessions_init.so
+%endif
+
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-stress-test.pl.1*
 %attr(644, root, root) %{_mandir}/man1/mysql-test-run.pl.1*
@@ -1004,6 +1043,9 @@ fi
 %endif
 
 %changelog
+* Tue Aug 25 2015 Alfredo Kojima <alfredo.kengi.kojima>
+- Added libtest_sql_* and libtest_session_*
+
 * Sun Aug 2 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9
 - Add mysqlpump man page

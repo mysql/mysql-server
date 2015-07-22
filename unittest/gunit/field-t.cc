@@ -95,10 +95,11 @@ public:
   ulong get_client_capabilities() { return 0; }
   bool has_client_capability(unsigned long client_capability) {return false;}
   void end_partial_result_set() {}
-  int shutdown() { return 0; }
+  int shutdown(bool server_shutdown= false) { return 0; }
   void *get_ssl() { return 0; }
   void start_row() {}
   bool end_row() { return false; }
+  bool connection_alive() { return false; }
   void abort_row() {}
   uint get_rw_status() { return 0; }
   bool get_compression() { return false; }
@@ -136,6 +137,7 @@ public:
   virtual bool store_date(MYSQL_TIME *time) { return false; }
   virtual bool store(Proto_field *field) { return false; }
   virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; };
+  virtual enum enum_vio_type connection_type() { return NO_VIO_TYPE; }
   virtual int get_command(COM_DATA *com_data, enum_server_command *cmd)
   { return -1; }
 };
@@ -221,6 +223,7 @@ TEST_F(FieldTest, FieldTimef)
   compareMysqlTime(bigTime, t);
 
   Mock_protocol protocol(thd());
+  EXPECT_EQ(protocol.connection_type(), NO_VIO_TYPE);
   EXPECT_FALSE(field->send_binary(&protocol));
   // The verification below fails because send_binary move hours to days
   // protocol.verify_time(&bigTime, 0);  // Why 0?

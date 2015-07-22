@@ -114,7 +114,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
   my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
-  COM_DATA com_data;
+  union COM_DATA com_data;
 
   if (!thd)
   {
@@ -1370,4 +1370,10 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   ++next_field;
   ++next_mysql_field;
   return false;
+}
+
+bool Protocol_classic::connection_alive()
+{
+  //for embedded protocol connection is always on
+  return true;
 }
