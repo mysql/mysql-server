@@ -441,7 +441,8 @@ public:
 			       mem_key_ut_lock_free_hash_t),
 			boost::memory_order_relaxed);
 
-		m_sentinel.store(M_SENTINEL_FREE, boost::memory_order_relaxed);
+		m_sentinel.store(M_SENTINEL_UNLOCKED,
+				 boost::memory_order_relaxed);
 
 		m_garbage.store(NULL, boost::memory_order_relaxed);
 	}
@@ -1247,13 +1248,13 @@ private:
 			(k, GOTO_NEXT_ARRAY) or
 			(AVOID, NOT_FOUND). */
 
-			bool	expected = M_SENTINEL_FREE;
+			bool	expected = M_SENTINEL_UNLOCKED;
 			while (!m_sentinel.compare_exchange_strong(
 					expected,
-					M_SENTINEL_OWNED,
+					M_SENTINEL_LOCKED,
 					boost::memory_order_acquire)) {
 				/* busy loop */
-				expected = M_SENTINEL_FREE;
+				expected = M_SENTINEL_UNLOCKED;
 			}
 
 			/* Now we are the only thread that executes the code
@@ -1292,7 +1293,7 @@ private:
 
 			arr->disable_next();
 
-			m_sentinel.store(M_SENTINEL_FREE,
+			m_sentinel.store(M_SENTINEL_UNLOCKED,
 					 boost::memory_order_release);
 
 			add_array_for_garbage_collection(arr);
@@ -1327,11 +1328,11 @@ private:
 
 	/** A value of m_sentinel designating that nobody is fiddling with
 	m_next pointers now. */
-	static const bool		M_SENTINEL_FREE = false;
+	static const bool		M_SENTINEL_UNLOCKED = false;
 
 	/** A value of m_sentinel designating that the current thread is
 	fiddling with m_next pointers now. */
-	static const bool		M_SENTINEL_OWNED = true;
+	static const bool		M_SENTINEL_LOCKED = true;
 
 	/** A linked list of arr_node_t* elements that are not used anymore
 	and are to be garbage collected. */
