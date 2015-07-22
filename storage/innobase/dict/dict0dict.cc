@@ -2275,9 +2275,14 @@ dict_index_too_big_for_undo(
 	the maximum length is 2 bytes per item. */
 	undo_page_len += 2 * (dict_table_get_n_cols(table) + 1);
 
-	for (i = 0; i < clust_index->n_def; i++) {
+	for (i = 0; i < static_cast<ulint>(clust_index->n_def + table->n_v_def);
+	     i++) {
+		bool			is_virtual = i >= clust_index->n_def;
 		const dict_col_t*	col
-			= dict_index_get_nth_col(clust_index, i);
+			= (i < clust_index->n_def)
+				? dict_index_get_nth_col(clust_index, i)
+				: &dict_table_get_nth_v_col(
+					table, i - clust_index->n_def)->m_col;
 		ulint			max_size
 			= dict_col_get_max_size(col);
 		ulint			fixed_size
@@ -2330,8 +2335,10 @@ dict_index_too_big_for_undo(
 			}
 
 			/* This is not an ordering column in any index.
-			Thus, it can be stored completely externally. */
-			max_size = BTR_EXTERN_FIELD_REF_SIZE;
+			Thus, it can be stored completely externally.
+			If it is a virtual column, nothing needs to be
+			stored. */
+			max_size = is_virtual ? 0 : BTR_EXTERN_FIELD_REF_SIZE;
 		} else {
 			ulint	max_field_len;
 is_ord_part:
@@ -2364,31 +2371,6 @@ is_ord_part:
 		}
 
 		undo_page_len += 5 + max_size;
-	}
-
-	/* If there are indexes on any virtual columns, we could log
-	additional virtual column (or its prefix) to the undo log */
-	for (i = 0; i < table->n_v_def; i++) {
-		const dict_col_t*	col
-			= &dict_table_get_nth_v_col(table, i)->m_col;
-		ulint			max_size = 0;
-
-		if (col->ord_part) {
-			ulint	max_fld_size = DICT_MAX_FIELD_LEN_BY_FORMAT(
-						table);
-			ulint	fixed_size
-				= dict_col_get_fixed_size(
-					col, dict_table_is_comp(table));
-			max_size = dict_col_get_max_size(col);
-
-			if (fixed_size) {
-				max_size = fixed_size;
-			} else if (max_size > max_fld_size) {
-				max_size = max_fld_size;
-			}
-		}
-
-		undo_page_len += max_size;
 	}
 
 	return(undo_page_len >= UNIV_PAGE_SIZE);
