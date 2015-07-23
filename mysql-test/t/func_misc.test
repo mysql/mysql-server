@@ -391,6 +391,11 @@ set optimizer_switch=@optimizer_switch_save;
 drop view  v_merge, vm;
 drop table t1,tv;
 
+--echo #
+--echo # MDEV-4017 - GET_LOCK() with negative timeouts has strange behavior
+--echo #
+SELECT GET_LOCK('ul1', NULL);
+SELECT GET_LOCK('ul1', -1);
 
 --echo #
 --echo # End of 5.5 tests

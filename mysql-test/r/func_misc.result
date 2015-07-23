@@ -361,5 +361,18 @@ set optimizer_switch=@optimizer_switch_save;
 drop view  v_merge, vm;
 drop table t1,tv;
 #
+# MDEV-4017 - GET_LOCK() with negative timeouts has strange behavior
+#
+SELECT GET_LOCK('ul1', NULL);
+GET_LOCK('ul1', NULL)
+NULL
+Warnings:
+Warning	1411	Incorrect timeout value: 'NULL' for function get_lock
+SELECT GET_LOCK('ul1', -1);
+GET_LOCK('ul1', -1)
+NULL
+Warnings:
+Warning	1411	Incorrect timeout value: '-1' for function get_lock
+#
 # End of 5.5 tests
 #
