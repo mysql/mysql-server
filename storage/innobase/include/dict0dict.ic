@@ -1574,7 +1574,7 @@ dict_max_v_field_len_store_undo(
 	2) if atomic BLOB, upto col->max_prefix or
 	REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
 	if (dict_table_has_atomic_blobs(table)) {
-		max_log_len = col->max_prefix
+		max_log_len = (col->max_prefix > 0)
 			? col->max_prefix
 			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 	} else {

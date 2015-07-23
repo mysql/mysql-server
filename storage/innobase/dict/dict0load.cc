@@ -696,12 +696,13 @@ err_len:
 					       prtype, col_len);
 		}
 	} else {
-		if (nth_v_col != NULL) {
-			*nth_v_col = dict_get_v_col_pos(pos);
-		}
-
 		dict_mem_fill_column_struct(column, pos, mtype,
 					    prtype, col_len);
+	}
+
+	/* Report the virtual column number */
+	if (prtype & DATA_VIRTUAL && nth_v_col != NULL) {
+		*nth_v_col = dict_get_v_col_pos(pos);
 	}
 
 	return(NULL);
@@ -2171,13 +2172,14 @@ dict_load_columns(
 	     i++) {
 		const char*	err_msg;
 		const char*	name = NULL;
+		ulint		nth_v_col = ULINT_UNDEFINED;
 
 		rec = btr_pcur_get_rec(&pcur);
 
 		ut_a(btr_pcur_is_on_user_rec(&pcur));
 
 		err_msg = dict_load_column_low(table, heap, NULL, NULL,
-					       &name, rec, NULL);
+					       &name, rec, &nth_v_col);
 
 		if (err_msg == dict_load_column_del) {
 			n_skipped++;
@@ -2187,9 +2189,11 @@ dict_load_columns(
 		}
 
 		/* Note: Currently we have one DOC_ID column that is
-		shared by all FTS indexes on a table. */
+		shared by all FTS indexes on a table. And only non-virtual
+		column can be used for FULLTEXT index */
 		if (innobase_strcasecmp(name,
-					FTS_DOC_ID_COL_NAME) == 0) {
+					FTS_DOC_ID_COL_NAME) == 0
+		    && nth_v_col == ULINT_UNDEFINED) {
 			dict_col_t*	col;
 			/* As part of normal loading of tables the
 			table->flag is not set for tables with FTS

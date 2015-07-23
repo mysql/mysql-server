@@ -1852,18 +1852,25 @@ innobase_fts_check_doc_id_col(
 	const TABLE*		altered_table,
 					/*!< in: MySQL table with
 					fulltext index */
-	ulint*			fts_doc_col_no)
+	ulint*			fts_doc_col_no,
 					/*!< out: The column number for
 					Doc ID, or ULINT_UNDEFINED
 					if it is of wrong type */
+	ulint*			num_v)	/*!< out: number of virtual column */
 {
 	*fts_doc_col_no = ULINT_UNDEFINED;
 
 	const uint n_cols = altered_table->s->fields;
-	uint i;
+	ulint	i;
+
+	*num_v = 0;
 
 	for (i = 0; i < n_cols; i++) {
 		const Field*	field = altered_table->field[i];
+
+		if (innobase_is_v_fld(field)) {
+			(*num_v)++;
+		}
 
 		if (my_strcasecmp(system_charset_info,
 				  field->field_name, FTS_DOC_ID_COL_NAME)) {
@@ -1876,11 +1883,12 @@ innobase_fts_check_doc_id_col(
 		} else if (field->type() != MYSQL_TYPE_LONGLONG
 			   || field->pack_length() != 8
 			   || field->real_maybe_null()
-			   || !(field->flags & UNSIGNED_FLAG)) {
+			   || !(field->flags & UNSIGNED_FLAG)
+			   || innobase_is_v_fld(field)) {
 			my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0),
 				 field->field_name);
 		} else {
-			*fts_doc_col_no = i;
+			*fts_doc_col_no = i - *num_v;
 		}
 
 		return(true);
@@ -1889,6 +1897,9 @@ innobase_fts_check_doc_id_col(
 	if (!table) {
 		return(false);
 	}
+
+	/* Not to count the virtual columns */
+	i -= *num_v;
 
 	for (; i + DATA_N_SYS_COLS < (uint) table->n_cols; i++) {
 		const char*     name = dict_table_get_col_name(table, i);
@@ -1987,7 +1998,8 @@ innobase_fts_check_doc_id_index(
 		if (strcmp(field->name, FTS_DOC_ID_COL_NAME) == 0
 		    && field->col->mtype == DATA_INT
 		    && field->col->len == 8
-		    && field->col->prtype & DATA_NOT_NULL) {
+		    && field->col->prtype & DATA_NOT_NULL
+		    && !dict_col_is_virtual(field->col)) {
 			if (fts_doc_col_no) {
 				*fts_doc_col_no = dict_col_get_no(field->col);
 			}
@@ -2188,11 +2200,13 @@ created_clustered:
 		}
 
 		if (n_fts_add > 0) {
+			ulint	num_v = 0;
+
 			if (!add_fts_doc_id
 			    && !innobase_fts_check_doc_id_col(
 				    NULL, altered_table,
-				    &fts_doc_id_col)) {
-				fts_doc_id_col = altered_table->s->fields;
+				    &fts_doc_id_col, &num_v)) {
+				fts_doc_id_col = altered_table->s->fields - num_v;
 				add_fts_doc_id = true;
 			}
 
@@ -2245,7 +2259,7 @@ created_clustered:
 		index->ind_type = DICT_UNIQUE;
 		ut_ad(!rebuild
 		      || !add_fts_doc_id
-		      || fts_doc_id_col == altered_table->s->fields);
+		      || fts_doc_id_col <= altered_table->s->fields);
 
 		index->name = FTS_DOC_ID_INDEX_NAME;
 		index->rebuild = rebuild;
@@ -4110,7 +4124,8 @@ prepare_inplace_alter_table_dict(
 		if (add_fts_doc_id) {
 			fts_add_doc_id_column(ctx->new_table, ctx->heap);
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
-			ut_ad(fts_doc_id_col == altered_table->s->fields);
+			ut_ad(fts_doc_id_col
+			      == altered_table->s->fields - n_v_cols);
 		} else if (ctx->new_table->fts) {
 			ctx->new_table->fts->doc_col = fts_doc_id_col;
 		}
@@ -5391,12 +5406,13 @@ err_exit:
 	add a Doc ID hidden column and rebuild the primary index */
 	if (innobase_fulltext_exist(altered_table)) {
 		ulint	doc_col_no;
+		ulint	num_v = 0;
 
 		if (!innobase_fts_check_doc_id_col(
 			    m_prebuilt->table,
-			    altered_table, &fts_doc_col_no)) {
+			    altered_table, &fts_doc_col_no, &num_v)) {
 
-			fts_doc_col_no = altered_table->s->fields;
+			fts_doc_col_no = altered_table->s->fields - num_v;
 			add_fts_doc_id = true;
 			add_fts_doc_id_idx = true;
 
