@@ -2018,10 +2018,21 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN *join,
   */
   if (expr && !expr->fixed)
   {
-    SELECT_LEX *save_current_select= thd->lex->current_select;
-    thd->lex->current_select= thd->lex->current_select->outer_select();
     bool tmp;
+    SELECT_LEX *save_current_select= thd->lex->current_select;
+    Item_subselect *save_item;
+
+    thd->lex->current_select= thd->lex->current_select->outer_select();
+    /*
+      For st_select_lex::mark_as_dependent, who needs to mark
+      this sub query as correlated.
+    */
+    save_item= thd->lex->current_select->master_unit()->item;
+    thd->lex->current_select->master_unit()->item= this;
+
     tmp= expr->fix_fields(thd, 0);
+
+    thd->lex->current_select->master_unit()->item= save_item;
     thd->lex->current_select= save_current_select;
     if (tmp)
       DBUG_RETURN(true);

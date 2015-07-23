@@ -7612,7 +7612,8 @@ int Field_geom::store(const char *from, uint length, CHARSET_INFO *cs)
     }
 
     Field_blob::store_length(length);
-    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+    if ((table->copy_blobs || length <= MAX_FIELD_WIDTH) &&
+        from != value.ptr())
     {						// Must make a copy
       value.copy(from, length, cs);
       from= value.ptr();
