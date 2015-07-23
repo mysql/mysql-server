@@ -1576,7 +1576,7 @@ dict_max_v_field_len_store_undo(
 	for UNIV_FORMAT_B, upto col->max_prefix or
 	2) REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
 	if (dict_table_get_format(table) >= UNIV_FORMAT_B) {
-		max_log_len = col->max_prefix
+		max_log_len = (col->max_prefix > 0)
 			? col->max_prefix
 			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
 	} else {

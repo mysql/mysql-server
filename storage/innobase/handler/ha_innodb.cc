@@ -7503,7 +7503,7 @@ calc_row_difference(
 			checking only once here. Later we will need to
 			note which columns have been updated and do
 			selective processing. */
-			if (prebuilt->table->fts != NULL) {
+			if (prebuilt->table->fts != NULL && !is_virtual) {
 				ulint		offset;
 				dict_table_t*   innodb_table;
 
@@ -9366,7 +9366,8 @@ create_table_info_t::create_table_def()
 
 	/* Set the hidden doc_id column. */
 	if (m_flags2 & DICT_TF2_FTS) {
-		table->fts->doc_col = has_doc_id_col ? doc_id_col : n_cols;
+		table->fts->doc_col = has_doc_id_col
+				      ? doc_id_col : n_cols - num_v;
 	}
 
 	if (strlen(m_temp_path) != 0) {

@@ -2279,7 +2279,7 @@ dict_index_too_big_for_undo(
 	     i++) {
 		bool			is_virtual = i >= clust_index->n_def;
 		const dict_col_t*	col
-			= (i < clust_index->n_def)
+			= (!is_virtual)
 				? dict_index_get_nth_col(clust_index, i)
 				: &dict_table_get_nth_v_col(
 					table, i - clust_index->n_def)->m_col;

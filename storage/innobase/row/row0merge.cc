@@ -558,7 +558,8 @@ row_merge_buf_add(
 
 		/* Process the Doc ID column */
 		if (*doc_id > 0
-		    && col_no == index->table->fts->doc_col) {
+		    && col_no == index->table->fts->doc_col
+		    && !dict_col_is_virtual(col)) {
 			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 
 			/* Note: field->data now points to a value on the
