@@ -4184,6 +4184,50 @@ SHOW CREATE VIEW v4;
 
 DROP VIEW v1, v2, v3, v4;
 
+
+--echo #
+--echo # BUG#19886430: VIEW CREATION WITH NAMED COLUMNS, OVER UNION,
+--echo #               IS REJECTED
+
+--echo # Without the patch, reports an error.
+CREATE VIEW v1 (fld1, fld2) AS
+  SELECT 1 AS a, 2 AS b
+    UNION ALL
+  SELECT 1 AS a, 1 AS a;
+
+--echo # The column names are explicitly specified and not duplicates, hence
+--echo # succeeds.
+CREATE VIEW v2 (fld1, fld2) AS
+  SELECT 1 AS a, 2 AS a
+    UNION ALL
+  SELECT 1 AS a, 1 AS a;
+
+--echo # The column name in the first SELECT are not duplicates, hence succeeds.
+CREATE VIEW v3 AS
+  SELECT 1 AS a, 2 AS b
+    UNION ALL
+  SELECT 1 AS a, 1 AS a;
+
+--echo # Should report an error, since the explicitly specified column names are
+--echo # duplicates.
+--error ER_DUP_FIELDNAME
+CREATE VIEW v4 (fld1, fld1) AS
+  SELECT 1 AS a, 2 AS b
+    UNION ALL
+  SELECT 1 AS a, 1 AS a;
+
+--echo # Should report an error, since duplicate column name is specified in the
+--echo # First SELECT.
+--error ER_DUP_FIELDNAME
+CREATE VIEW v4 AS
+  SELECT 1 AS a, 2 AS a
+    UNION ALL
+  SELECT 1 AS a, 1 AS a;
+
+--echo # Cleanup
+DROP VIEW v1, v2, v3;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

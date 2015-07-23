@@ -4146,3 +4146,38 @@ SHOW CREATE VIEW v4;
 View	Create View	character_set_client	collation_connection
 v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `col2`) union all (select '' AS `Name_exp_3`)	latin1	latin1_swedish_ci
 DROP VIEW v1, v2, v3, v4;
+#
+# BUG#19886430: VIEW CREATION WITH NAMED COLUMNS, OVER UNION,
+#               IS REJECTED
+# Without the patch, reports an error.
+CREATE VIEW v1 (fld1, fld2) AS
+SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+# The column names are explicitly specified and not duplicates, hence
+# succeeds.
+CREATE VIEW v2 (fld1, fld2) AS
+SELECT 1 AS a, 2 AS a
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+# The column name in the first SELECT are not duplicates, hence succeeds.
+CREATE VIEW v3 AS
+SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+# Should report an error, since the explicitly specified column names are
+# duplicates.
+CREATE VIEW v4 (fld1, fld1) AS
+SELECT 1 AS a, 2 AS b
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+ERROR 42S21: Duplicate column name 'fld1'
+# Should report an error, since duplicate column name is specified in the
+# First SELECT.
+CREATE VIEW v4 AS
+SELECT 1 AS a, 2 AS a
+UNION ALL
+SELECT 1 AS a, 1 AS a;
+ERROR 42S21: Duplicate column name 'a'
+# Cleanup
+DROP VIEW v1, v2, v3;
