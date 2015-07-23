@@ -445,6 +445,12 @@ bool trans_commit_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  /*
+    Some code in MYSQL_BIN_LOG::commit and ha_commit_low() is not safe
+    for attachable transactions.
+  */
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
@@ -489,6 +495,12 @@ bool trans_rollback_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+  /*
+    Some code in MYSQL_BIN_LOG::rollback and ha_rollback_low() is not safe
+    for attachable transactions.
+  */
+  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
@@ -510,6 +522,51 @@ bool trans_rollback_stmt(THD *thd)
 
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  Commit the attachable transaction.
+
+  @note This is slimmed down version of trans_commit_stmt() which commits
+        attachable transaction but skips code which is unnecessary and
+        unsafe for them (like dealing with GTIDs).
+
+  @param thd     Current thread
+
+  @retval False - Success
+  @retval True  - Failure
+*/
+bool trans_commit_attachable(THD *thd)
+{
+  DBUG_ENTER("trans_commit_attachable");
+  int res= 0;
+
+  /* This function only handles attachable transactions. */
+  DBUG_ASSERT(thd->is_attachable_transaction_active());
+
+  /*
+    Since the attachable transaction is AUTOCOMMIT we only need to commit
+    statement transaction.
+  */
+  DBUG_ASSERT(! thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+
+  /* Attachable transactions should not do anything unsafe. */
+  DBUG_ASSERT(!thd->get_transaction()->
+                 cannot_safely_rollback(Transaction_ctx::STMT));
+
+
+  if (thd->get_transaction()->is_active(Transaction_ctx::STMT))
+  {
+    res= ha_commit_attachable(thd);
+  }
+
+  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+
+  thd->get_transaction()->reset(Transaction_ctx::STMT);
+
+  DBUG_RETURN(MY_TEST(res));
+}
+
 
 /* Find a named savepoint in the current transaction. */
 static SAVEPOINT **

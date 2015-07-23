@@ -1975,6 +1975,80 @@ int ha_rollback_trans(THD *thd, bool all)
 
 
 /**
+  Commit the attachable transaction in storage engines.
+
+  @note This is slimmed down version of ha_commit_trans()/ha_commit_low()
+        which commits attachable transaction but skips code which is
+        unnecessary and unsafe for them (like dealing with GTIDs).
+        Since attachable transactions are read-only their commit only
+        needs to release resources and cleanup state in SE.
+
+  @param thd     Current thread
+
+  @retval 0      - Success
+  @retval non-0  - Failure
+*/
+int ha_commit_attachable(THD *thd)
+{
+  int error= 0;
+  Transaction_ctx *trn_ctx= thd->get_transaction();
+  Ha_trx_info *ha_info= trn_ctx->ha_trx_info(Transaction_ctx::STMT);
+  Ha_trx_info *ha_info_next;
+
+  /* This function only handles attachable transactions. */
+  DBUG_ASSERT(thd->is_attachable_transaction_active());
+  /*
+    Since the attachable transaction is AUTOCOMMIT we only need
+    to care about statement transaction.
+  */
+  DBUG_ASSERT(! trn_ctx->is_active(Transaction_ctx::SESSION));
+
+  if (ha_info)
+  {
+    for (; ha_info; ha_info= ha_info_next)
+    {
+      /* Attachable transaction is not supposed to modify anything. */
+      DBUG_ASSERT(! ha_info->is_trx_read_write());
+
+      handlerton *ht= ha_info->ht();
+      if (ht->commit(ht, thd, false))
+      {
+        /*
+          In theory this should not happen since attachable transactions
+          are read only and therefore commit is supposed to only release
+          resources/cleanup state. Even if this happens we will simply
+          continue committing attachable transaction in other SEs.
+        */
+        DBUG_ASSERT(false);
+        error= 1;
+      }
+      thd->status_var.ha_commit_count++;
+      ha_info_next= ha_info->next();
+
+      ha_info->reset(); /* keep it conveniently zero-filled */
+    }
+    trn_ctx->reset_scope(Transaction_ctx::STMT);
+  }
+
+  /*
+    Mark transaction as commited in PSI.
+  */
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+  if (thd->m_transaction_psi != NULL)
+  {
+    MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+    thd->m_transaction_psi= NULL;
+  }
+#endif
+
+  /* Free resources and perform other cleanup even for 'empty' transactions. */
+  trn_ctx->cleanup();
+
+  return (error);
+}
+
+
+/**
   @details
   This function should be called when MySQL sends rows of a SELECT result set
   or the EOF mark to the client. It releases a possible adaptive hash index
