@@ -28,7 +28,6 @@
 
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "item_sum.h"         // Item_sum
-#include "json_binary.h"      // json_binary::Value
 #include "json_dom.h"         // Json_wrapper
 #include "key.h"              // key_cmp
 #include "log.h"              // sql_print_error
@@ -3106,29 +3105,18 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
 
     Field_json *json_field= down_cast<Field_json *>(field);
 
-    char *left_data;
-    json_field->get_ptr(pointer_cast<uchar **>(&left_data));
-    json_binary::Value left_value(json_binary::parse_binary(left_data, src_len));
-    if (left_value.type() == json_binary::Value::ERROR)
-    {
-      /* purecov: begin inspected */
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-      return true;
-      /* purecov: end */
-    }
-    Json_wrapper left_wrapper(left_value);
+    // Fetch the JSON value on the left side of the comparison.
+    Json_wrapper left_wrapper;
+    if (json_field->val_json(&left_wrapper))
+      return true;                            /* purecov: inspected */
 
-    char *right_data;
-    json_field->get_ptr(pointer_cast<uchar **>(&right_data), diff);
-    json_binary::Value right_value(json_binary::parse_binary(right_data, dst_len));
-    if (right_value.type() == json_binary::Value::ERROR)
-    {
-      /* purecov: begin inspected */
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-      return true;
-      /* purecov: end */
-    }
-    Json_wrapper right_wrapper(right_value);
+    // Fetch the JSON value on the right side of the comparison.
+    Json_wrapper right_wrapper;
+    json_field->ptr+= diff;
+    bool err= json_field->val_json(&right_wrapper);
+    json_field->ptr-= diff;
+    if (err)
+      return true;                            /* purecov: inspected */
 
     return (left_wrapper.compare(right_wrapper) != 0);
   }

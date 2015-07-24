@@ -9053,19 +9053,23 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
 
 void Field_json::make_sort_key(uchar *to, size_t length)
 {
-  String tmp;
-  String *s= Field_blob::val_str(&tmp, &tmp);
-  Json_wrapper wr(json_binary::parse_binary(s->ptr(), s->length()));
+  Json_wrapper wr;
+  if (val_json(&wr))
+  {
+    /* purecov: begin inspected */
+    memset(to, 0, length);
+    return;
+    /* purecov: end */
+  }
   wr.make_sort_key(to, length);
 }
 
 
 ulonglong Field_json::make_hash_key(ulonglong *hash_val)
 {
-  String tmp;
-  String *s= Field_blob::val_str(&tmp, &tmp);
-  Json_wrapper wr(json_binary::parse_binary(s->ptr(), s->length()));
-
+  Json_wrapper wr;
+  if (val_json(&wr))
+    return *hash_val;                         /* purecov: inspected */
   return wr.make_hash_key(hash_val);
 }
 

@@ -5903,6 +5903,21 @@ SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
 DROP TABLE t1, t2;
 DROP VIEW v;
 
+--echo #
+--echo # Bug#21487833: DBUG_ABORT() IN JSON_WRAPPER::MAKE_HASH_KEY
+--echo #               WITH ORDERED JSON
+--echo #
+--source include/turn_off_strict_mode.inc
+CREATE TABLE t (a BLOB, b JSON NOT NULL) ENGINE=InnoDB;
+INSERT INTO t VALUES ('', NULL), ('', NULL);
+UPDATE t SET a = 1 ORDER BY b;
+SELECT COUNT(a) FROM t GROUP BY b;
+SELECT DISTINCT B FROM t;
+SELECT b FROM t UNION DISTINCT SELECT b FROM t;
+SELECT * FROM t ORDER BY b;
+DROP TABLE t;
+--source include/restore_strict_mode.inc
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
