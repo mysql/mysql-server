@@ -7493,6 +7493,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
   @note We need calculate data for both virtual and stored generated
   fields.
 
+  @param bitmap         Bitmap over fields to update
   @param table          the TABLE object
 
   @return
@@ -7502,7 +7503,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
       true   - Error occurred during the generation/calculation of a generated
                field value
  */
-bool update_generated_write_fields(TABLE *table)
+bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
 {
   DBUG_ENTER("update_generated_write_fields");
   Field **vfield_ptr;
@@ -7515,8 +7516,9 @@ bool update_generated_write_fields(TABLE *table)
     Field *vfield;
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-    /* Only update those fields that are marked in the write_set bitmap */
-    if (bitmap_is_set(table->write_set, vfield->field_index))
+
+    /* Only update those fields that are marked in the bitmap */
+    if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
         For a virtual generated column of blob type, we have to keep

@@ -9158,7 +9158,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   for (uint i= 0; i < tab_count; i++)
   {
     table= tbl_set[i];
-    if (table->vfield && update_generated_write_fields(table))
+    // We only need update wanted fields
+    if (table->vfield && update_generated_write_fields(bitmap ? bitmap :
+                                                 table->write_set, table))
       goto err;
   }
   DBUG_RETURN(thd->is_error());
@@ -9348,7 +9350,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     DBUG_ASSERT(table->pos_in_table_list &&
                 !table->pos_in_table_list->is_view());
     if (!rc && table->vfield)
-        rc= update_generated_write_fields(table);
+        rc= update_generated_write_fields(table->write_set, table);
 
     table->triggers->disable_fields_temporary_nullability();
 
@@ -9439,7 +9441,9 @@ fill_record(THD *thd, Field **ptr, List<Item> &values,
   for (uint i= 0; i < tab_count; i++)
   {
     table= tbl_set[i];
-    if (table->vfield && update_generated_write_fields(table))
+    // We only need update wanted fields
+    if (table->vfield && update_generated_write_fields(bitmap ? bitmap :
+                                                 table->write_set, table))
       goto err;
   }
 
@@ -9513,7 +9517,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     {
       TABLE *table= (*ptr)->table;
       if (table->vfield)
-        rc= update_generated_write_fields(table);
+        rc= update_generated_write_fields(table->write_set, table);
     }
     bitmap_free(&insert_into_fields_bitmap);
     table->triggers->disable_fields_temporary_nullability();
