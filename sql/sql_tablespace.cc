@@ -146,11 +146,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   if ((ts_info->ts_cmd_type == CREATE_TABLESPACE ||
        ts_info->ts_cmd_type == ALTER_TABLESPACE) &&
       ha_is_storage_engine_disabled(hton))
-  {
-    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
-              ha_resolve_storage_engine_name(hton));
     DBUG_RETURN(true);
-  }
 
   // If this is a tablespace related command, check the tablespace name
   // and acquire and MDL X lock on it.

@@ -486,7 +486,11 @@ bool ha_is_storage_engine_disabled(handlerton *se_handle)
     se_name.append(",");
     boost::algorithm::to_upper(se_name);
     if(strstr(normalized_se_str.c_str(), se_name.c_str()))
+    {
+      my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+               ha_resolve_storage_engine_name(se_handle));
       return true;
+    }
   }
   return false;
 }

@@ -1225,48 +1225,6 @@ static bool check_not_null(sys_var *self, THD *thd, set_var *var)
 {
   return var->value && var->value->is_null();
 }
-
-
-/**
-  Check storage engine is not empty and log warning.
-
-  Checks if default_storage_engine or default_tmp_storage_engine is set
-  empty and return true. This method also logs warning if the
-  storage engine set is a disabled storage engine specified in
-  disabled_storage_engines.
-
-  @param self    pointer to system variable object.
-  @param thd     Connection handle.
-  @param var     pointer to set variable object.
-
-  @return  true if the set variable is empty.
-           false if the set variable is not empty.
-*/
-static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
-{
-  if (check_not_null(self,thd,var))
-    return true;
-
-  if (!opt_bootstrap && !opt_noacl)
-  {
-    char buff[STRING_BUFFER_USUAL_SIZE];
-    String str(buff,sizeof(buff), system_charset_info), *res;
-    res= var->value->val_str(&str);
-    LEX_STRING se_name= { const_cast<char*>(res->ptr()), res->length() };
-
-    plugin_ref plugin;
-    if ((plugin= ha_resolve_by_name(NULL, &se_name, FALSE)))
-    {
-      handlerton *hton= plugin_data<handlerton*>(plugin);
-      if (ha_is_storage_engine_disabled(hton))
-        sql_print_warning("%s is set to a disabled storage engine %s.",
-                          self->name.str, se_name.str);
-      plugin_unlock(NULL, plugin);
-    }
-  }
-  return false;
-}
-
 static bool check_charset(sys_var *self, THD *thd, set_var *var)
 {
   if (!var->value)
@@ -4396,7 +4354,7 @@ static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
        SESSION_VAR(table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
 const char *internal_tmp_disk_storage_engine_names[] = { "MYISAM", "INNODB", 0};
 static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
@@ -4409,7 +4367,7 @@ static Sys_var_plugin Sys_default_tmp_storage_engine(
        "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
        SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
