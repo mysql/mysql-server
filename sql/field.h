@@ -3971,7 +3971,7 @@ public:
     @param[in,out] buf1 string buffer for converting JSON value to string
     @param[in,out] buf2 unused
   */
-  String *val_str(String *tmp, String *str);
+  String *val_str(String *buf1, String *buf2);
   my_decimal *val_decimal(my_decimal *m);
   bool get_time(MYSQL_TIME *ltime);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);

@@ -1507,6 +1507,7 @@ static bool reserve(String *buffer, size_t needed)
   of it. it wraps double quotes (text quotes) around the string (cptr)
   an also performs escaping according to the following table:
   <pre>
+  @verbatim
   Common name     C-style  Original unescaped     Transformed to
                   escape   UTF-8 bytes            escape sequence
                   notation                        in UTF-8 bytes
@@ -1526,6 +1527,7 @@ static bool reserve(String *buffer, size_t needed)
                           carriage-return,
                           and tab).
   ---------------------------------------------------------------
+  @endverbatim
   </pre>
 
   @param[in] cptr pointer to string data
