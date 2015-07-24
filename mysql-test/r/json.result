@@ -13032,3 +13032,28 @@ j1	jv	j2	JSON_ARRAY(j1, jv, j2)
 1	1	1	[1, 1, 1]
 DROP TABLE t1, t2;
 DROP VIEW v;
+#
+# Bug#21487833: DBUG_ABORT() IN JSON_WRAPPER::MAKE_HASH_KEY
+#               WITH ORDERED JSON
+#
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (a BLOB, b JSON NOT NULL) ENGINE=InnoDB;
+INSERT INTO t VALUES ('', NULL), ('', NULL);
+Warnings:
+Warning	1048	Column 'b' cannot be null
+UPDATE t SET a = 1 ORDER BY b;
+SELECT COUNT(a) FROM t GROUP BY b;
+COUNT(a)
+2
+SELECT DISTINCT B FROM t;
+B
+null
+SELECT b FROM t UNION DISTINCT SELECT b FROM t;
+b
+null
+SELECT * FROM t ORDER BY b;
+a	b
+1	null
+1	null
+DROP TABLE t;
