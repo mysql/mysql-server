@@ -31,6 +31,7 @@ Created Mar 16, 2015 Vasil Dimov
 #include "univ.i"
 
 #include <boost/atomic.hpp>
+#include <boost/lockfree/queue.hpp>
 
 /* http://www.boost.org/doc/libs/1_58_0/doc/html/atomic/interface.html#atomic.interface.feature_macros */
 #if BOOST_ATOMIC_INT64_LOCK_FREE != 2
@@ -255,6 +256,7 @@ public:
 		size_t		n_elements)
 		:
 		m_n_base_elements(n_elements),
+		m_garbaged(false),
 		M_NEXT_RETRY_FROM_START(reinterpret_cast<next_t>(0x1)),
 		m_next(NULL)
 	{
@@ -282,6 +284,8 @@ public:
 	grow(
 		bool*	grown_by_this_thread)
 	{
+		/* XXX do not *2 if the current array has too many deleted
+		entries */
 		next_t	new_arr = UT_NEW(
 			ut_lock_free_list_node_t<T>(m_n_base_elements * 2),
 			mem_key_ut_lock_free_hash_t);
@@ -346,17 +350,36 @@ public:
 
 	/** Mark the beginning of an access to this object. Used to prevent a
 	destruction of this object while some threads may be accessing it. */
-	void
+	bool
 	begin_access()
 	{
 		m_n_ref.inc();
+
+		boost::atomic_thread_fence(boost::memory_order_acq_rel);
+
+		if (m_garbaged.load(boost::memory_order_relaxed)) {
+			m_n_ref.dec();
+			return(false);
+		}
+
+		return(true);
 	}
 
 	/** Mark the ending of an access to this object. */
 	void
 	end_access()
 	{
+		boost::atomic_thread_fence(boost::memory_order_release);
+
 		m_n_ref.dec();
+	}
+
+	/** Get the number of threads that are accessing this object now.
+	@return number of users (threads) of this object */
+	int64_t
+	n_ref()
+	{
+		return(m_n_ref.get());
 	}
 
 	/** Base array. */
@@ -364,6 +387,9 @@ public:
 
 	/** Number of elements in 'm_base'. */
 	size_t			m_n_base_elements;
+
+	/** Designate whether the current object is in the garbage bin. */
+	boost::atomic_bool	m_garbaged;
 
 private:
 	/** A constant that is set in the m_next member and designates that
@@ -443,15 +469,11 @@ public:
 
 		m_sentinel.store(M_SENTINEL_UNLOCKED,
 				 boost::memory_order_relaxed);
-
-		m_garbage.store(NULL, boost::memory_order_relaxed);
 	}
 
 	/** Destructor. Not thread safe. */
 	~ut_lock_free_hash_t()
 	{
-		garbage_collect();
-
 		arr_node_t*	d = m_data.load(boost::memory_order_relaxed);
 		arr_node_t*	cur = d;
 
@@ -815,7 +837,11 @@ private:
 		arr_node_t**	arr) const
 	{
 		for (;;) {
-			(*arr)->begin_access();
+			while (!(*arr)->begin_access()) {
+				/* The array has been garbaged, restart
+				the search from the beginning. */
+				*arr = m_data.load(boost::memory_order_relaxed);
+			}
 
 			key_val_t*	t = get_tuple_from_array(
 				(*arr)->m_base,
@@ -945,7 +971,9 @@ private:
 			  pick the entry in src_arr. */
 
 			for (;;) {
-				insert_or_update(k, v, false, dst_arr);
+				if (v != DELETED) {
+					insert_or_update(k, v, false, dst_arr);
+				}
 
 				/* Prevent any preceding memory operations (the
 				stores from insert_or_update() in particular)
@@ -1061,96 +1089,6 @@ private:
 		}
 	}
 
-	/** Add a given array for garbage collection.
-	@param[in]	arr	array to garbage collect */
-	void
-	add_array_for_garbage_collection(
-		arr_node_t*	arr)
-	{
-		garbage_t*	new_entry = UT_NEW(
-			garbage_t(), mem_key_ut_lock_free_hash_t);
-
-		new_entry->m_arr = arr;
-		new_entry->m_next.store(NULL, boost::memory_order_relaxed);
-
-		/* Prevent any preceding memory operations (the construction of
-		new_entry in particular) to be reordered past any subsequent
-		stores (the publishing of new_entry via the CAS instructions
-		below). */
-		boost::atomic_thread_fence(boost::memory_order_release);
-
-		garbage_t*	expected = NULL;
-
-		if (m_garbage.compare_exchange_strong(
-				expected,
-				new_entry,
-				boost::memory_order_relaxed)) {
-			return;
-		}
-
-		/* m_garbage (the head of the list) is not NULL and its value
-		is now in 'expected'. */
-
-		garbage_t*	a = expected;
-
-		for (;;) {
-			expected = NULL;
-			if (a->m_next.compare_exchange_strong(
-				expected,
-				new_entry,
-				boost::memory_order_relaxed)) {
-
-				return;
-			}
-
-			a = expected;
-		}
-	}
-
-	/** Free the memory occupied by arrays stored in the garbage bin.
-	This is not thread safe because other threads could still be using
-	some of the arrays to be freed, thus this is only called from
-	the destructor of the lock free hash where it is guaranteed to be
-	called only once, by a single thread and without any other threads
-	accessing the hash table. */
-	void
-	garbage_collect()
-	{
-		garbage_t*	g = m_garbage.load(
-			boost::memory_order_relaxed);
-
-		if (g == NULL) {
-			return;
-		}
-
-		m_garbage.store(NULL, boost::memory_order_relaxed);
-
-		for (;;) {
-			garbage_t*	next = g->m_next.load(
-				boost::memory_order_relaxed);
-
-			UT_DELETE(g->m_arr);
-			UT_DELETE(g);
-
-			if (next == NULL) {
-				break;
-			}
-
-			g = next;
-
-			/* 'next' is loaded above and in the subsequent
-			iteration it is de-referenced via g (the UT_DELETE()
-			calls). Prevent a reorder between this load
-			(read-acquire) and the subsequent operations on g.
-			Like this:
-			next = load()
-			g = next
-			acquire fence
-			dereference g and rely that it is a complete object. */
-			boost::atomic_thread_fence(boost::memory_order_acquire);
-		}
-	}
-
 	/** Insert a new tuple or update an existent one. If a tuple with this
 	key does not exist then a new one is inserted (key, val) and is_delta
 	is ignored. If a tuple with this key exists and is_delta is true, then
@@ -1174,7 +1112,11 @@ private:
 		or until we find a tuple with the specified key and manage to
 		update it. */
 		for (;;) {
-			arr->begin_access();
+			while (!arr->begin_access()) {
+				/* The array has been garbaged, restart
+				the search from the beginning. */
+				arr = m_data.load(boost::memory_order_relaxed);
+			}
 
 			key_val_t*	t = insert_or_get_position_in_array(
 				arr->m_base,
@@ -1232,7 +1174,16 @@ private:
 
 			arr->end_access();
 
-			next_arr->begin_access();
+			while (!next_arr->begin_access()) {
+				next_arr = arr->get_next(arr /* pass dummy */);
+
+				/* Make sure the dummy is not returned. If the
+				argument to get_next() is returned, this means
+				that its m_next pointer is invalidated, but
+				this cannot happen because the only place where
+				this is done for a given array is below. */
+				ut_a(next_arr != arr);
+			}
 
 			copy_to_another_array(arr, next_arr);
 
@@ -1269,10 +1220,11 @@ private:
 
 			next_arr = arr->get_next(d);
 
-			/* arr->m_next cannot point to m_data here because
-			the only code that sets it to M_NEXT_RETRY_FROM_START
-			is below and we are guaranteed to be the only thread
-			that ever executes it for arr. */
+			/* arr->m_next cannot be disabled here (get_next()
+			returns 'd') here because the only code that sets it
+			to M_NEXT_RETRY_FROM_START is below and we are
+			guaranteed to be the only thread that ever executes
+			it for arr. */
 			ut_a(next_arr != d);
 
 			if (arr == m_data.load(boost::memory_order_relaxed)) {
@@ -1284,11 +1236,7 @@ private:
 
 				ut_a(prev_arr != NULL);
 
-				prev_arr->begin_access();
-
 				prev_arr->change_next(next_arr);
-
-				prev_arr->end_access();
 			}
 
 			arr->disable_next();
@@ -1296,7 +1244,12 @@ private:
 			m_sentinel.store(M_SENTINEL_UNLOCKED,
 					 boost::memory_order_release);
 
-			add_array_for_garbage_collection(arr);
+			arr->m_garbaged.store(
+				true, boost::memory_order_relaxed);
+
+			m_garbage_bin.add(arr);
+
+			m_garbage_bin.collect_some();
 
 			arr = next_arr;
 		}
@@ -1334,25 +1287,108 @@ private:
 	fiddling with m_next pointers now. */
 	static const bool		M_SENTINEL_LOCKED = true;
 
-	/** A linked list of arr_node_t* elements that are not used anymore
-	and are to be garbage collected. */
-	struct garbage_t {
-		garbage_t()
-		:
-		m_arr(NULL),
-		m_next(NULL)
+	/** A place where entries in the list are put awaiting readers to
+	go away, so that their m_data can be freed. */
+	class garbage_bin_t {
+	public:
+		/** Constructor. */
+		garbage_bin_t()
 		{
+			m_bin = UT_NEW(
+				queue_t(32),
+				mem_key_ut_lock_free_hash_t);
+
+			m_bin_hollow = UT_NEW(
+				queue_t(32),
+				mem_key_ut_lock_free_hash_t);
 		}
 
-		/** An old array, to be freed. */
-		arr_node_t*			m_arr;
+		/** Destructor. */
+		~garbage_bin_t()
+		{
+			collect_some();
 
-		/** Pointer to the next entry. */
-		boost::atomic<garbage_t*>	m_next;
+			arr_node_t*	arr;
+
+			while (m_bin_hollow->pop(arr)) {
+
+				ut_a(arr->n_ref() == 0);
+
+				ut_a(arr->m_base == NULL);
+
+				UT_DELETE(arr);
+			}
+
+			UT_DELETE(m_bin_hollow);
+
+			UT_DELETE(m_bin);
+		}
+
+		/** Add a given array for garbage collection.
+		@param[in]	arr	array to garbage collect */
+		void
+		add(
+			arr_node_t*	arr)
+		{
+			ut_a(m_bin->push(arr));
+		}
+
+		/** Free the memory occupied by (some) arrays stored in the
+		garbage bin. */
+		void
+		collect_some()
+		{
+			arr_node_t*	arr;
+			arr_node_t*	first = NULL;
+
+			while (m_bin->pop(arr)) {
+				if (arr == first) {
+					break;
+				}
+
+				if (arr->n_ref() == 0) {
+					memset(arr->m_base, 0xAF,
+					       sizeof(arr->m_base[0]) * arr->m_n_base_elements);
+					UT_DELETE_ARRAY(arr->m_base);
+					arr->m_base = NULL;
+
+					/* Add to the bin of hollow objects
+					because 'arr' itself needs to be
+					deleted too, done in the destructor
+					~garbage_bin_t(). */
+					ut_a(m_bin_hollow->push(arr));
+				} else {
+					/* It is being used, return it back to
+					the queue for deletion later. */
+					add(arr);
+
+					/* Remember the first element from the
+					queue which we push back and terminate
+					the loop when we encounter it again.
+					This is to prevent an infinite loop
+					endlessly pop()ing and push()ing
+					elements. */
+					if (first == NULL) {
+						first = arr;
+					}
+				}
+			}
+		}
+
+	private:
+		typedef boost::lockfree::queue<arr_node_t*>	queue_t;
+
+		/** Arrays that are not used anymore. Their m_data members are
+		to be freed when the number of their readers and writes drop
+		down to zero. */
+		queue_t*					m_bin;
+
+		/** Arrays whose m_data members have been deleted. These hollow
+		objects will be freed themselves in the destructor. */
+		queue_t*					m_bin_hollow;
 	};
 
-	/** Arrays that are not used anymore, to be garbage collected. */
-	boost::atomic<garbage_t*>	m_garbage;
+	garbage_bin_t			m_garbage_bin;
 
 	/** True if a tuple should be automatically deleted from the hash
 	if its value becomes 0 after an increment or decrement. */
