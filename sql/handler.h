@@ -3422,6 +3422,7 @@ private:
     in MyISAM, which would call @c fcntl to set/clear an advisory
     lock on the data file in this method.
 
+    @param   thd          the current thread
     @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
 
     @return  non-0 in case of failure, 0 in case of success.
