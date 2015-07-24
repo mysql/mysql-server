@@ -404,17 +404,40 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
       !(result= create_by_typeid(buffer, (int) geom_type)))
     return NULL;
 
-  uint32 srid= uint4korr(data);
-  result->set_srid(srid);
-  result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE,
-                       data_len - srid_sz - WKB_HEADER_SIZE);
+  uint32 srid= 0;
+  if (has_srid)
+  {
+    srid= uint4korr(data);
+    result->set_srid(srid);
+  }
+
+  if (geom_type == wkb_point)
+  {
+    DBUG_ASSERT(data_len - srid_sz - WKB_HEADER_SIZE >= POINT_DATA_SIZE);
+    result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE, POINT_DATA_SIZE);
+  }
+  else
+    result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE,
+                         data_len - srid_sz - WKB_HEADER_SIZE);
   result->has_geom_header_space(has_srid);
   if (result->get_geotype() == wkb_polygon)
     result->polygon_is_wkb_form(true);
 
-  // Check whether the GEOMETRY byte string is a valid and complete one.
-  if (result->get_data_size() == GET_SIZE_ERROR)
+  /*
+    Check whether the GEOMETRY byte string is a valid and complete one.
+    Do not allow extra trailing bytes if this is a GEOMETRY byte string,
+    otherwise we are creating a geometry object using part of the byte string
+    which is longer than we need here but are not trash bytes.
+  */
+  const uint32 result_len= result->get_data_size();
+  const uint32 header_size= (has_srid ? GEOM_HEADER_SIZE : WKB_HEADER_SIZE);
+  if (result_len == GET_SIZE_ERROR ||
+      (has_srid && (result_len + header_size) != data_len))
+  {
+    DBUG_ASSERT(result_len == GET_SIZE_ERROR ||
+                (result_len + header_size) < data_len);
     return NULL;
+  }
 
   return result;
 }
@@ -1481,7 +1504,7 @@ void Gis_point::set_ptr(void *ptr, size_t len)
 
 uint32 Gis_point::get_data_size() const
 {
-  if (get_nbytes() < POINT_DATA_SIZE)
+  if (get_nbytes() != POINT_DATA_SIZE)
     return GET_SIZE_ERROR;
 
   return POINT_DATA_SIZE;
@@ -3135,6 +3158,45 @@ const Geometry::Class_info *Gis_multi_polygon::get_class_info() const
 
 /************************* GeometryCollection ****************************/
 
+/**
+  Create a Geometry object from WKB.
+
+  This function creates an intermediate geometry object which may have wrong
+  length property (longer than what's needed by the geometry), use it only
+  within this class. Do not check for exact length here, caller will do
+  that if necessary.
+
+  @param wkb The input WKB.
+  @param buffer A buffer for the output geometry.
+  @return NULL if the input WKB was found invalid. Otherwise, the constructed
+          geometry.
+*/
+Geometry *
+Gis_geometry_collection::scan_header_and_create(wkb_parser *wkb,
+                                                Geometry_buffer *buffer)
+{
+  Geometry *geom;
+  wkb_header header;
+
+  if (wkb->scan_wkb_header(&header) ||
+      !(geom= create_by_typeid(buffer, header.wkb_type)))
+    return NULL;
+  geom->set_data_ptr(wkb->data(), wkb->length());
+
+  /*
+    The length in geom might be wrong, since it's set to the total length of
+    the geometry collection's WKB. Such error is only allowed for temporary
+    geometry objects created here.
+
+    Correct the length only for points because other types has known structure
+    and can deduce the valid length. But for point we have to always require
+    the exact length.
+  */
+  if (geom->get_type() == wkb_point)
+    geom->set_nbytes(POINT_DATA_SIZE);
+  return geom;
+}
+
 
 /**
   Append geometry into geometry collection which can be empty.
@@ -3344,6 +3406,11 @@ uint32 Gis_geometry_collection::get_data_size() const
       return GET_SIZE_ERROR;
 
     uint32 object_size;
+    /*
+      'geom' is a temporary object whose length may be wrongly specified by
+      scan_header_and_create() function, so here we don't require
+      object_size + GEOM_HEADER_SIZE == wkb->length()
+    */
     if ((object_size= geom->get_data_size()) == GET_SIZE_ERROR)
       return GET_SIZE_ERROR;
     wkb.skip_unsafe(object_size);
@@ -3531,7 +3598,13 @@ int Gis_geometry_collection::geometry_n(uint32 num, String *result) const
     if (wkb.scan_wkb_header(&header) ||
         !(geom= create_by_typeid(&buffer, header.wkb_type)))
       return 1;
-    geom->set_data_ptr(&wkb);
+
+    // Must set precise length for points even for a temporary/intermediate one.
+    if (geom->get_type() == wkb_point)
+      geom->set_data_ptr(wkb.data(), POINT_DATA_SIZE);
+    else
+      geom->set_data_ptr(&wkb);
+
     if ((length= geom->get_data_size()) == GET_SIZE_ERROR)
       return 1;
     wkb.skip_unsafe(length);

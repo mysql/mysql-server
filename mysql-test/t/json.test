@@ -2444,7 +2444,7 @@ drop table t21304639;
 # NULLs
 select json_replace(NULL, '$.b', cast(1 as json));
 select json_replace('[1,2,3]', NULL, cast(1 as json));
-select json_replace('[1,2,3]', '$[3]', NULL);
+select json_replace('[1,2,3]', '$[2]', NULL);
 
 # wrong # args
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
