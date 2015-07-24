@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libmysqld/include
                     ${CMAKE_SOURCE_DIR}/regex 
-                    ${CMAKE_SOURCE_DIR}/tests
+                    ${CMAKE_SOURCE_DIR}/testclients
                     ${EDITLINE_INCLUDE_DIR}                 
                     )
 
@@ -58,14 +58,14 @@ IF(CMAKE_GENERATOR MATCHES "Xcode")
   )
   MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
-    ../../tests/mysql_client_test.c)
+    ../../testclients/mysql_client_test.c)
 ELSE()
 #
 # SVR4 packaging has a hard limit of 2Gb at least on Solaris 10, so
 # remove the big mysql_client_test_embedded which is of little use
 #
   IF(NOT INSTALL_LAYOUT MATCHES "SVR4")
-    MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+    MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../testclients/mysql_client_test.c)
     SET_TARGET_PROPERTIES(mysql_client_test_embedded  PROPERTIES HAS_CXX TRUE)
   ENDIF()
 ENDIF()

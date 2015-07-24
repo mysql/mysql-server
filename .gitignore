@@ -2918,6 +2918,10 @@ test/tools/restart
 test/tools/verify_index
 test1/*
 test_xml
+testclients/.libs/lt-mysql_client_test
+testclients/.libs/mysql_client_test
+testclients/bug25714
+testclients/mysql_client_test
 tests/*.ds?
 tests/*.vcproj
 tests/.deps/dummy.Po
@@ -2926,12 +2930,8 @@ tests/.deps/mysql_client_test.Po
 tests/.deps/select_test.Po
 tests/.deps/thread_test.Po
 tests/.libs -prune
-tests/.libs/lt-mysql_client_test
-tests/.libs/mysql_client_test
-tests/bug25714
 tests/client_test
 tests/connect_test
-tests/mysql_client_test
 thr_insert_test/*
 thr_test/*
 thread_test
