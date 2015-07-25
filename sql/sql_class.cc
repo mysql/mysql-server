@@ -877,6 +877,7 @@ THD::THD()
   file_id = 0;
   query_id= 0;
   query_name_consts= 0;
+  semisync_info= 0;
   db_charset= global_system_variables.collation_database;
   bzero(ha_data, sizeof(ha_data));
   mysys_var=0;
@@ -1493,6 +1494,7 @@ THD::~THD()
   mysql_audit_free_thd(this);
   if (rli_slave)
     rli_slave->cleanup_after_session();
+  my_free(semisync_info);
 #endif
 
   free_root(&main_mem_root, MYF(0));

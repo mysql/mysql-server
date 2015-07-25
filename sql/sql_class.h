@@ -47,7 +47,6 @@
 
 class Reprepare_observer;
 class Relay_log_info;
-
 class Query_log_event;
 class Load_log_event;
 class Slave_log_event;
@@ -59,6 +58,7 @@ class Rows_log_event;
 class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
+class Trans_binlog_info;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -1669,6 +1669,9 @@ public:
     will know that the error was in having clause.
   */
   const char *where;
+
+  /* Needed by MariaDB semi sync replication */
+  Trans_binlog_info *semisync_info;
 
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
