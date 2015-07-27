@@ -2412,7 +2412,8 @@ Json_path Json_dom::get_location()
 }
 
 
-bool Json_dom::seek(const Json_path &path, Json_dom_vector *hits,
+bool Json_dom::seek(const Json_seekable_path &path,
+                    Json_dom_vector *hits,
                     bool auto_wrap, bool only_need_one)
 {
   Json_dom_vector candidates(key_memory_JSON);
@@ -2445,7 +2446,7 @@ bool Json_dom::seek(const Json_path &path, Json_dom_vector *hits,
 }
 
 
-bool Json_wrapper::seek_no_ellipsis(const Json_path &path,
+bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
                                     Json_wrapper_vector *hits,
                                     const size_t leg_number,
                                     bool auto_wrap,
@@ -2594,7 +2595,8 @@ bool Json_wrapper::seek_no_ellipsis(const Json_path &path,
 }
 
 
-bool Json_wrapper::seek(const Json_path &path, Json_wrapper_vector *hits,
+bool Json_wrapper::seek(const Json_seekable_path &path,
+                        Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
 {
   if (empty())

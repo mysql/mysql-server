@@ -2042,7 +2042,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
   - an array cell at index 0 that any non-array element at the top level could
     have been autowrapped to (since we got a hit), i.e. '$[0]' or
     $[0][0]...[0]'.
- 
+
   @param[in] path the specified path which gave a match
   @param[in] v    the JSON item matched
   @return true if v is a top level item
@@ -2059,7 +2059,7 @@ static inline bool wrapped_top_level_item(Json_path *path, Json_dom *v)
     DBUG_ASSERT(path->get_leg_at(i)->get_array_cell_index() == 0);
   }
 #endif
-  
+
   return true;
 }
 
@@ -2199,15 +2199,21 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
+      Json_path *current_path= m_path_cache.get_path(i);
+
+      /**
+        Clone the path so that we won't mess up the cached version
+        when we pop the trailing leg below.
+      */
+      m_path.set(current_path);
 
       {
         Json_dom_vector hits(key_memory_JSON);
-        if (doc->seek(*path, &hits, false, true))
+        if (doc->seek(m_path, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.size() != 0 || // already exists
-            path->leg_count() == 0) // is root
+            m_path.leg_count() == 0) // is root
         {
           continue;
         }
@@ -2221,8 +2227,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         Remove the first path leg and search again.
       */
       Json_dom_vector hits(key_memory_JSON);
-      Json_path_leg l= path->pop();
-      if (doc->seek(*path, &hits, false, true))
+      Json_path_leg *leg= m_path.pop();
+      if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.size() < 1)
@@ -2253,17 +2259,17 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         // We found *something* at that parent path
 
         // What did we specify in the path, object or array?
-        if (l.get_type() == jpl_array_cell)
+        if (leg->get_type() == jpl_array_cell)
         {
           // We specified an array, what did we find at that position?
           if ((*it)->json_type() == Json_dom::J_ARRAY)
           {
             Json_array *arr= down_cast<Json_array *>(*it);
-            DBUG_ASSERT(l.get_type() == jpl_array_cell);
-            if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+            DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+            if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
               return error_json();        /* purecov: inspected */
           }
-          else if (l.get_array_cell_index() > 0)
+          else if (leg->get_array_cell_index() > 0)
           {
             /*
               Found a scalar or object and we didn't specify position 0:
@@ -2273,7 +2279,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             Json_array *newarr= new (std::nothrow) Json_array();
             if (!newarr ||
                 newarr->append_clone(a) /* auto-wrap this */ ||
-                newarr->insert_clone(l.get_array_cell_index(),
+                newarr->insert_clone(leg->get_array_cell_index(),
                                      valuew.to_dom()))
             {
               delete newarr;                    /* purecov: inspected */
@@ -2286,7 +2292,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
               array or object, we need to find the parent DOM to be able to
               replace it in situ.
             */
-            if (path->leg_count() == 0) // root
+            if (m_path.leg_count() == 0) // root
             {
               Json_wrapper newroot(newarr);
               docw.steal(&newroot);
@@ -2299,20 +2305,17 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             }
           }
         }
-        else if (l.get_type() == jpl_member &&
+        else if (leg->get_type() == jpl_member &&
                  (*it)->json_type() == Json_dom::J_OBJECT)
         {
           Json_object *o= down_cast<Json_object *>(*it);
-          const char *ename= l.get_member_name();
-          size_t enames= l.get_member_name_length();
+          const char *ename= leg->get_member_name();
+          size_t enames= leg->get_member_name_length();
           if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
             return error_json();          /* purecov: inspected */
         }
       }
 
-      // now restore the leg we removed in case we are caching paths
-      if (path->append(l))
-        return error_json();              /* purecov: inspected */
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
@@ -2353,12 +2356,18 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
+      Json_path *current_path= m_path_cache.get_path(i);
+
+      /**
+        Clone the path so that we won't mess up the cached version
+        when we pop the trailing leg below.
+      */
+      m_path.set(current_path);
 
       // the path must end in a cell identifier
-      size_t leg_count= path->leg_count();
+      size_t leg_count= m_path.leg_count();
       if ((leg_count == 0) ||
-          (path->get_leg_at(leg_count - 1)->get_type() != jpl_array_cell))
+          (m_path.get_leg_at(leg_count - 1)->get_type() != jpl_array_cell))
       {
         my_error(ER_INVALID_JSON_PATH_ARRAY_CELL, MYF(0));
         return error_json();
@@ -2370,16 +2379,12 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         Remove the last path leg and search again.
       */
       Json_dom_vector hits(key_memory_JSON);
-      Json_path_leg l= path->pop();
-      if (doc->seek(*path, &hits, false, true))
+      Json_path_leg *leg= m_path.pop();
+      if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       if (hits.empty())
       {
-        // now restore the leg we removed in case we are caching paths
-        if (path->append(l))
-          return error_json();              /* purecov: inspected */
-
         // no unique object found at parent position, so bail out
         continue;
       }
@@ -2412,15 +2417,12 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         {
           // Excellent. Insert the value at that location.
           Json_array *arr= down_cast<Json_array *>(*it);
-          DBUG_ASSERT(l.get_type() == jpl_array_cell);
-          if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+          DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+          if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
             return error_json();        /* purecov: inspected */
         }
       }
 
-      // now restore the leg we removed in case we are caching paths
-      if (path->append(l))
-        return error_json();              /* purecov: inspected */
     } // end of loop through paths
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
@@ -2462,10 +2464,16 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
+      Json_path *current_path= m_path_cache.get_path(i);
+
+      /**
+        Clone the path so that we won't mess up the cached version
+        when we pop the trailing leg below.
+      */
+      m_path.set(current_path);
 
       Json_dom_vector hits(key_memory_JSON);
-      if (doc->seek(*path, &hits, false, true))
+      if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       Json_wrapper valuew;
@@ -2482,16 +2490,13 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
           Remove the first path leg and search again.
         */
-        Json_path_leg l= path->pop();
-        if (doc->seek(*path, &hits, false, true))
+        Json_path_leg *leg= m_path.pop();
+        if (doc->seek(m_path, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
         if (hits.size() < 1)
         {
-          // no unique object found at parent position, so bail out,
-          // just restore path first
-          if (path->append(l))
-            return error_json();                  /* purecov: inspected */
+          // no unique object found at parent position, so bail out
           continue;
         }
 
@@ -2505,7 +2510,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         {
           --it;
           // We now have either an array or an object in the parent's path
-          if (l.get_type() == jpl_array_cell)
+          if (leg->get_type() == jpl_array_cell)
           {
             if ((*it)->json_type() == Json_dom::J_ARRAY)
             {
@@ -2513,8 +2518,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 continue;
 
               Json_array *arr= down_cast<Json_array *>(*it);
-              DBUG_ASSERT(l.get_type() == jpl_array_cell);
-              if (arr->insert_clone(l.get_array_cell_index(), valuew.to_dom()))
+              DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+              if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
                 return error_json();            /* purecov: inspected */
             }
             else
@@ -2527,7 +2532,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               Json_dom *a= *it;
               Json_dom *res;
 
-              if (l.get_array_cell_index() == 0)
+              if (leg->get_array_cell_index() == 0)
               {
                 res= valuew.clone_dom();
                 if (!res)
@@ -2542,7 +2547,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 Json_array *newarr= new (std::nothrow) Json_array();
                 if (!newarr ||
                     newarr->append_clone(a) ||
-                    newarr->insert_clone(l.get_array_cell_index(),
+                    newarr->insert_clone(leg->get_array_cell_index(),
                                          valuew.to_dom()))
                 {
                   delete newarr;                /* purecov: inspected */
@@ -2557,7 +2562,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 inside an array or object, we need to find the parent DOM to be
                 able to replace it in situ.
               */
-              if (path->leg_count() == 0) // root
+              if (m_path.leg_count() == 0) // root
               {
                 Json_wrapper newroot(res);
                 docw.steal(&newroot);
@@ -2570,23 +2575,20 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               }
             }
           }
-          else if (l.get_type() == jpl_member &&
+          else if (leg->get_type() == jpl_member &&
                    (*it)->json_type() == Json_dom::J_OBJECT)
           {
             if (!m_json_set) // replace semantics, so skip if path not present
               continue;
 
             Json_object *o= down_cast<Json_object *>(*it);
-            const char *ename= l.get_member_name();
-            size_t enames= l.get_member_name_length();
+            const char *ename= leg->get_member_name();
+            size_t enames= leg->get_member_name_length();
             if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
               return error_json();              /* purecov: inspected */
           }
         } // end of loop through hits
 
-        // now restore the leg we removed in case we are caching paths
-        if (path->append(l))
-          return error_json();                  /* purecov: inspected */
       }
       else
       {
