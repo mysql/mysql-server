@@ -95,6 +95,7 @@ void my_init_signals();
 bool gtid_server_init();
 void gtid_server_cleanup();
 const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
+int is_filesystem_read_only(char const* path);
 
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
