@@ -553,6 +553,8 @@ struct dfield_t{
 				created.
 	@return	the cloned object. */
 	dfield_t* clone(mem_heap_t* heap);
+
+	byte*	blobref() const;
 };
 
 /** Structure for an SQL data tuple of fields (logical record) */
@@ -638,6 +640,7 @@ struct big_rec_t {
 		mem_heap_t*	heap,
 		ulint		n_fld);
 };
+
 
 #ifndef UNIV_NONINL
 #include "data0data.ic"

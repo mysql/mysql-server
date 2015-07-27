@@ -1038,6 +1038,169 @@ earlier version of the row.  In rollback we are not allowed to free an
 inherited external field. */
 #define BTR_EXTERN_INHERITED_FLAG	64
 
+/** The struct 'blobref_t' represents an external field reference. The
+reference in a field for which data is stored on a different page.  The
+reference is at the end of the 'locally' stored part of the field.  'Locally'
+means storage in the index record. We store locally a long enough prefix of
+each column so that we can determine the ordering parts of each index record
+without looking into the externally stored part. */
+struct blobref_t {
+
+	/** Constructor.
+	@param[in]	ptr	Pointer to the external field reference. */
+	blobref_t(byte*	ptr): m_ref(ptr) {
+	}
+
+	/** The maximum size possible for an externally stored field data */
+	static const ulint MAX_BLOB_SIZE = UINT32_MAX;
+
+	/** Initialize the external field reference to zeroes. */
+	void zero() {
+		memset(m_ref, 0x00, BTR_EXTERN_FIELD_REF_SIZE);
+	}
+
+	/** Check if the field reference is make of zeroes.
+	@return true if field reference is made of zeroes, false otherwise. */
+	bool is_zero() const {
+		return(memcmp(field_ref_zero, m_ref, BTR_EXTERN_FIELD_REF_SIZE) == 0);
+	}
+
+	/** Set the ownership flag in the blob reference.
+	@param[in]	owner	whether to own or disown.  if owner, unset
+				the owner flag.
+	@param[in]	mtr	the mini-transaction or NULL.
+	*/
+	void set_owner(bool owner, mtr_t* mtr = NULL)
+	{
+		ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
+
+		if (owner) {
+			// owns the blob
+			byte_val &= ~BTR_EXTERN_OWNER_FLAG;
+		} else {
+			byte_val |= BTR_EXTERN_OWNER_FLAG;
+		}
+
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN,
+				 byte_val, MLOG_1BYTE, mtr);
+	}
+
+	/** Set the inherited flag in the field reference. */
+	void set_inherited(bool inherited, mtr_t* mtr = NULL)
+	{
+		ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
+
+		if (inherited) {
+			byte_val |= BTR_EXTERN_INHERITED_FLAG;
+		} else {
+			byte_val &= ~BTR_EXTERN_INHERITED_FLAG;
+		}
+
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN,
+				 byte_val, MLOG_1BYTE, mtr);
+	}
+
+	/** Check if the current row is the owner of the blob.
+	@return true if owner, false otherwise. */
+	bool is_owner() const
+	{
+		const ulint byte_val = mach_read_from_1(
+			m_ref + BTR_EXTERN_LEN);
+		return !(byte_val & BTR_EXTERN_OWNER_FLAG);
+	}
+
+	/** Check if the current row inherited the blob from parent row.
+	@return true if inherited, false otherwise. */
+	bool is_inherited() const
+	{
+		const ulint byte_val = mach_read_from_1(
+			m_ref + BTR_EXTERN_LEN);
+		return (byte_val & BTR_EXTERN_INHERITED_FLAG);
+	}
+
+	/** Read the space id from the blob reference.
+	@return the space id */
+	ulint space_id() const
+	{
+		return(mach_read_from_4(m_ref));
+	}
+
+	/** Read the page no from the blob reference.
+	@return the page no */
+	ulint page_no() const
+	{
+		return(mach_read_from_4(m_ref + BTR_EXTERN_PAGE_NO));
+	}
+
+	/** Read the offset of blob header from the blob reference.
+	@return the offset of the blob header */
+	ulint offset() const
+	{
+		return(mach_read_from_4(m_ref + BTR_EXTERN_OFFSET));
+	}
+
+	/** Read the length from the blob reference.
+	@return length of the blob */
+	ulint length() const
+	{
+		return(mach_read_from_4(m_ref + BTR_EXTERN_LEN + 4));
+	}
+
+	/** Update the information stored in the external field reference.
+	@param[in]	space_id	the space identifier.
+	@param[in]	page_no		the page number.
+	@param[in]	offset		the offset within the page_no
+	@param[in]	mtr		the mini trx or NULL. */
+	void update(ulint space_id, ulint page_no, ulint offset,
+		    mtr_t* mtr = NULL)
+	{
+		set_space_id(space_id, mtr);
+		set_page_no(page_no, mtr);
+		set_offset(offset, mtr);
+	}
+
+	/** Set the space_id in the external field reference.
+	@param[in]	space_id	the space identifier.
+	@param[in]	mtr		mini-trx or NULL. */
+	void set_space_id(const ulint space_id, mtr_t* mtr = NULL)
+	{
+		mlog_write_ulint(m_ref + BTR_EXTERN_SPACE_ID,
+				 space_id, MLOG_4BYTES, mtr);
+	}
+
+	/** Set the page number in the external field reference.
+	@param[in]	page_no	the page number .
+	@param[in]	mtr	mini-trx or NULL. */
+	void set_page_no(const ulint page_no, mtr_t* mtr = NULL)
+	{
+		mlog_write_ulint(m_ref + BTR_EXTERN_PAGE_NO,
+				 page_no, MLOG_4BYTES, mtr);
+	}
+
+	/** Set the offset information in the external field reference.
+	@param[in]	offset	the offset.
+	@param[in]	mtr	mini-trx or NULL. */
+	void set_offset(const ulint offset, mtr_t* mtr = NULL)
+	{
+		mlog_write_ulint(m_ref + BTR_EXTERN_OFFSET,
+				 offset, MLOG_4BYTES, mtr);
+	}
+
+	/** Set the length of blob in the external field reference.
+	@param[in]	len	the blob length .
+	@param[in]	mtr	mini-trx or NULL. */
+	void set_length(const ulint len, mtr_t* mtr = NULL)
+	{
+		ut_ad(len <= MAX_BLOB_SIZE);
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN + 4,
+				 len, MLOG_4BYTES, mtr);
+	}
+
+private:
+	/** Pointing to a memory of size BTR_EXTERN_FIELD_REF_SIZE */
+	byte	*m_ref;
+};
+
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint	btr_cur_n_non_sea;
 /** Number of successful adaptive hash index lookups in

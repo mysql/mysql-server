@@ -798,4 +798,13 @@ dfield_t::clone(
 
 	return(obj);
 }
+
+byte*
+dfield_t::blobref() const
+{
+	ut_ad(ext);
+
+	return(static_cast<byte*>(data) + len - BTR_EXTERN_FIELD_REF_SIZE);
+}
+
 #endif /* !UNIV_HOTBACKUP */

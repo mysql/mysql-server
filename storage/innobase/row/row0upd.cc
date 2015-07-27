@@ -459,7 +459,6 @@ row_upd_changes_disowned_external(
 	n_fields = upd_get_n_fields(update);
 
 	for (i = 0; i < n_fields; i++) {
-		const byte*	field_ref;
 
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
@@ -471,10 +470,9 @@ row_upd_changes_disowned_external(
 
 		ut_ad(new_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-		field_ref = static_cast<const byte*>(dfield_get_data(new_val))
-			    + new_len - BTR_EXTERN_FIELD_REF_SIZE;
+		blobref_t ref(new_val->blobref());
 
-		if (field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG) {
+		if (!ref.is_owner()) {
 			return(true);
 		}
 	}
@@ -2288,7 +2286,6 @@ row_upd_clust_rec_by_insert_inherit_func(
 
 	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
 		dfield_t*	dfield	= dtuple_get_nth_field(entry, i);
-		byte*		data;
 		ulint		len;
 
 		ut_ad(!offsets
@@ -2299,6 +2296,8 @@ row_upd_clust_rec_by_insert_inherit_func(
 		    || upd_get_field_by_field_no(update, i, false)) {
 			continue;
 		}
+
+		blobref_t ref(dfield->blobref());
 
 #ifdef UNIV_DEBUG
 		if (UNIV_LIKELY(rec != NULL)) {
@@ -2311,11 +2310,10 @@ row_upd_clust_rec_by_insert_inherit_func(
 			rec_data += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 			/* The pointer must not be zero. */
-			ut_ad(memcmp(rec_data, field_ref_zero,
-				     BTR_EXTERN_FIELD_REF_SIZE));
+			ut_ad(!ref.is_zero());
+
 			/* The BLOB must be owned. */
-			ut_ad(!(rec_data[BTR_EXTERN_LEN]
-				& BTR_EXTERN_OWNER_FLAG));
+			ut_ad(ref.is_owner());
 		}
 #endif /* UNIV_DEBUG */
 
@@ -2323,18 +2321,16 @@ row_upd_clust_rec_by_insert_inherit_func(
 		ut_a(len != UNIV_SQL_NULL);
 		ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-		data = static_cast<byte*>(dfield_get_data(dfield));
-
-		data += len - BTR_EXTERN_FIELD_REF_SIZE;
 		/* The pointer must not be zero. */
-		ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
+		ut_a(!ref.is_zero());
 
 		/* The BLOB must be owned, unless we are resuming from
 		a lock wait and we already had disowned the BLOB. */
-		ut_a(rec == NULL
-		     || !(data[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
-		data[BTR_EXTERN_LEN] &= ~BTR_EXTERN_OWNER_FLAG;
-		data[BTR_EXTERN_LEN] |= BTR_EXTERN_INHERITED_FLAG;
+		ut_a(rec == NULL || ref.is_owner());
+
+		ref.set_owner(true, NULL);
+		ref.set_inherited(true, NULL);
+
 		/* The BTR_EXTERN_INHERITED_FLAG only matters in
 		rollback of a fresh insert (insert_undo log).
 		Purge (operating on update_undo log) will always free
