@@ -959,7 +959,7 @@ Mts_submode_logical_clock::
   DBUG_EXECUTE_IF("wait_for_workers_to_finish_after_wait",
                   {
                     const char act[]= "now WAIT_FOR coordinator_continue";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
                                                        STRING_WITH_LEN(act)));
                   });
 
