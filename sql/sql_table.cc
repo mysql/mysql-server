@@ -884,7 +884,7 @@ static void set_ddl_log_entry_from_global(DDL_LOG_ENTRY *ddl_log_entry,
   Read a specified entry in the ddl log.
 
   @param read_entry               Number of entry to read
-  @param[out] entry_info          Information from entry
+  @param[out] ddl_log_entry       Information from entry
 
   @return Operation status
     @retval TRUE                     Error
@@ -1357,7 +1357,7 @@ static bool execute_ddl_log_entry_no_lock(THD *thd, uint first_entry)
   handle crashes occurring during CREATE and ALTER TABLE processing.
 
   @param ddl_log_entry         Information about log entry
-  @param[out] entry_written    Entry information written into   
+  @param[out] active_entry     Entry information written into   
 
   @return Operation status
     @retval TRUE               Error
@@ -1543,7 +1543,7 @@ static bool sync_ddl_log()
 
 /**
   Release a log memory entry.
-  @param log_memory_entry                Log memory entry to release
+  @param log_entry                Log memory entry to release
 */
 
 void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry)
@@ -5979,7 +5979,7 @@ static KEY* find_key_cs(const char *key_name, KEY *key_start, KEY *key_end)
   possible rename of index). Also changes to the comment field
   of the key is marked with a flag in the ha_alter_info.
 
-  @param[in/out]  ha_alter_info  Structure describing changes to be done
+  @param[in,out]  ha_alter_info  Structure describing changes to be done
                                  by ALTER TABLE and holding data used
                                  during in-place alter.
   @param          table_key      Description of key in old version of table.
@@ -6071,7 +6071,7 @@ static int compare_uint(const uint *s, const uint *t)
    @param          table              The original table.
    @param          varchar            Indicates that new definition has new
                                       VARCHAR column.
-   @param[in/out]  ha_alter_info      Data structure which already contains
+   @param[in,out]  ha_alter_info      Data structure which already contains
                                       basic information about create options,
                                       field and keys for the new version of
                                       table and which should be completed with

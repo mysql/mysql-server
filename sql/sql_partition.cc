@@ -2946,7 +2946,7 @@ static int get_part_id_linear_hash(partition_info *part_info,
   @param file                Handler to storage engine
   @param field_array         Array of fields for PARTTION KEY
   @param num_parts           Number of KEY partitions
-  @param func_value[out]     Returns calculated hash value
+  @param [out] func_value    Returns calculated hash value
 
   @return Calculated partition id
 */

@@ -27,7 +27,7 @@ extern struct st_opt_hint_info opt_hint_info[];
   Returns pointer to Opt_hints_global object,
   create Opt_hints object if not exist.
 
-  @param lex   pointer to Parse_context object
+  @param pc   pointer to Parse_context object
 
   @return  pointer to Opt_hints object,
            NULL if failed to create the object
@@ -82,7 +82,7 @@ static Opt_hints_qb *get_qb_hints(Parse_context *pc)
   if the query block is not found.
 
   @param pc          pointer to Parse_context object
-  @param table_name  query block name
+  @param qb_name     query block name
   @param hint        processed hint
 
   @return  pointer to Opt_hints_table object if found,

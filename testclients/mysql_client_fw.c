@@ -346,9 +346,9 @@ Connect to the server with options given by arguments to this application,
 stored in global variables opt_host, opt_user, opt_password, opt_db, 
 opt_port and opt_unix_socket.
 
-@param flag[in]           client_flag passed on to mysql_real_connect
-@param protocol[in]       MYSQL_PROTOCOL_* to use for this connection
-@param auto_reconnect[in] set to 1 for auto reconnect
+@param flag           client_flag passed on to mysql_real_connect
+@param protocol       MYSQL_PROTOCOL_* to use for this connection
+@param auto_reconnect set to 1 for auto reconnect
    
 @return pointer to initialized and connected MYSQL object
 */

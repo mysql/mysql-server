@@ -245,7 +245,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno);
   Queues a event packet into the current active channel.
 
   @param buf         the event buffer
-  @param event_len  the event buffer length
+  @param len         the event buffer length
 
   @return the operation status
     @retval 0      OK

@@ -1322,10 +1322,10 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
     "a\0" < "a "
 
   @param  cs        Character set pinter.
-  @param  a         First string to compare.
-  @param  a_length  Length of 'a'.
-  @param  b         Second string to compare.
-  @param  b_length  Length of 'b'.
+  @param  s         First string to compare.
+  @param  slen      Length of 's'.
+  @param  t         Second string to compare.
+  @param  tlen      Length of 't'.
 
   IMPLEMENTATION
 
@@ -2138,10 +2138,10 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
     "a\0" < "a "
 
   @param  cs        Character set pinter.
-  @param  a         First string to compare.
-  @param  a_length  Length of 'a'.
-  @param  b         Second string to compare.
-  @param  b_length  Length of 'b'.
+  @param  s         First string to compare.
+  @param  slen      Length of 's'.
+  @param  t         Second string to compare.
+  @param  tlen      Length of 't'.
 
   IMPLEMENTATION
 

@@ -53,7 +53,7 @@ THD *create_thd(bool enable_plugins, bool background_thread);
   Cleanup the THD object, remove it from the global list of THDs
   and delete it.
 
-  @param    THD   pointer to THD object.
+  @param    thd   pointer to THD object.
 */
 void destroy_thd(THD *thd);
 

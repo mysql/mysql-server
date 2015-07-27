@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
 
   SYNOPSIS
   my_aes_needs_iv()
-  @param mode           encryption mode
+  @param opmode           encryption mode
 
   @retval TRUE   IV needed
   @retval FALSE  IV not needed

@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -67300,7 +67300,7 @@ static const uint16 unicode_to_jisx0212_eucjpms[65536]=
 
   @param[out] pwc          Unicode code point
   @param[in]  s            Beginning of the input string
-  @param[in[  e            End of the input string
+  @param[in]  e            End of the input string
 
   @retval   MY_CS_TOOSMALL If the string was too short to scan a character
   @retval   1              If a 1-byte character was scanned

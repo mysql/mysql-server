@@ -126,8 +126,6 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
   - lists of values are collapsed using a shorter notation
   @param digest_storage The digest
   @param [out] digest_text
-  @param digest_text_length Size of @c digest_text.
-  @param [out] truncated true if the text representation was truncated
 */
 void compute_digest_text(const sql_digest_storage *digest_storage,
                          String *digest_text);

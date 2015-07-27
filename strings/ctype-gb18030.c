@@ -21957,10 +21957,10 @@ get_code_and_length(const CHARSET_INFO *cs, const char *s,
   every gb18030 code should compare by its upper-case form
 
   @param[in]     cs       charset
-  @param[in/out] s_res    pointer to the start byte of first gb18030 code
+  @param[in,out] s_res    pointer to the start byte of first gb18030 code
                           string, return the first byte unchecked
   @param[in]     s_length length of the first string
-  @param[in/out] t_res    pointer to the start byte of second gb18030 code
+  @param[in,out] t_res    pointer to the start byte of second gb18030 code
                           string, return the first byte unchecked
   @param[in]     t_length length of the second string
   @retval                 0 if the strings are equal
@@ -22376,8 +22376,8 @@ my_wildcmp_gb18030(const CHARSET_INFO *cs,
   @param[in]     cs   charset
   @param[in]     s    string
   @param[in]     slen the length of string
-  @param[in/out] n1   n1
-  @param[in/out] n2   n2
+  @param[in,out] n1   n1
+  @param[in,out] n2   n2
 */
 static void
 my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s, size_t slen,

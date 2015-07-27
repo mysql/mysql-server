@@ -242,11 +242,12 @@ enum enum_alter_inplace_result {
   this flag must implement start_read_removal() and end_read_removal().
   The handler may return "fake" rows constructed from the key of the row
   asked for. This is used to optimize UPDATE and DELETE by reducing the
-  numer of roundtrips between handler and storage engine.
+  number of round-trips between handler and storage engine.
   
   Example:
-  UPDATE a=1 WHERE pk IN (<keys>)
+  UPDATE a=1 WHERE pk IN (@<keys@>)
 
+  @verbatim
   mysql_update()
   {
     if (<conditions for starting read removal>)
@@ -262,9 +263,10 @@ enum enum_alter_inplace_result {
     end_read_removal()
     -> handler returns the number of rows actually written
   }
+  @endverbatim
 
   @note This optimization in combination with batching may be used to
-        remove even more roundtrips.
+        remove even more round-trips.
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (1LL << 38)
 

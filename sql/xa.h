@@ -620,7 +620,7 @@ void transaction_cache_free();
   THD of the slave applier is dissociated from a transaction object in engine
   that continues to exist there.
 
-  @param  THD current thread
+  @param  thd current thread
   @return the value of is_error()
 */
 

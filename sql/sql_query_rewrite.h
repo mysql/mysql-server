@@ -29,7 +29,7 @@ void invoke_pre_parse_rewrite_plugins(THD *thd);
 /**
   Enables digests in the parser state if any plugin needs it.
 
-  @param param ps This parser state will have digests enabled if any plugin
+  @param ps This parser state will have digests enabled if any plugin
   needs it.
 
   @note For the time being, only post-parse query rewrite plugins are able to

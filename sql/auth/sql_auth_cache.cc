@@ -839,7 +839,6 @@ bool is_acl_user(const char *host, const char *user)
 /**
   Validate if a user can proxy as another user
 
-  @thd                     current thread
   @param user              the logged in user (proxy user)
   @param authenticated_as  the effective user a plugin is trying to 
                            impersonate as (proxied user)
@@ -1017,21 +1016,6 @@ exit:
   DBUG_RETURN(db_access & host_access);
 }
 
-
-/**
-  Check if the user is allowed to change password
-
- @param thd THD
- @param host Hostname for the user
- @param user User name
- @param new_password new password
-
- new_password cannot be NULL
-
- @return Error status
-   @retval 0 OK
-   @retval 1 ERROR; In this case the error is sent to the client.
-*/
 
 /*
   Check if there are any possible matching entries for this host
@@ -2169,7 +2153,7 @@ my_bool grant_init()
 
   Reads the procs_priv table into memory hash.
 
-  @param table A pointer to the procs_priv table structure.
+  @param p_table A pointer to the procs_priv table structure.
 
   @see grant_reload
   @see grant_reload_procs_priv

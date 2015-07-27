@@ -367,11 +367,11 @@ inline bool time_cross_check(enum_field_types type1,
       than the target type and that conversion is potentially lossy.
 
    @param[in] field    Target field
-   @param[in] type     Source field type
+   @param[in] source_type Source field type
    @param[in] metadata Source field metadata
    @param[in] rli      Relay log info (for error reporting)
    @param[in] mflags   Flags from the table map event
-   @param[out] order   Order between source field and target field
+   @param[out] order_var Order between source field and target field
 
    @return @c true if conversion is possible according to the current
    settings, @c false if conversion is not possible according to the

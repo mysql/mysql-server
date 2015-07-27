@@ -1093,7 +1093,7 @@ bool get_json_wrapper(Item **args,
    Compute an index into json_type_string_map
    to be applied to certain sub-types of J_OPAQUE.
 
-   @param field_type[in] The refined field type of the opaque value.
+   @param field_type The refined field type of the opaque value.
 
    @return an index into json_type_string_map
 */
@@ -1596,7 +1596,7 @@ bool val_json_func_field_subselect(Item* arg,
   to an int) type, and if so, return its boolean value.
 
   @param[in] arg The argument to inspect.
-  @param[in/out] result Fill in the result if this is a boolean arg.
+  @param[in,out] result Fill in the result if this is a boolean arg.
 
   @return True if the arg can be determined to have a boolean type.
 */
@@ -2804,7 +2804,7 @@ typedef Prealloced_array<std::string, 16, false> String_set;
    are found, their path locations are added to an evolving
    vector of matches.
 
-   @param[in] subdoc A subdocument of the original document.
+   @param[in] wrapper A subdocument of the original document.
    @param[in] path The path location of the subdocument
    @param[in,out] matches The evolving vector of matches.
    @param[in,out] duplicates Set of paths found already.

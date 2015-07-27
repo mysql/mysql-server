@@ -559,11 +559,7 @@ void mysql_audit_init_thd(THD *thd)
 /**
   Free thd variables used by Audit
   
-  @param[in] thd
-  @param[in] plugin
-  @param[in] arg
-
-  @retval FALSE Always  
+  @param thd Current thread
 */
 
 void mysql_audit_free_thd(THD *thd)

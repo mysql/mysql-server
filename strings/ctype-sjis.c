@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33959,7 +33959,7 @@ static const uint16 unicode_to_sjis[65536]=
 
   @param[out] pwc          Unicode code point
   @param[in]  s            Beginning of the input string
-  @param[in[  e            End of the input string
+  @param[in]  e            End of the input string
 
   @retval   MY_CS_TOOSMALL If the string was too short to scan a character
   @retval   1              If a 1-byte character was scanned

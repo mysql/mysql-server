@@ -477,7 +477,7 @@ static void print_default_values(void)
   Process the arguments and identify an option and store its value.
 
   @param[in]  optid      The single character shortcut for the argument.
-  @param[in]  my_option  Structure of legal options.
+  @param[in]  opt        unused
   @param[in]  argument   The argument value to process.
 */
 
@@ -751,7 +751,7 @@ error:
   Check the options for validity.
 
   This function checks the arguments for validity issuing the appropriate
-  error message if arguments are missing or invalid. On success, @operation
+  error message if arguments are missing or invalid. On success, @p operation
   is set to either "ENABLE" or "DISABLE".
 
   @param[in]  argc       The number of arguments.
@@ -878,7 +878,7 @@ static int check_options(int argc, char **argv, char *operation)
   features for displaying data (--print-defaults, --help ,etc.) that do not
   result in an attempt to ENABLE or DISABLE of a plugin.
   
-  @param[in]   arc        Count of arguments
+  @param[in]   argc       Count of arguments
   @param[in]   argv       Array of arguments
   @param[out]  operation  Operation (ENABLE or DISABLE)
   

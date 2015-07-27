@@ -671,7 +671,7 @@ bool set_and_validate_user_attributes(THD *thd,
   @param thd Thread handle
   @param host Hostname
   @param user User name
-  @param new_password New password hash for host@user
+  @param new_password New password hash for host\@user
  
   Note : it will also reset the change_password flag.
   This is safe to do unconditionally since the simple userless form

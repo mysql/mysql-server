@@ -3872,7 +3872,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
   @param optid ID of the option that was passed through command line
   @param opt List of options
-  @argument Status of the option : Enable or Disable
+  @param argument unused
 
   A deprecation warning will be raised if --plugin-xxx type of option
   is used.
@@ -3899,7 +3899,7 @@ static my_bool check_if_option_is_deprecated(int optid,
   assigns initial values from corresponding command line arguments.
 
   @param tmp_root Temporary scratch space
-  @param[out] plugin Internal plugin structure
+  @param[out] tmp Internal plugin structure
   @param argc Number of command line arguments
   @param argv Command line argument vector
 

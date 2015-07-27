@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -202,16 +202,6 @@ int my_aes_decrypt(const unsigned char *source, uint32 source_length,
   return MY_AES_BLOCK_SIZE * num_blocks - pad_len;
 }
 
-/**
- Get size of buffer which will be large enough for encrypted data
-
- SYNOPSIS
-  my_aes_get_size()
- @param source_length  [in] Length of data to be encrypted
- @param mode           encryption mode
-
- @return Size of buffer required to store encrypted data
-*/
 
 int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
 {
@@ -219,17 +209,6 @@ int my_aes_get_size(uint32 source_length, my_aes_opmode opmode)
     + MY_AES_BLOCK_SIZE;
 }
 
-
-/**
-  Return true if the AES cipher and block mode requires an IV
-
-  SYNOPSIS
-  my_aes_needs_iv()
-  @param mode           encryption mode
-
-  @retval TRUE   IV needed
-  @retval FALSE  IV not needed
-*/
 
 my_bool my_aes_needs_iv(my_aes_opmode opmode)
 {

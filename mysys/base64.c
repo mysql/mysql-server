@@ -213,7 +213,7 @@ my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
  * to a number in the range [0..63]
  * and mix it with the previously collected value in decoder->c.
  *
- * @param decode base64 decoding stream
+ * @param decoder base64 decoding stream
  *
  * @return
  *   FALSE on success
@@ -304,13 +304,13 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
  *
  * Note: We require that 'dst' is pre-allocated to correct size.
  *
- * @param src     Pointer to base64-encoded string
+ * @param src_base Pointer to base64-encoded string
  * @param len     Length of string at 'src'
  * @param dst     Pointer to location where decoded data will be stored
  * @param end_ptr Pointer to variable that will refer to the character
  *                after the end of the encoded data that were decoded.
  *                Can be NULL.
- * @flags         flags e.g. allow multiple chunks
+ * @param flags   flags e.g. allow multiple chunks
  * @return Number of bytes written at 'dst', or -1 in case of failure
  */
 int64

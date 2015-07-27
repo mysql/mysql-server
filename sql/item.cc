@@ -9338,7 +9338,7 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
         without some precision/character loss.
 
         We similarly use it to verify that expressions like
-        BIGINT_FIELD <cmp> <literal value>
+        BIGINT_FIELD @<cmp@> @<literal value@>
         is done correctly (as int/decimal/float according to literal type).
 */
 

@@ -5048,9 +5048,9 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
   then a half of this weight is put - this gives
   a little bit better ORDER BY result for long strings.
   
-  @str      Buffer
-  @strend   End of buffer
-  @nweights Number of weights
+  @param str      Buffer
+  @param strend   End of buffer
+  @param nweights Number of weights
   
   @return Result length
 */
@@ -5078,8 +5078,8 @@ my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend, size_t nweights)
   with weights of space character. Putting half of weight
   (when buffer length is an odd number) is OK.
   
-  @str      Buffer
-  @strend   End of buffer
+  @param str      Buffer
+  @param strend   End of buffer
   
   @return Result length
 */
@@ -8248,10 +8248,10 @@ my_strnncoll_utf8mb4(const CHARSET_INFO *cs,
     "a\0" < "a "
 
   @param  cs        Character set pinter.
-  @param  a         First string to compare.
-  @param  a_length  Length of 'a'.
-  @param  b         Second string to compare.
-  @param  b_length  Length of 'b'.
+  @param  s         First string to compare.
+  @param  slen      Length of 's'.
+  @param  t         Second string to compare.
+  @param  tlen      Length of 't'.
   @param  diff_if_only_endspace_difference
                     Set to 1 if the strings should be regarded as different
                     if they only difference in end space

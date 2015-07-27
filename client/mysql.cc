@@ -1494,12 +1494,11 @@ void mysql_end(int sig)
 /**
   SIGINT signal handler.
 
-  @description
     This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
     to the server if a query is currently executing. On Windows, 'Ctrl - Break'
     is treated alike.
 
-  @param [IN]               Signal number
+  @param sig               Signal number
 */
 
 void handle_ctrlc_signal(int sig)
@@ -1520,12 +1519,11 @@ void handle_ctrlc_signal(int sig)
 /**
    Handler to perform a cleanup and quit the program.
 
-   @description
      This function would send a 'KILL [QUERY]' command to the server if a
      query is currently executing and then it invokes mysql_thread_end()/
      mysql_end() in order to terminate the mysql client process.
 
-  @param [IN]               Signal number
+  @param sig              Signal number
 */
 
 void handle_quit_signal(int sig)
@@ -2375,7 +2373,7 @@ reset_prompt(char *in_string, bool *ml_comment)
 /**
    It checks if the input is a short form command. It returns the command's
    pointer if a command is found, else return NULL. Note that if binary-mode
-   is set, then only \C is searched for.
+   is set, then only @\C is searched for.
 
    @param cmd_char    A character of one byte.
 
@@ -5343,7 +5341,7 @@ static void remove_cntrl(String &buffer)
   @param file   Stream to write to
   @param s      String to write
   @param slen   String length
-  @flags        Flags for --tab, --xml, --raw.
+  @param flags  Flags for --tab, --xml, --raw.
 */
 void tee_write(FILE *file, const char *s, size_t slen, int flags)
 {

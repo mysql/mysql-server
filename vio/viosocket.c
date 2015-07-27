@@ -670,7 +670,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
   Retrieve the amount of data that can be read from a socket.
 
   @param vio          A VIO object.
-  @param bytes[out]   The amount of bytes available.
+  @param [out] bytes  The amount of bytes available.
 
   @retval FALSE   Success.
   @retval TRUE    Failure.

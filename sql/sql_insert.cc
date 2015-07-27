@@ -53,7 +53,7 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables);
 
   @param fields            The insert fields to be checked.
   @param view              The view for insert.
-  @param insert_table_ref[out] Reference to table to insert into
+  @param [out] insert_table_ref Reference to table to insert into
 
   This function is called to check that the fields being inserted into
   are from a single base table. This must be checked when the table to
@@ -263,7 +263,7 @@ static bool check_valid_table_refs(const TABLE_LIST *view, List<Item> &values,
   Validates default value of fields which are not specified in
   the column list of INSERT statement.
 
-  @Note table->record[0] should be be populated with default values
+  @note table->record[0] should be be populated with default values
         before calling this function.
 
   @param thd              thread context
@@ -1087,7 +1087,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
 
   @param table     table(TABLE object) we insert into,
                    might be NULL in case of view
-  @param           table(TABLE_LIST object) or view we insert into
+  @param tables (TABLE_LIST object) or view we insert into
 */
 
 static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
@@ -2385,30 +2385,23 @@ void Query_result_insert::abort_result_set()
 
   Let "source table columns" be the set of columns in the SELECT list.
 
-  An interesting peculiarity in the syntax CREATE TABLE (<columns>) SELECT is
+  An interesting peculiarity in the syntax CREATE TABLE (@<columns@>) SELECT is
   that function defaults are stripped from the the source table columns, but
   not from the additional columns defined in the CREATE TABLE part. The first
   @c TIMESTAMP column there is also subject to promotion to @c TIMESTAMP @c
   DEFAULT @c CURRENT_TIMESTAMP @c ON @c UPDATE @c CURRENT_TIMESTAMP, as usual.
 
 
-  @param thd           [in]     Thread object
-  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+  @param [in] thd               Thread object
+  @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param create_table  [in]     Pointer to TABLE_LIST object providing database
+  @param [in] create_table      Pointer to TABLE_LIST object providing database
                                 and name for table to be created or to be open
-  @param alter_info    [in/out] Initial list of columns and indexes for the
+  @param [in,out] alter_info    Initial list of columns and indexes for the
                                 table to be created
-  @param items         [in]     The source table columns. Corresponding column
+  @param [in] items             The source table columns. Corresponding column
                                 definitions (Create_field's) will be added to
                                 the end of alter_info->create_list.
-  @param lock          [out]    Pointer to the MYSQL_LOCK object for table
-                                created will be returned in this parameter.
-                                Since this table is not included in THD::lock
-                                caller is responsible for explicitly unlocking
-                                this table.
-  @param hooks         [in]     Hooks to be invoked before and after obtaining
-                                table lock on the table being created.
 
   @note
     This function assumes that either table exists and was pre-opened and

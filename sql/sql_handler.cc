@@ -936,7 +936,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables)
   Close cursors of matching tables from the HANDLER's hash table.
 
   @param thd Thread identifier.
-  @param tables The list of tables to flush.
+  @param all_tables The list of tables to flush.
 */
 
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables)
@@ -1010,7 +1010,7 @@ void mysql_ha_flush(THD *thd)
   close_temporary_tables) to obtain a TABLE_LIST containing the
   temporary tables.
 
-  @See close_temporary_tables
+  @sa close_temporary_tables
   @param thd Thread identifier.
 */
 void mysql_ha_rm_temporary_tables(THD *thd)

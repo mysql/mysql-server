@@ -1819,13 +1819,12 @@ static char *quote_for_like(const char *name, char *buff)
 /**
   Quote and print a string.
 
-  @param xml_file          - Output file.
-  @param str               - String to print.
-  @param len               - Its length.
-  @param is_attribute_name - A check for attribute name or value.
-
-  @description
     Quote '<' '>' '&' '\"' chars and print a string to the xml_file.
+
+  @param xml_file          Output file.
+  @param str               String to print.
+  @param len               Its length.
+  @param is_attribute_name A check for attribute name or value.
 */
 
 static void print_quoted_xml(FILE *xml_file, const char *str, size_t len,
@@ -2071,13 +2070,12 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 /**
   Print xml comments.
 
-  @param xml_file       - output file
-  @param len            - length of comment message
-  @param comment_string - comment message
-
-  @description
     Print the comment message in the format:
       "<!-- \n comment string  \n -->\n"
+
+  @param xml_file       output file
+  @param len            length of comment message
+  @param comment_string comment message
 
   @note
     Any occurrence of continuous hyphens will be

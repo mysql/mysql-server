@@ -117,6 +117,7 @@ enum enum_return_status
 };
 
 /**
+  @def __CHECK_RETURN_STATUS
   Lowest level macro used in the PROPAGATE_* and RETURN_* macros
   below.
 
@@ -268,7 +269,7 @@ extern TYPELIB gtid_mode_typelib;
 
   @param string The string to decode.
 
-  @param[OUT] error If the string does not represent a valid
+  @param[out] error If the string does not represent a valid
   GTID_MODE, this is set to true, otherwise it is left untouched.
 
   @return The GTID_MODE.
@@ -340,7 +341,7 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock);
 /**
   Return the current GTID_MODE as a string. Used only for debugging.
 
-  @param need_lock Pass this parameter to get_gtid_mode(bool).
+  @param have_lock Pass this parameter to get_gtid_mode(bool).
 */
 inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
 {

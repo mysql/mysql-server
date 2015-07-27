@@ -513,8 +513,8 @@ private:
  If filename is empty then the qpath will be the first directory which
  is found.
  @param filename The file to look for
- @search_paths paths to search
- @qpath[out] The qualified path to the first found file
+ @param search_paths paths to search
+ @param [out] qpath The qualified path to the first found file
 
  @return true if a file is found, false if not.
 */

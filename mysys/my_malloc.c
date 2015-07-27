@@ -166,7 +166,7 @@ void my_free(void *ptr)
   Allocate a sized block of memory.
 
   @param size   The size of the memory block in bytes.
-  @param flags  Failure action modifiers (bitmasks).
+  @param my_flags  Failure action modifiers (bitmasks).
 
   @return A pointer to the allocated memory block, or NULL on failure.
 */

@@ -5024,12 +5024,12 @@ static void abort_process(int pid, const char *path)
   If timeout is set to 0 the server is killed/terminated
   immediately. Otherwise the shutdown command is first sent
   and then it waits for the server to terminate within
-  <timeout> seconds. If it has not terminated before <timeout>
+  @<timeout@> seconds. If it has not terminated before @<timeout@>
   seconds the command will fail.
 
   @note Currently only works with local server
 
-  @param commmand  Optionally including a timeout else the
+  @param command  Optionally including a timeout else the
   default of 60 seconds is used.
 */
 
