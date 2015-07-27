@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "debug_sync.h"
 #include "rpl_rli_pdb.h"
 
 #include "current_thd.h"
@@ -1300,7 +1301,14 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     int64 min_child_waited_logical_ts=
       my_atomic_load64(&mts_submode->min_waited_timestamp);
 
-    if (error)
+    DBUG_EXECUTE_IF("slave_worker_ends_group_before_signal_lwm",
+                    {
+                      const char act[]= "now WAIT_FOR worker_continue";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    });
+
+    if (unlikely(error))
     {
       mysql_mutex_lock(&c_rli->mts_gaq_LOCK);
       mts_submode->is_error= true;
@@ -1311,20 +1319,26 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     else if (min_child_waited_logical_ts != SEQ_UNINIT)
     {
       mysql_mutex_lock(&c_rli->mts_gaq_LOCK);
-      longlong curr_lwm= mts_submode->get_lwm_timestamp(c_rli, true);
-      min_child_waited_logical_ts=
-        my_atomic_load64(&mts_submode->min_waited_timestamp);
-      if (min_child_waited_logical_ts != SEQ_UNINIT &&
-          mts_submode->clock_leq(mts_submode->min_waited_timestamp,
-                                 curr_lwm))
+
+      /*
+        min_child_waited_logical_ts may include an old value, so we need to
+        check it again after getting the lock.
+      */
+      if (mts_submode->min_waited_timestamp != SEQ_UNINIT)
       {
-        /*
-          There's a transaction that depends on the current.
-        */
-        mysql_cond_signal(&c_rli->logical_clock_cond);
+        longlong curr_lwm= mts_submode->get_lwm_timestamp(c_rli, true);
+
+        if (mts_submode->clock_leq(mts_submode->min_waited_timestamp, curr_lwm))
+        {
+          /*
+            There's a transaction that depends on the current.
+          */
+          mysql_cond_signal(&c_rli->logical_clock_cond);
+        }
       }
       mysql_mutex_unlock(&c_rli->mts_gaq_LOCK);
     }
+
 #ifndef DBUG_OFF
     curr_group_seen_sequence_number= false;
 #endif

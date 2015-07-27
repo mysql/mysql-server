@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "debug_sync.h"
 #include "rpl_mts_submode.h"
 
 #include "hash.h"                           // HASH
@@ -549,6 +550,9 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
     break;
   }
 
+  DBUG_PRINT("info", ("sequence_number %lld, last_committed %lld",
+                      sequence_number, last_committed));
+
   if (first_event)
   {
     first_event= false;
@@ -588,6 +592,9 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
         TODO: account autopositioning
         DBUG_ASSERT(rli->replicate_same_server_id);
       */
+      DBUG_PRINT("info", ("sequence_number gap found, "
+                          "last_sequence_number %lld, sequence_number %lld",
+                          last_sequence_number, sequence_number));
       gap_successor= true;
     }
   }
@@ -949,6 +956,13 @@ Mts_submode_logical_clock::
     if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       DBUG_RETURN(-1);
   }
+  DBUG_EXECUTE_IF("wait_for_workers_to_finish_after_wait",
+                  {
+                    const char act[]= "now WAIT_FOR coordinator_continue";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  });
+
   // The current commit point sequence may end here (e.g Rotate to new log)
   rli->gaq->lwm.sequence_number= SEQ_UNINIT;
   // Restore previous info.
