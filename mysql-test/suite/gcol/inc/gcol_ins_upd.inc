@@ -380,3 +380,94 @@ WHERE OUTR1.pk = 1
 );
 
 DROP TABLE IF EXISTS b,bb,d;
+
+
+--echo #
+--echo # Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)
+--echo #
+
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1) STORED
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t2.y = 1, t1.x = 2;
+SELECT * FROM t;
+DROP TABLE t;
+
+if ($support_virtual_index)
+{
+CREATE TABLE t (
+x INT, y INT, gc INT GENERATED ALWAYS AS (x+1), KEY (x,gc)
+);
+INSERT INTO t VALUES ();
+UPDATE t t1, t t2 SET t1.x = 1, t2.y = 2;
+SELECT * FROM t;
+SELECT gc FROM t;
+DROP TABLE t;
+}
+
+let $query=
+UPDATE C AS OUTR1, C AS OUTR2
+SET OUTR1.`col_varchar_nokey` = 'f',
+OUTR2.`col_varchar_nokey` = "a";
+
+--echo # stored
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+
+--echo # stored, indexed
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+
+--echo # virtual
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+
+if ($support_virtual_index)
+{
+--echo # virtual, indexed
+
+CREATE TABLE C (
+col_varchar_nokey VARCHAR(1),
+col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
+(CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL,
+KEY (col_varchar_key, col_varchar_nokey)
+);
+
+INSERT INTO C (col_varchar_nokey) VALUES ('c');
+eval EXPLAIN $query;
+eval $query;
+SELECT * from C;
+DROP TABLE C;
+}

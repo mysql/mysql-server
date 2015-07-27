@@ -2598,10 +2598,20 @@ int Query_result_update::do_updates()
 	   copy_field_ptr++)
         copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
+      // The above didn't update generated columns
+      if (table->vfield &&
+          update_generated_write_fields(table->write_set, table))
+        goto err;
+
       if (table->triggers)
       {
         bool rc= table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                    TRG_ACTION_BEFORE, true);
+
+        // Trigger might have changed dependencies of generated columns
+        if (!rc && table->vfield &&
+            update_generated_write_fields(table->write_set, table))
+          goto err;
 
         table->triggers->disable_fields_temporary_nullability();
 
