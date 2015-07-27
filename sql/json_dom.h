@@ -33,6 +33,7 @@
 class Json_dom;
 class Json_path;
 class Json_path_leg;
+class Json_seekable_path;
 class Json_wrapper;
 
 typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
@@ -318,7 +319,8 @@ public:
     @param[in]  only_need_one True if we can stop after finding one match
     @return false on success, true on error
   */
-  bool seek(const Json_path &path, Json_dom_vector *hits, bool auto_wrap,
+  bool seek(const Json_seekable_path &path,
+            Json_dom_vector *hits, bool auto_wrap,
             bool only_need_one);
 
 private:
@@ -1409,7 +1411,8 @@ public:
     @retval false on success
     @retval true on error
   */
-  bool seek(const Json_path &path, Json_wrapper_vector *hits, bool auto_wrap,
+  bool seek(const Json_seekable_path &path,
+            Json_wrapper_vector *hits, bool auto_wrap,
             bool only_need_one);
 
   /**
@@ -1426,7 +1429,7 @@ public:
 
     @returns false if there was no error, otherwise true on error
   */
-  bool seek_no_ellipsis(const Json_path &path,
+  bool seek_no_ellipsis(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
                         const size_t leg_number,
                         bool auto_wrap,

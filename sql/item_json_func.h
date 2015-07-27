@@ -526,6 +526,7 @@ public:
 class Item_func_json_insert :public Item_json_func
 {
   String m_doc_value;
+  Json_path_clone m_path;
 
 public:
   Item_func_json_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -546,6 +547,7 @@ public:
 class Item_func_json_array_insert :public Item_json_func
 {
   String m_doc_value;
+  Json_path_clone m_path;
 
 public:
   Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -568,6 +570,7 @@ class Item_func_json_set_replace :public Item_json_func
   /// True if this is JSON_SET, false if it is JSON_REPLACE.
   const bool m_json_set;
   String m_doc_value;
+  Json_path_clone m_path;
 
 protected:
   Item_func_json_set_replace(THD *thd, const POS &pos, PT_item_list *a, bool json_set)
