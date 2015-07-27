@@ -21,6 +21,8 @@
 #include <functional>
 #include <list>
 #include <set>
+#include <unistd.h> // this library will help us to detect file system status
+#include <string.h>
 #include <string>
 
 #include <fenv.h>
@@ -4389,6 +4391,21 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+// checks if file system is read-only
+int is_filesystem_read_only(char const* name) {
+    if (access(name, W_OK) == -1) {
+        if (access(name, R_OK) == 0) {
+            return R_OK; // read only
+        } else if (access(name, F_OK) == 0) {
+            return F_OK; // file exists but have not any access
+        } else {
+            return -1; // file does not exist
+        }
+    } else {
+        return W_OK; // read/write
+    }
+}
+
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -4410,6 +4427,19 @@ int mysqld_main(int argc, char **argv)
   {
     my_message_local(ERROR_LEVEL, "my_init() failed.");
     return 1;
+  }
+  
+  // Get --datadir value to check if filesystem is read-only
+  for (int i = 1; i < argc; i++) {
+      if (strstr(argv[i], "--datadir")) {
+          std::string str(argv[i]);
+          char const* dataDirPath = str.substr(10, str.length()).c_str();
+          if (is_filesystem_read_only(dataDirPath) == R_OK) {
+              my_message_local(ERROR_LEVEL, "File system (%s) is read-only", dataDirPath);
+              return 1;
+          }
+          break;
+      }
   }
 #endif /* _WIN32 */
 
