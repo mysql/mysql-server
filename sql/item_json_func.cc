@@ -83,15 +83,16 @@ bool ensure_utf8mb4(String *val, String *buf,
 /**
   Parse a JSON dom out of an argument to a JSON function.
 
-  @param[in]  res     Pointer to string value of arg.
-  @param[in]  arg_idx 0-based index of corresponding JSON function argument
-  @param[in]  func_name  Name of the user-invoked JSON_ function
-  @param[out] need_parse True if we needed to parse to validate
-  @param[in,out] dom        If non-null, we want any text parsed DOM
-                            returned at the location pointed to
-  @param[in]     require_str_or_json
-                            If true, generate an error if other types used
-                            as input
+  @param[in]  res          Pointer to string value of arg.
+  @param[in]  arg_idx      0-based index of corresponding JSON function argument
+  @param[in]  func_name    Name of the user-invoked JSON_ function
+  @param[in,out] dom       If non-null, we want any text parsed DOM
+                           returned at the location pointed to
+  @param[in]  require_str_or_json
+                           If true, generate an error if other types used
+                           as input
+  @param[out] parse_error  set to true if the parser was run and found an error
+                           else false
   @param[in]  preserve_neg_zero_int
                            Whether integer negative zero should be preserved.
                            If set to TRUE, -0 is handled as a DOUBLE. Double
@@ -103,9 +104,9 @@ bool ensure_utf8mb4(String *val, String *buf,
 static bool parse_json(String *res,
                        uint arg_idx,
                        const char *func_name,
-                       bool *need_parse,
                        Json_dom **dom,
                        bool require_str_or_json,
+                       bool *parse_error,
                        bool preserve_neg_zero_int= false)
 {
   char buff[MAX_FIELD_WIDTH];
@@ -114,13 +115,13 @@ static bool parse_json(String *res,
   const char *safep;         // contents of res, possibly converted
   size_t safe_length;        // length of safep
 
+  *parse_error= false;
+
   if (ensure_utf8mb4(res, &utf8_res, &safep, &safe_length,
                       require_str_or_json))
   {
     return true;
   }
-
-  *need_parse= true;
 
   if (!dom)
   {
@@ -140,6 +141,7 @@ static bool parse_json(String *res,
     my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0),
              arg_idx + 1, func_name, parse_err, err_offset,
              value.c_str());
+    *parse_error= true;
   }
   return *dom == NULL;
 }
@@ -246,27 +248,28 @@ static bool get_json_string(Item *arg_item,
   @param[in]     arg_idx    Index (0-based) of argument into the args array
   @param[out]    value      Item_func_json_*::m_value alias
   @param[in]     func_name  Name of the user-invoked JSON_ function
-  @param[out]    need_parse True if we needed to parse to validate
   @param[in,out] dom        If non-null, we want any text parsed DOM
                             returned at the location pointed to
   @param[in]     require_str_or_json
                             If true, generate an error if other types used
                             as input
-  @param[in]  preserve_neg_zero_int
+  @param[out]    valid      true if a valid JSON value was found (or NULL),
+                            else false
+  @param[in]     preserve_neg_zero_int
                             Whether integer negative zero should be preserved.
                             If set to TRUE, -0 is handled as a DOUBLE. Double
                             negative zero (-0.0) is preserved regardless of what
                             this parameter is set to.
 
-  @returns true if the text is valid JSON (or NULL), else false
+  @returns true iff syntax error *and* dom != null, else false
 */
 static bool json_is_valid(Item **args,
                           uint arg_idx,
                           String *value,
                           const char *func_name,
-                          bool *need_parse,
                           Json_dom **dom,
                           bool require_str_or_json,
+                          bool *valid,
                           bool preserve_neg_zero_int= false)
 {
   Item *const arg_item= args[arg_idx];
@@ -276,12 +279,14 @@ static bool json_is_valid(Item **args,
   case MYSQL_TYPE_NULL:
     arg_item->update_null_value();
     DBUG_ASSERT(arg_item->null_value);
-    return true;
+    *valid= true;
+    return false;
   case MYSQL_TYPE_JSON:
   {
     Json_wrapper w;
     // Also sets the null_value flag
-    return !arg_item->val_json(&w);
+    *valid= !arg_item->val_json(&w);
+    return !*valid;
   }
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VAR_STRING:
@@ -298,23 +303,33 @@ static bool json_is_valid(Item **args,
         Field *field= fi->field;
         if (field->flags & (ENUM_FLAG | SET_FLAG))
         {
+          *valid= false;
           return false;
         }
       }
 
       if (arg_item->null_value)
-        return true;
+      {
+        *valid= true;
+        return false;
+      }
 
-      const bool success= parse_json(res, arg_idx, func_name,
-                                     need_parse, dom, require_str_or_json,
-                                     preserve_neg_zero_int);
-      return !success;
+      bool parse_error= false;
+      const bool failure= parse_json(res, arg_idx, func_name,
+                                     dom, require_str_or_json,
+                                     &parse_error, preserve_neg_zero_int);
+      *valid= !failure;
+      return parse_error;
     }
   default:
     if (require_str_or_json)
     {
+      *valid= false;
       my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), arg_idx + 1, func_name);
+      return true;
     }
+
+    *valid= false;
     return false;
   }
 }
@@ -614,8 +629,11 @@ longlong Item_func_json_valid::val_int()
 
   try
   {
-    bool dummy;
-    bool ok= json_is_valid(args, 0, &m_value, func_name(), &dummy, NULL, false);
+    bool ok;
+    if (json_is_valid(args, 0, &m_value, func_name(), NULL, false, &ok))
+    {
+      return error_int();
+    }
 
     if (!ok)
     {
@@ -1067,12 +1085,16 @@ bool get_json_wrapper(Item **args,
   */
 
   /* Is this a JSON text? */
-  bool needed_parse= false ; //@< true indicates a JSON string
   Json_dom *dom; //@< we'll receive a DOM here from a successful text parse
 
-  if (!json_is_valid(args, arg_idx, str, func_name, &needed_parse, &dom, true,
+  bool valid;
+  if (json_is_valid(args, arg_idx, str, func_name, &dom, true, &valid,
                      preserve_neg_zero_int))
+    return true;
+
+  if (!valid)
   {
+    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), arg_idx + 1, func_name);
     return true;
   }
 
@@ -1081,7 +1103,6 @@ bool get_json_wrapper(Item **args,
     return false;
   }
 
-  DBUG_ASSERT(needed_parse);
   DBUG_ASSERT(dom);
 
   *wrapper= Json_wrapper(dom);
@@ -1754,7 +1775,6 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 
-  bool needed_parse= false ; //@< true indicates a JSON string, not a binary
   Json_dom *dom= NULL;       //@< if non-null we want a DOM from parse
 
   if (args[0]->field_type() == MYSQL_TYPE_NULL)
@@ -1772,8 +1792,12 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
     return false;
   }
 
+  bool valid;
   if (json_is_valid(args, 0, &m_value, func_name(),
-                    &needed_parse, &dom, false))
+                    &dom, false, &valid))
+    return error_json();
+
+  if (valid)
   {
     if (args[0]->null_value)
     {
@@ -1781,7 +1805,6 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
       return false;
     }
     // We were able to parse a JSON value from a string.
-    DBUG_ASSERT(needed_parse);
     DBUG_ASSERT(dom);
     // Pass on the DOM wrapped
     Json_wrapper w(dom);
@@ -1790,7 +1813,7 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
     return false;
   }
 
-  // Not a string, nor a JSON value, wrap the rest
+  // Not a non-binary string, nor a JSON value, wrap the rest
 
   if (get_json_atom_wrapper(args, 0, func_name(), &m_value, &m_conversion_buffer,
                              wr, NULL, true))
@@ -3314,8 +3337,6 @@ String *Item_func_json_unquote::val_str(String *str)
 
   try
   {
-    bool need_parse;
-
     if (args[0]->field_type() == MYSQL_TYPE_JSON)
     {
       Json_wrapper wr;
@@ -3376,7 +3397,8 @@ String *Item_func_json_unquote::val_str(String *str)
       return res; // return string unchanged
     }
 
-    if (parse_json(res, 0, func_name(), &need_parse, &dom, true))
+    bool parse_error= false;
+    if (parse_json(res, 0, func_name(), &dom, true, &parse_error))
     {
       return error_str();
     }
@@ -3384,7 +3406,6 @@ String *Item_func_json_unquote::val_str(String *str)
     /*
       Extract the internal string representation as a MySQL string
     */
-    DBUG_ASSERT(need_parse);
     DBUG_ASSERT(dom->json_type() == Json_dom::J_STRING);
     Json_wrapper wr(dom);
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
