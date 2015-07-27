@@ -7584,7 +7584,7 @@ JSON_SET
 {"a": {"b": false, "c": true}}
 #
 # Bug #21304639: JSON_SET() WITH MULTI-LEG PATH RETURNS DIFFERENT
-#                RESULTS ON FIRST ROW VS NEXT	
+#                RESULTS ON FIRST ROW VS NEXT
 #
 create table t21304639(pk int);
 insert into t21304639 values (2), (1), (3);
@@ -13032,6 +13032,34 @@ j1	jv	j2	JSON_ARRAY(j1, jv, j2)
 1	1	1	[1, 1, 1]
 DROP TABLE t1, t2;
 DROP VIEW v;
+#
+# Bug#21472872 WRONG RESULTS CAUSED BY PATH LEG POPPING
+# IN JSON FUNCTIONS
+#
+create table tdoc( id int, doc json );
+insert into tdoc values
+( 1, '[]' ),
+( 2, '{ "a": { "b": true } }' );
+select id, json_insert( doc, '$.a.c', false ) from tdoc where id = 2;
+id	json_insert( doc, '$.a.c', false )
+2	{"a": {"b": true, "c": false}}
+select id, json_insert( doc, '$.a.c', false ) from tdoc order by id;
+id	json_insert( doc, '$.a.c', false )
+1	[]
+2	{"a": {"b": true, "c": false}}
+drop table tdoc;
+create table tdoc( id int, doc json, new_value varchar( 10 ) );
+insert into tdoc values
+( 1, '{ "a": { "b": true } }', null ),
+( 2, '{ "a": { "b": true } }', 'abc' );
+select id, json_insert( doc, '$.a.c', new_value ) from tdoc where id = 2;
+id	json_insert( doc, '$.a.c', new_value )
+2	{"a": {"b": true, "c": "abc"}}
+select id, json_insert( doc, '$.a.c', new_value ) from tdoc order by id;
+id	json_insert( doc, '$.a.c', new_value )
+1	{"a": {"b": true, "c": null}}
+2	{"a": {"b": true, "c": "abc"}}
+drop table tdoc;
 #
 # Bug#21487833: DBUG_ABORT() IN JSON_WRAPPER::MAKE_HASH_KEY
 #               WITH ORDERED JSON
