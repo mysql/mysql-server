@@ -6376,7 +6376,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     mysql_mutex_assert_owner(&rli->data_lock);
 
   /*
-    "Coordinator::commit_positions" {
+    "Coordinator::commit_positions"
 
     rli->gaq->lwm has been updated in move_queue_head() and
     to contain all but rli->group_master_log_name which

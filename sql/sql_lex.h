@@ -14,7 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @defgroup Semantic_Analysis Semantic Analysis
+  @defgroup GROUP_PARSER Parser
+  @{
 */
 
 #ifndef SQL_LEX_INCLUDED
@@ -178,7 +179,7 @@ enum enum_keep_diagnostics
 {
   DA_KEEP_NOTHING= 0,   /**< keep nothing */
   DA_KEEP_DIAGNOSTICS,  /**< keep the diagnostics area */
-  DA_KEEP_COUNTS,       /**< keep @@warning_count / @error_count */
+  DA_KEEP_COUNTS,       /**< keep \@warning_count / \@error_count */
   DA_KEEP_PARSE_ERROR,  /**< keep diagnostics area after parse error */
   DA_KEEP_UNSPECIFIED   /**< keep semantics is unspecified */
 };
@@ -3676,7 +3677,6 @@ struct st_lex_local: public LEX
   { /* Never called */ }
 };
 
-
 extern bool lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
@@ -3688,12 +3688,12 @@ extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 
-/**
-  @} (End of group Semantic_Analysis)
-*/
-
 bool is_keyword(const char *name, size_t len);
 bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
+
+/**
+  @} (End of group GROUP_PARSER)
+*/
 
 #endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

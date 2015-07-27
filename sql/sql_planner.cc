@@ -3984,6 +3984,7 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
           ..
         }
       }
+    }
 
     Most of the new state is saved in join->positions[idx] (and hence no undo
     is necessary).

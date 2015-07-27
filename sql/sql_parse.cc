@@ -5900,11 +5900,11 @@ void SELECT_LEX::set_lock_for_tables(thr_lock_type lock_type)
     operation and also for any single select union construct of the form
     @verbatim
     (SELECT ... ORDER BY order_list [LIMIT n]) ORDER BY ... 
-    @endvarbatim
+    @endverbatim
     or of the form
-    @varbatim
+    @verbatim
     (SELECT ... ORDER BY LIMIT n) ORDER BY ...
-    @endvarbatim
+    @endverbatim
   
   @param thd_arg       thread handle
 
