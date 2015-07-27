@@ -1494,6 +1494,12 @@ dberr_t
 os_file_create_subdirs_if_needed(
 	const char*	path);
 
+#ifdef UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+/* Test the function os_file_get_parent_dir. */
+void
+unit_test_os_file_get_parent_dir();
+#endif /* UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR */
+
 /** Initializes the asynchronous io system. Creates one array each for ibuf
 and log i/o. Also creates one array each for read and write where each
 array is divided logically into n_read_segs and n_write_segs

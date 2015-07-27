@@ -176,6 +176,10 @@ innobase_start_or_create_for_mysql() has executed using the call
 command. */
 /*
 #define UNIV_COMPILE_TEST_FUNCS
+#define UNIV_ENABLE_UNIT_TEST_GET_PARENT_DIR
+#define UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
+#define UNIV_ENABLE_UNIT_TEST_DICT_STATS
+#define UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT
 */
 
 #if defined HAVE_VALGRIND

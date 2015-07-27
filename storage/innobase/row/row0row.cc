@@ -1192,7 +1192,7 @@ row_raw_format(
 	return(ret);
 }
 
-#ifdef UNIV_COMPILE_TEST_FUNCS
+#ifdef UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT
 
 #ifdef HAVE_UT_CHRONO_T
 
@@ -1406,4 +1406,4 @@ test_row_raw_format_int()
 
 #endif /* HAVE_UT_CHRONO_T */
 
-#endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT */
