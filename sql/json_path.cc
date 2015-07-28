@@ -127,7 +127,7 @@ const Json_path_leg *Json_path_clone::get_leg_at(const size_t index) const
 }
 
 
-bool Json_path_clone::append(Json_path_leg *leg)
+bool Json_path_clone::append(const Json_path_leg *leg)
 {
   return m_path_legs.push_back(leg);
 }
@@ -151,10 +151,10 @@ bool Json_path_clone::set(Json_seekable_path *source)
 }
 
 
-Json_path_leg *Json_path_clone::pop()
+const Json_path_leg *Json_path_clone::pop()
 {
   DBUG_ASSERT(m_path_legs.size() > 0);
-  Json_path_leg *p= m_path_legs.back();
+  const Json_path_leg *p= m_path_legs.back();
   m_path_legs.pop_back();
   return p;
 }
@@ -171,7 +171,7 @@ bool Json_path_clone::contains_ellipsis() const
   for (Path_leg_pointers::const_iterator iter= m_path_legs.begin();
        iter != m_path_legs.end(); ++iter)
   {
-    Json_path_leg *path_leg= *iter;
+    const Json_path_leg *path_leg= *iter;
     if (path_leg->get_type() == jpl_ellipsis)
       return true;
   }
