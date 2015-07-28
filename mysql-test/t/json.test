@@ -5912,6 +5912,61 @@ DROP VIEW v;
 
 
 --echo #
+--echo # Bug#21442624 INCORRECT RESULT FROM JSON_SET WITH AUTO-WRAPPING
+--echo #
+
+SELECT JSON_SET('1', '$', 100);
+SELECT JSON_SET('1', '$[0]', 100);
+SELECT JSON_SET('1', '$[0][0]', 100);
+SELECT JSON_SET('1', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[]', '$', 100);
+SELECT JSON_SET('[]', '$[0]', 100);
+SELECT JSON_SET('[]', '$[0][0]', 100);
+SELECT JSON_SET('[]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[1]', '$', 100);
+SELECT JSON_SET('[1]', '$[0]', 100);
+SELECT JSON_SET('[1]', '$[0][0]', 100);
+SELECT JSON_SET('[1]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[[1]]', '$', 100);
+SELECT JSON_SET('[[1]]', '$[0]', 100);
+SELECT JSON_SET('[[1]]', '$[0][0]', 100);
+SELECT JSON_SET('[[1]]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[[[1]]]', '$', 100);
+SELECT JSON_SET('[[[1]]]', '$[0]', 100);
+SELECT JSON_SET('[[[1]]]', '$[0][0]', 100);
+SELECT JSON_SET('[[[1]]]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('1', '$', 100);
+SELECT JSON_REPLACE('1', '$[0]', 100);
+SELECT JSON_REPLACE('1', '$[0][0]', 100);
+SELECT JSON_REPLACE('1', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[]', '$', 100);
+SELECT JSON_REPLACE('[]', '$[0]', 100);
+SELECT JSON_REPLACE('[]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[1]', '$', 100);
+SELECT JSON_REPLACE('[1]', '$[0]', 100);
+SELECT JSON_REPLACE('[1]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[1]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[[1]]', '$', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0]', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[[[1]]]', '$', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0]', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100);
+
+
+--echo #
 --echo # Bug#21472872 WRONG RESULTS CAUSED BY PATH LEG POPPING
 --echo # IN JSON FUNCTIONS
 --echo #

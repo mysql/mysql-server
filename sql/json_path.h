@@ -307,7 +307,7 @@ public:
 class Json_path_clone : public Json_seekable_path
 {
 private:
-  typedef Prealloced_array<Json_path_leg *, 8, false> Path_leg_pointers;
+  typedef Prealloced_array<const Json_path_leg *, 8, false> Path_leg_pointers;
   Path_leg_pointers m_path_legs;
 
 public:
@@ -332,7 +332,7 @@ public:
     @param[in] leg the leg to add
     @return false on success, true on error
   */
-  bool append(Json_path_leg *leg);
+  bool append(const Json_path_leg *leg);
 
   /**
     Clear this clone and then add all of the
@@ -348,7 +348,7 @@ public:
 
     @result the last leg popped off
   */
-  Json_path_leg * pop();
+  const Json_path_leg * pop();
 
   /**
     Resets this to an empty path with no legs.

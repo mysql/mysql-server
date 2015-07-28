@@ -13039,6 +13039,129 @@ j1	jv	j2	JSON_ARRAY(j1, jv, j2)
 DROP TABLE t1, t2;
 DROP VIEW v;
 #
+# Bug#21442624 INCORRECT RESULT FROM JSON_SET WITH AUTO-WRAPPING
+#
+SELECT JSON_SET('1', '$', 100);
+JSON_SET('1', '$', 100)
+100
+SELECT JSON_SET('1', '$[0]', 100);
+JSON_SET('1', '$[0]', 100)
+100
+SELECT JSON_SET('1', '$[0][0]', 100);
+JSON_SET('1', '$[0][0]', 100)
+100
+SELECT JSON_SET('1', '$[0][0][0]', 100);
+JSON_SET('1', '$[0][0][0]', 100)
+100
+SELECT JSON_SET('[]', '$', 100);
+JSON_SET('[]', '$', 100)
+100
+SELECT JSON_SET('[]', '$[0]', 100);
+JSON_SET('[]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[]', '$[0][0]', 100);
+JSON_SET('[]', '$[0][0]', 100)
+[]
+SELECT JSON_SET('[]', '$[0][0][0]', 100);
+JSON_SET('[]', '$[0][0][0]', 100)
+[]
+SELECT JSON_SET('[1]', '$', 100);
+JSON_SET('[1]', '$', 100)
+100
+SELECT JSON_SET('[1]', '$[0]', 100);
+JSON_SET('[1]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[1]', '$[0][0]', 100);
+JSON_SET('[1]', '$[0][0]', 100)
+[100]
+SELECT JSON_SET('[1]', '$[0][0][0]', 100);
+JSON_SET('[1]', '$[0][0][0]', 100)
+[100]
+SELECT JSON_SET('[[1]]', '$', 100);
+JSON_SET('[[1]]', '$', 100)
+100
+SELECT JSON_SET('[[1]]', '$[0]', 100);
+JSON_SET('[[1]]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[[1]]', '$[0][0]', 100);
+JSON_SET('[[1]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_SET('[[1]]', '$[0][0][0]', 100);
+JSON_SET('[[1]]', '$[0][0][0]', 100)
+[[100]]
+SELECT JSON_SET('[[[1]]]', '$', 100);
+JSON_SET('[[[1]]]', '$', 100)
+100
+SELECT JSON_SET('[[[1]]]', '$[0]', 100);
+JSON_SET('[[[1]]]', '$[0]', 100)
+[100]
+SELECT JSON_SET('[[[1]]]', '$[0][0]', 100);
+JSON_SET('[[[1]]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_SET('[[[1]]]', '$[0][0][0]', 100);
+JSON_SET('[[[1]]]', '$[0][0][0]', 100)
+[[[100]]]
+SELECT JSON_REPLACE('1', '$', 100);
+JSON_REPLACE('1', '$', 100)
+100
+SELECT JSON_REPLACE('1', '$[0]', 100);
+JSON_REPLACE('1', '$[0]', 100)
+100
+SELECT JSON_REPLACE('1', '$[0][0]', 100);
+JSON_REPLACE('1', '$[0][0]', 100)
+100
+SELECT JSON_REPLACE('1', '$[0][0][0]', 100);
+JSON_REPLACE('1', '$[0][0][0]', 100)
+100
+SELECT JSON_REPLACE('[]', '$', 100);
+JSON_REPLACE('[]', '$', 100)
+100
+SELECT JSON_REPLACE('[]', '$[0]', 100);
+JSON_REPLACE('[]', '$[0]', 100)
+[]
+SELECT JSON_REPLACE('[]', '$[0][0]', 100);
+JSON_REPLACE('[]', '$[0][0]', 100)
+[]
+SELECT JSON_REPLACE('[]', '$[0][0][0]', 100);
+JSON_REPLACE('[]', '$[0][0][0]', 100)
+[]
+SELECT JSON_REPLACE('[1]', '$', 100);
+JSON_REPLACE('[1]', '$', 100)
+100
+SELECT JSON_REPLACE('[1]', '$[0]', 100);
+JSON_REPLACE('[1]', '$[0]', 100)
+[100]
+SELECT JSON_REPLACE('[1]', '$[0][0]', 100);
+JSON_REPLACE('[1]', '$[0][0]', 100)
+[100]
+SELECT JSON_REPLACE('[1]', '$[0][0][0]', 100);
+JSON_REPLACE('[1]', '$[0][0][0]', 100)
+[100]
+SELECT JSON_REPLACE('[[1]]', '$', 100);
+JSON_REPLACE('[[1]]', '$', 100)
+100
+SELECT JSON_REPLACE('[[1]]', '$[0]', 100);
+JSON_REPLACE('[[1]]', '$[0]', 100)
+[100]
+SELECT JSON_REPLACE('[[1]]', '$[0][0]', 100);
+JSON_REPLACE('[[1]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_REPLACE('[[1]]', '$[0][0][0]', 100);
+JSON_REPLACE('[[1]]', '$[0][0][0]', 100)
+[[100]]
+SELECT JSON_REPLACE('[[[1]]]', '$', 100);
+JSON_REPLACE('[[[1]]]', '$', 100)
+100
+SELECT JSON_REPLACE('[[[1]]]', '$[0]', 100);
+JSON_REPLACE('[[[1]]]', '$[0]', 100)
+[100]
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0]', 100);
+JSON_REPLACE('[[[1]]]', '$[0][0]', 100)
+[[100]]
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100);
+JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100)
+[[[100]]]
+#
 # Bug#21472872 WRONG RESULTS CAUSED BY PATH LEG POPPING
 # IN JSON FUNCTIONS
 #

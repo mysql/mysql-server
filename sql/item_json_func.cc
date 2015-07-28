@@ -741,7 +741,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
 
     while (!c_oi.empty() && !d_oi.empty())
     {
-      for( ; !d_oi.empty() && cmp(d_oi.elt().first, c_oi.elt().first);
+      for(; !d_oi.empty() && cmp(d_oi.elt().first, c_oi.elt().first);
           d_oi.next()) {}
 
       if (d_oi.empty() || cmp(c_oi.elt().first, d_oi.elt().first))
@@ -1815,8 +1815,9 @@ bool Item_json_typecast::val_json(Json_wrapper *wr)
 
   // Not a non-binary string, nor a JSON value, wrap the rest
 
-  if (get_json_atom_wrapper(args, 0, func_name(), &m_value, &m_conversion_buffer,
-                             wr, NULL, true))
+  if (get_json_atom_wrapper(args, 0, func_name(), &m_value,
+                            &m_conversion_buffer,
+                            wr, NULL, true))
     return error_json();
 
   null_value= args[0]->null_value;
@@ -2136,11 +2137,12 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
         Note that, later on, we decide to forbid ellipses in the path
         arguments to json_append().
       */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
         --it;
         Json_wrapper valuew;
-        if (get_atom_null_as_null(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
+        if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                  &m_conversion_buffer,
                                   &valuew))
           return error_json();
 
@@ -2250,7 +2252,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         Remove the first path leg and search again.
       */
       Json_dom_vector hits(key_memory_JSON);
-      Json_path_leg *leg= m_path.pop();
+      const Json_path_leg *leg= m_path.pop();
       if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
@@ -2261,7 +2263,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       }
 
       Json_wrapper valuew;
-      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                &m_conversion_buffer,
                                 &valuew))
       {
         return error_json();
@@ -2276,7 +2279,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         Note that, later on, we decided to forbid ellipses in the path
         arguments to json_insert().
       */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
         --it;
         // We found *something* at that parent path
@@ -2402,7 +2405,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         Remove the last path leg and search again.
       */
       Json_dom_vector hits(key_memory_JSON);
-      Json_path_leg *leg= m_path.pop();
+      const Json_path_leg *leg= m_path.pop();
       if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
@@ -2429,7 +2432,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         Note that, later on, we decided to forbid ellipses in the path
         arguments to json_insert().
       */
-      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+      for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
         --it;
         // We found *something* at that parent path
@@ -2455,6 +2458,70 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
   null_value= false;
   return false;
 }
+
+
+/**
+  Clone a source path to a target path, stripping out [0] legs
+  which are made redundant by the auto-wrapping rule
+  in the WL#7909 spec:
+
+  "If a pathExpression identifies a non-array value,
+  then pathExpression[ 0 ] evaluates to the same value
+  as pathExpression."
+
+  @param[in]      source_path The original path.
+  @param[in,out]  target_path The clone to be filled in.
+  @param[in]      doc The document to seek through.
+
+  @returns True if an error occurred. False otherwise.
+*/
+static bool clone_without_autowrapping(Json_path *source_path,
+                                       Json_path_clone *target_path,
+                                       Json_dom *doc)
+{
+  Json_dom_vector hits(key_memory_JSON);
+
+  target_path->clear();
+  size_t leg_count= source_path->leg_count();
+  for (size_t leg_idx= 0; leg_idx < leg_count; leg_idx++)
+  {
+    const Json_path_leg *path_leg= source_path->get_leg_at(leg_idx);
+    if ((path_leg->get_type() == jpl_array_cell) &&
+        (path_leg->get_array_cell_index() == 0))
+    {
+      /**
+         We have a partial path of the form
+
+         pathExpression[0]
+
+         So see if pathExpression identifies a non-array value.
+      */
+      hits.clear();
+      if (doc->seek(*target_path, &hits, false, true))
+        return true;  /* purecov: inspected */
+
+      if (!hits.empty())
+      {
+        Json_dom *candidate= hits.at(0);
+        if (candidate->json_type() != Json_dom::J_ARRAY)
+        {
+          /**
+            pathExpression identifies a non-array value.
+            We satisfy the conditions of the rule above.
+            So we can throw away the [0] leg.
+          */
+          continue;
+        }
+      }
+    }
+    // The rule above is NOT satisified. So add the leg.
+    target_path->append(path_leg);
+  }
+  hits.clear();
+
+  return false;
+}
+
 
 /**
   Common implementation for JSON_SET and JSON_REPLACE
@@ -2490,17 +2557,20 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
       Json_path *current_path= m_path_cache.get_path(i);
 
       /**
-        Clone the path so that we won't mess up the cached version
-        when we pop the trailing leg below.
+        Clone the path, stripping off redundant auto-wrapping.
       */
-      m_path.set(current_path);
+      if (clone_without_autowrapping(current_path, &m_path, doc))
+      {
+        return error_json();
+      }
 
       Json_dom_vector hits(key_memory_JSON);
       if (doc->seek(m_path, &hits, false, true))
         return error_json();                  /* purecov: inspected */
 
       Json_wrapper valuew;
-      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value, &m_conversion_buffer,
+      if (get_atom_null_as_null(args, i + 1, func_name(), &m_value,
+                                &m_conversion_buffer,
                                 &valuew))
         return error_json();
 
@@ -2513,7 +2583,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
           Remove the first path leg and search again.
         */
-        Json_path_leg *leg= m_path.pop();
+        const Json_path_leg *leg= m_path.pop();
         if (doc->seek(m_path, &hits, false, true))
           return error_json();                /* purecov: inspected */
 
@@ -2529,7 +2599,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           ellipses in the path. Make sure we do the most nested replacements
           first. Json_dom::seek returns outermost hits first.
         */
-        for (Json_dom_vector::iterator it= hits.end(); it != hits.begin(); )
+        for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
         {
           --it;
           // We now have either an array or an object in the parent's path
@@ -2542,7 +2612,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
               Json_array *arr= down_cast<Json_array *>(*it);
               DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-              if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+              if (arr->insert_clone(leg->get_array_cell_index(),
+                                    valuew.to_dom()))
                 return error_json();            /* purecov: inspected */
             }
             else
@@ -2664,7 +2735,8 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
     for (uint32 i= 0; i < arg_count; ++i)
     {
       Json_wrapper valuew;
-      if (get_atom_null_as_null(args, i, func_name(), &m_value, &m_conversion_buffer,
+      if (get_atom_null_as_null(args, i, func_name(), &m_value,
+                                &m_conversion_buffer,
                                 &valuew))
       {
         return error_json();
@@ -3113,7 +3185,8 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
 }
 
 
-Item_func_json_remove::Item_func_json_remove(THD *thd, const POS &pos, PT_item_list *a)
+Item_func_json_remove::Item_func_json_remove(THD *thd, const POS &pos,
+                                             PT_item_list *a)
   : Item_json_func(thd, pos, a)
 {}
 
@@ -3186,7 +3259,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
       Json_dom *parent= child->parent();
 
       // no parent means the root. the path is nonsense.
-      if (parent == NULL )
+      if (parent == NULL)
       {
         continue;
       }
