@@ -3455,6 +3455,9 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
   case Relay_log_info::UNTIL_SQL_AFTER_GTIDS:
     until_type= "SQL_AFTER_GTIDS";
     break;
+  case Relay_log_info::UNTIL_SQL_VIEW_ID:
+    until_type= "SQL_VIEW_ID";
+    break;
   case Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS:
     until_type= "SQL_AFTER_MTS_GAPS";
 #ifndef DBUG_OFF
