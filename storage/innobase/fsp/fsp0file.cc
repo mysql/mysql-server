@@ -917,7 +917,6 @@ the path provided without its suffix, plus DOT_ISL.
 void
 RemoteDatafile::set_link_filepath(const char* path)
 {
-	char*	basename;
 	bool	is_shared =  FSP_FLAGS_GET_SHARED(flags());
 
 	if (is_shared) {
