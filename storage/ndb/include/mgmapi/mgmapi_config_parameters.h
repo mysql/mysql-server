@@ -220,6 +220,7 @@
 #define CFG_MIXOLOGY_LEVEL            642
 #define CFG_DB_PARALLEL_COPY_THREADS  643
 #define CFG_DB_MAX_SEND_DELAY         644
+#define CFG_DB_BACKUP_DISK_WRITE_PCT  645
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

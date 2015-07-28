@@ -15415,8 +15415,9 @@ void Dbdih::sendCHECK_NODE_RESTARTCONF(Signal *signal,
                                         BlockReference ref,
                                         Uint32 node_restart)
 {
-  signal->theData[0] = node_restart;
-  sendSignal(ref, GSN_CHECK_NODE_RESTARTCONF, signal, 1, JBB);
+  signal->theData[0] = (m_local_lcp_state.m_state == LocalLCPState::LS_RUNNING)? 1 : 0;
+  signal->theData[1] = node_restart;
+  sendSignal(ref, GSN_CHECK_NODE_RESTARTCONF, signal, 2, JBB);
 }
 
 void Dbdih::execCHECK_NODE_RESTARTREQ(Signal *signal)
