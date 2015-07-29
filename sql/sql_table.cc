@@ -4773,7 +4773,11 @@ bool create_table_impl(THD *thd,
   // Check if new table creation is disallowed by the storage engine.
   if (!internal_tmp_table &&
       ha_is_storage_engine_disabled(create_info->db_type))
+  {
+    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+              ha_resolve_storage_engine_name(create_info->db_type));
     DBUG_RETURN(true);
+  }
 
   if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
@@ -8557,7 +8561,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
       (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
        ha_is_storage_engine_disabled(create_info->db_type))
+  {
+    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+              ha_resolve_storage_engine_name(create_info->db_type));
     DBUG_RETURN(true);
+  }
 
   TABLE *table= table_list->table;
   table->use_all_columns();
