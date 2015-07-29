@@ -1420,6 +1420,91 @@ dict_create_add_foreign_field_to_dictionary(
 }
 
 /********************************************************************//**
+Construct foreign key constraint defintion from data dictionary information.
+*/
+static
+char*
+dict_foreign_def_get(
+	dict_foreign_t*	foreign,/*!< in: foreign */
+	trx_t*		trx)	/*!< in: trx */
+{
+	char* fk_def = mem_heap_alloc(foreign->heap, 4*1024);
+	const char* tbname;
+	char tablebuf[MAX_TABLE_NAME_LEN + 1] = "";
+	int i;
+
+	tbname = dict_remove_db_name(foreign->id);
+	innobase_convert_name(tablebuf, MAX_TABLE_NAME_LEN,
+				tbname, strlen(tbname), trx->mysql_thd, FALSE);
+
+	sprintf(fk_def,
+		(char *)"CONSTRAINT %s FOREIGN KEY (", (char *)tablebuf);
+
+	for(i = 0; i < foreign->n_fields; i++) {
+		char	buf[MAX_TABLE_NAME_LEN + 1] = "";
+		innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
+				foreign->foreign_col_names[i],
+				strlen(foreign->foreign_col_names[i]),
+				trx->mysql_thd, FALSE);
+		strcat(fk_def, buf);
+		if (i < foreign->n_fields-1) {
+			strcat(fk_def, (char *)",");
+		}
+	}
+
+	strcat(fk_def,(char *)") REFERENCES ");
+
+	innobase_convert_name(tablebuf, MAX_TABLE_NAME_LEN,
+	        foreign->referenced_table_name,
+		strlen(foreign->referenced_table_name),
+		trx->mysql_thd, TRUE);
+
+	strcat(fk_def, tablebuf);
+	strcat(fk_def, " (");
+
+	for(i = 0; i < foreign->n_fields; i++) {
+		char	buf[MAX_TABLE_NAME_LEN + 1] = "";
+		innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
+				foreign->referenced_col_names[i],
+				strlen(foreign->referenced_col_names[i]),
+				trx->mysql_thd, FALSE);
+		strcat(fk_def, buf);
+		if (i < foreign->n_fields-1) {
+			strcat(fk_def, (char *)",");
+		}
+	}
+	strcat(fk_def, (char *)")");
+
+	return fk_def;
+}
+
+/********************************************************************//**
+Convert foreign key column names from data dictionary to SQL-layer.
+*/
+static
+void
+dict_foreign_def_get_fields(
+	dict_foreign_t*	foreign,/*!< in: foreign */
+	trx_t*		trx,	/*!< in: trx */
+	char**		field,  /*!< out: foreign column */
+	char**		field2, /*!< out: referenced column */
+	int		col_no) /*!< in: column number */
+{
+	*field = mem_heap_alloc(foreign->heap, MAX_TABLE_NAME_LEN+1);
+	*field2 = mem_heap_alloc(foreign->heap, MAX_TABLE_NAME_LEN+1);
+
+	innobase_convert_name(*field, MAX_TABLE_NAME_LEN,
+		foreign->foreign_col_names[col_no],
+		strlen(foreign->foreign_col_names[col_no]),
+		trx->mysql_thd, FALSE);
+
+	innobase_convert_name(*field, MAX_TABLE_NAME_LEN,
+		foreign->referenced_col_names[col_no],
+		strlen(foreign->referenced_col_names[col_no]),
+		trx->mysql_thd, FALSE);
+}
+
+/********************************************************************//**
 Add a single foreign key definition to the data dictionary tables in the
 database. We also generate names to constraints that were not named by the
 user. A generated constraint has a name of the format
@@ -1501,6 +1586,22 @@ dict_create_add_foreign_to_dictionary(
 
 	if (error != DB_SUCCESS) {
 
+		if (error == DB_DUPLICATE_KEY) {
+			char	buf[MAX_TABLE_NAME_LEN + 1] = "";
+			char*	fk_def;
+
+			innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
+				foreign->id, strlen(foreign->id), trx->mysql_thd, FALSE);
+
+			fk_def = dict_foreign_def_get(foreign, trx);
+
+			ib_push_warning(trx, error, (const char *)"InnoDB: foreign key constraint name %s "
+				"already exists on data dictionary."
+				" Foreign key constraint names need to be unique in database."
+				" Error in foreign key definition: %s.",
+				buf, fk_def);
+		}
+
 		return(error);
 	}
 
@@ -1509,6 +1610,20 @@ dict_create_add_foreign_to_dictionary(
 			i, table, foreign, trx);
 
 		if (error != DB_SUCCESS) {
+			char	buf[MAX_TABLE_NAME_LEN + 1] = "";
+			char*	field=NULL;
+			char*	field2=NULL;
+			char*	fk_def;
+
+			innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
+				foreign->id, strlen(foreign->id), trx->mysql_thd, FALSE);
+			fk_def = dict_foreign_def_get(foreign, trx);
+			dict_foreign_def_get_fields(foreign, trx, &field, &field2, i);
+
+			ib_push_warning(trx, error,
+				(const char *)"InnoDB: Error adding foreign  key constraint name %s fields %s or %s to the dictionary."
+				" Error in foreign key definition: %s.",
+				buf, i+1, fk_def);
 
 			return(error);
 		}
@@ -1593,7 +1708,7 @@ dict_create_add_foreigns_to_dictionary(
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
 		error = dict_create_add_foreign_to_dictionary(&number, table,
-							      foreign, trx);
+			foreign, trx);
 
 		if (error != DB_SUCCESS) {
 

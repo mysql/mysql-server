@@ -1,0 +1,20 @@
+CREATE TABLE t1 (
+id int(11) NOT NULL PRIMARY KEY,
+a int(11) NOT NULL,
+b int(11) NOT NULL,
+c int not null,
+CONSTRAINT test FOREIGN KEY (b) REFERENCES t1 (id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+id int(11) NOT NULL PRIMARY KEY,
+a int(11) NOT NULL,
+b int(11) NOT NULL,
+c int not null,
+CONSTRAINT test FOREIGN KEY (b) REFERENCES t2 (id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+ERROR HY000: Can't create table 'test.t2' (errno: 121)
+show warnings;
+Level	Code	Message
+Warning	121	InnoDB: foreign key constraint name `test/test` already exists on data dictionary. Foreign key constraint names need to be unique in database. Error in foreign key definition: CONSTRAINT `test` FOREIGN KEY (`b`) REFERENCES `test`.`t2` (`id`).
+Error	1005	Can't create table 'test.t2' (errno: 121)
+drop table t1;
