@@ -1,6 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
-
+--source include/have_innodb_max_16k.inc
 
 CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a), c CHAR(10), d CHAR(20), e CHAR(10) GENERATED ALWAYS AS (c), g INT);
 INSERT INTO t VALUES(10, DEFAULT, "aa", "bb", DEFAULT, 20);
