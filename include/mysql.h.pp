@@ -356,7 +356,8 @@ enum mysql_option
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
   MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-  MYSQL_OPT_SSL_ENFORCE
+  MYSQL_OPT_SSL_ENFORCE,
+  MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
@@ -467,15 +468,8 @@ typedef struct st_mysql_res {
   my_bool unbuffered_fetch_cancelled;
   void *extension;
 } MYSQL_RES;
-typedef struct st_mysql_parameters
-{
-  unsigned long *p_max_allowed_packet;
-  unsigned long *p_net_buffer_length;
-  void *extension;
-} MYSQL_PARAMETERS;
 int mysql_server_init(int argc, char **argv, char **groups);
 void mysql_server_end(void);
-MYSQL_PARAMETERS * mysql_get_parameters(void);
 my_bool mysql_thread_init(void);
 void mysql_thread_end(void);
 my_ulonglong mysql_num_rows(MYSQL_RES *res);

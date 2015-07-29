@@ -1328,13 +1328,17 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   char *buf= 0;
   const char *error= 0;
   Log_event *res=  0;
-#ifndef max_allowed_packet
+#if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+  ulong log_max_allowed_packet;
+  mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                   &log_max_allowed_packet);
+#else
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? slave_max_allowed_packet : ~0U;
+  uint log_max_allowed_packet= thd ? slave_max_allowed_packet : ~0U;
 #endif
 
   ulong const max_size=
-    max<ulong>(max_allowed_packet,
+    max<ulong>(log_max_allowed_packet,
                opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER);
   if (data_len > max_size)
   {

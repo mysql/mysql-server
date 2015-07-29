@@ -43,8 +43,8 @@
 #define INADDR_NONE	-1
 #endif
 
-extern ulong net_buffer_length;
-extern ulong max_allowed_packet;
+ulong net_buffer_length;
+ulong max_allowed_packet;
 
 int mysql_init_character_set(MYSQL *mysql);
 

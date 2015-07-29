@@ -39,10 +39,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/psi/mysql_memory.h"
 
-/* Remove client convenience wrappers */
-#undef max_allowed_packet
-#undef net_buffer_length
-
 #ifdef EMBEDDED_LIBRARY
 
 #undef MYSQL_SERVER
@@ -165,6 +161,9 @@ const char	*cant_connect_sqlstate= "08001";
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
+
+ulong g_net_buffer_length= 8192;
+ulong g_max_allowed_packet= 1024L*1024L*1024L;
 
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
@@ -5492,6 +5491,17 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
     break;
 
+  case MYSQL_OPT_MAX_ALLOWED_PACKET:
+    if (mysql)
+      mysql->options.max_allowed_packet= (*(ulong *) arg);
+    else
+      g_max_allowed_packet= (*(ulong *) arg);
+    break;
+
+  case MYSQL_OPT_NET_BUFFER_LENGTH:
+    g_net_buffer_length= (*(ulong *) arg);
+    break;
+
   default:
     DBUG_RETURN(1);
   }
@@ -5667,6 +5677,17 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
     *((my_bool*)arg)= (mysql->options.client_flag &
                        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? TRUE : FALSE;
+    break;
+
+  case MYSQL_OPT_MAX_ALLOWED_PACKET:
+    if (mysql)
+      *((ulong*)arg)= mysql->options.max_allowed_packet;
+    else
+      *((ulong*)arg)= g_max_allowed_packet;
+    break;
+
+  case MYSQL_OPT_NET_BUFFER_LENGTH:
+    *((ulong*)arg)= g_net_buffer_length;
     break;
 
   case MYSQL_OPT_NAMED_PIPE:			/* This option is depricated */
