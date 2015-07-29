@@ -112,7 +112,7 @@ sub check_socket_path_length {
   my $truncated= undef;
 
   ##append extra chars if --parallel because $opt_tmpdir will be longer
-  if ( $parallel > 9 ) {
+  if ( $parallel > 9 || $parallel eq "auto" ) {
     $path=$path."xxx";
   }
   elsif ( $parallel > 1 ) {
