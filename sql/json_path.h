@@ -338,7 +338,7 @@ public:
     Clear this clone and then add all of the
     legs from another path.
 
-    @param[in,out] other The source path
+    @param[in,out] source The source path
     @return false on success, true on error
   */
   bool set(Json_seekable_path *source);

@@ -4861,9 +4861,9 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 
 /**
   Compare two ROR_SCAN_INFO* by
-    1. #fields in this index that are not already covered
+    1. Number of fields in this index that are not already covered
        by other indexes earlier in the intersect ordering: descending
-    2. E(#records): ascending
+    2. E(Number of records): ascending
 
   @param scan1   first ror scan to compare
   @param scan2   second ror scan to compare
@@ -4896,7 +4896,7 @@ static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
        intersection. I.e., the index covering most fields not already
        covered by other indexes earlier in the sort order is picked first.
     2) When multiple indexes cover equally many uncovered fields, the
-       index with lowest E(#rows) is chosen.
+       index with lowest E(Number of rows) is chosen.
 
   Note that all permutations of index ordering are not tested, so this
   function may not find the optimal order.

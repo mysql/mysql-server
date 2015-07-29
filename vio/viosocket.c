@@ -467,8 +467,8 @@ my_socket vio_fd(Vio* vio)
   addresses may be written in a form of IPv4-mapped or IPv4-compatible IPv6
   addresses. That means, one address (a.b.c.d) can be written in three forms:
     - IPv4: a.b.c.d;
-    - IPv4-compatible IPv6: ::a.b.c.d;
-    - IPv4-mapped IPv4: ::ffff:a.b.c.d;
+    - IPv4-compatible IPv6: @code ::a.b.c.d @endcode;
+    - IPv4-mapped IPv4: @code ::ffff:a.b.c.d @endcode;
 
   Having three forms of one address makes it a little difficult to compare
   addresses with each other (the IPv4-compatible IPv6-address of foo.bar

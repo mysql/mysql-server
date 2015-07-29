@@ -2853,7 +2853,7 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   /**
     Must not be called before the procedure is resolved,
-    i.e. ::init_result_field().
+    i.e. @c init_result_field().
   */
   table_map get_initial_pseudo_tables() const;
   void update_used_tables();

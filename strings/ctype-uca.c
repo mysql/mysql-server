@@ -20067,9 +20067,8 @@ my_space_weight(const CHARSET_INFO *cs) /* W3-TODO */
   Helper function:
   Find address of weights of the given character.
   
-  @param weights  UCA weight array
-  @param lengths  UCA length array
-  @param ch       character Unicode code point
+  @param level    Pointer to UCA level data
+  @param wc       character Unicode code point
   
   @return Weight array
     @retval  pointer to weight array for the given character,

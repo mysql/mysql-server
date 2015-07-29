@@ -21123,7 +21123,7 @@ code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code)
   Calculate the 4-byte GB18030 code from a diff value
 
   @param[out] dst     dest to store the gb18030 code in bytes
-  @param[in]  destlen valid length of dest
+  @param[in]  dstlen  valid length of dest
   @param[in]  diff    the diff between gb18030 code and GB+81308130
   @retval             4 if the diff is a valid value and there is enough
                       space in dst
@@ -21607,7 +21607,7 @@ get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
   @param[in]  cs       charset
   @param[in]  src      start byte of given sequence of gb18030 codes
   @param[in]  srclen   length of the sequence
-  @param[out] det      start byte of the output of casefolded codes
+  @param[out] dst      start byte of the output of casefolded codes
   @param[out] dstlen   length of the result array
   @param[in]  map      the LOWER map or the UPPER map of gb18030
   @param[in]  is_upper TRUE if we want capital letter

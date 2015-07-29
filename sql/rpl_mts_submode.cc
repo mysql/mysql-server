@@ -328,7 +328,7 @@ Mts_submode_logical_clock::Mts_submode_logical_clock()
         last_lwm_timestamp <= GAQ.lwm.sequence_number           (*)
 
    Staleness is caused by GAQ garbage collection that increments the rhs of (*),
-   see ::move_queue_head(). When that's diagnozed, the search in GAQ needs
+   see @c move_queue_head(). When that's diagnosed, the search in GAQ needs
    restarting from the queue tail.
 
    Formally, the undefined cached value of last_lwm_timestamp is also stale.

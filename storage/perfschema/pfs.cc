@@ -864,10 +864,10 @@ static inline int mysql_mutex_lock(...)
   grand parents directly.
 
   Implemented as:
-  - [1] @c start_mutex_wait_v1(), @c end_mutex_wait_v1()
-  - [2] @c destroy_mutex_v1()
-  - [3] @c aggregate_thread_waits()
-  - [4] @c PFS_account::aggregate_waits()
+  - [1] #pfs_start_mutex_wait_v1(), #pfs_end_mutex_wait_v1()
+  - [2] #pfs_destroy_mutex_v1()
+  - [3] #aggregate_thread_waits()
+  - [4] PFS_account::aggregate_waits()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
@@ -912,8 +912,8 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_rwlock_rdwait_v1(), @c end_rwlock_rdwait_v1(), ...
-  - [2] @c destroy_rwlock_v1()
+  - [1] #pfs_start_rwlock_rdwait_v1(), #pfs_end_rwlock_rdwait_v1(), ...
+  - [2] #pfs_destroy_rwlock_v1()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
@@ -940,8 +940,8 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_cond_wait_v1(), @c end_cond_wait_v1()
-  - [2] @c destroy_cond_v1()
+  - [1] #pfs_start_cond_wait_v1(), #pfs_end_cond_wait_v1()
+  - [2] #pfs_destroy_cond_v1()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
@@ -968,9 +968,9 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c get_thread_file_name_locker_v1(), @c start_file_wait_v1(),
-        @c end_file_wait_v1(), ...
-  - [2] @c close_file_v1()
+  - [1] #pfs_get_thread_file_name_locker_v1(), #pfs_start_file_wait_v1(),
+        #pfs_end_file_wait_v1(), ...
+  - [2] #pfs_start_file_close_wait_v1(), #pfs_end_file_close_wait_v1()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
@@ -1009,9 +1009,9 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_socket_wait_v1(), @c end_socket_wait_v1().
-  - [2] @c close_socket_v1()
-  - [3] @c aggregate_thread_waits()
+  - [1] #pfs_start_socket_wait_v1(), #pfs_end_socket_wait_v1().
+  - [2] #pfs_destroy_socket_v1()
+  - [3] #aggregate_thread_waits()
   - [4] @c PFS_account::aggregate_waits()
   - [5] @c PFS_host::aggregate_waits()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
@@ -1070,22 +1070,22 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_table_io_wait_v1(), @c end_table_io_wait_v1()
-  - [2] @c close_table_v1()
-  - [3] @c drop_table_share_v1()
-  - [4] @c TRUNCATE TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
-  - [5] @c TRUNCATE TABLE EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
-  - [A] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
-        @c table_events_waits_summary_by_instance::make_table_row()
+  - [1] #pfs_start_table_io_wait_v1(), #pfs_end_table_io_wait_v1()
+  - [2] #pfs_close_table_v1()
+  - [3] #pfs_drop_table_share_v1()
+  - [4] TRUNCATE TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+  - [5] TRUNCATE TABLE EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+  - [A] TABLE_IO_WAITS_SUMMARY_BY_TABLE,
+        @c table_tiws_by_table::make_row()
   - [B] OBJECTS_SUMMARY_GLOBAL_BY_TYPE,
-        @c table_os_global_by_type::make_row()
+        @c table_os_global_by_type::make_table_row()
   - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_ews_global_by_event_name::make_table_io_row(),
         @c table_ews_global_by_event_name::make_table_lock_row()
   - [D] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [E] EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
-        @c table_ews_by_user_by_account_name::make_row()
+        @c table_ews_by_account_by_event_name::make_row()
   - [F] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
         @c table_ews_by_user_by_event_name::make_row()
   - [G] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
@@ -1130,8 +1130,8 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_stage_v1()
-  - [2] @c delete_thread_v1(), @c aggregate_thread_stages()
+  - [1] #pfs_start_stage_v1()
+  - [2] #pfs_delete_thread_v1(), #aggregate_thread_stages()
   - [3] @c PFS_account::aggregate_stages()
   - [4] @c PFS_host::aggregate_stages()
   - [A] EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME,
@@ -1192,13 +1192,13 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_statement_v1(), end_statement_v1()
+  - [1] #pfs_start_statement_v1(), #pfs_end_statement_v1()
        (1a, 1b) is an aggregation by EVENT_NAME,
         (1c, 1d, 1e) is an aggregation by TIME,
         (1f) is an aggregation by DIGEST
         all of these are orthogonal,
-        and implemented in end_statement_v1().
-  - [2] @c delete_thread_v1(), @c aggregate_thread_statements()
+        and implemented in #pfs_end_statement_v1().
+  - [2] #pfs_delete_thread_v1(), #aggregate_thread_statements()
   - [3] @c PFS_account::aggregate_statements()
   - [4] @c PFS_host::aggregate_statements()
   - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
@@ -1212,14 +1212,11 @@ static inline int mysql_mutex_lock(...)
   - [E] EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME,
         @c table_esms_global_by_event_name::make_row()
   - [F] EVENTS_STATEMENTS_CURRENT,
-        @c table_events_statements_current::rnd_next(),
-        @c table_events_statements_common::make_row()
+        @c table_events_statements_current::make_row()
   - [G] EVENTS_STATEMENTS_HISTORY,
-        @c table_events_statements_history::rnd_next(),
-        @c table_events_statements_common::make_row()
+        @c table_events_statements_history::make_row()
   - [H] EVENTS_STATEMENTS_HISTORY_LONG,
-        @c table_events_statements_history_long::rnd_next(),
-        @c table_events_statements_common::make_row()
+        @c table_events_statements_history_long::make_row()
   - [I] EVENTS_STATEMENTS_SUMMARY_BY_DIGEST
         @c table_esms_by_digest::make_row()
 
@@ -1267,12 +1264,12 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c start_transaction_v1(), end_transaction_v1()
+  - [1] #pfs_start_transaction_v1(), #pfs_end_transaction_v1()
        (1a, 1b) is an aggregation by EVENT_NAME,
         (1c, 1d, 1e) is an aggregation by TIME,
         all of these are orthogonal,
-        and implemented in end_transaction_v1().
-  - [2] @c delete_thread_v1(), @c aggregate_thread_transactions()
+        and implemented in #pfs_end_transaction_v1().
+  - [2] #pfs_delete_thread_v1(), #aggregate_thread_transactions()
   - [3] @c PFS_account::aggregate_transactions()
   - [4] @c PFS_host::aggregate_transactions()
 
@@ -1331,12 +1328,12 @@ static inline int mysql_mutex_lock(...)
 @endverbatim
 
   Implemented as:
-  - [1] @c pfs_memory_alloc_v1(),
-        @c pfs_memory_realloc_v1(),
-        @c pfs_memory_free_v1().
+  - [1] #pfs_memory_alloc_v1(),
+        #pfs_memory_realloc_v1(),
+        #pfs_memory_free_v1().
   - [1+] are overflows that can happen during [1a],
         implemented with @c carry_memory_stat_delta()
-  - [2] @c delete_thread_v1(), @c aggregate_thread_memory()
+  - [2] #pfs_delete_thread_v1(), #aggregate_thread_memory()
   - [3] @c PFS_account::aggregate_memory()
   - [4] @c PFS_host::aggregate_memory()
   - [A] EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME,

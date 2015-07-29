@@ -728,7 +728,7 @@ public:
 
 
 /**
-  @brief    The function parses input strings and returns SP stucture.
+  The function parses input strings and returns SP structure.
 
   @param[in]      thd               Thread handler
   @param[in]      defstr            CREATE... string
@@ -736,8 +736,7 @@ public:
   @param[in]      creation_ctx      Creation context of stored routines
                                     
   @return     Pointer on sp_head struct
-    @retval   #                     Pointer on sp_head struct
-    @retval   0                     error
+    @retval   NULL                  error
 */
 
 static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
@@ -2251,8 +2250,8 @@ static bool create_string(THD *thd, String *buf,
 
 
 /**
-  @brief    The function loads sp_head struct for information schema purposes
-            (used for I_S ROUTINES & PARAMETERS tables).
+  The function loads sp_head struct for information schema purposes
+  (used for I_S ROUTINES & PARAMETERS tables).
 
   @param[in]      thd               thread handler
   @param[in]      proc_table        mysql.proc table structurte
@@ -2266,8 +2265,7 @@ static bool create_string(THD *thd, String *buf,
                                     otherwise returns 0
                                     
   @return     Pointer on sp_head struct
-    @retval   #                     Pointer on sp_head struct
-    @retval   0                     error
+    @retval   NULL                  error
 */
 
 sp_head *

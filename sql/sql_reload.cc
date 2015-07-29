@@ -392,7 +392,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   new transactions will be able to read the tables, but not
   write to them.
 
-  Differences from FLUSH TABLES <list>
+  Differences from FLUSH TABLES @<list@>
   -------------------------------------
   - you can't flush WITH READ LOCK a non-existent table
   - you can't flush WITH READ LOCK under LOCK TABLES

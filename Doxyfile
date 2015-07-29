@@ -807,9 +807,13 @@ RECURSIVE              = YES
 # run.
 
 ## Please keep this list sorted alphabetically.
+## To resolve:
+## client/mysqlbinlog.cc : MYSQL_CLIENT / MYSQL_SERVER build options
 
 EXCLUDE                = cmd-line-utils \
+                         client/mysqlbinlog.cc \
                          extra \
+                         generated \
                          include/mysql/psi/psi_abi_v0.h \
                          include/mysql/psi/psi_abi_v1.h \
                          include/mysql/psi/psi_abi_v2.h \

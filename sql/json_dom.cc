@@ -947,7 +947,7 @@ bool is_valid_json_syntax(const char *text, size_t length)
 /**
   Map the JSON type used by the binary representation to the type
   used by Json_dom and Json_wrapper.
-  <p/>
+
   Note: Does not look into opaque values to determine if they
   represent decimal or date/time values. For that, look into the
   Value an retrive field_type.

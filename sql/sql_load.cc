@@ -1991,9 +1991,9 @@ my_xml_entity_to_char(const char *name, size_t length)
   @param chr    character
   
   @details According to the "XML 1.0" standard,
-           only space (#x20) characters, carriage returns,
+           only space (@#x20) characters, carriage returns,
            line feeds or tabs are considered as spaces.
-           Convert all of them to space (#x20) for parsing simplicity.
+           Convert all of them to space (@#x20) for parsing simplicity.
 */
 static int
 my_tospace(int chr)

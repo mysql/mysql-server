@@ -2296,7 +2296,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
 /**
   Calculate a cost of given partial join order
  
-  @param join              Join to use. ::positions holds the partial join order
+  @param join               Join to use. @c positions holds the partial join order
   @param n_tables           Number of tables in the partial join order
   @param [out] cost_arg     Store read time here 
   @param [out] rowcount_arg Store record count here
@@ -2470,8 +2470,8 @@ void Optimize_table_order::consider_plan(uint             idx,
     the complexity of greedy_search is O(N!).
 
   @note
-    ::best_extension_by_limited_search() & ::eq_ref_extension_by_limited_search()
-    are closely related to each other and intentially implemented using the
+    @c best_extension_by_limited_search() and @c eq_ref_extension_by_limited_search()
+    are closely related to each other and intentionally implemented using the
     same pattern wherever possible. If a change/bug fix is done to either of
     these also consider if it is relevant for the other.
 
@@ -2816,10 +2816,10 @@ static inline bool almost_equal(double left, double right)
   1::1 relation between the rows being joined. Assuming we
   have multiple such 1::1 (star-)joined relations in a
   sequence, without other join types inbetween. Then all of 
-  these 'eq_ref-joins' will be estimated to return the excact 
-  same #rows and having identical 'cost' (or 'read_time').
+  these 'eq_ref-joins' will be estimated to return the exact 
+  same number of rows and having identical 'cost' (or 'read_time').
 
-  This leads to that we can append such a contigous sequence
+  This leads to that we can append such a contiguous sequence
   of eq_ref-joins to a partial plan in any order without 
   affecting the total cost of the query plan. Exploring the
   different permutations of these eq_refs in the 'greedy' 
@@ -2827,7 +2827,7 @@ static inline bool almost_equal(double left, double right)
 
   Once we have appended a single eq_ref-join to a partial
   plan, we may use eq_ref_extension_by_limited_search() to search 
-  'remaining_tables' for more eq_refs which will form a contigous
+  'remaining_tables' for more eq_refs which will form a contiguous
   set of eq_refs in the QEP.
 
   Effectively, this chain of eq_refs will be handled as a single
@@ -2852,8 +2852,8 @@ static inline bool almost_equal(double left, double right)
   corresponding cost of the optimal plan is in 'join->best_read'.
 
   @note
-    ::best_extension_by_limited_search() & ::eq_ref_extension_by_limited_search()
-    are closely related to each other and intentially implemented using the
+    @c best_extension_by_limited_search() and @c eq_ref_extension_by_limited_search()
+    are closely related to each other and intentionally implemented using the
     same pattern wherever possible. If a change/bug fix is done to either of
     these also consider if it is relevant for the other.
 

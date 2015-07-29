@@ -3081,7 +3081,7 @@ void Prepared_statement::setup_set_params()
   Destroy this prepared statement, cleaning up all used memory
   and resources.
 
-  This is called from ::deallocate() to handle COM_STMT_CLOSE and
+  This is called from @c deallocate() to handle COM_STMT_CLOSE and
   DEALLOCATE PREPARE or when THD ends and all prepared statements are freed.
 */
 

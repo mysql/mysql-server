@@ -1271,10 +1271,10 @@ static const char *require_quotes(const char *name, size_t name_length)
   Convert and quote the given identifier if needed and append it to the
   target string. If the given identifier is empty, it will be quoted.
 
-  @thd                         thread handler
-  @packet                      target string
-  @name                        the identifier to be appended
-  @length                      length of the appending identifier
+  @param thd                   thread handler
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the appending identifier
   @param from_cs               Charset information about the input string
   @param to_cs                 Charset information about the target string
 */

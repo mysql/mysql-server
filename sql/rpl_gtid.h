@@ -1284,7 +1284,7 @@ public:
     Returns true if this Gtid_set is a subset of the given gtid_set
     on the given superset_sidno and subset_sidno.
 
-    @param super          Gtid_set with which 'this'::gtid_set needs to be
+    @param super          Gtid_set with which this->gtid_set needs to be
                            compared
     @param superset_sidno The sidno that will be compared, relative to
                            super->sid_map.
@@ -3331,13 +3331,13 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
   The Gtid_specification must be of type GTID_GROUP or ANONYMOUS_GROUP.
 
   The caller must hold global_sid_lock (normally the rdlock).  The
-  lock may be termporarily released and acquired again. In the end,
+  lock may be temporarily released and acquired again. In the end,
   the lock will be released, so the caller should *not* release the
   lock.
 
   The function will try to acquire ownership of the GTID and update
   both THD::gtid_next, Gtid_state::owned_gtids, and
-  THD::owned_gtid/THD::owned_sid.
+  THD::owned_gtid / THD::owned_sid.
 
   @param thd The thread that acquires ownership.
 

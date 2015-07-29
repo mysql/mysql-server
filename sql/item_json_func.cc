@@ -246,7 +246,7 @@ static bool get_json_string(Item *arg_item,
 
   @param[in]     args       Item_func::args alias
   @param[in]     arg_idx    Index (0-based) of argument into the args array
-  @param[out]    value      Item_func_json_*::m_value alias
+  @param[out]    value      Alias for @code Item_func_json_*::m_value @endcode
   @param[in]     func_name  Name of the user-invoked JSON_ function
   @param[in,out] dom        If non-null, we want any text parsed DOM
                             returned at the location pointed to

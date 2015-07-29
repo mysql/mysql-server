@@ -887,7 +887,7 @@ public:
 
   /**
     Return a pointer the date/time value. Ownership is _not_ transferred.
-    To identify which time time the value represents, use ::field_type.
+    To identify which time time the value represents, use @c field_type.
     @return the pointer
   */
   const MYSQL_TIME *value() const { return &m_t; }
@@ -1140,7 +1140,7 @@ public:
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
-    ownership, unless ::set_alias is called after construction.
+    ownership, unless @c set_alias is called after construction.
     In the latter case the lifetime of the DOM is determined by
     the owner of the DOM, so clients need to ensure that that
     lifetime is sufficient, lest dead storage is attempted accessed.
@@ -1296,7 +1296,7 @@ public:
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.
     The data is still owner by the wrapper. The data may not be null
-    terminated, so use in conjunction with ::get_data_length.
+    terminated, so use in conjunction with @c get_data_length.
     Valid for J_STRING and J_OPAQUE.  Calling this method if the type is
     not one of those will give undefined results.
 

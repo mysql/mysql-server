@@ -179,9 +179,9 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
   
   @details Break down the path name to its logic parts
   (database, table, partition, subpartition).
-  filename_to_tablename cannot be used on partitions, due to the #P# part.
-  There can be up to 6 '#', #P# for partition, #SP# for subpartition
-  and #TMP# or #REN# for temporary or renamed partitions.
+  filename_to_tablename cannot be used on partitions, due to the @#P@# part.
+  There can be up to 6 '#', @#P@# for partition, @#SP@# for subpartition
+  and @#TMP@# or @#REN@# for temporary or renamed partitions.
   This should be used when something should be presented to a user in a
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
@@ -537,7 +537,7 @@ size_t build_table_filename(char *buff, size_t bufflen, const char *db,
 
 
 /**
-  Create path to a temporary table mysql_tmpdir/#sql1234_12_1
+  Create path to a temporary table, like mysql_tmpdir/@#sql1234_12_1
   (i.e. to its .FRM file but without an extension).
 
   @param thd      The thread handle.

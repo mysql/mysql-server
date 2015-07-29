@@ -644,7 +644,7 @@ Event_db_repository::open_event_table(THD *thd, enum thr_lock_type lock_type,
   Creates an event record in mysql.event table.
 
   Creates an event. Relies on mysql_event_fill_row which is shared with
-  ::update_event.
+  @c update_event().
 
   @pre All semantic checks must be performed outside. This function
   only creates a record on disk.

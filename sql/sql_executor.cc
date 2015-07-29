@@ -465,7 +465,7 @@ bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
 
 
 /**
-  Call ::setup for all sum functions.
+  Call @c setup() for all sum functions.
 
   @param thd           thread handler
   @param func_ptr      sum function list
@@ -2121,7 +2121,7 @@ join_read_key_unlock_row(QEP_TAB *tab)
 
   However, there may be situations where the prepared pushed join was not
   executed as assumed. It is the responsibility of the handler to handle
-  these situation by letting ::index_read_pushed() then effectively do a 
+  these situation by letting @c index_read_pushed() then effectively do a 
   plain old' index_read_map(..., HA_READ_KEY_EXACT);
   
   @param tab			Table to read
