@@ -1,4 +1,6 @@
 --source include/only_mts_slave_parallel_type_logical_clock.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
