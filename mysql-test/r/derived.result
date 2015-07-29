@@ -3523,3 +3523,28 @@ NATURAL JOIN t1 AS t3;
 1
 1
 DROP TABLE t1, t2;
+# Bug#21512842: Sig 11 in check_column_grant_in_table_ref
+CREATE TABLE t1 (
+pk INTEGER,
+col_varchar JSON NOT NULL,
+PRIMARY KEY (pk)
+);
+CREATE TABLE t2 (
+pk INTEGER,
+col_date_key DATE NOT NULL,
+PRIMARY KEY (pk)
+);
+set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT *
+FROM (SELECT alias2.pk AS field1
+FROM t1 AS alias1
+LEFT OUTER JOIN t2 AS alias2
+ON JSON_UNQUOTE(JSON_EXTRACT(alias1.col_varchar,'$.varc'))
+COLLATE utf8mb4_general_ci = alias2.col_date_key
+GROUP BY JSON_QUOTE(JSON_EXTRACT(field1,'$.intc'))
+) AS dt;
+field1
+set sql_mode=default;
+DROP TABLE t1, t2;

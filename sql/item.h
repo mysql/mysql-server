@@ -2545,6 +2545,8 @@ public:
     Cached pointer to table which contains this field, used for the same reason
     by prep. stmt. too in case then we have not-fully qualified field.
     0 - means no cached value.
+    @todo Notice that this is usually the same as Item_field::table_ref.
+          cached_table should be replaced by table_ref ASAP.
   */
   TABLE_LIST *cached_table;
   SELECT_LEX *depended_from;
