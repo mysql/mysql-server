@@ -5821,6 +5821,8 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
 
             set_field(new_field);
 
+            cached_table= table_ref;
+
             // The found column may be an outer reference
             if (item_field->depended_from)
               mark_as_dependent(thd, item_field->depended_from,
