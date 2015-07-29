@@ -51,11 +51,6 @@
 #include "client_settings.h"
 #include "mysql_trace.h"
 
-#undef net_buffer_length
-#undef max_allowed_packet
-
-ulong 		net_buffer_length=8192;
-ulong		max_allowed_packet= 1024L*1024L*1024L;
 
 
 #ifdef EMBEDDED_LIBRARY
@@ -213,14 +208,6 @@ void STDCALL mysql_server_end()
   }
 
   mysql_client_init= org_my_init_done= 0;
-}
-
-static MYSQL_PARAMETERS mysql_internal_parameters=
-{&max_allowed_packet, &net_buffer_length, 0};
-
-MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void)
-{
-  return &mysql_internal_parameters;
 }
 
 my_bool STDCALL mysql_thread_init()
@@ -1100,11 +1087,19 @@ my_bool STDCALL mysql_embedded(void)
 
 void my_net_local_init(NET *net)
 {
-  net->max_packet=   (uint) net_buffer_length;
+  ulong local_net_buffer_length;
+  ulong local_max_allowed_packet;
+
+  (void) mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                          &local_max_allowed_packet);
+  (void) mysql_get_option(NULL, MYSQL_OPT_NET_BUFFER_LENGTH,
+                          &local_net_buffer_length);
+
+  net->max_packet=   (uint) local_net_buffer_length;
   my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
   my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
   net->retry_count=  1;
-  net->max_packet_size= MY_MAX(net_buffer_length, max_allowed_packet);
+  net->max_packet_size= MY_MAX(local_net_buffer_length, local_max_allowed_packet);
 }
 
 /*
