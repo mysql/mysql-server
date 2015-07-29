@@ -6250,6 +6250,12 @@ cast(py as json)
 select cast(js as json) from t1;
 cast(js as json)
 [123]
+#
+# Bug#21442878 INCORRECT RETURN STATUS FROM
+#              ITEM_JSON_TYPECAST::VAL_JSON() ON PARSE ERRORS
+#
+select json_extract(en, '$') from t1;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
 drop table t1;
 create table t1 ( c1 varchar(200) character set 'latin1',
 c2 varchar(200) character set 'utf8' );

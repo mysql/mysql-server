@@ -1457,6 +1457,13 @@ select cast(py as json) from t1;
 
 select cast(js as json) from t1;
 
+--echo #
+--echo # Bug#21442878 INCORRECT RETURN STATUS FROM
+--echo #              ITEM_JSON_TYPECAST::VAL_JSON() ON PARSE ERRORS
+--echo #
+--error ER_INVALID_TYPE_FOR_JSON
+select json_extract(en, '$') from t1;
+
 drop table t1;
 
 create table t1 ( c1 varchar(200) character set 'latin1',
