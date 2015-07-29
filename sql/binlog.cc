@@ -8031,6 +8031,9 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                                 max_binlog_stmt_cache_size))))
     {
       ha_rollback_low(thd, all);
+      //Reset the thread OK status before changing the outcome.
+      if (thd->get_stmt_da()->is_ok())
+        thd->get_stmt_da()->reset_diagnostics_area();
       my_error(ER_RUN_HOOK_ERROR, MYF(0), "before_commit");
       DBUG_RETURN(RESULT_ABORTED);
     }
@@ -8041,6 +8044,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
     {
       ha_rollback_low(thd, all);
+      if (thd->get_stmt_da()->is_ok())
+        thd->get_stmt_da()->reset_diagnostics_area();
       my_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT, MYF(0));
       DBUG_RETURN(RESULT_ABORTED);
     }
