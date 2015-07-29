@@ -7911,15 +7911,39 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
                                                    blob_len_ptr_array);
 
   bool res= false;
+  MY_BITMAP fields_to_evaluate;
+  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+  bitmap_init(&fields_to_evaluate, bitbuf, table->s->fields, 0);
+  bitmap_set_all(&fields_to_evaluate);
+  bitmap_intersect(&fields_to_evaluate, fields);
+  /*
+    In addition to evaluating the value for the columns requested by
+    the caller we also need to evaluate any virtual columns that these
+    depend on.
+    This loop goes through the columns that should be evaluated and
+    adds all the base columns. If the base column is virtual, it has
+    to be evaluated.
+  */
+  for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *field= *vfield_ptr;
+    // Validate that the field number is less than the bit map size
+    DBUG_ASSERT(field->field_index < fields->n_bits);
+
+    if (bitmap_is_set(fields, field->field_index))
+      bitmap_union(&fields_to_evaluate, &field->gcol_info->base_columns_map);
+  }
+
+   /*
+     Evaluate all requested columns and all base columns these depends
+     on that are virtual.
+  */
   for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     Field *field= *vfield_ptr;
 
-    // Validate that the field number is less than the bit map size
-    DBUG_ASSERT(field->field_index < fields->n_bits);
-
     // Check if we should evaluate this field
-    if (bitmap_is_set(fields, field->field_index))
+    if (bitmap_is_set(&fields_to_evaluate, field->field_index))
     {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
       if (in_purge)
