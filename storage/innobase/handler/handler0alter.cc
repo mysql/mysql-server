@@ -3190,7 +3190,7 @@ prepare_inplace_add_virtual(
 
 		ctx->add_vcol[j].m_col.ind = i - 1;
 		ctx->add_vcol[j].num_base =
-		  field->gcol_info->base_columns.elements;
+		  field->gcol_info->non_virtual_base_columns();
 		ctx->add_vcol_name[j] = field->field_name;
 		ctx->add_vcol[j].base_col = static_cast<dict_col_t**>(
 			mem_heap_alloc(ctx->heap, ctx->add_vcol[j].num_base
@@ -4086,7 +4086,7 @@ prepare_inplace_alter_table_dict(
 						field_type, charset_no)
 					| DATA_VIRTUAL,
 					col_len, i,
-					field->gcol_info->base_columns.elements);
+					field->gcol_info->non_virtual_base_columns());
 			} else {
 				dict_mem_table_add_col(
 					ctx->new_table, ctx->heap,
