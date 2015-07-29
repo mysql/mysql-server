@@ -271,9 +271,14 @@ struct less
     {
         static LessOp less_op;
 
-        return left.operations[OpId].fraction < right.operations[OpId].fraction
-            || ( left.operations[OpId].fraction == right.operations[OpId].fraction
-              && less_op(left, right) );
+        return
+            geometry::math::equals(left.operations[OpId].fraction,
+                                   right.operations[OpId].fraction)
+            ?
+            less_op(left, right)
+            :
+            (left.operations[OpId].fraction < right.operations[OpId].fraction)
+            ;
     }
 
     template <typename Turn>
