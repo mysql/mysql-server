@@ -316,6 +316,11 @@ extern ulong log_error_verbosity;
 /** System variable show_compatibility_56. */
 extern my_bool show_compatibility_56;
 
+#if defined(EMBEDDED_LIBRARY)
+extern ulong max_allowed_packet;
+extern ulong net_buffer_length;
+#endif
+
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
 /*
