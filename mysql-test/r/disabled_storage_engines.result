@@ -1,3 +1,5 @@
+CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
 CREATE TABLE t1(c1 int) ENGINE=HEAP;
 ERROR HY000: Storage engine MEMORY is disabled (Table creation is disallowed).
 CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
@@ -60,6 +62,10 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 ERROR HY000: Storage engine EXAMPLE is disabled (Table creation is disallowed).
 UNINSTALL PLUGIN example;
+SET default_storage_engine=MyISAM;
+SET default_tmp_storage_engine=MyISAM;
+SET default_storage_engine=default;
+SET default_tmp_storage_engine=default;
 CREATE TABLE t1(a int) ENGINE=MYISAM;
 DROP TABLE t1;
 # restart
