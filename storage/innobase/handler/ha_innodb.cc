@@ -6633,7 +6633,8 @@ ha_innobase::build_template(
 				} else {
 					templ->icp_rec_field_no
 						= dict_index_get_nth_col_pos(
-							m_prebuilt->index, i);
+							m_prebuilt->index,
+							i - num_v);
 				}
 
 				if (dict_index_is_clust(m_prebuilt->index)) {
@@ -6663,8 +6664,8 @@ ha_innobase::build_template(
 
 				templ->icp_rec_field_no
 					= dict_index_get_nth_col_or_prefix_pos(
-						m_prebuilt->index, i, true,
-						false);
+						m_prebuilt->index, i - num_v,
+						true, false);
 				ut_ad(templ->icp_rec_field_no
 				      != ULINT_UNDEFINED);
 
