@@ -917,4 +917,10 @@ error_or_warn::~error_or_warn()
 	}
 }
 
+fatal_or_error::~fatal_or_error()
+{
+	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	ut_a(!m_fatal);
+}
+
 } // namespace ib

@@ -67,6 +67,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #include <new>
 #include <map>
+#include <sstream>
 
 #if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 #include <numa.h>
@@ -1553,6 +1554,8 @@ buf_resize_status(
 		fmt, ap);
 
 	va_end(ap);
+
+	ib::info() << export_vars.innodb_buffer_pool_resize_status;
 }
 
 /** Determines if a block is intended to be withdrawn.
@@ -1908,6 +1911,23 @@ buf_pool_resize_hash(
 	buf_pool->zip_hash = new_hash_table;
 }
 
+#ifndef DBUG_OFF
+/** This is a debug routine to inject an memory allocation failure error. */
+static
+void
+buf_pool_resize_chunk_make_null(buf_chunk_t** new_chunks)
+{
+	static int count = 0;
+
+	if (count == 1) {
+		ut_free(*new_chunks);
+		*new_chunks = NULL;
+	}
+
+	count++;
+}
+#endif // DBUG_OFF
+
 /** Resize the buffer pool based on srv_buf_pool_size from
 srv_buf_pool_old_size. */
 static
@@ -1929,10 +1949,6 @@ buf_pool_resize()
 			  ULINTPF " (unit=" ULINTPF ").",
 			  srv_buf_pool_old_size, srv_buf_pool_size,
 			  srv_buf_pool_chunk_unit);
-
-	ib::info() << "Resizing buffer pool from " << srv_buf_pool_old_size
-		<< " to " << srv_buf_pool_size << ". (unit="
-		<< srv_buf_pool_chunk_unit << ")";
 
 	/* set new limit for all buffer pool for resizing */
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
@@ -2166,12 +2182,26 @@ withdraw_retry:
 
 		{
 			/* reallocate buf_pool->chunks */
-			buf_chunk_t*	new_chunks;
-			new_chunks =
-				reinterpret_cast<buf_chunk_t*>(
-					ut_zalloc_nokey(
-						buf_pool->n_chunks_new
-						* sizeof(*chunk)));
+			const ulint	new_chunks_size
+				= buf_pool->n_chunks_new * sizeof(*chunk);
+
+			buf_chunk_t*	new_chunks
+				= reinterpret_cast<buf_chunk_t*>(
+					ut_zalloc_nokey_nofatal(new_chunks_size));
+
+			DBUG_EXECUTE_IF("buf_pool_resize_chunk_null",
+				buf_pool_resize_chunk_make_null(&new_chunks););
+
+			if (new_chunks == NULL) {
+				ib::error() << "buffer pool " << i
+					<< " : failed to allocate"
+					" the chunk array.";
+				buf_pool->n_chunks_new
+					= buf_pool->n_chunks;
+				warning = true;
+				buf_pool->chunks_old = NULL;
+				goto calc_buf_pool_size;
+			}
 
 			ulint	n_chunks_copy = ut_min(buf_pool->n_chunks_new,
 						       buf_pool->n_chunks);
@@ -2186,6 +2216,7 @@ withdraw_retry:
 			buf_pool->chunks_old = buf_pool->chunks;
 			buf_pool->chunks = new_chunks;
 		}
+
 
 		if (buf_pool->n_chunks_new > buf_pool->n_chunks) {
 			/* add chunks */
@@ -2226,6 +2257,7 @@ withdraw_retry:
 
 			buf_pool->n_chunks = n_chunks;
 		}
+calc_buf_pool_size:
 
 		/* recalc buf_pool->curr_size */
 		ulint	new_size = 0;
@@ -2237,6 +2269,12 @@ withdraw_retry:
 				   + buf_pool->n_chunks);
 
 		buf_pool->curr_size = new_size;
+		buf_pool->n_chunks_new = buf_pool->n_chunks;
+
+		if (buf_pool->chunks_old) {
+			ut_free(buf_pool->chunks_old);
+			buf_pool->chunks_old = NULL;
+		}
 	}
 
 	buf_pool_chunk_map_t*	chunk_map_old = buf_chunk_map_ref;
@@ -2261,12 +2299,16 @@ withdraw_retry:
 			buf_pool->old_size = buf_pool->curr_size;
 		}
 		srv_buf_pool_curr_size = curr_size;
+		innodb_set_buf_pool_size(buf_pool_size_align(curr_size));
 	}
+
+	const bool	new_size_too_diff
+		= srv_buf_pool_base_size > srv_buf_pool_size * 2
+			|| srv_buf_pool_base_size * 2 < srv_buf_pool_size;
 
 	/* Normalize page_hash and zip_hash,
 	if the new size is too different */
-	if (srv_buf_pool_base_size > srv_buf_pool_size * 2
-	    || srv_buf_pool_base_size * 2 < srv_buf_pool_size) {
+	if (!warning && new_size_too_diff) {
 
 		buf_resize_status("Resizing hash tables.");
 
@@ -2287,9 +2329,6 @@ withdraw_retry:
 		hash_unlock_x_all(buf_pool->page_hash);
 		buf_pool_mutex_exit(buf_pool);
 
-		ut_free(buf_pool->chunks_old);
-		buf_pool->chunks_old = NULL;
-
 		if (buf_pool->page_hash_old != NULL) {
 			hash_table_free(buf_pool->page_hash_old);
 			buf_pool->page_hash_old = NULL;
@@ -2303,8 +2342,7 @@ withdraw_retry:
 	buf_pool_resizing = false;
 
 	/* Normalize other components, if the new size is too different */
-	if (srv_buf_pool_base_size > srv_buf_pool_size * 2
-	    || srv_buf_pool_base_size * 2 < srv_buf_pool_size) {
+	if (!warning && new_size_too_diff) {
 		srv_buf_pool_base_size = srv_buf_pool_size;
 
 		buf_resize_status("Resizing also other hash tables.");
@@ -2348,7 +2386,7 @@ withdraw_retry:
 		buf_resize_status("Completed resizing buffer pool at %s.",
 			now);
 	} else {
-		buf_resize_status("Resizing buffer pool was failed,"
+		buf_resize_status("Resizing buffer pool failed,"
 			" finished resizing at %s.", now);
 	}
 
@@ -2386,6 +2424,11 @@ DECLARE_THREAD(buf_resize_thread)(
 		buf_pool_mutex_enter_all();
 		if (srv_buf_pool_old_size == srv_buf_pool_size) {
 			buf_pool_mutex_exit_all();
+			std::ostringstream sout;
+			sout << "Size did not change (old size = new size = "
+				<< srv_buf_pool_size << ". Nothing to do.";
+			buf_resize_status("%s", sout.str().c_str());
+
 			/* nothing to do */
 			continue;
 		}
