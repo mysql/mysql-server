@@ -5429,6 +5429,21 @@ View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select (`t1`.`b` + 1) AS `c` from `t1`	latin1	latin1_swedish_ci
 drop view v2;
 drop table t1;
+#
+# MDEV-8554: Server crashes in base_list_iterator::next_fast on 1st execution of PS with a multi-table update
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (5),(6);
+CREATE OR REPLACE ALGORITHM=MERGE VIEW v3 AS SELECT * FROM t3;
+PREPARE stmt FROM 'UPDATE t1, t2 SET a = 1 WHERE a IN ( SELECT 0 FROM t3 )';
+UPDATE t1, t2 SET a = 1 WHERE a IN ( SELECT 0 FROM v3 );
+EXECUTE stmt;
+DROP TABLE t1, t2, t3;
+DROP VIEW v3;
 # -----------------------------------------------------------------
 # -- End of 5.5 tests.
 # -----------------------------------------------------------------
