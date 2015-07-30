@@ -819,3 +819,16 @@ FROM t1 a, t1 b
 GROUP BY a.t);
 t	u
 DROP TABLE t1;
+#
+#  Bug#21507072: SIG 11 IN TABLE_LIST::MAP AT SQL/TABLE.H:2463.
+#
+CREATE TABLE t1 (col_varchar_key varchar(1) DEFAULT NULL,
+KEY col_varchar_key (col_varchar_key));
+INSERT INTO t1 VALUES ('a'), ('b'), ('c'), ('h'), ('i'), ('i'), ('j');
+SELECT SQL_BUFFER_RESULT col_varchar_key AS field1
+FROM t1 AS table1
+GROUP BY field1
+HAVING field1 = 'a';
+field1
+a
+DROP TABLE t1;
