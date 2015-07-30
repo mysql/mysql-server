@@ -823,3 +823,12 @@ ALTER TABLE t ADD COLUMN FTS_DOC_ID BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 --error ER_INNODB_FT_WRONG_DOCID_COLUMN
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 DROP TABLE t;
+
+# Test uses ICP on column h and d
+create table t (a int,b int,c int,d int,e int,
+f int generated always as (a+b) virtual,
+g int,h blob,i int,unique key (d,h(25))) engine=innodb;
+
+select h from t where d is null;
+
+drop table t;

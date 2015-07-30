@@ -955,3 +955,9 @@ ALTER TABLE t ADD COLUMN FTS_DOC_ID BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
 DROP TABLE t;
+create table t (a int,b int,c int,d int,e int,
+f int generated always as (a+b) virtual,
+g int,h blob,i int,unique key (d,h(25))) engine=innodb;
+select h from t where d is null;
+h
+drop table t;
