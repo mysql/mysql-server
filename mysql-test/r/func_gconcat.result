@@ -1103,3 +1103,19 @@ ORDER BY field;
 field
 c,c
 drop table t3, t2, t1;
+#
+# MDEV-7821 - Server crashes in Item_func_group_concat::fix_fields on 2nd
+#             execution of PS
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2);
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1a.a ORDER BY 1, t1a.a=0) FROM t1 AS t1a, t1 AS t1b GROUP BY t1a.a";
+EXECUTE stmt;
+GROUP_CONCAT(t1a.a ORDER BY 1, t1a.a=0)
+1,1
+2,2
+EXECUTE stmt;
+GROUP_CONCAT(t1a.a ORDER BY 1, t1a.a=0)
+1,1
+2,2
+DROP TABLE t1;

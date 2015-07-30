@@ -3300,6 +3300,8 @@ void Item_func_group_concat::cleanup()
     from Item_func_group_concat::setup() to point to runtime
     created objects, we need to reset them back to the original
     arguments of the function.
+
+    The very same applies to args array.
   */
   ORDER **order_ptr= order;
   for (uint i= 0; i < arg_count_order; i++)
@@ -3307,6 +3309,7 @@ void Item_func_group_concat::cleanup()
     (*order_ptr)->item= &args[arg_count_field + i];
     order_ptr++;
   }
+  memcpy(args, orig_args, sizeof(Item *) * arg_count);
   DBUG_VOID_RETURN;
 }
 

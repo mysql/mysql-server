@@ -821,3 +821,14 @@ FROM ( SELECT * FROM t2 ) AS sq2, t3
 ORDER BY field;
 
 drop table t3, t2, t1;
+
+--echo #
+--echo # MDEV-7821 - Server crashes in Item_func_group_concat::fix_fields on 2nd
+--echo #             execution of PS
+--echo #
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1),(2);
+PREPARE stmt FROM "SELECT GROUP_CONCAT(t1a.a ORDER BY 1, t1a.a=0) FROM t1 AS t1a, t1 AS t1b GROUP BY t1a.a";
+EXECUTE stmt;
+EXECUTE stmt;
+DROP TABLE t1;
