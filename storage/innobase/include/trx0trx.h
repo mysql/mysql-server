@@ -1456,7 +1456,17 @@ private:
 
 		if (trx->in_depth > 1) {
 
-			return;
+			/* However, we should check that if there is an
+			asynchronous rollback for this trx. If so, any other
+			thread must wait for the asnychronous rollback,
+			while the thread which invoked the rollback can enter
+			immediately. The dirty read here should be safe, only
+			the thread which invoked the rollback will mask the
+			rollback bits out. */
+			if (!(trx->in_innodb & TRX_FORCE_ROLLBACK)
+			    || is_async_rollback(trx)) {
+				return;
+			}
 		}
 
 		/* Only the owning thread should release the latch. */
