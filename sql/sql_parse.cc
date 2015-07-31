@@ -1087,25 +1087,10 @@ bool dispatch_command(THD *thd, COM_DATA *com_data,
 
 #ifndef EMBEDDED_LIBRARY
   if (mysql_audit_notify(thd,
-                         AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START), command))
+                         AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START),
+                         command, command_name[command].str))
   {
-    /* Ignore these commands. The plugin cannot abort on these commands. */
-    if (command == COM_QUIT ||
-        command == COM_PING ||
-        command == COM_SLEEP || /* Deprecated commands from here. */
-        command == COM_CONNECT ||
-        command == COM_TIME ||
-        command == COM_DELAYED_INSERT ||
-        command == COM_END)
-    {
-      sql_print_warning("Aborting '%s' command is not recommended. "
-                        "May lead to unspecified behaviour.",
-                        command_name[command].str);
-    }
-    else
-    {
-      goto done;
-    }
+    goto done;
   }
 #endif /* !EMBEDDED_LIBRARY */
 
@@ -1690,7 +1675,8 @@ done:
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at thie point. */
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command);
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END),
+                     command, command_name[command].str);
 #endif
 
   log_slow_statement(thd);

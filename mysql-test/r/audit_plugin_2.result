@@ -1,3 +1,6 @@
+call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Command 'Ping' cannot be aborted.");
 INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
 ################
 ## CONNECTION ##
@@ -28,6 +31,9 @@ EVENT-ORDER-ABORT
 SELECT 1;
 1
 1
+SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"14\";ABORT_RET';
+mysqld is alive
+SET @@GLOBAL.null_audit_event_order_check = NULL;
 ###########
 ## QUERY ##
 ###########
@@ -519,6 +525,27 @@ ERROR HY000: Invalid data for 'MYSQL_AUDIT_COMMAND_START'
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-INVALID-DATA
+#########################
+## COMMAND_END - ABORT ##
+#########################
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check_exact = 1;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SET @@null_audit_event_order_check_exact = 1;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_end_id>";ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## CUSTOM ERROR MESSAGE - END ##
 UNINSTALL PLUGIN null_audit;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
