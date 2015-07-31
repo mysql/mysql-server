@@ -258,12 +258,14 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
   @param[in] subclass      Type of the command audit event.
   @param[in] subclass_name Name of the subclass.
   @param[in] command       Command id value.
+  @param[in] command_text  Command string value.
 
   @result 0 - continue server flow, otherwise abort.
 */
 int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
                        const char *subclass_name,
-                       enum_server_command command);
+                       enum_server_command command,
+                       const char *command_text);
 /**
   Call audit plugins of QUERY audit class.
 
