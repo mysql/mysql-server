@@ -557,9 +557,18 @@ static int audit_null_notify(MYSQL_THD thd __attribute__((unused)),
   */
   else if (event_class == MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS)
   {
-    const struct mysql_event_global_variable *event_table =
+    const struct mysql_event_global_variable *event_gvar =
                             (const struct mysql_event_global_variable *)event;
-    switch (event_table->event_subclass)
+
+    /* Copy the variable content into the buffer. We do not guarantee that the
+       variable value will fit into buffer. The buffer should be large enough
+       to be used for the test purposes. */
+    buffer_data= sprintf(buffer, "value=\"%.*s\"",
+                         MY_MIN((int)event_gvar->variable_value.length,
+                                (int)(sizeof(buffer) - 9)), /* excluding value=""\0 */
+                         event_gvar->variable_value.str);
+
+    switch (event_gvar->event_subclass)
     {
     case MYSQL_AUDIT_GLOBAL_VARIABLE_GET:
       number_of_calls_global_variable_get++;
