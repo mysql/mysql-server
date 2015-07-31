@@ -3300,8 +3300,6 @@ void Item_func_group_concat::cleanup()
     from Item_func_group_concat::setup() to point to runtime
     created objects, we need to reset them back to the original
     arguments of the function.
-
-    The very same applies to args array.
   */
   ORDER **order_ptr= order;
   for (uint i= 0; i < arg_count_order; i++)
@@ -3309,7 +3307,6 @@ void Item_func_group_concat::cleanup()
     (*order_ptr)->item= &args[arg_count_field + i];
     order_ptr++;
   }
-  memcpy(args, orig_args, sizeof(Item *) * arg_count);
   DBUG_VOID_RETURN;
 }
 
@@ -3517,9 +3514,16 @@ bool Item_func_group_concat::setup(THD *thd)
     "all_fields". The resulting field list is used as input to create
     tmp table columns.
   */
-  if (arg_count_order &&
-      setup_order(thd, args, context->table_list, list, all_fields, *order))
-    DBUG_RETURN(TRUE);
+  if (arg_count_order)
+  {
+    uint n_elems= arg_count_order + all_fields.elements;
+    ref_pointer_array= static_cast<Item**>(thd->alloc(sizeof(Item*) * n_elems));
+    memcpy(ref_pointer_array, args, arg_count * sizeof(Item*));
+    if (!ref_pointer_array ||
+        setup_order(thd, ref_pointer_array, context->table_list, list,
+                    all_fields, *order))
+      DBUG_RETURN(TRUE);
+  }
 
   count_field_types(select_lex, tmp_table_param, all_fields, 0);
   tmp_table_param->force_copy_fields= force_copy_fields;

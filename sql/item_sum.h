@@ -1394,6 +1394,7 @@ class Item_func_group_concat : public Item_sum
   String *separator;
   TREE tree_base;
   TREE *tree;
+  Item **ref_pointer_array;
 
   /**
      If DISTINCT is used with this GROUP_CONCAT, this member is used to filter
