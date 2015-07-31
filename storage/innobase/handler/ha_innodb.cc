@@ -19673,7 +19673,7 @@ innodb_buffer_pool_size_validate(
 
 	if (intbuf != static_cast<longlong>(requested_buf_pool_size)) {
 		char	buf[64];
-		int	len;
+		int	len = 64;
 		value->val_str(value, buf, &len);
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_TRUNCATED_WRONG_VALUE,
