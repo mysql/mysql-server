@@ -7044,3 +7044,38 @@ DROP TABLE t1,t2;
 
 --echo # End of test for Bug#21184091
 
+--echo # Bug#21139722: Assertion failed: !(used_tables() & ((table_map) 1) ...
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(b INTEGER) engine=innodb;
+
+let $query=
+SELECT 1
+FROM (SELECT 1 IN (SELECT 1
+                   FROM t1
+                   WHERE (SELECT 1 FROM t2 HAVING b) NOT IN (SELECT 1 FROM t2)
+                  )
+      FROM t2
+     ) AS z;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+# A test case containing two outer references from different query blocks
+# Debugging is needed to inspect correct transformation, unfortunately.
+
+CREATE TABLE t1(a INTEGER) engine=innodb;
+
+let $query=
+SELECT (SELECT a FROM t1 AS t2
+        WHERE a IN (SELECT t1.a+t2.a FROM t1 AS t3))
+FROM t1 AS t1;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#21139722
