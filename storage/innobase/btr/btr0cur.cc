@@ -6931,6 +6931,7 @@ btr_store_big_rec_extern_fields(
 			buf_block_t*	block;
 			page_t*		page;
 			const ulint	commit_freq = 4;
+			ut_ad(blobref.equals(field_ref));
 
 			ut_ad(page_align(field_ref) == page_align(rec));
 
@@ -6940,6 +6941,8 @@ btr_store_big_rec_extern_fields(
 
 				field_ref = btr_rec_get_field_ref(
 					rec, offsets, field_no);
+
+				blobref.set_blobref(field_ref);
 
 				page_zip = buf_block_get_page_zip(rec_block);
 				rec_page_no = rec_block->page.id.page_no();

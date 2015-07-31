@@ -1051,6 +1051,19 @@ struct blobref_t {
 	blobref_t(byte*	ptr): m_ref(ptr) {
 	}
 
+	/** Check whether the stored external field reference is equal to the
+	given field reference.
+	@param[in]	ptr	supplied external field reference. */
+	bool equals(const byte*	ptr) const {
+		return(m_ref == ptr);
+	}
+
+	/** Set the external field reference to the given memory location.
+	@param[in]	ptr	the new external field reference. */
+	void set_blobref(byte* ptr) {
+		m_ref = ptr;
+	}
+
 	/** The maximum size possible for an externally stored field data */
 	static const ulint MAX_BLOB_SIZE = UINT32_MAX;
 
