@@ -675,7 +675,10 @@ bool Group_check::is_in_fd(Item *item)
   }
 
   DBUG_ASSERT(local_column(item));
-  if ((item->resolved_used_tables() & ~whole_tables_fd) == 0 &&
+  Used_tables ut(select);
+  (void) item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+                    pointer_cast<uchar *>(&ut));
+  if ((ut.used_tables & ~whole_tables_fd) == 0 &&
       (!select->outer_join || item->type() == Item::FIELD_ITEM))
   {
     /*
@@ -745,7 +748,10 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
       Same is true for materialized tables further down.
     */
     Item *const real_it= item->real_item();
-    const table_map used_tables= real_it->resolved_used_tables();
+    Used_tables ut(select);
+    (void) item->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+                      pointer_cast<uchar *>(&ut));
+    const table_map used_tables= ut.used_tables;
     /*
       Test below is conservative: it may set to "true" when not
       needed. This is because we don't know which nest the view was in,
@@ -1163,9 +1169,14 @@ bool Group_check::do_ident_check(Item_ident *i, table_map tm,
     }
     goto ignore_children;
   case CHECK_STRONG_SIDE_COLUMN:
-    if ((i->resolved_used_tables() & tm) && !is_in_fd(i))
+   {
+    Used_tables ut(select);
+    (void) i->walk(&Item::used_tables_for_level, Item::WALK_POSTFIX,
+                   pointer_cast<uchar *>(&ut));
+    if ((ut.used_tables & tm) && !is_in_fd(i))
       return true;                    // It is a strong-side column and not FD
     goto ignore_children;
+   }
   case CHECK_COLUMN:
     if (!is_in_fd(i))
       return true;                              // It is a column and not FD
