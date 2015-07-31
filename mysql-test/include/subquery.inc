@@ -6454,3 +6454,49 @@ $base_query
 );
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#21211187 CRASH IN JOIN::UPDATE_DEPEND_MAP
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t0(a INT);
+INSERT INTO t0 VALUES();
+SELECT 1 FROM t1
+WHERE 1 IN
+(
+  SELECT 1 FROM t1
+   WHERE
+   (
+     SELECT a
+     FROM (SELECT  1 FROM t1) q
+     ORDER BY (SELECT (SELECT  1 FROM t1) FROM t0 HAVING a) DESC
+     LIMIT 1
+   )
+)
+;
+DROP TABLE t0,t1;
+
+--echo #
+--echo # Bug#21292102 CRASH IN GET_SORT_BY_TABLE()
+--echo #
+
+set sql_mode="";
+CREATE TABLE t (a INT) ENGINE=INNODB;
+SELECT 1 FROM t WHERE 1 IN
+(
+ SELECT 1 FROM t WHERE 1 <=>
+ (
+   EXISTS
+   (
+     SELECT a FROM (SELECT 1) s
+     GROUP BY 1 <= ANY
+     (
+       SELECT 1 FROM t HAVING a
+     )
+     HAVING 1
+   )
+  )
+);
+SET @@SQL_MODE=DEFAULT;
+DROP TABLE t;

@@ -281,6 +281,16 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
 void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
                                   SELECT_LEX *removed_select)
 {
+  if (const_item())
+  {
+    /*
+      Pulling out a const item changes nothing to it. Moreover, some items may
+      have decided that they're const by some other logic than the generic
+      one below, and we must preserve that decision.
+    */
+    return;
+  }
+
   Item **arg,**arg_end;
 
   used_tables_cache= get_initial_pseudo_tables();
