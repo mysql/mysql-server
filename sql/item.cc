@@ -6754,7 +6754,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   /*
     This constructor used to create some internals references over fixed items
   */
-  if (ref && *ref && (*ref)->fixed)
+  if ((set_properties_only= (ref && *ref && (*ref)->fixed)))
     set_properties();
 }
 
@@ -6798,7 +6798,7 @@ Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
   /*
     This constructor is used to create some internal references over fixed items
   */
-  if (ref && *ref && (*ref)->fixed)
+  if ((set_properties_only= (ref && *ref && (*ref)->fixed)))
     set_properties();
 }
 
@@ -6873,7 +6873,11 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(fixed == 0);
   SELECT_LEX *current_sel= thd->lex->current_select;
 
-  if (!ref || ref == not_found_item)
+  if (set_properties_only)
+  {
+    /* do nothing */
+  }
+  else if (!ref || ref == not_found_item)
   {
     DBUG_ASSERT(reference_trough_name != 0);
     if (!(ref= resolve_ref_in_select_and_group(thd, this,

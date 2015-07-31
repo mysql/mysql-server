@@ -6936,6 +6936,8 @@ find_field_in_tables(THD *thd, Item_ident *item,
       return found;
     }
   }
+  else
+    item->can_be_depended= TRUE;
 
   if (db && lower_case_table_names)
   {

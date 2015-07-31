@@ -2007,37 +2007,6 @@ Item_in_subselect::create_single_in_to_exists_cond(JOIN *join,
   *where_item= NULL;
   *having_item= NULL;
 
-  /*
-    For PS we have to do fix_fields(expr) here to ensure that it's
-    evaluated in the outer context.  If not, then fix_having() will do
-    a fix_fields(expr) in the inner context and mark expr as
-    'depended', which will cause update_ref_and_keys() to find wrong
-    keys.
-    When not running PS, fix_fields(expr) as already been done earlier and
-    the following test does nothing.
-  */
-  if (expr && !expr->fixed)
-  {
-    bool tmp;
-    SELECT_LEX *save_current_select= thd->lex->current_select;
-    Item_subselect *save_item;
-
-    thd->lex->current_select= thd->lex->current_select->outer_select();
-    /*
-      For st_select_lex::mark_as_dependent, who needs to mark
-      this sub query as correlated.
-    */
-    save_item= thd->lex->current_select->master_unit()->item;
-    thd->lex->current_select->master_unit()->item= this;
-
-    tmp= expr->fix_fields(thd, 0);
-
-    thd->lex->current_select->master_unit()->item= save_item;
-    thd->lex->current_select= save_current_select;
-    if (tmp)
-      DBUG_RETURN(true);
-  }
-
   if (join_having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
   {

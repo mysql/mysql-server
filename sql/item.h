@@ -2946,6 +2946,7 @@ class Item_ref :public Item_ident
 {
 protected:
   void set_properties();
+  bool set_properties_only; // the item doesn't need full fix_fields
 public:
   enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
@@ -2955,7 +2956,7 @@ public:
            const char *db_arg, const char *table_name_arg,
            const char *field_name_arg)
     :Item_ident(context_arg, db_arg, table_name_arg, field_name_arg),
-    result_field(0), ref(0), reference_trough_name(1) {}
+    set_properties_only(0), result_field(0), ref(0), reference_trough_name(1) {}
   /*
     This constructor is used in two scenarios:
     A) *item = NULL
@@ -2978,7 +2979,7 @@ public:
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
-    :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
+    :Item_ident(thd, item), set_properties_only(0), result_field(item->result_field), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
   enum Type real_type() const           { return ref ? (*ref)->type() :
                                           REF_ITEM; }

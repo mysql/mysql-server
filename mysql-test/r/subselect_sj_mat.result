@@ -2190,20 +2190,11 @@ drop database mysqltest4;
 # (both 1st and further executions)
 CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (0),(8);
-SELECT DISTINCT t9.* FROM t1 AS t9, t1 AS t2;
-a
-0
-8
-SELECT MIN(t3.a) FROM ( t1 AS t3 INNER JOIN t1 AS t4 ON (t3.a = t4.a));
-MIN(t3.a)
-0
-SELECT a FROM ( SELECT DISTINCT t9.* FROM t1 AS t9, t1 AS t2 ) AS sq 
-WHERE a IN ( SELECT MIN(t3.a) FROM ( t1 AS t3 INNER JOIN t1 AS t4 ON (t3.a = t4.a) ) );
+SELECT a FROM (SELECT DISTINCT * FROM t1) AS sq WHERE a IN (SELECT MIN(t2.a) FROM (t1 AS t2));
 a
 0
 PREPARE stmt FROM "
-SELECT a FROM ( SELECT DISTINCT t9.* FROM t1 AS t9, t1 AS t2 ) AS sq 
-WHERE a IN ( SELECT MIN(t3.a) FROM ( t1 AS t3 INNER JOIN t1 AS t4 ON (t3.a = t4.a) ) )
+SELECT a FROM (SELECT DISTINCT * FROM t1) AS sq WHERE a IN (SELECT MIN(t2.a) FROM (t1 AS t2))
 ";
 execute stmt;
 a
