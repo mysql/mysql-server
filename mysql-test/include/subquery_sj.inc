@@ -7079,3 +7079,20 @@ eval $query;
 DROP TABLE t1;
 
 --echo # End of test for Bug#21139722
+
+# New tests can use InnoDB as default
+SET DEFAULT_STORAGE_ENGINE=INNODB;
+
+--echo #
+--echo # Bug#21139402 ASSERTION FAILED: LENGTH > 0 && KEYPARTS != 0, CRASH IN JOIN::OPTIMIZE_KEYUSE
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE t2 (c INT PRIMARY KEY);
+let $query=
+SELECT 1 FROM t1
+WHERE 1 IN
+ (SELECT (c IS NULL) IN (SELECT a FROM t1 WHERE b)  FROM t2);
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t1,t2;
