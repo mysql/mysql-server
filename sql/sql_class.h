@@ -58,7 +58,7 @@ class Rows_log_event;
 class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
-class Trans_binlog_info;
+struct Trans_binlog_info;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
