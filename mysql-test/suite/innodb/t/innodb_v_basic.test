@@ -830,5 +830,13 @@ f int generated always as (a+b) virtual,
 g int,h blob,i int,unique key (d,h(25))) engine=innodb;
 
 select h from t where d is null;
+drop table t;
 
+# Test Add virtual column of MySQL long true type
+create table t(a blob not null) engine=innodb;
+alter table t add column b int;
+alter table t add column c varbinary (1000) generated always as (a) virtual;
+alter table t add unique index (c(39));
+replace into t set a = 'a',b =1;
+replace into t set a = 'a',b =1;
 drop table t;

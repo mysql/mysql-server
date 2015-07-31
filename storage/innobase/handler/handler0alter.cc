@@ -3174,7 +3174,7 @@ prepare_inplace_add_virtual(
 			col_len -= length_bytes;
 
 			if (length_bytes == 2) {
-				field_type = DATA_LONG_TRUE_VARCHAR;
+				field_type |= DATA_LONG_TRUE_VARCHAR;
 			}
 		}
 
@@ -3313,7 +3313,7 @@ prepare_inplace_drop_virtual(
 			col_len -= length_bytes;
 
 			if (length_bytes == 2) {
-				field_type = DATA_LONG_TRUE_VARCHAR;
+				field_type |= DATA_LONG_TRUE_VARCHAR;
 			}
 		}
 
