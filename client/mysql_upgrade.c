@@ -1061,7 +1061,7 @@ int main(int argc, char **argv)
     printf("This installation of MySQL is already upgraded to %s, "
            "use --force if you still need to run mysql_upgrade\n",
            MYSQL_SERVER_VERSION);
-    die(NULL);
+    goto end;
   }
 
   if (opt_version_check && check_version_match())
@@ -1084,6 +1084,7 @@ int main(int argc, char **argv)
   /* Create a file indicating upgrade has been performed */
   create_mysql_upgrade_info_file();
 
+end:
   free_used_memory();
   my_end(my_end_arg);
   exit(0);
