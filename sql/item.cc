@@ -3130,11 +3130,23 @@ table_map Item_field::used_tables() const
 }
 
 
-table_map Item_field::resolved_used_tables() const
+bool Item_field::used_tables_for_level(uchar *arg)
 {
   // Used by resolver only, so can never reach a "const" table.
   DBUG_ASSERT(!table_ref->table->const_table);
-  return table_ref->map();
+  Used_tables *const ut= pointer_cast<Used_tables *>(arg);
+  /*
+    When the qualifying query for the field (table_ref->select_lex) is the same
+    level as the requested level, add the table's map.
+    When the qualifying query for the field is outer relative to the
+    requested level, add an outer reference.
+  */
+  if (ut->select == table_ref->select_lex)
+    ut->used_tables|= table_ref->map();
+  else if (ut->select->nest_level > table_ref->select_lex->nest_level)
+    ut->used_tables|= OUTER_REF_TABLE_BIT;
+
+  return false;
 }
 
 void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
@@ -3200,7 +3212,11 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
     */
     Item_subselect *subq_predicate= child_select->master_unit()->item;
 
-    subq_predicate->used_tables_cache|= this->resolved_used_tables();
+    Used_tables ut(depended_from);
+    (void) walk(&Item::used_tables_for_level,
+               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+               pointer_cast<uchar *>(&ut));
+    subq_predicate->used_tables_cache|= ut.used_tables;
     subq_predicate->const_item_cache&= this->const_item();
   }
 }
@@ -5164,8 +5180,11 @@ void mark_select_range_as_dependent(THD *thd,
     if (found_field == view_ref_found)
     {
       Item::Type type= found_item->type();
-      prev_subselect_item->used_tables_cache|=
-        found_item->resolved_used_tables();// not needed but logical
+      Used_tables ut(last_select);
+      (void) found_item->walk(&Item::used_tables_for_level,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      pointer_cast<uchar *>(&ut));
+      prev_subselect_item->used_tables_cache|= ut.used_tables;
       dependent= ((type == Item::REF_ITEM || type == Item::FIELD_ITEM) ?
                   (Item_ident*) found_item :
                   0);
@@ -5564,8 +5583,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         else
         {
           Item::Type ref_type= (*reference)->type();
-          prev_subselect_item->used_tables_cache|=
-            (*reference)->resolved_used_tables();
+          Used_tables ut(select);
+          (void) (*reference)->walk(&Item::used_tables_for_level,
+                      Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+                      pointer_cast<uchar *>(&ut));
+          prev_subselect_item->used_tables_cache|= ut.used_tables;
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           if (thd->lex->in_sum_func &&
