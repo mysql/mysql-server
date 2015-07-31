@@ -72,7 +72,7 @@ SELECT 1;
 SET @@null_audit_event_order_check_exact = <expected_check_exact>;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;;ABORT_RET';
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value="1";ABORT_RET';
 SELECT @@GLOBAL.null_audit_abort_value;
 ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
@@ -101,9 +101,9 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;;;'
-                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;;ABORT_RET',
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
-SHOW GLOBAL VARIABLES;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
@@ -129,7 +129,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;;;'
-                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;;ABORT_RET',
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;value=\"NULL\";ABORT_RET',
 @@null_audit_event_order_check_exact = 1;
 SET @@GLOBAL.null_audit_event_order_check = NULL;
 ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_SET';1).
@@ -144,8 +144,8 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<exp
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;;;'
-                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;;ABORT_RET';
-SELECT * FROM information_schema.global_variables;
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value="1";ABORT_RET';
+SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
 ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
