@@ -12455,8 +12455,44 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     DBUG_RETURN(TRUE);
   }
 
-  /* We presume that at this point there are no other Items than functions. */
+  /*
+    At this point, we have weeded out most conditions other than
+    function items. However, there are cases like the following:
+
+      select 1 in (select max(c) from t1 where max(1) group by a)
+
+    Here the condition "where max(1)" is an Item_sum_max, not an
+    Item_func. In this particular case, the where clause should
+    be equivalent to "where max(1) <> 0". A where clause
+    phrased that way does not satisfy the SA3 condition of
+    get_best_group_min_max(). The "where max(1) = true" clause
+    causes this method to reject the access method
+    (i.e., to return FALSE).
+
+    It's been suggested that it may be possible to use the access method
+    for a sub-family of cases when we're aggregating constants or
+    outer references. For the moment, we bale out and we reject
+    the access method for the query.
+
+    It's hard to prove that there are no other cases where the
+    condition is not an Item_func. So, for the moment, don't apply
+    the optimization if the condition is not a function item.
+  */
+  if (cond_type == Item::SUM_FUNC_ITEM)
+  {
+    DBUG_RETURN(FALSE);
+  }
+
+  /*
+   If this is a debug server, then we want to know about
+   additional oddball cases which might benefit from this
+   optimization.
+  */
   DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
+  if (cond_type != Item::FUNC_ITEM)
+  {
+    DBUG_RETURN(FALSE);
+  }
 
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
