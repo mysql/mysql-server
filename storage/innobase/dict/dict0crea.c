@@ -1433,10 +1433,12 @@ dict_foreign_def_get(
 	const char* tbname;
 	char tablebuf[MAX_TABLE_NAME_LEN + 1] = "";
 	int i;
+	char* bufend;
 
 	tbname = dict_remove_db_name(foreign->id);
-	innobase_convert_name(tablebuf, MAX_TABLE_NAME_LEN,
+	bufend = innobase_convert_name(tablebuf, MAX_TABLE_NAME_LEN,
 				tbname, strlen(tbname), trx->mysql_thd, FALSE);
+	tablebuf[bufend - tablebuf] = '\0';
 
 	sprintf(fk_def,
 		(char *)"CONSTRAINT %s FOREIGN KEY (", (char *)tablebuf);
@@ -1455,20 +1457,22 @@ dict_foreign_def_get(
 
 	strcat(fk_def,(char *)") REFERENCES ");
 
-	innobase_convert_name(tablebuf, MAX_TABLE_NAME_LEN,
-	        foreign->referenced_table_name,
-		strlen(foreign->referenced_table_name),
-		trx->mysql_thd, TRUE);
+	bufend = innobase_convert_name(tablebuf, MAX_TABLE_NAME_LEN,
+	        	        foreign->referenced_table_name,
+			        strlen(foreign->referenced_table_name),
+			        trx->mysql_thd, TRUE);
+	tablebuf[bufend - tablebuf] = '\0';
 
 	strcat(fk_def, tablebuf);
 	strcat(fk_def, " (");
 
 	for(i = 0; i < foreign->n_fields; i++) {
 		char	buf[MAX_TABLE_NAME_LEN + 1] = "";
-		innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
+		bufend = innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
 				foreign->referenced_col_names[i],
 				strlen(foreign->referenced_col_names[i]),
 				trx->mysql_thd, FALSE);
+		buf[bufend - buf] = '\0';
 		strcat(fk_def, buf);
 		if (i < foreign->n_fields-1) {
 			strcat(fk_def, (char *)",");
@@ -1492,18 +1496,25 @@ dict_foreign_def_get_fields(
 	char**		field2, /*!< out: referenced column */
 	int		col_no) /*!< in: column number */
 {
-	*field = mem_heap_alloc(foreign->heap, MAX_TABLE_NAME_LEN+1);
-	*field2 = mem_heap_alloc(foreign->heap, MAX_TABLE_NAME_LEN+1);
+	char* bufend;
+	char* fieldbuf = mem_heap_alloc(foreign->heap, MAX_TABLE_NAME_LEN+1);
+	char* fieldbuf2 = mem_heap_alloc(foreign->heap, MAX_TABLE_NAME_LEN+1);
 
-	innobase_convert_name(*field, MAX_TABLE_NAME_LEN,
-		foreign->foreign_col_names[col_no],
-		strlen(foreign->foreign_col_names[col_no]),
-		trx->mysql_thd, FALSE);
+	bufend = innobase_convert_name(fieldbuf, MAX_TABLE_NAME_LEN,
+			foreign->foreign_col_names[col_no],
+			strlen(foreign->foreign_col_names[col_no]),
+			trx->mysql_thd, FALSE);
 
-	innobase_convert_name(*field, MAX_TABLE_NAME_LEN,
-		foreign->referenced_col_names[col_no],
-		strlen(foreign->referenced_col_names[col_no]),
-		trx->mysql_thd, FALSE);
+	fieldbuf[bufend - fieldbuf] = '\0';
+
+	bufend = innobase_convert_name(fieldbuf2, MAX_TABLE_NAME_LEN,
+			foreign->referenced_col_names[col_no],
+			strlen(foreign->referenced_col_names[col_no]),
+			trx->mysql_thd, FALSE);
+
+	fieldbuf2[bufend - fieldbuf2] = '\0';
+	*field = fieldbuf;
+	*field2 = fieldbuf2;
 }
 
 /********************************************************************//**

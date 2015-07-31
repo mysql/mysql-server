@@ -3746,7 +3746,7 @@ dict_create_foreign_constraints_low(
 	const char*	referenced_table_name;
 	const char*	create_table_name;
 	const char*	orig;
-	const char	create_name[MAX_TABLE_NAME_LEN + 1];
+	char		create_name[MAX_TABLE_NAME_LEN + 1];
 	const char	operation[8];
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -3770,14 +3770,18 @@ dict_create_foreign_constraints_low(
 		}
 
 		if (success) {
-			innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
-				create_table_name, strlen(create_table_name),
-				trx->mysql_thd, TRUE);
+			char *bufend;
+			bufend = innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
+					create_table_name, strlen(create_table_name),
+					trx->mysql_thd, TRUE);
+			create_name[bufend-create_name]='\0';
 			ptr = orig;
 		} else {
+			char *bufend;
 			ptr = orig;
-			innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
-				name, strlen(name), trx->mysql_thd, TRUE);
+			bufend = innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
+					name, strlen(name), trx->mysql_thd, TRUE);
+			create_name[bufend-create_name]='\0';
 		}
 
 		goto loop;
@@ -3819,13 +3823,18 @@ dict_create_foreign_constraints_low(
 				   &success, heap, &referenced_table_name);
 
 	if (table_to_alter) {
-		innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
-			table_to_alter->name, strlen(table_to_alter->name),
-			trx->mysql_thd, TRUE);
+		char *bufend;
+		bufend = innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
+				table_to_alter->name, strlen(table_to_alter->name),
+				trx->mysql_thd, TRUE);
+		create_name[bufend-create_name]='\0';
 	} else {
-		innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
-			referenced_table_name, strlen(referenced_table_name),
-			trx->mysql_thd, TRUE);
+		char *bufend;
+		bufend = innobase_convert_name((char *)create_name, MAX_TABLE_NAME_LEN,
+				referenced_table_name, strlen(referenced_table_name),
+				trx->mysql_thd, TRUE);
+		create_name[bufend-create_name]='\0';
+
 	}
 
 	if (!success) {
@@ -4128,10 +4137,12 @@ col_loop1:
 
 	if (!success || (!referenced_table && trx->check_foreigns)) {
 		char	buf[MAX_TABLE_NAME_LEN + 1] = "";
+		char*	bufend;
 
-		innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
-			referenced_table_name, strlen(referenced_table_name),
-			trx->mysql_thd, TRUE);
+		bufend = innobase_convert_name(buf, MAX_TABLE_NAME_LEN,
+				referenced_table_name, strlen(referenced_table_name),
+				trx->mysql_thd, TRUE);
+		buf[bufend - buf] = '\0';
 
 		ib_push_warning(trx, DB_CANNOT_ADD_CONSTRAINT,
 			"%s table %s with foreign key constraint failed. Referenced table %s not found in the data dictionary "
