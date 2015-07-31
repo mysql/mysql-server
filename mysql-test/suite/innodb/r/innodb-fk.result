@@ -50,6 +50,8 @@ CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE
 ERROR HY000: Can't create table 'test.t2' (errno: 150)
 show warnings;
 Level	Code	Message
+Warning	150	Create  table `test`.`t2` with foreign key constraint failed. Referenced table `test`.`t3` not found in the data dictionary close to  FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE
+) ENGINE=InnoDB.
 Error	1005	Can't create table 'test.t2' (errno: 150)
 CREATE TABLE t2 (
 id int(11) NOT NULL AUTO_INCREMENT,
@@ -62,6 +64,7 @@ ALTER TABLE t2 ADD CONSTRAINT fk3 FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE 
 ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
 show warnings;
 Level	Code	Message
+Warning	150	Alter  table `test`.`t2` with foreign key constraint failed. Referenced table `test`.`t3` not found in the data dictionary close to  FOREIGN KEY (f3) REFERENCES t3 (id) ON DELETE CASCADE.
 Error	1005	Can't create table '#sql-temporary' (errno: 150)
 drop table t2;
 drop table t1;
