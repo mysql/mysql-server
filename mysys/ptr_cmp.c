@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,6 +91,7 @@ static int ptr_compare(size_t *compare_length, uchar **a, uchar **b)
   reg3 int length= *compare_length;
   reg1 uchar *first,*last;
 
+  DBUG_ASSERT(length > 0);
   first= *a; last= *b;
   while (--length)
   {

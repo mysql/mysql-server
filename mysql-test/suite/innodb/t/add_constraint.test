@@ -1,0 +1,21 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug #20762798 FK DDL: CRASH IN DICT_FOREIGN_REMOVE_FROM_CACHE
+--echo #
+
+create table t1(a int, b int, key(a),key(b))engine=innodb;
+create table t2(a int, b int, key(a),key(b))engine=innodb;
+
+alter table t2 add constraint b foreign key (b) references t1(a);
+alter table t1 add constraint b1 foreign key (b) references t2(a);
+
+--replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--error ER_CANT_CREATE_TABLE
+alter table t2 add constraint b1 foreign key (b) references t1(a);
+
+alter table t2 drop foreign key b;
+alter table t1 drop foreign key b1;
+
+drop table t2;
+drop table t1;

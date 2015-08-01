@@ -2534,8 +2534,9 @@ dict_foreign_remove_from_cache(
 			const ib_rbt_node_t*	node
 				= rbt_lookup(rbt, foreign->id);
 
-			if (node) {
-				dict_foreign_t*	val = *(dict_foreign_t**) node->value;
+			if (node != NULL) {
+				dict_foreign_t*	val
+					= *(dict_foreign_t**) node->value;
 
 				if (val == foreign) {
 					rbt_delete(rbt, foreign->id);
@@ -2555,9 +2556,10 @@ dict_foreign_remove_from_cache(
 		if (rbt != NULL && foreign->id != NULL) {
 			const ib_rbt_node_t*	node
 				= rbt_lookup(rbt, foreign->id);
-			if (node) {
 
-				dict_foreign_t*	val = *(dict_foreign_t**) node->value;
+			if (node != NULL) {
+				dict_foreign_t*	val
+					= *(dict_foreign_t**) node->value;
 
 				if (val == foreign) {
 					rbt_delete(rbt, foreign->id);
