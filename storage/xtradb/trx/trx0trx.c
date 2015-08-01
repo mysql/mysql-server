@@ -768,9 +768,9 @@ trx_lists_init_at_db_start(void)
 								" anyway.\n");
 
 							trx->state = TRX_ACTIVE;
-							trx_reserve_descriptor(
-								trx);
 						}
+
+						trx_reserve_descriptor(trx);
 					} else {
 						trx->state
 							= TRX_COMMITTED_IN_MEMORY;
