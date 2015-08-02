@@ -897,6 +897,7 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqlbinlog.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlcheck.1*
 %attr(644, root, root) %{_mandir}/man1/mysqldump.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlpump.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlimport.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlshow.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
@@ -1007,6 +1008,10 @@ fi
 %endif
 
 %changelog
+* Sun Aug 2 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
+- Updated for 5.7.9
+- Add mysqlpump man page
+
 * Wed May 20 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.8-0.2.rc
 - Added libtest_framework.so, libtest_services.so, libtest_services_threaded.so plugins
 - Build and ship mecab plugin
