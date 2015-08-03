@@ -1,0 +1,14 @@
+From: Akhil Mohan <akhil.mohan@oracle.com>
+Description: Fix path in man page link.
+Bug: http://bugs.mysql.com/bug.php?id=70952
+
+--- a/man/mysql_client_test_embedded.1	2013-11-08 19:00:22.000000000 +0530
++++ b/man/mysql_client_test_embedded.1	2013-11-14 19:29:56.768315219 +0530
+@@ -1 +1 @@
+-.so man-gpl-tmp2/mysql_client_test.1
++.so man1/mysql_client_test.1
+--- a/man/mysqltest_embedded.1	2013-11-08 19:00:22.000000000 +0530
++++ b/man/mysqltest_embedded.1	2013-11-14 19:31:19.079280675 +0530
+@@ -1 +1 @@
+-.so man-gpl-tmp2/mysqltest.1
++.so man1/mysqltest.1

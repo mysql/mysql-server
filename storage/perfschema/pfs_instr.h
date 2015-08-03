@@ -299,7 +299,7 @@ struct PFS_ALIGNED PFS_socket : public PFS_instr
 /** Max size of the statements stack. */
 extern uint statement_stack_max;
 /** Max size of the digests token array. */
-extern uint pfs_max_digest_length;
+extern size_t pfs_max_digest_length;
 
 /**
   @def PFS_MAX_ALLOC_RETRY

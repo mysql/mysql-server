@@ -543,7 +543,6 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
-ulong max_digest_length= 0;
 ulong rpl_stop_slave_timeout= LONG_TIMEOUT;
 my_bool log_bin_use_v1_row_events= 0;
 bool thread_cache_size_specified= false;
@@ -5259,8 +5258,6 @@ int mysqld_main(int argc, char **argv)
         pfs_param.m_hints.m_table_open_cache= table_cache_size;
         pfs_param.m_hints.m_max_connections= max_connections;
 	pfs_param.m_hints.m_open_files_limit= requested_open_files;
-        /* the performance schema digest size is the same as the SQL layer */
-        pfs_param.m_max_digest_length= max_digest_length;
         PSI_hook= initialize_performance_schema(&pfs_param);
         if (PSI_hook == NULL)
         {
@@ -5676,7 +5673,7 @@ int mysqld_main(int argc, char **argv)
   }
 #endif
 
-  (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
+  MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
@@ -9407,6 +9404,7 @@ PSI_mutex_key
   key_relay_log_info_sleep_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
+  key_mutex_slave_parallel_worker_count,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
@@ -9489,6 +9487,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_mutex_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_lock", 0},
+  { &key_mutex_slave_parallel_worker_count, "Relay_log_info::exit_count_lock", 0},
   { &key_mutex_mts_temp_tables_lock, "Relay_log_info::temp_tables_lock", 0},
   { &key_mutex_slave_parallel_worker, "Worker_info::jobs_lock", 0},
   { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},

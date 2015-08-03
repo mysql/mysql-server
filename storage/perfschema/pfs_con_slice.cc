@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -39,7 +39,8 @@ PFS_connection_slice::alloc_waits_slice(uint sizing)
 
   if (sizing > 0)
   {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_single_stat, MYF(MY_ZEROFILL));
+    slice= PFS_MALLOC_ARRAY(sizing, sizeof(PFS_single_stat), PFS_single_stat,
+                            MYF(MY_ZEROFILL));
     if (unlikely(slice == NULL))
       return NULL;
 
@@ -58,7 +59,8 @@ PFS_connection_slice::alloc_stages_slice(uint sizing)
 
   if (sizing > 0)
   {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_stage_stat, MYF(MY_ZEROFILL));
+    slice= PFS_MALLOC_ARRAY(sizing, sizeof(PFS_stage_stat), PFS_stage_stat,
+                            MYF(MY_ZEROFILL));
     if (unlikely(slice == NULL))
       return NULL;
 
@@ -77,7 +79,8 @@ PFS_connection_slice::alloc_statements_slice(uint sizing)
 
   if (sizing > 0)
   {
-    slice= PFS_MALLOC_ARRAY(sizing, PFS_statement_stat, MYF(MY_ZEROFILL));
+    slice= PFS_MALLOC_ARRAY(sizing, sizeof(PFS_statement_stat), PFS_statement_stat,
+                            MYF(MY_ZEROFILL));
     if (unlikely(slice == NULL))
       return NULL;
 

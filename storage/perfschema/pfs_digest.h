@@ -27,7 +27,7 @@
 #include "sql_digest.h"
 
 extern bool flag_statements_digest;
-extern ulong digest_max;
+extern size_t digest_max;
 extern ulong digest_lost;
 struct PFS_thread;
 

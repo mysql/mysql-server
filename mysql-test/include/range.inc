@@ -1795,4 +1795,3 @@ eval $query_ba;
 
 --echo
 DROP TABLE t1,t2;
-

@@ -66,7 +66,7 @@ int init_user(const PFS_global_param *param)
 
   if (user_max > 0)
   {
-    user_array= PFS_MALLOC_ARRAY(user_max, PFS_user,
+    user_array= PFS_MALLOC_ARRAY(user_max, sizeof(PFS_user), PFS_user,
                                  MYF(MY_ZEROFILL));
     if (unlikely(user_array == NULL))
       return 1;

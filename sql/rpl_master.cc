@@ -888,6 +888,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   Diagnostics_area temp_da;
   Diagnostics_area *saved_da= thd->get_stmt_da();
   thd->set_stmt_da(&temp_da);
+  bool was_killed_by_duplicate_slave_uuid= false;
 
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
@@ -1945,6 +1946,21 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   }
 
 end:
+  /*
+    If the dump thread was killed because of a duplicate slave UUID we
+    will fail throwing an error to the slave so it will not try to
+    reconnect anymore.
+  */
+  mysql_mutex_lock(&thd->LOCK_thd_data);
+  was_killed_by_duplicate_slave_uuid= thd->duplicate_slave_uuid;
+  mysql_mutex_unlock(&thd->LOCK_thd_data);
+  if (was_killed_by_duplicate_slave_uuid)
+  {
+    errmsg= "A slave with the same server_uuid as this slave "
+            "has connected to the master";
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    goto err;
+  }
   thd->set_stmt_da(saved_da);
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
@@ -2087,6 +2103,7 @@ void kill_zombie_dump_threads(String *slave_uuid)
                             "UUID <%s>, found a zombie dump thread with "
                             "the same UUID. Master is killing the zombie dump "
                             "thread(%lu).", slave_uuid->c_ptr(), tmp->thread_id);
+    tmp->duplicate_slave_uuid= true;
     tmp->awake(THD::KILL_QUERY);
     mysql_mutex_unlock(&tmp->LOCK_thd_data);
   }
