@@ -957,9 +957,11 @@ have_conn:
 					conn_data->crsr_trx);
 			}
 
-			assert(ib_cb_trx_start(conn_data->crsr_trx,
-					       engine->trx_level,
-					       true, false, NULL));
+			err = ib_cb_trx_start(conn_data->crsr_trx,
+					      engine->trx_level,
+					      true, false, NULL);
+			assert(err == DB_SUCCESS);
+
 		}
 
 		err = innodb_api_begin(
