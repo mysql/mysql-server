@@ -1,0 +1,25 @@
+# Test "ALTER TABLE ... IMPORT TABLESPACE" in InnoDB
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug#20977779 CANNOT IMPORT TABLES CONTAINING PREFIX INDEXES
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(32), c2 VARCHAR(32), c3 VARCHAR(32),
+PRIMARY KEY (c1, c2, c3))
+ENGINE=InnoDB;
+
+ALTER TABLE t1 ADD INDEX ind1(c1(5), c2, c3);
+ALTER TABLE t1 ADD INDEX ind2(c3, c1(10), c2);
+ALTER TABLE t1 ADD INDEX ind3(c2, c3, c1(20));
+
+INSERT INTO t1 VALUES ('Test Data -1', 'Test Data -2', 'Test Data -3');
+
+--echo # Test with 2ndary index having prefix
+--source suite/innodb/include/import.inc
+
+--echo # Test with PK & 2ndary index with prefix
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1(5), c2(10), c3(20));
+--source suite/innodb/include/import.inc
+
+DROP TABLE t1;

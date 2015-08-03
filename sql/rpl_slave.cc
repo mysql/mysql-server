@@ -658,12 +658,20 @@ int init_recovery(Master_info* mi, const char** errmsg)
     error= mts_recovery_groups(rli);
     if (rli->mts_recovery_group_cnt)
     {
-      error= 1;
-      sql_print_error("--relay-log-recovery cannot be executed when the slave "
+      if (gtid_mode == GTID_MODE_ON)
+      {
+        rli->recovery_parallel_workers= 0;
+        rli->clear_mts_recovery_groups();
+      }
+      else
+      {
+        error= 1;
+        sql_print_error("--relay-log-recovery cannot be executed when the slave "
                         "was stopped with an error or killed in MTS mode; "
                         "consider using RESET SLAVE or restart the server "
                         "with --relay-log-recovery = 0 followed by "
                         "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
+      }
     }
   }
 
@@ -4841,6 +4849,17 @@ ignore_log_space_limit=%d",
 log space");
           goto err;
         }
+      DBUG_EXECUTE_IF("flush_after_reading_user_var_event",
+                      {
+                      if (event_buf[EVENT_TYPE_OFFSET] == USER_VAR_EVENT)
+                      {
+                      const char act[]= "now signal Reached wait_for signal.flush_complete_continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+
+                      }
+                      });
       DBUG_EXECUTE_IF("stop_io_after_reading_gtid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == GTID_LOG_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
@@ -5419,11 +5438,8 @@ err:
   }
 
   delete_dynamic(&above_lwm_jobs);
-  if (rli->recovery_groups_inited && rli->mts_recovery_group_cnt == 0)
-  {
-    bitmap_free(groups);
-    rli->recovery_groups_inited= false;
-  }
+  if (rli->mts_recovery_group_cnt == 0)
+    rli->clear_mts_recovery_groups();
 
   DBUG_RETURN(error ? ER_MTS_RECOVERY_FAILURE : 0);
 }
@@ -5750,55 +5766,36 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   int i;
   THD *thd= rli->info_thd;
-
-  if (!*mts_inited) 
+  if (!*mts_inited)
     return;
   else if (rli->slave_parallel_workers == 0)
     goto end;
 
   /*
-    In case of the "soft" graceful stop Coordinator
-    guaranteed Workers were assigned with full groups so waiting
-    will be resultful.
-    "Hard" stop with KILLing Coordinator or erroring out by a Worker
-    can't wait for Workers' completion because those may not receive
-    commit-events of last assigned groups.
+    If request for stop slave is received notify worker
+    to stop.
   */
-  if (rli->mts_group_status != Relay_log_info::MTS_KILLED_GROUP &&
-      thd->killed == THD::NOT_KILLED)
-  {
-    DBUG_ASSERT(rli->mts_group_status != Relay_log_info::MTS_IN_GROUP ||
-                thd->is_error());
+  // Initialize worker exit count and max_updated_index to 0 during each stop.
+  rli->exit_counter= 0;
+  rli->max_updated_index= (rli->until_condition !=
+                           Relay_log_info::UNTIL_NONE)?
+                           rli->mts_groups_assigned:0;
 
-#ifndef DBUG_OFF
-    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
-    {
-      sql_print_error("This is not supposed to happen at this point...");
-      DBUG_SUICIDE();
-    }
-#endif
-    // No need to know a possible error out of synchronization call.
-    (void) wait_for_workers_to_finish(rli);
-    /*
-      At this point the coordinator has been stopped and the checkpoint
-      routine is executed to eliminate possible gaps.
-    */
-    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-  }
   for (i= rli->workers.elements - 1; i >= 0; i--)
   {
     Slave_worker *w;
+    struct slave_job_item item= {NULL}, *job_item= &item;
     get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
-    
     mysql_mutex_lock(&w->jobs_lock);
-    
+    //Inform all workers to stop
     if (w->running_status != Slave_worker::RUNNING)
     {
       mysql_mutex_unlock(&w->jobs_lock);
       continue;
     }
 
-    w->running_status= Slave_worker::KILLED;
+    w->running_status= Slave_worker::STOP;
+    (void) set_max_updated_index_on_stop(w, job_item);
     mysql_cond_signal(&w->jobs_cond);
 
     mysql_mutex_unlock(&w->jobs_lock);
@@ -5819,8 +5816,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     while (w->running_status != Slave_worker::NOT_RUNNING)
     {
       PSI_stage_info old_stage;
-      DBUG_ASSERT(w->running_status == Slave_worker::KILLED ||
-                  w->running_status == Slave_worker::ERROR_LEAVING);
+      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
+                  w->running_status == Slave_worker::STOP ||
+                  w->running_status == Slave_worker::STOP_ACCEPTED);
 
       thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
                       &stage_slave_waiting_workers_to_exit, &old_stage);
@@ -5829,11 +5827,18 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
+  }
 
+  if (thd->killed == THD::NOT_KILLED)
+    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO:consider to propagate an error out of the function
+
+  for (i= rli->workers.elements - 1; i >= 0; i--)
+  {
+    Slave_worker *w= NULL;
+    get_dynamic((DYNAMIC_ARRAY*)&rli->workers, (uchar*) &w, i);
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
-
   if (log_warnings > 1)
     sql_print_information("Total MTS session statistics: "
                           "events processed = %llu; "
@@ -6191,12 +6196,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
  err:
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
-  if (rli->recovery_groups_inited)
-  {
-    bitmap_free(&rli->recovery_groups);
-    rli->mts_recovery_group_cnt= 0;
-    rli->recovery_groups_inited= false;
-  }
+  rli->clear_mts_recovery_groups();
 
   /*
     Some events set some playgrounds, which won't be cleared because thread

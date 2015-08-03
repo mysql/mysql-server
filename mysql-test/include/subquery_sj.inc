@@ -6522,6 +6522,83 @@ p2, t1 p3 WHERE p0.id=p2.id6 AND p2.id7=p3.id));
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#18194196: OPTIMIZER EXECUTES STATEMENT INPERFORMANT 
+--echo #
+
+CREATE TABLE t1 (uid INTEGER, fid INTEGER, INDEX(uid));
+INSERT INTO t1 VALUES
+(1,1), (1,2), (1,3), (1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+
+CREATE TABLE t2 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t2 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+
+CREATE TABLE t3 (uid INT, fid INT, INDEX(uid));
+INSERT INTO t3 VALUES
+(1,1), (1,2), (1,3),(1,4),
+(2,5), (2,6), (2,7), (2,8),
+(3,1), (3,2), (3,9);
+
+CREATE TABLE t4 (uid INT PRIMARY KEY, name VARCHAR(128), INDEX(name));
+INSERT INTO t4 VALUES
+(1, "A"), (2, "B"), (3, "C"), (4, "D"), (5, "E"),
+(6, "F"), (7, "G"), (8, "H"), (9, "I");
+
+ANALYZE TABLE t1,t2,t3,t4;
+
+EXPLAIN SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+
+FLUSH STATUS;
+
+SELECT name FROM t2, t1
+WHERE t1.uid IN (SELECT t4.uid FROM t4, t3 WHERE t3.uid=1 AND t4.uid=t3.fid)
+AND t2.uid=t1.fid;
+
+SHOW STATUS LIKE '%handler_read%';
+
+DROP TABLE t1,t2,t3,t4;
+
+--echo # End of test for Bug#18194196
+
+--echo #
+--echo # Bug#21184091 ASSERT `READ_ROWS >= 0.0' AT 
+--echo #              COST_MODEL_SERVER::TMPTABLE_READWRITE_COST()
+--echo #
+
+CREATE TABLE t1 (
+  col_int int(11),
+  pk int(11) NOT NULL,
+  col_int_key int(11) ,
+  col_varchar varchar(1),
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  col_int int(11),
+  col_varchar varchar(1)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (19,'x');
+INSERT INTO t2 VALUES (20,'z');
+
+SELECT table1.col_varchar
+FROM (t2 AS table1 RIGHT JOIN
+      ((t2 STRAIGHT_JOIN t1 ON (t1.col_varchar = t2.col_varchar)))
+      ON (t1.pk = t2.col_int))
+WHERE (t1.pk IN (SELECT t1.col_int_key
+  FROM (t1 INNER JOIN t2 ON (t2.col_int = t1.col_int))))
+AND table1.col_varchar != 'q';
+
+DROP TABLE t1,t2;
+
+--echo # End of test for Bug#21184091
+
 set @@optimizer_switch=@old_opt_switch;
 # New tests go here.
 

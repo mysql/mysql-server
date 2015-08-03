@@ -1617,6 +1617,8 @@ err:
     my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disk is full or "
              "file system is read only while opening the binlog. Aborting the "
              "server");
+    sql_print_error("Either disk is full or file system is read only while "
+                    "opening the binlog. Aborting the server");
     thd->protocol->end_statement();
     _exit(EXIT_FAILURE);
   }
