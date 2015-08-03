@@ -452,7 +452,6 @@ row_upd_changes_disowned_external(
 {
 	const upd_field_t*	upd_field;
 	const dfield_t*		new_val;
-	ulint			new_len;
 	ulint                   n_fields;
 	ulint			i;
 
@@ -462,13 +461,12 @@ row_upd_changes_disowned_external(
 
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
-		new_len = dfield_get_len(new_val);
 
 		if (!dfield_is_ext(new_val)) {
 			continue;
 		}
 
-		ut_ad(new_len >= BTR_EXTERN_FIELD_REF_SIZE);
+		ut_ad(dfield_get_len(new_val) >= BTR_EXTERN_FIELD_REF_SIZE);
 
 		blobref_t ref(new_val->blobref());
 
