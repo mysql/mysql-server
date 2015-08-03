@@ -3088,7 +3088,6 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
   int partno= (int)key_tree->part;
   bool pushed= FALSE;
   bool set_full_part_if_bad_ret= FALSE;
-  RANGE_OPT_PARAM *range_par= &(ppar->range_param);
 
   if (key_tree->left != &null_element)
   {
@@ -3149,7 +3148,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
            The only case where we can get "no satisfying subpartitions"
            returned from the above call is when an error has occurred.
         */
-        DBUG_ASSERT(range_par->thd->is_error());
+        DBUG_ASSERT(ppar->range_param.thd->is_error());
         return 0;
       }
 
