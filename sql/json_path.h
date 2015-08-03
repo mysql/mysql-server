@@ -87,6 +87,7 @@ public:
 class Json_seekable_path
 {
 public:
+  virtual ~Json_seekable_path() {}
 
   /** Return the number of legs in this searchable path */
   virtual size_t leg_count() const =0;

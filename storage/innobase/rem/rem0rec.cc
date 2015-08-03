@@ -1214,7 +1214,7 @@ rec_convert_dtuple_to_rec_comp(
 	ulint		n_node_ptr_field;
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
-	ulint		n_null;
+	ulint		n_null = 0;
 	ulint		num_v = v_entry ? dtuple_get_n_v_fields(v_entry) : 0;
 
 	ut_ad(temp || dict_table_is_comp(index->table));
