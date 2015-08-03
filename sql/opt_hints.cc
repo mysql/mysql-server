@@ -321,7 +321,7 @@ void Opt_hints_table::adjust_key_hints(TABLE *table)
   @param parent_hint       Pointer to the parent hint object,
                            should never be NULL
   @param type_arg          hint type
-  @param OUT ret_val       hint value depending on
+  @param [out] ret_val     hint value depending on
                            what hint level is used
 
   @return true if hint is specified, false otherwise

@@ -53,7 +53,7 @@ void *thd_get_scheduler_data(THD *thd)
   Set reference to Scheduler data object for THD object
 
   @param thd            THD object
-  @param psi            Scheduler data object to set on THD
+  @param data           Scheduler data object to set on THD
 */
 
 void thd_set_scheduler_data(THD *thd, void *data)
@@ -192,7 +192,7 @@ void thd_unlock_data(THD *thd)
 /**
   Support method to check if connection has already started transaction
 
-  @param client_cntx    Low level client context
+  @param thd Current thread
 
   @retval               TRUE if connection already started transaction
 */

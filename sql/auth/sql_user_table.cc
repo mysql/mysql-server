@@ -338,7 +338,7 @@ static void get_grantor(THD *thd, char *grantor)
   Update SSL properties in mysql.user table.
 
   @param thd          Thread context
-  @param tables       table points to mysql.user table.
+  @param table        Points to mysql.user table.
 
 */
 
@@ -393,8 +393,8 @@ static void update_ssl_properties(THD *thd, TABLE *table)
 /**
   Update user resources in mysql.user table.
 
-  @param tables       table points to mysql.user table.
-  @param mqh          user resourses to be updated
+  @param table        Points to mysql.user table.
+  @param mqh          user resources to be updated
 
 */
 
@@ -1451,7 +1451,7 @@ table_error:
   Open the grant tables.
 
   @param          thd                   The current thread.
-  @param[in/out]  tables                Array of GRANT_TABLES table list elements
+  @param[in,out]  tables                Array of GRANT_TABLES table list elements
                                         which will be used for opening tables.
   @param[out]     transactional_tables  Set to true if one of grant tables is
                                         transactional, false otherwise.

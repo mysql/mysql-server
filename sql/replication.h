@@ -693,10 +693,10 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void
    Set thread entering a condition
 
    This function should be called before putting a thread to wait for
-   a condition. @a mutex should be held before calling this
-   function. After being waken up, @f thd_exit_cond should be called.
+   a condition. @p mutex should be held before calling this
+   function. After being waken up, @c thd_exit_cond should be called.
 
-   @param thd      The thread entering the condition, NULL means current thread
+   @param opaque_thd      The thread entering the condition, NULL means current thread
    @param cond     The condition the thread is going to wait for
    @param mutex    The mutex associated with the condition, this must be
                    held before call this function
@@ -720,9 +720,9 @@ void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
    This function should be called after a thread being waken up for a
    condition.
 
-   @param thd      The thread entering the condition, NULL means current thread
-   @param stage    The process message, ususally this should be the old process
-                   message before calling @f thd_enter_cond
+   @param opaque_thd      The thread entering the condition, NULL means current thread
+   @param stage    The process message, usually this should be the old process
+                   message before calling @c thd_enter_cond
    @param src_function The caller source function name
    @param src_file The caller source file name
    @param src_line The caller source line number

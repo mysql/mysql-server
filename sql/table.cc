@@ -829,7 +829,7 @@ void KEY_PART_INFO::init_from_field(Field *fld)
   Setup key-related fields of Field object for given key and key part.
 
   @param[in]     share         Pointer to TABLE_SHARE
-  @param[in]     handler       Pointer to handler
+  @param[in]     handler_file  Pointer to handler
   @param[in]     primary_key_n Primary key number
   @param[in]     keyinfo       Pointer to processed key
   @param[in]     key_n         Processed key number
@@ -892,7 +892,7 @@ static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   @param[in]     pk            Primary key
   @param[in]     pk_n          Primary key number
   @param[in]     share         Pointer to TABLE_SHARE
-  @param[in]     handler       Pointer to handler
+  @param[in]     handler_file  Pointer to handler
   @param[in,out] usable_parts  Pointer to usable_parts variable
 
   @retval                      Number of added key parts
@@ -1226,20 +1226,20 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   @param         format_section_fields Array where each byte contains packed
                                        values of COLUMN_FORMAT/STORAGE options
                                        for corresponding column.
-  @param[in/out] comment_pos           Pointer to part of column comments
+  @param[in,out] comment_pos           Pointer to part of column comments
                                        section of .FRM which corresponds
                                        to current field. Advanced to the
                                        position corresponding to comment
                                        for the next column.
-  @param[in/out] gcol_screen_pos       Pointer to part of generated columns
+  @param[in,out] gcol_screen_pos       Pointer to part of generated columns
                                        section of .FRM which corresponds
                                        to current generated field. If field
                                        to be created is generated advanced
                                        to the position for the next column
-  @param[in/out] null_pos              Current byte in the record preamble
+  @param[in,out] null_pos              Current byte in the record preamble
                                        to be used for field's null/leftover
                                        bits if necessary.
-  @param[in/out] null_bit_pos          Current bit in the current preamble
+  @param[in,out] null_bit_pos          Current bit in the current preamble
                                        byte to be used for field's null/
                                        leftover bits if necessary.
   @param[out]    errarg                Additional argument for the error to
@@ -7346,7 +7346,7 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec)
 
   @note this is not necessary for stored generated fields.
 
-  @param buf[in,out]     the buffer to store data
+  @param [in,out] buf    the buffer to store data
   @param table           the TABLE object
   @param active_index    the number of key for index scan(MAX_KEY is default)
 
@@ -7422,6 +7422,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
   @note We need calculate data for both virtual and stored generated
   fields.
 
+  @param bitmap         Bitmap over fields to update
   @param table          the TABLE object
 
   @return
@@ -7431,7 +7432,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
       true   - Error occurred during the generation/calculation of a generated
                field value
  */
-bool update_generated_write_fields(TABLE *table)
+bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
 {
   DBUG_ENTER("update_generated_write_fields");
   Field **vfield_ptr;
@@ -7444,8 +7445,9 @@ bool update_generated_write_fields(TABLE *table)
     Field *vfield;
     vfield= (*vfield_ptr);
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-    /* Only update those fields that are marked in the write_set bitmap */
-    if (bitmap_is_set(table->write_set, vfield->field_index))
+
+    /* Only update those fields that are marked in the bitmap */
+    if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
         For a virtual generated column of blob type, we have to keep

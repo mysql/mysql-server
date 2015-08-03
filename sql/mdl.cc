@@ -719,7 +719,8 @@ public:
           "obtrusive" set we have to acquire using "slow path" even locks of
           "unobtrusive" type.
 
-    @sa MDL_scoped_lock/MDL_object_lock::m_unobtrusive_lock_increment for
+    @see MDL_scoped_lock::m_unobtrusive_lock_increment and
+    @see MDL_object_lock::m_unobtrusive_lock_increment for
         definitions of these sets for scoped and per-object locks.
   */
   inline static fast_path_state_t
@@ -866,8 +867,8 @@ public:
     counters of specific types of "unobtrusive" locks which were granted using
     "fast path".
 
-    @sa MDL_scoped_lock::m_unobtrusive_lock_increment and
-        MDL_object_lock::m_unobtrusive_lock_increment for details about how
+    @see MDL_scoped_lock::m_unobtrusive_lock_increment and
+        @see MDL_object_lock::m_unobtrusive_lock_increment for details about how
         counts of different types of locks are packed into this field.
 
     @note Doesn't include "unobtrusive" locks granted using "slow path".

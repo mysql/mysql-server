@@ -419,8 +419,9 @@ void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
                 my_bool opt_frm, my_bool opt_fix_table_names,
                 my_bool opt_fix_db_names, my_bool opt_upgrade,
                 my_bool opt_write_binlog, uint verbose,
-                string opt_skip_database, vector<string> arguments,
-                void (*dberror)(MYSQL *mysql, string when))
+                std::string opt_skip_database,
+                std::vector<std::string> arguments,
+                void (*dberror)(MYSQL *mysql, std::string when))
 {
   ::sock= connection;
   ::what_to_do= what_to_do;

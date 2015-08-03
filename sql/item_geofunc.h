@@ -378,7 +378,7 @@ static const int MAX_CRS_WIDTH= (22 + MAX_INT_WIDTH + 1);
 /**
   This class handles the following function:
 
-  <json> = ST_ASGEOJSON(<geometry>[, <maxdecimaldigits>[, <options>]])
+  @<json@> = ST_ASGEOJSON(@<geometry@>[, @<maxdecimaldigits@>[, @<options@>]])
 
   It converts a GEOMETRY into a valid GeoJSON string. If maxdecimaldigits is
   specified, the coordinates written are rounded to the number of decimals

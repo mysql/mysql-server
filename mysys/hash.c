@@ -79,14 +79,14 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
                                use standard hash from character
                                set.
   @param[in]     size         The hash size
-  @param[in]     key_offest   The key offset for the hash
+  @param[in]     key_offset   The key offset for the hash
   @param[in]     key_length   The length of the key used in
                               the hash
   @param[in]     get_key      get the key for the hash
   @param[in]     free_element pointer to the function that
                               does cleanup
   @param[in]     flags        flags set in the hash
-  @return        inidicates success or failure of initialization
+  @return        indicates success or failure of initialization
     @retval 0 success
     @retval 1 failure
 */

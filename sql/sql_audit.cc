@@ -22,6 +22,131 @@
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query
 
+/**
+  @class Audit_error_handler
+
+  Error handler that controls error reporting by plugin.
+*/
+class Audit_error_handler : public Internal_error_handler
+{
+private:
+
+  /**
+    @brief Blocked copy constructor (private).
+  */
+  Audit_error_handler(const Audit_error_handler &obj __attribute__((unused))):
+    m_thd(NULL), m_warning_message(NULL),
+    m_error_reported(false), m_active(false)
+  {
+  }
+
+public:
+
+  /**
+    @brief Construction.
+
+    @param thd[in]             Current thread data.
+    @param warning_message[in] Warning message used when error has been
+                               suppressed.
+    @param active              Specifies whether the handler is active or not.
+                               Optional parameter (default is true).
+  */
+  Audit_error_handler(THD *thd, const char *warning_message,
+                      bool active= true) :
+    m_thd(thd),
+    m_warning_message(warning_message),
+    m_error_reported(false),
+    m_active(active)
+  {
+    if (m_active)
+    {
+      /* Activate the error handler. */
+      m_thd->push_internal_handler(this);
+    }
+  }
+
+  /**
+    @brief Destruction.
+  */
+  virtual ~Audit_error_handler()
+  {
+    if (m_active)
+    {
+      /* Deactivate this handler. */
+      m_thd->pop_internal_handler();
+    }
+  }
+
+  /**
+    @brief Simplified custom handler.
+
+    @retval True on error rejection, otherwise false.
+  */
+  virtual bool handle() = 0;
+
+  /**
+    @brief Error handler.
+
+    @see Internal_error_handler::handle_condition
+
+    @retval True on error rejection, otherwise false.
+  */
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (m_active && handle())
+    {
+      /* Error has been rejected. Write warning message. */
+      print_warning(m_warning_message);
+
+      m_error_reported = true;
+
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+    @brief Warning print routine.
+
+    @param warn_msg[in] Warning message to be printed.
+  */
+  virtual void print_warning(const char *warn_msg)
+  {
+    sql_print_warning("%s", warn_msg);
+  }
+
+  /**
+    @brief Convert the result value returned from the audit api.
+
+    @param result[in] Result value received from the plugin function.
+
+    @retval Converted result value.
+  */
+  int get_result(int result)
+  {
+    return m_error_reported ? 0 : result;
+  }
+
+private:
+
+  /** Current thread data. */
+  THD        *m_thd;
+
+  /** Warning message used when the error is rejected. */
+  const char *m_warning_message;
+
+  /** Error has been reported. */
+  bool       m_error_reported;
+
+  /** Handler has been activated. */
+  const bool m_active;
+};
+
 struct st_mysql_event_generic
 {
   mysql_event_class_t event_class;
@@ -149,6 +274,56 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   return event_class_dispatch(thd, MYSQL_AUDIT_GENERAL_CLASS, &event);
 }
 
+/**
+  @class Ignore_event_error_handler
+
+  Ignore all errors notified from within plugin.
+*/
+class Ignore_event_error_handler : public Audit_error_handler
+{
+public:
+
+  /**
+    @brief Construction.
+
+    @param thd[in]             Current thread data.
+    @param warning_message[in] Warning message used when error has been
+                               suppressed.
+  */
+  Ignore_event_error_handler(THD *thd, const char *event_name) :
+    Audit_error_handler(thd, "Event '%s' cannot be aborted."),
+    m_event_name(event_name)
+  {
+  }
+
+  /**
+    @brief Ignore all errors.
+
+    @retval True on error rejection, otherwise false.
+  */
+  virtual bool handle()
+  {
+    return true;
+  }
+
+  /**
+  @brief Custom warning print routine.
+
+  @param warn_msg[in] Placeholding warning message to be printed.
+  */
+  virtual void print_warning(const char *warn_msg)
+  {
+    sql_print_warning(warn_msg, m_event_name);
+  }
+
+private:
+
+  /**
+  @brief Event name used in the warning message.
+  */
+  const char *m_event_name;
+};
+
 int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
                        const char* subclass_name, int errcode)
 {
@@ -181,8 +356,13 @@ int mysql_audit_notify(THD *thd, mysql_event_connection_subclass_t subclass,
                          thd->get_vio_type() : NO_VIO_TYPE;
 
   if (subclass == MYSQL_AUDIT_CONNECTION_DISCONNECT)
-    /* Disconnect abort should not be allowed. */
-    return event_class_dispatch(thd, MYSQL_AUDIT_CONNECTION_CLASS, &event);
+  {
+    Ignore_event_error_handler handler(thd, subclass_name);
+
+    return handler.get_result(event_class_dispatch_error(thd,
+                                                 MYSQL_AUDIT_CONNECTION_CLASS,
+                                                 subclass_name, &event));
+  }
 
   return event_class_dispatch_error(thd, MYSQL_AUDIT_CONNECTION_CLASS,
                                     subclass_name, &event);
@@ -345,8 +525,85 @@ int mysql_audit_notify(THD *thd, mysql_event_authorization_subclass_t subclass,
 }
 */
 
+/**
+  @class Ignore_command_start_error_handler
+
+  Ignore error for specified commands.
+*/
+class Ignore_command_start_error_handler : public Audit_error_handler
+{
+public:
+
+  /**
+    @brief Construction.
+
+    @param thd[in]     Current thread data.
+    @param command[in] Current command that the handler will be active against.
+  */
+  Ignore_command_start_error_handler(THD *thd,
+                                     enum_server_command command,
+                                     const char *command_text) :
+    Audit_error_handler(thd, "Command '%s' cannot be aborted.",
+                        ignore_command(command)),
+    m_command(command),
+    m_command_text(command_text)
+  {
+  }
+
+  /**
+    @brief Error for specified command handling routine.
+
+    @retval True on error rejection, otherwise false.
+  */
+  virtual bool handle()
+  {
+    return ignore_command(m_command);
+  }
+
+  /**
+    @brief Custom warning print routine.
+
+    @param warn_msg[in] Placeholding warning message text.
+  */
+  virtual void print_warning(const char *warn_msg)
+  {
+    sql_print_warning(warn_msg, m_command_text);
+  }
+
+  /**
+    @brief Check whether the command is to be ignored.
+
+    @retval True whether the command is to be ignored. Otherwise false.
+  */
+  static bool ignore_command(enum_server_command command)
+  {
+    /* Ignore these commands. The plugin cannot abort on these commands. */
+    if (command == COM_QUIT ||
+        command == COM_PING ||
+        command == COM_SLEEP || /* Deprecated commands from here. */
+        command == COM_CONNECT ||
+        command == COM_TIME ||
+        command == COM_DELAYED_INSERT ||
+        command == COM_END)
+    {
+      return true;
+    }
+
+    return false;
+  }
+
+private:
+
+  /** Command that the handler is active against. */
+  enum_server_command m_command;
+
+  /** Command string. */
+  const char          *m_command_text;
+};
+
 int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
-                       const char* subclass_name, enum_server_command command)
+                       const char *subclass_name, enum_server_command command,
+                       const char *command_text)
 {
   mysql_event_command event;
 
@@ -360,11 +617,21 @@ int mysql_audit_notify(THD *thd, mysql_event_command_subclass_t subclass,
   event.connection_id = thd && thd->thread_id();
   event.command_id= command;
 
-  if (subclass == MYSQL_AUDIT_COMMAND_END)
-    return event_class_dispatch(thd, MYSQL_AUDIT_COMMAND_CLASS, &event);
+  if (subclass == MYSQL_AUDIT_COMMAND_START)
+  {
+    Ignore_command_start_error_handler handler(thd, command, command_text);
 
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_COMMAND_CLASS,
-                                    subclass_name, &event);
+    return handler.get_result(event_class_dispatch_error(thd,
+                                                    MYSQL_AUDIT_COMMAND_CLASS,
+                                                    subclass_name, &event));
+  }
+
+  /* MYSQL_AUDIT_COMMAND_END event handling. */
+  Ignore_event_error_handler handler(thd, subclass_name);
+
+  return handler.get_result(event_class_dispatch_error(thd,
+                                                    MYSQL_AUDIT_COMMAND_CLASS,
+                                                    subclass_name, &event));
 }
 
 int mysql_audit_notify(THD *thd, mysql_event_query_subclass_t subclass,
@@ -559,11 +826,7 @@ void mysql_audit_init_thd(THD *thd)
 /**
   Free thd variables used by Audit
   
-  @param[in] thd
-  @param[in] plugin
-  @param[in] arg
-
-  @retval FALSE Always  
+  @param thd Current thread
 */
 
 void mysql_audit_free_thd(THD *thd)

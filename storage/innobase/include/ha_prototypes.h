@@ -517,6 +517,11 @@ thd_requested_durability(
 	const THD* thd)	/*!< in: thread handle */
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_HOTBACKUP */
+/** Update the system variable with the given value of the InnoDB
+buffer pool size.
+@param[in]	buf_pool_size	given value of buffer pool size.*/
+void
+innodb_set_buf_pool_size(ulonglong buf_pool_size);
 
+#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM */
 #endif /* HA_INNODB_PROTOTYPES_H */

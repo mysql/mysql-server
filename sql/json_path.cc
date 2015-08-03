@@ -100,6 +100,86 @@ bool Json_path_leg::to_string(String *buf) const
   return true;                                  /* purecov: inspected */
 }
 
+// Json_path_clone
+
+Json_path_clone::Json_path_clone()
+  : m_path_legs(key_memory_JSON)
+{}
+
+
+Json_path_clone::~Json_path_clone()
+{
+  clear();
+}
+
+
+size_t Json_path_clone::leg_count() const { return m_path_legs.size(); }
+
+
+const Json_path_leg *Json_path_clone::get_leg_at(const size_t index) const
+{
+  if (index >= m_path_legs.size())
+  {
+    return NULL;
+  }
+
+  return m_path_legs.at(index);
+}
+
+
+bool Json_path_clone::append(const Json_path_leg *leg)
+{
+  return m_path_legs.push_back(leg);
+}
+
+
+bool Json_path_clone::set(Json_seekable_path *source)
+{
+  clear();
+
+  size_t legcount= source->leg_count();
+  for (size_t idx= 0; idx < legcount; idx++)
+  {
+    Json_path_leg *path_leg= (Json_path_leg *) source->get_leg_at(idx);
+    if (append(path_leg))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+const Json_path_leg *Json_path_clone::pop()
+{
+  DBUG_ASSERT(m_path_legs.size() > 0);
+  const Json_path_leg *p= m_path_legs.back();
+  m_path_legs.pop_back();
+  return p;
+}
+
+
+void Json_path_clone::clear()
+{
+  m_path_legs.clear();
+}
+
+
+bool Json_path_clone::contains_ellipsis() const
+{
+  for (Path_leg_pointers::const_iterator iter= m_path_legs.begin();
+       iter != m_path_legs.end(); ++iter)
+  {
+    const Json_path_leg *path_leg= *iter;
+    if (path_leg->get_type() == jpl_ellipsis)
+      return true;
+  }
+
+  return false;
+}
+
+
 // Json_path
 
 Json_path::Json_path()

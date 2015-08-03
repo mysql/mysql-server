@@ -899,9 +899,9 @@ uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
   Scan WKB byte string and notify WKB events by calling registered callbacks.
   @param wkb a little endian WKB byte string of 'len' bytes, with or
              without WKB header.
-  @param len[in/out] remaining number of bytes of the wkb string.
+  @param [in,out] len remaining number of bytes of the wkb string.
   @param geotype the type of the geometry to be scanned.
-  @param hashdr whether the 'wkb' point to a WKB header or right after
+  @param has_hdr whether the 'wkb' point to a WKB header or right after
                 the header. If it is true, the
                 'geotype' should be the same as the type in the header;
                 otherwise, and we will use the type specified in WKB header.
@@ -2460,7 +2460,7 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const
    The returned WKB has no WKB header.
    Never call get_ptr to obtain a polygon's WKB data.
 
-   @param geo The polygon whose WKB data we want to pack up.
+   @param geo0 The polygon whose WKB data we want to pack up.
    @param[out] pnbytes Takes back the number of bytes of the packed WKB string.
    @return The address of the packed WKB string buffer.
   */
@@ -2517,7 +2517,7 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
   packed so that its outer ring and inner rings point to different locations
   of a continuous chunk of WKB buffer.
 
-  @param geo The already packed polygon, we want to get its data address.
+  @param geo0 The already packed polygon, we want to get its data address.
   @return The WKB string starting address, right after the WKB header if any.
  */
 const char *get_packed_ptr(Geometry *geo0)

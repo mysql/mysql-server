@@ -21,8 +21,8 @@
 #include "sp_pcontext.h"           // sp_pcontext
 
 /**
-  Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
-  See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
+  Helper to resolve the SQL:2003 Syntax exception 1) in @<in predicate@>.
+  See SQL:2003, Part 2, section 8.4 @<in predicate@>, Note 184, page 383.
   This function returns the proper item for the SQL expression
   <code>left [NOT] IN ( expr )</code>
   @param pc the current parse context

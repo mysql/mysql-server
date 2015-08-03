@@ -351,7 +351,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 
 
 /**
-  Implementation of FLUSH TABLES <table_list> WITH READ LOCK.
+  Implementation of FLUSH TABLES @<table_list@> WITH READ LOCK.
 
   In brief: take exclusive locks, expel tables from the table
   cache, reopen the tables, enter the 'LOCKED TABLES' mode,
@@ -371,9 +371,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   ---------------------------------------
   We don't wait for the GRL, since neither the
   5.1 combination that this new statement is intended to
-  replace (LOCK TABLE <list> WRITE; FLUSH TABLES;),
+  replace (LOCK TABLE @<list@> WRITE; FLUSH TABLES;),
   nor FLUSH TABLES WITH READ LOCK do.
-  @todo: this is not implemented, Dmitry disagrees.
+  @todo This is not implemented, Dmitry disagrees.
   Currently we wait for GRL in another connection,
   but are compatible with a GRL in our own connection.
 
@@ -392,7 +392,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   new transactions will be able to read the tables, but not
   write to them.
 
-  Differences from FLUSH TABLES <list>
+  Differences from FLUSH TABLES @<list@>
   -------------------------------------
   - you can't flush WITH READ LOCK a non-existent table
   - you can't flush WITH READ LOCK under LOCK TABLES

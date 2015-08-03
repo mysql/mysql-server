@@ -159,6 +159,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 #endif
 
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 /**
    Unpack a row into @c table->record[0].
 
@@ -186,7 +187,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @param row_data
                   Packed row data
    @param cols    Pointer to bitset describing columns to fill in
-   @param curr_row_end
+   @param current_row_end
                   Pointer to variable that will hold the value of the
                   one-after-end position for the current row
    @param master_reclength
@@ -201,7 +202,6 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
    @retval HA_ERR_GENERIC
    A generic, internal, error caused the unpacking to fail.
  */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 int
 unpack_row(Relay_log_info const *rli,
            TABLE *table, uint const colcnt,

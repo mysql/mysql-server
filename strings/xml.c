@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -213,8 +213,8 @@ static int my_xml_value(MY_XML_PARSER *st, const char *str, size_t len)
   Expand and/or allocate dynamic buffer as needed to hold the concatenated
   path and the terminating zero.
 
-  @attr st   the parser instance
-  @attr len  the length of the attribute to be added
+  @param st   the parser instance
+  @param len  the length of the attribute to be added
   @return state
   @retval 1  failed
   @retval 0  success

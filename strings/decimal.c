@@ -1183,7 +1183,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
 /**
   Convert decimal value to lldiv_t value.
   @param      from  The decimal value to convert from.
-  @param OUT  to    The lldiv_t variable to convert to.
+  @param [out]  to    The lldiv_t variable to convert to.
   @return           0 on success, error code on error.
 */
 int decimal2lldiv_t(const decimal_t *from, lldiv_t *to)
@@ -1214,8 +1214,8 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to)
 
 /**
   Convert double value to lldiv_t valie.
-  @param     from The double value to convert from.
-  @param OUT to   The lldit_t variable to convert to.
+  @param     nr The double value to convert from.
+  @param [out] lld   The lldit_t variable to convert to.
   @return         0 on success, error code on error.
 
   Integer part goes into lld.quot.

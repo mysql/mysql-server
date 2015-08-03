@@ -1,6 +1,6 @@
 // Boost.Geometry (aka GGL, Generic Geometry Library)
 
-// Copyright (c) 2014, Oracle and/or its affiliates.
+// Copyright (c) 2014-2015, Oracle and/or its affiliates.
 
 // Licensed under the Boost Software License version 1.0.
 // http://www.boost.org/users/license.html
@@ -85,10 +85,14 @@ struct less_seg_fraction_other_op
     template <typename Turn>
     static inline bool use_fraction(Turn const& left, Turn const& right)
     {
-        return left.operations[OpId].fraction < right.operations[OpId].fraction
-           || ( geometry::math::equals(left.operations[OpId].fraction, right.operations[OpId].fraction) 
-                && use_other_id(left, right)
-              );
+        return
+            geometry::math::equals(left.operations[OpId].fraction,
+                                   right.operations[OpId].fraction)
+            ?
+            use_other_id(left, right)
+            :
+            (left.operations[OpId].fraction < right.operations[OpId].fraction)
+            ;
     }
 
     template <typename Turn>

@@ -33,6 +33,7 @@
 class Json_dom;
 class Json_path;
 class Json_path_leg;
+class Json_seekable_path;
 class Json_wrapper;
 
 typedef Prealloced_array<Json_wrapper, 16, false> Json_wrapper_vector;
@@ -42,28 +43,30 @@ typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 #define JSON_DOCUMENT_MAX_DEPTH 100
 
 /**
-  @file
+  @file sql/json_dom.h
+  JSON DOM.
+
   When a JSON value is retrieved from a column, a prior it exists in
   a binary form, cf. Json_binary::Value class.
-  <p/>
+
   However, when we need to manipulate the JSON values we mostly convert them
   from binary form to a structured in-memory from called DOM (from domain
   object model) which uses a recursive tree representation of the JSON value
   corresponding closely to a parse tree. This form is more suitable for
   manipulation.
-  <p/>
+
   The JSON type is mostly represented internally as a Json_wrapper which hides
   if the representation is a binary or DOM one. This makes is possible to avoid
   building a DOM unless we really need one.
-  <p/>
+
   The file defines two sets of classes: a) The Json_dom hierarchy and
   b) Json_wrapper and its companion class Json_wrapper_object_iterator.
   For both sets, arrays are traversed using an operator[].
 */
 
 /**
-  @class
-  @brief JSON DOM classes: Abstract base class is Json_dom -
+  JSON DOM abstract base class.
+
   MySQL representation of in-memory JSON objects used by the JSON type
   Supports access, deep cloning, and updates. See also Json_wrapper and
   json_binary::Value.
@@ -316,7 +319,8 @@ public:
     @param[in]  only_need_one True if we can stop after finding one match
     @return false on success, true on error
   */
-  bool seek(const Json_path &path, Json_dom_vector *hits, bool auto_wrap,
+  bool seek(const Json_seekable_path &path,
+            Json_dom_vector *hits, bool auto_wrap,
             bool only_need_one);
 
 private:
@@ -333,7 +337,7 @@ private:
      ellipsis (**) token.
 
    @param[in]     path_leg identifies the child
-   @param[in]     if true, match final scalar with [0] is need be
+   @param[in]     auto_wrap if true, match final scalar with [0] is need be
    @param[in]     only_need_one True if we can stop after finding one match
    @param[in,out] duplicates helps to identify duplicate arrays and objects
                   introduced by daisy-chained ** tokens
@@ -503,7 +507,7 @@ public:
     the value will be deallocated by the array so only append values
     that can be deallocated safely (no stack variables please!)
 
-    @param[in]  a pointer a JSON value to be appended
+    @param[in]  value a JSON value to be appended
     @retval false on success
     @retval true on failure
   */
@@ -602,7 +606,7 @@ public:
      Auto-wrapping constructor. Wraps an array around a dom.
      Ownership of the dom belongs to this array.
 
-     @param dom [in] The dom to autowrap.
+     @param [in] innards The dom to autowrap.
      @return the auto-wrapped dom.
   */
   explicit Json_array(Json_dom *innards);
@@ -883,7 +887,7 @@ public:
 
   /**
     Return a pointer the date/time value. Ownership is _not_ transferred.
-    To identify which time time the value represents, use ::field_type.
+    To identify which time time the value represents, use @c field_type.
     @return the pointer
   */
   const MYSQL_TIME *value() const { return &m_t; }
@@ -1085,7 +1089,6 @@ typedef bool *warning_method(Sql_condition::enum_severity_level,
                              unsigned int, int);
 
 /**
-  @class
   Abstraction for accessing JSON values irrespective of whether they
   are (started out as) binary JSON values or JSON DOM values. The
   purpose of this is to allow uniform access for callers. It allows us
@@ -1137,7 +1140,7 @@ public:
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
-    ownership, unless ::set_alias is called after construction.
+    ownership, unless @c set_alias is called after construction.
     In the latter case the lifetime of the DOM is determined by
     the owner of the DOM, so clients need to ensure that that
     lifetime is sufficient, lest dead storage is attempted accessed.
@@ -1293,7 +1296,7 @@ public:
   /**
     Get a pointer to the data of a JSON string or JSON opaque value.
     The data is still owner by the wrapper. The data may not be null
-    terminated, so use in conjunction with ::get_data_length.
+    terminated, so use in conjunction with @c get_data_length.
     Valid for J_STRING and J_OPAQUE.  Calling this method if the type is
     not one of those will give undefined results.
 
@@ -1408,7 +1411,8 @@ public:
     @retval false on success
     @retval true on error
   */
-  bool seek(const Json_path &path, Json_wrapper_vector *hits, bool auto_wrap,
+  bool seek(const Json_seekable_path &path,
+            Json_wrapper_vector *hits, bool auto_wrap,
             bool only_need_one);
 
   /**
@@ -1425,7 +1429,7 @@ public:
 
     @returns false if there was no error, otherwise true on error
   */
-  bool seek_no_ellipsis(const Json_path &path,
+  bool seek_no_ellipsis(const Json_seekable_path &path,
                         Json_wrapper_vector *hits,
                         const size_t leg_number,
                         bool auto_wrap,
@@ -1470,7 +1474,7 @@ public:
   /**
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
-    @param[in] string to use in error message in conversion failed
+    @param[in] msgnam to use in error message in conversion failed
     @returns json value coerced to int
   */
   longlong coerce_int(const char *msgnam) const;
@@ -1478,7 +1482,7 @@ public:
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
-    @param[in] string to use in error message in conversion failed
+    @param[in] msgnam to use in error message in conversion failed
     @returns json value coerced to real
   */
   double coerce_real(const char *msgnam) const;
@@ -1487,7 +1491,7 @@ public:
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
-    @param[in] string to use in error message in conversion failed
+    @param[in] msgnam to use in error message in conversion failed
     @returns json value coerced to decimal
   */
   my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam)

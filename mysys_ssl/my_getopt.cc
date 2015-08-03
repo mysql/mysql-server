@@ -976,9 +976,9 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   This is the same as eval_num_suffix, but is meant for unsigned long long
   values. Transforms an unsigned number with a suffix to real number. Suffix can
   be k|K for kilo, m|M for mega or g|G for giga.
-  @param [IN]        argument      argument value for option_name
-  @param [IN, OUT]   error         error no.
-  @param [IN]        option_name   name of option
+  @param [in]        argument      argument value for option_name
+  @param [in, out]   error         error no.
+  @param [in]        option_name   name of option
 */
 
 static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_name)
@@ -1392,8 +1392,8 @@ static void init_variables(const struct my_option *options,
 /**
   Prints variable or option name, replacing _ with - to given file stream
   parameter (by default to stdout).
-  @param [IN] optp      my_option parameter
-  @param [IN] file      stream where the output of optp parameter name
+  @param [in] optp      my_option parameter
+  @param [in] file      stream where the output of optp parameter name
                         goes (by default to stdout).
 */
 static uint print_name(const struct my_option *optp, FILE* file = stdout)
@@ -1496,7 +1496,7 @@ void my_print_help(const struct my_option *options)
 /**
  function: my_print_variables
  Print variables.
- @param [IN] options    my_option list
+ @param [in] options    my_option list
 */
 void my_print_variables(const struct my_option *options)
 {
@@ -1506,8 +1506,8 @@ void my_print_variables(const struct my_option *options)
 /**
   function: my_print_variables_ex
   Print variables to given file parameter stream (by default to stdout).
-  @param [IN] options    my_options list
-  @param [IN] file       stream where the output goes.
+  @param [in] options    my_options list
+  @param [in] file       stream where the output goes.
 */
 
 void my_print_variables_ex(const struct my_option *options, FILE* file)

@@ -1457,6 +1457,13 @@ select cast(py as json) from t1;
 
 select cast(js as json) from t1;
 
+--echo #
+--echo # Bug#21442878 INCORRECT RETURN STATUS FROM
+--echo #              ITEM_JSON_TYPECAST::VAL_JSON() ON PARSE ERRORS
+--echo #
+--error ER_INVALID_TYPE_FOR_JSON
+select json_extract(en, '$') from t1;
+
 drop table t1;
 
 create table t1 ( c1 varchar(200) character set 'latin1',
@@ -2419,7 +2426,7 @@ SELECT JSON_SET
 
 --echo #
 --echo # Bug #21304639: JSON_SET() WITH MULTI-LEG PATH RETURNS DIFFERENT
---echo #                RESULTS ON FIRST ROW VS NEXT	
+--echo #                RESULTS ON FIRST ROW VS NEXT
 --echo #
 create table t21304639(pk int);
 insert into t21304639 values (2), (1), (3);
@@ -5902,6 +5909,102 @@ INSERT INTO t2 VALUES ('1');
 SELECT j1, jv, j2, JSON_ARRAY(j1, jv, j2) FROM t1 LEFT JOIN v ON j1 = jv;
 DROP TABLE t1, t2;
 DROP VIEW v;
+
+
+--echo #
+--echo # Bug#21442624 INCORRECT RESULT FROM JSON_SET WITH AUTO-WRAPPING
+--echo #
+
+SELECT JSON_SET('1', '$', 100);
+SELECT JSON_SET('1', '$[0]', 100);
+SELECT JSON_SET('1', '$[0][0]', 100);
+SELECT JSON_SET('1', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[]', '$', 100);
+SELECT JSON_SET('[]', '$[0]', 100);
+SELECT JSON_SET('[]', '$[0][0]', 100);
+SELECT JSON_SET('[]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[1]', '$', 100);
+SELECT JSON_SET('[1]', '$[0]', 100);
+SELECT JSON_SET('[1]', '$[0][0]', 100);
+SELECT JSON_SET('[1]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[[1]]', '$', 100);
+SELECT JSON_SET('[[1]]', '$[0]', 100);
+SELECT JSON_SET('[[1]]', '$[0][0]', 100);
+SELECT JSON_SET('[[1]]', '$[0][0][0]', 100);
+
+SELECT JSON_SET('[[[1]]]', '$', 100);
+SELECT JSON_SET('[[[1]]]', '$[0]', 100);
+SELECT JSON_SET('[[[1]]]', '$[0][0]', 100);
+SELECT JSON_SET('[[[1]]]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('1', '$', 100);
+SELECT JSON_REPLACE('1', '$[0]', 100);
+SELECT JSON_REPLACE('1', '$[0][0]', 100);
+SELECT JSON_REPLACE('1', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[]', '$', 100);
+SELECT JSON_REPLACE('[]', '$[0]', 100);
+SELECT JSON_REPLACE('[]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[1]', '$', 100);
+SELECT JSON_REPLACE('[1]', '$[0]', 100);
+SELECT JSON_REPLACE('[1]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[1]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[[1]]', '$', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0]', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[[1]]', '$[0][0][0]', 100);
+
+SELECT JSON_REPLACE('[[[1]]]', '$', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0]', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0]', 100);
+SELECT JSON_REPLACE('[[[1]]]', '$[0][0][0]', 100);
+
+
+--echo #
+--echo # Bug#21472872 WRONG RESULTS CAUSED BY PATH LEG POPPING
+--echo # IN JSON FUNCTIONS
+--echo #
+
+create table tdoc( id int, doc json );
+insert into tdoc values
+( 1, '[]' ),
+( 2, '{ "a": { "b": true } }' );
+
+select id, json_insert( doc, '$.a.c', false ) from tdoc where id = 2;
+select id, json_insert( doc, '$.a.c', false ) from tdoc order by id;
+
+drop table tdoc;
+create table tdoc( id int, doc json, new_value varchar( 10 ) );
+insert into tdoc values
+( 1, '{ "a": { "b": true } }', null ),
+( 2, '{ "a": { "b": true } }', 'abc' );
+
+select id, json_insert( doc, '$.a.c', new_value ) from tdoc where id = 2;
+select id, json_insert( doc, '$.a.c', new_value ) from tdoc order by id;
+
+drop table tdoc;
+
+
+--echo #
+--echo # Bug#21487833: DBUG_ABORT() IN JSON_WRAPPER::MAKE_HASH_KEY
+--echo #               WITH ORDERED JSON
+--echo #
+--source include/turn_off_strict_mode.inc
+CREATE TABLE t (a BLOB, b JSON NOT NULL) ENGINE=InnoDB;
+INSERT INTO t VALUES ('', NULL), ('', NULL);
+UPDATE t SET a = 1 ORDER BY b;
+SELECT COUNT(a) FROM t GROUP BY b;
+SELECT DISTINCT B FROM t;
+SELECT b FROM t UNION DISTINCT SELECT b FROM t;
+SELECT * FROM t ORDER BY b;
+DROP TABLE t;
+--source include/restore_strict_mode.inc
 
 # Local Variables:
 # mode: sql

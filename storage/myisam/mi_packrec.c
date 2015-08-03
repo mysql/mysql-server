@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,10 +58,14 @@ static void fill_quick_table(uint16 *table,uint bits, uint max_bits,
 static uint copy_decode_table(uint16 *to_pos,uint offset,
 			      uint16 *decode_table);
 static uint find_longest_bitstream(uint16 *table, uint16 *end);
-static void (*get_unpack_function(MI_COLUMNDEF *rec))(MI_COLUMNDEF *field,
-						    MI_BIT_BUFF *buff,
-						    uchar *to,
-						    uchar *end);
+
+typedef void (*unpack_function_t)(MI_COLUMNDEF *field,
+                                  MI_BIT_BUFF *buff,
+                                  uchar *to,
+                                  uchar *end);
+
+static unpack_function_t get_unpack_function(MI_COLUMNDEF *rec);
+
 static void uf_zerofill_skip_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
 				   uchar *to,uchar *end);
 static void uf_skip_zero(MI_COLUMNDEF *rec,MI_BIT_BUFF *bit_buff,
@@ -761,8 +765,7 @@ int _mi_pack_rec_unpack(MI_INFO *info, MI_BIT_BUFF *bit_buff,
 
 	/* Return function to unpack field */
 
-static void (*get_unpack_function(MI_COLUMNDEF *rec))
-(MI_COLUMNDEF *, MI_BIT_BUFF *, uchar *, uchar *)
+static unpack_function_t get_unpack_function(MI_COLUMNDEF *rec)
 {
   switch (rec->base_type) {
   case FIELD_SKIP_ZERO:

@@ -483,8 +483,7 @@ void ignore_db_dirs_init()
   Needed by hash_init().
 
   @param     data         the data element from the hash
-  @param out len_ret      Placeholder to return the length of the key
-  @param                  unused
+  @param [out] len_ret      Placeholder to return the length of the key
   @return                 a pointer to the key
 */
 
@@ -1272,10 +1271,10 @@ static const char *require_quotes(const char *name, size_t name_length)
   Convert and quote the given identifier if needed and append it to the
   target string. If the given identifier is empty, it will be quoted.
 
-  @thd                         thread handler
-  @packet                      target string
-  @name                        the identifier to be appended
-  @length                      length of the appending identifier
+  @param thd                   thread handler
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the appending identifier
   @param from_cs               Charset information about the input string
   @param to_cs                 Charset information about the target string
 */
@@ -1410,9 +1409,8 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 /**
   Print "ON UPDATE" clause of a field into a string.
 
-  @param timestamp_field   Pointer to timestamp field of a table.
   @param field             The field to generate ON UPDATE clause for.
-  @bool  lcase             Whether to print in lower case.
+  @param lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */
 static bool print_on_update_clause(Field *field, String *val, bool lcase)
@@ -2706,9 +2704,9 @@ void free_status_vars()
                               search
   @param[in]       name       name of the status variable
   @param[in]       var_type   Variable type
-  @param[in/out]   value      buffer in which value of the status variable
+  @param[in,out]   value      buffer in which value of the status variable
                               needs to be filled in
-  @param[in/out]   length     filled with buffer length
+  @param[in,out]   length     filled with buffer length
 
   @return          status
     @retval        FALSE      if variable is not found in the list
@@ -4068,8 +4066,6 @@ static uint get_table_open_method(TABLE_LIST *tables,
    optional wait for conflicting locks to go away).
 
    @param thd            Thread context.
-   @param mdl_request    Pointer to memory to be used for MDL_request
-                         object for a lock request.
    @param table          Table list element for the table
    @param can_deadlock   Indicates that deadlocks are possible due to
                          metadata locks, so to avoid them we should not
@@ -4123,7 +4119,7 @@ try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
   @brief          Fill I_S table with data from FRM file only
 
   @param[in]      thd                      thread handler
-  @param[in]      table                    TABLE struct for I_S table
+  @param[in]      tables                   TABLE struct for I_S table
   @param[in]      schema_table             I_S table struct
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
@@ -5510,7 +5506,7 @@ static inline void copy_field_as_string(Field *to_field, Field *from_field)
                                         will be useful
                                         if we add 'SHOW PARAMETERs'
   @param[in]      full_access           if 1 user has privileges on the routine
-  @param[in]      sp_user               user in 'user@host' format
+  @param[in]      sp_user               user in 'user\@host' format
 
   @return         Operation status
     @retval       0                     ok
@@ -7907,7 +7903,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   nature of fill_table().
 
   For example, SELECT ... FROM INFORMATION_SCHEMA.xxx WHERE TABLE_NAME = 'xxx'
-  results in a number of 'Table <db name>.xxx does not exist' errors,
+  results in a number of 'Table @<db name@>.xxx does not exist' errors,
   because fill_table() tries to open the 'xxx' table in every possible
   database.
 
@@ -7926,7 +7922,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
   @param thd            Thread context.
   @param table_list     I_S table.
-  @param join_table     JOIN/SELECT table.
+  @param qep_tab     JOIN/SELECT table.
 
   @return Error status.
   @retval TRUE Error.
@@ -8925,7 +8921,7 @@ int finalize_schema_table(st_plugin_int *plugin)
   Output trigger information (SHOW CREATE TRIGGER) to the client.
 
   @param thd          Thread context.
-  @param triggers     table trigger to dump.
+  @param trigger      table trigger to dump.
 
   @return Operation status
     @retval TRUE Error.

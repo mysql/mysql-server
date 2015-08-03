@@ -98,6 +98,16 @@ struct Ono_tuple
 };
 
 /**
+  Struct that defines input for cloning test cases.
+*/
+struct Clone_tuple
+{
+  const bool m_begins_with_column_id;  // true if column scope
+  const char *m_path_expression_1;     // the first path to parse
+  const char *m_path_expression_2;     // the second path to parse
+};
+
+/**
   Class that contains parameterized test cases for good paths.
 */
 class JsonGoodPathTestP : public ::testing::TestWithParam<Good_path>
@@ -121,6 +131,17 @@ class JsonGoodOnoTestP : public ::testing::TestWithParam<Ono_tuple>
   virtual void TearDown() { initializer.TearDown(); }
   my_testing::Server_initializer initializer;
 };
+
+/**
+  Class that contains parameterized test cases for cloning tests.
+*/
+class JsonGoodCloneTestP : public ::testing::TestWithParam<Clone_tuple>
+{
+  virtual void SetUp() { initializer.SetUp(); }
+  virtual void TearDown() { initializer.TearDown(); }
+  my_testing::Server_initializer initializer;
+};
+
 
 /*
   Constants
@@ -208,6 +229,49 @@ void good_leg_at(bool begins_with_column_id, char *path_expression,
     EXPECT_EQ(expected_leg, std::string(str.ptr(), str.length()));
     EXPECT_EQ(expected_leg_type, actual_leg->get_type());
   }
+}
+
+
+/* compare two path legs */
+void compare_legs(const Json_path_leg *left, const Json_path_leg *right)
+{
+  String  left_str;
+  String  right_str;
+  EXPECT_EQ(0, left->to_string(&left_str));
+  EXPECT_EQ(0, right->to_string(&right_str));
+  EXPECT_EQ(std::string(left_str.ptr(), left_str.length()),
+            std::string(right_str.ptr(), right_str.length()));
+}
+
+
+/** Compare two paths */
+void compare_paths(Json_path &left, Json_path_clone &right)
+{
+  EXPECT_EQ(left.leg_count(), right.leg_count());
+
+  for (size_t idx= 0; idx < left.leg_count(); idx++)
+  {
+    compare_legs(left.get_leg_at(idx), right.get_leg_at(idx));
+  }
+}
+
+
+/** Verify that clones look alike */
+void verify_clone(bool begins_with_column_id,
+                  const char *path_expression_1,
+                  const char *path_expression_2)
+{
+  Json_path_clone cloned_path;
+
+  Json_path real_path1;
+  good_path_common(begins_with_column_id, path_expression_1, &real_path1);
+  EXPECT_FALSE(cloned_path.set(&real_path1));
+  compare_paths(real_path1, cloned_path);
+
+  Json_path real_path2;
+  good_path_common(begins_with_column_id, path_expression_2, &real_path2);
+  EXPECT_FALSE(cloned_path.set(&real_path2));
+  compare_paths(real_path2, cloned_path);
 }
 
 /**
@@ -1478,5 +1542,26 @@ TEST_P(JsonGoodOnoTestP, GoodOno)
 
 INSTANTIATE_TEST_CASE_P(OnoTesting, JsonGoodOnoTestP,
                         ::testing::ValuesIn(ono_tuples));
+
+// Tuples for tests of cloning
+static const Clone_tuple clone_tuples[]=
+{
+  { false, "$", "$[33]" },
+  { false, "$[*].a", "$.a.b.c.d.e" },
+  { false, "$.a.b.c[73]", "$**.abc.d.e.f.g" },
+};
+
+/** Test cloning without column scope */
+TEST_P(JsonGoodCloneTestP, GoodClone)
+{
+  Clone_tuple param= GetParam();
+  verify_clone(param.m_begins_with_column_id,
+               param.m_path_expression_1,
+               param.m_path_expression_2);
+}
+
+INSTANTIATE_TEST_CASE_P(CloneTesting, JsonGoodCloneTestP,
+                        ::testing::ValuesIn(clone_tuples));
+
 
 } // end namespace json_path_unittest

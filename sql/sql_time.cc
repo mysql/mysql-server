@@ -291,9 +291,9 @@ bool str_to_datetime(const CHARSET_INFO *cs,
 /**
   Add nanoseconds to a time value with rounding.
 
-  @param IN/OUT ltime       MYSQL_TIME variable to add to.
-  @param        nanosecons  Nanosecons value.
-  @param IN/OUT warnings    Warning flag vector.
+  @param [in,out] ltime       MYSQL_TIME variable to add to.
+  @param        nanoseconds  Nanoseconds value.
+  @param [in,out] warnings    Warning flag vector.
   @retval                   False on success, true on error.
 */
 bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime,
@@ -341,9 +341,9 @@ ret:
 /**
   Add nanoseconds to a datetime value with rounding.
 
-  @param IN/OUT ltime       MYSQL_TIME variable to add to.
-  @param        nanosecons  Nanosecons value.
-  @param IN/OUT warnings    Warning flag vector.
+  @param [in,out] ltime       MYSQL_TIME variable to add to.
+  @param        nanoseconds  Nanoseconds value.
+  @param [in,out] warnings    Warning flag vector.
   @retval                   False on success, true on error.
 */
 bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
@@ -523,7 +523,6 @@ bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
 
   @param         lld      The value to convert from.
   @param[out]    ltime    The variable to convert to,
-  @param         flags    Conversion flags.
   @param[in,out] warnings Warning flags.
   @return                 False on success, true on error.
 */
@@ -544,7 +543,7 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
 
 /**
   Convert decimal number to TIME
-  @param      decimal_value  The number to convert from.
+  @param      decimal  The number to convert from.
   @param[out] ltime          The variable to convert to.
   @return     False on success, true on error.
 */
@@ -782,8 +781,8 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
   Convert time to datetime.
 
   The time value is added to the current datetime value.
-  @param  IN  ltime    Time value to convert from.
-  @param  OUT ltime2   Datetime value to convert to.
+  @param [in] ltime    Time value to convert from.
+  @param [out] ltime2   Datetime value to convert to.
 */
 void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
 {
@@ -832,7 +831,7 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
   Parse a format string specification
 
   @param format_type  Format of string (time, date or datetime)
-  @date_time_format   Format to fill in
+  @param date_time_format   Format to fill in
 
   Fills in date_time_format->positions for all date time parts.
 
@@ -1201,7 +1200,7 @@ void make_datetime(const Date_time_format *format __attribute__((unused)),
 
 /**
   Convert TIME/DATE/DATETIME value to String.
-  @param      l_time   DATE value
+  @param      ltime    DATE value
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
@@ -1495,7 +1494,7 @@ static uint msec_round_add[7]=
 /**
   Round time value to the given precision.
 
-  @param IN/OUT  ltime    The value to round.
+  @param [in,out] ltime    The value to round.
   @param         dec      Precision.
   @return        False on success, true on error.
 */
@@ -1515,7 +1514,7 @@ bool my_time_round(MYSQL_TIME *ltime, uint dec)
 /**
   Round datetime value to the given precision.
 
-  @param IN/OUT  ltime    The value to round.
+  @param [in,out] ltime    The value to round.
   @param         dec      Precision.
   @return        False on success, true on error.
 */
@@ -1534,8 +1533,8 @@ bool my_datetime_round(MYSQL_TIME *ltime, uint dec, int *warnings)
 /**
   Round timeval value to the given precision.
 
-  @param IN/OUT  ts       The value to round.
-  @param         dec      Precision.
+  @param [in,out] tv       The value to round.
+  @param         decimals      Precision.
   @return        False on success, true on error.
 */
 bool my_timeval_round(struct timeval *tv, uint decimals)
@@ -1563,7 +1562,7 @@ ret:
 /**
   Mix a date value and a time value.
 
-  @param  IN/OUT  ldate  Date value.
+  @param [in,out] ldate  Date value.
   @param          ltime  Time value.
 */
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime)
@@ -1666,7 +1665,7 @@ void TIME_from_longlong_packed(MYSQL_TIME *ltime,
   Unpack packed numeric temporal value to date/time value
   and then convert to decimal representation.
 
-  @param  OUT dec          The variable to write to.
+  @param [out] dec          The variable to write to.
   @param      type         MySQL field type.
   @param      packed_value Packed numeric temporal representation.
   @return     A decimal value in on of the following formats, depending
@@ -1702,7 +1701,7 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
   Convert packed numeric representation to
   unpacked numeric representation.
   @param type           MySQL field type.
-  @param paacked_value  Packed numeric temporal value.
+  @param packed_value   Packed numeric temporal value.
   @return               Number in one of the following formats,
                         depending on type: YYMMDD, YYMMDDhhmmss, hhmmss.
 */

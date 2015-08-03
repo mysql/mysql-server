@@ -286,8 +286,6 @@ void my_message(uint error, const char *str, myf MyFlags)
 /**
   Register error messages for use with my_error().
 
-  @description
-
     The function is expected to return addresses to NUL-terminated
     C character strings.
     NULL pointers and empty strings ("") are allowed. These will be mapped to
@@ -343,8 +341,6 @@ int my_error_register(const char* (*get_errmsg) (int), int first, int last)
 /**
   Unregister formerly registered error messages.
 
-  @description
-
     This function unregisters the error numbers 'first' to 'last'.
     These must have been previously registered by my_error_register().
     'first' and 'last' must exactly match the registration.
@@ -388,8 +384,6 @@ my_bool my_error_unregister(int first, int last)
 
 /**
   Unregister all formerly registered error messages.
-
-  @description
 
     This function unregisters all error numbers that previously have
     been previously registered by my_error_register().

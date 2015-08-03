@@ -303,11 +303,11 @@ static uint parse_name(const TYPELIB *lib, const char **strpos, const char *end)
     param_name1=value1,param_name2=value2,... 
   
   where the names are specified in the TYPELIB, and each value can be
-  either 'on','off', or 'default'. Setting the same name twice is not 
+  either 'on','off', or 'default'. Setting the same name twice is not
   allowed.
   
-  Besides param=val assignments, we support the "default" keyword (keyword 
-  #default_name in the typelib). It can be used one time, if specified it 
+  Besides param=val assignments, we support the "default" keyword (keyword
+  default_name in the typelib). It can be used one time, if specified it
   causes us to build the new set over the default_set rather than cur_set
   value.
 

@@ -1102,12 +1102,12 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   @param         null_pos    Pointer to the preamble part of record buffer
                              where null bits and leftover bits from BIT fields
                              are stored.
-  @param[in/out] null_count  Index of bit in preamble to be used for storing
+  @param[in,out] null_count  Index of bit in preamble to be used for storing
                              NULL/leftover bits for the field if necessary. On
                              return incremented by number of bits in preamble
                              used for this field.
 
-  @retval true  An error occured.
+  @retval true  An error occurred.
   @retval false Success.
 */
 

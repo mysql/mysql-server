@@ -304,8 +304,12 @@ table_events_statements_common::table_events_statements_common
 {}
 
 /**
-  Build a row.
-  @param statement                      the statement the cursor is reading
+  Build a row, part 1.
+
+  This method is used while holding optimist locks.
+
+  @param statement    The statement the cursor is reading
+  @param [out] digest Saved copy of the statement digest
 */
 void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
                                                      sql_digest_storage *digest)
@@ -403,6 +407,13 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   return;
 }
 
+/**
+  Build a row, part 2.
+
+  This method is used after all optimist locks have been released.
+
+  @param [in] digest Statement digest to print in the row.
+*/
 void table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
 {
   /*

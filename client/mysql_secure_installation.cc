@@ -185,7 +185,7 @@ init_connection_options(MYSQL *mysql)
   Reads the response from stdin and returns the first character.
   If global variable opt_use_default is TRUE then the default_answer is
   returned instead.
-  @param    Optional message do be displayed.
+  @param    opt_message Optional message do be displayed.
   @param    default_answer Answer to be given if no interactivity is allowed.
   @return   First character of input string
 */
@@ -221,8 +221,8 @@ int get_response(const char *opt_message, int default_answer= -1)
   Else, the failure message along with the actual failure is displayed.
   If the server is not found running, the program is exited.
 
-  @param1  query        The mysql query which is to be executed.
-  @param2  opt_message  The optional message to be displayed.
+  @param query        The mysql query which is to be executed.
+  @param opt_message  The optional message to be displayed.
 */
 void execute_query_with_message(const char *query, const char *opt_message)
 {
@@ -255,10 +255,10 @@ void execute_query_with_message(const char *query, const char *opt_message)
   as the input. If the query fails on running, a message
   along with the failure details is displayed.
 
-  @param1   query        The mysql query which is to be executed.
-  @param2   length       Length of the query in bytes.
+  @param   query        The mysql query which is to be executed.
+  @param   length       Length of the query in bytes.
 
-  return    FALSE in case of success
+  @return    FALSE in case of success
             TRUE  in case of failure
 */
 bool execute_query(const char **query, size_t length)
@@ -465,8 +465,6 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
   deployments.
 
   @param mysql The MYSQL handle
-  @param user The user name of the expired account
-  @param host The host name of the expired account
 
   Function might fail with an error message which can be retrieved using
   mysql_error(mysql)
@@ -837,7 +835,7 @@ void reload_privilege_tables()
 /**
   Attempt to retrieve a password from the temporary password file
   '.mysql_secret'.
- @param p[out] A pointer to a password in a newly allocated buffer or null
+ @param [out] p A pointer to a password in a newly allocated buffer or null
  @returns true if the password was successfully retrieved.
 */
 

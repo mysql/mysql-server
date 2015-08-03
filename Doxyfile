@@ -423,7 +423,7 @@ LOOKUP_CACHE_SIZE      = 1
 # normally produced when WARNINGS is set to YES.
 # The default value is: NO.
 
-EXTRACT_ALL            = NO
+EXTRACT_ALL            = YES
 
 # If the EXTRACT_PRIVATE tag is set to YES all private members of a class will
 # be included in the documentation.
@@ -807,9 +807,13 @@ RECURSIVE              = YES
 # run.
 
 ## Please keep this list sorted alphabetically.
+## To resolve:
+## client/mysqlbinlog.cc : MYSQL_CLIENT / MYSQL_SERVER build options
 
 EXCLUDE                = cmd-line-utils \
+                         client/mysqlbinlog.cc \
                          extra \
+                         generated \
                          include/mysql/psi/psi_abi_v0.h \
                          include/mysql/psi/psi_abi_v1.h \
                          include/mysql/psi/psi_abi_v2.h \
@@ -846,7 +850,7 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = */include/boost*/boost/* \
+EXCLUDE_PATTERNS       = */include/boost*/* \
                          */sql/*ndb*.h \
                          */sql/*ndb*.cc \
                          */unittest/*

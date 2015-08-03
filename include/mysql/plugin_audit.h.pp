@@ -410,13 +410,14 @@ struct mysql_event_authorization
   unsigned long requested_privilege;
   unsigned long granted_privilege;
 };
-typedef enum
+enum mysql_event_table_access_subclass_t
 {
   MYSQL_AUDIT_TABLE_ACCESS_READ = 1 << 0,
   MYSQL_AUDIT_TABLE_ACCESS_INSERT = 1 << 1,
   MYSQL_AUDIT_TABLE_ACCESS_UPDATE = 1 << 2,
   MYSQL_AUDIT_TABLE_ACCESS_DELETE = 1 << 3
-} mysql_event_table_access_subclass_t;
+};
+typedef enum mysql_event_table_access_subclass_t mysql_event_table_access_subclass_t;
 struct mysql_event_table_access
 {
   mysql_event_table_access_subclass_t event_subclass;

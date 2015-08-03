@@ -1122,15 +1122,15 @@ typedef char * (*get_proto_string_func_t) (char **, size_t *, size_t *);
 /**
   Get a string formatted according to the 4.1 version of the MySQL protocol.
 
-  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
-  @param max_bytes_available[in, out]  Limit the bytes to scan.
-  @param string_length[out] The number of characters scanned not including
+  @param [in, out] buffer    Pointer to the user-supplied buffer to be scanned.
+  @param [in, out] max_bytes_available  Limit the bytes to scan.
+  @param [out] string_length The number of characters scanned not including
                             the null character.
 
-  @remark Strings are always null character terminated in this version of the
+  @note Strings are always null character terminated in this version of the
           protocol.
 
-  @remark The string_length does not include the terminating null character.
+  @note The string_length does not include the terminating null character.
           However, after the call, the buffer is increased by string_length+1
           bytes, beyond the null character if there still available bytes to
           scan.
@@ -1161,16 +1161,16 @@ char *get_41_protocol_string(char **buffer,
 /**
   Get a string formatted according to the 4.0 version of the MySQL protocol.
 
-  @param buffer[in, out]    Pointer to the user-supplied buffer to be scanned.
-  @param max_bytes_available[in, out]  Limit the bytes to scan.
-  @param string_length[out] The number of characters scanned not including
+  @param [in, out] buffer    Pointer to the user-supplied buffer to be scanned.
+  @param [in, out] max_bytes_available  Limit the bytes to scan.
+  @param [out] string_length The number of characters scanned not including
                             the null character.
 
-  @remark If there are not enough bytes left after the current position of
+  @note If there are not enough bytes left after the current position of
           the buffer to satisfy the current string, the string is considered
           to be empty and a pointer to empty_c_string is returned.
 
-  @remark A string at the end of the packet is not null terminated.
+  @note A string at the end of the packet is not null terminated.
 
   @return Pointer to beginning of the string scanned, or a pointer to a empty
           string.
@@ -1213,11 +1213,11 @@ char *get_40_protocol_string(char **buffer,
 /**
   Get a length encoded string from a user-supplied buffer.
 
-  @param buffer[in, out] The buffer to scan; updates position after scan.
-  @param max_bytes_available[in, out] Limit the number of bytes to scan
-  @param string_length[out] Number of characters scanned
+  @param [in, out] buffer The buffer to scan; updates position after scan.
+  @param [in, out] max_bytes_available Limit the number of bytes to scan
+  @param [out] string_length Number of characters scanned
 
-  @remark In case the length is zero, then the total size of the string is
+  @note In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
   @return pointer to first byte after the header in buffer.
@@ -1267,11 +1267,11 @@ char *get_56_lenc_string(char **buffer,
 /**
   Get a length encoded string from a user-supplied buffer.
 
-  @param buffer[in, out] The buffer to scan; updates position after scan.
-  @param max_bytes_available[in, out] Limit the number of bytes to scan
-  @param string_length[out] Number of characters scanned
+  @param [in, out] buffer The buffer to scan; updates position after scan.
+  @param [in, out] max_bytes_available Limit the number of bytes to scan
+  @param [out] string_length Number of characters scanned
 
-  @remark In case the length is zero, then the total size of the string is
+  @note In case the length is zero, then the total size of the string is
     considered to be 1 byte; the size byte.
 
   @note the maximum size of the string is 255 because the header is always 

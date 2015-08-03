@@ -242,11 +242,12 @@ enum enum_alter_inplace_result {
   this flag must implement start_read_removal() and end_read_removal().
   The handler may return "fake" rows constructed from the key of the row
   asked for. This is used to optimize UPDATE and DELETE by reducing the
-  numer of roundtrips between handler and storage engine.
+  number of round-trips between handler and storage engine.
   
   Example:
-  UPDATE a=1 WHERE pk IN (<keys>)
+  UPDATE a=1 WHERE pk IN (@<keys@>)
 
+  @verbatim
   mysql_update()
   {
     if (<conditions for starting read removal>)
@@ -262,9 +263,10 @@ enum enum_alter_inplace_result {
     end_read_removal()
     -> handler returns the number of rows actually written
   }
+  @endverbatim
 
   @note This optimization in combination with batching may be used to
-        remove even more roundtrips.
+        remove even more round-trips.
 */
 #define HA_READ_BEFORE_WRITE_REMOVAL  (1LL << 38)
 
@@ -1936,8 +1938,10 @@ protected:
   ha_rows estimation_rows_to_insert;
 public:
   handlerton *ht;                 /* storage engine of this handler */
-  uchar *ref;				/* Pointer to current row */
-  uchar *dup_ref;			/* Pointer to duplicate row */
+  /** Pointer to current row */
+  uchar *ref;
+  /** Pointer to duplicate row */
+  uchar *dup_ref;
 
   ha_statistics stats;
   
@@ -3413,15 +3417,16 @@ private:
     and is invoked only for those handler instances that stored the lock.
 
     Calls to @c rnd_init / @c index_init are prefixed with this call. When table
-    IO is complete, we call @c external_lock(F_UNLCK).
+    IO is complete, we call @code external_lock(F_UNLCK) @endcode.
     A storage engine writer should expect that each call to
     @code ::external_lock(F_[RD|WR]LOCK @endcode is followed by a call to
-    @c ::external_lock(F_UNLCK). If it is not, it is a bug in MySQL.
+    @code ::external_lock(F_UNLCK) @endcode. If it is not, it is a bug in MySQL.
 
     The name and signature originate from the first implementation
     in MyISAM, which would call @c fcntl to set/clear an advisory
     lock on the data file in this method.
 
+    @param   thd          the current thread
     @param   lock_type    F_RDLCK, F_WRLCK, F_UNLCK
 
     @return  non-0 in case of failure, 0 in case of success.

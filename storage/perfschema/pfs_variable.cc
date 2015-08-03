@@ -600,6 +600,7 @@ int PFS_status_variable_cache::materialize_account(PFS_account *pfs_account)
 /**
   Compare status variable scope to desired scope.
   @param variable_scope         Scope of current status variable
+  @param strict                 Strict mode, for compatibility with SHOW
   @return TRUE if variable matches the query scope
 */
 bool PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope, bool strict)

@@ -440,7 +440,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   This is needed since the get()-method of the JSON object is case
   sensitive.
 
-  @param value The object to look for the member in.
+  @param object The object to look for the member in.
   @param member_name Name of the member to look after
 
   @return The member if one was found, NULL otherwise.
@@ -2071,11 +2071,11 @@ bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
 
 
 /**
-  Perform type checking on all arguments:
+  Perform type checking on all arguments.
 
-    <geometry> argument must be a geometry.
-    <maxdecimaldigits> must be an integer value.
-    <options> must be an integer value.
+    @<geometry@> argument must be a geometry.
+    @<maxdecimaldigits@> must be an integer value.
+    @<options@> must be an integer value.
 
   Set maybe_null to the correct value.
 */

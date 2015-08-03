@@ -77,7 +77,7 @@ int64 Mysql_query_runner::run_query(
   return result;
 }
 
-int64 Mysql_query_runner::run_query(string query)
+int64 Mysql_query_runner::run_query(std::string query)
 {
   bool expected_value= false;
 

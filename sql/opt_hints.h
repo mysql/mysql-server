@@ -486,7 +486,7 @@ public:
   optimizer switch value if hint is not specified.
 
   @param thd               Pointer to THD object
-  @param tab               Pointer to TABLE object
+  @param table             Pointer to TABLE object
   @param keyno             Key number
   @param type_arg          Hint type
   @param optimizer_switch  Optimizer switch flag
@@ -503,7 +503,7 @@ bool hint_key_state(const THD *thd, const TABLE *table,
   optimizer switch value if hint is not specified.
 
   @param thd                Pointer to THD object
-  @param tab                Pointer to TABLE object
+  @param table              Pointer to TABLE object
   @param type_arg           Hint type
   @param optimizer_switch   Optimizer switch flag
 

@@ -475,8 +475,6 @@ bool JOIN_CACHE::alloc_buffer()
   create_remaining_fields()).
   So, we eliminate from read_set those columns that are available from the
   covering index.
-
-  @param qep_tab the table to check
 */
 
 void JOIN_CACHE::filter_virtual_gcol_base_cols()

@@ -3790,7 +3790,7 @@ inline void add_group_to_list(THD *thd, ORDER *order)
 
 
 /**
-  @param THD         thread context
+  @param thd         thread context
   @param hton        pointer to handlerton
   @return address of the placeholder of handlerton's specific transaction
           object (data)

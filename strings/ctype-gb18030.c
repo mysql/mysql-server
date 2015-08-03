@@ -21123,7 +21123,7 @@ code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code)
   Calculate the 4-byte GB18030 code from a diff value
 
   @param[out] dst     dest to store the gb18030 code in bytes
-  @param[in]  destlen valid length of dest
+  @param[in]  dstlen  valid length of dest
   @param[in]  diff    the diff between gb18030 code and GB+81308130
   @retval             4 if the diff is a valid value and there is enough
                       space in dst
@@ -21607,7 +21607,7 @@ get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
   @param[in]  cs       charset
   @param[in]  src      start byte of given sequence of gb18030 codes
   @param[in]  srclen   length of the sequence
-  @param[out] det      start byte of the output of casefolded codes
+  @param[out] dst      start byte of the output of casefolded codes
   @param[out] dstlen   length of the result array
   @param[in]  map      the LOWER map or the UPPER map of gb18030
   @param[in]  is_upper TRUE if we want capital letter
@@ -21957,10 +21957,10 @@ get_code_and_length(const CHARSET_INFO *cs, const char *s,
   every gb18030 code should compare by its upper-case form
 
   @param[in]     cs       charset
-  @param[in/out] s_res    pointer to the start byte of first gb18030 code
+  @param[in,out] s_res    pointer to the start byte of first gb18030 code
                           string, return the first byte unchecked
   @param[in]     s_length length of the first string
-  @param[in/out] t_res    pointer to the start byte of second gb18030 code
+  @param[in,out] t_res    pointer to the start byte of second gb18030 code
                           string, return the first byte unchecked
   @param[in]     t_length length of the second string
   @retval                 0 if the strings are equal
@@ -22376,8 +22376,8 @@ my_wildcmp_gb18030(const CHARSET_INFO *cs,
   @param[in]     cs   charset
   @param[in]     s    string
   @param[in]     slen the length of string
-  @param[in/out] n1   n1
-  @param[in/out] n2   n2
+  @param[in,out] n1   n1
+  @param[in,out] n2   n2
 */
 static void
 my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s, size_t slen,

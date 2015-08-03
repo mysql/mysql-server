@@ -981,10 +981,12 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 static int get_options(int *argc, char ***argv)
 {
   int ho_error;
-  MYSQL_PARAMETERS *mysql_params= mysql_get_parameters();
 
-  opt_max_allowed_packet= *mysql_params->p_max_allowed_packet;
-  opt_net_buffer_length= *mysql_params->p_net_buffer_length;
+  if (mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &opt_max_allowed_packet) ||
+      mysql_get_option(NULL, MYSQL_OPT_NET_BUFFER_LENGTH, &opt_max_allowed_packet))
+  {
+    exit(1);
+  }
 
   md_result_file= stdout;
   my_getopt_use_args_separator= TRUE;
@@ -1016,8 +1018,12 @@ static int get_options(int *argc, char ***argv)
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
     return(ho_error);
 
-  *mysql_params->p_max_allowed_packet= opt_max_allowed_packet;
-  *mysql_params->p_net_buffer_length= opt_net_buffer_length;
+  if (mysql_options(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &opt_max_allowed_packet) ||
+      mysql_options(NULL, MYSQL_OPT_NET_BUFFER_LENGTH, &opt_net_buffer_length))
+  {
+    exit(1);
+  }
+
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -1819,13 +1825,12 @@ static char *quote_for_like(const char *name, char *buff)
 /**
   Quote and print a string.
 
-  @param xml_file          - Output file.
-  @param str               - String to print.
-  @param len               - Its length.
-  @param is_attribute_name - A check for attribute name or value.
-
-  @description
     Quote '<' '>' '&' '\"' chars and print a string to the xml_file.
+
+  @param xml_file          Output file.
+  @param str               String to print.
+  @param len               Its length.
+  @param is_attribute_name A check for attribute name or value.
 */
 
 static void print_quoted_xml(FILE *xml_file, const char *str, size_t len,
@@ -2071,13 +2076,12 @@ static void print_xml_row(FILE *xml_file, const char *row_name,
 /**
   Print xml comments.
 
-  @param xml_file       - output file
-  @param len            - length of comment message
-  @param comment_string - comment message
-
-  @description
     Print the comment message in the format:
       "<!-- \n comment string  \n -->\n"
+
+  @param xml_file       output file
+  @param len            length of comment message
+  @param comment_string comment message
 
   @note
     Any occurrence of continuous hyphens will be

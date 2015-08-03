@@ -44,6 +44,8 @@
 /* These classes are based on the v1 RowsHeaderLen */
 #define ROWS_HEADER_LEN ROWS_HEADER_LEN_V1
 
+using binary_log::Format_description_event;
+
 /**
   @class Old_rows_log_event
   

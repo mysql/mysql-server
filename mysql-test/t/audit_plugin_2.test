@@ -1,6 +1,10 @@
 --source include/have_null_audit_plugin.inc
 --source include/not_embedded.inc
 
+call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Command 'Ping' cannot be aborted.");
+
 connection default;
 let $expected_extension= so;
 if(`SELECT CONVERT(@@version_compile_os USING latin1)
@@ -68,6 +72,10 @@ SELECT 1;
 SELECT @@null_audit_event_order_check;
 SELECT 1;
 
+SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"14\";ABORT_RET';
+--exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root ping 2>&1
+SET @@GLOBAL.null_audit_event_order_check = NULL;
+
 --echo ###########
 --echo ## QUERY ##
 --echo ###########
@@ -113,7 +121,7 @@ eval SET @@null_audit_event_order_check_exact = $event_order_exact;
 --replace_result $command_start_id <expected_command_start_id>
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"$command_start_id\";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;;ABORT_RET';
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET';
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
 SELECT @@GLOBAL.null_audit_abort_value;
@@ -139,11 +147,11 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;;;'
-                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;;ABORT_RET',
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET',
          @@null_audit_event_order_check_exact = 1;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
-SHOW GLOBAL VARIABLES;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 
@@ -162,7 +170,7 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=\"3\"
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                      'MYSQL_AUDIT_GENERAL_LOG;;;'
                                      'MYSQL_AUDIT_QUERY_START;;;'
-                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;;ABORT_RET',
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_SET;value=\"NULL\";ABORT_RET',
     @@null_audit_event_order_check_exact = 1;
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
@@ -179,10 +187,10 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
                                           'MYSQL_AUDIT_GENERAL_LOG;;;'
                                           'MYSQL_AUDIT_QUERY_START;;;'
-                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;;ABORT_RET';
+                                          'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;value=\"1\";ABORT_RET';
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
-SELECT * FROM information_schema.global_variables;
+SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
 
 --echo ###############################
@@ -602,5 +610,24 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"
 --error ER_AUDIT_API_ABORT
 SELECT 1;
 SELECT @@null_audit_event_order_check;
+
+--echo #########################
+--echo ## COMMAND_END - ABORT ##
+--echo #########################
+# Abort the MYSQL_AUDIT_COMMAND_END event with the my_message function - should be disabled
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check_exact = 1;
+--replace_result $command_end_id <expected_command_end_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+# Abort the MYSQL_AUDIT_COMMAND_END event by returning a non-zero value - should be disabled
+SET @@null_audit_event_order_check_exact = 1;
+--replace_result $command_end_id <expected_command_end_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_END;command_id=\"$command_end_id\";ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+--echo ## CUSTOM ERROR MESSAGE - END ##
 
 eval UNINSTALL PLUGIN null_audit;

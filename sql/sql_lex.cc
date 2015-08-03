@@ -2929,7 +2929,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
   @param thd     thread handler
   @param str     string where table should be printed
   @param tables  list of tables in join
-  @query_type    type of the query is being generated
+  @param query_type    type of the query is being generated
 */
 
 static void print_join(THD *thd,

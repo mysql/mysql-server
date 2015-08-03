@@ -642,7 +642,7 @@ CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags)
   Find character set by name: extended version of get_charset_by_csname()
   to return error messages to the caller.
   @param   loader   Character set loader
-  @param   name     Collation name
+  @param   cs_name  Collation name
   @param   cs_flags Character set flags (e.g. default or binary collation)
   @param   flags    Flags
   @return           NULL on error, pointer to collation on success

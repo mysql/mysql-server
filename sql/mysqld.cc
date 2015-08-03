@@ -4258,6 +4258,22 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   {
     std::string disabled_se_str(opt_disabled_storage_engines);
     ha_set_normalized_disabled_se_str(disabled_se_str);
+
+    // Log warning if default_storage_engine is a disabled storage engine.
+    handlerton *default_se_handle=
+      plugin_data<handlerton*>(global_system_variables.table_plugin);
+    if (ha_is_storage_engine_disabled(default_se_handle))
+      sql_print_warning("default_storage_engine is set to a "
+                        "disabled storage engine %s.", default_storage_engine);
+
+    // Log warning if default_tmp_storage_engine is a disabled storage engine.
+    handlerton *default_tmp_se_handle=
+      plugin_data<handlerton*>(global_system_variables.temp_table_plugin);
+    if (ha_is_storage_engine_disabled(default_tmp_se_handle))
+      sql_print_warning("default_tmp_storage_engine is set to a "
+                        "disabled storage engine %s.",
+                        default_tmp_storage_engine);
+
   }
 
   if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))

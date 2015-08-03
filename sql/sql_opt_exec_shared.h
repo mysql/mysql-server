@@ -422,7 +422,7 @@ private:
   Key_map       m_keys;
 
   /**
-     Either #rows in the table or 1 for const table.
+     Either number of rows in the table or 1 for const table.
      Used in optimization, and also in execution for FOUND_ROWS().
   */
   ha_rows	m_records;

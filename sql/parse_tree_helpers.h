@@ -105,10 +105,11 @@ public:
 
 
 /**
-  Helper function to imitate dynamic_cast for Item_cond hierarchy
+  Helper function to imitate dynamic_cast for Item_cond hierarchy.
 
-  @param To     destination type (Item_cond_and etc.)
-  @param Tag    Functype tag to compare from->functype() with
+  Template parameter @p To is the destination type (@c Item_cond_and etc.)
+  Template parameter @p Tag is the Functype tag to compare from->functype() with
+
   @param from   source item
 
   @return typecasted item of the type To or NULL
@@ -128,8 +129,8 @@ To *item_cond_cast(Item * const from)
   This function flattens AND and OR operators at parse time if applicable,
   otherwise it creates new Item_cond_and or Item_cond_or respectively.
 
-  @param Class  Item_cond_and or Item_cond_or
-  @param Tag    COND_AND_FUNC (for Item_cond_and) or COND_OR_FUNC otherwise
+  Template parameter @p Class is @c Item_cond_and or @c Item_cond_or
+  Template parameter @p Tag is @c COND_AND_FUNC (for @c Item_cond_and) or @c COND_OR_FUNC otherwise
 
   @param mem_root       MEM_ROOT
   @param pos            parse location

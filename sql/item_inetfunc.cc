@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,7 +205,7 @@ String *Item_func_inet_str_base::val_str_ascii(String *buffer)
   This is a portable alternative to inet_pton(AF_INET).
 
   @param      str          String to convert.
-  @param      str_len      String length.
+  @param      str_length   String length.
   @param[out] ipv4_address Buffer to store IPv4-address.
 
   @return Completion status.
@@ -330,7 +330,7 @@ static bool str_to_ipv4(const char *str, int str_length, in_addr *ipv4_address)
   This is a portable alternative to inet_pton(AF_INET6).
 
   @param      str          String to convert.
-  @param      str_len      String length.
+  @param      str_length   String length.
   @param[out] ipv6_address Buffer to store IPv6-address.
 
   @return Completion status.

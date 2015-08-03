@@ -117,6 +117,7 @@ enum enum_return_status
 };
 
 /**
+  @def __CHECK_RETURN_STATUS
   Lowest level macro used in the PROPAGATE_* and RETURN_* macros
   below.
 
@@ -268,7 +269,7 @@ extern TYPELIB gtid_mode_typelib;
 
   @param string The string to decode.
 
-  @param[OUT] error If the string does not represent a valid
+  @param[out] error If the string does not represent a valid
   GTID_MODE, this is set to true, otherwise it is left untouched.
 
   @return The GTID_MODE.
@@ -340,7 +341,7 @@ enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock);
 /**
   Return the current GTID_MODE as a string. Used only for debugging.
 
-  @param need_lock Pass this parameter to get_gtid_mode(bool).
+  @param have_lock Pass this parameter to get_gtid_mode(bool).
 */
 inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
 {
@@ -1283,7 +1284,7 @@ public:
     Returns true if this Gtid_set is a subset of the given gtid_set
     on the given superset_sidno and subset_sidno.
 
-    @param super          Gtid_set with which 'this'::gtid_set needs to be
+    @param super          Gtid_set with which this->gtid_set needs to be
                            compared
     @param superset_sidno The sidno that will be compared, relative to
                            super->sid_map.
@@ -3330,13 +3331,13 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
   The Gtid_specification must be of type GTID_GROUP or ANONYMOUS_GROUP.
 
   The caller must hold global_sid_lock (normally the rdlock).  The
-  lock may be termporarily released and acquired again. In the end,
+  lock may be temporarily released and acquired again. In the end,
   the lock will be released, so the caller should *not* release the
   lock.
 
   The function will try to acquire ownership of the GTID and update
   both THD::gtid_next, Gtid_state::owned_gtids, and
-  THD::owned_gtid/THD::owned_sid.
+  THD::owned_gtid / THD::owned_sid.
 
   @param thd The thread that acquires ownership.
 

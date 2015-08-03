@@ -10,3 +10,4 @@
 #
 ##############################################################################
 # perfschema.pfs_ccccccc                   : Bug#nnnnnnnn 2014-09-10 Anitha Frequent failures on PB2
+no_threads  @windows             : Bug#21442376 2015-07-31 Anitha Fails consistently on windows

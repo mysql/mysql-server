@@ -20561,6 +20561,137 @@ static void test_bug21199582()
 }
 
 
+/**
+  Bug#20821550 ADD MYSQL_GET_PARAMETERS FUNCTIONALITY TO MYSQL_GET_OPTION()
+*/
+static void test_bug20821550()
+{
+  MYSQL *mysql_ptr= NULL;
+  int ret_val;
+  ulong max_allowed_packet_value= 8192*2;
+  ulong net_buffer_length_value= 8192*4;
+  ulong save_max_allowed_packet_value;
+  ulong save_net_buffer_length_value;
+  ulong ret_max_allowed_packet_value;
+  ulong ret_net_buffer_length_value;
+
+  myheader("test_bug20821550");
+
+  /* Try setting/getting values without MYSQL object */
+
+  /* Fetch default values and validate */
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                            &save_max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(save_max_allowed_packet_value == 1024L*1024L*1024L);
+
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                            &save_net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(save_net_buffer_length_value == 8192);
+
+  /* Now set global values */
+  ret_val= mysql_options(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                         &max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+
+  ret_val= mysql_options(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                         &net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+
+  /* Check that global values are set */
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                            &ret_max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_max_allowed_packet_value == max_allowed_packet_value);
+
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                            &ret_net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_net_buffer_length_value == net_buffer_length_value);
+
+  /* Restore default values */
+  ret_val= mysql_options(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                         &save_max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+
+  ret_val= mysql_options(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                         &save_net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+
+  /* Create MYSQL object */
+
+  if (!(mysql_ptr= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  /* Now try setting/getting values with MYSQL object */
+
+  mysql_ptr= mysql_real_connect(mysql_ptr, opt_host, opt_user, opt_password,
+                                "test", opt_port, opt_unix_socket, 0);
+
+  /* By default, session values of max_allowed_packet is 0 */
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                            &ret_max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_max_allowed_packet_value == 0);
+
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                            &ret_net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_net_buffer_length_value == save_net_buffer_length_value);
+
+  DIE_UNLESS(mysql_ptr->net.max_packet_size == save_max_allowed_packet_value);
+
+  mysql_close(mysql_ptr);
+
+  if (!(mysql_ptr= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+
+  /* Set session value for max_allowed_packet */
+  ret_val= mysql_options(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                         &max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+
+  /* net_buffer_length only has global value */
+  ret_val= mysql_options(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                         &net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+
+  /* Get session value of max_allowed_packet */
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                            &ret_max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_max_allowed_packet_value == max_allowed_packet_value);
+
+  ret_val= mysql_get_option(mysql_ptr, MYSQL_OPT_NET_BUFFER_LENGTH,
+                            &ret_net_buffer_length_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_net_buffer_length_value == net_buffer_length_value);
+
+  /* mysql_real_connect() prefers session value of max_allowed_packet */
+  mysql_ptr= mysql_real_connect(mysql_ptr, opt_host, opt_user, opt_password,
+                                "test", opt_port, opt_unix_socket, 0);
+
+  /* Session value is used for net.max_allowed_size */
+  DIE_UNLESS(mysql_ptr->net.max_packet_size == max_allowed_packet_value);
+
+  /* Get global value of max_allowed_packet */
+  ret_val= mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
+                            &ret_max_allowed_packet_value);
+  DIE_UNLESS(ret_val == 0);
+  DIE_UNLESS(ret_max_allowed_packet_value == save_max_allowed_packet_value);
+
+  mysql_close(mysql_ptr);
+
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -20847,6 +20978,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug21104470", test_bug21104470 },
   { "test_bug21293012", test_bug21293012 },
   { "test_bug21199582", test_bug21199582 },
+  { "test_bug20821550", test_bug20821550 },
   { 0, 0 }
 };
 

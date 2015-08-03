@@ -39,10 +39,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/psi/mysql_memory.h"
 
-/* Remove client convenience wrappers */
-#undef max_allowed_packet
-#undef net_buffer_length
-
 #ifdef EMBEDDED_LIBRARY
 
 #undef MYSQL_SERVER
@@ -166,6 +162,9 @@ char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
 #endif
 
+ulong g_net_buffer_length= 8192;
+ulong g_max_allowed_packet= 1024L*1024L*1024L;
+
 static void mysql_prune_stmt_list(MYSQL *mysql);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
@@ -250,7 +249,7 @@ static DWORD get_win32_connect_timeout(MYSQL *mysql)
   @param mysql    connection handle (client side)
   @param errcode  CR_ error code, passed to ER macro to get
                   error text
-  @parma sqlstate SQL standard sqlstate
+  @param sqlstate SQL standard sqlstate
 */
 
 void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
@@ -992,15 +991,15 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   Read a packet from server. Give error message if socket was down
   or packet is an error message
 
-  @param[IN]    mysql           connection handle
-  @param[IN]    parse_ok        if set to TRUE then parse OK packet
+  @param[in]    mysql           connection handle
+  @param[in]    parse_ok        if set to TRUE then parse OK packet
                                 if it is received
-  @param[OUT]   is_data_packet
+  @param[out]   is_data_packet
                                 if set to TRUE then packet received is
                                 a "data packet", that is not OK or ERR
                                 packet or EOF in case of old servers
 
-  @retval  The length of the packet that was read or packet_error in
+  @return  The length of the packet that was read or packet_error in
            case of error. In case of error its description is stored
             in mysql handle.
 */
@@ -1141,8 +1140,8 @@ cli_safe_read_with_ok(MYSQL *mysql, my_bool parse_ok,
   ERR packet was received. Detect if the packet received was an OK, ERR or
   something else (a "data packet").
 
-  @param[IN]  mysql           connection handle
-  @param[OUT] is_data_packet
+  @param[in]  mysql           connection handle
+  @param[out] is_data_packet
                               if set to TRUE then the packet received
                               was a "data packet".
 
@@ -2144,10 +2143,10 @@ unpack_fields(MYSQL *mysql, MYSQL_ROWS *data,MEM_ROOT *alloc,uint fields,
   Read metadata resultset from server
   Memory allocated in a given allocator root.
 
-  @param[IN]    mysql           connection handle
-  @param[IN]    alloc           memory allocator root
-  @param[IN]    field_count     total number of fields
-  @param[IN]    field           number of columns in single field descriptor
+  @param[in]    mysql           connection handle
+  @param[in]    alloc           memory allocator root
+  @param[in]    field_count     total number of fields
+  @param[in]    field           number of columns in single field descriptor
 
   @retval an array of field rows
 
@@ -2209,9 +2208,9 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
 /**
   Read metadata resultset from server
 
-  @param[IN]    mysql           connection handle
-  @param[IN]    field_count     total number of fields
-  @param[IN]    field           number of columns in single field descriptor
+  @param[in]    mysql           connection handle
+  @param[in]    field_count     total number of fields
+  @param[in]    field           number of columns in single field descriptor
 
   @retval an array of field rows
 
@@ -5492,6 +5491,17 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
     break;
 
+  case MYSQL_OPT_MAX_ALLOWED_PACKET:
+    if (mysql)
+      mysql->options.max_allowed_packet= (*(ulong *) arg);
+    else
+      g_max_allowed_packet= (*(ulong *) arg);
+    break;
+
+  case MYSQL_OPT_NET_BUFFER_LENGTH:
+    g_net_buffer_length= (*(ulong *) arg);
+    break;
+
   default:
     DBUG_RETURN(1);
   }
@@ -5533,7 +5543,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
 
   @param      mysql       The MYSQL connection to operate on
   @param      option      The option to return the value for
-  @param  out arg         Must be non-null. Receives the current value.
+  @param  [out] arg         Must be non-null. Receives the current value.
   @return status
   @retval 0 SUCCESS
 */
@@ -5667,6 +5677,17 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
   case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
     *((my_bool*)arg)= (mysql->options.client_flag &
                        CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS) ? TRUE : FALSE;
+    break;
+
+  case MYSQL_OPT_MAX_ALLOWED_PACKET:
+    if (mysql)
+      *((ulong*)arg)= mysql->options.max_allowed_packet;
+    else
+      *((ulong*)arg)= g_max_allowed_packet;
+    break;
+
+  case MYSQL_OPT_NET_BUFFER_LENGTH:
+    *((ulong*)arg)= g_net_buffer_length;
     break;
 
   case MYSQL_OPT_NAMED_PIPE:			/* This option is depricated */

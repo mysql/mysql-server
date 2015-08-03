@@ -178,13 +178,13 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[in]  arg_idx       the argument index
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
-  @param[out] result        the JSON value wrapper
+  @param[out] wrapper       the JSON value wrapper
   @param[in]  preserve_neg_zero_int
                             Whether integer negative zero should be preserved.
                             If set to TRUE, -0 is handled as a DOUBLE. Double
                             negative zero (-0.0) is preserved regardless of what
                             this parameter is set to.
-  @result false if we found a value or NULL, true if not.
+  @returns false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
                       const char *func_name, Json_wrapper *wrapper,
@@ -526,6 +526,7 @@ public:
 class Item_func_json_insert :public Item_json_func
 {
   String m_doc_value;
+  Json_path_clone m_path;
 
 public:
   Item_func_json_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -546,6 +547,7 @@ public:
 class Item_func_json_array_insert :public Item_json_func
 {
   String m_doc_value;
+  Json_path_clone m_path;
 
 public:
   Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)
@@ -568,6 +570,7 @@ class Item_func_json_set_replace :public Item_json_func
   /// True if this is JSON_SET, false if it is JSON_REPLACE.
   const bool m_json_set;
   String m_doc_value;
+  Json_path_clone m_path;
 
 protected:
   Item_func_json_set_replace(THD *thd, const POS &pos, PT_item_list *a, bool json_set)
@@ -788,14 +791,14 @@ public:
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification revison 1.0.
   This method is implemented in item_geofunc.cc.
 
-  @param[in/out] wr The wrapper to be stuffed with the JSON value.
-  @param[in/]    geometry_arg The source GEOMETRY value.
+  @param[in,out] wr The wrapper to be stuffed with the JSON value.
+  @param[in]     geometry_arg The source GEOMETRY value.
   @param[in]     calling_function Name of user-invoked function (for errors)
   @param[in]     max_decimal_digits See the user documentation for ST_AsGeoJSON.
   @param[in]     add_bounding_box See the user documentation for ST_AsGeoJSON.
   @param[in]     add_short_crs_urn See the user documentation for ST_AsGeoJSON.
   @param[in]     add_long_crs_urn See the user documentation for ST_AsGeoJSON.
-  @param[in/out] geometry_srid Spatial Reference System Identifier to be filled in.
+  @param[in,out] geometry_srid Spatial Reference System Identifier to be filled in.
 
   @return false if the conversion succeeds, true otherwise
 */

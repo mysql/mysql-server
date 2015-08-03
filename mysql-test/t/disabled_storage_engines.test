@@ -11,6 +11,10 @@
 --source include/have_example_plugin.inc
 --source include/not_embedded.inc
 
+CALL mtr.add_suppression("default_storage_engine is set to a disabled storage engine .*");
+CALL mtr.add_suppression("default_tmp_storage_engine is set to a disabled storage engine .*");
+
+
 --ERROR ER_DISABLED_STORAGE_ENGINE
 CREATE TABLE t1(c1 int) ENGINE=HEAP;
 
@@ -109,6 +113,11 @@ eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 --ERROR ER_DISABLED_STORAGE_ENGINE
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 UNINSTALL PLUGIN example;
+
+SET default_storage_engine=MyISAM;
+SET default_tmp_storage_engine=MyISAM;
+SET default_storage_engine=default;
+SET default_tmp_storage_engine=default;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server

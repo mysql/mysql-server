@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,9 +199,9 @@ err:
 
 
 /**
-  @brief Open parent table of a MyISAM MERGE table.
+  Open parent table of a MyISAM MERGE table.
 
-  @detail Open MERGE meta file to get the table name paths for the child
+  Open MERGE meta file to get the table name paths for the child
     tables. Count the children. Allocate and initialize MYRG_INFO
     structure. Call a callback function for each child table.
 
@@ -213,7 +213,7 @@ err:
     @retval     != NULL         OK
     @retval     NULL            Error
 
-  @note: Currently there is some code duplication between myrg_open()
+  @note Currently there is some code duplication between myrg_open()
     and myrg_parent_open() + myrg_attach_children(). Please duplicate
     changes in these functions or make common sub-functions.
 */
@@ -351,9 +351,9 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 
 
 /**
-  @brief Attach children to a MyISAM MERGE parent table.
+  Attach children to a MyISAM MERGE parent table.
 
-  @detail Call a callback function for each child table.
+  Call a callback function for each child table.
     The callback returns the MyISAM table handle of the child table.
     Check table definition match.
 

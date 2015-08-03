@@ -3412,7 +3412,7 @@ void ha_partition::position_in_last_part(uchar *ref, const uchar *record)
 
   @param[in]     part_id  Partition to read from.
   @param[in,out] buf      Buffer to fill with record in MySQL format.
-  @param[in]     pos      Position (data pointed to from ::ref) from position().
+  @param[in]     pos      Position (data pointed to from @c ref) from position().
 
   @return Operation status.
     @retval    0  Success
@@ -4278,7 +4278,7 @@ void ha_partition::get_dynamic_partition_info(ha_statistics *stat_info,
     this out. And we also ensure that all caches are disabled and no one
     is left by mistake.
     In the future this call will probably be deleted and we will instead call
-    ::reset();
+    @c reset();
 
   HA_EXTRA_WRITE_CACHE:
     See above, called from various places. It is mostly used when we

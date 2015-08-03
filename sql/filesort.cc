@@ -220,7 +220,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
   table->sort.sorted_result, or left in the main filesort buffer.
 
   @param      thd            Current thread
-  @param      qep_tab        Table to sort
   @param      filesort       How to sort the table
   @param      sort_positions Set to TRUE if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or

@@ -459,15 +459,15 @@ bool Session_sysvars_tracker::vars_list::insert(sysvar_node_st *node,
 	variables_list. This string is used to update the hash with valid
 	system variables.
 
-  @param thd             [IN]    The thd handle.
-  @param var_list        [IN]    System variable list.
-  @param throw_error     [IN]    bool when set to true, returns an error
-                                 in case of invalid/duplicate values.
-  @param char_set	 [IN]	 charecter set information used for string
-				 manipulations.
-  @param session_created [IN]    bool variable which says if the parse is
-                                 already executed once. The mutex on variables
-				 is not acquired if this variable is false.
+  @param thd                The thd handle.
+  @param var_list           System variable list.
+  @param throw_error        bool when set to true, returns an error
+                            in case of invalid/duplicate values.
+  @param char_set           character set information used for string
+                            manipulations.
+  @param session_created    bool variable which says if the parse is
+                            already executed once. The mutex on variables
+                            is not acquired if this variable is false.
 
   @return
     true                    Error
@@ -571,7 +571,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(THD *thd, LEX_STRING var
          is then verified & tokenized to create a hash, which is then updated to
 	 orig_list which represents all the systems variables to be tracked.
 
-  @param thd    [IN]        The thd handle.
+  @param thd           The thd handle.
 
   @return
     true                    Error
@@ -608,9 +608,9 @@ bool Session_sysvars_tracker::enable(THD *thd)
   @note This function is called from the ON_CHECK() function of the
         session_track_system_variables' sys_var class.
 
-  @param thd    [IN]        The thd handle.
-  @param var    [IN]        A pointer to set_var holding the specified list of
-                            system variable names.
+  @param thd           The thd handle.
+  @param var           A pointer to set_var holding the specified list of
+                       system variable names.
 
   @return
     true                    Error
@@ -634,7 +634,7 @@ inline bool Session_sysvars_tracker::check(THD *thd, set_var *var)
   @note This function is called from the ON_UPDATE() function of the
         session_track_system_variables' sys_var class.
 
-  @param thd    [IN]        The thd handle.
+  @param thd           The thd handle.
 
   @return
     true                    Error
@@ -753,8 +753,8 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_ite
   @brief Supply key to the hash implementation (to be used internally by the
          implementation).
 
-  @param entry  [IN]        A single entry.
-  @param length [OUT]       Length of the key.
+  @param entry         A single entry.
+  @param [out] length  Length of the key.
   @param not_used           Unused.
 
   @return                   Pointer to the key buffer.
@@ -795,7 +795,7 @@ void Session_sysvars_tracker::reset()
 /**
   @brief Enable/disable the tracker based on @@session_track_schema's value.
 
-  @param thd [IN]           The thd handle.
+  @param thd           The thd handle.
 
   @return
     false (always)
@@ -814,7 +814,7 @@ bool Current_schema_tracker::update(THD *thd)
          state-change (see reset()).
 
 
-  @param thd [IN]           The thd handle.
+  @param thd                The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
@@ -893,7 +893,7 @@ Transaction_state_tracker::Transaction_state_tracker()
 /**
   @brief Enable/disable the tracker based on @@session_track_transaction_info's value.
 
-  @param thd [IN]           The thd handle.
+  @param thd           The thd handle.
 
   @return
     true if updating the tracking level failed, false otherwise
@@ -936,8 +936,8 @@ bool Transaction_state_tracker::update(THD *thd)
          is stored, we reset the flags related to state-change (see reset()).
 
 
-  @param thd [IN]           The thd handle.
-  @paran buf [INOUT]        Buffer to store the information to.
+  @param thd            The thd handle.
+  @param [in,out] buf   Buffer to store the information to.
 
   @return
     false                   Success
@@ -1213,8 +1213,6 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed.
 
-  @param name [IN]          Always null.
-
   @return void
 */
 
@@ -1246,9 +1244,9 @@ void Transaction_state_tracker::reset()
           non-transactional), and returns the corresponding access flag
           out of TX_READ_TRX, TX_READ_UNSAFE, TX_WRITE_TRX, TX_WRITE_UNSAFE.
 
-  @param thd [IN]           The thd handle
-  @param set [IN]           The table's access/lock type
-  @param set [IN]           Whether the table's engine is transactional
+  @param thd                The thd handle
+  @param l                  The table's access/lock type
+  @param has_trx            Whether the table's engine is transactional
 
   @return                   The table access flag
 */
@@ -1270,7 +1268,7 @@ enum_tx_state Transaction_state_tracker::calc_trx_state(THD *thd,
 /**
   @brief  Register the end of an (implicit or explicit) transaction.
 
-  @param thd [IN]           The thd handle
+  @param thd           The thd handle
 */
 void Transaction_state_tracker::end_trx(THD *thd)
 {
@@ -1292,8 +1290,8 @@ void Transaction_state_tracker::end_trx(THD *thd)
   @brief Clear flags pertaining to the current statement or transaction.
          May be called repeatedly within the same execution cycle.
 
-  @param thd [IN]           The thd handle.
-  @param set [IN]           The flags to clear
+  @param thd           The thd handle.
+  @param clear           The flags to clear
 */
 void Transaction_state_tracker::clear_trx_state(THD *thd, uint clear)
 {
@@ -1309,8 +1307,8 @@ void Transaction_state_tracker::clear_trx_state(THD *thd, uint clear)
          May be called repeatedly within the same execution cycle,
          e.g. to add access info for more tables.
 
-  @param thd [IN]           The thd handle.
-  @param set [IN]           The flags to add
+  @param thd           The thd handle.
+  @param add           The flags to add
 */
 void Transaction_state_tracker::add_trx_state(THD *thd, uint add)
 {
@@ -1349,8 +1347,7 @@ void Transaction_state_tracker::add_trx_state(THD *thd, uint add)
 /**
   @brief Add "unsafe statement" flag if applicable.
 
-  @param thd [IN]           The thd handle.
-  @param set [IN]           The flags to add
+  @param thd           The thd handle.
 */
 void Transaction_state_tracker::add_trx_state_from_thd(THD *thd)
 {
@@ -1367,8 +1364,8 @@ void Transaction_state_tracker::add_trx_state_from_thd(THD *thd)
   @brief Set read flags (read only/read write) pertaining to the next
          transaction.
 
-  @param thd [IN]           The thd handle.
-  @param set [IN]           The flags to set
+  @param thd           The thd handle.
+  @param flags         The flags to set
 */
 void Transaction_state_tracker::set_read_flags(THD *thd,
                                                enum enum_tx_read_flags flags)
@@ -1384,8 +1381,8 @@ void Transaction_state_tracker::set_read_flags(THD *thd,
 /**
   @brief Set isolation level pertaining to the next transaction.
 
-  @param thd [IN]           The thd handle.
-  @param set [IN]           The isolation level to set
+  @param thd           The thd handle.
+  @param level         The isolation level to set
 */
 void Transaction_state_tracker::set_isol_level(THD *thd,
                                                enum enum_tx_isol_level level)
@@ -1411,7 +1408,7 @@ Session_state_change_tracker::Session_state_change_tracker()
   @brief Initiate the value of m_enabled based on
   @@session_track_state_change value.
 
-  @param thd [IN]           The thd handle.
+  @param thd                The thd handle.
   @return                   false (always)
 
 **/
@@ -1425,7 +1422,7 @@ bool Session_state_change_tracker::enable(THD *thd)
 /**
   Enable/disable the tracker based on @@session_track_state_change value.
 
-  @param thd [IN]           The thd handle.
+  @param thd                The thd handle.
   @return                   false (always)
 
 **/
@@ -1438,10 +1435,10 @@ bool Session_state_change_tracker::update(THD *thd)
 /**
   @brief Store the 1byte boolean flag in the specified buffer. Once the
          data is stored, we reset the flags related to state-change. If
-         1byte flag valie is 1 then there is a session state change else
+         1byte flag value is 1 then there is a session state change else
          there is no state change information.
 
-  @param thd [IN]           The thd handle.
+  @param thd                The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
@@ -1522,9 +1519,7 @@ bool Session_state_change_tracker::is_state_changed(THD* thd)
 /**
   @brief Initialize session tracker objects.
 
-  @param char_set [IN]      The character set info.
-
-  @return                   void
+  @param char_set    The character set info.
 */
 
 void Session_tracker::init(const CHARSET_INFO *char_set)
@@ -1550,9 +1545,7 @@ void Session_tracker::claim_memory_ownership()
 /**
   @brief Enables the tracker objects.
 
-  @param thd [IN]    The thread handle.
-
-  @return            void
+  @param thd   The thread handle.
 */
 void Session_tracker::enable(THD *thd)
 {
@@ -1586,7 +1579,7 @@ bool Session_tracker::server_boot_verify(const CHARSET_INFO *char_set,
 /**
   @brief Returns the pointer to the tracker object for the specified tracker.
 
-  @param tracker [IN]       Tracker type.
+  @param tracker            Tracker type.
 
   @return                   Pointer to the tracker object.
 */
@@ -1640,8 +1633,8 @@ bool Session_tracker::changed_any()
 /**
   @brief Store all change information in the specified buffer.
 
-  @param thd [IN]           The thd handle.
-  @param buf [OUT]          Reference to the string buffer to which the state
+  @param thd                The thd handle.
+  @param [out] buf          Reference to the string buffer to which the state
                             change data needs to be written.
 
   @return                   void
@@ -1675,11 +1668,9 @@ void Session_tracker::store(THD *thd, String &buf)
   @brief Stores the given string in length-encoded format into the specified
          buffer.
 
-  @param to     [IN]        Buffer to store the given string in.
-  @param from   [IN]        The give string to be stored.
-  @param length [IN]        Length of the above string.
-
-  @return                   void.
+  @param to            Buffer to store the given string in.
+  @param from          The give string to be stored.
+  @param length        Length of the above string.
 */
 
 static
@@ -1694,7 +1685,7 @@ void store_lenenc_string(String &to, const char *from, size_t length)
 /**
   @brief Enable/disable the tracker based on @@session_track_gtids's value.
 
-  @param thd [IN]           The thd handle.
+  @param thd           The thd handle.
 
   @return
     false (always)
@@ -1742,7 +1733,7 @@ bool Session_gtids_tracker::update(THD *thd)
          state-change (see reset()).
 
 
-  @param thd [IN]           The thd handle.
+  @param thd           The thd handle.
   @param [in,out] buf       Buffer to store the information to.
 
   @return
@@ -1761,10 +1752,8 @@ bool Session_gtids_tracker::store(THD *thd, String &buf)
 /**
   @brief Mark the tracker as changed.
 
-  @param thd               [IN]          Always null.
-  @param tracked_item_name [IN]          Always null.
-
-  @return void
+  @param thd                        Always null.
+  @param tracked_item_name          Always null.
 */
 
 void Session_gtids_tracker::mark_as_changed(THD *thd __attribute__((unused)),

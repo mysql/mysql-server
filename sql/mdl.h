@@ -78,7 +78,6 @@ public:
                           int src_line) = 0;
 
   /**
-    @def EXIT_COND(S)
     End a wait on a condition
     @param [in] stage the new stage to enter
     @param src_function function name of the caller

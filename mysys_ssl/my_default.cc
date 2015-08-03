@@ -166,9 +166,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
 /**
   Create the list of default directories.
 
-  @param alloc  MEM_ROOT where the list of directories is stored
-
-  @details
+  @verbatim
   The directories searched, in order, are:
   - Windows:     GetSystemWindowsDirectory()
   - Windows:     GetWindowsDirectory()
@@ -180,10 +178,13 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
   - ALL:         getenv("MYSQL_HOME")
   - ALL:         --defaults-extra-file=<path> (run-time option)
   - Unix:        ~/
+  @endverbatim
 
   On all systems, if a directory is already in the list, it will be moved
   to the end of the list.  This avoids reading defaults files multiple times,
   while ensuring the correct precedence.
+
+  @param alloc  MEM_ROOT where the list of directories is stored
 
   @retval NULL  Failure (out of memory, probably)
   @retval other Pointer to NULL-terminated array of default directories

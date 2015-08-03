@@ -597,7 +597,7 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen)
   match function.
 
   @param hash      Hash to search element in.
-  @param pin       Pins for calling thread to be used during search
+  @param pins      Pins for calling thread to be used during search
                    and for pinning its result.
   @param match     Pointer to match function. This function takes
                    pointer to object stored in hash as parameter

@@ -47,7 +47,7 @@ int group_replication_stop();
 /**
   Returns the server connection attribute
 
-  @Note This method implementation is on sql_class.cc
+  @note This method implementation is on sql_class.cc
 
   @return the pthread for the connection attribute.
 */

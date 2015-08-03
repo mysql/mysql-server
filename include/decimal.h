@@ -60,7 +60,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale);
   The integer part is stored in to->quot.
   The fractional part is multiplied to 10^9 and stored to to->rem.
   @param  from  Decimal value
-  @param  to    lldiv_t value
+  @param  [out] to    lldiv_t value
   @retval 0     on success
   @retval !0    in error
 */
@@ -70,13 +70,13 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
   Convert doube to lldiv_t.
   The integer part is stored in to->quot.
   The fractional part is multiplied to 10^9 and stored to to->rem.
-  @param  from  Decimal value
-  @param  to    lldiv_t value
+  @param  nr  Decimal value
+  @param  [out] lld    lldiv_t value
   @retval 0     on success
   @retval !0    in error
 */
 
-int double2lldiv_t(double from, lldiv_t *to);
+int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
 int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,

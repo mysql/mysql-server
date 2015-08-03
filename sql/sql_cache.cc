@@ -450,7 +450,7 @@ struct Query_cache_wait_state
    @param thd              Thread context
    @param query            Query string
    @param flags            Cache query flags
-   @param tot_length[out]  Length of the key
+   @param [out] tot_length  Length of the key
 
    @return The constructed cache key or NULL if OOM
 */

@@ -352,15 +352,15 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
 /**
   Set timeout for a network send or receive operation.
 
-  @remark A non-infinite timeout causes the socket to be
+  @note A non-infinite timeout causes the socket to be
           set to non-blocking mode. On infinite timeouts,
           the socket is set to blocking mode.
 
-  @remark A negative timeout means an infinite timeout.
+  @note A negative timeout means an infinite timeout.
 
   @param vio      A VIO object.
   @param which    Whether timeout is for send (1) or receive (0).
-  @param timeout  Timeout interval in seconds.
+  @param timeout_sec  Timeout interval in seconds.
 
   @return FALSE on success, TRUE otherwise.
 */

@@ -179,9 +179,9 @@ static char* add_identifier(THD* thd, char *to_p, const char * end_p,
   
   @details Break down the path name to its logic parts
   (database, table, partition, subpartition).
-  filename_to_tablename cannot be used on partitions, due to the #P# part.
-  There can be up to 6 '#', #P# for partition, #SP# for subpartition
-  and #TMP# or #REN# for temporary or renamed partitions.
+  filename_to_tablename cannot be used on partitions, due to the @#P@# part.
+  There can be up to 6 '#', @#P@# for partition, @#SP@# for subpartition
+  and @#TMP@# or @#REN@# for temporary or renamed partitions.
   This should be used when something should be presented to a user in a
   diagnostic, error etc. when it would be useful to know what a particular
   file [and directory] means. Such as SHOW ENGINE STATUS, error messages etc.
@@ -537,7 +537,7 @@ size_t build_table_filename(char *buff, size_t bufflen, const char *db,
 
 
 /**
-  Create path to a temporary table mysql_tmpdir/#sql1234_12_1
+  Create path to a temporary table, like mysql_tmpdir/@#sql1234_12_1
   (i.e. to its .FRM file but without an extension).
 
   @param thd      The thread handle.
@@ -884,7 +884,7 @@ static void set_ddl_log_entry_from_global(DDL_LOG_ENTRY *ddl_log_entry,
   Read a specified entry in the ddl log.
 
   @param read_entry               Number of entry to read
-  @param[out] entry_info          Information from entry
+  @param[out] ddl_log_entry       Information from entry
 
   @return Operation status
     @retval TRUE                     Error
@@ -1357,7 +1357,7 @@ static bool execute_ddl_log_entry_no_lock(THD *thd, uint first_entry)
   handle crashes occurring during CREATE and ALTER TABLE processing.
 
   @param ddl_log_entry         Information about log entry
-  @param[out] entry_written    Entry information written into   
+  @param[out] active_entry     Entry information written into   
 
   @return Operation status
     @retval TRUE               Error
@@ -1543,7 +1543,7 @@ static bool sync_ddl_log()
 
 /**
   Release a log memory entry.
-  @param log_memory_entry                Log memory entry to release
+  @param log_entry                Log memory entry to release
 */
 
 void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry)
@@ -4710,7 +4710,11 @@ bool create_table_impl(THD *thd,
   // Check if new table creation is disallowed by the storage engine.
   if (!internal_tmp_table &&
       ha_is_storage_engine_disabled(create_info->db_type))
+  {
+    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+              ha_resolve_storage_engine_name(create_info->db_type));
     DBUG_RETURN(true);
+  }
 
   if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
@@ -5979,7 +5983,7 @@ static KEY* find_key_cs(const char *key_name, KEY *key_start, KEY *key_end)
   possible rename of index). Also changes to the comment field
   of the key is marked with a flag in the ha_alter_info.
 
-  @param[in/out]  ha_alter_info  Structure describing changes to be done
+  @param[in,out]  ha_alter_info  Structure describing changes to be done
                                  by ALTER TABLE and holding data used
                                  during in-place alter.
   @param          table_key      Description of key in old version of table.
@@ -6071,7 +6075,7 @@ static int compare_uint(const uint *s, const uint *t)
    @param          table              The original table.
    @param          varchar            Indicates that new definition has new
                                       VARCHAR column.
-   @param[in/out]  ha_alter_info      Data structure which already contains
+   @param[in,out]  ha_alter_info      Data structure which already contains
                                       basic information about create options,
                                       field and keys for the new version of
                                       table and which should be completed with
@@ -8484,7 +8488,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       (alter_info->flags & Alter_info::ALTER_OPTIONS) &&
       (create_info->used_fields & HA_CREATE_USED_ENGINE) &&
        ha_is_storage_engine_disabled(create_info->db_type))
+  {
+    my_error(ER_DISABLED_STORAGE_ENGINE, MYF(0),
+              ha_resolve_storage_engine_name(create_info->db_type));
     DBUG_RETURN(true);
+  }
 
   TABLE *table= table_list->table;
   table->use_all_columns();
@@ -9629,7 +9637,7 @@ copy_data_between_tables(THD * thd,
     {
       copy_ptr->invoke_do_copy(copy_ptr);
     }
-    if ((to->vfield && update_generated_write_fields(to)) ||
+    if ((to->vfield && update_generated_write_fields(to->write_set, to)) ||
       thd->is_error())
     {
       error= 1;

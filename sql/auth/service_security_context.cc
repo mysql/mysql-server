@@ -27,7 +27,7 @@
 /**
   Gets the security context for the thread.
 
-  @param[in]  thd      The thread to get the context from
+  @param[in]  _thd      The thread to get the context from
   @param[out] out_ctx  placeholder for the security context handle
   @retval true    failure
   @retval false   success
@@ -54,8 +54,8 @@ my_svc_bool thd_get_security_context(MYSQL_THD _thd,
 /**
   Sets a new security context for the thread.
 
-  @param[in]  thd  The thread to set the context to
-  @param[in]  ctx  The handle of the new security context
+  @param[in]  _thd  The thread to set the context to
+  @param[in]  in_ctx  The handle of the new security context
   @retval true    failure
   @retval false   success
 */
@@ -120,7 +120,7 @@ my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx)
 /**
   Duplicates a security context.
 
-  @param[in]  ctx  The handle of the security context to copy
+  @param[in]  in_ctx  The handle of the security context to copy
   @param[out] out_ctx  placeholder for the handle of the copied security context
   @retval true    failure
   @retval false   success
@@ -147,7 +147,7 @@ my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx,
 
 /**
   Looks up in the defined user accounts an account based on
-  the user@host[ip] combo supplied and checks if the user
+  the user\@host[ip] combo supplied and checks if the user
   has access to the database requested.
   The lookup is done in exactly the same way as at login time.
 
@@ -183,7 +183,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
 
   @param[in]  ctx   The handle of the security context to read from
   @param[in]  name  The option name to read
-  @param[out] value The value of the option. Type depens on the name.
+  @param[out] inout_pvalue The value of the option. Type depends on the name.
   @retval true    failure
   @retval false   success
 */
@@ -253,7 +253,7 @@ my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT ctx,
 
   @param[in]  ctx   The handle of the security context to set into
   @param[in]  name  The option name to set
-  @param[in]  value The value of the option. Type depens on the name.
+  @param[in]  pvalue The value of the option. Type depends on the name.
   @retval true    failure
   @retval false   success
 */

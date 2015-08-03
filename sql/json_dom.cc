@@ -947,7 +947,7 @@ bool is_valid_json_syntax(const char *text, size_t length)
 /**
   Map the JSON type used by the binary representation to the type
   used by Json_dom and Json_wrapper.
-  <p/>
+
   Note: Does not look into opaque values to determine if they
   represent decimal or date/time values. For that, look into the
   Value an retrive field_type.
@@ -1507,6 +1507,7 @@ static bool reserve(String *buffer, size_t needed)
   of it. it wraps double quotes (text quotes) around the string (cptr)
   an also performs escaping according to the following table:
   <pre>
+  @verbatim
   Common name     C-style  Original unescaped     Transformed to
                   escape   UTF-8 bytes            escape sequence
                   notation                        in UTF-8 bytes
@@ -1526,6 +1527,7 @@ static bool reserve(String *buffer, size_t needed)
                           carriage-return,
                           and tab).
   ---------------------------------------------------------------
+  @endverbatim
   </pre>
 
   @param[in] cptr pointer to string data
@@ -2414,7 +2416,8 @@ Json_path Json_dom::get_location()
 }
 
 
-bool Json_dom::seek(const Json_path &path, Json_dom_vector *hits,
+bool Json_dom::seek(const Json_seekable_path &path,
+                    Json_dom_vector *hits,
                     bool auto_wrap, bool only_need_one)
 {
   Json_dom_vector candidates(key_memory_JSON);
@@ -2447,7 +2450,7 @@ bool Json_dom::seek(const Json_path &path, Json_dom_vector *hits,
 }
 
 
-bool Json_wrapper::seek_no_ellipsis(const Json_path &path,
+bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
                                     Json_wrapper_vector *hits,
                                     const size_t leg_number,
                                     bool auto_wrap,
@@ -2596,7 +2599,8 @@ bool Json_wrapper::seek_no_ellipsis(const Json_path &path,
 }
 
 
-bool Json_wrapper::seek(const Json_path &path, Json_wrapper_vector *hits,
+bool Json_wrapper::seek(const Json_seekable_path &path,
+                        Json_wrapper_vector *hits,
                         bool auto_wrap, bool only_need_one)
 {
   if (empty())

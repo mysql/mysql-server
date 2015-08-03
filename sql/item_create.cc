@@ -15,10 +15,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file
+  @file sql/item_create.cc
 
-  @brief
-  Functions to create an item. Used by sql_yac.yy
+  Functions to create an item. Used by sql_yacc.yy
 */
 
 #include "item_create.h"
@@ -37,6 +36,11 @@
 #include "sql_class.h"           // THD
 #include "sql_time.h"            // str_to_datetime
 #include "psi_memory_key.h"
+
+/**
+  @addtogroup GROUP_PARSER
+  @{
+*/
 
 /*
 =============================================================================
@@ -7043,3 +7047,8 @@ Item *create_temporal_literal(THD *thd,
   }
   return NULL;
 }
+
+/**
+  @} (end of group GROUP_PARSER)
+*/
+

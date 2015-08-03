@@ -20,6 +20,11 @@
 #include "handler.h"                 // enum_schema_tables
 #include "mysql_com.h"               // enum_server_command
 
+/**
+  @addtogroup GROUP_PARSER
+  @{
+*/
+
 class Comp_creator;
 class Generated_column;
 class Item;
@@ -247,5 +252,9 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
   Used to mark commands that can be used with Protocol Plugin
 */
 #define CF_ALLOW_PROTOCOL_PLUGIN (1U << 2)
+
+/**
+  @} (end of group GROUP_PARSER)
+*/
 
 #endif /* SQL_PARSE_INCLUDED */

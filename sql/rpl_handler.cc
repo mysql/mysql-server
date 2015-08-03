@@ -422,7 +422,7 @@ Trans_delegate::prepare_table_info(THD* thd,
 /**
   Helper that gathers all table runtime information
 
-  @param[in]   THD       the current execution thread
+  @param[in]   thd       the current execution thread
   @param[out]  ctx_info  Trans_context_info in which the result is stored.
  */
 static void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)

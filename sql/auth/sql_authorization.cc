@@ -779,7 +779,7 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
   @param[out] save_priv A pointer to the granted privileges will be stored.
   @param grant_internal_info A pointer to the internal grant cache.
   @param dont_check_global_grants True if no global grants are checked.
-  @param no_error     True if no errors should be sent to the client.
+  @param no_errors    True if no errors should be sent to the client.
 
   'save_priv' is used to save the User-table (global) and Db-table grants for
   the supplied db name. Note that we don't store db level grants if the global
@@ -988,7 +988,7 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   @brief Check if the requested privileges exists in either User-, Host- or
     Db-tables.
   @param thd          Thread context
-  @param want_access  Privileges requested
+  @param requirements Privileges requested
   @param tables       List of tables to be compared against
   @param no_errors    Don't report error to the client (using my_error() call).
   @param any_combination_of_privileges_will_do TRUE if any privileges on any
@@ -3413,12 +3413,9 @@ private:
   Revoke privileges for all users on a stored procedure.  Use an error handler
   that converts errors about missing grants into warnings.
 
-  @param
-    thd                         The current thread.
-  @param
-    db                          DB of the stored procedure
-  @param
-    name                        Name of the stored procedure
+  @param thd       The current thread.
+  @param sp_db     DB of the stored procedure
+  @param sp_name   Name of the stored procedure
 
   @retval
     0           OK.

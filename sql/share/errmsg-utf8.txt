@@ -7577,6 +7577,9 @@ ER_AUDIT_API_ABORT
 ER_INVALID_JSON_PATH_ARRAY_CELL 42000
   eng "A path expression is not a path to a cell in an array."
 
+ER_BUFPOOL_RESIZE_INPROGRESS
+  eng "Another buffer pool resize is already in progress."
+
 #
 #  End of 5.7 error messages.
 #
