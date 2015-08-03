@@ -2653,7 +2653,8 @@ end:
 }
 
 /**
-  Build the base_columns member of this generated column
+  Calculate the base_columns_map and num_non_virtual_base_cols members of
+  this generated column
 
   @param table    Table with the checked field
 
@@ -2663,8 +2664,10 @@ end:
 bool Generated_column::register_base_columns(TABLE *table)
 {
   DBUG_ENTER("register_base_columns");
-  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-  MY_BITMAP base_columns_map;
+  my_bitmap_map *bitbuf=
+    static_cast<my_bitmap_map *>(alloc_root(&table->mem_root,
+                                bitmap_buffer_size(table->s->fields)));
+  DBUG_ASSERT(num_non_virtual_base_cols == 0);
   bitmap_init(&base_columns_map, bitbuf, table->s->fields, 0);
 
   MY_BITMAP *save_old_read_set= table->read_set;
@@ -2673,14 +2676,14 @@ bool Generated_column::register_base_columns(TABLE *table)
   expr_item->walk(&Item::mark_field_in_map,
                   Item::WALK_PREFIX, (uchar *) &mark_fld);
   table->read_set= save_old_read_set;
+
+  /* Calculate the number of non-virtual base columns */
   for (uint i= 0; i < table->s->fields; i++)
   {
     Field *field= table->field[i];
-    /* Virtual generated columns are not needed */
-    if (field->stored_in_db &&
-        bitmap_is_set(&base_columns_map, field->field_index) &&
-        base_columns.push_back(field))
-      DBUG_RETURN(true); // OOM
+    if (bitmap_is_set(&base_columns_map, field->field_index) &&
+        field->stored_in_db)
+      num_non_virtual_base_cols++;
   }
   DBUG_RETURN(false);
 }
@@ -6542,12 +6545,6 @@ void TABLE::mark_generated_columns(bool is_update)
     {
       tmp_vfield= *vfield_ptr;
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-      Mark_field mark_fld(MARK_COLUMNS_TEMP);
-      MY_BITMAP *save_old_read_set= read_set;
-      bitmap_clear_all(&dependent_fields);
-      read_set= &dependent_fields;
-      tmp_vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map,
-                              Item::WALK_PREFIX, (uchar *) &mark_fld);
 
       /*
         We need to evaluate the GC if:
@@ -6561,9 +6558,9 @@ void TABLE::mark_generated_columns(bool is_update)
            be located first, for that the GC's value is needed.
       */
       if ((!tmp_vfield->stored_in_db && tmp_vfield->m_indexed) ||
-          bitmap_is_overlapping(read_set, write_set))
+          bitmap_is_overlapping(write_set,
+                                &tmp_vfield->gcol_info->base_columns_map))
       {
-        read_set= save_old_read_set;
         // The GC needs to be updated
         tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
                                             MARK_COLUMNS_WRITE);
@@ -6572,8 +6569,6 @@ void TABLE::mark_generated_columns(bool is_update)
                                             MARK_COLUMNS_READ);
         bitmap_updated= TRUE;
       }
-      else
-        read_set= save_old_read_set;
     }
   }
   else // Insert needs to evaluate all generated columns
@@ -7499,9 +7494,9 @@ void TABLE::mark_gcol_in_maps(Field *field)
 {
   bitmap_set_bit(write_set, field->field_index);
   /*
-    Using MARK_COLUMNS_TEMP has the effect that underlying base columns
-    are added to read_set but not added to requirements for an index to be
-    covering (covering_keys is not touched). So, if we have:
+    Note that underlying base columns are here added to read_set but not added
+    to requirements for an index to be covering (covering_keys is not touched).
+    So, if we have:
     SELECT gcol FROM t :
     - an index covering gcol only (not including base columns), can still be
     chosen by the optimizer; note that InnoDB's build_template_needs_field()
@@ -7511,7 +7506,13 @@ void TABLE::mark_gcol_in_maps(Field *field)
     they are in read_set.
     - Note how this relies on InnoDB's behaviour.
   */
-  Mark_field mf(this, MARK_COLUMNS_TEMP);
-  field->gcol_info->expr_item->walk(&Item::mark_field_in_map,Item::WALK_PREFIX,
-                                    reinterpret_cast<uchar *>(&mf));
+  for (uint i= 0; i < s->fields; i++)
+  {
+    if (bitmap_is_set(&field->gcol_info->base_columns_map, i))
+    {
+      bitmap_set_bit(read_set, i);
+      if (this->field[i]->is_virtual_gcol())
+        bitmap_set_bit(write_set, i);
+    }
+  }
 }
