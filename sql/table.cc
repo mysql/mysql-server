@@ -4560,8 +4560,55 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
 
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+  
+  bool error= refix_gc_items(thd);
+  DBUG_ASSERT(!error);
 }
 
+
+bool TABLE::refix_gc_items(THD *thd)
+{
+  if (vfield)
+  {
+    for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      Field *vfield= *vfield_ptr;
+      DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+      if (!vfield->gcol_info->expr_item->fixed)
+      {
+        /* 
+          Temporarily disable privileges check; already done when first fixed,
+          and then based on definer's (owner's) rights: this thread has
+          invoker's rights
+        */
+        ulong sav_want_priv= thd->want_privilege;
+        thd->want_privilege= 0;
+
+        if (fix_fields_gcol_func(thd, vfield))
+          return true;
+        
+        // Restore any privileges check
+        thd->want_privilege= sav_want_priv;
+        get_fields_in_item_tree= FALSE;
+      }
+    }
+  }
+  return false;
+}
+  
+
+void TABLE::cleanup_gc_items(THD *thd)
+{
+  if (vfield)
+  {
+    for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+    {
+      Field *vfield= *vfield_ptr;
+      DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
+      vfield->gcol_info->expr_item->cleanup();
+    }
+  }
+}
 
 /*
   Create Item_field for each column in the table.

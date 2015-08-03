@@ -1406,6 +1406,28 @@ public:
     Return the cost model object for this table.
   */
   const Cost_model_table* cost_model() const { return &m_cost_model; }
+
+  /**
+    Fix table's generated columns' (GC) expressions
+   
+    @details When a table is opened from the dictionary, the GCs' expressions
+    are fixed during opening (see fix_fields_gcol_func()). After query
+    execution, Item::cleanup() is called on them (see cleanup_gc_items()). When
+    the table is opened from the table cache, the GCs need to be fixed again
+    and this function does that.
+
+    @param[in] thd     the current thread
+    @return true if error, else false
+  */
+  bool refix_gc_items(THD *thd);
+  
+  /**
+    Clean any state in items associated with generated columns to be ready for
+    the next statement.
+   
+    @param[in] thd    the current thread
+  */
+  void cleanup_gc_items(THD *thd);
 };
 
 
