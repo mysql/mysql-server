@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -110,6 +110,17 @@ struct purge_node_struct{
 				row; this must be emptied after a successful
 				purge of a row */
 };
+
+#ifdef UNIV_DEBUG
+/***********************************************************//**
+Validate the persisent cursor in the purge node. The purge node has two
+references to the clustered index record - one via the ref member, and the
+other via the persistent cursor.  These two references must match each
+other if the found_clust flag is set.
+@return true if the persistent cursor is consistent with the ref member.*/
+ibool
+row_purge_validate_pcur(purge_node_t* node);
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "row0purge.ic"
