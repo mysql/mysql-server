@@ -13190,6 +13190,48 @@ id	json_insert( doc, '$.a.c', new_value )
 2	{"a": {"b": true, "c": "abc"}}
 drop table tdoc;
 #
+# Bug#21491442 VARIANT::FORCED_RETURN() [WITH T = JSON_SCALAR*]:
+#              ASSERTION `FALSE' FAILED.
+#
+create table t (a json, b blob,
+c int generated always as (1!=a) virtual not null) engine=innodb;
+insert into t(a) values('[1]');
+insert into t(a) values('[1]');
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+prepare ps1 from 'insert into t(a) values(?)';
+set @a='[1]';
+execute ps1 using @a;
+execute ps1 using @a;
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+[1]	1
+[1]	1
+drop table t;
+create temporary table t (a json, b blob,
+c int generated always as (1!=a) virtual not null) engine=innodb;
+insert into t(a) values('[1]');
+insert into t(a) values('[1]');
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+prepare ps1 from 'insert into t(a) values(?)';
+set @a='[1]';
+execute ps1 using @a;
+execute ps1 using @a;
+select a,c from t;
+a	c
+[1]	1
+[1]	1
+[1]	1
+[1]	1
+drop table t;
+#
 # Bug#21487833: DBUG_ABORT() IN JSON_WRAPPER::MAKE_HASH_KEY
 #               WITH ORDERED JSON
 #
