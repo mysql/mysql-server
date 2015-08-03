@@ -1352,6 +1352,10 @@ insert into t1 values ('a');
 select distinct least(1,count(distinct a)) from t1 group by a;
 drop table t1;
 
+--echo #
+--echo # Bug#21461026: INCONSISTEND CASING ON STORAGE ENGINE VARIABLE VALUE
+--echo #
+SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
 #============================end && cleanup======================= 
 SET GLOBAL innodb_large_prefix=default;
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
