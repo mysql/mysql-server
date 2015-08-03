@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "row0vers.h"
 #include "row0mysql.h"
 #include "log0log.h"
+#include "rem0cmp.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -80,7 +81,7 @@ row_purge_node_create(
 
 /***********************************************************//**
 Repositions the pcur in the purge node on the clustered index record,
-if found.
+if found. If the record is not found, close pcur.
 @return	TRUE if the record was found */
 static
 ibool
@@ -90,23 +91,28 @@ row_purge_reposition_pcur(
 	purge_node_t*	node,	/*!< in: row purge node */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ibool	found;
-
 	if (node->found_clust) {
-		found = btr_pcur_restore_position(mode, &(node->pcur), mtr);
+		ut_ad(row_purge_validate_pcur(node));
 
-		return(found);
+		node->found_clust = btr_pcur_restore_position(
+			mode, &(node->pcur), mtr);
+
+	} else {
+
+		node->found_clust = row_search_on_row_ref(
+			&(node->pcur), mode, node->table, node->ref, mtr);
+
+		if (node->found_clust) {
+			btr_pcur_store_position(&(node->pcur), mtr);
+		}
 	}
 
-	found = row_search_on_row_ref(&(node->pcur), mode, node->table,
-				      node->ref, mtr);
-	node->found_clust = found;
-
-	if (found) {
-		btr_pcur_store_position(&(node->pcur), mtr);
+	/* Close the current cursor if we fail to position it correctly. */
+	if (!node->found_clust) {
+		btr_pcur_close(&node->pcur);
 	}
 
-	return(found);
+	return(node->found_clust);
 }
 
 /***********************************************************//**
@@ -143,8 +149,8 @@ row_purge_remove_clust_if_poss_low(
 
 	if (!success) {
 		/* The record is already removed */
-
-		btr_pcur_commit_specify_mtr(pcur, &mtr);
+		/* Persistent cursor is closed if reposition fails. */
+		mtr_commit(&mtr);
 
 		return(TRUE);
 	}
@@ -258,7 +264,12 @@ row_purge_poss_sec(
 						 btr_pcur_get_rec(&node->pcur),
 						 &mtr, index, entry);
 
-	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	/* Persistent cursor is closed if reposition fails. */
+	if (node->found_clust) {
+		btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+	} else {
+		mtr_commit(&mtr);
+	}
 
 	return(can_delete);
 }
@@ -806,3 +817,53 @@ row_purge_step(
 
 	return(thr);
 }
+
+#ifdef UNIV_DEBUG
+/***********************************************************//**
+Validate the persisent cursor in the purge node. The purge node has two
+references to the clustered index record - one via the ref member, and the
+other via the persistent cursor.  These two references must match each
+other if the found_clust flag is set.
+@return true if the stored copy of persistent cursor is consistent
+with the ref member.*/
+ibool
+row_purge_validate_pcur(
+	purge_node_t*	node)
+{
+	dict_index_t*	clust_index;
+	ulint*		offsets;
+	int		st;
+
+	if (!node->found_clust) {
+		return(TRUE);
+	}
+
+	if (node->index == NULL) {
+		return(TRUE);
+	}
+
+	if (node->pcur.old_stored != BTR_PCUR_OLD_STORED) {
+		return(TRUE);
+	}
+
+	clust_index = node->pcur.btr_cur.index;
+
+	offsets = rec_get_offsets(node->pcur.old_rec, clust_index, NULL,
+				  node->pcur.old_n_fields, &node->heap);
+
+	/* Here we are comparing the purge ref record and the stored initial
+	part in persistent cursor. Both cases we store n_uniq fields of the
+	cluster index and so it is fine to do the comparison. We note this
+	dependency here as pcur and ref belong to different modules. */
+	st = cmp_dtuple_rec(node->ref, node->pcur.old_rec, offsets);
+
+	if (st != 0) {
+		fprintf(stderr, "Purge node pcur validation failed\n");
+		dtuple_print(stderr, node->ref);
+		rec_print(stderr, node->pcur.old_rec, clust_index);
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */

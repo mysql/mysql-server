@@ -265,9 +265,6 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
-    /* filesort cannot handle zero-length records during merge. */
-    DBUG_ASSERT(param.sort_length != 0);
-
     if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
     {
       my_free(table_sort.buffpek);
