@@ -3111,6 +3111,14 @@ select distinct least(1,count(distinct a)) from t1 group by a;
 least(1,count(distinct a))
 0
 drop table t1;
+#
+# Bug#21461026: INCONSISTEND CASING ON STORAGE ENGINE VARIABLE VALUE
+#
+SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
+Variable_name	Value
+default_storage_engine	InnoDB
+default_tmp_storage_engine	InnoDB
+internal_tmp_disk_storage_engine	InnoDB
 set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;
