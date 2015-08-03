@@ -19,7 +19,6 @@ SET innodb_strict_mode=OFF;
 # Turn on the geometry data print.
 SET SESSION debug="+d,row_print_geometry_data";
 
---replace_result INNODB TMP_TABLE_ENGINE MYISAM TMP_TABLE_ENGINE 
 SHOW VARIABLES LIKE '%engine%';
 
 #
