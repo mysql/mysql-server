@@ -403,6 +403,45 @@ public:
 /** Singleton instance of PFS_unknown_acl. */
 extern PFS_unknown_acl pfs_unknown_acl;
 
+
+/**
+  Privileges for world readable tables.
+*/
+class PFS_readonly_world_acl : public PFS_readonly_acl
+{
+public:
+  PFS_readonly_world_acl()
+  {}
+
+  ~PFS_readonly_world_acl()
+  {}
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+};
+
+
+/** Singleton instance of PFS_readonly_world_acl */
+extern PFS_readonly_world_acl pfs_readonly_world_acl;
+
+
+/**
+Privileges for world readable truncatable tables.
+*/
+class PFS_truncatable_world_acl : public PFS_truncatable_acl
+{
+public:
+  PFS_truncatable_world_acl()
+  {}
+
+  ~PFS_truncatable_world_acl()
+  {}
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+};
+
+
+/** Singleton instance of PFS_readonly_world_acl */
+extern PFS_truncatable_world_acl pfs_truncatable_world_acl;
+
+
 /** Position of a cursor, for simple iterations. */
 struct PFS_simple_index
 {

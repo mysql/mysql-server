@@ -50,7 +50,7 @@ PFS_engine_table_share
 table_session_status::m_share=
 {
   { C_STRING_WITH_LEN("session_status") },
-  &pfs_readonly_acl,
+  &pfs_readonly_world_acl,
   table_session_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */

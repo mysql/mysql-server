@@ -50,7 +50,7 @@ PFS_engine_table_share
 table_global_status::m_share=
 {
   { C_STRING_WITH_LEN("global_status") },
-  &pfs_truncatable_acl,
+  &pfs_truncatable_world_acl,
   table_global_status::create,
   NULL, /* write_row */
   table_global_status::delete_all_rows,
