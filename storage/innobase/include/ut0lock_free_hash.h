@@ -1221,7 +1221,7 @@ private:
 			next_arr = arr->get_next(d);
 
 			/* arr->m_next cannot be disabled here (get_next()
-			returns 'd') here because the only code that sets it
+			returns 'd') because the only code that sets it
 			to M_NEXT_RETRY_FROM_START is below and we are
 			guaranteed to be the only thread that ever executes
 			it for arr. */
