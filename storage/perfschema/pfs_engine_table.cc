@@ -843,6 +843,19 @@ PFS_readonly_acl::check(ulong want_access, ulong *save_priv) const
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
+
+PFS_readonly_world_acl pfs_readonly_world_acl;
+
+ACL_internal_access_result
+PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
+{
+  ACL_internal_access_result res= PFS_readonly_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+    res= ACL_INTERNAL_ACCESS_GRANTED;
+  return res;
+}
+
+
 PFS_truncatable_acl pfs_truncatable_acl;
 
 ACL_internal_access_result
@@ -857,6 +870,19 @@ PFS_truncatable_acl::check(ulong want_access, ulong *save_priv) const
 
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
+
+
+PFS_truncatable_world_acl pfs_truncatable_world_acl;
+
+ACL_internal_access_result
+PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
+{
+  ACL_internal_access_result res= PFS_truncatable_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
+    res= ACL_INTERNAL_ACCESS_GRANTED;
+  return res;
+}
+
 
 PFS_updatable_acl pfs_updatable_acl;
 
