@@ -3898,6 +3898,13 @@ void TABLE_LIST::set_underlying_merge()
         updatable= false;
       schema_table= merge_underlying_list->schema_table;
     }
+    else
+    {
+      for (tbl= merge_underlying_list; tbl; tbl= tbl->next_local)
+      {
+          updatable&= tbl->updatable;
+      }
+    }
   }
 }
 
