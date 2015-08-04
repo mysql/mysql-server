@@ -1639,6 +1639,10 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
+      /* check for errors evaluating the condition */
+      if (join->thd->is_error())
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+
       if (qep_tab->do_loosescan() &&
           QEP_AT(qep_tab,match_tab).found_match)
       {
