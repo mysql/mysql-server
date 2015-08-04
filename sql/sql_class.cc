@@ -254,16 +254,14 @@ THD::Attachable_trx::~Attachable_trx()
   DBUG_ASSERT(!m_thd->transaction_rollback_request);
 
   // Commit the attachable transaction before discarding transaction state.
-  // Since the attachable transaction is AUTOCOMMIT we only need to commit
-  // statement transaction. This is mostly needed to properly reset transaction
-  // state in SE.
+  // This is mostly needed to properly reset transaction state in SE.
   // Note: We can't rely on InnoDB hack which auto-magically commits InnoDB
   // transaction when the last table for a statement in auto-commit mode is
   // unlocked. Apparently it doesn't work correctly in some corner cases
   // (for example, when statement is killed just after tables are locked but
   // before any other operations on the table happes). We try not to rely on
   // it in other places on SQL-layer as well.
-  trans_commit_stmt(m_thd);
+  trans_commit_attachable(m_thd);
 
   // Remember the handlerton of an open table to call the handlerton after the
   // tables are closed.

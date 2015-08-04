@@ -343,3 +343,16 @@ SET sql_mode = default;
 #
 # End of 5.6 tests
 #
+#
+# Bug #21459795 "ASSERTION FAILURE WHEN PREVIOUSLY UNUSED TIME
+#                ZONE IS USED IN FUNCTION/TRIGGER".
+#
+CREATE FUNCTION f1() RETURNS DATETIME RETURN CONVERT_TZ('2015-01-01 00:00:00', 'UTC', 'No-such-time-zone');
+# Below statement caused assertion failure.
+SELECT f1();
+f1()
+NULL
+DROP FUNCTION f1;
+#
+# End of 5.7 tests
+#
