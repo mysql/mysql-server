@@ -11598,6 +11598,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
         return rc;
+
+      /* check for errors evaluating the condition */
+      if (join->thd->is_error())
+        return NESTED_LOOP_ERROR;
+
       if (join->return_tab < join_tab)
         return NESTED_LOOP_OK;
       /*
