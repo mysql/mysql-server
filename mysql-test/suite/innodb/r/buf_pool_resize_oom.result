@@ -3,9 +3,9 @@
 # ONLINE WITH MEMORY FULL CONDITION
 #
 SET GLOBAL DEBUG='+d,buf_pool_resize_chunk_null';
-# Setting innodb buffer pool size 0.5GB more than before
-SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size + 536870912;
+# Setting innodb buffer pool size 10MB more than before
+SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size + 10485760;
 Warnings:
-Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '2684354560'
+Warning	1292	Truncated incorrect innodb_buffer_pool_size value: '1084227584'
 SET GLOBAL DEBUG='-d,buf_pool_resize_chunk_null';
 SET GLOBAL innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
