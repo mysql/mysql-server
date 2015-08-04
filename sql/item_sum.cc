@@ -3518,9 +3518,10 @@ bool Item_func_group_concat::setup(THD *thd)
   {
     uint n_elems= arg_count_order + all_fields.elements;
     ref_pointer_array= static_cast<Item**>(thd->alloc(sizeof(Item*) * n_elems));
+    if (!ref_pointer_array)
+      DBUG_RETURN(TRUE);
     memcpy(ref_pointer_array, args, arg_count * sizeof(Item*));
-    if (!ref_pointer_array ||
-        setup_order(thd, ref_pointer_array, context->table_list, list,
+    if (setup_order(thd, ref_pointer_array, context->table_list, list,
                     all_fields, *order))
       DBUG_RETURN(TRUE);
   }
