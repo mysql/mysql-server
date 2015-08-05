@@ -492,6 +492,13 @@ set sql_log_bin=0;
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
 flush privileges;
 set sql_log_bin=1;
+# Prove of bug#77732 fixes:
+# Created user's privileges - REPLICATION and SLAVE -
+# alone must suffice to successful connecting even with show handler
+# not compatible to 5.6.
+SET @save_show_compatibility_56=@@global.show_compatibility_56;
+SET @@global.show_compatibility_56=OFF;
+
 connection slave;
 echo [ on slave ];
 grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
@@ -502,6 +509,20 @@ source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
 connection master;
 echo [ on master ];
+SET @@global.show_compatibility_56=ON;
+
+# bug#77732 related: reconnecting to the master while the show hanlder
+# is compatible with 5.6.
+connection slave;
+echo [ on slave ];
+source include/stop_slave.inc;
+source include/start_slave.inc;
+show status like 'Rpl_semi_sync_slave_status';
+
+connection master;
+echo [ on master ];
+# bug#77732 cleanup
+SET @@global.show_compatibility_56=@save_show_compatibility_56;
 
 # Wait for the semi-sync binlog dump thread to start
 let $status_var= Rpl_semi_sync_master_clients;
