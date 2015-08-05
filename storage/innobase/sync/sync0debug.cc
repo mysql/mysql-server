@@ -470,6 +470,7 @@ LatchDebug::LatchDebug()
 	LEVEL_MAP_INSERT(RW_LOCK_S);
 	LEVEL_MAP_INSERT(RW_LOCK_X);
 	LEVEL_MAP_INSERT(RW_LOCK_NOT_LOCKED);
+	LEVEL_MAP_INSERT(SYNC_LOCK_FREE_HASH);
 	LEVEL_MAP_INSERT(SYNC_MONITOR_MUTEX);
 	LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
 	LEVEL_MAP_INSERT(SYNC_DOUBLEWRITE);
@@ -761,6 +762,7 @@ LatchDebug::check_order(
 
 		/* Fall through */
 
+	case SYNC_LOCK_FREE_HASH:
 	case SYNC_MONITOR_MUTEX:
 	case SYNC_RECV:
 	case SYNC_FTS_BG_THREADS:
@@ -1361,6 +1363,9 @@ sync_latch_meta_init()
 
 	/* The latches should be ordered on latch_id_t. So that we can
 	index directly into the vector to update and fetch meta-data. */
+
+	LATCH_ADD(LOCK_FREE_HASH, SYNC_LOCK_FREE_HASH,
+		  lock_free_hash_mutex_key);
 
 	LATCH_ADD(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
