@@ -3517,23 +3517,20 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 	const char *org_data= data;
-        const char *firstpt= NULL;
-        char *p_npts= NULL;
 
 	if (len < 4)
 	  goto err;
 
 	n_points= uint4korr(data);
-        p_npts= const_cast<char *>(data);
 	data+= 4;
 
-        if (n_points < 3 || len < 4 + n_points * POINT_DATA_SIZE)
+        // A ring must have at least 4 points.
+        if (n_points < 4 || len != 4 + n_points * POINT_DATA_SIZE)
         {
           my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
           return error_str();
         }
 
-        firstpt= data;
 	float8get(&x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 	float8get(&y1, data);
@@ -3544,20 +3541,14 @@ String *Item_func_spatial_collection::val_str(String *str)
 	float8get(&x2, data);
 	float8get(&y2, data + SIZEOF_STORED_DOUBLE);
 
+        // A ring must be closed.
         if ((x1 != x2) || (y1 != y2))
-        {
-          n_points++;
-          int4store(p_npts, n_points);
-        }
-        else if (n_points == 3)
         {
           my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
           return error_str();
         }
 
-	if (str->append(org_data, len, 512) ||
-            (((x1 != x2) || (y1 != y2)) &&
-             str->append(firstpt, POINT_DATA_SIZE, 512)))
+	if (str->append(org_data, len, 512))
 	  goto err;
       }
       break;
