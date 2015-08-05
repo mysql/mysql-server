@@ -2273,8 +2273,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     bool is_trans= false;
     const char *db= table->db;
     size_t db_len= table->db_length;
-    handlerton *table_type;
-    enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
+    frm_type_enum frm_type;
+    handlerton *hton;
 
     DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: 0x%lx  s: 0x%lx",
                          table->db, table->table_name, (long) table->table,
@@ -2427,8 +2427,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     if (drop_temporary ||
         ((access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
-         (!drop_view &&
-          dd_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
+         ((frm_type= dd_frm_type_and_se(thd, path, &hton)) != FRMTYPE_TABLE &&
+          !drop_view)))
     {
       /*
         One of the following cases happened:
@@ -2458,13 +2458,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      if (frm_db_type == DB_TYPE_UNKNOWN)
-      {
-        dd_frm_type(thd, path, &frm_db_type);
-        DBUG_PRINT("info", ("frm_db_type %d from %s", frm_db_type, path));
-      }
-      table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
-      if (frm_db_type != DB_TYPE_UNKNOWN && !table_type)
+
+      if (frm_type == FRMTYPE_TABLE && !hton)
       {
         my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
         wrong_tables.mem_free();
@@ -2474,13 +2469,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       // Remove extension for delete
       *(end= path + path_length - reg_ext_length)= '\0';
       DBUG_PRINT("info", ("deleting table of type %d",
-                          (table_type ? table_type->db_type : 0)));
-      error= ha_delete_table(thd, table_type, path, db, table->table_name,
+                          (hton ? hton->db_type : 0)));
+      error= ha_delete_table(thd, hton, path, db, table->table_name,
                              !dont_log_query);
 
       /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
-          (if_exists || table_type == NULL))
+          (if_exists || hton == NULL))
       {
         error= 0;
         thd->clear_error();

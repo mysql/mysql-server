@@ -282,5 +282,18 @@ DROP DATABASE db1;
 --replace_result $master_uuid MASTER_UUID
 SELECT GTID_EXECUTED_FROM_TABLE();
 
+
+--echo #
+--echo # Bug #21459999  "ASSERTION FAILURE WHEN PREVIOUSLY UNUSED TIME
+--echo #                 ZONE IS USED WITH GTID + NO BINLOG"
+CREATE TABLE t1(dt DATETIME) engine=INNODB;
+--replace_result $master_uuid MASTER_UUID
+--eval SET SESSION GTID_NEXT='$master_uuid:23'
+--echo # Below statement caused assertion failure.
+INSERT INTO t1 VALUES (CONVERT_TZ('2015-07-01 01:00:00', 'UTC', 'No-such-time-zone'));
+SET SESSION GTID_NEXT='AUTOMATIC';
+DROP TABLE t1;
+
+
 # Cleanup
 --source include/gtid_utils_end.inc

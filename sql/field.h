@@ -488,15 +488,13 @@ public:
   LEX_STRING expr_str;
   /* It's used to free the items created in parsing generated expression */
   Item *item_free_list;
-  /*
-    A list of all stored (non-generated and stored generated) columns which a
-    generated column depends on. It is used by storage engines.
-  */
-  List<Field> base_columns;
+  /// Bitmap records base columns which a generated column depends on.
+  MY_BITMAP base_columns_map;
 
   Generated_column()
-    : expr_item(0), item_free_list(0), base_columns(),
-    field_type(MYSQL_TYPE_LONG), stored_in_db(false)
+    : expr_item(0), item_free_list(0),
+    field_type(MYSQL_TYPE_LONG),
+    stored_in_db(false), num_non_virtual_base_cols(0)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -521,7 +519,13 @@ public:
     stored_in_db= stored;
   }
   bool register_base_columns(TABLE *table);
+  /**
+    Get the number of non virtual base columns that this generated
+    column needs.
 
+    @return number of non virtual base columns
+  */
+  uint non_virtual_base_columns() const { return num_non_virtual_base_cols; }
 private:
   /*
     The following data is only updated by the parser and read
@@ -530,6 +534,8 @@ private:
   enum_field_types field_type;   /* Real field type*/
   bool stored_in_db;             /* Indication that the field is 
                                     phisically stored in the database*/
+  /// How many non-virtual base columns in base_columns_map
+  uint num_non_virtual_base_cols;
 };
 
 class Proto_field

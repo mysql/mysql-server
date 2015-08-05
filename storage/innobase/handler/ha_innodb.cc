@@ -9358,26 +9358,28 @@ innodb_base_col_setup(
 	dict_v_col_t*	v_col)
 {
 	int     n = 0;
-	const Field* base_field;
 
-	List_iterator<Field>    iter(field->gcol_info->base_columns);
+	for (uint i= 0; i < field->table->s->fields; ++i) {
+		const Field* base_field = field->table->field[i];
 
-	while ((base_field = iter++)) {
-		ulint   z;
+		if (!base_field->is_virtual_gcol()
+        && bitmap_is_set(&field->gcol_info->base_columns_map, i)) {
+			ulint   z;
 
-		for (z = 0; z < table->n_cols; z++) {
-			const char*     name = dict_table_get_col_name(table, z);
-			if (!innobase_strcasecmp(name,
-						 base_field->field_name)) {
-				break;
+			for (z = 0; z < table->n_cols; z++) {
+				const char* name = dict_table_get_col_name(table, z);
+				if (!innobase_strcasecmp(name,
+																 base_field->field_name)) {
+					break;
+				}
 			}
+
+			ut_ad(z != table->n_cols);
+
+			v_col->base_col[n] = dict_table_get_nth_col(table, z);
+			ut_ad(v_col->base_col[n]->ind == z);
+			n++;
 		}
-
-		ut_ad(z != table->n_cols);
-
-		v_col->base_col[n] = dict_table_get_nth_col(table, z);
-		ut_ad(v_col->base_col[n]->ind == z);
-		n++;
 	}
 }
 
@@ -9619,7 +9621,7 @@ err_col:
 					| is_virtual,
 					charset_no),
 				col_len, i,
-				field->gcol_info->base_columns.elements);
+				field->gcol_info->non_virtual_base_columns());
 		}
 	}
 
@@ -18262,7 +18264,7 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   innodb_buffer_pool_size_update,
   static_cast<longlong>(srv_buf_pool_def_size),
   static_cast<longlong>(srv_buf_pool_min_size),
-  LONG_MAX, 1024*1024L);
+  LLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,

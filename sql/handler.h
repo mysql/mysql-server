@@ -3776,6 +3776,7 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
+int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 
