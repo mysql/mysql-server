@@ -997,7 +997,7 @@ private:
 
 	/** Update the value of a given tuple.
 	@param[in,out]	t		tuple whose value to update
-	@param[in]	val		value to set or delta to apply
+	@param[in]	val_to_set	value to set or delta to apply
 	@param[in]	is_delta	if true then set the new value to
 	old + val, otherwise just set to val
 	@retval		true		update succeeded
@@ -1006,37 +1006,41 @@ private:
 	bool
 	update_tuple(
 		key_val_t*	t,
-		int64_t		val,
+		int64_t		val_to_set,
 		bool		is_delta)
 	{
-		int64_t	v = t->m_val.load(boost::memory_order_relaxed);
+		int64_t	cur_val = t->m_val.load(boost::memory_order_relaxed);
 
 		for (;;) {
-			if (v == GOTO_NEXT_ARRAY) {
+			if (cur_val == GOTO_NEXT_ARRAY) {
 				return(false);
 			}
 
 			int64_t	new_val;
 
-			if (is_delta && v != NOT_FOUND && v != DELETED) {
-				if (m_del_when_zero && v + val == 0) {
+			if (is_delta && cur_val != NOT_FOUND
+			    && cur_val != DELETED) {
+
+				if (m_del_when_zero
+				    && cur_val + val_to_set == 0) {
+
 					new_val = DELETED;
 				} else {
-					new_val = v + val;
+					new_val = cur_val + val_to_set;
 				}
 			} else {
-				new_val = val;
+				new_val = val_to_set;
 			}
 
 			if (t->m_val.compare_exchange_strong(
-					v,
+					cur_val,
 					new_val,
 					boost::memory_order_relaxed)) {
 				return(true);
 			}
 
 			/* When CAS fails it sets the most recent value of
-			m_val into v. */
+			m_val into cur_val. */
 		}
 	}
 
