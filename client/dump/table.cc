@@ -33,6 +33,7 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
 {
   using Detail::Pattern_matcher;
   bool pk_present= false;
+  bool constraint_present= false;
 
   std::vector<std::string> definition_lines;
   boost::split(definition_lines, sql_formatted_definition,
@@ -57,12 +58,13 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
     }
     else if (boost::starts_with(*it, "CONSTRAINT "))
     {
+      constraint_present= true;
       *it= boost::algorithm::replace_last_copy(*it, ",", "");
       m_indexes_sql_definition.push_back(*it);
     }
     else
     {
-      if (pk_present)
+      if (pk_present || constraint_present)
       {
         if ((it+1) == definition_lines.end())
         {

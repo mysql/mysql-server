@@ -69,9 +69,15 @@ CREATE TABLE t10 (
   CONSTRAINT t10_ibfk_1 FOREIGN KEY (c_id) REFERENCES t8 (c_id) ON UPDATE CASCADE
 );
 
+CREATE TABLE t11 (
+   num int PRIMARY KEY,
+   FOREIGN KEY (num) REFERENCES t9 (v_id)
+);
+
 ALTER TABLE t10 ADD COLUMN v_id INT NOT NULL AFTER c_id;
 ALTER TABLE t10 ADD FOREIGN KEY fk_t9(v_id) REFERENCES
       t9(v_id) ON DELETE NO ACTION ON UPDATE CASCADE;
+
 
 INSERT INTO t4  (name) VALUES ('disk_temptable_create_cost');
 INSERT INTO t4  (name) VALUES ('disk_temptable_row_cost');
