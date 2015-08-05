@@ -632,7 +632,7 @@ TEST_F(ut0lock_free_hash, multi_threaded_0r100w_grow)
 {
 	run_multi_threaded(
 		"multi threaded,   0% read, 100% write, arraygrow" /* label */,
-		1024 /* initial hash size */,
+		1 /* initial hash size */,
 		4096 /* n_common */,
 		256 /* n_priv_per_thread */,
 		64, /* n_threads */
