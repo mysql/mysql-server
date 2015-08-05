@@ -38,10 +38,6 @@ IF(UNIX)
       LINK_LIBRARIES(aio)
     ENDIF()
 
-    IF(HAVE_LIBNUMA)
-      LINK_LIBRARIES(numa)
-    ENDIF()
-
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
@@ -278,6 +274,10 @@ IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
        return(ret);
     }"
     HAVE_LIBNUMA)
+ENDIF()
+
+IF(HAVE_LIBNUMA)
+    LINK_LIBRARIES(numa)
 ENDIF()
 
 SET(WITH_NUMA 1 CACHE BOOL "Explicitly set NUMA memory allocation policy")
