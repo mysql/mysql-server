@@ -242,8 +242,8 @@ public:
 	explicit
 	ut_allocator(
 		PSI_memory_key	key = PSI_NOT_INSTRUMENTED)
-#ifdef UNIV_PFS_MEMORY
 		:
+#ifdef UNIV_PFS_MEMORY
 		m_key(key),
 #endif /* UNIV_PFS_MEMORY */
 		m_oom_fatal(true)
@@ -907,6 +907,8 @@ ut_delete_array(
 #define ut_malloc_nokey(n_bytes)	::malloc(n_bytes)
 
 #define ut_zalloc_nokey(n_bytes)	::calloc(1, n_bytes)
+
+#define ut_zalloc_nokey_nofatal(n_bytes)	::calloc(1, n_bytes)
 
 #define ut_realloc(ptr, n_bytes)	::realloc(ptr, n_bytes)
 
