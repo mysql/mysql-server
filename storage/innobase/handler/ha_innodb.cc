@@ -18645,7 +18645,7 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   innodb_buffer_pool_size_update,
   static_cast<longlong>(srv_buf_pool_def_size),
   static_cast<longlong>(srv_buf_pool_min_size),
-  LONG_MAX, 1024*1024L);
+  LLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
