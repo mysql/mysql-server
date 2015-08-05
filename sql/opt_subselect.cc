@@ -1592,6 +1592,15 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   if (subq_pred->left_expr->cols() == 1)
   {
     nested_join->sj_outer_expr_list.push_back(subq_pred->left_expr);
+    /*
+      Create Item_func_eq. Note that
+      1. this is done on the statement, not execution, arena
+      2. if it's a PS then this happens only once - on the first execution.
+         On following re-executions, the item will be fix_field-ed normally.
+      3. Thus it should be created as if it was fix_field'ed, in particular
+         all pointers to items in the execution arena should be protected
+         with thd->change_item_tree
+    */
     Item_func_eq *item_eq=
       new Item_func_eq(subq_pred->left_expr_orig, subq_lex->ref_pointer_array[0]);
     if (subq_pred->left_expr_orig != subq_pred->left_expr)

@@ -1442,6 +1442,12 @@ bool Item_in_optimizer::eval_not_null_tables(uchar *opt_arg)
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
   DBUG_ENTER("Item_in_optimizer::fix_left");
+  /*
+    Here we will store pointer on place of main storage of left expression.
+    For usual IN (ALL/ANY) it is subquery left_expr.
+    For other cases (MAX/MIN optimization, non-transformed EXISTS (10.0))
+    it is args[0].
+  */
   Item **ref0= args;
   if (args[1]->type() == Item::SUBSELECT_ITEM &&
       ((Item_subselect *)args[1])->is_in_predicate())
@@ -1455,12 +1461,17 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
        next execution we need to copy args[1]->left_expr again.
     */
     ref0= &(((Item_in_subselect *)args[1])->left_expr);
+    args[0]= ((Item_in_subselect *)args[1])->left_expr;
   }
   if ((!(*ref0)->fixed && (*ref0)->fix_fields(thd, ref0)) ||
       (!cache && !(cache= Item_cache::get_cache(*ref0))))
     DBUG_RETURN(1);
+  /*
+    During fix_field() expression could be substituted.
+    So we copy changes before use
+  */
   if (args[0] != (*ref0))
-    current_thd->change_item_tree(args, (*ref0));
+    args[0]= (*ref0);
   DBUG_PRINT("info", ("actual fix fields"));
 
   cache->setup(args[0]);
