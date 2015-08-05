@@ -507,8 +507,8 @@ ST_CROSSES(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal))
 #====================================================================================
 # linestring,polygon
 #====================================================================================
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
-ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'))
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'))
 0
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal))
@@ -519,14 +519,14 @@ ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_hor
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal_3))
 0
-SELECT ST_CROSSES(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25))')) FROM gis_geometrycollection WHERE fid=110;
-ST_CROSSES(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25))'))
+SELECT ST_CROSSES(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25,11 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+ST_CROSSES(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 25,11 15,11 15))'))
 0
 #====================================================================================
 # linestring,multipolygon
 #====================================================================================
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))'));
-ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))'))
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15,11 15)),((25 0,0 15,25 10,25 0)))'));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15,11 15)),((25 0,0 15,25 10,25 0)))'))
 0
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems))
@@ -537,8 +537,8 @@ ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems_3))
 0
-SELECT ST_CROSSES(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))')) FROM gis_geometrycollection WHERE fid=110;
-ST_CROSSES(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25)),((25 0,0 15,25 10)))'))
+SELECT ST_CROSSES(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15,11 15)),((25 0,0 15,25 10,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+ST_CROSSES(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15,11 15)),((25 0,0 15,25 10,25 0)))'))
 0
 #====================================================================================
 # linestring,geometrycollection
@@ -627,8 +627,8 @@ ST_CROSSES(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_line
 SELECT ST_CROSSES(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
 ST_CROSSES(g,ST_GEOMFROMTEXT('MULTILINESTRING((0 5,15 25,0 15))'))
 0
-SELECT ST_CROSSES(ST_GEOMFROMTEXT('LINESTRING(3 10, 1 5, 1 10, 3 4, 7 8, 6 10, 10 2)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
-ST_CROSSES(ST_GEOMFROMTEXT('LINESTRING(3 10, 1 5, 1 10, 3 4, 7 8, 6 10, 10 2)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'))
+SELECT ST_CROSSES(ST_GEOMFROMTEXT('LINESTRING(3 10, 1 5, 1 10, 3 4, 7 8, 6 10, 10 2)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'));
+ST_CROSSES(ST_GEOMFROMTEXT('LINESTRING(3 10, 1 5, 1 10, 3 4, 7 8, 6 10, 10 2)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'))
 0
 #====================================================================================
 # multilinestring,polygon

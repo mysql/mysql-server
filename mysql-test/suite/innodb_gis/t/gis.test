@@ -691,7 +691,7 @@ CREATE TABLE t1(a INT, b MULTIPOLYGON);
 INSERT INTO t1 VALUES
   (0,
    ST_GEOMFROMTEXT(
-    'multipolygon(((1 2,3 4,5 6,7 8,9 8),(7 6,5 4,3 2,1 2,3 4)))'));
+    'multipolygon(((1 2,3 4,5 6,7 8,9 8,1 2,1 2),(7 6,5 4,3 2,1 2,3 4,7 6)))'));
 
 --echo # must not crash
 SELECT 1 FROM t1 WHERE a <> (SELECT ST_GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
