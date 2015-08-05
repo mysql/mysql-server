@@ -161,4 +161,31 @@ c1	c2
 203	d
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Bug 21433768: NON-REPEATABLE READ WITH REPEATABLE READ ISOLATION
+#
+# connection con1
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 INT) ENGINE = InnoDB;
+INSERT INTO t1 values (1, 0), (2, 0);
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	0
+2	0
+START TRANSACTION;
+UPDATE t1 SET col2 = 100;
+SET DEBUG_SYNC = 'after_trx_committed_in_memory SIGNAL s1 WAIT_FOR s2';
+COMMIT;;
+# connection default
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+UPDATE t1 SET col2 = col2 + 10 where col1 = 1;
+COMMIT;
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	110
+2	100
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# connection con1
+# reap COMMIT for con1
+# connection default
+DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';

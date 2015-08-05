@@ -422,6 +422,18 @@ ReadView::copy_trx_ids(const trx_ids_t& trx_ids)
 
 		::memmove(p, &trx_ids[0], n);
 	}
+
+#ifdef UNIV_DEBUG
+	/* Assert that all transaction ids in list are active. */
+	for (trx_ids_t::const_iterator it = trx_ids.begin();
+	     it != trx_ids.end(); ++it) {
+
+		trx_t*	trx = trx_get_rw_trx_by_id(*it);
+		ut_ad(trx != NULL);
+		ut_ad(trx->state == TRX_STATE_ACTIVE
+		      || trx->state == TRX_STATE_PREPARED);
+	}
+#endif /* UNIV_DEBUG */
 }
 
 /**
