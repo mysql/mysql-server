@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+"Test case 1"
+CREATE TABLE t1(f1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+include/sync_slave_sql_with_master.inc
+SET @debug_save=@@GLOBAL.debug;
+SET GLOBAL debug="d,flush_after_reading_gtid_event";
+[connection master]
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.debug=@debug_save;
+[connection master]
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+include/rpl_restart_server.inc [server_number=2]
+[connection slave]
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+include/wait_for_slave_param.inc [Retrieved_Gtid_Set]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_reset.inc
+"Test case 2"
+[connection master]
+CREATE TABLE t1(f1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+include/sync_slave_sql_with_master.inc
+call mtr.add_suppression('Relay log write failure: could not queue event from master');
+SET @debug_save=@@GLOBAL.debug;
+SET GLOBAL debug="d,set_append_buffer_error";
+[connection master]
+INSERT INTO t1 VALUES(1);
+[connection slave]
+include/wait_for_slave_io_error.inc [errno=1595]
+Last_IO_Error = 'Relay log write failure: could not queue event from master'
+SET @@GLOBAL.debug=@debug_save;
+include/stop_slave_sql.inc
+include/wait_for_slave_param.inc [Retrieved_Gtid_Set]
+include/start_slave.inc
+[connection master]
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

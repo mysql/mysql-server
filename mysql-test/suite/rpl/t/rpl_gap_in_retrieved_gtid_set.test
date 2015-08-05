@@ -1,0 +1,107 @@
+###############################################################################
+# Bug#21046372: GAPS IN RETRIEVED_GTID_SET WHILE NO GAPS IN
+# EXECUTED_GTID_SET
+#
+# Problem:
+# ========
+# Under certain circumstances it is possible that Retrieved_Gtid_Set on slave
+# will contain gaps while actually no gaps will be in Executed_Gtid_Set and
+# slave binary logs.
+#
+# Test:
+# =====
+# case1:
+# Simulate a test scenario where slave rotates relay log in such a way that
+# last event contains record which sets GTID_NEXT, then following log contains
+# few GTIDs, then slave restarts. Post restart the retrieved set should not
+# contain any gaps.
+# case2:
+# As part of fixing case1 we add GTID to Retrieved_Gtid_Set before we write
+# the actual event to relay log. If writing the actual event to relay log
+# fails then we remove the GTID from the Retrieved_Gtid_Set. Simulate relay
+# log write failure when writing an event with gtidno:4 to relay log. Check
+# that Retrieved_Gtid_Set shows gtid set as:1-3.
+###############################################################################
+--source include/have_gtid.inc
+--source include/have_debug.inc
+# Script is independent of binlog format hence considering mixed mode
+--source include/have_binlog_format_mixed.inc
+--source include/master-slave.inc
+
+--echo "Test case 1"
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE t1(f1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+
+--source include/sync_slave_sql_with_master.inc
+SET @debug_save=@@GLOBAL.debug;
+SET GLOBAL debug="d,flush_after_reading_gtid_event";
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1);
+
+--source include/sync_slave_sql_with_master.inc
+SET @@GLOBAL.debug=@debug_save;
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1);
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1);
+
+--source include/sync_slave_sql_with_master.inc
+--let $slave_param= Retrieved_Gtid_Set
+--let $slave_param_value= $master_uuid:1-6
+--source include/wait_for_slave_param.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_reset.inc
+
+--echo "Test case 2"
+--source include/rpl_connection_master.inc
+--let $master_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+CREATE TABLE t1(f1 INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+
+--source include/sync_slave_sql_with_master.inc
+call mtr.add_suppression('Relay log write failure: could not queue event from master');
+SET @debug_save=@@GLOBAL.debug;
+SET GLOBAL debug="d,set_append_buffer_error";
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1);
+
+--source include/rpl_connection_slave.inc
+--let $slave_io_errno= convert_error(ER_SLAVE_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+SET @@GLOBAL.debug=@debug_save;
+--source include/stop_slave_sql.inc
+--let $slave_param= Retrieved_Gtid_Set
+--let $slave_param_value= $master_uuid:1-3
+--source include/wait_for_slave_param.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc
