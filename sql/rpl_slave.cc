@@ -6690,6 +6690,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   char *save_buf= NULL; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + ROTATE_HEADER_LEN + FN_REFLEN];
   Gtid gtid= { 0, 0 };
+  Gtid old_retrieved_gtid;
   Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   DBUG_ASSERT(checksum_alg == BINLOG_CHECKSUM_ALG_OFF || 
@@ -7117,29 +7118,58 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
   else
   {
+    DBUG_EXECUTE_IF("flush_after_reading_gtid_event",
+                    if (event_type == GTID_LOG_EVENT && gtid.gno == 4)
+                      DBUG_SET("+d,set_max_size_zero");
+                   );
+    DBUG_EXECUTE_IF("set_append_buffer_error",
+                    if (event_type == GTID_LOG_EVENT && gtid.gno == 4)
+                      DBUG_SET("+d,simulate_append_buffer_error");
+                   );
+    /*
+      Add the GTID to the retrieved set before actually appending it to relay
+      log. This will ensure that if a rotation happens at this point of time the
+      new GTID will be reflected as part of Previous_Gtid set and
+      Retrieved_Gtid_Set will not have any gaps.
+    */
+    if (event_type == GTID_LOG_EVENT)
+    {
+      global_sid_lock->rdlock();
+      old_retrieved_gtid= *(mi->rli->get_last_retrieved_gtid());
+      int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
+      if (!ret)
+        rli->set_last_retrieved_gtid(gtid);
+      global_sid_lock->unlock();
+      if (ret != 0)
+      {
+        mysql_mutex_unlock(log_lock);
+        goto err;
+      }
+    }
     /* write the event to the relay log */
-    if (likely(rli->relay_log.append_buffer(buf, event_len, mi) == 0))
+    if (!DBUG_EVALUATE_IF("simulate_append_buffer_error", 1, 0) &&
+       likely(rli->relay_log.append_buffer(buf, event_len, mi) == 0))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
       rli->relay_log.harvest_bytes_written(&rli->log_space_total);
-
-      if (event_type == GTID_LOG_EVENT)
-      {
-        global_sid_lock->rdlock();
-        int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
-        if (!ret)
-          rli->set_last_retrieved_gtid(gtid);
-        global_sid_lock->unlock();
-        if (ret != 0)
-        {
-          mysql_mutex_unlock(log_lock);
-          goto err;
-        }
-      }
     }
     else
     {
+      if (event_type == GTID_LOG_EVENT)
+      {
+        global_sid_lock->rdlock();
+        Gtid_set * retrieved_set= (const_cast<Gtid_set *>(mi->rli->get_gtid_set()));
+        if (retrieved_set->_remove_gtid(gtid) != RETURN_STATUS_OK)
+        {
+          global_sid_lock->unlock();
+          mysql_mutex_unlock(log_lock);
+          goto err;
+        }
+        if (!old_retrieved_gtid.empty())
+          rli->set_last_retrieved_gtid(old_retrieved_gtid);
+        global_sid_lock->unlock();
+      }
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
     }
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
