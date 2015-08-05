@@ -436,7 +436,6 @@ SHOW TABLE STATUS like 't1';
 --error ER_NOT_FORM_FILE
 show create table t1;
 drop table if exists t1;
---error 1,0
 --remove_file $MYSQLD_DATADIR/test/t1.frm
 
 #

@@ -1709,7 +1709,6 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   String non_existant_views;
   char *wrong_object_db= NULL, *wrong_object_name= NULL;
   bool error= FALSE;
-  enum legacy_db_type not_used;
   bool some_views_deleted= FALSE;
   bool something_wrong= FALSE;
   DBUG_ENTER("mysql_drop_view");
@@ -1736,7 +1735,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
                          view->db, view->table_name, reg_ext, 0);
 
     if (access(path, F_OK) || 
-        FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
+        FRMTYPE_VIEW != (type= dd_frm_type(thd, path)))
     {
       if (thd->lex->drop_if_exists)
       {

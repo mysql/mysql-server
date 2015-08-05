@@ -3977,11 +3977,10 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
     }
     else
     {
-      enum legacy_db_type not_used;
       char path[FN_REFLEN + 1];
       (void) build_table_filename(path, sizeof(path) - 1, db_name->str, 
                                   table_name->str, reg_ext, 0);
-      switch (dd_frm_type(thd, path, &not_used)) {
+      switch (dd_frm_type(thd, path)) {
       case FRMTYPE_ERROR:
         table->field[3]->store(STRING_WITH_LEN("ERROR"),
                                system_charset_info);

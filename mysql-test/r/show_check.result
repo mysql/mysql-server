@@ -690,6 +690,8 @@ Warning	1033	Incorrect information in file: './test/t1.frm'
 show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
 
 # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar.
 

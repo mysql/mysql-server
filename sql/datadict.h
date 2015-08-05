@@ -29,7 +29,8 @@ enum frm_type_enum
 };
 
 
-frm_type_enum dd_frm_type(THD *thd, char *path, enum legacy_db_type *dbt);
+frm_type_enum dd_frm_type(THD *thd, char *path);
+frm_type_enum dd_frm_type_and_se(THD *thd, char *path, handlerton **hton);
 
 bool dd_check_storage_engine_flag(THD *thd,
                                   const char *db, const char *table_name,
