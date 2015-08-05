@@ -12093,7 +12093,7 @@ validate_create_tablespace_info(
 
 	/* CREATE TABLESPACE...ADD DATAFILE can be inside but not under
 	the datadir.*/
-	if (folder.is_child_of(folder_mysql_datadir)) {
+	if (folder_mysql_datadir > folder) {
 		my_error(ER_WRONG_FILE_NAME, MYF(0),
 			 alter_info->data_file_name);
 		my_printf_error(ER_WRONG_FILE_NAME,

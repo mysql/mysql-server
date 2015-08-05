@@ -289,10 +289,17 @@ public:
 	@return whether the folders are equal */
 	bool operator==(const Folder& other) const;
 
-	/** Determine this folder is a child of another folder.
+	/** Determine if the left folder is the same or an ancestor of
+	(contains) the right folder.
 	@param[in]	other	folder to compare to
-	@return whether this is a (grand)parent of the other folder */
-	bool is_child_of(const Folder& other) const;
+	@return whether this is the same or an ancestor or the other folder. */
+	bool operator>=(const Folder& other) const;
+
+	/** Determine if the left folder is an ancestor of (contains)
+	the right folder.
+	@param[in]	other	folder to compare to
+	@return whether this is an ancestor of the other folder */
+	bool operator>(const Folder& other) const;
 
 	/** Determine if the directory referenced by m_folder exists.
 	@return whether the directory exists */
@@ -953,14 +960,12 @@ enum fil_load_status {
 /** Open a single-file tablespace and add it to the InnoDB data structures.
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
-@param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
 fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
-	ulint		filename_len,
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
 
