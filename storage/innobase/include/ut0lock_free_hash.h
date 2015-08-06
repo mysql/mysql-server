@@ -142,7 +142,8 @@ public:
 			void*		mem;
 
 			if (m_numa_available) {
-				const int	node = os_numa_node_of_cpu(i);
+				const int	node = os_numa_node_of_cpu(
+					static_cast<int>(i));
 
 				mem = os_numa_alloc_onnode(s, node);
 			} else {
