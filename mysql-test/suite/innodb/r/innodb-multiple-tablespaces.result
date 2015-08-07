@@ -482,13 +482,6 @@ DROP TABLE wy;
 DROP TABLE yn;
 DROP TABLE yw;
 DROP TABLE yy;
----- MYSQLD_DATADIR/test
-wy.ibd
-ynw.ibd
-ywn.ibd
-yy.ibd
----- MYSQL_TMP_DIR/alt_dir/test
-nolink.ibd.bak
 #
 # List of files after DROP TABLES
 #

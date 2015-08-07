@@ -3944,20 +3944,14 @@ recovered.  The tablespace flags are read at this time from the first page
 of the file in validate_for_recovery().
 @param[in]	space_id	tablespace ID
 @param[in]	filename	path/to/databasename/tablename.ibd
-@param[in]	filename_len	the length of the filename, in bytes
 @param[out]	space		the tablespace, or NULL on error
 @return status of the operation */
 enum fil_load_status
 fil_ibd_load(
 	ulint		space_id,
 	const char*	filename,
-	ulint		filename_len,
 	fil_space_t*&	space)
 {
-	Datafile	file;
-
-	file.set_filepath(filename);
-
 	/* If the a space is already in the file system cache with this
 	space ID, then there is nothing to do. */
 	mutex_enter(&fil_system->mutex);
@@ -3970,7 +3964,7 @@ fil_ibd_load(
 		previously. Fail if it is different. */
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 
-		if (0 != strcmp(file.filepath(), node->name)) {
+		if (0 != strcmp(filename, node->name)) {
 			ib::info() << "Ignoring data file '" << filename
 				<< "' with space ID " << space->id
 				<< ". Another data file called " << node->name
@@ -3982,6 +3976,8 @@ fil_ibd_load(
 		return(FIL_LOAD_OK);
 	}
 
+	Datafile	file;
+	file.set_filepath(filename);
 	if (file.open_read_only(false) != DB_SUCCESS) {
 		return(FIL_LOAD_NOT_FOUND);
 	}
@@ -3996,10 +3992,11 @@ fil_ibd_load(
 		os_offset_t	minimum_size;
 	case DB_SUCCESS:
 		if (file.space_id() != space_id) {
-			ib::info() << "Ignoring data file '" << filename
+			ib::info() << "Ignoring data file '"
+				<< file.filepath()
 				<< "' with space ID " << file.space_id()
 				<< ", since the redo log references "
-				<< filename << " with space ID "
+				<< file.filepath() << " with space ID "
 				<< space_id << ".";
 			return(FIL_LOAD_ID_CHANGED);
 		}
@@ -4007,8 +4004,8 @@ fil_ibd_load(
 		/* Get and test the file size. */
 		size = os_file_get_size(file.handle());
 
-		/* Every .ibd file is created >= 4 pages in size. Smaller files
-		cannot be ok. */
+		/* Every .ibd file is created >= 4 pages in size.
+		Smaller files cannot be OK. */
 		minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
 
 		if (size == static_cast<os_offset_t>(-1)) {
@@ -4016,13 +4013,13 @@ fil_ibd_load(
 			os_file_get_last_error(true);
 
 			ib::error() << "Could not measure the size of"
-				" single-table tablespace file '" << filename
-				<< "'";
+				" single-table tablespace file '"
+				<< file.filepath() << "'";
 
 		} else if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
 			ib::error() << "The size of tablespace file '"
-				<< filename << "' is only " << size
+				<< file.filepath() << "' is only " << size
 				<< ", should be at least " << minimum_size
 				<< "!";
 #else
@@ -4051,7 +4048,7 @@ fil_ibd_load(
 	if (file.space_id() == ULINT_UNDEFINED || file.space_id() == 0) {
 		char*	new_path;
 
-		ib::info() << "Renaming tablespace file '" << filename
+		ib::info() << "Renaming tablespace file '" << file.filepath()
 			<< "' with space ID " << file.space_id() << " to "
 			<< file.name() << "_ibbackup_old_vers_<timestamp>"
 			" because its size " << size() << " is too small"
@@ -4060,10 +4057,10 @@ fil_ibd_load(
 			" an mysqlbackup run, and is not dangerous.";
 		file.close();
 
-		new_path = fil_make_ibbackup_old_name(filename);
+		new_path = fil_make_ibbackup_old_name(file.filepath());
 
 		bool	success = os_file_rename(
-			innodb_data_file_key, filename, new_path);
+			innodb_data_file_key, file.filepath(), new_path);
 
 		ut_a(success);
 
@@ -4084,18 +4081,19 @@ fil_ibd_load(
 	mutex_exit(&fil_system->mutex);
 
 	if (space != NULL) {
-		ib::info() << "Renaming data file '" << filename << "' with"
-			" space ID " << space_id << " to " << file.name()
+		ib::info() << "Renaming data file '" << file.filepath()
+			<< "' with space ID " << space_id << " to "
+			<< file.name()
 			<< "_ibbackup_old_vers_<timestamp> because space "
 			<< space->name << " with the same id was scanned"
 			" earlier. This can happen if you have renamed tables"
 			" during an mysqlbackup run.";
 		file.close();
 
-		char*	new_path = fil_make_ibbackup_old_name(filename);
+		char*	new_path = fil_make_ibbackup_old_name(file.filepath());
 
 		bool	success = os_file_rename(
-			innodb_data_file_key, filename, new_path);
+			innodb_data_file_key, file.filepath(), new_path);
 
 		ut_a(success);
 
@@ -4118,7 +4116,8 @@ fil_ibd_load(
 	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
-	if (!fil_node_create_low(filename, 0, space, false, true, false)) {
+	if (!fil_node_create_low(file.filepath(), 0, space,
+				 false, true, false)) {
 		ut_error;
 	}
 
@@ -6624,13 +6623,24 @@ bool Folder::operator==(const Folder& other) const
 	       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
 }
 
-/** Determine this folder is a child of another folder.
+/** Determine if the left folder is the same or an ancestor of
+(contains) the right folder.
 @param[in]	other	folder to compare to
-@return whether this is a (grand)parent of the other folder */
-bool Folder::is_child_of(const Folder& other) const
+@return whether this is the same or an ancestor of the other folder. */
+bool Folder::operator>=(const Folder& other) const
 {
-	return(m_abs_len > other.m_abs_len
-	       && (!memcmp(other.m_abs_path, m_abs_path, other.m_abs_len)));
+	return(m_abs_len <= other.m_abs_len
+		&& (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
+}
+
+/** Determine if the left folder is an ancestor of (contains)
+the right folder.
+@param[in]	other	folder to compare to
+@return whether this is an ancestor of the other folder */
+bool Folder::operator>(const Folder& other) const
+{
+	return(m_abs_len < other.m_abs_len
+	       && (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
 }
 
 /** Determine if the directory referenced by m_folder exists.

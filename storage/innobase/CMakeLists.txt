@@ -176,3 +176,16 @@ IF(HAVE_NO_LOGICAL_OP)
     COMPILE_FLAGS "-Wno-logical-op"
   )
 ENDIF()
+
+# A GCC bug causes crash when compiling these files on ARM64 with -O1+
+# Compile them with -O0 as a workaround until the GCC bug is fixed.
+IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+  ADD_COMPILE_FLAGS(
+    btr/btr0btr.cc
+    btr/btr0cur.cc
+    buf/buf0buf.cc
+    gis/gis0sea.cc
+    COMPILE_FLAGS "-O0"
+  )
+ENDIF()

@@ -455,7 +455,7 @@ public:
     SEL_ARG types. See todo for left/right pointers.
   */
   SEL_ARG(enum Type type_arg)
-    :min_flag(0), rkey_func_flag(HA_READ_INVALID), elements(1),
+    :min_flag(0), part(0), rkey_func_flag(HA_READ_INVALID), elements(1),
     use_count(1), left(NULL), right(NULL),
     next_key_part(0), color(BLACK), type(type_arg)
   {
@@ -2033,7 +2033,7 @@ inline void SEL_ARG::make_root()
 
 SEL_ARG::SEL_ARG(Field *f,const uchar *min_value_arg,
                  const uchar *max_value_arg)
-  :min_flag(0), max_flag(0), maybe_flag(0),
+  :min_flag(0), max_flag(0), maybe_flag(0), part(0),
   maybe_null(f->real_maybe_null()), rkey_func_flag(HA_READ_INVALID),
   elements(1), use_count(1), field(f),
   min_value(const_cast<uchar *>(min_value_arg)),

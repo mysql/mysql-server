@@ -429,11 +429,6 @@ DROP TABLE yn;
 DROP TABLE yw;
 DROP TABLE yy;
 
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
 --echo #
 --echo # List of files after DROP TABLES
 --echo #

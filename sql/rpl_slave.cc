@@ -2273,12 +2273,11 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
-  if (!mysql_real_query(mysql,
-                        STRING_WITH_LEN("SHOW GLOBAL VARIABLES LIKE 'SERVER_UUID'")) &&
+  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_UUID")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
-    if (!strcmp(::server_uuid, master_row[1]) &&
+    if (!strcmp(::server_uuid, master_row[0]) &&
         !mi->rli->replicate_same_server_id)
     {
       errmsg= "The slave I/O thread stops because master and slave have equal "
@@ -2292,12 +2291,12 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     }
     else
     {
-      if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[1]))
+      if (mi->master_uuid[0] != 0 && strcmp(mi->master_uuid, master_row[0]))
         sql_print_warning("The master's UUID has changed, although this should"
                           " not happen unless you have changed it manually."
                           " The old UUID was %s.",
                           mi->master_uuid);
-      strncpy(mi->master_uuid, master_row[1], UUID_LENGTH);
+      strncpy(mi->master_uuid, master_row[0], UUID_LENGTH);
       mi->master_uuid[UUID_LENGTH]= 0;
     }
   }
@@ -2568,8 +2567,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     are equal (which can result from a simple copy of master's datadir to slave,
     thus copying some my.cnf), replication will work but all events will be
     skipped.
-    Do not die if SHOW GLOBAL VARIABLES LIKE 'SERVER_ID' fails on master (very old
-    master?).
+    Do not die if SELECT @@SERVER_ID fails on master (very old master?).
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
@@ -2590,12 +2588,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                     DBUG_SET("-d,get_master_server_id."
                              "ER_NET_READ_INTERRUPTED");
                   });
-  if (!mysql_real_query(mysql,
-                        STRING_WITH_LEN("SHOW GLOBAL VARIABLES LIKE 'SERVER_ID'")) &&
+  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_ID")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
-    if ((::server_id == (mi->master_id= strtoul(master_row[1], 0, 10))) &&
+    if ((::server_id == (mi->master_id= strtoul(master_row[0], 0, 10))) &&
         !mi->rli->replicate_same_server_id)
     {
       errmsg= "The slave I/O thread stops because master and slave have equal \
