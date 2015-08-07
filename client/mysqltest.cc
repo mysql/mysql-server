@@ -5097,7 +5097,7 @@ void do_shutdown_server(struct st_command *command)
     }
 
     /* Tell server to shutdown if timeout > 0. */
-    if (timeout > 0 && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    if (timeout > 0 && mysql_query(mysql, "shutdown"))
     {
       error= 1;   /* Failed to issue shutdown command. */
       goto end;
@@ -9489,8 +9489,8 @@ int main(int argc, char **argv)
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
-                             mysql_shutdown(&cur_con->mysql,
-                                            SHUTDOWN_DEFAULT));
+                             mysql_query(&cur_con->mysql,
+                                            "shutdown"));
         break;
       case Q_SHUTDOWN_SERVER:
         do_shutdown_server(command);

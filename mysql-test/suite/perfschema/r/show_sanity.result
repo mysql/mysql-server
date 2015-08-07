@@ -510,6 +510,7 @@ where show_mode = "5.7"
     and source = "P_S.GLOBAL_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.GLOBAL_STATUS	COM_SHUTDOWN
 
 ================================================================================
 TEST 8
@@ -564,6 +565,7 @@ where show_mode = "5.7"
     and source = "P_S.SESSION_STATUS")
 order by show_mode, source, variable_name;
 SHOW_MODE	SOURCE	VARIABLE_NAME
+5.6	I_S.SESSION_STATUS	COM_SHUTDOWN
 
 ================================================================================
 TEST 11

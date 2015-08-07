@@ -112,6 +112,7 @@ void init_update_queries(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
 void killall_non_super_threads(THD *thd);
+bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_command command);
 
 /* Variables */
 

@@ -130,4 +130,15 @@ public:
   }
 };
 
+
+/**
+  Sql_cmd_shutdown represents the SHUTDOWN statement.
+*/
+class Sql_cmd_shutdown : public Sql_cmd
+{
+public:
+  virtual bool execute(THD *thd);
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_SHUTDOWN; }
+};
+
 #endif
