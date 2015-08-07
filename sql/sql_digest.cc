@@ -49,13 +49,19 @@
 
 #define SIZE_OF_A_TOKEN 2
 
+ulong max_digest_length= 0;
+ulong get_max_digest_length()
+{
+  return max_digest_length;
+}
+
 /**
   Read a single token from token array.
 */
 inline uint read_token(const sql_digest_storage *digest_storage,
                        uint index, uint *tok)
 {
-  uint safe_byte_count= digest_storage->m_byte_count;
+  uint safe_byte_count= (uint)digest_storage->m_byte_count;
 
   if (index + SIZE_OF_A_TOKEN <= safe_byte_count &&
       safe_byte_count <= digest_storage->m_token_array_length)
@@ -97,7 +103,7 @@ inline uint read_identifier(const sql_digest_storage* digest_storage,
                             uint index, char ** id_string, int *id_length)
 {
   uint new_index;
-  uint safe_byte_count= digest_storage->m_byte_count;
+  uint safe_byte_count= (uint)digest_storage->m_byte_count;
 
   DBUG_ASSERT(index <= safe_byte_count);
   DBUG_ASSERT(safe_byte_count <= digest_storage->m_token_array_length);
@@ -165,7 +171,7 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
 {
   compute_md5_hash((char *) md5,
                    (const char *) digest_storage->m_token_array,
-                   digest_storage->m_byte_count);
+                   (int)digest_storage->m_byte_count);
 }
 
 /*
@@ -175,7 +181,7 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
                          String *digest_text)
 {
   DBUG_ASSERT(digest_storage != NULL);
-  uint byte_count= digest_storage->m_byte_count;
+  uint byte_count= (uint)digest_storage->m_byte_count;
   String *digest_output= digest_text;
   uint tok= 0;
   uint current_byte= 0;
@@ -224,6 +230,7 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
     /* All identifiers are printed with their name. */
     case IDENT:
     case IDENT_QUOTED:
+    case TOK_IDENT:
       {
         char *id_ptr= NULL;
         int id_len= 0;
@@ -259,13 +266,10 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
           break;
         }
         /* Copy the converted identifier into the digest string. */
-        if (tok == IDENT_QUOTED)
-          digest_output->append("`", 1);
+        digest_output->append("`", 1);
         if (id_length > 0)
-          digest_output->append(id_string, id_length);
-        if (tok == IDENT_QUOTED)
-          digest_output->append("`", 1);
-        digest_output->append(" ", 1);
+          digest_output->append(id_string, (uint)id_length);
+        digest_output->append("` ", 2);
       }
       break;
 
@@ -302,7 +306,7 @@ static inline uint peek_token(const sql_digest_storage *digest, uint index)
 static inline void peek_last_two_tokens(const sql_digest_storage* digest_storage,
                                         uint last_id_index, uint *t1, uint *t2)
 {
-  uint byte_count= digest_storage->m_byte_count;
+  uint byte_count= (uint)digest_storage->m_byte_count;
   uint peek_index= byte_count;
 
   if (last_id_index + SIZE_OF_A_TOKEN <= peek_index)
@@ -336,7 +340,7 @@ static inline void peek_last_two_tokens(const sql_digest_storage* digest_storage
 static inline void peek_last_three_tokens(const sql_digest_storage* digest_storage,
                                           uint last_id_index, uint *t1, uint *t2, uint *t3)
 {
-  uint byte_count= digest_storage->m_byte_count;
+  uint byte_count= (uint)digest_storage->m_byte_count;
   uint peek_index= byte_count;
 
   if (last_id_index + SIZE_OF_A_TOKEN <= peek_index)
@@ -575,11 +579,20 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
       char *yytext= lex_token->lex_str.str;
       size_t yylen= lex_token->lex_str.length;
 
+      /*
+        REDUCE:
+          TOK_IDENT := IDENT | IDENT_QUOTED
+        The parser gives IDENT or IDENT_TOKEN for the same text,
+        depending on the character set used.
+        We unify both to always print the same digest text,
+        and always have the same digest hash.
+      */
+      token= TOK_IDENT;
       /* Add this token and identifier string to digest storage. */
       store_token_identifier(digest_storage, token, yylen, yytext);
 
       /* Update the index of last identifier found. */
-      state->m_last_id_index= digest_storage->m_byte_count;
+      state->m_last_id_index= (int)digest_storage->m_byte_count;
       break;
     }
     default:

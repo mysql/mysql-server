@@ -1,3 +1,18 @@
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 #ifndef RPL_RLI_PDB_H
 
 #define RPL_RLI_PDB_H
@@ -314,6 +329,7 @@ public:
   */
   // the index in GAQ of the last processed group by this Worker
   volatile ulong last_group_done_index;
+  ulonglong last_groups_assigned_index; // index of previous group assigned to worker
   ulong wq_empty_waits;  // how many times got idle
   ulong events_done;     // how many events (statements) processed
   ulong groups_done;     // how many groups (transactions) processed
@@ -360,14 +376,21 @@ public:
   {
     NOT_RUNNING= 0,
     RUNNING= 1,
-    ERROR_LEAVING,         // is set by Worker
-    KILLED                 // is set by Coordinator
+    ERROR_LEAVING= 2,         // is set by Worker
+    STOP= 3,                  // is set by Coordinator upon receiving STOP
+    STOP_ACCEPTED= 4          // is set by worker upon completing job when STOP SLAVE is issued
   };
   /*
     The running status is guarded by jobs_lock mutex that a writer
     Coordinator or Worker itself needs to hold when write a new value.
   */
   en_running_state volatile running_status;
+  /*
+    exit_incremented indicates whether worker has contributed to max updated index.
+    By default it is set to false. When the worker contibutes for the first time this
+    variable is set to true.
+  */
+  bool exit_incremented;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
@@ -427,6 +450,11 @@ private:
   Slave_worker& operator=(const Slave_worker& info);
   Slave_worker(const Slave_worker& info);
 };
+
+void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
+bool handle_slave_worker_stop(Slave_worker *worker, Slave_job_item *job_item);
+bool set_max_updated_index_on_stop(Slave_worker *worker,
+                                   Slave_job_item *job_item);
 
 TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);

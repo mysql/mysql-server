@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,8 +55,8 @@ int init_setup_object(const PFS_global_param *param)
 
   if (setup_object_max > 0)
   {
-    setup_object_array= PFS_MALLOC_ARRAY(setup_object_max, PFS_setup_object,
-                                         MYF(MY_ZEROFILL));
+    setup_object_array= PFS_MALLOC_ARRAY(setup_object_max, sizeof(PFS_setup_object),
+                                         PFS_setup_object, MYF(MY_ZEROFILL));
     if (unlikely(setup_object_array == NULL))
       return 1;
   }

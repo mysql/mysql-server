@@ -42,6 +42,7 @@ SET(tests
  pfs_host-oom
  pfs_user-oom
  pfs
+ pfs_misc
 )
 FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})
