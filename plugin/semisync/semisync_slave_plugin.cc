@@ -44,7 +44,9 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
+#ifndef DBUG_OFF
   MYSQL_ROW row= NULL;
+#endif
   const char *query;
   uint mysql_error= 0;
 
@@ -65,7 +67,10 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   }
   else
   {
-    row= mysql_fetch_row(res);
+#ifndef DBUG_OFF
+    row=
+#endif
+      mysql_fetch_row(res);
   }
 
   DBUG_ASSERT(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
