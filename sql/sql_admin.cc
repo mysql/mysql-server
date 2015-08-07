@@ -1228,3 +1228,17 @@ bool Sql_cmd_repair_table::execute(THD *thd)
 error:
   DBUG_RETURN(res);
 }
+
+
+bool Sql_cmd_shutdown::execute(THD *thd)
+{
+  DBUG_ENTER("Sql_cmd_shutdown::execute");
+  bool res= TRUE;
+#ifndef EMBEDDED_LIBRARY
+  res= !shutdown(thd, SHUTDOWN_DEFAULT, COM_QUERY);
+#else
+  my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+#endif
+
+  DBUG_RETURN(res);
+}

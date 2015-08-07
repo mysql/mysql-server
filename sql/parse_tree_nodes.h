@@ -24,6 +24,7 @@
 #include "sql_lex.h"                 // LEX
 #include "sql_parse.h"               // add_join_natural
 #include "sql_update.h"              // Sql_cmd_update
+#include "sql_admin.h"               // Sql_cmd_shutdown etc.
 
 
 template<enum_parsing_context Context> class PTI_context;
@@ -2511,6 +2512,15 @@ public:
 
 private:
   bool has_select() const { return insert_query_expression != NULL; }
+};
+
+
+class PT_shutdown : public PT_statement
+{
+  Sql_cmd_shutdown sql_cmd;
+
+public:
+  virtual Sql_cmd *make_cmd(THD *) { return &sql_cmd; }
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

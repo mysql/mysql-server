@@ -1493,6 +1493,7 @@ END_OF_INPUT
         update_stmt
         insert_stmt
         replace_stmt
+        shutdown_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1647,6 +1648,7 @@ statement:
         | set                   { CONTEXTUALIZE($1); }
         | signal_stmt
         | show
+        | shutdown_stmt         { MAKE_CMD($1); }
         | slave
         | start
         | truncate
@@ -13194,6 +13196,7 @@ keyword:
         | SAVEPOINT_SYM         {}
         | SECURITY_SYM          {}
         | SERVER_SYM            {}
+        | SHUTDOWN              {}
         | SIGNED_SYM            {}
         | SOCKET_SYM            {}
         | SLAVE                 {}
@@ -13467,7 +13470,6 @@ keyword_sp:
         | SESSION_SYM              {}
         | SIMPLE_SYM               {}
         | SHARE_SYM                {}
-        | SHUTDOWN                 {}
         | SLOW                     {}
         | SNAPSHOT_SYM             {}
         | SOUNDS_SYM               {}
@@ -13867,6 +13869,15 @@ unlock:
           }
           table_or_tables
           {}
+        ;
+
+
+shutdown_stmt:
+          SHUTDOWN
+          {
+            Lex->sql_command= SQLCOM_SHUTDOWN;
+            $$= NEW_PTN PT_shutdown();
+          }
         ;
 
 /*
