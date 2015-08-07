@@ -710,12 +710,20 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  !stat(pidfile, &pidfile_status))
 	last_modified= pidfile_status.st_mtime;
 
-      if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+      /* Issue COM_SHUTDOWN if server version is older then 5.7*/
+      int resShutdown= 1;
+      if(mysql_get_server_version(mysql) < 50700)
+        resShutdown= mysql_shutdown(mysql, SHUTDOWN_DEFAULT);
+      else
+        resShutdown= mysql_query(mysql, "shutdown");
+
+      if(resShutdown)
       {
-	my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
-			mysql_error(mysql));
-	return -1;
+        my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
+        mysql_error(mysql));
+        return -1;
       }
+
       argc=1;                   /* force SHUTDOWN to be the last command    */
       if (got_pidfile)
       {

@@ -301,6 +301,7 @@ enum enum_sql_command {
   SQLCOM_ALTER_USER,
   SQLCOM_EXPLAIN_OTHER,
   SQLCOM_SHOW_CREATE_USER,
+  SQLCOM_SHUTDOWN,
   SQLCOM_END
 };
 typedef enum
