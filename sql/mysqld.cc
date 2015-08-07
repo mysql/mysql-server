@@ -3815,9 +3815,9 @@ static int init_server_components()
 #ifdef _WIN32
   /*
     Enable the error log file only if console option is not specified
-    and MySQL is not running as a service.
+    and --help is not used.
   */
-  bool log_errors_to_file= !opt_help && !opt_console && !windows_service;
+  bool log_errors_to_file= !opt_help && !opt_console;
 #else
   /*
     Enable the error log file only if --log-error=filename or --log-error
