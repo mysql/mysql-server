@@ -107,7 +107,7 @@ public:
 		uint64_t	key) = 0;
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	/** Print statistics about how much searches have been done on the hash
+	/** Print statistics about how many searches have been done on the hash
 	and how many collisions. */
 	virtual
 	void
@@ -429,6 +429,31 @@ private:
 
 /** Lock free hash table. It stores (key, value) pairs where both the key
 and the value are of integer type.
+* The possible keys are:
+  * UNUSED: a (key = UNUSED, val) tuple means that it is empty/unused. This is
+    the initial state of all keys.
+  * AVOID: a (key = AVOID, val = any) tuple means that this tuple is disabled,
+    does not contain a real data and should be avoided by searches and
+    inserts. This is used when migrating all elements of an array to the
+    next array.
+  * real key: anything other than the above means this is a real key,
+    specified by the user.
+
+* The possible values are:
+  * NOT_FOUND: a (key, val = NOT_FOUND) tuple means that it is just being
+    inserted and returning "not found" is ok. This is the initial state of all
+    values.
+  * DELETED: a (key, val = DELETED) tuple means that a tuple with this key
+    existed before but was deleted at some point. Searches for this key return
+    "not found" and inserts reuse the tuple, replacing the DELETED value with
+    something else.
+  * GOTO_NEXT_ARRAY: a (key, val = GOTO_NEXT_ARRAY) tuple means that the
+    searches for this tuple (get and insert) should go to the next array and
+    repeat the search there. Used when migrating all tuples from one array to
+    the next.
+  * real value: anything other than the above means this is a real value,
+    specified by the user.
+
 * Transitions for keys (a real key is anything other than UNUSED and AVOID):
   * UNUSED -> real key -- allowed
   * UNUSED -> AVOID -- allowed
@@ -438,6 +463,7 @@ and the value are of integer type.
   * real key -> another real key -- not allowed
   * AVOID -> UNUSED -- not allowed
   * AVOID -> real key -- not allowed
+
 * Transitions for values (a real value is anything other than NOT_FOUND,
   DELETED and GOTO_NEXT_ARRAY):
   * NOT_FOUND -> real value -- allowed
@@ -723,7 +749,7 @@ public:
 	}
 
 #ifdef UT_HASH_IMPLEMENT_PRINT_STATS
-	/** Print statistics about how much searches have been done on the hash
+	/** Print statistics about how many searches have been done on the hash
 	and how many collisions. */
 	void
 	print_stats()

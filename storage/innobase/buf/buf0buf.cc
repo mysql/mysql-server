@@ -314,7 +314,7 @@ static rw_lock_t*	buf_chunk_map_latch;
 my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
 #endif /* UNIV_DEBUG */
 
-/** Container for how much pages from each index are contained in the buffer
+/** Container for how many pages from each index are contained in the buffer
 pool(s). */
 buf_stat_per_index_t*	buf_stat_per_index;
 

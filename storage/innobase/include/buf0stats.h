@@ -34,7 +34,7 @@ Created May 22, 2015 Vasil Dimov
 #include "ut0new.h" /* UT_NEW(), UT_DELETE() */
 #include "ut0lock_free_hash.h" /* ut_lock_free_hash_t */
 
-/** Per index buffer pool statistics - contains how much pages for each index
+/** Per index buffer pool statistics - contains how many pages for each index
 are cached in the buffer pool(s). This is a key,value store where the key is
 the index id and the value is the number of pages in the buffer pool that
 belong to this index. */
@@ -137,7 +137,7 @@ private:
 	ut_lock_free_hash_t*	m_store;
 };
 
-/** Container for how much pages from each index are contained in the buffer
+/** Container for how many pages from each index are contained in the buffer
 pool(s). */
 extern buf_stat_per_index_t*	buf_stat_per_index;
 
