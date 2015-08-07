@@ -44,7 +44,7 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
-  MYSQL_ROW row;
+  MYSQL_ROW row= NULL;
   const char *query;
   uint mysql_error= 0;
 
