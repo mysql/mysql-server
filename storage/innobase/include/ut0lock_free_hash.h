@@ -278,18 +278,30 @@ public:
 	attempt this at the same time and only one will succeed. When this
 	method returns, the caller can be sure that the job is done (either
 	by this or another thread).
+	@param[in]	deleted_val	the constant that designates that
+	a value is deleted
 	@param[out]	grown_by_this_thread	set to true if the next
 	array was created and appended by this thread; set to false if
 	created and appended by another thread.
 	@return the next array, appended by this or another thread */
 	next_t
 	grow(
+		int64_t	deleted_val,
 		bool*	grown_by_this_thread)
 	{
-		/* XXX do not *2 if the current array has too many deleted
-		entries */
+		size_t	new_size;
+
+		if (m_n_base_elements > 1024
+		    && n_deleted(deleted_val) > m_n_base_elements * 3 / 4) {
+			/* If there are too many deleted elements (more than
+			75%), then do not double the size. */
+			new_size = m_n_base_elements;
+		} else {
+			new_size = m_n_base_elements * 2;
+		}
+
 		next_t	new_arr = UT_NEW(
-			ut_lock_free_list_node_t<T>(m_n_base_elements * 2),
+			ut_lock_free_list_node_t<T>(new_size),
 			mem_key_ut_lock_free_hash_t);
 
 		/* Publish the allocated entry. If somebody did this in the
@@ -384,6 +396,30 @@ public:
 	boost::atomic<next_t>	m_next;
 
 private:
+	/** Count the number of deleted elements. The value returned could
+	be inaccurate because it is obtained without any locks.
+	@param[in]	deleted_val	the constant that designates that
+	a value is deleted
+	@return the number of deleted elements */
+	size_t
+	n_deleted(
+		int64_t	deleted_val) const
+	{
+		size_t	ret = 0;
+
+		for (size_t i = 0; i < m_n_base_elements; i++) {
+
+			const int64_t	val = m_base[i].m_val.load(
+				boost::memory_order_relaxed);
+
+			if (val == deleted_val) {
+				ret++;
+			}
+		}
+
+		return(ret);
+	}
+
 	/** Counter for the current number of readers and writers to this
 	object. This object is destroyed only after it is removed from the
 	list, so that no new readers or writers may arrive, and after this
@@ -1175,7 +1211,7 @@ private:
 
 			bool		grown_by_this_thread;
 
-			next = arr->grow(&grown_by_this_thread);
+			next = arr->grow(DELETED, &grown_by_this_thread);
 
 			if (grown_by_this_thread) {
 				call_optimize = true;
