@@ -6451,7 +6451,7 @@ void TABLE::use_index(int key_to_save)
    */
   for (reg_field=field ; *reg_field; reg_field++)
   {
-    if(!(*reg_field)->part_of_key.is_set(key_to_save))
+    if (key_to_save < 0 || !(*reg_field)->part_of_key.is_set(key_to_save))
       (*reg_field)->key_start.clear_all();
     (*reg_field)->part_of_key.clear_all();
     (*reg_field)->part_of_sortkey.clear_all();
