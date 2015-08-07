@@ -13218,10 +13218,6 @@ index_pct_cached(
 
 	const double	ratio = static_cast<double>(n_in_mem) / n_leaf;
 
-	ib::info() /* XXX */
-		<< __func__ << "(" << index->table_name << " " << index->name
-		<< "): " << n_in_mem << " / " << n_leaf << " = " << ratio;
-
 	return(std::max(std::min(ratio, 1.0), 0.0));
 }
 

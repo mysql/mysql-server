@@ -5000,12 +5000,6 @@ buf_page_monitor(
 
 		/* Account reading of leaf pages into the buffer pool(s). */
 		if (is_leaf && io_type == BUF_IO_READ) {
-			ib::info() /* XXX */
-				<< buf_stat_per_index->get(
-					index_id_t(space_id, idx_id))
-				<< " inc (read) index_id="
-				<< space_id << ":" << idx_id
-				<< " " << bpage->id;
 			buf_stat_per_index->inc(index_id_t(space_id, idx_id));
 		}
 	}

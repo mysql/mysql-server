@@ -2215,12 +2215,6 @@ buf_LRU_block_remove_hashed(
 				const space_index_t	idx_id
 					= btr_page_get_index_id(frame);
 
-				ib::info() /* XXX */
-					<< buf_stat_per_index->get(
-						index_id_t(space_id, idx_id))
-					<< " dec index_id="
-					<< space_id << ":" << idx_id
-					<< " " << bpage->id;
 				buf_stat_per_index->dec(
 					index_id_t(space_id, idx_id));
 			}
