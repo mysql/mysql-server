@@ -33,7 +33,7 @@
 #include "sql_string.h"
 #include <string.h>
 
-ulong digest_max= 0;
+size_t digest_max= 0;
 ulong digest_lost= 0;
 
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
@@ -57,8 +57,6 @@ static bool digest_hash_inited= false;
 */
 int init_digest(const PFS_global_param *param)
 {
-  unsigned int index;
-
   /*
     Allocate memory for statements_digest_stat_array based on
     performance_schema_digests_size values
@@ -73,6 +71,7 @@ int init_digest(const PFS_global_param *param)
 
   statements_digest_stat_array=
     PFS_MALLOC_ARRAY(digest_max,
+                     sizeof(PFS_statements_digest_stat),
                      PFS_statements_digest_stat,
                      MYF(MY_ZEROFILL));
 
@@ -84,8 +83,12 @@ int init_digest(const PFS_global_param *param)
 
   if (pfs_max_digest_length > 0)
   {
+    /* Size of each digest array. */
+    size_t digest_memory_size= pfs_max_digest_length * sizeof(unsigned char);
+
     statements_digest_token_array=
-      PFS_MALLOC_ARRAY(digest_max * pfs_max_digest_length,
+      PFS_MALLOC_ARRAY(digest_max,
+                       digest_memory_size,
                        unsigned char,
                        MYF(MY_ZEROFILL));
 
@@ -96,7 +99,7 @@ int init_digest(const PFS_global_param *param)
     }
   }
 
-  for (index= 0; index < digest_max; index++)
+  for (size_t index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset_data(statements_digest_token_array
                                                    + index * pfs_max_digest_length, pfs_max_digest_length);
@@ -144,7 +147,7 @@ int init_digest_hash(void)
     lf_hash_init(&digest_hash, sizeof(PFS_statements_digest_stat*),
                  LF_HASH_UNIQUE, 0, 0, digest_hash_get_key,
                  &my_charset_bin);
-    digest_hash.size= digest_max;
+    digest_hash.size= (int32)digest_max;
     digest_hash_inited= true;
   }
   return 0;
@@ -334,8 +337,6 @@ void PFS_statements_digest_stat::reset_index(PFS_thread *thread)
 
 void reset_esms_by_digest()
 {
-  uint index;
-
   if (statements_digest_stat_array == NULL)
     return;
 
@@ -344,7 +345,7 @@ void reset_esms_by_digest()
     return;
 
   /* Reset statements_digest_stat_array. */
-  for (index= 0; index < digest_max; index++)
+  for (size_t index= 0; index < digest_max; index++)
   {
     statements_digest_stat_array[index].reset_index(thread);
     statements_digest_stat_array[index].reset_data(statements_digest_token_array + index * pfs_max_digest_length, pfs_max_digest_length);

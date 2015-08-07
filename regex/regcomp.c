@@ -1,3 +1,11 @@
+/* Copyright 1992, 1993, 1994 Henry Spencer.  All rights reserved.
+   See file COPYRIGHT for details.
+
+   This file was modified by Oracle on 2015-05-18 for 32-bit compatibility.
+
+   Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights
+   reserved. */
+
 #include <my_global.h>
 #include <m_string.h>
 #include <m_ctype.h>
@@ -133,12 +141,26 @@ const CHARSET_INFO *charset;
 	} else
 		len = strlen((char *)pattern);
 
+	/*
+	 Find the maximum len we can safely process
+	 without a rollover and a mis-malloc.
+	 p->ssize is a sopno is a long (32+ bit signed);
+	 size_t is 16+ bit unsigned.
+	*/
+	{
+	  size_t new_ssize = len / (size_t)2 * (size_t)3 + (size_t)1; /* ugh */
+	  if ((new_ssize < len) ||	/* size_t rolled over */
+	      ((SIZE_T_MAX / sizeof(sop)) < new_ssize) ||	/* malloc arg */
+	      (new_ssize > LONG_MAX))	/* won't fit in ssize */
+		return(MY_REG_ESPACE);	/* MY_REG_ESPACE or MY_REG_INVARG */
+	  p->ssize = new_ssize;
+	}
+
 	/* do the mallocs early so failure handling is easy */
 	g = (struct re_guts *)malloc(sizeof(struct re_guts) +
 							(NC-1)*sizeof(cat_t));
 	if (g == NULL)
 		return(MY_REG_ESPACE);
-	p->ssize = (long) (len/(size_t)2*(size_t)3 + (size_t)1); /* ugh */
 	p->strip = (sop *)malloc(p->ssize * sizeof(sop));
 	p->slen = 0;
 	if (p->strip == NULL) {

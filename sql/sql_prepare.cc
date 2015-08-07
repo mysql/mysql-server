@@ -116,7 +116,7 @@ When one supplies long data for a placeholder:
 #include "sql_analyse.h"
 #include "sql_rewrite.h"
 #include "transaction.h"                        // trans_rollback_implicit
-
+#include "sql_audit.h"
 #include <algorithm>
 using std::max;
 using std::min;
@@ -3398,6 +3398,10 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   thd->stmt_arena= this;
 
   Parser_state parser_state;
+#ifndef EMBEDDED_LIBRARY
+  if (is_any_audit_plugin_active(thd))
+    parser_state.m_input.m_compute_digest= true;
+#endif
   if (parser_state.init(thd, thd->query(), thd->query_length()))
   {
     thd->restore_backup_statement(this, &stmt_backup);
@@ -3422,9 +3426,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
     init_param_array(this);
-
-  thd->m_digest= parent_digest;
-  thd->m_statement_psi= parent_locker;
 
   lex->set_trg_event_type_for_tables();
 
@@ -3545,6 +3546,8 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       error |= thd->is_error();
     }
   }
+  thd->m_digest= parent_digest;
+  thd->m_statement_psi= parent_locker;
   DBUG_RETURN(error);
 }
 

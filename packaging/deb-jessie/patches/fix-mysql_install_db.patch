@@ -1,0 +1,43 @@
+From: Terje Røsten <terje.rosten@oracle.com>
+Description: Maintains the pending --skip-my-cnf option in mainline
+Bug: <TODO>
+
+diff --git a/scripts/mysql_install_db.pl.in b/scripts/mysql_install_db.pl.in
+index 440a977..7d068fc 100644
+--- a/scripts/mysql_install_db.pl.in
++++ b/scripts/mysql_install_db.pl.in
+@@ -113,6 +113,7 @@ EOF2
+   print <<EOF3;
+   --rpm                For internal use.  This option is used by RPM files
+                        during the MySQL installation process.
++                       Implies --keep-my-cnf option.
+   --skip-name-resolve  Use IP addresses rather than hostnames when creating
+                        grant table entries.  This option can be useful if
+                        your DNS does not work.
+@@ -439,7 +440,7 @@ if ( $opt->{srcdir} and $opt->{basedir} )
+ {
+   error($opt,"Specify either --basedir or --srcdir, not both");
+ }
+-if ( $opt->{'keep-my-cnf'} )
++if ( $opt->{rpm} || $opt->{'keep-my-cnf'} )
+ {
+   $keep_my_cnf = 1;
+ }
+@@ -664,7 +665,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
+ }
+
+ # ----------------------------------------------------------------------
+-# Create database directories mysql & test
++# Create database directory mysql
+ # ----------------------------------------------------------------------
+
+ # FIXME The shell variant uses "mkdir -p":
+@@ -697,7 +698,7 @@ if ($opt_user)
+   }
+ }
+
+-foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
++foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql")
+ {
+   mkdir($dir, 0700) unless -d $dir;
+   if ($opt_user and -w "/")

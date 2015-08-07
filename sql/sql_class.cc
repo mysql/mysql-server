@@ -920,7 +920,8 @@ THD::THD(bool enable_plugins)
    m_enable_plugins(enable_plugins),
    owned_gtid_set(global_sid_map),
    main_da(0, false),
-   m_stmt_da(&main_da)
+   m_stmt_da(&main_da),
+   duplicate_slave_uuid(false)
 {
   ulong tmp;
 
@@ -1453,6 +1454,7 @@ void THD::change_user(void)
 {
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  memset(&status_var, 0, sizeof(status_var));
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
@@ -1476,6 +1478,7 @@ void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
   DBUG_ASSERT(cleanup_done == 0);
+  DEBUG_SYNC(this, "thd_cleanup_start");
 
   killed= KILL_CONNECTION;
 #ifdef ENABLE_WHEN_BINLOG_WILL_BE_ABLE_TO_PREPARE
@@ -1555,6 +1558,7 @@ void THD::release_resources()
 
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
+  memset(&status_var, 0, sizeof(status_var));
   mysql_mutex_unlock(&LOCK_status);
 
   /* Ensure that no one is using THD */
