@@ -3340,4 +3340,36 @@ GROUP BY col1;
 c
 1
 DROP TABLE t1;
+#
+# Bug#21415791 VALGRIND ERROR (CONDITIONAL JUMP) AT KEY_AND
+#              (RANGE_OPT_PARAM*, SEL_ARG*, SEL_AR
+#
+CREATE TABLE t1 (
+col_varchar_10 VARCHAR(10),
+pk INTEGER NOT NULL,
+col_int_key INTEGER,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+INSERT INTO t1 (
+pk, col_varchar_10, col_int_key) VALUES
+(1, 'ttttt', 0), (2, 'zzzzz', 0), (3, 'ggggg', 0),
+(4, 'hhhhh', 0), (5, 'kkkkk', 0), (6, 'lllll', 0);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+col_varchar_10 VARCHAR(10),
+PRIMARY KEY (pk),
+KEY col_varchar_10 (col_varchar_10)
+) ENGINE=InnoDB;
+INSERT INTO t2 (
+pk,  col_varchar_10) VALUES
+(1, '00000'), (2, '00000'), (3, '44444'), (4, '00000'),
+(5, NULL), (6, NULL), (7, NULL);
+SELECT COUNT(t1.col_int_key)
+FROM t2 RIGHT OUTER JOIN t1 ON t2.col_varchar_10 <= t1.col_varchar_10
+WHERE t2.pk <> 4 OR t2.pk != t1.col_int_key AND t2.pk <> 1000;
+COUNT(t1.col_int_key)
+24
+DROP TABLE t1, t2;
 set optimizer_switch=default;
