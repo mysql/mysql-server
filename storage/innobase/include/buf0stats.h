@@ -63,7 +63,7 @@ public:
 			return;
 		}
 
-		m_store->inc(conv_index_id_to_int(id));
+		m_store->inc(id.conv_to_int());
 	}
 
 	/** Decrement the number of pages for a given index with 1.
@@ -76,7 +76,7 @@ public:
 			return;
 		}
 
-		m_store->dec(conv_index_id_to_int(id));
+		m_store->dec(id.conv_to_int());
 	}
 
 	/** Get the number of pages in the buffer pool for a given index.
@@ -90,7 +90,7 @@ public:
 			return(0);
 		}
 
-		const int64_t	ret = m_store->get(conv_index_id_to_int(id));
+		const int64_t	ret = m_store->get(id.conv_to_int());
 
 		if (ret == ut_lock_free_hash_t::NOT_FOUND) {
 			/* If the index is not found in this structure,
@@ -102,19 +102,6 @@ public:
 	}
 
 private:
-	/** Convert an index_id to a 64 bit integer.
-	@param[in]	id	index_id to convert
-	@return a 64 bit integer */
-	uint64_t
-	conv_index_id_to_int(
-		const index_id_t&	id)
-	{
-		ut_ad((id.m_index_id & 0xFFFFFFFF00000000ULL) == 0);
-
-		return(static_cast<uint64_t>(id.m_space_id) << 32
-		       | id.m_index_id);
-	}
-
 	/** Assess if we should skip a page from accounting.
 	@param[in]	id	index_id of the page
 	@return true if it should not be accounted */

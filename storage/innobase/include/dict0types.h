@@ -53,7 +53,8 @@ typedef ib_id_t		table_id_t;
 typedef ib_id_t		space_index_t;
 
 /** Globally unique index identifier */
-struct index_id_t {
+class index_id_t {
+public:
 	/** Constructor.
 	@param[in]	space_id	Tablespace identifier
 	@param[in]	index_id	Index identifier */
@@ -77,6 +78,16 @@ struct index_id_t {
 	{
 		return(m_space_id == other.m_space_id
 		       && m_index_id == other.m_index_id);
+	}
+
+	/** Convert an index_id to a 64 bit integer.
+	@return a 64 bit integer */
+	uint64_t
+	conv_to_int() const
+	{
+		ut_ad((m_index_id & 0xFFFFFFFF00000000ULL) == 0);
+
+		return(static_cast<uint64_t>(m_space_id) << 32 | m_index_id);
 	}
 
 	/** Tablespace identifier */
