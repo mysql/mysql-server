@@ -4364,7 +4364,6 @@ runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbEventOperation* evOp = createEventOperation(pNdb, *pTab);
   CHK(evOp != NULL, "Event operation creation failed");
-  CHK(evOp->execute() == 0, "execute operation execution failed");
 
   Uint64 highestQueuedEpoch = 0;
   int pollRetries = 120;
