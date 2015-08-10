@@ -4493,7 +4493,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   
-  bool error= refix_gc_items(thd);
+  bool error __attribute__((unused))= refix_gc_items(thd);
   DBUG_ASSERT(!error);
 }
 
