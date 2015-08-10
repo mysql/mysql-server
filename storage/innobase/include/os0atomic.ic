@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -103,4 +103,113 @@ win_cmp_and_xchg_dword(
 		(LONG) new_val,
 		(LONG) old_val));
 }
+
+/** Do an atomic test and set.
+@param[in,out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t
+os_atomic_test_and_set(
+	volatile lock_word_t*	ptr,
+	lock_word_t		new_val)
+{
+	return(InterlockedExchange(ptr, new_val));
+}
+
+/** Do an atomic compare and set
+@param[in,out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t
+os_atomic_val_compare_and_swap(
+	volatile lock_word_t*	ptr,
+	lock_word_t		old_val,
+	lock_word_t		new_val)
+{
+	return(static_cast<lock_word_t>(win_cmp_and_xchg_lint(
+		reinterpret_cast<volatile lint*>(ptr),
+		static_cast<lint>(new_val),
+		static_cast<lint>(old_val))));
+}
+
+#elif defined(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+
+/** Do an atomic test and set.
+@param[in,out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t
+os_atomic_test_and_set(
+	volatile lock_word_t*	ptr,
+	lock_word_t		new_val)
+{
+	lock_word_t	ret;
+
+	/* Silence a compiler warning about unused ptr. */
+	(void) ptr;
+
+	__atomic_exchange(ptr, &new_val,  &ret, __ATOMIC_RELEASE);
+
+	return(ret);
+}
+
+/** Do an atomic compare and set
+@param[in,out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t
+os_atomic_val_compare_and_swap(
+	volatile lock_word_t*	ptr,
+	lock_word_t		old_val,
+	lock_word_t		new_val)
+{
+	/* Silence a compiler warning about unused ptr. */
+	(void) ptr;
+
+	__atomic_compare_exchange(ptr, &old_val, &new_val, false,
+				  __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+
+	return(old_val);
+}
+
+#elif defined(IB_STRONG_MEMORY_MODEL)
+
+/** Do an atomic test and set.
+@param[in,out]	ptr	Memory location to set
+@param[in]	new_val	new value
+@return	old value of memory location. */
+UNIV_INLINE
+lock_word_t
+os_atomic_test_and_set(
+	volatile lock_word_t*	ptr,
+	lock_word_t		new_val)
+{
+	return(__sync_lock_test_and_set(ptr, new_val));
+}
+
+/** Do an atomic compare and set
+@param[in,out]	ptr	Memory location to set
+@param[in]	old_val	old value to compare
+@param[in]	new_val	new value to set
+@return the value of ptr before the operation. */
+UNIV_INLINE
+lock_word_t
+os_atomic_val_compare_and_swap(
+	volatile lock_word_t*	ptr,
+	lock_word_t		old_val,
+	lock_word_t		new_val)
+{
+	return(__sync_val_compare_and_swap(ptr, old_val, new_val));
+}
+
+#else
+
+#error "Unsupported platform"
+
 #endif /* _WIN32 */
