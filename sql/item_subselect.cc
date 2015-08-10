@@ -3777,7 +3777,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(
-                         thd, tmp_columns, true,
+                         thd, tmp_columns,
+                         true,                  // Eliminate duplicates
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
                          "materialized-subquery", true, true))
     DBUG_RETURN(TRUE);
@@ -3788,6 +3789,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   {
     tmp_key_parts= tmp_columns->elements;
     key_length= ALIGN_SIZE(tmp_table->s->reclength);
+    /*
+      This index over hash_field is not unique (two rows of the temporary
+      table may have a same hash value with different values of tmp_columns).
+    */
+    unique= false;
   }
   else
   {
@@ -3834,10 +3840,13 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   /*
     Like semijoin-materialization-lookup (see create_subquery_equalities()),
     create an artificial condition to post-filter those rows matched by index
-    lookups that cannot be distinguished by the index lookup procedure, e.g.
-    because of truncation (if the outer column type's length is bigger than
+    lookups that cannot be distinguished by the index lookup procedure, for
+    example:
+    - because of truncation (if the outer column type's length is bigger than
     the inner column type's, index lookup will use a truncated outer
     value as search key, yielding false positives).
+    - because the index is over hash_field and thus not unique.
+
     Prepared statements execution requires that fix_fields is called
     for every execution. In order to call fix_fields we need to create a
     Name_resolution_context and a corresponding TABLE_LIST for the temporary
