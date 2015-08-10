@@ -38,17 +38,9 @@ extern bool	innodb_calling_exit;
 #endif /* UNIV_DEBUG && !UNIV_INNOCHECKSUM */
 
 #ifdef _WIN32
-/** On Windows, InterlockedExchange operates on LONG variable */
-typedef LONG	lock_word_t;
 /** Native mutex */
 typedef CRITICAL_SECTION	sys_mutex_t;
 #else
-# ifdef HAVE_IB_LINUX_FUTEX
-typedef int	lock_word_t;
-# else
-typedef ulint	lock_word_t;
-# endif
-
 /** Native mutex */
 typedef pthread_mutex_t		sys_mutex_t;
 #endif /* _WIN32 */
