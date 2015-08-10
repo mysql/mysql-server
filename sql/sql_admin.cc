@@ -1237,7 +1237,7 @@ bool Sql_cmd_shutdown::execute(THD *thd)
 #ifndef EMBEDDED_LIBRARY
   res= !shutdown(thd, SHUTDOWN_DEFAULT, COM_QUERY);
 #else
-  my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+  my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
 #endif
 
   DBUG_RETURN(res);

@@ -1571,10 +1571,11 @@ READ_INFO::~READ_INFO()
       if (chr1 != my_b_EOF)                                                   \
       {                                                                       \
         len= my_mbcharlen_2((cs), (chr), chr1);                               \
-        /* Must be gb18030 charset */                                         \
-        DBUG_ASSERT(len == 2 || len == 4);                                    \
+        /* Character is gb18030 or invalid (len = 0) */                       \
+        DBUG_ASSERT(len == 0 || len == 2 || len == 4);                        \
       }                                                                       \
-      PUSH(chr1);                                                             \
+      if (len != 0)                                                           \
+        PUSH(chr1);                                                           \
     }                                                                         \
   } while (0)
 

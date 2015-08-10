@@ -824,6 +824,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   table->covering_keys.init();
   table->merge_keys.init();
   table->keys_in_use_for_query.init();
+  table->keys_in_use_for_group_by.init();
+  table->keys_in_use_for_order_by.init();
 
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
