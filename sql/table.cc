@@ -2634,7 +2634,7 @@ static bool validate_generated_expr(Field *field)
   @return
     FALSE                Ok, generated expression is fixed sucessfully 
  */
-bool fix_fields_gcol_func(THD *thd, Field *field)
+static bool fix_fields_gcol_func(THD *thd, Field *field)
 {
   uint dir_length, home_dir_length;
   bool result= TRUE;
@@ -2774,11 +2774,11 @@ bool Generated_column::register_base_columns(TABLE *table)
     FALSE           Success
  */
 
-bool unpack_gcol_info_from_frm(THD *thd,
-                               TABLE *table,
-                               Field *field,
-                               bool is_create_table,
-                               bool *error_reported)
+static bool unpack_gcol_info_from_frm(THD *thd,
+                                      TABLE *table,
+                                      Field *field,
+                                      bool is_create_table,
+                                      bool *error_reported)
 {
   DBUG_ENTER("unpack_gcol_info_from_frm");
   DBUG_ASSERT(field->table == table);
@@ -2860,6 +2860,7 @@ bool unpack_gcol_info_from_frm(THD *thd,
       */
       *error_reported= TRUE;
     }
+    // Any memory allocated in this function is freed in parse_err
     field->gcol_info= 0;
     goto parse_err;
   }
@@ -3200,6 +3201,7 @@ partititon_err:
                                       is_create_table,
                                       &error_reported))
         {
+          *vfield_ptr= NULL;
           error= 4; // in case no error is reported
           goto err;
         }
@@ -3297,6 +3299,11 @@ partititon_err:
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
+  if (outparam->vfield)
+  {
+    for (Field **vfield= outparam->vfield; *vfield; vfield++)
+      free_items((*vfield)->gcol_info->item_free_list);
+  }
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
   free_root(&outparam->mem_root, MYF(0));
