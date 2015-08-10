@@ -109,14 +109,10 @@ private:
 	should_skip(
 		const index_id_t&	id)
 	{
-		const bool	is_ibuf
-			= id.m_space_id == IBUF_SPACE_ID
-			&& id.m_index_id == DICT_IBUF_ID_MIN + IBUF_SPACE_ID;
-
 		const bool	is_temp
 			= id.m_space_id == srv_tmp_space.space_id();
 
-		return(is_ibuf || is_temp
+		return(id.is_ibuf() || is_temp
 		       || (id.m_index_id & 0xFFFFFFFF00000000ULL) != 0);
 	}
 
