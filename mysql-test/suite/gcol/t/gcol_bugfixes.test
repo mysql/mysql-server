@@ -352,3 +352,10 @@ WHERE alias2.col_int_key BETWEEN 8 AND (8 + 1 ) OR
 ORDER BY field1;
 
 DROP TABLE t1;
+--echo # bug#21487651: gcols: memory leak after failed alter table
+CREATE TABLE t(a int);
+ALTER TABLE t ADD COLUMN b int GENERATED ALWAYS AS (
+date_sub(a,interval a month)) VIRTUAL;
+--error 1111
+ALTER TABLE t ADD COLUMN c int GENERATED ALWAYS AS (sum(a));
+DROP TABLE t;
