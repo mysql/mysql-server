@@ -4088,21 +4088,29 @@ int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
   CHK(pOp != NULL, "Event operation creation failed");
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
-  // Wait max 10 sec for event data to start flowing
-  Uint32 retries = 10;
+  // Signal load generator
+  ctx->setProperty("Listening", (Uint32)1);
+
+  // Wait max 120 sec for event data to start flowing
+  int retries = 120;
   Uint64 poll_gci = 0;
   while (retries-- > 0)
   {
     if (ndb->pollEvents(1000, &poll_gci) == 1)
-        break;
+      break;
+    NdbSleep_SecSleep(1);
   }
   CHK(retries > 0, "No epoch has received in 10 secs");
 
   // pollEvents with aMilliSeconds = 0 will poll only once (no wait),
   // and it should see the event data seen above
   Uint64 poll_gci2 = 0;
-  CHK((ndb->pollEvents(0, &poll_gci2) != 1),
+  CHK((ndb->pollEvents(0, &poll_gci2) == 1),
       "pollEvents(0) hasn't seen the event data");
+
+  if (poll_gci != poll_gci2)
+    g_err << " gci-s differ: gci at first poll " << poll_gci
+          << " gci at second poll " << poll_gci2 << endl;
   CHK(poll_gci == poll_gci2,
       "pollEvents(0) hasn't seen the same epoch");
 
@@ -4115,6 +4123,10 @@ int runPollBCNoWait(NDBT_Context* ctx, NDBT_Step* step)
   // Insert one record, to test pollEvents(0).
   HugoTransactions hugoTrans(*ctx->getTab());
   UtilTransactions utilTrans(*ctx->getTab());
+  while (ctx->getProperty("Listening", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
   CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
   return NDBT_OK;
 }
