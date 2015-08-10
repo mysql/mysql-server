@@ -4675,7 +4675,6 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   //Create event op
   evOp = createEventOperation(pNdb, *tab_ptr_after_CR);
   CHK(evOp != NULL, "Event operation creation failed");
-  CHK(evOp->execute() == 0, "Execute operation failed");
 
   // Consume 5 epochs to ensure that the event consumption
   // has started after recovery from cluster failure
