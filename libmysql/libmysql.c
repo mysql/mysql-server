@@ -840,10 +840,15 @@ mysql_list_processes(MYSQL *mysql)
 int STDCALL
 mysql_shutdown(MYSQL *mysql, enum mysql_enum_shutdown_level shutdown_level)
 {
-  uchar level[1];
   DBUG_ENTER("mysql_shutdown");
-  level[0]= (uchar) shutdown_level;
-  DBUG_RETURN(simple_command(mysql, COM_SHUTDOWN, level, 1, 0));
+  if (mysql_get_server_version(mysql) < 50709)
+  {
+    uchar level[1];
+    level[0]= (uchar) shutdown_level;
+    DBUG_RETURN (simple_command(mysql, COM_SHUTDOWN, level, 1, 0));
+  }
+
+  DBUG_RETURN(mysql_real_query(mysql, C_STRING_WITH_LEN("shutdown")));
 }
 
 
