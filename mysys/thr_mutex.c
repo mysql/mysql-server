@@ -53,8 +53,10 @@ int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
                     const char *file, uint line)
 {
   int error;
+  native_mutex_lock(&mp->global);
   if (!mp->file)
   {
+    native_mutex_unlock(&mp->global);
     fprintf(stderr,
 	    "safe_mutex: Trying to lock uninitialized mutex at %s, line %d\n",
 	    file, line);
@@ -62,7 +64,6 @@ int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
     abort();
   }
 
-  native_mutex_lock(&mp->global);
   if (mp->count > 0)
   {
     if (try_lock)
@@ -164,8 +165,10 @@ int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line)
 int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line)
 {
   int error=0;
+  native_mutex_lock(&mp->global);
   if (!mp->file)
   {
+    native_mutex_unlock(&mp->global);
     fprintf(stderr,
 	    "safe_mutex: Trying to destroy uninitialized mutex at %s, line %d\n",
 	    file, line);
@@ -174,11 +177,13 @@ int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line)
   }
   if (mp->count != 0)
   {
+    native_mutex_unlock(&mp->global);
     fprintf(stderr,"safe_mutex: Trying to destroy a mutex that was locked at %s, line %d at %s, line %d\n",
 	    mp->file,mp->line, file, line);
     fflush(stderr);
     abort();
   }
+  native_mutex_unlock(&mp->global);
   if (native_mutex_destroy(&mp->global))
     error=1;
   if (native_mutex_destroy(&mp->mutex))
