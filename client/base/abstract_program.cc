@@ -153,11 +153,6 @@ void Abstract_program::aggregate_options()
   this->m_options.push_back(sentinel);
 }
 
-void Abstract_program::print_usage()
-{
-  this->m_help_options.print_usage();
-}
-
 bool Abstract_program::options_by_name_comparer(const my_option& a, const my_option& b)
 {
   if (strcmp(a.name, "help") == 0)
