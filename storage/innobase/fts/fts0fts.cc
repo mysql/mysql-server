@@ -7825,3 +7825,61 @@ func_exit:
 
 	return(TRUE);
 }
+
+/** Check if the all the auxillary tables associated with FTS index are in
+consistent state. For now consistency is check only by ensuring
+index->page_no != FIL_NULL
+@param[out]	base_table	table has host fts index
+@param[in,out]	trx		trx handler
+@return true if check certifies auxillary tables are sane false otherwise. */
+bool
+fts_is_corrupt(
+	dict_table_t*	base_table,
+	trx_t*		trx)
+{
+	bool		sane = true;
+	fts_table_t	fts_table;
+
+	/* Iterate over the common table and check for their sanity. */
+	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, base_table);
+
+	for (ulint i = 0; fts_common_tables[i] != NULL && sane; ++i) {
+
+		char	table_name[MAX_FULL_NAME_LEN];
+
+		fts_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_table, table_name);
+
+		dict_table_t*	aux_table = dict_table_open_on_name(
+			table_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
+
+		if (aux_table == NULL) {
+			dict_set_corrupted(
+				dict_table_get_first_index(base_table),
+				trx, "FTS_SANITY_CHECK");
+			ut_ad(base_table->corrupted == TRUE);
+			sane = false;
+			continue;
+		}
+
+		for (dict_index_t*	aux_table_index =
+			UT_LIST_GET_FIRST(aux_table->indexes);
+		     aux_table_index != NULL;
+		     aux_table_index =
+			UT_LIST_GET_NEXT(indexes, aux_table_index)) {
+
+			/* Check if auxillary table needed for FTS is sane. */
+			if (aux_table_index->page == FIL_NULL) {
+				dict_set_corrupted(
+					dict_table_get_first_index(base_table),
+					trx, "FTS_SANITY_CHECK");
+				ut_ad(base_table->corrupted == TRUE);
+				sane = false;
+			}
+		}
+
+		dict_table_close(aux_table, FALSE, FALSE);
+	}
+
+	return(sane);
+}
