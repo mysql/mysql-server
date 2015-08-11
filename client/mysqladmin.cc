@@ -712,7 +712,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       /* Issue COM_SHUTDOWN if server version is older then 5.7*/
       int resShutdown= 1;
-      if(mysql_get_server_version(mysql) < 50700)
+      if(mysql_get_server_version(mysql) < 50709)
         resShutdown= mysql_shutdown(mysql, SHUTDOWN_DEFAULT);
       else
         resShutdown= mysql_query(mysql, "shutdown");
