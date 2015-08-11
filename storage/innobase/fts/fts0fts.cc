@@ -7409,9 +7409,8 @@ fts_is_corrupt(
 
 		if (aux_table == NULL) {
 			dict_set_corrupted(
-				dict_table_get_first_index(base_table),
-				trx, "FTS_SANITY_CHECK");
-			ut_ad(base_table->corrupted == TRUE);
+				dict_table_get_first_index(base_table));
+			ut_ad(dict_table_is_corrupted(base_table));
 			sane = false;
 			continue;
 		}
@@ -7425,9 +7424,8 @@ fts_is_corrupt(
 			/* Check if auxillary table needed for FTS is sane. */
 			if (aux_table_index->page == FIL_NULL) {
 				dict_set_corrupted(
-					dict_table_get_first_index(base_table),
-					trx, "FTS_SANITY_CHECK");
-				ut_ad(base_table->corrupted == TRUE);
+					dict_table_get_first_index(base_table));
+				ut_ad(dict_table_is_corrupted(base_table));
 				sane = false;
 			}
 		}
