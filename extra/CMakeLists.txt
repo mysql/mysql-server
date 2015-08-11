@@ -102,6 +102,30 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
   ENDIF()
 
+  IF(NOT MSVC)
+    IF(NOT CMAKE_CROSSCOMPILING)
+    CHECK_C_SOURCE_RUNS(
+    "#include<stdint.h>
+    int main()
+    {
+      unsigned char       a = 0;
+      unsigned char       b = 0;
+      unsigned char       c = 1;
+
+      __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
+      __atomic_compare_exchange(&a, &b, &c, 0,
+                                __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+      return(0);
+    }"
+    HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
+    )
+    ENDIF()
+
+    IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
+      ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
+    ENDIF()
+  ENDIF(NOT MSVC)
+
   # Add path to the InnoDB headers
   INCLUDE_DIRECTORIES(
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
