@@ -493,6 +493,8 @@ bool Item_sum::clean_up_after_removal(uchar *arg)
     for (prev= this; prev->next != this; prev= prev->next)
       ;
     prev->next= next;
+    next= NULL;
+
     if (aggr_sel->inner_sum_func_list == this)
       aggr_sel->inner_sum_func_list= prev;
   }
