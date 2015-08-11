@@ -1539,6 +1539,9 @@ row_truncate_update_system_tables(
 
 			fts_drop_tables(trx, table);
 
+			DBUG_EXECUTE_IF("ib_truncate_crash_while_fts_cleanup",
+					DBUG_SUICIDE(););
+
 			ut_ad(trx_is_started(trx));
 		}
 
