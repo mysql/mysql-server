@@ -141,8 +141,6 @@ trx_init(
 
 	trx->lock.n_rec_locks = 0;
 
-	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	trx->table_id = 0;

@@ -4539,8 +4539,6 @@ row_search_mvcc(
 		calls from MySQL */
 
 		trx_search_latch_release_if_reserved(trx);
-
-		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
 	}
 
 	/* Reset the new record lock info if srv_locks_unsafe_for_binlog
