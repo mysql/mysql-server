@@ -272,6 +272,8 @@ will be freed in the destructor.
 void
 Datafile::set_name(const char*	name)
 {
+	ut_free(m_name);
+
 	if (name != NULL) {
 		m_name = mem_strdup(name);
 	} else if (fsp_is_file_per_table(m_space_id, m_flags)) {
