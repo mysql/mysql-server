@@ -34,6 +34,10 @@ struct row_setup_instruments
 {
   /** Columns NAME, ENABLED, TIMED. */
   PFS_instr_class *m_instr_class;
+  /** True if column ENABLED can be updated. */
+  bool m_update_enabled;
+  /** True if column TIMED can be updated. */
+  bool m_update_timed;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
@@ -107,7 +111,7 @@ public:
   {}
 
 private:
-  void make_row(PFS_instr_class *klass);
+  void make_row(PFS_instr_class *klass, bool update_enabled, bool update_timed);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
