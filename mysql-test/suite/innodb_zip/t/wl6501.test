@@ -6,6 +6,7 @@
 --source include/have_innodb_zip.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/not_windows.inc
 
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
