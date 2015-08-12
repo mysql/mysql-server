@@ -1883,9 +1883,13 @@ files_checked:
 		mtr_start(&mtr);
 		mtr.set_sys_modified();
 
-		fsp_header_init(0, sum_of_new_sizes, &mtr);
+		bool ret = fsp_header_init(0, sum_of_new_sizes, &mtr);
 
 		mtr_commit(&mtr);
+
+		if (!ret) {
+			return(srv_init_abort(DB_ERROR));
+		}
 
 		/* To maintain backward compatibility we create only
 		the first rollback segment before the double write buffer.
@@ -2123,6 +2127,9 @@ files_checked:
 		/* Can only happen if server is read only. */
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
+	} else if (srv_available_undo_logs < srv_undo_logs) {
+		/* Should due to out of file space. */
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	srv_startup_is_before_trx_rollback_phase = false;
