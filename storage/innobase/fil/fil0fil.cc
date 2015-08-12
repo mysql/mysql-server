@@ -5159,6 +5159,14 @@ fil_report_invalid_page_access(
 		<< ". If you get this error at mysqld startup, please check"
 		" that your my.cnf matches the ibdata files that you have in"
 		" the MySQL server.";
+
+	ib::error() << "Server exits"
+#ifdef UNIV_DEBUG
+		<< " at " << __FILE__ << "[" << __LINE__ << "]"
+#endif
+		<< ".";
+
+	_exit(1);
 }
 
 /** Reads or writes data. This operation could be asynchronous (aio).
@@ -5301,11 +5309,9 @@ fil_io(
 			}
 
 			fil_report_invalid_page_access(
-				cur_page_no, page_id.space(),
+				page_id.page_no(), page_id.space(),
 				space->name, byte_offset, len,
 				req_type.is_read());
-
-			ut_error;
 
 		} else if (fil_is_user_tablespace_id(space->id)
 			   && node->size == 0) {
@@ -5384,10 +5390,8 @@ fil_io(
 		}
 
 		fil_report_invalid_page_access(
-			cur_page_no, page_id.space(),
+			page_id.page_no(), page_id.space(),
 			space->name, byte_offset, len, req_type.is_read());
-
-		ut_error;
 	}
 
 	/* Now we have made the changes in the data structures of fil_system */
