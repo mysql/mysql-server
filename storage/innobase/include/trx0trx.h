@@ -1077,16 +1077,6 @@ struct trx_t {
 	bool		has_search_latch;
 					/*!< TRUE if this trx has latched the
 					search system latch in S-mode */
-	ulint		search_latch_timeout;
-					/*!< If we notice that someone is
-					waiting for our S-lock on the search
-					latch to be released, we wait in
-					row0sel.cc for BTR_SEA_TIMEOUT new
-					searches until we try to keep
-					the search latch again over
-					calls from MySQL; this is intended
-					to reduce contention on the search
-					latch */
 	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
 	/* Fields protected by the srv_conc_mutex. */
