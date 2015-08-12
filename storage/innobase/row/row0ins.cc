@@ -3006,6 +3006,8 @@ row_ins_sec_index_entry_low(
 			goto func_exit;
 		}
 
+		DEBUG_SYNC_C("row_ins_sec_index_entry_dup_locks_created");
+
 		/* We did not find a duplicate and we have now
 		locked with s-locks the necessary records to
 		prevent any insertion of a duplicate by another
