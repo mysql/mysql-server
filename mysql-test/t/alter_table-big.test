@@ -1,11 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Tests for various concurrency-related aspects of ALTER TABLE implemetation
 #
+# Test need MyISAM to support disable key feature
+--source include/have_myisam.inc
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
 # We are using some debug-only features in this test
@@ -31,7 +28,7 @@ connection default;
 create table t1 (n1 int, n2 int, n3 int,
                 key (n1, n2, n3),
                 key (n2, n3, n1),
-                key (n3, n1, n2));
+                key (n3, n1, n2)) engine=myisam;
 create table t2 (i int);
 
 alter table t1 disable keys;

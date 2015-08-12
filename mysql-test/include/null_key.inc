@@ -230,9 +230,11 @@ ANALYZE table t1, t2, t3;
 
 SELECT COUNT(*) FROM t3;
 
+--replace_column 10 #
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
                                              LEFT JOIN t3 ON t2.b=t3.b;
 FLUSH STATUS ;
+--replace_column 10 #
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
                                      LEFT JOIN t3 ON t2.b=t3.b;
 SELECT FOUND_ROWS();
@@ -272,6 +274,7 @@ CREATE TABLE t1 (a INT, KEY (a));
 INSERT INTO t1 VALUES (1), (2), (NULL);
 explain SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
+--replace_column 10 #
 explain SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
 SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
 drop table t1;

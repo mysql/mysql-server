@@ -1,11 +1,3 @@
-# Special per push test suite for mysql-trunk-stage used for qualifying WLs.
-# Covers more cases than default.push to catch problems in stage before tests
-# are pushed to main trees.
-
-# Run all default suites without specifying any replication mode. This will  run
-# rpl tests in all 3 modes row, stmt and mixed
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal      --vardir=var  --report-features 
-
 # Run all default suites with ps-protocol
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
 

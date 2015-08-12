@@ -1,10 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # test of problems with having (Reported by Mark Rogers)
 #
+
+# Test needs MyISAM for subtest for Bug#13406172 and Bug#46077
+--source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3;
@@ -15,6 +13,7 @@ select count(a) as b from t1 where a=0 having b > 0;
 insert into t1 values (null);
 select count(a) as b from t1 where a=0 having b > 0;
 select count(a) as b from t1 where a=0 having b >=0;
+analyze table t1;
 explain extended select count(a) as b from t1 where a=0 having b >=0;
 drop table t1; 
 
@@ -89,12 +88,12 @@ drop table t1;
 CREATE TABLE t1 (
   `id` bigint(20) NOT NULL default '0',
   `description` text
-) ENGINE=MyISAM;
+);
 
 CREATE TABLE t2 (
   `id` bigint(20) NOT NULL default '0',
   `description` varchar(20)
-) ENGINE=MyISAM;
+);
 
 INSERT INTO t1  VALUES (1, 'test');
 INSERT INTO t2 VALUES (1, 'test');
@@ -102,7 +101,7 @@ INSERT INTO t2 VALUES (1, 'test');
 CREATE TABLE t3 (
   `id`       bigint(20) NOT NULL default '0',
   `order_id` bigint(20) NOT NULL default '0'
-) ENGINE=MyISAM;
+);
 
 select
 	a.id, a.description,
@@ -151,6 +150,7 @@ SELECT a FROM t1 GROUP BY a HAVING a > 1;
 SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 
+analyze table t1;
 EXPLAIN SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 EXPLAIN SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 

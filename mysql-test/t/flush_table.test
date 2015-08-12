@@ -1,13 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # TODO: Only run this if we have privilege to do flush table
 
 #
 # Test of flush table
 #
+
+# Test needs MyISAM for few subtests
+--source include/have_myisam.inc
 
 # Should work in embedded server after mysqltest is fixed
 -- source include/not_embedded.inc

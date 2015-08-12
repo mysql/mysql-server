@@ -236,6 +236,7 @@ drop table t1;
 #
 create table t1 (a int);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+analyze table t1;
 explain select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 select count(*) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;
 explain select sum(a) c FROM t1 WHERE a > 0 ORDER BY c LIMIT 3;

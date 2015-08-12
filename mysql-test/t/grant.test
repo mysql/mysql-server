@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Store the time of password_last_changed column from mysql.user table
 # to restore it back later.
 let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
