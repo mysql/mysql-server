@@ -121,8 +121,11 @@ INSERT INTO t3 VALUES (6);
 INSERT INTO t4 VALUES (6);
 #
 # Kill the server
-# Delete the datafiles in the default locations.
-# Restart mysqld and display which datafiles were recovered.
+# Changes were made to the files in the default locations and the
+# SYS_DATAFILES.PATH was updated to show the default location.
+# Delete the older remote files and move the default files to the
+# remote locations.
+# Restart mysqld and show that the remote files were opened and recovered.
 # restart
 #
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===

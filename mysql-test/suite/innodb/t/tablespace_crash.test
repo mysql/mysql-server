@@ -90,13 +90,20 @@ INSERT INTO t4 VALUES (6);
 --echo #
 --source include/kill_mysqld.inc
 
---echo # Delete the datafiles in the default locations.
---remove_file $MYSQLD_DATADIR/tablespace1.ibd
---remove_file $MYSQLD_DATADIR/tablespace2.ibd
---remove_file $MYSQLD_DATADIR/test/t3.ibd
---remove_file $MYSQLD_DATADIR/test/t4.ibd
+--echo # Changes were made to the files in the default locations and the
+--echo # SYS_DATAFILES.PATH was updated to show the default location.
+--echo # Delete the older remote files and move the default files to the
+--echo # remote locations.
+--remove_file $MYSQL_TMP_DIR/tablespace1.ibd
+--remove_file $MYSQL_TMP_DIR/tablespace2.ibd
+--remove_file $MYSQL_TMP_DIR/test/t3.ibd
+--remove_file $MYSQL_TMP_DIR/test/t4.ibd
+--move_file $MYSQLD_DATADIR/tablespace1.ibd $MYSQL_TMP_DIR/tablespace1.ibd
+--move_file $MYSQLD_DATADIR/tablespace2.ibd $MYSQL_TMP_DIR/tablespace2.ibd
+--move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQL_TMP_DIR/test/t3.ibd
+--move_file $MYSQLD_DATADIR/test/t4.ibd $MYSQL_TMP_DIR/test/t4.ibd
 
---echo # Restart mysqld and display which datafiles were recovered.
+--echo # Restart mysqld and show that the remote files were opened and recovered.
 --source include/start_mysqld.inc
 --echo #
 
