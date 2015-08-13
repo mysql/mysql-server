@@ -880,6 +880,9 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
 
   @note This function accesses shared resources without protection, so
   it should only be called while the server is running single-threaded.
+
+  @note The error log can still be used before this function is called,
+  but that should only be done single-threaded.
 */
 void init_error_log();
 
@@ -887,6 +890,9 @@ void init_error_log();
   Open the error log and redirect stderr and optionally stdout
   to the error log file. The streams are reopened only for
   appending (writing at end of file).
+
+  @note This function also writes any error log messages that
+  have been buffered by calling flush_error_log_messages().
 
   @param filename        Name of error log file
 */
@@ -897,6 +903,10 @@ bool open_error_log(const char *filename);
 
   @note This function accesses shared resources without protection, so
   it should only be called while the server is running single-threaded.
+
+  @note The error log can still be used after this function is called,
+  but that should only be done single-threaded. All buffered messages
+  should be flushed before calling this function.
 */
 void destroy_error_log();
 
@@ -904,6 +914,20 @@ void destroy_error_log();
   Flush any pending data to disk and reopen the error log.
 */
 bool reopen_error_log();
+
+/**
+  We buffer all error log messages that have been printed before the
+  error log has been opened. This allows us to write them to the
+  correct file once the error log has been opened.
+
+  This function will explicitly flush buffered messages to stderr.
+  It is only needed in cases where open_error_log() is not called
+  as it otherwise will be done there.
+
+  This function also turns buffering off (there is no way to turn
+  buffering back on).
+*/
+void flush_error_log_messages();
 
 ////////////////////////////////////////////////////////////
 //
