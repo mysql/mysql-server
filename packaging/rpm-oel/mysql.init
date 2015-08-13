@@ -98,7 +98,7 @@ start(){
 		mkdir -p "$datadir" || exit 1
 	    fi
 	    chown mysql:mysql "$datadir"
-	    chmod 0755 "$datadir"
+	    chmod 0751 "$datadir"
 	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
 	    # Now create the database
             initfile="$(install_validate_password_sql_file)"
@@ -115,7 +115,7 @@ start(){
 	    fi
 	fi
 	chown mysql:mysql "$datadir"
-	chmod 0755 "$datadir"
+	chmod 0751 "$datadir"
 	# Pass all the options determined above, to ensure consistent behavior.
 	# In many cases mysqld_safe would arrive at the same conclusions anyway
 	# but we need to be sure.  (An exception is that we don't force the
