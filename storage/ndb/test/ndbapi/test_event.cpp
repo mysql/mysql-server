@@ -1579,6 +1579,9 @@ static int start_transaction(Ndb *ndb, Vector<HugoOperations*> &ops)
   if (ops[0]->startTransaction(ndb) != NDBT_OK)
     return -1;
   NdbTransaction * t= ops[0]->getTransaction();
+  if (t == NULL)
+    return -1;
+
   for (int i= ops.size()-1; i > 0; i--)
   {
     ops[i]->setTransaction(t,true);
@@ -1590,10 +1593,6 @@ static int close_transaction(Ndb *ndb, Vector<HugoOperations*> &ops)
 {
   if (ops[0]->closeTransaction(ndb) != NDBT_OK)
     return -1;
-  for (int i= ops.size()-1; i > 0; i--)
-  {
-    ops[i]->setTransaction(NULL,true);
-  }
   return 0;
 }
 
@@ -1612,16 +1611,41 @@ static int copy_events(Ndb *ndb)
   int n_inserts= 0;
   int n_updates= 0;
   int n_deletes= 0;
+  int n_poll_retries = 300;
+
   while (1)
   {
     int res= ndb->pollEvents(1000); // wait for event or 1000 ms
     DBUG_PRINT("info", ("pollEvents res=%d", res));
-    if (res <= 0)
+
+    n_poll_retries--;
+    if (res <= 0 && r == 0)
     {
-      break;
+      if (n_poll_retries > 0)
+      {
+	NdbSleep_SecSleep(1);
+        continue;
+      }
+
+      g_err << "Copy_events: pollEvents could not find any epochs "
+            << "despite 300 poll retries" << endl;
+      DBUG_RETURN(-1);
     }
-    NdbEventOperation *pOp;
-    while ((pOp= ndb->nextEvent()))
+    
+    NdbEventOperation *pOp = ndb->nextEvent();
+    // (res==1 && pOp==NULL) means empty epochs
+    if (pOp == NULL)
+    {
+      if (r == 0)
+      {
+        // Empty epoch preceeding regular epochs. Continue consuming.
+        continue;
+      }
+      // Empty epoch after regular epochs. We are done.
+      DBUG_RETURN(r);
+    } 
+
+    while (pOp)
     {
       char buf[1024];
       sprintf(buf, "%s_SHADOW", pOp->getEvent()->getTable()->getName());
@@ -1638,13 +1662,19 @@ static int copy_events(Ndb *ndb)
 	g_err << "buffer overrun\n";
 	DBUG_RETURN(-1);
       }
-      r++;
       
       if (!pOp->isConsistent()) {
 	g_err << "A node failure has occured and events might be missing\n";
 	DBUG_RETURN(-1);
       }
 	
+      if (pOp->getEventType() == NdbDictionary::Event::TE_NODE_FAILURE)
+      {
+        pOp = ndb->nextEvent();
+        continue;
+      }
+      r++;
+
       int noRetries= 0;
       do
       {
@@ -1709,6 +1739,8 @@ static int copy_events(Ndb *ndb)
 	default:
 	  abort();
 	}
+        CHK((r == (n_inserts + n_deletes + n_updates)),
+            "Number of record event operations consumed is not equal to the sum of insert,delete and update records.");
 	
 	{
 	  for (const NdbRecAttr *pk= pOp->getFirstPkAttr();
@@ -1790,12 +1822,13 @@ static int copy_events(Ndb *ndb)
 	  DBUG_RETURN(-1);
 	}
 	trans->close();
-	NdbSleep_MilliSleep(100); // sleep before retying
+	NdbSleep_MilliSleep(100); // sleep before retrying
       } while(1);
+      pOp = ndb->nextEvent();
     } // for
     // No more event data on the event queue.
-    break; 
   } // while(1)
+
   g_info << "n_updates: " << n_updates << " "
 	 << "n_inserts: " << n_inserts << " "
 	 << "n_deletes: " << n_deletes << endl;
@@ -1901,7 +1934,6 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
   Ndb * ndb= GETNDB(step);
 
-  int no_error= 1;
   int i;
 
   if (createEventOperations(ndb, ctx))
@@ -1911,7 +1943,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
   // create a hugo operation per table
   Vector<HugoOperations *> hugo_ops;
-  for (i= 0; no_error && pTabs[i]; i++)
+  for (i= 0; pTabs[i]; i++)
   {
     hugo_ops.push_back(new HugoOperations(*pTabs[i]));
   }
@@ -1921,35 +1953,33 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   do {
     if (start_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
-    for (i= 0; no_error && pTabs[i]; i++)
+    for (i= 0; pTabs[i]; i++)
     {
       hugo_ops[i]->pkInsertRecord(ndb, 0, n_records);
     }
     if (execute_commit(ndb, hugo_ops))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
 
   // copy events and verify
   do {
-    if (copy_events(ndb) < 0)
+    int ops_consumed = 0;
+    if ((ops_consumed=copy_events(ndb)) != i * n_records)
     {
-      no_error= 0;
+      g_err << "Not all records are consumed. Consumed " << ops_consumed
+            << ", inserted " << i * n_records << endl;
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1958,7 +1988,6 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   do {
     if (start_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
 
@@ -1966,26 +1995,23 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
     if (execute_commit(ndb, hugo_ops))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
 
   // copy events and verify
   do {
-    if (copy_events(ndb) < 0)
+    if (copy_events(ndb) <= 0)
     {
-      no_error= 0;
+      g_err << "No update is consumed. " << endl;
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
-      no_error= 0;
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1995,9 +2021,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     DBUG_RETURN(NDBT_FAILED);
   }
 
-  if (no_error)
-    DBUG_RETURN(NDBT_OK);
-  DBUG_RETURN(NDBT_FAILED);
+  DBUG_RETURN(NDBT_OK);
 }
 
 static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
@@ -2023,8 +2047,11 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       DBUG_RETURN(NDBT_FAILED);
     }
     // copy events and verify
-    if (copy_events(ndb) < 0)
+    int ops_consumed = 0;
+    if ((ops_consumed=copy_events(ndb)) != records)
     {
+      g_err << "Not all records are consumed. Consumed " << ops_consumed
+            << ", inserted " << records << endl;
       DBUG_RETURN(NDBT_FAILED);
     }
   }
@@ -2054,8 +2081,11 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	{
 	  DBUG_RETURN(NDBT_FAILED);
 	}
-	if (copy_events(ndb) < 0)
+        int ops_consumed = 0;
+	if ((ops_consumed=copy_events(ndb)) != records)
 	{
+          g_err << "Not all updates are consumed. Consumed " << ops_consumed
+                << ", updated " << records << endl;
 	  DBUG_RETURN(NDBT_FAILED);
 	}
       }
