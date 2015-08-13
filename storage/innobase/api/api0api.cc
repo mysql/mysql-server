@@ -215,39 +215,6 @@ ib_btr_cursor_is_positioned(
 	           || pcur->pos_state == BTR_PCUR_WAS_POSITIONED));
 }
 
-
-/********************************************************************//**
-Open a table using the table id, if found then increment table ref count.
-@return table instance if found */
-static
-dict_table_t*
-ib_open_table_by_id(
-/*================*/
-	ib_id_u64_t	tid,		/*!< in: table id to lookup */
-	ib_bool_t	locked)		/*!< in: TRUE if own dict mutex */
-{
-	dict_table_t*	table;
-	table_id_t	table_id;
-
-	table_id = tid;
-
-	if (!locked) {
-		dict_mutex_enter_for_mysql();
-	}
-
-	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
-
-	if (table != NULL && table->ibd_file_missing) {
-		table = NULL;
-	}
-
-	if (!locked) {
-		dict_mutex_exit_for_mysql();
-	}
-
-	return(table);
-}
-
 /********************************************************************//**
 Open a table using the table name, if found then increment table ref count.
 @return table instance if found */
@@ -852,35 +819,6 @@ ib_create_cursor_with_clust_index(
 }
 
 /*****************************************************************//**
-Open an InnoDB table and return a cursor handle to it.
-@return DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_open_table_using_id(
-/*==========================*/
-	ib_id_u64_t	table_id,	/*!< in: table id of table to open */
-	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
-					can be NULL */
-	ib_crsr_t*	ib_crsr)	/*!< out,own: InnoDB cursor */
-{
-	ib_err_t	err;
-	dict_table_t*	table;
-	const ib_bool_t	locked
-		= ib_trx && ib_schema_lock_is_exclusive(ib_trx);
-
-	table = ib_open_table_by_id(table_id, locked);
-
-	if (table == NULL) {
-
-		return(DB_TABLE_NOT_FOUND);
-	}
-
-	err = ib_create_cursor_with_clust_index(ib_crsr, table,
-						(trx_t*) ib_trx);
-
-	return(err);
-}
-
-/*****************************************************************//**
 Open an InnoDB secondary index cursor and return a cursor handle to it.
 @return DB_SUCCESS or err code */
 ib_err_t
@@ -1124,23 +1062,6 @@ ib_cursor_close(
 	return(DB_SUCCESS);
 }
 
-/*****************************************************************//**
-Close the table, decrement n_ref_count count.
-@return DB_SUCCESS or err code */
-ib_err_t
-ib_cursor_close_table(
-/*==================*/
-	ib_crsr_t	ib_crsr)	/*!< in,own: InnoDB cursor */
-{
-	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
-	row_prebuilt_t*	prebuilt = cursor->prebuilt;
-
-	if (prebuilt && prebuilt->table) {
-		dict_table_close(prebuilt->table, FALSE, FALSE);
-	}
-
-	return(DB_SUCCESS);
-}
 /**********************************************************************//**
 Run the insert query and do error handling.
 @return DB_SUCCESS or error code */
@@ -2960,76 +2881,6 @@ ib_cursor_lock(
 
 	return(ib_trx_lock_table_with_retry(
 		trx, table, (enum lock_mode) ib_lck_mode));
-}
-
-/*****************************************************************//**
-Set the Lock an InnoDB table using the table id.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_table_lock(
-/*==========*/
-	ib_trx_t	ib_trx,		/*!< in/out: transaction */
-	ib_id_u64_t	table_id,	/*!< in: table id */
-	ib_lck_mode_t	ib_lck_mode)	/*!< in: InnoDB lock mode */
-{
-	ib_err_t	err;
-	que_thr_t*	thr;
-	mem_heap_t*	heap;
-	dict_table_t*	table;
-	ib_qry_proc_t	q_proc;
-	trx_t*		trx = (trx_t*) ib_trx;
-
-	ut_ad(trx_is_started(trx));
-
-	table = ib_open_table_by_id(table_id, FALSE);
-
-	if (table == NULL) {
-		return(DB_TABLE_NOT_FOUND);
-	}
-
-	ut_a(ib_lck_mode <= static_cast<ib_lck_mode_t>(LOCK_NUM));
-
-	heap = mem_heap_create(128);
-
-	q_proc.node.sel = sel_node_create(heap);
-
-	thr = pars_complete_graph_for_exec(q_proc.node.sel, trx, heap);
-
-	q_proc.grph.sel = static_cast<que_fork_t*>(que_node_get_parent(thr));
-	q_proc.grph.sel->state = QUE_FORK_ACTIVE;
-
-	trx->op_info = "setting table lock";
-
-	ut_a(ib_lck_mode == IB_LOCK_IS || ib_lck_mode == IB_LOCK_IX);
-	err = static_cast<ib_err_t>(
-		lock_table(0, table, (enum lock_mode) ib_lck_mode, thr));
-
-	trx->error_state = err;
-
-	mem_heap_free(heap);
-
-	return(err);
-}
-
-/*****************************************************************//**
-Unlock an InnoDB table.
-@return DB_SUCCESS or error code */
-ib_err_t
-ib_cursor_unlock(
-/*=============*/
-	ib_crsr_t	ib_crsr)	/*!< in/out: InnoDB cursor */
-{
-	ib_err_t	err = DB_SUCCESS;
-	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
-	row_prebuilt_t*	prebuilt = cursor->prebuilt;
-
-	if (prebuilt->trx->mysql_n_tables_locked > 0) {
-		--prebuilt->trx->mysql_n_tables_locked;
-	} else {
-		err = DB_ERROR;
-	}
-
-	return(err);
 }
 
 /*****************************************************************//**
