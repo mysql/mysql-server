@@ -796,158 +796,24 @@ ulong sql_rnd_with_mutex()
 }
 
 
-/**
-  A log message for the error log, buffered in memory.
-  Log messages are temporarily buffered when generated before the error log
-  is initialized, and then printed once the error log is ready.
-*/
-class Buffered_log : public Sql_alloc
-{
-public:
-  Buffered_log(enum loglevel level, const char *message);
-
-  ~Buffered_log()
-  {}
-
-  void print(void);
-
-private:
-  /** Log message level. */
-  enum loglevel m_level;
-  /** Log message text. */
-  String m_message;
-};
-
-/**
-  Constructor.
-  @param level          the message log level
-  @param message        the message text
-*/
-Buffered_log::Buffered_log(enum loglevel level, const char *message)
-  : m_level(level), m_message()
-{
-  m_message.copy(message, strlen(message), &my_charset_latin1);
-}
-
-/**
-  Print a buffered log to the real log file.
-*/
-void Buffered_log::print()
-{
-  if (!(static_cast<ulong>(m_level) < log_error_verbosity))
-    return;
-
-  /*
-    Since messages are buffered, they can be printed out
-    of order with other entries in the log.
-    Add "Buffered xxx" to the message text to prevent confusion.
-  */
-  switch(m_level)
-  {
-  case ERROR_LEVEL:
-    sql_print_error("Buffered error: %s", m_message.c_ptr_safe());
-    break;
-  case WARNING_LEVEL:
-    sql_print_warning("Buffered warning: %s", m_message.c_ptr_safe());
-    break;
-  case INFORMATION_LEVEL:
-    /*
-      Messages printed as "information" still end up in the mysqld *error* log,
-      but with a [Note] tag instead of an [ERROR] tag.
-    */
-    sql_print_information("Buffered note: %s", m_message.c_ptr_safe());
-    break;
-  }
-}
-
-/**
-  Collection of all the buffered log messages.
-*/
-class Buffered_logs
-{
-public:
-  Buffered_logs()
-  {}
-
-  ~Buffered_logs()
-  {}
-
-  void init();
-  void cleanup();
-
-  void buffer(enum loglevel m_level, const char *msg);
-  void print();
-private:
-  /**
-    Memory root to use to store buffered logs.
-    This memory root lifespan is between init and cleanup.
-    Once the buffered logs are printed, they are not needed anymore,
-    and all the memory used is reclaimed.
-  */
-  MEM_ROOT m_root;
-  /** List of buffered log messages. */
-  List<Buffered_log> m_list;
-};
-
-void Buffered_logs::init()
-{
-  init_alloc_root(key_memory_buffered_logs, &m_root, 1024, 0);
-}
-
-void Buffered_logs::cleanup()
-{
-  m_list.delete_elements();
-  free_root(&m_root, MYF(0));
-}
-
-/**
-  Add a log message to the buffer.
-*/
-void Buffered_logs::buffer(enum loglevel level, const char *msg)
-{
-  /*
-    Do not let Sql_alloc::operator new(size_t) allocate memory,
-    there is no memory root associated with the main() thread.
-    Give explicitly the proper memory root to use to
-    Sql_alloc::operator new(size_t, MEM_ROOT *) instead.
-  */
-  Buffered_log *log= new (&m_root) Buffered_log(level, msg);
-  if (log)
-    m_list.push_back(log, &m_root);
-}
-
-/**
-  Print buffered log messages.
-*/
-void Buffered_logs::print()
-{
-  Buffered_log *log;
-  List_iterator_fast<Buffered_log> it(m_list);
-  while ((log= it++))
-    log->print();
-}
-
-/** Logs reported before a logger is available. */
-static Buffered_logs buffered_logs;
-
-/**
-  Error reporter that buffer log messages.
-  @param level          log message level
-  @param format         log message format string
-*/
 C_MODE_START
-static void buffered_option_error_reporter(enum loglevel level,
-                                           const char *format, ...)
+
+static void option_error_reporter(enum loglevel level, const char *format, ...)
+  __attribute__((format(printf, 2, 3)));
+
+static void option_error_reporter(enum loglevel level, const char *format, ...)
 {
   va_list args;
-  char buffer[1024];
-
   va_start(args, format);
-  my_vsnprintf(buffer, sizeof(buffer), format, args);
-  va_end(args);
-  buffered_logs.buffer(level, buffer);
-}
 
+  /* Don't print warnings for --loose options during bootstrap */
+  if (level == ERROR_LEVEL || !opt_bootstrap ||
+      (log_error_verbosity > 1))
+  {
+    error_log_print(level, format, args);
+  }
+  va_end(args);
+}
 
 /**
   Character set and collation error reporter that prints to sql error log.
@@ -958,12 +824,6 @@ static void buffered_option_error_reporter(enum loglevel level,
   warnings and errors inside an already running mysqld server,
   e.g. when a character set or collation is requested for the very first time
   and its initialization does not go well for some reasons.
-
-  Note: At early mysqld initialization stage,
-  when error log is not yet available,
-  we use buffered_option_error_reporter() instead,
-  to print general character set subsystem initialization errors,
-  such as Index.xml syntax problems, bad XML tag hierarchy, etc.
 */
 static void charset_error_reporter(enum loglevel level,
                                    const char *format, ...)
@@ -1310,6 +1170,10 @@ extern "C" void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
 
+  // At this point it does not make sense to buffer more messages.
+  // Just flush what we have and write directly to stderr.
+  flush_error_log_messages();
+
   if (opt_help)
     usage();
   if (exit_code)
@@ -1348,7 +1212,6 @@ static void mysqld_exit(int exit_code)
   delete_optimizer_cost_module();
   clean_up_mutexes();
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-  local_message_hook= my_message_local_stderr;
   destroy_error_log();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
@@ -2501,8 +2364,8 @@ static bool init_global_datetime_format(timestamp_type format_type,
 
   if (parse_date_time_format(format_type, format))
   {
-    my_message_local(ERROR_LEVEL, "Wrong date/time format specifier: %s",
-                     format->format.str);
+    sql_print_error("Wrong date/time format specifier: %s",
+                    format->format.str);
     return true;
   }
   return false;
@@ -3121,10 +2984,6 @@ int init_common_variables()
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-      buffered_logs.print();
-      buffered_logs.cleanup();
-#endif
       sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION), default_collation_name);
       return 1;
     }
@@ -3910,30 +3769,16 @@ static int init_server_components()
     FreeConsole();        // Remove window
 #endif
   }
-  else // We are logging to stderr and SHOW VARIABLES should reflect that.
+  else
+  {
+    // We are logging to stderr and SHOW VARIABLES should reflect that.
     log_error_dest= "stderr";
+    // Flush messages buffered so far.
+    flush_error_log_messages();
+  }
 
   enter_cond_hook= thd_enter_cond;
   exit_cond_hook= thd_exit_cond;
-
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  /*
-    Parsing the performance schema command line option may have reported
-    warnings/information messages.
-    Now that the logger is finally available, and redirected
-    to the proper file when the --log--error option is used,
-    print the buffered messages to the log.
-  */
-  buffered_logs.print();
-  buffered_logs.cleanup();
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-
-  /*
-    Now that the logger is available, redirect character set
-    errors directly to the logger
-    (instead of the buffered_logs used at the server startup time).
-  */
-  my_charset_error_reporter= charset_error_reporter;
 
   if (transaction_cache_init())
   {
@@ -4185,10 +4030,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
     if (remaining_argc > 1)
     {
-      my_message_local(ERROR_LEVEL, "Too many arguments (first extra is '%s').",
-                       remaining_argv[1]);
-      my_message_local(INFORMATION_LEVEL, "Use --verbose --help to get a list "
-                       "of available options!");
+      sql_print_error("Too many arguments (first extra is '%s').",
+                      remaining_argv[1]);
+      sql_print_information("Use --verbose --help to get a list "
+                            "of available options!");
       unireg_abort(MYSQLD_ABORT_EXIT);
 
     }
@@ -4468,7 +4313,7 @@ int mysqld_main(int argc, char **argv)
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
   {
-    my_message_local(ERROR_LEVEL, "my_init() failed.");
+    sql_print_error("my_init() failed.");
     return 1;
   }
 #endif /* _WIN32 */
@@ -4486,6 +4331,9 @@ int mysqld_main(int argc, char **argv)
 
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
+
+  /* Write mysys error messages to the error log. */
+  local_message_hook= error_log_print;
 
   int ho_error;
 
@@ -4551,8 +4399,7 @@ int mysqld_main(int argc, char **argv)
       if (PSI_hook == NULL && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
-        buffered_logs.buffer(WARNING_LEVEL,
-                             "Performance schema disabled (reason: init failed).");
+        sql_print_warning("Performance schema disabled (reason: init failed).");
       }
     }
   }
@@ -4601,7 +4448,6 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log();
-  local_message_hook= error_log_print;  // we never change this in embedded
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
@@ -4623,8 +4469,7 @@ int mysqld_main(int argc, char **argv)
       - messages will be printed to stderr, which is not redirected yet,
       - messages will be printed in the NT event log, for windows.
     */
-    buffered_logs.print();
-    buffered_logs.cleanup();
+    flush_error_log_messages();
     /*
       Not enough initializations for unireg_abort()
       Using exit() for windows.
@@ -5247,7 +5092,7 @@ int mysqld_main(int argc, char **argv)
 
   if (my_init())
   {
-    my_message_local(ERROR_LEVEL, "my_init() failed.");
+    sql_print_error("my_init() failed.");
     return 1;
   }
 
@@ -5398,13 +5243,8 @@ int handle_early_options()
 
   add_terminator(&all_early_options);
 
-  /*
-    Logs generated while parsing the command line
-    options are buffered and printed later.
-  */
-  buffered_logs.init();
-  my_getopt_error_reporter= buffered_option_error_reporter;
-  my_charset_error_reporter= buffered_option_error_reporter;
+  my_getopt_error_reporter= option_error_reporter;
+  my_charset_error_reporter= charset_error_reporter;
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
                            &all_early_options[0], mysqld_get_one_option);
@@ -5417,9 +5257,8 @@ int handle_early_options()
     /* adjust the bootstrap options */
     if (opt_bootstrap)
     {
-      my_message_local(WARNING_LEVEL,
-                       "--bootstrap is deprecated. "
-                       "Please consider using --initialize instead");
+      sql_print_warning("--bootstrap is deprecated. "
+                        "Please consider using --initialize instead");
     }
     if (opt_initialize_insecure)
       opt_initialize= TRUE;
@@ -5427,9 +5266,8 @@ int handle_early_options()
     {
       if (opt_bootstrap)
       {
-        my_getopt_error_reporter(ERROR_LEVEL,
-                                 "Both --bootstrap and --initialize specified."
-                                 " Please pick one. Exiting.");
+        sql_print_error("Both --bootstrap and --initialize specified."
+                        " Please pick one. Exiting.");
         ho_error= EXIT_AMBIGUOUS_OPTION;
       }
       opt_bootstrap= TRUE;
@@ -5477,22 +5315,16 @@ void adjust_open_files_limit(ulong *requested_open_files)
 
   if (effective_open_files < request_open_files)
   {
-    char msg[1024];
-
     if (open_files_limit == 0)
     {
-      my_snprintf(msg, sizeof(msg),
-                  "Changed limits: max_open_files: %lu (requested %lu)",
-                  effective_open_files, request_open_files);
-      buffered_logs.buffer(WARNING_LEVEL, msg);
+      sql_print_warning("Changed limits: max_open_files: %lu (requested %lu)",
+                        effective_open_files, request_open_files);
     }
     else
     {
-      my_snprintf(msg, sizeof(msg),
-                  "Could not increase number of max_open_files to "
-                  "more than %lu (request: %lu)",
-                  effective_open_files, request_open_files);
-      buffered_logs.buffer(WARNING_LEVEL, msg);
+      sql_print_warning("Could not increase number of max_open_files to "
+                        "more than %lu (request: %lu)",
+                        effective_open_files, request_open_files);
     }
   }
 
@@ -5509,12 +5341,8 @@ void adjust_max_connections(ulong requested_open_files)
 
   if (limit < max_connections)
   {
-    char msg[1024];
-
-    my_snprintf(msg, sizeof(msg),
-                "Changed limits: max_connections: %lu (requested %lu)",
-                limit, max_connections);
-    buffered_logs.buffer(WARNING_LEVEL, msg);
+    sql_print_warning("Changed limits: max_connections: %lu (requested %lu)",
+                      limit, max_connections);
 
     // This can be done unprotected since it is only called on startup.
     max_connections= limit;
@@ -5530,12 +5358,8 @@ void adjust_table_cache_size(ulong requested_open_files)
 
   if (limit < table_cache_size)
   {
-    char msg[1024];
-
-    my_snprintf(msg, sizeof(msg),
-                "Changed limits: table_open_cache: %lu (requested %lu)",
-                limit, table_cache_size);
-    buffered_logs.buffer(WARNING_LEVEL, msg);
+    sql_print_warning("Changed limits: table_open_cache: %lu (requested %lu)",
+                      limit, table_cache_size);
 
     table_cache_size= limit;
   }
@@ -7484,10 +7308,9 @@ mysqld_get_one_option(int optid,
 pfs_error:
       if (error)
       {
-        my_getopt_error_reporter(WARNING_LEVEL,
-                                 "Invalid instrument name or value for "
-                                 "performance_schema_instrument '%s'",
-                                 orig_argument);
+        sql_print_warning("Invalid instrument name or value for "
+                          "performance_schema_instrument '%s'",
+                          orig_argument);
         return 0;
       }
 #endif /* EMBEDDED_LIBRARY */
@@ -7572,23 +7395,6 @@ mysql_getopt_value(const char *keyname, size_t key_length,
   return option->value;
 }
 
-static void option_error_reporter(enum loglevel level, const char *format, ...)
-  __attribute__((format(printf, 2, 3)));
-
-static void option_error_reporter(enum loglevel level, const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-
-  /* Don't print warnings for --loose options during bootstrap */
-  if (level == ERROR_LEVEL || !opt_bootstrap ||
-      (log_error_verbosity > 1))
-  {
-    error_log_print(level, format, args);
-  }
-  va_end(args);
-}
-
 C_MODE_END
 
 /**
@@ -7630,7 +7436,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   int ho_error;
 
   my_getopt_register_get_addr(mysql_getopt_value);
-  my_getopt_error_reporter= option_error_reporter;
 
   /* prepare all_options array */
   all_options.reserve(array_elements(my_long_options));
