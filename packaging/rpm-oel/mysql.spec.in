@@ -612,7 +612,7 @@ rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
 MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
-install -d -m 0755 %{buildroot}/var/lib/mysql
+install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
 
@@ -671,7 +671,7 @@ rm -r $(readlink var) var
 
 %post server
 datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
-/bin/chmod 0755 "$datadir" >/dev/null 2>&1 || :
+/bin/chmod 0751 "$datadir" >/dev/null 2>&1 || :
 /bin/touch /var/log/mysqld.log >/dev/null 2>&1 || :
 %if 0%{?systemd}
 %systemd_post mysqld.service
@@ -842,7 +842,7 @@ fi
 %attr(755, root, root) %{_sysconfdir}/init.d/mysqld
 %endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
-%dir %attr(755, mysql, mysql) /var/lib/mysql
+%dir %attr(751, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysqld
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
 
