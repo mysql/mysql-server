@@ -8819,6 +8819,10 @@ i_s_files_table_fill(
 				space()->id);
 			space_name = file_per_table_name;
 		} else {
+			/* Only file-per-table space names contain '/'.
+                        This is not file-per-table . */
+			ut_ad(NULL == strchr(space()->name, '/'));
+
 			space_name = space()->name;
 		}
 
