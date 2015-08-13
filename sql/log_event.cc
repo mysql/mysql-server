@@ -4663,7 +4663,13 @@ compare_errors:
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
-    if ((expected_error && expected_error != actual_error &&
+    /*
+      If a statement with expected error is received on slave and if the
+      statement is not filtered on the slave, only then compare the expected
+      error with the actual error that happened on slave.
+    */
+    if ((expected_error && rpl_filter->db_ok(thd->db().str) &&
+         expected_error != actual_error &&
          !concurrency_error_code(expected_error)) &&
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
