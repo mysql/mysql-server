@@ -1,5 +1,9 @@
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
+#
+# Skip it valgrind until BUG#21616914 has been fixed
+#
+--source include/not_valgrind.inc
 
 --echo # Test of the conversion from JSON data type to MySQL types
 --echo # ----------------------------------------------------------------------
