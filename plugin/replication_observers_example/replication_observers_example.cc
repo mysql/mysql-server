@@ -210,6 +210,7 @@ typedef enum enum_before_commit_test_cases {
   INVALID_CERTIFICATION_OUTCOME
 } before_commit_test_cases;
 
+#ifndef DBUG_OFF
 static int before_commit_tests(Trans_param *param,
                                before_commit_test_cases test_case)
 {
@@ -270,6 +271,7 @@ static int before_commit_tests(Trans_param *param,
 
   return 0;
 }
+#endif
 
 static int trans_before_commit(Trans_param *param)
 {
