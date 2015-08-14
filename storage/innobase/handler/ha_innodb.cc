@@ -5540,7 +5540,8 @@ ha_innobase::open(
 
 	if (ib_table == NULL) {
 
-		ib_table = open_dict_table(norm_name, is_part, ignore_err);
+		ib_table = open_dict_table(name, norm_name, is_part,
+					   ignore_err);
 	} else {
 		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
@@ -5887,17 +5888,19 @@ ha_innobase::open(
 try alternative lower/upper case names to support moving data files across
 platforms.
 @param[in]	table_name	name of the table/partition
+@param[in]	norm_name	normalized name of the table/partition
 @param[in]	is_partition	if this is a partition of a table
 @param[in]	ignore_err	error to ignore for loading dictionary object
 @return dictionary table object or NULL if not found */
 dict_table_t*
 ha_innobase::open_dict_table(
 	const char*		table_name,
+	const char*		norm_name,
 	bool			is_partition,
 	dict_err_ignore_t	ignore_err)
 {
 	DBUG_ENTER("ha_innobase::open_dict_table");
-	dict_table_t*	ib_table = dict_table_open_on_name(table_name, FALSE,
+	dict_table_t*	ib_table = dict_table_open_on_name(norm_name, FALSE,
 							   TRUE, ignore_err);
 
 	if (NULL == ib_table && is_partition) {
@@ -5925,7 +5928,7 @@ ha_innobase::open_dict_table(
 			/* Check for the table using lower
 			case name, including the partition
 			separator "P" */
-			strcpy(par_case_name, table_name);
+			strcpy(par_case_name, norm_name);
 			innobase_casedn_str(par_case_name);
 #else
 			/* On Windows platfrom, check
@@ -5935,7 +5938,7 @@ ha_innobase::open_dict_table(
 			create_table_info_t::
 				normalize_table_name_low(
 					par_case_name,
-					name, FALSE);
+					table_name, FALSE);
 #endif
 			ib_table = dict_table_open_on_name(
 				par_case_name, FALSE, TRUE,
@@ -5951,7 +5954,7 @@ ha_innobase::open_dict_table(
 					  " in-sensitive file system."
 					  " Please recreate table in"
 					  " the current file system\n",
-					  table_name);
+					  norm_name);
 #else
 			sql_print_warning("Partition table %s opened"
 					  " after skipping the step to"
@@ -5961,7 +5964,7 @@ ha_innobase::open_dict_table(
 					  " file system. Please"
 					  " recreate table in the"
 					  " current file system\n",
-					  table_name);
+					  norm_name);
 #endif
 		}
 	}
