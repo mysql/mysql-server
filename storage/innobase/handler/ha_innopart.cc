@@ -162,8 +162,8 @@ Ha_innopart_share::open_one_table_part(
 	const char*	partition_name)
 {
 	m_table_parts[part_id] =
-		ha_innobase::open_dict_table(partition_name, TRUE,
-					     DICT_ERR_IGNORE_NONE);
+		ha_innobase::open_dict_table(partition_name, partition_name,
+					     TRUE, DICT_ERR_IGNORE_NONE);
 
 	if (m_table_parts[part_id] == NULL) {
 		return(true);
