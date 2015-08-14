@@ -34,8 +34,7 @@ struct PFS_builtin_memory_class
 
   inline void count_alloc(size_t size)
   {
-    if (m_class.m_enabled)
-      m_stat.count_builtin_alloc(size);
+    m_stat.count_builtin_alloc(size);
   }
 
   inline void count_free(size_t size)

@@ -21,7 +21,7 @@ update performance_schema.setup_instruments
 set enabled='YES', timed='NO';
 **** On Master ****
 select * from performance_schema.setup_instruments
-where timed='NO';
+where timed='NO' and name not like "memory/%";
 NAME	ENABLED	TIMED
 select "This better be in the master" as in_master_digest;
 in_master_digest

@@ -32,6 +32,20 @@ ORDER BY name;
 NAME	ENABLED	TIMED
 wait/synch/mutex/sql/hash_filo::lock	NO	NO
 #
+# Verify that the memory instruments are never timed
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/%'
+AND timed = 'YES';
+NAME	ENABLED	TIMED
+#
+# Verify that the memory/performance_schema instruments are never disabled
+#
+SELECT * FROM performance_schema.setup_instruments
+WHERE name like 'memory/performance_schema/%'
+AND enabled = 'NO';
+NAME	ENABLED	TIMED
+#
 # Verify that the instrument startup settings are not not visible.
 #
 SHOW VARIABLES LIKE "%/wait/synch/mutex%";

@@ -24,7 +24,6 @@
 --loose-performance-schema-instrument='wait/synch/mutex/sql/THD::LOCK_thd_data= TRUE'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/hash_filo::lock =FALSE'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data= NO'
-
-
-
+--loose-performance-schema-instrument='memory/%=ON'
+--loose-performance-schema-instrument='memory/performance_schema/%=OFF'
 
