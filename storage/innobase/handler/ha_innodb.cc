@@ -5467,8 +5467,8 @@ ha_innobase::open(
 	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
-		ib_table = dict_table_open_on_name(
-			norm_name, FALSE, TRUE, ignore_err);
+
+		ib_table = open_dict_table(norm_name, is_part, ignore_err);
 	} else {
 		ib_table->acquire();
 		ut_ad(dict_table_is_intrinsic(ib_table));
@@ -5498,83 +5498,6 @@ ha_innobase::open(
 	}
 
 	if (NULL == ib_table) {
-		if (is_part) {
-			/* TODO: remove this, since it should be be handled
-			either in upgrading or in ha_innopart instead.
-			Currently old .frm files will still create
-			ha_partition based tables with one ha_innobase handler
-			per partition. */
-
-			/* MySQL partition engine hard codes the file name
-			separator as "#P#". The text case is fixed even if
-			lower_case_table_names is set to 1 or 2. This is true
-			for sub-partition names as well. InnoDB always
-			normalises file names to lower case on Windows, this
-			can potentially cause problems when copying/moving
-			tables between platforms.
-
-			1) If boot against an installation from Windows
-			platform, then its partition table name could
-			be in lower case in system tables. So we will
-			need to check lower case name when load table.
-
-			2) If we boot an installation from other case
-			sensitive platform in Windows, we might need to
-			check the existence of table name without lower
-			case in the system table. */
-			if (innobase_get_lower_case_table_names() == 1) {
-				bool	par_case_name_set = false;
-				char	par_case_name[FN_REFLEN];
-
-				if (!par_case_name_set) {
-#ifndef _WIN32
-					/* Check for the table using lower
-					case name, including the partition
-					separator "P" */
-					strcpy(par_case_name, norm_name);
-					innobase_casedn_str(par_case_name);
-#else
-					/* On Windows platfrom, check
-					whether there exists table name in
-					system table whose name is
-					not being normalized to lower case */
-					create_table_info_t::
-						normalize_table_name_low(
-							par_case_name,
-							name, FALSE);
-#endif
-					par_case_name_set = TRUE;
-				}
-
-				ib_table = dict_table_open_on_name(
-					par_case_name, FALSE, TRUE,
-					ignore_err);
-			}
-
-			if (ib_table != NULL) {
-#ifndef _WIN32
-				sql_print_warning("Partition table %s opened"
-						  " after converting to lower"
-						  " case. The table may have"
-						  " been moved from a case"
-						  " in-sensitive file system."
-						  " Please recreate table in"
-						  " the current file system\n",
-						  norm_name);
-#else
-				sql_print_warning("Partition table %s opened"
-						  " after skipping the step to"
-						  " lower case the table name."
-						  " The table may have been"
-						  " moved from a case sensitive"
-						  " file system. Please"
-						  " recreate table in the"
-						  " current file system\n",
-						  norm_name);
-#endif
-				goto table_opened;
-			}
-		}
 
 		if (is_part) {
 			sql_print_error("Failed to open table %s.\n",
@@ -5590,8 +5513,6 @@ ha_innobase::open(
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
-
-table_opened:
 
 	innobase_copy_frm_flags_from_table_share(ib_table, table->s);
 
@@ -5895,6 +5816,91 @@ table_opened:
 	DBUG_RETURN(0);
 }
 
+/** Opens dictionary table object using table name. For partition, we need to
+try alternative lower/upper case names to support moving data files across
+platforms.
+@param[in]	table_name	name of the table/partition
+@param[in]	is_partition	if this is a partition of a table
+@param[in]	ignore_err	error to ignore for loading dictionary object
+@return dictionary table object or NULL if not found */
+dict_table_t*
+ha_innobase::open_dict_table(
+	const char*		table_name,
+	bool			is_partition,
+	dict_err_ignore_t	ignore_err)
+{
+	DBUG_ENTER("ha_innobase::open_dict_table");
+	dict_table_t*	ib_table = dict_table_open_on_name(table_name, FALSE,
+							   TRUE, ignore_err);
+
+	if (NULL == ib_table && is_partition) {
+		/* MySQL partition engine hard codes the file name
+		separator as "#P#". The text case is fixed even if
+		lower_case_table_names is set to 1 or 2. This is true
+		for sub-partition names as well. InnoDB always
+		normalises file names to lower case on Windows, this
+		can potentially cause problems when copying/moving
+		tables between platforms.
+
+		1) If boot against an installation from Windows
+		platform, then its partition table name could
+		be in lower case in system tables. So we will
+		need to check lower case name when load table.
+
+		2) If we boot an installation from other case
+		sensitive platform in Windows, we might need to
+		check the existence of table name without lower
+		case in the system table. */
+		if (innobase_get_lower_case_table_names() == 1) {
+			char	par_case_name[FN_REFLEN];
+
+#ifndef _WIN32
+			/* Check for the table using lower
+			case name, including the partition
+			separator "P" */
+			strcpy(par_case_name, table_name);
+			innobase_casedn_str(par_case_name);
+#else
+			/* On Windows platfrom, check
+			whether there exists table name in
+			system table whose name is
+			not being normalized to lower case */
+			create_table_info_t::
+				normalize_table_name_low(
+					par_case_name,
+					name, FALSE);
+#endif
+			ib_table = dict_table_open_on_name(
+				par_case_name, FALSE, TRUE,
+				ignore_err);
+		}
+
+		if (ib_table != NULL) {
+#ifndef _WIN32
+			sql_print_warning("Partition table %s opened"
+					  " after converting to lower"
+					  " case. The table may have"
+					  " been moved from a case"
+					  " in-sensitive file system."
+					  " Please recreate table in"
+					  " the current file system\n",
+					  table_name);
+#else
+			sql_print_warning("Partition table %s opened"
+					  " after skipping the step to"
+					  " lower case the table name."
+					  " The table may have been"
+					  " moved from a case sensitive"
+					  " file system. Please"
+					  " recreate table in the"
+					  " current file system\n",
+					  table_name);
+#endif
+		}
+	}
+
+	DBUG_RETURN(ib_table);
+}
 
 handler*
 ha_innobase::clone(
