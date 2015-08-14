@@ -482,6 +482,7 @@ dict_table_get_n_v_cols(
 /** Check if a table has indexed virtual columns
 @param[in]	table	the table to check
 @return true is the table has indexed virtual columns */
+UNIV_INLINE
 bool
 dict_table_has_indexed_v_cols(
 	const dict_table_t*	table)
