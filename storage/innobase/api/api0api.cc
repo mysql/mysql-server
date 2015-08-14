@@ -2853,19 +2853,6 @@ ib_schema_lock_is_exclusive(
 }
 
 /*****************************************************************//**
-Checks if the data dictionary is latched in shared mode.
-@return TRUE if shared latch */
-ib_bool_t
-ib_schema_lock_is_shared(
-/*=====================*/
-	const ib_trx_t	ib_trx)		/*!< in: transaction */
-{
-	const trx_t*	trx = (const trx_t*) ib_trx;
-
-	return(trx->dict_operation_lock_mode == RW_S_LATCH);
-}
-
-/*****************************************************************//**
 Set the Lock an InnoDB cursor/table.
 @return DB_SUCCESS or error code */
 ib_err_t

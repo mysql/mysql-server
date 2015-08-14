@@ -4455,6 +4455,9 @@ size_t calc_pack_length(enum_field_types type, size_t length);
 type_conversion_status set_field_to_null(Field *field);
 type_conversion_status set_field_to_null_with_conversions(Field *field,
                                                           bool no_conversions);
+type_conversion_status
+store_internal_with_error_check(Field_new_decimal *field,
+                                int conversion_err, my_decimal *value);
 
 /*
   The following are for the interface with the .frm file

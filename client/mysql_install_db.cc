@@ -184,7 +184,7 @@ Log warning(cout, "WARNING");
   as it only does what is necessary for this application.
   @return A quoted copy of the original string.
 */
-string escape_string(string str)
+static string escape_string(string str)
 {
   string esc("'\"\\");
   for(string::iterator it= esc.begin(); it != esc.end(); ++it)
@@ -322,7 +322,7 @@ struct Sql_user
 
 static const char *load_default_groups[]= { PROGRAM_NAME, 0 };
 
-void print_version(const string &p)
+static void print_version(const string &p)
 {
   cout << p
        << " Ver " << MYSQL_SERVER_VERSION << ", for "
@@ -330,7 +330,7 @@ void print_version(const string &p)
        << MACHINE_TYPE << "\n";
 }
 
-void usage(const string &p)
+static void usage(const string &p)
 {
   print_version(p);
   cout << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << endl
@@ -378,7 +378,7 @@ my_arguments_get_one_option(int optid,
   The string class will break if constructed with a NULL pointer. This wrapper
  provides a systematic protection when importing char pointers.
 */
-string create_string(char *ptr)
+static string create_string(char *ptr)
 {
   if (ptr)
     return string(ptr);
@@ -397,17 +397,17 @@ bool my_all_of(InputIterator first, InputIterator last, UnaryPredicate pred)
   return true;
 }
 
-bool my_legal_username_chars(const char &c)
+static bool my_legal_username_chars(const char &c)
 {
   return isalnum(c) || c == '_';
 }
 
-bool my_legal_hostname_chars(const char &c)
+static bool my_legal_hostname_chars(const char &c)
 {
   return isalnum(c) || c == '_' || c == '.';
 }
 
-bool my_legal_plugin_chars(const char &c)
+static bool my_legal_plugin_chars(const char &c)
 {
   return isalnum(c) || c == '_';
 }
@@ -415,17 +415,12 @@ bool my_legal_plugin_chars(const char &c)
 // defined in auth_utils.cc
 extern const string g_allowed_pwd_chars;
 
-bool my_legal_password(const char &c)
-{
-  return (get_allowed_pwd_chars().find(c) != string::npos);
-}
-
 /**
   Verify that the default admin account follows the recommendations and
   restrictions.
 */
-bool assert_valid_root_account(const string &username, const string &host,
-                                  const string &plugin, bool ssl)
+static bool assert_valid_root_account(const string &username, const string &host,
+                                      const string &plugin, bool ssl)
 {
   if( username.length() > MAX_USER_NAME_LEN || username.length() < 1)
   {
@@ -458,7 +453,7 @@ bool assert_valid_root_account(const string &username, const string &host,
   return true;
 }
 
-bool assert_valid_datadir(const string &datadir, Path *target)
+static bool assert_valid_datadir(const string &datadir, Path *target)
 {
   if (datadir.length() == 0)
   {
@@ -519,8 +514,8 @@ private:
  @return true if a file is found, false if not.
 */
 
-bool locate_file(const string &filename, vector<Path > *search_paths,
-                  Path *qpath)
+static bool locate_file(const string &filename, vector<Path > *search_paths,
+                        Path *qpath)
 {
   if (search_paths == 0)
   {
@@ -540,7 +535,7 @@ bool locate_file(const string &filename, vector<Path > *search_paths,
   return true;
 }
 
-void add_standard_search_paths(vector<Path > *spaths)
+static void add_standard_search_paths(vector<Path > *spaths)
 {
   Path p;
   if (!p.getcwd())
@@ -577,11 +572,11 @@ void add_standard_search_paths(vector<Path > *spaths)
  "/opt/mysql/bin","/opt/mysql/sbin"
 
 */
-bool assert_mysqld_exists(const string &opt_mysqldfile,
-                            const string &opt_basedir,
-                            const string &opt_builddir,
-                            const string &opt_srcdir,
-                            Path *qpath)
+static bool assert_mysqld_exists(const string &opt_mysqldfile,
+                                 const string &opt_basedir,
+                                 const string &opt_builddir,
+                                 const string &opt_srcdir,
+                                 Path *qpath)
 {
   vector<Path > spaths;
   if (opt_mysqldfile.length() > 0)
@@ -642,11 +637,11 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
  "/opt/mysql/bin","/opt/mysql/sbin"
 
 */
-bool assert_cert_generator_exists(const string &opt_mysql_cert_setup_file,
-                                  const string &opt_basedir,
-                                  const string &opt_builddir,
-                                  const string &opt_srcdir,
-                                  Path *qpath)
+static bool assert_cert_generator_exists(const string &opt_mysql_cert_setup_file,
+                                         const string &opt_basedir,
+                                         const string &opt_builddir,
+                                         const string &opt_srcdir,
+                                         Path *qpath)
 {
   vector<Path > spaths;
   if (opt_mysql_cert_setup_file.length() > 0)
@@ -689,11 +684,11 @@ bool assert_cert_generator_exists(const string &opt_mysql_cert_setup_file,
 #endif /* HAVE_YASSL */
 
 
-bool assert_valid_language_directory(const string &opt_langpath,
-                                     const string &opt_basedir,
-                                     const string &opt_builddir,
-                                     const string &opt_srcdir,
-                                     Path *language_directory)
+static bool assert_valid_language_directory(const string &opt_langpath,
+                                            const string &opt_basedir,
+                                            const string &opt_builddir,
+                                            const string &opt_srcdir,
+                                            Path *language_directory)
 {
   vector<Path > search_paths;
   bool found_subdir= false;
@@ -759,11 +754,11 @@ bool assert_valid_language_directory(const string &opt_langpath,
     @retval ERR_ENCRYPTION Error while decrypting
     @retval ERR_SYNTAX Error while parsing
 */
-int get_admin_credentials(const string &opt_adminlogin,
-                          const string &login_path,
-                          string *adminuser,
-                          string *adminhost,
-                          string *password)
+static int get_admin_credentials(const string &opt_adminlogin,
+                                 const string &login_path,
+                                 string *adminuser,
+                                 string *adminhost,
+                                 string *password)
 {
   Path path;
   int ret= ERR_OTHER;
@@ -793,8 +788,8 @@ int get_admin_credentials(const string &opt_adminlogin,
   return ALL_OK;
 }
 
-void create_ssl_policy(string *ssl_type, string *ssl_cipher,
-                         string *x509_issuer, string *x509_subject)
+static void create_ssl_policy(string *ssl_type, string *ssl_cipher,
+                              string *x509_issuer, string *x509_subject)
 {
   /* TODO set up a specific SSL restriction on the default account */
   *ssl_type= "ANY";
@@ -1247,9 +1242,9 @@ bool process_execute(const string &exec, Fwd_iterator begin,
   return retval;
 }
 
-int generate_password_file(Path &pwdfile, const string &adminuser,
-                           const string &adminhost,
-                           const string &password)
+static int generate_password_file(Path &pwdfile, const string &adminuser,
+                                  const string &adminhost,
+                                  const string &password)
 {
 
   /*
@@ -1275,7 +1270,7 @@ int generate_password_file(Path &pwdfile, const string &adminuser,
   return ALL_OK;
 }
 
-int connection_options_sorter(const void *a, const void *b)
+static int connection_options_sorter(const void *a, const void *b)
 {
   return strcmp(static_cast<const my_option*>(a)->name,
                 static_cast<const my_option *>(b)->name);

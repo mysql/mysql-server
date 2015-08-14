@@ -41,7 +41,7 @@ static PSI_rwlock_info all_validate_password_rwlocks[]=
   { &key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0}
 };
 
-void init_validate_password_psi_keys()
+static void init_validate_password_psi_keys()
 {
   const char* category= "validate";
   int count;

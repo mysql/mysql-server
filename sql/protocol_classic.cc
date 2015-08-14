@@ -29,14 +29,9 @@ using std::min;
 using std::max;
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
-bool net_send_error_packet(THD *, uint, const char *, const char *);
-bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
-                           ulong, const CHARSET_INFO*);
-/* Declared non-static only because of the embedded library. */
-bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *, bool);
-/* Declared non-static only because of the embedded library. */
-bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
 #ifndef EMBEDDED_LIBRARY
+static bool net_send_error_packet(NET *, uint, const char *, const char *, bool,
+                                  ulong, const CHARSET_INFO*);
 static bool write_eof_packet(THD *, NET *, uint, uint);
 #endif
 
@@ -506,10 +501,10 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
    @retval TRUE  An error occurred and the messages wasn't sent properly
 */
 
-bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
-                           const char* sqlstate, bool bootstrap,
-                           ulong client_capabilities,
-                           const CHARSET_INFO* character_set_results)
+static bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
+                                  const char* sqlstate, bool bootstrap,
+                                  ulong client_capabilities,
+                                  const CHARSET_INFO* character_set_results)
 {
   uint length;
   /*

@@ -2498,8 +2498,8 @@ static void remove_item_from_jobs(slave_job_item *job_item,
    @return NULL failure or
            a-pointer to an item.
 */
-struct slave_job_item* pop_jobs_item(Slave_worker *worker,
-                                     Slave_job_item *job_item)
+static struct slave_job_item* pop_jobs_item(Slave_worker *worker,
+                                            Slave_job_item *job_item)
 {
   THD *thd= worker->info_thd;
 

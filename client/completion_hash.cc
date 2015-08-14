@@ -26,7 +26,7 @@
 #include "completion_hash.h"
 #include "mysql/service_mysql_alloc.h"
 
-uint hashpjw(const char *arKey, uint nKeyLength)
+static uint hashpjw(const char *arKey, uint nKeyLength)
 {
   uint h = 0, g, i;
 

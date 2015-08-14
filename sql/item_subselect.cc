@@ -2979,8 +2979,6 @@ void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
   DBUG_ASSERT(0);
 }
 
-int read_first_record_seq(QEP_TAB *tab);
-
 bool subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");

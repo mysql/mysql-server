@@ -654,7 +654,7 @@ static void set_param_date(Item_param *param, uchar **pos, ulong len)
   @todo
     Add warning 'Data truncated' here
 */
-void set_param_time(Item_param *param, uchar **pos, ulong len)
+static void set_param_time(Item_param *param, uchar **pos, ulong len)
 {
   MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
   tm.hour+= tm.day * 24;
@@ -671,7 +671,7 @@ void set_param_time(Item_param *param, uchar **pos, ulong len)
 
 }
 
-void set_param_datetime(Item_param *param, uchar **pos, ulong len)
+static void set_param_datetime(Item_param *param, uchar **pos, ulong len)
 {
   MYSQL_TIME tm= *((MYSQL_TIME*)*pos);
   tm.neg= 0;
@@ -680,7 +680,7 @@ void set_param_datetime(Item_param *param, uchar **pos, ulong len)
                   MAX_DATETIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
 }
 
-void set_param_date(Item_param *param, uchar **pos, ulong len)
+static void set_param_date(Item_param *param, uchar **pos, ulong len)
 {
   MYSQL_TIME *to= (MYSQL_TIME*)*pos;
 

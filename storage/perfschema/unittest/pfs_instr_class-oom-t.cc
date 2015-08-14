@@ -23,9 +23,8 @@
 #include <pfs_buffer_container.h>
 
 #include "stub_pfs_global.h"
-#include "stub_global_status_var.h"
 
-void test_oom()
+static void test_oom()
 {
   int rc;
   PFS_global_param param;
@@ -91,7 +90,7 @@ void test_oom()
   cleanup_setup_object_hash();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_oom();
 }

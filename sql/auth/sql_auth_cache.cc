@@ -2057,7 +2057,7 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 }
 
 
-void free_grant_table(GRANT_TABLE *grant_table)
+static void free_grant_table(GRANT_TABLE *grant_table)
 {
   my_hash_free(&grant_table->hash_columns);
 }

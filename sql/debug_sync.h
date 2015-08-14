@@ -48,6 +48,8 @@ extern void debug_sync_claim_memory_ownership(THD *thd);
 extern void debug_sync_end_thread(THD *thd);
 extern void debug_sync(THD *thd, const char *sync_point_name, size_t name_len);
 extern bool debug_sync_set_action(THD *thd, const char *action_str, size_t len);
+extern bool debug_sync_update(THD *thd, char *val_str);
+extern uchar *debug_sync_value_ptr(THD *thd);
 
 #else /* defined(ENABLED_DEBUG_SYNC) */
 

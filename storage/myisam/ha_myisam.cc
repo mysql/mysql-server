@@ -2142,7 +2142,7 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
   return COMPATIBLE_DATA_YES;
 }
 
-int myisam_panic(handlerton *hton, ha_panic_function flag)
+static int myisam_panic(handlerton *hton, ha_panic_function flag)
 {
   return mi_panic(flag);
 }

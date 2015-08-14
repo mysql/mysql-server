@@ -7081,10 +7081,11 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   DBUG_RETURN(0);
 }
 
+#ifndef EMBEDDED_LIBRARY
 /**
   Issue a deprecation warning for SELECT commands for status and system variables.
 */
-void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
+static void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
 {
   const char *old_name;
   const char *new_name;
@@ -7104,6 +7105,7 @@ void push_select_warning(THD *thd, enum enum_var_type option_type, bool status)
                       ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
                       old_name, new_name);
 }
+#endif // EMBEDDED_LIBRARY
 
 static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {

@@ -36,6 +36,7 @@ simple headers.
 /* Forward declarations */
 class THD;
 typedef struct charset_info_st CHARSET_INFO;
+struct dict_table_t;
 
 /*******************************************************************//**
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
@@ -490,6 +491,12 @@ innobase_convert_to_filename_charset(
 	char*		to,	/* out: converted identifier */
 	const char*	from,	/* in: identifier to convert */
 	ulint		len);	/* in: length of 'to', in bytes */
+
+
+/**********************************************************************
+Issue a warning that the row is too big. */
+void
+ib_warn_row_too_big(const dict_table_t*	table);
 
 /*************************************************************//**
 InnoDB index push-down condition check defined in ha_innodb.cc

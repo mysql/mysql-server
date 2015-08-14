@@ -3167,8 +3167,8 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
 }
 
 
-int register_slave_on_master(MYSQL* mysql, Master_info *mi,
-                             bool *suppress_warnings)
+static int register_slave_on_master(MYSQL* mysql, Master_info *mi,
+                                    bool *suppress_warnings)
 {
   uchar buf[1024], *pos= buf;
   size_t report_host_len=0, report_user_len=0, report_password_len=0;
@@ -3261,8 +3261,8 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
             push_back() methods for field_list.
 */
 
-void show_slave_status_metadata(List<Item> &field_list,
-                                int io_gtid_set_size, int sql_gtid_set_size)
+static void show_slave_status_metadata(List<Item> &field_list,
+                                       int io_gtid_set_size, int sql_gtid_set_size)
 {
 
   field_list.push_back(new Item_empty_string("Slave_IO_State", 14));
@@ -3364,9 +3364,9 @@ void show_slave_status_metadata(List<Item> &field_list,
      @retval        1     Error
 */
 
-bool show_slave_status_send_data(THD *thd, Master_info *mi,
-                                 char* io_gtid_set_buffer,
-                                 char* sql_gtid_set_buffer)
+static bool show_slave_status_send_data(THD *thd, Master_info *mi,
+                                        char* io_gtid_set_buffer,
+                                        char* sql_gtid_set_buffer)
 {
   DBUG_ENTER("show_slave_status_send_data");
 
@@ -4370,7 +4370,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
           append_item_to_jobs() failed, thread was killed while waiting
           for successful enqueue on worker.
 */
-enum enum_slave_apply_event_and_update_pos_retval
+static enum enum_slave_apply_event_and_update_pos_retval
 apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
@@ -6435,7 +6435,7 @@ end:
 
    @return 0 suppress or 1 if fails
 */
-int slave_start_single_worker(Relay_log_info *rli, ulong i)
+static int slave_start_single_worker(Relay_log_info *rli, ulong i)
 {
   int error= 0;
   my_thread_handle th;
@@ -6512,7 +6512,7 @@ err:
    @return 0         success
            non-zero  as failure
 */
-int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
+static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
 {
   uint i;
   int error= 0;
@@ -6613,7 +6613,7 @@ err:
    worker's running_status.
    Coordinator finalizes with its MTS running status to reset few objects.
 */
-void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
+static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
 {
   THD *thd= rli->info_thd;
 

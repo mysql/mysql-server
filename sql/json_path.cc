@@ -680,7 +680,7 @@ inline bool unicode_combining_mark(unsigned codepoint)
 
    FIXME
 */
-bool is_letter(unsigned codepoint)
+static bool is_letter(unsigned codepoint)
 {
   /*
     The Unicode combining mark \u036F passes the my_isalpha() test.
@@ -710,7 +710,7 @@ bool is_digit(unsigned codepoint)
 /**
    Return true if the codepoint is Unicode connector punctuation.
 */
-bool is_connector_punctuation(unsigned codepoint)
+static bool is_connector_punctuation(unsigned codepoint)
 {
   switch(codepoint)
   {

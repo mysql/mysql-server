@@ -1963,6 +1963,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
 /**
   Calculate the timestamp difference for password expiry
 
@@ -1972,7 +1973,7 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
   @retval 0  password is valid
   @retval 1  password has expired
 */
-bool
+static bool
 check_password_lifetime(THD *thd, const ACL_USER *acl_user)
 {
 
@@ -2014,6 +2015,8 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
   }
   return password_time_expired;
 }
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+
 
 /**
 Logging connection for the general query log, extracted from
@@ -2694,18 +2697,18 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   DBUG_RETURN(CR_AUTH_HANDSHAKE);
 }
 
+#if defined(HAVE_OPENSSL)
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
  
 */
 
-int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
+static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio)
 {
   MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
   return (mpvio->vio_is_encrypted);
 }
 
-#if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
 
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff)
@@ -3263,7 +3266,7 @@ private:
 };
 
 
-EVP_PKEY *evp_pkey_generate(RSA *rsa)
+static EVP_PKEY *evp_pkey_generate(RSA *rsa)
 {
   if (rsa)
   {

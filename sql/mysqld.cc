@@ -142,6 +142,7 @@
 #include "my_default.h"
 #include "current_thd.h"
 #include "mysql_version.h"
+#include "sql_authentication.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -757,12 +758,6 @@ static char **remaining_argv;
 
 int orig_argc;
 char **orig_argv;
-
-#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-bool init_rsa_keys(void);
-void deinit_rsa_keys(void);
-int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
-#endif
 
 Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor= NULL;
 #ifdef _WIN32
@@ -5287,7 +5282,7 @@ int handle_early_options()
   - @c table_cache_size,
   - the platform max open file limit.
 */
-void adjust_open_files_limit(ulong *requested_open_files)
+static void adjust_open_files_limit(ulong *requested_open_files)
 {
   ulong limit_1;
   ulong limit_2;
@@ -5333,7 +5328,7 @@ void adjust_open_files_limit(ulong *requested_open_files)
     *requested_open_files= min<ulong>(effective_open_files, request_open_files);
 }
 
-void adjust_max_connections(ulong requested_open_files)
+static void adjust_max_connections(ulong requested_open_files)
 {
   ulong limit;
 
@@ -5349,7 +5344,7 @@ void adjust_max_connections(ulong requested_open_files)
   }
 }
 
-void adjust_table_cache_size(ulong requested_open_files)
+static void adjust_table_cache_size(ulong requested_open_files)
 {
   ulong limit;
 
@@ -5367,7 +5362,7 @@ void adjust_table_cache_size(ulong requested_open_files)
   table_cache_size_per_instance= table_cache_size / table_cache_instances;
 }
 
-void adjust_table_def_size()
+static void adjust_table_def_size()
 {
   ulong default_value;
   sys_var *var;
@@ -7682,29 +7677,6 @@ static char *get_relative_path(const char *path)
       path++;
   }
   return (char*) path;
-}
-
-
-/**
-  Fix filename and replace extension where 'dir' is relative to
-  mysql_real_data_home.
-  @return
-    1 if len(path) > FN_REFLEN
-*/
-
-bool
-fn_format_relative_to_data_home(char * to, const char *name,
-        const char *dir, const char *extension)
-{
-  char tmp_path[FN_REFLEN];
-  if (!test_if_hard_path(dir))
-  {
-    strxnmov(tmp_path,sizeof(tmp_path)-1, mysql_real_data_home,
-       dir, NullS);
-    dir=tmp_path;
-  }
-  return !fn_format(to, name, dir, extension,
-        MY_APPEND_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH);
 }
 
 

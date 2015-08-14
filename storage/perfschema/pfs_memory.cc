@@ -29,6 +29,7 @@
 #include "pfs_atomic.h"
 #include "pfs_buffer_container.h"
 #include "m_string.h"
+#include "pfs_memory.h"
 
 static void fct_reset_memory_by_thread(PFS_thread *pfs)
 {

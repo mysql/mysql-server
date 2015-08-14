@@ -67,7 +67,7 @@ const char * Json_dom::json_type_string_map[]= {
  Auto-wrap a dom. Delete the dom if there is a memory
  allocation failure.
 */
-Json_array *wrap_in_array(Json_dom *dom)
+static Json_array *wrap_in_array(Json_dom *dom)
 {
   Json_array *array= new (std::nothrow) Json_array(dom);
   if (array == NULL)
@@ -81,7 +81,7 @@ Json_array *wrap_in_array(Json_dom *dom)
   types must be wrapped in an array in order to be merged.
   Delete the candidate if there is a memory allocation failure.
 */
-Json_dom *make_mergeable(Json_dom *candidate)
+static Json_dom *make_mergeable(Json_dom *candidate)
 {
   switch (candidate->json_type())
   {

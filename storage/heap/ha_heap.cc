@@ -33,13 +33,13 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
                             HP_CREATE_INFO *hp_create_info);
 
 
-int heap_panic(handlerton *hton, ha_panic_function flag)
+static int heap_panic(handlerton *hton, ha_panic_function flag)
 {
   return hp_panic(flag);
 }
 
 
-int heap_init(void *p)
+static int heap_init(void *p)
 {
   handlerton *heap_hton;
 

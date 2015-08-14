@@ -108,8 +108,8 @@ extern int finalize_schema_table(st_plugin_int *plugin);
 
 #ifdef EMBEDDED_LIBRARY
 // Dummy implementations for embedded
-int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
-int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
+static int initialize_audit_plugin(st_plugin_int *plugin) { return 1; }
+static int finalize_audit_plugin(st_plugin_int *plugin) { return 0; }
 #endif
 
 /*

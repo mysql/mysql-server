@@ -1015,8 +1015,8 @@ static bool shall_skip_gtids(Log_event* ev)
   @retval OK_STOP No error, but the end of the specified range of
   events to process has been reached and the program should terminate.
 */
-Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
-                          my_off_t pos, const char *logname)
+static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
+                                 my_off_t pos, const char *logname)
 {
   char ll_buff[21];
   Log_event_type ev_type= ev->get_type_code();

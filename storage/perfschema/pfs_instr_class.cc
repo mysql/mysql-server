@@ -439,7 +439,7 @@ void cleanup_table_share_hash(void)
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
-LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
+static LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 {
   if (unlikely(thread->m_table_share_hash_pins == NULL))
   {

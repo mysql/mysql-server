@@ -2105,7 +2105,7 @@ join_read_key(QEP_TAB *tab)
   @sa join_read_key()
 */
 
-void
+static void
 join_read_key_unlock_row(QEP_TAB *tab)
 {
   DBUG_ASSERT(tab->ref().use_count);

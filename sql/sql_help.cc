@@ -590,8 +590,8 @@ static int send_variant_2_list(MEM_ROOT *mem_root, Protocol *protocol,
   'tab'
 */
 
-bool prepare_simple_select(THD *thd, Item *cond,
-                           TABLE *table, QEP_TAB *tab)
+static bool prepare_simple_select(THD *thd, Item *cond,
+                                  TABLE *table, QEP_TAB *tab)
 {
   if (!cond->fixed)
     cond->fix_fields(thd, &cond);	// can never fail
@@ -634,9 +634,9 @@ bool prepare_simple_select(THD *thd, Item *cond,
   @see prepare_simple_select()
 */
 
-bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
-                             TABLE_LIST *tables, TABLE *table,
-                             Field *pfname, QEP_TAB *tab)
+static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
+                                    TABLE_LIST *tables, TABLE *table,
+                                    Field *pfname, QEP_TAB *tab)
 {
   Item *cond= new Item_func_like(new Item_field(pfname),
 				 new Item_string(mask,mlen,pfname->charset()),

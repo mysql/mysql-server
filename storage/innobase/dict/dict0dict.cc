@@ -51,11 +51,6 @@ dict_index_t*	dict_ind_redundant;
 extern uint	ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
-/**********************************************************************
-Issue a warning that the row is too big. */
-void
-ib_warn_row_too_big(const dict_table_t*	table);
-
 #ifndef UNIV_HOTBACKUP
 #include "btr0btr.h"
 #include "btr0cur.h"

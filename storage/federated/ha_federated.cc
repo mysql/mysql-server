@@ -472,7 +472,7 @@ static void init_federated_psi_keys(void)
     TRUE        Error
 */
 
-int federated_db_init(void *p)
+static int federated_db_init(void *p)
 {
   DBUG_ENTER("federated_db_init");
 
@@ -521,7 +521,7 @@ error:
     FALSE       OK
 */
 
-int federated_done(void *p)
+static int federated_done(void *p)
 {
   my_hash_free(&federated_open_tables);
   mysql_mutex_destroy(&federated_mutex);
@@ -603,7 +603,7 @@ static int parse_url_error(FEDERATED_SHARE *share, TABLE *table, int error_num)
   from the system table given a server's name, set share
   connection parameter members
 */
-int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
+static int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
 {
   int error_num= ER_FOREIGN_SERVER_DOESNT_EXIST;
   FOREIGN_SERVER *server, server_buffer;

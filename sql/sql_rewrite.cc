@@ -102,7 +102,7 @@ static bool append_str(String *str, bool comma, const char *key,
   return comma;
 }
 
-void rewrite_ssl_properties(LEX *lex, String *rlb)
+static void rewrite_ssl_properties(LEX *lex, String *rlb)
 {
   if (lex->ssl_type != SSL_TYPE_NOT_SPECIFIED)
   {
@@ -144,7 +144,7 @@ void rewrite_ssl_properties(LEX *lex, String *rlb)
   }
 }
 
-void rewrite_user_resources(LEX *lex, String *rlb)
+static void rewrite_user_resources(LEX *lex, String *rlb)
 {
   if (lex->mqh.specified_limits || (lex->grant & GRANT_ACL))
   {
@@ -170,7 +170,7 @@ void rewrite_user_resources(LEX *lex, String *rlb)
   }
 }
 
-void rewrite_account_lock(LEX *lex, String *rlb)
+static void rewrite_account_lock(LEX *lex, String *rlb)
 {
   if (lex->alter_password.account_locked)
   {

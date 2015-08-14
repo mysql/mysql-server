@@ -60,7 +60,7 @@ static struct st_mysql_sys_var *test_services_sysvars[]= {
 };
 
 /* The test cases for snprintf service.  */
-int test_snprintf()
+static int test_snprintf()
 {
   DBUG_ENTER("mysql_outfile");
   char filename[FN_REFLEN];
@@ -90,7 +90,7 @@ int test_snprintf()
 }
 
 /* The test cases for the log_message service. */
-int test_my_plugin_log_message(void *p)
+static int test_my_plugin_log_message(void *p)
 {
   DBUG_ENTER("my_plugin_log_message");
 /* Writes to mysqld.1.err: Plugin test_services reports an info text */
@@ -106,7 +106,7 @@ int test_my_plugin_log_message(void *p)
 }
 
 /* This fucntion is needed to be called in a thread. */
-void *test_services(void *p) {
+static void *test_services(void *p) {
   DBUG_ENTER("test_services");
 
   int ret= 0; 

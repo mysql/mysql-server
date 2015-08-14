@@ -745,6 +745,7 @@ from a SYS_VIRTUAL record
 @param[in,out]	base_pos	base column position
 @param[in]	rec		SYS_VIRTUAL record
 @return error message, or NULL on success */
+static
 const char*
 dict_load_virtual_low(
 	dict_table_t*	table,
@@ -1702,6 +1703,7 @@ err_len:
 @param[in,out]	name	Buffer for Tablespace Name of length NAME_LEN
 @param[out]	flags	Pointer to tablespace flags
 @return true if the record was read correctly, false if not. */
+static
 bool
 dict_sys_tablespaces_rec_read(
 	const rec_t*	rec,

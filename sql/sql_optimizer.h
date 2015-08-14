@@ -887,6 +887,8 @@ Item *
 make_cond_for_table(THD *thd, Item *cond, table_map tables,
                     table_map used_table,
                     bool exclude_expensive_cond);
+uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
+                                   uint first_unused);
 
 /**
    Returns true if arguments are a temporal Field having no date,

@@ -58,7 +58,7 @@ int tok_row_multiple_value_list= 0;
 int tok_ident= 0;
 int tok_unused= 0;
 
-void set_token(int tok, const char *str)
+static void set_token(int tok, const char *str)
 {
   if (tok <= 0)
   {
@@ -83,12 +83,12 @@ void set_token(int tok, const char *str)
   compiled_token_array[tok].m_start_expr= false;
 }
 
-void set_start_expr_token(int tok)
+static void set_start_expr_token(int tok)
 {
   compiled_token_array[tok].m_start_expr= true;
 }
 
-void compute_tokens()
+static void compute_tokens()
 {
   int tok;
   unsigned int i;
@@ -280,7 +280,7 @@ void compute_tokens()
   set_start_expr_token('^');
 }
 
-void print_tokens()
+static void print_tokens()
 {
   int tok;
 

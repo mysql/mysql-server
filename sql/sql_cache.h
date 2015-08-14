@@ -85,6 +85,12 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       ulonglong *engine_data);
 
 /**
+  libmysql convenience wrapper to insert data into query cache.
+*/
+void query_cache_insert(const char *packet, ulong length,
+                        unsigned pkt_nr);
+
+/**
   This class represents a node in the linked chain of queries
   belonging to one table.
 

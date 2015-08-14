@@ -305,7 +305,7 @@ search:
   return NULL;
 }
 
-void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
+static void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
 {
   LF_PINS *pins= get_digest_hash_pins(thread);
   if (unlikely(pins == NULL))

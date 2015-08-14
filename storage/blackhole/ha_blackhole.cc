@@ -403,7 +403,7 @@ static PSI_memory_info all_blackhole_memory[]=
   { &bh_key_memory_blackhole_share, "blackhole_share", 0}
 };
 
-void init_blackhole_psi_keys()
+static void init_blackhole_psi_keys()
 {
   const char* category= "blackhole";
   int count;

@@ -868,7 +868,7 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
 }
 
 
-uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
+static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
 {
   if (bo == Geometry::wkb_ndr)
     return uint4korr(ptr);

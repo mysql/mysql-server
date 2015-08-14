@@ -26,6 +26,7 @@
 class String;
 class THD;
 typedef struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_show_var SHOW_VAR;
 class ACL_USER;
 class Protocol_classic;
 typedef struct st_net NET;
@@ -85,6 +86,10 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
+bool init_rsa_keys(void);
+void deinit_rsa_keys(void);
+int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
+
 typedef struct rsa_st RSA;
 class Rsa_authentication_keys
 {

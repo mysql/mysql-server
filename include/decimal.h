@@ -94,6 +94,7 @@ int decimal_round(const decimal_t *from, decimal_t *to, int new_scale,
                   decimal_round_mode mode);
 int decimal_is_zero(const decimal_t *from);
 void max_decimal(int precision, int frac, decimal_t *to);
+int decimal_shift(decimal_t *dec, int shift);
 
 #define string2decimal(A,B,C) internal_str2dec((A), (B), (C), 0)
 #define string2decimal_fixed(A,B,C) internal_str2dec((A), (B), (C), 1)

@@ -33,14 +33,14 @@ bool semi_sync_need_reply= false;
 
 C_MODE_START
 
-int repl_semi_reset_slave(Binlog_relay_IO_param *param)
+static int repl_semi_reset_slave(Binlog_relay_IO_param *param)
 {
   // TODO: reset semi-sync slave status here
   return 0;
 }
 
-int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
-				 uint32 flags)
+static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
+                                        uint32 flags)
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
@@ -102,9 +102,9 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   return 0;
 }
 
-int repl_semi_slave_read_event(Binlog_relay_IO_param *param,
-			       const char *packet, unsigned long len,
-			       const char **event_buf, unsigned long *event_len)
+static int repl_semi_slave_read_event(Binlog_relay_IO_param *param,
+                                      const char *packet, unsigned long len,
+                                      const char **event_buf, unsigned long *event_len)
 {
   if (rpl_semi_sync_slave_status)
     return repl_semisync.slaveReadSyncHeader(packet, len,
@@ -115,10 +115,10 @@ int repl_semi_slave_read_event(Binlog_relay_IO_param *param,
   return 0;
 }
 
-int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
-				const char *event_buf,
-				unsigned long event_len,
-				uint32 flags)
+static int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
+                                       const char *event_buf,
+                                       unsigned long event_len,
+                                       uint32 flags)
 {
   if (rpl_semi_sync_slave_status && semi_sync_need_reply)
   {
@@ -134,17 +134,17 @@ int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
   return 0;
 }
 
-int repl_semi_slave_io_start(Binlog_relay_IO_param *param)
+static int repl_semi_slave_io_start(Binlog_relay_IO_param *param)
 {
   return repl_semisync.slaveStart(param);
 }
 
-int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
+static int repl_semi_slave_io_end(Binlog_relay_IO_param *param)
 {
   return repl_semisync.slaveStop(param);
 }
 
-int repl_semi_slave_sql_stop(Binlog_relay_IO_param *param, bool aborted)
+static int repl_semi_slave_sql_stop(Binlog_relay_IO_param *param, bool aborted)
 {
   return 0;
 }

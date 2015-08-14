@@ -36,6 +36,7 @@
 #include "mysqld_thd_manager.h"              // Global_THD_manager
 #include "parse_tree_nodes.h"                // PT_select_var
 #include "psi_memory_key.h"
+#include "replication.h"
 #include "rpl_filter.h"                      // binlog_filter
 #include "rpl_rli.h"                         // Relay_log_info
 #include "sp_cache.h"                        // sp_cache_clear
@@ -55,6 +56,8 @@
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "rpl_slave_commit_order_manager.h"
 #endif
+
+#include "mysql/service_thd_engine_lock.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -2533,7 +2536,7 @@ void thd_report_row_lock_wait(THD* self, THD *wait_for)
 }
 #else
 extern "C"
-void thd_report_row_lock_wait(THD *thd_wait_for)
+void thd_report_row_lock_wait(THD* self, THD *thd_wait_for)
 {
   return;
 }

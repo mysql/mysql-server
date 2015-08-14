@@ -304,6 +304,7 @@ int safe_index_read(QEP_TAB *tab);
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);
 int join_init_quick_read_record(QEP_TAB *tab);
+int read_first_record_seq(QEP_TAB *tab);
 int join_init_read_record(QEP_TAB *tab);
 int join_read_first(QEP_TAB *tab);
 int join_read_last(QEP_TAB *tab);

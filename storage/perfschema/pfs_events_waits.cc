@@ -262,7 +262,7 @@ void reset_table_lock_waits_by_table()
   global_table_share_container.apply(fct_reset_table_lock_waits_by_table);
 }
 
-void fct_reset_table_waits_by_table_handle(PFS_table *pfs)
+static void fct_reset_table_waits_by_table_handle(PFS_table *pfs)
 {
   pfs->sanitized_aggregate();
 }
@@ -272,7 +272,7 @@ void reset_table_waits_by_table_handle()
   global_table_container.apply(fct_reset_table_waits_by_table_handle);
 }
 
-void fct_reset_table_io_waits_by_table_handle(PFS_table *pfs)
+static void fct_reset_table_io_waits_by_table_handle(PFS_table *pfs)
 {
   pfs->sanitized_aggregate_io();
 }
@@ -282,7 +282,7 @@ void reset_table_io_waits_by_table_handle()
   global_table_container.apply(fct_reset_table_io_waits_by_table_handle);
 }
 
-void fct_reset_table_lock_waits_by_table_handle(PFS_table *pfs)
+static void fct_reset_table_lock_waits_by_table_handle(PFS_table *pfs)
 {
   pfs->sanitized_aggregate_lock();
 }

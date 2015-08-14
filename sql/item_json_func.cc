@@ -459,8 +459,8 @@ static bool parse_path(Item * path_expression, String *value,
 
   @returns ooa_one, ooa_all, or ooa_error, based on the match
 */
-enum_one_or_all_type parse_one_or_all(const char *candidate,
-                                      const char *func_name)
+static enum_one_or_all_type parse_one_or_all(const char *candidate,
+                                             const char *func_name)
 {
   if (!my_strcasecmp(&my_charset_utf8mb4_general_ci, candidate, "all"))
     return ooa_all;
@@ -482,10 +482,10 @@ enum_one_or_all_type parse_one_or_all(const char *candidate,
 
   @returns ooa_one, ooa_all, ooa_null or ooa_error, based on the match
 */
-enum_one_or_all_type parse_and_cache_ooa(Item *arg,
-                                         String *string_value,
-                                         enum_one_or_all_type *cached_ooa,
-                                         const char *func_name)
+static enum_one_or_all_type parse_and_cache_ooa(Item *arg,
+                                                String *string_value,
+                                                enum_one_or_all_type *cached_ooa,
+                                                const char *func_name)
 {
   bool is_constant= arg->const_during_execution();
 
@@ -1327,13 +1327,13 @@ struct Json_scalar_holder : public Sql_alloc
                               JSON parsable string)
   @return false if we could get a value or NULL, otherwise true
 */
-bool val_json_func_field_subselect(Item* arg,
-                                   const char *calling_function,
-                                   String *value,
-                                   String *tmp,
-                                   Json_wrapper *wr,
-                                   Json_scalar_holder *scalar,
-                                   bool accept_string)
+static bool val_json_func_field_subselect(Item* arg,
+                                          const char *calling_function,
+                                          String *value,
+                                          String *tmp,
+                                          Json_wrapper *wr,
+                                          Json_scalar_holder *scalar,
+                                          bool accept_string)
 {
   enum_field_types field_type= get_normalized_field_type(arg);
   Json_dom *dom= NULL;
@@ -1621,7 +1621,7 @@ bool val_json_func_field_subselect(Item* arg,
 
   @return True if the arg can be determined to have a boolean type.
 */
-bool extract_boolean(Item *arg, bool *result)
+static bool extract_boolean(Item *arg, bool *result)
 {
   if (arg->is_bool_func())
   {
@@ -1753,9 +1753,9 @@ bool get_json_atom_wrapper(Item **args,
   @param[in,out] wr         the result wrapper
   @returns false if we found a value or NULL, true otherwise
 */
-bool get_atom_null_as_null(Item **args, uint arg_idx,
-                           const char *calling_function, String *value,
-                           String *tmp, Json_wrapper *wr)
+static bool get_atom_null_as_null(Item **args, uint arg_idx,
+                                  const char *calling_function, String *value,
+                                  String *tmp, Json_wrapper *wr)
 {
   if (get_json_atom_wrapper(args, arg_idx, calling_function, value,
                             tmp, wr, NULL, true))

@@ -24,7 +24,10 @@
 #include "tc_log.h"
 #include "mysqld_thd_manager.h"
 #include "mysqld.h"                             // glob_hostname mysqld_port ..
+#include "mysql/group_replication_priv.h"
 
+extern ulong opt_mi_repository_id;
+extern ulong opt_rli_repository_id;
 
 /*
   Group Replication plugin handler.

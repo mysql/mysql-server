@@ -2607,7 +2607,7 @@ struct st_feature_version
   void (*downgrade) (THD*);
 };
 
-void wl6292_upgrade_func(THD *thd)
+static void wl6292_upgrade_func(THD *thd)
 {
   thd->variables.explicit_defaults_for_timestamp= false;
   if (global_system_variables.explicit_defaults_for_timestamp)
@@ -2616,7 +2616,7 @@ void wl6292_upgrade_func(THD *thd)
   return;
 }
 
-void wl6292_downgrade_func(THD *thd)
+static void wl6292_downgrade_func(THD *thd)
 {
   if (global_system_variables.explicit_defaults_for_timestamp)
     thd->variables.explicit_defaults_for_timestamp= false;
