@@ -6874,6 +6874,11 @@ bool rm_temporary_table(handlerton *base, const char *path)
 * for each table reference. In turn, depending on the type of table reference,
 * 'find_field_in_table_ref' calls one of the 'find_field_in_XXX' procedures
 * below specific for the type of table reference.
+*
+* @todo: Refactor the error handling system used by these functions, so that
+*        it is clear when an error is reported and when an empty reference
+*        is returned.
+*
 ******************************************************************************/
 
 /* Special Field pointers as return values of find_field_in_XXX functions. */
@@ -7686,6 +7691,9 @@ find_field_in_tables(THD *thd, Item_ident *item,
                               &(item->cached_field_index),
                               register_tree_change,
                               &actual_table);
+    if (cur_field == NULL && thd->is_error())
+      return NULL;
+
     if (cur_field)
     {
       if (cur_field == WRONG_GRANT)
