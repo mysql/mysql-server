@@ -838,3 +838,12 @@ HAVING field1 = 'a';
 field1
 a
 DROP TABLE t1;
+# Bug#21613422: Assertion failed: !thd->is_error() in ::prepare()
+CREATE TABLE a(f INTEGER, g INTEGER) engine=innodb;
+SELECT (SELECT 1 FROM a HAVING g)
+FROM (SELECT 1) AS e
+JOIN a AS t on TRUE
+JOIN a USING (f)
+JOIN a AS h on TRUE;
+ERROR 23000: Column 'g' in having clause is ambiguous
+DROP TABLE a;

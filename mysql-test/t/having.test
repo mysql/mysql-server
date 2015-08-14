@@ -837,3 +837,16 @@ SELECT SQL_BUFFER_RESULT col_varchar_key AS field1
   HAVING field1 = 'a';
 
 DROP TABLE t1;
+
+--echo # Bug#21613422: Assertion failed: !thd->is_error() in ::prepare()
+
+CREATE TABLE a(f INTEGER, g INTEGER) engine=innodb;
+
+--error ER_NON_UNIQ_ERROR
+SELECT (SELECT 1 FROM a HAVING g)
+FROM (SELECT 1) AS e
+     JOIN a AS t on TRUE
+     JOIN a USING (f)
+     JOIN a AS h on TRUE;
+
+DROP TABLE a;
