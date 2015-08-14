@@ -107,7 +107,7 @@ public:
 #endif /* UT_HASH_IMPLEMENT_PRINT_STATS */
 };
 
-/** Multi counter. A counter class that uses a few counter variables
+/** Lock free counter. A counter class that uses a few counter variables
 internally to improve performance on machines with lots of CPUs. The get()
 method sums all the internal counters without taking any locks, so due to
 concurrent modification of the counter, get() may return a number which
