@@ -997,6 +997,22 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 
   if (AccKeyReq::getTakeOver(req->requestInfo))
   {
+    /* Verify that lock taken over and operation are on same
+     * element by checking that lockOwner match.
+     */
+    OperationrecPtr lockOpPtr;
+    lockOpPtr.i = req->lockConnectPtr;
+    ptrAss(lockOpPtr, operationrec);
+    if (lockOwnerPtr.i == RNIL ||
+        !(lockOwnerPtr.i == lockOpPtr.i ||
+          lockOwnerPtr.i == lockOpPtr.p->m_lock_owner_ptr_i))
+    {
+      signal->theData[0] = cminusOne;
+      signal->theData[1] = ZTO_OP_STATE_ERROR;
+      operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
+      return; /* Take over failed */
+    }
+
     signal->theData[1] = req->lockConnectPtr;
     signal->theData[2] = operationRecPtr.p->transId1;
     signal->theData[3] = operationRecPtr.p->transId2;
