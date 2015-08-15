@@ -24,8 +24,8 @@
 
 struct AccKeyReq
 {
-  STATIC_CONST( SignalLength_localKey = 9 );
-  STATIC_CONST( SignalLength_keyInfo  = 7 /* + keyLen */ );
+  STATIC_CONST( SignalLength_localKey = 10 );
+  STATIC_CONST( SignalLength_keyInfo  =  8 /* + keyLen */ );
 
   Uint32 connectPtr;
   Uint32 fragmentPtr;
@@ -34,6 +34,7 @@ struct AccKeyReq
   Uint32 keyLen;
   Uint32 transId1;
   Uint32 transId2;
+  Uint32 lockConnectPtr; /* For lock take over operation */
   union
   {
     struct /* if keyLen == 0 use localKey */
@@ -48,12 +49,14 @@ struct AccKeyReq
   static Uint32 getLockType(Uint32 requestInfo);
   static bool getDirtyOp(Uint32 requestInfo);
   static Uint32 getReplicaType(Uint32 requestInfo);
+  static bool getTakeOver(Uint32 requestInfo);
   static bool getLockReq(Uint32 requestInfo);
 
   static Uint32 setOperation(Uint32 requestInfo, Uint32 op);
   static Uint32 setLockType(Uint32 requestInfo, Uint32 locktype);
   static Uint32 setDirtyOp(Uint32 requestInfo, bool dirtyop);
   static Uint32 setReplicaType(Uint32 requestInfo, Uint32 replicatype);
+  static Uint32 setTakeOver(Uint32 requestInfo, bool takeover);
   static Uint32 setLockReq(Uint32 requestInfo, bool lockreq);
 
 private:
@@ -62,6 +65,7 @@ private:
     RI_LOCK_TYPE_SHIFT    =  4, RI_LOCK_TYPE_MASK    =  3,
     RI_DIRTY_OP_SHIFT     =  6, RI_DIRTY_OP_MASK     =  1,
     RI_REPLICA_TYPE_SHIFT =  7, RI_REPLICA_TYPE_MASK =  3,
+    RI_TAKE_OVER_SHIFT    =  9, RI_TAKE_OVER_MASK    =  1,
     RI_LOCK_REQ_SHIFT     = 31, RI_LOCK_REQ_MASK     =  1,
   };
 };
@@ -92,6 +96,13 @@ Uint32
 AccKeyReq::getReplicaType(Uint32 requestInfo)
 {
   return (requestInfo >> RI_REPLICA_TYPE_SHIFT) & RI_REPLICA_TYPE_MASK;
+}
+
+inline
+bool
+AccKeyReq::getTakeOver(Uint32 requestInfo)
+{
+  return (requestInfo >> RI_TAKE_OVER_SHIFT) & RI_TAKE_OVER_MASK;
 }
 
 inline
@@ -134,6 +145,14 @@ AccKeyReq::setReplicaType(Uint32 requestInfo, Uint32 replicatype)
   assert(replicatype <= RI_REPLICA_TYPE_MASK);
   return (requestInfo & ~(RI_REPLICA_TYPE_MASK << RI_REPLICA_TYPE_SHIFT))
     | (replicatype << RI_REPLICA_TYPE_SHIFT);
+}
+
+inline
+Uint32
+AccKeyReq::setTakeOver(Uint32 requestInfo, bool takeover)
+{
+  return (requestInfo & ~(RI_TAKE_OVER_MASK << RI_TAKE_OVER_SHIFT))
+    | (takeover ? 1U << RI_TAKE_OVER_SHIFT : 0);
 }
 
 inline

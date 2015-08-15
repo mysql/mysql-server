@@ -5675,24 +5675,15 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
       takeOverErrorLab(signal);
       return;
     }//if
-    Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanptr.p,
-                                                  ttcScanOp,
-                                                  true);
+    regTcPtr->accOpPtr= get_acc_ptr_from_scan_record(scanptr.p,
+                                                     ttcScanOp,
+                                                     true);
     BlockReference blockRef = regTcPtr->tcAccBlockref;
-    if (accOpPtr == RNIL) {
+    if (regTcPtr->accOpPtr == RNIL) {
       jam();
       takeOverErrorLab(signal);
       return;
     }//if
-    signal->theData[1] = accOpPtr;
-    signal->theData[2] = regTcPtr->transid[0];
-    signal->theData[3] = regTcPtr->transid[1];
-    EXECUTE_DIRECT(refToMain(blockRef), GSN_ACC_TO_REQ, signal, 4);
-    if (signal->theData[0] == (UintR)-1) {
-      execACC_TO_REF(signal);
-      return;
-    }//if
-    jamEntry();
   }//if
 /*-------------------------------------------------------------------*/
 /*       IT IS NOW TIME TO CONTACT ACC. THE TUPLE KEY WILL BE SENT   */
@@ -5770,32 +5761,33 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
 /* ************ */
 /*  ACCKEYREQ < */
 /* ************ */
-{
-  Uint32 taccreq = 0;
-  taccreq = AccKeyReq::setOperation(taccreq, regTcPtr.p->operation);
-  taccreq = AccKeyReq::setLockType(taccreq, regTcPtr.p->lockType);
-  taccreq = AccKeyReq::setDirtyOp(taccreq, regTcPtr.p->dirtyOp);
-  taccreq = AccKeyReq::setReplicaType(taccreq, regTcPtr.p->replicaType);
-  taccreq = AccKeyReq::setLockReq(taccreq, false);
+  {
+    Uint32 taccreq = 0;
+    taccreq = AccKeyReq::setOperation(taccreq, regTcPtr.p->operation);
+    taccreq = AccKeyReq::setLockType(taccreq, regTcPtr.p->lockType);
+    taccreq = AccKeyReq::setDirtyOp(taccreq, regTcPtr.p->dirtyOp);
+    taccreq = AccKeyReq::setReplicaType(taccreq, regTcPtr.p->replicaType);
+    taccreq = AccKeyReq::setTakeOver(taccreq, regTcPtr.p->indTakeOver);
+    taccreq = AccKeyReq::setLockReq(taccreq, false);
 
-  AccKeyReq * const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
-// TODO: WATCH OUT: aliases ! performance regression?
-  req->connectPtr = regTcPtr.p->accConnectrec;
-  req->fragmentPtr = fragptr.p->accFragptr;
-  req->requestInfo = taccreq;
-  req->hashValue = regTcPtr.p->hashValue;
-  req->keyLen = regTcPtr.p->primKeyLen;
-  req->transId1 = regTcPtr.p->transid[0];
-  req->transId2 = regTcPtr.p->transid[1];
-  ndbrequire(req->keyLen > 0);
-  memcpy(req->keyInfo, &req, AccKeyReq::SignalLength_keyInfo);
+    AccKeyReq * const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
+    req->connectPtr = regTcPtr.p->accConnectrec;
+    req->fragmentPtr = fragptr.p->accFragptr;
+    req->requestInfo = taccreq;
+    req->hashValue = regTcPtr.p->hashValue;
+    req->keyLen = regTcPtr.p->primKeyLen;
+    req->transId1 = regTcPtr.p->transid[0];
+    req->transId2 = regTcPtr.p->transid[1];
+    req->lockConnectPtr = regTcPtr.p->indTakeOver ? regTcPtr.p->accOpPtr : RNIL;
+    ndbrequire(req->keyLen > 0);
+    memcpy(req->keyInfo, &req, AccKeyReq::SignalLength_keyInfo);
 
-  regTcPtr.p->transactionState = TcConnectionrec::WAIT_ACC;
+    regTcPtr.p->transactionState = TcConnectionrec::WAIT_ACC;
 
-  /* Copy KeyInfo to end of ACCKEYREQ signal, starting at offset 7 */
-  copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
-  NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 7);
-}
+    /* Copy KeyInfo to end of ACCKEYREQ signal, starting at offset 7 */
+    copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
+  }
   const BlockReference blockRef = regTcPtr.p->tcAccBlockref;
 
   TRACE_OP(regTcPtr.p, "ACC");
@@ -5813,8 +5805,15 @@ Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
     ;
   } else {
     ndbrequire(signal->theData[0] == (UintR)-1);
-    signal->theData[0] = regTcPtr.i;
-    execACCKEYREF(signal);
+    if (signal->theData[1] == ZTO_OP_STATE_ERROR) /* Dbacc scan take over error */
+    {
+      execACC_TO_REF(signal);
+    }
+    else
+    {
+      signal->theData[0] = regTcPtr.i;
+      execACCKEYREF(signal);
+    }
   }//if
   return;
 }//Dblqh::prepareContinueAfterBlockedLab()
@@ -6050,6 +6049,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
   accreq = AccKeyReq::setLockType(accreq, ZDELETE);
   accreq = AccKeyReq::setDirtyOp(accreq, false);
   accreq = AccKeyReq::setReplicaType(accreq, 0); // ?
+  accreq = AccKeyReq::setTakeOver(accreq, false);
   accreq = AccKeyReq::setLockReq(accreq, false);
 
   AccKeyReq * const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
@@ -6058,7 +6058,8 @@ Dblqh::nr_copy_delete_row(Signal* signal,
   req->requestInfo = accreq;
   req->transId1 = regTcPtr.p->transid[0];
   req->transId2 = regTcPtr.p->transid[1];
-  
+  req->lockConnectPtr = RNIL;
+
   if (rowid)
   {
     jam();
@@ -6074,7 +6075,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
     req->localKey1 = rowid->m_page_no;
     req->localKey2 = rowid->m_page_idx;
     siglen = AccKeyReq::SignalLength_localKey;
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 9);
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
   }
   else
   {
@@ -6088,7 +6089,7 @@ Dblqh::nr_copy_delete_row(Signal* signal,
      */
     copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
     siglen = AccKeyReq::SignalLength_keyInfo + keylen;
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 7);
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
   }
 }
   const Uint32 ref = refToMain(regTcPtr.p->tcAccBlockref);
