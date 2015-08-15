@@ -5737,11 +5737,17 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
   } 
   else if (activeCreat == Fragrecord::AC_NR_COPY)
   {
+    /* Node restart do not use scan lock take over */
+    ndbrequire(!regTcPtr->indTakeOver);
     regTcPtr->totSendlenAi = regTcPtr->totReclenAi;
     handle_nr_copy(signal, tcConnectptr);
   }
   else
   {
+    /* Aborts can not use scan lock take over.
+     * And scan lock take over can not be aborted.
+     */
+    ndbrequire(!regTcPtr->indTakeOver);
     ndbassert(activeCreat == Fragrecord::AC_IGNORED);
     if (TRACENR_FLAG)
       TRACENR(" IGNORING (activeCreat == 2)" << endl);
