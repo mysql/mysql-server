@@ -5678,7 +5678,6 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
     regTcPtr->accOpPtr= get_acc_ptr_from_scan_record(scanptr.p,
                                                      ttcScanOp,
                                                      true);
-    BlockReference blockRef = regTcPtr->tcAccBlockref;
     if (regTcPtr->accOpPtr == RNIL) {
       jam();
       takeOverErrorLab(signal);
