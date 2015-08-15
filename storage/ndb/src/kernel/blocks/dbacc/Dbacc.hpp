@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <LHLevel.hpp>
 #include <IntrusiveList.hpp>
 #include "Container.hpp"
+#include "signaldata/AccKeyReq.hpp"
 
 #define JAM_FILE_ID 344
 
@@ -737,7 +738,7 @@ private:
   void initialiseScanRec(Signal* signal);
   void initialiseTableRec(Signal* signal);
   bool addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fragId);
-  void initOpRec(Signal* signal);
+  void initOpRec(const AccKeyReq* signal, Uint32 siglen);
   void sendAcckeyconf(Signal* signal);
   Uint32 getNoParallelTransaction(const Operationrec*);
 
@@ -797,7 +798,7 @@ private:
   void seizeLeftlist(Signal* signal);
   void seizeRightlist(Signal* signal);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
-  Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
+  Uint32 getElement(const AccKeyReq* signal, OperationrecPtr& lockOwner);
   LHBits32 getElementHash(OperationrecPtr& oprec);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
@@ -805,7 +806,7 @@ private:
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
-  void getdirindex(Signal* signal);
+  void getdirindex();
   void commitdelete(Signal* signal);
   void deleteElement(Signal* signal);
   void getLastAndRemove(Signal* signal, ContainerHeader& containerhead);
@@ -873,7 +874,7 @@ private:
   void zpagesize_error(const char* where);
 
   // charsets
-  void xfrmKeyData(Signal* signal);
+  void xfrmKeyData(AccKeyReq* signal);
 
   // Initialisation
   void initData();
