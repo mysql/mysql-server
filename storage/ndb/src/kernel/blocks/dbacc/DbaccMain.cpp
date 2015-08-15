@@ -6773,16 +6773,46 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
   jamEntry();
   tatrOpPtr.i = signal->theData[1];     /*  OPER PTR OF ACC                */
   ptrCheckGuard(tatrOpPtr, coprecsize, operationrec);
-  if ((tatrOpPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP) 
+
+  /* Only scan locks can be taken over */
+  if ((tatrOpPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP)
   {
-    tatrOpPtr.p->transId1 = signal->theData[2];
-    tatrOpPtr.p->transId2 = signal->theData[3];
-    validate_lock_queue(tatrOpPtr);
-  } else {
-    jam();
-    signal->theData[0] = cminusOne;
-    signal->theData[1] = ZTO_OP_STATE_ERROR;
-  }//if
+    if (signal->theData[2] == tatrOpPtr.p->transId1 &&
+        signal->theData[3] == tatrOpPtr.p->transId2)
+    {
+      /* If lock is from same transaction as take over, lock can
+       * be taken over several times.
+       *
+       * This occurs for example in this scenario:
+       *
+       * create table t (x int primary key, y int);
+       * insert into t (x, y) values (1, 0);
+       * begin;
+       * # Scan and lock rows in t, update using take over operation.
+       * update t set y = 1;
+       * # The second update on same row, will take over the same lock as previous update
+       * update t set y = 2;
+       * commit;
+       */
+      return;
+    }
+    else if (tatrOpPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER &&
+             tatrOpPtr.p->nextParallelQue == RNIL)
+    {
+      /* If lock is taken over from other transaction it must be
+       * the only one in the parallel queue.  Otherwise one could
+       * end up with mixing operations from different transaction
+       * in a parallel queue.
+       */
+      tatrOpPtr.p->transId1 = signal->theData[2];
+      tatrOpPtr.p->transId2 = signal->theData[3];
+      validate_lock_queue(tatrOpPtr);
+      return;
+    }
+  }
+  jam();
+  signal->theData[0] = cminusOne;
+  signal->theData[1] = ZTO_OP_STATE_ERROR;
   return;
 }//Dbacc::execACC_TO_REQ()
 
