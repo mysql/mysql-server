@@ -21,6 +21,7 @@
 #include <md5_hash.hpp>
 
 #include <ndb_version.h>
+#include <signaldata/AccKeyReq.hpp>
 #include <signaldata/NodeRecoveryStatusRep.hpp>
 #include <signaldata/TuxBound.hpp>
 #include <signaldata/AccScan.hpp>
@@ -811,13 +812,13 @@ void Dblqh::execNDB_STTOR(Signal* signal)
   case ZSTART_PHASE1:
     jam();
     preComputedRequestInfoMask = 0;
-    LqhKeyReq::setKeyLen(preComputedRequestInfoMask, RI_KEYLEN_MASK);
-    LqhKeyReq::setLastReplicaNo(preComputedRequestInfoMask, RI_LAST_REPL_MASK);
+    LqhKeyReq::setKeyLen(preComputedRequestInfoMask, LqhKeyReq::RI_KEYLEN_MASK);
+    LqhKeyReq::setLastReplicaNo(preComputedRequestInfoMask, LqhKeyReq::RI_LAST_REPL_MASK);
     // Dont LqhKeyReq::setApplicationAddressFlag
     LqhKeyReq::setDirtyFlag(preComputedRequestInfoMask, 1);
     // Dont LqhKeyReq::setInterpretedFlag
     LqhKeyReq::setSimpleFlag(preComputedRequestInfoMask, 1);
-    LqhKeyReq::setOperation(preComputedRequestInfoMask, RI_OPERATION_MASK);
+    LqhKeyReq::setOperation(preComputedRequestInfoMask, LqhKeyReq::RI_OPERATION_MASK);
     LqhKeyReq::setGCIFlag(preComputedRequestInfoMask, 1);
     LqhKeyReq::setNrCopyFlag(preComputedRequestInfoMask, 1);
     // Dont setAIInLqhKeyReq
@@ -5760,37 +5761,41 @@ void Dblqh::prepareContinueAfterBlockedLab(Signal* signal)
 void
 Dblqh::exec_acckeyreq(Signal* signal, TcConnectionrecPtr regTcPtr)
 {
-  Uint32 taccreq;
-  taccreq = regTcPtr.p->operation;
-  taccreq = taccreq + (regTcPtr.p->lockType << 4);
-  taccreq = taccreq + (regTcPtr.p->dirtyOp << 6);
-  taccreq = taccreq + (regTcPtr.p->replicaType << 7);
 /* ************ */
 /*  ACCKEYREQ < */
 /* ************ */
-  const Uint32 sig0 = regTcPtr.p->accConnectrec;
-  const Uint32 sig1 = fragptr.p->accFragptr;
-  const Uint32 sig3 = regTcPtr.p->hashValue;
-  const Uint32 sig4 = regTcPtr.p->primKeyLen;
-  const Uint32 sig5 = regTcPtr.p->transid[0];
-  const Uint32 sig6 = regTcPtr.p->transid[1];
-  signal->theData[0] = sig0;
-  signal->theData[1] = sig1;
-  signal->theData[2] = taccreq;
-  signal->theData[3] = sig3;
-  signal->theData[4] = sig4;
-  signal->theData[5] = sig5;
-  signal->theData[6] = sig6;
+{
+  Uint32 taccreq = 0;
+  taccreq = AccKeyReq::setOperation(taccreq, regTcPtr.p->operation);
+  taccreq = AccKeyReq::setLockType(taccreq, regTcPtr.p->lockType);
+  taccreq = AccKeyReq::setDirtyOp(taccreq, regTcPtr.p->dirtyOp);
+  taccreq = AccKeyReq::setReplicaType(taccreq, regTcPtr.p->replicaType);
+  taccreq = AccKeyReq::setLockReq(taccreq, false);
+
+  AccKeyReq * const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
+// TODO: WATCH OUT: aliases ! performance regression?
+  req->connectPtr = regTcPtr.p->accConnectrec;
+  req->fragmentPtr = fragptr.p->accFragptr;
+  req->requestInfo = taccreq;
+  req->hashValue = regTcPtr.p->hashValue;
+  req->keyLen = regTcPtr.p->primKeyLen;
+  req->transId1 = regTcPtr.p->transid[0];
+  req->transId2 = regTcPtr.p->transid[1];
+  ndbrequire(req->keyLen > 0);
+  memcpy(req->keyInfo, &req, AccKeyReq::SignalLength_keyInfo);
+
   regTcPtr.p->transactionState = TcConnectionrec::WAIT_ACC;
 
-  const BlockReference blockRef = regTcPtr.p->tcAccBlockref;
   /* Copy KeyInfo to end of ACCKEYREQ signal, starting at offset 7 */
-  copy(&signal->theData[7], regTcPtr.p->keyInfoIVal);
+  copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
+  NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 7);
+}
+  const BlockReference blockRef = regTcPtr.p->tcAccBlockref;
 
   TRACE_OP(regTcPtr.p, "ACC");
   
   EXECUTE_DIRECT(refToMain(blockRef), GSN_ACCKEYREQ, 
-		 signal, 7 + regTcPtr.p->primKeyLen);
+		 signal, AccKeyReq::SignalLength_keyInfo + regTcPtr.p->primKeyLen);
   if (signal->theData[0] < RNIL) {
     jamEntry();
     continueACCKEYCONF(signal,
@@ -6029,46 +6034,59 @@ Dblqh::nr_copy_delete_row(Signal* signal,
 {
   Ptr<Fragrecord> fragPtr = fragptr;
 
-  Uint32 keylen;
   Uint32 tableId = regTcPtr.p->tableref;
   Uint32 accPtr = regTcPtr.p->accConnectrec;
+  Uint32 siglen;
   
-  signal->theData[0] = accPtr;
-  signal->theData[1] = fragptr.p->accFragptr;
-  signal->theData[2] = ZDELETE + (ZDELETE << 4);
-  signal->theData[5] = regTcPtr.p->transid[0];
-  signal->theData[6] = regTcPtr.p->transid[1];
+{
+  Uint32 accreq = 0;
+  accreq = AccKeyReq::setOperation(accreq, ZDELETE);
+  accreq = AccKeyReq::setLockType(accreq, ZDELETE);
+  accreq = AccKeyReq::setDirtyOp(accreq, false);
+  accreq = AccKeyReq::setReplicaType(accreq, 0); // ?
+  accreq = AccKeyReq::setLockReq(accreq, false);
+
+  AccKeyReq * const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
+  req->connectPtr = accPtr;
+  req->fragmentPtr = fragptr.p->accFragptr;
+  req->requestInfo = accreq;
+  req->transId1 = regTcPtr.p->transid[0];
+  req->transId2 = regTcPtr.p->transid[1];
   
   if (rowid)
   {
     jam();
-    keylen = 2;
     if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
     {
-      signal->theData[3] = calculateHash(tableId, signal->theData+24);
+      req->hashValue = calculateHash(tableId, signal->theData+24);
     }
     else
     {
-      signal->theData[3] = md5_hash((Uint64*)(signal->theData+24), len);
+      req->hashValue = md5_hash((Uint64*)(signal->theData+24), len);
     }
-    signal->theData[4] = 0; // seach by local key
-    signal->theData[7] = rowid->m_page_no;
-    signal->theData[8] = rowid->m_page_idx;
+    req->keyLen = 0; // seach by local key
+    req->localKey1 = rowid->m_page_no;
+    req->localKey2 = rowid->m_page_idx;
+    siglen = AccKeyReq::SignalLength_localKey;
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 9);
   }
   else
   {
     jam();
-    keylen = regTcPtr.p->primKeyLen;
-    signal->theData[3] = regTcPtr.p->hashValue;
-    signal->theData[4] = keylen;
+    Uint32 keylen = regTcPtr.p->primKeyLen;
+    req->hashValue = regTcPtr.p->hashValue;
+    req->keyLen = keylen;
 
     /* Copy KeyInfo inline into the ACCKEYREQ signal, 
      * starting at word 7 
      */
-    copy(&signal->theData[7], regTcPtr.p->keyInfoIVal);
+    copy(req->keyInfo, regTcPtr.p->keyInfoIVal);
+    siglen = AccKeyReq::SignalLength_keyInfo + keylen;
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 7);
   }
+}
   const Uint32 ref = refToMain(regTcPtr.p->tcAccBlockref);
-  EXECUTE_DIRECT(ref, GSN_ACCKEYREQ, signal, 7 + keylen);
+  EXECUTE_DIRECT(ref, GSN_ACCKEYREQ, signal, siglen);
   jamEntry();
 
   Uint32 retValue = signal->theData[0];
@@ -6533,7 +6551,7 @@ Dblqh::continueACCKEYCONF(Signal * signal,
     if (regTcPtr->seqNoReplica == 0)
     {
       jam();
-      requestInfo &= ~(RI_OPERATION_MASK <<  RI_OPERATION_SHIFT);
+      requestInfo &= ~(LqhKeyReq::RI_OPERATION_MASK << LqhKeyReq::RI_OPERATION_SHIFT);
       LqhKeyReq::setOperation(requestInfo, op);
       regTcPtr->reqinfo = requestInfo;
     }
@@ -7521,7 +7539,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
         /* Not enough space in LQHKEYREQ, we'll send everything in
          * separate ATTRINFO signals
          */
-        Treqinfo &= ~(Uint32)(RI_AI_IN_THIS_MASK << RI_AI_IN_THIS_SHIFT);
+        Treqinfo &= ~(Uint32)(LqhKeyReq::RI_AI_IN_THIS_MASK << LqhKeyReq::RI_AI_IN_THIS_SHIFT);
         lqhKeyReq->requestInfo = Treqinfo;
         TAiLen= 0;
       }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -183,6 +183,39 @@ private:
    */
   static UintR getDisableFkConstraints(const UintR & requestInfo);
   static void setDisableFkConstraints(UintR & requestInfo, UintR val);
+
+  enum RequestInfo {
+    RI_KEYLEN_SHIFT      =  0, RI_KEYLEN_MASK      = 1023, /* legacy for short LQHKEYREQ */
+    RI_DISABLE_FK        =  0,
+    RI_LAST_REPL_SHIFT   = 10, RI_LAST_REPL_MASK   =    3,
+    RI_LOCK_TYPE_SHIFT   = 12, RI_LOCK_TYPE_MASK   =    7, /* legacy before ROWID_VERSION */
+    RI_GCI_SHIFT         = 12,
+    RI_NR_COPY_SHIFT     = 13,
+    RI_QUEUE_REDO_SHIFT  = 14,
+    RI_APPL_ADDR_SHIFT   = 15,
+    RI_DIRTY_SHIFT       = 16,
+    RI_INTERPRETED_SHIFT = 17,
+    RI_SIMPLE_SHIFT      = 18,
+    RI_OPERATION_SHIFT   = 19, RI_OPERATION_MASK   =    7,
+    RI_SEQ_REPLICA_SHIFT = 22, RI_SEQ_REPLICA_MASK =    3,
+    RI_AI_IN_THIS_SHIFT  = 24, RI_AI_IN_THIS_MASK  =    7, /* legacy for short LQHKEYREQ */
+    RI_CORR_FACTOR_VALUE = 24,
+    RI_NORMAL_DIRTY      = 25,
+    RI_DEFERRED_CONSTAINTS = 26,
+    RI_SAME_CLIENT_SHIFT = 27,
+    RI_RETURN_AI_SHIFT   = 28,
+    RI_MARKER_SHIFT      = 29,
+    RI_NODISK_SHIFT      = 30,
+    RI_ROWID_SHIFT       = 31,
+  };
+
+  enum ScanInfo {
+   SI_ATTR_LEN_SHIFT    =  0, SI_ATTR_LEN_MASK  = 65535,
+   SI_STORED_PROC_SHIFT = 16,
+   SI_DISTR_KEY_SHIFT   = 17, SI_DISTR_KEY_MASK =   255,
+   SI_SCAN_TO_SHIFT     = 25,
+   SI_REORG_SHIFT       = 26, SI_REORG_MASK     =     3,
+  };
 };
 
 /**
@@ -228,34 +261,6 @@ private:
  *
  */
 
-#define RI_KEYLEN_SHIFT      (0)
-#define RI_KEYLEN_MASK       (1023)
-#define RI_LAST_REPL_SHIFT   (10)
-#define RI_LAST_REPL_MASK    (3)
-#define RI_LOCK_TYPE_SHIFT   (12)
-#define RI_LOCK_TYPE_MASK    (7)
-#define RI_APPL_ADDR_SHIFT   (15)
-#define RI_DIRTY_SHIFT       (16)
-#define RI_INTERPRETED_SHIFT (17)
-#define RI_SIMPLE_SHIFT      (18)
-#define RI_OPERATION_SHIFT   (19)
-#define RI_OPERATION_MASK    (7)
-#define RI_SEQ_REPLICA_SHIFT (22)
-#define RI_SEQ_REPLICA_MASK  (3)
-#define RI_AI_IN_THIS_SHIFT  (24)
-#define RI_AI_IN_THIS_MASK   (7)
-#define RI_SAME_CLIENT_SHIFT (27)
-#define RI_RETURN_AI_SHIFT   (28)
-#define RI_MARKER_SHIFT      (29)
-#define RI_NODISK_SHIFT      (30)
-#define RI_ROWID_SHIFT       (31)
-#define RI_GCI_SHIFT         (12)
-#define RI_NR_COPY_SHIFT     (13)
-#define RI_QUEUE_REDO_SHIFT  (14)
-#define RI_CORR_FACTOR_VALUE (24)
-#define RI_NORMAL_DIRTY      (25)
-#define RI_DEFERRED_CONSTAINTS (26)
-#define RI_DISABLE_FK        (0)
 
 /**
  * Scan Info
@@ -272,15 +277,6 @@ private:
  * aaaaaaaaaaaaaaaapddddddddtmm       (Short LQHKEYREQ)
  *                 pddddddddtmm       (Long LQHKEYREQ)
  */
-
-#define SI_ATTR_LEN_MASK     (65535)
-#define SI_ATTR_LEN_SHIFT    (0)
-#define SI_STORED_PROC_SHIFT (16)
-#define SI_DISTR_KEY_MASK    (255)
-#define SI_DISTR_KEY_SHIFT   (17)
-#define SI_SCAN_TO_SHIFT     (25)
-#define SI_REORG_SHIFT (26)
-#define SI_REORG_MASK  (3)
 
 inline 
 UintR
