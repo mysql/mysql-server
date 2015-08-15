@@ -897,12 +897,12 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen)
 
   if (operationRecPtr.p->tupkeylen == 0)
   {
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 9);
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
     ndbassert(siglen == AccKeyReq::SignalLength_localKey);
   }
   else
   {
-    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 7);
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
     ndbassert(siglen == AccKeyReq::SignalLength_keyInfo + operationRecPtr.p->tupkeylen);
   }
 }//Dbacc::initOpRec()
@@ -994,6 +994,21 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   const Uint32 found = getElement(req, lockOwnerPtr);
 
   Uint32 opbits = operationRecPtr.p->m_op_bits;
+
+  if (AccKeyReq::getTakeOver(req->requestInfo))
+  {
+    signal->theData[1] = req->lockConnectPtr;
+    signal->theData[2] = operationRecPtr.p->transId1;
+    signal->theData[3] = operationRecPtr.p->transId2;
+    execACC_TO_REQ(signal);
+    if (signal->theData[0] == cminusOne)
+    {
+      operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
+      ndbassert(signal->theData[1] == ZTO_OP_STATE_ERROR);
+      return; /* Take over failed */
+    }
+  }
+
   Uint32 op = opbits & Operationrec::OP_MASK;
   if (found == ZTRUE) 
   {
@@ -2448,6 +2463,7 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         accreq = AccKeyReq::setLockType(accreq, lockMode);
         accreq = AccKeyReq::setDirtyOp(accreq, false);
         accreq = AccKeyReq::setReplicaType(accreq, 0); // ?
+        accreq = AccKeyReq::setTakeOver(accreq, false);
         accreq = AccKeyReq::setLockReq(accreq, true);
         AccKeyReq* keyreq = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
         keyreq->connectPtr = operationRecPtr.i;
@@ -2457,10 +2473,11 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         keyreq->keyLen = 0;   // search local key
         keyreq->transId1 = req->transId1;
         keyreq->transId2 = req->transId2;
+        keyreq->lockConnectPtr = RNIL;
         // enter local key in place of PK
         keyreq->localKey1 = req->page_id;
         keyreq->localKey2 = req->page_idx;
-        NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 9);
+        NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
       }
         EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, AccKeyReq::SignalLength_localKey);
         /* keyreq invalid, signal now contains return value */
