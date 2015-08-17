@@ -2491,8 +2491,8 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
         keyreq->transId2 = req->transId2;
         keyreq->lockConnectPtr = RNIL;
         // enter local key in place of PK
-        keyreq->localKey1 = req->page_id;
-        keyreq->localKey2 = req->page_idx;
+        keyreq->localKey[0] = req->page_id;
+        keyreq->localKey[1] = req->page_idx;
         NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
       }
         EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, AccKeyReq::SignalLength_localKey);
