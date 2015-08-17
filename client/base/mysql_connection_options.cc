@@ -73,7 +73,8 @@ void Mysql_connection_options::create_options()
       "Use compression in server/client protocol.")
     ->set_short_character('C');
   this->create_new_option(&this->m_default_charset, "default-character-set",
-    "Set the default character set.");
+    "Set the default character set.")
+    ->set_value("UTF8MB4");
   this->create_new_option(&this->m_host, "host", "Connect to host.")
     ->set_short_character('h');
   this->create_new_option(&this->m_max_allowed_packet, "max_allowed_packet",
@@ -161,7 +162,7 @@ MYSQL* Mysql_connection_options::create_connection()
   }
   else
   {
-    mysql_options(connection, MYSQL_SET_CHARSET_NAME, "utf8");
+    mysql_options(connection, MYSQL_SET_CHARSET_NAME, "utf8mb4");
   }
   if (this->m_plugin_dir.has_value())
     mysql_options(connection, MYSQL_PLUGIN_DIR,

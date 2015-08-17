@@ -321,38 +321,38 @@ DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
 SHOW CREATE VIEW db3_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db2_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db2_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db4_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db4_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_general_ci
 DROP DATABASE db1_basic;
 DROP DATABASE db2_basic;
 DROP DATABASE db3_basic;
 DROP DATABASE db4_basic;
 SHOW CREATE VIEW db3_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db3_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db2_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from `db1_basic`.`t2`	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db2_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db2_basic`.`v2` AS select `db3_basic`.`t1`.`a3` AS `a3` from `db3_basic`.`t1`	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db4_basic.v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v1` AS select `db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1`,`db3_basic`.`t1`.`a3` AS `a3` from (`db1_basic`.`t2` join `db3_basic`.`t1`)	utf8mb4	utf8mb4_general_ci
 SHOW CREATE VIEW db4_basic.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8	utf8_general_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db4_basic`.`v2` AS select `db2_basic`.`t1`.`a2` AS `a2`,`db1_basic`.`t2`.`a1` AS `a1`,`db1_basic`.`t2`.`b1` AS `b1` from (`db2_basic`.`t1` join `db1_basic`.`t2`)	utf8mb4	utf8mb4_general_ci
 DROP DATABASE db1_basic;
 DROP DATABASE db2_basic;
 DROP DATABASE db3_basic;
