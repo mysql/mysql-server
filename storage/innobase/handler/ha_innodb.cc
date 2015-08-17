@@ -17989,6 +17989,8 @@ checkpoint_now_set(
 	if (*(my_bool*) save) {
 		while (log_sys->last_checkpoint_lsn
 		       + SIZE_OF_MLOG_CHECKPOINT
+		       + (log_sys->append_on_checkpoint != NULL
+			  ? log_sys->append_on_checkpoint->size() : 0)
 		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
