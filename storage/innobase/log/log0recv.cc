@@ -2472,6 +2472,9 @@ recv_parse_log_rec(
 		*type = static_cast<mlog_id_t>(*ptr);
 		return(1);
 	case MLOG_CHECKPOINT:
+		if (end_ptr < ptr + SIZE_OF_MLOG_CHECKPOINT) {
+			return(0);
+		}
 		*type = static_cast<mlog_id_t>(*ptr);
 		return(SIZE_OF_MLOG_CHECKPOINT);
 	case MLOG_MULTI_REC_END | MLOG_SINGLE_REC_FLAG:
@@ -2691,9 +2694,6 @@ loop:
 			/* Do nothing */
 			break;
 		case MLOG_CHECKPOINT:
-			if (end_ptr < ptr + SIZE_OF_MLOG_CHECKPOINT) {
-				return(false);
-			}
 #if SIZE_OF_MLOG_CHECKPOINT != 1 + 8
 # error SIZE_OF_MLOG_CHECKPOINT != 1 + 8
 #endif
