@@ -261,7 +261,7 @@ public:
   int init_relay_log_pos(const char* log,
                          ulonglong pos, bool need_data_lock,
                          const char** errmsg,
-                         bool look_for_description_event);
+                         bool keep_looking_for_fd);
 
   /*
     Handling of the relay_log_space_limit optional constraint.
