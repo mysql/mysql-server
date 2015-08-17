@@ -5432,7 +5432,6 @@ NdbDictInterface::execSUB_STOP_CONF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_CONF");
   const SubStopConf * const subStopConf=
     CAST_CONSTPTR(SubStopConf, signal->getDataPtr());
-  const Uint32 sigLen = signal->getLength();
 
   DBUG_PRINT("info",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d",
 		     subStopConf->subscriptionId,
@@ -5463,7 +5462,6 @@ NdbDictInterface::execSUB_STOP_REF(const NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execSUB_STOP_REF");
   const SubStopRef * const subStopRef=
     CAST_CONSTPTR(SubStopRef, signal->getDataPtr());
-  const Uint32 sigLen = signal->getLength();
 
   m_error.code= subStopRef->errorCode;
 
