@@ -68,8 +68,7 @@ override_dh_auto_install:
 	@echo "RULES.$@"
 	# complete install first
 	$(MAKE) install DESTDIR=debian/tmp
-	# remove all redundant files and links
-	rm debian/tmp/usr/lib/*/*_r*
+	# remove all redundant files
 	rm debian/tmp/usr/lib/mysql-test/cmake_install.cmake
 	rm debian/tmp/usr/lib/mysql-test/CTestTestfile.cmake
 	rm debian/tmp/usr/lib/mysql-test/Makefile
