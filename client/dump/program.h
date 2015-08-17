@@ -45,6 +45,8 @@ public:
 
   void error(const Mysql::Tools::Base::Message_data& message);
 
+  void short_usage();
+
 private:
   bool message_handler(const Mysql::Tools::Base::Message_data& message);
   void error_log_file_callback(char*);

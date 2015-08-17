@@ -91,8 +91,8 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
   if ((m_dump_all_databases ? 1 : 0) + (m_dump_selected_databases ? 1 : 0) > 1)
   {
     m_mysql_chain_element_options->get_program()->error(
-      Mysql::Tools::Base::Message_data(1, "Usage of --all-databases, "
-      "--databases and --tables is mutually  exclusive.",
+      Mysql::Tools::Base::Message_data(1, "Usage of --all-databases and "
+      "--databases are mutually  exclusive.",
       Mysql::Tools::Base::Message_type_error));
   }
   else if (m_dump_all_databases
@@ -191,11 +191,11 @@ void Mysqldump_tool_chain_maker_options::create_options()
   this->create_new_option(&m_dump_all_databases, "all-databases",
     "Dump all databases. This is default behaviour if no positional options "
     "are specified. Specifying this option is mutually exclusive with "
-    "--databases and --tables.")
+    "--databases.")
     ->set_short_character('A');
   this->create_new_option(&m_dump_selected_databases, "databases",
     "Dump selected databases, specified in positional options. Specifying "
-    "this option is mutually exclusive with --all-databases and --tables.")
+    "this option is mutually exclusive with --all-databases.")
     ->set_short_character('B');
   this->create_new_option(&m_parallel_schemas_string, "parallel-schemas",
     "[N:]<list of: schema_name separated with ','>. Process tables in "
