@@ -1050,7 +1050,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
     obtained value
 */
 
-longlong
+static longlong
 get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
                Item *warn_item, bool *is_null)
 {
@@ -4380,8 +4380,8 @@ static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
     0           left argument is equal to the right argument.
     1           left argument is greater than the right argument.
 */
-int cmp_longlong(const in_longlong::packed_longlong *a,
-                 const in_longlong::packed_longlong *b)
+static int cmp_longlong(const in_longlong::packed_longlong *a,
+                        const in_longlong::packed_longlong *b)
 {
   if (a->unsigned_flag != b->unsigned_flag)
   { 

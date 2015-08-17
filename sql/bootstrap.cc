@@ -44,7 +44,8 @@ int File_command_iterator::next(std::string &query, int *error)
 }
 
 
-char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE* input, int *error)
+static char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE* input,
+                                 int *error)
 {
   char *line= mysql_file_fgets(buffer, static_cast<int>(size), input);
   if (error)

@@ -91,7 +91,7 @@ static PSI_memory_info all_vtoken_memory[]=
 };
 
 // Function to register the lock
-void vtoken_init_psi_keys(void)
+static void vtoken_init_psi_keys(void)
 {
   const char* category= "vtoken";
   int count;

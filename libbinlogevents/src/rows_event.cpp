@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ namespace binary_log
   @param  packet pointer to a buffer containing the field in a row.
   @return pos    length of the next field
 */
-unsigned long get_field_length(unsigned char **packet)
+static unsigned long get_field_length(unsigned char **packet)
 {
   unsigned char *pos= *packet;
   uint32_t temp= 0;

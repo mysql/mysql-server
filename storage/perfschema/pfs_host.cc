@@ -314,7 +314,7 @@ PFS_host *sanitize_host(PFS_host *unsafe)
   return global_host_container.sanitize(unsafe);
 }
 
-void purge_host(PFS_thread *thread, PFS_host *host)
+static void purge_host(PFS_thread *thread, PFS_host *host)
 {
   LF_PINS *pins= get_host_hash_pins(thread);
   if (unlikely(pins == NULL))

@@ -211,7 +211,7 @@ static void init_archive_psi_keys(void)
     TRUE        Error
 */
 
-int archive_db_init(void *p)
+static int archive_db_init(void *p)
 {
   DBUG_ENTER("archive_db_init");
   handlerton *archive_hton;

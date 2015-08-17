@@ -717,7 +717,7 @@ void destroy_thread(PFS_thread *pfs)
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
-LF_PINS* get_filename_hash_pins(PFS_thread *thread)
+static LF_PINS* get_filename_hash_pins(PFS_thread *thread)
 {
   if (unlikely(thread->m_filename_hash_pins == NULL))
   {
@@ -1591,10 +1591,10 @@ void aggregate_thread_status(PFS_thread *thread,
   return;
 }
 
-void aggregate_thread_stats(PFS_thread *thread,
-                            PFS_account *safe_account,
-                            PFS_user *safe_user,
-                            PFS_host *safe_host)
+static void aggregate_thread_stats(PFS_thread *thread,
+                                   PFS_account *safe_account,
+                                   PFS_user *safe_user,
+                                   PFS_host *safe_host)
 {
   if (likely(safe_account != NULL))
   {
@@ -2102,7 +2102,7 @@ void update_file_derived_flags()
   global_file_container.apply_all(fct_update_file_derived_flags);
 }
 
-void fct_update_table_derived_flags(PFS_table *pfs)
+static void fct_update_table_derived_flags(PFS_table *pfs)
 {
   PFS_table_share *share= sanitize_table_share(pfs->m_share);
   if (likely(share != NULL))

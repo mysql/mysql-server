@@ -212,7 +212,7 @@ static struct my_option my_help_command_options[]=
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-my_bool
+static my_bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt __attribute__((unused)),
                           char *argument)
@@ -233,7 +233,7 @@ my_program_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_set_command_get_one_option(int optid,
                               const struct my_option *opt __attribute__((unused)),
                               char *argument)
@@ -260,7 +260,7 @@ my_set_command_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_remove_command_get_one_option(int optid,
                                  const struct my_option *opt __attribute__((unused)),
                                  char *argument)
@@ -284,7 +284,7 @@ my_remove_command_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_print_command_get_one_option(int optid,
                                 const struct my_option *opt __attribute__((unused)),
                                 char *argument)
@@ -308,7 +308,7 @@ my_print_command_get_one_option(int optid,
   return 0;
 }
 
-my_bool
+static my_bool
 my_reset_command_get_one_option(int optid,
                                 const struct my_option *opt __attribute__((unused)),
                                 char *argument)

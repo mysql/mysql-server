@@ -7410,13 +7410,10 @@ static int write_locked_table_maps(THD *thd)
 }
 
 
-typedef bool Log_func(THD*, TABLE*, bool,
-                      const uchar*, const uchar*);
-
 int binlog_log_row(TABLE* table,
-                          const uchar *before_record,
-                          const uchar *after_record,
-                          Log_func *log_func)
+                   const uchar *before_record,
+                   const uchar *after_record,
+                   Log_func *log_func)
 {
   bool error= 0;
   THD *const thd= table->in_use;

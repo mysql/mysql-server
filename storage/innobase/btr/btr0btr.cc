@@ -992,6 +992,10 @@ btr_create(
 			space, 0,
 			IBUF_HEADER + IBUF_TREE_SEG_HEADER, mtr);
 
+		if (ibuf_hdr_block == NULL) {
+			return(FIL_NULL);
+		}
+
 		buf_block_dbg_add_level(
 			ibuf_hdr_block, SYNC_IBUF_TREE_NODE_NEW);
 

@@ -27,9 +27,9 @@
 #include "sql_audit.h"
 
 #ifndef EMBEDDED_LIBRARY
-void raise_query_rewritten_note(THD *thd,
-                                const char *original_query,
-                                const char *rewritten_query)
+static void raise_query_rewritten_note(THD *thd,
+                                       const char *original_query,
+                                       const char *rewritten_query)
 {
   Sql_condition::enum_severity_level sl= Sql_condition::SL_NOTE;
   const char *message= "Query '%s' rewritten to '%s' by a query rewrite plugin";

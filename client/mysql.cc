@@ -3294,7 +3294,7 @@ static void get_current_db()
  The different commands
 ***************************************************************************/
 
-int mysql_real_query_for_lazy(const char *buf, size_t length)
+static int mysql_real_query_for_lazy(const char *buf, size_t length)
 {
   for (uint retry=0;; retry++)
   {
@@ -3310,7 +3310,7 @@ int mysql_real_query_for_lazy(const char *buf, size_t length)
   }
 }
 
-int mysql_store_result_for_lazy(MYSQL_RES **result)
+static int mysql_store_result_for_lazy(MYSQL_RES **result)
 {
   if ((*result=mysql_store_result(&mysql)))
     return 0;

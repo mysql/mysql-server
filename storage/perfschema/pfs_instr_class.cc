@@ -439,7 +439,7 @@ void cleanup_table_share_hash(void)
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
-LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
+static LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 {
   if (unlikely(thread->m_table_share_hash_pins == NULL))
   {
@@ -1592,7 +1592,7 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
     entry->m_enabled= false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
-    entry->m_timed= false; /* unused anyway */
+    entry->m_timed= false; /* Immutable */
     PFS_atomic::add_u32(&memory_class_allocated_count, 1);
     return (index + 1);
   }

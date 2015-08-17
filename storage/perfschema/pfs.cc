@@ -2692,7 +2692,7 @@ pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
   @sa PSI_v1::start_rwlock_rdwait
   @sa PSI_v1::start_rwlock_wrwait
 */
-PSI_rwlock_locker*
+static PSI_rwlock_locker*
 pfs_start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
                          PSI_rwlock *rwlock,
                          PSI_rwlock_operation op,
@@ -5679,11 +5679,11 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type)
   Implementation of the stored program instrumentation interface.
   @sa PSI_v1::get_sp_share.
 */
-PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
-                                  const char* schema_name,
-                                  uint schema_name_length,
-                                  const char* object_name,
-                                  uint object_name_length)
+static PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
+                                         const char* schema_name,
+                                         uint schema_name_length,
+                                         const char* object_name,
+                                         uint object_name_length)
 {
 
   PFS_thread *pfs_thread= my_thread_get_THR_PFS();
@@ -5706,14 +5706,14 @@ PSI_sp_share *pfs_get_sp_share_v1(uint sp_type,
   return reinterpret_cast<PSI_sp_share *>(pfs_program);
 }
 
-void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
+static void pfs_release_sp_share_v1(PSI_sp_share* sp_share)
 {
   /* Unused */
   return;
 }
 
-PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
-                               PSI_sp_share *sp_share)
+static PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
+                                      PSI_sp_share *sp_share)
 {
   DBUG_ASSERT(state != NULL);
   if (! flag_global_instrumentation)
@@ -5750,7 +5750,7 @@ PSI_sp_locker* pfs_start_sp_v1(PSI_sp_locker_state *state,
   return reinterpret_cast<PSI_sp_locker*> (state);
 }
 
-void pfs_end_sp_v1(PSI_sp_locker *locker)
+static void pfs_end_sp_v1(PSI_sp_locker *locker)
 {
   PSI_sp_locker_state *state= reinterpret_cast<PSI_sp_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -5775,11 +5775,11 @@ void pfs_end_sp_v1(PSI_sp_locker *locker)
   }
 }
 
-void pfs_drop_sp_v1(uint sp_type,
-                    const char* schema_name,
-                    uint schema_name_length,
-                    const char* object_name,
-                    uint object_name_length)
+static void pfs_drop_sp_v1(uint sp_type,
+                           const char* schema_name,
+                           uint schema_name_length,
+                           const char* object_name,
+                           uint object_name_length)
 {
   PFS_thread *pfs_thread= my_thread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
@@ -6269,7 +6269,7 @@ void pfs_digest_end_v1(PSI_digest_locker *locker, const sql_digest_storage *dige
   }
 }
 
-PSI_prepared_stmt*
+static PSI_prepared_stmt*
 pfs_create_prepared_stmt_v1(void *identity, uint stmt_id,
                            PSI_statement_locker *locker,
                            const char *stmt_name, size_t stmt_name_length,
@@ -6298,8 +6298,8 @@ pfs_create_prepared_stmt_v1(void *identity, uint stmt_id,
   return reinterpret_cast<PSI_prepared_stmt*>(pfs);
 }
 
-void pfs_execute_prepared_stmt_v1 (PSI_statement_locker *locker,
-                                   PSI_prepared_stmt* ps)
+static void pfs_execute_prepared_stmt_v1 (PSI_statement_locker *locker,
+                                          PSI_prepared_stmt* ps)
 {
   PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -6308,14 +6308,14 @@ void pfs_execute_prepared_stmt_v1 (PSI_statement_locker *locker,
   state->m_in_prepare= false;
 }
 
-void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
+static void pfs_destroy_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
   PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt);
   delete_prepared_stmt(pfs_prepared_stmt);
   return;
 }
 
-void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
+static void pfs_reprepare_prepared_stmt_v1(PSI_prepared_stmt* prepared_stmt)
 {
   PFS_prepared_stmt *pfs_prepared_stmt= reinterpret_cast<PFS_prepared_stmt*>(prepared_stmt);
   PFS_single_stat *prepared_stmt_stat= &pfs_prepared_stmt->m_reprepare_stat;
@@ -6360,8 +6360,8 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
 }
 
 void pfs_register_memory_v1(const char *category,
-                               PSI_memory_info_v1 *info,
-                               int count)
+                            PSI_memory_info_v1 *info,
+                            int count)
 {
   REGISTER_BODY_V1(PSI_memory_key,
                    memory_instrument_prefix,
@@ -6516,7 +6516,8 @@ PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size, size_t
   return key;
 }
 
-PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size, PSI_thread **owner)
+static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size,
+                                          PSI_thread **owner)
 {
   PFS_thread ** owner_thread= reinterpret_cast<PFS_thread**>(owner);
   DBUG_ASSERT(owner_thread != NULL);

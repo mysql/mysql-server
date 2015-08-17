@@ -22,11 +22,9 @@
 #include <pfs_buffer_container.h>
 #include <tap.h>
 
-#include "stub_global_status_var.h"
-
 #include <memory.h>
 
-void test_no_instruments()
+static void test_no_instruments()
 {
   int rc;
   PFS_global_param param;
@@ -78,7 +76,7 @@ void test_no_instruments()
   cleanup_instruments();
 }
 
-void test_no_instances()
+static void test_no_instances()
 {
   int rc;
   PFS_mutex_class dummy_mutex_class;
@@ -218,7 +216,7 @@ void test_no_instances()
   cleanup_instruments();
 }
 
-void test_with_instances()
+static void test_with_instances()
 {
   int rc;
   PFS_mutex_class dummy_mutex_class;
@@ -435,7 +433,7 @@ void test_with_instances()
   cleanup_instruments();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   flag_global_instrumentation= true;
   flag_thread_instrumentation= true;

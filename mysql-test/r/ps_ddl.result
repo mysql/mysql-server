@@ -1331,17 +1331,14 @@ SUCCESS
 
 drop table t1;
 # SQLCOM_REPAIR:
-create table t1 (a int);
+create table t1 (a int) engine=MyISAM;
 insert into t1 values (1), (2), (3);
 prepare stmt from "repair table t1";
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-execute stmt;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 # t1 has changed, and it's does not lead to reprepare
 execute stmt;
@@ -1367,7 +1364,7 @@ execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 # t1 has changed, and it's not a problem
 execute stmt;
@@ -1390,7 +1387,7 @@ execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	Table is already up to date
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 # t1 has changed, and it's not a problem
 execute stmt;
@@ -2498,7 +2495,7 @@ DROP TABLE t1;
 # clause of CREATE TABLE and ALTER TABLE statements.
 #
 CREATE TEMPORARY TABLE t1 (i INT);
-PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=MERGE UNION=(t1)';
+PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=InnoDB UNION=(t1)';
 EXECUTE stmt2;
 DROP TEMPORARY TABLE tm;
 EXECUTE stmt2;

@@ -159,8 +159,8 @@ hash_lex_struct *hash_map_info::get_hash_struct_by_len(int len)
   return root_by_len + len - 1;
 }
 
-void insert_into_hash(hash_lex_struct *root, const char *name, 
-		      int len_from_begin, int index)
+static void insert_into_hash(hash_lex_struct *root, const char *name,
+                             int len_from_begin, int index)
 {
   hash_lex_struct *end, *cur, *tails;
 

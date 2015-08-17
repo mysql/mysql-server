@@ -283,4 +283,7 @@ uchar *net_store_data(uchar *to,const uchar *from, size_t length);
 uchar *net_store_data(uchar *to,int32 from);
 uchar *net_store_data(uchar *to,longlong from);
 bool store(Protocol *prot, I_List<i_string> *str_list);
+bool net_send_ok(THD *, uint, uint, ulonglong, ulonglong, const char *, bool);
+bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count);
+bool net_send_error_packet(THD *, uint, const char *, const char *);
 #endif /* PROTOCOL_CLASSIC_INCLUDED */

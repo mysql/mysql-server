@@ -85,7 +85,7 @@ table_session_connect::~table_session_connect()
     @retval true    parsing failed
     @retval false   parsing succeeded
 */
-bool parse_length_encoded_string(const char **ptr,
+static bool parse_length_encoded_string(const char **ptr,
                  char *dest, uint dest_size,
                  uint *copied_len,
                  const char *start_ptr, uint input_length,

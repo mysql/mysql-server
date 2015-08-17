@@ -56,8 +56,8 @@ Condition_handler::~Condition_handler() {}
   the parser service. This layer always uses a Condition_handler object that
   is passed to mysql_parser_parse().
 */
-int handle(int sql_errno, const char* sqlstate, const char* message,
-           void *state)
+static int handle(int sql_errno, const char* sqlstate, const char* message,
+                  void *state)
 {
   Condition_handler *handler= static_cast<Condition_handler*>(state);
   return handler->handle(sql_errno, sqlstate, message);
@@ -104,7 +104,7 @@ int get_number_params(MYSQL_THD thd)
 }
 
 
-int process_item(MYSQL_ITEM item, uchar *arg)
+static int process_item(MYSQL_ITEM item, uchar *arg)
 {
   Literal_visitor *visitor= pointer_cast<Literal_visitor*>(arg);
   if (visitor->visit(item))

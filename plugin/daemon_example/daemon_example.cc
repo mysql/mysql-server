@@ -52,7 +52,7 @@ struct mysql_heartbeat_context
   File heartbeat_file;
 };
 
-void *mysql_heartbeat(void *p)
+static void *mysql_heartbeat(void *p)
 {
   DBUG_ENTER("mysql_heartbeat");
   struct mysql_heartbeat_context *con= (struct mysql_heartbeat_context *)p;

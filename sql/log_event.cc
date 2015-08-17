@@ -357,7 +357,7 @@ inline int ignored_error_code(int err_code)
   mapping is not found, it uses the ER_UNKNOWN_ERROR and prints out a 
   warning message.
 */ 
-int convert_handler_error(int error, THD* thd, TABLE *table)
+static int convert_handler_error(int error, THD* thd, TABLE *table)
 {
   uint actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                            0);
@@ -2749,7 +2749,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
   @return      true if error
                false otherwise
  */
-bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
+static bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
 {
   int error;
   // Check if we can schedule this event
@@ -4689,7 +4689,13 @@ compare_errors:
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
-    if ((expected_error && expected_error != actual_error &&
+    /*
+      If a statement with expected error is received on slave and if the
+      statement is not filtered on the slave, only then compare the expected
+      error with the actual error that happened on slave.
+    */
+    if ((expected_error && rpl_filter->db_ok(thd->db().str) &&
+         expected_error != actual_error &&
          !concurrency_error_code(expected_error)) &&
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
@@ -8775,7 +8781,7 @@ static uchar dbug_extra_row_data_val= 0;
 
    @param arr  Buffer to use
 */
-const uchar* set_extra_data(uchar* arr)
+static const uchar* set_extra_data(uchar* arr)
 {
   uchar val= (dbug_extra_row_data_val++) %
     (EXTRA_ROW_INFO_MAX_PAYLOAD + 1); /* 0 .. MAX_PAYLOAD + 1 */
@@ -8801,7 +8807,7 @@ const uchar* set_extra_data(uchar* arr)
 
    @param extra_row_data
 */
-void check_extra_data(uchar* extra_row_data)
+static void check_extra_data(uchar* extra_row_data)
 {
   assert(extra_row_data);
   uint16 len= extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
@@ -11960,31 +11966,6 @@ last_uniq_key(TABLE *table, uint keyno)
     if (table->key_info[keyno].flags & HA_NOSAME)
       return 0;
   return 1;
-}
-
-/**
-   Check if an error is a duplicate key error.
-
-   This function is used to check if an error code is one of the
-   duplicate key error, i.e., and error code for which it is sensible
-   to do a <code>get_dup_key()</code> to retrieve the duplicate key.
-
-   @param errcode The error code to check.
-
-   @return <code>true</code> if the error code is such that
-   <code>get_dup_key()</code> will return true, <code>false</code>
-   otherwise.
- */
-bool
-is_duplicate_key_error(int errcode)
-{
-  switch (errcode)
-  {
-  case HA_ERR_FOUND_DUPP_KEY:
-  case HA_ERR_FOUND_DUPP_UNIQUE:
-    return true;
-  }
-  return false;
 }
 
 /**

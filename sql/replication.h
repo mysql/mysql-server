@@ -788,7 +788,7 @@ int get_user_var_real(const char *name,
    @retval 1 Variable not found
 */
 int get_user_var_str(const char *name,
-                     char *value, unsigned long len,
+                     char *value, size_t len,
                      unsigned int precision, int *null_value);
 
 

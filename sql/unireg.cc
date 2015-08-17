@@ -1111,8 +1111,8 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
   @retval false Success.
 */
 
-bool make_default_value(THD *thd, TABLE *table, Create_field *field,
-                        uchar *rec_pos, uchar *null_pos, uint *null_count)
+static bool make_default_value(THD *thd, TABLE *table, Create_field *field,
+                               uchar *rec_pos, uchar *null_pos, uint *null_count)
 {
   Field *regfield= make_field(table->s,
                               rec_pos + field->offset,

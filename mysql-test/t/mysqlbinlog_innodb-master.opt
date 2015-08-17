@@ -1,0 +1,2 @@
+--max-binlog-size=4096
+--force-restart

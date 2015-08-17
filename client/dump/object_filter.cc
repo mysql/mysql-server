@@ -77,12 +77,12 @@ void Object_filter::process_object_inclusion_string(
 
 void Object_filter::exclude_events_callback(char*)
 {
-  this->process_object_inclusion_string(m_events_excluded, false);
+  this->process_object_inclusion_string(m_events_excluded);
 }
 
 void Object_filter::include_events_callback(char*)
 {
-  this->process_object_inclusion_string(m_events_included, false);
+  this->process_object_inclusion_string(m_events_included);
 }
 
 void Object_filter::exclude_triggers_callback(char*)
@@ -264,7 +264,7 @@ void Object_filter::create_options()
 {
   this->create_new_option(&m_include_tmp_string, "include-databases",
     "Specifies comma-separated list of databases and all of its objects to "
-    "include. If there is no exclusions then only included objects will be "
+    "include. If there are no exclusions then only included objects will be "
     "dumped. Otherwise all objects that are not on exclusion lists or are "
     "on inclusion list will be dumped.")
     ->add_callback(new Mysql::Instance_callback

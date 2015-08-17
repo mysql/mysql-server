@@ -6793,7 +6793,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   @return  true if 'op_type' is a spatial comparison operator, false otherwise.
 
 */
-bool is_spatial_operator(Item_func::Functype op_type)
+static bool is_spatial_operator(Item_func::Functype op_type)
 {
   switch (op_type)
   {

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # This test uses chmod, can't be run with root permissions
 -- source include/not_as_root.inc
 
@@ -26,7 +21,8 @@ select x'31',X'ffff'+0;
 
 create table t1 (ID int(8) unsigned zerofill not null auto_increment,UNIQ bigint(21) unsigned zerofill not null,primary key (ID),unique (UNIQ) );
 insert into t1 set UNIQ=0x38afba1d73e6a18a;
-insert into t1 set UNIQ=123; 
+insert into t1 set UNIQ=123;
+analyze table t1;
 explain extended select * from t1 where UNIQ=0x38afba1d73e6a18a;
 drop table t1;
 

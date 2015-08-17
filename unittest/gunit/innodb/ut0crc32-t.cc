@@ -2082,6 +2082,7 @@ static const byte	page[] = {
 };
 static const size_t	page_size = UT_ARR_SIZE(page);
 
+static
 void
 init()
 {

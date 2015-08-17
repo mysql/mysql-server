@@ -232,7 +232,7 @@ rows_examined	sql_text
 2	INSERT INTO t1 SELECT b+sleep(.01) from t2
 4	UPDATE t1 SET a=a+sleep(.01) WHERE a>2
 8	UPDATE t1 SET a=a+sleep(.01) ORDER BY a DESC
-1	UPDATE t2 set b=b+sleep(.01) limit 1
+2	UPDATE t2 set b=b+sleep(.01) limit 1
 4	UPDATE t1 SET a=a+sleep(.01) WHERE a in (SELECT b from t2)
 6	DELETE FROM t1 WHERE a=a+sleep(.01) ORDER BY a LIMIT 2
 DROP TABLE t1,t2;

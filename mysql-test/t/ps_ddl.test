@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
 #
@@ -54,6 +49,9 @@
 # - Part 22: Special tables (views temp tables)
 # - Part 23: Special statements
 # - Part 24: Testing the strength of TABLE_SHARE version
+# Test SQLCOM_REPAIR  needs MyISAM for execution. 
+--source include/have_myisam.inc
+
 --disable_warnings
 drop temporary table if exists t1, t2, t3;
 drop table if exists t1, t2, t3;
@@ -1081,17 +1079,16 @@ drop table t1;
 
 --echo # SQLCOM_REPAIR:
 
-create table t1 (a int);
+create table t1 (a int) engine=MyISAM;
 
 insert into t1 values (1), (2), (3);
 
 prepare stmt from "repair table t1";
 
 execute stmt;
-execute stmt;
 
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 
 --echo # t1 has changed, and it's does not lead to reprepare
@@ -1111,7 +1108,7 @@ prepare stmt from "analyze table t1";
 execute stmt;
 
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 --echo # t1 has changed, and it's not a problem
 execute stmt;
@@ -1130,7 +1127,7 @@ prepare stmt from "optimize table t1";
 execute stmt;
 
 drop table t1;
-create table t1 (a1 int, a2 int);
+create table t1 (a1 int, a2 int) engine=myisam;
 insert into t1 values (1, 10), (2, 20), (3, 30);
 
 --echo # t1 has changed, and it's not a problem
@@ -2211,7 +2208,7 @@ DROP TABLE t1;
 --echo # clause of CREATE TABLE and ALTER TABLE statements.
 --echo #
 CREATE TEMPORARY TABLE t1 (i INT);
-PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=MERGE UNION=(t1)';
+PREPARE stmt2 FROM 'CREATE TEMPORARY TABLE tm (i INT) ENGINE=InnoDB UNION=(t1)';
 EXECUTE stmt2;
 DROP TEMPORARY TABLE tm;
 EXECUTE stmt2;

@@ -118,6 +118,18 @@ int Program::execute(std::vector<std::string> positional_options)
     message_handler= new Mysql::Instance_callback
     <bool, const Mysql::Tools::Base::Message_data&, Program>(
     this, &Program::message_handler);
+
+  Mysql::Tools::Base::Mysql_query_runner* runner= connection_provider
+         ->get_runner(message_handler);
+  if (mysql_get_server_version(runner->get_low_level_connection()) < 50708)
+  {
+    std::cerr << "Server version is not compatible. Server version should "
+                 "be 5.7.8 or above.";
+    delete message_handler;
+    delete connection_provider;
+    return 0;
+  }
+
   Simple_id_generator* id_generator= new Simple_id_generator();
 
   boost::chrono::high_resolution_clock::time_point start_time=
@@ -182,6 +194,16 @@ Program::~Program()
   delete m_mysql_chain_element_options;
   delete m_mysqldump_tool_chain_maker_options;
   this->close_redirected_stderr();
+}
+
+void Program::short_usage()
+{
+  std::cout << "Usage: " << get_name() <<" [OPTIONS] [--all-databases]"
+            << std::endl;
+  std::cout << "OR     " << get_name() <<" [OPTIONS] --databases DB1 [DB2 DB3...]"
+            << std::endl;
+  std::cout << "OR     " << get_name() <<" [OPTIONS] database [tables]"
+            << std::endl;
 }
 
 Program::Program()

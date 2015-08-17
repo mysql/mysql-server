@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,4 +81,3 @@ public:
 uint emb_count_querycache_size(THD *thd);
 int emb_load_querycache_result(THD *thd, Querycache_stream *src);
 void emb_store_querycache_result(Querycache_stream *dst, THD* thd);
-bool net_send_eof(THD *thd, uint server_status, uint total_warn_count);

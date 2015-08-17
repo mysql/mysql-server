@@ -43,10 +43,6 @@ static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 static const Item::enum_walk walk_subquery=
   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
-uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
-                                   uint first_unused);
-
-
 /**
   Prepare query block for optimization.
 

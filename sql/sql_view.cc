@@ -695,53 +695,53 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   */
 
   if (!res)
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
-
-  if (mysql_bin_log.is_open())
   {
-    String buff;
-    const LEX_STRING command[3]=
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name, false);
+    if (mysql_bin_log.is_open())
+    {
+      String buff;
+      const LEX_STRING command[3]=
       {{ C_STRING_WITH_LEN("CREATE ") },
-       { C_STRING_WITH_LEN("ALTER ") },
-       { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
+        { C_STRING_WITH_LEN("ALTER ") },
+        { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
 
-    buff.append(command[thd->lex->create_view_mode].str,
-                command[thd->lex->create_view_mode].length);
-    view_store_options(thd, views, &buff);
-    buff.append(STRING_WITH_LEN("VIEW "));
-    /* Test if user supplied a db (ie: we did not use thd->db) */
-    if (views->db && views->db[0] &&
-        (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
-    {
-      append_identifier(thd, &buff, views->db,
-                        views->db_length);
-      buff.append('.');
-    }
-    append_identifier(thd, &buff, views->table_name,
-                      views->table_name_length);
-    if (lex->view_list.elements)
-    {
-      List_iterator_fast<LEX_STRING> names(lex->view_list);
-      LEX_STRING *name;
-      int i;
-      
-      for (i= 0; (name= names++); i++)
+      buff.append(command[thd->lex->create_view_mode].str,
+                  command[thd->lex->create_view_mode].length);
+      view_store_options(thd, views, &buff);
+      buff.append(STRING_WITH_LEN("VIEW "));
+      /* Test if user supplied a db (ie: we did not use thd->db) */
+      if (views->db && views->db[0] &&
+          (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
       {
-        buff.append(i ? ", " : "(");
-        append_identifier(thd, &buff, name->str, name->length);
+        append_identifier(thd, &buff, views->db,
+                          views->db_length);
+        buff.append('.');
       }
-      buff.append(')');
+      append_identifier(thd, &buff, views->table_name,
+                        views->table_name_length);
+      if (lex->view_list.elements)
+      {
+        List_iterator_fast<LEX_STRING> names(lex->view_list);
+        LEX_STRING *name;
+        int i;
+
+        for (i= 0; (name= names++); i++)
+        {
+          buff.append(i ? ", " : "(");
+          append_identifier(thd, &buff, name->str, name->length);
+        }
+        buff.append(')');
+      }
+      buff.append(STRING_WITH_LEN(" AS "));
+      buff.append(views->source.str, views->source.length);
+
+      int errcode= query_error_code(thd, TRUE);
+      thd->add_to_binlog_accessed_dbs(views->db);
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
+        res= TRUE;
     }
-    buff.append(STRING_WITH_LEN(" AS "));
-    buff.append(views->source.str, views->source.length);
-
-    int errcode= query_error_code(thd, TRUE);
-    thd->add_to_binlog_accessed_dbs(views->db);
-    if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
-      res= TRUE;
   }
-
   if (mode != VIEW_CREATE_NEW)
     query_cache.invalidate(thd, view, FALSE);
   if (res)

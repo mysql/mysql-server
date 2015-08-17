@@ -498,7 +498,7 @@ parse_string(const char *ptr, const char *end, MEM_ROOT *mem_root,
     TRUE    error
 */
 
-my_bool
+static my_bool
 read_escaped_string(const char *ptr, const char *eol, LEX_STRING *str)
 {
   char *write_pos= str->str;

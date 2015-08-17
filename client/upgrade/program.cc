@@ -120,6 +120,11 @@ public:
     return "MySQL utility for upgrading databases to new MySQL versions.";
   }
 
+  void short_usage()
+  {
+    std::cout << "Usage: " << get_name() <<" [OPTIONS]" << std::endl;
+  }
+
   /**
     Error codes:
     EXIT_INIT_ERROR - Initialization error.

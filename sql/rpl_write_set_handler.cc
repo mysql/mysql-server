@@ -46,8 +46,8 @@ template <class type> uint32 calc_hash(type T)
   @param[out] foreign_key_map - a standard map which keeps track of the
                                 foreign key fields.
 */
-void check_foreign_key(TABLE *table, THD *thd,
-                       std::map<std::string,std::string> &foreign_key_map)
+static void check_foreign_key(TABLE *table, THD *thd,
+                              std::map<std::string,std::string> &foreign_key_map)
 {
   DBUG_ENTER("check_foreign_key");
   List<FOREIGN_KEY_INFO> f_key_list;
@@ -97,7 +97,7 @@ void check_foreign_key(TABLE *table, THD *thd,
 
 }
 
-void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
+static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
 {
   DBUG_EXECUTE_IF("PKE_assert_single_primary_key_generated_insert",
                   DBUG_ASSERT(key_list_to_hash[0] == "Ptest4t1211"););
@@ -164,7 +164,7 @@ void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash)
   @param[in] thd - THD object pointing to current thread.
 */
 
-void generate_hash_pke(std::string pke, THD* thd)
+static void generate_hash_pke(std::string pke, THD* thd)
 {
   DBUG_ENTER("generate_hash_pke");
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction ==

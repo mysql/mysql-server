@@ -81,7 +81,7 @@ table_setup_objects::m_share=
   false  /* perpetual */
 };
 
-int update_derived_flags()
+static int update_derived_flags()
 {
   PFS_thread *thread= PFS_thread::get_current_thread();
   if (unlikely(thread == NULL))

@@ -126,6 +126,20 @@ public:
 
 	int open(const char *name, int mode, uint test_if_locked);
 
+	/** Opens dictionary table object using table name. For partition, we need to
+	try alternative lower/upper case names to support moving data files across
+	platforms.
+	@param[in]	table_name	name of the table/partition
+	@param[in]	norm_name	normalized name of the table/partition
+	@param[in]	is_partition	if this is a partition of a table
+	@param[in]	ignore_err	error to ignore for loading dictionary object
+	@return dictionary table object or NULL if not found */
+	static dict_table_t* open_dict_table(
+	const char*		table_name,
+	const char*		norm_name,
+	bool			is_partition,
+	dict_err_ignore_t	ignore_err);
+
 	handler* clone(const char *name, MEM_ROOT *mem_root);
 
 	int close(void);

@@ -4776,8 +4776,8 @@ uint binlog_unsafe_map[256];
      . (BINLOG_DIRECT_ON & TRX_CACHE_NOT_EMPTY) is never overwritten by 
      . (BINLOG_DIRECT_ON | BINLOG_DIRECT_OFF).
 */
-void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
-                            LEX::enum_stmt_accessed_table b, uint condition)
+static void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
+                                   LEX::enum_stmt_accessed_table b, uint condition)
 {
   int type= 0;
   int index= (1U << a) | (1U << b);

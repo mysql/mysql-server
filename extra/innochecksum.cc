@@ -233,6 +233,7 @@ error_message(
  @retval file pointer; file pointer is NULL when error occured.
 */
 
+static
 FILE*
 open_file(
 	const char*	name)
@@ -314,6 +315,7 @@ open_file(
 						tablespace.
  @retval no. of bytes read.
 */
+static
 ulong read_file(
 	byte*	buf,
 	bool	partial_page_read,
@@ -705,6 +707,7 @@ is_page_empty(
 @retval		true			do rewrite
 @retval		false			skip the rewrite as checksum stored
 match with calculated or page is doublwrite buffer. */
+static
 bool
 update_checksum(
 	byte*			page,
@@ -884,6 +887,7 @@ Parse the page and collect/dump the information about page type
 @param [in] page	buffer page
 @param [in] file	file for diagnosis.
 */
+static
 void
 parse_page(
 	const byte*	page,
@@ -1092,6 +1096,7 @@ parse_page(
 
 @retval FILE pointer if successfully created else NULL when error occured.
 */
+static
 FILE*
 create_file(
 	char*	file_name)
@@ -1134,6 +1139,7 @@ create_file(
  Print the page type count of a tablespace.
  @param [in] fil_out	stream where the output goes.
 */
+static
 void
 print_summary(
 	FILE*	fil_out)

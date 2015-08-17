@@ -3755,6 +3755,14 @@ int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
 
+typedef bool Log_func(THD*, TABLE*, bool,
+                      const uchar*, const uchar*);
+
+int  binlog_log_row(TABLE* table,
+                    const uchar *before_record,
+                    const uchar *after_record,
+                    Log_func *log_func);
+
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);
 bool ha_check_if_table_exists(THD* thd, const char *db, const char *name,

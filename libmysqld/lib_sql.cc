@@ -36,6 +36,7 @@ extern "C" {
 #undef ER
 #include "errmsg.h"
 #include "embedded_priv.h"
+#include "client_settings.h"
 
 } // extern "C"
 
@@ -94,7 +95,7 @@ static void embedded_error_handler(uint error, const char *str, myf MyFlags)
     most of the data is stored in data->embedded_info structure
 */
 
-void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
+static void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 {
   NET *net= &mysql->net;
   struct embedded_query_result *ei= data->embedded_info;
@@ -361,7 +362,7 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   DBUG_RETURN(0);
 }
 
-int emb_read_binary_rows(MYSQL_STMT *stmt)
+static int emb_read_binary_rows(MYSQL_STMT *stmt)
 {
   MYSQL_DATA *data;
   if (!(data= emb_read_rows(stmt->mysql, 0, 0)))
@@ -375,7 +376,7 @@ int emb_read_binary_rows(MYSQL_STMT *stmt)
   return 0;
 }
 
-int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
+static int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
 {
   MYSQL *mysql= stmt->mysql;
   THD *thd= (THD*) mysql->thd;
@@ -397,7 +398,7 @@ int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
   return emb_read_binary_rows(stmt);
 }
 
-int emb_unbuffered_fetch(MYSQL *mysql, char **row)
+static int emb_unbuffered_fetch(MYSQL *mysql, char **row)
 {
   THD *thd= (THD*) mysql->thd;
   MYSQL_DATA *data= thd->cur_data;
@@ -448,7 +449,7 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
-int emb_read_change_user_result(MYSQL *mysql)
+static int emb_read_change_user_result(MYSQL *mysql)
 {
   mysql->net.read_pos= (uchar*)""; // fake an OK packet
   return mysql_errno(mysql) ? static_cast<int>packet_error :
@@ -475,33 +476,6 @@ MYSQL_METHODS embedded_methods=
   emb_read_rows_from_cursor,
   free_rows
 };
-
-/*
-  Make a copy of array and the strings array points to
-*/
-
-char **copy_arguments(int argc, char **argv)
-{
-  size_t length= 0;
-  char **from, **res, **end= argv+argc;
-
-  for (from=argv ; from != end ; from++)
-    length+= strlen(*from);
-
-  if ((res= (char**) my_malloc(PSI_NOT_INSTRUMENTED,
-                               sizeof(argv)*(argc+1)+length+argc,
-			       MYF(MY_WME))))
-  {
-    char **to= res, *to_str= (char*) (res+argc+1);
-    for (from=argv ; from != end ;)
-    {
-      *to++= to_str;
-      to_str= my_stpcpy(to_str, *from++)+1;
-    }
-    *to= 0;					// Last ptr should be null
-  }
-  return res;
-}
 
 char **		copy_arguments_ptr= 0;
 
@@ -562,11 +536,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
   system_charset_info= &my_charset_utf8_general_ci;
   sys_var_init();
 
-  int ho_error= handle_early_options();
-  if (ho_error != 0)
+  if (handle_early_options() != 0)
   {
-    buffered_logs.print();
-    buffered_logs.cleanup();
     return 1;
   }
 

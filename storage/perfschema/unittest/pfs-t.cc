@@ -27,11 +27,10 @@
 
 #include "stub_print_error.h"
 #include "stub_pfs_defaults.h"
-#include "stub_global_status_var.h"
 
 /* test helpers, to simulate the setup */
 
-void setup_thread(PSI_thread *t, bool enabled)
+static void setup_thread(PSI_thread *t, bool enabled)
 {
   PFS_thread *t2= (PFS_thread*) t;
   t2->m_enabled= enabled;
@@ -39,7 +38,7 @@ void setup_thread(PSI_thread *t, bool enabled)
 
 /* test helpers, to inspect data */
 
-PFS_file* lookup_file_by_name(const char* name)
+static PFS_file* lookup_file_by_name(const char* name)
 {
   PFS_file *pfs;
   size_t len= strlen(name);
@@ -72,7 +71,7 @@ PFS_file* lookup_file_by_name(const char* name)
 
 /* tests */
 
-void test_bootstrap()
+static void test_bootstrap()
 {
   void *psi;
   void *psi_2;
@@ -148,7 +147,7 @@ void test_bootstrap()
 /*
   Not a test, helper for testing pfs.cc
 */
-PSI * load_perfschema()
+static PSI * load_perfschema()
 {
   PSI *psi;
   PSI_bootstrap *boot;
@@ -213,7 +212,7 @@ PSI * load_perfschema()
   return (PSI*) psi;
 }
 
-void test_bad_registration()
+static void test_bad_registration()
 {
   PSI *psi;
 
@@ -646,7 +645,7 @@ void test_bad_registration()
   shutdown_performance_schema();
 }
 
-void test_init_disabled()
+static void test_init_disabled()
 {
   PSI *psi;
 
@@ -1080,7 +1079,7 @@ void test_init_disabled()
   shutdown_performance_schema();
 }
 
-void test_locker_disabled()
+static void test_locker_disabled()
 {
   PSI *psi;
 
@@ -1414,7 +1413,8 @@ void test_locker_disabled()
   shutdown_performance_schema();
 }
 
-void test_file_instrumentation_leak()
+
+static void test_file_instrumentation_leak()
 {
   PSI *psi;
 
@@ -1501,9 +1501,9 @@ void test_file_instrumentation_leak()
   shutdown_performance_schema();
 }
 
-void test_enabled()
-{
 #ifdef LATER
+static void test_enabled()
+{
   PSI *psi;
 
   diag("test_enabled");
@@ -1535,10 +1535,10 @@ void test_enabled()
   };
 
   shutdown_performance_schema();
-#endif
 }
+#endif
 
-void test_event_name_index()
+static void test_event_name_index()
 {
   PSI *psi;
   PSI_bootstrap *boot;
@@ -1702,7 +1702,7 @@ void test_event_name_index()
   shutdown_performance_schema();
 }
 
-void test_memory_instruments()
+static void test_memory_instruments()
 {
   PSI *psi;
   PSI_thread *owner;
@@ -1788,7 +1788,7 @@ void test_memory_instruments()
   shutdown_performance_schema();
 }
 
-void test_leaks()
+static void test_leaks()
 {
   PSI_bootstrap *boot;
   PFS_global_param param;
@@ -1848,7 +1848,7 @@ void test_leaks()
   /* Leaks will be reported with valgrind */
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   /* Using initialize_performance_schema(), no partial init needed. */
 

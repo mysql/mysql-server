@@ -22,11 +22,9 @@
 #include <pfs_buffer_container.h>
 #include <tap.h>
 
-#include "stub_global_status_var.h"
-
 #include <memory.h>
 
-void test_digest_length_overflow()
+static void test_digest_length_overflow()
 {
   if (sizeof(size_t) != 4)
   {
@@ -73,7 +71,7 @@ void test_digest_length_overflow()
   ok(rc == 1, "digest length overflow (init_digest)");
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_digest_length_overflow();
 }

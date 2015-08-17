@@ -699,6 +699,11 @@ protected:
   QEP_TAB *tab;
   Item *cond; /* The WHERE condition of subselect */
   ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
+  /**
+     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
+     NULL) will find at most one row.
+  */
+  bool unique;
 private:
   /* FALSE for 'ref', TRUE for 'ref-or-null'. */
   bool check_null;
@@ -713,11 +718,6 @@ private:
     was a row such that t.no_key IS NULL.
   */
   Item *having;
-  /**
-     Whether a lookup for key value (x0,y0) (x0 and/or y0 being NULL or not
-     NULL) will find at most one row.
-  */
-  bool unique;
 public:
 
   /*
@@ -729,7 +729,7 @@ public:
                                  Item *having_arg, bool chk_null,
                                  bool unique_arg)
     :subselect_engine(subs, 0), tab(tab_arg), cond(where),
-    check_null(chk_null), having(having_arg), unique(unique_arg)
+    unique(unique_arg), check_null(chk_null), having(having_arg)
   {};
   virtual bool exec();
   virtual void print (String *str, enum_query_type query_type);

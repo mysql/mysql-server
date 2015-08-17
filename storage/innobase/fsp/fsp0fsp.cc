@@ -847,15 +847,17 @@ fsp_header_init_fields(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Initializes the space header of a new created space and creates also the
-insert buffer tree root if space == 0. */
-void
+/** Initializes the space header of a new created space and creates also the
+insert buffer tree root if space == 0.
+@param[in]	space_id	space id
+@param[in]	size		current size in blocks
+@param[in,out]	mtr		min-transaction
+@return	true on success, otherwise false. */
+bool
 fsp_header_init(
-/*============*/
-	ulint	space_id,	/*!< in: space id */
-	ulint	size,		/*!< in: current size in blocks */
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
+	ulint	space_id,
+	ulint	size,
+	mtr_t*	mtr)
 {
 	fsp_header_t*	header;
 	buf_block_t*	block;
@@ -907,10 +909,14 @@ fsp_header_init(
 			   space, header, mtr);
 
 	if (space_id == srv_sys_space.space_id()) {
-		btr_create(DICT_CLUSTERED | DICT_IBUF,
-			   0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
-			   dict_ind_redundant, NULL, mtr);
+		if (btr_create(DICT_CLUSTERED | DICT_IBUF,
+			       0, univ_page_size, DICT_IBUF_ID_MIN + space_id,
+			       dict_ind_redundant, NULL, mtr) == FIL_NULL) {
+			return(false);
+		}
 	}
+
+	return(true);
 }
 #endif /* !UNIV_HOTBACKUP */
 

@@ -243,7 +243,7 @@ static int rewriter_plugin_deinit(void*)
   Reloads the rules into the in-memory table. This function assumes that the
   appropriate lock is already taken and doesn't concern itself with locks.
 */
-bool reload(MYSQL_THD thd)
+static bool reload(MYSQL_THD thd)
 {
   const char *message= NULL;
   try {
@@ -272,7 +272,7 @@ bool reload(MYSQL_THD thd)
 }
 
 
-bool lock_and_reload(MYSQL_THD thd)
+static bool lock_and_reload(MYSQL_THD thd)
 {
   mysql_rwlock_wrlock(&LOCK_table);
   status_var_reload_error= reload(thd);

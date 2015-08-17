@@ -52,7 +52,7 @@ int initialize_channel_service_interface()
 
 #ifdef HAVE_REPLICATION
 
-void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
+static void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 {
   mysql_mutex_lock(&mi->data_lock);
 
@@ -90,7 +90,7 @@ void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
   mysql_mutex_unlock(&mi->data_lock);
 }
 
-bool init_thread_context()
+static bool init_thread_context()
 {
   if (!mysys_thread_var())
   {
@@ -100,12 +100,12 @@ bool init_thread_context()
   return false;
 }
 
-void clean_thread_context()
+static void clean_thread_context()
 {
   my_thread_end();
 }
 
-THD *create_surrogate_thread()
+static THD *create_surrogate_thread()
 {
   THD *thd= NULL;
   thd= new THD;
@@ -116,7 +116,7 @@ THD *create_surrogate_thread()
   return(thd);
 }
 
-void delete_surrogate_thread(THD *thd)
+static void delete_surrogate_thread(THD *thd)
 {
   thd->release_resources();
   delete thd;
@@ -165,7 +165,7 @@ initialize_channel_connection_info(Channel_connection_info* channel_info)
   channel_info->view_id= 0;
 }
 
-void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
+static void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_info)
 {
 
   if (channel_ssl_info->use_ssl)

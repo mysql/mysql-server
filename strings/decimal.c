@@ -584,7 +584,7 @@ static void digits_bounds(decimal_t *from, int *start_result, int *end_result)
     'shift' have to be from 1 to DIG_PER_DEC1-1 (inclusive)
 */
 
-void do_mini_left_shift(decimal_t *dec, int shift, int beg, int last)
+static void do_mini_left_shift(decimal_t *dec, int shift, int beg, int last)
 {
   dec1 *from= dec->buf + ROUND_UP(beg + 1) - 1;
   dec1 *end= dec->buf + ROUND_UP(last) - 1;
@@ -614,7 +614,7 @@ void do_mini_left_shift(decimal_t *dec, int shift, int beg, int last)
     'shift' have to be from 1 to DIG_PER_DEC1-1 (inclusive)
 */
 
-void do_mini_right_shift(decimal_t *dec, int shift, int beg, int last)
+static void do_mini_right_shift(decimal_t *dec, int shift, int beg, int last)
 {
   dec1 *from= dec->buf + ROUND_UP(last) - 1;
   dec1 *end= dec->buf + ROUND_UP(beg + 1) - 1;

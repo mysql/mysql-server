@@ -139,9 +139,9 @@ grant select on mysqltest.t1 to mysqltest_1@localhost;
 revoke select on mysqltest.v5 from mysqltest_1@localhost;
 explain select c from mysqltest.v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (NULL + 1) AS `c` from `mysqltest`.`t1`
+Note	1003	/* select#1 */ select (`mysqltest`.`t1`.`a` + 1) AS `c` from `mysqltest`.`t1`
 show create view mysqltest.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
@@ -162,18 +162,18 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 grant show view on mysqltest.* to mysqltest_1@localhost;
 explain select c from mysqltest.v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (NULL + 1) AS `c` from `mysqltest`.`t1`
+Note	1003	/* select#1 */ select (`mysqltest`.`t1`.`a` + 1) AS `c` from `mysqltest`.`t1`
 show create view mysqltest.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v1` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
 explain select c from mysqltest.v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `c` from `mysqltest`.`v2`
+Note	1003	/* select#1 */ select `v2`.`c` AS `c` from `mysqltest`.`v2`
 show create view mysqltest.v2;
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v2` AS select (`mysqltest`.`t1`.`a` + 1) AS `c`,(`mysqltest`.`t1`.`b` + 1) AS `d` from `mysqltest`.`t1`	latin1	latin1_swedish_ci
@@ -296,8 +296,8 @@ select * from t1;
 a	b
 1	2
 2	3
-5	6
 3	4
+5	6
 insert into v2 values (5,6);
 ERROR 42000: INSERT command denied to user 'mysqltest_1'@'localhost' for table 'v2'
 insert into v2 select x,y from t2;
@@ -1071,9 +1071,9 @@ select * from v1;
 i
 explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i` from `mysqltest1`.`t1`
+Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`i` AS `i` from `mysqltest1`.`t1`
 ... as eugene
 select * from v1;
 i
@@ -1109,16 +1109,16 @@ select k from t3;
 k
 explain select k from t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `k` from `mysqltest1`.`t3`
+Note	1003	/* select#1 */ select `mysqltest1`.`t3`.`k` AS `k` from `mysqltest1`.`t3`
 select * from v3;
 k
 explain select * from v3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `k` from `mysqltest1`.`t3`
+Note	1003	/* select#1 */ select `mysqltest1`.`t3`.`k` AS `k` from `mysqltest1`.`t3`
 ... as inga
 select * from v2;
 i	j
@@ -1144,9 +1144,10 @@ select * from v2;
 i	j
 explain select * from v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `i`,NULL AS `j` from `mysqltest1`.`t1` join `mysqltest1`.`t2`
+Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`i` AS `i`,`mysqltest1`.`t2`.`j` AS `j` from `mysqltest1`.`t1` join `mysqltest1`.`t2`
 ... as noam
 select * from v2;
 i	j

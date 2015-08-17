@@ -61,7 +61,8 @@ static int compare(size_t a, size_t b)
   @retval  0 The length of the source and target fields are the same.
   @retval  1 The length of the source field is greater than the target field.
  */
-int compare_lengths(Field *field, enum_field_types source_type, uint16 metadata)
+static int compare_lengths(Field *field, enum_field_types source_type,
+                           uint16 metadata)
 {
   DBUG_ENTER("compare_lengths");
   size_t const source_length=
@@ -275,7 +276,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
    @param order  The computed order of the conversion needed.
    @param rli    The relay log info data structure: for error reporting.
  */
-bool is_conversion_ok(int order, Relay_log_info *rli)
+static bool is_conversion_ok(int order, Relay_log_info *rli)
 {
   DBUG_ENTER("is_conversion_ok");
   bool allow_non_lossy, allow_lossy;

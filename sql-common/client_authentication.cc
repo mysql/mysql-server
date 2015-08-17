@@ -68,7 +68,7 @@ int sha256_password_deinit(void)
   @return Pointer to the RSA public key storage buffer
 */
 
-RSA *rsa_init(MYSQL *mysql)
+static RSA *rsa_init(MYSQL *mysql)
 {
   static RSA *g_public_key= NULL;
   RSA *key= NULL;

@@ -76,11 +76,11 @@ id	pattern	pattern_database	replacement	enabled	message	pattern_digest	normalize
 CALL query_rewrite.flush_rewrite_rules();
 SELECT * FROM query_rewrite.rewrite_rules;
 id	pattern	pattern_database	replacement	enabled	message	pattern_digest	normalized_pattern
-2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	YES	NULL	318aa0f255906dd42b92df9fb4ccc476	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
-3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	YES	NULL	2a1ddb7d6fb795addaed6f4adb88e9bd	select `a` from `test`.`t1`
-4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	YES	NULL	6d0881bee6c831f57cc6e001f5ca5e68	select `a` from `test`.`t1` where (`b` = ?)
-5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	YES	NULL	270f1bccdd9a20696b7c92ab182852a2	select `*` from `test`.`t2`
-6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	YES	NULL	422bd50bc8088d89c69ff1051c97e8a7	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
+2	SELECT * FROM test.t1 WHERE ( a = ? AND TRUE ) OR b = ?	NULL	SELECT a FROM test.t1 WHERE a = ?	YES	NULL	a21bb7322e809cb141cd14c57287e8e0	select `*` from `test`.`t1` where (((`a` = ?) and ?) or (`b` = ?))
+3	SELECT a FROM test.t1	NULL	SELECT * FROM test.t1 WHERE a = 'abc'	YES	NULL	816832b42b1ed83c3a111010f3f4d520	select `a` from `test`.`t1`
+4	SELECT a FROM test.t1 WHERE b = ?	NULL	SELECT * FROM test.t1 WHERE b = ?	YES	NULL	32a00a7737e21cb225a125b8109bfe26	select `a` from `test`.`t1` where (`b` = ?)
+5	SELECT * FROM test.t2	NULL	SELECT * FROM test.t1 JOIN test.t2 ON t1.a = t2.a	YES	NULL	f0b267e79b1a9a55c21f9df59e63e033	select `*` from `test`.`t2`
+6	SELECT * FROM test.t1 WHERE a = ? OR b = ?	NULL	SELECT * FROM test.t1 WHERE b = ? OR a = ?	YES	NULL	f081c0ac07b5c9cf82f4cf285caa8b58	select `*` from `test`.`t1` where ((`a` = ?) or (`b` = ?))
 # Check a query that doesn't have a rewrite rule doesn't get rewritten.
 SELECT b FROM test.t1;
 b

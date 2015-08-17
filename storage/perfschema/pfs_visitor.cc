@@ -119,7 +119,7 @@ void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
   }
 }
 
-bool match_host(THD *thd, PFS_host *host)
+static bool match_host(THD *thd, PFS_host *host)
 {
   const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
   return ((thd_host.length > 0) &&
@@ -200,7 +200,7 @@ void PFS_connection_iterator::visit_host(PFS_host *host,
   }
 }
 
-bool match_user(THD *thd, PFS_user *user)
+static bool match_user(THD *thd, PFS_user *user)
 {
   const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();
   return ((thd_user.length > 0) &&
@@ -281,7 +281,7 @@ void PFS_connection_iterator::visit_user(PFS_user *user,
   }
 }
 
-bool match_account(THD *thd, PFS_account *account)
+static bool match_account(THD *thd, PFS_account *account)
 {
   const LEX_CSTRING thd_host= thd->m_main_security_ctx.host();
   const LEX_CSTRING thd_user= thd->m_main_security_ctx.user();

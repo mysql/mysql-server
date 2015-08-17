@@ -5,10 +5,10 @@ CREATE TABLE table_target2  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (
 CREATE TABLE table_target3  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
 CREATE VIEW view_target2 AS SELECT mexs_id,messzeit FROM table_target2;
 CREATE SQL SECURITY INVOKER VIEW view_target3 AS SELECT mexs_id,messzeit FROM table_target3;
-CREATE TABLE table_stations ( mexs_id VARCHAR(8), icao VARCHAR(4), country CHAR(2), PRIMARY KEY (mexs_id), UNIQUE KEY icao (icao), KEY country (country), CONSTRAINT stations_ibfk_8 FOREIGN KEY (country) REFERENCES countries (country) ON UPDATE CASCADE);
-INSERT INTO table_stations VALUES ('87654321','XXXX','YY');
 CREATE TABLE table_countries ( country CHAR(2), iso_short_en VARCHAR(64), PRIMARY KEY (country));
 INSERT INTO table_countries VALUES ('YY','Entenhausen');
+CREATE TABLE table_stations ( mexs_id VARCHAR(8), icao VARCHAR(4), country CHAR(2), PRIMARY KEY (mexs_id), UNIQUE KEY icao (icao), KEY country (country), CONSTRAINT stations_ibfk_8 FOREIGN KEY (country) REFERENCES table_countries (country) ON UPDATE CASCADE);
+INSERT INTO table_stations VALUES ('87654321','XXXX','YY');
 CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW view_stations AS select table_stations.mexs_id AS mexs_id, table_stations.icao AS icao, table_stations.country AS landescode from (table_stations join table_countries on((table_stations.country = table_countries.country)));
 CREATE TABLE table_source ( id varchar(4), datetime TIMESTAMP, PRIMARY KEY (id));
 INSERT INTO  table_source VALUES ('XXXX','2006-07-12 07:50:00');
@@ -99,8 +99,8 @@ mexs_id	messzeit
 87654321	2006-07-12 07:50:00
 DROP VIEW  view_stations;
 DROP TABLE table_source;
-DROP TABLE table_countries;
 DROP TABLE table_stations;
+DROP TABLE table_countries;
 DROP TABLE table_target;
 DROP TABLE table_target2;
 DROP TABLE table_target3;

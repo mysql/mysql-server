@@ -21,9 +21,7 @@
 #include <pfs_global.h>
 #include <tap.h>
 
-#include "stub_global_status_var.h"
-
-void test_no_registration()
+static void test_no_registration()
 {
   int rc;
   PFS_sync_key key;
@@ -171,7 +169,7 @@ void test_no_registration()
   cleanup_memory_class();
 }
 
-void test_mutex_registration()
+static void test_mutex_registration()
 {
   int rc;
   PFS_sync_key key;
@@ -218,7 +216,7 @@ void test_mutex_registration()
   cleanup_sync_class();
 }
 
-void test_rwlock_registration()
+static void test_rwlock_registration()
 {
   int rc;
   PFS_sync_key key;
@@ -260,7 +258,7 @@ void test_rwlock_registration()
   cleanup_sync_class();
 }
 
-void test_cond_registration()
+static void test_cond_registration()
 {
   int rc;
   PFS_sync_key key;
@@ -302,7 +300,7 @@ void test_cond_registration()
   cleanup_sync_class();
 }
 
-void test_thread_registration()
+static void test_thread_registration()
 {
   int rc;
   PFS_thread_key key;
@@ -344,7 +342,7 @@ void test_thread_registration()
   cleanup_thread_class();
 }
 
-void test_file_registration()
+static void test_file_registration()
 {
   int rc;
   PFS_file_key key;
@@ -386,7 +384,7 @@ void test_file_registration()
   cleanup_file_class();
 }
 
-void test_socket_registration()
+static void test_socket_registration()
 {
   int rc;
   PFS_socket_key key;
@@ -433,7 +431,7 @@ void test_socket_registration()
   cleanup_socket_class();
 }
 
-void test_table_registration()
+static void test_table_registration()
 {
 #ifdef LATER
   PFS_table_share *table_share;
@@ -494,7 +492,7 @@ void test_table_registration()
 #endif
 }
 
-void test_memory_registration()
+static void test_memory_registration()
 {
   int rc;
   PFS_memory_key key;
@@ -570,7 +568,7 @@ bool is_empty_stat(PFS_instr_class *klass)
 }
 #endif
 
-void test_instruments_reset()
+static void test_instruments_reset()
 {
   int rc;
   PFS_sync_key key;
@@ -719,7 +717,7 @@ void test_instruments_reset()
   cleanup_socket_class();
 }
 
-void do_all_tests()
+static void do_all_tests()
 {
   test_no_registration();
   test_mutex_registration();

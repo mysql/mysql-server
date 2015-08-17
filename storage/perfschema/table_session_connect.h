@@ -82,5 +82,14 @@ protected:
   uint m_copy_session_connect_attrs_length;
 };
 
+bool read_nth_attr(const char *connect_attrs,
+                   uint connect_attrs_length,
+                   const CHARSET_INFO *connect_attrs_cs,
+                   uint ordinal,
+                   char *attr_name, uint max_attr_name,
+                   uint *attr_name_length,
+                   char *attr_value, uint max_attr_value,
+                   uint *attr_value_length);
+
 /** @} */
 #endif

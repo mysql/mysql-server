@@ -55,10 +55,11 @@ int tok_row_single_value= 0;
 int tok_row_single_value_list= 0;
 int tok_row_multiple_value= 0;
 int tok_row_multiple_value_list= 0;
+int tok_in_generic_value_expression= 0;
 int tok_ident= 0;
 int tok_unused= 0;
 
-void set_token(int tok, const char *str)
+static void set_token(int tok, const char *str)
 {
   if (tok <= 0)
   {
@@ -83,12 +84,12 @@ void set_token(int tok, const char *str)
   compiled_token_array[tok].m_start_expr= false;
 }
 
-void set_start_expr_token(int tok)
+static void set_start_expr_token(int tok)
 {
   compiled_token_array[tok].m_start_expr= true;
 }
 
-void compute_tokens()
+static void compute_tokens()
 {
   int tok;
   unsigned int i;
@@ -207,6 +208,10 @@ void compute_tokens()
   set_token(tok_row_multiple_value_list, "(...) /* , ... */");
 
   max_token_seen++;
+  tok_in_generic_value_expression= max_token_seen;
+  set_token(tok_in_generic_value_expression, "IN (...)");
+
+  max_token_seen++;
   tok_ident= max_token_seen;
   set_token(tok_ident, "(tok_id)");
 
@@ -280,7 +285,7 @@ void compute_tokens()
   set_start_expr_token('^');
 }
 
-void print_tokens()
+static void print_tokens()
 {
   int tok;
 
@@ -321,6 +326,8 @@ void print_tokens()
   printf("#define TOK_ROW_SINGLE_VALUE_LIST %d\n", tok_row_single_value_list);
   printf("#define TOK_ROW_MULTIPLE_VALUE %d\n", tok_row_multiple_value);
   printf("#define TOK_ROW_MULTIPLE_VALUE_LIST %d\n", tok_row_multiple_value_list);
+  printf("#define TOK_IN_GENERIC_VALUE_EXPRESSION %d\n",
+    tok_in_generic_value_expression);
   printf("#define TOK_IDENT %d\n", tok_ident);
   printf("#define TOK_UNUSED %d\n", tok_unused);
 }

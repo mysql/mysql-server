@@ -1387,7 +1387,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
 
   @return The corresponding GeoJSON type, or NULL if no such type exists.
 */
-const char *
+static const char *
 wkbtype_to_geojson_type(Geometry::wkbType type)
 {
   switch (type)
@@ -1439,7 +1439,7 @@ wkbtype_to_geojson_type(Geometry::wkbType type)
 
   @return false on success, true otherwise.
 */
-bool
+static bool
 append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
                    const char *calling_function,
                    int max_decimal_digits,
@@ -1491,7 +1491,7 @@ append_coordinates(Geometry::wkb_parser *parser, Json_array *array, MBR *mbr,
 
   @return false on success, true otherwise.
 */
-bool
+static bool
 append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
                   const char *calling_function,
                   int max_decimal_digits,
@@ -1544,6 +1544,7 @@ append_linestring(Geometry::wkb_parser *parser, Json_array *points, MBR *mbr,
 
   @return false on success, true otherwise.
 */
+static
 bool append_polygon(Geometry::wkb_parser *parser,
                     Json_array *polygon_rings, MBR *mbr, const char *calling_function,
                     int max_decimal_digits,
@@ -1600,7 +1601,7 @@ bool append_polygon(Geometry::wkb_parser *parser,
 
   @return false on success, true otherwise.
 */
-bool append_bounding_box(MBR *mbr, Json_object *geometry)
+static bool append_bounding_box(MBR *mbr, Json_object *geometry)
 {
   DBUG_ASSERT(GEOM_DIM == 2);
 
@@ -1637,12 +1638,12 @@ bool append_bounding_box(MBR *mbr, Json_object *geometry)
 
   @return false on success, true otherwise.
 */
-bool append_crs(Json_object *geometry,
-                int max_decimal_digits,
-                bool add_bounding_box,
-                bool add_short_crs_urn,
-                bool add_long_crs_urn,
-                uint32 geometry_srid)
+static bool append_crs(Json_object *geometry,
+                       int max_decimal_digits,
+                       bool add_bounding_box,
+                       bool add_short_crs_urn,
+                       bool add_long_crs_urn,
+                       uint32 geometry_srid)
 {
   DBUG_ASSERT(add_long_crs_urn || add_short_crs_urn);
   DBUG_ASSERT(geometry_srid > 0);
@@ -1703,7 +1704,7 @@ bool append_crs(Json_object *geometry,
 
   @return false on success, true otherwise.
 */
-bool
+static bool
 append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
                 bool is_root_object, MBR *mbr, const char *calling_function,
                 int max_decimal_digits,

@@ -27,7 +27,7 @@
 #include "stub_print_error.h"
 #include "stub_pfs_defaults.h"
 
-void test_noop()
+static void test_noop()
 {
   PSI_mutex *mutex;
   PSI_rwlock *rwlock;

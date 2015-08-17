@@ -2406,7 +2406,7 @@ void Time_zone::adjust_leap_second(MYSQL_TIME *t)
       tz_name - name of time zone
       sp      - structure describing time zone
 */
-void
+static void
 print_tz_as_sql(const char* tz_name, const TIME_ZONE_INFO *sp)
 {
   uint i;
@@ -2452,7 +2452,7 @@ print_tz_as_sql(const char* tz_name, const TIME_ZONE_INFO *sp)
     print_tz_leaps_as_sql()
       sp      - structure describing time zone
 */
-void
+static void
 print_tz_leaps_as_sql(const TIME_ZONE_INFO *sp)
 {
   uint i;
@@ -2507,7 +2507,7 @@ char *root_name_end;
     0 - Ok, 1 - Fatal error
 
 */
-my_bool
+static my_bool
 scan_tz_dir(char * name_end)
 {
   MY_DIR *cur_dir;

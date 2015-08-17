@@ -261,6 +261,7 @@ ut_crc32_64_legacy_big_endian_hw(
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
+static
 uint32_t
 ut_crc32_hw(
 	const byte*	buf,
@@ -352,6 +353,7 @@ integers.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
+static
 uint32_t
 ut_crc32_legacy_big_endian_hw(
 	const byte*	buf,
@@ -404,6 +406,7 @@ not depend on the byte order of the machine.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
+static
 uint32_t
 ut_crc32_byte_by_byte_hw(
 	const byte*	buf,
@@ -561,6 +564,7 @@ ut_crc32_64_legacy_big_endian_sw(
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
+static
 uint32_t
 ut_crc32_sw(
 	const byte*	buf,
@@ -613,6 +617,7 @@ integers.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
+static
 uint32_t
 ut_crc32_legacy_big_endian_sw(
 	const byte*	buf,
@@ -665,6 +670,7 @@ not depend on the byte order of the machine.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
+static
 uint32_t
 ut_crc32_byte_by_byte_sw(
 	const byte*	buf,

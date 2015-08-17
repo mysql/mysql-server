@@ -85,7 +85,7 @@ PFS_sizing_data large_data=
   512
 };
 
-PFS_sizing_data *estimate_hints(PFS_global_param *param)
+static PFS_sizing_data *estimate_hints(PFS_global_param *param)
 {
   if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
       (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&

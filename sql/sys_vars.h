@@ -28,6 +28,7 @@
 #include "my_bit.h"               // my_count_bits
 #include "my_getopt.h"            // get_opt_arg_type
 #include "mysql/plugin.h"         // enum_mysql_show_type
+#include "debug_sync.h"           // debug_sync_update
 #include "item.h"                 // Item
 #include "log.h"                  // sql_print_information
 #include "set_var.h"              // sys_var
@@ -1600,7 +1601,6 @@ public:
   }
   bool session_update(THD *thd, set_var *var)
   {
-    extern bool debug_sync_update(THD *thd, char *val_str);
     return debug_sync_update(thd, var->save_result.string_value.str);
   }
   bool global_update(THD *thd, set_var *var)
@@ -1619,7 +1619,6 @@ public:
   }
   uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base)
   {
-    extern uchar *debug_sync_value_ptr(THD *thd);
     return debug_sync_value_ptr(running_thd);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)

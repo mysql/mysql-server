@@ -11,12 +11,12 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`a b`=_latin1 0x68656C6C6F COLLATE latin1_swedish_ci
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@`a b`)
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`var1`=_latin1 0x273B616161 COLLATE latin1_swedish_ci
 master-bin.000001	#	User var	#	#	@`var2`=_binary 0x61 COLLATE binary
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (@var1),(@var2)
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 flush logs;
 include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
@@ -41,9 +41,7 @@ use `test`/*!*/;
 SET TIMESTAMP=#/*!*/;
 INSERT INTO t1 VALUES(@`a b`)
 /*!*/;
-SET TIMESTAMP=#/*!*/;
-COMMIT
-/*!*/;
+COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 BEGIN
@@ -53,9 +51,7 @@ SET @`var2`:=_binary 0x61 COLLATE `binary`/*!*/;
 SET TIMESTAMP=#/*!*/;
 insert into t1 values (@var1),(@var2)
 /*!*/;
-SET TIMESTAMP=#/*!*/;
-COMMIT
-/*!*/;
+COMMIT/*!*/;
 SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file

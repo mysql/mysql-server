@@ -634,7 +634,7 @@ PFS_account *sanitize_account(PFS_account *unsafe)
   return global_account_container.sanitize(unsafe);
 }
 
-void purge_account(PFS_thread *thread, PFS_account *account)
+static void purge_account(PFS_thread *thread, PFS_account *account)
 {
   LF_PINS *pins= get_account_hash_pins(thread);
   if (unlikely(pins == NULL))

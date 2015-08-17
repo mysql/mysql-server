@@ -1072,6 +1072,7 @@ typedef std::vector<rw_lock_debug_t*> Infos;
 @param[in]	infos		The rw-lock mode owned by the threads
 @param[in]	lock		rw-lock to check
 @return the thread debug info or NULL if not found */
+static
 void
 rw_lock_get_debug_info(const rw_lock_t* lock, Infos* infos)
 {
@@ -1242,32 +1243,6 @@ rw_lock_debug_print(
 	}
 
 	fprintf(f, "\n");
-}
-
-/***************************************************************//**
-Returns the number of currently locked rw-locks. Works only in the debug
-version.
-@return number of locked rw-locks */
-ulint
-rw_lock_n_locked(void)
-/*==================*/
-{
-	ulint		count = 0;
-
-	mutex_enter(&rw_lock_list_mutex);
-
-	for (const rw_lock_t* lock = UT_LIST_GET_FIRST(rw_lock_list);
-	     lock != NULL;
-	     lock = UT_LIST_GET_NEXT(list, lock)) {
-
-		if (lock->lock_word != X_LOCK_DECR) {
-			count++;
-		}
-	}
-
-	mutex_exit(&rw_lock_list_mutex);
-
-	return(count);
 }
 
 /** Print where it was locked from
