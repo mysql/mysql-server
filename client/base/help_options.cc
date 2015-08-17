@@ -89,7 +89,8 @@ void Mysql::Tools::Base::Options::Help_options::print_usage()
       break;
     }
   }
-  my_print_help(this->m_program->get_options_array());
+  this->m_program->short_usage();
   print_defaults("my", load_default_groups);
+  my_print_help(this->m_program->get_options_array());
   my_print_variables(this->m_program->get_options_array());
 }

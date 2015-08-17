@@ -280,7 +280,7 @@ void Sql_formatter::format_dump_start(
   boost::trim(time_string);
 
   std::ostringstream out;
-  out << "-- Dump created by MySQL dump utility, version: "
+  out << "-- Dump created by MySQL pump utility, version: "
     MYSQL_SERVER_VERSION ", " SYSTEM_TYPE " (" MACHINE_TYPE ")\n"
     << "-- Dump start time: " << time_string << "\n"
     << "-- Server version: " << this->get_server_version_string() << "\n\n"

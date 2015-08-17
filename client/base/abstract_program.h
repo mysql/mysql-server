@@ -84,6 +84,11 @@ public:
   */
   void print_usage();
 
+  /**
+   Prints program invocation message.
+  */
+  virtual void short_usage()= 0;
+
 protected:
   Abstract_program();
 
