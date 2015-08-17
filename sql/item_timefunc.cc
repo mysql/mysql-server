@@ -626,13 +626,20 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
 	str->append_with_prefill(intbuff, length, 2, '0');
 	break;
       case 'j':
-	if (type == MYSQL_TIMESTAMP_TIME)
-	  return 1;
-	length= (uint) (int10_to_str(calc_daynr(l_time->year,l_time->month,
-					l_time->day) - 
-		     calc_daynr(l_time->year,1,1) + 1, intbuff, 10) - intbuff);
-	str->append_with_prefill(intbuff, length, 3, '0');
-	break;
+        {
+          if (type == MYSQL_TIMESTAMP_TIME)
+            return 1;
+
+          int radix= 10;
+          int diff= calc_daynr(l_time->year,l_time->month, l_time->day) -
+            calc_daynr(l_time->year,1,1) + 1;
+          if (diff < 0)
+            radix= -10;
+
+          length= (uint) (int10_to_str(diff, intbuff, radix) - intbuff);
+          str->append_with_prefill(intbuff, length, 3, '0');
+        }
+        break;
       case 'k':
 	length= (uint) (int10_to_str(l_time->hour, intbuff, 10) - intbuff);
 	str->append_with_prefill(intbuff, length, 1, '0');
