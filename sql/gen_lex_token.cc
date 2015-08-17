@@ -138,6 +138,7 @@ static void compute_tokens()
   set_token(SET_VAR, ":=");
   set_token(UNDERSCORE_CHARSET, "(_charset)");
   set_token(END_OF_INPUT, "");
+  set_token(JSON_SEPARATOR_SYM, "->");
 
   /*
     Values.

@@ -75,6 +75,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "lex_token.h"
 #include "item_cmpfunc.h"
 #include "item_geofunc.h"
+#include "item_json_func.h"
 #include "sql_plugin.h"                      // plugin_is_ready
 #include "parse_tree_hints.h"
 #include "derror.h"
@@ -698,6 +699,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ISSUER_SYM
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
+%token  JSON_SEPARATOR_SYM            /* MYSQL */
 %token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
@@ -9477,6 +9479,13 @@ simple_expr:
           /* we cannot put interval before - */
           {
             $$= NEW_PTN Item_date_add_interval(@$, $5, $2, $3, 0);
+          }
+        | simple_ident JSON_SEPARATOR_SYM TEXT_STRING_literal
+          {
+            Item_string *path=
+              NEW_PTN Item_string(@$, $3.str, $3.length,
+                                  YYTHD->variables.collation_connection);
+            $$= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
           }
         ;
 
