@@ -1458,6 +1458,13 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
         break;
       }
 
+      if (c == '-' && lip->yyPeek() == '>')    // '->'
+      {
+        lip->yySkip();
+        lip->next_state= MY_LEX_START;
+        return JSON_SEPARATOR_SYM;
+      }
+
       if (c != ')')
 	lip->next_state= MY_LEX_START;	// Allow signed numbers
 
@@ -2077,7 +2084,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       case MY_LEX_STRING:
       case MY_LEX_USER_VARIABLE_DELIMITER:
       case MY_LEX_STRING_OR_DELIMITER:
-	break;
+        break;
       case MY_LEX_USER_END:
 	lip->next_state=MY_LEX_SYSTEM_VAR;
 	break;

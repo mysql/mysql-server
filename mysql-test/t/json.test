@@ -6106,6 +6106,32 @@ SELECT JSON_TYPE(CAST(bn AS JSON)) AS bn, JSON_TYPE(CAST(vb AS JSON)) AS vb,
 FROM t;
 DROP TABLE t;
 
+--echo #
+--echo # Basic tests for inlined JSON path
+--echo #
+CREATE TABLE t1(f1 JSON);
+INSERT INTO t1 VALUES('{"a":1}'),('{"a":3}'),('{"a":2}');
+INSERT INTO t1 VALUES('{"a":11, "b":3}'),('{"a":33, "b":1}'),('{"a":22,"b":2}');
+
+SELECT f1->"$.a" FROM t1;
+EXPLAIN SELECT f1->"$.a" FROM t1;
+
+SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1;
+EXPLAIN SELECT f1->"$.a" FROM t1 WHERE f1->"$.b" > 1;
+
+SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+EXPLAIN SELECT f1->"$.a", f1->"$.b" FROM t1 ORDER BY f1->"$.b";
+
+SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
+EXPLAIN SELECT MAX(f1->"$.a"), f1->"$.b" FROM t1 GROUP BY f1->"$.b";
+
+SELECT JSON_OBJECT("c",f1->"$.b") AS f2
+  FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL';
+EXPLAIN
+  SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL';
+
+DROP TABLE t1;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

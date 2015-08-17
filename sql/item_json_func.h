@@ -495,6 +495,10 @@ public:
     : Item_json_func(thd, pos, a)
   {}
 
+  Item_func_json_extract(THD *thd, const POS &pos, Item *a, Item *b)
+    : Item_json_func(thd, pos, a, b)
+  {}
+
   const char *func_name() const
   {
     return "json_extract";
