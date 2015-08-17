@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,7 +307,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
   bool ret;
-  bool save_binlog_row_based, event_already_exists;
+  bool event_already_exists;
   DBUG_ENTER("Events::create_event");
 
   if (check_if_system_tables_error())
@@ -335,12 +335,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
 
   if (parse_data->do_not_create)
     DBUG_RETURN(FALSE);
-  /* 
-    Turn off row binlogging of this statement and use statement-based 
-    so that all supporting tables are updated for CREATE EVENT command.
-  */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
 
   if (lock_object_name(thd, MDL_key::EVENT,
                        parse_data->dbname.str, parse_data->name.str))
@@ -399,10 +393,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       }
     }
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(ret);
 }
@@ -432,7 +422,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                      LEX_STRING *new_dbname, LEX_STRING *new_name)
 {
   int ret;
-  bool save_binlog_row_based;
   Event_queue_element *new_element;
 
   DBUG_ENTER("Events::update_event");
@@ -475,13 +464,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     }
   }
 
-  /* 
-    Turn off row binlogging of this statement and use statement-based 
-    so that all supporting tables are updated for UPDATE EVENT command.
-  */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
-
   if (lock_object_name(thd, MDL_key::EVENT,
                        parse_data->dbname.str, parse_data->name.str))
     DBUG_RETURN(TRUE);
@@ -519,10 +501,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
 
   DBUG_RETURN(ret);
 }
