@@ -349,7 +349,7 @@ mtr_write_log(
 	mtr_write_log_t	write_log;
 
 	DBUG_PRINT("ib_log",
-		   (ULINTPF "extra bytes written at " LSN_PF,
+		   (ULINTPF " extra bytes written at " LSN_PF,
 		    log->size(), log_sys->lsn));
 
 	log_reserve_and_open(log->size());

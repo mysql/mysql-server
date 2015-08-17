@@ -6837,6 +6837,7 @@ commit_cache_rebuild(
 	dberr_t		error;
 
 	DBUG_ENTER("commit_cache_rebuild");
+	DEBUG_SYNC_C("commit_cache_rebuild");
 	DBUG_ASSERT(ctx->need_rebuild());
 	DBUG_ASSERT(dict_table_is_discarded(ctx->old_table)
 		    == dict_table_is_discarded(ctx->new_table));

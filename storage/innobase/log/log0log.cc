@@ -1795,13 +1795,13 @@ log_checkpoint(
 
 	log_mutex_enter();
 
+	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
+
 	if (!write_always
 	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {
 		log_mutex_exit();
 		return(true);
 	}
-
-	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
