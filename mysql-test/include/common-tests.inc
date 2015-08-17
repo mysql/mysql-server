@@ -1488,8 +1488,8 @@ explain select fld3,period from t2,t3 where t2.fld1 = 011401 and t3.t2nr=t2.fld1
 #
 # Search with a constant table and several rows from another table
 #
-
-select fld3,period from t2,t1 where companynr*10 = 37*10 order by fld3;
+--sorted_result
+select fld3,period from t2,t1 where companynr*10 = 37*10;
 
 #
 # Search with a table reference and without a key.
