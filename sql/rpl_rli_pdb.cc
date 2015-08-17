@@ -470,7 +470,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
 
 bool Slave_worker::write_info(Rpl_info_handler *to)
 {
-  DBUG_ENTER("Master_info::write_info");
+  DBUG_ENTER("Slave_worker::write_info");
 
   ulong nbytes= (ulong) no_bytes_in_map(&group_executed);
   uchar *buffer= (uchar*) group_executed.bitmap;
