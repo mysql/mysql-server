@@ -6071,8 +6071,8 @@ Dblqh::nr_copy_delete_row(Signal* signal,
       req->hashValue = md5_hash((Uint64*)(signal->theData+24), len);
     }
     req->keyLen = 0; // seach by local key
-    req->localKey1 = rowid->m_page_no;
-    req->localKey2 = rowid->m_page_idx;
+    req->localKey[0] = rowid->m_page_no;
+    req->localKey[1] = rowid->m_page_idx;
     siglen = AccKeyReq::SignalLength_localKey;
     NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
   }

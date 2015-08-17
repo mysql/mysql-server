@@ -37,11 +37,8 @@ struct AccKeyReq
   Uint32 lockConnectPtr; /* For lock take over operation */
   union
   {
-    struct /* if keyLen == 0 use localKey */
-    {
-      Uint32 localKey1;
-      Uint32 localKey2;
-    };
+    /* if keyLen == 0 use localKey */
+    Uint32 localKey[2];
     Uint32 keyInfo[MAX_KEY_SIZE_IN_WORDS /*keyLen*/];
   };
 
