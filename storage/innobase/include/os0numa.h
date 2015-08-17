@@ -36,6 +36,16 @@ Created Jul 16, 2015 Vasil Dimov
 #include <utmpx.h>
 #endif /* HAVE_SCHED_GETCPU */
 
+#ifdef _WIN32
+
+/* https://msdn.microsoft.com/en-us/library/windows/desktop/dd405494(v=vs.85).aspx */
+#define _WIN32_WINNT 0x0601
+#include <WinBase.h>
+
+#define HAVE_WINNUMA
+
+#endif
+
 /** Check if NUMA is available. This function must be called before any
 other os_numa_*() functions and it must return != -1, otherwise the behavior
 of the rest of the functions is undefined.
@@ -44,8 +54,24 @@ inline
 int
 os_numa_available()
 {
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA)
 	return(numa_available());
+#elif defined(HAVE_WINNUMA)
+	/* See this page for a description of the NUMA Windows API:
+	"NUMA Support"
+	https://msdn.microsoft.com/en-us/library/windows/desktop/aa363804(v=vs.85).aspx
+	*/
+	ULONG	highest_node;
+
+	if (!GetNumaHighestNodeNumber(&highest_node)) {
+		return(-1);
+	}
+
+	if (highest_node > 0) {
+		return(1);
+	} else {
+		return(-1);
+	}
 #else
 	return(-1);
 #endif /* HAVE_LIBNUMA */
@@ -57,28 +83,54 @@ inline
 int
 os_numa_num_configured_cpus()
 {
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA)
 	return(numa_num_configured_cpus());
+#elif defined(HAVE_WINNUMA)
+	SYSTEM_INFO	sysinfo;
+
+	/* XXX Will this count hyper-threaded cores as two logical CPUs? If
+	not then consider implementing this using
+	GetLogicalProcessorInformation() or
+	GetLogicalProcessorInformationEx(). */
+	GetSystemInfo(&sysinfo);
+
+	return(static_cast<int>(sysinfo.dwNumberOfProcessors));
 #else
+	/* Consider
+	boost::thread::hardware_concurrency() or
+	std::thread::hardware_concurrency() (C++11) */
 	ut_error;
 	return(-1);
-#endif /* HAVE_LIBNUMA */
+#endif
 }
 
 /** Get the NUMA node of a given CPU.
-@param[in]	cpu	CPU whose NUMA node to return
+@param[in]	cpu	CPU whose NUMA node to return, must be obtained
+using os_getcpu().
 @return NUMA node id */
 inline
 int
 os_numa_node_of_cpu(
 	int	cpu)
 {
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA)
 	return(numa_node_of_cpu(cpu));
+#elif defined(HAVE_WINNUMA)
+	PROCESSOR_NUMBER	p;
+	USHORT			node;
+
+	p.Group = cpu >> 6;
+	p.Number = cpu & 63;
+
+	if (GetNumaProcessorNodeEx(&p, &node)) {
+		return(static_cast<int>(node));
+	} else {
+		return(0);
+	}
 #else
 	ut_error;
 	return(-1);
-#endif /* HAVE_LIBNUMA */
+#endif
 }
 
 /** Allocate a memory on a given NUMA node.
@@ -91,12 +143,19 @@ os_numa_alloc_onnode(
 	size_t	size,
 	int	node)
 {
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA)
 	return(numa_alloc_onnode(size, node));
+#elif defined(HAVE_WINNUMA)
+	return(VirtualAllocExNuma(GetCurrentProcess(),
+				  NULL,
+				  size,
+				  MEM_COMMIT | MEM_RESERVE,
+				  PAGE_READWRITE,
+				  node));
 #else
 	ut_error;
 	return(NULL);
-#endif /* HAVE_LIBNUMA */
+#endif
 }
 
 /** Free a memory allocated by os_numa_alloc_onnode().
@@ -108,14 +167,16 @@ os_numa_free(
 	void*	ptr,
 	size_t	size)
 {
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA)
 	numa_free(ptr, size);
+#elif defined(HAVE_WINNUMA)
+	VirtualFreeEx(GetCurrentProcess(), ptr, 0, MEM_DECOMMIT | MEM_RELEASE);
 #else
 	ut_error;
-#endif /* HAVE_LIBNUMA */
+#endif
 }
 
-#if defined(HAVE_SCHED_GETCPU) || defined(_WIN32)
+#if defined(HAVE_SCHED_GETCPU) || defined(HAVE_WINNUMA)
 
 #define HAVE_OS_GETCPU
 
@@ -127,7 +188,7 @@ os_getcpu()
 {
 #if defined(HAVE_SCHED_GETCPU)
 	return(sched_getcpu());
-#elif defined(_WIN32)
+#elif defined(HAVE_WINNUMA)
 	PROCESSOR_NUMBER	p;
 
 	GetCurrentProcessorNumberEx(&p);
@@ -135,6 +196,6 @@ os_getcpu()
 	return(static_cast<int>(p.Group << 6 | p.Number));
 #endif
 }
-#endif /* HAVE_SCHED_GETCPU || _WIN32 */
+#endif /* HAVE_SCHED_GETCPU || HAVE_WINNUMA */
 
 #endif /* os0numa_h */
