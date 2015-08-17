@@ -911,9 +911,7 @@ fi
 %{_includedir}/mysql
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/mysql/libmysqlclient_r.so
 %{_libdir}/mysql/libmysqlclient.so
 
 %files libs
@@ -922,7 +920,6 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.20*
-%{_libdir}/mysql/libmysqlclient_r.so.20*
 
 %if 0%{?compatlib}
 %files libs-compat
