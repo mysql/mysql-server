@@ -97,6 +97,27 @@ void Program::create_options()
     "processing thread.");
 }
 
+void  Program::check_mutually_exclusive_options()
+{
+  /*
+    In case of --single-transactions or --add-locks we dont allow parallelism
+  */
+  if (m_mysqldump_tool_chain_maker_options->m_default_parallelism ||
+     m_mysqldump_tool_chain_maker_options->get_parallel_schemas_thread_count())
+  {
+    if (m_single_transaction)
+      m_mysql_chain_element_options->get_program()->error(
+        Mysql::Tools::Base::Message_data(1, "Usage of --single-transaction "
+        "is mutually exclusive with parallelism.",
+        Mysql::Tools::Base::Message_type_error));
+    if (m_mysqldump_tool_chain_maker_options->m_formatter_options->m_add_locks)
+      m_mysql_chain_element_options->get_program()->error(
+        Mysql::Tools::Base::Message_data(1, "Usage of --add-locks "
+        "is mutually exclusive with parallelism.",
+        Mysql::Tools::Base::Message_type_error));
+  }
+}
+
 int Program::execute(std::vector<std::string> positional_options)
 {
   I_connection_provider* connection_provider= NULL;
@@ -147,6 +168,7 @@ int Program::execute(std::vector<std::string> positional_options)
     m_mysql_chain_element_options);
   m_mysqldump_tool_chain_maker_options->process_positional_options(
     positional_options);
+  check_mutually_exclusive_options();
   I_chain_maker* chain_maker= new Mysqldump_tool_chain_maker(
     connection_provider, message_handler, id_generator,
     m_mysqldump_tool_chain_maker_options);

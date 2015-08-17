@@ -46,6 +46,8 @@ public:
 
   bool is_object_included_in_dump(Abstract_data_object* object);
 
+  int get_parallel_schemas_thread_count();
+
   const Mysql_chain_element_options* m_mysql_chain_element_options;
   Sql_formatter_options* m_formatter_options;
   Mysql_object_reader_options* m_object_reader_options;
@@ -68,6 +70,7 @@ private:
   std::map<std::string, int> m_database_to_object_queue_id;
   Mysql::Nullable<std::string> m_parallel_schemas_string;
   int m_last_parallel_schemas_queue_id;
+  int m_thread_count;
   Object_filter m_object_filter;
 };
 
