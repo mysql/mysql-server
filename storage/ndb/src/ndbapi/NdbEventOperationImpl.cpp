@@ -721,7 +721,24 @@ NdbEventOperationImpl::stop()
   }
 
   m_ndb->theEventBuffer->add_drop_lock();
+  /**
+   * Note, that there is a deadlock risk both in the call to
+   * stopSubscribeEvent and the NdbMutex_Lock below, both using
+   * the trp_client lock, which could already be taken if this
+   * function is called from NdbEventOperationImpl destructor
+   * invoked in deleteUsedEventOperations via nextEvents*() and
+   * pollEvents*().
+   */
   int r= NdbDictionaryImpl::getImpl(*myDict).stopSubscribeEvent(*this);
+  /**
+   * remove_op decrements the active event operation counter and
+   * when zero it cleans up obsolete receiver threads data.
+   * But to guarantee that this is only called once per event
+   * operation unsubscription it is called here in client thread.
+   */
+  NdbMutex_Lock(m_ndb->theEventBuffer->m_mutex);
+  m_ndb->theEventBuffer->remove_op();
+  NdbMutex_Unlock(m_ndb->theEventBuffer->m_mutex);
   m_state= EO_DROPPED;
   mi_type= 0;
   if (r == 0) {
@@ -1377,6 +1394,8 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
 
 NdbEventBuffer::~NdbEventBuffer()
 {
+  // client should not have any active subscriptions
+  assert(m_active_op_count == 0);
   // todo lock?  what if receive thread writes here?
   NdbEventOperationImpl* op= m_dropped_ev_op;  
   while ((op = m_dropped_ev_op))
@@ -1447,6 +1466,7 @@ NdbEventBuffer::add_op()
 void
 NdbEventBuffer::remove_op()
 {
+  assert(m_active_op_count > 0);
   m_active_op_count--;
   if(m_active_op_count == 0)
   {
@@ -2405,20 +2425,6 @@ NdbEventBuffer::execSUB_START_CONF(const SubStartConf * const rep,
   set_total_buckets(buckets);
 
   add_op();
-}
-
-void
-NdbEventBuffer::execSUB_STOP_CONF(const SubStopConf * const rep,
-                                   Uint32 len)
-{
-  remove_op();
-}
-
-void
-NdbEventBuffer::execSUB_STOP_REF(const SubStopRef * const rep,
-                                 Uint32 len)
-{
-  remove_op();
 }
 
 void
