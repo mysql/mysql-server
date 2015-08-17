@@ -454,7 +454,7 @@ void Relay_log_info::clear_until_condition()
 int Relay_log_info::init_relay_log_pos(const char* log,
                                        ulonglong pos, bool need_data_lock,
                                        const char** errmsg,
-                                       bool look_for_description_event)
+                                       bool keep_looking_for_fd)
 {
   DBUG_ENTER("Relay_log_info::init_relay_log_pos");
   DBUG_PRINT("info", ("pos: %lu", (ulong) pos));
@@ -541,7 +541,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
   if (pos > BIN_LOG_HEADER_SIZE) /* If pos<=4, we stay at 4 */
   {
     Log_event* ev;
-    while (look_for_description_event)
+    while (keep_looking_for_fd)
     {
       /*
         Read the possible Format_description_log_event; if position
@@ -582,16 +582,17 @@ int Relay_log_info::init_relay_log_pos(const char* log,
           describes the whole relay log; indeed, one can have this sequence
           (starting from position 4):
           Format_desc (of slave)
-          Previous-GTIDs (of slave IO thread)
+          Previous-GTIDs (of slave IO thread, if GTIDs are enabled)
           Rotate (of master)
           Format_desc (of master)
           So the Format_desc which really describes the rest of the relay log
-          is the 4rd event (it can't be further than that, because we rotate
+          can be the 3rd or the 4th event (depending on GTIDs being enabled or
+          not, it can't be further than that, because we rotate
           the relay log when we queue a Rotate event from the master).
           But what describes the Rotate is the first Format_desc.
           So what we do is:
           go on searching for Format_description events, until you exceed the
-          position (argument 'pos') or until you find another event than
+          position (argument 'pos') or until you find an event other than
           Previous-GTIDs, Rotate or Format_desc.
         */
       }
@@ -599,7 +600,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       {
         DBUG_PRINT("info",("found event of another type=%d",
                            ev->get_type_code()));
-        look_for_description_event=
+        keep_looking_for_fd=
           (ev->get_type_code() == binary_log::ROTATE_EVENT ||
            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT);
         delete ev;

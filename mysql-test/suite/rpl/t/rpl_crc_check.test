@@ -8,7 +8,7 @@
 # Currently relay logs have the following sequence (starting from
 # position 4):
 # Format_desc (of slave)
-# Previous-GTIDs (of slave)
+# Previous-GTIDs (of slave, if GTIDs are enabled)
 # Rotate (of master)
 # Format_desc (of master)
 # The Format_desc which really describes the rest of the relay
