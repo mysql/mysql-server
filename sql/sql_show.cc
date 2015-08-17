@@ -7429,13 +7429,12 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
     length.  Encode this value with  (decimals*100)+length  , where
     0<decimals<10 and 0<=length<100 .
 
-  @param
-    thd	       	          thread handler
+  @param thd	       	          thread handler
 
   @param table_list Used to pass I_S table information(fields info, tables
   parameters etc) and table name.
 
-  @retval  \#             Pointer to created table
+  @returns  Pointer to created table
   @retval  NULL           Can't create table
 */
 

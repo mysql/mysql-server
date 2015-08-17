@@ -422,7 +422,7 @@ void Relay_log_info::clear_until_condition()
 }
 
 /**
-  Opens and intialize the given relay log. Specifically, it does what follows:
+  Opens and initialize the given relay log. Specifically, it does what follows:
 
   - Closes old open relay log files.
   - If we are using the same relay log as the running IO-thread, then sets.
@@ -439,7 +439,7 @@ void Relay_log_info::clear_until_condition()
   acquired it.
   @param [out] errmsg On error, this function will store a pointer to
   an error message here
-  @param [in] look_for_description_event If true, this function will
+  @param [in] keep_looking_for_fd If true, this function will
   look for a Format_description_log_event.  We only need this when the
   SQL thread starts and opens an existing relay log and has to execute
   it (possibly from an offset >4); then we need to read the first

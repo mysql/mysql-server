@@ -2335,7 +2335,7 @@ typedef struct st_ror_scan_info
     sequence.
   */
   MY_BITMAP covered_fields_remaining;
-  /** #fields in covered_fields_remaining (caching of bitmap_bits_set()) */
+  /** Number of fields in covered_fields_remaining (caching of bitmap_bits_set()) */
   uint      num_covered_fields_remaining;
 
   /**

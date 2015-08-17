@@ -45,8 +45,8 @@ public:
   /**
     @brief Construction.
 
-    @param thd[in]             Current thread data.
-    @param warning_message[in] Warning message used when error has been
+    @param thd            Current thread data.
+    @param warning_message Warning message used when error has been
                                suppressed.
     @param active              Specifies whether the handler is active or not.
                                Optional parameter (default is true).
@@ -80,7 +80,7 @@ public:
   /**
     @brief Simplified custom handler.
 
-    @retval True on error rejection, otherwise false.
+    @returns True on error rejection, otherwise false.
   */
   virtual bool handle() = 0;
 
@@ -89,7 +89,7 @@ public:
 
     @see Internal_error_handler::handle_condition
 
-    @retval True on error rejection, otherwise false.
+    @returns True on error rejection, otherwise false.
   */
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
@@ -113,7 +113,7 @@ public:
   /**
     @brief Warning print routine.
 
-    @param warn_msg[in] Warning message to be printed.
+    @param warn_msg Warning message to be printed.
   */
   virtual void print_warning(const char *warn_msg)
   {
@@ -123,9 +123,9 @@ public:
   /**
     @brief Convert the result value returned from the audit api.
 
-    @param result[in] Result value received from the plugin function.
+    @param result Result value received from the plugin function.
 
-    @retval Converted result value.
+    @returns Converted result value.
   */
   int get_result(int result)
   {
@@ -286,9 +286,7 @@ public:
   /**
     @brief Construction.
 
-    @param thd[in]             Current thread data.
-    @param warning_message[in] Warning message used when error has been
-                               suppressed.
+    @param thd             Current thread data.
   */
   Ignore_event_error_handler(THD *thd, const char *event_name) :
     Audit_error_handler(thd, "Event '%s' cannot be aborted."),
@@ -309,7 +307,7 @@ public:
   /**
   @brief Custom warning print routine.
 
-  @param warn_msg[in] Placeholding warning message to be printed.
+  @param warn_msg Placeholding warning message to be printed.
   */
   virtual void print_warning(const char *warn_msg)
   {
@@ -537,8 +535,8 @@ public:
   /**
     @brief Construction.
 
-    @param thd[in]     Current thread data.
-    @param command[in] Current command that the handler will be active against.
+    @param thd     Current thread data.
+    @param command Current command that the handler will be active against.
   */
   Ignore_command_start_error_handler(THD *thd,
                                      enum_server_command command,
@@ -563,7 +561,7 @@ public:
   /**
     @brief Custom warning print routine.
 
-    @param warn_msg[in] Placeholding warning message text.
+    @param warn_msg Placeholding warning message text.
   */
   virtual void print_warning(const char *warn_msg)
   {
