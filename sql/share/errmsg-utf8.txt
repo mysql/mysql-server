@@ -7582,6 +7582,9 @@ ER_INVALID_JSON_PATH_ARRAY_CELL 42000
 ER_BUFPOOL_RESIZE_INPROGRESS
   eng "Another buffer pool resize is already in progress."
 
+ER_FEATURE_DISABLED_SEE_DOC
+  eng "The '%s' feature is disabled; see the documentation for '%s'"
+
 #
 #  End of 5.7 error messages.
 #
