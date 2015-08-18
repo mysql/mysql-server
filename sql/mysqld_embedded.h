@@ -24,8 +24,6 @@ extern int defaults_argc;
 extern char **defaults_argv;
 extern int remaining_argc;
 extern char **remaining_argv;
-extern ulong max_allowed_packet;
-extern ulong net_buffer_length;
 
 void clean_up(bool print_message);
 
