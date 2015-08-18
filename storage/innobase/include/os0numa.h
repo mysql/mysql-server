@@ -86,15 +86,57 @@ os_numa_num_configured_cpus()
 #if defined(HAVE_LIBNUMA)
 	return(numa_num_configured_cpus());
 #elif defined(HAVE_WINNUMA)
-	SYSTEM_INFO	sysinfo;
+	SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*	buf;
+	DWORD						buf_bytes = 0;
 
-	/* XXX Will this count hyper-threaded cores as two logical CPUs? If
-	not then consider implementing this using
-	GetLogicalProcessorInformation() or
-	GetLogicalProcessorInformationEx(). */
-	GetSystemInfo(&sysinfo);
+	if (GetLogicalProcessorInformationEx(RelationGroup, NULL, &buf_bytes)) {
+		/* GetLogicalProcessorInformationEx() unexpectedly succeeded. */
+		return(1);
+	}
 
-	return(static_cast<int>(sysinfo.dwNumberOfProcessors));
+	if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+		/* GetLogicalProcessorInformationEx() failed with unexpected
+		error code. */
+		return(1);
+	}
+
+	/* Now 'buf_bytes' contains the necessary size of buf (in bytes!). */
+
+	buf = reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(
+		LocalAlloc(LMEM_FIXED, buf_bytes));
+
+	if (buf == NULL) {
+		return(1);
+	}
+
+	if (!GetLogicalProcessorInformationEx(RelationGroup, buf, &buf_bytes)) {
+		/* GetLogicalProcessorInformationEx() unexpectedly failed. */
+		LocalFree(buf);
+		return(1);
+	}
+
+	int	n_cpus = 0;
+
+	/* Maybe this loop will iterate just once, but this is not mentioned
+	explicitly anywhere in the GetLogicalProcessorInformationEx()
+	documentation (when the first argument is RelationGroup). If we are
+	sure that it will iterate just once, then this code could be
+	simplified. */
+	for (DWORD offset = 0; offset < buf_bytes; ) {
+
+		for (WORD i = 0; i < buf->Group.ActiveGroupCount; i++) {
+			n_cpus += buf->Group.GroupInfo[i].ActiveProcessorCount;
+		}
+
+		offset += buf->Size;
+		buf = reinterpret_cast<
+			SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(
+				reinterpret_cast<char*>(buf) + buf->Size);
+	}
+
+	LocalFree(buf);
+
+	return(n_cpus);
 #else
 	/* Consider
 	boost::thread::hardware_concurrency() or
