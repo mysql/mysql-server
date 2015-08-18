@@ -484,7 +484,6 @@ C_MODE_END
 
 C_MODE_START
 
-extern PSI_memory_key key_memory_buffered_logs;
 extern PSI_memory_key key_memory_locked_table_list;
 extern PSI_memory_key key_memory_locked_thread_list;
 extern PSI_memory_key key_memory_thd_transactions;
