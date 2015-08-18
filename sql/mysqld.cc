@@ -2100,6 +2100,7 @@ static void start_signal_handler()
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
                     error, errno);
+    flush_error_log_messages();
     exit(MYSQLD_ABORT_EXIT);
   }
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
@@ -4308,6 +4309,7 @@ int mysqld_main(int argc, char **argv)
   if (my_init())                 // init my_sys library & pthreads
   {
     sql_print_error("my_init() failed.");
+    flush_error_log_messages();
     return 1;
   }
 #endif /* _WIN32 */
@@ -4316,7 +4318,10 @@ int mysqld_main(int argc, char **argv)
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
+  {
+    flush_error_log_messages();
     return 1;
+  }
   my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
@@ -4971,7 +4976,10 @@ int mysqld_main(int argc, char **argv)
 int mysql_service(void *p)
 {
   if (my_thread_init())
+  {
+    flush_error_log_messages();
     return 1;
+  }
 
   if (use_opt_args)
     win_main(opt_argc, opt_argv);
@@ -5087,6 +5095,7 @@ int mysqld_main(int argc, char **argv)
   if (my_init())
   {
     sql_print_error("my_init() failed.");
+    flush_error_log_messages();
     return 1;
   }
 
