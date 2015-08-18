@@ -25,6 +25,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -65,6 +66,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -105,6 +107,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -152,6 +155,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -192,6 +196,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -232,6 +237,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -279,6 +285,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -319,6 +326,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -359,6 +367,7 @@ test.t	check	status	OK
 set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete";
 truncate table t;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 check table t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
