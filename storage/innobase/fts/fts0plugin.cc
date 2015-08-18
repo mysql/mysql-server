@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -204,8 +204,13 @@ fts_query_add_word_for_parser(
 		}
 
 		state->cur_node = cur_node;
-		ut_ad(state->depth > 0);
-		state->depth--;
+
+		if (state->depth > 0) {
+			state->depth--;
+		} else {
+			/* Parentheses mismatch */
+			return(1);
+		}
 
 		break;
 
