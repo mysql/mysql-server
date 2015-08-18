@@ -43,7 +43,7 @@ DROP DATABASE db3;
 # default-parallelism option testing
 --exec $MYSQL_PUMP --default-parallelism=3 > $MYSQLTEST_VARDIR/tmp/output_file_16.sql
 --exec $MYSQL_PUMP --default-parallelism=0 > $MYSQLTEST_VARDIR/tmp/output_file_17.sql
---exec $MYSQL_PUMP --default-parallelism=2 --single-transaction > $MYSQLTEST_VARDIR/tmp/output_file_18.sql
+--exec $MYSQL_PUMP --default-parallelism=0 --single-transaction > $MYSQLTEST_VARDIR/tmp/output_file_18.sql
 --exec $MYSQL_PUMP --default-parallelism=3 --default-parallelism=1 --default-parallelism=2 > $MYSQLTEST_VARDIR/tmp/output_file_19.sql
 
 # mysqlpump: [ERROR] mysqlpump: option '--default-parallelism' requires an argument

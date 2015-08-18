@@ -119,6 +119,7 @@ SET(SQL_SHARED_SOURCES
   log.cc
   mdl.cc
   my_decimal.cc
+  mysqld.cc
   net_serv.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
@@ -277,7 +278,6 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mf_iocache.cc
-  mysqld.cc
   mysqld_thd_manager.cc
   signal_handler.cc
   sql_audit.cc

@@ -2127,7 +2127,8 @@ files_checked:
 		/* Can only happen if server is read only. */
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
-	} else if (srv_available_undo_logs < srv_undo_logs) {
+	} else if (srv_available_undo_logs < srv_undo_logs
+		   && !srv_force_recovery && !recv_needed_recovery) {
 		/* Should due to out of file space. */
 		return(srv_init_abort(DB_ERROR));
 	}

@@ -205,8 +205,13 @@ fts_query_add_word_for_parser(
 		}
 
 		state->cur_node = cur_node;
-		ut_ad(state->depth > 0);
-		state->depth--;
+
+		if (state->depth > 0) {
+			state->depth--;
+		} else {
+			/* Parentheses mismatch */
+			return(1);
+		}
 
 		break;
 

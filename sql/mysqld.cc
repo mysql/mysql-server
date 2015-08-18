@@ -52,6 +52,7 @@
 */
 
 #include "mysqld.h"
+#include "mysqld_embedded.h"
 #include "mysqld_daemon.h"
 
 #include <vector>
@@ -741,7 +742,7 @@ char *opt_binlog_index_name;
 char *mysql_home_ptr, *pidfile_name_ptr;
 char *default_auth_plugin;
 /** Initial command line arguments (count), after load_defaults().*/
-static int defaults_argc;
+int defaults_argc;
 /**
   Initial command line arguments (arguments), after load_defaults().
   This memory is allocated by @c load_defaults() and should be freed
@@ -750,11 +751,11 @@ static int defaults_argc;
   use remaining_argc / remaining_argv instead to parse the command
   line arguments in multiple steps.
 */
-static char **defaults_argv;
+char **defaults_argv;
 /** Remaining command line arguments (count), filtered by handle_options().*/
-static int remaining_argc;
+int remaining_argc;
 /** Remaining command line arguments (arguments), filtered by handle_options().*/
-static char **remaining_argv;
+char **remaining_argv;
 
 int orig_argc;
 char **orig_argv;
@@ -903,8 +904,6 @@ static void set_server_version(void);
 static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
-static bool read_init_file(char *file_name);
-static void clean_up(bool print_message);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
 
@@ -928,7 +927,7 @@ static void init_server_psi_keys();
   @see signal_hand
 */
 
-static void server_components_initialized()
+void server_components_initialized()
 {
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= true;
@@ -2101,6 +2100,7 @@ static void start_signal_handler()
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
                     error, errno);
+    flush_error_log_messages();
     exit(MYSQLD_ABORT_EXIT);
   }
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
@@ -3354,7 +3354,7 @@ static int warn_self_signed_ca()
 
 #endif /* EMBEDDED_LIBRARY */
 
-static int init_ssl()
+int init_ssl()
 {
 #ifdef HAVE_OPENSSL
 #ifndef HAVE_YASSL
@@ -3551,7 +3551,7 @@ static int flush_auto_options(const char* fname)
   @todo consider to implement sql-query-able persistent storage by WL#5279.
   @return Return 0 or 1 if an error occurred.
  */
-static int init_server_auto_options()
+int init_server_auto_options()
 {
   bool flush= false;
   char fname[FN_REFLEN];
@@ -3688,7 +3688,7 @@ static void init_server_query_cache()
 }
 
 
-static int init_server_components()
+int init_server_components()
 {
   DBUG_ENTER("init_server_components");
   /*
@@ -4309,6 +4309,7 @@ int mysqld_main(int argc, char **argv)
   if (my_init())                 // init my_sys library & pthreads
   {
     sql_print_error("my_init() failed.");
+    flush_error_log_messages();
     return 1;
   }
 #endif /* _WIN32 */
@@ -4317,7 +4318,10 @@ int mysqld_main(int argc, char **argv)
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
+  {
+    flush_error_log_messages();
     return 1;
+  }
   my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
@@ -4972,7 +4976,10 @@ int mysqld_main(int argc, char **argv)
 int mysql_service(void *p)
 {
   if (my_thread_init())
+  {
+    flush_error_log_messages();
     return 1;
+  }
 
   if (use_opt_args)
     win_main(opt_argc, opt_argv);
@@ -5088,6 +5095,7 @@ int mysqld_main(int argc, char **argv)
   if (my_init())
   {
     sql_print_error("my_init() failed.");
+    flush_error_log_messages();
     return 1;
   }
 
@@ -5182,7 +5190,7 @@ int mysqld_main(int argc, char **argv)
 #endif // !EMBEDDED_LIBRARY
 
 
-static bool read_init_file(char *file_name)
+bool read_init_file(char *file_name)
 {
   MYSQL_FILE *file;
   DBUG_ENTER("read_init_file");

@@ -18,27 +18,26 @@
   This code was modified by the MySQL team
 */
 
-/*
-  The following is needed to not cause conflicts when we include mysqld.cc
-*/
-
-extern "C"
-{
-  extern unsigned long max_allowed_packet, net_buffer_length;
-}
-
-#include "../sql/mysqld.cc"
-#include "../sql/sql_thd_internal_api.h"
-
-extern "C" {
-
-#include <mysql.h>
-#undef ER
+#include "my_global.h"
+#include "mysql.h"
 #include "errmsg.h"
 #include "embedded_priv.h"
 #include "client_settings.h"
+#include "my_default.h"
 
-} // extern "C"
+#include "current_thd.h"
+#include "log.h"
+#include "mysqld.h"
+#include "mysqld_embedded.h"
+#include "mysqld_thd_manager.h"
+#include "rpl_filter.h"
+#include "sql_class.h"
+#include "sql_db.h"
+#include "sql_manager.h"
+#include "sql_parse.h"
+#include "sql_table.h"
+#include "sql_thd_internal_api.h"
+#include "tztime.h"
 
 #include <algorithm>
 

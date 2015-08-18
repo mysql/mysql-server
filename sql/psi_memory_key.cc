@@ -95,7 +95,6 @@ PSI_memory_key key_memory_binlog_statement_buffer;
 PSI_memory_key key_memory_binlog_ver_1_event;
 PSI_memory_key key_memory_bison_stack;
 PSI_memory_key key_memory_blob_mem_storage;
-PSI_memory_key key_memory_buffered_logs;
 PSI_memory_key key_memory_db_worker_hash_entry;
 PSI_memory_key key_memory_dboptions_hash;
 PSI_memory_key key_memory_delegate;
@@ -163,7 +162,6 @@ PSI_memory_key key_memory_write_set_extraction;
 
 static PSI_memory_info all_server_memory[]=
 {
-  { &key_memory_buffered_logs, "buffered_logs", PSI_FLAG_GLOBAL},
   { &key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root", 0},
   { &key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD},
   { &key_memory_thd_transactions, "THD::transactions::mem_root", PSI_FLAG_THREAD},

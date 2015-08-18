@@ -100,7 +100,7 @@ private:
 
   /** Whether this object must manage function defaults */
   const bool m_manage_defaults;
-  /** Bitmap: bit is set if we should set column #i to its function default */
+  /** Bitmap: bit is set if we should set column number i to its function default */
   MY_BITMAP *m_function_default_columns;
 
   /// Policy for handling insertion of duplicate values.

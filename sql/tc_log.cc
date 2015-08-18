@@ -339,13 +339,12 @@ int TC_LOG_MMAP::prepare(THD *thd, bool all)
    If tc_log = TC_LOG_MMAP then xid is written in a special memory-mapped
    log.
 
-  @retval
-    0  - error
-  @retval
-    \# - otherwise, "cookie", a number that will be passed as an argument
+  @returns "cookie", a number that will be passed as an argument
     to unlog() call. tc_log can define it any way it wants,
     and use for whatever purposes. TC_LOG_MMAP sets it
     to the position in memory where xid was logged to.
+  @retval
+    0  error
 */
 
 ulong TC_LOG_MMAP::log_xid(my_xid xid)

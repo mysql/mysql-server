@@ -404,10 +404,9 @@ static Proc_table_intact proc_table_intact;
                  currently open tables will be saved, and from which will be
                  restored when we will end work with mysql.proc.
 
+  @returns Pointer to TABLE object of mysql.proc
   @retval
     0	Error
-  @retval
-    \#	Pointer to TABLE object of mysql.proc
 */
 
 TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
@@ -445,10 +444,9 @@ err:
   @note
     Table opened with this call should closed using close_thread_tables().
 
+  @returns Pointer to TABLE object of mysql.proc
   @retval
     0	Error
-  @retval
-    \#	Pointer to TABLE object of mysql.proc
 */
 
 static TABLE *open_proc_table_for_update(THD *thd)
