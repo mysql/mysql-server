@@ -420,12 +420,18 @@ extern "C"
 int
 ndb_mgm_get_latest_error(const NdbMgmHandle h)
 {
+  if (!h)
+    return NDB_MGM_ILLEGAL_SERVER_HANDLE;
+
   return h->last_error;
 }
 
 extern "C"
 const char *
-ndb_mgm_get_latest_error_desc(const NdbMgmHandle h){
+ndb_mgm_get_latest_error_desc(const NdbMgmHandle h)
+{
+  if (!h)
+    return "";
   return h->last_error_desc;
 }
 
@@ -433,6 +439,8 @@ extern "C"
 int
 ndb_mgm_get_latest_error_line(const NdbMgmHandle h)
 {
+  if (!h)
+    return 0;
   return h->last_error_line;
 }
 
@@ -440,8 +448,10 @@ extern "C"
 const char *
 ndb_mgm_get_latest_error_msg(const NdbMgmHandle h)
 {
+  const int last_err = ndb_mgm_get_latest_error(h);
+
   for (int i=0; i<ndb_mgm_noOfErrorMsgs; i++) {
-    if (ndb_mgm_error_msgs[i].code == h->last_error)
+    if (ndb_mgm_error_msgs[i].code == last_err)
       return ndb_mgm_error_msgs[i].msg;
   }
 
