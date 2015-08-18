@@ -1447,7 +1447,7 @@ dict_check_sys_tables(
 			char *dict_path = dict_get_first_path(space_id);
 			char *fil_path = fil_space_get_first_path(space_id);
 			if (dict_path && fil_path
-				&& strcmp(dict_path, fil_path)) {
+			    && strcmp(dict_path, fil_path)) {
 				dict_update_filepath(space_id, fil_path);
 			}
 			ut_free(dict_path);

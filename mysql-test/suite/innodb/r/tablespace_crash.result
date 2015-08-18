@@ -200,24 +200,28 @@ INSERT INTO t3 VALUES (6);
 INSERT INTO t4 VALUES (6);
 #
 # Kill the server
-# Mess up the ISL files so that they point to the wrong file.
+# Mess up a general tablespace ISL file so that it points to the wrong file.
+# Recovery will fail. Check the error message.
+# Mess up a file-per-table tablespace ISL file so that it points to the wrong file.
+# Recovery will fail. Check the error message.
+# Delete the ISL files and move all remote files to default locations
 # Restart mysqld and display which datafiles were recovered.
 # restart
-# It should be the remote datafiles again, but this time
-# they must have been found via the REDO log.
+# It should be the default datafiles
+# The two previous attempts to recover should not cause a problem
 #
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/tablespace1.ibd
-ts2	General	DEFAULT	0	Any	MYSQL_TMP_DIR/tablespace2.ibd
-test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t3.ibd
-test/t4	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t4.ibd
+ts1	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace1.ibd
+ts2	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace2.ibd
+test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
-ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/tablespace1.ibd
-ts2	TABLESPACE	InnoDB	NORMAL	ts2	MYSQL_TMP_DIR/tablespace2.ibd
-test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t3.ibd
-test/t4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/test/t4.ibd
+ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQLD_DATADIR/tablespace1.ibd
+ts2	TABLESPACE	InnoDB	NORMAL	ts2	MYSQLD_DATADIR/tablespace2.ibd
+test/t3	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t3.ibd
+test/t4	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQLD_DATADIR/test/t4.ibd
 select * from t1a;
 a
 1
@@ -265,7 +269,7 @@ SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
 #
 # Cleanup
 #
