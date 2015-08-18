@@ -60,7 +60,8 @@
 #                                                                              #
 # *** SHOW_COMPATIBILITY_56 = OFF ***                                          #
 #                                                                              #
-# Information Schema status and system tables are empty.                       #
+# Information Schema status and system tables are disabled                     #
+#  (ER_FEATURE_DISABLED_SEE_DOC).                                              #
 #                                                                              #
 # SHOW GLOBAL STATUS / P_S.GLOBAL_STATUS                                       #
 #  GLOBAL  - Yes                                                               #
@@ -180,8 +181,8 @@ insert into test.sanity
 
 --echo
 --echo # STEP 1-8
---echo # EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+  select "5.6", "P_S.GLOBAL_STATUS", variable_name
   from performance_schema.global_status;
 
 --echo
@@ -192,8 +193,8 @@ select *
 
 --echo
 --echo # STEP 1-10
---echo # EMPTY, NO WARNINGS (not available in 5.6 mode)
-select *
+insert into test.sanity
+  select "5.6", "P_S.SESSION_STATUS", variable_name
   from performance_schema.session_status;
 
 --echo
@@ -222,13 +223,15 @@ set global show_compatibility_56 = off;
 
 --echo
 --echo # STEP 2-1
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.global_variables;
 
 --echo
 --echo # STEP 2-2
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.session_variables;
 
@@ -253,13 +256,15 @@ insert into test.sanity
 
 --echo
 --echo # STEP 2-6
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.global_status;
 
 --echo
 --echo # STEP 2-7
---echo # EMPTY WITH WARNINGS
+--echo # FAILS WITH ERROR
+--error ER_FEATURE_DISABLED_SEE_DOC
 select *
   from information_schema.session_status;
 
@@ -1467,7 +1472,7 @@ select * from test.sanity
 
 --echo
 --echo ================================================================================
---echo TEST 6
+--echo TEST 6A
 --echo Present in 5.7 P_S.GLOBAL_STATUS (2-8)
 --echo Missing in 5.6 I_S.GLOBAL_STATUS (1-6)
 --echo EXPECT NOTHING
@@ -1479,6 +1484,38 @@ select * from test.sanity
     select upper(variable_name) from test.sanity
     where show_mode = "5.6"
     and source = "I_S.GLOBAL_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 6B
+--echo Present in 5.7 P_S.GLOBAL_STATUS (2-8)
+--echo Missing in 5.6 P_S.GLOBAL_STATUS (1-8)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.7"
+  and source = "P_S.GLOBAL_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.6"
+    and source = "P_S.GLOBAL_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 6C
+--echo Present in 5.6 P_S.GLOBAL_STATUS (1-8)
+--echo Missing in 5.7 P_S.GLOBAL_STATUS (2-8)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.6"
+  and source = "P_S.GLOBAL_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.7"
+    and source = "P_S.GLOBAL_STATUS")
   order by show_mode, source, variable_name;
 
 --echo
@@ -1521,7 +1558,7 @@ select * from test.sanity
 
 --echo
 --echo ================================================================================
---echo TEST 9
+--echo TEST 9A
 --echo Present in 5.7 P_S.SESSION_STATUS (2-10)
 --echo Missing in 5.6 I_S.SESSION_STATUS (1-7)
 --echo EXPECT NOTHING
@@ -1533,6 +1570,38 @@ select * from test.sanity
     select upper(variable_name) from test.sanity
     where show_mode = "5.6"
     and source = "I_S.SESSION_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 9B
+--echo Present in 5.7 P_S.SESSION_STATUS (2-10)
+--echo Missing in 5.6 P_S.SESSION_STATUS (1-10)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.7"
+  and source = "P_S.SESSION_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.6"
+    and source = "P_S.SESSION_STATUS")
+  order by show_mode, source, variable_name;
+
+--echo
+--echo ================================================================================
+--echo TEST 9C
+--echo Present in 5.6 P_S.SESSION_STATUS (1-10)
+--echo Missing in 5.7 P_S.SESSION_STATUS (2-10)
+--echo EXPECT NOTHING
+--echo ================================================================================
+select * from test.sanity
+  where show_mode = "5.6"
+  and source = "P_S.SESSION_STATUS"
+  and upper(variable_name) not in (
+    select upper(variable_name) from test.sanity
+    where show_mode = "5.7"
+    and source = "P_S.SESSION_STATUS")
   order by show_mode, source, variable_name;
 
 --echo

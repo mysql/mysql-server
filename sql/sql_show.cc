@@ -7107,6 +7107,25 @@ static void push_select_warning(THD *thd, enum enum_var_type option_type, bool s
 }
 #endif // EMBEDDED_LIBRARY
 
+/**
+  Issue an error for SELECT commands for status and system variables.
+*/
+void push_select_error(THD *thd, enum enum_var_type option_type, bool status)
+{
+  const char *old_name;
+  const char *doc= "show_compatibility_56";
+  if (option_type == OPT_GLOBAL)
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.GLOBAL_STATUS" : "INFORMATION_SCHEMA.GLOBAL_VARIABLES");
+  }
+  else
+  {
+    old_name= (status ? "INFORMATION_SCHEMA.SESSION_STATUS" : "INFORMATION_SCHEMA.SESSION_VARIABLES");
+  }
+
+  thd->raise_error_printf(ER_FEATURE_DISABLED_SEE_DOC, old_name, doc);
+}
+
 static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
@@ -7136,13 +7155,17 @@ static int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  /* Issue deprecation warning. */
+  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
+  if (! show_compatibility_56)
+  {
+    push_select_error(thd, option_type, false);
+    DBUG_RETURN(1);
+  }
+  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
   if (lex->sql_command != SQLCOM_SHOW_VARIABLES)
   {
     push_select_warning(thd, option_type, false);
   }
-  if (!show_compatibility_56)
-    DBUG_RETURN(res);
 #endif /* EMBEDDED_LIBRARY */
 
 
@@ -7225,7 +7248,13 @@ static int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  /* Issue deprecation warning. */
+  /* I_S: Raise error with SHOW_COMPATIBILITY_56=OFF */
+  if (! show_compatibility_56)
+  {
+    push_select_error(thd, option_type, true);
+    DBUG_RETURN(1);
+  }
+  /* I_S: Raise deprecation warning with SHOW_COMPATIBILITY_56=ON */
   if (lex->sql_command != SQLCOM_SHOW_STATUS)
   {
     push_select_warning(thd, option_type, true);

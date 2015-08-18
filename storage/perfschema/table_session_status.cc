@@ -93,9 +93,6 @@ void table_session_status::reset_position(void)
 
 int table_session_status::rnd_init(bool scan)
 {
-  if (show_compatibility_56)
-    return 0;
-
  /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
 
@@ -114,9 +111,6 @@ int table_session_status::rnd_init(bool scan)
 
 int table_session_status::rnd_next(void)
 {
-  if (show_compatibility_56)
-    return HA_ERR_END_OF_FILE;
-
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < m_status_cache.size();
        m_pos.next())
@@ -138,9 +132,6 @@ int table_session_status::rnd_next(void)
 int
 table_session_status::rnd_pos(const void *pos)
 {
-  if (show_compatibility_56)
-    return HA_ERR_RECORD_DELETED;
-
   /* If global status array has changed, do nothing. */ // TODO: warning
   if (!m_context->versions_match())
     return HA_ERR_RECORD_DELETED;
