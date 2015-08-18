@@ -1953,12 +1953,15 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_
 */
 bool Item_func_as_geojson::val_json(Json_wrapper *wr)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed == TRUE);
 
   if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
       (arg_count > 2 && parse_options_argument()))
   {
-    return error_json();
+    if (null_value && !current_thd->is_error())
+      return false;
+    else
+      return error_json();
   }
 
   /*
@@ -1975,7 +1978,10 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr)
                        m_add_long_crs_urn,
                        &m_geometry_srid))
   {
-    return error_json();
+    if (null_value && !current_thd->is_error())
+      return false;
+    else
+      return error_json();
   }
 
   null_value= args[0]->null_value;
@@ -2006,7 +2012,7 @@ bool Item_func_as_geojson::parse_options_argument()
 {
   DBUG_ASSERT(arg_count > 2);
   longlong options_argument= args[2]->val_int();
-  if ((null_value = args[2]->null_value))
+  if ((null_value= args[2]->null_value))
     return true;
 
   if (options_argument < 0 || options_argument > 7)
@@ -2040,13 +2046,13 @@ bool Item_func_as_geojson::parse_options_argument()
   that the maxdecimaldigits argument is the second argument in the function
   call.
 
-  @return false on success, true otherwise (negative value of similar).
+  @return false on success, true otherwise (negative value or similar).
 */
 bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
 {
   DBUG_ASSERT(arg_count > 1);
   longlong max_decimal_digits_argument = args[1]->val_int();
-  if ((null_value = args[1]->null_value))
+  if ((null_value= args[1]->null_value))
     return true;
 
   if (max_decimal_digits_argument < 0 ||
