@@ -2028,6 +2028,7 @@ static void start_signal_handler()
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
                     error, errno);
+    flush_error_log_messages();
     exit(MYSQLD_ABORT_EXIT);
   }
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
@@ -4248,6 +4249,7 @@ int mysqld_main(int argc, char **argv)
   if (my_init())                 // init my_sys library & pthreads
   {
     sql_print_error("my_init() failed.");
+    flush_error_log_messages();
     return 1;
   }
 #endif /* _WIN32 */
@@ -4256,7 +4258,10 @@ int mysqld_main(int argc, char **argv)
   orig_argv= argv;
   my_getopt_use_args_separator= TRUE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
+  {
+    flush_error_log_messages();
     return 1;
+  }
   my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
@@ -4910,7 +4915,10 @@ int mysqld_main(int argc, char **argv)
 int mysql_service(void *p)
 {
   if (my_thread_init())
+  {
+    flush_error_log_messages();
     return 1;
+  }
 
   if (use_opt_args)
     win_main(opt_argc, opt_argv);
@@ -5026,6 +5034,7 @@ int mysqld_main(int argc, char **argv)
   if (my_init())
   {
     sql_print_error("my_init() failed.");
+    flush_error_log_messages();
     return 1;
   }
 
@@ -8718,7 +8727,6 @@ static PSI_socket_info all_server_sockets[]=
 };
 #endif /* HAVE_PSI_INTERFACE */
 
-PSI_memory_key key_memory_buffered_logs;
 PSI_memory_key key_memory_locked_table_list;
 PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_thd_transactions;
@@ -8850,7 +8858,6 @@ PSI_memory_key key_memory_JSON;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_memory_info all_server_memory[]=
 {
-  { &key_memory_buffered_logs, "buffered_logs", PSI_FLAG_GLOBAL},
   { &key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root", 0},
   { &key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD},
   { &key_memory_thd_transactions, "THD::transactions::mem_root", PSI_FLAG_THREAD},
