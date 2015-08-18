@@ -1523,6 +1523,8 @@ static int createAllShadows(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_ENTER("createAllShadows");
   Ndb * ndb= GETNDB(step);
   NdbDictionary::Dictionary * dict = ndb->getDictionary();
+  pShadowTabs.clear();
+
   // create a "shadow" table for each table
   for (int i= 0; pTabs[i]; i++)
   {
