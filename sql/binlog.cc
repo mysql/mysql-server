@@ -2282,14 +2282,31 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
     if ((file=open_binlog_file(&log, linfo.log_file_name, &errmsg)) < 0)
       goto err;
 
+    my_off_t end_pos;
+    /*
+      Acquire LOCK_log only for the duration to calculate the
+      log's end position. LOCK_log should be acquired even while
+      we are checking whether the log is active log or not.
+    */
+    mysql_mutex_lock(log_lock);
+    if (binary_log->is_active(linfo.log_file_name))
+    {
+      LOG_INFO li;
+      binary_log->get_current_log(&li, false /*LOCK_log is already acquired*/);
+      end_pos= li.pos;
+    }
+    else
+    {
+      end_pos= my_b_filelength(&log);
+    }
+    mysql_mutex_unlock(log_lock);
+
     /*
       to account binlog event header size
     */
     thd->variables.max_allowed_packet += MAX_LOG_EVENT_HEADER;
 
     DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
-
-    mysql_mutex_lock(log_lock);
 
     /*
       open_binlog_file() sought to position 4.
@@ -2325,6 +2342,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
                                          description_event,
                                          opt_master_verify_checksum)); )
     {
+      DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
       if (ev->get_type_code() == FORMAT_DESCRIPTION_EVENT)
         description_event->checksum_alg= ev->checksum_alg;
 
@@ -2333,25 +2351,22 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log)
       {
 	errmsg = "Net error";
 	delete ev;
-        mysql_mutex_unlock(log_lock);
 	goto err;
       }
 
       pos = my_b_tell(&log);
       delete ev;
 
-      if (++event_count >= limit_end)
+      if (++event_count >= limit_end || pos >= end_pos)
 	break;
     }
 
     if (event_count < limit_end && log.error)
     {
       errmsg = "Wrong offset or I/O error";
-      mysql_mutex_unlock(log_lock);
       goto err;
     }
 
-    mysql_mutex_unlock(log_lock);
   }
   // Check that linfo is still on the function scope.
   DEBUG_SYNC(thd, "after_show_binlog_events");
@@ -3501,18 +3516,20 @@ err:
   DBUG_RETURN(-1);
 }
 
-int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
+int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo, bool need_lock_log/*true*/)
 {
-  mysql_mutex_lock(&LOCK_log);
+  if (need_lock_log)
+    mysql_mutex_lock(&LOCK_log);
   int ret = raw_get_current_log(linfo);
-  mysql_mutex_unlock(&LOCK_log);
+  if (need_lock_log)
+    mysql_mutex_unlock(&LOCK_log);
   return ret;
 }
 
 int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO* linfo)
 {
   strmake(linfo->log_file_name, log_file_name, sizeof(linfo->log_file_name)-1);
-  linfo->pos = my_b_tell(&log_file);
+  linfo->pos = my_b_safe_tell(&log_file);
   return 0;
 }
 
