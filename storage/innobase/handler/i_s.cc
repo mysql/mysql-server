@@ -8910,7 +8910,7 @@ static ST_FIELD_INFO	innodb_cached_indexes_fields_info[] =
 };
 
 /** Populate INFORMATION_SCHEMA.INNODB_CACHED_INDEXES.
-@param[in]	thd 		user thread
+@param[in]	thd		user thread
 @param[in]	index		populated dict_index_t struct with index info
 @param[in,out]	table_to_fill	fill this table
 @return 0 on success */

@@ -1135,11 +1135,18 @@ private:
 
 			arr_node_t*	expected = arr;
 
+			/* Detach 'arr' from the list. Ie move the head of the
+			list 'm_data' from 'arr' to 'arr->m_next'. */
 			ut_a(m_data.compare_exchange_strong(
 					expected,
 					next,
 					boost::memory_order_relaxed));
 
+			/* Spin/wait for all threads to stop looking at
+			this array. If at some point this turns out to be
+			sub-optimal (ie too long busy wait), then 'arr' could
+			be added to some lazy deletion list
+			arrays-awaiting-destruction-once-no-readers. */
 			while (arr->n_ref() > 0) {
 				;
 			}
