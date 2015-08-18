@@ -1,0 +1,10 @@
+RESET MASTER;
+CREATE TABLE t1(i INT);
+DROP TABLE t1;
+SET DEBUG_SYNC = "wait_in_show_binlog_events_loop SIGNAL reached_for_loop WAIT_FOR go_ahead";
+SHOW BINLOG EVENTS;
+SET DEBUG_SYNC = "now WAIT_FOR reached_for_loop";
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (12);
+DROP TABLE t1;
+SET DEBUG_SYNC = "now SIGNAL go_ahead";
