@@ -13256,3 +13256,14 @@ a	b
 1	null
 1	null
 DROP TABLE t;
+#
+# Bug#21541481: MEMORY LEAK OF ALLOCATIONS MADE IN
+#               VAL_JSON_FUNC_FIELD_SUBSELECT
+#
+# This comparison gave valgrind leakage before the fix
+create table t(a json not null) engine=innodb;
+insert into t values('{}');
+select row(uuid(), a) < row(a, str_to_date(1,1)) from t;
+row(uuid(), a) < row(a, str_to_date(1,1))
+1
+drop table t;

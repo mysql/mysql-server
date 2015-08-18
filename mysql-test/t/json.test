@@ -6034,6 +6034,16 @@ SELECT * FROM t ORDER BY b;
 DROP TABLE t;
 --source include/restore_strict_mode.inc
 
+--echo #
+--echo # Bug#21541481: MEMORY LEAK OF ALLOCATIONS MADE IN
+--echo #               VAL_JSON_FUNC_FIELD_SUBSELECT
+--echo #
+--echo # This comparison gave valgrind leakage before the fix
+create table t(a json not null) engine=innodb;
+insert into t values('{}');
+select row(uuid(), a) < row(a, str_to_date(1,1)) from t;
+drop table t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
