@@ -117,6 +117,8 @@ os_numa_num_configured_cpus()
 
 	int	n_cpus = 0;
 
+	SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*	buf_orig = buf;
+
 	/* Maybe this loop will iterate just once, but this is not mentioned
 	explicitly anywhere in the GetLogicalProcessorInformationEx()
 	documentation (when the first argument is RelationGroup). If we are
@@ -134,7 +136,7 @@ os_numa_num_configured_cpus()
 				reinterpret_cast<char*>(buf) + buf->Size);
 	}
 
-	LocalFree(buf);
+	LocalFree(buf_orig);
 
 	return(n_cpus);
 #else
