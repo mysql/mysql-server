@@ -2249,7 +2249,6 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
       }
       // Event queue is scanned and no regular event data is found
       assert(data==NULL);
-      return 0;
     }
 
     waited =
