@@ -18,12 +18,12 @@
 
 #define SQL_COMMON_INCLUDED
 
+#include <mysql.h>
+#include <hash.h>
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-#include <mysql.h>
-#include <hash.h>
 
 extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
