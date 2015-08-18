@@ -876,7 +876,7 @@ public:
                    bool need_lock_index);
   int find_next_log(LOG_INFO* linfo, bool need_lock_index);
   int find_next_relay_log(char log_name[FN_REFLEN+1]);
-  int get_current_log(LOG_INFO* linfo);
+  int get_current_log(LOG_INFO* linfo, bool need_lock_log= true);
   int raw_get_current_log(LOG_INFO* linfo);
   uint next_file_id();
   inline char* get_index_fname() { return index_file_name;}
