@@ -4174,23 +4174,49 @@ fil_ibd_discover(
 	/* Did not find a general or file-per-table datafile in the
 	default location.  Look for a remote general tablespace. */
 	df_rem_gen.set_name(basename);
-	if (df_rem_gen.open_read_only(false) == DB_SUCCESS
-	    && df_rem_gen.validate_for_recovery() == DB_SUCCESS
-	    && df_rem_gen.space_id() == space_id) {
-		df.set_filepath(df_rem_gen.filepath());
-		df.open_read_only(false);
-		return(true);
+	if (df_rem_gen.open_link_file() == DB_SUCCESS) {
+		/* An ISL file was found with contents. */
+		if (df_rem_gen.open_read_only(false) == DB_SUCCESS
+		    && df_rem_gen.validate_for_recovery() == DB_SUCCESS
+		    && df_rem_gen.space_id() == space_id) {
+			df.set_filepath(df_rem_gen.filepath());
+			df.open_read_only(false);
+			return(true);
+		}
+
+		/* Assume that this ISL file is intended to be used.
+		Since it is not pointing to the correct file, do not
+		continue looking for another file. */
+		ib::error() << "ISL file '"
+			<< df_rem_gen.link_filepath()
+			<< "' was found but the linked file '"
+			<< df_rem_gen.filepath()
+			<< "' could not be opened or is not correct.";
+		return(false);
 	}
 
 	/* Look for a remote file-per-table tablespace. */
 	if (sep_found == 2) {
 		df_rem_per.set_name(db);
-		if (df_rem_per.open_read_only(false) == DB_SUCCESS
-		    && df_rem_per.validate_for_recovery() == DB_SUCCESS
-		    && df_rem_per.space_id() == space_id) {
-			df.set_filepath(df_rem_per.filepath());
-			df.open_read_only(false);
-			return(true);
+		if (df_rem_per.open_link_file() == DB_SUCCESS) {
+			/* An ISL file was found with contents. */
+			if (df_rem_per.open_read_only(false) == DB_SUCCESS
+			    && df_rem_per.validate_for_recovery() == DB_SUCCESS
+			    && df_rem_per.space_id() == space_id) {
+				df.set_filepath(df_rem_per.filepath());
+				df.open_read_only(false);
+				return(true);
+			}
+
+			/* Assume that this ISL file is intended to be used.
+			Since it is not pointing to the correct file, do not
+			continue looking for another file. */
+			ib::error() << "ISL file '"
+				<< df_rem_per.link_filepath()
+				<< "' was found but the linked file '"
+				<< df_rem_per.filepath()
+				<< "' could not be opened or is not correct.";
+			return(false);
 		}
 	}
 
@@ -4202,7 +4228,7 @@ fil_ibd_discover(
 		return(true);
 	}
 
-	/* A datafile was not discovered for the filanem given. */
+	/* A datafile was not discovered for the filename given. */
 	return(false);
 }
 
@@ -4237,7 +4263,8 @@ fil_ibd_load(
 		previously. Fail if it is different. */
 		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
 
-		if (0 != strcmp(filename, node->name)) {
+		if (0 != strcmp(innobase_basename(filename),
+				innobase_basename(node->name))) {
 			ib::info() << "Ignoring data file '" << filename
 				<< "' with space ID " << space->id
 				<< ". Another data file called " << node->name

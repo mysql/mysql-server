@@ -476,7 +476,7 @@ class RemoteDatafile : public Datafile
 {
 private:
 	/** Link filename (full path) */
-	char*			m_link_filepath;
+	char*	m_link_filepath;
 
 public:
 
@@ -514,6 +514,12 @@ public:
 	@param[in]	path	filepath which contains a basename to use.
 				If NULL, use m_name as the basename. */
 	void set_link_filepath(const char* path);
+
+	/** Create a link filename based on the contents of m_name,
+	open that file, and read the contents into m_filepath.
+	@retval DB_SUCCESS if remote linked tablespace file is opened and read.
+	@retval DB_CANNOT_OPEN_FILE if the link file does not exist. */
+	dberr_t open_link_file();
 
 	/** Delete an InnoDB Symbolic Link (ISL) file. */
 	void delete_link_file(void);
@@ -563,11 +569,8 @@ public:
 	The 'basename.isl' will be in the datadir.
 	The caller must free the memory returned if it is not null.
 	@param[in]	link_filepath	filepath of the ISL file
-	@param[in]	is_shared	true for general tablespace,
-					false for file-per-table
 	@return Filepath of the IBD file read from the ISL file */
 	static char* read_link_file(
-		const char*	link_filepath,
-		bool		is_shared);
+		const char*	link_filepath);
 };
 #endif /* fsp0file_h */

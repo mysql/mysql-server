@@ -102,6 +102,10 @@ INSERT INTO t4 VALUES (6);
 --move_file $MYSQLD_DATADIR/tablespace2.ibd $MYSQL_TMP_DIR/tablespace2.ibd
 --move_file $MYSQLD_DATADIR/test/t3.ibd $MYSQL_TMP_DIR/test/t3.ibd
 --move_file $MYSQLD_DATADIR/test/t4.ibd $MYSQL_TMP_DIR/test/t4.ibd
+--exec echo $MYSQL_TMP_DIR/tablespace1.ibd > $MYSQLD_DATADIR/tablespace1.isl
+--exec echo $MYSQL_TMP_DIR/tablespace2.ibd > $MYSQLD_DATADIR/tablespace2.isl
+--exec echo $MYSQL_TMP_DIR/test/t3.ibd > $MYSQLD_DATADIR/tablespace3.isl
+--exec echo $MYSQL_TMP_DIR/test/t4.ibd > $MYSQLD_DATADIR/tablespace4.isl
 
 --echo # Restart mysqld and show that the remote files were opened and recovered.
 --source include/start_mysqld.inc
@@ -135,17 +139,61 @@ INSERT INTO t4 VALUES (6);
 --echo #
 --source include/kill_mysqld.inc
 
---echo # Mess up the ISL files so that they point to the wrong file.
+--echo # Mess up a general tablespace ISL file so that it points to the wrong file.
+--echo # Recovery will fail. Check the error message.
+
 --exec echo $MYSQL_TMP_DIR/bad/tablespace1.ibd > $MYSQLD_DATADIR/tablespace1.isl
---exec echo $MYSQL_TMP_DIR/bad/tablespace2.ibd > $MYSQLD_DATADIR/tablespace2.isl
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+--error 3
+--exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
+
+let SEARCH_PATTERN= \[ERROR\] InnoDB: ISL file '.*tablespace1.isl' was found but the linked file '.*tablespace1.ibd' could not be opened or is not correct;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace .* was not found at .*tablespace1.ibd;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+--remove_file $SEARCH_FILE
+
+--echo # Mess up a file-per-table tablespace ISL file so that it points to the wrong file.
+--echo # Recovery will fail. Check the error message.
+
+--exec echo $MYSQL_TMP_DIR/tablespace1.ibd > $MYSQLD_DATADIR/tablespace1.isl
 --exec echo $MYSQL_TMP_DIR/bad/t3.ibd > $MYSQLD_DATADIR/test/t3.isl
---exec echo $MYSQL_TMP_DIR/bad/t4.ibd > $MYSQLD_DATADIR/test/t4.isl
+
+--error 3
+--exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
+
+let SEARCH_PATTERN= \[ERROR\] InnoDB: ISL file '.*t3.isl' was found but the linked file '.*t3.ibd' could not be opened or is not correct;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace .* was not found at .*t3.ibd;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN= \[ERROR\] InnoDB: Cannot continue operation;
+--source include/search_pattern_in_file.inc
+
+--remove_file $SEARCH_FILE
+
+--echo # Delete the ISL files and move all remote files to default locations
+--remove_file $MYSQLD_DATADIR/tablespace1.isl
+--remove_file $MYSQLD_DATADIR/tablespace2.isl
+--remove_file $MYSQLD_DATADIR/test/t3.isl
+--remove_file $MYSQLD_DATADIR/test/t4.isl
+--move_file $MYSQL_TMP_DIR/tablespace1.ibd $MYSQLD_DATADIR/tablespace1.ibd
+--move_file $MYSQL_TMP_DIR/tablespace2.ibd $MYSQLD_DATADIR/tablespace2.ibd
+--move_file $MYSQL_TMP_DIR/test/t3.ibd $MYSQLD_DATADIR/test/t3.ibd
+--move_file $MYSQL_TMP_DIR/test/t4.ibd $MYSQLD_DATADIR/test/t4.ibd
 
 --echo # Restart mysqld and display which datafiles were recovered.
 --source include/start_mysqld.inc
 
---echo # It should be the remote datafiles again, but this time
---echo # they must have been found via the REDO log.
+--echo # It should be the default datafiles
+--echo # The two previous attempts to recover should not cause a problem
 --echo #
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
@@ -171,4 +219,12 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
---remove_file $MYSQLD_DATADIR/test/t3.isl
+
+-- disable_query_log
+# This log message can occur with --repeat=2+ because the previous test will
+# have entries in the REDO log within the same checkpoint.  So there will be
+# MLOG_FILE_NAME records for remote datafiles with the same basename but the
+# previous space_ids.
+call mtr.add_suppression("\\[ERROR\\] InnoDB: ISL file '.*isl' was found but the linked file '.*ibd' could not be opened or is not correct.");
+-- enable_query_log
+
