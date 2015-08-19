@@ -870,6 +870,8 @@ static   NTService  Service;        ///< Service object for WinNT
 bool mysqld_embedded=0;
 #else
 bool mysqld_embedded=1;
+static ulong max_allowed_packet;
+static ulong net_buffer_length;
 #endif
 
 static my_bool plugins_are_initialized= FALSE;

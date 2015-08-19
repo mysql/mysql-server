@@ -80,11 +80,6 @@ public:
   virtual int execute(std::vector<std::string> positional_options)= 0;
 
   /**
-   Prints usage message. Does not end the program execution.
-  */
-  void print_usage();
-
-  /**
    Prints program invocation message.
   */
   virtual void short_usage()= 0;
