@@ -1518,6 +1518,7 @@ static bool mysql_test_call_fields(Prepared_statement *stmt,
   Check internal SELECT of the prepared command.
 
   @param thd                       current thread
+  @param cmd
   @param setup_tables_done_option  options to be passed to LEX::unit->prepare()
 
   @note

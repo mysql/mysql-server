@@ -843,6 +843,7 @@ static void set_global_from_ddl_log_entry(const DDL_LOG_ENTRY *ddl_log_entry)
   Convert from file_entry_buf binary blob to ddl_log_entry struct.
 
   @param[out] ddl_log_entry   struct to fill in.
+  @param read_entry
 
   @note Strings (names) are pointing to the global_ddl_log structure,
   so LOCK_gdl needs to be hold until they are read or copied.
@@ -1053,6 +1054,7 @@ static bool deactivate_ddl_log_entry_no_lock(uint entry_no)
 /**
   Execute one action in a ddl log entry
 
+  @param thd
   @param ddl_log_entry              Information in action entry to execute
 
   @return Operation status
@@ -1253,6 +1255,7 @@ error:
   Get a free entry in the ddl log
 
   @param[out] active_entry     A ddl log memory entry returned
+  @param write_header
 
   @return Operation status
     @retval TRUE               Error
@@ -1304,6 +1307,7 @@ static bool get_free_ddl_log_entry(DDL_LOG_MEMORY_ENTRY **active_entry,
   
   Executing an entry means executing a linked list of actions.
 
+  @param thd
   @param first_entry           Reference to first action in entry
 
   @return Operation status
@@ -1572,6 +1576,7 @@ void release_ddl_log_memory_entry(DDL_LOG_MEMORY_ENTRY *log_entry)
   
   Executing an entry means executing a linked list of actions.
 
+  @param thd
   @param first_entry           Reference to first action in entry
 
   @return Operation status

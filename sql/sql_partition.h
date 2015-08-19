@@ -178,6 +178,7 @@ Copy info from partition to the table share so the created partition
 has the correct info.
   @param thd               THD object
   @param share             Table share to be updated.
+  @param partition_name_with_path
   @param info              Create info to be updated.
   @param part_elem         partition_element containing the info.
 

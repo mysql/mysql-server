@@ -3361,7 +3361,7 @@ mysql_fill_packet_header(MYSQL *mysql, char *buff,
 
   @param  mysql   the connection context
   @param  db      The database specified by the client app
-  @param  db      The client flag as specified by the client app
+  @param  client_flag The client flag as specified by the client app
   */
 
 static void

@@ -1410,6 +1410,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   Print "ON UPDATE" clause of a field into a string.
 
   @param field             The field to generate ON UPDATE clause for.
+  @param val
   @param lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */
@@ -2802,12 +2803,13 @@ inline void make_upper(char *buf)
 }
 
 /**
-  @brief Returns the value of a system or a status variable.
+  Returns the value of a system or a status variable.
 
   @param thd        [IN]    The thd handle.
   @param variable   [IN]    Details of the variable.
   @param value_type [IN]    Variable type.
   @param show_type  [IN]    Variable show type.
+  @param status_var
   @param charset    [OUT]   Character set of the value.
   @param buff       [INOUT] Buffer to store the value.
                             (Needs to have enough memory
@@ -3656,6 +3658,7 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
   @param[in]      lookup_field_vals     pointer to LOOKUP_FIELD_VALUE struct
   @param[in]      with_i_schema         TRUE means that we add I_S tables to list
   @param[in]      db_name               database name
+  @param          tmp_mem_root
 
   @return         Operation status
     @retval       0           ok
@@ -3956,6 +3959,7 @@ end:
   @param[in]      db_name                  database name
   @param[in]      table_name               table name
   @param[in]      with_i_schema            I_S table if TRUE
+  @param          need_table_type
 
   @return         Operation status
     @retval       0           success
