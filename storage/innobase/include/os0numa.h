@@ -18,7 +18,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /**************************************************//**
 @file include/os0numa.h
-NUMA API wrapper over various operating system specific APIs
+NUMA API wrapper over various operating system specific APIs.
+
+The os_numa*() functions in this file mimic the numa*() Linux API that is
+documented in numa(3). They take the same arguments, have the same return
+type and behave in the same way. There are two purposes behind this:
+1. Have zero learning curve for developers already familiar with the Linux API.
+2. Linux's numa*() functions are documented in more detail than ours
+   os_numa*(). Should any doubt arise about the behavior, the Linux docs should
+   be referred.
 
 Created Jul 16, 2015 Vasil Dimov
 *******************************************************/
