@@ -875,3 +875,20 @@ test_func_ts5	FUNCTION	timestamp	5
 test_func_ts6	FUNCTION	timestamp	6
 test_proc1	PROCEDURE		NULL
 DROP DATABASE i_s_routines_test;
+USE test;
+#
+# Bug #21632425: SHOW FUNCTION STATUS ASSERTS WITH
+#   PAD_CHAR_TO_FULL_LENGTH
+#
+SELECT @@sql_mode INTO @old_sql_mode;
+SET sql_mode = 'pad_char_to_full_length';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+# Must not assert
+SHOW FUNCTION STATUS;
+DROP FUNCTION IF EXISTS f;
+SET sql_mode = @old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+# End of 5.7 tests
