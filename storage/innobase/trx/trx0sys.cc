@@ -557,9 +557,12 @@ trx_sys_create_rsegs(
 
 	ut_ad(n_used <= TRX_SYS_N_RSEGS);
 
+	/* By default 1 redo rseg is always active that is hosted in
+	system tablespace. */
+	ulint	n_redo_active = 1;
+
 	/* Do not create additional rollback segments if innodb_force_recovery
 	has been set and the database was not shutdown cleanly. */
-
 	if (!srv_force_recovery && !recv_needed_recovery && n_used < n_rsegs) {
 		ulint	i;
 		ulint	new_rsegs = n_rsegs - n_used;
@@ -578,6 +581,7 @@ trx_sys_create_rsegs(
 
 			if (trx_rseg_create(space, 0) != NULL) {
 				++n_used;
+				++n_redo_active;
 			} else {
 				break;
 			}
@@ -586,7 +590,7 @@ trx_sys_create_rsegs(
 
 	ib::info() << n_used - srv_tmp_undo_logs
 		<< " redo rollback segment(s) found. "
-		<< ((n_rsegs <= n_tmp_rsegs) ? 1 : (n_rsegs - n_tmp_rsegs))
+		<< n_redo_active
 		<< " redo rollback segment(s) are active.";
 
 	ib::info() << n_noredo_created << " non-redo rollback segment(s) are"

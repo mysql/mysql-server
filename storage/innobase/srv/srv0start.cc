@@ -1317,11 +1317,17 @@ srv_init_abort_low(
 	if (create_new_db) {
 		ib::error() << "InnoDB Database creation was aborted"
 #ifdef UNIV_DEBUG
-			" at " << file << "[" << line << "]"
+			" at " << basename(file) << "[" << line << "]"
 #endif /* UNIV_DEBUG */
 			" with error " << ut_strerr(err) << ". You may need"
 			" to delete the ibdata1 file before trying to start"
 			" up again.";
+	} else {
+		ib::error() << "Plugin initialization aborted"
+#ifdef UNIV_DEBUG
+			" at " << basename(file) << "[" << line << "]"
+#endif /* UNIV_DEBUG */
+			" with error " << ut_strerr(err);
 	}
 
 	srv_shutdown_all_bg_threads();
@@ -2129,6 +2135,8 @@ files_checked:
 		srv_undo_logs = ULONG_UNDEFINED;
 	} else if (srv_available_undo_logs < srv_undo_logs
 		   && !srv_force_recovery && !recv_needed_recovery) {
+		ib::error() << "System or UNDO tablespace is running of out"
+			    << " of space";
 		/* Should due to out of file space. */
 		return(srv_init_abort(DB_ERROR));
 	}
