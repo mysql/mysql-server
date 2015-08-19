@@ -2518,17 +2518,17 @@ protected:
   virtual ~Create_func_json_extract() {}
 };
 
-class Create_func_json_append : public Create_native_func
+class Create_func_json_array_append : public Create_native_func
 {
 public:
   virtual Item *create_native(THD *thd, LEX_STRING name,
                               PT_item_list *item_list);
 
-  static Create_func_json_append s_singleton;
+  static Create_func_json_array_append s_singleton;
 
 protected:
-  Create_func_json_append() {}
-  virtual ~Create_func_json_append() {}
+  Create_func_json_array_append() {}
+  virtual ~Create_func_json_array_append() {}
 
 };
 
@@ -5879,10 +5879,10 @@ Create_func_json_extract::create_native(THD *thd, LEX_STRING name,
   return func;
 }
 
-Create_func_json_append Create_func_json_append::s_singleton;
+Create_func_json_array_append Create_func_json_array_append::s_singleton;
 
 Item*
-Create_func_json_append::create_native(THD *thd, LEX_STRING name,
+Create_func_json_array_append::create_native(THD *thd, LEX_STRING name,
                                      PT_item_list *item_list)
 {
   Item* func= NULL;
@@ -5902,7 +5902,7 @@ Create_func_json_append::create_native(THD *thd, LEX_STRING name,
   }
   else
   {
-    func= new (thd->mem_root) Item_func_json_append(thd, POS(), item_list);
+    func= new (thd->mem_root) Item_func_json_array_append(thd, POS(), item_list);
   }
 
   return func;
@@ -7529,7 +7529,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("JSON_TYPE") }, BUILDER(Create_func_json_type)},
   { { C_STRING_WITH_LEN("JSON_KEYS") }, BUILDER(Create_func_json_keys)},
   { { C_STRING_WITH_LEN("JSON_EXTRACT") }, BUILDER(Create_func_json_extract)},
-  { { C_STRING_WITH_LEN("JSON_APPEND") }, BUILDER(Create_func_json_append)},
+  { { C_STRING_WITH_LEN("JSON_ARRAY_APPEND") }, BUILDER(Create_func_json_array_append)},
   { { C_STRING_WITH_LEN("JSON_INSERT") }, BUILDER(Create_func_json_insert)},
   { { C_STRING_WITH_LEN("JSON_ARRAY_INSERT") }, BUILDER(Create_func_json_array_insert)},
   { { C_STRING_WITH_LEN("JSON_OBJECT") }, BUILDER(Create_func_json_row_object)},

@@ -2088,7 +2088,7 @@ static inline bool wrapped_top_level_item(Json_path *path, Json_dom *v)
 }
 
 
-bool Item_func_json_append::val_json(Json_wrapper *wr)
+bool Item_func_json_array_append::val_json(Json_wrapper *wr)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -2135,7 +2135,7 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
         first. Json_dom::seek returns outermost hits first.
 
         Note that, later on, we decide to forbid ellipses in the path
-        arguments to json_append().
+        arguments to json_array_append().
       */
       for (Json_dom_vector::iterator it= hits.end(); it != hits.begin();)
       {
@@ -2187,7 +2187,7 @@ bool Item_func_json_append::val_json(Json_wrapper *wr)
     // docw still owns the augmented doc, so hand it over to result
     wr->steal(&docw);
 
-  } CATCH_ALL("json_append", return error_json()) /* purecov: inspected */
+  } CATCH_ALL("json_array_append", return error_json()) /* purecov: inspected */
 
   null_value= false;
   return false;
@@ -3149,7 +3149,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
       }   // end of loop through user-supplied path expressions
     }     // end if there are user-supplied path expressions
 
-  } CATCH_ALL("json_append", return error_json()) /* purecov: inspected */
+  } CATCH_ALL("json_search", return error_json()) /* purecov: inspected */
 
   if (matches.size() == 0)
   {
