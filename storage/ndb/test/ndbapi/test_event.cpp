@@ -2255,6 +2255,7 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "createEventOperation: "
 	    << ndb->getNdbError().code << " "
 	    << ndb->getNdbError().message << endl;
+      ctx->stopTest();
       return NDBT_FAILED;
     }
     
@@ -2272,6 +2273,7 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       
       ndb->dropEventOperation(pOp);
       
+      ctx->stopTest();
       return NDBT_FAILED;
     }
     
@@ -2287,10 +2289,12 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "pOp->execute(): "
 	    << ndb->getNdbError().code << " "
 	    << ndb->getNdbError().message << endl;
+      ctx->stopTest();
       return NDBT_FAILED;
     }
   }
   
+  ctx->stopTest();
   return NDBT_OK;
 }
 
@@ -5146,6 +5150,15 @@ TESTCASE("SubscribeUnsubscribe",
 	 "NOTE! No errors are allowed!" ){
   INITIALIZER(runCreateEvent);
   STEPS(runSubscribeUnsubscribe, 16);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("SubscribeUnsubscribeWithLoad", 
+	 "A bunch of threads doing subscribe/unsubscribe in loop"
+         " while another thread does insert and deletes"
+	 "NOTE! No errors from subscribe/unsubscribe are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  STEPS(runSubscribeUnsubscribe, 16);
+  STEP(runInsertDeleteUntilStopped);
   FINALIZER(runDropEvent);
 }
 TESTCASE("Bug27169", ""){
