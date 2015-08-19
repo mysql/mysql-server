@@ -2749,8 +2749,8 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_PRINT("info", ("thd %p block_pthread %d", thd, (int) block_pthread));
 
   thd->release_resources();
-  dec_connection_count();
   remove_global_thread(thd);
+  dec_connection_count();
   if (kill_blocked_pthreads_flag)
   {
     // Do not block if we are about to shut down

@@ -1,4 +1,5 @@
-/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,8 +34,8 @@
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
   thd_release_resources(thd);
-  dec_connection_count();
   remove_global_thread(thd);
+  dec_connection_count();
   // THD is an incomplete type here, so use destroy_thd() to delete it.
   destroy_thd(thd);
 
