@@ -122,6 +122,11 @@ public:
 		if (m_numa_available) {
 			m_cnt_size = os_numa_num_configured_cpus();
 		} else {
+			/* Just pick up some number that is supposedly larger
+			than the number of CPUs on the system or close to it.
+			That many pointers and 64 bit integers will be
+			allocated once in the hash table lifetime.
+			Ie 256 * 8 * 8 = 16 KiB. */
 			m_cnt_size = 256;
 		}
 
