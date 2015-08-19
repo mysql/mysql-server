@@ -471,8 +471,8 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
 
   /* Get the value of the system variable. */
   const char *value;
-  value= get_one_variable(target_thd, show_var, query_scope, show_var_type,
-                          NULL, &m_charset, m_value_str, &m_value_length);
+  value= get_one_variable_ext(current_thd, target_thd, show_var, query_scope, show_var_type,
+                              NULL, &m_charset, m_value_str, &m_value_length);
 
   m_value_length= MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
 
