@@ -2163,3 +2163,14 @@ SELECT * FROM t1;
 d	i
 1000.00	3
 DROP TABLE t1;
+#
+# Bug#21616585 ASSERTION FAILED: !(DECIMAL_IS_ZERO(FROM2) && FROM2->SIGN)
+#
+CREATE TABLE t(a DECIMAL(56,13) NOT NULL);
+INSERT INTO t VALUES(0);
+SELECT 1 FROM t WHERE a<=>time('-t');
+1
+1
+Warnings:
+Warning	1292	Truncated incorrect time value: '-t'
+DROP TABLE t;
