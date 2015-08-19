@@ -92,9 +92,9 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     end_connection(thd);
   }
   close_connection(thd);
-  Connection_handler_manager::dec_connection_count();
   thd->release_resources();
   thd_manager->remove_thd(thd);
+  Connection_handler_manager::dec_connection_count();
   delete thd;
   return error;
 }
