@@ -1733,6 +1733,14 @@ NdbEventBuffer::nextEvent2()
      */
     assert(op->theMainOp == NULL);
 
+    /**
+     * Should not return a GCI higher then last polled GCI,
+     * except if there has been a CLUSTER_FAILURE not yet
+     * consumed. (Which may reset the GCI sequence)
+     * NOTE: Assert is racy as m_failure_detect is read wo/ lock
+     */
+    assert(gci <= m_latest_poll_GCI || m_failure_detected);
+
 #ifdef VM_TRACE
     op->m_data_done_count++;
 #endif
@@ -2889,7 +2897,8 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
   Uint32 pos = minpos;
   for (; pos != maxpos; pos = (pos + 1) & mask)
   {
-    Gci_container* tmp = find_bucket(array[pos]);
+    const Uint64 gci = array[pos];
+    Gci_container* tmp = find_bucket(gci);
     if (TOTAL_BUCKETS_INIT >= tmp->m_gcp_complete_rep_count)
     {
       found = true;
@@ -2898,6 +2907,7 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
                  cnt, Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
       tmp->m_gcp_complete_rep_count = 0;
       complete_bucket(tmp);
+      m_latestGCI = m_complete_data.m_gci = gci;
     }
     else
     {
