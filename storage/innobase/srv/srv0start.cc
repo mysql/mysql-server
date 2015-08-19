@@ -1317,7 +1317,7 @@ srv_init_abort_low(
 	if (create_new_db) {
 		ib::error() << "InnoDB Database creation was aborted"
 #ifdef UNIV_DEBUG
-			" at " << basename(file) << "[" << line << "]"
+			" at " << innobase_basename(file) << "[" << line << "]"
 #endif /* UNIV_DEBUG */
 			" with error " << ut_strerr(err) << ". You may need"
 			" to delete the ibdata1 file before trying to start"
@@ -1325,7 +1325,7 @@ srv_init_abort_low(
 	} else {
 		ib::error() << "Plugin initialization aborted"
 #ifdef UNIV_DEBUG
-			" at " << basename(file) << "[" << line << "]"
+			" at " << innobase_basename(file) << "[" << line << "]"
 #endif /* UNIV_DEBUG */
 			" with error " << ut_strerr(err);
 	}
