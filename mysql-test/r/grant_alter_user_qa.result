@@ -2140,3 +2140,93 @@ bug20364862_user	bug20364862_dest
 DROP DATABASE db1;
 DROP USER bug20364862_user@localhost;
 DROP USER bug20364862_dest@localhost;
+
+Bug #20625566 SHOW CREATE USER ALLOWS ACCESS TO OTHER USERS PASSWORD HASH
+
+# Restarting the server with log_backward_compatible_user_definitions = OFF
+# Restart server.
+CREATE USER user1@localhost;
+CREATE USER user1@47.9.9.9 IDENTIFIED BY 'pass1';
+CREATE USER user2 IDENTIFIED BY 'pass2';
+# case1 without any privileges
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@localhost
+SHOW CREATE USER user1@localhost;
+CREATE USER for user1@localhost
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SHOW CREATE USER user1@47.9.9.9;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+SHOW CREATE USER user2;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+SHOW CREATE USER invalid_user;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+# case2 with SELECT privilege on mysql db
+GRANT SELECT ON mysql.* TO user1@localhost;
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@localhost
+SHOW CREATE USER user1@localhost;
+CREATE USER for user1@localhost
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SHOW CREATE USER user1@47.9.9.9;
+CREATE USER for user1@47.9.9.9
+CREATE USER 'user1'@'47.9.9.9' IDENTIFIED WITH 'mysql_native_password' AS '*22A99BA288DB55E8E230679259740873101CD636' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SHOW CREATE USER user2;
+CREATE USER for user2@%
+CREATE USER 'user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '*1B884EF334D678B0743C8CE0425F980669D8FBB6' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SHOW CREATE USER invalid_user;
+ERROR HY000: Operation SHOW CREATE USER failed for 'invalid_user'@'%'
+# case3 with all global privileges except SELECT
+GRANT ALL ON *.* TO user1@localhost;
+REVOKE SELECT ON *.* FROM user1@localhost;
+REVOKE CREATE USER ON *.* FROM user1@localhost;
+REVOKE SELECT ON mysql.* FROM user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+Grants for user1@localhost
+GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER, CREATE TABLESPACE ON *.* TO 'user1'@'localhost'
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@localhost
+SHOW CREATE USER user1@localhost;
+CREATE USER for user1@localhost
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SHOW CREATE USER user1@47.9.9.9;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+# case4 with irrelevant privilege on mysql db
+REVOKE ALL ON *.* FROM user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+Grants for user1@localhost
+GRANT USAGE ON *.* TO 'user1'@'localhost'
+GRANT UPDATE ON mysql.* TO user1@localhost;
+SHOW GRANTS FOR user1@localhost;
+Grants for user1@localhost
+GRANT USAGE ON *.* TO 'user1'@'localhost'
+GRANT UPDATE ON `mysql`.* TO 'user1'@'localhost'
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+user1@localhost	user1@localhost
+SHOW CREATE USER user1@localhost;
+CREATE USER for user1@localhost
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'mysql_native_password' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+SHOW CREATE USER user1@47.9.9.9;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+SHOW CREATE USER user2;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+SHOW CREATE USER invalid_user;
+ERROR 42000: Access denied for user 'user1'@'localhost' to database 'mysql'
+# case4 test for proxy user
+CREATE USER bug20625566_user@localhost IDENTIFIED WITH test_plugin_server
+AS 'bug20625566_dest';
+CREATE USER bug20625566_dest@localhost IDENTIFIED BY 'dest_password';
+GRANT PROXY ON bug20625566_dest@localhost TO bug20625566_user@localhost;
+SELECT USER(), CURRENT_USER();
+USER()	CURRENT_USER()
+bug20625566_user@localhost	bug20625566_dest@localhost
+SHOW CREATE USER bug20625566_user@localhost;
+ERROR 42000: Access denied for user 'bug20625566_dest'@'localhost' to database 'mysql'
+SHOW CREATE USER bug20625566_dest@localhost;
+CREATE USER for bug20625566_dest@localhost
+CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*64AC67AF30F51749441BE9044F20D83D608F4B33' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+DROP USER user1@localhost, user1@47.9.9.9, user2,
+bug20625566_user@localhost, bug20625566_dest@localhost;
