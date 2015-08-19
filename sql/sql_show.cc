@@ -2805,18 +2805,17 @@ inline void make_upper(char *buf)
 /**
   Returns the value of a system or a status variable.
 
-  @param thd        [IN]    The thd handle.
-  @param variable   [IN]    Details of the variable.
-  @param value_type [IN]    Variable type.
-  @param show_type  [IN]    Variable show type.
-  @param status_var
-  @param charset    [OUT]   Character set of the value.
-  @param buff       [INOUT] Buffer to store the value.
-                            (Needs to have enough memory
-			     to hold the value of variable.)
-  @param length     [OUT]   Length of the value.
+  @param thd        [in]     The handle of the current THD.
+  @param variable   [in]     Details of the variable.
+  @param value_type [in]     Variable type.
+  @param show_type  [in]     Variable show type.
+  @param charset    [out]    Character set of the value.
+  @param buff       [in,out] Buffer to store the value.
+                             (Needs to have enough memory
+                             to hold the value of variable.)
+  @param length     [out]    Length of the value.
 
-  @return                   Pointer to the value buffer.
+  @return                    Pointer to the value buffer.
 */
 
 const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
@@ -2824,6 +2823,34 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
                              System_status_var *status_var,
                              const CHARSET_INFO **charset, char *buff,
                              size_t *length)
+{
+  return get_one_variable_ext(thd, thd, variable, value_type, show_type,
+                              status_var, charset, buff, length);
+}
+
+/**
+  @brief Returns the value of a system or a status variable.
+
+  @param running_thd [in]     The handle of the current THD.
+  @param target_thd  [in]     The handle of the remote THD.
+  @param variable    [in]     Details of the variable.
+  @param value_type  [in]     Variable type.
+  @param show_type   [in]     Variable show type.
+  @param charset     [out]    Character set of the value.
+  @param buff        [in,out] Buffer to store the value.
+                              (Needs to have enough memory
+                              to hold the value of variable.)
+  @param length      [out]    Length of the value.
+
+  @return                     Pointer to the value buffer.
+*/
+
+const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
+                                 const SHOW_VAR *variable,
+                                 enum_var_type value_type, SHOW_TYPE show_type,
+                                 system_status_var *status_var,
+                                 const CHARSET_INFO **charset, char *buff,
+                                 size_t *length)
 {
   const char *value;
 
@@ -2834,8 +2861,8 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
     null_lex_str.length= 0;
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
-    value= (char*) var->value_ptr(thd, thd, value_type, &null_lex_str);
-    *charset= var->charset(thd);
+    value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
+    *charset= var->charset(running_thd);
   }
   else
   {
