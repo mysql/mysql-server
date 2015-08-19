@@ -162,9 +162,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
     mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
 
     relay_log.init_pthread_objects();
-    do_server_version_split(::server_version, slave_version_split);
     force_flush_postponed_due_to_split_trans= false;
   }
+  do_server_version_split(::server_version, slave_version_split);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2516,15 +2517,19 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
 }
 
 /**
-   Delete the existing event and set a new one. This class is
-   responsible for freeing the event, the caller should not do that.
-   When a new FD is from the master adaptation routine is invoked
+   The method is run by SQL thread/MTS Coordinator.
+   It replaces the current FD event with a new one.
+   A version adaptation routine is invoked for the new FD
    to align the slave applier execution context with the master version.
 
-   The method is run by SQL thread/MTS Coordinator.
+   Since FD are shared by Coordinator and Workers in the MTS mode,
+   deletion of the old FD is done through decrementing its usage counter.
+   The destructor runs when the later drops to zero,
+   also see @c Slave_worker::set_rli_description_event().
+   The usage counter of the new FD is incremented.
+
    Although notice that MTS worker runs it, inefficiently (see assert),
    once at its destruction time.
-   todo: fix Slave_worker and Relay_log_info inheritance relation.
 
    @param  a pointer to be installed into execution context 
            FormatDescriptor event
@@ -2537,7 +2542,8 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 
   if (fe)
   {
-    adapt_to_master_version(fe);
+    ulong fe_version= adapt_to_master_version(fe);
+
     if (info_thd)
     {
       /*
@@ -2560,21 +2566,29 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
         info_thd->variables.gtid_next.set_not_yet_determined();
       }
 
-      if (is_parallel_exec())
+      if (is_parallel_exec() && fe_version > 0)
       {
+        /*
+          Prepare for workers' adaption to a new FD version. Workers
+          will see notification through scheduling of a first event of
+          a new post-new-FD.
+        */
         for (Slave_worker **it= workers.begin(); it != workers.end(); ++it)
-        {
-          Slave_worker *w= *it;
-          mysql_mutex_lock(&w->jobs_lock);
-          if (w->running_status == Slave_worker::RUNNING)
-            w->set_rli_description_event(fe);
-          mysql_mutex_unlock(&w->jobs_lock);
-        }
+          (*it)->fd_change_notified= false;
       }
     }
   }
-  delete rli_description_event;
+  if (rli_description_event &&
+      rli_description_event->usage_counter.atomic_add(-1) == 1)
+    delete rli_description_event;
+#ifndef DBUG_OFF
+  else
+    /* It must be MTS mode when the usage counter greater than 1. */
+    DBUG_ASSERT(!rli_description_event || is_parallel_exec());
+#endif
   rli_description_event= fe;
+  if (rli_description_event)
+    rli_description_event->usage_counter.atomic_add(1);
 
   DBUG_VOID_RETURN;
 }
@@ -2639,50 +2653,126 @@ static st_feature_version s_features[]=
 };
 
 /**
-   The method lists rules of adaptation for the slave applier 
-   to specific master versions.
-   It's executed right before a new master FD is set for
-   slave appliers execution context.
-   Comparison of the old and new version yields the adaptive
-   actions direction.
-   Current execution FD's version, V_0, is compared with the new being set up
-   FD (the arg), let's call it V_1. 
-   In the case of downgrade features that are defined in [V_0, V_1-1] range 
-   (V_1 excluded) are "removed" by running the downgrade actions.
-   In the upgrade case the featured defined in [V_0 + 1, V_1] range are
-   "added" by running the upgrade actions.
+   The method computes the incoming "master"'s FD server version and that
+   of the currently installed (if ever) rli_description_event, to
+   invoke more specific method to compare the two and adapt slave applier execution
+   context to the new incoming master's version.
 
-   Notice, that due to relay log may have two FD events, one the slave local
-   and the other from the Master. That can lead to extra
-   adapt_to_master_version() calls and in case Slave and Master are of different
-   versions the extra two calls should compensate each other.
+   This method is specifically for STS applier/MTS Coordinator as well as
+   for a user thread applying binlog events.
 
-   Also, at composing downgrade/upgrade actions keep in mind that
-   at initialization Slave sets up FD of version 4.0 and then transits to
-   the current server version. At transition all upgrading actions in 
-   the range of [4.0..current] are run.
-
-   @param fdle  a pointer to new Format Description event that is being set
-                up for execution context.
+   @param  fdle  a pointer to new Format Description event that is being
+                 set up a new execution context.
+   @return 0                when the versions are equal,
+           master_version   otherwise
 */
-void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
+ulong Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
 {
-  THD *thd=info_thd;
-  ulong master_version, current_version;
-  int changed= !fdle || ! rli_description_event ? 0 :
-    (master_version= fdle->get_product_version()) -
-    (current_version= rli_description_event->get_product_version());
+  ulong master_version, current_version, slave_version;
 
-  /* When the last version is not changed nothing to adapt for */
-  if (!changed)
-    return;
+  slave_version= version_product(slave_version_split);
+  /* When rli_description_event is uninitialized yet take the slave's version */
+  master_version= !fdle ? slave_version : fdle->get_product_version();
+  current_version= !rli_description_event ? slave_version :
+    rli_description_event->get_product_version();
 
+  return adapt_to_master_version_updown(master_version, current_version);
+}
+
+/**
+  The method compares two supplied versions and carries out down- or
+  up- grade customization of execution context of the slave applier
+  (thd).
+
+  The method is invoked in the STS case through
+  Relay_log_info::adapt_to_master_version() right before a new master
+  FD is installed into the applier execution context; in the MTS
+  case it's done by the Worker when it's assigned with a first event
+  after the latest new FD has been installed.
+
+  Comparison of the current (old, existing) and the master (new,
+  incoming) versions yields adaptive actions.
+  To explain that, let's denote V_0 as the current, and the master's
+  one as V_1.
+  In the downgrade case (V_1 < V_0) a server feature that is undefined
+  in V_1 but is defined starting from some V_f of [V_1 + 1, V_0] range
+  (+1 to mean V_1 excluded) are invalidated ("removed" from execution context)
+  by running so called here downgrade action.
+  Conversely in the upgrade case a feature defined in [V_0 + 1, V_1] range
+  is validated ("added" to execution context) by running its upgrade action.
+  A typical use case showing how adaptive actions are necessary for the slave
+  applier is when the master version is lesser than the slave's one.
+  In such case events generated on the "older" master may need to be applied
+  in their native server context. And such context can be provided by downgrade
+  actions.
+  Conversely, when the old master events are run out and a newer master's events
+  show up for applying, the execution context will be upgraded through
+  the namesake actions.
+
+  Notice that a relay log may have two FD events, one the slave local
+  and the other from the Master. As there's no concern for the FD
+  originator this leads to two adapt_to_master_version() calls.
+  It's not harmful as can be seen from the following example.
+  Say the currently installed FD's version is
+  V_m, then at relay-log rotation the following transition takes
+  place:
+
+     V_m  -adapt-> V_s -adapt-> V_m.
+
+  here and further `m' subscript stands for the master, `s' for the slave.
+  It's clear that in this case an ineffective V_m -> V_m transition occurs.
+
+  At composing downgrade/upgrade actions keep in mind that the slave applier
+  version transition goes the following route:
+  The initial version is that of the slave server (V_ss).
+  It changes to a magic 4.0 at the slave relay log initialization.
+  In the following course versions are extracted from each FD read out,
+  regardless of what server generated it. Here is a typical version
+  transition sequence underscored with annotation:
+
+   V_ss -> 4.0 -> V(FD_s^1) -> V(FD_m^2)   --->   V(FD_s^3) -> V(FD_m^4)  ...
+
+    ----------     -----------------     --------  ------------------     ---
+     bootstrap       1st relay log       rotation      2nd log            etc
+
+  The upper (^) subscipt enumerates Format Description events, V(FD^i) stands
+  for a function extrating the version data from the i:th FD.
+
+  There won't be any action to execute when info_thd is undefined,
+  e.g at bootstrap.
+
+  @param  master_version   an upcoming new version
+  @param  current_version  the current version
+  @return 0                when the new version is equal to the current one,
+          master_version   otherwise
+*/
+ulong Relay_log_info::adapt_to_master_version_updown(ulong master_version,
+                                                     ulong current_version)
+{
+  THD *thd= info_thd;
   /*
+    When the SQL thread or MTS Coordinator executes this method
+    there's a constraint on current_version argument.
+  */
+  DBUG_ASSERT(!thd ||
+              thd->rli_fake != NULL ||
+              thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER ||
+              (thd->system_thread == SYSTEM_THREAD_SLAVE_SQL &&
+               (!rli_description_event ||
+                current_version ==
+                rli_description_event->get_product_version())));
+
+  if (master_version == current_version)
+    return 0;
+  else if (!thd)
+    return master_version;
+
+  bool downgrade= master_version < current_version;
+   /*
     find item starting from and ending at for which adaptive actions run
     for downgrade or upgrade branches.
     (todo: convert into bsearch when number of features will grow significantly)
   */
-  bool downgrade= changed < 0;
   long i, i_first= st_feature_version::_END_OF_LIST, i_last= i_first;
 
   for (i= 0; i < st_feature_version::_END_OF_LIST; i++)
@@ -2724,6 +2814,8 @@ void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
       s_features[i].upgrade(thd);
     }
   }
+
+  return master_version;
 }
 
 void Relay_log_info::relay_log_number_to_name(uint number,

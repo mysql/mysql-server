@@ -3097,6 +3097,21 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 #endif
   }
 
+  /* Notify the worker about new FD */
+  if (!ret_worker->fd_change_notified)
+  {
+    if (!ptr_group)
+      ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    /*
+      Increment the usage counter on behalf of Worker.
+      This avoids inadvertent FD deletion in a race case where Coordinator
+      would install a next new FD before Worker has noticed the previous one.
+    */
+    rli->get_rli_description_event()->usage_counter.atomic_add(1);
+    ptr_group->new_fd_event= rli->get_rli_description_event();
+    ret_worker->fd_change_notified= true;
+  }
+
   if (ends_group() ||
       (!rli->curr_group_seen_begin &&
        (get_type_code() == binary_log::QUERY_EVENT ||
