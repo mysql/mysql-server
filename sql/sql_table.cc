@@ -4508,7 +4508,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	< compress->length)
     {
       my_error(ER_WRONG_STRING_LENGTH, MYF(0),
-	       compress->str, "COMPRESS", TABLE_COMMENT_MAXLEN);
+	       compress->str, "COMPRESSION", TABLE_COMMENT_MAXLEN);
       DBUG_RETURN(TRUE);
     }
   }
