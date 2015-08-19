@@ -274,6 +274,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   relay_log_change_notified= FALSE; // the 1st group to contain relaylog name
   checkpoint_notified= FALSE;       // the same as above
   master_log_change_notified= false;// W learns master log during 1st group exec
+  fd_change_notified= false; // W is to learn master FD version same as above
+  server_version= version_product(rli->slave_version_split);
   bitmap_shifted= 0;
   workers= c_rli->workers; // shallow copying is sufficient
   wq_empty_waits= wq_size_waits_cnt= groups_done= events_done= curr_jobs= 0;
@@ -2555,6 +2557,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
 
   while (1)
   {
+    Slave_job_group *ptr_g;
+
     if (unlikely(thd->killed || worker->running_status == Slave_worker::STOP_ACCEPTED))
     {
       DBUG_ASSERT(worker->running_status != Slave_worker::ERROR_LEAVING);
@@ -2577,6 +2581,13 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
     set_timespec_nsec(&worker->ts_exec[0], 0); // pre-exec
     worker->stats_read_time += diff_timespec(&worker->ts_exec[0],
                                              &worker->ts_exec[1]);
+    /* Adapting to possible new Format_description_log_event */
+    ptr_g= rli->gaq->get_job_group(ev->mts_group_idx);
+    if (ptr_g->new_fd_event)
+    {
+      worker->set_rli_description_event(ptr_g->new_fd_event);
+      ptr_g->new_fd_event= NULL;
+    }
 
     error= worker->slave_worker_exec_event(ev);
 

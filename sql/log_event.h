@@ -1723,6 +1723,23 @@ class Format_description_log_event: public Format_description_event,
                                     public Start_log_event_v3
 {
 public:
+  /*
+    MTS Workers and Coordinator share the event and that affects its
+    destruction. Instantiation is always done by Coordinator/SQL thread.
+    Workers are allowed to destroy only "obsolete" instances, those
+    that are not actual for Coordinator anymore but needed to Workers
+    that are processing queued events depending on the old instance.
+    The counter of a new FD is incremented by Coordinator or Worker at
+    time of {Relay_log_info,Slave_worker}::set_rli_description_event()
+    execution.
+    In the same methods the counter of the "old" FD event is decremented
+    and when it drops to zero the old FD is deleted.
+    The latest read from relay-log event is to be
+    destroyed by Coordinator/SQL thread at its thread exit.
+    Notice the counter is processed even in the single-thread mode where
+    decrement and increment are done by the single SQL thread.
+  */
+  Atomic_int32 usage_counter;
   Format_description_log_event(uint8_t binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_event
