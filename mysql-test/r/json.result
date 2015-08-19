@@ -13267,3 +13267,16 @@ select row(uuid(), a) < row(a, str_to_date(1,1)) from t;
 row(uuid(), a) < row(a, str_to_date(1,1))
 1
 drop table t;
+# Bug#21547877: UPDATE/INSERT JSON COLUMN CRASHES IF EXPRESSION
+#               REFERS TO SELF
+#
+SET NAMES latin1;
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES ('{}');
+UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
+ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value (or column) '1111-11-11'.
+SELECT * FROM t;
+j
+{}
+DROP TABLE t;
+SET NAMES DEFAULT;
