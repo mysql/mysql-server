@@ -2848,7 +2848,7 @@ const char* get_one_variable(THD *thd, const SHOW_VAR *variable,
 const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  const SHOW_VAR *variable,
                                  enum_var_type value_type, SHOW_TYPE show_type,
-                                 system_status_var *status_var,
+                                 System_status_var *status_var,
                                  const CHARSET_INFO **charset, char *buff,
                                  size_t *length)
 {
