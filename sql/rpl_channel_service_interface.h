@@ -216,18 +216,20 @@ int channel_purge_queue(const char* channel, bool reset_all);
 bool channel_is_active(const char* channel, enum_channel_thread_types type);
 
 /**
-  Returns the ids of the channel appliers.
-  If more than one applier exists, a channel is returned
+  Returns the id(s) of the channel threads: receiver or applier.
+  If more than one applier exists, an array is returned
 
   @param[in]  channel      The channel name
-  @param[out] appliers_id  The array of id(s)
+  @param[in]  thread_type  The thread type (receiver or applier)
+  @param[out] thread_id    The array of id(s)
 
   @return the number of returned ids
-    @retval <=0  the channel does no exists, or the applier is not present
-    @retval >0 the number of applier ids returned.
+    @retval -1  the channel does no exists, or the thread is not present
+    @retval >0 the number of thread ids returned.
 */
-int channel_get_appliers_thread_id(const char* channel,
-                                   unsigned long** appliers_id);
+int channel_get_thread_id(const char* channel,
+                          enum_channel_thread_types thread_type,
+                          unsigned long** thread_id);
 
 /**
   Returns last GNO from applier from a given UUID.
