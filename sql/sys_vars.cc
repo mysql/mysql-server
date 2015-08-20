@@ -741,9 +741,10 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        " transactions before it flush the transactions to the binary log (and"
        " optionally sync, depending on the value of sync_binlog).",
        GLOBAL_VAR(opt_binlog_max_flush_queue_time),
-       CMD_LINE(REQUIRED_ARG),
+       CMD_LINE(REQUIRED_ARG, OPT_BINLOG_MAX_FLUSH_QUEUE_TIME),
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
        "binlog_group_commit_sync_delay",
