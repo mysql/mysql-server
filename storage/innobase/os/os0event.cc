@@ -217,18 +217,17 @@ private:
 	);
 
 private:
-	EventMutex		mutex;		/*!< this mutex protects
-						the next fields */
-
 	bool			m_set;		/*!< this is true when the
 						event is in the signaled
 						state, i.e., a thread does
 						not stop if it tries to wait
 						for this event */
-
 	int64_t			signal_count;	/*!< this is incremented
 						each time the event becomes
 						signaled */
+	EventMutex		mutex;		/*!< this mutex protects
+						the next fields */
+
 
 	os_cond_t		cond_var;	/*!< condition variable is
 						used in waiting for the event */
