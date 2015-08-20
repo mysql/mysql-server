@@ -35,14 +35,18 @@ Created 2012-09-23 Sunny Bains (Split from os0sync.h)
 #include "univ.i"
 
 #ifdef _WIN32
+
 /** On Windows, InterlockedExchange operates on LONG variable */
 typedef LONG	lock_word_t;
-#else
-# ifdef HAVE_IB_LINUX_FUTEX
+
+#elif defined(MUTEX_FUTEX)
+
 typedef int	lock_word_t;
+
 # else
+
 typedef ulint	lock_word_t;
-# endif
+
 #endif /* _WIN32 */
 
 #if defined __i386__ || defined __x86_64__ || defined _M_IX86 \

@@ -671,15 +671,17 @@ struct log_group_t{
 
 /** Redo log buffer */
 struct log_t{
-	byte		pad[64];	/*!< padding to prevent other memory
+	char		pad1[CACHE_LINE_SIZE];
+					/*!< Padding to prevent other memory
 					update hotspots from residing on the
 					same memory cache line */
 	lsn_t		lsn;		/*!< log sequence number */
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
+	char		pad2[CACHE_LINE_SIZE];/*!< Padding */
 	LogSysMutex	mutex;		/*!< mutex protecting the log */
-
+	char		pad3[CACHE_LINE_SIZE];/*!< Padding */
 	FlushOrderMutex	log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
