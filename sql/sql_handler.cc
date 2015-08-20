@@ -774,8 +774,11 @@ retry:
           is not stored into record buffer, so we can't proceed with the
           index search.
         */
-	if (conv_status == TYPE_ERR_BAD_VALUE)
+        if (conv_status == TYPE_ERR_BAD_VALUE)
+        {
+          my_error(ER_WRONG_ARGUMENTS, MYF(0), "HANDLER ... READ");
           goto err;
+        }
 
 	key_len+=key_part->store_length;
         keypart_map= (keypart_map << 1) | 1;
