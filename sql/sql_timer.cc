@@ -184,6 +184,7 @@ thd_timer_set(THD *thd, THD_timer_info *thd_timer, unsigned long time)
   Reap a (possibly) pending timer object.
 
   @param  thd_timer   Thread timer object.
+  @param  pending
 
   @return true if the timer object is unreachable.
 */

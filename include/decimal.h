@@ -116,9 +116,6 @@ int decimal_shift(decimal_t *dec, int shift);
 #define decimal_string_size(dec) (((dec)->intg ? (dec)->intg : 1) + \
 				  (dec)->frac + ((dec)->frac > 0) + 2)
 
-/* negate a decimal */
-#define decimal_neg(dec) do { (dec)->sign^=1; } while(0)
-
 /*
   conventions:
 

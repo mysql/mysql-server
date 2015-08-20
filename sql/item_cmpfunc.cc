@@ -698,6 +698,17 @@ void Item_bool_func2::fix_length_and_dec()
 
 void Arg_comparator::cleanup()
 {
+  if (comparators != NULL)
+  {
+    /*
+      We cannot rely on (*a)->cols(), since *a may be deallocated
+      at this point, so use comparator_count to loop.
+    */
+    for (size_t i= 0; i < comparator_count; i++)
+    {
+      comparators[i].cleanup();
+    }
+  }
   delete[] comparators;
   comparators= 0;
   delete_json_scalar_holder(json_scalar);
@@ -723,6 +734,8 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
     }
     if (!(comparators= new Arg_comparator[n]))
       return 1;
+    comparator_count= n;
+
     for (uint i=0; i < n; i++)
     {
       if ((*a)->element_index(i)->cols() != (*b)->element_index(i)->cols())

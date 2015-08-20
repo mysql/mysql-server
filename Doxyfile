@@ -858,7 +858,6 @@ EXCLUDE                = cmd-line-utils \
                          plugin \
                          source_downloads \
                          sql/sql_hints.cc \
-                         sql/sql_yacc.cc \
                          storage/innobase/fts/fts0blex.cc \
                          storage/innobase/fts/fts0tlex.cc \
                          storage/ndb \
@@ -883,7 +882,9 @@ EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */include/boost*/* \
                          */sql/*ndb*.h \
                          */sql/*ndb*.cc \
-                         */unittest/*
+                         */unittest/* \
+                         */sql_yacc.cc
+
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
 # (namespaces, classes, functions, etc.) that should be excluded from the

@@ -943,7 +943,7 @@ static COMMANDS commands[] = {
   { "ISNULL", 0, 0, 0, ""},
   { "IS_FREE_LOCK", 0, 0, 0, ""},
   { "IS_USED_LOCK", 0, 0, 0, ""},
-  { "JSON_APPEND", 0, 0, 0, ""},
+  { "JSON_ARRAY_APPEND", 0, 0, 0, ""},
   { "JSON_ARRAY", 0, 0, 0, ""},
   { "JSON_CONTAINS", 0, 0, 0, ""},
   { "JSON_DEPTH", 0, 0, 0, ""},

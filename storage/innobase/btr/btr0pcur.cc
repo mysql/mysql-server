@@ -53,7 +53,7 @@ btr_pcur_create_for_mysql(void)
 }
 
 /**************************************************************//**
-Resets a persistent cursor object, freeing ::old_rec_buf if it is
+Resets a persistent cursor object, freeing "::old_rec_buf" if it is
 allocated and resetting the other members to their initial values. */
 void
 btr_pcur_reset(

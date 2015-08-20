@@ -1830,6 +1830,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
 /**
   Merges buffers to make < MERGEBUFF2 buffers.
 
+  @param thd
   @param param        Sort parameters.
   @param sort_buffer  The main memory buffer.
   @param chunk_array  Array of chunk descriptors to merge.
@@ -2031,6 +2032,7 @@ struct Merge_chunk_less
 /**
   Merge buffers to one buffer.
 
+  @param thd
   @param param          Sort parameter
   @param from_file      File with source data (Merge_chunks point to this file)
   @param to_file        File to write the sorted result data.

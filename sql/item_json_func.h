@@ -501,20 +501,20 @@ public:
 };
 
 /**
-  Represents the JSON function JSON_APPEND()
+  Represents the JSON function JSON_ARRAY_APPEND()
 */
-class Item_func_json_append :public Item_json_func
+class Item_func_json_array_append :public Item_json_func
 {
   String m_doc_value;
 
 public:
-  Item_func_json_append(THD *thd, const POS &pos, PT_item_list *a)
+  Item_func_json_array_append(THD *thd, const POS &pos, PT_item_list *a)
     : Item_json_func(thd, pos, a)
   {}
 
   const char *func_name() const
   {
-    return "json_append";
+    return "json_array_append";
   }
 
   bool val_json(Json_wrapper *wr);

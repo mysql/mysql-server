@@ -247,6 +247,8 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
                        the record in the original table.
                        If modify_item is 0 then fill_record() will update
                        the temporary table
+  @param table_cant_handle_bit_fields
+  @param make_copy_field
 
   @retval
     NULL		on error
@@ -2318,8 +2320,9 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
                           instantiated
   @param  keyinfo         Description of the index (there is always one index)
   @param  start_recinfo   Column descriptions
-  @param  recinfo INOUT   End of column descriptions
+  @param[in,out]  recinfo End of column descriptions
   @param  options         Option bits
+  @param  big_tables
   @param  trace           Optimizer trace to write info to
 
   @details

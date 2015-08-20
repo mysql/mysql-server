@@ -3389,8 +3389,30 @@ int init_ssl()
     ERR_remove_state(0);
     if (!ssl_acceptor_fd)
     {
-      sql_print_warning("Failed to setup SSL");
-      sql_print_warning("SSL error: %s", sslGetErrString(error));
+      /*
+        No real need for opt_use_ssl to be enabled in bootstrap mode,
+        but we want the SSL materal generation and/or validation (if supplied).
+        So we keep it on.
+
+        For yaSSL (since it can't auto-generate the certs from inside the
+        server) we need to hush the warning if in bootstrap mode, as in
+        that mode the server won't be listening for connections and thus
+        the lack of SSL material makes no real difference.
+        However if the user specified any of the --ssl options we keep the
+        warning as it's showing problems with the values supplied.
+
+        For openssl, we don't hush the option since it would indicate a failure
+        in auto-generation, bad key material explicitly specified or
+        auto-generation disabled explcitly while SSL is still on.
+      */
+#ifdef HAVE_YASSL
+      if (!opt_bootstrap || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
+#endif
+      {
+        sql_print_warning("Failed to set up SSL because of the"
+                          " following SSL library error: %s",
+                          sslGetErrString(error));
+      }
       opt_use_ssl = 0;
       have_ssl= SHOW_OPTION_DISABLED;
     }
@@ -7005,6 +7027,9 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_BINLOG_FORMAT:
     binlog_format_used= true;
+    break;
+  case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
+    push_deprecated_warn_no_replacement(NULL, "--binlog_max_flush_queue_time");
     break;
 #include <sslopt-case.h>
 #ifndef EMBEDDED_LIBRARY

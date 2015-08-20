@@ -168,7 +168,7 @@ SELECT * FROM t1 ORDER BY i;
 UPDATE t1 SET j2 = JSON_REMOVE(j, '$[1]');
 SELECT * FROM t1 ORDER BY i;
 
-UPDATE t1 SET j2 = JSON_APPEND(j, '$[1]', 'abc');
+UPDATE t1 SET j2 = JSON_ARRAY_APPEND(j, '$[1]', 'abc');
 SELECT * FROM t1 ORDER BY i;
 
 UPDATE t1 SET j2 = JSON_SET(j, '$[1]', 'abc');

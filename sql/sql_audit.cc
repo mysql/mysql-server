@@ -736,6 +736,7 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 
   @param[in]   thd              MySQL thread handle
   @param[in]   event_class      Audit event class
+  @param       event_subclass
 
   @details Ensure that audit plugins interested in given event
   class are locked by current thread.
@@ -1041,6 +1042,7 @@ static my_bool plugins_dispatch_bool(THD *thd, plugin_ref plugin, void *arg)
   Distributes an audit event to plug-ins
   
   @param[in] thd
+  @param     event_class
   @param[in] event
 */
 

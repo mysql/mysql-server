@@ -309,7 +309,7 @@ typedef enum {
 					a prefix of a fixed length column) */
 } ib_match_mode_t;
 
-/** @struct ib_col_meta_t InnoDB column meta data. */
+/** InnoDB column meta data. */
 typedef struct {
 	ib_col_type_t	type;		/*!< Type of the column */
 

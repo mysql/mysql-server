@@ -63,14 +63,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_while_writing_redo_log";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 select * from t where f < 2.5;
@@ -96,14 +93,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_after_redo_log_write_complete";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -131,14 +125,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_drop_of_clust_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -162,13 +153,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_drop_of_uniq_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/start_mysqld.inc
 #
 check table t;
 select * from t;
@@ -193,14 +182,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_drop_of_sec_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -230,14 +216,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_drop_reinit_done_create_to_start";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -265,14 +248,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_create_of_clust_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -296,14 +276,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_create_of_uniq_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -327,14 +304,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_create_of_sec_index";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -363,14 +337,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_on_updating_dict_sys_info";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -398,14 +369,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_before_log_removal";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');
@@ -428,14 +396,11 @@ select * from t;
 check table t;
 #
 set session debug = "+d,ib_trunc_crash_after_truncate_done";
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/expect_crash.inc
 --error 2013
 truncate table t;
 #
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
+--source include/start_mysqld.inc
 check table t;
 select * from t;
 insert into t values (1, 1.1, 'a'), (2, 2.2, 'b'), (3, 3.3, 'c');

@@ -503,6 +503,8 @@ bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
   Convert longlong value to datetime value with a warning.
   @param       nr      The value to convert from.
   @param[out]  ltime   The variable to convert to.
+  @param       flags
+
   @return              False on success, true on error.
 */
 bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
@@ -781,6 +783,7 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
   Convert time to datetime.
 
   The time value is added to the current datetime value.
+  @param thd
   @param [in] ltime    Time value to convert from.
   @param [out] ltime2   Datetime value to convert to.
 */
@@ -1516,6 +1519,8 @@ bool my_time_round(MYSQL_TIME *ltime, uint dec)
 
   @param [in,out] ltime    The value to round.
   @param         dec      Precision.
+  @param          warnings
+
   @return        False on success, true on error.
 */
 bool my_datetime_round(MYSQL_TIME *ltime, uint dec, int *warnings)

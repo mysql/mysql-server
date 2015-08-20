@@ -94,7 +94,6 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
   @param fields       The insert fields.
   @param value_count  Number of values supplied
   @param value_count_known if false, delay field count check
-                      @todo: Eliminate this when preparation is properly phased
   @param check_unique If duplicate values should be rejected.
 
   @return false if success, true if error
@@ -106,6 +105,7 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
         - Rearrange the call to check_insert_fields() from
           mysql_prepare_insert() so that the value_count is known also when
           processing a prepared statement.
+        - Eliminate value_count_known when preparation is properly phased
 */
 
 static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
