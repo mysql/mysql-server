@@ -160,6 +160,7 @@ ut_allocator::get_mem_key()):
 Keep this list alphabetically sorted. */
 extern PSI_memory_key	mem_key_ahi;
 extern PSI_memory_key	mem_key_buf_buf_pool;
+extern PSI_memory_key	mem_key_buf_stat_per_index_t;
 extern PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
 extern PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
@@ -169,6 +170,7 @@ extern PSI_memory_key	mem_key_row_log_buf;
 extern PSI_memory_key	mem_key_row_merge_sort;
 extern PSI_memory_key	mem_key_std;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+extern PSI_memory_key	mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
 /** Setup the internal objects needed for UT_NEW() to operate.

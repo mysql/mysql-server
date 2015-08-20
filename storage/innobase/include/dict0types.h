@@ -26,7 +26,8 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0types_h
 #define dict0types_h
 
-#include <ut0mutex.h>
+#include "ibuf0types.h" /* IBUF_SPACE_ID */
+#include "ut0mutex.h"
 
 struct dict_sys_t;
 struct dict_col_t;
@@ -53,7 +54,8 @@ typedef ib_id_t		table_id_t;
 typedef ib_id_t		space_index_t;
 
 /** Globally unique index identifier */
-struct index_id_t {
+class index_id_t {
+public:
 	/** Constructor.
 	@param[in]	space_id	Tablespace identifier
 	@param[in]	index_id	Index identifier */
@@ -77,6 +79,25 @@ struct index_id_t {
 	{
 		return(m_space_id == other.m_space_id
 		       && m_index_id == other.m_index_id);
+	}
+
+	/** Convert an index_id to a 64 bit integer.
+	@return a 64 bit integer */
+	uint64_t
+	conv_to_int() const
+	{
+		ut_ad((m_index_id & 0xFFFFFFFF00000000ULL) == 0);
+
+		return(static_cast<uint64_t>(m_space_id) << 32 | m_index_id);
+	}
+
+	/** Check if the index belongs to the insert buffer.
+	@return true if the index belongs to the insert buffer */
+	bool
+	is_ibuf() const
+	{
+		return(m_space_id == IBUF_SPACE_ID
+		       && m_index_id == DICT_IBUF_ID_MIN + IBUF_SPACE_ID);
 	}
 
 	/** Tablespace identifier */

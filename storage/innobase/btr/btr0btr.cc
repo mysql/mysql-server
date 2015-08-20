@@ -39,6 +39,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0sea.h"
 #include "btr0pcur.h"
+#include "buf0stats.h"
 #include "rem0cmp.h"
 #include "lock0lock.h"
 #include "ibuf0ibuf.h"
@@ -371,6 +372,10 @@ btr_page_create(
 	}
 
 	btr_page_set_index_id(page, page_zip, index->id, mtr);
+
+	if (level == 0) {
+		buf_stat_per_index->inc(index_id_t(index->space, index->id));
+	}
 }
 
 /**************************************************************//**
@@ -1120,6 +1125,8 @@ btr_create(
 	correctness of split algorithms */
 
 	ut_ad(page_get_max_insert_size(page, 2) > 2 * BTR_PAGE_MAX_REC_SIZE);
+
+	buf_stat_per_index->inc(index_id_t(space, index_id));
 
 	return(page_no);
 }

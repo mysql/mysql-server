@@ -34,6 +34,7 @@ const size_t	alloc_max_retries = 60;
 Keep this list alphabetically sorted. */
 PSI_memory_key	mem_key_ahi;
 PSI_memory_key	mem_key_buf_buf_pool;
+PSI_memory_key	mem_key_buf_stat_per_index_t;
 PSI_memory_key	mem_key_dict_stats_bg_recalc_pool_t;
 PSI_memory_key	mem_key_dict_stats_index_map_t;
 PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
@@ -43,6 +44,7 @@ PSI_memory_key	mem_key_row_log_buf;
 PSI_memory_key	mem_key_row_merge_sort;
 PSI_memory_key	mem_key_std;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
+PSI_memory_key	mem_key_ut_lock_free_hash_t;
 /* Please obey alphabetical order in the definitions above. */
 
 #ifdef UNIV_PFS_MEMORY
@@ -62,6 +64,7 @@ Keep this list alphabetically sorted. */
 static PSI_memory_info	pfs_info[] = {
 	{&mem_key_ahi, "adaptive hash index", 0},
 	{&mem_key_buf_buf_pool, "buf_buf_pool", 0},
+	{&mem_key_buf_stat_per_index_t, "buf_stat_per_index_t", 0},
 	{&mem_key_dict_stats_bg_recalc_pool_t, "dict_stats_bg_recalc_pool_t", 0},
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
@@ -71,6 +74,7 @@ static PSI_memory_info	pfs_info[] = {
 	{&mem_key_row_merge_sort, "row_merge_sort", 0},
 	{&mem_key_std, "std", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
+	{&mem_key_ut_lock_free_hash_t, "ut_lock_free_hash_t", 0},
 	/* Please obey alphabetical order in the definitions above. */
 };
 

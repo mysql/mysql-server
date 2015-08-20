@@ -41,6 +41,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0dblwr.h"
 #include "buf0flu.h"
 #include "buf0rea.h"
+#include "buf0stats.h"
 #include "btr0sea.h"
 #include "ibuf0ibuf.h"
 #include "os0file.h"
@@ -2139,6 +2140,7 @@ buf_LRU_block_remove_hashed(
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_FILE_PAGE:
+	{
 		UNIV_MEM_ASSERT_W(bpage, sizeof(buf_block_t));
 		UNIV_MEM_ASSERT_W(((buf_block_t*) bpage)->frame,
 				  UNIV_PAGE_SIZE);
@@ -2193,7 +2195,29 @@ buf_LRU_block_remove_hashed(
 
 			break;
 		}
+
+		/* Account the eviction of index leaf pages from
+		the buffer pool(s). */
+
+		const byte*	frame
+			= bpage->zip.data != NULL
+			? bpage->zip.data
+			: reinterpret_cast<buf_block_t*>(bpage)->frame;
+
+		const ulint	type = fil_page_get_type(frame);
+
+		if ((type == FIL_PAGE_INDEX || type == FIL_PAGE_RTREE)
+		    && btr_page_get_level_low(frame) == 0) {
+
+			uint32_t	space_id = bpage->id.space();
+
+			space_index_t	idx_id = btr_page_get_index_id(frame);
+
+			buf_stat_per_index->dec(index_id_t(space_id, idx_id));
+		}
+
 		/* fall through */
+	}
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_a(bpage->oldest_modification == 0);
 		if (bpage->size.is_compressed()) {

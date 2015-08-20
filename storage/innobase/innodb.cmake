@@ -38,10 +38,6 @@ IF(UNIX)
       LINK_LIBRARIES(aio)
     ENDIF()
 
-    IF(HAVE_LIBNUMA)
-      LINK_LIBRARIES(numa)
-    ENDIF()
-
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
@@ -299,10 +295,13 @@ IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
     HAVE_LIBNUMA)
 ENDIF()
 
+IF(HAVE_LIBNUMA)
+    LINK_LIBRARIES(numa)
+ENDIF()
+
 SET(WITH_NUMA 1 CACHE BOOL "Explicitly set NUMA memory allocation policy")
 
-# Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
-
+		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
+		    ${BOOST_INCLUDE_DIR})

@@ -44,6 +44,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
+#include "buf0stats.h"
 #include "lock0lock.h"
 #include "sync0rw.h"
 #include "btr0sea.h"
@@ -312,6 +313,10 @@ static rw_lock_t*	buf_chunk_map_latch;
 /** Disable resizing buffer pool to make assertion code not expensive. */
 my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
 #endif /* UNIV_DEBUG */
+
+/** Container for how many pages from each index are contained in the buffer
+pool(s). */
+buf_stat_per_index_t*	buf_stat_per_index;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** This is used to insert validation operations in execution
@@ -1355,6 +1360,9 @@ buf_pool_init(
 
 	btr_search_sys_create(buf_pool_get_curr_size() / sizeof(void*) / 64);
 
+	buf_stat_per_index = UT_NEW(buf_stat_per_index_t(),
+				    mem_key_buf_stat_per_index_t);
+
 #if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
 		ib::info() << "Setting NUMA memory policy to MPOL_DEFAULT";
@@ -1376,6 +1384,8 @@ buf_pool_free(
 /*==========*/
 	ulint	n_instances)	/*!< in: numbere of instances to free */
 {
+	UT_DELETE(buf_stat_per_index);
+
 	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
@@ -4962,28 +4972,47 @@ buf_page_monitor(
 	const buf_page_t*	bpage,	/*!< in: pointer to the block */
 	enum buf_io_fix		io_type)/*!< in: io_fix types */
 {
-	const byte*	frame;
 	monitor_id_t	counter;
 
-	/* If the counter module is not turned on, just return */
+	ut_a(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
+
+	const byte*		frame = bpage->zip.data != NULL
+		? bpage->zip.data
+		: ((buf_block_t*) bpage)->frame;
+
+	const ulint		page_type = fil_page_get_type(frame);
+
+	bool			is_leaf = false;
+	bool			is_ibuf = false;
+
+	if (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE) {
+
+		is_leaf = page_is_leaf(frame);
+
+		const space_index_t	ibuf_index_id
+			= static_cast<space_index_t>(DICT_IBUF_ID_MIN
+						     + IBUF_SPACE_ID);
+
+		const uint32_t		space_id = bpage->id.space();
+		const space_index_t	idx_id = btr_page_get_index_id(frame);
+
+		is_ibuf = space_id == IBUF_SPACE_ID && idx_id == ibuf_index_id;
+
+		/* Account reading of leaf pages into the buffer pool(s). */
+		if (is_leaf && io_type == BUF_IO_READ) {
+			buf_stat_per_index->inc(index_id_t(space_id, idx_id));
+		}
+	}
+
 	if (!MONITOR_IS_ON(MONITOR_MODULE_BUF_PAGE)) {
 		return;
 	}
 
-	ut_a(io_type == BUF_IO_READ || io_type == BUF_IO_WRITE);
-
-	frame = bpage->zip.data
-		? bpage->zip.data
-		: ((buf_block_t*) bpage)->frame;
-
-	switch (fil_page_get_type(frame)) {
+	switch (page_type) {
 	case FIL_PAGE_INDEX:
 		/* Check if it is an index page for insert buffer */
-		if (bpage->id.space() == IBUF_SPACE_ID
-		    && btr_page_get_index_id(frame)
-		    == static_cast<space_index_t>(
-			    DICT_IBUF_ID_MIN + IBUF_SPACE_ID)) {
-			if (page_is_leaf(frame)) {
+		if (is_ibuf) {
+			if (is_leaf) {
 				counter = MONITOR_RW_COUNTER(
 					io_type,
 					MONITOR_INDEX_IBUF_LEAF_PAGE);
@@ -4996,7 +5025,7 @@ buf_page_monitor(
 		}
 		/* fall through */
 	case FIL_PAGE_RTREE:
-		if (page_is_leaf(frame)) {
+		if (is_leaf) {
 			counter = MONITOR_RW_COUNTER(
 				io_type, MONITOR_INDEX_LEAF_PAGE);
 		} else {

@@ -137,7 +137,17 @@ compare to, new_val is the value to swap in. */
 	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
 
 # define os_compare_and_swap_uint32(ptr, old_val, new_val) \
-	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+	(InterlockedCompareExchange(reinterpret_cast<volatile LONG*>(ptr), \
+				    static_cast<LONG>(new_val), \
+				    static_cast<LONG>(old_val)) \
+	 == static_cast<LONG>(old_val))
+
+# define os_compare_and_swap_uint64(ptr, old_val, new_val) \
+	(InterlockedCompareExchange64( \
+			reinterpret_cast<volatile LONGLONG*>(ptr), \
+			static_cast<LONGLONG>(new_val), \
+			static_cast<LONGLONG>(old_val)) \
+	 == static_cast<LONGLONG>(old_val))
 
 /* windows thread objects can always be passed to windows atomic functions */
 # define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
@@ -214,6 +224,9 @@ compare to, new_val is the value to swap in. */
 	os_compare_and_swap(ptr, old_val, new_val)
 
 # define os_compare_and_swap_uint32(ptr, old_val, new_val) \
+	os_compare_and_swap(ptr, old_val, new_val)
+
+#  define os_compare_and_swap_uint64(ptr, old_val, new_val) \
 	os_compare_and_swap(ptr, old_val, new_val)
 
 # ifdef HAVE_IB_ATOMIC_PTHREAD_T_GCC
