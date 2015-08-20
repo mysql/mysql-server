@@ -30,6 +30,7 @@ static MYSQL_PLUGIN plugin_info_ptr;
 int validate_plugin_server_requirements(Trans_param *param);
 int test_channel_service_interface_initialization();
 int test_channel_service_interface();
+int test_channel_service_interface_io_thread();
 
 /*
   Will register the number of calls to each method of Server state
@@ -198,6 +199,8 @@ static int trans_before_dml(Trans_param *param, int& out_val)
                   out_val= 1;);
   DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels",
                   test_channel_service_interface(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channel_io_thread",
+                  test_channel_service_interface_io_thread(););
   DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels_init",
                   test_channel_service_interface_initialization(););
   return 0;
@@ -679,8 +682,9 @@ int test_channel_service_interface()
 
     //Extract the applier id
     long unsigned int * applier_id= NULL;
-    channel_get_appliers_thread_id(interface_channel,
-                                   &applier_id);
+    channel_get_thread_id(interface_channel,
+                          CHANNEL_APPLIER_THREAD,
+                          &applier_id);
     DBUG_ASSERT(*applier_id > 0);
     my_free(applier_id);
 
@@ -708,6 +712,45 @@ int test_channel_service_interface()
     DBUG_ASSERT(error);
 
     return (error && exists && running && gno);
+}
+
+int test_channel_service_interface_io_thread()
+{
+  //The initialization method should return OK
+  int error= initialize_channel_service_interface();
+  DBUG_ASSERT(!error);
+
+  char interface_channel[]= "example_channel";
+
+  //Assert the channel exists
+  bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+  DBUG_ASSERT(exists);
+
+  //Assert that the applier receiver is running
+  bool running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
+  DBUG_ASSERT(running);
+
+  //Extract the receiver id
+  long unsigned int * thread_id= NULL;
+  int num_threads= channel_get_thread_id(interface_channel,
+                                         CHANNEL_APPLIER_THREAD,
+                                         &thread_id);
+  DBUG_ASSERT(num_threads == 1);
+  DBUG_ASSERT(*thread_id > 0);
+  my_free(thread_id);
+
+
+  //Stop the channel
+  error= channel_stop(interface_channel,
+                      3,
+                      10000);
+  DBUG_ASSERT(!error);
+
+  //Assert that the receiver thread is not running
+  running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
+  DBUG_ASSERT(!running);
+
+  return (error && exists && running && num_threads);
 }
 
 /*
