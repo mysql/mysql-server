@@ -7814,6 +7814,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
           key_name= rename_key->new_name;
           rename_key_it.remove();
+          /*
+            If the user has explicitly renamed the key, we should no longer
+            treat it as generated. Otherwise this key might be automatically
+            dropped by mysql_prepare_create_table() and this will confuse
+            code in fill_alter_inplace_info().
+          */
+          key_info->flags &= ~HA_GENERATED_KEY;
           break;
         }
       }
