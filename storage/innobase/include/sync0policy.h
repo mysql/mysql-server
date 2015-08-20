@@ -241,7 +241,7 @@ struct NoPolicy {
 		UNIV_NOTHROW { }
 	void destroy() UNIV_NOTHROW { }
 	void enter(const Mutex&, const char*, ulint line) UNIV_NOTHROW { }
-	void add(ulint, ulint) UNIV_NOTHROW { }
+	void add(uint32_t, uint32_t) UNIV_NOTHROW { }
 	void locked(const Mutex&, const char*, ulint) UNIV_NOTHROW { }
 	void release(const Mutex&) UNIV_NOTHROW { }
 	std::string to_string() const { return(""); };
@@ -291,7 +291,7 @@ public:
 
 		ut_ad(meta.get_id() == id);
 
-		m_count = meta.get_counter()->single_register();
+		meta.get_counter()->single_register(&m_count);
 
 		sync_file_created_register(this, filename, line);
 
@@ -304,9 +304,7 @@ public:
 	{
 		latch_meta_t&	meta = sync_latch_get_meta(m_id);
 
-		meta.get_counter()->single_deregister(m_count);
-
-		m_count = NULL;
+		meta.get_counter()->single_deregister(&m_count);
 
 		sync_file_created_deregister(this);
 
@@ -319,20 +317,21 @@ public:
 	@param[in]	n_waits		Number of times the thread waited
 					in some type of OS queue */
 	void add(
-		ulint			n_spins,
-		ulint			n_waits)
+		uint32_t	n_spins,
+		uint32_t	n_waits)
 		UNIV_NOTHROW
 	{
 		/* Currently global on/off. Keeps things simple and fast */
 
-		if (!MONITOR_IS_ON(MONITOR_LATCHES)) {
+		if (!m_count.m_enabled) {
+
 			return;
 		}
 
-		m_count->m_spins += static_cast<uint32_t>(n_spins);
-		m_count->m_waits += static_cast<uint32_t>(n_waits);
+		m_count.m_spins += n_spins;
+		m_count.m_waits += n_waits;
 
-		++m_count->m_calls;
+		++m_count.m_calls;
 	}
 
 	/** Called when an attempt is made to lock the mutex
@@ -401,7 +400,7 @@ private:
 	typedef latch_meta_t::CounterType Counter;
 
 	/** The user visible counters, registered with the meta-data.  */
-	Counter::Count*		m_count;
+	Counter::Count		m_count;
 
 	/** Latch meta data ID */
 	latch_id_t		m_id;
@@ -484,16 +483,17 @@ public:
 	@param[in]	n_waits		Number of times the thread waited
 					in some type of OS queue */
 	void add(
-		ulint			n_spins,
-		ulint			n_waits)
+		uint32_t	n_spins,
+		uint32_t	n_waits)
 		UNIV_NOTHROW
 	{
-		if (!MONITOR_IS_ON(MONITOR_LATCHES)) {
+		if (!m_count->m_enabled) {
+
 			return;
 		}
 
-		m_count->m_spins += static_cast<uint32_t>(n_spins);
-		m_count->m_waits += static_cast<uint32_t>(n_waits);
+		m_count->m_spins += n_spins;
+		m_count->m_waits += n_waits;
 
 		++m_count->m_calls;
 	}

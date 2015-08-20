@@ -527,7 +527,8 @@ public:
 			:
 			m_spins(),
 			m_waits(),
-			m_calls()
+			m_calls(),
+			m_enabled()
 		{
 			/* No op */
 		}
@@ -549,6 +550,9 @@ public:
 
 		/** Number of times it was called */
 		uint32_t	m_calls;
+
+		/** true if enabled */
+		bool		m_enabled;
 	};
 
 	/** Constructor */
@@ -626,24 +630,19 @@ public:
 		/* Do nothing */
 	}
 
-	/** Register a single instance counter
-	@return instance, must call single_deregister on destroy */
-	Count* single_register()
+	/** Register a single instance counter */
+	void single_register(Count* count)
 		UNIV_NOTHROW
 	{
 		m_mutex.enter();
 
-		Count*	count = UT_NEW_NOKEY(Count());
-
 		m_counters.push_back(count);
 
 		m_mutex.exit();
-
-		return(count);
 	}
 
 	/** Deregister a single instance counter
-	@param[in]	count		The count instance to delete */
+	@param[in]	count		The count instance to deregister */
 	void single_deregister(Count* count)
 		UNIV_NOTHROW
 	{
@@ -654,8 +653,6 @@ public:
 				m_counters.begin(),
 				m_counters.end(), count),
 			m_counters.end());
-
-		UT_DELETE(count);
 
 		m_mutex.exit();
 	}
@@ -679,14 +676,40 @@ public:
 	void enable()
 		UNIV_NOTHROW
 	{
+		m_mutex.enter();
+
+		Counters::const_iterator	end = m_counters.end();
+
+		for (Counters::const_iterator it = m_counters.begin();
+		     it != end;
+		     ++it) {
+
+			(*it)->m_enabled = true;
+		}
+
 		m_active = true;
+
+		m_mutex.exit();
 	}
 
 	/** Disable the monitoring */
 	void disable()
 		UNIV_NOTHROW
 	{
+		m_mutex.enter();
+
+		Counters::const_iterator	end = m_counters.end();
+
+		for (Counters::const_iterator it = m_counters.begin();
+		     it != end;
+		     ++it) {
+
+			(*it)->m_enabled = false;
+		}
+
 		m_active = false;
+
+		m_mutex.exit();
 	}
 
 	/** @return if monitoring is active */
