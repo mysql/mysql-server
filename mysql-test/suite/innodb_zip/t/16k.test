@@ -43,7 +43,7 @@ SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 		INFORMATION_SCHEMA.INNODB_SYS_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
-	ORDER BY t.space, i.page_no;
+	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
