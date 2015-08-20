@@ -6970,6 +6970,9 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_FORMAT:
     binlog_format_used= true;
     break;
+  case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
+    push_deprecated_warn_no_replacement(NULL, "--binlog_max_flush_queue_time");
+    break;
 #include <sslopt-case.h>
 #ifndef EMBEDDED_LIBRARY
   case 'V':
