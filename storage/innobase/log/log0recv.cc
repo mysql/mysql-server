@@ -152,6 +152,14 @@ Please do NOT change this when server is running.
 FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
+#ifndef	DBUG_OFF
+/** Return string name of the redo log record type.
+@param[in]	type	record log record enum
+@return string name of record log record */
+const char*
+get_mlog_string(mlog_id_t type);
+#endif /* !DBUG_OFF */
+
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
@@ -2196,9 +2204,9 @@ recv_recover_page_func(
 
 			DBUG_PRINT("ib_log",
 				   ("apply " LSN_PF ":"
-				    " %d len " ULINTPF " page %u:%u",
+				    " %s len " ULINTPF " page %u:%u",
 				    recv->start_lsn,
-				    recv->type, recv->len,
+				    get_mlog_string(recv->type), recv->len,
 				    recv_addr->space,
 				    recv_addr->page_no));
 
@@ -2997,10 +3005,11 @@ loop:
 #endif /* UNIV_LOG_LSN_DEBUG */
 		default:
 			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": log rec %d"
+				   ("scan " LSN_PF ": log rec %s"
 				    " len " ULINTPF
 				    " page " ULINTPF ":" ULINTPF,
-				    old_lsn, type, len, space, page_no));
+				    old_lsn, get_mlog_string(type),
+				    len, space, page_no));
 
 			switch (store) {
 			case STORE_NO:
@@ -3069,11 +3078,11 @@ loop:
 			}
 
 			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": multi-log rec %d"
+				   ("scan " LSN_PF ": multi-log rec %s"
 				    " len " ULINTPF
 				    " page " ULINTPF ":" ULINTPF,
 				    recv_sys->recovered_lsn,
-				    type, len, space, page_no));
+				    get_mlog_string(type), len, space, page_no));
 		}
 
 		new_recovered_lsn = recv_calc_lsn_on_data_add(
@@ -4213,3 +4222,180 @@ recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 
 	return(result);
 }
+
+#ifndef DBUG_OFF
+/** Return string name of the redo log record type.
+@param[in]	type	record log record enum
+@return string name of record log record */
+const char*
+get_mlog_string(mlog_id_t type)
+{
+	switch (type) {
+	case MLOG_SINGLE_REC_FLAG:
+		return("MLOG_SINGLE_REC_FLAG");
+
+	case MLOG_1BYTE:
+		return("MLOG_1BYTE");
+
+	case MLOG_2BYTES:
+		return("MLOG_2BYTES");
+
+	case MLOG_4BYTES:
+		return("MLOG_4BYTES");
+
+	case MLOG_8BYTES:
+		return("MLOG_8BYTES");
+
+	case MLOG_REC_INSERT:
+		return("MLOG_REC_INSERT");
+
+	case MLOG_REC_CLUST_DELETE_MARK:
+		return("MLOG_REC_CLUST_DELETE_MARK");
+
+	case MLOG_REC_SEC_DELETE_MARK:
+		return("MLOG_REC_SEC_DELETE_MARK");
+
+	case MLOG_REC_UPDATE_IN_PLACE:
+		return("MLOG_REC_UPDATE_IN_PLACE");
+
+	case MLOG_REC_DELETE:
+		return("MLOG_REC_DELETE");
+
+	case MLOG_LIST_END_DELETE:
+		return("MLOG_LIST_END_DELETE");
+
+	case MLOG_LIST_START_DELETE:
+		return("MLOG_LIST_START_DELETE");
+
+	case MLOG_LIST_END_COPY_CREATED:
+		return("MLOG_LIST_END_COPY_CREATED");
+
+	case MLOG_PAGE_REORGANIZE:
+		return("MLOG_PAGE_REORGANIZE");
+
+	case MLOG_PAGE_CREATE:
+		return("MLOG_PAGE_CREATE");
+
+	case MLOG_UNDO_INSERT:
+		return("MLOG_UNDO_INSERT");
+
+	case MLOG_UNDO_ERASE_END:
+		return("MLOG_UNDO_ERASE_END");
+
+	case MLOG_UNDO_INIT:
+		return("MLOG_UNDO_INIT");
+
+	case MLOG_UNDO_HDR_DISCARD:
+		return("MLOG_UNDO_HDR_DISCARD");
+
+	case MLOG_UNDO_HDR_REUSE:
+		return("MLOG_UNDO_HDR_REUSE");
+
+	case MLOG_UNDO_HDR_CREATE:
+		return("MLOG_UNDO_HDR_CREATE");
+
+	case MLOG_REC_MIN_MARK:
+		return("MLOG_REC_MIN_MARK");
+
+	case MLOG_IBUF_BITMAP_INIT:
+		return("MLOG_IBUF_BITMAP_INIT");
+
+#ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN:
+		return("MLOG_LSN");
+#endif /* UNIV_LOG_LSN_DEBUG */
+
+	case MLOG_INIT_FILE_PAGE:
+		return("MLOG_INIT_FILE_PAGE");
+
+	case MLOG_WRITE_STRING:
+		return("MLOG_WRITE_STRING");
+
+	case MLOG_MULTI_REC_END:
+		return("MLOG_MULTI_REC_END");
+
+	case MLOG_DUMMY_RECORD:
+		return("MLOG_DUMMY_RECORD");
+
+	case MLOG_FILE_DELETE:
+		return("MLOG_FILE_DELETE");
+
+	case MLOG_COMP_REC_MIN_MARK:
+		return("MLOG_COMP_REC_MIN_MARK");
+
+	case MLOG_COMP_PAGE_CREATE:
+		return("MLOG_COMP_PAGE_CREATE");
+
+	case MLOG_COMP_REC_INSERT:
+		return("MLOG_COMP_REC_INSERT");
+
+	case MLOG_COMP_REC_CLUST_DELETE_MARK:
+		return("MLOG_COMP_REC_CLUST_DELETE_MARK");
+
+	case MLOG_COMP_REC_SEC_DELETE_MARK:
+		return("MLOG_COMP_REC_SEC_DELETE_MARK");
+
+	case MLOG_COMP_REC_UPDATE_IN_PLACE:
+		return("MLOG_COMP_REC_UPDATE_IN_PLACE");
+
+	case MLOG_COMP_REC_DELETE:
+		return("MLOG_COMP_REC_DELETE");
+
+	case MLOG_COMP_LIST_END_DELETE:
+		return("MLOG_COMP_LIST_END_DELETE");
+
+	case MLOG_COMP_LIST_START_DELETE:
+		return("MLOG_COMP_LIST_START_DELETE");
+
+	case MLOG_COMP_LIST_END_COPY_CREATED:
+		return("MLOG_COMP_LIST_END_COPY_CREATED");
+
+	case MLOG_COMP_PAGE_REORGANIZE:
+		return("MLOG_COMP_PAGE_REORGANIZE");
+
+	case MLOG_ZIP_WRITE_NODE_PTR:
+		return("MLOG_ZIP_WRITE_NODE_PTR");
+
+	case MLOG_ZIP_WRITE_BLOB_PTR:
+		return("MLOG_ZIP_WRITE_BLOB_PTR");
+
+	case MLOG_ZIP_WRITE_HEADER:
+		return("MLOG_ZIP_WRITE_HEADER");
+
+	case MLOG_ZIP_PAGE_COMPRESS:
+		return("MLOG_ZIP_PAGE_COMPRESS");
+
+	case MLOG_ZIP_PAGE_COMPRESS_NO_DATA:
+		return("MLOG_ZIP_PAGE_COMPRESS_NO_DATA");
+
+	case MLOG_ZIP_PAGE_REORGANIZE:
+		return("MLOG_ZIP_PAGE_REORGANIZE");
+
+	case MLOG_FILE_RENAME2:
+		return("MLOG_FILE_RENAME2");
+
+	case MLOG_FILE_NAME:
+		return("MLOG_FILE_NAME");
+
+	case MLOG_CHECKPOINT:
+		return("MLOG_CHECKPOINT");
+
+	case MLOG_PAGE_CREATE_RTREE:
+		return("MLOG_PAGE_CREATE_RTREE");
+
+	case MLOG_COMP_PAGE_CREATE_RTREE:
+		return("MLOG_COMP_PAGE_CREATE_RTREE");
+
+	case MLOG_INIT_FILE_PAGE2:
+		return("MLOG_INIT_FILE_PAGE2");
+
+	case MLOG_TRUNCATE:
+		return("MLOG_TRUNCATE");
+
+	case MLOG_TABLE_DYNAMIC_META:
+		return("MLOG_TABLE_DYNAMIC_META");
+	}
+	DBUG_ASSERT(0);
+	return(NULL);
+}
+#endif /* !DBUG_OFF */
