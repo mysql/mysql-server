@@ -68,7 +68,8 @@ enum certs
   CLIENT_KEY,
   CLIENT_REQ,
   PRIVATE_KEY,
-  PUBLIC_KEY
+  PUBLIC_KEY,
+  OPENSSL_RND
 };
 
 Sql_string_t cert_files[] =
@@ -83,7 +84,8 @@ Sql_string_t cert_files[] =
   create_string("client-key.pem"),
   create_string("client-req.pem"),
   create_string("private_key.pem"),
-  create_string("public_key.pem")
+  create_string("public_key.pem"),
+  create_string(".rnd")
 };
 
 #define MAX_PATH_LEN  (FN_REFLEN - strlen(FN_DIRSEP) \
@@ -551,12 +553,13 @@ int main(int argc, char *argv[])
       X509_key x509_key(suffix_string);
       X509_cert x509_cert;
 
-      /* Delete existing files : Window may have problem if we don't */
+      /* Delete existing files if any */
       remove_file(cert_files[CA_REQ], false);
       remove_file(cert_files[SERVER_REQ], false);
       remove_file(cert_files[CLIENT_REQ], false);
       remove_file(cert_files[CLIENT_CERT], false);
       remove_file(cert_files[CLIENT_KEY], false);
+      remove_file(cert_files[OPENSSL_RND], false);
 
       /* Generate CA Key and Certificate */
       if ((ret_val= execute_command(x509_key("_Auto_Generated_CA_Certificate",
@@ -618,6 +621,8 @@ int main(int argc, char *argv[])
 
       if ((ret_val= remove_file(cert_files[CLIENT_REQ])))
         goto end;
+
+      remove_file(cert_files[OPENSSL_RND], false);
     }
 
     /*
@@ -639,6 +644,10 @@ int main(int argc, char *argv[])
     {
       RSA_priv rsa_priv;
       RSA_pub rsa_pub;
+
+      /* Remove existing file if any */
+      remove_file(cert_files[OPENSSL_RND], false);
+
       if ((ret_val= execute_command(rsa_priv(cert_files[PRIVATE_KEY]),
               "Error generating private_key.pem")))
         goto end;
@@ -651,6 +660,8 @@ int main(int argc, char *argv[])
       if ((ret_val= set_file_pair_permission(cert_files[PRIVATE_KEY],
                                              cert_files[PUBLIC_KEY])))
         goto end;
+
+      remove_file(cert_files[OPENSSL_RND], false);
     }
 
     if (my_setwd(save_wd, MYF(MY_WME)))
