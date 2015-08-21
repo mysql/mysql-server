@@ -2492,8 +2492,12 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         {
           name = fk_split_name(db_and_name, fk.getChildIndex(), true);
           setDbName(ndb, db_and_name);
-          const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
-          if (idx == 0)
+          bool child_primary_key = FALSE;
+          const NDBINDEX * idx = find_matching_index(dict,
+                                                     dsttab.get_table(),
+                                                     cols,
+                                                     child_primary_key);
+          if (!child_primary_key && idx == 0)
           {
             printf("%u %s - %u/%u get_index(%s)\n",
                    __LINE__, fk.getName(),
@@ -2503,7 +2507,8 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
             ERR_RETURN(dict->getNdbError());
           }
           fk.setChild(* dsttab.get_table(), idx, cols);
-          dict->removeIndexGlobal(* idx, 0);
+          if(idx)
+            dict->removeIndexGlobal(*idx, 0);
         }
         else
         {
