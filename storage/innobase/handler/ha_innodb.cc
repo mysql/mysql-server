@@ -13497,7 +13497,17 @@ ha_innobase::info_low(
 
 		KEY*		key = &table->key_info[i];
 
-		const double	pct_cached = index_pct_cached(index);
+		double		pct_cached;
+
+		/* We do not maintain stats for fulltext or spatial indexes.
+		Thus, we can't calculate pct_cached below because we need
+		dict_index_t::stat_n_leaf_pages for that. See
+		dict_stats_should_ignore_index(). */
+		if ((key->flags & HA_FULLTEXT) || (key->flags & HA_SPATIAL)) {
+			pct_cached = IN_MEMORY_ESTIMATE_UNKNOWN;
+		} else {
+			pct_cached = index_pct_cached(index);
+		}
 
 		key->set_in_memory_estimate(pct_cached);
 
