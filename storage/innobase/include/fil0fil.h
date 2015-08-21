@@ -238,15 +238,13 @@ extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
 #define DOT_CFG dot_ext[CFG]
 
-/** Wrapper for a path to a directory.
-This folder may or may not yet esist.  Since not all directory paths
-end in "/", we should only use this for a directory path or a filepath
-that has a ".ibd" extension. */
+/** Wrapper for a path to a directory that may or may not exist. */
 class Folder
 {
 public:
 	/** Default constructor */
-	Folder() : m_folder(NULL) {}
+	Folder() : m_folder(NULL), m_folder_len(0), m_abs_path(), m_abs_len(0)
+	{}
 
 	/** Constructor
 	@param[in]	path	pathname (not necessarily NUL-terminated)
@@ -281,25 +279,27 @@ public:
 	@return the length of m_folder */
 	size_t len()
 	{
-		return m_folder_len;
+		return(m_folder_len);
 	}
 
-	/** Determine if two folders are equal
+	/** Determine if this folder is equal to the other folder.
 	@param[in]	other	folder to compare to
 	@return whether the folders are equal */
-	bool operator==(const Folder& other) const;
+	bool operator==(const Folder& other) const
+	{
+		return(m_abs_len == other.m_abs_len
+		       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
+	}
 
-	/** Determine if the left folder is the same or an ancestor of
-	(contains) the right folder.
-	@param[in]	other	folder to compare to
-	@return whether this is the same or an ancestor or the other folder. */
-	bool operator>=(const Folder& other) const;
-
-	/** Determine if the left folder is an ancestor of (contains)
-	the right folder.
+	/** Determine if this folder is an ancestor of (contains)
+	the other folder.
 	@param[in]	other	folder to compare to
 	@return whether this is an ancestor of the other folder */
-	bool operator>(const Folder& other) const;
+	bool operator>(const Folder& other) const
+	{
+		return(m_abs_len < other.m_abs_len
+		       && (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
+	}
 
 	/** Determine if the directory referenced by m_folder exists.
 	@return whether the directory exists */
@@ -309,11 +309,11 @@ private:
 	/** Build the basic folder name from the path and length provided
 	@param[in]	path	pathname (not necessarily NUL-terminated)
 	@param[in]	len	length of the path, in bytes */
-	void	make_path(const char* path, size_t len);
+	inline void make_path(const char* path, size_t len);
 
 	/** Resolve a relative path in m_folder to an absolute path
 	in m_abs_path setting m_abs_len. */
-	void	make_abs_path();
+	inline void make_abs_path();
 
 	/** The wrapped folder string */
 	char*	m_folder;

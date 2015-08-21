@@ -6618,35 +6618,6 @@ Folder::operator=(const char* path)
 	return(*this);
 }
 
-/** Determine if two folders are equal
-@param[in]	other	folder to compare to
-@return whether the folders are equal */
-bool Folder::operator==(const Folder& other) const
-{
-	return(m_abs_len == other.m_abs_len
-	       && !memcmp(m_abs_path, other.m_abs_path, m_abs_len));
-}
-
-/** Determine if the left folder is the same or an ancestor of
-(contains) the right folder.
-@param[in]	other	folder to compare to
-@return whether this is the same or an ancestor of the other folder. */
-bool Folder::operator>=(const Folder& other) const
-{
-	return(m_abs_len <= other.m_abs_len
-		&& (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
-}
-
-/** Determine if the left folder is an ancestor of (contains)
-the right folder.
-@param[in]	other	folder to compare to
-@return whether this is an ancestor of the other folder */
-bool Folder::operator>(const Folder& other) const
-{
-	return(m_abs_len < other.m_abs_len
-	       && (!memcmp(other.m_abs_path, m_abs_path, m_abs_len)));
-}
-
 /** Determine if the directory referenced by m_folder exists.
 @return whether the directory exists */
 bool
