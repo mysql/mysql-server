@@ -958,3 +958,28 @@
    fun:mi_arena.*
    fun:malloc_info
 }
+
+# Remove the NUMA ones below when https://github.com/numactl/numactl/issues/3
+# is resolved.
+
+{
+   libnuma fails to free its internally allocated memory 1
+   Memcheck:Leak
+   fun:malloc
+   fun:numa_bitmask_alloc
+}
+
+{
+   libnuma fails to free its internally allocated memory 2
+   Memcheck:Leak
+   fun:calloc
+   fun:numa_bitmask_alloc
+}
+
+{
+   libnuma fails to free its internally allocated memory 3
+   Memcheck:Leak
+   fun:calloc
+   fun:*
+   fun:numa_node_to_cpus
+}
