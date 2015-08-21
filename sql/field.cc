@@ -8724,7 +8724,7 @@ uint Field_json::is_equal(Create_field *new_field)
 /**
   Store data in this JSON field.
 
-  JSON data is usually stored using store_dom() or store_json(), so this
+  JSON data is usually stored using store(Field_json*) or store_json(), so this
   function will only be called if non-JSON data is attempted stored in a JSON
   field. This results in an error in most cases.
 
@@ -8753,6 +8753,14 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
+  /*
+    First clear the field so that it doesn't contain garbage if we
+    return with an error. Some callers continue for a while even after
+    an error has been raised, and they could get into trouble if the
+    field contains garbage.
+  */
+  reset();
+
   const char *s;
   size_t ss;
   String v(from, length, cs);
@@ -8777,22 +8785,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
     return TYPE_ERR_BAD_VALUE;
   }
 
-  return store_dom(dom.get());
-}
-
-
-/**
-  Convert a Json_dom object to binary representation and store it in this
-  field.
-
-  @param dom the Json_dom to store
-  @return zero on success, non-zero on failure
-*/
-type_conversion_status Field_json::store_dom(const Json_dom *dom)
-{
-  ASSERT_COLUMN_MARKED_FOR_WRITE;
-
-  if (json_binary::serialize(dom, &value))
+  if (json_binary::serialize(dom.get(), &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -8993,10 +8986,6 @@ String *Field_json::val_str(String *buf1, String *buf2 __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
-  Json_wrapper wr;
-  if (is_null() || val_json(&wr))
-    return NULL;
-
   /*
     Per contract of Field::val_str(String*,String*), buf1 should be
     used if the value needs to be converted to string, and buf2 should
@@ -9004,8 +8993,10 @@ String *Field_json::val_str(String *buf1, String *buf2 __attribute__((unused)))
     so use buf1.
   */
   buf1->length(0);
-  if (wr.to_string(buf1, true, field_name))
-    return NULL;                                /* purecov: inspected */
+
+  Json_wrapper wr;
+  if (is_null() || val_json(&wr) || wr.to_string(buf1, true, field_name))
+    buf1->length(0);
 
   return buf1;
 }

@@ -6043,6 +6043,31 @@ create table t(a json not null) engine=innodb;
 insert into t values('{}');
 select row(uuid(), a) < row(a, str_to_date(1,1)) from t;
 drop table t;
+--echo # Bug#21547877: UPDATE/INSERT JSON COLUMN CRASHES IF EXPRESSION
+--echo #               REFERS TO SELF
+--echo #
+SET NAMES latin1;
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES ('{}');
+--error ER_INVALID_JSON_TEXT
+UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
+SELECT * FROM t;
+DROP TABLE t;
+SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug#21649073: JSON_TYPE RETURNS OPAQUE FOR SOME BINARY VALUES
+--echo #
+SELECT JSON_TYPE(CAST(CAST('abcd' AS BINARY) AS JSON));
+CREATE TABLE t (bn BINARY(5), vb VARBINARY(5),
+                tb TINYBLOB, mb MEDIUMBLOB, bb BLOB, lb LONGBLOB);
+INSERT INTO t (bn) VALUES (x'cafe');
+UPDATE t SET vb = bn, tb = bn, mb = bn, bb = bn, lb = bn;
+SELECT JSON_TYPE(CAST(bn AS JSON)) AS bn, JSON_TYPE(CAST(vb AS JSON)) AS vb,
+       JSON_TYPE(CAST(tb AS JSON)) AS tb, JSON_TYPE(CAST(mb AS JSON)) AS mb,
+       JSON_TYPE(CAST(bb AS JSON)) AS bb, JSON_TYPE(CAST(lb AS JSON)) AS lb
+FROM t;
+DROP TABLE t;
 
 # Local Variables:
 # mode: sql

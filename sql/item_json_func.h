@@ -222,8 +222,8 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 /**
   Check a non-empty val for character set. If it has character set
   my_charset_binary, signal error and return false. Else, try to convert to
-  my_charset_utf8mb4_binary. If this fails, signal error and return false, else
-  return true.
+  my_charset_utf8mb4_binary. If this fails, signal error and return true, else
+  return false.
 
   @param[in]     val       the string to be checked
   @param[in,out] buf       buffer to hold the converted string

@@ -2396,12 +2396,12 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id;
 j	tp
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 "9999-12-31 23:59:59.999999"	DATETIME
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
@@ -3140,7 +3140,7 @@ true	BOOLEAN
 "2010-12-02 02:01:00.000000"	TIMESTAMP
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=4;
@@ -3513,7 +3513,7 @@ true	BOOLEAN
 "2010-12-02 01:02:03.000000"	DATETIME
 "2010-12-02 02:01:00.000000"	DATETIME
 "9999-12-31 23:59:59.999999"	DATETIME
-"base64:type253:MTIzNGFiY2Q="	OPAQUE
+"base64:type253:MTIzNGFiY2Q="	BLOB
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 SET @@max_sort_length=default;
@@ -6328,7 +6328,7 @@ json_type(cast(3.14E30 as json))
 DOUBLE
 select json_type(cast(cast('10101abcde' as binary) as json));
 json_type(cast(cast('10101abcde' as binary) as json))
-OPAQUE
+BLOB
 select json_type(cast(ST_GeomFromText('POINT(1 1)') as json));
 json_type(cast(ST_GeomFromText('POINT(1 1)') as json))
 OBJECT
@@ -13267,3 +13267,33 @@ select row(uuid(), a) < row(a, str_to_date(1,1)) from t;
 row(uuid(), a) < row(a, str_to_date(1,1))
 1
 drop table t;
+# Bug#21547877: UPDATE/INSERT JSON COLUMN CRASHES IF EXPRESSION
+#               REFERS TO SELF
+#
+SET NAMES latin1;
+CREATE TABLE t (j JSON);
+INSERT INTO t VALUES ('{}');
+UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
+ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value (or column) '1111-11-11'.
+SELECT * FROM t;
+j
+{}
+DROP TABLE t;
+SET NAMES DEFAULT;
+#
+# Bug#21649073: JSON_TYPE RETURNS OPAQUE FOR SOME BINARY VALUES
+#
+SELECT JSON_TYPE(CAST(CAST('abcd' AS BINARY) AS JSON));
+JSON_TYPE(CAST(CAST('abcd' AS BINARY) AS JSON))
+BLOB
+CREATE TABLE t (bn BINARY(5), vb VARBINARY(5),
+tb TINYBLOB, mb MEDIUMBLOB, bb BLOB, lb LONGBLOB);
+INSERT INTO t (bn) VALUES (x'cafe');
+UPDATE t SET vb = bn, tb = bn, mb = bn, bb = bn, lb = bn;
+SELECT JSON_TYPE(CAST(bn AS JSON)) AS bn, JSON_TYPE(CAST(vb AS JSON)) AS vb,
+JSON_TYPE(CAST(tb AS JSON)) AS tb, JSON_TYPE(CAST(mb AS JSON)) AS mb,
+JSON_TYPE(CAST(bb AS JSON)) AS bb, JSON_TYPE(CAST(lb AS JSON)) AS lb
+FROM t;
+bn	vb	tb	mb	bb	lb
+BLOB	BLOB	BLOB	BLOB	BLOB	BLOB
+DROP TABLE t;

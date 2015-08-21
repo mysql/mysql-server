@@ -3903,7 +3903,6 @@ public:
 class Field_json :public Field_blob
 {
   type_conversion_status unsupported_conversion();
-  type_conversion_status store_dom(const Json_dom *dom);
   type_conversion_status store_binary(const char *ptr, size_t length);
 public:
   Field_json(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,

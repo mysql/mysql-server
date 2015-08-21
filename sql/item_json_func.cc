@@ -1124,10 +1124,12 @@ static uint opaque_index(enum_field_types field_type)
 
   switch (field_type)
   {
+  case MYSQL_TYPE_VARCHAR:
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
     {
       offset= static_cast<uint>(Json_dom::J_OPAQUE_BLOB);
