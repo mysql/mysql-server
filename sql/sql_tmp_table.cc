@@ -250,10 +250,10 @@ static Field *create_tmp_field_for_schema(THD *thd, Item *item, TABLE *table)
   @param table_cant_handle_bit_fields
   @param make_copy_field
 
-  @retval
-    NULL		on error
-  @retval
-    new_created field
+  @retval NULL On error. This also happens if the item is a prepared statement
+  parameter.
+
+  @retval new_created field
 */
 
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
@@ -398,6 +398,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
       break;
     result->set_derivation(item->collation.derivation);
     break;
+  case Item::PARAM_ITEM:
+    return NULL;
   default:					// Dosen't have to be stored
     DBUG_ASSERT(false);
     break;
@@ -962,6 +964,8 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
       if (!new_field)
       {
+        if (type == Item::PARAM_ITEM)
+          goto update_hidden;
         DBUG_ASSERT(thd->is_fatal_error);
         goto err;				// Got OOM
       }
