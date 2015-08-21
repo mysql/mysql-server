@@ -54,6 +54,7 @@
 #include "sql_plugin.h"                        // opt_plugin_dir_ptr
 #include "transaction.h"                       // trans_begin
 #include "tztime.h"                            // Time_zone
+#include "rpl_group_replication.h"
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -691,6 +692,19 @@ bool start_slave_cmd(THD *thd)
   {
     mi= msr_map.get_mi(lex->mi.channel);
 
+    /*
+      If the channel being used is a group replication channel we need to
+      disable the START SLAVE [IO_THREAD] command as group replication does
+      not support the command.
+    */
+    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(), true)
+        && (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)))
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "START SLAVE [IO_THREAD] FOR CHANNEL", mi->get_channel());
+      goto err;
+    }
+
     if (mi)
       res= start_slave(thd, &thd->lex->slave_connection,
                        &thd->lex->mi, thd->lex->slave_thd_opt, mi, true);
@@ -740,6 +754,20 @@ bool stop_slave_cmd(THD *thd)
   else
   {
     mi= msr_map.get_mi(lex->mi.channel);
+
+    /*
+      If the channel being used is a group replication channel we need to
+      disable the STOP SLAVE [IO_THREAD] command as group replication does
+      not support the command.
+    */
+    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(), true)
+        && (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)))
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "STOP SLAVE [IO_THREAD] FOR CHANNEL", mi->get_channel());
+      mysql_mutex_unlock(&LOCK_msr_map);
+      DBUG_RETURN(true);
+    }
 
     if (mi)
       res= stop_slave(thd, mi, 1 /*net report */);
@@ -3866,6 +3894,21 @@ bool show_slave_status_cmd(THD *thd)
   {
     /* when mi is 0, i.e mi doesn't exist, SSS will return an empty set */
     mi= msr_map.get_mi(lex->mi.channel);
+
+    /*
+      If the channel being used is a group replication applier channel we
+      need to disable the SHOW SLAVE STATUS commannd as its output is not
+      compatible with this command.
+    */
+    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(),
+                                                        true))
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "SHOW SLAVE STATUS", mi->get_channel());
+      mysql_mutex_unlock(&LOCK_msr_map);
+      DBUG_RETURN(true);
+    }
+
     res= show_slave_status(thd, mi);
   }
 
@@ -7722,6 +7765,13 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   DBUG_ASSERT(lock_count == 0);
   lock_count= 1;
 
+  if (mi->get_mi_description_event() == NULL)
+  {
+    sql_print_error("The queue event failed for channel '%s' as its "
+                    "configuration is invalid.", mi->get_channel());
+    goto err;
+  }
+
   /*
     Simulate an unknown ignorable log event by rewriting a Xid
     log event before queuing it into relay log.
@@ -9997,6 +10047,19 @@ bool reset_slave_cmd(THD *thd)
   else
   {
     mi= msr_map.get_mi(lex->mi.channel);
+    /*
+      If the channel being used is a group replication channel and
+      group_replication is still running we need to disable RESET SLAVE [ALL]
+      command.
+    */
+    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(), true)
+        && is_group_replication_running())
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "RESET SLAVE [ALL] FOR CHANNEL", mi->get_channel());
+      mysql_mutex_unlock(&LOCK_msr_map);
+      DBUG_RETURN(true);
+    }
 
     if (mi)
       res= reset_slave(thd, mi, thd->lex->reset_slave_info.all);
