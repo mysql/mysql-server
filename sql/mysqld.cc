@@ -55,6 +55,86 @@
 #include "mysqld_embedded.h"
 #include "mysqld_daemon.h"
 
+#include "errmsg.h"                     // init_client_errs
+#include "keycache.h"                   // KEY_CACHE
+#include "my_bitmap.h"                  // MY_BITMAP
+#include "my_default.h"                 // print_defaults
+#include "my_stacktrace.h"              // my_set_exception_pointers
+#include "my_timer.h"                   // my_timer_initialize
+#include "mysys_err.h"                  // EXIT_OUT_OF_MEMORY
+#include "sql_common.h"                 // mysql_client_plugin_init
+
+#include "auth_common.h"                // grant_init
+#include "binlog.h"                     // mysql_bin_log
+#include "bootstrap.h"                  // bootstrap
+#include "connection_acceptor.h"        // Connection_acceptor
+#include "connection_handler_impl.h"    // Per_thread_connection_handler
+#include "connection_handler_manager.h" // Connection_handler_manager
+#include "current_thd.h"                // current_thd
+#include "debug_sync.h"                 // debug_sync_end
+#include "des_key_file.h"               // load_des_key_file
+#include "events.h"                     // Events
+#include "event_data_objects.h"         // init_scheduler_psi_keys
+#include "hostname.h"                   // hostname_cache_init
+#include "init.h"                       // unireg_init
+#include "item_cmpfunc.h"               // Arg_comparator
+#include "item_strfunc.h"               // Item_func_uuid
+#include "keycaches.h"                  // get_or_create_key_cache
+#include "log.h"                        // sql_print_error
+#include "log_event.h"                  // Rows_log_event
+#include "mysqld_thd_manager.h"         // Global_THD_manager
+#include "options_mysqld.h"             // OPT_THREAD_CACHE_SIZE
+#include "opt_costconstantcache.h"      // delete_optimizer_cost_module
+#include "parse_file.h"                 // File_parser_dummy_hook
+#include "psi_memory_key.h"             // key_memory_MYSQL_RELAY_LOG_index
+#include "replication.h"                // thd_enter_cond
+#include "rpl_filter.h"                 // Rpl_filter
+#include "rpl_gtid_persist.h"           // Gtid_table_persistor
+#include "rpl_handler.h"                // RUN_HOOK
+#include "rpl_injector.h"               // injector
+#include "rpl_master.h"                 // max_binlog_dump_events
+#include "rpl_msr.h"                    // Multisource_info
+#include "rpl_rli.h"                    // Relay_log_info
+#include "rpl_slave.h"                  // slave_load_tmpdir
+#include "socket_connection.h"          // stmt_info_new_packet
+#include "sp_head.h"                    // init_sp_psi_keys
+#include "sql_audit.h"                  // mysql_audit_general
+#include "sql_authentication.h"         // init_rsa_keys
+#include "sql_cache.h"                  // Query_cache
+#include "sql_callback.h"               // MUSQL_CALLBACK
+#include "sql_class.h"                  // THD
+#include "sql_db.h"                     // my_dboptions_cache_init
+#include "sql_initialize.h"             // opt_initialize_insecure
+#include "sql_locale.h"                 // MY_LOCALE
+#include "sql_manager.h"                // start_handle_manager
+#include "sql_parse.h"                  // check_stack_overrun
+#include "sql_plugin.h"                 // opt_plugin_dir
+#include "sql_reload.h"                 // reload_acl_and_cache
+#include "sql_table.h"                  // execute_ddl_log_recovery
+#include "sql_test.h"                   // mysql_print_status
+#include "sql_time.h"                   // Date_time_format
+#include "sys_vars.h"                   // fixup_enforce_gtid_consistency_...
+#include "sys_vars_shared.h"            // intern_find_sys_var
+#include "table_cache.h"                // table_cache_manager
+#include "tc_log.h"                     // tc_log
+#include "tztime.h"                     // Time_zone
+
+#include "../storage/myisam/ha_myisam.h"    // HA_RECOVER_OFF
+#include "partitioning/partition_handler.h" // partitioning_init
+#include "mysql/psi/mysql_file.h"
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#include "../storage/perfschema/pfs_server.h"
+#include <pfs_idle_provider.h>
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#ifdef _WIN32
+#include "named_pipe.h"
+#include "named_pipe_connection.h"
+#include "shared_memory_connection.h"
+#include "nt_servc.h"
+#endif
+
 #include <vector>
 #include <algorithm>
 #include <functional>
@@ -78,116 +158,7 @@
 #endif
 #ifdef _WIN32
 #include <crtdbg.h>
-#endif
-
-#include "psi_memory_key.h"
-#include "sql_parse.h"    // test_if_data_home_dir
-#include "sql_cache.h"    // query_cache, query_cache_*
-#include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
-#include "sql_show.h"     // free_status_vars, add_status_vars,
-                          // reset_status_vars
-#include "strfunc.h"      // find_set_from_flags
-#include "parse_file.h"   // File_parser_dummy_hook
-#include "sql_db.h"       // my_dboptions_cache_free
-                          // my_dboptions_cache_init
-#include "sql_table.h"    // release_ddl_log, execute_ddl_log_recovery
-#include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
-                          // handle_one_connection
-#include "sql_time.h"     // known_date_time_formats,
-                          // get_date_time_format_str
-#include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
-#include "hostname.h"     // hostname_cache_free, hostname_cache_init
-#include "auth_common.h"  // set_default_auth_plugin
-                          // acl_free, acl_init
-                          // grant_free, grant_init
-#include "sql_base.h"     // table_def_free, table_def_init,
-                          // Table_cache,
-                          // cached_table_definitions
-#include "sql_test.h"     // mysql_print_status
-#include "item_create.h"  // item_create_cleanup, item_create_init
-#include "sql_servers.h"  // servers_free, servers_init
-#include "init.h"         // unireg_init
-#include "derror.h"       // init_errmessage
-#include "des_key_file.h" // load_des_key_file
-#include "sql_manager.h"  // stop_handle_manager, start_handle_manager
-#include "bootstrap.h"    // bootstrap
-#include <m_ctype.h>
-#include <my_dir.h>
-#include <my_bit.h>
-#include "options_mysqld.h"
-#include "rpl_gtid.h"
-#include "rpl_gtid_persist.h"
-#include "rpl_slave.h"
-#include "rpl_msr.h"
-#include "rpl_master.h"
-#include "rpl_mi.h"
-#include "rpl_filter.h"
-#include <sql_common.h>
-#include <my_stacktrace.h>
-#include "mysys_err.h"
-#include "events.h"
-#include "sql_audit.h"
-#include "probes_mysql.h"
-#include "debug_sync.h"
-#include "sql_callback.h"
-#include "opt_trace_context.h"
-#include "opt_costconstantcache.h"
-#include "sql_plugin.h"                         // plugin_shutdown
-#include "sql_initialize.h"
-#include "log_event.h"
-#include "log.h"
-#include "binlog.h"
-#include "rpl_rli.h"     // Relay_log_info
-#include "replication.h" // thd_enter_cond
-
-#include "my_default.h"
-#include "current_thd.h"
-#include "mysql_version.h"
-#include "sql_authentication.h"
-
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#include "../storage/perfschema/pfs_server.h"
-#include <pfs_idle_provider.h>
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
-
-#include "pfs_file_provider.h"
-#include "mysql/psi/mysql_file.h"
-
-#include <mysql/psi/mysql_idle.h>
-#include <mysql/psi/mysql_socket.h>
-#include <mysql/psi/mysql_memory.h>
-#include <mysql/psi/mysql_statement.h>
-
-#include "mysql_com_server.h"
-#include "keycaches.h"
-#include "../storage/myisam/ha_myisam.h"
-#include "set_var.h"
-#include "sys_vars_shared.h"
-#include "rpl_injector.h"
-#include "rpl_handler.h"
-#include <ft_global.h>
-#include <errmsg.h>
-#include "sp_rcontext.h"
-#include "sql_reload.h"  // reload_acl_and_cache
-#include "sp_head.h"  // init_sp_psi_keys
-#include "event_data_objects.h" //init_scheduler_psi_keys
-#include "my_timer.h"    // my_timer_init, my_timer_deinit
-#include "table_cache.h"                // table_cache_manager
-#include "connection_acceptor.h"        // Connection_acceptor
-#include "connection_handler_impl.h"    // *_connection_handler
-#include "connection_handler_manager.h" // Connection_handler_manager
-#include "socket_connection.h"          // Mysqld_socket_listener
-#include "mysqld_thd_manager.h"         // Global_THD_manager
-#include "my_getopt.h"
-#include "partitioning/partition_handler.h" // partitioning_init
-#include "item_cmpfunc.h"               // arg_cmp_func
-#include "item_strfunc.h"               // Item_func_uuid
-#include "handler.h"
-
-#ifdef _WIN32
-#include "named_pipe.h"
-#include "named_pipe_connection.h"
-#include "shared_memory_connection.h"
+#include <process.h>
 #endif
 
 using std::min;
@@ -286,6 +257,54 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 
 #ifdef HAVE_PSI_INTERFACE
 #ifndef EMBEDDED_LIBRARY
+static PSI_mutex_key key_LOCK_status;
+static PSI_mutex_key key_LOCK_manager;
+static PSI_mutex_key key_LOCK_crypt;
+static PSI_mutex_key key_LOCK_user_conn;
+static PSI_mutex_key key_LOCK_msr_map;
+static PSI_mutex_key key_LOCK_global_system_variables;
+static PSI_mutex_key key_LOCK_prepared_stmt_count;
+static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
+static PSI_mutex_key key_LOCK_slave_net_timeout;
+static PSI_mutex_key key_LOCK_uuid_generator;
+#ifdef HAVE_OPENSSL
+static PSI_mutex_key key_LOCK_des_key_file;
+#endif /* HAVE_OPENSSL */
+static PSI_mutex_key key_LOCK_error_messages;
+static PSI_mutex_key key_LOCK_default_password_lifetime;
+static PSI_mutex_key key_LOCK_sql_rand;
+static PSI_mutex_key key_LOCK_log_throttle_qni;
+static PSI_mutex_key key_LOCK_reset_gtid_table;
+static PSI_mutex_key key_LOCK_offline_mode;
+static PSI_mutex_key key_LOCK_compress_gtid_table;
+#endif // !EMBEDDED_LIBRARY
+static PSI_mutex_key key_BINLOG_LOCK_commit;
+static PSI_mutex_key key_BINLOG_LOCK_commit_queue;
+static PSI_mutex_key key_BINLOG_LOCK_done;
+static PSI_mutex_key key_BINLOG_LOCK_flush_queue;
+static PSI_mutex_key key_BINLOG_LOCK_index;
+static PSI_mutex_key key_BINLOG_LOCK_log;
+static PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
+static PSI_mutex_key key_BINLOG_LOCK_sync;
+static PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+static PSI_mutex_key key_BINLOG_LOCK_xids;
+static PSI_rwlock_key key_rwlock_global_sid_lock;
+static PSI_rwlock_key key_rwlock_gtid_mode_lock;
+#ifndef EMBEDDED_LIBRARY
+static PSI_rwlock_key key_rwlock_LOCK_system_variables_hash;
+static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
+static PSI_rwlock_key key_rwlock_LOCK_sys_init_slave;
+#endif // !EMBEDDED_LIBRARY
+static PSI_cond_key key_BINLOG_COND_done;
+static PSI_cond_key key_BINLOG_update_cond;
+static PSI_cond_key key_BINLOG_prep_xids_cond;
+#ifndef EMBEDDED_LIBRARY
+static PSI_cond_key key_COND_manager;
+static PSI_cond_key key_COND_compress_gtid_table;
+static PSI_thread_key key_thread_signal_hand;
+static PSI_thread_key key_thread_main;
+static PSI_file_key key_file_casetest;
+static PSI_file_key key_file_pid;
 #if defined(_WIN32)
 static PSI_thread_key key_thread_handle_con_namedpipes;
 static PSI_thread_key key_thread_handle_con_sharedmem;
@@ -655,7 +674,6 @@ MY_BITMAP temp_pool;
 CHARSET_INFO *system_charset_info, *files_charset_info ;
 CHARSET_INFO *national_charset_info, *table_alias_charset;
 CHARSET_INFO *character_set_filesystem;
-CHARSET_INFO *error_message_charset_info;
 
 MY_LOCALE *my_default_lc_messages;
 MY_LOCALE *my_default_lc_time_names;
@@ -675,7 +693,7 @@ mysql_mutex_t
   LOCK_status, LOCK_uuid_generator,
   LOCK_crypt,
   LOCK_global_system_variables,
-  LOCK_user_conn, LOCK_slave_list, LOCK_msr_map,
+  LOCK_user_conn, LOCK_msr_map,
   LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
 
@@ -760,10 +778,12 @@ char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 
-Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor= NULL;
+#ifndef EMBEDDED_LIBRARY
+static Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor= NULL;
 #ifdef _WIN32
 Connection_acceptor<Named_pipe_listener> *named_pipe_acceptor= NULL;
 Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor= NULL;
+#endif
 #endif
 
 Checkable_rwlock *global_sid_lock= NULL;
@@ -847,8 +867,6 @@ static my_thread_t main_thread_id;
 /* OS specific variables */
 
 #ifdef _WIN32
-#include <process.h>
-
 static bool windows_service= false;
 static bool use_opt_args;
 static int opt_argc;
@@ -861,7 +879,6 @@ static HANDLE hEventShutdown;
 char *shared_memory_base_name= default_shared_memory_base_name;
 my_bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
-#include "nt_servc.h"
 static   NTService  Service;        ///< Service object for WinNT
 #endif /* EMBEDDED_LIBRARY */
 #endif /* _WIN32 */
@@ -897,7 +914,6 @@ SSL *ssl_acceptor;
 
 /* Function declarations */
 
-extern "C" void *signal_hand(void *arg);
 static int mysql_init_variables(void);
 static int get_options(int *argc_ptr, char ***argv_ptr);
 static void add_terminator(vector<my_option> *options);
@@ -910,6 +926,7 @@ static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
 
 #ifndef EMBEDDED_LIBRARY
+extern "C" void *signal_hand(void *arg);
 static bool pid_file_created= false;
 static void usage(void);
 static void clean_up_mutexes(void);
@@ -1160,9 +1177,9 @@ void kill_mysql(void)
   DBUG_PRINT("quit",("After pthread_kill"));
   DBUG_VOID_RETURN;
 }
+#endif // !EMBEDDED_LIBRARY
 
-
-extern "C" void unireg_abort(int exit_code)
+static void unireg_abort(int exit_code)
 {
   DBUG_ENTER("unireg_abort");
 
@@ -1170,6 +1187,7 @@ extern "C" void unireg_abort(int exit_code)
   // Just flush what we have and write directly to stderr.
   flush_error_log_messages();
 
+#ifndef EMBEDDED_LIBRARY
   if (opt_help)
     usage();
   if (exit_code)
@@ -1193,12 +1211,19 @@ extern "C" void unireg_abort(int exit_code)
     mysqld::runtime::signal_parent(pipe_write_fd,0);
   }
 #endif
+#endif // !EMBEDDED_LIBRARY
 
   clean_up(!opt_help && (exit_code || !opt_bootstrap)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
+#ifndef EMBEDDED_LIBRARY
   mysqld_exit(exit_code);
+#else
+  my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  DBUG_VOID_RETURN;
+#endif
 }
 
+#ifndef EMBEDDED_LIBRARY
 static void mysqld_exit(int exit_code)
 {
   DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
@@ -8243,46 +8268,31 @@ void refresh_status(THD *thd)
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_LOCK_tc;
-
-#ifdef HAVE_OPENSSL
-PSI_mutex_key key_LOCK_des_key_file;
-#endif /* HAVE_OPENSSL */
-
-PSI_mutex_key key_BINLOG_LOCK_commit;
-PSI_mutex_key key_BINLOG_LOCK_commit_queue;
-PSI_mutex_key key_BINLOG_LOCK_done;
-PSI_mutex_key key_BINLOG_LOCK_flush_queue;
-PSI_mutex_key key_BINLOG_LOCK_index;
-PSI_mutex_key key_BINLOG_LOCK_log;
-PSI_mutex_key key_BINLOG_LOCK_binlog_end_pos;
-PSI_mutex_key key_BINLOG_LOCK_sync;
-PSI_mutex_key key_BINLOG_LOCK_sync_queue;
-PSI_mutex_key key_BINLOG_LOCK_xids;
-PSI_mutex_key
-  key_hash_filo_lock, key_LOCK_msr_map,
-  Gtid_state::key_gtid_executed_free_intervals_mutex,
-  key_LOCK_crypt, key_LOCK_error_log,
-  key_LOCK_gdl, key_LOCK_global_system_variables,
-  key_LOCK_manager,
-  key_LOCK_prepared_stmt_count,
-  key_LOCK_status,
-  key_LOCK_sql_slave_skip_counter,
-  key_LOCK_slave_net_timeout,
-  key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
-  key_LOCK_thd_sysvar,
-  key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
-  key_master_info_data_lock, key_master_info_run_lock,
-  key_master_info_sleep_lock, key_master_info_thd_lock,
-  key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
-  key_relay_log_info_sleep_lock, key_relay_log_info_thd_lock,
-  key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
-  key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
-  key_mutex_slave_parallel_worker_count,
-  key_mutex_slave_parallel_worker,
-  key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
-  key_LOCK_error_messages,
-  key_LOCK_log_throttle_qni, key_LOCK_query_plan, key_LOCK_thd_query,
-  key_LOCK_cost_const, key_LOCK_current_cond;
+PSI_mutex_key key_hash_filo_lock;
+PSI_mutex_key key_LOCK_error_log;
+PSI_mutex_key key_LOCK_gdl;
+PSI_mutex_key key_LOCK_thd_data;
+PSI_mutex_key key_LOCK_thd_sysvar;
+PSI_mutex_key key_LOG_LOCK_log;
+PSI_mutex_key key_master_info_data_lock;
+PSI_mutex_key key_master_info_run_lock;
+PSI_mutex_key key_master_info_sleep_lock;
+PSI_mutex_key key_master_info_thd_lock;
+PSI_mutex_key key_mutex_slave_reporting_capability_err_lock;
+PSI_mutex_key key_relay_log_info_data_lock;
+PSI_mutex_key key_relay_log_info_sleep_lock;
+PSI_mutex_key key_relay_log_info_thd_lock;
+PSI_mutex_key key_relay_log_info_log_space_lock;
+PSI_mutex_key key_relay_log_info_run_lock;
+PSI_mutex_key key_mutex_slave_parallel_pend_jobs;
+PSI_mutex_key key_mutex_slave_parallel_worker_count;
+PSI_mutex_key key_mutex_slave_parallel_worker;
+PSI_mutex_key key_structure_guard_mutex;
+PSI_mutex_key key_TABLE_SHARE_LOCK_ha_data;
+PSI_mutex_key key_LOCK_query_plan;
+PSI_mutex_key key_LOCK_thd_query;
+PSI_mutex_key key_LOCK_cost_const;
+PSI_mutex_key key_LOCK_current_cond;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -8292,20 +8302,17 @@ PSI_mutex_key key_RELAYLOG_LOCK_log;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
-PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
-PSI_mutex_key key_LOCK_reset_gtid_table;
-PSI_mutex_key key_LOCK_compress_gtid_table;
 PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
-PSI_mutex_key key_LOCK_offline_mode;
-PSI_mutex_key key_LOCK_default_password_lifetime;
-
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
+
+PSI_mutex_key
+Gtid_state::key_gtid_executed_free_intervals_mutex;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_mutex_info all_server_mutexes[]=
@@ -8355,8 +8362,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_start_signal_handler, "LOCK_start_signal_handler", PSI_FLAG_GLOBAL},
 #endif
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
-  { &key_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_LOCK_table_share, "LOCK_table_share", PSI_FLAG_GLOBAL},
   { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
   { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0},
   { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", 0},
@@ -8376,7 +8381,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_mutex_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_lock", 0},
   { &key_mutex_slave_parallel_worker_count, "Relay_log_info::exit_count_lock", 0},
-  { &key_mutex_mts_temp_tables_lock, "Relay_log_info::temp_tables_lock", 0},
   { &key_mutex_slave_parallel_worker, "Worker_info::jobs_lock", 0},
   { &key_structure_guard_mutex, "Query_cache::structure_guard_mutex", 0},
   { &key_TABLE_SHARE_LOCK_ha_data, "TABLE_SHARE::LOCK_ha_data", 0},
@@ -8401,10 +8405,9 @@ static PSI_mutex_info all_server_mutexes[]=
 };
 #endif // !EMBEDDED_LIBRARY
 
-PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
-  key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
-  key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
-  key_rwlock_global_sid_lock, key_rwlock_gtid_mode_lock;
+PSI_rwlock_key key_rwlock_LOCK_grant;
+PSI_rwlock_key key_rwlock_LOCK_logger;
+PSI_rwlock_key key_rwlock_query_cache_query_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8435,25 +8438,27 @@ static PSI_rwlock_info all_server_rwlocks[]=
 };
 #endif // !EMBEDDED_LIBRARY
 
-PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
-PSI_cond_key key_BINLOG_update_cond,
-  key_COND_cache_status_changed, key_COND_manager,
-  key_item_func_sleep_cond, key_master_info_data_cond,
-  key_master_info_start_cond, key_master_info_stop_cond,
-  key_master_info_sleep_cond,
-  key_relay_log_info_data_cond, key_relay_log_info_log_space_cond,
-  key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
-  key_relay_log_info_sleep_cond, key_cond_slave_parallel_pend_jobs,
-  key_cond_slave_parallel_worker, key_cond_mts_gaq,
-  key_cond_mts_submode_logical_clock,
-  key_TABLE_SHARE_cond, key_user_level_lock_cond;
+PSI_cond_key key_PAGE_cond;
+PSI_cond_key key_COND_active;
+PSI_cond_key key_COND_pool;
+PSI_cond_key key_COND_cache_status_changed;
+PSI_cond_key key_item_func_sleep_cond;
+PSI_cond_key key_master_info_data_cond;
+PSI_cond_key key_master_info_start_cond;
+PSI_cond_key key_master_info_stop_cond;
+PSI_cond_key key_master_info_sleep_cond;
+PSI_cond_key key_relay_log_info_data_cond;
+PSI_cond_key key_relay_log_info_log_space_cond;
+PSI_cond_key key_relay_log_info_start_cond;
+PSI_cond_key key_relay_log_info_stop_cond;
+PSI_cond_key key_relay_log_info_sleep_cond;
+PSI_cond_key key_cond_slave_parallel_pend_jobs;
+PSI_cond_key key_cond_slave_parallel_worker;
+PSI_cond_key key_cond_mts_gaq;
 PSI_cond_key key_RELAYLOG_update_cond;
-PSI_cond_key key_BINLOG_COND_done;
 PSI_cond_key key_RELAYLOG_COND_done;
-PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
-PSI_cond_key key_COND_compress_gtid_table;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_cond_slave_worker_hash;
@@ -8494,8 +8499,6 @@ static PSI_cond_info all_server_conds[]=
   { &key_cond_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_cond", 0},
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
   { &key_cond_mts_gaq, "Relay_log_info::mts_gaq_cond", 0},
-  { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
-  { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 #ifdef HAVE_REPLICATION
@@ -8506,9 +8509,11 @@ static PSI_cond_info all_server_conds[]=
 };
 #endif // !EMBEDDED_LIBRARY
 
-PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand,
-  key_thread_compress_gtid_table, key_thread_parser_service;
+PSI_thread_key key_thread_bootstrap;
+PSI_thread_key key_thread_handle_manager;
+PSI_thread_key key_thread_one_connection;
+PSI_thread_key key_thread_compress_gtid_table;
+PSI_thread_key key_thread_parser_service;
 PSI_thread_key key_thread_timer_notifier;
 PSI_thread_key key_thread_background;
 
@@ -8533,21 +8538,33 @@ static PSI_thread_info all_server_threads[]=
 };
 #endif // !EMBEDDED_LIBRARY
 
-PSI_file_key key_file_map;
-PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
-  key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
-  key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
-  key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
-  key_file_master_info, key_file_misc, key_file_partition_ddl_log,
-  key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
-  key_file_trg, key_file_trn, key_file_init;
-PSI_file_key key_file_general_log, key_file_slow_log;
-PSI_file_key key_file_relaylog, key_file_relaylog_index;
+PSI_file_key key_file_binlog;
+PSI_file_key key_file_binlog_index;
+PSI_file_key key_file_dbopt;
+PSI_file_key key_file_des_key_file;
+PSI_file_key key_file_ERRMSG;
+PSI_file_key key_select_to_file;
+PSI_file_key key_file_fileparser;
+PSI_file_key key_file_frm;
+PSI_file_key key_file_global_ddl_log;
+PSI_file_key key_file_load;
+PSI_file_key key_file_loadfile;
+PSI_file_key key_file_log_event_data;
+PSI_file_key key_file_log_event_info;
+PSI_file_key key_file_misc;
+PSI_file_key key_file_partition_ddl_log;
+PSI_file_key key_file_tclog;
+PSI_file_key key_file_trg;
+PSI_file_key key_file_trn;
+PSI_file_key key_file_init;
+PSI_file_key key_file_general_log;
+PSI_file_key key_file_slow_log;
+PSI_file_key key_file_relaylog;
+PSI_file_key key_file_relaylog_index;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_file_info all_server_files[]=
 {
-  { &key_file_map, "map", 0},
   { &key_file_binlog, "binlog", 0},
   { &key_file_binlog_index, "binlog_index", 0},
   { &key_file_relaylog, "relaylog", 0},
@@ -8564,13 +8581,10 @@ static PSI_file_info all_server_files[]=
   { &key_file_loadfile, "LOAD_FILE", 0},
   { &key_file_log_event_data, "log_event_data", 0},
   { &key_file_log_event_info, "log_event_info", 0},
-  { &key_file_master_info, "master_info", 0},
   { &key_file_misc, "misc", 0},
   { &key_file_partition_ddl_log, "partition_ddl_log", 0},
   { &key_file_pid, "pid", 0},
   { &key_file_general_log, "query_log", 0},
-  { &key_file_relay_log_info, "relay_log_info", 0},
-  { &key_file_send_file, "send_file", 0},
   { &key_file_slow_log, "slow_log", 0},
   { &key_file_tclog, "tclog", 0},
   { &key_file_trg, "trigger_name", 0},
@@ -8797,7 +8811,9 @@ PSI_stage_info *all_server_stages[]=
   & stage_starting
 };
 
-PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
+PSI_socket_key key_socket_tcpip;
+PSI_socket_key key_socket_unix;
+PSI_socket_key key_socket_client_connection;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_socket_info all_server_sockets[]=

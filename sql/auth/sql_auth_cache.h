@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "my_sys.h"                     // wild_many, wild_one, wild_prefix
+#include "m_string.h"                   // LEX_CSTRING
 #include "mysql_com.h"                  // SCRAMBLE_LENGTH
 #include "mysql_time.h"                 // MYSQL_TIME
 #include "prealloced_array.h"           // Prealloced_array

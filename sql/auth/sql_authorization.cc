@@ -27,6 +27,7 @@
 #include "log.h"                        /* sql_print_warning */
 #include "sql_class.h"
 #include "derror.h"
+#include "mysqld.h"
 
 #include "sql_update.h"
 #include "auth_internal.h"

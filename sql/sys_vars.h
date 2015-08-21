@@ -92,6 +92,8 @@ enum charset_enum {IN_SYSTEM_CHARSET, IN_FS_CHARSET};
 
 static const char *bool_values[3]= {"OFF", "ON", 0};
 
+const char *fixup_enforce_gtid_consistency_command_line(char *value_arg);
+
 /**
   A small wrapper class to pass getopt arguments as a pair
   to the Sys_var_* constructors. It improves type safety and helps

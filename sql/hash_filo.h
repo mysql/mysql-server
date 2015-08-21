@@ -23,7 +23,10 @@
 #define  HASH_FILO_H
 
 #include "hash.h"        /* my_hash_get_key, my_hash_free_key, HASH */
-#include "mysqld.h"      /* key_hash_filo_lock */
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_hash_filo_lock;
+#endif // HAVE_PSI_INTERFACE
 
 struct hash_filo_element
 {

@@ -25,6 +25,8 @@
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
+CHARSET_INFO *error_message_charset_info;
+
 static const char *ERRMSG_FILE = "errmsg.sys";
 static const int NUM_SECTIONS=
   sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);

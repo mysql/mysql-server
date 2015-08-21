@@ -22,6 +22,7 @@
 #include "field.h"              // Field
 #include "item_func.h"          // mqh_used
 #include "log.h"                // sql_print_warning
+#include "mysqld.h"             // my_localhost
 #include "psi_memory_key.h"     // key_memory_acl_mem
 #include "records.h"            // READ_RECORD
 #include "sql_authentication.h" // sha256_password_plugin_name

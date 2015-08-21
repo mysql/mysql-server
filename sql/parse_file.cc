@@ -30,6 +30,7 @@
 #include "mysqld_error.h"                     // ER_*
 #include "sql_const.h"                        // CREATE_MODE
 #include "sql_list.h"                         // List_iterator_fast
+#include "sql_string.h"                       // String
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"

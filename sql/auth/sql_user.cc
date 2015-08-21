@@ -29,6 +29,7 @@
 #include "tztime.h"
 #include "crypt_genhash_impl.h"         /* CRYPT_MAX_PASSWORD_SIZE */
 #include "derror.h"                     /* ER_THD */
+#include "mysqld.h"
 
 /**
   Auxiliary function for constructing a  user list string.

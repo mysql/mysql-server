@@ -24,6 +24,8 @@ extern int defaults_argc;
 extern char **defaults_argv;
 extern int remaining_argc;
 extern char **remaining_argv;
+extern bool opt_endinfo;
+extern size_t mysql_real_data_home_len;
 
 void clean_up(bool print_message);
 
@@ -36,5 +38,9 @@ int init_server_auto_options();
 bool read_init_file(char *file_name);
 
 void server_components_initialized();
+
+int handle_early_options();
+
+void adjust_related_options(ulong *requested_open_files);
 
 #endif // MYSQLD_EMBEDDED_INCLUDED

@@ -24,7 +24,7 @@
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "item_func.h"                          // user_var_entry
 #include "log.h"                                // sql_print_information
-#include "mysqld.h"                             // LOCK_slave_list
+#include "mysqld.h"                             // server_id
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "psi_memory_key.h"
 #include "rpl_binlog_sender.h"                  // Binlog_sender
@@ -77,6 +77,7 @@ extern "C" void slave_info_free(void *s)
   my_free(s);
 }
 
+static mysql_mutex_t LOCK_slave_list;
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_slave_list;
 

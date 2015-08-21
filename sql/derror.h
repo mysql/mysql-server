@@ -22,6 +22,12 @@
 #endif
 
 class THD;
+typedef struct charset_info_st CHARSET_INFO;
+
+/**
+  Character set of the buildin error messages loaded from errmsg.sys.
+*/
+extern CHARSET_INFO *error_message_charset_info;
 
 class MY_LOCALE_ERRMSGS
 {

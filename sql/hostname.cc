@@ -28,6 +28,7 @@
 #include "hostname.h"
 #include "hash_filo.h"
 #include <m_ctype.h>
+#include "mysqld.h"                             // specialflag
 #include "log.h"                                // sql_print_warning,
                                                 // sql_print_information
 #include "psi_memory_key.h"
