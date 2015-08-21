@@ -709,7 +709,53 @@ int test_channel_service_interface()
     error= channel_queue_packet(dummy_channel, empty_event, 0);
     DBUG_ASSERT(error);
 
-    return (error && exists && running && gno);
+    //Test a multi thread channel
+    info.channel_mts_parallel_type= CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+    info.channel_mts_parallel_workers= 3;
+
+    error= channel_create(interface_channel, &info);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel exists
+    exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(exists);
+
+    error= channel_start(interface_channel,
+                         &connection_info,
+                         CHANNEL_APPLIER_THREAD,
+                         true);
+    DBUG_ASSERT(!error);
+
+    //Extract the applier ids
+    applier_id= NULL;
+    int num_appliers= channel_get_thread_id(interface_channel,
+                                            CHANNEL_APPLIER_THREAD,
+                                            &applier_id);
+    DBUG_ASSERT(num_appliers == 3);
+
+    unsigned long thread_id= 0;
+    for (int i = 0; i < num_appliers; i++)
+    {
+      thread_id= applier_id[i];
+      DBUG_ASSERT(thread_id > 0);
+    }
+    my_free(applier_id);
+
+    //Stop the channel applier
+    error= channel_stop(interface_channel,
+                        3,
+                        10000);
+    DBUG_ASSERT(!error);
+
+    //Purge the channel and assert all is OK
+    error= channel_purge_queue(interface_channel, true);
+    DBUG_ASSERT(!error);
+
+    //Assert the channel is not there.
+    exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+    DBUG_ASSERT(!exists);
+
+    return (error && exists && running && gno && num_appliers && thread_id);
 }
 
 int test_channel_service_interface_io_thread()
