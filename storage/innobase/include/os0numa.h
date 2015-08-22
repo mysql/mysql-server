@@ -123,8 +123,7 @@ os_numa_num_configured_cpus()
 		return(1);
 	}
 
-	int	n_cpus = 0;
-
+	int						n_cpus = 0;
 	SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*	buf_orig = buf;
 
 	/* Maybe this loop will iterate just once, but this is not mentioned
