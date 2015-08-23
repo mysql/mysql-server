@@ -512,6 +512,27 @@ bool trans_rollback_stmt(THD *thd)
   else if (tc_log)
     tc_log->rollback(thd, false);
 
+  if (!thd->owned_gtid.is_empty() &&
+      thd->variables.gtid_next.type == GTID_GROUP &&
+      !thd->in_active_multi_stmt_transaction())
+  {
+    /*
+      To a failed single statement transaction with a specified gtid on
+      auto-commit mode, we roll back its owned gtid if it does not modify
+      non-transational table or commit its owned gtid if it has modified
+      non-transactional table when rolling back it if binlog is disabled,
+      as we did when binlog is enabled.
+      We do not need to check if binlog is enabled here, since we already
+      released its owned gtid in MYSQL_BIN_LOG::rollback(...) right before
+      this if binlog is enabled.
+    */
+    if (thd->get_transaction()->has_modified_non_trans_table(
+          Transaction_ctx::STMT))
+      gtid_state->update_on_commit(thd);
+    else
+      gtid_state->update_on_rollback(thd);
+  }
+
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
   DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
               thd->m_transaction_psi == NULL ||
