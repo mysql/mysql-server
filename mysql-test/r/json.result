@@ -13281,6 +13281,31 @@ j
 DROP TABLE t;
 SET NAMES DEFAULT;
 #
+# Bug#21602361: ASSERTION FAILED: (VECTOR_IDX == -1) || (VECTOR_IDX >= 0)
+#
+create table t(b int, key(b))engine=innodb;
+insert into t values(1),(2);
+select json_length('{}',@uninitialized_21602361)
+from t group by b into @uninitialized_21602361;
+ERROR 42000: Result consisted of more than one row
+set @initialized_21602361 = '$';
+select json_length('{}',@initialized_21602361)
+from t group by b into @initialized_21602361;
+ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '0'.
+set @error_value_21602361 = '$[';
+select json_length('{}',@error_value_21602361)
+from t group by b into @error_value_21602361;
+ERROR 42000: Invalid JSON path expression. The error is around character position 2 in '$['.
+set @valid_path_21602361 = '$';
+select concat( '$[', json_length('{}',@valid_path_21602361), ']' )
+from t group by b into @valid_path_21602361;
+ERROR 42000: Result consisted of more than one row
+set @null_value_21602361 = null;
+select json_length('{}',@null_value_21602361)
+from t group by b into @null_value_21602361;
+ERROR 42000: Result consisted of more than one row
+drop table t;
+#
 # Bug#21649073: JSON_TYPE RETURNS OPAQUE FOR SOME BINARY VALUES
 #
 SELECT JSON_TYPE(CAST(CAST('abcd' AS BINARY) AS JSON));
