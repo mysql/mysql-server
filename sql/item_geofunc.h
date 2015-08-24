@@ -988,7 +988,6 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isvalid"; }
-  void fix_length_and_dec() { maybe_null= 0; }
 };
 
 class Item_func_dimension: public Item_int_func
