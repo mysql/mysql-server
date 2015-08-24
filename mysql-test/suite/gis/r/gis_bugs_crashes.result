@@ -6519,3 +6519,15 @@ SELECT ST_MakeEnvelope(Export_Set(1, POINT(1, 1), 1), POINT(1, 1));
 ERROR 22023: Invalid GIS data provided to function st_makeenvelope.
 SELECT ST_MakeEnvelope(Make_Set("38", 1, POINT(1, 1), 1, 1, 1), POINT(1,1));
 ERROR 22023: Invalid GIS data provided to function st_makeenvelope.
+#
+# BUG#21616647: ASSERTION FAILED:
+#               ITEM_IN->LEFT_EXPR->ELEMENT_INDEX(0)->MAYBE_NULL
+#
+CREATE TABLE t(col_a INTEGER) ENGINE=InnoDB;
+INSERT INTO t VALUES (0), (0), (0);
+SELECT ST_IsValid(NULL) NOT IN (SELECT col_a FROM t) FROM t;
+ST_IsValid(NULL) NOT IN (SELECT col_a FROM t)
+NULL
+NULL
+NULL
+DROP TABLE t;

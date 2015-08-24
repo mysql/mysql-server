@@ -6355,3 +6355,12 @@ SELECT ST_MakeEnvelope(POINT(2, -2), CAST(POINT(-7, -7) AS BINARY(48)));
 SELECT ST_MakeEnvelope(Export_Set(1, POINT(1, 1), 1), POINT(1, 1));
 --error ER_GIS_INVALID_DATA
 SELECT ST_MakeEnvelope(Make_Set("38", 1, POINT(1, 1), 1, 1, 1), POINT(1,1));
+
+--echo #
+--echo # BUG#21616647: ASSERTION FAILED:
+--echo #               ITEM_IN->LEFT_EXPR->ELEMENT_INDEX(0)->MAYBE_NULL
+--echo #
+CREATE TABLE t(col_a INTEGER) ENGINE=InnoDB;
+INSERT INTO t VALUES (0), (0), (0);
+SELECT ST_IsValid(NULL) NOT IN (SELECT col_a FROM t) FROM t;
+DROP TABLE t;
