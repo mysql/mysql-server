@@ -790,10 +790,16 @@ bool NdbEventOperationImpl::tableRangeListChanged() const
 }
 
 Uint64
-NdbEventOperationImpl::getGCI()
+NdbEventOperationImpl::getGCI() const
 {
-  Uint32 gci_hi = m_data_item->sdata->gci_hi;
-  Uint32 gci_lo = m_data_item->sdata->gci_lo;
+  return m_data_item->getGCI();
+}
+
+Uint64
+EventBufData::getGCI() const
+{
+  const Uint32 gci_hi = sdata->gci_hi;
+  const Uint32 gci_lo = sdata->gci_lo;
   return gci_lo | (Uint64(gci_hi) << 32);
 }
 
@@ -1550,16 +1556,17 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 #endif
 
   NdbMutex_Lock(m_mutex);
-  NdbEventOperationImpl *ev_op= move_data();
-  if (unlikely(ev_op == 0 && aMillisecondNumber))
+  EventBufData *ev_data= move_data();
+  if (unlikely(ev_data == 0 && aMillisecondNumber))
   {
     NdbCondition_WaitTimeout(p_cond, m_mutex, aMillisecondNumber);
-    ev_op= move_data();
+    ev_data= move_data();
   }
   m_latest_poll_GCI= m_latestGCI;
 #ifdef VM_TRACE
-  if (ev_op)
+  if (ev_data && ev_data->m_event_op)
   {
+    NdbEventOperationImpl *ev_op= ev_data->m_event_op;
     // m_mutex is locked
     // update event ops data counters
     ev_op->m_data_count-= ev_op->m_data_done_count;
@@ -1567,7 +1574,7 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
   }
   m_latest_command= m_latest_command_save;
 #endif
-  if (unlikely(ev_op == 0))
+  if (unlikely(ev_data == NULL))
   {
     ret= 0; // applicable for both aMillisecondNumber >= 0
     /*
@@ -1702,20 +1709,27 @@ NdbEventBuffer::nextEvent2()
   {
     move_head_event_data_item_to_used_data_queue(data);
 
+    const Uint64 gci = data->getGCI();
     NdbEventOperationImpl *op= data->m_event_op;
 
-    // all including exceptional event data must have an associated impl
-    assert(op);
-
-    // set NdbEventOperation data
-    op->m_data_item= data;
-    Uint64 gci = op->getGCI();
-
+    /*
+     * Exceptional events are not yet associated with an event operation,
+     * Pick one, which one is not important, to tuck the ex-event onto.
+     */
+    assert((op == NULL) == (is_exceptional_epoch(data)));
     if (is_exceptional_epoch(data))
     {
       DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u 0x%x %s",
                                 gci, m_ndb->getReference(),
                                 m_ndb->getNdbObjectName()));
+
+      // If all event operations are dropped, ignore exceptional-event
+      op = m_ndb->theImpl->m_ev_op;
+      if (op == NULL)
+        continue;
+
+      data->m_event_op = op;
+      op->m_data_item = data;
 
       // Remove gci_ops belonging to the epochs consumed already
       // to conform with non-exceptional event data handling
@@ -1732,6 +1746,9 @@ NdbEventBuffer::nextEvent2()
      * If merge is not on, there are no blob part sub-events.
      */
     assert(op->theMainOp == NULL);
+
+    // set NdbEventOperation data
+    op->m_data_item= data;
 
     /**
      * Should not return a GCI higher then last polled GCI,
@@ -2291,7 +2308,6 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
     ptr[i].sz = 0;
   }
   alloc_mem(dummy_data, ptr, 0);
-//  dummy_data = ((Uint32*)NdbMem_Allocate(sizeof(SubTableData) + 3) >> 2);
 
   SubTableData *sdata = (SubTableData*) dummy_data->memory;
   assert(dummy_data->memory);
@@ -2301,11 +2317,10 @@ NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
   sdata->gci_lo = Uint32(gci);
   SubTableData::setOperation(sdata->requestInfo, type);
 
-  // Add the first EventOperationImpl such that
-  // the exceptional data can be interpreted by consumers
-  NdbEventOperation* op = m_ndb->getEventOperation(0);
-  dummy_data->m_event_op = &op->m_impl;
-  assert(op != NULL);
+  // NOTE:
+  // We do not yet assign an m_event_op to the exceptional event:
+  // Whatever event we assigned now, could later be dropped before
+  // nextEvent() reads it. nextEvent() will later find a suitable op.
 
   // Add gci_ops for error epoch events to make the search for
   // inconsistent(Uint64& gci) to be effective (backward compatibility)
@@ -3854,7 +3869,7 @@ NdbEventBuffer::add_blob_data(Gci_container* bucket,
   DBUG_VOID_RETURN_EVENT;
 }
 
-NdbEventOperationImpl *
+EventBufData *
 NdbEventBuffer::move_data()
 {
   // handle received data
@@ -3880,7 +3895,7 @@ NdbEventBuffer::move_data()
                              m_available_data.m_count,
                              m_ndb->getReference(), m_ndb->getNdbObjectName()));
 #endif
-    DBUG_RETURN_EVENT(m_available_data.m_head->m_event_op);
+    DBUG_RETURN_EVENT(m_available_data.m_head);
   }
   return 0;
 }
