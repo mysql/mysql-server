@@ -1453,6 +1453,16 @@ NdbEventBuffer::nextEvent()
          if (!gci_ops->m_consistent)
            DBUG_RETURN_EVENT(0);
 
+         // to return TE_NUL it should be made into data event
+         if (SubTableData::getOperation(data->sdata->requestInfo) ==
+	   NdbDictionary::Event::_TE_NUL)
+         {
+           DBUG_PRINT_EVENT("info", ("skip _TE_NUL 0x%x %s",
+                                     m_ndb->getReference(),
+                                     m_ndb->getNdbObjectName()));
+           continue;
+         }
+
 	 if (gci_ops && (gci != gci_ops->m_gci))
 	 {
            ndbout << "nextEvent: gci " << gci << " "
@@ -1464,18 +1474,8 @@ NdbEventBuffer::nextEvent()
                   <<  SubTableData::getOperation(data->sdata->requestInfo)
                   << " " << m_ndb->getNdbObjectName() << endl;
 	 }
-
          assert(gci_ops && (gci == gci_ops->m_gci));
-         // to return TE_NUL it should be made into data event
-         if (SubTableData::getOperation(data->sdata->requestInfo) ==
-	   NdbDictionary::Event::_TE_NUL)
-         {
-           DBUG_PRINT_EVENT("info", ("skip _TE_NUL 0x%x %s",
-                                     m_ndb->getReference(),
-                                     m_ndb->getNdbObjectName()));
-           continue;
-         }
-	 DBUG_RETURN_EVENT(op->m_facade);
+         DBUG_RETURN_EVENT(op->m_facade);
        }
        // the next event belonged to an event op that is no
        // longer valid, skip to next
