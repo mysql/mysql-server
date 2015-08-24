@@ -1763,8 +1763,18 @@ NdbEventBuffer::nextEvent2()
          EventBufData_list::Gci_ops *gci_ops =
            remove_consumed_gci_ops(gci);
 
-        if (gci_ops && (gci != gci_ops->m_gci))
-	{
+         // to return TE_NUL it should be made into data event
+         if (SubTableData::getOperation(data->sdata->requestInfo) ==
+	   NdbDictionary::Event::_TE_NUL)
+         {
+           DBUG_PRINT_EVENT("info", ("skip _TE_NUL 0x%x %s",
+                                     m_ndb->getReference(),
+                                     m_ndb->getNdbObjectName()));
+           continue;
+         }
+
+         if (gci_ops && (gci != gci_ops->m_gci))
+         {
            ndbout << "nextEvent2: gci_ops->m_gci " << gci_ops->m_gci
                   << " (" << Uint32(gci_ops->m_gci >> 32)
                   << "/" << Uint32(gci_ops->m_gci) << ") "
@@ -1775,21 +1785,11 @@ NdbEventBuffer::nextEvent2()
                   << " data's operation " << hex
                   <<  SubTableData::getOperation(data->sdata->requestInfo)
                   << " " << m_ndb->getNdbObjectName() << endl;
-	}
-
+         }
          assert(gci_ops && (gci == gci_ops->m_gci));
          (void) gci_ops; // To avoid compiler warning 'unused variable'
 
-         // to return TE_NUL it should be made into data event
-         if (SubTableData::getOperation(data->sdata->requestInfo) ==
-	   NdbDictionary::Event::_TE_NUL)
-         {
-           DBUG_PRINT_EVENT("info", ("skip _TE_NUL 0x%x %s",
-                                     m_ndb->getReference(),
-                                     m_ndb->getNdbObjectName()));
-           continue;
-         }
-	 DBUG_RETURN_EVENT(op->m_facade);
+         DBUG_RETURN_EVENT(op->m_facade);
        }
        // the next event belonged to an event op that is no
        // longer valid, skip to next
