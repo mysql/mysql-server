@@ -55,6 +55,9 @@ private:
   // map argument indexes to indexes into m_paths
   Mem_root_array<int, true> m_arg_idx_to_vector_idx;
 
+  // remembers whether a constant path was null or invalid
+  Mem_root_array<bool, true> m_arg_idx_to_problem_indicator;
+
   // number of cells in m_arg_idx_to_vector
   uint m_size;
 

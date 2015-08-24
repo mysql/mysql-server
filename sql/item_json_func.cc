@@ -33,7 +33,6 @@
 
 // Used by the Json_path_cache
 #define JPC_UNINITIALIZED -1
-#define JPC_NULL_OR_ERROR -2
 
 /** Helper routines */
 
@@ -515,6 +514,7 @@ enum_one_or_all_type parse_and_cache_ooa(Item *arg,
 Json_path_cache::Json_path_cache(THD *thd, uint size)
   : m_paths(key_memory_JSON),
     m_arg_idx_to_vector_idx(thd->mem_root, size),
+    m_arg_idx_to_problem_indicator(thd->mem_root, size),
     m_size(size)
 {
   reset_cache();
@@ -538,12 +538,12 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
     // nothing to do if it has already been parsed
     if (vector_idx >= 0)
     {
-      return false;
-    }
+      if (m_arg_idx_to_problem_indicator[vector_idx])
+      {
+        return true;
+      }
 
-    if (vector_idx == JPC_NULL_OR_ERROR)
-    {
-      return true;
+      return false;
     }
   }
 
@@ -569,7 +569,7 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
     if (is_constant)
     {
       // remember that we had a problem
-      m_arg_idx_to_vector_idx[arg_idx]= JPC_NULL_OR_ERROR;
+      m_arg_idx_to_problem_indicator[vector_idx]= true;
     }
 
     return true;
@@ -583,13 +583,12 @@ Json_path *Json_path_cache::get_path(uint arg_idx)
 {
   int vector_idx= m_arg_idx_to_vector_idx[arg_idx];
 
-  if (vector_idx >= 0)
+  if ((vector_idx < 0) || m_arg_idx_to_problem_indicator[vector_idx])
   {
-    return &(m_paths.at(vector_idx));
+    return NULL;
   }
 
-  DBUG_ASSERT(vector_idx == JPC_NULL_OR_ERROR);
-  return NULL;
+  return &(m_paths.at(vector_idx));
 }
 
 
@@ -598,6 +597,7 @@ void Json_path_cache::reset_cache()
   for (uint arg_idx= 0; arg_idx < m_size; arg_idx++)
   {
     m_arg_idx_to_vector_idx[arg_idx]= JPC_UNINITIALIZED;
+    m_arg_idx_to_problem_indicator[arg_idx] = false;
   }
 
   m_paths.clear();
