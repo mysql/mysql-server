@@ -3638,18 +3638,13 @@ protected:
 
 private:
   /**
-    In order to support update virtual generated columns of blob type,
+    In order to support update of virtual generated columns of blob type,
     we need to allocate the space blob needs on server for old_row and
     new_row respectively. This variable is used to record the
     allocated blob space for old_row.
   */
   String old_value;
-  /**
-    Mark if we should copy the content of 'value' to 'old_value'
-    before doing the update. This is used to support update of
-    indexes on virtual generated columns of blob type.
-  */
-  bool keep_old_value;
+
 protected:
   /**
     Store ptr and length.
@@ -3669,7 +3664,7 @@ public:
 	     const CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
-    packlength(4), keep_old_value(false)
+    packlength(4)
   {
     flags|= BLOB_FLAG;
     if (set_packlength)
@@ -3683,7 +3678,7 @@ public:
   Field_blob(uint32 packlength_arg)
     :Field_longstr((uchar*) 0, 0, (uchar*) "", 0,
                    NONE, "temp", system_charset_info),
-    packlength(packlength_arg), keep_old_value(false)
+    packlength(packlength_arg)
   {}
 
   ~Field_blob() { mem_free(); }
@@ -3832,18 +3827,11 @@ public:
   virtual bool is_text_key_type() const { return binary() ? false : true; }
 
   /**
-    Whether to update the current value object or create a new value object.
+    Save the current BLOB value to avoid that it gets overwritten.
 
-    This is used when updating virtual generated columns that are BLOBs.
-    In this case we will not update the existing 'value' but move it
-    to 'old_value' and then allocate a new string for storing the new value.
-    This is needed for supporting storage engines that requires the current
-    value for virtual generated columns to be available during an update.
-
-    @param value whether to create a new value string for the blob or just
-                 update the current value
+    For details about the implementation, see field.cc.
   */
-  void set_keep_old_value(bool value) { keep_old_value= value; }
+  void keep_old_value();
 
   /**
     Use to store the blob value into an allocated space.

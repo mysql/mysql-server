@@ -7574,14 +7574,13 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
       /*
         For a virtual generated column of blob type, we have to keep
         the current blob value since this might be needed by the
-        storage enngine during updates.
+        storage engine during updates.
       */
       if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
-        (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
+        (down_cast<Field_blob*>(vfield))->keep_old_value();
+
       /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
-      if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
-        (down_cast<Field_blob *>(vfield))->set_keep_old_value(false);
 
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())
