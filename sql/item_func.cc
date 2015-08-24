@@ -8226,6 +8226,7 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
       return true;
     }
     m_name->m_db= thd->db();
+    m_name->m_db.str= thd->strmake(m_name->m_db.str, m_name->m_db.length);
   }
 
   m_name->init_qname(thd);
