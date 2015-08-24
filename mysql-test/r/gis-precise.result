@@ -2219,6 +2219,15 @@ result
 GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(10 10)),LINESTRING(0 0,1 1),GEOMETRYCOLLECTION())
 SELECT ST_AsText(ST_GeomFromWKB(0x01070000000300000001070000000100000001010000000000000000002440000000000000244001020000000200000000000000000000000000000000000000000000000000F03F000000000000F03F01070000000000000011111111)) as result;
 ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+#
+# Bug#21546656 ASSERTION FAILED: DATA_LEN - SRID_SZ - WKB_HEADER_SIZE >= POINT_DATA_SIZE
+#
+do st_union(cast(point(1,1)as char(12)),point(1,1));
+ERROR 22023: Invalid GIS data provided to function st_union.
+do st_union(cast(point(1,1)as char(13)),point(1,1));
+ERROR 22023: Invalid GIS data provided to function st_union.
+select st_astext(st_union(cast(point(1,1)as char(15)),point(1,1))) as res;
+ERROR 22023: Invalid GIS data provided to function st_union.
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
