@@ -32,16 +32,20 @@ a	b	c
 823	Evolution	lsjndofiabsoibeg
 822	Devotion	asdfuihknaskdf
 821	Cavalry	..asdasdfaeraf
+CREATE TABLE t2(a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 t1.frm
 t1.ibd
-# Restarting server
+t2.frm
+t2.ibd
 # restart
-# Done restarting server
-FLUSH TABLE t1 FOR EXPORT;
+FLUSH TABLE t1, t2 FOR EXPORT;
 # List before copying files
 t1.cfg
 t1.frm
 t1.ibd
+t2.cfg
+t2.frm
+t2.ibd
 UNLOCK TABLES;
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t1;
@@ -63,9 +67,13 @@ a	b	c
 # List before t1 DISCARD
 t1.frm
 t1.ibd
+t2.frm
+t2.ibd
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List after t1 DISCARD
 t1.frm
+t2.frm
+t2.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;
 ALTER TABLE t1 ENGINE InnoDB;
 SELECT COUNT(*) FROM t1;
@@ -84,6 +92,8 @@ a	b	c
 t1.cfg
 t1.frm
 t1.ibd
+t2.frm
+t2.ibd
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 640
@@ -98,6 +108,15 @@ a	b	c
 822	Devotion	asdfuihknaskdf
 821	Cavalry	..asdasdfaeraf
 DROP TABLE t1;
+ALTER TABLE t2 ROW_FORMAT=DYNAMIC;
+ALTER TABLE t2 DISCARD TABLESPACE;
+# List after t2 DISCARD
+t2.frm
+ALTER TABLE t2 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table flags don't match, server table has 0x4 and the meta-data file has 0x1)
+ALTER TABLE t2 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table has ROW_TYPE_DYNAMIC row format, .ibd file has ROW_TYPE_COMPACT row format.)
+DROP TABLE t2;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table

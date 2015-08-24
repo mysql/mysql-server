@@ -193,6 +193,37 @@ static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+/** Note we cannot use rec_format_enum because we do not allow
+COMPRESSED row format for innodb_default_row_format option. */
+enum default_row_format_enum {
+	DEFAULT_ROW_FORMAT_REDUNDANT = 0,
+	DEFAULT_ROW_FORMAT_COMPACT = 1,
+	DEFAULT_ROW_FORMAT_DYNAMIC = 2,
+};
+
+/** Return the InnoDB ROW_FORMAT enum value
+@param[in]	row_format	row_format from "innodb_default_row_format"
+@return InnoDB ROW_FORMAT value from rec_format_t enum. */
+static
+rec_format_t
+get_row_format(
+	ulong row_format)
+{
+	switch(row_format) {
+	case DEFAULT_ROW_FORMAT_REDUNDANT:
+		return(REC_FORMAT_REDUNDANT);
+	case DEFAULT_ROW_FORMAT_COMPACT:
+		return(REC_FORMAT_COMPACT);
+	case DEFAULT_ROW_FORMAT_DYNAMIC:
+		return(REC_FORMAT_DYNAMIC);
+	default:
+		ut_ad(0);
+		return(REC_FORMAT_DYNAMIC);
+	}
+}
+
+static ulong	innodb_default_row_format = DEFAULT_ROW_FORMAT_DYNAMIC;
+
 #ifdef UNIV_DEBUG
 /** Values for --innodb-debug-compress names. */
 static const char* innodb_debug_compress_names[] = {
@@ -249,6 +280,23 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 	array_elements(innodb_checksum_algorithm_names) - 1,
 	"innodb_checksum_algorithm_typelib",
 	innodb_checksum_algorithm_names,
+	NULL
+};
+
+/** Possible values for system variable "innodb_default_row_format". */
+static const char* innodb_default_row_format_names[] = {
+	"redundant",
+	"compact",
+	"dynamic",
+	NullS
+};
+
+/** Used to define an enumerate type of the system variable
+innodb_default_row_format. */
+static TYPELIB innodb_default_row_format_typelib = {
+	array_elements(innodb_default_row_format_names) - 1,
+	"innodb_default_row_format_typelib",
+	innodb_default_row_format_names,
 	NULL
 };
 
@@ -10202,7 +10250,6 @@ const char*
 create_table_info_t::create_options_are_invalid()
 {
 	bool	has_key_block_size = (m_create_info->key_block_size != 0);
-	bool	is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
 	const char*	ret = NULL;
 	enum row_type	row_format	= m_create_info->row_type;
@@ -10312,27 +10359,6 @@ create_table_info_t::create_options_are_invalid()
 		}
 		break;
 	case ROW_TYPE_DYNAMIC:
-		if (!m_use_shared_space) {
-			if (!m_allow_file_per_table && !is_temp) {
-				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s requires"
-					" innodb_file_per_table.",
-					get_row_format_name(row_format));
-				ret = "ROW_FORMAT";
-			}
-			if (srv_file_format < UNIV_FORMAT_B) {
-				push_warning_printf(
-					m_thd, Sql_condition::SL_WARNING,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s requires"
-					" innodb_file_format > Antelope.",
-					get_row_format_name(row_format));
-				ret = "ROW_FORMAT";
-			}
-		}
-		/* fall through since dynamic also shuns KBS */
 	case ROW_TYPE_COMPACT:
 	case ROW_TYPE_REDUNDANT:
 		if (has_key_block_size) {
@@ -10577,7 +10603,8 @@ create_table_info_t::innobase_table_flags()
 	bool		zip_allowed = true;
 	ulint		zip_ssize = 0;
 	enum row_type	row_type;
-	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
+	rec_format_t	innodb_row_format =
+		get_row_format(innodb_default_row_format);
 
 	const ulint	zip_ssize_max =
 		ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
@@ -10743,62 +10770,53 @@ index_bad:
 	}
 
 	/* Validate the row format.  Correct it if necessary */
-	bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
 	switch (row_type) {
 	case ROW_TYPE_REDUNDANT:
 		innodb_row_format = REC_FORMAT_REDUNDANT;
 		break;
+	case ROW_TYPE_COMPACT:
+		innodb_row_format = REC_FORMAT_COMPACT;
+		break;
 
 	case ROW_TYPE_COMPRESSED:
-	case ROW_TYPE_DYNAMIC:
 		/* ROW_FORMAT=COMPRESSED requires file_per_table and
-		file_format=Barracuda unless there is a target tablespace.
-		ROW_FORMAT=DYNAMIC requires file_per_table and
-		file_format=Barracuda unless there is a target tablespace or
-		it is a temp file */
+		file_format=Barracuda unless there is a target tablespace. */
 		if (!m_allow_file_per_table
-		    && !m_use_shared_space
-		    && (row_type == ROW_TYPE_COMPRESSED
-		        || (row_type == ROW_TYPE_DYNAMIC
-		            && !is_temp))) {
+		    && !m_use_shared_space) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_per_table.",
-				get_row_format_name(row_type));
+				"InnoDB: ROW_FORMAT=COMPRESSED requires"
+				" innodb_file_per_table.");
 
 		} else if (file_format_allowed == UNIV_FORMAT_A
 			   && !m_use_shared_space) {
 			push_warning_printf(
 				m_thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_format > Antelope.",
-				get_row_format_name(row_type));
+				"InnoDB: ROW_FORMAT=COMPRESSED requires"
+				" innodb_file_format > Antelope.");
 
 		} else {
 			/* We can use this row_format. */
-			innodb_row_format = (row_type == ROW_TYPE_DYNAMIC
-					     ? REC_FORMAT_DYNAMIC
-					     : REC_FORMAT_COMPRESSED);
+			innodb_row_format = REC_FORMAT_COMPRESSED;
 			break;
 		}
 		zip_allowed = false;
-		/* fall through to set row_type = COMPACT */
+		/* fall through to set row_type = DYNAMIC */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
 		push_warning(
 			m_thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: assuming ROW_FORMAT=COMPACT.");
-	case ROW_TYPE_DEFAULT:
-		/* If we fell through, set row format to Compact. */
-		row_type = ROW_TYPE_COMPACT;
-	case ROW_TYPE_COMPACT:
+			"InnoDB: assuming ROW_FORMAT=DYNAMIC.");
+	case ROW_TYPE_DYNAMIC:
+		innodb_row_format = REC_FORMAT_DYNAMIC;
 		break;
+	case ROW_TYPE_DEFAULT:
+		;
 	}
 
 	/* Don't support compressed table when page size > 16k. */
@@ -10807,8 +10825,8 @@ index_bad:
 			     ER_ILLEGAL_HA_CREATE_OPTION,
 			     "InnoDB: Cannot create a COMPRESSED table"
 			     " when innodb_page_size > 16k."
-			     " Assuming ROW_FORMAT=COMPACT.");
-		zip_allowed = FALSE;
+			     " Assuming ROW_FORMAT=DYNAMIC.");
+		zip_allowed = false;
 	}
 
 	/* Set the table flags */
@@ -10816,20 +10834,24 @@ index_bad:
 		zip_ssize = 0;
 	}
 
-	/* Set the table flags */
-	dict_tf_set(&m_flags, innodb_row_format, zip_ssize,
-	            m_use_data_dir, m_use_shared_space);
-
 	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		m_flags2 |= DICT_TF2_TEMPORARY;
 
 		/* Intrinsic tables reside only in the shared temporary
-		tablespace. */
+		tablespace and we will always use ROW_FORMAT=DYNAMIC. */
 		if ((m_create_info->options & HA_LEX_CREATE_INTERNAL_TMP_TABLE)
 		    && !m_use_file_per_table) {
+			/* We do not allow compressed instrinsic
+			temporary tables. */
+			ut_ad(zip_ssize == 0);
 			m_flags2 |= DICT_TF2_INTRINSIC;
+			innodb_row_format = REC_FORMAT_DYNAMIC;
 		}
 	}
+
+	/* Set the table flags */
+	dict_tf_set(&m_flags, innodb_row_format, zip_ssize,
+	            m_use_data_dir, m_use_shared_space);
 
 	if (m_use_file_per_table) {
 		ut_ad(!m_use_shared_space);
@@ -19172,6 +19194,14 @@ static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
   " may have negative impact on performance (off by default)",
   NULL, innodb_cmp_per_index_update, FALSE);
 
+static MYSQL_SYSVAR_ENUM(default_row_format, innodb_default_row_format,
+  PLUGIN_VAR_RQCMDARG,
+  "The default ROW FORMAT for all innodb tables created without explicit"
+  " ROW_FORMAT. Possible values are REDUNDANT, COMPACT, and DYNAMIC."
+  " The ROW_FORMAT value COMPRESSED is not allowed",
+  NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC,
+  &innodb_default_row_format_typelib);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -19365,6 +19395,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(sync_array_size),
   MYSQL_SYSVAR(compression_failure_threshold_pct),
   MYSQL_SYSVAR(compression_pad_pct_max),
+  MYSQL_SYSVAR(default_row_format),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),

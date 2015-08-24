@@ -163,19 +163,19 @@ yyy.ibd
 # restart
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/yyy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
-test/nyy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
-test/yny	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yny.ibd
-test/yyn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
-test/nyw	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
-test/nwy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/new_dir/test/nwy.ibd
-test/wny	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/new_dir/test/wny.ibd
-test/ynw	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/ynw.ibd
-test/wyn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
-test/ywn	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/ywn.ibd
-test/nnn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
-test/www	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/www.ibd
-test/nolink	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+test/yyy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+test/nyy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+test/yny	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yny.ibd
+test/yyn	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+test/nyw	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+test/nwy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+test/wny	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/new_dir/test/wny.ibd
+test/ynw	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/ynw.ibd
+test/wyn	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+test/ywn	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/ywn.ibd
+test/nnn	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
+test/www	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/www.ibd
+test/nolink	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/nyw	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
@@ -531,11 +531,11 @@ yy	CREATE TABLE `yy` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-test/ny	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
-test/wy	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
-test/yn	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
-test/yw	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-test/yy	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/yy.ibd
+test/ny	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+test/wy	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+test/yn	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+test/yw	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+test/yy	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/yy.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/ny	TABLESPACE	InnoDB	NORMAL	innodb_file_per_table.##	MYSQL_TMP_DIR/alt_dir/test/ny.ibd

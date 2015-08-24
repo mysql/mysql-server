@@ -759,13 +759,13 @@ geomdata polygon NOT NULL,
 KEY index_geom (geomdata(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 Warnings:
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 CREATE TABLE t2 (
 geomdata polygon NOT NULL,
 KEY index_geom (geomdata(10))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 Warnings:
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 CREATE TABLE t3
 select 
 ST_aswkb(ws.geomdata) AS geomdatawkb 

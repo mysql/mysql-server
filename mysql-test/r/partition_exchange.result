@@ -7,6 +7,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Same definition (both have ROW_FORMAT set)
+SET GLOBAL innodb_default_row_format=compact;
 CREATE TABLE t1 (
 id int(11) NOT NULL AUTO_INCREMENT,
 year year(4) DEFAULT NULL,
@@ -1597,3 +1598,4 @@ a	b
 # Test with REBUILD where the rows does not match the current partition
 DROP TABLE t, tp, tsp;
 SET sql_mode = default;
+SET GLOBAL innodb_default_row_format=default;
