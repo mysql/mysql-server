@@ -91,6 +91,7 @@ struct EventBufData
       add_part_size(full_count, full_sz);
   }
   void add_part_size(Uint32 & full_count, Uint32 & full_sz) const;
+  Uint64 getGCI() const;
 };
 
 class EventBufData_list
@@ -393,7 +394,7 @@ public:
   bool tableFrmChanged() const;
   bool tableFragmentationChanged() const;
   bool tableRangeListChanged() const;
-  Uint64 getGCI();
+  Uint64 getGCI() const;
   Uint32 getAnyValue() const;
   bool isErrorEpoch(NdbDictionary::Event::TableEvent *error_type);
   bool isEmptyEpoch();
@@ -713,7 +714,7 @@ public:
                                                Uint32* event_types);
   void deleteUsedEventOperations(Uint64 last_consumed_gci);
 
-  NdbEventOperationImpl *move_data();
+  EventBufData *move_data();
 
   // routines to copy/merge events
   EventBufData* alloc_data();
