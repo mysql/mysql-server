@@ -100,3 +100,17 @@ DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Ou
 DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
 DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
 DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
+#
+# Bug#21611270 ASSERTION IN FILESORT::MAKE_SORTORDER()
+#
+CREATE TABLE g(b INT NOT NULL, UNIQUE(b)) ENGINE=INNODB;
+CREATE TABLE t(a int, c int) ENGINE=INNODB;
+INSERT INTO t VALUES(1,1);
+SELECT 1
+FROM t
+GROUP BY a
+HAVING (SELECT a
+FROM g
+GROUP BY b, a);
+1
+DROP TABLE t, g;
