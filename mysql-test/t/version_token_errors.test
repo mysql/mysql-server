@@ -1,0 +1,80 @@
+# Save the initial number of concurrent sessions
+--disable_ps_protocol
+--source include/not_embedded.inc
+--source include/count_sessions.inc
+
+if ( !$VERSION_TOKEN ) {
+  skip Locking service plugin requires the environment variable \$VERSION_TOKEN to be set (normally done by mtr);
+}
+
+--echo # Set up the plugin APIs
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_set RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_show RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_edit RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_delete RETURNS STRING SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_lock_shared RETURNS INT SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_lock_exclusive RETURNS INT SONAME '$VERSION_TOKEN';
+--replace_regex /\.dll/.so/
+eval CREATE FUNCTION version_tokens_unlock RETURNS INT SONAME '$VERSION_TOKEN';
+
+
+--echo # tests
+
+
+--echo #
+--echo # Bug #21645001  VERSION_TOKENS_DELETE() UDF DOESN'T TRIM WHITESPACE
+--echo #
+
+SELECT version_tokens_set(' * = a ; y = b ');
+SELECT version_tokens_show();
+SELECT version_tokens_delete(' * ');
+SELECT version_tokens_show();
+SELECT version_tokens_delete(' ; y ');
+SELECT version_tokens_show();
+
+
+--echo #
+--echo # Bug #21645944: VERSION_TOKENS : CRASH WITH EMPTY TOKEN NAME
+--echo #
+
+--echo # Must not crash
+SELECT version_tokens_edit('=');
+
+
+--echo #
+--echo # Bug #21646017: VERSION_TOKENS : CRASH WITH INVALID TIMEOUT PARAMETER
+--echo #
+
+--echo # Must not crash
+--error ER_DATA_OUT_OF_RANGE
+SELECT version_tokens_lock_shared('a',''>''%'0');
+
+
+--echo #
+--echo # Bug #21646106: VERSION_TOKENS : CRASH WITH NULL INPUTS
+--echo #
+
+--echo # Must not crash
+SELECT version_tokens_delete(null);
+
+
+--echo # End of 5.7 tests
+
+
+--echo # Clean up the plugin APIs
+UNINSTALL PLUGIN version_tokens;
+DROP FUNCTION version_tokens_set;
+DROP FUNCTION version_tokens_show;
+DROP FUNCTION version_tokens_edit;
+DROP FUNCTION version_tokens_delete;
+DROP FUNCTION version_tokens_lock_shared;
+DROP FUNCTION version_tokens_lock_exclusive;
+DROP FUNCTION version_tokens_unlock;
