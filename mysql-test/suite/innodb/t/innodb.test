@@ -1468,7 +1468,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 # Embedded server doesn't chdir to data directory
 --replace_result $MYSQLTEST_VARDIR . master-data/ ''
 --error ER_TOO_LONG_KEY,ER_INDEX_COLUMN_TOO_LONG
-create table t1 (v varchar(65530), key(v));
+create table t1 (v varchar(65530), key(v)) ROW_FORMAT=COMPACT;
 create table t1 (v varchar(65536));
 show create table t1;
 drop table t1;

@@ -548,16 +548,8 @@ dict_build_tablespace_for_table(
 			table->space = static_cast<uint32_t>(
 				srv_tmp_space.space_id());
 		} else {
-			/* Create in the system tablespace.
-			Disallow ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED
-			page creation as they need file-per-table.
-			Update table flags accordingly */
-			rec_format_t rec_format = table->flags == 0
-						? REC_FORMAT_REDUNDANT
-						: REC_FORMAT_COMPACT;
-			ulint flags = 0;
-			dict_tf_set(&flags, rec_format, 0, 0, 0);
-			table->flags = static_cast<unsigned int>(flags);
+			/* Create in the system tablespace. */
+			ut_ad(table->space == srv_sys_space.space_id());
 		}
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",

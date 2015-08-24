@@ -3238,11 +3238,14 @@ row_create_index_for_mysql(
 		space_index_t index_id = index->id;
 #endif
 
-		/* add index to dictionary cache and also free index object */
+		/* add index to dictionary cache and also free index object.
+		We allow instrinsic table to violate the size limits because
+		they are used by optimizer for all record formats. */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			trx_is_strict(trx)
-			|| dict_table_has_atomic_blobs(table));
+			!dict_table_is_intrinsic(table)
+			&& (trx_is_strict(trx)
+			    || dict_table_has_atomic_blobs(table)));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;

@@ -2082,7 +2082,8 @@ SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
 
 --echo # Test with '767' as index size limit.
-CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
+CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB
+ROW_FORMAT=COMPACT;
 --error ER_INDEX_COLUMN_TOO_LONG
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
 DROP TABLE t1;

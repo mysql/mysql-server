@@ -2647,7 +2647,8 @@ SET sql_mode= '';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Test with '767' as index size limit.
-CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB;
+CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) ENGINE= INNODB
+ROW_FORMAT=COMPACT;
 ALTER TABLE t1 CHANGE fld1 fld1 VARCHAR(768), ALGORITHM= INPLACE;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 DROP TABLE t1;

@@ -1014,7 +1014,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
-create table t1 (a varchar(334) character set utf16 primary key);
+create table t1 (a varchar(334) character set utf16 primary key) ROW_FORMAT=COMPACT;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create table t1 (a char(1) character set utf16);
 insert into t1 values (0xD800DC00),(0xD800DCFF),(0xDB7FDC00),(0xDB7FDCFF);

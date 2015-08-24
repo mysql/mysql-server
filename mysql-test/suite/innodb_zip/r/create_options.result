@@ -40,7 +40,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	
+t1	Dynamic	
 ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=0;
 ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
 SHOW WARNINGS;
@@ -49,7 +49,7 @@ Warning	1478	InnoDB: invalid ROW_FORMAT specifier.
 Error	1478	Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	
+t1	Dynamic	
 DROP TABLE t1;
 # Test 2) StrictMode=ON, CREATE with each ROW_FORMAT & a valid non-zero KEY_BLOCK_SIZE
 #         KEY_BLOCK_SIZE is incompatible with COMPACT, REDUNDANT, & DYNAMIC
@@ -236,7 +236,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	
+t1	Dynamic	
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
 SHOW WARNINGS;
 Level	Code	Message
@@ -329,11 +329,7 @@ Level	Code	Message
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
 Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
-Error	1031	Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
 SHOW WARNINGS;
 Level	Code	Message
@@ -364,11 +360,6 @@ Level	Code	Message
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
 Error	1478	Table storage engine 'InnoDB' does not support the create option 'ROW_FORMAT'
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
-ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'ROW_FORMAT'
-SHOW WARNINGS;
-Level	Code	Message
-Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
-Error	1478	Table storage engine 'InnoDB' does not support the create option 'ROW_FORMAT'
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
 SHOW WARNINGS;
 Level	Code	Message
@@ -386,7 +377,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	
+t1	Dynamic	
 SET GLOBAL innodb_file_per_table=ON;
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
@@ -410,13 +401,13 @@ SET SESSION innodb_strict_mode = OFF;
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=FIXED;
 Warnings:
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	row_format=FIXED
+t1	Dynamic	row_format=FIXED
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
@@ -447,16 +438,16 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	
+t1	Dynamic	
 ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=0;
 Warnings:
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	row_format=FIXED
+t1	Dynamic	row_format=FIXED
 # Test 10) StrictMode=OFF, CREATE with each ROW_FORMAT & a valid KEY_BLOCK_SIZE
 #          KEY_BLOCK_SIZE is ignored with COMPACT, REDUNDANT, & DYNAMIC
 DROP TABLE t1;
@@ -521,14 +512,14 @@ CREATE TABLE t1 ( i INT );
 ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
 Warnings:
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=1 unless ROW_FORMAT=COMPRESSED.
-Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	row_format=FIXED KEY_BLOCK_SIZE=1
+t1	Dynamic	row_format=FIXED KEY_BLOCK_SIZE=1
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT );
 ALTER TABLE t1 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=2;
@@ -687,7 +678,7 @@ SHOW WARNINGS;
 Level	Code	Message
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	
+t1	Dynamic	
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
 SHOW WARNINGS;
 Level	Code	Message
@@ -705,7 +696,7 @@ Level	Code	Message
 Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=15.
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 TABLE_NAME	ROW_FORMAT	CREATE_OPTIONS
-t1	Compact	KEY_BLOCK_SIZE=15
+t1	Dynamic	KEY_BLOCK_SIZE=15
 # Test 15) StrictMode=OFF.
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;

@@ -1364,7 +1364,7 @@ DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
 col_1_varchar VARCHAR (4000) , col_2_varchar VARCHAR (4000) ,
 PRIMARY KEY (col_1_varchar(767))
-) engine = innodb;
+) engine = innodb ROW_FORMAT=COMPACT;
 INSERT INTO worklog5743 VALUES(REPEAT('a',4000),REPEAT('b',4000));
 # Prefix index > 767 is truncated with REDUNDANT and COMPACT
 --enable_info
