@@ -1955,6 +1955,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   do {
     if (start_transaction(ndb, hugo_ops))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     for (i= 0; pTabs[i]; i++)
@@ -1963,10 +1964,12 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     }
     if (execute_commit(ndb, hugo_ops))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
@@ -1978,10 +1981,12 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     {
       g_err << "Not all records are consumed. Consumed " << ops_consumed
             << ", inserted " << i * n_records << endl;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1990,6 +1995,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   do {
     if (start_transaction(ndb, hugo_ops))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
 
@@ -1997,10 +2003,12 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
     if (execute_commit(ndb, hugo_ops))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
@@ -2010,10 +2018,12 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (copy_events(ndb) <= 0)
     {
       g_err << "No update is consumed. " << endl;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -2046,6 +2056,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
     HugoTransactions hugo(*pTabs[i]);
     if (hugo.loadTable(ndb, records, 1, true, 1))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     // copy events and verify
@@ -2054,12 +2065,14 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
     {
       g_err << "Not all records are consumed. Consumed " << ops_consumed
             << ", inserted " << records << endl;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   }
 
   if (verify_copy(ndb, pTabs, pShadowTabs))
   {
+    dropEventOperations(ndb);
     DBUG_RETURN(NDBT_FAILED);
   }
 
@@ -2071,6 +2084,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       int timeout = 240;
       if (restarts.executeRestart(ctx, "RestartRandomNodeAbort", timeout))
       {
+	dropEventOperations(ndb);
 	DBUG_RETURN(NDBT_FAILED);
       }
 
@@ -2081,6 +2095,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	HugoTransactions hugo(*pTabs[i]);
 	if (hugo.pkUpdateRecords(ndb, records, 1, 1))
 	{
+	  dropEventOperations(ndb);
 	  DBUG_RETURN(NDBT_FAILED);
 	}
         int ops_consumed = 0;
@@ -2088,6 +2103,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	{
           g_err << "Not all updates are consumed. Consumed " << ops_consumed
                 << ", updated " << records << endl;
+	  dropEventOperations(ndb);
 	  DBUG_RETURN(NDBT_FAILED);
 	}
       }
@@ -2095,6 +2111,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       // copy events and verify
       if (verify_copy(ndb, pTabs, pShadowTabs))
       {
+	dropEventOperations(ndb);
 	DBUG_RETURN(NDBT_FAILED);
       }
     }
