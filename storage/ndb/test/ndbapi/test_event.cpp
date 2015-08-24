@@ -1718,6 +1718,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (start_transaction(ndb, hugo_ops))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     for (i= 0; no_error && pTabs[i]; i++)
@@ -1727,11 +1728,13 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (execute_commit(ndb, hugo_ops))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
@@ -1741,11 +1744,13 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (copy_events(ndb) < 0)
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1755,6 +1760,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (start_transaction(ndb, hugo_ops))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
 
@@ -1763,11 +1769,13 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (execute_commit(ndb, hugo_ops))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
@@ -1777,11 +1785,13 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     if (copy_events(ndb) < 0)
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
       no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1816,17 +1826,20 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
     HugoTransactions hugo(*pTabs[i]);
     if (hugo.loadTable(ndb, records, 1, true, 1))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     // copy events and verify
     if (copy_events(ndb) < 0)
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   }
 
   if (verify_copy(ndb, pTabs, pShadowTabs))
   {
+    dropEventOperations(ndb);
     DBUG_RETURN(NDBT_FAILED);
   }
 
@@ -1838,6 +1851,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       int timeout = 240;
       if (restarts.executeRestart(ctx, "RestartRandomNodeAbort", timeout))
       {
+	dropEventOperations(ndb);
 	DBUG_RETURN(NDBT_FAILED);
       }
 
@@ -1848,10 +1862,12 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	HugoTransactions hugo(*pTabs[i]);
 	if (hugo.pkUpdateRecords(ndb, records, 1, 1))
 	{
+	  dropEventOperations(ndb);
 	  DBUG_RETURN(NDBT_FAILED);
 	}
 	if (copy_events(ndb) < 0)
 	{
+          dropEventOperations(ndb);
 	  DBUG_RETURN(NDBT_FAILED);
 	}
       }
@@ -1859,6 +1875,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       // copy events and verify
       if (verify_copy(ndb, pTabs, pShadowTabs))
       {
+	dropEventOperations(ndb);
 	DBUG_RETURN(NDBT_FAILED);
       }
     }
