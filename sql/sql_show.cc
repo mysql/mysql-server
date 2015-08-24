@@ -5856,6 +5856,8 @@ static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   Open_tables_backup open_tables_state_backup;
   enum enum_schema_tables schema_table_idx=
     get_schema_table_idx(tables->schema_table);
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
+
   DBUG_ENTER("fill_schema_proc");
 
   strxmov(definer, thd->security_context()->priv_user().str, "@",
@@ -5873,6 +5875,9 @@ static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
   if ((error= proc_table->file->ha_index_init(0, 1)))
   {
     proc_table->file->print_error(error, MYF(0));
@@ -5908,6 +5913,7 @@ static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 err:
   if (proc_table->file->inited)
     (void) proc_table->file->ha_index_end();
+  thd->variables.sql_mode= old_sql_mode;
   close_nontrans_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(res);
 }
