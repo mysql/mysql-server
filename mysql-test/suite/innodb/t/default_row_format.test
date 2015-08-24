@@ -1,0 +1,60 @@
+--source include/have_innodb.inc
+#InnoDB doesn't support compressed tables on 32k,64k page sizes
+--source include/have_innodb_max_16k.inc
+
+--echo
+--echo ####################################
+--echo # 1. Use default as ROW_FORMAT=REDUNDANT
+
+--let $INNODB_DEFAULT_ROW_FORMAT=REDUNDANT
+
+--let $TEMPORARY=
+--source ../include/default_row_format_create.inc
+
+--echo
+--echo ####################################
+--echo # 2. Use default as ROW_FORMAT=REDUNDANT (TEMPORARY)
+
+--let $TEMPORARY=TEMPORARY
+--source ../include/default_row_format_create.inc
+
+--echo
+--echo ####################################
+--echo # 3. Use default as ROW_FORMAT=COMPACT
+--let $INNODB_DEFAULT_ROW_FORMAT=COMPACT
+
+--let $TEMPORARY=
+--source ../include/default_row_format_create.inc
+
+--echo
+--echo ####################################
+--echo # 4. Use default as ROW_FORMAT=COMPACT (TEMPORARY)
+
+--let $TEMPORARY=TEMPORARY
+--source ../include/default_row_format_create.inc
+
+--echo
+--echo ####################################
+--echo # 5. Use default as ROW_FORMAT=DYNAMIC
+--let $INNODB_DEFAULT_ROW_FORMAT=DYNAMIC
+
+--let $TEMPORARY=
+--source ../include/default_row_format_create.inc
+
+--echo
+--echo ####################################
+--echo # 6. Use default as ROW_FORMAT=DYNAMIC(TEMPORARY)
+--let $TEMPORARY=TEMPORARY
+--source ../include/default_row_format_create.inc
+
+--echo
+--echo ####################################
+--echo # 7. Test ALTERs on NORMAL TABLES
+--let $TEMPORARY=
+--source ../include/default_row_format_alter.inc
+
+--echo
+--echo ####################################
+--echo # 8. Test ALTERs on TEMPORARY TABLES
+--let $TEMPORARY=TEMPORARY
+--source ../include/default_row_format_alter.inc

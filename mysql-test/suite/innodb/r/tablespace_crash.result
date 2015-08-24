@@ -25,8 +25,8 @@ INSERT INTO t4 VALUES (1),(2),(3),(4),(5);
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 ts1	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace1.ibd
 ts2	General	DEFAULT	0	Any	MYSQL_TMP_DIR/tablespace2.ibd
-test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t3.ibd
-test/t4	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t4.ibd
+test/t3	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQLD_DATADIR/tablespace1.ibd
@@ -53,8 +53,8 @@ INSERT INTO t4 VALUES (6);
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 ts1	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace1.ibd
 ts2	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace2.ibd
-test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t3.ibd
-test/t4	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t4.ibd
+test/t3	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQLD_DATADIR/tablespace1.ibd
@@ -132,8 +132,8 @@ INSERT INTO t4 VALUES (6);
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/tablespace1.ibd
 ts2	General	DEFAULT	0	Any	MYSQL_TMP_DIR/tablespace2.ibd
-test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t3.ibd
-test/t4	Single	DEFAULT	0	Compact or Redundant	MYSQL_TMP_DIR/test/t4.ibd
+test/t3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQL_TMP_DIR/tablespace1.ibd
@@ -214,8 +214,8 @@ INSERT INTO t4 VALUES (6);
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 ts1	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace1.ibd
 ts2	General	DEFAULT	0	Any	MYSQLD_DATADIR/tablespace2.ibd
-test/t3	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t3.ibd
-test/t4	Single	DEFAULT	0	Compact or Redundant	MYSQLD_DATADIR/test/t4.ibd
+test/t3	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t3.ibd
+test/t4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t4.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 ts1	TABLESPACE	InnoDB	NORMAL	ts1	MYSQLD_DATADIR/tablespace1.ibd
