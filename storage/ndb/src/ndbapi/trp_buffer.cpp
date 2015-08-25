@@ -17,21 +17,16 @@
 
 #include "trp_buffer.hpp"
 
-TFPool::TFPool()
-{
-  m_first_free = 0;
-  m_alloc_ptr = 0;
-  m_tot_send_buffer_pages = 0;
-  m_pagesize = 0;
-  m_free_send_buffer_pages = 0;
-}
-
 bool
-TFPool::init(size_t mem, size_t page_sz)
+TFPool::init(size_t mem, 
+             size_t reserved_mem,
+             size_t page_sz)
 {
   m_pagesize = page_sz;
   m_tot_send_buffer_pages = mem/page_sz;
   size_t tot_alloc = m_tot_send_buffer_pages * page_sz;
+  assert(reserved_mem < mem);
+  m_reserved_send_buffer_pages = reserved_mem / page_sz;
 
   unsigned char * ptr = (m_alloc_ptr = (unsigned char*)malloc(tot_alloc));
   for (size_t i = 0; i + page_sz <= tot_alloc; i += page_sz)
@@ -46,7 +41,8 @@ TFPool::init(size_t mem, size_t page_sz)
   }
   
   assert(m_free_send_buffer_pages == m_tot_send_buffer_pages);
-
+  assert(m_free_send_buffer_pages > m_reserved_send_buffer_pages);
+  
   return true;
 }
 

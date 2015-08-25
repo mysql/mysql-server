@@ -141,15 +141,26 @@ class TFPool
   Uint32 m_tot_send_buffer_pages;
   Uint32 m_pagesize;
   Uint32 m_free_send_buffer_pages;
+  Uint32 m_reserved_send_buffer_pages;
   TFPage * m_first_free;
 public:
-  TFPool();
+  TFPool():
+    m_alloc_ptr(0),
+    m_tot_send_buffer_pages(0),
+    m_pagesize(0),
+    m_free_send_buffer_pages(0),
+    m_reserved_send_buffer_pages(0),
+    m_first_free(0)
+    {};
+
   ~TFPool();
 
-  bool init(size_t total_memory, size_t page_sz = 32768);
+  bool init(size_t total_memory, 
+            size_t reserved_memory = 0,
+            size_t page_sz = 32768);
   bool inited() const { return m_alloc_ptr != 0;}
 
-  TFPage* try_alloc(Uint32 N); // Return linked list of most N pages
+  TFPage* try_alloc(Uint32 N, bool reserved = false); // Return linked list of most N pages
   Uint32 try_alloc(struct iovec tmp[], Uint32 cnt);
 
   void release(TFPage* first, TFPage* last, Uint32 page_count);
@@ -157,6 +168,7 @@ public:
 
   Uint64 get_total_send_buffer_size() const
   {
+    /* TODO : Should we ignore the reserved space? */
     return Uint64(m_tot_send_buffer_pages) * m_pagesize;
   }
   Uint64 get_total_used_send_buffer_size() const
@@ -175,16 +187,20 @@ class TFMTPool : private TFPool
 public:
   explicit TFMTPool(const char * name = 0);
 
-  bool init(size_t total_memory, size_t page_sz = 32768) {
-    return TFPool::init(total_memory, page_sz);
+  bool init(size_t total_memory, 
+            size_t reserved_memory = 0, 
+            size_t page_sz = 32768) {
+    return TFPool::init(total_memory, 
+                        reserved_memory,
+                        page_sz);
   }
   bool inited() const {
     return TFPool::inited();
   }
 
-  TFPage* try_alloc(Uint32 N) {
+  TFPage* try_alloc(Uint32 N, bool reserved = false) {
     Guard g(&m_mutex);
-    return TFPool::try_alloc(N);
+    return TFPool::try_alloc(N, reserved);
   }
 
   void release(TFPage* first, TFPage* last, Uint32 page_count) {
@@ -218,25 +234,55 @@ public:
 
 inline
 TFPage *
-TFPool::try_alloc(Uint32 n)
+TFPool::try_alloc(Uint32 n, bool reserved)
 {
-  TFPage * h = m_first_free;
-  if (h)
+  /* Try to alloc up to n, but maybe less, including 0 */
+
+  /**
+   * Don't worry about reserved et al unless we are low
+   * on pages (unusual case)
+   */
+  if (unlikely(m_free_send_buffer_pages < m_reserved_send_buffer_pages + n))
   {
+    Uint64 avail_pages = m_free_send_buffer_pages; 
+    if (!reserved)
+    {
+      /* Some pages are unavailable for us */
+      if (m_free_send_buffer_pages > m_reserved_send_buffer_pages)
+      {
+        /* Some lesser number of pages available */
+        avail_pages = m_free_send_buffer_pages - 
+          m_reserved_send_buffer_pages;
+      }
+      else
+      {
+        /* No pages available */
+        avail_pages = 0;
+      }
+    }
+    
+    n = MIN(n, avail_pages);
+  }
+  
+  if (n)
+  {
+    TFPage * h = m_first_free;
     TFPage * p = h;
     TFPage * prev = 0;
-    while (p != 0 && n != 0)
+    m_free_send_buffer_pages -= n;
+    while (n != 0)
     {
-      assert(m_free_send_buffer_pages);
+      assert(p);
       prev = p;
       p = p->m_next;
-      m_free_send_buffer_pages--;
       n--;
     }
     prev->m_next = 0;
     m_first_free = p;
+    return h;
   }
-  return h;
+
+  return NULL;
 }
 
 inline
