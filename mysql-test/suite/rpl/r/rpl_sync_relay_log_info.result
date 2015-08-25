@@ -83,8 +83,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=9) SQL thread did not synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=9) SQL thread did not synced master binlog position]
+include/assert.inc [(MYISAM, sync_rli=0, step=9) SQL thread synced master binlog file]
+include/assert.inc [(MYISAM, sync_rli=0, step=9) SQL thread synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
@@ -117,8 +117,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=13) SQL thread did not synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=13) SQL thread did not synced master binlog position]
+include/assert.inc [(MYISAM, sync_rli=0, step=13) SQL thread synced master binlog file]
+include/assert.inc [(MYISAM, sync_rli=0, step=13) SQL thread synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc
@@ -152,8 +152,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(MYISAM, sync_rli=0, step=17) SQL thread did not synced master binlog file]
-include/assert.inc [(MYISAM, sync_rli=0, step=17) SQL thread did not synced master binlog position]
+include/assert.inc [(MYISAM, sync_rli=0, step=17) SQL thread synced master binlog file]
+include/assert.inc [(MYISAM, sync_rli=0, step=17) SQL thread synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
 [connection master]
 DROP TABLE t1;
@@ -397,8 +397,8 @@ include/sync_slave_io_with_master.inc
 [connection master]
 [connection slave]
 include/wait_for_slave_param.inc [Slave_SQL_Running_State]
-include/assert.inc [(INNODB, sync_rli=0, step=9) SQL thread did not synced master binlog file]
-include/assert.inc [(INNODB, sync_rli=0, step=9) SQL thread did not synced master binlog position]
+include/assert.inc [(INNODB, sync_rli=0, step=9) SQL thread synced master binlog file]
+include/assert.inc [(INNODB, sync_rli=0, step=9) SQL thread synced master binlog position]
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/stop_slave.inc
 include/start_slave_sql.inc

@@ -1127,6 +1127,17 @@ public:
   */
   void adapt_to_master_version(Format_description_log_event *fdle);
   uchar slave_version_split[3]; // bytes of the slave server version
+  /*
+    relay log info repository should be updated on relay log
+    rotate. But when the transaction is split across two relay logs,
+    update the repository will cause unexpected results and should
+    be postponed till the 'commit' of the transaction is executed.
+
+    A flag that set to 'true' when this type of 'forced flush'(at the
+    time of rotate relay log) is postponed due to transaction split
+    across the relay logs.
+  */
+  bool force_flush_postponed_due_to_split_trans;
 
   Commit_order_manager *get_commit_order_manager()
   {
