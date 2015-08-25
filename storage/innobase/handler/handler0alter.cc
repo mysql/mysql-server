@@ -3587,6 +3587,8 @@ innobase_update_v_pos_sys_virtual(
 @param[in]	table		InnoDB table
 @param[in]	col_name	column name of the dropping column
 @param[in]	drop_col	col information for the dropping column
+@param[in]	n_prev_dropped	number of previously dropped columns in the
+				same alter clause
 @param[in]	trx		transaction
 @return DB_SUCCESS if successful, otherwise error code */
 static
@@ -3595,6 +3597,7 @@ innobase_drop_one_virtual_sys_columns(
 	const dict_table_t*	table,
 	const char*		col_name,
 	dict_col_t*		drop_col,
+	ulint			n_prev_dropped,
 	trx_t*			trx)
 {
 	pars_info_t*    info = pars_info_create();
@@ -3619,12 +3622,15 @@ innobase_drop_one_virtual_sys_columns(
 	dict_v_col_t*	v_col = dict_table_get_nth_v_col_mysql(
 				table, drop_col->ind);
 
+	/* Adjust column positions for all subsequent columns */
 	for (ulint i = v_col->v_pos + 1; i < table->n_v_cols; i++) {
 		dict_v_col_t*   t_col = dict_table_get_nth_v_col(table, i);
 		ulint		old_p = dict_create_v_col_pos(
-					t_col->v_pos, t_col->m_col.ind);
+					t_col->v_pos - n_prev_dropped,
+					t_col->m_col.ind - n_prev_dropped);
 		ulint		new_p = dict_create_v_col_pos(
-					t_col->v_pos - 1, t_col->m_col.ind - 1);
+					t_col->v_pos - 1 - n_prev_dropped,
+					t_col->m_col.ind - 1 - n_prev_dropped);
 
 		error = innobase_update_v_pos_sys_columns(
 			table, old_p, new_p, trx);
@@ -3707,7 +3713,7 @@ innobase_drop_virtual_try(
 
 		err = innobase_drop_one_virtual_sys_columns(
 			user_table, ctx->drop_vcol_name[i],
-			&(ctx->drop_vcol[i].m_col), trx);
+			&(ctx->drop_vcol[i].m_col), i, trx);
 
 		if (err != DB_SUCCESS) {
 			return(true);

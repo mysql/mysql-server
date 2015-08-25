@@ -1799,6 +1799,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE);
 	case DB_WRONG_FILE_NAME:
 		return(HA_ERR_WRONG_FILE_NAME);
+	case DB_COMPUTE_VALUE_FAILED:
+		return(HA_ERR_COMPUTE_FAILED);
 	}
 }
 
@@ -19666,6 +19668,7 @@ innobase_get_computed_value(
 	dfield_t*	field;
 	ulint		len;
 	const page_size_t page_size = dict_table_page_size(index->table);
+	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);
 
@@ -19767,21 +19770,27 @@ innobase_get_computed_value(
 				vctempl->mysql_col_len, blob_mem, max_len);
                 }
 
-		handler::my_eval_gcolumn_expr(
+		ret = handler::my_eval_gcolumn_expr(
 			current_thd, false, index->table->vc_templ->db_name,
 			index->table->vc_templ->tb_name, &column_map,
 			(uchar *)mysql_rec);
-        }
-
-	else {
-		handler::my_eval_gcolumn_expr(
+        } else {
+		ret = handler::my_eval_gcolumn_expr(
 			current_thd, index->table->vc_templ->db_name,
 			index->table->vc_templ->tb_name, &column_map,
 			(uchar *)mysql_rec);
 	}
 
+	if (ret != 0) {
+		ib::warn() << "Compute virtual column values failed ";
+		fputs("InnoDB: Cannot compute value for following record ",
+		      stderr);
+		dtuple_print(stderr, row);
+		return(NULL);
+	}
+
 	/* we just want to store the data in passed in MySQL record */
-	if (my_rec) {
+	if (my_rec || ret != 0) {
 		return(NULL);
 	}
 

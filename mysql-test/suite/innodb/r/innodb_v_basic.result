@@ -968,3 +968,21 @@ alter table t add unique index (c(39));
 replace into t set a = 'a',b =1;
 replace into t set a = 'a',b =1;
 drop table t;
+CREATE TABLE t1 (doc JSON);
+ALTER TABLE t1
+ADD COLUMN $col_varchar VARCHAR(10) GENERATED ALWAYS AS
+(JSON_UNQUOTE(JSON_EXTRACT(doc, '$.col_varchar'))),
+ADD COLUMN $col_int INT GENERATED ALWAYS AS (JSON_EXTRACT(doc,
+'$.col_int'));
+ALTER TABLE t1 ADD COLUMN $col_1 INT GENERATED ALWAYS AS (JSON_EXTRACT(doc,
+'$.col_1'));
+ALTER TABLE t1 DROP COLUMN $col_varchar, DROP COLUMN $col_int;
+DROP TABLE t1;
+CREATE TABLE t (a INT, b INT,  h VARCHAR(10));
+INSERT INTO t VALUES (12, 3,  "ss");
+INSERT INTO t VALUES (13, 4,  "ss");
+INSERT INTO t VALUES (14, 0,  "ss");
+alter table t add  c INT GENERATED ALWAYS AS(a/b);
+create index idx on t(c);
+ERROR 22012: Division by 0
+DROP TABLE t;

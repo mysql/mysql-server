@@ -829,6 +829,9 @@ ut_strerr(
 	case DB_WRONG_FILE_NAME:
 		return("Invalid Filename");
 
+	case DB_COMPUTE_VALUE_FAILED:
+		return("Compute generated column failed");
+
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
 	}
