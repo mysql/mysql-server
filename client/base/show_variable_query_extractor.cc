@@ -42,10 +42,11 @@ int64 Show_variable_query_extractor::get_variable_value(
   Show_variable_query_extractor extractor;
   Mysql_query_runner query_runner_to_use(*query_runner_to_copy);
 
-  query_runner_to_use.add_result_callback(
-    new Instance_callback<int64, const Mysql_query_runner::Row&,
-      Show_variable_query_extractor>(
-        &extractor, &Show_variable_query_extractor::extract_variable));
+  Instance_callback<int64, const Mysql_query_runner::Row&,
+                    Show_variable_query_extractor>
+    result_cb(&extractor, &Show_variable_query_extractor::extract_variable);
+
+  query_runner_to_use.add_result_callback(&result_cb);
 
   /*
     Note: Because MySQL uses the C escape syntax in strings (for example, '\n'

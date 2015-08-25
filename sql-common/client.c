@@ -5097,7 +5097,10 @@ get_info:
   MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
 
   if (!(mysql->fields=cli_read_metadata(mysql, field_count, protocol_41(mysql) ? 7:5)))
+  {
+    free_root(&mysql->field_alloc,MYF(0));
     DBUG_RETURN(1);
+  }
   mysql->status= MYSQL_STATUS_GET_RESULT;
   mysql->field_count= (uint) field_count;
 

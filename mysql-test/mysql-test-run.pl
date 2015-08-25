@@ -300,6 +300,7 @@ our $opt_user = "root";
 
 our $opt_valgrind= 0;
 my $opt_valgrind_mysqld= 0;
+my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
 my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
@@ -547,7 +548,7 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
-  if ($opt_valgrind) {
+  if ($opt_valgrind_mysqld) {
     # Create minimalistic "test" for the reporting
     my $tinfo = My::Test->new
       (
@@ -1159,6 +1160,7 @@ sub command_line_setup {
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
              'valgrind|valgrind-all'    => \$opt_valgrind,
+	     'valgrind-clients'         => \$opt_valgrind_clients,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
              'valgrind-options=s'       => sub {
@@ -1726,6 +1728,8 @@ sub command_line_setup {
     mtr_report("Turning on valgrind for all executables");
     $opt_valgrind= 1;
     $opt_valgrind_mysqld= 1;
+    # Enable this when mysqlpump and mysqlbinlog are fixed.
+    # $opt_valgrind_clients= 1;
     $opt_valgrind_mysqltest= 1;
 
     # Increase the timeouts when running with valgrind
@@ -1737,6 +1741,11 @@ sub command_line_setup {
   elsif ( $opt_valgrind_mysqld )
   {
     mtr_report("Turning on valgrind for mysqld(s) only");
+    $opt_valgrind= 1;
+  }
+  elsif ( $opt_valgrind_clients )
+  {
+    mtr_report("Turning on valgrind for test clients");
     $opt_valgrind= 1;
   }
   elsif ( $opt_valgrind_mysqltest )
@@ -2154,12 +2163,16 @@ sub client_debug_arg($$) {
 
 
 sub client_arguments ($;$) {
- my $client_name= shift;
+  my $client_name= shift;
   my $group_suffix= shift;
   my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
 
   my $args;
   mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$client_exe);
+  }
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   if (defined($group_suffix)) {
     mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
@@ -2176,7 +2189,11 @@ sub client_arguments_no_grp_suffix($) {
   my $client_name= shift;
   my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
   my $args;
-
+  mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$client_exe);
+  }
   return mtr_args2str($client_exe, @$args);
 }
 
@@ -2194,6 +2211,10 @@ sub mysqlslap_arguments () {
 
   my $args;
   mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$exe);
+  }
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   client_debug_arg($args, "mysqlslap");
   return mtr_args2str($exe, @$args);
@@ -2206,6 +2227,10 @@ sub mysqldump_arguments ($) {
 
   my $args;
   mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$exe);
+  }
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
   client_debug_arg($args, "mysqldump-$group_suffix");
@@ -2241,6 +2266,10 @@ sub mysqlpump_arguments ($) {
 
   my $args;
   mtr_init_args(\$args);
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$exe);
+  }
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
   client_debug_arg($args, "mysqlpump-$group_suffix");
@@ -6415,7 +6444,7 @@ sub start_mysqltest ($) {
     # of mysqltest; that would mess up the stderr output causing test failure.
     my @args_saved = @$args;
     mtr_init_args(\$args);
-    valgrind_arguments($args, \$exe);
+    valgrind_client_arguments($args, \$exe);
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
@@ -6708,6 +6737,28 @@ sub strace_server_arguments {
   $$exe= "strace";
 }
 
+
+#
+# Modify the exe and args so that client program is run in valgrind
+#
+sub valgrind_client_arguments {
+  my $args= shift;
+  my $exe=  shift;
+  mtr_add_arg($args, "--tool=memcheck");
+  mtr_add_arg($args, "--quiet");
+  mtr_add_arg($args, "--leak-check=full");
+  mtr_add_arg($args, "--show-leak-kinds=definite,indirect");
+  mtr_add_arg($args, "--errors-for-leak-kinds=definite,indirect");
+  mtr_add_arg($args, "--num-callers=16");
+  mtr_add_arg($args, "--suppressions=%s/valgrind.supp", $glob_mysql_test_dir)
+    if -f "$glob_mysql_test_dir/valgrind.supp";
+  mtr_add_arg($args, "--error-exitcode=42");
+
+  mtr_add_arg($args, $$exe);
+  $$exe= $opt_valgrind_path || "valgrind";
+}
+
+
 #
 # Modify the exe and args so that program is run in valgrind
 #
@@ -6738,6 +6789,9 @@ sub valgrind_arguments {
 
   # Add valgrind options, can be overriden by user
   mtr_add_arg($args, '%s', $_) for (@valgrind_args);
+
+  # Non-zero exit code, to ensure failure is reported.
+  mtr_add_arg($args, "--error-exitcode=42");
 
   mtr_add_arg($args, $$exe);
 
@@ -7080,6 +7134,7 @@ Options for valgrind
   valgrind              Run the "mysqltest" and "mysqld" executables using
                         valgrind with default options
   valgrind-all          Synonym for --valgrind
+  valgrind-clients      Run clients started by .test files with valgrind
   valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
                         with valgrind
   valgrind-mysqld       Run the "mysqld" executable with valgrind
