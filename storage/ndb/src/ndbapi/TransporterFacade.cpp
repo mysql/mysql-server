@@ -79,6 +79,11 @@ TransporterFacade::reportError(NodeId nodeId,
   if(errorCode & TE_DO_DISCONNECT) {
     ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
 	     info ? info : "");
+    if (nodeId == ownId())
+    {
+      ndbout_c("Fatal error on Loopback transporter, aborting.");
+      abort();
+    }
     doDisconnect(nodeId);
   }
 }
