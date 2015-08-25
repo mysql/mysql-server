@@ -413,7 +413,8 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
 
   if (geom_type == wkb_point)
   {
-    DBUG_ASSERT(data_len - srid_sz - WKB_HEADER_SIZE >= POINT_DATA_SIZE);
+    if (data_len - srid_sz - WKB_HEADER_SIZE < POINT_DATA_SIZE)
+      return NULL;
     result->set_data_ptr(data + srid_sz + WKB_HEADER_SIZE, POINT_DATA_SIZE);
   }
   else
@@ -433,11 +434,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer,
   const uint32 header_size= (has_srid ? GEOM_HEADER_SIZE : WKB_HEADER_SIZE);
   if (result_len == GET_SIZE_ERROR ||
       (has_srid && (result_len + header_size) != data_len))
-  {
-    DBUG_ASSERT(result_len == GET_SIZE_ERROR ||
-                (result_len + header_size) < data_len);
     return NULL;
-  }
 
   return result;
 }
