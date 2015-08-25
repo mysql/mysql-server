@@ -103,7 +103,8 @@ static const char *handler_error_messages[]=
   "Tablespace cannot be accessed",
   "Tablespace is not empty",
   "Incorrect file name",
-  "Operation is not allowed"
+  "Operation is not allowed",
+  "Compute generate value failed"
 };
 
 extern void my_handler_error_register(void);
