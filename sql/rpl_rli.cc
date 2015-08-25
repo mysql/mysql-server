@@ -141,6 +141,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
   last_retrieved_gtid.clear();
+  force_flush_postponed_due_to_split_trans= false;
   DBUG_VOID_RETURN;
 }
 
@@ -2033,9 +2034,10 @@ int Relay_log_info::flush_info(const bool force)
   if (write_info(handler))
     goto err;
 
-  if (handler->flush_info(force))
+  if (handler->flush_info(force || force_flush_postponed_due_to_split_trans))
     goto err;
 
+  force_flush_postponed_due_to_split_trans= false;
   DBUG_RETURN(0);
 
 err:
