@@ -6308,14 +6308,14 @@ gcol_attribute:
           UNIQUE_SYM
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_FLAG; 
-            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX;
+            lex->type|= UNIQUE_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
         | UNIQUE_SYM KEY_SYM
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_KEY_FLAG; 
-            lex->alter_info.flags|= Alter_inplace_info::ADD_INDEX; 
+            lex->type|= UNIQUE_KEY_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
         | not NULL_SYM { Lex->type|= NOT_NULL_FLAG; }
