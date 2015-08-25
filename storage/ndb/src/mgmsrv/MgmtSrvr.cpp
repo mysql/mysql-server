@@ -3038,6 +3038,36 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
   if (no < 1)
     return -1;
 
+  switch(args[0])
+  {
+  case 9994:
+  {
+    /* Transporter send blocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Blocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->blockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+  case 9995:
+  {
+    /* Transporter send unblocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Unblocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->unblockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+  }
+
   return 0;
 }
 
