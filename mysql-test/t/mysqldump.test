@@ -1821,6 +1821,8 @@ drop database mysqldump_test_db;
 # Bug#26121 mysqldump includes LOCK TABLES general_log WRITE
 #
 --exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug26121.sql
+# take a backup of mysql.proc table
+--exec $MYSQL_DUMP mysql proc > $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
 
@@ -2571,3 +2573,28 @@ DROP DATABASE dump_json;
 --echo #
 --echo # End of 5.7 tests
 --echo #
+
+--echo #
+--echo # Bug #21549860 MYSQLDUMP/MYSQLPUMP INCLUDES SYS SCHEMA STORED PROGRAMS
+--echo #               EVEN IF SKIPPING SCHEMA
+--echo #
+
+# restore mysql.proc table
+--exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+# take backup of sys schema
+--exec $MYSQL_DUMP --databases sys > $MYSQLTEST_VARDIR/tmp/sys.sql
+# this will not dump sys schema and
+# sys schema routines present in mysql.proc table
+--exec $MYSQL_DUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+DROP DATABASE sys;
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+# restore mysql.proc table and sys schema
+--exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/sys.sql
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+--remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/sys.sql
