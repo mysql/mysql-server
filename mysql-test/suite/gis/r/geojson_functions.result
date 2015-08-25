@@ -4174,3 +4174,16 @@ SELECT ST_GeomFromGeoJSON(REPEAT('[', 1000));
 ERROR 22032: The JSON document exceeds the maximum depth.
 SELECT ST_GeomFromGeoJSON(REPEAT('{"foo":', 1000));
 ERROR 22032: The JSON document exceeds the maximum depth.
+#
+# Bug#21616810 CONNECTION HANG OR ASSERTION 0 IN
+#              THD::SEND_STATEMENT_STATUS, SQL_CLASS.CC
+#
+CREATE TABLE t (a INT) ENGINE=InnoDB;
+INSERT INTO t (a) VALUES (0), (1);
+SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, "1", NULL);
+1
+1
+SELECT 1 FROM t GROUP BY ST_AsGeoJSON(NULL, 5, 0);
+1
+1
+DROP TABLE t;
