@@ -180,6 +180,7 @@
 #cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
+#cmakedefine HAVE_STRUCT_TIMESPEC
 
 /* Code tests*/
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@

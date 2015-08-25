@@ -486,6 +486,8 @@ static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
       from UTC, with positive values indicating east of the Prime Meridian.
     */
     long tim= -my_tm.tm_gmtoff;
+#elif _WIN32
+    long tim = _timezone;
 #else
     long tim= timezone; // seconds West of UTC.
 #endif
