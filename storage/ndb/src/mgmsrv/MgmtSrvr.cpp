@@ -2997,6 +2997,11 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
 int
 MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
 {
+  if (nodeId == _ownNodeId)
+  {
+    return dumpStateSelf(args, no);
+  }
+
   INIT_SIGNAL_SENDER(ss,nodeId);
 
   const Uint32 len = no > 25 ? 25 : no;
@@ -3026,6 +3031,16 @@ MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
   return res;
 
 }
+
+int
+MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
+{
+  if (no < 1)
+    return -1;
+
+  return 0;
+}
+
 
 
 //****************************************************************************
