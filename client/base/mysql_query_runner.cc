@@ -177,6 +177,7 @@ int64 Mysql_query_runner::run_query_unguarded(string query)
                          (*processed_row)[2],
                          this->get_message_type_from_severity((*processed_row)[0]));
     this->report_message(warning);
+    delete processed_row;
   }
   mysql_free_result(results);
 
@@ -222,7 +223,7 @@ enum Message_type Mysql_query_runner::get_message_type_from_severity(
       &my_charset_latin1, m_connection->charset, &dummy_errors);
 
     if (my_strcasecmp(m_connection->charset, severity.c_str(),
-      severity_string.c_ptr()) == 0)
+      severity_string.c_ptr_safe()) == 0)
     {
       return (Message_type)i;
     }

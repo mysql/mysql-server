@@ -5550,6 +5550,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
     /* close the SET expression */
     fprintf(md_result_file,"%s';\n", (char*)gtid_set[0]);
   }
+  mysql_free_result(gtid_purged_res);
 
   return FALSE;  /*success */
 }

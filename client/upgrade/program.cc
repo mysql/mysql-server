@@ -556,12 +556,13 @@ private:
     int64 result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int64, const Mysql_query_runner::Row&, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int64, const Message_data&, Program>(
-      this, &Program::fix_privilage_tables_error));
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
 
     this->print_verbose_message("Running queries to upgrade MySQL server.");
 
@@ -596,12 +597,13 @@ private:
     int result;
 
     Mysql_query_runner runner(*this->m_query_runner);
-    runner.add_result_callback(
-      new Instance_callback<int64, const Mysql_query_runner::Row&, Program>(
-      this, &Program::result_callback));
-    runner.add_message_callback(
-      new Instance_callback<int64, const Message_data&, Program>(
-      this, &Program::fix_privilage_tables_error));
+    Instance_callback<int64, const Mysql_query_runner::Row&, Program>
+      result_cb(this, &Program::result_callback);
+    Instance_callback<int64, const Message_data&, Program>
+      message_cb(this, &Program::fix_privilage_tables_error);
+
+    runner.add_result_callback(&result_cb);
+    runner.add_message_callback(&message_cb);
 
     this->print_verbose_message("Upgrading the sys schema.");
 
