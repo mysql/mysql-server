@@ -180,9 +180,9 @@ void Compiled_in_command_iterator::begin(void)
       Temporarily bump verbosity to print the password.
       It's safe to do it since we're the sole process running.
     */
-    log_error_verbosity= 2;
-    sql_print_warning("A temporary password is generated for root@localhost: %s",
-                      password);
+    log_error_verbosity= 3;
+    sql_print_information(
+      "A temporary password is generated for root@localhost: %s", password);
     log_error_verbosity= saved_verbosity;
 
     escape_string_for_mysql(&my_charset_bin,
