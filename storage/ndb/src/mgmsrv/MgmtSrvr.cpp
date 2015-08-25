@@ -3066,6 +3066,29 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
     }
     break;
   }
+
+#ifdef ERROR_INSERT
+  case 9996:
+  {
+    /* Sendbuffer consumption */
+    if (no >= 2)
+    {
+      Uint64 remain_bytes = args[1];
+      ndbout_c("Consuming sendbuffer except for %llu bytes",
+               remain_bytes);
+      theFacade->consume_sendbuffer(remain_bytes);
+    }
+    break;
+  }
+  case 9997:
+  {
+    /* Sendbuffer release */
+    ndbout_c("Releasing consumed sendbuffer");
+    theFacade->release_consumed_sendbuffer();
+    break;
+  }
+#endif
+
   }
 
   return 0;
