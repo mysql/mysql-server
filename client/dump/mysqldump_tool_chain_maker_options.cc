@@ -167,11 +167,12 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "proxies_priv"));
     /*
-      Since we dump CREATE EVENT statement skip this table.
+      Since we dump CREATE EVENT/FUNCTION/PROCEDURE statement skip this table.
     */
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "event"));
-
+    m_object_filter.m_tables_excluded.push_back(std::make_pair(
+      "mysql", "proc"));
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
     m_object_filter.m_databases_included.size() == 0)
