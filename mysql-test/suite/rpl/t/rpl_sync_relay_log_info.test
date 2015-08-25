@@ -33,15 +33,15 @@
 # 6 - Stop/Start the slave ----------------------------->  U   U   U   U
 # 7 - The GTID of a simple DDL ------------------------->  N   N   N   N
 # 8 - Flushed the relay log in the middle of the DDL --->  N   N   N   N
-# 9 - The rest of the simple DDL ----------------------->  N   U   N   U
+# 9 - The rest of the simple DDL ----------------------->  U   U   U   U
 # 10 - Stop/Start the slave ---------------------------->  U   U   U   U
 # 11 - The GTID of a simple DML ------------------------>  N   N   N   N
 # 12 - Flushed the relay log after the GTID of the DML ->  N   N   N   N
-# 13 - The rest of the simple DML ---------------------->  N   U   U   U
+# 13 - The rest of the simple DML ---------------------->  U   U   U   U
 # 14 - Stop/Start the slave ---------------------------->  U   U   U   U
 # 15 - The first part of a simple DML up to a User var ->  N   N   N   N
 # 16 - Flushed the relay log in the middle of the DML -->  N   N   N   N
-# 17 - The rest of the simple DML ---------------------->  N   U   U   U
+# 17 - The rest of the simple DML ---------------------->  U   U   U   U
 # 18 - Simple DDL -------------------------------------->  N   U   N   U
 #   Transactional tables only:
 # 19 - Simple DDL - CREATE TABLE -----------------------> N/A N/A  N   U
@@ -82,7 +82,7 @@ SET @saved_sync_relay_log_info= @@GLOBAL.sync_relay_log_info;
 --echo #
 SET @@GLOBAL.sync_relay_log_info= 0;
 --let $storage_engine= MyISAM
---let $rpl_relay_log_info_expected_update= UNNUNUNNNUNNNUNNNN
+--let $rpl_relay_log_info_expected_update= UNNUNUNNUUNNUUNNUN
 --source extra/rpl_tests/rpl_sync_relay_log_info.inc
 
 --echo #
@@ -98,7 +98,7 @@ SET @@GLOBAL.sync_relay_log_info= 1;
 --echo #
 SET @@GLOBAL.sync_relay_log_info= 0;
 --let $storage_engine= InnoDB
---let $rpl_relay_log_info_expected_update= UNUUNUNNNUNNUUNNUNNUNNNUN
+--let $rpl_relay_log_info_expected_update= UNUUNUNNUUNNUUNNUNNUNNNUN
 --source extra/rpl_tests/rpl_sync_relay_log_info.inc
 
 --echo #
