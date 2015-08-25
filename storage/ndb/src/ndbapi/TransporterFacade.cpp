@@ -3369,3 +3369,65 @@ TransporterFacade::reportWakeup()
     dozer->trp_wakeup();
   };
 }
+
+#ifdef ERROR_INSERT
+
+/* Test methods to consume sendbuffer */
+static TFPage* consumed_sendbuff = 0;
+
+void 
+TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
+{
+  if (consumed_sendbuff)
+  {
+    ndbout_c("SendBuff already consumed, release first");
+    return;
+  }
+
+  Uint64 tot_size = m_send_buffer.get_total_send_buffer_size();
+  Uint64 used = m_send_buffer.get_total_used_send_buffer_size();
+  Uint32 page_count = 0;
+
+  while (tot_size - used > bytes_remain)
+  {
+    TFPage* p = m_send_buffer.try_alloc(1);
+    
+    if (p)
+    {
+      p->init();
+      p->m_next = consumed_sendbuff;
+      consumed_sendbuff = p;
+      page_count++;
+    }
+    else
+    {
+      break;
+    }
+    used = m_send_buffer.get_total_used_send_buffer_size();
+  }
+    
+  ndbout_c("Consumed %u pages, remaining bytes : %llu",
+           page_count,
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
+}
+
+void
+TransporterFacade::release_consumed_sendbuffer()
+{
+  if (!consumed_sendbuff)
+  {
+    ndbout_c("No sendbuffer consumed");
+    return;
+  }
+  
+  m_send_buffer.release_list(consumed_sendbuff);
+  
+  consumed_sendbuff = NULL;
+
+  ndbout_c("Remaining bytes : %llu",
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
+}
+
+#endif

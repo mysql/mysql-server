@@ -375,6 +375,11 @@ public:
   bool has_data_to_send(NodeId node);
   void reset_send_buffer(NodeId node, bool should_be_empty);
 
+#ifdef ERROR_INSERT
+  void consume_sendbuffer(Uint32 bytes_remain);
+  void release_consumed_sendbuffer();
+#endif
+
 private:
   TFMTPool m_send_buffer;
   struct TFSendBuffer
