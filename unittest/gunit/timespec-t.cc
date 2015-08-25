@@ -31,13 +31,13 @@ protected:
   void verify_timespec()
   {
 
-#ifndef _WIN32
+#ifdef HAVE_STRUCT_TIMESPEC
     EXPECT_GT(ts.tv_sec, 0);
     EXPECT_GE(ts.tv_nsec, 0);
 #else
     EXPECT_GT(ts.tv.i64, 0);
     EXPECT_GE(ts.max_timeout_msec, 0);
-#endif /* _WIN32 */
+#endif
   }
 
   struct timespec ts;

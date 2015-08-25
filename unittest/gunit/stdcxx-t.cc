@@ -21,6 +21,8 @@
 #include <unordered_map>
 #elif defined(__GNUC__)
 #include <tr1/unordered_map>
+#elif (_MSC_VER == 1900)
+#include <unordered_map>
 #elif defined(_WIN32)
 #include <hash_map>
 #elif  defined(__SUNPRO_CC)
@@ -37,6 +39,8 @@ struct MyHashMap
   typedef std::unordered_map<K, T> Type;
 #elif defined(__GNUC__)
   typedef std::tr1::unordered_map<K, T> Type;
+#elif (_MSC_VER == 1900)
+  typedef std::unordered_map<K, T> Type;
 #elif defined(_WIN32)
   typedef stdext::hash_map<K, T> Type;
 #elif defined(__SUNPRO_CC)

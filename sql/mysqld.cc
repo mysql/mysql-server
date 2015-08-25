@@ -2699,8 +2699,13 @@ int init_common_variables()
   {
     struct tm tm_tmp;
     localtime_r(&server_start_time,&tm_tmp);
+#ifdef _WIN32
+    strmake(system_time_zone, _tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
+            sizeof(system_time_zone) - 1);
+#else
     strmake(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
             sizeof(system_time_zone)-1);
+#endif
 
  }
 
