@@ -1107,6 +1107,7 @@ TransporterFacade::configure(NodeId nodeId,
     Uint32 total_send_buffer = 0;
     Uint64 total_send_buffer64;
     size_t total_send_buffer_size_t;
+    size_t reserved_send_buffer_size_t;
     iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
 
     total_send_buffer64 = total_send_buffer;
@@ -1119,6 +1120,19 @@ TransporterFacade::configure(NodeId nodeId,
     iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
 
     total_send_buffer64 += extra_send_buffer;
+
+    /**
+     * Reserved area for send-to-self
+     * We will grab 16 pages, (@32kB/page : 512kB)
+     * Gives space for at least 16 signals @ 1/page.
+     * If signals are better packed then less pages
+     * are needed.
+     */
+    const Uint32 pagesize = m_send_buffer.get_page_size();
+    const Uint64 reserved_send_buffer = 16 * pagesize;
+    
+    total_send_buffer64 += reserved_send_buffer;
+    
 #if SIZEOF_CHARP == 4
     /* init method can only handle 32-bit sizes on 32-bit platforms */
     if (total_send_buffer64 > 0xFFFFFFFF)
@@ -1127,7 +1141,9 @@ TransporterFacade::configure(NodeId nodeId,
     }
 #endif
     total_send_buffer_size_t = (size_t)total_send_buffer64;
-    if (!m_send_buffer.init(total_send_buffer_size_t))
+    reserved_send_buffer_size_t = (size_t)reserved_send_buffer;
+    if (!m_send_buffer.init(total_send_buffer_size_t,
+                            reserved_send_buffer_size_t))
     {
       ndbout << "Unable to allocate "
              << total_send_buffer_size_t

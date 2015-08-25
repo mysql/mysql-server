@@ -368,7 +368,16 @@ public:
   /**
    * Allocate a send buffer
    */
-  TFPage *alloc_sb_page() { return m_send_buffer.try_alloc(1);}
+  TFPage *alloc_sb_page(Uint32 node) 
+  {
+    /**
+     * Try to grab a single page, 
+     * including from the reserved pool if 
+     * sending-to-self 
+     */
+    bool reserved = (node == theOwnId);
+    return m_send_buffer.try_alloc(1, reserved);
+  }
 
   Uint32 get_bytes_to_send_iovec(NodeId node, struct iovec *dst, Uint32 max);
   Uint32 bytes_sent(NodeId node, Uint32 bytes);
