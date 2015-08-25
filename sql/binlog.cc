@@ -5600,9 +5600,17 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
     rli->set_group_relay_log_name(rli->linfo.log_file_name);
     rli->notify_group_relay_log_name_update();
   }
-
-  /* Store where we are in the new file for the execution thread */
-  rli->flush_info(TRUE);
+  /*
+    Store where we are in the new file for the execution thread.
+    If we are in the middle of a transaction, then we
+    should not store the position in the repository, instead in
+    that case set a flag to true which indicates that a 'forced flush'
+    is postponed due to transaction split across the relaylogs.
+  */
+  if (!rli->is_in_group())
+    rli->flush_info(TRUE);
+  else
+    rli->force_flush_postponed_due_to_split_trans= true;
 
   DBUG_EXECUTE_IF("crash_before_purge_logs", DBUG_SUICIDE(););
 
