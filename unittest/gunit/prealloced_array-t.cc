@@ -332,20 +332,21 @@ TEST_F(PreallocedArrayTest, NoMemLeaksAssignAt)
 
 TEST_F(PreallocedArrayTest, NoMemLeaksInitializing)
 {
-  Prealloced_array<IntWrap, 10, false>
+  const size_t initial_capacity= 10;
+  Prealloced_array<IntWrap, initial_capacity, false>
     array1(PSI_NOT_INSTRUMENTED, 0);
   EXPECT_EQ(0U, array1.size());
 
-  Prealloced_array<IntWrap, 10, false>
-    array2(PSI_NOT_INSTRUMENTED, 5);
+  Prealloced_array<IntWrap, initial_capacity, false>
+    array2(PSI_NOT_INSTRUMENTED, initial_capacity / 2);
   EXPECT_EQ(5U, array2.size());
 
   Prealloced_array<IntWrap, 10, false>
-    array3(PSI_NOT_INSTRUMENTED, array3.initial_capacity);
+    array3(PSI_NOT_INSTRUMENTED, initial_capacity);
   EXPECT_EQ(10U, array3.size());
 
   Prealloced_array<IntWrap, 10, false>
-    array4(PSI_NOT_INSTRUMENTED, 2 * array4.initial_capacity);
+    array4(PSI_NOT_INSTRUMENTED, 2 * initial_capacity);
   EXPECT_EQ(20U, array4.size());
 }
 
