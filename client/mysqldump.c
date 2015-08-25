@@ -3600,6 +3600,12 @@ static void dump_table(char *table, char *db)
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
+    else if ((!my_strcasecmp(charset_info, db, "mysql")) &&
+             (!my_strcasecmp(charset_info, table, "proc")) &&
+             opt_alldbs)
+    {
+      dynstr_append_checked(&query_string, " WHERE db != 'sys'");
+    }
 
     if (order_by)
     {
@@ -3629,6 +3635,16 @@ static void dump_table(char *table, char *db)
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
+    }
+    /*
+      If table is mysql.proc then do not dump routines which belong
+      to sys schema
+    */
+    else if ((!my_strcasecmp(charset_info, db, "mysql")) &&
+             (!my_strcasecmp(charset_info, table, "proc")) &&
+             opt_alldbs)
+    {
+      dynstr_append_checked(&query_string, " WHERE db != 'sys'");
     }
     if (order_by)
     {

@@ -5457,3 +5457,20 @@ DROP DATABASE dump_json;
 #
 # End of 5.7 tests
 #
+#
+# Bug #21549860 MYSQLDUMP/MYSQLPUMP INCLUDES SYS SCHEMA STORED PROGRAMS
+#               EVEN IF SKIPPING SCHEMA
+#
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+36
+DROP DATABASE sys;
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+0
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+0
+SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+COUNT(*)
+36
