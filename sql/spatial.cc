@@ -1628,7 +1628,7 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
       break;
   }
 
-  if (n_points < 2 || (is_polygon_ring() && n_points < 3))
+  if (n_points < 2)
   {
     trs->set_error_msg("Too few points in LINESTRING");
     return true;
@@ -1638,20 +1638,12 @@ bool Gis_line_string::init_from_wkt(Gis_read_stream *trs, String *wkb)
   if (!is_polygon_ring())
     goto out;
 
-  // Make sure all rings of a polygon are closed, close it if not so.
+  // Make sure all rings of a polygon are closed, and a ring must have
+  // at least 4 points.
   firstpt= wkb->ptr() + np_pos + 4;
   lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
 
-  // Not closed, append 1st pt to wkb.
-  if (memcmp(lastpt, firstpt, POINT_DATA_SIZE))
-  {
-    wkb->reserve(POINT_DATA_SIZE, 512);
-    firstpt= wkb->ptr() + np_pos + 4;
-    wkb->q_append(firstpt, POINT_DATA_SIZE);
-    n_points++;
-    lastpt= wkb->ptr() + wkb->length() - POINT_DATA_SIZE;
-  }
-  else if (n_points == 3)
+  if (n_points < 4 || memcmp(lastpt, firstpt, POINT_DATA_SIZE))
     return true;
 
   DBUG_ASSERT(n_points == (lastpt - firstpt) / POINT_DATA_SIZE + 1);
@@ -1666,13 +1658,12 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
                                     wkbByteOrder bo, String *res)
 {
   uint32 n_points, proper_length;
-  const char *wkb_end, *wkb_start= wkb;
-  bool closed= false;
+  const char *wkb_end;
   Gis_point p(false);
 
   if (len < 4 ||
       (n_points= wkb_get_uint(wkb, bo)) < 2 ||
-      (is_polygon_ring() && n_points < 3) ||
+      (is_polygon_ring() && n_points < 4) ||
       n_points > max_n_points)
     return 0;
   proper_length= 4 + n_points * POINT_DATA_SIZE;
@@ -1681,21 +1672,12 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
   if (len < proper_length)
     return 0;
 
-  uint32 extra_length= 0;
+  // Make sure all rings of a polygon are closed.
+  if (is_polygon_ring() &&
+      memcmp(wkb + 4, wkb_end - POINT_DATA_SIZE, POINT_DATA_SIZE))
+    return 0;
 
-  if (is_polygon_ring())
-  {
-    closed= (memcmp(wkb + 4, wkb_end - POINT_DATA_SIZE, POINT_DATA_SIZE) == 0);
-    if (!closed)
-    {
-      extra_length= POINT_DATA_SIZE;
-      n_points++;
-    }
-    else if (n_points == 3)
-      return 0;
-  }
-
-  if (res->reserve(proper_length + extra_length, 512))
+  if (res->reserve(proper_length, 512))
     return 0;
 
   res->q_append(n_points);
@@ -1704,11 +1686,6 @@ uint Gis_line_string::init_from_wkb(const char *wkb, uint len,
     if (!p.init_from_wkb(wkb, POINT_DATA_SIZE, bo, res))
       return 0;
   }
-
-  // Append the 1st point to close the ring.
-  if (!closed && is_polygon_ring() &&
-      !p.init_from_wkb(wkb_start + 4, POINT_DATA_SIZE, bo, res))
-    return 0;
 
   return proper_length;
 }

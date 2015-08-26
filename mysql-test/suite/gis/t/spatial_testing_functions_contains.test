@@ -419,14 +419,14 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geom
 --echo #====================================================================================
 --echo # linestring,polygon
 --echo #====================================================================================
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 --error ER_GIS_INVALID_DATA
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 
 --echo #====================================================================================
 --echo # linestring,multipolygon
@@ -590,7 +590,7 @@ SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_collection_elems)) FROM gis_geometryc
 
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_multilinestr));
 
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())'));
 
 --echo #====================================================================================
 --echo # multipolygon,point
@@ -676,9 +676,9 @@ SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('POIN
 
 SELECT MBRCONTAINS(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 
-Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
+Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(),POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)))'),ST_GEOMFROMTEXT('POINT(100 100)'));
 
-Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'));
+Select MBRCONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)),GEOMETRYCOLLECTION())'),ST_GEOMFROMTEXT('POINT(100 100)'));
 
 --echo #====================================================================================
 --echo # geometrycollection,multipoint
@@ -957,14 +957,14 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_lines_near_horizontal)) FROM gis_geom
 --echo #====================================================================================
 --echo # linestring,polygon
 --echo #====================================================================================
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_elem_horizontal));
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10))'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT('POLYGON((11 15,19 15,19 10,11 15))'));
 
 --echo #====================================================================================
 --echo # linestring,multipolygon
@@ -1084,7 +1084,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_line_vertical)) FROM gis_geometrycoll
 
 SELECT ST_CONTAINS(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=100 and fid2=111;
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,5 5,0 0))'), ST_GEOMFROMTEXT('LINESTRING(3 7, 9 1)'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,5 5,0 0))'), ST_GEOMFROMTEXT('LINESTRING(3 7, 9 1)'));
 
 --echo #====================================================================================
 --echo # polygon,multilinestring
@@ -1157,9 +1157,9 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,0 5,10 5,5 0)),((5 0,0 -5
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((5 0,0 5,10 5,5 0)),((5 0,0 -5,10 -5,5 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 -2,5 5)'));
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,10 0)'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,10 0)'));
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,0 10)'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'), ST_GEOMFROMTEXT('LINESTRING(5 5,0 0,0 10)'));
 
 --echo #====================================================================================
 --echo # multipolygon,multilinestring
@@ -1181,10 +1181,10 @@ SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0
 
 SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
-                   ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
+                   ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0,0 0))'));
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0,0 0)),((0 0,0 -10,-10 -10,-10 0,0 0)))'),
                    ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))'));
 
 --echo #====================================================================================
@@ -1222,7 +1222,7 @@ SELECT ST_CONTAINS(g,ST_GEOMFROMTEXT(@star_top)) FROM gis_geometrycollection WHE
 
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,2 2),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(4 4)'));
 
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0,0 0)),POINT(4 4))'),ST_GEOMFROMTEXT('POINT(5 5)'));
 
 --echo #====================================================================================
 --echo # geometrycollection,multipoint
