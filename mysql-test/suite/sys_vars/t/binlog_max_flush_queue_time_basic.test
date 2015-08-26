@@ -25,8 +25,3 @@ SET GLOBAL binlog_max_flush_queue_time = 200000;
 
 SET GLOBAL binlog_max_flush_queue_time = @saved_value;
 
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_count = 1
---let $assert_select = The syntax '--binlog_max_flush_queue_time' is deprecated and will be removed in a future release
---let $assert_text = Found the expected warning "The syntax '--binlog_max_flush_queue_time' is deprecated and will be removed in a future release" in server's error log.
---source include/assert_grep.inc
