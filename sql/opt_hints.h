@@ -254,10 +254,12 @@ public:
   /**
     Print all hints except of QB_NAME hint.
 
-    @param thd             Pointer to THD object
-    @param str             Pointer to String object
+    @param thd              Pointer to THD object
+    @param str              Pointer to String object
+    @param query_type       If query type is QT_NORMALIZED_FORMAT,
+                            un-resolved hints will also be printed
   */
-  void print(THD *thd, String *str);
+  void print(THD *thd, String *str, enum_query_type query_type);
   /**
     Check if there are any unresolved hint objects and
     print warnings for them.
