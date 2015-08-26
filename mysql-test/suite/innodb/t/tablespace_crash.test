@@ -219,12 +219,3 @@ DROP TABLE t3;
 DROP TABLE t4;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
-
--- disable_query_log
-# This log message can occur with --repeat=2+ because the previous test will
-# have entries in the REDO log within the same checkpoint.  So there will be
-# MLOG_FILE_NAME records for remote datafiles with the same basename but the
-# previous space_ids.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: ISL file '.*isl' was found but the linked file '.*ibd' could not be opened or is not correct.");
--- enable_query_log
-
