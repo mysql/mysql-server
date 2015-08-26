@@ -16,6 +16,8 @@
 #   3) If relaylog_info_repository=table, SQL thread should be able to apply
 #      these type of relaylogs.
 ###############################################################################
+# Need debug build to run this test
+--source include/have_debug.inc
 # Problem happens only in gtid mode
 --source include/have_gtid.inc
 # Run only in row format
