@@ -1156,6 +1156,11 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_SRV_DICT_LRU_MICROSECOND},
 
+	{"innodb_dict_lru_count", "server",
+	 "Number of tables evicted from DICT LRU list",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_SRV_DICT_LRU_EVICT_COUNT},
+
 	{"innodb_checkpoint_usec", "server",
 	 "Time (in microseconds) spent by master thread to do checkpoint",
 	 MONITOR_NONE,
