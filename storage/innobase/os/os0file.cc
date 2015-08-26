@@ -5377,7 +5377,7 @@ os_file_write_page(
 
 		ib::error()
 			<< "Write to file " << name << "failed at offset "
-			<< offset << "." << n
+			<< offset << ", " << n
 			<< " bytes should have been written,"
 			" only " << n_bytes << " were written."
 			" Operating system error number " << errno << "."
@@ -5390,7 +5390,7 @@ os_file_write_page(
 
 			ib::error()
 				<< "Error number " << errno
-				<< "%d means '" << strerror(errno) << "'";
+				<< " means '" << strerror(errno) << "'";
 		}
 
 		ib::info() << OPERATING_SYSTEM_ERROR_MSG;
