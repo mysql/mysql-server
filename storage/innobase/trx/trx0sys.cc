@@ -32,7 +32,10 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.ic"
 #endif
 
-#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_HOTBACKUP
+#include "fsp0types.h"
+
+#else	/* !UNIV_HOTBACKUP */
 #include "fsp0fsp.h"
 #include "mtr0log.h"
 #include "mtr0log.h"
@@ -1101,18 +1104,15 @@ trx_sys_read_pertable_file_format_id(
 	/* get the file format from the page */
 	ptr = page + 54;
 	flags = mach_read_from_4(ptr);
-	if (flags == 0) {
-		/* file format is Antelope */
-		*format_id = 0;
-		return(TRUE);
-	} else if (flags & 1) {
-		/* tablespace flags are ok */
-		*format_id = (flags / 32) % 128;
-		return(TRUE);
-	} else {
+
+	if (!fsp_flags_is_valid(flags) {
 		/* bad tablespace flags */
 		return(FALSE);
 	}
+
+	*format_id = FSP_FLAGS_GET_POST_ANTELOPE(flags);
+
+	return(TRUE);
 }
 
 
