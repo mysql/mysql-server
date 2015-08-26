@@ -208,6 +208,7 @@ innodb_log_flush_usec	disabled
 innodb_mem_validate_usec	disabled
 innodb_master_purge_usec	disabled
 innodb_dict_lru_usec	disabled
+innodb_dict_lru_count	disabled
 innodb_checkpoint_usec	disabled
 innodb_dblwr_writes	disabled
 innodb_dblwr_pages_written	disabled
