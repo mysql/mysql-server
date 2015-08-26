@@ -3702,8 +3702,9 @@ innobase_drop_virtual_try(
 
 	for (ulint i = 0; i < ctx->num_to_drop_vcol; i++) {
 
-		ulint	pos = dict_create_v_col_pos(ctx->drop_vcol[i].v_pos,
-						 ctx->drop_vcol[i].m_col.ind);
+		ulint	pos = dict_create_v_col_pos(
+			ctx->drop_vcol[i].v_pos - i,
+			ctx->drop_vcol[i].m_col.ind - i);
 		err = innobase_drop_one_virtual_sys_virtual(
 			user_table, pos, trx);
 
