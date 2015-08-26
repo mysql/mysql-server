@@ -1420,15 +1420,9 @@ NdbEventBuffer::~NdbEventBuffer()
 
   // Return EventBufData lists to free list in a nice way
   // before actual deallocation using m_allocated_data.
-  if(!m_complete_data.m_data.is_empty())
-    free_list(m_complete_data.m_data);
-  if(!m_available_data.is_empty())
-    free_list(m_available_data);
-  if(!m_used_data.is_empty())
-    free_list(m_used_data);
-  // Return event queue leftovers to free list
-  clear_event_queue();
-
+  free_list(m_complete_data.m_data);
+  free_list(m_available_data);
+  free_list(m_used_data);
 
   for (j= 0; j < m_allocated_data.size(); j++)
   {
@@ -1480,15 +1474,9 @@ NdbEventBuffer::remove_op()
     for(unsigned i = 0; i < m_active_gci.size(); i++)
     {
       Gci_container& bucket = (Gci_container&)m_active_gci[i];
-      if (!bucket.m_data.is_empty())
-      {
-        free_list(bucket.m_data);
-      }
+      free_list(bucket.m_data);
     }
-    if (!m_complete_data.m_data.is_empty())
-    {
-      free_list(m_complete_data.m_data);
-    }
+    free_list(m_complete_data.m_data);
     init_gci_containers();
   }
 }
@@ -1609,12 +1597,7 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
     Gci_container* tmp = find_bucket(array[minpos]);
     assert(tmp);
     assert(maxpos == m_max_gci_index);
-
-    if(!tmp->m_data.is_empty())
-    {
-      free_list(tmp->m_data);
-    }
-    tmp->~Gci_container();
+    free_list(tmp->m_data);
     bzero(tmp, sizeof(Gci_container));
     minpos = (minpos + 1) & mask;
   }
@@ -2343,14 +2326,9 @@ NdbEventBuffer::discard_events_from_bucket(Gci_container* bucket)
   // Empty the gci_op(s) list of the epoch from the bucket
   DBUG_PRINT_EVENT("info", ("discard_events_from_bucket: deleting m_gci_op_list: %p",
                             bucket->m_data.m_gci_op_list));
-  assert (bucket->m_data.m_is_not_multi_list); // bucket contains only one epoch
-  delete [] bucket->m_data.m_gci_op_list;
-
-  bucket->m_data.m_gci_op_count = 0;
-  bucket->m_data.m_gci_op_list = 0;
-  bucket->m_data.m_gci_op_alloc = 0;
 
   // Empty the event data from the bucket and return it to m_free_data
+  // gci_op(s) list is deleted
   free_list(bucket->m_data);
 }
 
@@ -2998,12 +2976,7 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
     Gci_container* tmp = find_bucket(array[minpos]);
     assert(tmp);
     assert(maxpos == m_max_gci_index);
-
-    if(!tmp->m_data.is_empty())
-    {
-      free_list(tmp->m_data);
-    }
-    tmp->~Gci_container();
+    free_list(tmp->m_data);
     bzero(tmp, sizeof(Gci_container));
 
     minpos = (minpos + 1) & mask;
@@ -3881,12 +3854,9 @@ NdbEventBuffer::move_data()
     bzero(&m_complete_data, sizeof(m_complete_data));
   }
 
-  // handle used data
-  if (!m_used_data.is_empty())
-  {
-    // return m_used_data to m_free_data
-    free_list(m_used_data);
-  }
+  // return m_used_data to m_free_data
+  free_list(m_used_data);
+
   if (!m_available_data.is_empty())
   {
     DBUG_ENTER_EVENT("NdbEventBuffer::move_data");
@@ -3903,20 +3873,22 @@ NdbEventBuffer::move_data()
 void
 NdbEventBuffer::free_list(EventBufData_list &list)
 {
+  if (list.m_head != NULL)
+  {
 #ifdef NDB_EVENT_VERIFY_SIZE
-  verify_size(list);
+    verify_size(list);
 #endif
-  // return list to m_free_data
-  list.m_tail->m_next= m_free_data;
-  m_free_data= list.m_head;
+    // return list to m_free_data
+    list.m_tail->m_next= m_free_data;
+    m_free_data= list.m_head;
 #ifdef VM_TRACE
-  m_free_data_count+= list.m_count;
+    m_free_data_count+= list.m_count;
 #endif
-  m_free_data_sz+= list.m_sz;
+    m_free_data_sz+= list.m_sz;
 
-  list.m_head = list.m_tail = NULL;
-  list.m_count = list.m_sz = 0;
-
+    list.m_head = list.m_tail = NULL;
+    list.m_count = list.m_sz = 0;
+  }
   list.~EventBufData_list(); // free gci ops
 }
 
@@ -4024,21 +3996,6 @@ end:
   DBUG_VOID_RETURN_EVENT;
 }
 
-void
-NdbEventBuffer::clear_event_queue()
-{
-  if(!m_available_data.is_empty())
-  {
-    free_list(m_available_data);
-  }
-  else
-  {
-    // no event data found, remove any lingering gci_ops
-    // belonging to consumed epochs
-    m_available_data.~EventBufData_list();
-  }
-}
-
 NdbEventOperation*
 NdbEventBuffer::createEventOperation(const char* eventName,
 				     NdbError &theError)
@@ -4047,7 +4004,9 @@ NdbEventBuffer::createEventOperation(const char* eventName,
 
   if (m_ndb->theImpl->m_ev_op == NULL)
   {
-    clear_event_queue();
+    NdbMutex_Lock(m_mutex);
+    free_list(m_available_data);
+    NdbMutex_Unlock(m_mutex);
   }
 
   NdbEventOperation* tOp= new NdbEventOperation(m_ndb, eventName);
