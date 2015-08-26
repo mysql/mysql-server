@@ -1129,6 +1129,13 @@ dict_drop_index_tree(
 		return(false);
 	}
 
+	/* If tablespace is scheduled for truncate, do not try to drop
+	the indexes in that tablespace. There is a truncate fixup action
+	which will take care of it. */
+	if (srv_is_tablespace_truncated(space)) {
+		return(false);
+	}
+
 	btr_free_if_exists(page_id_t(space, root_page_no), page_size,
 			   mach_read_from_8(ptr), mtr);
 

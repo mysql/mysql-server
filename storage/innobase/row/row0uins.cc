@@ -119,11 +119,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_free(heap);
 	}
 
-	/* If tablespace is scheduled for truncate, do not try to drop
-	the indexes in that tablespace. There is a truncate fixup action
-	which will take care of it. */
-	if (node->table->id == DICT_INDEXES_ID
-	    && !srv_is_tablespace_truncated(index->table->space)) {
+	if (node->table->id == DICT_INDEXES_ID) {
 
 		ut_ad(!online);
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
