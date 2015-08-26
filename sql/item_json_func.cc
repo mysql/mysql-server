@@ -615,7 +615,7 @@ void Item_json_func::cleanup()
 
 
 type_conversion_status
-Item_json_func::save_in_field(Field *field, bool no_conversions)
+Item_json_func::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_possibly_as_json(field, no_conversions);
 }

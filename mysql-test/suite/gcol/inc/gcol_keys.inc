@@ -656,4 +656,41 @@ SELECT gcol2 FROM t1 FORCE INDEX(idx1);
 DROP TABLE t1;
 }
 
+if($support_virtual_index)
+{
+--echo #
+--echo # Bug#21628161 CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+--echo #
+# When generating the value of column b, an out-of-range warning is
+# raised. A warning is required in order to reproduce the bug, but it
+# is promoted to an error on insertion unless we turn off strict mode.
+--source include/turn_off_strict_mode.inc
+CREATE TABLE t (a INT,
+                b BOOLEAN GENERATED ALWAYS AS (a+10000) VIRTUAL,
+                c BLOB GENERATED ALWAYS AS (b=2) VIRTUAL);
+INSERT INTO t(a) VALUES (1);
+# Before index was created, this query returned the expected one match.
+SELECT * FROM t WHERE c = '0';
+# Adding an index sometimes crashed, other times populated it with garbage ...
+ALTER TABLE t ADD UNIQUE INDEX (c(1));
+# ... so that this query found no match in the index.
+SELECT * FROM t WHERE c = '0';
+DROP TABLE t;
+--source include/restore_strict_mode.inc
+
+--echo #
+--echo # Bug#21688115 VIRTUAL COLUMN COMPUTATION SAVE_IN_FIELD()
+--echo #              DID NOT RETURN TRUE WITH DIVIDE 0
+--echo #
+CREATE TABLE t (a INT, b INT, h VARCHAR(10));
+INSERT INTO t VALUES (12, 3, "ss");
+INSERT INTO t VALUES (13, 4, "ss");
+INSERT INTO t VALUES (14, 0, "ss");
+ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
+--error ER_DIVISION_BY_ZERO
+CREATE INDEX idx ON t(c);
+CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+DROP TABLE t;
+}
+
 --echo #

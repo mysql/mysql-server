@@ -854,13 +854,14 @@ void Item_temporal_func::print(String *str, enum_query_type query_type)
 
 
 type_conversion_status
-Item_temporal_hybrid_func::save_in_field(Field *field, bool no_conversions)
+Item_temporal_hybrid_func::save_in_field_inner(Field *field,
+                                               bool no_conversions)
 {
   if (cached_field_type == MYSQL_TYPE_TIME)
     return save_time_in_field(field);
   if (is_temporal_type_with_date(cached_field_type))
     return save_date_in_field(field);
-  return Item_str_func::save_in_field(field, no_conversions);
+  return Item_str_func::save_in_field_inner(field, no_conversions);
 }
 
 
@@ -1988,7 +1989,7 @@ Time_zone *Item_func_now_utc::time_zone()
 
 
 type_conversion_status
-Item_func_now::save_in_field(Field *to, bool no_conversions)
+Item_func_now::save_in_field_inner(Field *to, bool no_conversions)
 {
   to->set_notnull();
   return to->store_time(cached_time.get_TIME_ptr(), decimals);
