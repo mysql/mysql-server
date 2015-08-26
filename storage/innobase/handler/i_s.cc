@@ -8367,8 +8367,6 @@ i_s_dict_fill_sys_tablespaces(
 		/* Get the file system (or Volume) block size. */
 		dberr_t	err = os_file_get_status(filename, &stat, false, false);
 
-		ut_free(filename);
-
 		switch(err) {
 		case DB_FAIL:
 			ib::warn()
@@ -8386,6 +8384,8 @@ i_s_dict_fill_sys_tablespaces(
 				<< ut_strerr(err);
 			break;
 		}
+
+		ut_free(filename);
 	}
 
 	OK(fields[SYS_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
