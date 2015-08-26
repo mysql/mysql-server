@@ -3132,7 +3132,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     {
       if (opt_hints_qb)
         opt_hints_qb->append_qb_hint(thd, &hint_str);
-      thd->lex->opt_hints_global->print(thd, &hint_str);
+      thd->lex->opt_hints_global->print(thd, &hint_str, query_type);
     }
     else if (opt_hints_qb)
       opt_hints_qb->append_qb_hint(thd, &hint_str);
