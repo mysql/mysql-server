@@ -1196,6 +1196,38 @@ gcol2
 1
 DROP TABLE t1;
 #
+# Bug#21628161 CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+#
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t (a INT,
+b BOOLEAN GENERATED ALWAYS AS (a+10000) VIRTUAL,
+c BLOB GENERATED ALWAYS AS (b=2) VIRTUAL);
+INSERT INTO t(a) VALUES (1);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t WHERE c = '0';
+a	b	c
+1	127	0
+ALTER TABLE t ADD UNIQUE INDEX (c(1));
+SELECT * FROM t WHERE c = '0';
+a	b	c
+1	127	0
+DROP TABLE t;
+#
+# Bug#21688115 VIRTUAL COLUMN COMPUTATION SAVE_IN_FIELD()
+#              DID NOT RETURN TRUE WITH DIVIDE 0
+#
+CREATE TABLE t (a INT, b INT, h VARCHAR(10));
+INSERT INTO t VALUES (12, 3, "ss");
+INSERT INTO t VALUES (13, 4, "ss");
+INSERT INTO t VALUES (14, 0, "ss");
+ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
+CREATE INDEX idx ON t(c);
+ERROR 22012: Division by 0
+CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+DROP TABLE t;
+#
 #
 # BUG#21365158 WL8149:ASSERTION `!TABLE || (!TABLE->WRITE_SET 
 #

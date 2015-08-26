@@ -8033,16 +8033,22 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
         table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
       }
 
-      field->gcol_info->expr_item->save_in_field(field, 0);
+      const type_conversion_status save_in_field_status=
+        field->gcol_info->expr_item->save_in_field(field, 0);
+      DBUG_ASSERT(!thd->is_error() || save_in_field_status != TYPE_OK);
 
-      // FIX_ME: Need to put "DBUG_ASSERT(!thd->is_error() || res)" back
-      // when related bug is fixed
-
-      if (thd->is_error())
-        res = true;
-
-      if (res)
+      /*
+        save_in_field() may return non-zero even if there was no
+        error. This happens if a warning is raised, such as an
+        out-of-range warning when converting the result to the target
+        type of the virtual column. We should stop only if the
+        non-zero return value was caused by an actual error.
+      */
+      if (save_in_field_status != TYPE_OK && thd->is_error())
+      {
+        res= true;
         break;
+      }
     }
   }
 

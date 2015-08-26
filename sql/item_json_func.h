@@ -117,6 +117,8 @@ protected:
   // Cache for constant path expressions
   Json_path_cache m_path_cache;
 
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
   Item_json_func(THD *thd, const POS &pos, Item *a) : Item_func(pos, a),
     m_path_cache(thd, 1)
@@ -132,7 +134,6 @@ public:
   {}
 
   enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   void fix_length_and_dec()
   {
