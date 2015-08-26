@@ -2053,7 +2053,11 @@ srv_master_do_active_tasks(void)
 
 	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
 		srv_main_thread_op_info = "enforcing dict cache limit";
-		srv_master_evict_from_table_cache(50);
+		ulint	n_evicted = srv_master_evict_from_table_cache(50);
+		if (n_evicted != 0) {
+			MONITOR_INC_VALUE(
+				MONITOR_SRV_DICT_LRU_EVICT_COUNT, n_evicted);
+		}
 		MONITOR_INC_TIME_IN_MICRO_SECS(
 			MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
 	}
