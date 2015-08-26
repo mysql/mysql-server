@@ -1,8 +1,12 @@
 mysql-community (5.7.9-1debian7) wheezy; urgency=low
 
+  [ Akhil Mohan ]
   * new upstream release
 
- -- Akhil Mohan <akhil.mohan@oracle.com>  Mon, 13 Jul 2015 13:07:01 +0530
+  [ Balasubramanian Kandasamy ]
+  * Added mysqlpump man page to d/mysql-*-client.install
+
+ -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Wed, 26 Aug 2015 15:20:12 +0530
 
 mysql-community (5.7.8-rc-1debian7) wheezy; urgency=low
 
