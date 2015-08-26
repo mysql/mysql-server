@@ -480,8 +480,7 @@ row_merge_buf_redundant_convert(
 				converting to ROW_FORMAT=REDUNDANT, or NULL
 				when not to invoke
 				row_merge_buf_redundant_convert()
-@param[in,out]	exceed_page	set if the record size exceeds the page size
-				when converting to ROW_FORMAT=REDUNDANT
+@param[in,out]	err		set if error occurs
 @param[in,out]	v_heap		heap memory to process data for virtual column
 @return number of rows added, 0 if out of space */
 static
@@ -496,7 +495,7 @@ row_merge_buf_add(
 	const row_ext_t*	ext,
 	doc_id_t*		doc_id,
 	mem_heap_t*		conv_heap,
-	bool*			exceed_page,
+	dberr_t*		err,
 	mem_heap_t**		v_heap)
 {
 	ulint			i;
@@ -583,6 +582,11 @@ row_merge_buf_add(
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index, NULL,
 					v_heap, NULL);
+
+				if (row_field == NULL) {
+					*err = DB_COMPUTE_VALUE_FAILED;
+					DBUG_RETURN(0);
+				}
 				dfield_copy(field, row_field);
 			} else {
 				row_field = dtuple_get_nth_field(row, col_no);
@@ -797,7 +801,7 @@ row_merge_buf_add(
 	ut_ad(size < UNIV_PAGE_SIZE) in rec_offs_data_size().
 	It may hit the assert before attempting to insert the row. */
 	if (conv_heap != NULL && data_size > UNIV_PAGE_SIZE) {
-		*exceed_page = true;
+		*err = DB_TOO_BIG_RECORD;
 	}
 
 	ut_ad(data_size < srv_sort_buf_size);
@@ -2115,7 +2119,6 @@ write_buffers:
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			ulint			rows_added = 0;
-			bool			exceed_page = false;
 
 			if (dict_index_is_spatial(buf->index)) {
 				if (!row) {
@@ -2142,7 +2145,7 @@ write_buffers:
 			    (row && (rows_added = row_merge_buf_add(
 					buf, fts_index, old_table, new_table,
 					psort_info, row, ext, &doc_id,
-					conv_heap, &exceed_page,
+					conv_heap, &err,
 					&v_heap)))) {
 
 				/* If we are creating FTS index,
@@ -2150,8 +2153,8 @@ write_buffers:
 				records for tokenized word */
 				file->n_rec += rows_added;
 
-				if (exceed_page) {
-					err = DB_TOO_BIG_RECORD;
+				if (err != DB_SUCCESS) {
+					ut_ad(err == DB_TOO_BIG_RECORD);
 					break;
 				}
 
@@ -2202,6 +2205,11 @@ write_buffers:
 				}
 
 				continue;
+			}
+
+			if (err == DB_COMPUTE_VALUE_FAILED) {
+				trx->error_key_num = i;
+				goto func_exit;
 			}
 
 			if (buf->index->type & DICT_FTS) {
@@ -2440,14 +2448,13 @@ write_buffers:
 						buf, fts_index, old_table,
 						new_table, psort_info, row, ext,
 						&doc_id, conv_heap,
-						&exceed_page, &v_heap)))) {
+						&err, &v_heap)))) {
 					/* An empty buffer should have enough
 					room for at least one record. */
 					ut_error;
 				}
 
-				if (exceed_page) {
-					err = DB_TOO_BIG_RECORD;
+				if (err != DB_SUCCESS) {
 					break;
 				}
 

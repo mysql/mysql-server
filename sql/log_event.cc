@@ -175,6 +175,7 @@ static const char *HA_ERR(int i)
   case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   case HA_ERR_FK_DEPTH_EXCEEDED : return "HA_ERR_FK_DEPTH_EXCEEDED";
   case HA_ERR_INNODB_READ_ONLY: return "HA_ERR_INNODB_READ_ONLY";
+  case HA_ERR_COMPUTE_FAILED: return "HA_ERR_COMPUTE_FAILED";
   }
   return "No Error!";
 }

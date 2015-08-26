@@ -161,6 +161,8 @@ enum dberr_t {
 
 	DB_WRONG_FILE_NAME,		/*!< Invalid Filename */
 
+	DB_COMPUTE_VALUE_FAILED,	/*!< Compute generated value failed */
+
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
 	DB_OVERFLOW,

@@ -714,6 +714,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_TABLESPACE_IS_NOT_EMPTY,	ER_DEFAULT(ER_TABLESPACE_IS_NOT_EMPTY));
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
+  SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -7978,8 +7979,14 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
         table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
       }
 
-      res= field->gcol_info->expr_item->save_in_field(field, 0);
-      DBUG_ASSERT(!thd->is_error() || res);
+      field->gcol_info->expr_item->save_in_field(field, 0);
+
+      // FIX_ME: Need to put "DBUG_ASSERT(!thd->is_error() || res)" back
+      // when related bug is fixed
+
+      if (thd->is_error())
+        res = true;
+
       if (res)
         break;
     }
