@@ -1770,6 +1770,11 @@ log_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 
+	DBUG_EXECUTE_IF("no_checkpoint",
+			/* We sleep for a long enough time, forcing
+			the checkpoint doesn't happen any more. */
+			os_thread_sleep(360000000););
+
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
 	}
