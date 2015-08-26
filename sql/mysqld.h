@@ -909,7 +909,7 @@ enum enum_query_type
   QT_COMPACT_FORMAT= (1 << 6),
   /**
     Change all Item_basic_constant to ? (used by query rewrite to compute
-    digest.)
+    digest.)  Un-resolved hints will also be printed in this format.
   */
   QT_NORMALIZED_FORMAT= (1 << 7)
 };
