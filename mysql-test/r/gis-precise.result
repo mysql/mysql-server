@@ -747,7 +747,7 @@ POLYGON((0 0,30 0,30 30,0 30,0 0))
 select ST_astext(ST_centroid(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0)))))));
 ERROR 22023: Invalid GIS data provided to function st_centroid.
 select ST_astext(ST_convexhull(ST_PolyFromWKB(ST_AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0), Point(0, 0)))))));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_convexhull.
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
 ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')))
 POINT(6.666666666666667 6.666666666666667)
@@ -795,9 +795,9 @@ SELECT ST_AsText(ST_Convexhull(ST_GeomFromText('multilinestring((0 0, 1 1, 2 2),
 ST_AsText(ST_Convexhull(ST_GeomFromText('multilinestring((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')))
 LINESTRING(0 0,5 5)
 SELECT ST_AsText(ST_Convexhull(ST_GeomFromText('polygon((0 0, 1 1, 2 2, 0 0), (3 3, 4 4, 5 5, 3 3))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_convexhull.
 SELECT ST_AsText(ST_Convexhull(ST_GeomFromText('multipolygon(((0 0, 1 1, 2 2, 0 0), (3 3, 4 4, 5 5, 3 3)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
-ERROR 22023: Invalid GIS data provided to function st_convex_hull.
+ERROR 22023: Invalid GIS data provided to function st_convexhull.
 SELECT ST_AsText(ST_Convexhull(ST_GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 ST_AsText(ST_Convexhull(ST_GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')))
 POLYGON((0 0,3 0,3 3,0 3,0 0))

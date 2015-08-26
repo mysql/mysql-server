@@ -461,7 +461,7 @@ class Item_func_convex_hull: public Item_geometry_func
   bool bg_convex_hull(const Geometry *geom, String *wkb);
 public:
   Item_func_convex_hull(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
-  const char *func_name() const { return "st_convex_hull"; }
+  const char *func_name() const { return "st_convexhull"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -1102,7 +1102,7 @@ class Item_func_srid: public Item_int_func
 public:
   Item_func_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
-  const char *func_name() const { return "srid"; }
+  const char *func_name() const { return "st_srid"; }
   void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
