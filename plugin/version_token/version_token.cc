@@ -235,7 +235,7 @@ static int parse_vtokens(char *input, enum command type)
     token_name.str= my_strtok_r(token, equal, &lasts_val);
     token_val.str= lasts_val;
 
-    token_name.length= strlen(token_name.str);
+    token_name.length= token_name.str ? strlen(token_name.str) : 0;
     token_val.length= lasts_val ? strlen(lasts_val):0;
     trim_whitespace(&my_charset_bin, &token_name);
     trim_whitespace(&my_charset_bin, &token_val);
@@ -758,56 +758,58 @@ PLUGIN_EXPORT char *version_tokens_delete(UDF_INIT *initid, UDF_ARGS *args,
                                           char *result, unsigned long *length,
 					  char *null_value, char *error)
 {
-  char *token, *lasts_token= NULL;
-  const char *separator= ";";
+  const char *arg= args->args[0];
   std::stringstream ss;
   int vtokens_count= 0;
 
-  char *input= args->args[0];
-
-  mysql_rwlock_wrlock(&LOCK_vtoken_hash);
-
-  if ((args->lengths[0] == 1) && (strncmp(input, "*", 1) == 0))
+  if (args->lengths[0] > 0)
   {
-    if (version_tokens_hash.records)
+    char *input;
+    const char *separator= ";";
+    char *token, *lasts_token= NULL;
+
+    if (NULL == (input= my_strdup(key_memory_vtoken, arg, MYF(MY_WME))))
     {
-      my_hash_reset(&version_tokens_hash);
+      *error= 1;
+      return NULL;
+    }
+
+    mysql_rwlock_wrlock(&LOCK_vtoken_hash);
+
+    token= my_strtok_r(input, separator, &lasts_token);
+
+    while (token)
+    {
+      version_token_st *tmp;
+      LEX_STRING st={ token, strlen(token) };
+
+      trim_whitespace(&my_charset_bin, &st);
+
+      if (st.length)
+      {
+        tmp= (version_token_st *) my_hash_search(&version_tokens_hash,
+                                                 (uchar *) st.str,
+                                                 st.length);
+        if (tmp)
+        {
+          my_hash_delete(&version_tokens_hash, (uchar *) tmp);
+          vtokens_count++;
+        }
+      }
+
+      token= my_strtok_r(NULL, separator, &lasts_token);
+    }
+
+    set_vtoken_string_length();
+
+    if (vtokens_count)
+    {
       my_atomic_add64((volatile int64 *) &session_number, 1);
     }
-    vtoken_string_length= 0;
+
     mysql_rwlock_unlock(&LOCK_vtoken_hash);
-    ss << "Version tokens list cleared.";
-    ss.getline(result, MAX_FIELD_WIDTH, '\0');
-    *length= (unsigned long) ss.gcount();
-    return result;
+    my_free(input);
   }
-
-  token= my_strtok_r(input, separator, &lasts_token);
-
-  while (token)
-  {
-    version_token_st *tmp= (version_token_st *)
-			   my_hash_search(&version_tokens_hash,
-					  (uchar *) token,
-					  strlen(token));
-
-    if (tmp)
-    {
-      my_hash_delete(&version_tokens_hash, (uchar *) tmp);
-      vtokens_count++;
-    }
-
-    token= my_strtok_r(NULL, separator, &lasts_token);
-  }
-
-  set_vtoken_string_length();
-
-  if (vtokens_count)
-  {
-    my_atomic_add64((volatile int64 *) &session_number, 1);
-  }
-
-  mysql_rwlock_unlock(&LOCK_vtoken_hash);
 
   ss << vtokens_count << " version tokens deleted.";
 
@@ -979,7 +981,9 @@ PLUGIN_EXPORT my_bool version_tokens_lock_shared_init(
 PLUGIN_EXPORT long long version_tokens_lock_shared(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
 {
-  long long timeout= *((long long*)args->args[args->arg_count - 1]);
+  long long timeout=
+    args->args[args->arg_count - 1] ?                      // Null ?
+    *((long long *) args->args[args->arg_count - 1]) : -1;
 
   if (timeout < 0)
   {
@@ -1006,7 +1010,9 @@ PLUGIN_EXPORT my_bool version_tokens_lock_exclusive_init(
 PLUGIN_EXPORT long long version_tokens_lock_exclusive(
   UDF_INIT *initid, UDF_ARGS *args, char *is_null, char *error)
 {
-  long long timeout= *((long long*)args->args[args->arg_count - 1]);
+  long long timeout=
+    args->args[args->arg_count - 1] ?                      // Null ?
+    *((long long *) args->args[args->arg_count - 1]) : -1;
 
   if (timeout < 0)
   {
