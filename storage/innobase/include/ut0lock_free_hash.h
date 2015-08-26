@@ -1015,10 +1015,18 @@ private:
 			* other normal inserts/updates with (key == k) will
 			  pick the entry in src_arr. */
 
+			/* If we copied the tuple to dst_arr once then we must
+			keep trying to transfer its most recent value to
+			dst_arr, even if its value becomes DELETED. Otherwise
+			a delete operation on this tuple which executes
+			concurrently with the loop below may be lost. */
+			bool	copied = false;
+
 			for (;;) {
-				if (v != DELETED) {
+				if (v != DELETED || copied) {
 					insert_or_update(k, v, false, dst_arr,
 							 false);
+					copied = true;
 				}
 
 				/* Prevent any preceding memory operations (the
