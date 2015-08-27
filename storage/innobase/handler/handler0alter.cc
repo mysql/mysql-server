@@ -2851,8 +2851,72 @@ innobase_get_col_names(
 	DBUG_RETURN(cols);
 }
 
+/** Check whether the column prefix is increased, decreased, or unchanged.
+@param[in]	new_prefix_len	new prefix length
+@param[in]	old_prefix_len	new prefix length
+@retval	1	prefix is increased
+@retval	0	prefix is unchanged
+@retval	-1	prefix is decreased */
+static inline
+lint
+innobase_pk_col_prefix_compare(
+	ulint	new_prefix_len,
+	ulint	old_prefix_len)
+{
+	ut_ad(new_prefix_len < REC_MAX_DATA_SIZE);
+	ut_ad(old_prefix_len < REC_MAX_DATA_SIZE);
+
+	if (new_prefix_len == old_prefix_len) {
+		return(0);
+	}
+
+	if (new_prefix_len == 0) {
+		new_prefix_len = ULINT_MAX;
+	}
+
+	if (old_prefix_len == 0) {
+		old_prefix_len = ULINT_MAX;
+	}
+
+	if (new_prefix_len > old_prefix_len) {
+		return(1);
+	} else {
+		return(-1);
+	}
+}
+
+/** Check whether the column is existing in old table.
+@param[in]	new_col_no	new column no
+@param[in]	col_map		mapping of old column numbers to new ones
+@param[in]	col_map_size	the column map size
+@return true if the column is existing, otherwise false. */
+static inline
+bool
+innobase_pk_col_is_existing(
+	const ulint	new_col_no,
+	const ulint*	col_map,
+	const ulint	col_map_size)
+{
+	for (ulint i = 0; i < col_map_size; i++) {
+		if (col_map[i] == new_col_no) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /** Determine whether both the indexes have same set of primary key
 fields arranged in the same order.
+
+Rules when we cannot skip sorting:
+(1) Removing existing PK columns somewhere else than at the end of the PK;
+(2) Adding existing columns to the PK, except at the end of the PK when no
+columns are removed from the PK;
+(3) Changing the order of existing PK columns;
+(4) Decreasing the prefix length just like removing existing PK columns
+follows rule(1), Increasing the prefix length just like adding existing
+PK columns follows rule(2).
 @param[in]	col_map		mapping of old column numbers to new ones
 @param[in]	ha_alter_info	Data used during in-place alter
 @param[in]	old_clust_index	index to be compared
@@ -2866,10 +2930,10 @@ innobase_pk_order_preserved(
 	const dict_index_t*	old_clust_index,
 	const dict_index_t*	new_clust_index)
 {
-	ulint	old_n_fields
+	ulint	old_n_uniq
 		= dict_index_get_n_ordering_defined_by_user(
 			old_clust_index);
-	ulint	new_n_fields
+	ulint	new_n_uniq
 		= dict_index_get_n_ordering_defined_by_user(
 			new_clust_index);
 
@@ -2878,74 +2942,87 @@ innobase_pk_order_preserved(
 	ut_ad(old_clust_index->table != new_clust_index->table);
 	ut_ad(col_map != NULL);
 
-	if (old_n_fields == 0) {
+	if (old_n_uniq == 0) {
 		/* There was no PRIMARY KEY in the table.
 		If there is no PRIMARY KEY after the ALTER either,
 		no sorting is needed. */
-		return(new_n_fields == old_n_fields);
+		return(new_n_uniq == old_n_uniq);
 	}
 
 	/* DROP PRIMARY KEY is only allowed in combination with
 	ADD PRIMARY KEY. */
-	ut_ad(new_n_fields > 0 || old_n_fields == 0);
+	ut_ad(new_n_uniq > 0);
 
-	ulint old_field = 0;
-	ulint new_field = 0;
-	ulint old_n_cols = dict_table_get_n_cols(old_clust_index->table);
-	bool pk_col_dropped = false;
-
-	/* Sorting will not be needed when the PRIMARY KEY
-	column list is being appended to or newly added columns
-	are being added to the PRIMARY KEY. */
-	while (old_field < old_n_fields && new_field < new_n_fields) {
-		ulint old_col_no =
-			old_clust_index->fields[old_field].col->ind;
-		ulint new_col_no =
+	/* The order of the last processed new_clust_index key field,
+	not counting ADD COLUMN, which are constant. */
+	lint	last_field_order = -1;
+	ulint	existing_field_count = 0;
+	ulint	old_n_cols = dict_table_get_n_cols(old_clust_index->table);
+	for (ulint new_field = 0; new_field < new_n_uniq; new_field++) {
+		ulint	new_col_no =
 			new_clust_index->fields[new_field].col->ind;
 
-		ut_ad(new_col_no != ULINT_UNDEFINED);
+		/* Check if there is a match in old primary key. */
+		ulint	old_field = 0;
+		while (old_field < old_n_uniq) {
+			ulint	old_col_no =
+				old_clust_index->fields[old_field].col->ind;
 
-		old_col_no = col_map[old_col_no];
-
-		if (old_col_no == new_col_no) {
-			if (pk_col_dropped) {
-				/* Dropping columns in the middle
-				requires sorting. */
-				return(false);
-			}
-
-			if (old_clust_index->fields[old_field].prefix_len
-			    != new_clust_index->fields[new_field].prefix_len) {
-				/* Prefix length of the field
-				is changed. */
-				return(false);
+			if (col_map[old_col_no] == new_col_no) {
+				break;
 			}
 
 			old_field++;
-			new_field++;
-		} else if (old_col_no == ULINT_UNDEFINED) {
+		}
 
-			if (old_n_fields == 1) {
-				/* Dropping single column primary key
-				requires sorting. */
-				return(false);
-			}
+		/* The order of key field in the new primary key.
+		1. old PK column:      idx in old primary key
+		2. existing column:    old_n_uniq + sequence no
+		3. newly added column: no order */
+		lint		new_field_order;
+		const bool	old_pk_column = old_field < old_n_uniq;
 
-			pk_col_dropped = true;
-			old_field++;
+		if (old_pk_column) {
+			new_field_order = old_field;
+		} else if (innobase_pk_col_is_existing(new_col_no, col_map,
+						       old_n_cols)) {
+			new_field_order = old_n_uniq + existing_field_count++;
 		} else {
-			/* Check whether column in new table is
-			an existing column or newly added */
-			for (ulint k = 0; k < old_n_cols; k++) {
-				if (col_map[k] == new_col_no) {
-				/* Changing the order of existing
-				columns in the PRIMARY KEY requires
-				sorting. */
-					return(false);
-				}
-			}
+			/* Skip newly added column. */
+			continue;
+		}
 
-			new_field++;
+		if (last_field_order + 1 != new_field_order) {
+			/* Old PK order is not kept, or existing column
+			is not added at the end of old PK. */
+			return(false);
+		}
+
+		last_field_order = new_field_order;
+
+		if (!old_pk_column) {
+			continue;
+		}
+
+		/* Check prefix length change. */
+		const lint	prefix_change = innobase_pk_col_prefix_compare(
+			new_clust_index->fields[new_field].prefix_len,
+			old_clust_index->fields[old_field].prefix_len);
+
+		if (prefix_change < 0) {
+			/* If a column's prefix length is decreased, it should
+			be the last old PK column in new PK.
+			Note: we set last_field_order to -2, so that if	there
+			are any old PK colmns or existing columns after it in
+			new PK, the comparison to new_field_order will fail in
+			the next round.*/
+			last_field_order = -2;
+		} else if (prefix_change > 0) {
+			/* If a column's prefix length is increased, it	should
+			be the last PK column in old PK. */
+			if (old_field != old_n_uniq - 1) {
+				return(false);
+			}
 		}
 	}
 
@@ -4332,6 +4409,9 @@ new_clustered_failed:
 			ctx->new_table);
 		ctx->skip_pk_sort = innobase_pk_order_preserved(
 			ctx->col_map, clust_index, new_clust_index);
+
+		DBUG_EXECUTE_IF("innodb_alter_table_pk_assert_no_sort",
+			DBUG_ASSERT(ctx->skip_pk_sort););
 
 		if (ctx->online) {
 			/* Allocate a log for online table rebuild. */
