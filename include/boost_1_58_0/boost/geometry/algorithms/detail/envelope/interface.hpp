@@ -12,8 +12,8 @@
 // Parts of Boost.Geometry are redesigned from Geodan's Geographic Library
 // (geolib/GGL), copyright (c) 1995-2010 Geodan, Amsterdam, the Netherlands.
 
-// Use, modification and distribution is subject to the Boost Software License,
-// Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
 #ifndef BOOST_GEOMETRY_ALGORITHMS_DETAIL_ENVELOPE_INTERFACE_HPP
@@ -26,7 +26,6 @@
 #include <boost/geometry/geometries/concepts/check.hpp>
 
 #include <boost/geometry/algorithms/dispatch/envelope.hpp>
-#include <boost/geometry/algorithms/assign.hpp>
 
 
 namespace boost { namespace geometry
@@ -95,7 +94,6 @@ struct envelope<boost::variant<BOOST_VARIANT_ENUM_PARAMS(T)> >
 template<typename Geometry, typename Box>
 inline void envelope(Geometry const& geometry, Box& mbr)
 {
-    geometry::assign_inverse(mbr);
     resolve_variant::envelope<Geometry>::apply(geometry, mbr);
 }
 
