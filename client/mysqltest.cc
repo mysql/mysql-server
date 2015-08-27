@@ -8342,6 +8342,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   my_bool complete_query= ((flags & QUERY_SEND_FLAG) &&
                            (flags & QUERY_REAP_FLAG));
   DBUG_ENTER("run_query");
+  dynstr_set(&ds_result, "");
 
   if (cn->pending && (flags & QUERY_SEND_FLAG))
     die ("Cannot run query on connection between send and reap");
