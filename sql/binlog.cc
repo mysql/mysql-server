@@ -4904,19 +4904,22 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   mysql_mutex_assert_owner(&LOCK_log);
   mysql_mutex_assert_owner(&LOCK_index);
 
-  /* Reuse old name if not binlog and not update log */
-  new_name_ptr= name;
 
   /*
     If user hasn't specified an extension, generate a new log name
     We have to do this here and not in open as we want to store the
     new file name in the current binary log file.
   */
+  new_name_ptr= new_name;
   if ((error= generate_new_name(new_name, name)))
+  {
+    // Use the old name if generation of new name fails.
+    strcpy(new_name, name);
+    close_on_error= TRUE;
     goto end;
+  }
   else
   {
-    new_name_ptr=new_name;
     /*
       We log the whole file name for log file as the user may decide
       to change base names at some point.
@@ -5444,30 +5447,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
 
   if (force_rotate || (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    if ((error= new_file_without_locking(NULL)))
-      /** 
-        Be conservative... There are possible lost events (eg, 
-        failing to log the Execute_load_query_log_event
-        on a LOAD DATA while using a non-transactional
-        table)!
-
-        We give it a shot and try to write an incident event anyway
-        to the current log. 
-      */
-      if (!write_incident(current_thd, false/*need_lock_log=false*/,
-                          false/*do_flush_and_sync==false*/))
-      {
-        /*
-          Write an error to log. So that user might have a chance
-          to be alerted and explore incident details before its
-          slave servers would stop.
-        */
-        sql_print_error("The server was unable to create a new log file. "
-                        "An incident event has been written to the binary "
-                        "log which will stop the slaves.");
-        flush_and_sync(0);
-      }
-
+    error= new_file_without_locking(NULL);
     *check_purge= true;
   }
   DBUG_RETURN(error);
