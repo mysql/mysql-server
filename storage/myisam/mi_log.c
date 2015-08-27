@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,8 +24,7 @@
 #include <process.h>
 #endif
 
-#undef GETPID					/* For HPUX */
-#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) mysys_thread_var()->id)
+#define GETPID() (log_type == 1 ? (long) myisam_pid : (long) my_thread_self())
 
 	/* Activate logging if flag is 1 and reset logging if flag is 0 */
 

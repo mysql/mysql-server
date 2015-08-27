@@ -18,6 +18,8 @@
 
 #include "mysql/psi/mysql_thread.h"
 
+struct _db_code_state_;
+
 C_MODE_START
 
 #ifdef _WIN32
@@ -79,12 +81,11 @@ struct st_my_thread_var
   int thr_winerr;
 #endif
   mysql_cond_t suspend;
-  my_thread_id id;
-  int volatile abort;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
 #ifndef DBUG_OFF
-  void *dbug;
+  my_thread_id id;
+  struct _db_code_state_ *dbug;
 #endif
 };
 
@@ -94,7 +95,7 @@ int set_mysys_thread_var(struct st_my_thread_var *mysys_var);
 
 #ifndef DBUG_OFF
 /* Return pointer to DBUG for holding current state */
-void **my_thread_var_dbug();
+struct _db_code_state_ **my_thread_var_dbug();
 #endif
 
 #define my_errno mysys_thread_var()->thr_errno

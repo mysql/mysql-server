@@ -215,12 +215,6 @@ static THD* init_new_thd(Channel_info *channel_info)
     return NULL;
   }
 
-  /*
-    THD::mysys_var::abort is associated with physical thread rather
-    than with THD object. So we need to reset this flag before using
-    this thread for handling of new THD object/connection.
-  */
-  thd->mysys_var->abort= 0;
   return thd;
 }
 
