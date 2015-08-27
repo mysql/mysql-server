@@ -361,12 +361,6 @@ public:
 protected:  
   uint arg_count;
   Item **args, *tmp_args[2];
-  /* 
-    Copy of the arguments list to hold the original set of arguments.
-    Used in EXPLAIN EXTENDED instead of the current argument list because 
-    the current argument list can be altered by usage of temporary tables.
-  */
-  Item **orig_args, *tmp_orig_args[2];
   table_map used_tables_cache;
   bool forced_const;
   static ulonglong ram_limitation(THD *thd);
@@ -383,7 +377,7 @@ public:
 
 
   Item_sum(Item *a) :next(NULL), quick_group(1), arg_count(1), args(tmp_args),
-    orig_args(tmp_orig_args), forced_const(FALSE)
+   forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
@@ -391,7 +385,7 @@ public:
   }
   Item_sum(const POS &pos, Item *a)
     :super(pos), next(NULL), quick_group(1), arg_count(1), args(tmp_args),
-     orig_args(tmp_orig_args), forced_const(FALSE)
+     forced_const(FALSE)
   {
     args[0]=a;
     init_aggregator();
@@ -1241,7 +1235,6 @@ public:
     if (udf.fix_fields(thd, this, this->arg_count, this->args))
       return TRUE;
 
-    memcpy (orig_args, args, sizeof (Item *) * arg_count);
     return check_sum_func(thd, ref);
   }
   enum Sumfunctype sum_func () const { return UDF_SUM_FUNC; }

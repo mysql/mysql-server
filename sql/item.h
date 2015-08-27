@@ -2584,7 +2584,37 @@ public:
   virtual bool aggregate_check_group(uchar *arg);
   Bool3 local_column(const SELECT_LEX *sl) const;
 
-  virtual void print(String *str, enum_query_type query_type);
+  virtual void print(String *str, enum_query_type query_type)
+  {
+    print(str, query_type, db_name, table_name);
+  }
+protected:
+  /**
+    Function to print column name for a table
+
+    To print a column for a permanent table (picks up database and table from
+    Item_ident object):
+
+       item->print(str, qt)
+
+    To print a column for a temporary table:
+
+       item->print(str, qt, specific_db, specific_table)
+
+    Items of temporary table fields have empty/NULL values of table_name and
+    db_name. To print column names in a 3D form (`database`.`table`.`column`),
+    this function prints db_name_arg and table_name_arg parameters instead of
+    this->db_name and this->table_name respectively.
+
+    @param [out] str            Output string buffer.
+    @param       query_type     Bitmap to control printing details.
+    @param       db_name_arg    String to output as a column database name.
+    @param       table_name_arg String to output as a column table name.
+  */
+  void print(String *str, enum_query_type query_type,
+             const char *db_name_arg,
+             const char *table_name_arg) const;
+public:
   virtual bool change_context_processor(uchar *cntx)
   {
     context= reinterpret_cast<Name_resolution_context *>(cntx);
