@@ -6394,6 +6394,61 @@ do st_buffer( multipolygon(polygon(linestring(point(-3,-32), point(5.983690e+307
 do st_buffer( multipolygon(polygon(linestring(point(-16,20), point(0,-43), point(-70,45), point(274877906948,288230376151711745), point(-16,20)), linestring(point(-48,81), point(5,92), point(76,-43), point(1.100472e+307,1.199671e+308), point(262146,17179869186)), linestring(point(-66,99), point(9,-46), point(1.519109e+308,1.506793e+308))))   , 0xf3   );
 
 --echo ######################################################################################################
+--echo # BUG#21547506 : ASSERTION FAILED: SEQUENCE NOT ORDERED ALGORITHM(2639)
+--echo ######################################################################################################
+
+--error ER_GIS_INVALID_DATA
+do st_difference(
+  st_union(
+    multilinestring(
+          linestring(
+            point(3.1e+307,1),
+                point(5.1e+307,6.e+307),
+                point(-1,-4),
+                point(1,4294967295),
+                point(3,-2),
+                point(1,32732243452685474000000000),
+                point(-1,7),
+                point(1,1)
+          ),
+          linestring(
+            point(9,5),
+                point(1,4503599627370492),
+                point(1,68719476734),
+                point(4,-5),
+                point(1.1e+308,2.1e+307),
+                point(-1,-8)
+          ),
+          linestring(
+            point(3.5e+307,9.e+307),
+                point(1.1e+304,1.e+308),
+                point(-9,-4)
+          )
+        ),
+        polygon(
+          linestring(
+            point(1.1e+308,1.2e+308),
+                point(-1,-9),
+                point(1,1000000000000),
+                point(1.1e+308,7.8e+307)
+          ),
+          linestring(
+            point(3,2),
+                point(8.e+307,1.e+308),
+                point(1,1)
+          ),
+          linestring(
+            point(258,2049),
+                point(1,-3),
+                point(1,1),
+                point(-6,9)
+          )
+        )
+  ),
+  point(1,1)
+);
+
+--echo ######################################################################################################
 --echo # BUG#21383714: Assertion failed: !thd->is_error() in select_lex::prepare
 --echo ######################################################################################################
 
