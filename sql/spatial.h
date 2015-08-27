@@ -2398,7 +2398,7 @@ Gis_wkb_vector(const Gis_wkb_vector<T> &v) :Geometry(v), m_geo_vect(NULL)
   DBUG_ASSERT((v.get_ptr() != NULL && v.get_nbytes() > 0) ||
               (v.get_ptr() == NULL && !v.get_ownmem() &&
                v.get_nbytes() == 0));
-  if (v.is_bg_adapter() == false || v.get_ptr() == NULL)
+  if (!v.is_bg_adapter() || (v.get_ptr() == NULL && v.m_geo_vect == NULL))
     return;
   m_geo_vect= new Geo_vector();
   std::auto_ptr<Geo_vector> guard(m_geo_vect);

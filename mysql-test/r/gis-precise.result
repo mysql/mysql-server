@@ -699,7 +699,7 @@ st_astext(st_difference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 
 POLYGON((1 1,0 1,0 0,1 0,1 1))
 select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
 st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')))
-MULTIPOLYGON(((1 1,0 1,0 0,1 0,1 1)),((1 1,1 0,2 0,2 1,1 1)))
+POLYGON((1 0,2 0,2 1,1 1,0 1,0 0,1 0))
 select st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')));
 st_astext(st_symdifference(ST_GeometryFromText('geometrycollection(polygon((0 0, 2 0, 2 1, 0 1, 0 0)))'), ST_GeometryFromText('geometrycollection(polygon((1 0, 3 0, 3 1, 1 1, 1 0)))')))
 MULTIPOLYGON(((1 1,0 1,0 0,1 0,1 1)),((2 1,2 0,3 0,3 1,2 1)))
