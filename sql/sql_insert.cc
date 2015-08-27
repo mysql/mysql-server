@@ -333,6 +333,82 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
 }
 
 /**
+  Setup data for field BLOB/GEOMETRY field types for execution of
+  "INSERT...UPDATE" statement. For a expression in 'UPDATE' clause
+  like "a= VALUES(a)", let as call Field* referring 'a' as LHS_FIELD
+  and Field* referring field 'a' in "VALUES(a)" as RHS_FIELD
+
+  This function creates a separate copy of the blob value for RHS_FIELD,
+  if the field is updated as well as accessed through VALUES()
+  function in 'UPDATE' clause of "INSERT...UPDATE" statement.
+
+  @param [in] thd
+    Pointer to THD object.
+
+  @param [in] fields
+    List of fields representing LHS_FIELD of all expressions
+    in 'UPDATE' clause.
+
+  @return - Can fail only when we are out of memory.
+    @retval false   Success
+    @retval true    Failure
+*/
+
+bool mysql_prepare_blob_values(THD *thd, List<Item> &fields, MEM_ROOT *mem_root)
+{
+  DBUG_ENTER("mysql_prepare_blob_values");
+
+  if (fields.elements <= 1)
+    DBUG_RETURN(false);
+
+  // Collect LHS_FIELD's which are updated in a 'set'.
+  // This 'set' helps decide if we need to make copy of BLOB value
+  // or not.
+
+  Prealloced_array<Field_blob *, 16, true>
+    blob_update_field_set(PSI_NOT_INSTRUMENTED);
+  if (blob_update_field_set.reserve(fields.elements))
+    DBUG_RETURN(true);
+
+  List_iterator_fast<Item> f(fields);
+  Item *fld;
+  while ((fld= f++))
+  {
+    Item_field *field= fld->field_for_view_update();
+    Field *lhs_field= field->field;
+
+    if (lhs_field->type() == MYSQL_TYPE_BLOB ||
+        lhs_field->type() == MYSQL_TYPE_GEOMETRY)
+      blob_update_field_set.insert_unique(down_cast<Field_blob *>(lhs_field));
+  }
+
+  // Traverse through thd->lex->insert_update_values_map
+  // and make copy of BLOB values in RHS_FIELD, if the same field is
+  // modified (present in above 'set' prepared).
+  std::map<Field *, Field *>::iterator iter=
+    thd->lex->insert_update_values_map.begin();
+  for(iter= thd->lex->insert_update_values_map.begin();
+      iter != thd->lex->insert_update_values_map.end();
+      ++iter)
+  {
+    // Retrieve the Field_blob pointers from the map.
+    // and initialize newly declared variables immediately.
+    Field_blob *lhs_field= down_cast<Field_blob *>(iter->first);
+    Field_blob *rhs_field= down_cast<Field_blob *>(iter->second);
+
+    // Check if the Field_blob object is updated before making a copy.
+    if (blob_update_field_set.count_unique(lhs_field) == 0)
+      continue;
+
+    // Copy blob value
+    if(rhs_field->copy_blob_value(mem_root))
+      DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -1416,8 +1492,14 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   MY_BITMAP *save_read_set, *save_write_set;
   ulonglong prev_insert_id= table->file->next_insert_id;
   ulonglong insert_id_for_cur_row= 0;
+  MEM_ROOT mem_root;
   DBUG_ENTER("write_record");
 
+  /* Here we are using separate MEM_ROOT as this memory should be freed once we
+     exit write_record() function. This is marked as not instumented as it is
+     allocated for very short time in a very specific case.
+  */
+  init_sql_alloc(PSI_NOT_INSTRUMENTED, &mem_root, 256, 0);
   info->stats.records++;
   save_read_set=  table->read_set;
   save_write_set= table->write_set;
@@ -1549,6 +1631,15 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         */
 	DBUG_ASSERT(table->insert_values != NULL);
         store_record(table,insert_values);
+        /*
+          Special check for BLOB/GEOMETRY field in statements with
+          "ON DUPLICATE KEY UPDATE" clause.
+          See mysql_prepare_blob_values() function for more details.
+        */
+        if (mysql_prepare_blob_values(thd,
+                                      *update->get_changed_columns(),
+                                      &mem_root))
+           goto before_trg_err;
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
@@ -1792,6 +1883,7 @@ ok_or_after_trg_err:
   if (!table->file->has_transactions())
     thd->get_transaction()->mark_modified_non_trans_table(
       Transaction_ctx::STMT);
+  free_root(&mem_root, MYF(0));
   DBUG_RETURN(trg_error);
 
 err:
@@ -1810,6 +1902,7 @@ before_trg_err:
   if (key)
     my_safe_afree(key, table->s->max_unique_length, MAX_KEY_LENGTH);
   table->column_bitmaps_set(save_read_set, save_write_set);
+  free_root(&mem_root, MYF(0));
   DBUG_RETURN(1);
 }
 

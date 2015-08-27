@@ -9049,6 +9049,30 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));
+    /*
+      Put the original and cloned Field_blob objects in
+      'insert_update_values_map' map. This will be used to make a
+      separate copy of blob value, in case 'UPDATE' clause is executed in
+      'INSERT...UPDATE' statement. See mysql_prepare_blob_values()
+      for more info. We are only checking for MYSQL_TYPE_BLOB and
+      MYSQL_TYPE_GEOMETRY. Sub types of blob like TINY BLOB, LONG BLOB, JSON,
+      are internally stored are BLOB only. Same applies to geometry type.
+    */
+    if ((def_field->type() == MYSQL_TYPE_BLOB ||
+         def_field->type() == MYSQL_TYPE_GEOMETRY))
+    {
+      try
+      {
+        thd->lex->insert_update_values_map.
+          insert(std::make_pair(field_arg->field, def_field));
+      }
+      catch(std::bad_alloc const &)
+      {
+        my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), "", "fix_fields");
+        return true;
+      }
+    }
+
     set_field(def_field);
   }
   else
