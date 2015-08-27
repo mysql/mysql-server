@@ -241,10 +241,12 @@ public:
 	/** Parse MLOG_TRUNCATE log record from REDO log file during recovery.
 	@param[in,out]	start_ptr	buffer containing log body to parse
 	@param[in]	end_ptr		buffer end
+	@param[in]	space_id	tablespace identifier
 	@return parsed upto or NULL. */
 	static byte* parse_redo_entry(
 		byte*		start_ptr,
-		const byte*	end_ptr);
+		const byte*	end_ptr,
+		ulint		space_id);
 
 	/**
 	Write a log record for truncating a single-table tablespace.

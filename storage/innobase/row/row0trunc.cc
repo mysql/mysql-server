@@ -440,13 +440,10 @@ public:
 
 			mtr_start(&mtr);
 
-			log_ptr = mlog_open(&mtr, 11 + 4 + 8);
+			log_ptr = mlog_open(&mtr, 11 + 8);
 			log_ptr = mlog_write_initial_log_record_low(
 				MLOG_TRUNCATE, m_table->space, 0,
 				log_ptr, &mtr);
-
-			mach_write_to_4(log_ptr, m_table->space);
-			log_ptr += 4;
 
 			mach_write_to_8(log_ptr, lsn);
 			log_ptr += 8;
@@ -2631,22 +2628,20 @@ truncate_t::parse(
 /** Parse log record from REDO log file during recovery.
 @param[in,out]	start_ptr	buffer containing log body to parse
 @param[in]	end_ptr		buffer end
+@param[in]	space_id	tablespace identifier
 @return parsed upto or NULL. */
 byte*
 truncate_t::parse_redo_entry(
 	byte*		start_ptr,
-	const byte*	end_ptr)
+	const byte*	end_ptr,
+	ulint		space_id)
 {
-	ulint	space_id;
 	lsn_t	lsn;
 
 	/* Parse space-id, lsn */
-	if (end_ptr < start_ptr + (4 + 8)) {
+	if (end_ptr < (start_ptr + 8)) {
 		return(NULL);
 	}
-
-	space_id = mach_read_from_4(start_ptr);
-	start_ptr += 4;
 
 	lsn = mach_read_from_8(start_ptr);
 	start_ptr += 8;

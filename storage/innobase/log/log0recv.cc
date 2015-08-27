@@ -1457,7 +1457,7 @@ recv_parse_or_apply_log_rec_body(
 		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
 				      apply));
 	case MLOG_TRUNCATE:
-		return(truncate_t::parse_redo_entry(ptr, end_ptr));
+		return(truncate_t::parse_redo_entry(ptr, end_ptr, space_id));
 	default:
 		break;
 	}
