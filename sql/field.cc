@@ -11324,6 +11324,45 @@ uint32 Field_blob::char_length()
   }
 }
 
+/**
+  This function creates a separate copy of blob value.
+
+  @param [in] mem_root
+    mem_root that is used to allocate memory for 'copy_of_value'.
+
+  @return - Can fail if we are out of memory.
+    @retval false   Success
+    @retval true    Failure
+*/
+
+bool Field_blob::copy_blob_value(MEM_ROOT *mem_root)
+{
+  DBUG_ENTER("copy_blob_value");
+
+  // Testing memory allocation failure
+  DBUG_EXECUTE_IF("simulate_blob_memory_allocation_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
+  // Allocate new memory location
+  size_t ulen= get_length(ptr);
+
+  char *blob_value= (char *) alloc_root(mem_root, ulen);
+  if (!blob_value)
+    DBUG_RETURN(true);
+
+  // Copy Data
+  uchar *temp_ptr;
+  get_ptr(&temp_ptr);
+  memcpy(blob_value, temp_ptr, ulen);
+
+  // Set ptr of Field for duplicated data
+  store_ptr_and_length(blob_value, ulen);
+
+  // Set 'value' with the duplicated data
+  value.set(blob_value, ulen, value.charset());
+
+  DBUG_RETURN(false);
+}
 
 /**
   maximum possible display length for blob.
