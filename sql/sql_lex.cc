@@ -593,6 +593,7 @@ void lex_end(LEX *lex)
 
   delete lex->sphead;
   lex->sphead= NULL;
+  lex->insert_update_values_map.clear();
 
   DBUG_VOID_RETURN;
 }

@@ -312,6 +312,18 @@ public:
   }
 
   /**
+    Similar to std::set<>::count()
+
+    @note   Assumes that array is maintained with insert_unique/erase_unique.
+
+    @retval 1 if element is found, 0 otherwise.
+  */
+  size_type count_unique(const value_type& val) const
+  {
+    return std::binary_search(begin(), end(), val);
+  }
+
+  /**
     Removes a single element from the array.
     The removed element is destroyed.
     This effectively reduces the container size by one.

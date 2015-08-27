@@ -43,6 +43,7 @@
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
 #include "parse_tree_hints.h"
+#include <map>
 
 #ifdef MYSQL_SERVER
 #include "item_func.h"                // Cast_target
@@ -3063,6 +3064,7 @@ public:
   List<Item_func_set_user_var> set_var_list; // in-query assignment list
   List<Item_param>    param_list;
   List<LEX_STRING>    view_list; // view list (list of field names in view)
+  std::map<Field *,Field *> insert_update_values_map;
   /*
     A stack of name resolution contexts for the query. This stack is used
     at parse time to set local name resolution contexts for various parts

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -227,6 +227,7 @@ TEST_F(PreallocedArrayTest, InsertUnique)
   for (int *pi= int_10.begin(); pi != int_10.end(); ++pi)
   {    
     unique_arr.insert_unique(*pi);
+    EXPECT_EQ(1U, unique_arr.count_unique(*pi));
   }
   EXPECT_EQ(10U, unique_arr.size());
   // Duplicates should have been ignored, and the result should be sorted.
@@ -254,7 +255,10 @@ TEST_F(PreallocedArrayTest, EraseUnique)
 
   // Removing non-existing numbers should return 0.
   for (int ix= 0; ix < 10; ++ix)
+  {
+    EXPECT_EQ(0U, int_10.count_unique(2 * ix));
     EXPECT_EQ(0U, int_10.erase_unique(2 * ix));
+  }
 
   // 10 numbers should still remain.
   EXPECT_EQ(10U, int_10.size());
