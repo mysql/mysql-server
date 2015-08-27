@@ -1339,8 +1339,6 @@ void THD::awake(THD::killed_state state_to_set)
   if (mysys_var)
   {
     mysql_mutex_lock(&LOCK_current_cond);
-    if (!system_thread)		// Don't abort locks
-      mysys_var->abort=1;
     /*
       This broadcast could be up in the air if the victim thread
       exits the cond in the time between read and broadcast, but that is
@@ -1472,11 +1470,13 @@ bool THD::store_globals()
   */
   mysys_var= mysys_thread_var();
   DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
+#ifndef DBUG_OFF
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
   */
   mysys_var->id= m_thread_id;
+#endif
   real_id= my_thread_self();                      // For debugging
 
   return 0;

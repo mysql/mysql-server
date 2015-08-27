@@ -4719,7 +4719,6 @@ finish:
         thd->killed == THD::KILL_BAD_DATA)
     {
       thd->killed= THD::NOT_KILLED;
-      thd->mysys_var->abort= 0;
     }
   }
 

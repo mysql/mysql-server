@@ -232,6 +232,11 @@ extern void (*exit_cond_hook)(void *opaque_thd,
                               const char *src_file,
                               int src_line);
 
+/*
+  Hook for checking if the thread has been killed.
+*/
+extern int (*is_killed_hook)(const void *opaque_thd);
+
 /* charsets */
 #define MY_ALL_CHARSETS_SIZE 2048
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *default_charset_info;

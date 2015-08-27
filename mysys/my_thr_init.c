@@ -28,7 +28,9 @@ static my_bool THR_KEY_mysys_initialized= FALSE;
 static my_bool my_thread_global_init_done= FALSE;
 static uint    THR_thread_count= 0;
 static uint    my_thread_end_wait_time= 5;
+#ifndef DBUG_OFF
 static my_thread_id thread_id= 0;
+#endif
 static thread_local_key_t THR_KEY_mysys;
 
 mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
@@ -255,7 +257,9 @@ my_bool my_thread_init()
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 
   mysql_mutex_lock(&THR_LOCK_threads);
+#ifndef DBUG_OFF
   tmp->id= ++thread_id;
+#endif
   ++THR_thread_count;
   mysql_mutex_unlock(&THR_LOCK_threads);
   set_mysys_thread_var(tmp);
@@ -332,7 +336,7 @@ int set_mysys_thread_var(struct st_my_thread_var *mysys_var)
 
 
 #ifndef DBUG_OFF
-void **my_thread_var_dbug()
+struct _db_code_state_ **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp;
   /*

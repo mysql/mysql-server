@@ -124,7 +124,6 @@ void thd_set_killed(THD *thd)
 void thd_clear_errors(THD *thd)
 {
   my_errno= 0;
-  thd->mysys_var->abort= 0;
 }
 
 
@@ -620,7 +619,9 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 extern "C"
 int thd_killed(const MYSQL_THD thd)
 {
-  return(thd->killed);
+  if (thd == NULL)
+    return current_thd->killed;
+  return thd->killed;
 }
 
 

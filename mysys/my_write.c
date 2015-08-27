@@ -81,7 +81,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     my_errno= errno;
     DBUG_PRINT("error",("Write only %ld bytes, error: %d",
 			(long) writtenbytes, my_errno));
-    if (mysys_thread_var()->abort)
+    if (is_killed_hook(NULL))
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 
     if ((my_errno == ENOSPC || my_errno == EDQUOT) &&

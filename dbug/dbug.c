@@ -326,7 +326,7 @@ static CODE_STATE *code_state(void)
     init_settings.flags=OPEN_APPEND;
   }
 
-  if (!(cs_ptr= (CODE_STATE**) my_thread_var_dbug()))
+  if (!(cs_ptr= my_thread_var_dbug()))
     return 0;                                   /* Thread not initialised */
   if (!(cs= *cs_ptr))
   {
