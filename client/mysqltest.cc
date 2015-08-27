@@ -559,6 +559,7 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
+DYNAMIC_STRING ds_result;
 /* Points to ds_warning in run_query, so it can be freed */
 DYNAMIC_STRING *ds_warn= 0;
 struct st_command *curr_command= 0;
@@ -1430,6 +1431,7 @@ void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count]);
   delete q_lines;
   dynstr_free(&ds_res);
+  dynstr_free(&ds_result);
   if (ds_warn)
     dynstr_free(ds_warn);
   free_all_replace();
@@ -8331,7 +8333,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   MYSQL *mysql= &cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING *save_ds= NULL;
-  DYNAMIC_STRING ds_result;
   DYNAMIC_STRING ds_sorted;
   DYNAMIC_STRING ds_warnings;
   DYNAMIC_STRING eval_query;
@@ -8375,7 +8376,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
   */
   if (command->require_file[0] || command->output_file[0])
   {
-    init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
   }
   else
@@ -8549,8 +8549,6 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     command->output_file[0]= 0;
   }
 
-  if (ds == &ds_result)
-    dynstr_free(&ds_result);
   DBUG_VOID_RETURN;
 }
 
@@ -9036,6 +9034,7 @@ int main(int argc, char **argv)
 #endif
 
   init_dynamic_string(&ds_res, "", 2048, 2048);
+  init_dynamic_string(&ds_result, "", 1024, 1024);
 
   parse_args(argc, argv);
 
