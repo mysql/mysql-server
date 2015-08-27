@@ -1279,11 +1279,7 @@ c text,
 index(d),
 index(a),
 primary key (b(16), a, d),
-index (c(16), b(16)),
-index (b(5), c(10), a),
-fulltext ftsic(c),
-fulltext ftsic2(c,b,d),
-fulltext ftsic3(c,b)) engine=InnoDB row_format=dynamic;
+fulltext ftsic(c)) engine=InnoDB row_format=dynamic;
 insert into ibstd_33 (a,d,b,c) values ('1','6',
 repeat('0.350557460150547arrclolullcocuraalaulloooclrcoulrccaoocourcrorooruruooauuauarrouccuoucrooaaouullrularcoarclloraaac','367'),
 repeat('0.0836047279001129oaalolrllcoulaoococrolooullocuaacocoaoloclouallruaalolaruucaloluraocorrlouuoaorloarrluaaorucu','534'));
