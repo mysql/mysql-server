@@ -409,11 +409,11 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     ourselves to call it before_lock_wait once before starting to wait
     and once after the thread has exited the wait loop.
    */
-  if ((!thread_var->abort || in_wait_list) && before_lock_wait)
+  if ((!is_killed_hook(NULL) || in_wait_list) && before_lock_wait)
     (*before_lock_wait)();
 
   set_timespec(&wait_timeout, lock_wait_timeout);
-  while (!thread_var->abort || in_wait_list)
+  while (!is_killed_hook(NULL) || in_wait_list)
   {
     int rc= mysql_cond_timedwait(data->cond, &data->lock->mutex, &wait_timeout);
     /*
@@ -447,9 +447,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
    */
   if (after_lock_wait)
     (*after_lock_wait)();
-
-  DBUG_PRINT("thr_lock", ("aborted: %d  in_wait_list: %d",
-                          thread_var->abort, in_wait_list));
 
   if (data->cond || data->type == TL_UNLOCK)
   {
@@ -1372,17 +1369,18 @@ static void *test_thread(void *arg)
   THR_LOCK_DATA data[MAX_LOCK_COUNT];
   THR_LOCK_INFO lock_info;
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
+  my_thread_id id;
 
   struct st_my_thread_var my_thread_var;
   memset(&my_thread_var, 0, sizeof(my_thread_var));
-  my_thread_var.id= param + 1; /* Main thread uses value 0. */
+  id= param + 1; /* Main thread uses value 0. */
   mysql_cond_init(0, &my_thread_var.suspend);
 
-  printf("Thread T@%u (%d) started\n", my_thread_var.id, param);
+  printf("Thread T@%u (%d) started\n", id, param);
   fflush(stdout);
 
 
-  thr_lock_info_init(&lock_info, my_thread_var.id);
+  thr_lock_info_init(&lock_info, id);
   for (i=0; i < lock_counts[param] ; i++)
   {
     thr_lock_data_init(locks+tests[param][i].lock_nr,data+i,NULL);
@@ -1415,7 +1413,7 @@ static void *test_thread(void *arg)
     thr_multi_unlock(multi_locks,lock_counts[param]);
   }
 
-  printf("Thread T@%u (%d) ended\n", my_thread_var.id, param);
+  printf("Thread T@%u (%d) ended\n", id, param);
   fflush(stdout);
   thr_print_locks();
   mysql_mutex_lock(&LOCK_thread_count);

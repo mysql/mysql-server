@@ -937,7 +937,6 @@ public:
     if (killing_thd->mysys_var)
     {
       mysql_mutex_lock(&killing_thd->LOCK_current_cond);
-      killing_thd->mysys_var->abort= 1;
       if (killing_thd->current_cond)
       {
         mysql_mutex_lock(killing_thd->current_mutex);
@@ -3743,6 +3742,7 @@ static int init_server_components()
 
   enter_cond_hook= thd_enter_cond;
   exit_cond_hook= thd_exit_cond;
+  is_killed_hook= (int(*)(const void*))thd_killed;
 
   if (transaction_cache_init())
   {

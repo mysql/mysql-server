@@ -163,7 +163,7 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
     }
     DBUG_PRINT("error",("Write only %u bytes", (uint) writtenbytes));
 
-    if (mysys_thread_var()->abort)
+    if (is_killed_hook(NULL))
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
 
     if ((my_errno == ENOSPC || my_errno == EDQUOT) &&

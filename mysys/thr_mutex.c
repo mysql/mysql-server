@@ -71,11 +71,13 @@ int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
     }
     else if (my_thread_equal(my_thread_self(),mp->thread))
     {
+#ifndef DBUG_OFF
       fprintf(stderr,
               "safe_mutex: Trying to lock mutex at %s, line %d, when the"
               " mutex was already locked at %s, line %d in thread T@%u\n",
               file,line,mp->file, mp->line, mysys_thread_var()->id);
       fflush(stderr);
+#endif
       abort();
     }
   }
