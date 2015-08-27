@@ -18,6 +18,8 @@ mysql-community (5.8.0-m17-1debian8) jessie; urgency=low
     (Closes: #20650118)
   * removed pkg mysql-*-bench; sqlbench will not be packaged
     (Closes: #21303289)
+  * removed cleanup statement for client lib symlinks *_r in d/rules
+    (Closes: #21311067)
 
   [ Balasubramanian Kandasamy ]
   * Added mysqlpump man page to d/mysql-*-client.install

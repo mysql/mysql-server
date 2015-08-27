@@ -287,10 +287,8 @@ Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
 Obsoletes:      libmysqlclient20 < %{version}-%{release}
-Obsoletes:      libmysqlclient_r20 < %{version}-%{release}
 Provides:       mysql-libs = %{version}-%{release}
 Provides:       libmysqlclient20 = %{version}-%{release}
-Provides:       libmysqlclient_r20 = %{version}-%{release}
 
 %description    libs
 This package contains the shared libraries for MySQL client
@@ -740,9 +738,7 @@ fi
 %{_includedir}/mysql
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/mysql/libmysqlclient_r.so
 %{_libdir}/mysql/libmysqlclient.so
 
 %files libs
@@ -751,7 +747,6 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.20*
-%{_libdir}/mysql/libmysqlclient_r.so.20*
 
 %if 0%{?compatlib}
 %files libs-compat
