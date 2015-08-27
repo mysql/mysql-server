@@ -117,3 +117,14 @@ drop table t1;
 drop table t480;
 SET DEBUG_SYNC='RESET';
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo #  BUG#21612714 ALTER TABLE SORTING SKIPPED WHEN CHANGE PK AND DROP
+--echo #                LAST COLUMN OF OLD PK
+--echo #
+
+SET debug="+d,innodb_alter_table_pk_assert_no_sort";
+
+--source suite/innodb/include/alter_table_pk_no_sort.inc
+
+SET debug="-d,innodb_alter_table_pk_assert_no_sort";
