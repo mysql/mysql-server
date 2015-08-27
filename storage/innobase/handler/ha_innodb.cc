@@ -15363,7 +15363,18 @@ refresh_share_vtempl(
 		    !strcmp(share->table_name, table_name));
 
 	if (share == NULL) {
-		ut_ad(0);
+		/* Partition table does not have "share" structure
+		instantiated, no need to refresh it */
+#ifdef UNIV_DEBUG
+ #ifdef _WIN32
+		char*   is_part = strstr(ib_table->name.m_name, "#p#");
+ #else
+		char*   is_part = strstr(ib_table->name.m_name, "#P#");
+ #endif /* _WIN32 */
+
+		ut_ad(is_part != NULL);
+#endif /* UNIV_DEBUG */
+
 		mysql_mutex_unlock(&innobase_share_mutex);
 		return;
 	}
