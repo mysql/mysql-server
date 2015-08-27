@@ -726,7 +726,7 @@ Warning	1287	'GEOMETRYFROMTEXT' is deprecated and will be removed in a future re
 Warning	1287	'GEOMETRYFROMTEXT' is deprecated and will be removed in a future release. Please use ST_GEOMETRYFROMTEXT instead
 select st_astext(st_symdifference(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')));
 st_astext(st_symdifference(GeometryFromText('geometrycollection(polygon((0 0, 1 0, 1 1, 0 1, 0 0)))'), GeometryFromText('geometrycollection(polygon((1 0, 2 0, 2 1, 1 1, 1 0)))')))
-MULTIPOLYGON(((1 1,0 1,0 0,1 0,1 1)),((1 1,1 0,2 0,2 1,1 1)))
+POLYGON((1 0,2 0,2 1,1 1,0 1,0 0,1 0))
 Warnings:
 Warning	1287	'GEOMETRYFROMTEXT' is deprecated and will be removed in a future release. Please use ST_GEOMETRYFROMTEXT instead
 Warning	1287	'GEOMETRYFROMTEXT' is deprecated and will be removed in a future release. Please use ST_GEOMETRYFROMTEXT instead
