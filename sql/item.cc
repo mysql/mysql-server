@@ -2851,31 +2851,34 @@ const char *Item_ident::full_name() const
   return tmp;
 }
 
-void Item_ident::print(String *str, enum_query_type query_type)
+
+void Item_ident::print(String *str, enum_query_type query_type,
+                       const char *db_name_arg,
+                       const char *table_name_arg) const
 {
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
-  const char *d_name= db_name, *t_name= table_name;
+  const char *d_name= db_name_arg, *t_name= table_name_arg;
 
   if (lower_case_table_names== 1 ||
       // mode '2' does not apply to aliases:
       (lower_case_table_names == 2 && !alias_name_used()))
   {
-    if (table_name && table_name[0])
+    if (table_name_arg && table_name_arg[0])
     {
-      my_stpcpy(t_name_buff, table_name);
+      my_stpcpy(t_name_buff, table_name_arg);
       my_casedn_str(files_charset_info, t_name_buff);
       t_name= t_name_buff;
     }
-    if (db_name && db_name[0])
+    if (db_name_arg && db_name_arg[0])
     {
-      my_stpcpy(d_name_buff, db_name);
+      my_stpcpy(d_name_buff, db_name_arg);
       my_casedn_str(files_charset_info, d_name_buff);
       d_name= d_name_buff;
     }
   }
 
-  if (!table_name || !field_name || !field_name[0])
+  if (!table_name_arg || !field_name || !field_name[0])
   {
     const char *nm= (field_name && field_name[0]) ?
                       field_name : item_name.is_set() ? item_name.ptr() : "tmp_field";
@@ -2883,7 +2886,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
     return;
   }
 
-  if (db_name && db_name[0] &&
+  if (db_name_arg && db_name_arg[0] &&
       !(query_type & QT_COMPACT_FORMAT) &&
       !alias_name_used())
   {
@@ -2895,7 +2898,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
       str->append('.');
     }
   }
-  if (table_name[0])
+  if (table_name_arg[0])
   {
     append_identifier(thd, str, t_name, strlen(t_name));
     str->append('.');
@@ -7790,7 +7793,11 @@ void Item_field::print(String *str, enum_query_type query_type)
     }
     return;
   }
-  Item_ident::print(str, query_type);
+  if ((table_name == NULL || table_name[0] == 0) && field && field->orig_table)
+    Item_ident::print(str, query_type, field->orig_table->s->db.str,
+                      field->orig_table->alias);
+  else
+    Item_ident::print(str, query_type);
 }
 
 /**
