@@ -166,71 +166,35 @@ if ( '@MYSQL_TCP_PORT_DEFAULT@' == 0 ) {
 
 # ----------------------------------------------------------------------
 # Create options 
-# We intentionally add a space to the beginning and end of lib strings, simplifies replace later
 # ----------------------------------------------------------------------
 
-my (@lib_opts,@lib_r_opts,@lib_e_opts);
+my(@lib_opts,@lib_e_opts);
 if ( $^O eq "MSWin32" )
 {
   my $linkpath   = "$pkglibdir";
-  # user32 is only needed for debug or embedded
-  my @winlibs = ("wsock32.lib","advapi32.lib","user32.lib");
-  @lib_opts   = ("$linkpath/mysqlclient.lib",@winlibs);
-  @lib_r_opts = @lib_opts;
-  @lib_e_opts = ("$linkpath/mysqlserver.lib",@winlibs);
+  @lib_opts   = ("$linkpath/@LIBMYSQL_OS_OUTPUT_NAME@");
+  @lib_e_opts = ("$linkpath/@LIBEMBED_OS_OUTPUT_NAME@");
 }
 else
 {
-  my $linkpath   = "-L$pkglibdir @RPATH_OPTION@";
-  @lib_opts   = ($linkpath,"-lmysqlclient");
-  @lib_r_opts = ($linkpath,"-lmysqlclient_r");
-  @lib_e_opts = ($linkpath,"-lmysqld");
+  my $linkpath   = "-L$pkglibdir@RPATH_OPTION@";
+  @lib_opts   = ($linkpath,"-l@LIBMYSQL_OS_OUTPUT_NAME@");
+  @lib_e_opts = ($linkpath,"-l@LIBEMBED_OS_OUTPUT_NAME@");
 }
 
+
 my $flags;
-$flags->{libs} =
-  [@ldflags,@lib_opts,'@ZLIB_DEPS@','@CLIENT_LIBS@','@openssl_libs@'];
-$flags->{libs_r} =
-  [@ldflags,@lib_r_opts,'@ZLIB_DEPS@','@CLIENT_LIBS@','@openssl_libs@'];
-$flags->{embedded_libs} =
-  [@ldflags,@lib_e_opts,'@ZLIB_DEPS@','@LIBS@','@WRAPLIBS@','@openssl_libs@'];
+$flags->{libs} = [@lib_opts, qw(@CONFIG_CLIENT_LIBS@)];
+$flags->{embedded_libs} = [@lib_e_opts, qw(@CONFIG_EMBEDD_LIBS@)];
 
 $flags->{include} = ["-I$pkgincludedir"];
 $flags->{cflags}  = [@{$flags->{include}},split(" ",'@CFLAGS@')];
 $flags->{cxxflags}= [@{$flags->{include}},split(" ",'@CXXFLAGS@')];
 
-# ----------------------------------------------------------------------
-# Remove some options that a client doesn't have to care about
-# ----------------------------------------------------------------------
-
-my @tmp = @{$flags->{cflags}};          # Copy the flag list
-$flags->{cflags} = [];                  # Clear it
-foreach my $cflag ( @tmp )
-{
-  push(@{$flags->{cflags}}, $cflag);
-}
-@tmp = @{$flags->{cxxflags}};           # Copy the flag list
-$flags->{cxxflags} = [];                # Clear it
-foreach my $cxxflag ( @tmp )
-{
-  push(@{$flags->{cxxflags}}, $cxxflag);
-}
-
-foreach my $lib_type ( "libs","libs_r","embedded_libs" )
-{
-  my @tmp = @{$flags->{$lib_type}};          # Copy the flag list
-  $flags->{$lib_type} = [];                  # Clear it
-  foreach my $lib ( @tmp )
-  {
-    push(@{$flags->{$lib_type}}, $lib);
-  }
-}
-
 my $include =       quote_options(@{$flags->{include}});
 my $cflags  =       quote_options(@{$flags->{cflags}});
 my $cxxflags=       quote_options(@{$flags->{cxxflags}});
 my $libs    =       quote_options(@{$flags->{libs}});
-my $libs_r  =       quote_options(@{$flags->{libs_r}});
 my $embedded_libs = quote_options(@{$flags->{embedded_libs}});
 
 ##############################################################################
@@ -248,7 +212,7 @@ Options:
         --cxxflags       [$cxxflags]
         --include        [$include]
         --libs           [$libs]
-        --libs_r         [$libs_r]
+        --libs_r         [$libs]
         --socket         [$socket]
         --port           [$port]
         --version        [$version]@LIBMYSQLD_LIBS_USAGE@
@@ -269,7 +233,7 @@ GetOptions(
            "cxxflags"=> sub { print "$cxxflags\n" },
            "include" => sub { print "$include\n" },
            "libs"    => sub { print "$libs\n" },
-           "libs_r"  => sub { print "$libs_r\n" },
+           "libs_r"  => sub { print "$libs\n" },
            "socket"  => sub { print "$socket\n" },
            "port"    => sub { print "$port\n" },
            "version" => sub { print "$version\n" },
