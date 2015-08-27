@@ -6444,7 +6444,7 @@ sub start_mysqltest ($) {
     # of mysqltest; that would mess up the stderr output causing test failure.
     my @args_saved = @$args;
     mtr_init_args(\$args);
-    valgrind_client_arguments($args, \$exe);
+    valgrind_arguments($args, \$exe);
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
