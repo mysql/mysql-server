@@ -6334,7 +6334,68 @@ SELECT ST_IsValid(
                                      '26.974733141577826 43.72289807427111,26.97470368529088 43.722907009738066, '
                                      '-2.6035109435630504 -13.058121512403435)))'));
 
+--echo ######################################################################################################
+--echo # BUG#21372946 : ST_BUFFER: FLATLINE CPU OR ASSERTION IN GEOMETRY::EQUALS
+--echo ######################################################################################################
+
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(9192,27876), point(3,9), point(-1,5), point(128,4503599627370500)), linestring(point(-11,3), point(15,-14), point(4.992937e+306,1.784325e+307)))  , "6[8"     );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(-15,-15), point(1.311283e+308,2.479644e+307), point(-20,-9), point(-15,-15)), linestring(point(11,-4), point(10284,-21812), point(-12,17), point(70368744177660,-1152921504606846974), point(1048578,536870909)), linestring(point(-28066,-10001), point(2199023255555,33554436), point(8.807841e+306,1.047731e+308), point(1.421765e+308,1.614104e+308)))  , 549755813889   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(-268435458,-12), point(27090,-14130), point(576460752303423492,549755813891)), linestring(point(268435453,65539), point(-4,10), point(-1,-8), point(1.428455e+308,1.631641e+308)), linestring(point(13,17), point(5,-4), point(17868,780), point(1.021010e+308,3.132483e+306), point(8796093022209,-2251799813685244)), linestring(point(-1,14), point(1.359055e+308,2.093312e+307), point(137438953475,-2047), point(-1,14)))  , 49316   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( geometrycollection(point(5,4), multipolygon(polygon(linestring(point(44,25), point(268435458,17592186044420), point(-68719476739,-68719476735), point(44,25)), linestring(point(-9704,8028), point(1.017763e+308,4.420275e+307), point(134217729,72057594037927939)), linestring(point(27945,15972), point(18,34), point(13,24)), linestring(point(3.344397e+307,1.474666e+308), point(-28578,24802), point(10,-88), point(122535660419016670000000000000000000000.000000,142546802935424300000000000000000000000.000000)))), multilinestring(linestring(point(6.328801e+307,4.657308e+307), point(79,-1)), linestring(point(-67,74), point(1.584157e+308,4.498260e+306), point(-86,0)), linestring(point(-65,-70), point(21410,14883), point(-12,57)), linestring(point(1.438847e+308,3.780434e+307), point(-37,71), point(-26,15))))   , '5526-01-22'    );
+--error ER_GIS_INVALID_DATA
+do st_buffer( geometrycollection(polygon(linestring(point(2199023255551,524287), point(1.136487e+308,1.364636e+308), point(-10,-19)), linestring(point(144115188075855874,-1099511627775), point(-14,0), point(-4347,16243))))   , 0x169532   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( multipolygon(polygon(linestring(point(19777,-21893), point(3.225945e+307,6.868234e+307), point(-40,-13))), polygon(linestring(point(-1322,4851), point(-1152921504606846977,72057594037927937), point(8.646364e+307,3.949086e+307), point(75,-69), point(8.499982e+307,3.944814e+307))))   , 948189399   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(9,3), point(-2,-4), point(-8193,8388609)), linestring(point(-10,-2), point(32268,-2557), point(1.720358e+308,5.678670e+307), point(4.916335e+307,1.410315e+308), point(-268435455,-19)), linestring(point(-5,4), point(9.501669e+307,1.058829e+308), point(-422,-25737)))   , 0x94fd   );
+
+do st_buffer( polygon(linestring(point(-14,14), point(1.336292e+308,3.975546e+307), point(-262148,2251799813685245), point(-14,14)), linestring(point(19,-8), point(-4398046511106,-1027), point(-13,7), point(19,-8)))    , 0x56   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(1.050935e+308,1.405574e+308), point(12,-6), point(16270426021941148000000000000000000000.000000,220354304351410460000000000000000000000.000000), point(16,-1)), linestring(point(1073741825,7), point(4.395298e+307,1.391001e+308), point(2251799813685245,70368744177662)), linestring(point(6688,-12784), point(1.642959e+308,9.081471e+307), point(9,3), point(-1,15)), linestring(point(-20444,13227), point(1.421855e+308,6.359931e+307), point(-36028797018963966,144115188075855872), point(7.696665e+307,7.162705e+307), point(4.616100e+307,1.962868e+307)))  , 3147467309   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(6,-2), point(6.675936e+307,6.698695e+307), point(9,17), point(17,-8), point(-13267,10214)), linestring(point(-15,3), point(12,-14), point(1.595635e+308,9.405896e+307), point(-6,-5), point(23989412930405084000000000000000000000.000000,320342831451636520000000000000000000000.000000)))   , 21604   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( geometrycollection(multipoint(point(4094,262141), point(288230376151711744,65540)), polygon(linestring(point(21651,-296), point(7.682691e+307,5.782088e+307), point(131,-4099)), linestring(point(-34359738369,4094), point(-35184372088834,-576460752303423489), point(5,15), point(-11,-65532)), linestring(point(1,-6), point(2.077015e+307,9.133062e+307), point(-131069,-70368744177668))), polygon(linestring(point(-16380,-2097152), point(-16,6), point(64646494283694236000000000000000000000.000000,214181636942273530000000000000000000000.000000)), linestring(point(-1,17), point(91564461519059780000000000000000000000.000000,63319776236097772000000000000000000000.000000), point(-19,-18), point(12174,-1163)), linestring(point(4294967292,2305843009213693954), point(536870908,2251799813685248), point(-10,8), point(18,-15), point(-10,-5))))   , 0xd533   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( geometrycollection(multipolygon(polygon(linestring(point(-47,-32), point(33554434,34359738368), point(5.363618e+306,4.915149e+307), point(221186288793352260000000000000000000000.000000,318888116187633820000000000000000000000.000000)), linestring(point(3.373147e+307,1.097849e+307), point(-2,58), point(-43,-18), point(268435452,2))), polygon(linestring(point(94,-46), point(536870908,137438953468), point(-70,-79), point(1022,-17592186044419)))), linestring(point(1.428889e+308,6.363539e+307), point(-85,-39), point(4294967300,510), point(-144115188075855868,2147483644)), multipoint(point(1.216065e+308,1.498275e+308), point(524285,65538)))  , '2328-04-12'    );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(-20,-10), point(-2051,137438953470), point(9007199254740995,536870914), point(5,-8), point(-20,-10)), linestring(point(0,-17), point(-3,-17), point(-6120,31704), point(-13,15), point(2199023255556,33554436)), linestring(point(0,-11), point(1.240916e+307,1.230029e+308), point(-8589934590,-536870916)))   , "4"     );
+--error ER_GIS_INVALID_DATA
+do st_buffer( multipolygon(polygon(linestring(point(71,9), point(9.673785e+307,6.840020e+307), point(49,28), point(71,9)), linestring(point(8247,-23317), point(1.518888e+308,1.307053e+308), point(13002,-32416)), linestring(point(-1,32), point(576460752303423487,1), point(-48,-98), point(-59,-95), point(-1,32))))   , 0x63   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(9223372036854775810,4503599627370496), point(2,-14), point(1.057813e+308,6.695568e+307), point(-17795,-9201)), linestring(point(8589934595,65540), point(8,19), point(5.042026e+307,1.713291e+308), point(1073741826,9007199254740996)), linestring(point(-14,-7), point(2,-20), point(1.191471e+308,5.789499e+307), point(-14,-7)))  , 0xf9   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( geometrycollection(multilinestring(linestring(point(-100,-1), point(1.689397e+307,1.481746e+308)), linestring(point(9.569350e+307,6.040646e+307), point(2,52), point(20719,-20779))), multipolygon(polygon(linestring(point(20681,1270), point(3.045367e+307,1.280043e+308), point(58,-75)), linestring(point(92,-73), point(1.323951e+308,1.648866e+308), point(14,-61), point(-8763,21584), point(8.536381e+306,2.841766e+307)), linestring(point(-99,-34), point(-18,40), point(34359738366,2147483646), point(-30617,-24434)))))   , 3613057409   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(-18966,21965), point(1.797388e+308,1.945328e+307), point(-16,-11), point(-2199023255549,4611686018427387901), point(-18,-13)), linestring(point(31486,-9392), point(2,18), point(12,14), point(12,8), point(9,-15)), linestring(point(-13,2), point(36028797018963972,70368744177665), point(1.761152e+308,9.475919e+307), point(1.585099e+308,9.356514e+307), point(257321105224664410000000000000000000000.000000,313294288466175500000000000000000000000.000000)))   , 0xb79439   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(-9,14), point(9,12), point(65532,1073741826)), linestring(point(-3537,16635), point(-8,8), point(4.544898e+307,1.276958e+308), point(28858,-28514)))   , '1987-09-29 11:12:09.425076'    );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(70368744177662,4503599627370498), point(12,-3), point(7.561703e+307,1.021736e+308)), linestring(point(11,16), point(28824,15779), point(14,-12), point(-15,13), point(11,16)), linestring(point(-13,-18), point(-3,-3), point(1.760789e+308,1.455799e+308), point(0,-17), point(-13,-18)))   , '480:22:53.391613'    );
+--error ER_GIS_INVALID_DATA
+do st_buffer( multipolygon(polygon(linestring(point(-94,-64), point(26,-72), point(1.128438e+308,1.056662e+308)), linestring(point(85,-58), point(144115188075855870,32770), point(17179869186,1152921504606846978))))   , -17535   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(2,-8), point(1,17), point(-3,-15), point(1.149664e+307,1.717062e+307), point(1.410669e+308,5.228436e+307)), linestring(point(13,-11), point(6,9), point(536870910,72057594037927933)))   , -65534   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(13,-20), point(9.017452e+307,9.232528e+307), point(-15,-11), point(13,-20)), linestring(point(28170,-17887), point(-6,-20), point(-20301,3465), point(2.878956e+307,1.851687e+307), point(-18,8)))  , 0x2409be882ee34e7b   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(6,-1), point(1.703788e+308,1.736249e+308), point(8,-4), point(1.418474e+308,8.924021e+307)), linestring(point(-20,9), point(576460752303423487,288230376151711745), point(6,20), point(-14,-10), point(-23934,22390)), linestring(point(4194301,126), point(202376625515840940000000000000000000000.000000,115944597323370810000000000000000000000.000000), point(-16,7), point(4.096558e+307,8.103820e+307), point(16384,1099511627779)))   , 626278220   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(1.234361e+308,1.118625e+308), point(-13,1), point(11,-12)), linestring(point(29137,-3438), point(1.137847e+308,1.340074e+308), point(-437,2275), point(-15,4), point(-27269,23198)), linestring(point(-2,18), point(131069,30), point(125,7), point(-2,18)), linestring(point(11,-7), point(-6,9), point(4.698483e+307,2.207992e+306)))    , -1152921504606846972   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( polygon(linestring(point(262140,65537), point(11,-11), point(194743989698613950000000000000000000000.000000,289407735240774130000000000000000000000.000000), point(22933,26342)), linestring(point(2305843009213693956,34359738367), point(-30519,2568), point(7.523904e+307,1.274018e+307), point(5,12)))  , -2918556785199106584   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( multipolygon(polygon(linestring(point(-3,-32), point(5.983690e+307,5.252259e+307), point(24883,27429)), linestring(point(100,25), point(-90,-37), point(524286,268435456), point(71,-67), point(64,72057594037927932))))   , 1152921504606846977   );
+--error ER_GIS_INVALID_DATA
+do st_buffer( multipolygon(polygon(linestring(point(-16,20), point(0,-43), point(-70,45), point(274877906948,288230376151711745), point(-16,20)), linestring(point(-48,81), point(5,92), point(76,-43), point(1.100472e+307,1.199671e+308), point(262146,17179869186)), linestring(point(-66,99), point(9,-46), point(1.519109e+308,1.506793e+308))))   , 0xf3   );
+
+--echo ######################################################################################################
 --echo # BUG#21383714: Assertion failed: !thd->is_error() in select_lex::prepare
+--echo ######################################################################################################
 
 CREATE TABLE t(a INTEGER);
 --error ER_WRONG_ARGUMENTS
@@ -6342,10 +6403,10 @@ SELECT 1 FROM t WHERE 1 > SOME (SELECT POINT(1,1) FROM t);
 DROP TABLE t;
 
 
---echo #
+--echo ######################################################################################################
 --echo # BUG#21397107: ASSERTION FAILED: K < STATIC_CAST<SIZE_T>(GET_DIMENSION())
 --echo #              IN GIS_POINT::GET<0>(
---echo #
+--echo ######################################################################################################
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_MakeEnvelope(POINT(1, 1), CONCAT((POINT(1, 1)), '1'));
@@ -6356,10 +6417,10 @@ SELECT ST_MakeEnvelope(Export_Set(1, POINT(1, 1), 1), POINT(1, 1));
 --error ER_GIS_INVALID_DATA
 SELECT ST_MakeEnvelope(Make_Set("38", 1, POINT(1, 1), 1, 1, 1), POINT(1,1));
 
---echo #
+--echo ######################################################################################################
 --echo # BUG#21616647: ASSERTION FAILED:
 --echo #               ITEM_IN->LEFT_EXPR->ELEMENT_INDEX(0)->MAYBE_NULL
---echo #
+--echo ######################################################################################################
 CREATE TABLE t(col_a INTEGER) ENGINE=InnoDB;
 INSERT INTO t VALUES (0), (0), (0);
 SELECT ST_IsValid(NULL) NOT IN (SELECT col_a FROM t) FROM t;
