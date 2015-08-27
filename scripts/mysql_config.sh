@@ -110,28 +110,15 @@ else
 fi
 
 # Create options 
-libs="$ldflags"
-libs="$libs -L$pkglibdir"
-libs="$libs @RPATH_OPTION@ -lmysqlclient @ZLIB_DEPS@ @CLIENT_LIBS@"
-libs="$libs @openssl_libs@"
-libs="$libs @QUOTED_CMAKE_C_LINK_FLAGS@"
-
-libs_r="$libs"
-
-embedded_libs="$ldflags"
-embedded_libs="$embedded_libs -L$pkglibdir"
-embedded_libs="$embedded_libs @RPATH_OPTION@ -lmysqld @ZLIB_DEPS@ @LIBS@"
-embedded_libs="$embedded_libs @openssl_libs@"
-embedded_libs="$embedded_libs @QUOTED_CMAKE_CXX_LINK_FLAGS@"
+libs="-L$pkglibdir@RPATH_OPTION@"
+libs="$libs -l@LIBMYSQL_OS_OUTPUT_NAME@ @CONFIG_CLIENT_LIBS@"
+embedded_libs="-L$pkglibdir@RPATH_OPTION@"
+embedded_libs="$embedded_libs -l@LIBEMBED_OS_OUTPUT_NAME@ @CONFIG_EMBEDD_LIBS@"
 
 cflags="-I$pkgincludedir @CFLAGS@"
 cxxflags="-I$pkgincludedir @CXXFLAGS@"
 include="-I$pkgincludedir"
 
-# Strip whitespace
-libs=`echo "$libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
-libs_r=`echo "$libs_r" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
-embedded_libs=`echo "$embedded_libs" | sed -e 's;  \+; ;g' | sed -e 's;^ *;;' | sed -e 's; *\$;;'`
 
 usage () {
         cat <<EOF
@@ -141,7 +128,7 @@ Options:
         --cxxflags       [$cxxflags]
         --include        [$include]
         --libs           [$libs]
-        --libs_r         [$libs_r]
+        --libs_r         [$libs]
         --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
@@ -162,7 +149,7 @@ while test $# -gt 0; do
         --cxxflags)echo "$cxxflags";;
         --include) echo "$include" ;;
         --libs)    echo "$libs" ;;
-        --libs_r)  echo "$libs_r" ;;
+        --libs_r)  echo "$libs" ;;
         --plugindir) echo "$plugindir" ;;
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
