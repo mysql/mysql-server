@@ -3651,9 +3651,11 @@ sp_proc_stmt_statement:
               instructions for them were already added during processing
               of "set" rule.
             */
-            DBUG_ASSERT(lex->sql_command != SQLCOM_SET_OPTION ||
+            DBUG_ASSERT((lex->sql_command != SQLCOM_SET_OPTION &&
+                         lex->sql_command != SQLCOM_SET_PASSWORD) ||
                         lex->var_list.is_empty());
-            if (lex->sql_command != SQLCOM_SET_OPTION)
+            if (lex->sql_command != SQLCOM_SET_OPTION &&
+                lex->sql_command != SQLCOM_SET_PASSWORD)
             {
               /* Extract the query statement from the tokenizer. */
 

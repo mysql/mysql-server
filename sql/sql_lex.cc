@@ -556,7 +556,6 @@ void LEX::reset()
 
   wild= NULL;
   exchange= NULL;
-  is_set_password_sql= false;
   mark_broken(false);
   max_execution_time= 0;
   parse_gcol_expr= false;
@@ -3537,7 +3536,6 @@ LEX::LEX()
    // Quite unlikely to overflow initial allocation, so no instrumentation.
    plugins(PSI_NOT_INSTRUMENTED),
    option_type(OPT_DEFAULT),
-   is_set_password_sql(false),
    // Initialize here to avoid uninitialized variable warnings.
    contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),

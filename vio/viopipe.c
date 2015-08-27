@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,6 +106,7 @@ int vio_shutdown_pipe(Vio *vio)
 
   CancelIo(vio->hPipe);
   CloseHandle(vio->overlapped.hEvent);
+  FlushFileBuffers(vio->hPipe);
   DisconnectNamedPipe(vio->hPipe);
   ret= CloseHandle(vio->hPipe);
 

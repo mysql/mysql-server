@@ -358,7 +358,7 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
 
   
   pipe_name[sizeof(pipe_name)-1]= 0;		/* Safety if too long string */
-  strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\", host, "\\pipe\\",
+  strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
 	   unix_socket, NullS);
   DBUG_PRINT("info",("Server name: '%s'.  Named Pipe: %s", host, unix_socket));
 

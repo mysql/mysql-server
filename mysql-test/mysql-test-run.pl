@@ -5733,6 +5733,11 @@ sub mysqld_start ($$) {
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
+  if (IS_WINDOWS)
+  {
+    mtr_add_arg($args, "--enable-named-pipe");
+  }
+
   if ( defined $exe )
   {
     $mysqld->{'proc'}= My::SafeProcess->new
@@ -6293,6 +6298,10 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
+  if (IS_WINDOWS)
+  {
+    mtr_add_arg($args, "--protocol=pipe");
+  }
 
   if ( $mode eq "before" )
   {

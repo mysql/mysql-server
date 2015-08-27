@@ -288,6 +288,10 @@ static void free_re(void);
 static uint opt_protocol= 0;
 #endif
 
+#if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
+static uint opt_protocol_for_default_connection= MYSQL_PROTOCOL_PIPE;
+#endif
+
 struct st_command;
 typedef Prealloced_array<st_command*, 1024> Q_lines;
 Q_lines *q_lines;
@@ -539,7 +543,7 @@ struct st_match_err
 
 struct st_expected_errors
 {
-  struct st_match_err err[10];
+  struct st_match_err err[20];
   uint count;
 };
 static struct st_expected_errors saved_expected_errors;
@@ -5936,7 +5940,7 @@ static void do_connect(struct st_command *command)
   opt_ssl_enforce= save_opt_ssl_enforce;
 #endif
 
-  if (con_pipe)
+  if (con_pipe && !con_ssl)
   {
 #if defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
     opt_protocol= MYSQL_PROTOCOL_PIPE;
@@ -9138,6 +9142,9 @@ int main(int argc, char **argv)
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+
+  if (!opt_use_ssl)
+    mysql_options(&con->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol_for_default_connection);
 #endif
 
   if (!(con->name = my_strdup(PSI_NOT_INSTRUMENTED,

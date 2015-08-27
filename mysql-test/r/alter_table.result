@@ -1937,8 +1937,8 @@ DROP TABLE tm1;
 #       then this test needs to be updated
 #
 use mysql;
-ALTER TABLE db ENGINE=innodb;
-ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.db]
+ALTER TABLE db ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.db]
 ALTER TABLE user ENGINE=memory;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.user]
 ALTER TABLE proc ENGINE=heap;
@@ -1959,8 +1959,8 @@ ALTER TABLE time_zone ENGINE=merge;
 ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.time_zone]
 ALTER TABLE help_topic ENGINE=merge;
 ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.help_topic]
-CREATE TABLE db (dummy int) ENGINE=innodb;
-ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.db]
+CREATE TABLE db (dummy int) ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.db]
 CREATE TABLE user (dummy int) ENGINE=memory;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.user]
 CREATE TABLE proc (dummy int) ENGINE=heap;

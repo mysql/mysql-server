@@ -96,6 +96,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
         */
         my_error(ER_UNKNOWN_ERROR, MYF(0));
       }
+      /*
+        Check storage engine type for every ACL table and output warning
+        message in case it's different from supported one (InnoDB).
+      */
+      if (check_engine_type_for_acl_table(thd))
+        result= 1;
     }
 
     if (tmp_thd)

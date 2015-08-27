@@ -182,8 +182,11 @@ USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 OPTIMIZE TABLES columns_priv, db, user;
 Table	Op	Msg_type	Msg_text
+mysql.columns_priv	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.columns_priv	optimize	status	OK
+mysql.db	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.db	optimize	status	OK
+mysql.user	optimize	note	Table does not support optimize, doing recreate + analyze instead
 mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv

@@ -744,7 +744,8 @@ void mysql_rewrite_query(THD *thd)
     switch(thd->lex->sql_command)
     {
     case SQLCOM_GRANT:         mysql_rewrite_grant(thd, rlb);         break;
-    case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, rlb);           break;
+    case SQLCOM_SET_PASSWORD:
+    case SQLCOM_SET_OPTION:  mysql_rewrite_set(thd, rlb);           break;
     case SQLCOM_CREATE_USER:
     case SQLCOM_ALTER_USER:
                         mysql_rewrite_create_alter_user(thd, rlb);    break;

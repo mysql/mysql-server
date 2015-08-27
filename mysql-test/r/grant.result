@@ -325,6 +325,8 @@ Warning	1364	Field 'x509_subject' doesn't have a default value
 insert into mysql.db (host, db, user, select_priv) values
 ('localhost', 'a%', 'test11', 'Y'), ('localhost', 'ab%', 'test11', 'Y');
 alter table mysql.db order by db asc;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 'db'
 flush privileges;
 show grants for test11@localhost;
 Grants for test11@localhost
@@ -332,6 +334,8 @@ GRANT USAGE ON *.* TO 'test11'@'localhost'
 GRANT SELECT ON `ab%`.* TO 'test11'@'localhost'
 GRANT SELECT ON `a%`.* TO 'test11'@'localhost'
 alter table mysql.db order by db desc;
+Warnings:
+Warning	1105	ORDER BY ignored as there is a user-defined clustered index in the table 'db'
 flush privileges;
 show grants for test11@localhost;
 Grants for test11@localhost

@@ -1,2 +1,13 @@
+DROP TABLE IF EXISTS mysql.user_bak;
+CREATE TABLE mysql.user_bak AS SELECT * FROM mysql.user;
+INSERT IGNORE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
+INSERT IGNORE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
+COMMIT;
+FLUSH PRIVILEGES;
 IPv4 connectivity: OK
 IPv6 connectivity: OK
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM mysql.user_bak;
+COMMIT;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.user_bak;

@@ -123,6 +123,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+mysql/columns_priv
+mysql/db
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -132,16 +134,20 @@ mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/plugin
+mysql/procs_priv
+mysql/proxies_priv
 mysql/server_cost
 mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/tables_priv
 mysql/time_zone
 mysql/time_zone_leap_second
 mysql/time_zone_name
 mysql/time_zone_transition
 mysql/time_zone_transition_type
+mysql/user
 test/child
 test/parent
 INSERT INTO child VALUES(5,4);
@@ -331,6 +337,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+mysql/columns_priv
+mysql/db
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -340,16 +348,20 @@ mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/plugin
+mysql/procs_priv
+mysql/proxies_priv
 mysql/server_cost
 mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/tables_priv
 mysql/time_zone
 mysql/time_zone_leap_second
 mysql/time_zone_name
 mysql/time_zone_transition
 mysql/time_zone_transition_type
+mysql/user
 test/child
 test/parent
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
@@ -373,6 +385,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+mysql/columns_priv
+mysql/db
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -382,16 +396,20 @@ mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/plugin
+mysql/procs_priv
+mysql/proxies_priv
 mysql/server_cost
 mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/tables_priv
 mysql/time_zone
 mysql/time_zone_leap_second
 mysql/time_zone_name
 mysql/time_zone_transition
 mysql/time_zone_transition_type
+mysql/user
 test/child
 test/parent
 SHOW CREATE TABLE child;
@@ -426,6 +444,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+mysql/columns_priv
+mysql/db
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -435,16 +455,20 @@ mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/plugin
+mysql/procs_priv
+mysql/proxies_priv
 mysql/server_cost
 mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/tables_priv
 mysql/time_zone
 mysql/time_zone_leap_second
 mysql/time_zone_name
 mysql/time_zone_transition
 mysql/time_zone_transition_type
+mysql/user
 test/child
 test/parent
 SHOW CREATE TABLE child;
@@ -479,6 +503,8 @@ SYS_FOREIGN
 SYS_FOREIGN_COLS
 SYS_TABLESPACES
 SYS_VIRTUAL
+mysql/columns_priv
+mysql/db
 mysql/engine_cost
 mysql/gtid_executed
 mysql/help_category
@@ -488,16 +514,20 @@ mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
 mysql/plugin
+mysql/procs_priv
+mysql/proxies_priv
 mysql/server_cost
 mysql/servers
 mysql/slave_master_info
 mysql/slave_relay_log_info
 mysql/slave_worker_info
+mysql/tables_priv
 mysql/time_zone
 mysql/time_zone_leap_second
 mysql/time_zone_name
 mysql/time_zone_transition
 mysql/time_zone_transition_type
+mysql/user
 test/child
 test/parent
 SHOW CREATE TABLE child;

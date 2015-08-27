@@ -416,13 +416,13 @@ master-bin.000001	#	Query	#	#	use `test`; create temporary table tt1 (a int)
 master-bin.000001	#	Query	#	#	use `test`; create table if not exists t3 like tt1
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; INSERT IGNORE INTO user SET host='localhost', user='@#@', authentication_string=password('Just a test')
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; UPDATE user SET authentication_string=password('Another password') WHERE host='localhost' AND user='@#@'
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mysql`; DELETE FROM user WHERE host='localhost' AND user='@#@'
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 drop table t1,t2,t3,tt1;
 reset master;
 drop table if exists t3;

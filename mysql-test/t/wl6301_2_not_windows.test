@@ -12,5 +12,29 @@
 --source include/not_embedded.inc
 
 --let WL6301_LOG_FILE = $MYSQLTEST_VARDIR/log/wl6301_2_not_windows.debug.log
+# Within the WL#7158 records for the users root@127.0.0.1 and root@::1 have
+# been deleted from the script mysql-test/include/mtr_system_tables_data.sql
+# that used to fill in system tables. Since this test relies on the presence of
+# this records in the table mysql.user we add the users root@127.0.0.1 and root@::1
+# into mysql.user explicitly.
+
+# Backup mysql.user before adding records for root@127.0.0.1, root@::1
+--disable_warnings
+DROP TABLE IF EXISTS mysql.user_bak;
+CREATE TABLE mysql.user_bak AS SELECT * FROM mysql.user;
+
+INSERT IGNORE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
+INSERT IGNORE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N',CURRENT_TIMESTAMP,NULL,'N');
+--enable_warnings
+COMMIT;
+FLUSH PRIVILEGES;
 
 --source include/wl6301.inc
+
+# Restore original content of mysql.user
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM mysql.user_bak;
+COMMIT;
+FLUSH PRIVILEGES;
+
+DROP TABLE mysql.user_bak;

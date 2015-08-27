@@ -432,7 +432,7 @@ static bool is_stmt_innocent(const THD *thd)
     (sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
     (sql_command != SQLCOM_BINLOG_BASE64_EVENT);
   bool is_set=
-    (sql_command == SQLCOM_SET_OPTION) && !lex->is_set_password_sql;
+    (sql_command == SQLCOM_SET_OPTION);
   bool is_select= (sql_command == SQLCOM_SELECT);
   bool is_do= (sql_command == SQLCOM_DO);
   return

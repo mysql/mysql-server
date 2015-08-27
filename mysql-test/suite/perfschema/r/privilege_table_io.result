@@ -55,7 +55,7 @@ performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_sql_text_length	1024
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	191
+performance_schema_max_statement_classes	192
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
@@ -110,8 +110,6 @@ where event_name like 'wait/io/table/%'
   and object_schema in ("test", "mysql")
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1

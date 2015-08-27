@@ -252,8 +252,8 @@ SHOW CREATE USER u1@localhost;
 CREATE USER for u1@localhost
 CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B415DD9C4FB5EF59FE80C4FEBC1F9C715E6E97C4' REQUIRE NONE PASSWORD EXPIRE ACCOUNT LOCK
 # MySQL user table layout from the before ACCOUNT LOCK option
-CREATE TABLE temp_user LIKE mysql.user;
-INSERT INTO temp_user SELECT * FROM mysql.user;
+CREATE TABLE mysql.temp_user LIKE mysql.user;
+INSERT INTO mysql.temp_user SELECT * FROM mysql.user;
 ALTER TABLE mysql.user DROP COLUMN account_locked;
 CREATE USER backuser@localhost IDENTIFIED BY 'pass' ACCOUNT LOCK;
 ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
@@ -277,7 +277,7 @@ ALTER USER backuser@localhost ACCOUNT UNLOCK;
 ERROR 42S22: Unknown column 'account_locked' in 'mysql.user'
 DROP USER backuser@localhost;
 DROP TABLE mysql.user;
-ALTER TABLE temp_user RENAME mysql.user;
+ALTER TABLE mysql.temp_user RENAME mysql.user;
 FLUSH PRIVILEGES;
 # Check whether 'account' can be used as the identifier.
 CREATE DATABASE account;

@@ -3236,12 +3236,6 @@ public:
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
-  /*
-    Temporary variable to distinguish SET PASSWORD command from others
-    SQLCOM_SET_OPTION commands. Should be removed when WL#6409 is
-    introduced.
-  */
-  bool is_set_password_sql;
   bool contains_plaintext_password;
   enum_keep_diagnostics keep_diagnostics;
 

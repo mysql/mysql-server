@@ -1558,7 +1558,7 @@ DROP TABLE tm1;
 
 use mysql;
 --error ER_UNSUPPORTED_ENGINE
-ALTER TABLE db ENGINE=innodb;
+ALTER TABLE db ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE user ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
@@ -1580,7 +1580,7 @@ ALTER TABLE time_zone ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
 ALTER TABLE help_topic ENGINE=merge;
 --error ER_UNSUPPORTED_ENGINE
-CREATE TABLE db (dummy int) ENGINE=innodb;
+CREATE TABLE db (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE
 CREATE TABLE user (dummy int) ENGINE=memory;
 --error ER_UNSUPPORTED_ENGINE

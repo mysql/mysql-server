@@ -602,8 +602,7 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
     return true;
 
   lex->var_list.push_back(var);
-  lex->autocommit= true;
-  lex->is_set_password_sql= true;
+  lex->sql_command= SQLCOM_SET_PASSWORD;
 
   if (sp)
     sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;

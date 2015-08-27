@@ -1,3 +1,9 @@
+DROP TABLE IF EXISTS mysql.user_bak;
+CREATE TABLE mysql.user_bak AS SELECT * FROM mysql.user;
+INSERT IGNORE INTO mysql.user VALUES ('127.0.0.1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y' ,'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N', CURRENT_TIMESTAMP,NULL,'N');
+INSERT IGNORE INTO mysql.user VALUES ('::1','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y' ,'Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,@@default_authentication_plugin,'','N', CURRENT_TIMESTAMP,NULL,'N');
+COMMIT;
+FLUSH PRIVILEGES;
 # Take a snapshot of SOCKET_INSTANCES
 CREATE TEMPORARY TABLE my_socket_instances AS
 SELECT * FROM performance_schema.socket_instances;
@@ -133,6 +139,11 @@ EVENT_NAME	IP
 wait/io/socket/sql/client_connection	<LOCALHOST>
 wait/io/socket/sql/client_connection	<LOCALHOST>
 # Disconnect con1 and con2
+TRUNCATE TABLE mysql.user;
+INSERT INTO mysql.user SELECT * FROM mysql.user_bak;
+COMMIT;
+FLUSH PRIVILEGES;
+DROP TABLE mysql.user_bak;
 # After waiting a bit we should have no differences to socket_instances
 # before con1, con2 connecting.
 SELECT *

@@ -10,3 +10,4 @@
 #
 ##############################################################################
 innodb.alter_crash        : WL#7016 2015-05-11 jhauglid Uses functionality removed by WL#8186
+innodb.index_merge_threshold : Bug #21747853 "INNODB.INDEX_MERGE_THRESHOLD IS UNSTABLE WITH SYSTEM TABLES IN INNODB"

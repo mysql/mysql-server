@@ -566,6 +566,11 @@ int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
+int write_bin_log_n_handle_any_error(THD *thd,
+                                     const char* query,
+                                     size_t query_len,
+                                     bool transactional_tables,
+                                     bool *rollback_whole_statement);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists);
 bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists);
 bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists);
@@ -582,7 +587,8 @@ bool hostname_requires_resolving(const char *hostname);
 my_bool acl_init(bool dont_read_acl_tables);
 void acl_free(bool end=0);
 my_bool acl_reload(THD *thd);
-my_bool grant_init();
+bool check_engine_type_for_acl_table(THD *thd);
+bool grant_init(bool skip_grant_tables);
 void grant_free(void);
 my_bool grant_reload(THD *thd);
 ulong acl_get(const char *host, const char *ip,

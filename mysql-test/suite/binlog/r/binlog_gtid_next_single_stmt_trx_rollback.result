@@ -56,25 +56,6 @@ SET SESSION GTID_NEXT='MASTER_UUID:12';
 DROP DATABASE db2;
 ERROR HY000: Can't drop database 'db2'; database doesn't exist
 include/assert.inc [rollback gtid MASTER_UUID:12]
-SET SESSION GTID_NEXT='MASTER_UUID:13';
-CREATE USER user1;
-ERROR HY000: Operation CREATE USER failed for 'user1'@'%'
-include/assert.inc [rollback gtid MASTER_UUID:13]
-SET SESSION GTID_NEXT='MASTER_UUID:14';
-ALTER USER user2 IDENTIFIED BY 'passwd';
-ERROR HY000: Operation ALTER USER failed for 'user2'@'%'
-include/assert.inc [rollback gtid MASTER_UUID:14]
-SET SESSION GTID_NEXT='MASTER_UUID:15';
-GRANT ALL ON *.* TO user2;
-ERROR 42000: Can't find any matching row in the user table
-include/assert.inc [rollback gtid MASTER_UUID:15]
-SET SESSION GTID_NEXT='MASTER_UUID:16';
-REVOKE ALL PRIVILEGES ON *.* FROM user2;
-ERROR 42000: There is no such grant defined for user 'user2' on host '%'
-include/assert.inc [rollback gtid MASTER_UUID:16]
-SET SESSION GTID_NEXT='MASTER_UUID:17';
-DROP USER user2;
-ERROR HY000: Operation DROP USER failed for 'user2'@'%'
 include/assert.inc [rollback gtid MASTER_UUID:17]
 SET SESSION GTID_NEXT='MASTER_UUID:18';
 DROP VIEW v2;
@@ -176,26 +157,6 @@ SET SESSION GTID_NEXT='MASTER_UUID:12';
 DROP DATABASE db2;
 ERROR HY000: Can't drop database 'db2'; database doesn't exist
 include/assert.inc [rollback gtid MASTER_UUID:12]
-SET SESSION GTID_NEXT='MASTER_UUID:13';
-CREATE USER user1;
-ERROR HY000: Operation CREATE USER failed for 'user1'@'%'
-include/assert.inc [rollback gtid MASTER_UUID:13]
-SET SESSION GTID_NEXT='MASTER_UUID:14';
-ALTER USER user2 IDENTIFIED BY 'passwd';
-ERROR HY000: Operation ALTER USER failed for 'user2'@'%'
-include/assert.inc [rollback gtid MASTER_UUID:14]
-SET SESSION GTID_NEXT='MASTER_UUID:15';
-GRANT ALL ON *.* TO user2;
-ERROR 42000: Can't find any matching row in the user table
-include/assert.inc [rollback gtid MASTER_UUID:15]
-SET SESSION GTID_NEXT='MASTER_UUID:16';
-REVOKE ALL PRIVILEGES ON *.* FROM user2;
-ERROR 42000: There is no such grant defined for user 'user2' on host '%'
-include/assert.inc [rollback gtid MASTER_UUID:16]
-SET SESSION GTID_NEXT='MASTER_UUID:17';
-DROP USER user2;
-ERROR HY000: Operation DROP USER failed for 'user2'@'%'
-include/assert.inc [rollback gtid MASTER_UUID:17]
 SET SESSION GTID_NEXT='MASTER_UUID:18';
 DROP VIEW v2;
 ERROR 42S02: Unknown table 'test.v2'

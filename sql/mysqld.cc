@@ -2474,6 +2474,7 @@ SHOW_VAR com_status_vars[]= {
   {"savepoint",            (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SAVEPOINT]),                  SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"select",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SELECT]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"set_option",           (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_OPTION]),                 SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"set_password",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SET_PASSWORD]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"signal",               (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SIGNAL]),                     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlog_events",   (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]),         SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"show_binlogs",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_SHOW_BINLOGS]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -4833,7 +4834,8 @@ int mysqld_main(int argc, char **argv)
     reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
-      my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
+      my_tz_init((THD *)0, default_tz_name, opt_bootstrap) ||
+      grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
 
@@ -4841,9 +4843,6 @@ int mysqld_main(int argc, char **argv)
 
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
-
-  if (!opt_noacl)
-    (void) grant_init();
 
   if (!opt_bootstrap)
     servers_init(0);

@@ -354,6 +354,10 @@ void init_update_queries(void)
                                             CF_CAN_GENERATE_ROW_EVENTS |
                                             CF_OPTIMIZER_TRACE; // (1)
 
+  sql_command_flags[SQLCOM_SET_PASSWORD]=   CF_CHANGES_DATA |
+                                            CF_AUTO_COMMIT_TRANS |
+                                            CF_DISALLOW_IN_RO_TRANS;
+
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_DATABASES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
@@ -2336,7 +2340,7 @@ mysql_execute_command(THD *thd, bool first_level)
     }
     
     /*
-      Check if statment should be skipped because of slave filtering
+      Check if statement should be skipped because of slave filtering
       rules
 
       Exceptions are:
@@ -3428,6 +3432,28 @@ end_with_restore_list:
       */
       if (!thd->is_error())
         my_error(ER_WRONG_ARGUMENTS,MYF(0),"SET");
+      goto error;
+    }
+
+    break;
+  }
+
+  case SQLCOM_SET_PASSWORD:
+  {
+    List<set_var_base> *lex_var_list= &lex->var_list;
+
+    DBUG_ASSERT(lex_var_list->elements == 1);
+    DBUG_ASSERT(all_tables == NULL);
+
+    if (!(res= sql_set_variables(thd, lex_var_list)))
+    {
+      my_ok(thd);
+    }
+    else
+    {
+      // We encountered some sort of error, but no message was sent.
+      if (!thd->is_error())
+        my_error(ER_WRONG_ARGUMENTS,MYF(0),"SET PASSWORD");
       goto error;
     }
 
@@ -5262,7 +5288,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
 
           int error __attribute__((unused));
           if (unlikely(thd->security_context()->password_expired() &&
-                       !lex->is_set_password_sql &&
+                       lex->sql_command != SQLCOM_SET_PASSWORD &&
                        lex->sql_command != SQLCOM_SET_OPTION &&
                        lex->sql_command != SQLCOM_ALTER_USER))
           {

@@ -677,6 +677,7 @@ const char **ha_myisam::bas_ext() const
   return ha_myisam_exts;
 }
 
+
 /**
   @brief Check if the given db.tablename is a system table for this SE.
 
@@ -685,9 +686,9 @@ const char **ha_myisam::bas_ext() const
   @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
                                     layer system table.
 
-  @note Currently, only MYISAM engine supports all the SQL layer
-        system tables, and hence it returns true, when
-        is_sql_layer_system_table is set.
+  @note As for 5.7, mysql doesn't support MyISAM as an engine for the following
+        system tables: columns_priv, db, procs_priv, proxies_priv, tables_priv,
+        user.
 
   @note In case there is a need to define MYISAM specific system
         database, then please see reference implementation in
@@ -697,21 +698,62 @@ const char **ha_myisam::bas_ext() const
     @retval TRUE   Given db.table_name is supported system table.
     @retval FALSE  Given db.table_name is not a supported system table.
 */
+
 static bool myisam_is_supported_system_table(const char *db,
                                       const char *table_name,
                                       bool is_sql_layer_system_table)
 {
-  // Does MYISAM support "ALL" SQL layer system tables ?
-  if (is_sql_layer_system_table)
-    return true;
+  THD *thd= current_thd;
 
-  /*
-    Currently MYISAM does not support any other SE specific
-    system tables. If in future it does, please see ha_example.cc
-    for reference implementation
-  */
+  if (thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+      thd->lex->sql_command == SQLCOM_ALTER_TABLE)
+  {
+    /*
+      We allow creation of ACL tables in MyISAM to allow upgrade from
+      older versions through mysqldump and downgrade.
+    */
+    // Does MYISAM support "ALL" SQL layer system tables ?
+    if (is_sql_layer_system_table)
+      return true;
 
-  return false;
+    /*
+      Currently MYISAM does not support any other SE specific
+      system tables. If in future it does, please see ha_example.cc
+      for reference implementation
+    */
+
+    return false;
+  }
+  else
+  {
+    static const char* unsupported_system_tables[]= { "columns_priv",
+                                                      "db",
+                                                      "procs_priv",
+                                                      "proxies_priv",
+                                                      "tables_priv",
+                                                      "user",
+                                                      (const char *)NULL };
+
+    if (is_sql_layer_system_table)
+    {
+      for (unsigned i= 0; unsupported_system_tables[i] != NULL; ++i)
+      {
+        if (!strcmp(table_name, unsupported_system_tables[i]))
+          // Doesn't support MYISAM for this table name
+          return false;
+      }
+      // Support MYISAM for other system tables not listed explicitly
+      return true;
+    }
+
+    /*
+      Currently MYISAM does not support any other SE specific
+      system tables. If in future it does, please see ha_example.cc
+      for reference implementation
+    */
+
+    return false;
+  }
 }
 
 const char *ha_myisam::index_type(uint key_number)

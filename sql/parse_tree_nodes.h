@@ -1448,8 +1448,7 @@ public:
     if (var == NULL)
       return true;
     lex->var_list.push_back(var);
-    lex->autocommit= TRUE;
-    lex->is_set_password_sql= true;
+    lex->sql_command= SQLCOM_SET_PASSWORD;
     if (lex->sphead)
       lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
     if (sp_create_assignment_instr(pc->thd, expr_pos.raw.end))

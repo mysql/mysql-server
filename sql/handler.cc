@@ -4980,6 +4980,87 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
   DBUG_RETURN(FALSE);
 }
 
+
+
+/**
+  Check if a table specified by name is a system table.
+
+  @param db                    Database name for the table.
+  @param table_name            Table name to be checked.
+  @param is_system_table[out]  True if a system table belongs to sql_layer.
+
+  @return Operation status
+    @retval  true              If the table name is a system table.
+    @retval  false             If the table name is a user-level table.
+*/
+
+static bool check_if_system_table(const char *db,
+                                  const char *table_name,
+                                  bool *is_sql_layer_system_table)
+{
+  st_system_tablename *systab;
+  const char **names;
+  bool is_system_database= false;
+  const char *found_db_name;
+
+  // Check if we have a system database name in the command.
+  DBUG_ASSERT(known_system_databases != NULL);
+  names= known_system_databases;
+  while (names && *names)
+  {
+    if (strcmp(*names, db) == 0)
+    {
+      /* Used to compare later, will be faster */
+      found_db_name= *names;
+      is_system_database= true;
+      break;
+    }
+    names++;
+  }
+  if (!is_system_database)
+    return false;
+
+  // Check if this is SQL layer system tables.
+  systab= mysqld_system_tables;
+  while (systab && systab->db)
+  {
+    if (systab->db == found_db_name &&
+        strcmp(systab->tablename, table_name) == 0)
+    {
+      *is_sql_layer_system_table= true;
+      break;
+    }
+
+    systab++;
+  }
+
+  return true;
+}
+
+
+/**
+  Check if a table specified by name is a sql layer system table.
+
+  @param db                    Database name.
+  @param table_name            Table name to be checked.
+  @param is_system_table[out]  True if the table belongs to sql_layer.
+
+  @return Operation status
+    @retval  true            If the table name is a sql-layer system table.
+    @retval  false           If the table name is not a sql-layer system table.
+*/
+
+bool check_if_sql_layer_system_table(const char *db,
+                                     const char *table_name)
+{
+  bool is_sql_layer_system_table= false;
+  return
+    check_if_system_table(db, table_name,
+                          &is_sql_layer_system_table) &&
+    is_sql_layer_system_table;
+}
+
+
 /**
   @brief Check if a given table is a system table.
 
@@ -5005,45 +5086,17 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
                                  and does not belong to engine specified
                                  in the command.
 */
+
 bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
                                         const char *table_name)
 {
   DBUG_ENTER("ha_check_if_supported_system_table");
   st_sys_tbl_chk_params check_params;
-  bool is_system_database= false;
-  const char **names;
-  st_system_tablename *systab;
 
-  // Check if we have a system database name in the command.
-  DBUG_ASSERT(known_system_databases != NULL);
-  names= known_system_databases;
-  while (names && *names)
-  {
-    if (strcmp(*names, db) == 0)
-    {
-      /* Used to compare later, will be faster */
-      check_params.db= *names;
-      is_system_database= true;
-      break;
-    }
-    names++;
-  }
-  if (!is_system_database)
-    DBUG_RETURN(true); // It's a user table name.
-
-  // Check if this is SQL layer system tables.
-  systab= mysqld_system_tables;
   check_params.is_sql_layer_system_table= false;
-  while (systab && systab->db)
-  {
-    if (systab->db == check_params.db &&
-        strcmp(systab->tablename, table_name) == 0)
-    {
-      check_params.is_sql_layer_system_table= true;
-      break;
-    }
-    systab++;
-  }
+  if (!check_if_system_table(db, table_name,
+                             &check_params.is_sql_layer_system_table))
+    DBUG_RETURN(true); // It's a user table name
 
   // Check if this is a system table and if some engine supports it.
   check_params.status= check_params.is_sql_layer_system_table ?
@@ -5051,6 +5104,7 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
     st_sys_tbl_chk_params::NOT_KNOWN_SYSTEM_TABLE;
   check_params.db_type= hton->db_type;
   check_params.table_name= table_name;
+  check_params.db= db;
   plugin_foreach(NULL, check_engine_system_table_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, &check_params);
 

@@ -1722,6 +1722,26 @@ struct TABLE_LIST
     opt_hints_qb= NULL;
   }
 
+
+  /**
+    Auxiliary method which prepares TABLE_LIST consisting of one table instance
+    to be used in simple open_and_lock_tables and takes type of MDL lock on the
+    table as explicit parameter.
+  */
+
+  inline void init_one_table(const char *db_name_arg,
+                             size_t db_length_arg,
+                             const char *table_name_arg,
+                             size_t table_name_length_arg,
+                             const char *alias_arg,
+                             enum thr_lock_type lock_type_arg,
+                             enum enum_mdl_type mdl_request_type)
+  {
+    init_one_table(db_name_arg, db_length_arg, table_name_arg,
+                   table_name_length_arg, alias_arg, lock_type_arg);
+    mdl_request.set_type(mdl_request_type);
+  }
+
   /// Create a TABLE_LIST object representing a nested join
   static TABLE_LIST *new_nested_join(MEM_ROOT *allocator,
                                      const char *alias,

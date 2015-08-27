@@ -93,7 +93,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            bool tmp_table,
                            uint *db_options,
                            handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count);
+                           uint *key_count, int select_field_count,
+                           bool is_sql_layer_system_table);
 
 
 /**
@@ -1804,7 +1805,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                    lpt->table->file,
                                    &lpt->key_info_buffer,
                                    &lpt->key_count,
-                                   /*select_field_count*/ 0))
+                                   /*select_field_count*/ 0,
+                                   false))
     {
       DBUG_RETURN(TRUE);
     }
@@ -3393,7 +3395,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            bool tmp_table,
                            uint *db_options,
                            handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count)
+                           uint *key_count, int select_field_count,
+                           bool is_sql_layer_system_table)
 {
   const char	*key_name;
   Create_field	*sql_field,*dup_field;
@@ -4348,11 +4351,14 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (!(key_info->flags & HA_NULL_PART_KEY))
       unique_key=1;
     key_info->key_length=(uint16) key_length;
-    if (key_length > max_key_length && key->type != KEYTYPE_FULLTEXT)
+
+    if (key_length > max_key_length && key->type != KEYTYPE_FULLTEXT &&
+        !is_sql_layer_system_table)
     {
       my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
       DBUG_RETURN(TRUE);
     }
+
     if (validate_comment_length(thd, key->key_create_info.comment.str,
                                 &key->key_create_info.comment.length,
                                 INDEX_COMMENT_MAXLEN,
@@ -4689,7 +4695,8 @@ bool create_table_impl(THD *thd,
                        bool no_ha_table,
                        bool *is_trans,
                        KEY **key_info,
-                       uint *key_count)
+                       uint *key_count,
+                       bool is_sql_layer_system_table)
 {
   const char	*alias;
   uint		db_options;
@@ -4980,7 +4987,8 @@ bool create_table_impl(THD *thd,
                                  internal_tmp_table,
                                  &db_options, file,
                                  key_info, key_count,
-                                 select_field_count))
+                                 select_field_count,
+                                 is_sql_layer_system_table))
     goto err;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -5265,7 +5273,8 @@ bool mysql_create_table_no_lock(THD *thd,
 
   return create_table_impl(thd, db, table_name, path, create_info, alter_info,
                            false, select_field_count, false, is_trans,
-                           &not_used_1, &not_used_2);
+                           &not_used_1, &not_used_2,
+                           check_if_sql_layer_system_table(db, table_name));
 }
 
 
@@ -6654,7 +6663,7 @@ bool mysql_compare_tables(TABLE *table,
                                  (table->s->tmp_table != NO_TMP_TABLE),
                                  &db_options,
                                  table->file, &key_info_buffer,
-                                 &key_count, 0))
+                                 &key_count, 0, false))
     DBUG_RETURN(true);
 
   /* Some very basic checks. */
@@ -8911,11 +8920,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   bool varchar= create_info->varchar;
 
   tmp_disable_binlog(thd);
+  bool sql_layer_system_table=
+     check_if_sql_layer_system_table(alter_ctx.db,
+                                     alter_ctx.table_name);
   error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
                            alter_ctx.get_tmp_path(),
                            create_info, alter_info,
                            true, 0, true, NULL,
-                           &key_info, &key_count);
+                           &key_info, &key_count,
+                           sql_layer_system_table);
   reenable_binlog(thd);
 
   if (error)

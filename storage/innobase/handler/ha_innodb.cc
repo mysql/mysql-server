@@ -3143,7 +3143,8 @@ innodb_init_abort()
 This function checks if the given db.tablename is a system table
 supported by Innodb and is used as an initializer for the data member
 is_supported_system_table of InnoDB storage engine handlerton.
-Currently we support only plugin, servers,  help- and time_zone- related
+Currently we support only columns_priv, db, plugin, procs_priv,
+proxies_priv, servers, tables_priv, user, help- and time_zone- related
 system tables in InnoDB. Please don't add any SE-specific system tables here.
 
 @param db				database name to check.
@@ -3156,17 +3157,23 @@ static bool innobase_is_supported_system_table(const char *db,
 						const char *table_name,
 						bool is_sql_layer_system_table)
 {
-	static const char* supported_system_tables[]= { "help_topic",
+	static const char* supported_system_tables[]= { "columns_priv",
+							"db",
+							"help_topic",
 							"help_category",
 							"help_relation",
 							"help_keyword",
 							"plugin",
+							"procs_priv",
+							"proxies_priv",
 							"servers",
+							"tables_priv",
 							"time_zone",
 							"time_zone_leap_second",
 							"time_zone_name",
 							"time_zone_transition",
 							"time_zone_transition_type",
+							"user",
 							(const char *)NULL };
 
 	if (!is_sql_layer_system_table)

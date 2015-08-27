@@ -3512,7 +3512,7 @@ Prepared_statement::execute_loop(String *expanded_query,
     return TRUE;
 
   if (unlikely(thd->security_context()->password_expired() &&
-               !lex->is_set_password_sql))
+               lex->sql_command != SQLCOM_SET_PASSWORD))
   {
     my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
     return true;

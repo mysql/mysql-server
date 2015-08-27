@@ -3783,6 +3783,8 @@ int ha_find_files(THD *thd,const char *db,const char *path,
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
                                         const char* table_name);
+bool check_if_sql_layer_system_table(const char *db,
+                                     const char *table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

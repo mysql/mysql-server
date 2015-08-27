@@ -1129,7 +1129,7 @@ static bool test_if_create_new_users(THD *thd)
     user_list           List of users to give grant
     columns             List of columns to give grant
     rights              Table level grant
-    revoke_grant        Set to 1 if this is a REVOKE command
+    revoke_grant        Set to true if this is a REVOKE command
 
   RETURN
     FALSE ok
@@ -1241,14 +1241,24 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   /* open the mysql.tables_priv and mysql.columns_priv tables */
 
+  /*
+    For a TABLE_LIST element that is inited with a lock type TL_WRITE
+    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
+    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+    from SE level.
+  */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+                           C_STRING_WITH_LEN("user"),
+                           "user", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("tables_priv"),
-                           "tables_priv", TL_WRITE);
+                           "tables_priv", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("columns_priv"),
-                           "columns_priv", TL_WRITE);
+                           "columns_priv", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   tables[0].next_local= tables[0].next_global= tables+1;
   /* Don't open column table if we don't need it ! */
   if (column_priv || (revoke_grant && ((rights & COL_ACLS) || columns.elements)))
@@ -1297,8 +1307,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     this value corresponds to the statement being executed.
   */
   thd->lex->sql_command= backup.sql_command;
-  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {                                             // Should never happen
+
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT) ||
+      check_acl_tables(tables, true))
+  {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     thd->lex->restore_backup_query_tables_list(&backup);
@@ -1325,10 +1337,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->mem_root= &memex;
   grant_version++;
 
+  bool rollback_whole_statement= false;
   while ((tmp_Str = str_list++))
   {
     int error;
-    bool is_user_applied= true;
     GRANT_TABLE *grant_table;
 
     if (!(Str= get_current_user(thd, tmp_Str)))
@@ -1345,15 +1357,20 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
 
     /* Create user if needed */
-    error=replace_user_table(thd, tables[0].table, Str,
-                             0, revoke_grant, create_new_users,
-                             what_to_set);
-    if (error)
+    error= replace_user_table(thd, tables[0].table, Str,
+                              0, revoke_grant, create_new_users,
+                              what_to_set);
+    if (error > 0)
     {
       result= TRUE;                             // Remember error
       continue;                                 // Add next user
     }
-
+    else if (error < 0)
+    {
+      rollback_whole_statement= true;
+      result= true;
+      break;
+    }
     db_name= table_list->get_db_name();
     thd->add_to_binlog_accessed_dbs(db_name); // collecting db:s for MTS
     table_name= table_list->get_table_name();
@@ -1370,15 +1387,22 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
         result= TRUE;
         continue;
       }
+
+      DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
+                      DBUG_SET("+d,simulate_out_of_memory"););
       grant_table = new GRANT_TABLE (Str->host.str, db_name,
                                      Str->user.str, table_name,
                                      rights,
                                      column_priv);
+      DBUG_EXECUTE_IF("mysql_table_grant_out_of_memory",
+                      DBUG_SET("-d,simulate_out_of_memory"););
+
       if (!grant_table ||
         my_hash_insert(&column_priv_hash,(uchar*) grant_table))
       {
+        rollback_whole_statement= true;
         result= TRUE;                           /* purecov: deadcode */
-        continue;                               /* purecov: deadcode */
+        break;                               /* purecov: deadcode */
       }
     }
 
@@ -1415,27 +1439,41 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
     /* update table and columns */
 
-    if (replace_table_table(thd, grant_table, tables[1].table, *Str,
-                            db_name, table_name,
-                            rights, column_priv, revoke_grant))
+    error= replace_table_table(thd, grant_table, tables[1].table, *Str,
+                               db_name, table_name,
+                               rights, column_priv, revoke_grant);
+
+    if (error > 0)
     {
-      /* Should only happen if table is crashed */
-      result= TRUE;                            /* purecov: deadcode */
-      is_user_applied= false;
+      result= true;
+      continue;
     }
-    else if (tables[2].table)
+    else if (error < 0)
     {
-      if ((replace_column_table(grant_table, tables[2].table, *Str,
-                                columns,
-                                db_name, table_name,
-                                rights, revoke_grant)))
+      rollback_whole_statement= true;
+      result= true;
+      break;
+    }
+
+    if (tables[2].table)
+    {
+      error= replace_column_table(grant_table, tables[2].table, *Str,
+                                  columns,
+                                  db_name, table_name,
+                                  rights, revoke_grant);
+      if (error > 0)
       {
-        result= TRUE;
-        is_user_applied= false;
+        result= true;
+        continue;
+      }
+      else if (error < 0)
+      {
+        rollback_whole_statement= true;
+        result= true;
+        break;
       }
     }
-    if (is_user_applied)
-      is_partial_execution= true;
+    is_partial_execution= true;
   }
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
@@ -1455,17 +1493,20 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   */
   if (result)
   {
-    if (is_partial_execution)
+    if (!rollback_whole_statement)
     {
-      const char* err_msg= "REVOKE/GRANT failed while storing table level "
-                           "and column level grants in the privilege tables.";
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
-                                   err_msg);
+      if (is_partial_execution)
+      {
+        const char* err_msg= "REVOKE/GRANT failed while storing table level "
+                             "and column level grants in the privilege tables.";
+        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                     err_msg);
+      }
+      else
+        sql_print_warning("Did not write failed '%s' into binary log while "
+                          "storing table level and column level grants in "
+                          "the privilege tables.", thd->query().str);
     }
-    else
-      sql_print_warning("Did not write failed '%s' into binary log while "
-                        "storing table level and column level grants in "
-                        "the privilege tables.", thd->query().str);
   }
   else
   {
@@ -1476,20 +1517,25 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       mysql_rewrite_grant(thd, rlb);
     }
     if (thd->rewritten_query.length())
-      result= result |
-          write_bin_log(thd, FALSE,
-                        thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length(),
-                        transactional_tables);
+      result= write_bin_log_n_handle_any_error(
+        thd,
+        thd->rewritten_query.c_ptr_safe(),
+        thd->rewritten_query.length(),
+        transactional_tables,
+        &rollback_whole_statement);
     else
-      result= result |
-        write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
-                            transactional_tables);
+      result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                               thd->query().length,
+                                               transactional_tables,
+                                               &rollback_whole_statement);
   }
 
   lock.unlock();
 
-  result|= acl_trans_commit_and_close_tables(thd);
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
 
   if (!result) /* success */
   {
@@ -1555,12 +1601,22 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       DBUG_RETURN(TRUE);
   }
 
-  /* open the mysql.user and mysql.procs_priv tables */
+  /*
+    open the mysql.user and mysql.procs_priv tables
+    For a TABLE_LIST element that is inited with a lock type TL_WRITE
+    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
+    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+    from SE level.
+  */
 
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+                           C_STRING_WITH_LEN("user"),
+                           "user", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("procs_priv"), "procs_priv", TL_WRITE);
+                           C_STRING_WITH_LEN("procs_priv"),
+                           "procs_priv", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   tables[0].next_local= tables[0].next_global= tables+1;
 
   /*
@@ -1594,12 +1650,14 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
 #endif /* HAVE_REPLICATION */
 
-  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {                                             // Should never happen
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT) ||
+      check_acl_tables(tables, true))
+  {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
       thd->set_current_stmt_binlog_format_row();
+
     DBUG_RETURN(TRUE);
   }
 
@@ -1618,6 +1676,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   DBUG_PRINT("info",("now time to iterate and add users"));
 
   bool is_partial_execution= false;
+  bool rollback_whole_statement= false;
   while ((tmp_Str= str_list++))
   {
     int error;
@@ -1637,15 +1696,20 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     /* Create user if needed */
-    error=replace_user_table(thd, tables[0].table, Str,
-                             0, revoke_grant, create_new_users,
-                             what_to_set);
-    if (error)
+    error= replace_user_table(thd, tables[0].table, Str,
+                              0, revoke_grant, create_new_users,
+                              what_to_set);
+    if (error > 0)
     {
       result= TRUE;                             // Remember error
       continue;                                 // Add next user
     }
-
+    else if (error < 0)
+    {
+      rollback_whole_statement= true;
+      result= true;
+      break;
+    }
     db_name= table_list->db;
     if (write_to_binlog)
       thd->add_to_binlog_accessed_dbs(db_name);
@@ -1669,16 +1733,24 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
                        &proc_priv_hash : &func_priv_hash,(uchar*) grant_name))
       {
         result= TRUE;
-        continue;
+        rollback_whole_statement= true;
+        break;
       }
     }
 
-    if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
-                              db_name, table_name, is_proc, rights, 
-                              revoke_grant) != 0)
+    error= replace_routine_table(thd, grant_name, tables[1].table, *Str,
+                                 db_name, table_name, is_proc, rights,
+                                 revoke_grant);
+    if (error > 0)
     {
-      result= TRUE;
+      result= true;
       continue;
+    }
+    else if (error < 0)
+    {
+      result= true;
+      rollback_whole_statement= true;
+      break;
     }
     is_partial_execution= true;
   }
@@ -1695,17 +1767,20 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     */
     if (result)
     {
-      if (is_partial_execution)
+      if (!rollback_whole_statement)
       {
-        const char* err_msg= "REVOKE/GRANT failed while storing routine "
-                             "level grants in the privilege tables.";
-        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
-                                     err_msg);
+        if (is_partial_execution)
+        {
+          const char* err_msg= "REVOKE/GRANT failed while storing routine "
+                               "level grants in the privilege tables.";
+          mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                       err_msg);
+        }
+        else
+          sql_print_warning("Did not write failed '%s' into binary log while "
+                            "storing routine level grants in the privilege "
+                            "tables.", thd->query().str);
       }
-      else
-        sql_print_warning("Did not write failed '%s' into binary log while "
-                          "storing routine level grants in the privilege "
-                          "tables.", thd->query().str);
     }
     else
     {
@@ -1720,25 +1795,27 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
         If that was the case, write the original query.
       */
       if (!thd->rewritten_query.length())
-      {
-        if (write_bin_log(thd, false, thd->query().str, thd->query().length,
-                          transactional_tables))
-          result= TRUE;
-      }
+        result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                                 thd->query().length,
+                                                 transactional_tables,
+                                                 &rollback_whole_statement);
       else
-      {
-        if (write_bin_log(thd, false,
-                          thd->rewritten_query.c_ptr_safe(),
-                          thd->rewritten_query.length(),
-                          transactional_tables))
-          result= TRUE;
-      }
+        result= write_bin_log_n_handle_any_error(
+          thd,
+          thd->rewritten_query.c_ptr_safe(),
+          thd->rewritten_query.length(),
+          transactional_tables,
+          &rollback_whole_statement);
     }
   }
 
   lock.unlock();
 
-  result|= acl_trans_commit_and_close_tables(thd);
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+
 
   if (write_to_binlog && !result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
@@ -1788,19 +1865,27 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 
   /* open the mysql.user and mysql.db or mysql.proxies_priv tables */
+
+  /*
+    For a TABLE_LIST element that is inited with a lock type TL_WRITE
+    the type MDL_SHARED_NO_READ_WRITE of MDL is requested for.
+    Acquiring strong MDL lock allows to avoid deadlock and timeout errors
+    from SE level.
+  */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"), "user", TL_WRITE);
+                           C_STRING_WITH_LEN("user"),
+                           "user", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   if (is_proxy)
 
     tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
                              C_STRING_WITH_LEN("proxies_priv"),
-                             "proxies_priv", 
-                             TL_WRITE);
+                             "proxies_priv", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
   else
     tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
                              C_STRING_WITH_LEN("db"), 
-                             "db", 
-                             TL_WRITE);
+                             "db", TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+
   tables[0].next_local= tables[0].next_global= tables+1;
 
   /*
@@ -1834,8 +1919,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
 #endif /*HAVE_REPLICATION */
 
-  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT))
-  {                                     // This should never happen
+  if (open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT) ||
+      check_acl_tables(tables, true))
+  {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
     if (save_binlog_row_based)
@@ -1857,10 +1943,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   int result= 0;
   bool is_partial_execution= false;
+  bool rollback_whole_statement= false;
   while ((tmp_Str = str_list++))
   {
-    bool is_user_applied= true;
-
     if (!(Str= get_current_user(thd, tmp_Str)))
     {
       result= TRUE;
@@ -1874,45 +1959,81 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       continue;
     }
 
-    if (replace_user_table(thd, tables[0].table, Str,
-                           (!db ? rights : 0), revoke_grant, create_new_users,
-                           (what_to_set | ACCESS_RIGHTS_ATTR)))
+    int ret= replace_user_table(thd, tables[0].table, Str,
+                                (!db ? rights : 0), revoke_grant,
+                                create_new_users,
+                                (what_to_set | ACCESS_RIGHTS_ATTR));
+    if (ret)
     {
       result= -1;
-      is_user_applied= false;
+      if (ret < 0)
+      {
+        /*
+          If error in storage egine or system error happen then
+          it doesn't make sense to continue handling of statement's
+          arguments (users list). In this case leave a loop, rollback
+          the whole statement and return an error.
+        */
+        rollback_whole_statement= true;
+        break;
+      }
+      continue;
     }
     else if (db)
     {
       ulong db_rights= rights & DB_ACLS;
       if (db_rights  == rights)
       {
-        if (replace_db_table(tables[1].table, db, *Str, db_rights,
-                             revoke_grant))
+        ret= replace_db_table(tables[1].table, db, *Str, db_rights,
+                              revoke_grant);
+        if (ret)
         {
           result= -1;
-          is_user_applied= false;
+          if (ret < 0)
+          {
+            /*
+              If error in storage egine or system error happen then
+              it doesn't make sense to continue handling of statement's
+              arguments (users list). In this case leave a loop, rollback
+              the whole statement and return an error.
+            */
+            rollback_whole_statement= true;
+            break;
+          }
+          continue;
         }
+        thd->add_to_binlog_accessed_dbs(db);
       }
       else
       {
         my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
         result= -1;
-        is_user_applied= false;
+        continue;
       }
-      thd->add_to_binlog_accessed_dbs(db);
     }
     else if (is_proxy)
     {
-      if (replace_proxies_priv_table (thd, tables[1].table, Str, proxied_user,
-                                    rights & GRANT_ACL ? TRUE : FALSE, 
-                                    revoke_grant))
+      ret= replace_proxies_priv_table(thd, tables[1].table, Str, proxied_user,
+                                      rights & GRANT_ACL ? true : false,
+                                      revoke_grant);
+      if (ret)
       {
         result= -1;
-        is_user_applied= false;
+        if (ret < 0)
+        {
+          /*
+            If error in storage egine or system error happen then
+            it doesn't make sense to continue handling of statement's
+            arguments (users list). In this case leave a loop, rollback
+            the whole statement and return an error.
+          */
+          rollback_whole_statement= true;
+          break;
+        }
+        continue;
       }
     }
-    if (is_user_applied)
-      is_partial_execution= true;
+    is_partial_execution= true;
   }
   mysql_mutex_unlock(&acl_cache->lock);
 
@@ -1924,17 +2045,20 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   */
   if (result)
   {
-    if (is_partial_execution)
+    if (!rollback_whole_statement)
     {
-      const char* err_msg= "REVOKE/GRANT failed while granting/revoking "
-                           "privileges in databases.";
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
-                                   err_msg);
+      if (is_partial_execution)
+      {
+        const char* err_msg= "REVOKE/GRANT failed while granting/revoking "
+                             "privileges in databases.";
+        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                     err_msg);
+      }
+      else
+        sql_print_warning("Did not write failed '%s' into binary log while "
+                          "granting/revoking privileges in databases.",
+                          thd->query().str);
     }
-    else
-      sql_print_warning("Did not write failed '%s' into binary log while "
-                        "granting/revoking privileges in databases.",
-                        thd->query().str);
   }
   else
   {
@@ -1945,20 +2069,25 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       mysql_rewrite_grant(thd, rlb);
     }
     if (thd->rewritten_query.length())
-      result= result |
-          write_bin_log(thd, FALSE,
-                        thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length(),
-                        transactional_tables);
+      result= write_bin_log_n_handle_any_error(
+        thd, thd->rewritten_query.c_ptr_safe(),
+        thd->rewritten_query.length(),
+        transactional_tables,
+        &rollback_whole_statement);
     else
-      result= result |
-        write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
-                            transactional_tables);
+      result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                               thd->query().length,
+                                               transactional_tables,
+                                               &rollback_whole_statement);
   }
 
   lock.unlock();
 
-  result|= acl_trans_commit_and_close_tables(thd);
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
+
   
   if (!result)
   {
@@ -3123,6 +3252,241 @@ end:
 }
 
 
+/**
+  Remove db access privileges.
+
+  @param table  Pointer to a TABLE object for opened table mysql.db.
+  @param lex_user  User information.
+
+  @return  Operation result
+    @retval  0    OK.
+    @retval  1    Application error happen, it is allowed
+                  continuing of operations.
+    @retval  < 0  Engine error.
+*/
+
+static int remove_db_access_privileges(TABLE *table, const LEX_USER &lex_user)
+{
+  ACL_DB *acl_db;
+  int revoked, result= 0;
+
+  /*
+    Because acl_dbs shrink and may re-order as privileges are removed,
+    removal occurs in a repeated loop until no more privileges are revoked.
+  */
+  do
+  {
+    for (revoked= 0, acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); )
+    {
+      const char *user, *host;
+
+      if (!(user= acl_db->user))
+        user= "";
+      if (!(host= acl_db->host.get_host()))
+        host= "";
+
+      if (!strcmp(lex_user.user.str, user) &&
+          !strcmp(lex_user.host.str, host))
+      {
+        int ret= replace_db_table(table, acl_db->db, lex_user,
+                                  ~(ulong)0, true);
+        if (!ret)
+        {
+          /*
+            Don't increment loop variable as replace_db_table deleted the
+            current element in acl_dbs.
+          */
+          revoked= 1;
+          continue;
+        }
+        else if (ret < 0)
+          return ret; // Something went wrong
+        else
+          /*
+            For the case when replace_db_table() returns 1 we continue
+            iteration in order to remove all db access privileges. It is safe
+            since this function is called as part of handling the statement
+            REVOKE ALL.
+          */
+          result= 1;
+      }
+      ++acl_db;
+    }
+  }
+  while (revoked);
+
+  return result;
+}
+
+
+/**
+  Remove column access privileges.
+
+  @param thd                 Thread handler.
+  @param tables_priv_table   Pointer to a TABLE object for opened table
+                             mysql.tables_priv_table.
+  @param columns_priv_table  Pointer to a TABLE object for opened table
+                             mysql.columns_priv_table.
+  @param lex_user            User information.
+
+  @return  Operation result
+    @retval  0    OK.
+    @retval  1    Application error happen, it is allowed
+                  continuing of operations.
+    @retval  < 0  Engine error.
+*/
+
+static int remove_column_access_privileges(THD *thd,
+                                           TABLE *tables_priv_table,
+                                           TABLE *columns_priv_table,
+                                           const LEX_USER &lex_user)
+{
+  int revoked, result= 0;
+  /*
+    Remove column access.
+    Because column_priv_hash shrink and may re-order as privileges are removed,
+    removal occurs in a repeated loop until no more privileges are revoked.
+  */
+  do
+  {
+    uint counter;
+    for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
+    {
+      const char *user, *host;
+      GRANT_TABLE *grant_table=
+        (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
+      if (!(user= grant_table->user))
+        user= "";
+      if (!(host= grant_table->host.get_host()))
+        host= "";
+
+      if (!strcmp(lex_user.user.str, user) &&
+          !strcmp(lex_user.host.str, host))
+      {
+        int ret;
+        ret= replace_table_table(thd, grant_table, tables_priv_table,
+                                 lex_user,
+                                 grant_table->db,
+                                 grant_table->tname,
+                                 ~(ulong)0, 0, true);
+        if (ret < 0)
+        {
+          return ret;
+        }
+        else if (ret > 0)
+          /*
+            For the case when replace_table_table() returns 1 we continue
+            iteration in order to remove all column access privileges.
+            It is safe since this function is called as part of handling
+            the statement REVOKE ALL.
+          */
+          result= 1;
+        else
+        {
+          if (!grant_table->cols)
+          {
+            revoked= 1;
+            continue;
+          }
+          List<LEX_COLUMN> columns;
+          ret= replace_column_table(grant_table, columns_priv_table,
+                                    lex_user,
+                                    columns,
+                                    grant_table->db,
+                                    grant_table->tname,
+                                    ~(ulong)0, true);
+          if (!ret)
+          {
+            revoked= 1;
+            continue;
+          }
+          /*
+            If we come there then the variable ret always has a value < 0 since
+            the actual argument 'columns' doesn't contain any elements
+          */
+          DBUG_ASSERT(ret < 0);
+
+          return ret;
+        }
+      }
+      counter++;
+    }
+  }
+  while (revoked);
+
+  return result;
+}
+
+
+/**
+  Remove procedure access privileges.
+
+  @param thd                 Thread handler.
+  @param procs_priv_table    Pointer to a TABLE object for opened table
+                             mysql.procs_priv_table.
+  @param lex_user            User information.
+
+  @return  Operation result.
+    @retval  0    OK.
+    @retval  1    Application error happen, it is allowed
+                  continuing of operations.
+    @retval  < 0  Engine error.
+*/
+
+static int remove_procedure_access_privileges(THD *thd,
+                                              TABLE *procs_priv_table,
+                                              const LEX_USER &lex_user)
+{
+  /* Remove procedure access */
+  int revoked, is_proc, result= 0;
+  for (is_proc=0; is_proc<2; is_proc++)
+    do
+    {
+      HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+      uint counter;
+      for (counter= 0, revoked= 0 ; counter < hash->records ; )
+      {
+        const char *user,*host;
+        GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
+        if (!(user=grant_proc->user))
+          user= "";
+        if (!(host=grant_proc->host.get_host()))
+          host= "";
+
+        if (!strcmp(lex_user.user.str,user) &&
+            !strcmp(lex_user.host.str, host))
+        {
+          int ret= replace_routine_table(thd,grant_proc, procs_priv_table,
+                                         lex_user,
+                                         grant_proc->db,
+                                         grant_proc->tname,
+                                         is_proc,
+                                         ~(ulong)0, true);
+
+          if (!ret)
+          {
+            revoked= 1;
+            continue;
+          }
+          else if (ret < 0)
+            return ret;
+          else
+            /*
+              For the case when replace_routine_table() returns 1 we continue
+              iteration in order to remove all procedure access privileges.
+              It is safe since this function is called as part of handling
+              the statement REVOKE ALL.
+            */
+            result= 1;
+        }
+        counter++;
+      }
+    } while (revoked);
+
+  return result;
+}
+
+
 /*
   Revoke all privileges from a list of users.
 
@@ -3139,9 +3503,7 @@ end:
 
 bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 {
-  uint revoked, is_proc;
   int result;
-  ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
   bool save_binlog_row_based;
   bool transactional_tables;
@@ -3171,9 +3533,9 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   List_iterator <LEX_USER> user_list(list);
 
   bool is_partial_execution= false;
+  bool rollback_whole_statement= false;
   while ((tmp_lex_user= user_list++))
   {
-    bool is_user_applied= true;
     ulong what_to_set= 0;
     if (!(lex_user= get_current_user(thd, tmp_lex_user)))
     {
@@ -3189,139 +3551,45 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     /* copy password expire attributes to individual user */
     lex_user->alter_status= thd->lex->alter_password;
 
-    if (replace_user_table(thd, tables[0].table,
-                           lex_user, ~(ulong) 0, 1, 0,
-                           (what_to_set | ACCESS_RIGHTS_ATTR)))
+    int ret= replace_user_table(thd, tables[0].table,
+                                lex_user, ~(ulong) 0, true, false,
+                                (what_to_set | ACCESS_RIGHTS_ATTR));
+    if (ret > 0)
+    {
+      result= -1;
+      continue;
+    }
+    else if (ret < 0)
+    {
+      result= -1;
+      rollback_whole_statement= true;
+      break;
+    }
+
+    int ret1, ret2, ret3;
+    if ((ret1= remove_db_access_privileges(tables[1].table, *lex_user)) < 0 ||
+        (ret2= remove_column_access_privileges(thd, tables[2].table,
+                                               tables[3].table,
+                                               *lex_user)) < 0 ||
+        (ret3= remove_procedure_access_privileges(thd, tables[4].table,
+                                                  *lex_user)) < 0)
+    {
+      result= -1; // Something went wrong
+      rollback_whole_statement= true;
+      break;
+    }
+    else if (ret1 || ret2 || ret3)
     {
       result= -1;
       continue;
     }
 
-    /* Remove db access privileges */
-    /*
-      Because acl_dbs and column_priv_hash shrink and may re-order
-      as privileges are removed, removal occurs in a repeated loop
-      until no more privileges are revoked.
-     */
-    do
-    {
-      for (revoked= 0, acl_db= acl_dbs->begin(); acl_db != acl_dbs->end(); )
-      {
-        const char *user,*host;
-
-        if (!(user=acl_db->user))
-          user= "";
-        if (!(host=acl_db->host.get_host()))
-          host= "";
-
-        if (!strcmp(lex_user->user.str,user) &&
-            !strcmp(lex_user->host.str, host))
-        {
-          if (!replace_db_table(tables[1].table, acl_db->db, *lex_user,
-                                ~(ulong)0, 1))
-          {
-            /*
-              Don't increment loop variable as replace_db_table deleted the
-              current element in acl_dbs.
-             */
-            revoked= 1;
-            continue;
-          }
-          result= -1; // Something went wrong
-          is_user_applied= false;
-        }
-        ++acl_db;
-      }
-    } while (revoked);
-
-    /* Remove column access */
-    do
-    {
-      uint counter;
-      for (counter= 0, revoked= 0 ; counter < column_priv_hash.records ; )
-      {
-        const char *user,*host;
-        GRANT_TABLE *grant_table=
-          (GRANT_TABLE*) my_hash_element(&column_priv_hash, counter);
-        if (!(user=grant_table->user))
-          user= "";
-        if (!(host=grant_table->host.get_host()))
-          host= "";
-
-        if (!strcmp(lex_user->user.str,user) &&
-            !strcmp(lex_user->host.str, host))
-        {
-          if (replace_table_table(thd,grant_table,tables[2].table,*lex_user,
-                                  grant_table->db,
-                                  grant_table->tname,
-                                  ~(ulong)0, 0, 1))
-          {
-            result= -1;
-            is_user_applied= false;
-          }
-          else
-          {
-            if (!grant_table->cols)
-            {
-              revoked= 1;
-              continue;
-            }
-            List<LEX_COLUMN> columns;
-            if (!replace_column_table(grant_table,tables[3].table, *lex_user,
-                                      columns,
-                                      grant_table->db,
-                                      grant_table->tname,
-                                      ~(ulong)0, 1))
-            {
-              revoked= 1;
-              continue;
-            }
-            result= -1;
-            is_user_applied= false;
-          }
-        }
-        counter++;
-      }
-    } while (revoked);
-
-    /* Remove procedure access */
-    for (is_proc=0; is_proc<2; is_proc++) do {
-      HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
-      uint counter;
-      for (counter= 0, revoked= 0 ; counter < hash->records ; )
-      {
-        const char *user,*host;
-        GRANT_NAME *grant_proc= (GRANT_NAME*) my_hash_element(hash, counter);
-        if (!(user=grant_proc->user))
-          user= "";
-        if (!(host=grant_proc->host.get_host()))
-          host= "";
-
-        if (!strcmp(lex_user->user.str,user) &&
-            !strcmp(lex_user->host.str, host))
-        {
-          if (replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
-                                  grant_proc->db,
-                                  grant_proc->tname,
-                                  is_proc,
-                                  ~(ulong)0, 1) == 0)
-          {
-            revoked= 1;
-            continue;
-          }
-          result= -1;  // Something went wrong
-          is_user_applied= false;
-        }
-        counter++;
-      }
-    } while (revoked);
-    if (is_user_applied)
-      is_partial_execution= true;
+    is_partial_execution= true;
   }
 
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (result)
+  if (result && !rollback_whole_statement)
     my_error(ER_REVOKE_GRANTS, MYF(0));
 
   /*
@@ -3332,28 +3600,35 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   */
   if (result)
   {
-    if (is_partial_execution)
+    if (!rollback_whole_statement)
     {
-      const char* err_msg= "REVOKE failed while revoking all_privileges "
-                           "from a list of users.";
-      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
-                                   err_msg);
+      if (is_partial_execution)
+      {
+        const char* err_msg= "REVOKE failed while revoking all_privileges "
+                             "from a list of users.";
+        mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
+                                     err_msg);
+      }
+      else
+        sql_print_warning("Did not write failed '%s' into binary log while "
+                          "revoking all_privileges from a list of users.",
+                          thd->query().str);
     }
-    else
-      sql_print_warning("Did not write failed '%s' into binary log while "
-                        "revoking all_privileges from a list of users.",
-                        thd->query().str);
   }
   else
   {
-    result= result |
-      write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
-                    transactional_tables);
+    result= write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                             thd->query().length,
+                                             transactional_tables,
+                                             &rollback_whole_statement);
   }
 
   lock.unlock();
 
-  result|= acl_trans_commit_and_close_tables(thd);
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
 
   if (!result)
     acl_notify_htons(thd, thd->query().str, thd->query().length);
@@ -3454,6 +3729,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
     thd->clear_current_stmt_binlog_format_row();
 
   /* Remove procedure access */
+  bool rollback_whole_statement= false;
   do
   {
     for (counter= 0, revoked= 0 ; counter < hash->records ; )
@@ -3470,9 +3746,17 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         lex_user.host.length= grant_proc->host.get_host() ?
           strlen(grant_proc->host.get_host()) : 0;
 
-        if (replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
-                                  grant_proc->db, grant_proc->tname,
-                                  is_proc, ~(ulong)0, 1) == 0)
+        int ret=
+          replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
+                                grant_proc->db, grant_proc->tname,
+                                is_proc, ~(ulong)0, true);
+        if (ret < 0)
+        {
+          rollback_whole_statement= true;
+          revoked= false;
+          break;
+        }
+        else if (ret == 0)
         {
           revoked= 1;
           continue;
@@ -3485,7 +3769,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   mysql_mutex_unlock(&acl_cache->lock);
   lock.unlock();
 
-  result= acl_trans_commit_and_close_tables(thd);
+  result|=
+    acl_end_trans_and_close_tables(thd,
+                                   thd->transaction_rollback_request ||
+                                   rollback_whole_statement);
 
   thd->pop_internal_handler();
 

@@ -105,25 +105,6 @@ static ib_mutex_t row_drop_list_mutex;
 /** Flag: has row_mysql_drop_list been initialized? */
 static ibool	row_mysql_drop_list_inited	= FALSE;
 
-/*******************************************************************//**
-Determine if the given name is a name reserved for MySQL system tables.
-@return TRUE if name is a MySQL system table name */
-static
-ibool
-row_mysql_is_system_table(
-/*======================*/
-	const char*	name)
-{
-	if (strncmp(name, "mysql/", 6) != 0) {
-
-		return(FALSE);
-	}
-
-	return(0 == strcmp(name + 6, "host")
-	       || 0 == strcmp(name + 6, "user")
-	       || 0 == strcmp(name + 6, "db"));
-}
-
 /*********************************************************************//**
 If a table is not yet in the drop list, adds the table to the list of tables
 which the master thread drops in background. We need this on Unix because in
@@ -2971,20 +2952,7 @@ row_create_table_for_mysql(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	DBUG_EXECUTE_IF(
-		"ib_create_table_fail_at_start_of_row_create_table_for_mysql",
-		goto err_exit;
-	);
-
-	trx->op_info = "creating table";
-
-	if (row_mysql_is_system_table(table->name.m_name)) {
-
-		ib::error() << "Trying to create a MySQL system table "
-			<< table->name << " of type InnoDB. MySQL system"
-			" tables must be of the MyISAM type!";
-#ifndef DBUG_OFF
-err_exit:
-#endif /* !DBUG_OFF */
+		"ib_create_table_fail_at_start_of_row_create_table_for_mysql", {
 		dict_mem_table_free(table);
 
 		if (commit) {
@@ -2994,7 +2962,10 @@ err_exit:
 		trx->op_info = "";
 
 		return(DB_ERROR);
-	}
+		}
+	);
+
+	trx->op_info = "creating table";
 
 	trx_start_if_not_started_xa(trx, true);
 
@@ -5050,13 +5021,6 @@ row_rename_table_for_mysql(
 		err = DB_READ_ONLY;
 		goto funct_exit;
 
-	} else if (row_mysql_is_system_table(new_name)) {
-
-		ib::error() << "Trying to create a MySQL system table "
-			<< new_name << " of type InnoDB. MySQL system tables"
-			" must be of the MyISAM type!";
-
-		goto funct_exit;
 	}
 
 	trx->op_info = "renaming table";
