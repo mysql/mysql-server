@@ -338,6 +338,20 @@ IF(HAVE_NO_LOGICAL_OP)
   )
 ENDIF()
 
+# Some Boost 1.58 source does not adhere to stricter C++11 rules
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-c++11-extra-semi"
+                           HAVE_NO_CPP11_EXTRA_SEMI)
+IF(HAVE_NO_CPP11_EXTRA_SEMI)
+  ADD_COMPILE_FLAGS(
+    item_geofunc.cc
+    item_geofunc_buffer.cc
+    item_geofunc_relchecks.cc
+    item_geofunc_relchecks_bgwrap.cc
+    item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-c++11-extra-semi"
+  )
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)

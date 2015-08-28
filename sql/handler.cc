@@ -5001,7 +5001,7 @@ static bool check_if_system_table(const char *db,
   st_system_tablename *systab;
   const char **names;
   bool is_system_database= false;
-  const char *found_db_name;
+  const char *found_db_name= NULL;
 
   // Check if we have a system database name in the command.
   DBUG_ASSERT(known_system_databases != NULL);

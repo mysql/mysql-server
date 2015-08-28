@@ -141,6 +141,20 @@ IF(HAVE_NO_LOGICAL_OP)
   )
 ENDIF()
 
+# Some Boost 1.58 source does not adhere to stricter C++11 rules
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-c++11-extra-semi"
+                           HAVE_NO_CPP11_EXTRA_SEMI)
+IF(HAVE_NO_CPP11_EXTRA_SEMI)
+  ADD_COMPILE_FLAGS(
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
+    ../sql/item_geofunc_relchecks.cc
+    ../sql/item_geofunc_relchecks_bgwrap.cc
+    ../sql/item_geofunc_setops.cc
+    COMPILE_FLAGS "-Wno-c++11-extra-semi"
+  )
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there
