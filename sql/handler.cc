@@ -269,7 +269,7 @@ TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 static const char* mysqld_system_database= "mysql";
 
 // System tables that belong to mysqld_system_database.
-st_system_tablename mysqld_system_tables[]= {
+st_handler_tablename mysqld_system_tables[]= {
   {mysqld_system_database, "db"},
   {mysqld_system_database, "user"},
   {mysqld_system_database, "host"},
@@ -4998,7 +4998,7 @@ static bool check_if_system_table(const char *db,
                                   const char *table_name,
                                   bool *is_sql_layer_system_table)
 {
-  st_system_tablename *systab;
+  st_handler_tablename *systab;
   const char **names;
   bool is_system_database= false;
   const char *found_db_name= NULL;

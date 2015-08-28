@@ -6077,6 +6077,50 @@ static int compare_uint(const uint *s, const uint *t)
 
 
 /**
+   Lock the list of tables which are direct or indirect parents in
+   foreign key with cascading actions for the table being altered.
+   This prevents DML operations from being performed on the list of
+   tables which otherwise may break the 'CASCADE' FK constraint of
+   the table being altered.
+
+   @param thd        Thread handler.
+   @param table      The table which is altered.
+
+   @retval false     Ok.
+   @retval true      Error.
+*/
+
+static bool lock_fk_dependent_tables(THD *thd, TABLE *table)
+{
+  MDL_request_list mdl_requests;
+  List <st_handler_tablename> fk_table_list;
+  List_iterator<st_handler_tablename> fk_table_list_it(fk_table_list);
+  st_handler_tablename *tbl_name;
+
+  table->file->get_cascade_foreign_key_table_list(thd, &fk_table_list);
+
+  while ((tbl_name= fk_table_list_it++))
+  {
+    MDL_request *table_mdl_request= new (thd->mem_root) MDL_request;
+
+    if (table_mdl_request == NULL)
+      return true;
+
+    MDL_REQUEST_INIT(table_mdl_request,
+                     MDL_key::TABLE, tbl_name->db,tbl_name->tablename,
+                     MDL_SHARED_READ_ONLY, MDL_STATEMENT);
+    mdl_requests.push_front(table_mdl_request);
+  }
+  
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
+
+  return false;
+}
+
+
+/**
    Compare original and new versions of a table and fill Alter_inplace_info
    describing differences between those versions.
 
@@ -7099,6 +7143,26 @@ static bool mysql_inplace_alter_table(THD *thd,
 
   DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
   THD_STAGE_INFO(thd, stage_alter_inplace_commit);
+
+  /*
+    Acquire SRO locks on parent tables to prevent concurrent DML on them to
+    perform cascading actions. These actions require acquring InnoDB locks,
+    which might otherwise create deadlock with locks acquired by
+    ha_innobase::commit_inplace_alter_table(). This deadlock can be
+    be resolved by aborting expensive ALTER TABLE statement, which
+    we would like to avoid.
+
+    Note that we ignore FOREIGN_KEY_CHECKS=0 setting completely here since
+    we need to avoid deadlock even if user is ready to sacrifice some
+    consistency and set FOREIGN_KEY_CHECKS=0.
+
+    It is possible that acquisition of locks on parent tables will result
+    in MDL deadlocks. But since deadlocks involving two or more DDL
+    statements should be rare, it is unlikely that our ALTER TABLE will
+    be aborted due to such deadlock.
+  */
+  if (lock_fk_dependent_tables(thd, table))
+    goto rollback;
 
   if (table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
@@ -9182,6 +9246,26 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
       });
+   
+    /*
+      Acquire SRO locks on parent tables to prevent concurrent DML on them to
+      perform cascading actions. Since InnoDB releases locks on table being
+      altered periodically these actions might be able to succeed and
+      can create orphan rows in our table otherwise.
+
+      Note that we ignore FOREIGN_KEY_CHECKS=0 setting here because, unlike
+      for DML operations it is hard to predict what kind of inconsistencies
+      ignoring foreign keys will create (ignoring foreign keys in this case
+      is similar to forcing other connections to ignore them).
+
+      It is possible that acquisition of locks on parent tables will result
+      in MDL deadlocks. But since deadlocks involving two or more DDL
+      statements should be rare, it is unlikely that our ALTER TABLE will
+      be aborted due to such deadlock.
+    */
+    if (lock_fk_dependent_tables(thd, table))
+      goto err_new_table_cleanup;
+
     if (copy_data_between_tables(thd,
                                  thd->m_stage_progress_psi,
                                  table, new_table,
@@ -9491,6 +9575,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd)
 
   if (ha_enable_transaction(thd, TRUE))
     DBUG_RETURN(TRUE);
+
+  DEBUG_SYNC(thd, "commit_alter_copy_table");
   
   /*
     Ensure that the new table is saved properly to disk before installing

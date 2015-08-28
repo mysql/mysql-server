@@ -263,6 +263,10 @@ public:
 		THD*			thd,
 		List<FOREIGN_KEY_INFO>*	f_key_list);
 
+	int get_cascade_foreign_key_table_list(
+		THD*				thd,
+		List<st_handler_tablename>*	fk_table_list);
+
 	bool can_switch_engines();
 
 	uint referenced_by_foreign_key();

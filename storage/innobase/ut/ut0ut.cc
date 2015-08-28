@@ -789,8 +789,6 @@ ut_strerr(
 		return("not found");
 	case DB_ONLINE_LOG_TOO_BIG:
 		return("Log size exceeded during online index creation");
-	case DB_DICT_CHANGED:
-		return("Table dictionary has changed");
 	case DB_IDENTIFIER_TOO_LONG:
 		return("Identifier name is too long");
 	case DB_FTS_EXCEED_RESULT_CACHE_LIMIT:

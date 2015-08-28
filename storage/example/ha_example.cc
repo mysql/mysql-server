@@ -213,7 +213,7 @@ const char* example_system_database()
 
   This array is optional, so every SE need not implement it.
 */
-static st_system_tablename ha_example_system_tables[]= {
+static st_handler_tablename ha_example_system_tables[]= {
   {(const char*)NULL, (const char*)NULL}
 };
 
@@ -233,7 +233,7 @@ static bool example_is_supported_system_table(const char *db,
                                               const char *table_name,
                                               bool is_sql_layer_system_table)
 {
-  st_system_tablename *systab;
+  st_handler_tablename *systab;
 
   // Does this SE support "ALL" SQL layer system tables ?
   if (is_sql_layer_system_table)
