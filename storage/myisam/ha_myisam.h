@@ -49,6 +49,14 @@ C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg);
 C_MODE_END
 
+class Myisam_handler_share: public Handler_share
+{
+public:
+  Myisam_handler_share() : m_share(NULL) {}
+  ~Myisam_handler_share() {}
+  struct st_mi_isam_share *m_share;
+};
+
 class ha_myisam: public handler
 {
   MI_INFO *file;

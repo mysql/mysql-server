@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,11 @@
 
 #include "myisamdef.h"
 
-int mi_close(MI_INFO *info)
+int mi_close_share(register MI_INFO *info, my_bool *closed_share)
 {
   int error=0,flag;
   MYISAM_SHARE *share=info->s;
-  DBUG_ENTER("mi_close");
+  DBUG_ENTER("mi_close_share");
   DBUG_PRINT("enter",("base: 0x%lx  reopen: %u  locks: %u",
 		      (long) info, (uint) share->reopen,
                       (uint) share->tot_locks));
@@ -107,6 +107,8 @@ int mi_close(MI_INFO *info)
       }
     }
     my_free(info->s);
+    if (closed_share)
+      *closed_share= TRUE;
   }
   if (info->open_list.data)
     mysql_mutex_unlock(&THR_LOCK_myisam);
@@ -126,4 +128,4 @@ int mi_close(MI_INFO *info)
     DBUG_RETURN(my_errno=error);
   }
   DBUG_RETURN(0);
-} /* mi_close */
+} /* mi_close_share */
