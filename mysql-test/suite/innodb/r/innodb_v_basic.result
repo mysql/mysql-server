@@ -986,7 +986,7 @@ alter table t add  c INT GENERATED ALWAYS AS(a/b);
 create index idx on t(c);
 ERROR 22012: Division by 0
 DROP TABLE t;
-CREATE TABLE BB (
+CREATE TABLE t (
 pk INTEGER AUTO_INCREMENT,
 col_int_nokey INTEGER /*! NULL */,
 col_int INT GENERATED ALWAYS AS (col_int_nokey +
@@ -1033,12 +1033,12 @@ UNIQUE KEY (col_int_key, col_varchar_key,
 col_date_key, col_time_key, col_datetime_key)
 )  AUTO_INCREMENT=10 ENGINE=INNODB PARTITION BY
 KEY(col_int_key) PARTITIONS 3;
-ALTER TABLE BB DROP COLUMN `pk`;
+ALTER TABLE t DROP COLUMN `pk`;
 Warnings:
-Warning	1831	Duplicate index 'pk' defined on the table 'test.BB'. This is deprecated and will be disallowed in a future release.
-SHOW CREATE TABLE BB;
+Warning	1831	Duplicate index 'pk' defined on the table 'test.t'. This is deprecated and will be disallowed in a future release.
+SHOW CREATE TABLE t;
 Table	Create Table
-BB	CREATE TABLE `BB` (
+t	CREATE TABLE `t` (
   `col_int_nokey` int(11) DEFAULT NULL,
   `col_int` int(11) GENERATED ALWAYS AS (col_int_nokey +
 col_int_nokey) STORED NOT NULL,
@@ -1076,4 +1076,4 @@ col_int_nokey) VIRTUAL NOT NULL,
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col_int_key)
 PARTITIONS 3 */
-DROP TABLE BB;
+DROP TABLE t;
