@@ -2279,3 +2279,31 @@ CREATE TABLE t1 (
 SELECT 1 FROM t1 WHERE a <> 'a' OR a <> "";
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#19333852: RESULT DIFF IN QUERY HAVING DISTINCT
+--echo #               WITH GROUP BY
+--echo #
+
+CREATE TABLE t1 (
+  v1 VARCHAR(20) CHARACTER SET utf8 NOT NULL,
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk),
+  KEY v1_key (v1(10))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
+
+Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+eval EXPLAIN $query3;
+
+eval $query1;
+eval $query2;
+eval $query3;
+
+DROP TABLE t1;

@@ -6864,6 +6864,10 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
 
       "Cannot convert character string: 'xxx' for column 't' at row 1"
 
+  @param  original_string            this is is the original string that was
+                                     supposed to be copied. Helps in keeping
+                                     track of whether a value has been
+                                     completely truncated.
   @param  well_formed_error_pos      position of the first non-wellformed
                                      character in the source string
   @param  cannot_convert_error_pos   position of the first non-convertable
@@ -6874,12 +6878,14 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  count_spaces               treat trailing spaces as important data
   @param  cs                         character set of the string
 
-  @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED
+  @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
+          TYPE_WARN_ALL_TRUNCATED
 
 */
 
 type_conversion_status
-Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
+Field_longstr::check_string_copy_error(const char *original_string,
+                                       const char *well_formed_error_pos,
                                        const char *cannot_convert_error_pos,
                                        const char *from_end_pos,
                                        const char *end,
@@ -6902,6 +6908,10 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
                       ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
+
+  if (well_formed_error_pos == original_string)
+    return TYPE_WARN_ALL_TRUNCATED;
+
   return TYPE_WARN_TRUNCATED;
 }
 
@@ -6985,7 +6995,7 @@ Field_string::store(const char *from, size_t length,const CHARSET_INFO *cs)
                               field_length-copy_length,
                               field_charset->pad_char);
 
-  return check_string_copy_error(well_formed_error_pos,
+  return check_string_copy_error(from, well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
                                  from + length, false, cs);
 }
@@ -7487,7 +7497,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   else
     int2store(ptr, static_cast<uint16>(copy_length));
 
-  return check_string_copy_error(well_formed_error_pos,
+  return check_string_copy_error(from, well_formed_error_pos,
                                  cannot_convert_error_pos, from_end_pos,
                                  from + length, true, cs);
 }
@@ -8141,7 +8151,7 @@ Field_blob::store_internal(const char *from, size_t length,
                                                 &from_end_pos);
 
     store_ptr_and_length(tmp, copy_length);
-    return check_string_copy_error(well_formed_error_pos,
+    return check_string_copy_error(from, well_formed_error_pos,
                                    cannot_convert_error_pos, from_end_pos,
                                    from + length, true, cs);
   }

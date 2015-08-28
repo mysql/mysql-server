@@ -3412,4 +3412,51 @@ KEY(a(1))
 SELECT 1 FROM t1 WHERE a <> 'a' OR a <> "";
 1
 DROP TABLE t1;
+#
+# Bug#19333852: RESULT DIFF IN QUERY HAVING DISTINCT
+#               WITH GROUP BY
+#
+CREATE TABLE t1 (
+v1 VARCHAR(20) CHARACTER SET utf8 NOT NULL,
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk),
+KEY v1_key (v1(10))
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('ABCDE',19), ('JLVGO',14);
+EXPLAIN SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	v1_key	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`v1` AS `v1`,`test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`v1` < <cache>(char(128)))
+EXPLAIN SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	v1_key	v1_key	32	const	1	100.00	Using where
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`v1` AS `v1`,`test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`v1` = <cache>(char(128)))
+EXPLAIN SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	v1_key	v1_key	32	NULL	1	100.00	Using where
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`v1` AS `v1`,`test`.`t1`.`pk` AS `pk` from `test`.`t1` where (`test`.`t1`.`v1` between 'f' and <cache>(char(128)))
+SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
+v1	pk
+JLVGO	14
+ABCDE	19
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
+v1	pk
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+v1	pk
+JLVGO	14
+Warnings:
+Warning	1366	Incorrect string value: '\x80' for column 'v1' at row 1
+DROP TABLE t1;
 set optimizer_switch=default;
