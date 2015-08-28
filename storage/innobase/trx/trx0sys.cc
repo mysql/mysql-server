@@ -559,7 +559,14 @@ trx_sys_create_rsegs(
 
 	/* By default 1 redo rseg is always active that is hosted in
 	system tablespace. */
-	ulint	n_redo_active = 1;
+	ulint	n_redo_active;
+	if (n_rsegs <= n_tmp_rsegs) {
+		n_redo_active = 1;
+	} else if (n_rsegs > n_used) {
+		n_redo_active = n_used - n_tmp_rsegs;
+	} else {
+		n_redo_active = n_rsegs - n_tmp_rsegs;
+	}
 
 	/* Do not create additional rollback segments if innodb_force_recovery
 	has been set and the database was not shutdown cleanly. */
