@@ -504,10 +504,10 @@ given at all. */
 extern const char *mysqld_system_database;
 
 /*
-  Structure to hold list of system_database.system_table.
+  Structure to hold list of database_name.table_name.
   This is used at both mysqld and storage engine layer.
 */
-struct st_system_tablename
+struct st_handler_tablename
 {
   const char *db;
   const char *tablename;
@@ -2873,6 +2873,25 @@ public:
   */
   virtual int
   get_parent_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
+  /**
+    Get the list of tables which are direct or indirect parents in foreign
+    key with cascading actions for this table.
+
+    @remarks Returns the set of parent tables connected by FK clause that
+    can modify the given table.
+
+    @param      thd             The thread handle.
+    @param[out] fk_table_list   List of parent tables (including indirect parents).
+                                Elements of the list as well as buffers for database
+                                and schema names are allocated from the current
+                                memory root. 
+
+    @return The handler error code or zero for success
+  */
+  virtual int
+  get_cascade_foreign_key_table_list(THD *thd,
+                                     List<st_handler_tablename> *fk_table_list)
   { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()

@@ -258,9 +258,6 @@ row_upd_check_references_constraints(
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
 
-			DBUG_EXECUTE_IF("row_ins_dict_change_err",
-					err = DB_DICT_CHANGED;);
-
 			if (ref_table != NULL) {
 				dict_table_close(ref_table, FALSE, FALSE);
 			}
