@@ -208,7 +208,8 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     global_changed,			/* If changed since open */
     not_flushed,
     temporary,delay_key_write,
-    concurrent_insert;
+    concurrent_insert,
+    have_rtree;
 
   THR_LOCK lock;
   mysql_mutex_t intern_lock;            /* Locking for use with _locking */

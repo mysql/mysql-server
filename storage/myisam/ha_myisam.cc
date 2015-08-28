@@ -727,6 +727,8 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 {
   MI_KEYDEF *keyinfo;
   MI_COLUMNDEF *recinfo= 0;
+  Myisam_handler_share *my_handler_share;
+  MYISAM_SHARE *share= NULL;
   uint recs;
   uint i;
 
@@ -748,8 +750,33 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   if (!(test_if_locked & HA_OPEN_TMP_TABLE) && opt_myisam_use_mmap)
     test_if_locked|= HA_OPEN_MMAP;
 
-  if (!(file=mi_open(name, mode, test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+  lock_shared_ha_data();
+  my_handler_share= static_cast<Myisam_handler_share*>(get_ha_share_ptr());
+  if (my_handler_share)
+    share= my_handler_share->m_share;
+
+  if (!(file= mi_open_share(name, share, mode,
+                            test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+  {
+    unlock_shared_ha_data();
     return (my_errno ? my_errno : -1);
+  }
+  if (!my_handler_share)
+  {
+    my_handler_share= new (std::nothrow) Myisam_handler_share;
+    if (my_handler_share)
+    {
+      my_handler_share->m_share= file->s;
+      set_ha_share_ptr(static_cast<Handler_share*>(my_handler_share));
+    }
+    else
+    {
+      mi_close(file);
+      unlock_shared_ha_data();
+      return (my_errno ? my_errno : HA_ERR_OUT_OF_MEM);
+    }
+  }
+  unlock_shared_ha_data();
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
     if ((my_errno= table2myisam(table, &keyinfo, &recinfo, &recs)))
@@ -807,9 +834,24 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
 
 int ha_myisam::close(void)
 {
-  MI_INFO *tmp=file;
+  my_bool closed_share= FALSE;
+  lock_shared_ha_data();
+  int err= mi_close_share(file, &closed_share);
   file=0;
-  return mi_close(tmp);
+  /*
+    Since tmp tables will also come to the same flow. To distinguesh with them
+    we need to check table_share->tmp_table.
+  */
+  if (closed_share && table_share->tmp_table == NO_TMP_TABLE)
+  {
+    Myisam_handler_share *my_handler_share=
+      static_cast<Myisam_handler_share*>(get_ha_share_ptr());
+    if (my_handler_share && my_handler_share->m_share)
+      delete (my_handler_share);
+    set_ha_share_ptr(NULL);
+  }
+  unlock_shared_ha_data();
+  return err;
 }
 
 int ha_myisam::write_row(uchar *buf)
