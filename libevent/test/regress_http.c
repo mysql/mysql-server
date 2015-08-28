@@ -1,6 +1,9 @@
 /*
  * Copyright (c) 2003-2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
+ * This file was modified by Oracle on 28-08-2015.
+ * Modifications copyright (c) 2015, Oracle and/or its affiliates.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -56,6 +59,8 @@
 #include "evhttp.h"
 #include "log.h"
 #include "http-internal.h"
+
+#define INNODB_CHANGED
 
 extern int pair[];
 extern int test_ok;
@@ -278,6 +283,15 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 {
 	struct timeval when = { 0, 0 };
 	struct chunk_req_state *state = malloc(sizeof(struct chunk_req_state));
+
+#ifdef INNODB_CHANGED
+	if (!state) {
+		fprintf(stderr, "Unable to allocate memory in"
+				"http_chunked_cb...\n");
+		exit (1);
+	 }
+#endif
+
 	event_debug(("%s: called\n", __func__));
 
 	memset(state, 0, sizeof(struct chunk_req_state));
