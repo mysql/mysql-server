@@ -309,7 +309,7 @@ const char *ha_legacy_type_name(legacy_db_type legacy_type)
 const char* mysqld_system_database= "mysql";
 
 // System tables that belong to mysqld_system_database.
-st_system_tablename mysqld_system_tables[]= {
+st_handler_tablename mysqld_system_tables[]= {
   {mysqld_system_database, "db"},
   {mysqld_system_database, "user"},
   {mysqld_system_database, "host"},
@@ -5045,7 +5045,7 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char *db,
   st_sys_tbl_chk_params check_params;
   bool is_system_database= false;
   const char **names;
-  st_system_tablename *systab;
+  st_handler_tablename *systab;
 
   // Check if we have a system database name in the command.
   DBUG_ASSERT(known_system_databases != NULL);

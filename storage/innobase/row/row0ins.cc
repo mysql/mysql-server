@@ -1695,8 +1695,6 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
-		bool		verified = false;
-
 		/* An object that will correctly decrement the FK check counter
 		when it goes out of this scope. */
 		ib_dec_in_dtor	dec(check_table->n_foreign_key_checks_running);
@@ -1725,30 +1723,6 @@ do_possible_lock_wait:
 			goto exit_func;
 		}
 
-		/* We had temporarily released dict_operation_lock in
-		above lock sleep wait, now we have the lock again, and
-		we will need to re-check whether the foreign key has been
-		dropped. We only need to verify if the table is referenced
-		table case (check_ref == 0), since MDL lock will prevent
-		concurrent DDL and DML on the same table */
-		if (!check_ref) {
-			for (dict_foreign_set::iterator it
-				= table->referenced_set.begin();
-			     it != table->referenced_set.end();
-			     ++it) {
-				if (*it == foreign) {
-					verified = true;
-					break;
-				}
-			}
-		} else {
-			verified = true;
-		}
-
-		if (!verified) {
-			err = DB_DICT_CHANGED;
-			trx->error_state = err;
-		}
 	}
 
 
@@ -1817,9 +1791,6 @@ row_ins_check_foreign_constraints(
 
 			err = row_ins_check_foreign_constraint(
 				TRUE, foreign, table, entry, thr);
-
-			DBUG_EXECUTE_IF("row_ins_dict_change_err",
-					err = DB_DICT_CHANGED;);
 
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);

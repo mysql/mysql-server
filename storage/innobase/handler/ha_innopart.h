@@ -547,6 +547,15 @@ public:
 		return(0);
 	}
 
+	// TODO: not yet supporting FK.
+	int
+	get_cascade_foreign_key_table_list(
+		THD*				thd,
+		List<st_handler_tablename>*	fk_table_list)
+	{
+		return(0);
+	}
+
 	int
 	read_range_next()
 	{

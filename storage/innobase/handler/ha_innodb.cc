@@ -14276,6 +14276,172 @@ ha_innobase::get_parent_foreign_key_list(
 	return(0);
 }
 
+/** Table list item structure is used to store only the table
+and name. It is used by get_cascade_foreign_key_table_list to store
+the intermediate result for fetching the table set. */
+struct table_list_item {
+	/** InnoDB table object */
+	const dict_table_t*	table;
+	/** Table name */
+	const char*		name;
+};
+
+/** Structure to compare two st_tablename objects using their
+db and tablename. It is used in the ordering of cascade_fk_set.
+It returns true if the first argument precedes the second argument
+and false otherwise. */
+struct tablename_compare {
+
+	bool operator()(const st_handler_tablename lhs,
+			const st_handler_tablename rhs) const
+	{
+		int cmp = strcmp(lhs.db, rhs.db);
+		if (cmp == 0) {
+			cmp = strcmp(lhs.tablename, rhs.tablename);
+		}
+
+		return(cmp < 0);
+	}
+};
+
+/** Get the table name and database name for the given table.
+@param[in,out]	thd		user thread handle
+@param[out]	f_key_info	pointer to table_name_info object
+@param[in]	foreign		foreign key constraint. */
+static
+void
+get_table_name_info(
+	THD*			thd,
+	st_handler_tablename*	f_key_info,
+	const dict_foreign_t*	foreign)
+{
+	char	tmp_buff[NAME_CHAR_LEN * FILENAME_CHARSET_MBMAXLEN + 1];
+	char	name_buff[NAME_CHAR_LEN * FILENAME_CHARSET_MBMAXLEN + 1];
+	const char*	ptr;
+
+	size_t  len = dict_get_db_name_len(
+		foreign->referenced_table_name_lookup);
+	ut_memcpy(tmp_buff, foreign->referenced_table_name_lookup, len);
+	tmp_buff[len] = 0;
+
+	ut_ad(len < sizeof(tmp_buff));
+
+	len = filename_to_tablename(tmp_buff, name_buff, sizeof(name_buff));
+	f_key_info->db = thd_strmake(thd, name_buff, len);
+
+	ptr = dict_remove_db_name(foreign->referenced_table_name_lookup);
+	len = filename_to_tablename(ptr, name_buff, sizeof(name_buff));
+	f_key_info->tablename = thd_strmake(thd, name_buff, len);
+}
+
+/** Get the list of tables ordered by the dependency on the other tables using
+the 'CASCADE' foreign key constraint.
+@param[in,out]	thd		user thread handle
+@param[out]	fk_table_list	set of tables name info for the
+				dependent table
+@retval 0 for success. */
+int
+ha_innobase::get_cascade_foreign_key_table_list(
+	THD*				thd,
+	List<st_handler_tablename>*	fk_table_list)
+{
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
+
+	m_prebuilt->trx->op_info = "getting cascading foreign keys";
+
+	std::list<table_list_item, ut_allocator<table_list_item> > table_list;
+
+	typedef std::set<st_handler_tablename, tablename_compare,
+			 ut_allocator<st_handler_tablename> >	cascade_fk_set;
+
+	cascade_fk_set	fk_set;
+
+	mutex_enter(&dict_sys->mutex);
+
+	/* Initialize the table_list with prebuilt->table name. */
+	struct table_list_item	item = {m_prebuilt->table,
+					m_prebuilt->table->name.m_name};
+
+	table_list.push_back(item);
+
+	/* Get the parent table, grand parent table info from the
+	table list by depth-first traversal. */
+	do {
+		const dict_table_t*			parent_table;
+		dict_table_t*				parent = NULL;
+		std::pair<cascade_fk_set::iterator,bool>	ret;
+
+		item = table_list.back();
+		table_list.pop_back();
+		parent_table = item.table;
+
+		if (parent_table == NULL) {
+
+			ut_ad(item.name != NULL);
+
+			parent_table = parent = dict_table_open_on_name(
+					item.name, TRUE, FALSE,
+					DICT_ERR_IGNORE_NONE);
+
+			if (parent_table == NULL) {
+				/* foreign_key_checks is or was probably
+				disabled; ignore the constraint */
+				continue;
+			}
+		}
+
+		for (dict_foreign_set::const_iterator it =
+		     parent_table->foreign_set.begin();
+		     it != parent_table->foreign_set.end(); ++it) {
+
+			const dict_foreign_t*	foreign = *it;
+			st_handler_tablename	f1;
+
+			/* Skip the table if there is no
+			cascading operation. */
+			if (0 == (foreign->type
+				  & ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+				      | DICT_FOREIGN_ON_UPDATE_NO_ACTION))) {
+				continue;
+			}
+
+			if (foreign->referenced_table_name_lookup != NULL) {
+				get_table_name_info(thd, &f1, foreign);
+				ret = fk_set.insert(f1);
+
+				/* Ignore the table if it is already
+				in the set. */
+				if (!ret.second) {
+					continue;
+				}
+
+				struct table_list_item	item1 = {
+					foreign->referenced_table,
+					foreign->referenced_table_name_lookup};
+
+				table_list.push_back(item1);
+
+				st_handler_tablename*	fk_table =
+					(st_handler_tablename*) thd_memdup(
+						thd, &f1, sizeof(*fk_table));
+
+				fk_table_list->push_back(fk_table);
+			}
+		}
+
+		if (parent != NULL) {
+			dict_table_close(parent, true, false);
+		}
+
+	} while(!table_list.empty());
+
+	mutex_exit(&dict_sys->mutex);
+
+	m_prebuilt->trx->op_info = "";
+
+	return(0);
+}
+
 /*****************************************************************//**
 Checks if ALTER TABLE may change the storage engine of the table.
 Changing storage engines is not allowed for tables for which there
