@@ -2277,6 +2277,16 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   }
   // Otherwise, we truncate the cache
   cache_mngr->trx_cache.restore_savepoint(pos);
+  /*
+    When a SAVEPOINT is executed inside a stored function/trigger we force the
+    pending event to be flushed with a STMT_END_F flag and clear the table maps
+    as well to ensure that following DMLs will have a clean state to start
+    with. ROLLBACK inside a stored routine has to finalize possibly existing
+    current row-based pending event with cleaning up table maps. That ensures
+    that following DMLs will have a clean state to start with.
+   */
+  if (thd->in_sub_stmt)
+    thd->clear_binlog_table_maps();
   DBUG_RETURN(0);
 }
 
@@ -6778,10 +6788,17 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
   /*
     We only end the statement if we are in a top-level statement.  If
     we are inside a stored function, we do not end the statement since
-    this will close all tables on the slave.
+    this will close all tables on the slave. But there can be a special case
+    where we are inside a stored function/trigger and a SAVEPOINT is being
+    set in side the stored function/trigger. This SAVEPOINT execution will
+    force the pending event to be flushed without an STMT_END_F flag. This
+    will result in a case where following DMLs will be considered as part of
+    same statement and result in data loss on slave. Hence in this case we
+    force the end_stmt to be true.
   */
-  bool const end_stmt=
-    thd->locked_tables_mode && thd->lex->requires_prelocking();
+  bool const end_stmt= (thd->in_sub_stmt && thd->lex->sql_command ==
+                        SQLCOM_SAVEPOINT)? true:
+    (thd->locked_tables_mode && thd->lex->requires_prelocking());
   if (thd->binlog_flush_pending_rows_event(end_stmt,
                                            event_info->is_using_trans_cache()))
     DBUG_RETURN(error);
