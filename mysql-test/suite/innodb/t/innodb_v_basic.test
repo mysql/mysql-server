@@ -874,7 +874,7 @@ create index idx on t(c);
 
 DROP TABLE t;
 
-CREATE TABLE BB (
+CREATE TABLE t (
                         pk INTEGER AUTO_INCREMENT,
                         col_int_nokey INTEGER /*! NULL */,
                         col_int INT GENERATED ALWAYS AS (col_int_nokey +
@@ -928,8 +928,8 @@ col_date_key, col_time_key, col_datetime_key)
                 )  AUTO_INCREMENT=10 ENGINE=INNODB PARTITION BY
 KEY(col_int_key) PARTITIONS 3;
 
-ALTER TABLE BB DROP COLUMN `pk`;
+ALTER TABLE t DROP COLUMN `pk`;
 
-SHOW CREATE TABLE BB;
+SHOW CREATE TABLE t;
 
-DROP TABLE BB;
+DROP TABLE t;
