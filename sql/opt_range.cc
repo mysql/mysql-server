@@ -7053,6 +7053,11 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   case TYPE_NOTE_TRUNCATED:
   case TYPE_WARN_TRUNCATED:
     return false;
+  case TYPE_WARN_ALL_TRUNCATED:
+    /*
+      A completely truncated value can not be used for creating a valid range
+      key
+    */
   case TYPE_ERR_BAD_VALUE:
     /*
       In the case of incompatible values, MySQL's SQL dialect has some
