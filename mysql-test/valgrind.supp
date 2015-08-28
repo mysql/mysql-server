@@ -927,7 +927,7 @@
    fun:_ZL10plugin_delP13st_plugin_int
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
-   fun:_ZL8clean_upb*
+   fun:_Z*8clean_upb*
 }
 
 {
