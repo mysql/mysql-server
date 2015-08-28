@@ -5,6 +5,9 @@
  *       http://www.danga.com/memcached/
  *  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
+ *  This file was modified by Oracle on 28-08-2015.
+ *  Modifications copyright (c) 2015, Oracle and/or its affiliates.
+ *  All rights reserved.
  *
  *  Use and distribution licensed under the BSD license.  See
  *  the LICENSE file for full text.
@@ -6430,6 +6433,15 @@ static void *new_independent_stats(void) {
     int ii;
     int nrecords = num_independent_stats();
     struct independent_stats *independent_stats = calloc(sizeof(independent_stats) + sizeof(struct thread_stats) * nrecords, 1);
+
+#ifdef INNODB_MEMCACHED
+    if (independent_stats == NULL) {
+	fprintf(stderr, "Unable to allocate memory for"
+		       "independent_stats...\n");
+       return (NULL);
+    }
+#endif
+
     if (settings.topkeys > 0)
         independent_stats->topkeys = topkeys_init(settings.topkeys);
     for (ii = 0; ii < nrecords; ii++)
@@ -7857,6 +7869,12 @@ int main (int argc, char **argv) {
     }
 
     default_independent_stats = new_independent_stats();
+
+#ifdef INNODB_MEMCACHED
+    if (!default_independent_stats) {
+	exit(EXIT_FAILURE);
+    }
+#endif
 
 #ifndef __WIN32__
     /*

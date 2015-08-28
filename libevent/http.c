@@ -1,6 +1,9 @@
 /*
  * Copyright (c) 2002-2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
+ * This file was modified by Oracle on 28-08-2015.
+ * Modifications copyright (c) 2015, Oracle and/or its affiliates.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -105,6 +108,7 @@
 
 #define NI_NUMERICHOST 1
 #define NI_NUMERICSERV 2
+#define INNODB_CHANGED
 
 static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 
@@ -2400,6 +2404,14 @@ evhttp_set_cb(struct evhttp *http, const char *uri,
 		event_err(1, "%s: calloc", __func__);
 
 	http_cb->what = strdup(uri);
+
+#ifdef INNODB_CHANGED
+	if (http_cb->what == NULL) {
+		free(http_cb);
+		event_err(1, "%s: strdup",__func__);
+       }
+#endif
+
 	http_cb->cb = cb;
 	http_cb->cbarg = cbarg;
 
