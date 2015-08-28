@@ -1510,8 +1510,10 @@ DROP TABLE t1;
 DROP USER u1@h;
 
 ########################################################################
-# E. Check specifying storage engine different from InnoDB
-#    for privilege tables.
+# E. Check that it is possible to ALTER  storage engine for privilege
+#    tables to MyISAM.
+#    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+#    to work.
 ########################################################################
 ALTER TABLE mysql.user ENGINE = MyISAM;
 ALTER TABLE mysql.db ENGINE = MyISAM;
@@ -1538,8 +1540,8 @@ ALTER TABLE mysql.procs_priv ENGINE = InnoDB;
 ALTER TABLE mysql.proxies_priv ENGINE = InnoDB;
 ALTER TABLE mysql.tables_priv ENGINE = InnoDB;
 ########################################################################
-# Checking that CREATE of privilege tables failed in case
-# specified engine type is MyISAM
+# Checking that it is possible to CREATE privilege tables in MyISAM.
+# This is necessary for upgrade via mysqldump to work.
 ########################################################################
 RENAME TABLE mysql.user TO mysql.user_bak;
 RENAME TABLE mysql.db TO mysql.db_bak;
@@ -1570,11 +1572,6 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 
 # Connection: default
 CREATE USER u1@h;
-
-# Shutting down mysqld...
-
-# Starting mysqld with --skip-grant-tables...
-# restart:--skip-grant-tables
 
 # Backup privilege tables and drop original ones
 RENAME TABLE mysql.user TO mysql.user_bak;
@@ -1716,9 +1713,6 @@ INSERT INTO mysql.tables_priv(Host, Db, User, Table_name, Grantor, Timestamp, Ta
 Column_priv) SELECT Host, Db, User, Table_name, Grantor, Timestamp, Table_priv, Column_priv
 FROM mysql.tables_priv_bak;
 COMMIT;
-# Drop backup tables
-DROP TABLE mysql.user_bak, mysql.db_bak, mysql.columns_priv_bak, mysql.procs_priv_bak,
-mysql.proxies_priv_bak, mysql.tables_priv_bak;
 CREATE TABLE t1 (a INT);
 call mtr.add_suppression("ACL table mysql.* must use supported storage engine");
 call mtr.add_suppression("mysql.user has no `Event_priv` column at position 28");
@@ -1767,7 +1761,9 @@ Checking server version.
 Running queries to upgrade MySQL server.
 Checking system database.
 mysql.columns_priv                                 OK
+mysql.columns_priv_bak                             OK
 mysql.db                                           OK
+mysql.db_bak                                       OK
 mysql.engine_cost                                  OK
 mysql.event                                        OK
 mysql.func                                         OK
@@ -1783,7 +1779,9 @@ mysql.ndb_binlog_index                             OK
 mysql.plugin                                       OK
 mysql.proc                                         OK
 mysql.procs_priv                                   OK
+mysql.procs_priv_bak                               OK
 mysql.proxies_priv                                 OK
+mysql.proxies_priv_bak                             OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -1791,12 +1789,14 @@ mysql.slave_relay_log_info                         OK
 mysql.slave_worker_info                            OK
 mysql.slow_log                                     OK
 mysql.tables_priv                                  OK
+mysql.tables_priv_bak                              OK
 mysql.time_zone                                    OK
 mysql.time_zone_leap_second                        OK
 mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+mysql.user_bak                                     OK
 The sys schema is already up to date (version 1.4.0).
 Checking databases.
 mtr.global_suppressions                            OK
@@ -1824,14 +1824,8 @@ procs_priv	InnoDB
 proxies_priv	InnoDB
 tables_priv	InnoDB
 user	InnoDB
-DROP USER u1@h;
-DROP TABLE t1;
-
-# Shutting down mysqld...
 # Downgrading
 
-# Starting mysqld with --skip-grant-tables...
-# restart:--skip-grant-tables
 
 # Alter the storage engine to MyISAM (downgrade).
 ALTER TABLE mysql.user ENGINE = MyISAM;
@@ -1852,3 +1846,16 @@ procs_priv	MyISAM
 proxies_priv	MyISAM
 tables_priv	MyISAM
 user	MyISAM
+# 
+# Clean-up. Restore original state of privilege tables.
+DROP TABLES mysql.user, mysql.db, mysql.columns_priv, mysql.procs_priv,
+mysql.proxies_priv, mysql.tables_priv;
+RENAME TABLE mysql.user_bak TO mysql.user;
+RENAME TABLE mysql.db_bak TO mysql.db;
+RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
+RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
+RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
+RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
+FLUSH PRIVILEGES;
+DROP USER u1@h;
+DROP TABLE t1;

@@ -1969,8 +1969,10 @@ DROP USER u1@h;
 
 --echo
 --echo ########################################################################
---echo # E. Check specifying storage engine different from InnoDB
---echo #    for privilege tables.
+--echo # E. Check that it is possible to ALTER  storage engine for privilege
+--echo #    tables to MyISAM.
+--echo #    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+--echo #    to work.
 --echo ########################################################################
 
 ALTER TABLE mysql.user ENGINE = MyISAM;
@@ -1999,8 +2001,8 @@ ALTER TABLE mysql.proxies_priv ENGINE = InnoDB;
 ALTER TABLE mysql.tables_priv ENGINE = InnoDB;
 
 --echo ########################################################################
---echo # Checking that CREATE of privilege tables failed in case
---echo # specified engine type is MyISAM
+--echo # Checking that it is possible to CREATE privilege tables in MyISAM.
+--echo # This is necessary for upgrade via mysqldump to work.
 --echo ########################################################################
 
 RENAME TABLE mysql.user TO mysql.user_bak;
@@ -2037,8 +2039,6 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 --echo # F. Upgrade/downgrade tests.
 --echo ########################################################################
 
-# Reset the server state before shutdown.
-
 --echo
 --echo # Disconnect con1
 --connection con1
@@ -2049,20 +2049,9 @@ RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
 --echo # Connection: default
 --connection default
 
---let $MYSQLD_DATADIR = `SELECT @@datadir`
-
 # Create the user u1@h before server upgrade.
 
 CREATE USER u1@h;
-
---echo
---echo # Shutting down mysqld...
---source include/shutdown_mysqld.inc
-
---echo
---echo # Starting mysqld with --skip-grant-tables...
---let $restart_parameters = restart:--skip-grant-tables
---source include/start_mysqld.inc
 
 --echo
 --echo # Backup privilege tables and drop original ones
@@ -2221,10 +2210,6 @@ INSERT INTO mysql.tables_priv(Host, Db, User, Table_name, Grantor, Timestamp, Ta
  FROM mysql.tables_priv_bak;
 COMMIT;
 
---echo # Drop backup tables
-DROP TABLE mysql.user_bak, mysql.db_bak, mysql.columns_priv_bak, mysql.procs_priv_bak,
- mysql.proxies_priv_bak, mysql.tables_priv_bak;
-
 CREATE TABLE t1 (a INT);
 call mtr.add_suppression("ACL table mysql.* must use supported storage engine");
 
@@ -2295,18 +2280,8 @@ WHERE table_schema = 'mysql' AND
                      'proxies_priv', 'tables_priv')
 ORDER BY table_name;
 
-DROP USER u1@h;
-DROP TABLE t1;
-
---echo
---echo # Shutting down mysqld...
---source include/shutdown_mysqld.inc
-
 --echo # Downgrading
 --echo
---echo # Starting mysqld with --skip-grant-tables...
---let $restart_parameters = restart:--skip-grant-tables
---source include/start_mysqld.inc
 
 --echo
 --echo # Alter the storage engine to MyISAM (downgrade).
@@ -2324,3 +2299,20 @@ WHERE table_schema = 'mysql' AND
                      'proxies_priv', 'tables_priv')
 ORDER BY table_name;
 
+--echo # 
+--echo # Clean-up. Restore original state of privilege tables.
+
+DROP TABLES mysql.user, mysql.db, mysql.columns_priv, mysql.procs_priv,
+ mysql.proxies_priv, mysql.tables_priv;
+
+RENAME TABLE mysql.user_bak TO mysql.user;
+RENAME TABLE mysql.db_bak TO mysql.db;
+RENAME TABLE mysql.columns_priv_bak TO mysql.columns_priv;
+RENAME TABLE mysql.procs_priv_bak TO mysql.procs_priv;
+RENAME TABLE mysql.proxies_priv_bak TO mysql.proxies_priv;
+RENAME TABLE mysql.tables_priv_bak TO mysql.tables_priv;
+
+FLUSH PRIVILEGES;
+
+DROP USER u1@h;
+DROP TABLE t1;
