@@ -147,6 +147,11 @@ enum type_conversion_status
     case.
   */
   TYPE_WARN_TRUNCATED,
+  /**
+    Value has been completely truncated. When this happens, it makes
+    comparisions with index impossible and confuses the range optimizer.
+  */
+  TYPE_WARN_ALL_TRUNCATED,
   /// Trying to store NULL in a NOT NULL field.
   TYPE_ERR_NULL_CONSTRAINT_VIOLATION,
   /**
@@ -1814,7 +1819,8 @@ private:
                                                   bool count_spaces);
 protected:
   type_conversion_status
-    check_string_copy_error(const char *well_formed_error_pos,
+    check_string_copy_error(const char *original_string,
+                            const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
                             const char *from_end_pos,
                             const char *end,
