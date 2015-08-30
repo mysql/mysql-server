@@ -559,7 +559,7 @@ static bool mysql_update(THD *thd,
 
   used_key_is_modified|= partition_key_modified(table, table->write_set);
 
-  using_filesort= order && (need_sort||used_key_is_modified);
+  using_filesort= order && need_sort;
 
   {
     ha_rows rows;

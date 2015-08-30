@@ -4338,8 +4338,7 @@ uint get_index_for_order(ORDER *order, QEP_TAB *tab,
     if (test_if_cheaper_ordering(NULL, order, table,
                                  table->keys_in_use_for_order_by, -1,
                                  limit,
-                                 &key, &direction, &limit) &&
-        !is_key_used(table, key, table->write_set))
+                                 &key, &direction, &limit))
     {
       *need_sort= FALSE;
       *reverse= (direction < 0);
