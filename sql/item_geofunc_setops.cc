@@ -2959,9 +2959,15 @@ public:
   If str contains a nested geometry collection, the effective concrete geometry
   object is returned.
   @param str A string buffer containing a GEOMETRY byte string.
+  @param [out] result_buffer if not NULL and if a simplification is to be done,
+               we will copy the GEOMETRY byte string from str into result_buffer
+               and simplify the one stored in result_buffer, and the one in str
+               is intact. If there is any data in result_buffer before calling
+               this function, it is overwritten; If no simplification done, the
+               result_buffer is intact if it is provided.
   @return whether the geometry is simplified or not.
  */
-bool simplify_multi_geometry(String *str)
+bool simplify_multi_geometry(String *str, String *result_buffer)
 {
   if (str->length() < GEOM_HEADER_SIZE)
     return false;
@@ -2976,6 +2982,13 @@ bool simplify_multi_geometry(String *str)
   {
     if (uint4korr(p + GEOM_HEADER_SIZE) == 1)
     {
+      if (result_buffer)
+      {
+        result_buffer->length(0);
+        result_buffer->append(*str);
+        p= const_cast<char *>(result_buffer->ptr());
+        str= result_buffer;
+      }
       DBUG_ASSERT((str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE) > 0);
       int4store(p + 5, static_cast<uint32>(base_type(gtype)));
       memmove(p + GEOM_HEADER_SIZE, p + GEOM_HEADER_SIZE + 4 + WKB_HEADER_SIZE,
@@ -2992,6 +3005,13 @@ bool simplify_multi_geometry(String *str)
                 Geometry::wkb_geometrycollection, false, &ex);
     if (ex.has_single_component())
     {
+      if (result_buffer)
+      {
+        result_buffer->length(0);
+        result_buffer->append(*str);
+        p= const_cast<char *>(result_buffer->ptr());
+        str= result_buffer;
+      }
       p= write_wkb_header(p + 4, ex.get_type());
       ptrdiff_t len= ex.get_end() - ex.get_start();
       DBUG_ASSERT(len > 0);
@@ -3021,6 +3041,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   Geometry_buffer buffer1, buffer2;
   Geometry *g1= NULL, *g2= NULL, *gres= NULL;
   bool had_except1= false, had_except2= false;
+  bool result_is_args= false;
 
   // Release last call's result buffer.
   bg_resbuf_mgr.free_result_buffer();
@@ -3145,11 +3166,26 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   {
     DBUG_ASSERT(gres->has_geom_header_space() || (gres == g1 || gres == g2));
     if (gres == g1)
+    {
       str_value_arg= res1;
+      result_is_args= true;
+    }
     else if (gres == g2)
+    {
       str_value_arg= res2;
+      result_is_args= true;
+    }
   }
-  simplify_multi_geometry(str_value_arg);
+
+  /*
+    We can not modify the geometry argument because it is assumed to be stable.
+    So if returning one of the arguments as result directly, make sure the
+    simplification is done in a separate buffer.
+  */
+  if (simplify_multi_geometry(str_value_arg,
+                              (result_is_args ? &m_result_buffer : NULL)) &&
+      result_is_args)
+    str_value_arg= &m_result_buffer;
 
 exit:
   if (gres != g1 && gres != g2 && gres != NULL)

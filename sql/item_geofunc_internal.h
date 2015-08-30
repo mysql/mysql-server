@@ -62,7 +62,7 @@
 
 #define GIS_ZERO 0.00000000001
 
-extern bool simplify_multi_geometry(String *str);
+extern bool simplify_multi_geometry(String *str, String *result_buffer);
 
 using std::auto_ptr;
 
