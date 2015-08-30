@@ -858,6 +858,7 @@ public:
   }
 private:
   op_type spatial_op;
+  String m_result_buffer;
 };
 
 
@@ -922,7 +923,7 @@ private:
   */
   Strategy_setting settings[side_strategy + 1];
   String tmp_value;                             // Stores current buffer result.
-
+  String m_tmp_geombuf;
   void set_strategies();
 public:
   Item_func_buffer(const POS &pos, PT_item_list *ilist);
