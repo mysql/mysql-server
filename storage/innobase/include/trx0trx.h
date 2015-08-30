@@ -1446,21 +1446,15 @@ private:
 
 		/* Avoid excessive mutex acquire/release */
 
+		ut_ad(!is_async_rollback(trx));
+
 		++trx->in_depth;
 
+		/* If trx->in_depth is greater than 1 then
+		transaction is already in InnoDB. */
 		if (trx->in_depth > 1) {
 
-			/* However, we should check that if there is an
-			asynchronous rollback for this trx. If so, any other
-			thread must wait for the asnychronous rollback,
-			while the thread which invoked the rollback can enter
-			immediately. The dirty read here should be safe, only
-			the thread which invoked the rollback will mask the
-			rollback bits out. */
-			if (!(trx->in_innodb & TRX_FORCE_ROLLBACK)
-			    || is_async_rollback(trx)) {
-				return;
-			}
+			return;
 		}
 
 		/* Only the owning thread should release the latch. */
@@ -1480,8 +1474,7 @@ private:
 		if (!is_forced_rollback(trx)
 		    && disable
 		    && is_started(trx)
-		    && !trx_is_autocommit_non_locking(trx)
-		    && !is_async_rollback(trx)) {
+		    && !trx_is_autocommit_non_locking(trx)) {
 
 			ut_ad(trx->killed_by == 0);
 
@@ -1547,7 +1540,7 @@ private:
 
 		while (is_forced_rollback(trx)) {
 
-			if (is_async_rollback(trx) || !is_started(trx)) {
+			if (!is_started(trx)) {
 
 				return;
 			}

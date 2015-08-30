@@ -3302,6 +3302,8 @@ trx_kill_blocking(trx_t* trx)
 		return;
 	}
 
+	DEBUG_SYNC_C("trx_kill_blocking_enter");
+
 	ulint	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {

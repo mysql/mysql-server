@@ -13285,6 +13285,8 @@ ha_innobase::info_low(
 
 	DBUG_ENTER("info");
 
+	DEBUG_SYNC_C("ha_innobase_info_low");
+
 	/* If we are forcing recovery at a high level, we will suppress
 	statistics calculation on tables, because that may crash the
 	server if an index is badly corrupted. */
