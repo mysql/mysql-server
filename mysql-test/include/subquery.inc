@@ -6500,3 +6500,39 @@ SELECT 1 FROM t WHERE 1 IN
 );
 SET @@SQL_MODE=DEFAULT;
 DROP TABLE t;
+
+# New tests can use InnoDB as default
+SET DEFAULT_STORAGE_ENGINE=INNODB;
+
+--echo #
+--echo # Bug#21205577 ASSERTION FAILED: (INT)IDX >= 0 && IDX < PARENT_JOIN->TABLES
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(1),(1),(1),(1),(1);
+
+SELECT
+(
+  (SELECT 1 IN (SELECT 1 FROM t1 AS x1))
+  IN
+  (
+    SELECT 1 FROM t2
+    WHERE a IN (SELECT 4 FROM t1 AS x2)
+  )
+) AS result
+FROM t1 AS x3;
+
+SELECT
+(
+  (36, (SELECT 1 IN (SELECT 1 FROM t1 AS x1)))
+  IN
+  (
+    SELECT 36, 1 FROM t2
+    WHERE a IN (SELECT 4 FROM t1 AS x2)
+  )
+) AS result
+FROM t1 AS x3;
+
+DROP TABLE t1,t2;
