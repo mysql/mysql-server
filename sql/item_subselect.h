@@ -172,7 +172,7 @@ public:
   bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
-  bool inform_item_in_cond_of_tab(uchar *join_tab_index);
+  bool inform_item_in_cond_of_tab(uchar *arg);
   virtual bool clean_up_after_removal(uchar *arg);
 
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }

@@ -1839,7 +1839,7 @@ public:
   */
   virtual bool used_tables_for_level(uchar *arg) { return false; }
   virtual bool check_column_privileges(uchar *arg) { return false; }
-  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) {return false;}
+  virtual bool inform_item_in_cond_of_tab(uchar *arg) { return false; }
   /**
      Clean up after removing the item from the item tree.
 
