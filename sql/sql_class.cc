@@ -1849,12 +1849,11 @@ void THD::shutdown_active_vio()
 
 /*
   Register an item tree tree transformation, performed by the query
-  optimizer. We need a pointer to runtime_memroot because it may be !=
-  thd->mem_root (due to possible set_n_backup_active_arena called for thd).
+  optimizer.
 */
 
-void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
-                                            MEM_ROOT *runtime_memroot)
+void THD::nocheck_register_item_tree_change(Item **place,
+                                            Item *new_value)
 {
   Item_change_record *change;
   /*
@@ -1862,7 +1861,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
     but still is rather fast as we use alloc_root for allocations.
     A list of item tree changes of an average query should be short.
   */
-  void *change_mem= alloc_root(runtime_memroot, sizeof(*change));
+  void *change_mem= alloc_root(mem_root, sizeof(*change));
   if (change_mem == 0)
   {
     /*
@@ -1871,24 +1870,40 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *old_value,
     */
     return;
   }
-  change= new (change_mem) Item_change_record;
-  change->place= place;
-  change->old_value= old_value;
+  change= new (change_mem) Item_change_record(place, new_value);
   change_list.push_front(change);
 }
 
 
-void THD::change_item_tree_place(Item **old_ref, Item **new_ref)
+void THD::replace_rollback_place_for_ref(Item **old_place, Item **new_place)
 {
   I_List_iterator<Item_change_record> it(change_list);
   Item_change_record *change;
   while ((change= it++))
   {
-    if (change->place == old_ref)
+    if (change->place == old_place)
     {
-      DBUG_PRINT("info", ("change_item_tree_place old_ref %p new_ref %p",
-                          old_ref, new_ref));
-      change->place= new_ref;
+      DBUG_PRINT("info",
+                 ("replace_rollback_place_for_ref old_ref %p new_ref %p",
+                  old_place, new_place));
+      change->place= new_place;
+      break;
+    }
+  }
+}
+
+
+void THD::replace_rollback_place_for_value(Item *new_value, Item **new_place)
+{
+  I_List_iterator<Item_change_record> it(change_list);
+  Item_change_record *change;
+  while ((change= it++))
+  {
+    if (change->new_value == new_value)
+    {
+      DBUG_PRINT("info", ("replace_rollback_place new_value %p place %p",
+                          new_value, new_place));
+      change->place= new_place;
       break;
     }
   }

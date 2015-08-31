@@ -12252,5 +12252,29 @@ WHERE 1 IN
 (SELECT (c IS NULL) IN (SELECT a FROM t1 WHERE b)  FROM t2);
 1
 DROP TABLE t1,t2;
+#
+# Bug#21619634 ACCESS OF DEALLOCATED ITEM_OUTER_REF CAUSES CRASH: PREPARED STMT
+#
+create table cc (i int) engine="innodb";
+insert into cc values (1);
+select (select count(i) from cc as cc_alias
+where (cc.i in (select cc_alias.i from cc)))
+from cc group by i;
+(select count(i) from cc as cc_alias
+where (cc.i in (select cc_alias.i from cc)))
+1
+prepare stmt from
+"select (select count(i) from cc as cc_alias
+         where (cc.i in (select cc_alias.i from cc)))
+     from cc group by i";
+execute stmt;
+(select count(i) from cc as cc_alias
+         where (cc.i in (select cc_alias.i from cc)))
+1
+execute stmt;
+(select count(i) from cc as cc_alias
+         where (cc.i in (select cc_alias.i from cc)))
+1
+drop table cc;
 set optimizer_switch=default;
 set optimizer_switch=default;
