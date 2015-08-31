@@ -1868,7 +1868,7 @@ static const char *transaction_write_set_hashing_algorithms[]=
 
 static Sys_var_enum Sys_extract_write_set(
        "transaction_write_set_extraction",
-       "This option is used to let the server know when to"
+       "This option is used to let the server know when to "
        "extract the write set which will be used for various purposes. ",
        SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
        transaction_write_set_hashing_algorithms,
@@ -3350,7 +3350,7 @@ static Sys_var_set Slave_type_conversions(
        " ALL_UNSIGNED to treat all integer column type data to be unsigned values, and"
        " ALL_SIGNED to treat all integer column type data to be signed values." 
        " Default treatment is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are"
-       " specifed, ALL_SIGNED will take high priority than ALL_UNSIGNED."
+       " specified, ALL_SIGNED will take higher priority than ALL_UNSIGNED."
        " If the variable is assigned the empty set, no conversions are"
        " allowed and it is expected that the types match exactly.",
        GLOBAL_VAR(slave_type_conversions_options), CMD_LINE(REQUIRED_ARG),
@@ -3426,7 +3426,7 @@ static Sys_var_set Slave_rows_search_algorithms(
 static const char *mts_parallel_type_names[]= {"DATABASE", "LOGICAL_CLOCK", 0};
 static Sys_var_enum Mts_parallel_type(
        "slave_parallel_type",
-       "Specifies if the slave will use database partioning "
+       "Specifies if the slave will use database partitioning "
        "or information from master to parallelize transactions."
        "(Default: DATABASE).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
@@ -4024,7 +4024,7 @@ static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
        internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
-       "default_tmp_storage_engine", "The default storage engine for new explict temporary tables",
+       "default_tmp_storage_engine", "The default storage engine for new explicit temporary tables",
        SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_storage_engine));

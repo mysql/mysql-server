@@ -1057,7 +1057,7 @@ The following options may be given as the first argument:
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
  --slave-parallel-type=name 
- Specifies if the slave will use database partioning or
+ Specifies if the slave will use database partitioning or
  information from master to parallelize
  transactions.(Default: DATABASE).
  --slave-parallel-workers=# 
@@ -1099,7 +1099,7 @@ The following options may be given as the first argument:
  unsigned values, and ALL_SIGNED to treat all integer
  column type data to be signed values. Default treatment
  is ALL_SIGNED. If ALL_SIGNED and ALL_UNSIGNED both are
- specifed, ALL_SIGNED will take high priority than
+ specified, ALL_SIGNED will take higher priority than
  ALL_UNSIGNED. If the variable is assigned the empty set,
  no conversions are allowed and it is expected that the
  types match exactly.
@@ -1189,8 +1189,9 @@ The following options may be given as the first argument:
  Default transaction access mode. True if transactions are
  read-only.
  --transaction-write-set-extraction[=name] 
- This option is used to let the server know when toextract
- the write set which will be used for various purposes. 
+ This option is used to let the server know when to
+ extract the write set which will be used for various
+ purposes.
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
