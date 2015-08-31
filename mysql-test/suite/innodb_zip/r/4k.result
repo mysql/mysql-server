@@ -20,6 +20,9 @@ WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
 	ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
+mysql/columns_priv	10	33	PRIMARY	3	3	5	50
+mysql/db	25	33	PRIMARY	3	3	3	50
+mysql/db	25	33	User	4	0	1	50
 mysql/engine_cost	9	33	PRIMARY	3	3	3	50
 mysql/gtid_executed	6	33	PRIMARY	3	3	2	50
 mysql/help_category	7	33	PRIMARY	3	3	1	50
@@ -32,16 +35,23 @@ mysql/help_topic	9	33	name	4	2	1	50
 mysql/innodb_index_stats	11	33	PRIMARY	3	3	4	50
 mysql/innodb_table_stats	9	33	PRIMARY	3	3	2	50
 mysql/plugin	5	33	PRIMARY	3	3	1	50
+mysql/procs_priv	11	33	PRIMARY	3	3	5	50
+mysql/procs_priv	11	33	Grantor	4	0	1	50
+mysql/proxies_priv	10	33	PRIMARY	3	3	4	50
+mysql/proxies_priv	10	33	Grantor	4	0	1	50
 mysql/servers	12	33	PRIMARY	3	3	1	50
 mysql/server_cost	7	33	PRIMARY	3	3	1	50
 mysql/slave_master_info	27	33	PRIMARY	3	3	1	50
 mysql/slave_relay_log_info	12	33	PRIMARY	3	3	1	50
 mysql/slave_worker_info	16	33	PRIMARY	3	3	2	50
+mysql/tables_priv	11	33	PRIMARY	3	3	4	50
+mysql/tables_priv	11	33	Grantor	4	0	1	50
 mysql/time_zone	5	33	PRIMARY	3	3	1	50
 mysql/time_zone_leap_second	5	33	PRIMARY	3	3	1	50
 mysql/time_zone_name	5	33	PRIMARY	3	3	1	50
 mysql/time_zone_transition	6	33	PRIMARY	3	3	2	50
 mysql/time_zone_transition_type	8	33	PRIMARY	3	3	2	50
+mysql/user	48	33	PRIMARY	3	3	2	50
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
