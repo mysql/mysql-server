@@ -6803,6 +6803,7 @@ bool is_spatial_operator(Item_func::Functype op_type)
   case Item_func::SP_POINTN:
   case Item_func::SP_GEOMETRYN:
   case Item_func::SP_INTERIORRINGN:
+  case Item_func::SP_WKB_FUNC:
     return true;
   default:
     return false;

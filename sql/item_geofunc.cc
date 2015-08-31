@@ -185,8 +185,14 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     Geometry::create_from_wkb(), and consequently such WKB data must be
     MySQL standard (little) endian. Note that users can pass via client
     any WKB/Geometry byte string, including those of big endianess.
+
+    For the functions that return WKB data(i.e. SP_WKB_FUNC), their field type
+    is also MYSQL_TYPE_GEOMETRY to other part of MySQL, but to GIS we must
+    distinguish them, and here is the only place where we have to do so.
   */
-  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
+  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY &&
+      !(args[0]->type() == Item::FUNC_ITEM &&
+        down_cast<Item_func *>(args[0])->functype() == SP_WKB_FUNC))
   {
     Geometry_buffer buff;
     if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == NULL)
