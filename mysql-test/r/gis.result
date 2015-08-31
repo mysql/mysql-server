@@ -694,7 +694,7 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select ST_asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					ST_asbinary(g)	252	4294967295	0	Y	128	0	63
+def					ST_asbinary(g)	255	4294967295	0	Y	128	0	63
 ST_asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
@@ -766,7 +766,7 @@ from
 t2 ws;
 describe t3;
 Field	Type	Null	Key	Default	Extra
-geomdatawkb	longblob	YES		NULL	
+geomdatawkb	geometry	YES		NULL	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -1128,9 +1128,7 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 ;
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 Warning	1441	Datetime function: datetime field overflow
-Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\x00@'
 DROP TABLE g1;
 #
 # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
@@ -2352,3 +2350,75 @@ ST_GEOMFROMTEXT('MULTIPOLYGON(((15 10,10 15,10 17,15 10)),((15 10,10
 20,10 22,15 10)),((15 10,10 25,10 27,15 10)),((25 10,30 17,30 15,25
 10))
 1
+#
+# Bug#21614368 CRASH IN GEOMETRY::CONSTRUCT WITH BLOB INPUT
+#
+FLUSH TABLES;
+CREATE TABLE t(a BLOB NOT NULL, b DATE NOT NULL) ENGINE=Innodb;
+SELECT NOT EXISTS
+( SELECT 1 FROM t WHERE (SELECT a FROM t)
+IN (SELECT b FROM t)
+) AS rescol FROM t;
+rescol
+SELECT NOT EXISTS
+( SELECT 1 FROM t WHERE (SELECT ST_GeomFromWKB(a) FROM t)
+IN (SELECT b FROM t)
+) AS rescol FROM t;
+rescol
+SELECT NOT EXISTS
+( SELECT 1 FROM t WHERE (SELECT st_AsWKB(a) FROM t)
+IN (SELECT b FROM t)
+)AS rescol  FROM t;
+rescol
+SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
+result
+0
+SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
+result
+0
+INSERT INTO t VALUES(ST_GeomFromText('POINT(0 0)'), CURDATE());
+SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t) AS result;
+result
+0
+SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t) AS result;
+result
+0
+SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
+ERROR HY000: Incorrect arguments to >
+SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
+ERROR HY000: Incorrect arguments to >
+DROP TABLE t;
+CREATE TABLE t1(a BLOB NOT NULL, b INT NOT NULL) ENGINE=Innodb;
+SELECT NOT EXISTS
+( SELECT 1 FROM t1 WHERE (SELECT a FROM t1)
+IN (SELECT b FROM t1)
+) AS rescol FROM t1;
+rescol
+SELECT NOT EXISTS
+( SELECT 1 FROM t1 WHERE (SELECT ST_GeomFromWKB(a) FROM t1)
+IN (SELECT b FROM t1)
+) AS rescol FROM t1;
+rescol
+SELECT NOT EXISTS
+( SELECT 1 FROM t1 WHERE (SELECT st_AsWKB(a) FROM t1)
+IN (SELECT b FROM t1)
+)AS rescol  FROM t1;
+rescol
+SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t1) AS result;
+result
+0
+SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t1) AS result;
+result
+0
+INSERT INTO t1 VALUES(ST_GeomFromText('POINT(0 0)'), 1);
+SELECT ST_GeomFromText('POINT(0 0)') IN (SELECT b FROM t1) AS result;
+result
+0
+SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) IN (SELECT b FROM t1) AS result;
+result
+0
+SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t1) AS result;
+ERROR HY000: Incorrect arguments to >
+SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t1) AS result;
+ERROR HY000: Incorrect arguments to >
+DROP TABLE t1;

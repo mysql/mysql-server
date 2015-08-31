@@ -696,7 +696,7 @@ def	test	t1	t1	g	g	255	4294967295	0	Y	144	0	63
 g
 select ST_asbinary(g) from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					ST_asbinary(g)	252	4294967295	0	Y	128	0	63
+def					ST_asbinary(g)	255	4294967295	0	Y	128	0	63
 ST_asbinary(g)
 drop table t1;
 create table t1 (a TEXT, b GEOMETRY NOT NULL, SPATIAL KEY(b));
@@ -774,7 +774,7 @@ from
 t2 ws;
 describe t3;
 Field	Type	Null	Key	Default	Extra
-geomdatawkb	longblob	YES		NULL	
+geomdatawkb	geometry	YES		NULL	
 drop table t1;
 drop table t2;
 drop table t3;
@@ -1135,9 +1135,7 @@ FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
 ;
 1
 Warnings:
-Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 Warning	1441	Datetime function: datetime field overflow
-Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\x00@'
 DROP TABLE g1;
 #
 # Bug#13013970 MORE CRASHES IN FIELD_BLOB::GET_KEY_IMAGE
