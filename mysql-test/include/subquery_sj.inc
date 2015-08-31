@@ -7096,3 +7096,25 @@ WHERE 1 IN
 eval EXPLAIN $query;
 eval $query;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#21619634 ACCESS OF DEALLOCATED ITEM_OUTER_REF CAUSES CRASH: PREPARED STMT
+--echo #
+create table cc (i int) engine="innodb";
+insert into cc values (1);
+
+# Always worked
+select (select count(i) from cc as cc_alias
+          where (cc.i in (select cc_alias.i from cc)))
+      from cc group by i;
+
+# Used to crash:
+# Without alias cc_alias.i as outer reference, no crash
+prepare stmt from
+"select (select count(i) from cc as cc_alias
+         where (cc.i in (select cc_alias.i from cc)))
+     from cc group by i";
+
+execute stmt;
+execute stmt;
+drop table cc;

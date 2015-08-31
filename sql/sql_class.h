@@ -839,10 +839,18 @@ private:
   yet another time.
 */
 
-struct Item_change_record: public ilink<Item_change_record>
+class Item_change_record: public ilink<Item_change_record>
 {
+private:
+  // not used
+  Item_change_record() {}
+public:
+  Item_change_record(Item **place, Item *new_value)
+    : place(place), old_value(*place), new_value(new_value)
+  {}
   Item **place;
   Item *old_value;
+  Item *new_value;
 };
 
 typedef I_List<Item_change_record> Item_change_list;
@@ -3267,27 +3275,61 @@ public:
                   place, *place, new_value));
       if (new_value)
         new_value->set_runtime_created(); /* Note the change of item tree */
-      nocheck_register_item_tree_change(place, *place, mem_root);
+      nocheck_register_item_tree_change(place, new_value);
     }
     *place= new_value;
   }
 
-/*
-  Find and update change record of an underlying item.
+  /**
+    Remember that place was updated with new_value so it can be restored
+    by rollback_item_tree_changes().
 
-  @param old_ref The old place of moved expression.
-  @param new_ref The new place of moved expression.
-  @details
-  During permanent transformations, e.g. join flattening in simplify_joins,
-  a condition could be moved from one place to another, e.g. from on_expr
-  to WHERE condition. If the moved condition has replaced some other with
-  change_item_tree() function, the change record will restore old value
-  to the wrong place during rollback_item_tree_changes. This function goes
-  through the list of change records, and replaces Item_change_record::place.
-*/
-  void change_item_tree_place(Item **old_ref, Item **new_ref);
-  void nocheck_register_item_tree_change(Item **place, Item *old_value,
-                                         MEM_ROOT *runtime_memroot);
+    @param[in] place the location that will change, and whose old value
+               we need to remember for restoration
+    @param[in] the new value about to be inserted into *place, remember
+               for associative lookup, see replace_rollback_place_for_value()
+  */
+  void nocheck_register_item_tree_change(Item **place, Item *new_value);
+
+  /**
+   Find and update change record of an underlying item based on the old
+   place.
+
+   During permanent transformations, e.g. join flattening in simplify_joins,
+   a condition could be moved from one place to another, e.g. from on_expr
+   to WHERE condition. If the moved condition has replaced some other with
+   change_item_tree() function, the change record will restore old value
+   to the wrong place during rollback_item_tree_changes. This function goes
+   through the list of change records, and replaces Item_change_record::place.
+
+   @param old_place The old place of moved expression.
+   @param new_place The new place of moved expression.
+   */
+  void replace_rollback_place_for_ref(Item **old_place, Item **new_place);
+
+  /**
+    Find and update change record of an underlying item based on the new
+    value for a place.
+
+    If we have already saved a position to rollback for new_value,
+    forget that rollback position and register the new place instead,
+    typically because a transformation has made the old place irrelevant.
+    If not, a no-op.
+
+    @param new_value  The value which needs to be rolled back (transient)
+    @param new_place  The new location in which we have presumably saved
+                      the new value, but which need to be rolled back to
+                      the old value
+  */
+  void replace_rollback_place_for_value(Item *new_value, Item **new_place);
+
+  /**
+    Restore locations set by calls to nocheck_register_item_tree_change().  The
+    value to be restored depends on whether replace_rollback_place_for_value()
+    has been called. If not, we restore the original value. If it has been
+    called, we restore the one supplied by the latest call to
+    replace_rollback_place_for_value()
+  */
   void rollback_item_tree_changes();
 
   /*

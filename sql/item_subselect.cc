@@ -1786,7 +1786,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
           transformation (like Item_field to Item_ref), make sure we
           are rolling it back based on location inside Item_sum arg list.
         */
-        thd->change_item_tree_place(it.ref(), item->get_arg_ptr(0));
+        thd->replace_rollback_place_for_ref(it.ref(), item->get_arg_ptr(0));
       }
 
       DBUG_EXECUTE("where",
