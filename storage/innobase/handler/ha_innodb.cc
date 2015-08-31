@@ -18795,7 +18795,7 @@ static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
 static MYSQL_SYSVAR_ULONGLONG(max_undo_log_size, srv_max_undo_log_size,
   PLUGIN_VAR_OPCMDARG,
   "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows"
-  " beyond ths size it will be truncated in due-course). ",
+  " beyond this size it will be truncated in due course). ",
   NULL, NULL,
   1024 * 1024 * 1024L,
   10 * 1024 * 1024L,
