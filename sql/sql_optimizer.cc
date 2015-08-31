@@ -9364,10 +9364,10 @@ static bool make_join_select(JOIN *join, Item *cond)
           be marked as "in condition of t1" but as "in condition of t2", for
           correct calculation of the number of its executions.
         */
-        int idx= i;
+        std::pair<SELECT_LEX *, int> pair_object(join->select_lex, i);
         cond->walk(&Item::inform_item_in_cond_of_tab,
                    Item::WALK_POSTFIX,
-                   reinterpret_cast<uchar * const>(&idx));
+                   pointer_cast<uchar * const>(&pair_object));
       }
 
     }

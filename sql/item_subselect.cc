@@ -2710,16 +2710,30 @@ bool Item_in_subselect::init_left_expr_cache()
 
 
 /**
-   Tells an Item that it is in the condition of a JOIN_TAB
+  Tells an Item that it is in the condition of a JOIN_TAB of a query block.
 
-  @param 'join_tab_index'  index of JOIN_TAB in JOIN's array
+  @param arg  A std::pair: first argument is the query block, second is the
+  index of JOIN_TAB in JOIN's array.
 
-   The Item records this fact and can deduce from it the estimated number of
-   times that it will be evaluated.
+  The Item records this fact and can deduce from it the estimated number of
+  times that it will be evaluated.
+  If the JOIN_TAB doesn't belong to the query block owning this
+  Item_subselect, it must belong to a more inner query block (not a more
+  outer, as the walk() doesn't dive into subqueries); in that case, it must be
+  that Item_subselect is the left-hand-side of a subquery transformed with
+  IN-to-EXISTS and has been wrapped in Item_cache and then injected into the
+  WHERE/HAVING of that subquery; but then the Item_subselect will not be
+  evaluated when the JOIN_TAB's condition is evaluated (Item_cache will
+  short-circuit it); it will be evaluated when the IN(subquery)
+  (Item_in_optimizer) is - that's when the Item_cache is updated. Thus, we
+  will ignore JOIN_TAB in this case.
 */
-bool Item_subselect::inform_item_in_cond_of_tab(uchar *join_tab_index)
+bool Item_subselect::inform_item_in_cond_of_tab(uchar *arg)
 {
-  in_cond_of_tab= *reinterpret_cast<int *>(join_tab_index);
+  std::pair<SELECT_LEX *, int> *pair_object=
+    pointer_cast<std::pair<SELECT_LEX *, int> * >(arg);
+  if (pair_object->first == unit->outer_select())
+    in_cond_of_tab= pair_object->second;
   return false;
 }
 
