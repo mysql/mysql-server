@@ -1482,9 +1482,10 @@ SELECT_LEX::simplify_joins(THD *thd,
               since fix_fields may have merged it into an existing AND expr.
             */
             if (arg == table->join_cond())
-              thd->change_item_tree_place(table->join_cond_ref(), lit.ref());
+              thd->replace_rollback_place_for_ref(table->join_cond_ref(),
+                                                  lit.ref());
             else if (arg == *cond)
-              thd->change_item_tree_place(cond, lit.ref());
+              thd->replace_rollback_place_for_ref(cond, lit.ref());
           }
           *cond= new_cond;
         }
@@ -1492,7 +1493,7 @@ SELECT_LEX::simplify_joins(THD *thd,
         {
           *cond= table->join_cond();
           /* If join condition has a pending rollback in THD::change_list */
-          thd->change_item_tree_place(table->join_cond_ref(), cond);
+          thd->replace_rollback_place_for_ref(table->join_cond_ref(), cond);
         }
         table->set_join_cond(NULL);
       }
@@ -2111,15 +2112,24 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
     {
       for (uint i= 0; i < in_subq_pred->left_expr->cols(); i++)
       {
-        nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr->
-                                              element_index(i));
+        Item *const li= in_subq_pred->left_expr->element_index(i);
+        nested_join->sj_outer_exprs.push_back(li);
         nested_join->sj_inner_exprs.push_back(subq_select->ref_pointer_array[i]);
 
         Item_func_eq *item_eq= 
-          new Item_func_eq(in_subq_pred->left_expr->element_index(i), 
-                           subq_select->ref_pointer_array[i]);
+          new Item_func_eq(li, subq_select->ref_pointer_array[i]);
+
         if (item_eq == NULL)
           DBUG_RETURN(true);      /* purecov: inspected */
+
+        /*
+          li [left_expr->element_index(i)] can be a transient Item_outer_ref,
+          whose usage has already been marked for rollback, but we need to roll
+          back this location (inside Item_func_eq) in stead, since this is the
+          place that matters after this semijoin transformation. arguments()
+          gets the address of li as stored in item_eq ("place").
+        */
+        thd->replace_rollback_place_for_value(li, item_eq->arguments());
 
         sj_cond= and_items(sj_cond, item_eq);
         if (sj_cond == NULL)
