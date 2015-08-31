@@ -2222,8 +2222,6 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
     mysql_mutex_lock(&LOCK_thd_remove);
     copy_global_thread_list(&global_thread_list_copy);
 
-    DEBUG_SYNC(thd,"fill_schema_processlist_after_copying_threads");
-
     Thread_iterator it= global_thread_list_copy.begin();
     Thread_iterator end= global_thread_list_copy.end();
     for (; it != end; ++it)
