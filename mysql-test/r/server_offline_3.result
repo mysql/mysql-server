@@ -1,6 +1,9 @@
 SET @global_saved_tmp =  @@global.offline_mode;
 SET @global_autocommit =  @@global.autocommit;
 SET @@global.autocommit= OFF;
+SELECT @user_count:=COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+@user_count:=COUNT(USER)
+1
 CREATE USER 'user1'@'localhost';
 CREATE USER 'user2'@'localhost';
 connect conu1,localhost,user1;
