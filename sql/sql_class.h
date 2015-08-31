@@ -27,6 +27,7 @@
 #include "discrete_interval.h"            // Discrete_interval
 #include "error_handler.h"                // Internal_error_handler
 #include "opt_trace_context.h"            // Opt_trace_context
+#include "protocol.h"                     // Protocol
 #include "protocol_classic.h"             // Protocol_text
 #include "rpl_context.h"                  // Rpl_thd_context
 #include "session_tracker.h"              // Session_tracker
@@ -44,6 +45,7 @@
 #include <mysql/psi/mysql_statement.h>
 
 #include <memory>
+#include "mysql/thread_type.h"
 
 class Reprepare_observer;
 class sp_cache;
@@ -516,21 +518,6 @@ public:
 };
 
 
-/* Flags for the THD::system_thread variable */
-enum enum_thread_type
-{
-  NON_SYSTEM_THREAD= 0,
-  SYSTEM_THREAD_SLAVE_IO= 1,
-  SYSTEM_THREAD_SLAVE_SQL= 2,
-  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 4,
-  SYSTEM_THREAD_EVENT_SCHEDULER= 8,
-  SYSTEM_THREAD_EVENT_WORKER= 16,
-  SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64,
-  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128,
-  SYSTEM_THREAD_BACKGROUND= 256
-};
-
 inline char const *
 show_system_thread(enum_thread_type thread)
 {
@@ -950,7 +937,7 @@ public:
     A pointer to the stack frame of handle_one_connection(),
     which is called first in the thread for handling a client
   */
-  char	  *thread_stack;
+  const char *thread_stack;
 
   /**
     @note
@@ -2183,7 +2170,7 @@ public:
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
-  void disconnect();
+  void disconnect(bool server_shutdown= false);
 
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
@@ -2480,11 +2467,23 @@ public:
     is_slave_error= false;
     DBUG_VOID_RETURN;
   }
-#ifndef EMBEDDED_LIBRARY
-  inline bool vio_ok() const
+
+  inline bool is_classic_protocol()
   {
-    return get_protocol_classic()->vio_ok();
+    DBUG_ENTER("THD::is_classic_protocol");
+    DBUG_PRINT("info", ("type=%d", get_protocol()->type()));
+    switch (get_protocol()->type())
+    {
+    case Protocol::PROTOCOL_BINARY:
+    case Protocol::PROTOCOL_TEXT:
+      DBUG_RETURN(true);
+    default:
+      break;
+    }
+    DBUG_RETURN(false);
   }
+
+#ifndef EMBEDDED_LIBRARY
   /** Return FALSE if connection to client is broken. */
   virtual bool is_connected()
   {
@@ -2493,11 +2492,16 @@ public:
       not using vio. So this function always returns true for all
       system threads.
     */
-    return system_thread ||
-      (vio_ok() ? vio_is_connected(get_protocol_classic()->get_vio()) : FALSE);
+    if (system_thread)
+      return true;
+
+    if (is_classic_protocol())
+      return get_protocol()->connection_alive() &&
+             vio_is_connected(get_protocol_classic()->get_vio());
+    else
+      return get_protocol()->connection_alive();
   }
 #else
-  inline bool vio_ok() const { return TRUE; }
   virtual bool is_connected() { return true; }
 #endif
   /**
@@ -3645,6 +3649,15 @@ public:
     updated, when an object is transfered across threads.
   */
   void claim_memory_ownership();
+
+  bool is_a_srv_session() const { return is_a_srv_session_thd; }
+  void mark_as_srv_session() { is_a_srv_session_thd= true; }
+private:
+  /**
+    Variable to mark if the object is part of a Srv_session object, which
+    aggregates THD.
+  */
+  bool is_a_srv_session_thd;
 };
 
 

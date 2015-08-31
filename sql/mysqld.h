@@ -92,6 +92,14 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *national_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *table_alias_charset;
 extern CHARSET_INFO *character_set_filesystem;
 
+enum enum_server_operational_state
+{
+  SERVER_BOOTING,      /* Server is not operational. It is starting */
+  SERVER_OPERATING,    /* Server is fully initialized and operating */
+  SERVER_SHUTTING_DOWN /* erver is shutting down */
+};
+enum_server_operational_state get_server_state();
+
 extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
@@ -385,7 +393,7 @@ extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
 #endif
-
+extern PSI_thread_key key_thread_daemon_plugin;
 extern PSI_thread_key key_thread_bootstrap;
 extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;

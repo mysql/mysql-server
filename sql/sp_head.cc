@@ -684,15 +684,18 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   */
   thd->change_list.move_elements_to(&old_change_list);
 
-  /*
-    Cursors will use thd->packet, so they may corrupt data which was prepared
-    for sending by upper level. OTOH cursors in the same routine can share this
-    buffer safely so let use use routine-local packet instead of having own
-    packet buffer for each cursor.
+  if (thd->is_classic_protocol())
+  {
+    /*
+      Cursors will use thd->packet, so they may corrupt data which was
+      prepared for sending by upper level. OTOH cursors in the same routine
+      can share this buffer safely so let use use routine-local packet
+      instead of having own packet buffer for each cursor.
 
-    It is probably safe to use same thd->convert_buff everywhere.
-  */
-  old_packet.swap(*thd->get_protocol_classic()->get_packet());
+      It is probably safe to use same thd->convert_buff everywhere.
+    */
+    old_packet.swap(*thd->get_protocol_classic()->get_packet());
+  }
 
   /*
     Switch to per-instruction arena here. We can do it since we cleanup
@@ -840,8 +843,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
 
   thd->sp_runtime_ctx->pop_all_cursors(); // To avoid memory leaks after an error
 
-  /* Restore all saved */
-  old_packet.swap(*thd->get_protocol_classic()->get_packet());
+  if(thd->is_classic_protocol())
+    /* Restore all saved */
+    old_packet.swap(*thd->get_protocol_classic()->get_packet());
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;

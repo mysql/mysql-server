@@ -1761,7 +1761,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
   msgbuf[len - 1] = 0; // healthy paranoia
 
 
-  if (!thd->vio_ok())
+  if (!thd->get_protocol()->connection_alive())
   {
     sql_print_error("%s", msgbuf);
     goto err;

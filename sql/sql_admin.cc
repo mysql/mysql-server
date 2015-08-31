@@ -878,7 +878,7 @@ send_result_message:
         if (thd->is_error())
         {
           const char *err_msg= thd->get_stmt_da()->message_text();
-          if (!thd->vio_ok())
+          if (!thd->get_protocol()->connection_alive())
           {
             sql_print_error("%s", err_msg);
           }

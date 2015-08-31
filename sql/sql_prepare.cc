@@ -161,7 +161,8 @@ public:
   virtual ulong get_client_capabilities();
   virtual bool has_client_capability(unsigned long client_capability);
   virtual void end_partial_result_set();
-  virtual int shutdown();
+  virtual int shutdown(bool server_shutdown= false);
+  virtual bool connection_alive();
   virtual SSL_handle get_ssl();
   virtual void start_row();
   virtual bool end_row();
@@ -193,6 +194,7 @@ protected:
   virtual bool store(Proto_field *field);
 
   virtual enum enum_protocol_type type() { return PROTOCOL_LOCAL; }
+  virtual enum enum_vio_type connection_type() { return VIO_TYPE_LOCAL; }
 
   virtual bool send_ok(uint server_status, uint statement_warn_count,
                        ulonglong affected_rows, ulonglong last_insert_id,
@@ -4515,10 +4517,15 @@ Protocol_local::has_client_capability(unsigned long client_capability)
   return false;
 }
 
+bool Protocol_local::connection_alive()
+{
+  return false;
+}
+
 void Protocol_local::end_partial_result_set() {}
 
 int
-Protocol_local::shutdown()
+Protocol_local::shutdown(bool server_shutdown)
 {
   return 0;
 }

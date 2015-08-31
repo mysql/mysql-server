@@ -87,7 +87,7 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex);
 void mysql_init_multi_delete(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level= false);
 bool do_command(THD *thd);
-bool dispatch_command(THD *thd,COM_DATA *com_data,
+bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);

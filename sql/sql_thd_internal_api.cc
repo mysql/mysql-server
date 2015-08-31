@@ -83,7 +83,7 @@ void destroy_thd(THD *thd)
 }
 
 
-void thd_set_thread_stack(THD *thd, char *stack_start)
+void thd_set_thread_stack(THD *thd, const char *stack_start)
 {
   thd->thread_stack= stack_start;
 }
