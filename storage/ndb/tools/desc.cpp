@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -299,7 +299,22 @@ int desc_table(Ndb *myndb, char* name)
         if ((column->getType() == NdbDictionary::Column::Blob) || 
           (column->getType() == NdbDictionary::Column::Text))
         {
-          print_part_info(myndb, (NDBT_Table*) column->getBlobTable());
+          NDBT_Table * blobTable=	(NDBT_Table*) column->getBlobTable();
+
+          if(blobTable) /* blob table present */
+          {
+            /* The check is added because TINYBLOB/TINYTEXT columns do not
+             * have blob tables , in which case the variable blobTable is NULL.
+             * print_part_info is therefore called only for non-NULL values of
+             * blobTable.  */
+            print_part_info(myndb, blobTable);
+          }
+
+          else if(column -> getPartSize() > 0) /* blob table not present and part size greater than 0 */
+          {
+            ndbout << "Error: Blob table for column \"" << column -> getName() << "\" is not present" << endl;
+          }
+
           ndbout << endl;
         }
       }
