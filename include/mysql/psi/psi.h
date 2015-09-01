@@ -292,6 +292,10 @@ typedef struct PSI_bootstrap PSI_bootstrap;
 
 #ifdef DISABLE_ALL_PSI
 
+#ifndef DISABLE_PSI_THREAD
+#define DISABLE_PSI_THREAD
+#endif
+
 #ifndef DISABLE_PSI_MUTEX
 #define DISABLE_PSI_MUTEX
 #endif
