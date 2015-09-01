@@ -40,7 +40,7 @@
 int Protocol_callback::read_packet()
 {
   return -1;
-};
+}
 
 /**
   Practically does nothing. See the comment of ::read_packet().
@@ -52,7 +52,7 @@ int Protocol_callback::read_packet()
 int Protocol_callback::get_command(COM_DATA *com_data, enum_server_command *cmd)
 {
   return read_packet();
-};
+}
 
 
 /**
