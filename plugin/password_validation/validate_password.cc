@@ -17,6 +17,7 @@
 #include <string>
 #include <mysql/plugin_validate_password.h>
 #include <set>
+#include <ios>       // std::streamoff
 #include <iostream>
 #include <fstream>
 #include <algorithm> // std::swap

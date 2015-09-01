@@ -255,7 +255,6 @@ SET(TESTS
   sql_list
   sql_plist
   sql_string
-  stdcxx
   strtoll
   thread_utils
   )
