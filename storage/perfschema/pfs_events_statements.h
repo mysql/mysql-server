@@ -88,6 +88,12 @@ struct PFS_events_statements : public PFS_events
   ulonglong m_no_index_used;
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
+
+  /** True if sqltext was truncated. */
+  bool m_sqltext_truncated;
+  /** Statement character set number. */
+  uint m_sqltext_cs_number;
+
   /**
     Statement digest.
     This underlying token array storage pointer is immutable,
