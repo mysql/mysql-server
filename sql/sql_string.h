@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -413,3 +413,7 @@ static inline bool check_if_only_end_space(CHARSET_INFO *cs, char *str,
 {
   return str+ cs->cset->scan(cs, str, end, MY_SEQ_SPACES) == end;
 }
+
+bool
+validate_string(CHARSET_INFO *cs, const char *str, uint32 length,
+                size_t *valid_length, bool *length_error);
