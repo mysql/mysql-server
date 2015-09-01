@@ -8018,7 +8018,8 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     Field *field= *vfield_ptr;
 
     // Check if we should evaluate this field
-    if (bitmap_is_set(&fields_to_evaluate, field->field_index))
+    if (bitmap_is_set(&fields_to_evaluate, field->field_index) &&
+        field->is_virtual_gcol())
     {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
       if (in_purge)
