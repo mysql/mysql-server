@@ -16,7 +16,7 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file my_md5_size.h
+  @file include/my_md5_size.h
 
   This is not part of md5.h, so that it can be included using C linkage,
   unlike that file.

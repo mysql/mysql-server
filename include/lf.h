@@ -16,6 +16,10 @@
 #ifndef _lf_h
 #define _lf_h
 
+/**
+  @file include/lf.h
+*/
+
 #include "my_global.h"
 #include "my_atomic.h"
 #include "hash.h"

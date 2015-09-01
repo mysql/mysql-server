@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/* Defines to make different thread packages compatible */
+/**
+  @file include/my_thread.h
+  Defines to make different thread packages compatible.
+*/
 
 #ifndef MY_THREAD_INCLUDED
 #define MY_THREAD_INCLUDED

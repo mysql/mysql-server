@@ -17,7 +17,8 @@
 #ifndef MY_GLOBAL_INCLUDED
 #define MY_GLOBAL_INCLUDED
 
-/*
+/**
+  @file include/my_global.h
   This include file should be included first in every header file.
 
   This makes sure my_config.h is included to get platform specific

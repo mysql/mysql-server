@@ -16,6 +16,10 @@
 #include "mysys_priv.h"
 #include "my_sys.h"
 
+/**
+  @file mysys/charset-def.c
+*/
+
 /*
   Include all compiled character sets into the client
   If a client don't want to use all of them, he can define his own

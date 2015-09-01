@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define MYSQL_IDLE_H
 
 /**
-  @file mysql/psi/mysql_idle.h
+  @file include/mysql/psi/mysql_idle.h
   Instrumentation helpers for idle waits.
 */
 

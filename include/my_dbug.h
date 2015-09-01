@@ -16,6 +16,10 @@
 #ifndef MY_DBUG_INCLUDED
 #define MY_DBUG_INCLUDED
 
+/**
+  @file include/my_dbug.h
+*/
+
 #ifdef  __cplusplus
 extern "C" {
 #endif

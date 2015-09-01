@@ -15,7 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/* class for the the myisam merge handler */
+/**
+  @file storage/myisammrg/ha_myisammrg.h
+  MyISAM merge storage engine.
+*/
 
 #include <myisammrg.h>
 #include "table.h"
@@ -23,7 +26,7 @@
 /** 
   Represents one name of a MERGE child.
 
-  @todo: Add MYRG_SHARE and store chlidren names in the
+  @todo Add MYRG_SHARE and store children names in the
   share.
 */
 

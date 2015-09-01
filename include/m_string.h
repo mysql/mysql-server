@@ -17,6 +17,10 @@
 #ifndef _m_string_h
 #define _m_string_h
 
+/**
+  @file include/m_string.h
+*/
+
 #include "my_global.h"
 #include "my_byteorder.h"    /* uint8korr */
 

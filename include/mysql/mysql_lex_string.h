@@ -16,6 +16,10 @@
 #ifndef MYSQL_LEX_STRING_INCLUDED
 #define MYSQL_LEX_STRING_INCLUDED
 
+/**
+  @file include/mysql/mysql_lex_string.h
+*/
+
 struct st_mysql_lex_string
 {
   char *str;

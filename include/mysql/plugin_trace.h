@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,9 @@
 #ifndef PLUGIN_TRACE_INCLUDED
 #define PLUGIN_TRACE_INCLUDED
 /**
-  @file
+  @file include/mysql/plugin_trace.h
 
-  ========================================================================
-   Declarations for client-side plugins of type MYSQL_CLIENT_TRACE_PLUGIN
-  ========================================================================
+  Declarations for client-side plugins of type MYSQL_CLIENT_TRACE_PLUGIN.
 
   See libmysql/mysql_trace.c for a brief description of the client-side
   protocol tracing infrastructure.

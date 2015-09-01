@@ -18,6 +18,10 @@
 #ifndef INSTANCE_CALLBACK_INCLUDED
 #define INSTANCE_CALLBACK_INCLUDED
 
+/**
+  @file include/instance_callback.h
+*/
+
 #include "i_callable.h"
 
 namespace Mysql{

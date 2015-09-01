@@ -18,6 +18,10 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
+/**
+  @file include/sql_string.h
+*/
+
 #include "my_global.h"
 #include "m_ctype.h"                         // my_convert
 #include "m_string.h"                        // LEX_CSTRING

@@ -16,6 +16,10 @@
 #ifndef PREALLOCED_ARRAY_INCLUDED
 #define PREALLOCED_ARRAY_INCLUDED
 
+/**
+  @file include/prealloced_array.h
+*/
+
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_dbug.h"

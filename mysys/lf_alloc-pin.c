@@ -14,8 +14,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  wait-free concurrent allocator based on pinning addresses
+/**
+  @file mysys/lf_alloc-pin.c
+  wait-free concurrent allocator based on pinning addresses.
 
   It works as follows: every thread (strictly speaking - every CPU, but
   it's too difficult to do) has a small array of pointers. They're called

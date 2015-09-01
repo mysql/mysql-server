@@ -36,8 +36,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   #define SOCKBUF_T void
 #endif
 /**
-  @file mysql/psi/mysql_socket.h
-[...]
+  @file include/mysql/psi/mysql_socket.h
 */
 
 #include "mysql/psi/psi.h"

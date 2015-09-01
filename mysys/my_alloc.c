@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Routines to handle mallocing of results which will be freed the same time */
+/**
+  @file mysys/my_alloc.c
+  Routines to handle mallocing of results which will be freed the same time.
+*/
 
 #include <my_global.h>
 #include "my_alloc.h"

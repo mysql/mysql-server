@@ -16,6 +16,10 @@
 #ifndef MY_TIMER_H
 #define MY_TIMER_H
 
+/**
+  @file include/my_timer.h
+*/
+
 #include "my_global.h"    /* C_MODE_START, C_MODE_END */
 #include "mysql/psi/psi.h" /* PSI_thread_key, PSI_mutex_key, PSI_memory_key */
 

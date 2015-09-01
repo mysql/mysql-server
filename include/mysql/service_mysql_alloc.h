@@ -16,6 +16,10 @@
 #ifndef MYSQL_SERVICE_MYSQL_ALLOC_INCLUDED
 #define MYSQL_SERVICE_MYSQL_ALLOC_INCLUDED
 
+/**
+  @file include/mysql/service_mysql_alloc.h
+*/
+
 #ifndef MYSQL_ABI_CHECK
 #include <stdlib.h>
 #endif

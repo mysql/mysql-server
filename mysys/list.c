@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Code for handling dubble-linked lists in C
+/**
+  @file mysys/list.c
+  Code for handling double-linked lists in C.
 */
 
 #include "mysys_priv.h"

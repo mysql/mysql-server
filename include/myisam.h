@@ -14,7 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This file should be included when using myisam_funktions */
+/**
+  @file include/myisam.h
+  This file should be included when using myisam functions.
+*/
 
 #ifndef _myisam_h
 #define _myisam_h

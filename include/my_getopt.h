@@ -1,4 +1,4 @@
-	/*
+/*
    Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,10 @@
 
 #ifndef _my_getopt_h
 #define _my_getopt_h
+
+/**
+  @file include/my_getopt.h
+*/
 
 #include "my_sys.h"                             /* loglevel */
 

@@ -17,7 +17,7 @@
 #define MYSQL_THREAD_H
 
 /**
-  @file mysql/psi/mysql_thread.h
+  @file include/mysql/psi/mysql_thread.h
   Instrumentation helpers for mysys threads, mutexes,
   read write locks and conditions.
   This header file provides the necessary declarations

@@ -16,6 +16,10 @@
 
 /* This file is included by all internal myisam files */
 
+/**
+  @file storage/myisam/myisamdef.h
+*/
+
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
 #include <my_tree.h>

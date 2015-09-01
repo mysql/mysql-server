@@ -16,6 +16,10 @@
 #ifndef DECIMAL_INCLUDED
 #define DECIMAL_INCLUDED
 
+/**
+  @file include/decimal.h
+*/
+
 #include "my_global.h"
 
 C_MODE_START

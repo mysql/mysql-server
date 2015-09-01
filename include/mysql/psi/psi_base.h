@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /**
-  @file mysql/psi/psi_base.h
+  @file include/mysql/psi/psi_base.h
   Performance schema instrumentation interface.
 
   @defgroup Instrumentation_interface Instrumentation Interface

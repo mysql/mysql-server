@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Open a temporary file and cache it with io_cache. Delete it on close */
+/**
+  @file mysys/mf_cache.c
+  Open a temporary file and cache it with io_cache. Delete it on close.
+*/
 
 #include "mysys_priv.h"
 #include "my_sys.h"

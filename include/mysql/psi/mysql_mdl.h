@@ -17,7 +17,7 @@
 #define MYSQL_MDL_H
 
 /**
-  @file mysql/psi/mysql_mdl.h
+  @file include/mysql/psi/mysql_mdl.h
   Instrumentation helpers for metadata locks.
 */
 

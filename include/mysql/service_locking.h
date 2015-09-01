@@ -18,7 +18,8 @@
 #ifndef SERVICE_LOCKING_INCLUDED
 #define SERVICE_LOCKING_INCLUDED
 
-/*
+/**
+  @file include/mysql/service_locking.h
   This service provides support for taking read/write locks.
   It is intended for use with fabric, but it is still a general
   service. The locks are in a separate namespace from other

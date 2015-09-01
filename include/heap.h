@@ -18,6 +18,10 @@
 /* This file should be included when using heap_database_functions */
 /* Author: Michael Widenius */
 
+/**
+  @file include/heap.h
+*/
+
 #ifndef _heap_h
 #define _heap_h
 #ifdef	__cplusplus

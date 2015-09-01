@@ -17,6 +17,10 @@
 #ifndef _my_audit_h
 #define _my_audit_h
 
+/**
+  @file include/mysql/plugin_audit.h
+*/
+
 #include "plugin.h"
 #include "mysql/mysql_lex_string.h"
 #ifndef MYSQL_ABI_CHECK

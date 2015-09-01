@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,15 +17,15 @@
 #define MYSQL_PS_H
 
 /**
-  @file mysql/psi/mysql_ps.h
+  @file include/mysql/psi/mysql_ps.h
   Instrumentation helpers for prepared statements.
 */
 
 #include "mysql/psi/psi.h"
 
 #ifndef PSI_PS_CALL
-#define PSI_PS_CALL(M) PSI_DYNAMIC_CALL(M)                               
-#endif    
+#define PSI_PS_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
   #define MYSQL_CREATE_PS(IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \

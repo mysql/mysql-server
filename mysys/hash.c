@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @file mysys/hash.c
+*/
+
 /* The hash functions used for saveing keys */
 /* One of key_length or key_length_offset must be given */
 /* Key length of 0 isn't allowed */
@@ -74,7 +78,8 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
   as required during insertion.
 
   @param[in,out] hash         The hash that is initialized
-  @param[in]     charset      The charater set information
+  @param[in]     growth_size  Growth size for the underlying array
+  @param[in]     charset      The character set information
   @param[in]     hash_function Hash function to be used. NULL -
                                use standard hash from character
                                set.
@@ -86,6 +91,7 @@ static my_hash_value_type cset_hash_sort_adapter(const HASH *hash,
   @param[in]     free_element pointer to the function that
                               does cleanup
   @param[in]     flags        flags set in the hash
+  @param[in]     psi_key      Performance schema memory instrumentation key
   @return        indicates success or failure of initialization
     @retval 0 success
     @retval 1 failure

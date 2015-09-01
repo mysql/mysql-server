@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,10 @@
 #ifndef QUEUES_INCLUDED
 #define QUEUES_INCLUDED
 
-/*
+/**
+  @file include/queues.h
   Code for handling of priority Queues.
-  Implemention of queues from "Algoritms in C" by Robert Sedgewick.
+  Implementation of queues from "Algoritms in C" by Robert Sedgewick.
   By monty.
 */
 

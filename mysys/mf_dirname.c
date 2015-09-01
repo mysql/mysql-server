@@ -17,7 +17,9 @@
 #include "my_sys.h"
 #include <m_string.h>
 
-	/* Functions definied in this file */
+/**
+  @file mysys/mf_dirname.c
+*/
 
 size_t dirname_length(const char *name)
 {

@@ -18,6 +18,11 @@
 #include "handler.h"
 #include "sql_string.h"
 
+/**
+  @file storage/archive/ha_archive.h
+  Archive storage engine.
+*/
+
 /*
   Please read ha_archive.cc first. If you are looking for more general
   answers on how storage engines work, look at ha_example.cc and

@@ -16,6 +16,10 @@
 #ifndef GROUP_REPLICATION_PRIV_INCLUDE
 #define	GROUP_REPLICATION_PRIV_INCLUDE
 
+/**
+  @file include/mysql/group_replication_priv.h
+*/
+
 #ifndef MYSQL_SERVER
 #define MYSQL_SERVER
 #endif

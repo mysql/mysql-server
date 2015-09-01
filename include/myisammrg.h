@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This file should be included when using merge_isam_funktions */
+/**
+  @file include/myisammrg.h
+  This file should be included when using merge isam functions.
+*/
 
 #ifndef _myisammrg_h
 #define _myisammrg_h

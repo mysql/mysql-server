@@ -15,7 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/* class for the the myisam handler */
+/**
+  @file storage/myisam/ha_myisam.h
+  MyISAM storage engine.
+*/
 
 #include <myisam.h>
 #include <ft_global.h>

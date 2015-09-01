@@ -16,6 +16,10 @@
 #ifndef MYSQL_PSI_MEMORY_H
 #define MYSQL_PSI_MEMORY_H
 
+/**
+  @file include/mysql/psi/psi_memory.h
+*/
+
 #include "psi_base.h"
 
 #ifdef __cplusplus

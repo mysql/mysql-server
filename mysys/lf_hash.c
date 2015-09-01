@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/lf_hash.c
   extensible hash
 
-  TODO
+  @todo
      try to get rid of dummy nodes ?
      for non-unique hash, count only _distinct_ values
      (but how to do it in lf_hash_delete ?)

@@ -15,6 +15,10 @@
 
 /* For use with thr_lock:s */
 
+/**
+  @file include/thr_lock.h
+*/
+
 #ifndef _thr_lock_h
 #define _thr_lock_h
 

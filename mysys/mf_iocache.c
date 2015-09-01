@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/mf_iocache.c
   Cashing of files with only does (sequential) read or writes of fixed-
   length records. A read isn't allowed to go over file-length. A read is ok
   if it ends at file-length and next read can try to read after file-length

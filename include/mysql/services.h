@@ -14,7 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /*
   Out of extern because of inclusion of files which include my_compiler.h
   which in turn complains about C-linkage of templates.
@@ -27,6 +26,9 @@
 #include <mysql/service_command.h>
 #endif
 
+/**
+  @file include/mysql/services.h
+*/
 
 #ifdef __cplusplus
 extern "C" {

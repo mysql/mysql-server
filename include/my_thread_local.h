@@ -16,6 +16,10 @@
 #ifndef MY_THREAD_LOCAL_INCLUDED
 #define MY_THREAD_LOCAL_INCLUDED
 
+/**
+  @file include/my_thread_local.h
+*/
+
 #include "mysql/psi/mysql_thread.h"
 
 struct _db_code_state_;

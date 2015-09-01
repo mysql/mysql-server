@@ -16,6 +16,10 @@
 #ifndef __BASE64_H_INCLUDED__
 #define __BASE64_H_INCLUDED__
 
+/**
+  @file include/base64.h
+*/
+
 #ifdef __cplusplus
 extern "C" {
 #endif

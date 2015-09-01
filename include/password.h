@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,10 @@
 
 #ifndef PASSWORD_INCLUDED
 #define PASSWORD_INCLUDED
+
+/**
+  @file include/password.h
+*/
 
 #include "my_global.h"
 

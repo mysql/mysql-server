@@ -16,6 +16,10 @@
 #ifndef included_sha2_h
 #define included_sha2_h
 
+/**
+  @file include/sha2.h
+*/
+
 #include <my_config.h>
 
 #if defined(HAVE_YASSL) || defined(HAVE_OPENSSL)

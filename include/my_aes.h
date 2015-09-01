@@ -17,8 +17,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-/* Header file for my_aes.c */
-/* Wrapper to give simple interface for MySQL to AES standard encryption */
+/**
+  @file include/my_aes.h
+  Wrapper to give simple interface for MySQL to AES standard encryption.
+*/
 
 C_MODE_START
 

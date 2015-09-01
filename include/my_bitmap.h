@@ -17,6 +17,10 @@
 #ifndef _my_bitmap_h_
 #define _my_bitmap_h_
 
+/**
+  @file include/my_bitmap.h
+*/
+
 #define MY_BIT_NONE (~(uint) 0)
 
 #include "my_global.h"

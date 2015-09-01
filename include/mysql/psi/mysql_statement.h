@@ -17,7 +17,7 @@
 #define MYSQL_STATEMENT_H
 
 /**
-  @file mysql/psi/mysql_statement.h
+  @file include/mysql/psi/mysql_statement.h
   Instrumentation helpers for statements.
 */
 

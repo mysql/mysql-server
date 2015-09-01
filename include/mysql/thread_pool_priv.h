@@ -18,7 +18,8 @@
 #ifndef THREAD_POOL_PRIV_INCLUDED
 #define THREAD_POOL_PRIV_INCLUDED
 
-/*
+/**
+  @file include/mysql/thread_pool_priv.h
   The thread pool requires access to some MySQL server error codes, this is
   accessed from mysqld_error.h.
   We need access to the struct that defines the thread pool plugin interface

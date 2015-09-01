@@ -16,6 +16,10 @@
 #ifndef _my_sys_h
 #define _my_sys_h
 
+/**
+  @file include/my_sys.h
+*/
+
 #include "my_global.h"
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "my_alloc.h"                   /* USED_MEM */

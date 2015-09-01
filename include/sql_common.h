@@ -18,6 +18,10 @@
 
 #define SQL_COMMON_INCLUDED
 
+/**
+  @file include/sql_common.h
+*/
+
 #include <mysql.h>
 #include <hash.h>
 

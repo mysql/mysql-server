@@ -27,7 +27,7 @@
 
 
 /**
-  @file service_rules_table.h
+  @file include/mysql/service_rules_table.h
 
   Plugin service that provides access to the rewrite rules table that is used
   by the Rewriter plugin. No other use intended.

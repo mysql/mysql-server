@@ -14,7 +14,10 @@
    Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
-/* This file includes constants used with all databases */
+/**
+  @file include/my_base.h
+  This file includes constants used with all databases.
+*/
 
 #ifndef _my_base_h
 #define _my_base_h

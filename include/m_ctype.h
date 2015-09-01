@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  A better inplementation of the UNIX ctype(3) library.
+/**
+  @file include/m_ctype.h
+  A better implementation of the UNIX ctype(3) library.
 */
 
 #ifndef _m_ctype_h

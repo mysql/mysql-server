@@ -13,10 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
- * Vio Lite.
- * Purpose: include file for Vio that will work with C and C++
- */
+/**
+  @file include/violite.h
+  Vio Lite.
+  Purpose: include file for Vio that will work with C and C++.
+*/
 
 #ifndef vio_violite_h_
 #define	vio_violite_h_

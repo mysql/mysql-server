@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-** Common definition between mysql server & client
+/**
+  @file include/mysql_com.h
+  Common definition between mysql server & client.
 */
 
 #ifndef _mysql_com_h

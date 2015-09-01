@@ -14,6 +14,10 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 
+/**
+  @file mysys/mf_pack.c
+*/
+
 #include "mysys_priv.h"
 #include "my_sys.h"
 #include "my_static.h"

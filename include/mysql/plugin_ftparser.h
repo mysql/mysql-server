@@ -16,6 +16,10 @@
 #ifndef _my_plugin_ftparser_h
 #define _my_plugin_ftparser_h
 
+/**
+  @file include/mysql/plugin_ftparser.h
+*/
+
 #include "plugin.h"
 
 /*************************************************************************

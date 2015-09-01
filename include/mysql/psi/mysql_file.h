@@ -27,7 +27,7 @@
 #include "mysql/service_mysql_alloc.h"
 
 /**
-  @file mysql/psi/mysql_file.h
+  @file include/mysql/psi/mysql_file.h
   Instrumentation helpers for mysys file io.
   This header file provides the necessary declarations
   to use the mysys file API with the performance schema instrumentation.

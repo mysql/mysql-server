@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Handling of multiple key caches
+/**
+  @file mysys/mf_keycaches.c
+  Handling of multiple key caches.
 
   The idea is to have a thread safe hash on the table name,
   with a default key cache value that is returned if the table name is not in

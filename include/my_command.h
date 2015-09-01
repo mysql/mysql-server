@@ -17,6 +17,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define _mysql_command_h
 
 /**
+  @file include/my_command.h
+*/
+
+/**
   @enum  enum_server_command
   @brief You should add new commands to the end of this list, otherwise old
          servers won't be able to handle them as 'unsupported'.

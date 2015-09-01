@@ -16,6 +16,10 @@
 #ifndef MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 #define MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 
+/**
+  @file include/mysql/psi/psi.h
+*/
+
 #ifdef EMBEDDED_LIBRARY
 #define DISABLE_ALL_PSI
 #endif /* EMBEDDED_LIBRARY */

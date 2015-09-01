@@ -16,6 +16,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef _mysql_sql_command_h
 #define _mysql_sql_command_h
 
+/**
+  @file include/my_sqlcommand.h
+*/
+
 /*
   @enum  enum_sql_command
   @brief SQL Commands

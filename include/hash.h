@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Dynamic hashing of record with different key-length */
+/**
+  @file include/hash.h
+  Dynamic hashing of record with different key-length.
+*/
 
 #ifndef _hash_h
 #define _hash_h

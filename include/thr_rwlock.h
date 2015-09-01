@@ -17,6 +17,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
+  @file include/thr_rwlock.h
   MySQL rwlock implementation.
 
   There are two "layers":

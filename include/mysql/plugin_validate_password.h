@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,10 @@
 #ifndef MYSQL_PLUGIN_VALIDATE_PASSWORD_INCLUDED
 #define MYSQL_PLUGIN_VALIDATE_PASSWORD_INCLUDED
 
-/* API for validate_password plugin. (MYSQL_VALIDATE_PASSWORD_PLUGIN) */
+/**
+  @file include/mysql/plugin_validate_password.h
+  API for validate_password plugin. (MYSQL_VALIDATE_PASSWORD_PLUGIN)
+*/
 
 #include <mysql/plugin.h>
 #define MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION 0x0100

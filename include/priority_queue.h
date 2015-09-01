@@ -16,6 +16,10 @@
 #ifndef PRIORITY_QUEUE_INCLUDED
 #define PRIORITY_QUEUE_INCLUDED
 
+/**
+  @file include/priority_queue.h
+*/
+
 #include "my_global.h"
 
 #include <functional>

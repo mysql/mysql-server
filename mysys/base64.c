@@ -18,6 +18,10 @@
 #include <m_ctype.h>  /* my_isspace() */
 #include <base64.h>
 
+/**
+  @file mysys/base64.c
+*/
+
 #ifndef MAIN
 
 static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

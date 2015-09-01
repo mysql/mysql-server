@@ -19,9 +19,11 @@
 #include "m_string.h"
 #include "my_md5_size.h"
 
-/*
+/**
+  @file include/my_md5.h
   Wrapper function for MD5 implementation.
 */
+
 #ifdef __cplusplus
 extern "C" {
 #endif

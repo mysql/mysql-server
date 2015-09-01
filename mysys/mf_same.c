@@ -13,7 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/* Kopierar biblioteksstrukturen och extensionen fr}n ett filnamn */
+/**
+  @file mysys/mf_same.c
+*/
 
 #include "mysys_priv.h"
 #include "my_sys.h"

@@ -18,6 +18,10 @@
 #ifndef I_CALLABLE_INCLUDED
 #define I_CALLABLE_INCLUDED
 
+/**
+  @file include/i_callable.h
+*/
+
 namespace Mysql{
 
 /**
