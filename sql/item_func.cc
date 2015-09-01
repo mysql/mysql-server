@@ -613,7 +613,7 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
   else
   {
     // TODO Convert the JSON value to text.
-    return Item_func::save_in_field(field, no_conversions);
+    return Item_func::save_in_field_inner(field, no_conversions);
   }
 }
 
@@ -8416,7 +8416,7 @@ bool Item_func_sp::val_json(Json_wrapper *result)
 
 
 type_conversion_status
-Item_func_sp::save_in_field(Field *field, bool no_conversions)
+Item_func_sp::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_possibly_as_json(field, no_conversions);
 }

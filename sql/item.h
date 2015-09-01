@@ -985,6 +985,26 @@ public:
   */
   inline void quick_fix_field() { fixed= 1; }
 
+protected:
+  /**
+    Helper function which does all of the work for
+    save_in_field(Field*, bool), except some error checking common to
+    all subclasses, which is performed by save_in_field() itself.
+
+    Subclasses that need to specialize the behaviour of
+    save_in_field(), should override this function instead of
+    save_in_field().
+
+    @param[in,out] field  the field to save the item into
+    @param no_conversions whether or not to allow conversions of the value
+
+    @return the status from saving into the field
+      @retval TYPE_OK    item saved without any errors or warnings
+      @retval != TYPE_OK there were errors or warnings when saving the item
+  */
+  virtual type_conversion_status save_in_field_inner(Field *field,
+                                                     bool no_conversions);
+public:
   /**
     Save the item into a field but do not emit any warnings.
 
@@ -1000,12 +1020,18 @@ public:
   /**
     Save a temporal value in packed longlong format into a Field.
     Used in optimizer.
-    @param[out] field  The field to set the value to.
-    @retval 0         On success.
-    @retval >0        In error.
+
+    Subclasses that need to specialize this function, should override
+    save_in_field_inner().
+
+    @param[in,out] field  the field to save the item into
+    @param no_conversions whether or not to allow conversions of the value
+
+    @return the status from saving into the field
+      @retval TYPE_OK    item saved without any errors or warnings
+      @retval != TYPE_OK there were errors or warnings when saving the item
   */
-  virtual type_conversion_status save_in_field(Field *field,
-                                               bool no_conversions);
+  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   virtual void save_org_in_field(Field *field)
   { save_in_field(field, true); }
@@ -2254,10 +2280,12 @@ public:
 
 public:
   inline void make_field(Send_field *field);  
-  inline type_conversion_status save_in_field(Field *field,
-                                              bool no_conversions);
   inline bool send(Protocol *protocol, String *str);
-}; 
+
+protected:
+  inline type_conversion_status save_in_field_inner(Field *field,
+                                                    bool no_conversions);
+};
 
 /*****************************************************************************
   Item_sp_variable inline implementation.
@@ -2271,7 +2299,7 @@ inline void Item_sp_variable::make_field(Send_field *field)
 }
 
 inline type_conversion_status
-Item_sp_variable::save_in_field(Field *field, bool no_conversions)
+Item_sp_variable::save_in_field_inner(Field *field, bool no_conversions)
 {
   return this_item()->save_in_field(field, no_conversions);
 }
@@ -2459,14 +2487,15 @@ public:
     return value_item->result_type();
   }
 
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return  value_item->save_in_field(field, no_conversions);
-  }
-
   bool send(Protocol *protocol, String *str)
   {
     return value_item->send(protocol, str);
+  }
+
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return value_item->save_in_field(field, no_conversions);
   }
 };
 
@@ -2691,6 +2720,7 @@ class Item_field :public Item_ident
 
 protected:
   void set_field(Field *field);
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   /**
     Table containing this resolved field. This is required e.g for calculation
@@ -2761,7 +2791,6 @@ public:
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
   void make_field(Send_field *tmp_field);
-  type_conversion_status save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
   enum Item_result result_type () const
@@ -2908,6 +2937,8 @@ class Item_null :public Item_basic_constant
     fixed= 1;
     collation.set(&my_charset_bin, DERIVATION_IGNORABLE);
   }
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_null()
   {
@@ -2945,7 +2976,6 @@ public:
     return true;
   }
   bool val_json(Json_wrapper *wr);
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   type_conversion_status save_safe_in_field(Field *field);
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
@@ -3005,6 +3035,9 @@ class Item_param :public Item,
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
   Item *cnvitem;
+
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
 public:
   enum enum_item_param_state
@@ -3084,7 +3117,6 @@ public:
   String *val_str(String*);
   bool get_time(MYSQL_TIME *tm);
   bool get_date(MYSQL_TIME *tm, my_time_flags_t fuzzydate);
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   void set_null();
   void set_int(longlong i, uint32 max_length_arg);
@@ -3210,6 +3242,9 @@ public:
 private:
   void init(const char *str_arg, uint length);
 
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
   enum Type type() const { return INT_ITEM; }
   enum Item_result result_type () const { return INT_RESULT; }
@@ -3226,7 +3261,6 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(this); }
   virtual void print(String *str, enum_query_type query_type);
@@ -3266,6 +3300,8 @@ public:
 class Item_temporal :public Item_int
 {
   enum_field_types cached_field_type;
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_temporal(enum_field_types field_type_arg, longlong i): Item_int(i),
     cached_field_type(field_type_arg)
@@ -3282,7 +3318,6 @@ public:
     fixed= 1;
   }
   Item *clone_item() { return new Item_temporal(field_type(), value); }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   longlong val_time_temporal() { return val_int(); }
   longlong val_date_temporal() { return val_int(); }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
@@ -3304,6 +3339,8 @@ public:
 
 class Item_uint :public Item_int
 {
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_uint(const char *str_arg, uint length)
     :Item_int(str_arg, length) { unsigned_flag= 1; }
@@ -3318,7 +3355,6 @@ public:
   String *val_str(String*);
 
   Item *clone_item() { return new Item_uint(item_name, value, max_length); }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
@@ -3331,6 +3367,7 @@ class Item_decimal :public Item_num
   typedef Item_num super;
 protected:
   my_decimal decimal_value;
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_decimal(const POS &pos,
                const char *str_arg, uint length, const CHARSET_INFO *charset);
@@ -3356,7 +3393,6 @@ public:
   {
     return get_time_from_decimal(ltime);
   }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item()
   {
@@ -3419,8 +3455,10 @@ public:
 private:
   void init(const char *str_arg, uint length);
 
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   enum Type type() const { return REAL_ITEM; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE; }
   double val_real() { DBUG_ASSERT(fixed == 1); return value; }
@@ -3504,6 +3542,7 @@ protected:
     */
     check_well_formed_result(&str_value, false, false);
   }
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   /* Create from a string, set name from the string itself. */
   Item_string(const char *str, size_t length,
@@ -3609,7 +3648,6 @@ public:
   {
     return get_time_from_string(ltime);
   }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   bool basic_const_item() const { return 1; }
@@ -3774,6 +3812,9 @@ class Item_hex_string: public Item_basic_constant
 {
   typedef Item_basic_constant super;
 
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
   Item_hex_string();
   explicit Item_hex_string(const POS &pos) : super(pos) {}
@@ -3799,7 +3840,6 @@ public:
   {
     return get_time_from_string(ltime);
   }
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
@@ -3877,6 +3917,7 @@ class Item_ref :public Item_ident
 {
 protected:
   void set_properties();
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   enum Ref_Type { REF, DIRECT_REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
   Field *result_field;			 /* Save result here */
@@ -3954,7 +3995,6 @@ public:
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
   enum_field_types field_type() const   { return (*ref)->field_type(); }
@@ -4184,8 +4224,10 @@ public:
   virtual bool val_json(Json_wrapper *wr);
   virtual bool is_null();
   virtual bool send(Protocol *prot, String *tmp);
-  virtual type_conversion_status save_in_field(Field *field,
-                                               bool no_conversions);
+
+protected:
+  virtual type_conversion_status save_in_field_inner(Field *field,
+                                                     bool no_conversions);
 
 private:
   /// @return true if item is from a null-extended row from an outer join
@@ -4315,15 +4357,15 @@ class Item_int_with_ref :public Item_int
 {
 protected:
   Item *ref;
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  {
+    return ref->save_in_field(field, no_conversions);
+  }
 public:
   Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
     Item_int(i), ref(ref_arg)
   {
     unsigned_flag= unsigned_arg;
-  }
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return ref->save_in_field(field, no_conversions);
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
@@ -4481,6 +4523,9 @@ protected:
     collation.set(item->collation);
   }
 
+  virtual type_conversion_status save_in_field_inner(Field *field,
+                                                     bool no_conversions) = 0;
+
 public:
   /** 
     Factory method to create the appropriate subclass dependent on the type of 
@@ -4527,8 +4572,6 @@ public:
   virtual longlong val_int() = 0;
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
   virtual bool get_time(MYSQL_TIME *ltime)= 0;
-  virtual type_conversion_status save_in_field(Field *field,
-                                               bool no_conversions) = 0;
   /* purecov: begin deadcode */
   virtual bool val_json(Json_wrapper *wr)
   {
@@ -4546,6 +4589,8 @@ public:
 */ 
 class Item_copy_string : public Item_copy
 {
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_copy_string (Item *item) : Item_copy(item) {}
 
@@ -4556,12 +4601,14 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   virtual bool copy(const THD *thd);
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 };
 
 class Item_copy_json : public Item_copy
 {
   Json_wrapper *m_value;
+protected:
+  virtual type_conversion_status save_in_field_inner(Field *field,
+                                                     bool no_conversions);
 public:
   explicit Item_copy_json(Item *item);
   virtual ~Item_copy_json();
@@ -4573,8 +4620,6 @@ public:
   virtual longlong val_int();
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
-  virtual type_conversion_status save_in_field(Field *field,
-                                               bool no_conversions);
 };
 
 
@@ -4582,9 +4627,9 @@ class Item_copy_int : public Item_copy
 {
 protected:  
   longlong cached_value; 
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_copy_int (Item *i) : Item_copy(i) {}
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   virtual String *val_str(String*);
   virtual my_decimal *val_decimal(my_decimal *);
@@ -4628,9 +4673,9 @@ class Item_copy_float : public Item_copy
 {
 protected:  
   double cached_value; 
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_copy_float (Item *i) : Item_copy(i) {}
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
@@ -4658,9 +4703,9 @@ class Item_copy_decimal : public Item_copy
 {
 protected:  
   my_decimal cached_value;
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 public:
   Item_copy_decimal (Item *i) : Item_copy(i) {}
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *) 
@@ -4785,6 +4830,9 @@ class Item_default_value : public Item_field
 {
   typedef Item_field super;
 
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
   Item *arg;
   Item_default_value(const POS &pos, Item *a= NULL)
@@ -4795,7 +4843,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
-  type_conversion_status save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
   Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
@@ -4821,6 +4868,12 @@ public:
 
 class Item_insert_value : public Item_field
 {
+protected:
+  type_conversion_status save_in_field_inner(Field *field_arg,
+                                             bool no_conversions)
+  {
+    return Item_field::save_in_field_inner(field_arg, no_conversions);
+  }
 public:
   Item *arg;
   Item_insert_value(const POS &pos, Item *a)
@@ -4837,10 +4890,6 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
-  type_conversion_status save_in_field(Field *field_arg, bool no_conversions)
-  {
-    return Item_field::save_in_field(field_arg, no_conversions);
-  }
   /* 
    We use RAND_TABLE_BIT to prevent Item_insert_value from
    being treated as a constant and precalculated before execution
@@ -5160,7 +5209,10 @@ class Item_cache_str: public Item_cache
   char buffer[STRING_BUFFER_USUAL_SIZE];
   String *value, value_buff;
   bool is_varbinary;
-  
+
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
+
 public:
   Item_cache_str(const Item *item) :
     Item_cache(item->field_type()), value(0),
@@ -5184,7 +5236,6 @@ public:
   }
   enum Item_result result_type() const { return STRING_RESULT; }
   const CHARSET_INFO *charset() const { return value->charset(); };
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
   bool cache_value();
 };
 

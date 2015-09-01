@@ -262,7 +262,7 @@ public:
     then do NOT first serialize the JSON value into a string form.
 
     A better solution might be to put this logic into
-    Item_func::save_in_field() or even Item::save_in_field().
+    Item_func::save_in_field_inner() or even Item::save_in_field_inner().
     But that would mean providing val_json() overrides for
     more Item subclasses. And that feels like pulling on a
     ball of yarn late in the release cycle for 5.7. FIXME.
@@ -2336,14 +2336,14 @@ public:
   type_conversion_status save_in_field(Field *field, bool no_conversions,
                                        bool can_use_result_field);
 
-  type_conversion_status save_in_field(Field *field, bool no_conversions)
-  { return save_in_field(field, no_conversions, true); }
-
   void save_org_in_field(Field *field)
   { save_in_field(field, true, false); }
 
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();
+protected:
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
+  { return save_in_field(field, no_conversions, true); }
 };
 
 
@@ -2843,6 +2843,7 @@ private:
   
 protected:
   bool is_expensive_processor(uchar *arg) { return true; }
+  type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
 public:
 
@@ -2925,8 +2926,6 @@ public:
   }
 
   bool val_json(Json_wrapper *result);
-
-  type_conversion_status save_in_field(Field *field, bool no_conversions);
 
   virtual bool change_context_processor(uchar *cntx)
   {

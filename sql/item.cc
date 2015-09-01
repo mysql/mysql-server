@@ -543,9 +543,9 @@ type_conversion_status Item::save_date_in_field(Field *field)
     result  the pointer to the string value to be stored
 
   DESCRIPTION
-    The method is used by Item_*::save_in_field implementations
+    The method is used by Item_*::save_in_field_inner() implementations
     when we don't need to calculate the value to store
-    See Item_string::save_in_field() implementation for example
+    See Item_string::save_in_field_inner() implementation for example
 
   IMPLEMENTATION
     Check if the Item is null and stores the NULL or the
@@ -4035,7 +4035,7 @@ void Item_param::reset()
 
 
 type_conversion_status
-Item_param::save_in_field(Field *field, bool no_conversions)
+Item_param::save_in_field_inner(Field *field, bool no_conversions)
 {
   field->set_notnull();
 
@@ -4657,7 +4657,7 @@ longlong Item_copy_string::val_int()
 
 
 type_conversion_status
-Item_copy_string::save_in_field(Field *field, bool no_conversions)
+Item_copy_string::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_str_value_in_field(field, &str_value);
 }
@@ -4810,7 +4810,8 @@ bool Item_copy_json::get_time(MYSQL_TIME *ltime)
 }
 
 
-type_conversion_status Item_copy_json::save_in_field(Field *field, bool no_conversions)
+type_conversion_status
+Item_copy_json::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (null_value)
     return set_field_to_null(field);
@@ -4845,7 +4846,7 @@ save_int_value_in_field (Field *field, longlong nr,
                          bool null_value, bool unsigned_flag);
 
 type_conversion_status
-Item_copy_int::save_in_field(Field *field, bool no_conversions)
+Item_copy_int::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_int_value_in_field(field, cached_value,
                                  null_value, unsigned_flag);
@@ -4924,7 +4925,7 @@ my_decimal *Item_copy_float::val_decimal(my_decimal *decimal_value)
 
 
 type_conversion_status
-Item_copy_float::save_in_field(Field *field, bool no_conversions)
+Item_copy_float::save_in_field_inner(Field *field, bool no_conversions)
 {
   // TODO: call set_field_to_null_with_conversions below
   if (null_value)
@@ -4940,7 +4941,7 @@ Item_copy_float::save_in_field(Field *field, bool no_conversions)
 ****************************************************************************/
 
 type_conversion_status
-Item_copy_decimal::save_in_field(Field *field, bool no_conversions)
+Item_copy_decimal::save_in_field_inner(Field *field, bool no_conversions)
 {
   // TODO: call set_field_to_null_with_conversions below
   if (null_value)
@@ -6637,10 +6638,10 @@ void Item_field::save_org_in_field(Field *to)
 }
 
 type_conversion_status
-Item_field::save_in_field(Field *to, bool no_conversions)
+Item_field::save_in_field_inner(Field *to, bool no_conversions)
 {
   type_conversion_status res;
-  DBUG_ENTER("Item_field::save_in_field");
+  DBUG_ENTER("Item_field::save_in_field_inner");
   if (result_field->is_null())
   {
     null_value=1;
@@ -6681,7 +6682,7 @@ Item_field::save_in_field(Field *to, bool no_conversions)
 */
 
 type_conversion_status
-Item_null::save_in_field(Field *field, bool no_conversions)
+Item_null::save_in_field_inner(Field *field, bool no_conversions)
 {
   return set_field_to_null_with_conversions(field, no_conversions);
 }
@@ -6704,38 +6705,34 @@ type_conversion_status Item_null::save_safe_in_field(Field *field)
 }
 
 
-/**
-  Check if an error occurred while storing a value in a field, and
-  return the appropriate type_conversion_status.
-
-  @param[in] error  the returned status from the store() call
-  @param[in] field  the field in which the value was stored
-  @return a type_conversion_status indicating if an error had occurred
-*/
-static type_conversion_status check_error(type_conversion_status error,
-                                          Field *field)
+type_conversion_status
+Item::save_in_field(Field *field, bool no_conversions)
 {
-  if (error)
-    return error;
+  const type_conversion_status ret= save_in_field_inner(field, no_conversions);
 
-  if (field->table->in_use->is_error())
+  /*
+    If an error was raised during evaluation of the item,
+    save_in_field_inner() might not notice and return TYPE_OK. Make
+    sure that we return not OK if there was an error.
+  */
+  if (ret == TYPE_OK && field->table && field->table->in_use->is_error())
     return TYPE_ERR_BAD_VALUE;
 
-  return TYPE_OK;
+  return ret;
 }
 
 
 /*
   This implementation can lose str_value content, so if the
   Item uses str_value to store something, it should
-  reimplement it's ::save_in_field() as Item_string, for example, does.
+  reimplement its ::save_in_field_inner() as Item_string, for example, does.
 
   Note: all Item_XXX::val_str(str) methods must NOT rely on the fact that
   str != str_value. For example, see fix for bug #44743.
 */
 
 type_conversion_status
-Item::save_in_field(Field *field, bool no_conversions)
+Item::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (result_type() == STRING_RESULT)
   {
@@ -6757,7 +6754,7 @@ Item::save_in_field(Field *field, bool no_conversions)
             return set_field_to_null_with_conversions(field, no_conversions);
           }
           field->set_notnull();
-          return check_error(field->store_time(&t), field);
+          return field->store_time(&t);
         }
         if (field->type() == MYSQL_TYPE_NEWDECIMAL)
         {
@@ -6766,7 +6763,7 @@ Item::save_in_field(Field *field, bool no_conversions)
           if (null_value)
             return set_field_to_null_with_conversions(field, no_conversions);
           field->set_notnull();
-          return check_error(field->store_decimal(value), field);
+          return field->store_decimal(value);
         }
         if (field->type() == MYSQL_TYPE_INT24 ||
             field->type() == MYSQL_TYPE_TINY  ||
@@ -6778,7 +6775,7 @@ Item::save_in_field(Field *field, bool no_conversions)
           if (null_value)
             return set_field_to_null_with_conversions(field, no_conversions);
           field->set_notnull();
-          return check_error(field->store(nr, unsigned_flag), field);
+          return field->store(nr, unsigned_flag);
         }
         if (field->type() == MYSQL_TYPE_FLOAT ||
                  field->type() == MYSQL_TYPE_DOUBLE)
@@ -6787,7 +6784,7 @@ Item::save_in_field(Field *field, bool no_conversions)
           if (null_value)
             return set_field_to_null_with_conversions(field, no_conversions);
           field->set_notnull();
-          return check_error(field->store(nr), field);
+          return field->store(nr);
         }
       }
     }
@@ -6810,7 +6807,7 @@ Item::save_in_field(Field *field, bool no_conversions)
       field->store(result->ptr(),result->length(),
                    field->type() == MYSQL_TYPE_JSON ? result->charset() : cs);
     str_value.set_quick(0, 0, cs);
-    return check_error(error, field);
+    return error;
   }
 
   if (result_type() == REAL_RESULT && field->result_type() == STRING_RESULT)
@@ -6819,7 +6816,7 @@ Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    return check_error(field->store(nr), field);
+    return field->store(nr);
   }
 
   if (result_type() == REAL_RESULT)
@@ -6828,7 +6825,7 @@ Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    return check_error(field->store(nr), field);
+    return field->store(nr);
   }
 
   if (result_type() == DECIMAL_RESULT)
@@ -6838,19 +6835,19 @@ Item::save_in_field(Field *field, bool no_conversions)
     if (null_value)
       return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
-    return check_error(field->store_decimal(value), field);
+    return field->store_decimal(value);
   }
 
   longlong nr= val_int();
   if (null_value)
     return set_field_to_null_with_conversions(field, no_conversions);
   field->set_notnull();
-  return check_error(field->store(nr, unsigned_flag), field);
+  return field->store(nr, unsigned_flag);
 }
 
 
 type_conversion_status
-Item_string::save_in_field(Field *field, bool no_conversions)
+Item_string::save_in_field_inner(Field *field, bool no_conversions)
 {
   String *result;
   result=val_str(&str_value);
@@ -6859,10 +6856,10 @@ Item_string::save_in_field(Field *field, bool no_conversions)
 
 
 type_conversion_status
-Item_uint::save_in_field(Field *field, bool no_conversions)
+Item_uint::save_in_field_inner(Field *field, bool no_conversions)
 {
-  /* Item_int::save_in_field handles both signed and unsigned. */
-  return Item_int::save_in_field(field, no_conversions);
+  /* Item_int::save_in_field_inner handles both signed and unsigned. */
+  return Item_int::save_in_field_inner(field, no_conversions);
 }
 
 /**
@@ -6907,7 +6904,7 @@ save_int_value_in_field (Field *field, longlong nr,
                     value
 */
 type_conversion_status
-Item_int::save_in_field(Field *field, bool no_conversions)
+Item_int::save_in_field_inner(Field *field, bool no_conversions)
 {
   return save_int_value_in_field (field, val_int(), null_value,
                                   unsigned_flag);
@@ -6915,7 +6912,7 @@ Item_int::save_in_field(Field *field, bool no_conversions)
 
 
 type_conversion_status
-Item_temporal::save_in_field(Field *field, bool no_conversions)
+Item_temporal::save_in_field_inner(Field *field, bool no_conversions)
 {
   longlong nr= field->is_temporal_with_time() ?
                val_temporal_with_round(field->type(), field->decimals()) :
@@ -6929,7 +6926,7 @@ Item_temporal::save_in_field(Field *field, bool no_conversions)
 
 
 type_conversion_status
-Item_decimal::save_in_field(Field *field, bool no_conversions)
+Item_decimal::save_in_field_inner(Field *field, bool no_conversions)
 {
   field->set_notnull();
   return field->store_decimal(&decimal_value);
@@ -7080,7 +7077,7 @@ void Item_float::init(const char *str_arg, uint length)
 
 
 type_conversion_status
-Item_float::save_in_field(Field *field, bool no_conversions)
+Item_float::save_in_field_inner(Field *field, bool no_conversions)
 {
   double nr= val_real();
   // TODO: call set_field_to_null_with_conversions below
@@ -7212,7 +7209,7 @@ my_decimal *Item_hex_string::val_decimal(my_decimal *decimal_value)
 
 
 type_conversion_status
-Item_hex_string::save_in_field(Field *field, bool no_conversions)
+Item_hex_string::save_in_field_inner(Field *field, bool no_conversions)
 {
   field->set_notnull();
   if (field->result_type() == STRING_RESULT)
@@ -8491,7 +8488,7 @@ my_decimal *Item_ref::val_decimal(my_decimal *decimal_value)
 }
 
 type_conversion_status
-Item_ref::save_in_field(Field *to, bool no_conversions)
+Item_ref::save_in_field_inner(Field *to, bool no_conversions)
 {
   type_conversion_status res;
   if (result_field)
@@ -8839,13 +8836,13 @@ bool Item_direct_view_ref::send(Protocol *prot, String *tmp)
 }
 
 
-type_conversion_status Item_direct_view_ref::save_in_field(Field *field,
-                                                           bool no_conversions)
+type_conversion_status
+Item_direct_view_ref::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (has_null_row())
     return set_field_to_null_with_conversions(field, no_conversions);
 
-  return super::save_in_field(field, no_conversions);
+  return super::save_in_field_inner(field, no_conversions);
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res)
@@ -8942,7 +8939,7 @@ void Item_default_value::print(String *str, enum_query_type query_type)
 
 
 type_conversion_status
-Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
+Item_default_value::save_in_field_inner(Field *field_arg, bool no_conversions)
 {
   if (!arg)
   {
@@ -8978,7 +8975,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
     field_arg->set_default();
     return field_arg->validate_stored_val(current_thd);
   }
-  return Item_field::save_in_field(field_arg, no_conversions);
+  return Item_field::save_in_field_inner(field_arg, no_conversions);
 }
 
 
@@ -10139,14 +10136,14 @@ my_decimal *Item_cache_str::val_decimal(my_decimal *decimal_val)
 
 
 type_conversion_status
-Item_cache_str::save_in_field(Field *field, bool no_conversions)
+Item_cache_str::save_in_field_inner(Field *field, bool no_conversions)
 {
   if (!value_cached && !cache_value())
     return TYPE_ERR_BAD_VALUE;               // Fatal: couldn't cache the value
   if (null_value)
     return set_field_to_null_with_conversions(field, no_conversions);
-  const type_conversion_status res= Item_cache::save_in_field(field,
-                                                              no_conversions);
+  const type_conversion_status res=
+    Item_cache::save_in_field_inner(field, no_conversions);
   if (is_varbinary && field->type() == MYSQL_TYPE_STRING && value != NULL &&
       value->length() < field->field_length)
     return TYPE_WARN_OUT_OF_RANGE;

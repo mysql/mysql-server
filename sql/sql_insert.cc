@@ -438,7 +438,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
     emptiness of the first row is enough
     3) "INSERT VALUES (expr_1, ...), ..." so no defaults are needed; even if
     expr_i is "DEFAULT" (in which case the column is set by
-    Item_default_value::save_in_field()).
+    Item_default_value::save_in_field_inner()).
   */
   const bool manage_defaults=
     insert_field_list.elements != 0 ||          // 1)
