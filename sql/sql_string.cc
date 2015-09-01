@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1230,4 +1230,70 @@ uint convert_to_printable(char *to, size_t to_len,
   else
     *t= '\0';
   return t - to;
+}
+
+/**
+  Check if an input byte sequence is a valid character string of a given charset
+
+  @param cs                     The input character set.
+  @param str                    The input byte sequence to validate.
+  @param length                 A byte length of the str.
+  @param [out] valid_length     A byte length of a valid prefix of the str.
+  @param [out] length_error     True in the case of a character length error:
+                                some byte[s] in the input is not a valid
+                                prefix for a character, i.e. the byte length
+                                of that invalid character is undefined.
+
+  @retval true if the whole input byte sequence is a valid character string.
+               The length_error output parameter is undefined.
+
+  @return
+    if the whole input byte sequence is a valid character string
+    then
+        return false
+    else
+        if the length of some character in the input is undefined (MY_CS_ILSEQ)
+           or the last character is truncated (MY_CS_TOOSMALL)
+        then
+            *length_error= true; // fatal error!
+        else
+            *length_error= false; // non-fatal error: there is no wide character
+                                  // encoding for some input character
+        return true
+*/
+bool validate_string(CHARSET_INFO *cs, const char *str, uint32 length,
+                     size_t *valid_length, bool *length_error)
+{
+  if (cs->mbmaxlen > 1)
+  {
+    int well_formed_error;
+    *valid_length= cs->cset->well_formed_len(cs, str, str + length,
+                                             length, &well_formed_error);
+    *length_error= well_formed_error;
+    return well_formed_error;
+  }
+
+  /*
+    well_formed_len() is not functional on single-byte character sets,
+    so use mb_wc() instead:
+  */
+  *length_error= false;
+
+  const uchar *from= reinterpret_cast<const uchar *>(str);
+  const uchar *from_end= from + length;
+  my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
+
+  while (from < from_end)
+  {
+    my_wc_t wc;
+    int cnvres= (*mb_wc)(cs, &wc, (uchar*) from, from_end);
+    if (cnvres <= 0)
+    {
+      *valid_length= from - reinterpret_cast<const uchar *>(str);
+      return true;
+    }
+    from+= cnvres;
+  }
+  *valid_length= length;
+  return false;
 }

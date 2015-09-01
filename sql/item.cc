@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4807,39 +4807,60 @@ bool Item::is_datetime()
 }
 
 
-String *Item::check_well_formed_result(String *str, bool send_error)
+/**
+  Verifies that the input string is well-formed according to its character set.
+  @param send_error   If true, call my_error if string is not well-formed.
+  @param truncate     If true, set to null/truncate if not well-formed.
+
+  @return
+  If well-formed: input string.
+  If not well-formed:
+    if truncate is true and strict mode:     NULL pointer and we set this
+                                             Item's value to NULL.
+    if truncate is true and not strict mode: input string truncated up to
+                                             last good character.
+    if truncate is false:                    input string is returned.
+ */
+String *Item::check_well_formed_result(String *str,
+                                       bool send_error,
+                                       bool truncate)
 {
   /* Check whether we got a well-formed string */
   CHARSET_INFO *cs= str->charset();
-  int well_formed_error;
-  uint wlen= cs->cset->well_formed_len(cs,
-                                       str->ptr(), str->ptr() + str->length(),
-                                       str->length(), &well_formed_error);
-  if (wlen < str->length())
+
+  size_t valid_length;
+  bool length_error;
+
+  if (validate_string(cs, str->ptr(), str->length(),
+                      &valid_length, &length_error))
   {
+    const char *str_end= str->ptr() + str->length();
+    const char *print_byte= str->ptr() + valid_length;
     THD *thd= current_thd;
     char hexbuf[7];
-    enum MYSQL_ERROR::enum_warning_level level;
-    uint diff= str->length() - wlen;
+    enum MYSQL_ERROR::enum_warning_level level= MYSQL_ERROR::WARN_LEVEL_WARN;
+    uint diff= str_end - print_byte;
     set_if_smaller(diff, 3);
-    octet2hex(hexbuf, str->ptr() + wlen, diff);
-    if (send_error)
+    octet2hex(hexbuf, print_byte, diff);
+    if (send_error && length_error)
     {
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
                cs->csname,  hexbuf);
       return 0;
     }
-    if ((thd->variables.sql_mode &
-         (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+    if (truncate && length_error)
     {
-      level= MYSQL_ERROR::WARN_LEVEL_ERROR;
-      null_value= 1;
-      str= 0;
-    }
-    else
-    {
-      level= MYSQL_ERROR::WARN_LEVEL_WARN;
-      str->length(wlen);
+      if ((thd->variables.sql_mode &
+           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES)))
+      {
+        level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+        null_value= 1;
+        str= 0;
+      }
+      else
+      {
+        str->length(valid_length);
+      }
     }
     push_warning_printf(thd, level, ER_INVALID_CHARACTER_STRING,
                         ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);

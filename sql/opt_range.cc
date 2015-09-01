@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3150,10 +3150,19 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
                                          key_tree->max_value,
                                          key_tree->min_flag | key_tree->max_flag,
                                          &subpart_iter);
-      DBUG_ASSERT(res); /* We can't get "no satisfying subpartitions" */
+      if (res == 0)
+      {
+        /*
+           The only case where we can get "no satisfying subpartitions"
+           returned from the above call is when an error has occurred.
+        */
+        DBUG_ASSERT(ppar->range_param.thd->is_error());
+        return 0;
+      }
+
       if (res == -1)
         return -1; /* all subpartitions satisfy */
-        
+
       uint32 subpart_id;
       bitmap_clear_all(&ppar->subparts_bitmap);
       while ((subpart_id= subpart_iter.get_next(&subpart_iter)) !=
