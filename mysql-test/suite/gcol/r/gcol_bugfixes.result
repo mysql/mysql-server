@@ -352,3 +352,31 @@ date_sub(a,interval a month)) VIRTUAL;
 ALTER TABLE t ADD COLUMN c int GENERATED ALWAYS AS (sum(a));
 ERROR HY000: Invalid use of group function
 DROP TABLE t;
+#
+# Bug#21628840: CRASH/MEMORY CORRUPTION ADDING INDEXES TO VIRTUAL COLUMN
+#               (II)
+#
+CREATE TABLE t1( a INT ) ENGINE = INNODB;
+INSERT INTO t1( a ) VALUES ( 1 ), ( 2 ), ( 3 ), ( 4 ), ( 5 );
+ALTER TABLE t1 ADD COLUMN b INT GENERATED ALWAYS AS (a - 1) STORED;
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (b + 1) VIRTUAL;
+# Used to cause valgrind warning.
+ALTER TABLE t1 ADD INDEX( c );
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+# Make sure the index is correct. That's kinda important.
+EXPLAIN
+SELECT c FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	c	5	NULL	5	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c` AS `c` from `test`.`t1`
+SELECT c FROM t1;
+c
+1
+2
+3
+4
+5
+DROP TABLE t1;
