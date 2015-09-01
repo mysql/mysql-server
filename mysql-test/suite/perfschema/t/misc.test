@@ -188,3 +188,20 @@ select mysql_errno, returned_sqlstate, message_text, errors, warnings
 --echo
 select mysql_errno, returned_sqlstate, message_text, errors, warnings from 
   performance_schema.events_statements_history_long where errors > 0;
+
+#
+# Bug#20519832 - TRUNCATED SQL_TEXT values are not suffixed with '...'
+#
+# Verify that truncated SQL statements are suffixed with '...'
+
+use performance_schema;
+truncate performance_schema.events_statements_history;
+
+# Should truncate at 1024 bytes (1024 characters)
+select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AS A;
+
+# Should truncate at 1024 bytes (487 characters)
+set names utf8mb4;
+select _utf8mb4 'Ð²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑ' as B;
+
+select sql_text from events_statements_history where sql_text like "%...";

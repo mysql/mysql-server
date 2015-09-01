@@ -63,11 +63,9 @@ struct row_events_statements
   /** Length in bytes of @c m_source. */
   uint m_source_length;
   /** Column SQL_TEXT. */
-  char m_sqltext[COL_INFO_SIZE];
+  String m_sqltext;
   /** Column DIGEST and DIGEST_TEXT. */
   PFS_digest_row m_digest;
-  /** Length in bytes of @c m_info. */
-  uint m_sqltext_length;
   /** Column CURRENT_SCHEMA. */
   char m_current_schema_name[NAME_LEN];
   /** Length in bytes of @c m_current_schema_name. */

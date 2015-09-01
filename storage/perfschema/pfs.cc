@@ -4388,6 +4388,8 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
                                const void *charset)
 {
   DBUG_ASSERT(state != NULL);
+  DBUG_ASSERT(charset != NULL);
+
   if (! flag_global_instrumentation)
     return NULL;
   PFS_statement_class *klass= find_statement_class(key);
@@ -4432,6 +4434,8 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
       pfs->m_lock_time= 0;
       pfs->m_current_schema_name_length= 0;
       pfs->m_sqltext_length= 0;
+      pfs->m_sqltext_truncated= false;
+      pfs->m_sqltext_cs_number= system_charset_info->number; /* default */
 
       pfs->m_message_text[0]= '\0';
       pfs->m_sql_errno= 0;
@@ -4511,6 +4515,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_digest= NULL;
 
   state->m_schema_name_length= 0;
+  state->m_cs_number= ((CHARSET_INFO *)charset)->number;
 
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
@@ -4616,10 +4621,14 @@ static void set_statement_text_v1(PSI_statement_locker *locker,
     PFS_events_statements *pfs= reinterpret_cast<PFS_events_statements*> (state->m_statement);
     DBUG_ASSERT(pfs != NULL);
     if (text_len > sizeof (pfs->m_sqltext))
+    {
       text_len= sizeof(pfs->m_sqltext);
+      pfs->m_sqltext_truncated= true;
+    }
     if (text_len)
       memcpy(pfs->m_sqltext, text, text_len);
     pfs->m_sqltext_length= text_len;
+    pfs->m_sqltext_cs_number= state->m_cs_number;
   }
 
   return;
