@@ -1015,6 +1015,11 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
     return false;
 
+  // GEOMETRY data is never convertible to any other type of data.
+  if (a->field_type() == MYSQL_TYPE_GEOMETRY ||
+      b->field_type() == MYSQL_TYPE_GEOMETRY)
+    return false;
+
   if (a->is_temporal_with_date())
   {
     if (b->is_temporal_with_date()) //  date[time] + date
