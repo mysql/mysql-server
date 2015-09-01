@@ -20,7 +20,9 @@
   @file include/decimal.h
 */
 
+#ifndef MYSQL_ABI_CHECK
 #include "my_global.h"
+#endif
 
 C_MODE_START
 
@@ -44,6 +46,7 @@ typedef struct st_decimal_t {
   decimal_digit_t *buf;
 } decimal_t;
 
+#ifndef MYSQL_ABI_CHECK
 int internal_str2dec(const char *from, decimal_t *to, char **end,
                      my_bool fixed);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
@@ -141,5 +144,7 @@ int decimal_shift(decimal_t *dec, int shift);
 #define E_DEC_FATAL_ERROR      30
 
 C_MODE_END
+
+#endif // MYSQL_ABI_CHECK
 
 #endif  // DECIMAL_INCLUDED
