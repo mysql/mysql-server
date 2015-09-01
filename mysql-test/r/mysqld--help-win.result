@@ -1191,7 +1191,7 @@ The following options may be given as the first argument:
  --transaction-write-set-extraction[=name] 
  This option is used to let the server know when to
  extract the write set which will be used for various
- purposes.
+ purposes. 
  --updatable-views-with-limit=name 
  YES = Don't issue an error message (warning only) if a
  VIEW without presence of a key of the underlying table is
