@@ -9266,12 +9266,25 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 }
 
 
-void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
+/**
+  Substitute a const item with a simpler const item, if possible.
+
+  @param thd         Thread handler
+  @param[in,out] ref Const item to be processed, contains simplest possible
+                     item on return.
+  @param comp_item   Item that provides result type for generated const item
+
+  @returns false if success, true if error
+*/
+
+bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 {
   Item *item= *ref;
+  DBUG_ASSERT(item->const_item());
+
   Item *new_item= NULL;
   if (item->basic_const_item())
-    return;                                     // Can't be better
+    return false;                               // Can't be better
   Item_result res_type=item_cmp_type(comp_item->result_type(),
 				     item->result_type());
   switch (res_type) {
@@ -9291,6 +9304,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),&my_charset_bin),*result;
     result=item->val_str(&tmp);
+    if (thd->is_error())
+      return true;
     if (item->null_value)
       new_item= new Item_null(item->item_name);
     else if (item->is_temporal())
@@ -9311,6 +9326,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   case INT_RESULT:
   {
     longlong result=item->val_int();
+    if (thd->is_error())
+      return true;
     uint length=item->max_length;
     bool null_value=item->null_value;
     new_item= (null_value ? (Item*) new Item_null(item->item_name) :
@@ -9330,8 +9347,6 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     */
     Item_row *item_row= (Item_row*) item;
     Item_row *comp_item_row= (Item_row*) comp_item;
-    uint col;
-    new_item= 0;
     /*
       If item and comp_item are both Item_rows and have same number of cols
       then process items in Item_row one by one.
@@ -9340,16 +9355,19 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     */
     DBUG_ASSERT(item->result_type() == comp_item->result_type());
     DBUG_ASSERT(item_row->cols() == comp_item_row->cols());
-    col= item_row->cols();
+    uint col= item_row->cols();
     while (col-- > 0)
-      resolve_const_item(thd, item_row->addr(col),
-                         comp_item_row->element_index(col));
+      if (resolve_const_item(thd, item_row->addr(col),
+                             comp_item_row->element_index(col)))
+        return true;
     break;
   }
   /* Fallthrough */
   case REAL_RESULT:
   {						// It must REAL_RESULT
     double result= item->val_real();
+    if (thd->is_error())
+      return true;
     uint length=item->max_length,decimals=item->decimals;
     bool null_value=item->null_value;
     new_item= (null_value ? (Item*) new Item_null(item->item_name) : (Item*)
@@ -9360,6 +9378,8 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   {
     my_decimal decimal_value;
     my_decimal *result= item->val_decimal(&decimal_value);
+    if (thd->is_error())
+      return true;
     bool null_value= item->null_value;
     new_item= (null_value ?
                (Item*) new Item_null(item->item_name) :
@@ -9370,8 +9390,12 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   default:
     DBUG_ASSERT(0);
   }
-  if (new_item)
-    thd->change_item_tree(ref, new_item);
+  if (new_item == NULL)
+    return true;
+
+  thd->change_item_tree(ref, new_item);
+
+  return false;
 }
 
 /**

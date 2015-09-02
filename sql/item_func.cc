@@ -64,14 +64,20 @@ bool check_reserved_words(LEX_STRING *name)
 
 
 /**
-  @return
-    TRUE if item is a constant
+  Evaluate a constant condition, represented by an Item tree
+
+  @param      thd   Thread handler
+  @param      cond  The constant condition to evaluate
+  @param[out] value Returned value, either true or false
+
+  @returns false if evaluation is successful, true otherwise
 */
 
-bool
-eval_const_cond(Item *cond)
+bool eval_const_cond(THD *thd, Item *cond, bool *value)
 {
-  return ((Item_func*) cond)->val_int() ? TRUE : FALSE;
+  DBUG_ASSERT(cond->const_item());
+  *value= cond->val_int();
+  return thd->is_error();
 }
 
 

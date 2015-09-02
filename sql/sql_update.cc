@@ -327,8 +327,8 @@ static bool mysql_update(THD *thd,
     This must be done before partitioning pruning, since prune_partitions()
     uses the table->write_set to determine may prune locks too.
   */
-  if (table->triggers)
-    table->triggers->mark_fields(TRG_EVENT_UPDATE);
+  if (table->triggers && table->triggers->mark_fields(TRG_EVENT_UPDATE))
+    DBUG_RETURN(true);
 
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
@@ -402,16 +402,18 @@ static bool mysql_update(THD *thd,
         const replacement. However, at the moment there is no such
         thing as Item::clone().
       */
-      conds= build_equal_items(thd, conds, NULL, false,
-                               select_lex->join_list, &cond_equal);
-      conds= remove_eq_conds(thd, conds, &result);
+      if (build_equal_items(thd, conds, &conds, NULL, false,
+                            select_lex->join_list, &cond_equal))
+        goto exit_without_my_ok;
+      if (remove_eq_conds(thd, conds, &conds, &result))
+        goto exit_without_my_ok;
     }
     else
-      conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
-                           true, &result);
-
-    if (thd->is_error())
+    {
+      if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
+                        &result))
         goto exit_without_my_ok;
+    }
 
     if (result == Item::COND_FALSE)
     {
@@ -1860,8 +1862,8 @@ int Query_result_update::prepare(List<Item> &not_used_values,
         bitmap_union(table->read_set, table->write_set);
       }
       /* All needed columns must be marked before prune_partitions(). */
-      if (table->triggers)
-        table->triggers->mark_fields(TRG_EVENT_UPDATE);
+      if (table->triggers && table->triggers->mark_fields(TRG_EVENT_UPDATE))
+        DBUG_RETURN(true);
     }
   }
 

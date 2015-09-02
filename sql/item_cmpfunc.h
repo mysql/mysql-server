@@ -2151,9 +2151,9 @@ public:
   }
 
   inline Item* get_const() { return const_item; }
-  void compare_const(Item *c);
-  void add(Item *c, Item_field *f);
-  void add(Item *c);
+  bool compare_const(THD *thd, Item *c);
+  bool add(THD *thd, Item *c, Item_field *f);
+  bool add(THD *thd, Item *c);
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
@@ -2164,8 +2164,8 @@ public:
   */
   Item_field* get_first() { return fields.head(); }
   Item_field* get_subst_item(const Item_field *field);
-  void merge(Item_equal *item);
-  void update_const();
+  bool merge(THD *thd, Item_equal *item);
+  bool update_const(THD *thd);
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }

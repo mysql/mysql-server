@@ -2433,6 +2433,18 @@ table3.col_varchar_10_utf8_key	{
         "select#": 1,
         "steps": [
           {
+            "condition_processing": {
+              "condition": "WHERE",
+              "original_condition": null,
+              "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": null
+                }
+              ] /* steps */
+            } /* condition_processing */
+          },
+          {
             "table_dependencies": [
               {
                 "table": "`t3` `table1`",

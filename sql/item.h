@@ -3830,6 +3830,10 @@ public:
   }
   longlong val_int();
   bool basic_const_item() const { return 1; }
+  Item *clone_item()
+  {
+    return new Item_hex_string(str_value.ptr(), max_length);
+  }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
@@ -5443,7 +5447,7 @@ void mark_select_range_as_dependent(THD *thd,
 extern Cached_item *new_Cached_item(THD *thd, Item *item,
                                     bool use_result_field);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
-extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
+extern bool resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 
 extern const String my_null_string;

@@ -7141,7 +7141,7 @@ Item_equal::Item_equal(Item_equal *item_equal)
 }
 
 
-void Item_equal::compare_const(Item *c)
+bool Item_equal::compare_const(THD *thd, Item *c)
 {
   if (compare_as_dates)
   {
@@ -7151,41 +7151,46 @@ void Item_equal::compare_const(Item *c)
   else
   {
     Item_func_eq *func= new Item_func_eq(c, const_item);
-    if(func->set_cmp_func())
-      return;
+    if (func == NULL)
+      return true;
+    if (func->set_cmp_func())
+      return true;
     func->quick_fix_field();
     cond_false= !func->val_int();
+    if (thd->is_error())
+      return true;
   }
   if (cond_false)
     const_item_cache= 1;
+  return false;
 }
 
 
-void Item_equal::add(Item *c, Item_field *f)
+bool Item_equal::add(THD *thd, Item *c, Item_field *f)
 {
   if (cond_false)
-    return;
+    return false;
   if (!const_item)
   {
     DBUG_ASSERT(f);
     const_item= c;
     compare_as_dates= f->is_temporal_with_date();
-    return;
+    return false;
   }
-  compare_const(c);
+  return compare_const(thd, c);
 }
 
 
-void Item_equal::add(Item *c)
+bool Item_equal::add(THD *thd, Item *c)
 {
   if (cond_false)
-    return;
+    return false;
   if (!const_item)
   {
     const_item= c;
-    return;
+    return false;
   }
-  compare_const(c);
+  return compare_const(thd, c);
 }
 
 void Item_equal::add(Item_field *f)
@@ -7232,11 +7237,15 @@ bool Item_equal::contains(Field *field)
     After this operation the Item_equal object additionally contains
     the field items of another item of the type Item_equal.
     If the optional constant items are not equal the cond_false flag is
-    set to 1.  
+    set to 1.
+
+  @param thd     thread handler
   @param item    multiple equality whose members are to be joined
+
+  @returns false if success, true if error
 */
 
-void Item_equal::merge(Item_equal *item)
+bool Item_equal::merge(THD *thd, Item_equal *item)
 {
   fields.concat(&item->fields);
   Item *c= item->const_item;
@@ -7247,9 +7256,11 @@ void Item_equal::merge(Item_equal *item)
       the multiple equality already contains a constant and its 
       value is  not equal to the value of c.
     */
-    add(c);
+    if (add(thd, c))
+      return true;
   }
   cond_false|= item->cond_false;
+  return false;
 } 
 
 
@@ -7284,9 +7295,13 @@ void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
   compared with the designated constant item if there is any in the
   multiple equality. If there is none the first new constant item
   becomes designated.
+
+  @param thd      thread handler
+
+  @returns false if success, true if error
 */
 
-void Item_equal::update_const()
+bool Item_equal::update_const(THD *thd)
 {
   List_iterator<Item_field> it(fields);
   Item *item;
@@ -7309,9 +7324,11 @@ void Item_equal::update_const()
         !item->is_outer_field())
     {
       it.remove();
-      add(item);
+      if (add(thd, item))
+        return true;
     }
   }
+  return false;
 }
 
 bool Item_equal::fix_fields(THD *thd, Item **ref)

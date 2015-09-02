@@ -229,32 +229,41 @@ JOIN::optimize()
   if (having_cond || calc_found_rows)
     m_select_limit= HA_POS_ERROR;
 
-  where_cond= optimize_cond(thd, where_cond, &cond_equal,
-                            &select_lex->top_join_list, true,
-                            &select_lex->cond_value);
-  if (thd->is_error())
+  if (unit->select_limit_cnt == 0 && !calc_found_rows)
   {
-    error= 1;
-    DBUG_PRINT("error",("Error from optimize_cond"));
-    DBUG_RETURN(1);
+    zero_result_cause= "Zero limit";
+    best_rowcount= 0;
+    goto setup_subq_exit;
   }
 
+  if (where_cond || select_lex->outer_join)
   {
-    having_cond=
-      optimize_cond(thd, having_cond, &cond_equal, &select_lex->top_join_list,
-                    false, &select_lex->having_value);
-    if (thd->is_error())
+    if (optimize_cond(thd, &where_cond, &cond_equal,
+                      &select_lex->top_join_list, &select_lex->cond_value))
     {
       error= 1;
       DBUG_PRINT("error",("Error from optimize_cond"));
       DBUG_RETURN(1);
     }
-    if (select_lex->cond_value == Item::COND_FALSE || 
-        select_lex->having_value == Item::COND_FALSE || 
-        (!unit->select_limit_cnt && !calc_found_rows))
-    {						/* Impossible cond */
-      zero_result_cause=  select_lex->having_value == Item::COND_FALSE ?
-                           "Impossible HAVING" : "Impossible WHERE";
+    if (select_lex->cond_value == Item::COND_FALSE)
+    {
+      zero_result_cause= "Impossible WHERE";
+      best_rowcount= 0;
+      goto setup_subq_exit;
+    }
+  }
+  if (having_cond)
+  {
+    if (optimize_cond(thd, &having_cond, &cond_equal, NULL,
+                      &select_lex->having_value))
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from optimize_cond"));
+      DBUG_RETURN(1);
+    }
+    if (select_lex->having_value == Item::COND_FALSE)
+    {
+      zero_result_cause= "Impossible HAVING";
       best_rowcount= 0;
       goto setup_subq_exit;
     }
@@ -514,7 +523,13 @@ JOIN::optimize()
   if (having_cond && const_table_map && !having_cond->with_sum_func)
   {
     having_cond->update_used_tables();
-    having_cond= remove_eq_conds(thd, having_cond, &select_lex->having_value);
+    if (remove_eq_conds(thd, having_cond, &having_cond,
+                        &select_lex->having_value))
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_eq_conds"));
+      DBUG_RETURN(1);
+    }
     if (select_lex->having_value == Item::COND_FALSE)
     {
       having_cond= new Item_int((longlong) 0,1);
@@ -1379,12 +1394,11 @@ static Item_func_match *test_if_ft_index_order(ORDER *order)
 /**
   Test if one can use the key to resolve ordering. 
 
-  @param order                 Sort order
-  @param table                 Table to sort
-  @param idx                   Index to check
-  @param used_key_parts [out]  NULL by default, otherwise return value for
-                               used key parts.
-
+  @param order               Sort order
+  @param table               Table to sort
+  @param idx                 Index to check
+  @param[out] used_key_parts NULL by default, otherwise return value for
+                             used key parts.
 
   @note
     used_key_parts is set to correct key parts used if return value != 0
@@ -3280,7 +3294,7 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
   Check whether an equality can be used to build multiple equalities.
 
     This function first checks whether the equality (left_item=right_item)
-    is a simple equality i.e. the one that equates a field with another field
+    is a simple equality i.e. one that equates a field with another field
     or a constant (field=field_item or field=const_item).
     If this is the case the function looks for a multiple equality
     in the lists referenced directly or indirectly by cond_equal inferring
@@ -3315,20 +3329,19 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
     the Field::eq_def method) are placed to the same multiple equalities.
     Because of this some equality predicates are not eliminated and
     can be used in the constant propagation procedure.
-    We could weeken the equlity test as soon as at least one of the 
-    equal fields is to be equal to a constant. It would require a 
+    We could weaken the equality test as soon as at least one of the
+    equal fields is to be equal to a constant. It would require a
     more complicated implementation: we would have to store, in
     general case, its own constant for each fields from the multiple
     equality. But at the same time it would allow us to get rid
     of constant propagation completely: it would be done by the call
     to build_equal_items_for_cond.
 
-
     The implementation does not follow exactly the above rules to
     build a new multiple equality for the equality predicate.
     If it processes the equality of the form field1=field2, it
-    looks for multiple equalities me1 containig field1 and me2 containing
-    field2. If only one of them is found the fuction expands it with
+    looks for multiple equalities me1 containing field1 and me2 containing
+    field2. If only one of them is found the function expands it with
     the lacking field. If multiple equalities for both fields are
     found they are merged. If both searches fail a new multiple equality
     containing just field1 and field2 is added to the existing
@@ -3343,44 +3356,49 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
     acceptable, as this happens rarely. The implementation without
     copying would be much more complicated.
 
-  @param left_item   left term of the quality to be checked
+  @param thd         Thread handler
+  @param left_item   left term of the equality to be checked
   @param right_item  right term of the equality to be checked
   @param item        equality item if the equality originates from a condition
                      predicate, 0 if the equality is the result of row
                      elimination
   @param cond_equal  multiple equalities that must hold together with the
                      equality
+  @param[out] simple_equality
+                     true  if the predicate is a simple equality predicate
+                           to be used for building multiple equalities
+                     false otherwise
 
-  @retval
-    TRUE    if the predicate is a simple equality predicate to be used
-    for building multiple equalities
-  @retval
-    FALSE   otherwise
+  @returns false if success, true if error
 */
 
-static bool check_simple_equality(Item *left_item, Item *right_item,
-                                  Item *item, COND_EQUAL *cond_equal)
+static bool check_simple_equality(THD *thd,
+                                  Item *left_item, Item *right_item,
+                                  Item *item, COND_EQUAL *cond_equal,
+                                  bool *simple_equality)
 {
+  *simple_equality= false;
+
   if (left_item->type() == Item::REF_ITEM &&
-      ((Item_ref*)left_item)->ref_type() == Item_ref::VIEW_REF)
+      down_cast<Item_ref *>(left_item)->ref_type() == Item_ref::VIEW_REF)
   {
-    if (((Item_ref*)left_item)->depended_from)
-      return FALSE;
+    if (down_cast<Item_ref *>(left_item)->depended_from)
+      return false;
     left_item= left_item->real_item();
   }
   if (right_item->type() == Item::REF_ITEM &&
-      ((Item_ref*)right_item)->ref_type() == Item_ref::VIEW_REF)
+      down_cast<Item_ref *>(right_item)->ref_type() == Item_ref::VIEW_REF)
   {
-    if (((Item_ref*)right_item)->depended_from)
-      return FALSE;
+    if (down_cast<Item_ref *>(right_item)->depended_from)
+      return false;
     right_item= right_item->real_item();
   }
   Item_field *left_item_field, *right_item_field;
 
   if (left_item->type() == Item::FIELD_ITEM &&
       right_item->type() == Item::FIELD_ITEM &&
-      (left_item_field= (Item_field *)left_item) &&
-      (right_item_field= (Item_field *)right_item) &&
+      (left_item_field= down_cast<Item_field *>(left_item)) &&
+      (right_item_field= down_cast<Item_field *>(right_item)) &&
       !left_item_field->depended_from &&
       !right_item_field->depended_from)
   {
@@ -3401,7 +3419,10 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
     /* As (NULL=NULL) != TRUE we can't just remove the predicate f=f */
     if (left_field->eq(right_field)) /* f = f */
-      return (!(left_field->maybe_null() && !left_item_equal)); 
+    {
+      *simple_equality= !(left_field->maybe_null() && !left_item_equal);
+      return false;
+    }
 
     if (left_item_equal && left_item_equal == right_item_equal)
     {
@@ -3410,7 +3431,8 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
         multiple equalities, i.e the condition is already covered
         by upper level equalities
       */
-       return true;
+       *simple_equality= true;
+       return false;
     }
 
     /* Copy the found multiple equalities at the current level if needed */
@@ -3418,12 +3440,16 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     {
       /* left_item_equal of an upper level contains left_item */
       left_item_equal= new Item_equal(left_item_equal);
+      if (left_item_equal == NULL)
+        return true;
       cond_equal->current_level.push_back(left_item_equal);
     }
     if (right_copyfl)
     {
       /* right_item_equal of an upper level contains right_item */
       right_item_equal= new Item_equal(right_item_equal);
+      if (right_item_equal == NULL)
+        return true;
       cond_equal->current_level.push_back(right_item_equal);
     }
 
@@ -3431,11 +3457,12 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     { 
       /* left item was found in the current or one of the upper levels */
       if (! right_item_equal)
-        left_item_equal->add((Item_field *) right_item);
+        left_item_equal->add(down_cast<Item_field *>(right_item));
       else
       {
         /* Merge two multiple equalities forming a new one */
-        left_item_equal->merge(right_item_equal);
+        if (left_item_equal->merge(thd, right_item_equal))
+          return true;
         /* Remove the merged multiple equality from the list */
         List_iterator<Item_equal> li(cond_equal->current_level);
         while ((li++) != right_item_equal) ;
@@ -3447,17 +3474,21 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
       /* left item was not found neither the current nor in upper levels  */
       if (right_item_equal)
       {
-        right_item_equal->add((Item_field *) left_item);
+        right_item_equal->add(down_cast<Item_field *>(left_item));
       }
       else 
       {
         /* None of the fields was found in multiple equalities */
-        Item_equal *item_equal= new Item_equal((Item_field *) left_item,
-                                               (Item_field *) right_item);
+        Item_equal *item_equal=
+          new Item_equal(down_cast<Item_field *>(left_item),
+                         down_cast<Item_field *>(right_item));
+        if (item_equal == NULL)
+          return true;
         cond_equal->current_level.push_back(item_equal);
       }
     }
-    return TRUE;
+    *simple_equality= true;
+    return false;
   }
 
   {
@@ -3465,46 +3496,46 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
     Item *const_item= 0;
     Item_field *field_item= 0;
     if (left_item->type() == Item::FIELD_ITEM &&
-        !((Item_field*)left_item)->depended_from &&
+        (field_item= down_cast<Item_field *>(left_item)) &&
+        field_item->depended_from == NULL &&
         right_item->const_item())
     {
-      field_item= (Item_field*) left_item;
       const_item= right_item;
     }
     else if (right_item->type() == Item::FIELD_ITEM &&
-             !((Item_field*)right_item)->depended_from &&
+             (field_item= down_cast<Item_field *>(right_item)) &&
+             field_item->depended_from == NULL &&
              left_item->const_item())
     {
-      field_item= (Item_field*) right_item;
       const_item= left_item;
     }
 
     if (const_item &&
         field_item->result_type() == const_item->result_type())
     {
-      bool copyfl;
-
       if (field_item->result_type() == STRING_RESULT)
       {
         const CHARSET_INFO *cs= field_item->field->charset();
         if (!item)
         {
-          Item_func_eq *eq_item;
-          if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
-              eq_item->set_cmp_func())
-            return FALSE;
+          Item_func_eq *const eq_item= new Item_func_eq(left_item, right_item);
+          if (eq_item == NULL || eq_item->set_cmp_func())
+            return true;
           eq_item->quick_fix_field();
           item= eq_item;
         }  
-        if ((cs != ((Item_func *) item)->compare_collation()) ||
+        if ((cs != down_cast<Item_func *>(item)->compare_collation()) ||
             !cs->coll->propagate(cs, 0, 0))
-          return FALSE;
+          return false;
       }
 
-      Item_equal *item_equal = find_item_equal(cond_equal, field_item, &copyfl);
+      bool copyfl;
+      Item_equal *item_equal= find_item_equal(cond_equal, field_item, &copyfl);
       if (copyfl)
       {
         item_equal= new Item_equal(item_equal);
+        if (item_equal == NULL)
+          return true;
         cond_equal->current_level.push_back(item_equal);
       }
       if (item_equal)
@@ -3514,17 +3545,21 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item, field_item);
+        if (item_equal->add(thd, const_item, field_item))
+          return true;
       }
       else
       {
         item_equal= new Item_equal(const_item, field_item);
+        if (item_equal == NULL)
+          return true;
         cond_equal->current_level.push_back(item_equal);
       }
-      return TRUE;
+      *simple_equality= true;
+      return false;
     }
   }
-  return FALSE;
+  return false;
 }
 
 
@@ -3547,16 +3582,18 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
                     predicate
   @param eq_list    results of conversions of row equalities that are not
                     simple enough to form multiple equalities
+  @param[out] simple_equality
+                    true if the row equality is composed of only
+                    simple equalities.
 
-  @retval
-    TRUE    if conversion has succeeded (no fatal error)
-  @retval
-    FALSE   otherwise
+  @returns false if conversion succeeded, true if any error.
 */
  
 static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
-                               COND_EQUAL *cond_equal, List<Item>* eq_list)
+                               COND_EQUAL *cond_equal, List<Item>* eq_list,
+                               bool *simple_equality)
 { 
+  *simple_equality= false;
   uint n= left_row->cols();
   for (uint i= 0 ; i < n; i++)
   {
@@ -3566,30 +3603,38 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
     {
-      is_converted= check_row_equality(thd, 
-                                       (Item_row *) left_item,
-                                       (Item_row *) right_item,
-			               cond_equal, eq_list);
+      if (check_row_equality(thd,
+                             down_cast<Item_row *>(left_item),
+                             down_cast<Item_row *>(right_item),
+                             cond_equal, eq_list, &is_converted))
+        return true;
       if (!is_converted)
         thd->lex->current_select()->cond_count++;      
     }
     else
     { 
-      is_converted= check_simple_equality(left_item, right_item, 0, cond_equal);
+      if (check_simple_equality(thd, left_item, right_item, 0, cond_equal,
+                                &is_converted))
+        return true;
       thd->lex->current_select()->cond_count++;
-    }  
- 
+    }
+
     if (!is_converted)
     {
-      Item_func_eq *eq_item;
-      if (!(eq_item= new Item_func_eq(left_item, right_item)) ||
-          eq_item->set_cmp_func())
-        return FALSE;
+      Item_func_eq *const eq_item= new Item_func_eq(left_item, right_item);
+      if (eq_item == NULL)
+        return true;
+      if (eq_item->set_cmp_func())
+      {
+        // Failed to create cmp func -> not only simple equalitities
+        return true;
+      }
       eq_item->quick_fix_field();
       eq_list->push_back(eq_item);
     }
   }
-  return TRUE;
+  *simple_equality= true;
+  return false;
 }
 
 
@@ -3613,14 +3658,13 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
                     predicate
   @param eq_list    results of conversions of row equalities that are not
                     simple enough to form multiple equalities
+  @param[out] equality
+                    true if re-writing rules have been applied
+                    false otherwise, i.e.
+                      if the predicate is not an equality, or
+                      if the equality is neither a simple nor a row equality
 
-  @retval
-    TRUE   if re-writing rules have been applied
-  @retval
-    FALSE  otherwise, i.e.
-           if the predicate is not an equality,
-           or, if the equality is neither a simple one nor a row equality,
-           or, if the procedure fails by a fatal error.
+  @returns false if success, true if error
 
   @note If the equality was created by IN->EXISTS, it may be removed later by
   subquery materialization. So we don't mix this possibly temporary equality
@@ -3634,13 +3678,16 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
 */
 
 static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
-                           List<Item> *eq_list)
+                           List<Item> *eq_list, bool *equality)
 {
+  *equality= false;
+  Item_func *item_func;
   if (item->type() == Item::FUNC_ITEM &&
-         ((Item_func*) item)->functype() == Item_func::EQ_FUNC)
+      (item_func= down_cast<Item_func *>(item))->functype() ==
+      Item_func::EQ_FUNC)
   {
-    Item *left_item= ((Item_func*) item)->arguments()[0];
-    Item *right_item= ((Item_func*) item)->arguments()[1];
+    Item *left_item= item_func->arguments()[0];
+    Item *right_item= item_func->arguments()[1];
 
     if (item->created_by_in2exists() && !left_item->const_item())
       return false;                             // See note above
@@ -3650,15 +3697,16 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     {
       thd->lex->current_select()->cond_count--;
       return check_row_equality(thd,
-                                (Item_row *) left_item,
-                                (Item_row *) right_item,
-                                cond_equal, eq_list);
+                                down_cast<Item_row *>(left_item),
+                                down_cast<Item_row *>(right_item),
+                                cond_equal, eq_list, equality);
     }
     else
-      return check_simple_equality(left_item, right_item, item, cond_equal);
+      return check_simple_equality(thd, left_item, right_item, item, cond_equal,
+                                   equality);
   }
 
-  return FALSE;
+  return false;
 }
 
                           
@@ -3666,14 +3714,14 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
   Replace all equality predicates in a condition by multiple equality items.
 
     At each 'and' level the function detects items for equality predicates
-    and replaced them by a set of multiple equality items of class Item_equal,
+    and replaces them by a set of multiple equality items of class Item_equal,
     taking into account inherited equalities from upper levels. 
     If an equality predicate is used not in a conjunction it's just
     replaced by a multiple equality predicate.
     For each 'and' level the function set a pointer to the inherited
     multiple equalities in the cond_equal field of the associated
     object of the type Item_cond_and.   
-    The function also traverses the cond tree and and for each field reference
+    The function also traverses the cond tree and for each field reference
     sets a pointer to the multiple equality item containing the field, if there
     is any. If this multiple equality equates fields to a constant the
     function replaces the field reference by the constant in the cases 
@@ -3690,7 +3738,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     Thus, =(a1,a2,a3) can substitute for ((a1=a3) AND (a2=a3) AND (a2=a1)) as
     it is equivalent to ((a1=a2) AND (a2=a3)).
     The function always makes a substitution of all equality predicates occured
-    in a conjuction for a minimal set of multiple equality predicates.
+    in a conjunction for a minimal set of multiple equality predicates.
     This set can be considered as a canonical representation of the
     sub-conjunction of the equality predicates.
     E.g. (t1.a=t2.b AND t2.b>5 AND t1.a=t3.c) is replaced by 
@@ -3701,13 +3749,13 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     but if additionally =(t4.d,t2.b) is inherited, it
     will be replaced by (=(t1.a,t2.b,t3.c,t4.d) AND t2.b>5)
 
-    The function performs the substitution in a recursive descent by
-    the condtion tree, passing to the next AND level a chain of multiple
+    The function performs the substitution in a recursive descent of
+    the condition tree, passing to the next AND level a chain of multiple
     equality predicates which have been built at the upper levels.
     The Item_equal items built at the level are attached to other 
-    non-equality conjucts as a sublist. The pointer to the inherited
+    non-equality conjuncts as a sublist. The pointer to the inherited
     multiple equalities is saved in the and condition object (Item_cond_and).
-    This chain allows us for any field reference occurence easyly to find a 
+    This chain allows us for any field reference occurence to easily find a
     multiple equality that must be held for this occurence.
     For each AND level we do the following:
     - scan it for all equality predicate (=) items
@@ -3718,30 +3766,30 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
     We need to do things in this order as lower AND levels need to know about
     all possible Item_equal objects in upper levels.
 
-  @param thd        thread handle
-  @param cond       condition(expression) where to make replacement
-  @param inherited  path to all inherited multiple equality items
-  @param do_inherit whether or not to inherit equalities from other
-                    parts of the condition
+  @param thd          thread handle
+  @param cond         condition(expression) where to make replacement
+  @param[out] retcond returned condition
+  @param inherited    path to all inherited multiple equality items
+  @param do_inherit   whether or not to inherit equalities from other parts
+                      of the condition
 
-  @return
-    pointer to the transformed condition
+  @returns false if success, true if error
 */
 
-static Item *build_equal_items_for_cond(THD *thd, Item *cond,
-                                        COND_EQUAL *inherited,
-                                        bool do_inherit)
+static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
+                                       COND_EQUAL *inherited, bool do_inherit)
 {
   Item_equal *item_equal;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels= inherited;
 
-  if (cond->type() == Item::COND_ITEM)
+  const enum Item::Type cond_type= cond->type();
+  if (cond_type == Item::COND_ITEM)
   {
     List<Item> eq_list;
-    bool and_level= ((Item_cond*) cond)->functype() ==
-      Item_func::COND_AND_FUNC;
-    List<Item> *args= ((Item_cond*) cond)->argument_list();
+    Item_cond *const item_cond= down_cast<Item_cond *>(cond);
+    const bool and_level= item_cond->functype() == Item_func::COND_AND_FUNC;
+    List<Item> *args= item_cond->argument_list();
     
     List_iterator<Item> li(*args);
     Item *item;
@@ -3761,7 +3809,10 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
           structure here because it's restored before each
           re-execution of any prepared statement/stored procedure.
         */
-        if (check_equality(thd, item, &cond_equal, &eq_list))
+        bool equality;
+        if (check_equality(thd, item, &cond_equal, &eq_list, &equality))
+          return true;
+        if (equality)
           li.remove();
       }
 
@@ -3772,7 +3823,10 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
       if (!args->elements && 
           !cond_equal.current_level.elements && 
           !eq_list.elements)
-        return new Item_int((longlong) 1, 1);
+      {
+        *retcond= new Item_int((longlong) 1, 1);
+        return *retcond == NULL;
+      }
 
       List_iterator_fast<Item_equal> it(cond_equal.current_level);
       while ((item_equal= it++))
@@ -3783,8 +3837,9 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
                       item_equal->members());  
       }
 
-      ((Item_cond_and*)cond)->cond_equal= cond_equal;
-      inherited= &(((Item_cond_and*)cond)->cond_equal);
+      Item_cond_and *const item_cond_and= down_cast<Item_cond_and *>(cond);
+      item_cond_and->cond_equal= cond_equal;
+      inherited= &item_cond_and->cond_equal;
     }
     /*
        Make replacement of equality predicates for lower levels
@@ -3793,8 +3848,10 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
     li.rewind();
     while ((item= li++))
     { 
-      Item *new_item=
-        build_equal_items_for_cond(thd, item, inherited, do_inherit);
+      Item *new_item;
+      if (build_equal_items_for_cond(thd, item, &new_item, inherited,
+                                     do_inherit))
+        return true;
       if (new_item != item)
       {
         /* This replacement happens only for standalone equalities */
@@ -3825,11 +3882,17 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
       for WHERE a=b AND c=d AND (b=c OR d=5)
       b=c is replaced by =(a,b,c,d).  
      */
-    if (check_equality(thd, cond, &cond_equal, &eq_list))
+    bool equality;
+    if (check_equality(thd, cond, &cond_equal, &eq_list, &equality))
+      return true;
+    if (equality)
     {
       int n= cond_equal.current_level.elements + eq_list.elements;
       if (n == 0)
-        return new Item_int((longlong) 1,1);
+      {
+        *retcond= new Item_int((longlong) 1,1);
+        return *retcond == NULL;
+      }
       else if (n == 1)
       {
         if ((item_equal= cond_equal.current_level.pop()))
@@ -3838,10 +3901,12 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  
-          return item_equal;
+          *retcond= item_equal;
+          return false;
 	}
 
-        return eq_list.pop();
+        *retcond= eq_list.pop();
+        return false;
       }
       else
       {
@@ -3850,6 +3915,9 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
           when a row equality is processed as a standalone predicate.
 	*/
         Item_cond_and *and_cond= new Item_cond_and(eq_list);
+        if (and_cond == NULL)
+          return true;
+
         and_cond->quick_fix_field();
         List<Item> *args= and_cond->argument_list();
         List_iterator_fast<Item_equal> it(cond_equal.current_level);
@@ -3863,7 +3931,8 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
         and_cond->cond_equal= cond_equal;
         args->concat((List<Item> *)&cond_equal.current_level);
         
-        return and_cond;
+        *retcond= and_cond;
+        return false;
       }
     }
 
@@ -3880,15 +3949,18 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
                           &is_subst_valid,
                           &Item::equal_fields_propagator,
                           (uchar *) inherited);
+      if (cond == NULL)
+        return true;
     }
     cond->update_used_tables();
   }
-  return cond;
+  *retcond= cond;
+  return false;
 }
 
 
 /**
-  Build multiple equalities for a condition and all on expressions that
+  Build multiple equalities for a WHERE condition and all join conditions that
   inherit these multiple equalities.
 
     The function first applies the build_equal_items_for_cond function
@@ -3896,12 +3968,12 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
     referred through the parameter inherited. The extended set of
     equalities is returned in the structure referred by the cond_equal_ref
     parameter. After this the function calls itself recursively for
-    all on expressions whose direct references can be found in join_list
+    all join conditions whose direct references can be found in join_list
     and who inherit directly the multiple equalities just having built.
 
   @note
-    The on expression used in an outer join operation inherits all equalities
-    from the on expression of the embedding join, if there is any, or
+    The join condition used in an outer join operation inherits all equalities
+    from the join condition of the embedding join, if there is any, or
     otherwise - from the where condition.
     This fact is not obvious, but presumably can be proved.
     Consider the following query:
@@ -3909,15 +3981,15 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
       SELECT * FROM (t1,t2) LEFT JOIN (t3,t4) ON t1.a=t3.a AND t2.a=t4.a
         WHERE t1.a=t2.a;
     @endcode
-    If the on expression in the query inherits =(t1.a,t2.a), then we
+    If the join condition in the query inherits =(t1.a,t2.a), then we
     can build the multiple equality =(t1.a,t2.a,t3.a,t4.a) that infers
-    the equality t3.a=t4.a. Although the on expression
+    the equality t3.a=t4.a. Although the join condition
     t1.a=t3.a AND t2.a=t4.a AND t3.a=t4.a is not equivalent to the one
     in the query the latter can be replaced by the former: the new query
     will return the same result set as the original one.
 
     Interesting that multiple equality =(t1.a,t2.a,t3.a,t4.a) allows us
-    to use t1.a=t3.a AND t3.a=t4.a under the on condition:
+    to use t1.a=t3.a AND t3.a=t4.a under the join condition:
     @code
       SELECT * FROM (t1,t2) LEFT JOIN (t3,t4) ON t1.a=t3.a AND t3.a=t4.a
         WHERE t1.a=t2.a
@@ -3939,40 +4011,45 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
     @endcode
     Thus, applying equalities from the where condition we basically
     can get more freedom in performing join operations.
-    Althogh we don't use this property now, it probably makes sense to use 
-    it in the future.    
-  @param thd		      Thread handler
+    Although we don't use this property now, it probably makes sense to use
+    it in the future.
+
+  @param thd		     Thread handler
   @param cond                condition to build the multiple equalities for
+  @param[out] retcond        Returned condition
   @param inherited           path to all inherited multiple equality items
   @param do_inherit          whether or not to inherit equalities from other
                              parts of the condition
-  @param join_list           list of join tables to which the condition
-                             refers to
+  @param join_list           list of join tables that the condition refers to
   @param[out] cond_equal_ref pointer to the structure to place built
                              equalities in
 
-  @return
-    pointer to the transformed condition containing multiple equalities
+  @returns false if success, true if error
 */
    
-Item *build_equal_items(THD *thd, Item *cond, COND_EQUAL *inherited,
-                        bool do_inherit, List<TABLE_LIST> *join_list,
-                        COND_EQUAL **cond_equal_ref)
+bool build_equal_items(THD *thd, Item *cond, Item **retcond,
+                       COND_EQUAL *inherited, bool do_inherit,
+                       List<TABLE_LIST> *join_list,
+                       COND_EQUAL **cond_equal_ref)
 {
   COND_EQUAL *cond_equal= 0;
 
   if (cond) 
   {
-    cond= build_equal_items_for_cond(thd, cond, inherited, do_inherit);
+    if (build_equal_items_for_cond(thd, cond, &cond, inherited, do_inherit))
+      return true;
     cond->update_used_tables();
-    if (cond->type() == Item::COND_ITEM &&
-        ((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
-      cond_equal= &((Item_cond_and*) cond)->cond_equal;
-    else if (cond->type() == Item::FUNC_ITEM &&
-             ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+    const enum Item::Type cond_type= cond->type();
+    if (cond_type == Item::COND_ITEM &&
+        down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC)
+      cond_equal= &down_cast<Item_cond_and *>(cond)->cond_equal;
+    else if (cond_type == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(cond)->functype() == Item_func::MULT_EQUAL_FUNC)
     {
       cond_equal= new COND_EQUAL;
-      cond_equal->current_level.push_back((Item_equal *) cond);
+      if (cond_equal == NULL)
+        return true;
+      cond_equal->current_level.push_back(down_cast<Item_equal *>(cond));
     }
   }
   if (cond_equal)
@@ -3993,16 +4070,18 @@ Item *build_equal_items(THD *thd, Item *cond, COND_EQUAL *inherited,
       {
         List<TABLE_LIST> *nested_join_list= table->nested_join ?
           &table->nested_join->join_list : NULL;
-        table->set_join_cond_optim(
-                          build_equal_items(thd, table->join_cond_optim(),
-                                            inherited, do_inherit,
-                                            nested_join_list,
-                                            &table->cond_equal));
+        Item *join_cond;
+        if (build_equal_items(thd, table->join_cond_optim(), &join_cond,
+                              inherited, do_inherit,
+                              nested_join_list, &table->cond_equal))
+          return true;
+        table->set_join_cond_optim(join_cond);
       }
     }
   }
 
-  return cond;
+  *retcond= cond;
+  return false;
 }    
 
 
@@ -4334,35 +4413,48 @@ Item* substitute_for_best_equal_field(Item *cond,
 }
 
 
-/*
+/**
   change field = field to field = const for each found field = const in the
   and_level
+
+  @param thd      Thread handler
+  @param save_list
+  @param and_father
+  @param cond       Condition where fields are replaced with constant values
+  @param field      The field that will be substituted
+  @param value      The substitution value
+
+  @returns false if success, true if error
 */
 
-static void
+static bool
 change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
                          Item *and_father, Item *cond,
                          Item *field, Item *value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
-    bool and_level= ((Item_cond*) cond)->functype() ==
-      Item_func::COND_AND_FUNC;
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
+    Item_cond *const item_cond= down_cast<Item_cond *>(cond);
+    bool and_level= item_cond->functype() == Item_func::COND_AND_FUNC;
+    List_iterator<Item> li(*item_cond->argument_list());
     Item *item;
     while ((item=li++))
-      change_cond_ref_to_const(thd, save_list,and_level ? cond : item, item,
-			       field, value);
-    return;
+    {
+      if (change_cond_ref_to_const(thd, save_list,
+                                   and_level ? cond : item,
+                                   item, field, value))
+        return true;
+    }
+    return false;
   }
   if (cond->eq_cmp_result() == Item::COND_OK)
-    return;					// Not a boolean function
+    return false;                // Not a boolean function
 
-  Item_bool_func2 *func=  (Item_bool_func2*) cond;
+  Item_bool_func2 *func= down_cast<Item_bool_func2 *>(cond);
   Item **args= func->arguments();
   Item *left_item=  args[0];
   Item *right_item= args[1];
-  Item_func::Functype functype=  func->functype();
+  Item_func::Functype functype= func->functype();
 
   if (right_item->eq(field,0) && left_item != value &&
       right_item->cmp_context == field->cmp_context &&
@@ -4370,22 +4462,30 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        value->result_type() != STRING_RESULT ||
        left_item->collation.collation == value->collation.collation))
   {
-    Item *tmp=value->clone_item();
-    if (tmp)
+    Item *const clone= value->clone_item();
+    if (thd->is_error())
+      return true;
+
+    if (clone == NULL)
+      return false;
+
+    clone->collation.set(right_item->collation);
+    thd->change_item_tree(args + 1, clone);
+    func->update_used_tables();
+    if ((functype == Item_func::EQ_FUNC ||
+         functype == Item_func::EQUAL_FUNC) &&
+        and_father != cond && !left_item->const_item())
     {
-      tmp->collation.set(right_item->collation);
-      thd->change_item_tree(args + 1, tmp);
-      func->update_used_tables();
-      if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
-	  && and_father != cond && !left_item->const_item())
-      {
-	cond->marker=1;
-	COND_CMP *tmp2;
-	if ((tmp2=new COND_CMP(and_father,func)))
-	  save_list->push_back(tmp2);
-      }
-      func->set_cmp_func();
+      cond->marker=1;
+      COND_CMP *const cond_cmp= new COND_CMP(and_father,func);
+      if (cond_cmp == NULL)
+        return true;
+
+      save_list->push_back(cond_cmp);
+
     }
+    if (func->set_cmp_func())
+      return true;
   }
   else if (left_item->eq(field,0) && right_item != value &&
            left_item->cmp_context == field->cmp_context &&
@@ -4393,63 +4493,84 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             value->result_type() != STRING_RESULT ||
             right_item->collation.collation == value->collation.collation))
   {
-    Item *tmp= value->clone_item();
-    if (tmp)
+    Item *const clone= value->clone_item();
+    if (thd->is_error())
+      return true;
+
+    if (clone == NULL)
+      return false;
+
+    clone->collation.set(left_item->collation);
+    thd->change_item_tree(args, clone);
+    value= clone;
+    func->update_used_tables();
+    if ((functype == Item_func::EQ_FUNC ||
+         functype == Item_func::EQUAL_FUNC) &&
+        and_father != cond && !right_item->const_item())
     {
-      tmp->collation.set(left_item->collation);
-      thd->change_item_tree(args, tmp);
-      value= tmp;
-      func->update_used_tables();
-      if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
-	  && and_father != cond && !right_item->const_item())
-      {
-        args[0]= args[1];                       // For easy check
-        thd->change_item_tree(args + 1, value);
-	cond->marker=1;
-	COND_CMP *tmp2;
-	if ((tmp2=new COND_CMP(and_father,func)))
-	  save_list->push_back(tmp2);
-      }
-      func->set_cmp_func();
+      args[0]= args[1];                       // For easy check
+      thd->change_item_tree(args + 1, value);
+      cond->marker=1;
+      COND_CMP *const cond_cmp= new COND_CMP(and_father,func);
+      if (cond_cmp == NULL)
+        return true;
+
+      save_list->push_back(cond_cmp);
     }
+    if (func->set_cmp_func())
+      return true;
   }
+  return false;
 }
 
-static void
+/**
+  Propagate constant values in a condition
+
+  @param thd        Thread handler
+  @param save_list
+  @param and_father
+  @param cond       Condition for which constant values are propagated
+
+  @returns false if success, true if error
+*/
+static bool
 propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
                          Item *and_father, Item *cond)
 {
   if (cond->type() == Item::COND_ITEM)
   {
-    bool and_level= ((Item_cond*) cond)->functype() ==
-      Item_func::COND_AND_FUNC;
-    List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
+    Item_cond *const item_cond= down_cast<Item_cond *>(cond);
+    bool and_level= item_cond->functype() == Item_func::COND_AND_FUNC;
+    List_iterator_fast<Item> li(*item_cond->argument_list());
     Item *item;
     I_List<COND_CMP> save;
     while ((item=li++))
     {
-      propagate_cond_constants(thd, &save,and_level ? cond : item, item);
+      if (propagate_cond_constants(thd, &save, and_level ? cond : item, item))
+        return true;
     }
     if (and_level)
     {						// Handle other found items
       I_List_iterator<COND_CMP> cond_itr(save);
       COND_CMP *cond_cmp;
-      while ((cond_cmp=cond_itr++))
+      while ((cond_cmp= cond_itr++))
       {
         Item **args= cond_cmp->cmp_func->arguments();
-        if (!args[0]->const_item())
-          change_cond_ref_to_const(thd, &save,cond_cmp->and_level,
-                                   cond_cmp->and_level, args[0], args[1]);
+        if (!args[0]->const_item() &&
+            change_cond_ref_to_const(thd, &save, cond_cmp->and_level,
+                                     cond_cmp->and_level, args[0], args[1]))
+          return true;
       }
     }
   }
   else if (and_father != cond && !cond->marker)		// In a AND group
   {
+    Item_func *func;
     if (cond->type() == Item::FUNC_ITEM &&
-	(((Item_func*) cond)->functype() == Item_func::EQ_FUNC ||
-	 ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC))
+        (func= down_cast<Item_func *>(cond)) &&
+	(func->functype() == Item_func::EQ_FUNC ||
+	 func->functype() == Item_func::EQUAL_FUNC))
     {
-      Item_func_eq *func=(Item_func_eq*) cond;
       Item **args= func->arguments();
       bool left_const= args[0]->const_item();
       bool right_const= args[1]->const_item();
@@ -4458,21 +4579,27 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
       {
 	if (right_const)
 	{
-          resolve_const_item(thd, &args[1], args[0]);
+          if (resolve_const_item(thd, &args[1], args[0]))
+            return true;
 	  func->update_used_tables();
-          change_cond_ref_to_const(thd, save_list, and_father, and_father,
-                                   args[0], args[1]);
+          if (change_cond_ref_to_const(thd, save_list, and_father, and_father,
+                                       args[0], args[1]))
+            return true;
 	}
 	else if (left_const)
 	{
-          resolve_const_item(thd, &args[0], args[1]);
+          if (resolve_const_item(thd, &args[0], args[1]))
+            return true;
 	  func->update_used_tables();
-          change_cond_ref_to_const(thd, save_list, and_father, and_father,
-                                   args[1], args[0]);
+          if (change_cond_ref_to_const(thd, save_list, and_father, and_father,
+                                       args[1], args[0]))
+            return true;
 	}
       }
     }
   }
+
+  return false;
 }
 
 
@@ -4923,8 +5050,8 @@ bool JOIN::make_join_plan()
   // No need for this struct after new JOIN_TAB array is set up.
   best_positions= NULL;
 
-  // Some called function may still set thd->is_fatal_error unnoticed
-  if (thd->is_fatal_error)
+  // Some called function may still set error status unnoticed
+  if (thd->is_error())
     DBUG_RETURN(true);
 
   // There is at least one empty const table
@@ -5506,7 +5633,7 @@ bool JOIN::estimate_rowcount()
       */
       ha_rows records= get_quick_record_count(thd, tab, row_limit);
 
-      if (records == 0 && thd->is_fatal_error)
+      if (records == 0 && thd->is_error())
         return true;
 
       /*
@@ -9696,167 +9823,184 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
      b) apply constants where possible. If the value of x is known to be
         42, x is replaced with a constant of value 42. By transitivity, this
         also applies to MEPs, so the MEP in a) will become 42=x=y=z.
-     c) remove conditions that are impossible or always true
-  
-  @param[out] conds        conditions to optimize
-  @param      join_list    list of join tables to which the condition
-                           refers to
-  @param[out] cond_value   Not changed if conds was empty 
-                           COND_TRUE if conds is always true
-                           COND_FALSE if conds is impossible
-                           COND_OK otherwise
+     c) remove conditions that are always false or always true
 
-  @return optimized conditions
+  @param thd              Thread handler
+  @param[in,out] cond     WHERE or HAVING condition to optimize
+  @param[out] cond_equal  The built multiple equalities
+  @param join_list        list of join operations with join conditions
+                          = NULL: Called for HAVING condition
+  @param[out] cond_value  Not changed if cond was empty
+                            COND_TRUE if cond is always true
+                            COND_FALSE if cond is impossible
+                            COND_OK otherwise
+
+  @returns false if success, true if error
 */
-Item *
-optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal, 
-              List<TABLE_LIST> *join_list,
-              bool build_equalities, Item::cond_result *cond_value)
+
+bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
+                   List<TABLE_LIST> *join_list,
+                   Item::cond_result *cond_value)
 {
   Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("optimize_cond");
 
-  if (conds)
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_cond(trace, "condition_processing");
+  trace_cond.add_alnum("condition", join_list ? "WHERE" : "HAVING");
+  trace_cond.add("original_condition", *cond);
+  Opt_trace_array trace_steps(trace, "steps");
+
+  /*
+    Enter this function
+    a) For a WHERE condition or a query having outer join.
+    b) For a HAVING condition.
+  */
+  DBUG_ASSERT(*cond || join_list);
+
+  /*
+    Build all multiple equality predicates and eliminate equality
+    predicates that can be inferred from these multiple equalities.
+    For each reference of a field included into a multiple equality
+    that occurs in a function set a pointer to the multiple equality
+    predicate. Substitute a constant instead of this field if the
+    multiple equality contains a constant.
+    This is performed for the WHERE condition and any join conditions, but
+    not for the HAVING condition.
+  */
+  if (join_list)
   {
-    Opt_trace_object trace_wrapper(trace);
-    Opt_trace_object trace_cond(trace, "condition_processing");
-    trace_cond.add_alnum("condition", build_equalities ? "WHERE" : "HAVING");
-    trace_cond.add("original_condition", conds);
-    Opt_trace_array trace_steps(trace, "steps");
-
-    /* 
-      Build all multiple equality predicates and eliminate equality
-      predicates that can be inferred from these multiple equalities.
-      For each reference of a field included into a multiple equality
-      that occurs in a function set a pointer to the multiple equality
-      predicate. Substitute a constant instead of this field if the
-      multiple equality contains a constant.
-    */
-    if (build_equalities)
+    Opt_trace_object step_wrapper(trace);
+    step_wrapper.add_alnum("transformation", "equality_propagation");
     {
-      Opt_trace_object step_wrapper(trace);
-      step_wrapper.add_alnum("transformation", "equality_propagation");
-      {
-        Opt_trace_disable_I_S
-          disable_trace_wrapper(trace, !conds->has_subquery());
-        Opt_trace_array
-          trace_subselect(trace, "subselect_evaluation");
-        conds= build_equal_items(thd, conds, NULL, true,
-                                 join_list, cond_equal);
-      }
-      step_wrapper.add("resulting_condition", conds);
+      Opt_trace_disable_I_S
+        disable_trace_wrapper(trace, !(*cond && (*cond)->has_subquery()));
+      Opt_trace_array
+        trace_subselect(trace, "subselect_evaluation");
+      if (build_equal_items(thd, *cond, cond, NULL, true,
+                            join_list, cond_equal))
+        DBUG_RETURN(true);
     }
-
-    /* change field = field to field = const for each found field = const */
-    {
-      Opt_trace_object step_wrapper(trace);
-      step_wrapper.add_alnum("transformation", "constant_propagation");
-      {
-        Opt_trace_disable_I_S
-          disable_trace_wrapper(trace, !conds->has_subquery());
-        Opt_trace_array
-          trace_subselect(trace, "subselect_evaluation");
-        propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
-      }
-      step_wrapper.add("resulting_condition", conds);
-    }
-
-    /*
-      Remove all instances of item == item
-      Remove all and-levels where CONST item != CONST item
-    */
-    DBUG_EXECUTE("where",print_where(conds,"after const change", QT_ORDINARY););
-    {
-      Opt_trace_object step_wrapper(trace);
-      step_wrapper.add_alnum("transformation", "trivial_condition_removal");
-      {
-        Opt_trace_disable_I_S
-          disable_trace_wrapper(trace, !conds->has_subquery());
-        Opt_trace_array trace_subselect(trace, "subselect_evaluation");
-        conds= remove_eq_conds(thd, conds, cond_value) ;
-      }
-      step_wrapper.add("resulting_condition", conds);
-    }
+    step_wrapper.add("resulting_condition", *cond);
   }
-  DBUG_RETURN(conds);
+  /* change field = field to field = const for each found field = const */
+  if (*cond)
+  {
+    Opt_trace_object step_wrapper(trace);
+    step_wrapper.add_alnum("transformation", "constant_propagation");
+    {
+      Opt_trace_disable_I_S
+        disable_trace_wrapper(trace, !(*cond)->has_subquery());
+      Opt_trace_array trace_subselect(trace, "subselect_evaluation");
+      if (propagate_cond_constants(thd, NULL, *cond, *cond))
+        DBUG_RETURN(true);
+    }
+    step_wrapper.add("resulting_condition", *cond);
+  }
+
+  /*
+    Remove all instances of item == item
+    Remove all and-levels where CONST item != CONST item
+  */
+  DBUG_EXECUTE("where",print_where(*cond,"after const change", QT_ORDINARY););
+  if (*cond)
+  {
+    Opt_trace_object step_wrapper(trace);
+    step_wrapper.add_alnum("transformation", "trivial_condition_removal");
+    {
+      Opt_trace_disable_I_S
+        disable_trace_wrapper(trace, !(*cond)->has_subquery());
+      Opt_trace_array trace_subselect(trace, "subselect_evaluation");
+      if (remove_eq_conds(thd, *cond, cond, cond_value))
+        DBUG_RETURN(true);
+    }
+    step_wrapper.add("resulting_condition", *cond);
+  }
+  DBUG_ASSERT(!thd->is_error());
+  if (thd->is_error())
+    DBUG_RETURN(true);
+  DBUG_RETURN(false);
 }
 
 
 /**
-  Handles the reqursive job for remove_eq_conds()
+  Handle the recursive job for remove_eq_conds()
 
-  Remove const and eq items. Return new item, or NULL if no condition
-  cond_value is set to according:
-  COND_OK    query is possible (field = constant)
-  COND_TRUE  always true	( 1 = 1 )
-  COND_FALSE always false	( 1 = 2 )
+  @param thd             Thread handler
+  @param cond            the condition to handle.
+  @param[out] retcond    Modified condition after removal
+  @param[out] cond_value the resulting value of the condition
 
-  SYNPOSIS
-    remove_eq_conds()
-    thd 			THD environment
-    cond                        the condition to handle. Note that cond
-                                is changed by this function
-    cond_value                  the resulting value of the condition
+  @see remove_eq_conds() for more details on argument
 
-  RETURN
-    *Item with the simplified condition
+  @returns false if success, true if error
 */
 
-static Item *
-internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
+static bool internal_remove_eq_conds(THD *thd, Item *cond,
+                                     Item **retcond,
+                                     Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
-    bool and_level= ((Item_cond*) cond)->functype()
-      == Item_func::COND_AND_FUNC;
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
-    Item::cond_result tmp_cond_value;
-    bool should_fix_fields=0;
+    Item_cond *const item_cond= down_cast<Item_cond *>(cond);
+    const bool and_level= item_cond->functype() == Item_func::COND_AND_FUNC;
+    List_iterator<Item> li(*item_cond->argument_list());
+    bool should_fix_fields= false;
 
     *cond_value=Item::COND_UNDEF;
     Item *item;
     while ((item=li++))
     {
-      Item *new_item=internal_remove_eq_conds(thd, item, &tmp_cond_value);
-      if (!new_item)
-	li.remove();
+      Item *new_item;
+      Item::cond_result tmp_cond_value;
+      if (internal_remove_eq_conds(thd, item, &new_item, &tmp_cond_value))
+        return true;
+
+      if (new_item == NULL)
+        li.remove();
       else if (item != new_item)
       {
-	(void) li.replace(new_item);
-	should_fix_fields=1;
+        (void) li.replace(new_item);
+        should_fix_fields= true;
       }
       if (*cond_value == Item::COND_UNDEF)
-	*cond_value=tmp_cond_value;
-      switch (tmp_cond_value) {
-      case Item::COND_OK:			// Not TRUE or FALSE
-	if (and_level || *cond_value == Item::COND_FALSE)
-	  *cond_value=tmp_cond_value;
-	break;
+         *cond_value= tmp_cond_value;
+      switch (tmp_cond_value)
+      {
+      case Item::COND_OK:                       // Not TRUE or FALSE
+        if (and_level || *cond_value == Item::COND_FALSE)
+          *cond_value= tmp_cond_value;
+        break;
       case Item::COND_FALSE:
-	if (and_level)
-	{
-	  *cond_value=tmp_cond_value;
-	  return (Item*) 0;			// Always false
-	}
-	break;
+        if (and_level)                          // Always false
+        {
+          *cond_value= tmp_cond_value;
+          *retcond= NULL;
+          return false;
+        }
+        break;
       case Item::COND_TRUE:
-	if (!and_level)
-	{
-	  *cond_value= tmp_cond_value;
-	  return (Item*) 0;			// Always true
-	}
-	break;
+        if (!and_level)                         // Always true
+        {
+          *cond_value= tmp_cond_value;
+          *retcond= NULL;
+          return false;
+        }
+        break;
       case Item::COND_UNDEF:			// Impossible
-	break; /* purecov: deadcode */
+        DBUG_ASSERT(false);                     /* purecov: deadcode */
       }
     }
     if (should_fix_fields)
-      cond->update_used_tables();
+      item_cond->update_used_tables();
 
-    if (!((Item_cond*) cond)->argument_list()->elements ||
-	*cond_value != Item::COND_OK)
-      return (Item*) 0;
-    if (((Item_cond*) cond)->argument_list()->elements == 1)
+    if (item_cond->argument_list()->elements == 0 ||
+        *cond_value != Item::COND_OK)
+    {
+      *retcond= NULL;
+      return false;
+    }
+    if (item_cond->argument_list()->elements == 1)
     {
       /*
         BUG#11765699:
@@ -9878,24 +10022,25 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 
         item is therefore returned, but argument_list is not emptied.
       */
-      item= ((Item_cond*) cond)->argument_list()->head();
+      item= item_cond->argument_list()->head();
       /*
         Consider reenabling the line below when the optimizer has been
         split into properly separated phases.
  
-        ((Item_cond*) cond)->argument_list()->empty();
+        item_cond->argument_list()->empty();
       */
-      return item;
+      *retcond= item;
+      return false;
     }
   }
   else if (cond->type() == Item::FUNC_ITEM &&
-	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+           down_cast<Item_func *>(cond)->functype() == Item_func::ISNULL_FUNC)
   {
-    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item_func_isnull *const func= down_cast<Item_func_isnull *>(cond);
     Item **args= func->arguments();
     if (args[0]->type() == Item::FIELD_ITEM)
     {
-      Field *field=((Item_field*) args[0])->field;
+      Field *const field= down_cast<Item_field *>(args[0])->field;
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       /*
         See BUG#12594011
@@ -9914,16 +10059,18 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
           (field->flags & NOT_NULL_FLAG))
       {
         Item *item0= new(thd->mem_root) Item_int((longlong)0, 1);
+        if (item0 == NULL)
+          return true;
         Item *eq_cond= new(thd->mem_root) Item_func_eq(args[0], item0);
-        if (!eq_cond)
-          return cond;
+        if (eq_cond == NULL)
+          return true;
 
         if (args[0]->is_outer_field())
         {
           // outer join: transform "col IS NULL" to "col IS NULL or col=0"
           Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
-          if (!or_cond)
-            return cond;
+          if (or_cond == NULL)
+            return true;
           cond= or_cond;
         }
         else
@@ -9932,61 +10079,76 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
           cond= eq_cond;
         }
 
-        cond->fix_fields(thd, &cond);
+        if (cond->fix_fields(thd, &cond))
+          return true;
       }
     }
     if (cond->const_item())
     {
-      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-      return (Item*) 0;
+      bool value;
+      if (eval_const_cond(thd, cond, &value))
+        return true;
+      *cond_value= value ? Item::COND_TRUE : Item::COND_FALSE;
+      *retcond= NULL;
+      return false;
     }
   }
   else if (cond->const_item() && !cond->is_expensive())
   {
-    *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-    return (Item*) 0;
+    bool value;
+    if (eval_const_cond(thd, cond, &value))
+      return true;
+    *cond_value= value ? Item::COND_TRUE : Item::COND_FALSE;
+    *retcond= NULL;
+    return false;
   }
-  else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
-  {						// boolan compare function
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
+  else
+  {                                             // boolan compare function
+    *cond_value= cond->eq_cmp_result();
+    if (*cond_value == Item::COND_OK)
+    {
+      *retcond= cond;
+      return false;
+    }
+    Item *left_item= down_cast<Item_func *>(cond)->arguments()[0];
+    Item *right_item= down_cast<Item_func *>(cond)->arguments()[1];
     if (left_item->eq(right_item,1))
     {
       if (!left_item->maybe_null ||
-	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
-	return (Item*) 0;			// Compare of identical items
+          down_cast<Item_func *>(cond)->functype() == Item_func::EQUAL_FUNC)
+      {
+        *retcond= NULL;
+        return false;                           // Compare of identical items
+      }
     }
   }
-  *cond_value=Item::COND_OK;
-  return cond;					// Point at next and level
+  *cond_value= Item::COND_OK;
+  *retcond= cond;                               // Point at next and level
+  return false;
 }
 
 
 /**
   Remove const and eq items. Return new item, or NULL if no condition
-  cond_value is set to according:
-  COND_OK    query is possible (field = constant)
-  COND_TRUE  always true	( 1 = 1 )
-  COND_FALSE always false	( 1 = 2 )
 
-  SYNPOSIS
-    remove_eq_conds()
-    thd 			THD environment
-    cond                        the condition to handle
-    cond_value                  the resulting value of the condition
+  @param      thd        thread handler
+  @param      cond       the condition to handle
+  @param[out] retcond    condition after const removal
+  @param[out] cond_value resulting value of the condition
+              =COND_OK    condition must be evaluated (e.g field = constant)
+              =COND_TRUE  always true                 (e.g 1 = 1)
+              =COND_FALSE always false                (e.g 1 = 2)
 
-  NOTES
-    calls the inner_remove_eq_conds to check all the tree reqursively
+  @note calls internal_remove_eq_conds() to check the complete tree.
 
-  RETURN
-    *Item with the simplified condition
+  @returns false if success, true if error
 */
 
-Item *
-remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
+bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
+                     Item::cond_result *cond_value)
 {
   if (cond->type() == Item::FUNC_ITEM &&
-      ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+      down_cast<Item_func *>(cond)->functype() == Item_func::ISNULL_FUNC)
   {
     /*
       Handles this special case for some ODBC applications:
@@ -9998,31 +10160,30 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
       SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
     */
 
-    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item_func_isnull *const func= down_cast<Item_func_isnull *>(cond);
     Item **args= func->arguments();
     if (args[0]->type() == Item::FIELD_ITEM)
     {
-      Field *field=((Item_field*) args[0])->field;
-      if (field->flags & AUTO_INCREMENT_FLAG && !field->table->is_nullable() &&
+      Field *const field= down_cast<Item_field *>(args[0])->field;
+      if ((field->flags & AUTO_INCREMENT_FLAG) &&
+          !field->table->is_nullable() &&
 	  (thd->variables.option_bits & OPTION_AUTO_IS_NULL) &&
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
 	query_cache.abort(thd, &thd->query_cache_tls);
-	Item *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],
-					new Item_int(NAME_STRING("last_insert_id()"),
-                                                     thd->read_first_successful_insert_id_in_prev_stmt(),
-                                                     MY_INT64_NUM_DECIMAL_DIGITS))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+
+        cond= new Item_func_eq(
+                args[0],
+                new Item_int(NAME_STRING("last_insert_id()"),
+                            thd->read_first_successful_insert_id_in_prev_stmt(),
+                             MY_INT64_NUM_DECIMAL_DIGITS));
+        if (cond == NULL)
+          return true;
+
+        if (cond->fix_fields(thd, &cond))
+          return true;
+
         /*
           IS NULL should be mapped to LAST_INSERT_ID only for first row, so
           clear for next row
@@ -10030,11 +10191,12 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
         thd->substitute_null_with_insert_id= FALSE;
 
         *cond_value= Item::COND_OK;
-        return cond;
+        *retcond= cond;
+        return false;
       }
     }
   }
-  return internal_remove_eq_conds(thd, cond, cond_value); // Scan all the condition
+  return internal_remove_eq_conds(thd, cond, retcond, cond_value);
 }
 
 
