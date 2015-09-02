@@ -2232,7 +2232,31 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
+  {
+    if (RUN_HOOK(transaction,
+                 before_commit,
+                 (thd, all,
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(true),
+                  thd_get_cache_mngr(thd)->get_binlog_cache_log(false),
+                  max<my_off_t>(max_binlog_cache_size,
+                                max_binlog_stmt_cache_size))))
+    {
+      //Reset the thread OK status before changing the outcome.
+      if (thd->get_stmt_da()->is_ok())
+        thd->get_stmt_da()->reset_diagnostics_area();
+      my_error(ER_RUN_HOOK_ERROR, MYF(0), "before_commit");
+      DBUG_RETURN(RESULT_ABORTED);
+    }
+#ifndef DBUG_OFF
+    /*
+      XA rollback is always accepted.
+    */
+    if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
+      DBUG_ASSERT(0);
+#endif
+
     error= ordered_commit(thd, all, /* skip_commit */ true);
+  }
 
   if (check_write_error(thd))
   {
