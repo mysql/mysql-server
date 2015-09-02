@@ -1454,7 +1454,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t3`.`a`))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 create view v1 (a) as select a from t1;
 create view v2 (a) as select a from t2;
 create view v4 (a,b) as select v1.a as a, v2.a as b from v1 left join v2 on (v1.a=v2.a);
@@ -1470,7 +1470,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on((`test`.`t3`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t3` left join (`test`.`t1` left join (`test`.`t2`) on(((`test`.`t1`.`a` = `test`.`t3`.`a`) and (`test`.`t2`.`a` = `test`.`t3`.`a`)))) on((`test`.`t1`.`a` = `test`.`t3`.`a`)) where 1
 prepare stmt1 from "select * from t3 left join v4 on (t3.a = v4.a);";
 execute stmt1;
 a	a	b
@@ -5928,7 +5928,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select straight_join NULL AS `pk` from (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t2` left join (`test`.`t1` `sq1_alias1` semi join (`test`.`t3` `c_sq1_alias1`)) on(((NULL = `test`.`sq1_alias1`.`col_varchar_key`) and 1 and (`test`.`c_sq1_alias1`.`col_int_key` <> `test`.`c_sq1_alias1`.`col_int_key`) and (NULL = `test`.`c_sq1_alias1`.`col_varchar_nokey`)))) `alias2` where 1
+Note	1003	/* select#1 */ select straight_join NULL AS `pk` from (/* select#2 */ select NULL AS `pk`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t2` left join (`test`.`t1` `sq1_alias1` semi join (`test`.`t3` `c_sq1_alias1`)) on((1 and (`test`.`c_sq1_alias1`.`col_int_key` <> `test`.`c_sq1_alias1`.`col_int_key`) and multiple equal(NULL, `test`.`sq1_alias1`.`col_varchar_key`) and multiple equal(NULL, `test`.`c_sq1_alias1`.`col_varchar_nokey`)))) `alias2` where 1
 SELECT STRAIGHT_JOIN alias1.pk
 FROM t2 AS alias1
 RIGHT JOIN
