@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,8 +138,9 @@ class TFPool
 {
   friend class TFMTPool;
   unsigned char * m_alloc_ptr;
-  Uint64 m_tot_send_buffer;
-  Uint64 m_tot_used_send_buffer;
+  Uint32 m_tot_send_buffer_pages;
+  Uint32 m_pagesize;
+  Uint32 m_free_send_buffer_pages;
   TFPage * m_first_free;
 public:
   TFPool();
@@ -154,13 +155,17 @@ public:
   void release(TFPage* first, TFPage* last, Uint32 page_count);
   void release_list(TFPage* first);
 
-  Uint64 get_total_send_buffer_size()
+  Uint64 get_total_send_buffer_size() const
   {
-    return m_tot_send_buffer;
+    return Uint64(m_tot_send_buffer_pages) * m_pagesize;
   }
-  Uint64 get_total_used_send_buffer_size()
+  Uint64 get_total_used_send_buffer_size() const
   {
-    return m_tot_used_send_buffer;
+    return Uint64(m_tot_send_buffer_pages - m_free_send_buffer_pages) * m_pagesize;
+  }
+  Uint32 get_page_size() const
+  {
+    return m_pagesize;
   }
 };
 
@@ -197,13 +202,17 @@ public:
     }
     release(head, tail, page_count);
   }
-  Uint64 get_total_send_buffer_size()
+  Uint64 get_total_send_buffer_size() const
   {
-    return m_tot_send_buffer;
+    return TFPool::get_total_send_buffer_size(); 
   }
-  Uint64 get_total_used_send_buffer_size()
+  Uint64 get_total_used_send_buffer_size() const
   {
-    return m_tot_used_send_buffer;
+    return TFPool::get_total_used_send_buffer_size();
+  }
+  Uint32 get_page_size() const
+  {
+    return TFPool::get_page_size();
   }
 };
 
@@ -218,9 +227,10 @@ TFPool::try_alloc(Uint32 n)
     TFPage * prev = 0;
     while (p != 0 && n != 0)
     {
+      assert(m_free_send_buffer_pages);
       prev = p;
       p = p->m_next;
-      m_tot_used_send_buffer += 32768;
+      m_free_send_buffer_pages--;
       n--;
     }
     prev->m_next = 0;
@@ -253,7 +263,8 @@ TFPool::release(TFPage* first, TFPage* last, Uint32 page_count)
 {
   last->m_next = m_first_free;
   m_first_free = first;
-  m_tot_used_send_buffer -= (32768 * page_count);
+  m_free_send_buffer_pages += page_count;
+  assert(m_free_send_buffer_pages <= m_tot_send_buffer_pages);
 }
 
 inline
