@@ -6144,8 +6144,9 @@ void TABLE::mark_columns_needed_for_delete()
 {
   mark_columns_per_binlog_row_image();
 
-  if (triggers)
-    triggers->mark_fields(TRG_EVENT_DELETE);
+  if (triggers && triggers->mark_fields(TRG_EVENT_DELETE))
+    return;
+
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     Field **reg_field;
@@ -6597,7 +6598,8 @@ void TABLE::mark_columns_needed_for_insert()
       row replacement or update write_record() will mark all table
       fields as used.
     */
-    triggers->mark_fields(TRG_EVENT_INSERT);
+    if (triggers->mark_fields(TRG_EVENT_INSERT))
+      return;
   }
   if (found_next_number_field)
     mark_auto_increment_column();
