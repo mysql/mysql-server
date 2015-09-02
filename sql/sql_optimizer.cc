@@ -236,9 +236,8 @@ JOIN::optimize()
   }
 
   {
-    having_cond=
-      optimize_cond(thd, having_cond, &cond_equal, &select_lex->top_join_list,
-                    false, &select_lex->having_value);
+    having_cond= optimize_cond(thd, having_cond, &cond_equal, NULL,
+                               false, &select_lex->having_value);
     if (thd->is_error())
     {
       error= 1;
@@ -510,7 +509,13 @@ JOIN::optimize()
   if (having_cond && const_table_map && !having_cond->with_sum_func)
   {
     having_cond->update_used_tables();
-    having_cond= remove_eq_conds(thd, having_cond, &select_lex->having_value);
+    if (remove_eq_conds(thd, having_cond, &having_cond,
+                        &select_lex->having_value))
+    {
+      error= 1;
+      DBUG_PRINT("error",("Error from remove_eq_conds"));
+      DBUG_RETURN(1);
+    }
     if (select_lex->having_value == Item::COND_FALSE)
     {
       having_cond= new Item_int((longlong) 0,1);
@@ -9779,7 +9784,8 @@ optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
         Opt_trace_disable_I_S
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array trace_subselect(trace, "subselect_evaluation");
-        conds= remove_eq_conds(thd, conds, cond_value) ;
+        if (remove_eq_conds(thd, conds, &conds, cond_value))
+          DBUG_RETURN(NULL);
       }
       step_wrapper.add("resulting_condition", conds);
     }
@@ -9789,80 +9795,83 @@ optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
 
 
 /**
-  Handles the reqursive job for remove_eq_conds()
+  Handle the recursive job for remove_eq_conds()
 
-  Remove const and eq items. Return new item, or NULL if no condition
-  cond_value is set to according:
-  COND_OK    query is possible (field = constant)
-  COND_TRUE  always true	( 1 = 1 )
-  COND_FALSE always false	( 1 = 2 )
+  @param thd             Thread handler
+  @param cond            the condition to handle.
+  @param[out] retcond    Modified condition after removal
+  @param[out] cond_value the resulting value of the condition
 
-  SYNPOSIS
-    remove_eq_conds()
-    thd 			THD environment
-    cond                        the condition to handle. Note that cond
-                                is changed by this function
-    cond_value                  the resulting value of the condition
+  @see remove_eq_conds() for more details on argument
 
-  RETURN
-    *Item with the simplified condition
+  @returns false if success, true if error
 */
 
-static Item *
-internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
+static bool internal_remove_eq_conds(THD *thd, Item *cond,
+                                     Item **retcond,
+                                     Item::cond_result *cond_value)
 {
   if (cond->type() == Item::COND_ITEM)
   {
-    bool and_level= ((Item_cond*) cond)->functype()
-      == Item_func::COND_AND_FUNC;
-    List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
-    Item::cond_result tmp_cond_value;
-    bool should_fix_fields=0;
+    Item_cond *const item_cond= down_cast<Item_cond *>(cond);
+    const bool and_level= item_cond->functype() == Item_func::COND_AND_FUNC;
+    List_iterator<Item> li(*item_cond->argument_list());
+    bool should_fix_fields= false;
 
     *cond_value=Item::COND_UNDEF;
     Item *item;
     while ((item=li++))
     {
-      Item *new_item=internal_remove_eq_conds(thd, item, &tmp_cond_value);
-      if (!new_item)
-	li.remove();
+      Item *new_item;
+      Item::cond_result tmp_cond_value;
+      if (internal_remove_eq_conds(thd, item, &new_item, &tmp_cond_value))
+        return true;
+
+      if (new_item == NULL)
+        li.remove();
       else if (item != new_item)
       {
-	(void) li.replace(new_item);
-	should_fix_fields=1;
+        (void) li.replace(new_item);
+        should_fix_fields= true;
       }
       if (*cond_value == Item::COND_UNDEF)
-	*cond_value=tmp_cond_value;
-      switch (tmp_cond_value) {
-      case Item::COND_OK:			// Not TRUE or FALSE
-	if (and_level || *cond_value == Item::COND_FALSE)
-	  *cond_value=tmp_cond_value;
-	break;
+         *cond_value= tmp_cond_value;
+      switch (tmp_cond_value)
+      {
+      case Item::COND_OK:                       // Not TRUE or FALSE
+        if (and_level || *cond_value == Item::COND_FALSE)
+          *cond_value= tmp_cond_value;
+        break;
       case Item::COND_FALSE:
-	if (and_level)
-	{
-	  *cond_value=tmp_cond_value;
-	  return (Item*) 0;			// Always false
-	}
-	break;
+        if (and_level)                          // Always false
+        {
+          *cond_value= tmp_cond_value;
+          *retcond= NULL;
+          return false;
+        }
+        break;
       case Item::COND_TRUE:
-	if (!and_level)
-	{
-	  *cond_value= tmp_cond_value;
-	  return (Item*) 0;			// Always true
-	}
-	break;
+        if (!and_level)                         // Always true
+        {
+          *cond_value= tmp_cond_value;
+          *retcond= NULL;
+          return false;
+        }
+        break;
       case Item::COND_UNDEF:			// Impossible
-	break; /* purecov: deadcode */
+        DBUG_ASSERT(false);                     /* purecov: deadcode */
       }
     }
     if (should_fix_fields)
-      cond->update_used_tables();
+      item_cond->update_used_tables();
 
-    if (!((Item_cond*) cond)->argument_list()->elements ||
-	*cond_value != Item::COND_OK)
-      return (Item*) 0;
-    if (((Item_cond*) cond)->argument_list()->elements == 1)
+    if (item_cond->argument_list()->elements == 0 ||
+        *cond_value != Item::COND_OK)
+    {
+      *retcond= NULL;
+      return false;
+    }
+    if (item_cond->argument_list()->elements == 1)
     {
       /*
         BUG#11765699:
@@ -9884,24 +9893,25 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
 
         item is therefore returned, but argument_list is not emptied.
       */
-      item= ((Item_cond*) cond)->argument_list()->head();
+      item= item_cond->argument_list()->head();
       /*
         Consider reenabling the line below when the optimizer has been
         split into properly separated phases.
  
-        ((Item_cond*) cond)->argument_list()->empty();
+        item_cond->argument_list()->empty();
       */
-      return item;
+      *retcond= item;
+      return false;
     }
   }
   else if (cond->type() == Item::FUNC_ITEM &&
-	   ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+           down_cast<Item_func *>(cond)->functype() == Item_func::ISNULL_FUNC)
   {
-    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item_func_isnull *const func= down_cast<Item_func_isnull *>(cond);
     Item **args= func->arguments();
     if (args[0]->type() == Item::FIELD_ITEM)
     {
-      Field *field=((Item_field*) args[0])->field;
+      Field *const field= down_cast<Item_field *>(args[0])->field;
       /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
       /*
         See BUG#12594011
@@ -9920,16 +9930,18 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
           (field->flags & NOT_NULL_FLAG))
       {
         Item *item0= new(thd->mem_root) Item_int((longlong)0, 1);
+        if (item0 == NULL)
+          return true;
         Item *eq_cond= new(thd->mem_root) Item_func_eq(args[0], item0);
-        if (!eq_cond)
-          return cond;
+        if (eq_cond == NULL)
+          return true;
 
         if (args[0]->is_outer_field())
         {
           // outer join: transform "col IS NULL" to "col IS NULL or col=0"
           Item *or_cond= new(thd->mem_root) Item_cond_or(eq_cond, cond);
-          if (!or_cond)
-            return cond;
+          if (or_cond == NULL)
+            return true;
           cond= or_cond;
         }
         else
@@ -9938,61 +9950,76 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
           cond= eq_cond;
         }
 
-        cond->fix_fields(thd, &cond);
+        if (cond->fix_fields(thd, &cond))
+          return true;
       }
     }
     if (cond->const_item())
     {
-      *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-      return (Item*) 0;
+      bool value;
+      if (eval_const_cond(thd, cond, &value))
+        return true;
+      *cond_value= value ? Item::COND_TRUE : Item::COND_FALSE;
+      *retcond= NULL;
+      return false;
     }
   }
   else if (cond->const_item() && !cond->is_expensive())
   {
-    *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
-    return (Item*) 0;
+    bool value;
+    if (eval_const_cond(thd, cond, &value))
+      return true;
+    *cond_value= value ? Item::COND_TRUE : Item::COND_FALSE;
+    *retcond= NULL;
+    return false;
   }
-  else if ((*cond_value= cond->eq_cmp_result()) != Item::COND_OK)
-  {						// boolan compare function
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
+  else
+  {                                             // boolan compare function
+    *cond_value= cond->eq_cmp_result();
+    if (*cond_value == Item::COND_OK)
+    {
+      *retcond= cond;
+      return false;
+    }
+    Item *left_item= down_cast<Item_func *>(cond)->arguments()[0];
+    Item *right_item= down_cast<Item_func *>(cond)->arguments()[1];
     if (left_item->eq(right_item,1))
     {
       if (!left_item->maybe_null ||
-	  ((Item_func*) cond)->functype() == Item_func::EQUAL_FUNC)
-	return (Item*) 0;			// Compare of identical items
+          down_cast<Item_func *>(cond)->functype() == Item_func::EQUAL_FUNC)
+      {
+        *retcond= NULL;
+        return false;                           // Compare of identical items
+      }
     }
   }
-  *cond_value=Item::COND_OK;
-  return cond;					// Point at next and level
+  *cond_value= Item::COND_OK;
+  *retcond= cond;                               // Point at next and level
+  return false;
 }
 
 
 /**
   Remove const and eq items. Return new item, or NULL if no condition
-  cond_value is set to according:
-  COND_OK    query is possible (field = constant)
-  COND_TRUE  always true	( 1 = 1 )
-  COND_FALSE always false	( 1 = 2 )
 
-  SYNPOSIS
-    remove_eq_conds()
-    thd 			THD environment
-    cond                        the condition to handle
-    cond_value                  the resulting value of the condition
+  @param      thd        thread handler
+  @param      cond       the condition to handle
+  @param[out] retcond    condition after const removal
+  @param[out] cond_value resulting value of the condition
+              =COND_OK    condition must be evaluated (e.g field = constant)
+              =COND_TRUE  always true                 (e.g 1 = 1)
+              =COND_FALSE always false                (e.g 1 = 2)
 
-  NOTES
-    calls the inner_remove_eq_conds to check all the tree reqursively
+  @note calls internal_remove_eq_conds() to check the complete tree.
 
-  RETURN
-    *Item with the simplified condition
+  @returns false if success, true if error
 */
 
-Item *
-remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
+bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
+                     Item::cond_result *cond_value)
 {
   if (cond->type() == Item::FUNC_ITEM &&
-      ((Item_func*) cond)->functype() == Item_func::ISNULL_FUNC)
+      down_cast<Item_func *>(cond)->functype() == Item_func::ISNULL_FUNC)
   {
     /*
       Handles this special case for some ODBC applications:
@@ -10004,31 +10031,30 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
       SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
     */
 
-    Item_func_isnull *func=(Item_func_isnull*) cond;
+    Item_func_isnull *const func= down_cast<Item_func_isnull *>(cond);
     Item **args= func->arguments();
     if (args[0]->type() == Item::FIELD_ITEM)
     {
-      Field *field=((Item_field*) args[0])->field;
-      if (field->flags & AUTO_INCREMENT_FLAG && !field->table->is_nullable() &&
+      Field *const field= down_cast<Item_field *>(args[0])->field;
+      if ((field->flags & AUTO_INCREMENT_FLAG) &&
+          !field->table->is_nullable() &&
 	  (thd->variables.option_bits & OPTION_AUTO_IS_NULL) &&
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(&thd->query_cache_tls);
-	Item *new_cond;
-	if ((new_cond= new Item_func_eq(args[0],
-					new Item_int(NAME_STRING("last_insert_id()"),
-                                                     thd->read_first_successful_insert_id_in_prev_stmt(),
-                                                     MY_INT64_NUM_DECIMAL_DIGITS))))
-	{
-	  cond=new_cond;
-          /*
-            Item_func_eq can't be fixed after creation so we do not check
-            cond->fixed, also it do not need tables so we use 0 as second
-            argument.
-          */
-	  cond->fix_fields(thd, &cond);
-	}
+        query_cache.abort(&thd->query_cache_tls);
+
+        cond= new Item_func_eq(
+                args[0],
+                new Item_int(NAME_STRING("last_insert_id()"),
+                            thd->read_first_successful_insert_id_in_prev_stmt(),
+                             MY_INT64_NUM_DECIMAL_DIGITS));
+        if (cond == NULL)
+          return true;
+
+        if (cond->fix_fields(thd, &cond))
+          return true;
+
         /*
           IS NULL should be mapped to LAST_INSERT_ID only for first row, so
           clear for next row
@@ -10036,11 +10062,12 @@ remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
         thd->substitute_null_with_insert_id= FALSE;
 
         *cond_value= Item::COND_OK;
-        return cond;
+        *retcond= cond;
+        return false;
       }
     }
   }
-  return internal_remove_eq_conds(thd, cond, cond_value); // Scan all the condition
+  return internal_remove_eq_conds(thd, cond, retcond, cond_value);
 }
 
 
