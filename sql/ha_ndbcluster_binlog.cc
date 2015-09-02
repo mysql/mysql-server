@@ -4447,17 +4447,13 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                                          const st_conflict_fn_def* conflict_fn,
                                          const st_conflict_fn_arg* args,
                                          Uint32 num_args,
-                                         bool do_set_binlog_flags,
                                          Uint32 binlog_flags)
 {
   DBUG_ENTER("ndbcluster_apply_binlog_replication_info");
   char tmp_buf[FN_REFLEN];
 
-  if (do_set_binlog_flags)
-  {
-    DBUG_PRINT("info", ("Setting binlog flags to %u", binlog_flags));
-    set_binlog_flags(share, (enum Ndb_binlog_type)binlog_flags);
-  }
+  DBUG_PRINT("info", ("Setting binlog flags to %u", binlog_flags));
+  set_binlog_flags(share, (enum Ndb_binlog_type)binlog_flags);
 
   if (conflict_fn != NULL)
   {
@@ -4511,8 +4507,7 @@ int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
-                                   uint server_id,
-                                   bool do_set_binlog_flags)
+                                   uint server_id)
 {
   DBUG_ENTER("ndbcluster_read_binlog_replication");
   Uint32 binlog_flags;
@@ -4534,7 +4529,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                                 conflict_fn,
                                                 args,
                                                 num_args,
-                                                do_set_binlog_flags,
                                                 binlog_flags) != 0))
   {
     DBUG_RETURN(-1);
@@ -4633,7 +4627,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     /*
      */
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                       ::server_id, TRUE);
+                                       ::server_id);
 #endif
     /*
       check if logging turned off for this table
