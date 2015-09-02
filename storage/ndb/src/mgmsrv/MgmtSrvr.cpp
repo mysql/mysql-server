@@ -3038,6 +3038,7 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
   if (no < 1)
     return -1;
 
+#ifdef ERROR_INSERT
   switch(args[0])
   {
   case 9994:
@@ -3067,7 +3068,6 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
     break;
   }
 
-#ifdef ERROR_INSERT
   case 9996:
   {
     /* Sendbuffer consumption */
