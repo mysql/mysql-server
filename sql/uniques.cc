@@ -80,24 +80,37 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 }
 
 
-/*
+/**
   Calculate log2(n!)
 
-  NOTES
-    Stirling's approximate formula is used:
+  Stirling's approximate formula is used:
 
       n! ~= sqrt(2*M_PI*n) * (n/M_E)^n
 
-    Derivation of formula used for calculations is as follows:
+  Derivation of formula used for calculations is as follows:
 
     log2(n!) = log(n!)/log(2) = log(sqrt(2*M_PI*n)*(n/M_E)^n) / log(2) =
 
       = (log(2*M_PI*n)/2 + n*log(n/M_E)) / log(2).
+
+  @param n the number to calculate log2(n!) for
+
+  @return log2(n!) for the function argument
 */
 
-inline double log2_n_fact(double x)
+static inline double log2_n_fact(ulong n)
 {
-  return (log(2*M_PI*x)/2 + x*log(x/M_E)) / M_LN2;
+  /*
+    Stirling's approximation produces a small negative value when n is
+    1 so we handle this as a special case in order to avoid negative
+    numbers in estimates. For n equal to 0, the formula below will
+    produce NaN. Since 0! by definition is 1, we return 0 for this
+    case too.
+  */
+  if (n <= 1)
+    return 0.0;
+
+  return (log(2*M_PI*n)/2 + n*log(n/M_E)) / M_LN2;
 }
 
 
@@ -295,10 +308,10 @@ double Unique::get_use_cost(Imerge_cost_buf_type buffer,
   last_tree_elems= nkeys % max_elements_in_tree;
 
   /* Calculate cost of creating trees */
-  double result= 2 * log2_n_fact(last_tree_elems + 1.0);
+  double n_compares= 2 * log2_n_fact(last_tree_elems + 1);
   if (n_full_trees)
-    result+= n_full_trees * log2_n_fact(max_elements_in_tree + 1.0);
-  result= cost_model->key_compare_cost(result);
+    n_compares+= n_full_trees * log2_n_fact(max_elements_in_tree + 1);
+  double result= cost_model->key_compare_cost(n_compares);
 
   DBUG_PRINT("info",("unique trees sizes: %u=%u*%lu + %lu", nkeys,
                      n_full_trees, n_full_trees?max_elements_in_tree:0,

@@ -2029,3 +2029,30 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select sql_no_cache count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`id3` = 0) and (`test`.`t1`.`id2` = 7))
 DROP TABLE t1;
+#
+# Bug#21697002 ASSERTION `KEYS >= 0.0' FAILED
+#
+CREATE TABLE t1 (
+c1 VARCHAR(2),
+d1 DATETIME NOT NULL
+);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+c1 VARCHAR(2),
+c2 VARCHAR(2),
+PRIMARY KEY (pk),
+KEY (c1),
+KEY (c2)
+) PARTITION BY KEY(pk) PARTITIONS 2;
+SELECT c1
+FROM t1
+WHERE c1 IN
+(
+SELECT t2.c1
+FROM t2
+WHERE t2.c1 = 'f'
+     OR t2.c2 < 'y'
+)
+AND t1.d1 IS NULL;
+c1
+DROP TABLE t1, t2;
