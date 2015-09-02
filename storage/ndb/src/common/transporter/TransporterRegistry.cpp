@@ -278,6 +278,7 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
 #ifdef ERROR_INSERT
   m_blocked.clear();
   m_blocked_disconnected.clear();
+  m_sendBlocked.clear();
 
   m_mixology_level = 0;
 #endif
@@ -1627,6 +1628,13 @@ TransporterRegistry::performSend(NodeId nodeId)
   Transporter *t = get_transporter(nodeId);
   if (t && t->isConnected() && is_connected(nodeId))
   {
+#ifdef ERROR_INSERT
+    if (m_sendBlocked.get(nodeId))
+    {
+      return true;
+    }
+#endif
+
     return t->doSend();
   }
 
@@ -1661,7 +1669,11 @@ TransporterRegistry::performSend()
   {
     TCP_Transporter *t = theTCPTransporters[i];
     if (t && t->has_data_to_send() &&
-        t->isConnected() && is_connected(t->getRemoteNodeId()))
+        t->isConnected() && is_connected(t->getRemoteNodeId())
+#ifdef ERROR_INSERT
+        && !m_sendBlocked.get(t->getRemoteNodeId())
+#endif
+        )
     {
       t->doSend();
     }
@@ -1670,7 +1682,11 @@ TransporterRegistry::performSend()
   {
     TCP_Transporter *t = theTCPTransporters[i];
     if (t && t->has_data_to_send() &&
-        t->isConnected() && is_connected(t->getRemoteNodeId()))
+        t->isConnected() && is_connected(t->getRemoteNodeId())
+#ifdef ERROR_INSERT
+        && !m_sendBlocked.get(t->getRemoteNodeId())
+#endif
+        )
     {
       t->doSend();
     }
@@ -1687,7 +1703,11 @@ TransporterRegistry::performSend()
     
     if(is_connected(nodeId))
     {
-      if(t->isConnected() && t->has_data_to_send())
+      if(t->isConnected() && t->has_data_to_send()
+#ifdef ERROR_INSERT
+        && !m_sendBlocked.get(t->getRemoteNodeId())
+#endif
+        )
       {
 	t->doSend();
       } //if
@@ -1702,7 +1722,11 @@ TransporterRegistry::performSend()
     const NodeId nodeId = t->getRemoteNodeId();
     if(is_connected(nodeId))
     {
-      if(t->isConnected())
+      if(t->isConnected()
+#ifdef ERROR_INSERT
+        && !m_sendBlocked.get(t->getRemoteNodeId())
+#endif
+         )
       {
 	t->doSend();
       }
@@ -1785,6 +1809,33 @@ TransporterRegistry::unblockReceive(TransporterReceiveHandle& recvdata,
     report_disconnect(recvdata, nodeId, m_disconnect_errors[nodeId]);
   }
 }
+
+bool
+TransporterRegistry::isSendBlocked(NodeId nodeId) const
+{
+  return m_sendBlocked.get(nodeId);
+}
+
+void
+TransporterRegistry::blockSend(TransporterReceiveHandle& recvdata,
+                               NodeId nodeId)
+{
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+  assert(recvdata.m_transporters.get(nodeId));
+
+  m_sendBlocked.set(nodeId);
+}
+
+void
+TransporterRegistry::unblockSend(TransporterReceiveHandle& recvdata,
+                                 NodeId nodeId)
+{
+  assert((receiveHandle == &recvdata) || (receiveHandle == 0));
+  assert(recvdata.m_transporters.get(nodeId));
+
+  m_sendBlocked.clear(nodeId);
+}
+
 #endif
 
 #ifdef ERROR_INSERT
