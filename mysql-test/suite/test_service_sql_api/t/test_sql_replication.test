@@ -1,0 +1,80 @@
+--source include/not_embedded.inc
+--source include/master-slave.inc
+
+--connection master
+
+--echo # Creating table t1
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT);
+
+--echo ###################################################################
+--echo # Run plugin
+--echo ###################################################################
+--replace_result $TEST_SQL_REPLICATION TEST_SQL_REPLICATION
+eval INSTALL PLUGIN test_sql_replication SONAME '$TEST_SQL_REPLICATION';
+
+--echo ###################################################################
+--echo # Stop plugin
+--echo ###################################################################
+UNINSTALL PLUGIN test_sql_replication;
+
+--echo ###################################################################
+--echo # Plugin log
+--echo ###################################################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_replication.log;
+remove_file $MYSQLD_DATADIR/test_sql_replication.log;
+
+SELECT * FROM t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM t1;
+
+--echo [Connection Master]
+--connection master
+
+--echo ###################################################################
+--echo # Run plugin
+--echo ###################################################################
+--replace_result $TEST_SQL_REPLICATION TEST_SQL_REPLICATION
+eval INSTALL PLUGIN test_sql_replication SONAME '$TEST_SQL_REPLICATION';
+
+--echo ###################################################################
+--echo # Stop plugin
+--echo ###################################################################
+UNINSTALL PLUGIN test_sql_replication;
+
+--echo ###################################################################
+--echo # Plugin log
+--echo ###################################################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_sql_replication.log;
+remove_file $MYSQLD_DATADIR/test_sql_replication.log;
+
+SELECT * FROM t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+SELECT * FROM t1;
+
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+--echo [Connection Master]
+--connection master
+
+--echo # Dropping the created table
+DROP TABLE t1;
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t1;
+
+--source include/rpl_end.inc

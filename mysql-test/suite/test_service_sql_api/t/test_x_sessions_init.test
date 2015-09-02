@@ -1,0 +1,28 @@
+--source include/not_embedded.inc
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_X_SESSIONS_INIT TEST_X_SESSIONS_INIT
+
+--replace_column 1 ID 3 HOST_NAME 6 TIME
+SHOW PROCESSLIST;
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN test_x_sessions_init SONAME '$TEST_X_SESSIONS_INIT';
+
+SHOW VARIABLES LIKE '%test_x_session%';
+
+--replace_column 1 ID 3 HOST_NAME 6 TIME
+SHOW PROCESSLIST;
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_x_sessions_init;
+
+--echo ##########################################
+--echo # Plugin log
+--echo ##########################################
+let $MYSQLD_DATADIR= `select @@datadir`;
+cat_file $MYSQLD_DATADIR/test_x_sessions_init.log;
+remove_file $MYSQLD_DATADIR/test_x_sessions_init.log;

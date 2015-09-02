@@ -1,0 +1,38 @@
+--source include/not_embedded.inc
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+--echo ##########################################
+--echo # Run plugin
+--echo ##########################################
+--replace_result $TEST_SQL_SHUTDOWN TEST_SQL_SHUTDOWN
+eval INSTALL PLUGIN test_sql_shutdown SONAME '$TEST_SQL_SHUTDOWN';
+
+--echo ##########################################
+--echo # Shutdown
+--echo ##########################################
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Give implicitly called deinit of plugin time to write 'SERVER SHUTDOWN' to file
+--sleep 3
+cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
+
+--echo ##########################################
+--echo # Restart
+--echo ##########################################
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
+
+SELECT plugin_name, plugin_status, plugin_type,
+       plugin_description, load_option
+FROM information_schema.plugins
+WHERE plugin_name LIKE "test_sql_shutdown";
+
+--echo ##########################################
+--echo # Stop plugin
+--echo ##########################################
+UNINSTALL PLUGIN test_sql_shutdown;
+--sleep 1
+remove_file $MYSQLD_DATADIR/test_sql_shutdown.log;
