@@ -1190,7 +1190,7 @@ bool SELECT_LEX::setup_conds(THD *thd)
       {
         if (view->prepare_check_option(thd))
           DBUG_RETURN(true);        /* purecov: inspected */
-        thd->change_item_tree(&table->check_option, view->check_option);
+        table->check_option= view->check_option;
       }
     }
   }
@@ -1478,14 +1478,10 @@ SELECT_LEX::simplify_joins(THD *thd,
           while ((arg= lit++))
           {
             /*
-              The join condition isn't necessarily the second argument anymore,
-              since fix_fields may have merged it into an existing AND expr.
+              Check whether the arguments to AND need substitution
+              of rollback location.
             */
-            if (arg == table->join_cond())
-              thd->replace_rollback_place_for_ref(table->join_cond_ref(),
-                                                  lit.ref());
-            else if (arg == *cond)
-              thd->replace_rollback_place_for_ref(cond, lit.ref());
+            thd->replace_rollback_place_for_value(arg, lit.ref());
           }
           *cond= new_cond;
         }
