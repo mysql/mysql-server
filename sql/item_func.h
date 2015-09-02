@@ -2838,7 +2838,7 @@ extern bool check_reserved_words(LEX_STRING *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
-bool eval_const_cond(Item *cond);
+bool eval_const_cond(THD *thd, Item *cond, bool *value);
 Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
 
 extern bool volatile  mqh_used;

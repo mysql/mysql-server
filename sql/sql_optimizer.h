@@ -855,7 +855,8 @@ private:
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);
-Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
+bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
+                     Item::cond_result *cond_value);
 Item *optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
                     List<TABLE_LIST> *join_list,
                     bool build_equalities, Item::cond_result *cond_value);

@@ -841,3 +841,28 @@ JOIN a USING (f)
 JOIN a AS h on TRUE;
 ERROR 23000: Column 'g' in having clause is ambiguous
 DROP TABLE a;
+# Bug#21067109: Assert 'join == __NULL' failed in ::optimize()
+CREATE TABLE t1 (
+col_int_key INT,
+pk INT NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6, 1);
+CREATE TABLE t2 (
+pk INT NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (5), (6), (7), (8);
+SELECT col_int_key
+FROM t1 AS alias1
+HAVING (2, 7) NOT IN
+(SELECT pk, SUM(pk)
+FROM t1
+WHERE pk <> (SELECT t2_alias1 .pk
+FROM t2 AS t2_alias1 JOIN t2 AS t2_alias2
+)
+GROUP BY pk
+);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2;

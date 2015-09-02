@@ -398,7 +398,8 @@ bool mysql_update(THD *thd,
       */
       conds= build_equal_items(thd, conds, NULL, false,
                                select_lex->join_list, &cond_equal);
-      conds= remove_eq_conds(thd, conds, &result);
+      if (remove_eq_conds(thd, conds, &conds, &result))
+        goto exit_without_my_ok;
     }
     else
       conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
