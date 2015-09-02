@@ -2248,7 +2248,7 @@ SET @cmd="CREATE TABLE performance_schema.replication_group_members("
   "MEMBER_ID CHAR(36) collate utf8_bin not null,"
   "MEMBER_HOST CHAR(60) collate utf8_bin not null,"
   "MEMBER_PORT INTEGER,"
-  "MEMBER_STATE ENUM('ONLINE','OFFLINE','RECOVERING') not null"
+  "MEMBER_STATE CHAR(64) collate utf8_bin not null"
   ") ENGINE=PERFORMANCE_SCHEMA;";
 
  SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
