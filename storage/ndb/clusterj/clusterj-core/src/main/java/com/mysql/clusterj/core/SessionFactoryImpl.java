@@ -57,6 +57,9 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(SessionFactoryImpl.class);
 
+    /** My class loader */
+    static final ClassLoader SESSION_FACTORY_IMPL_CLASS_LOADER = SessionFactoryImpl.class.getClassLoader();
+
     /** The properties */
     protected Map<?, ?> props;
 
@@ -110,7 +113,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      */
     protected ClusterConnectionService getClusterConnectionService() {
         return ClusterJHelper.getServiceInstance(ClusterConnectionService.class,
-                    CLUSTER_CONNECTION_SERVICE);
+                    CLUSTER_CONNECTION_SERVICE, SESSION_FACTORY_IMPL_CLASS_LOADER);
     }
 
     /** The smart value handler factory */
