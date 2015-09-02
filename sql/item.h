@@ -3841,6 +3841,10 @@ public:
   }
   longlong val_int();
   bool basic_const_item() const { return 1; }
+  Item *clone_item()
+  {
+    return new Item_hex_string(str_value.ptr(), max_length);
+  }
   String *val_str(String*) { DBUG_ASSERT(fixed == 1); return &str_value; }
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
