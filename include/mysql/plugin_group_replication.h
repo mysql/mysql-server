@@ -19,42 +19,67 @@
 /* API for Group Peplication plugin. (MYSQL_GROUP_REPLICATION_PLUGIN) */
 
 #include <mysql/plugin.h>
-#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0100
+#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0101
 
-enum enum_member_state {
-  MEMBER_STATE_ONLINE= 1,
-  MEMBER_STATE_OFFLINE,
-  MEMBER_STATE_RECOVERING
-};
+/*
+  Callbacks for get_connection_status_info function.
 
-typedef struct st_group_replication_connection_status_info
+  context field can have NULL value, plugin will always pass it
+  through all callbacks, independent of its value.
+  Its value will not be used by plugin.
+
+  All callbacks are mandatory.
+*/
+typedef struct st_group_replication_connection_status_callbacks
 {
-  char* channel_name;
-  char* group_name;
-  bool service_state;
-} GROUP_REPLICATION_CONNECTION_STATUS_INFO;
+  void* const context;
+  void (*set_channel_name)(void* const context, const char& value, size_t length);
+  void (*set_group_name)(void* const context, const char& value, size_t length);
+  void (*set_source_uuid)(void* const context, const char& value, size_t length);
+  void (*set_service_state)(void* const context, bool state);
+} GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
 
-typedef struct st_group_replication_group_members_info
-{
-  char* channel_name;
-  char* member_id;
-  char* member_host;
-  unsigned int member_port;
-  enum enum_member_state member_state;
-} GROUP_REPLICATION_GROUP_MEMBERS_INFO;
+/*
+  Callbacks for get_group_members_info function.
 
-typedef struct st_group_replication_member_stats_info
+  context field can have NULL value, plugin will always pass it
+  through all callbacks, independent of its value.
+  Its value will not be used by plugin.
+
+  All callbacks are mandatory.
+*/
+typedef struct st_group_replication_group_members_callbacks
 {
-  char* channel_name;
-  char* view_id;
-  char* member_id;
-  unsigned long long int transaction_in_queue;
-  unsigned long long int transaction_certified;
-  unsigned long long int transaction_conflicts_detected;
-  unsigned long long int transactions_in_validation;
-  char* committed_transactions;
-  char* last_conflict_free_transaction;
-} GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO;
+  void* const context;
+  void (*set_channel_name)(void* const context, const char& value, size_t length);
+  void (*set_member_id)(void* const context, const char& value, size_t length);
+  void (*set_member_host)(void* const context, const char& value, size_t length);
+  void (*set_member_port)(void* const context, unsigned int value);
+  void (*set_member_state)(void* const context, const char& value, size_t length);
+} GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
+
+/*
+  Callbacks for get_group_member_stats_info function.
+
+  context field can have NULL value, plugin will always pass it
+  through all callbacks, independent of its value.
+  Its value will not be used by plugin.
+
+  All callbacks are mandatory.
+*/
+typedef struct st_group_replication_member_stats_callbacks
+{
+  void* const context;
+  void (*set_channel_name)(void* const context, const char& value, size_t length);
+  void (*set_view_id)(void* const context, const char& value, size_t length);
+  void (*set_member_id)(void* const context, const char& value, size_t length);
+  void (*set_transactions_committed)(void* const context, const char& value, size_t length);
+  void (*set_last_conflict_free_transaction)(void* const context, const char& value, size_t length);
+  void (*set_transactions_in_queue)(void* const context, unsigned long long int value);
+  void (*set_transactions_certified)(void* const context, unsigned long long int value);
+  void (*set_transactions_conflicts_detected)(void* const context, unsigned long long int value);
+  void (*set_transactions_in_validation)(void* const context, unsigned long long int value);
+} GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
 
 struct st_mysql_group_replication
 {
@@ -83,32 +108,39 @@ struct st_mysql_group_replication
   /*
     This function is used to fetch information for group replication kernel stats.
 
-    @param info[out] The retrieved information
+    @param callbacks The set of callbacks and its context used to set the
+                     information on caller.
 
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_connection_status_info)(GROUP_REPLICATION_CONNECTION_STATUS_INFO *info);
+  bool (*get_connection_status_info)
+       (const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);
 
   /*
     This function is used to fetch information for group replication members.
 
-    @param info[out] The retrieved information
+    @param callbacks The set of callbacks and its context used to set the
+                     information on caller.
 
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_members_info)(unsigned int index, GROUP_REPLICATION_GROUP_MEMBERS_INFO *info);
+  bool (*get_group_members_info)
+       (unsigned int index,
+        const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
 
   /*
     This function is used to fetch information for group replication members statistics.
 
-    @param info[out] The retrieved information
+    @param callbacks The set of callbacks and its context used to set the
+                     information on caller.
 
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_member_stats_info)(GROUP_REPLICATION_GROUP_MEMBER_STATS_INFO* info);
+  bool (*get_group_member_stats_info)
+       (const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
 
   /*
     Get number of group replication members.
