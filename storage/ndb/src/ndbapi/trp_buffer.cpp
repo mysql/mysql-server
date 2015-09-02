@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,13 +21,20 @@ TFPool::TFPool()
 {
   m_first_free = 0;
   m_alloc_ptr = 0;
+  m_tot_send_buffer_pages = 0;
+  m_pagesize = 0;
+  m_free_send_buffer_pages = 0;
 }
 
 bool
 TFPool::init(size_t mem, size_t page_sz)
 {
-  unsigned char * ptr = (m_alloc_ptr = (unsigned char*)malloc(mem));
-  for (size_t i = 0; i + page_sz < mem; i += page_sz)
+  m_pagesize = page_sz;
+  m_tot_send_buffer_pages = mem/page_sz;
+  size_t tot_alloc = m_tot_send_buffer_pages * page_sz;
+
+  unsigned char * ptr = (m_alloc_ptr = (unsigned char*)malloc(tot_alloc));
+  for (size_t i = 0; i + page_sz <= tot_alloc; i += page_sz)
   {
     TFPage * p = (TFPage*)(ptr + i);
     p->m_size = (Uint16)(page_sz - offsetof(TFPage, m_data));
@@ -35,9 +42,11 @@ TFPool::init(size_t mem, size_t page_sz)
     p->init();
     p->m_next = m_first_free;
     m_first_free = p;
+    m_free_send_buffer_pages++;
   }
-  m_tot_send_buffer = mem;
-  m_tot_used_send_buffer = 0;
+  
+  assert(m_free_send_buffer_pages == m_tot_send_buffer_pages);
+
   return true;
 }
 
