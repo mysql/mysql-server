@@ -3038,9 +3038,9 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
   if (no < 1)
     return -1;
 
-#ifdef ERROR_INSERT
   switch(args[0])
   {
+#ifdef ERROR_INSERT
   case 9994:
   {
     /* Transporter send blocking */
@@ -3088,7 +3088,8 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
     break;
   }
 #endif
-
+  default:
+    ;
   }
 
   return 0;
