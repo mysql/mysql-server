@@ -225,6 +225,12 @@ JOIN::optimize()
   if (having_cond || calc_found_rows)
     m_select_limit= HA_POS_ERROR;
 
+  if (unit->select_limit_cnt == 0 && !calc_found_rows)
+  {
+    zero_result_cause= "Zero limit";
+    best_rowcount= 0;
+    goto setup_subq_exit;
+  }
 
   if (where_cond || select_lex->outer_join)
   {
@@ -257,14 +263,6 @@ JOIN::optimize()
       best_rowcount= 0;
       goto setup_subq_exit;
     }
-  }
-  // @todo: Move this before check on where_cond
-  if (!unit->select_limit_cnt && !calc_found_rows)
-  {
-    //zero_result_cause= "Zero limit";
-    zero_result_cause= "Impossible WHERE";
-    best_rowcount= 0;
-    goto setup_subq_exit;
   }
 
   if (select_lex->partitioned_table_count && prune_table_partitions())
