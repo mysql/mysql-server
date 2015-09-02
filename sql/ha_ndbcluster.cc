@@ -10019,7 +10019,7 @@ int ha_ndbcluster::create(const char *name,
     if ((my_errno= write_ndb_file(name)))
       DBUG_RETURN(my_errno);
 
-    ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
+    ndbcluster_create_binlog_setup(thd, ndb, name,
                                    m_dbname, m_tabname, form);
     if (my_errno == HA_ERR_TABLE_EXIST)
     {
@@ -11995,7 +11995,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
                             name);
     }
     Ndb* ndb= check_ndb_in_thd(thd);
-    ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
+    ndbcluster_create_binlog_setup(thd, ndb, name,
                                    m_dbname, m_tabname, table);
     if ((m_share=get_share(name, table, FALSE)) == 0)
     {
@@ -12848,7 +12848,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
         tablename_to_filename(file_name_str, end1, (uint)(sizeof(name) - (end1 - name)));
-      ndbcluster_create_binlog_setup(thd, ndb, name, (uint)(end-name),
+      ndbcluster_create_binlog_setup(thd, ndb, name,
                                      db, file_name_str, 0);
     }
   }
