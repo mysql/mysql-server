@@ -908,7 +908,7 @@ def	performance_schema	replication_group_members	CHANNEL_NAME	1	NULL	NO	char	64	
 def	performance_schema	replication_group_members	MEMBER_ID	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references		
 def	performance_schema	replication_group_members	MEMBER_HOST	3	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	replication_group_members	MEMBER_PORT	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references		
-def	performance_schema	replication_group_members	MEMBER_STATE	5	NULL	NO	enum	10	30	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ONLINE','OFFLINE','RECOVERING')			select,insert,update,references		
+def	performance_schema	replication_group_members	MEMBER_STATE	5	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	VIEW_ID	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references		
 def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references		

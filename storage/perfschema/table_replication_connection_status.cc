@@ -35,6 +35,48 @@
 #include "log.h"
 #include "rpl_group_replication.h"
 
+/*
+  Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.
+*/
+static void set_channel_name(void* const context, const char& value,
+                             size_t length)
+{
+}
+
+static void set_group_name(void* const context, const char& value,
+                           size_t length)
+{
+  struct st_row_connect_status* row=
+      static_cast<struct st_row_connect_status*>(context);
+  const size_t max= UUID_LENGTH;
+  length= std::min(length, max);
+
+  row->group_name_is_null= false;
+  memcpy(row->group_name, &value, length);
+}
+
+static void set_source_uuid(void* const context, const char& value,
+                            size_t length)
+{
+  struct st_row_connect_status* row=
+      static_cast<struct st_row_connect_status*>(context);
+  const size_t max= UUID_LENGTH;
+  length= std::min(length, max);
+
+  row->source_uuid_is_null= false;
+  memcpy(row->source_uuid, &value, length);
+}
+
+static void set_service_state(void* const context, bool value)
+{
+  struct st_row_connect_status* row=
+      static_cast<struct st_row_connect_status*>(context);
+
+  row->service_state= value ? PS_RPL_CONNECT_SERVICE_STATE_YES
+                            : PS_RPL_CONNECT_SERVICE_STATE_NO;
+}
+
+
 THR_LOCK table_replication_connection_status::m_table_lock;
 
 
@@ -220,47 +262,24 @@ void table_replication_connection_status::make_row(Master_info *mi)
   if (is_group_replication_plugin_loaded() &&
       msr_map.is_group_replication_channel_name(mi->get_channel(), true))
   {
-    /* Group Replication applier channel. */
-    GROUP_REPLICATION_CONNECTION_STATUS_INFO *group_replication_info= NULL;
-    if (!(group_replication_info= (GROUP_REPLICATION_CONNECTION_STATUS_INFO*)
-                                     my_malloc(PSI_NOT_INSTRUMENTED,
-                                               sizeof(GROUP_REPLICATION_CONNECTION_STATUS_INFO),
-                                               MYF(MY_WME))))
+    /*
+      Group Replication applier channel.
+      Set callbacks on GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS.
+    */
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS callbacks=
     {
-      sql_print_error("Unable to allocate memory on "
-                      "table_replication_connection_status::make_row");
-      error= true;
-      goto end;
-    }
+      &m_row,
+      &set_channel_name,
+      &set_group_name,
+      &set_source_uuid,
+      &set_service_state,
+    };
 
-    bool stats_not_available=
-        get_group_replication_connection_status_info(group_replication_info);
-    if (stats_not_available)
+    // Query plugin and let callbacks do their job.
+    if (get_group_replication_connection_status_info(callbacks))
     {
       DBUG_PRINT("info", ("Group Replication stats not available!"));
     }
-    else
-    {
-      my_free((void*)group_replication_info->channel_name);
-
-      if (group_replication_info->group_name != NULL)
-      {
-        memcpy(m_row.group_name, group_replication_info->group_name, UUID_LENGTH);
-        m_row.group_name_is_null= false;
-
-        memcpy(m_row.source_uuid, group_replication_info->group_name, UUID_LENGTH);
-        m_row.source_uuid_is_null= false;
-
-        my_free((void*)group_replication_info->group_name);
-      }
-
-      if (group_replication_info->service_state)
-        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_YES;
-      else
-        m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
-    }
-
-    my_free(group_replication_info);
   }
   else
   {
