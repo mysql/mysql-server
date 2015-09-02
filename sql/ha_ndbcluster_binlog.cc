@@ -1465,7 +1465,7 @@ int ndbcluster_find_all_files(THD *thd)
       else
       {
         /* set up replication for this table */
-        ndbcluster_create_binlog_setup(thd, ndb, key, (uint)(end-key),
+        ndbcluster_create_binlog_setup(thd, ndb, key,
                                        elmt.database, elmt.name,
                                        0);
       }
@@ -4573,16 +4573,14 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   create/discover.
 */
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
-                                   uint key_len,
                                    const char *db,
                                    const char *table_name,
                                    TABLE * table)
 {
   DBUG_ENTER("ndbcluster_create_binlog_setup");
-  DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s",
-                      key, key_len, db, table_name));
+  DBUG_PRINT("enter",("key: %s %s.%s",
+                      key, db, table_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
-  DBUG_ASSERT(strlen(key) == key_len);
 
   NDB_SHARE* share= get_share(key, table, true, false);
   if (share == 0)

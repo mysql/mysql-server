@@ -46,7 +46,6 @@ void ndbcluster_binlog_init(handlerton* hton);
 */
 int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *table);
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
-                                   uint key_len,
                                    const char *db,
                                    const char *table_name,
                                    TABLE * table);
