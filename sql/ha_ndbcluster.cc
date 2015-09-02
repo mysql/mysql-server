@@ -10628,7 +10628,6 @@ cleanup_failed:
                                                  conflict_fn,
                                                  args,
                                                  num_args,
-                                                 TRUE, /* Do set binlog flags */
                                                  binlog_flags);
       }
 #endif
@@ -11064,7 +11063,7 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
     const NDBTAB *ndbtab= ndbtab_g2.get_table();
 #ifdef HAVE_NDB_BINLOG
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                       ::server_id, TRUE);
+                                       ::server_id);
 #endif
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);

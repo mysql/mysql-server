@@ -80,14 +80,12 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                                          const st_conflict_fn_def* conflict_fn,
                                          const st_conflict_fn_arg* args,
                                          Uint32 num_args,
-                                         bool do_set_binlog_flags,
                                          Uint32 binlog_flags);
 int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
-                                   uint server_id,
-                                   bool do_set_binlog_flags);
+                                   uint server_id);
 #endif
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
