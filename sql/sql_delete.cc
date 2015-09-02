@@ -210,8 +210,9 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
     COND_EQUAL *cond_equal= NULL;
     Item::cond_result result;
 
-    conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list, 
-                         true, &result);
+    if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
+                      &result))
+      DBUG_RETURN(true);
     if (result == Item::COND_FALSE)             // Impossible where
     {
       limit= 0;
