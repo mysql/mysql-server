@@ -9848,6 +9848,13 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
   Opt_trace_array trace_steps(trace, "steps");
 
   /*
+    Enter this function
+    a) For a WHERE condition or a query having outer join.
+    b) For a HAVING condition.
+  */
+  DBUG_ASSERT(*cond || join_list);
+
+  /*
     Build all multiple equality predicates and eliminate equality
     predicates that can be inferred from these multiple equalities.
     For each reference of a field included into a multiple equality
@@ -9857,7 +9864,7 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
     This is performed for the WHERE condition and any join conditions, but
     not for the HAVING condition.
   */
-  if (*cond && join_list)
+  if (join_list)
   {
     Opt_trace_object step_wrapper(trace);
     step_wrapper.add_alnum("transformation", "equality_propagation");

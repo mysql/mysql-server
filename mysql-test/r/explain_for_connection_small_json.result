@@ -307,7 +307,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -49,4 +50,3 @@
              "s1"
 -          ],
--          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t1`.`id` = `test`.`t2`.`id`), true)"
+-          "attached_condition": "<if>(is_not_null_compl(t2), (`test`.`t2`.`id` = `test`.`t1`.`id`), true)"
 +          ]
          }
 QUERY: SELECT * from t1 where a = 1 and b is null order by a desc, b desc 

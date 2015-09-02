@@ -7582,6 +7582,10 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "condition": "WHERE",
               "original_condition": null,
               "steps": [
+                {
+                  "transformation": "equality_propagation",
+                  "resulting_condition": null
+                }
               ]
             }
           },
