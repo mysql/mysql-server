@@ -1554,9 +1554,15 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys)
         continue;
       if (usable_keys->is_set(nr))
       {
-        if (table->key_info[nr].key_length < min_length)
+        /*
+          Can not do full index scan on rtree index because it is not
+          supported by Innodb, probably not supported by others either.
+         */
+        const KEY &key_ref= table->key_info[nr];
+        if (key_ref.key_length < min_length &&
+            !(key_ref.flags & HA_SPATIAL))
         {
-          min_length=table->key_info[nr].key_length;
+          min_length=key_ref.key_length;
           best=nr;
         }
       }
