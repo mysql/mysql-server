@@ -4,6 +4,7 @@ mysql-community (5.7.9-1ubuntu15.04) vivid; urgency=low
   * new upstream release
 
   [ Balasubramanian Kandasamy ]
+  * Added new libtest_* plugins to source/include-binaries, mysql-*-test.install
   * Added mysqlpump man page to d/mysql-*-client.install
 
  -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Wed, 26 Aug 2015 15:20:12 +0530
