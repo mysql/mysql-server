@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -498,6 +498,8 @@ private:
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
 
+  Bitmask<MAX_NTRANSPORTERS/32> m_sendBlocked;
+
   Uint32 m_mixology_level;
 #endif
 
@@ -718,6 +720,11 @@ public:
   bool isBlocked(NodeId nodeId);
   void blockReceive(TransporterReceiveHandle&, NodeId nodeId);
   void unblockReceive(TransporterReceiveHandle&, NodeId nodeId);
+  bool isSendBlocked(NodeId nodeId) const;
+  void blockSend(TransporterReceiveHandle& recvdata,
+                 NodeId nodeId);
+  void unblockSend(TransporterReceiveHandle& recvdata,
+                   NodeId nodeId);
 
   /* Testing interleaving of signal processing */
   Uint32 getMixologyLevel() const;
