@@ -2105,6 +2105,21 @@ end:
 }
 
 
+/*
+  ndb_handle_schema_change
+
+  Used when an even has been receieved telling that the table has been
+  dropped or connection to cluster has failed. Function checks if the
+  table need to be removed from any of the many places where it's
+  referenced or cached, finally the EventOperation is dropped and
+  the event_data structure is released.
+
+  The function may be called either by Ndb_schema_event_handler which
+  listens to events only on mysql.ndb_schema or by the "injector" which
+  listen to events on all the other tables.
+
+*/
+
 static
 int
 ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
@@ -2118,6 +2133,8 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
               pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
 
   DBUG_ASSERT(event_data);
+  DBUG_ASSERT(pOp->getCustomData() == event_data);
+
 
   NDB_SHARE *share= event_data->share;
   dbug_print_share("changed share: ", share);
@@ -2187,8 +2204,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
     share= 0;
   native_mutex_unlock(&ndbcluster_mutex);
 
-  DBUG_PRINT("info", ("Deleting event_data"));
-  delete event_data;
+  // Remove pointer to event_data from the EventOperation
   pOp->setCustomData(NULL);
 
   DBUG_PRINT("info", ("Dropping event operation: %p", pOp));
@@ -2204,6 +2220,11 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                              share->key_string(), share->use_count));
     free_share(&share);
   }
+
+  // Finally delete the event_data and thus it's mem_root, shadow_table etc.
+  DBUG_PRINT("info", ("Deleting event_data"));
+  delete event_data;
+
   DBUG_RETURN(0);
 }
 
