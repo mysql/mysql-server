@@ -3352,6 +3352,7 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
     acceptable, as this happens rarely. The implementation without
     copying would be much more complicated.
 
+  @param thd         Thread handler
   @param left_item   left term of the equality to be checked
   @param right_item  right term of the equality to be checked
   @param item        equality item if the equality originates from a condition
@@ -3367,7 +3368,8 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal)
   @returns false if success, true if error
 */
 
-static bool check_simple_equality(Item *left_item, Item *right_item,
+static bool check_simple_equality(THD *thd,
+                                  Item *left_item, Item *right_item,
                                   Item *item, COND_EQUAL *cond_equal,
                                   bool *simple_equality)
 {
@@ -3455,7 +3457,8 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
       else
       {
         /* Merge two multiple equalities forming a new one */
-        left_item_equal->merge(right_item_equal);
+        if (left_item_equal->merge(thd, right_item_equal))
+          return true;
         /* Remove the merged multiple equality from the list */
         List_iterator<Item_equal> li(cond_equal->current_level);
         while ((li++) != right_item_equal) ;
@@ -3538,7 +3541,8 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item, field_item);
+        if (item_equal->add(thd, const_item, field_item))
+          return true;
       }
       else
       {
@@ -3578,7 +3582,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
                     true if the row equality is composed of only
                     simple equalities.
 
-  @returns false if conversion succeeded, true otherwise.
+  @returns false if conversion succeeded, true if any error.
 */
  
 static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
@@ -3605,7 +3609,7 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
     }
     else
     { 
-      if (check_simple_equality(left_item, right_item, 0, cond_equal,
+      if (check_simple_equality(thd, left_item, right_item, 0, cond_equal,
                                 &is_converted))
         return true;
       thd->lex->current_select()->cond_count++;
@@ -3619,7 +3623,7 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
       if (eq_item->set_cmp_func())
       {
         // Failed to create cmp func -> not only simple equalitities
-        return false;
+        return true;
       }
       eq_item->quick_fix_field();
       eq_list->push_back(eq_item);
@@ -3694,7 +3698,7 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
                                 cond_equal, eq_list, equality);
     }
     else
-      return check_simple_equality(left_item, right_item, item, cond_equal,
+      return check_simple_equality(thd, left_item, right_item, item, cond_equal,
                                    equality);
   }
 
@@ -4476,7 +4480,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
       save_list->push_back(cond_cmp);
 
     }
-    func->set_cmp_func();
+    if (func->set_cmp_func())
+      return true;
   }
   else if (left_item->eq(field,0) && right_item != value &&
            left_item->cmp_context == field->cmp_context &&
@@ -4508,7 +4513,8 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
 
       save_list->push_back(cond_cmp);
     }
-    func->set_cmp_func();
+    if (func->set_cmp_func())
+      return true;
   }
   return false;
 }
@@ -4569,7 +4575,8 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
       {
 	if (right_const)
 	{
-          resolve_const_item(thd, &args[1], args[0]);
+          if (resolve_const_item(thd, &args[1], args[0]))
+            return true;
 	  func->update_used_tables();
           if (change_cond_ref_to_const(thd, save_list, and_father, and_father,
                                        args[0], args[1]))
@@ -4577,7 +4584,8 @@ propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
 	}
 	else if (left_const)
 	{
-          resolve_const_item(thd, &args[0], args[1]);
+          if (resolve_const_item(thd, &args[0], args[1]))
+            return true;
 	  func->update_used_tables();
           if (change_cond_ref_to_const(thd, save_list, and_father, and_father,
                                        args[1], args[0]))
@@ -9912,6 +9920,9 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
     }
     step_wrapper.add("resulting_condition", *cond);
   }
+  DBUG_ASSERT(!thd->is_error());
+  if (thd->is_error())
+    DBUG_RETURN(true);
   DBUG_RETURN(false);
 }
 
