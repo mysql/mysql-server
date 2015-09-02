@@ -2650,34 +2650,16 @@ void THD::nocheck_register_item_tree_change(Item **place,
 }
 
 
-void THD::replace_rollback_place_for_ref(Item **old_place, Item **new_place)
+void THD::replace_rollback_place(Item **new_place)
 {
   I_List_iterator<Item_change_record> it(change_list);
   Item_change_record *change;
   while ((change= it++))
   {
-    if (change->place == old_place)
-    {
-      DBUG_PRINT("info",
-                 ("replace_rollback_place_for_ref old_ref %p new_ref %p",
-                  old_place, new_place));
-      change->place= new_place;
-      break;
-    }
-  }
-}
-
-
-void THD::replace_rollback_place_for_value(Item *new_value, Item **new_place)
-{
-  I_List_iterator<Item_change_record> it(change_list);
-  Item_change_record *change;
-  while ((change= it++))
-  {
-    if (change->new_value == new_value)
+    if (change->new_value == *new_place)
     {
       DBUG_PRINT("info", ("replace_rollback_place new_value %p place %p",
-                          new_value, new_place));
+                          *new_place, new_place));
       change->place= new_place;
       break;
     }

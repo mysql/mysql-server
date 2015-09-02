@@ -1481,7 +1481,7 @@ SELECT_LEX::simplify_joins(THD *thd,
               Check whether the arguments to AND need substitution
               of rollback location.
             */
-            thd->replace_rollback_place_for_value(arg, lit.ref());
+            thd->replace_rollback_place(lit.ref());
           }
           *cond= new_cond;
         }
@@ -1489,7 +1489,7 @@ SELECT_LEX::simplify_joins(THD *thd,
         {
           *cond= table->join_cond();
           /* If join condition has a pending rollback in THD::change_list */
-          thd->replace_rollback_place_for_ref(table->join_cond_ref(), cond);
+          thd->replace_rollback_place(cond);
         }
         table->set_join_cond(NULL);
       }
@@ -2125,7 +2125,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
           place that matters after this semijoin transformation. arguments()
           gets the address of li as stored in item_eq ("place").
         */
-        thd->replace_rollback_place_for_value(li, item_eq->arguments());
+        thd->replace_rollback_place(item_eq->arguments());
 
         sj_cond= and_items(sj_cond, item_eq);
         if (sj_cond == NULL)
