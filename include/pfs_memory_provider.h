@@ -21,7 +21,7 @@
   Performance schema instrumentation (declarations).
 */
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifdef HAVE_PSI_MEMORY_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef EMBEDDED_LIBRARY
 #ifndef MYSQL_DYNAMIC_PLUGIN
@@ -51,7 +51,7 @@ C_MODE_END
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* EMBEDDED_LIBRARY */
 #endif /* MYSQL_SERVER */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #endif
 

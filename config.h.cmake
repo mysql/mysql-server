@@ -335,6 +335,7 @@
  * Performance schema
  */
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1
+#cmakedefine DISABLE_PSI_THREAD 1
 #cmakedefine DISABLE_PSI_MUTEX 1
 #cmakedefine DISABLE_PSI_RWLOCK 1
 #cmakedefine DISABLE_PSI_COND 1
