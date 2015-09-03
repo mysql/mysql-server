@@ -8348,7 +8348,7 @@ PSI_mutex_key key_mutex_slave_worker_hash;
 #endif
 
 PSI_mutex_key
-Gtid_state::key_gtid_executed_free_intervals_mutex;
+Gtid_set::key_gtid_executed_free_intervals_mutex;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_mutex_info all_server_mutexes[]=
@@ -8380,7 +8380,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_msr_map, "LOCK_msr_map", PSI_FLAG_GLOBAL},
-  { &Gtid_state::key_gtid_executed_free_intervals_mutex, "Gtid_state::gtid_executed::free_intervals_mutex", 0 },
+  { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0 },
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
   { &key_LOCK_gdl, "LOCK_gdl", PSI_FLAG_GLOBAL},

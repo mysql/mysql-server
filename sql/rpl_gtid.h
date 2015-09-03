@@ -1076,6 +1076,9 @@ struct Gtid
 class Gtid_set
 {
 public:
+#ifdef HAVE_PSI_INTERFACE
+  static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
+#endif
   /**
     Constructs a new, empty Gtid_set.
 
@@ -1087,11 +1090,7 @@ public:
     @param free_intervals_mutex_key Performance_schema instrumentation
     key to use for the free_intervals mutex.
   */
-  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL
-#ifdef HAVE_PSI_INTERFACE
-           ,PSI_mutex_key free_intervals_mutex_key= 0
-#endif
-          );
+  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
     Constructs a new Gtid_set that contains the groups in the given string, in the same format as add_gtid_text(char *).
 
@@ -1111,18 +1110,10 @@ public:
     there will be a short period when the lock is not held at all.
   */
   Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
-           Checkable_rwlock *sid_lock= NULL
-#ifdef HAVE_PSI_INTERFACE
-           ,PSI_mutex_key free_intervals_mutex_key= 0
-#endif
-          );
+           Checkable_rwlock *sid_lock= NULL);
 private:
   /// Worker for the constructor.
-  void init(
-#ifdef HAVE_PSI_INTERFACE
-            PSI_mutex_key free_intervals_mutex_key
-#endif
-           );
+  void init();
 public:
   /// Destroy this Gtid_set.
   ~Gtid_set();
@@ -2348,9 +2339,6 @@ public:
 class Gtid_state
 {
 public:
-#ifdef HAVE_PSI_INTERFACE
-  static PSI_mutex_key key_gtid_executed_free_intervals_mutex;
-#endif
   /**
     Constructs a new Gtid_state object.
 
@@ -2363,11 +2351,7 @@ public:
     sid_map(_sid_map),
     sid_locks(sid_lock),
     lost_gtids(sid_map, sid_lock),
-    executed_gtids(sid_map, sid_lock
-#ifdef HAVE_PSI_INTERFACE
-                   ,key_gtid_executed_free_intervals_mutex
-#endif
-                  ),
+    executed_gtids(sid_map, sid_lock),
     gtids_only_in_table(sid_map, sid_lock),
     previous_gtids_logged(sid_map, sid_lock),
     owned_gtids(sid_lock) {}
