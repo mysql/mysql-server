@@ -81,6 +81,7 @@ BuildRequires:  time
 BuildRequires:  libaio-devel
 BuildRequires:  mecab-devel
 BuildRequires:  ncurses-devel
+BuildRequires:  numactl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRequires:  systemd
