@@ -25,14 +25,14 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=32768 because INNODB_PAGE_SIZE=16384.
 Error	1528	Failed to create TABLESPACE s_32k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_32k' doesn't have this option
 CREATE TABLESPACE s_64k ADD DATAFILE 's_64k.ibd' FILE_BLOCK_SIZE=64k;
 ERROR HY000: InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because INNODB_PAGE_SIZE=16384.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a tablespace with FILE_BLOCK_SIZE=65536 because INNODB_PAGE_SIZE=16384.
 Error	1528	Failed to create TABLESPACE s_64k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_64k' doesn't have this option
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_1k	General	DEFAULT	1024	Compressed	MYSQLD_DATADIR/s_1k.ibd

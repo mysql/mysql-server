@@ -64,7 +64,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name 'sub/dir/////s_bad.ibd'.
 Error	3121	The directory does not exist.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 DROP TABLESPACE 's_bad';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''s_bad'' at line 1
 DROP TABLESPACE "s_bad";
@@ -97,7 +97,7 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
 Error	1528	Failed to create TABLESPACE test/s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'test/s_bad' doesn't have this option
 CREATE TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. ` ADD DATAFILE 's_utf8.ibd';
 CREATE TABLE `t !@#$%^&*()_+-={}[]|\?<>,.` (a int, b text) TABLESPACE `s_ !@#$%^&*()_+-={}[]|\?<>,. `;
 INSERT INTO `t !@#$%^&*()_+-={}[]|\?<>,.` VALUES(1,'one');
@@ -208,14 +208,14 @@ Level	Code	Message
 Error	3119	InnoDB: `innodb_system` is a reserved tablespace name.
 Error	1813	InnoDB: A tablespace named `innodb_system` already exists.
 Error	1528	Failed to create TABLESPACE innodb_system
-Error	184	Tablespace already exists
+Error	1813	Tablespace 'innodb_system' exists.
 DROP TABLESPACE `innodb_system`;
 ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: `innodb_system` is a reserved tablespace name.
 Error	1529	Failed to drop TABLESPACE innodb_system
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'innodb_system' doesn't have this option
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 's_InnoDB_System.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1';
@@ -225,7 +225,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name 'ibdata1'.
 Error	3121	An IBD filepath must end with `.ibd`.
 Error	1528	Failed to create TABLESPACE InnoDB_System
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'InnoDB_System' doesn't have this option
 CREATE TABLESPACE `InnoDB_System` ADD DATAFILE 'ibdata1.ibd';
 DROP TABLESPACE `InnoDB_System`;
 CREATE TABLESPACE `innodb_temporary` ADD DATAFILE 's_bad.ibd';
@@ -235,14 +235,14 @@ Level	Code	Message
 Error	3119	InnoDB: `innodb_temporary` is a reserved tablespace name.
 Error	1813	InnoDB: A tablespace named `innodb_temporary` already exists.
 Error	1528	Failed to create TABLESPACE innodb_temporary
-Error	184	Tablespace already exists
+Error	1813	Tablespace 'innodb_temporary' exists.
 DROP TABLESPACE `innodb_temporary`;
 ERROR 42000: InnoDB: `innodb_temporary` is a reserved tablespace name.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: `innodb_temporary` is a reserved tablespace name.
 Error	1529	Failed to drop TABLESPACE innodb_temporary
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'innodb_temporary' doesn't have this option
 CREATE TABLESPACE `InnoDB_Temporary` ADD DATAFILE 's_InnoDB_Temporary.ibd';
 DROP TABLESPACE `InnoDB_Temporary`;
 CREATE TABLESPACE `innodb_custom` ADD DATAFILE 's_bad.ibd';
@@ -251,14 +251,14 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
 Error	1528	Failed to create TABLESPACE innodb_custom
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'innodb_custom' doesn't have this option
 DROP TABLESPACE `innodb_custom`;
 ERROR 42000: InnoDB: A general tablespace name cannot start with `innodb_`.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot start with `innodb_`.
 Error	1529	Failed to drop TABLESPACE innodb_custom
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'innodb_custom' doesn't have this option
 CREATE TABLESPACE `InnoDB_Custom` ADD DATAFILE 's_InnoDB_Custom.ibd';
 DROP TABLESPACE `InnoDB_Custom`;
 CREATE TABLESPACE `INNODB_CUSTOM` ADD DATAFILE 's_INNODB_CUSTOM.ibd';
@@ -316,14 +316,14 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name '.ibd'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_subdir/.ibd';
 ERROR HY000: Incorrect File Name 's_dir/s_subdir/.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name 's_dir/s_subdir/.ibd'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
 ERROR HY000: Incorrect File Name 's_dir/s_bad.ibs'.
 SHOW WARNINGS;
@@ -331,7 +331,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name 's_dir/s_bad.ibs'.
 Error	3121	An IBD filepath must end with `.ibd`.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 'c:s_bad.ibd';
 ERROR HY000: Incorrect File Name 'c:s_bad.ibd'.
 SHOW WARNINGS;
@@ -339,7 +339,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name 'c:s_bad.ibd'.
 Error	3121	Invalid use of ':'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 'cc:/s_bad.ibd';
 ERROR HY000: Incorrect File Name 'cc:/s_bad.ibd'.
 SHOW WARNINGS;
@@ -347,7 +347,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name 'cc:/s_bad.ibd'.
 Error	3121	Invalid use of ':'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE './drive:/s_bad.ibd';
 ERROR HY000: Incorrect File Name './drive:/s_bad.ibd'.
 SHOW WARNINGS;
@@ -355,7 +355,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name './drive:/s_bad.ibd'.
 Error	3121	Invalid use of ':'.
 Error	1528	Failed to create TABLESPACE s_bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_bad' doesn't have this option
 #
 # Try to create a tablespace where a same-named directory and file exist.
 #
@@ -365,7 +365,7 @@ ERROR HY000: Failed to create TABLESPACE s5_def
 SHOW WARNINGS;
 Level	Code	Message
 Error	1528	Failed to create TABLESPACE s5_def
-Error	184	Tablespace already exists
+Error	1813	Tablespace 's5_def' exists.
 CREATE TABLESPACE s6_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd';
 ERROR HY000: Failed to create TABLESPACE s6_def
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
@@ -406,20 +406,20 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1813	InnoDB: A tablespace named `s_def` already exists.
 Error	1528	Failed to create TABLESPACE s_def
-Error	184	Tablespace already exists
+Error	1813	Tablespace 's_def' exists.
 CREATE TABLESPACE s_def ADD DATAFILE 's_def_2.ibd';
 ERROR HY000: InnoDB: A tablespace named `s_def` already exists.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1813	InnoDB: A tablespace named `s_def` already exists.
 Error	1528	Failed to create TABLESPACE s_def
-Error	184	Tablespace already exists
+Error	1813	Tablespace 's_def' exists.
 CREATE TABLESPACE S_new ADD DATAFILE 's_def.ibd';
 ERROR HY000: Failed to create TABLESPACE S_new
 SHOW WARNINGS;
 Level	Code	Message
 Error	1528	Failed to create TABLESPACE S_new
-Error	184	Tablespace already exists
+Error	1813	Tablespace 'S_new' exists.
 CREATE TABLESPACE `s_DEF` ADD DATAFILE 's_def_2.ibd';
 DROP TABLESPACE `s_DEF`;
 #
@@ -464,21 +464,21 @@ Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
 Error	1813	InnoDB: A tablespace named `test/t_single` already exists.
 Error	1528	Failed to create TABLESPACE test/t_single
-Error	184	Tablespace already exists
+Error	1813	Tablespace 'test/t_single' exists.
 CREATE TABLESPACE `Test/t_Single` ADD DATAFILE 's_single.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
 Error	1528	Failed to create TABLESPACE Test/t_Single
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'Test/t_Single' doesn't have this option
 CREATE TABLESPACE `TEST/T_SINGLE` ADD DATAFILE 's_single.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3119	InnoDB: A general tablespace name cannot contain '/'.
 Error	1528	Failed to create TABLESPACE TEST/T_SINGLE
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'TEST/T_SINGLE' doesn't have this option
 DROP TABLE t_single;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
