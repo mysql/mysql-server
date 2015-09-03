@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,7 +40,14 @@ TEST(Mysys, MysysMySymlink)
   char resolvedname[FN_REFLEN];
   ret= my_realpath(resolvedname, linkname, MYF(MY_WME));
   EXPECT_EQ(0, ret);
-  EXPECT_STREQ(resolvedname, filename);
+
+  // In case filename is also based on a symbolic link, like
+  // for for example on Mac:  /var -> /private/var
+  char resolved_filename[FN_REFLEN];
+  ret= my_realpath(resolved_filename, filename, MYF(MY_WME));
+  EXPECT_EQ(0, ret);
+
+  EXPECT_STREQ(resolvedname, resolved_filename);
 
   ret= my_close(fd, MYF(MY_WME));
   EXPECT_EQ(0, ret);
