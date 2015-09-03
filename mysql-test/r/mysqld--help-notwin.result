@@ -365,9 +365,6 @@ The following options may be given as the first argument:
  --lock-wait-timeout=# 
  Timeout in seconds to wait for a lock before returning an
  error.
- --log-backward-compatible-user-definitions 
- Controls logging of CREATE/ALTER/GRANT user statements in
- replication binlogs, general query logs and audit logs.
  --log-bin[=name]    Log update queries in binary format. Optional (but
  strongly recommended to avoid replication problems if
  server's hostname changes) argument should be the chosen
@@ -388,6 +385,10 @@ The following options may be given as the first argument:
  row based binary log.  If equal to 0, then the latest
  version of events are written.  This option is useful
  during some upgrades.
+ --log-builtin-as-identified-by-password 
+ Controls logging of CREATE/ALTER/GRANT and SET PASSWORD
+ user statements in replication binlogs, general query
+ logs and audit logs.
  --log-error[=name]  Error log file
  --log-error-verbosity=# 
  How detailed the error log should be. 1, log errors only.
@@ -1307,11 +1308,11 @@ lc-messages-dir MYSQL_SHAREDIR/
 lc-time-names en_US
 local-infile TRUE
 lock-wait-timeout 31536000
-log-backward-compatible-user-definitions FALSE
 log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
+log-builtin-as-identified-by-password FALSE
 log-error stderr
 log-error-verbosity 1
 log-isam myisam.log

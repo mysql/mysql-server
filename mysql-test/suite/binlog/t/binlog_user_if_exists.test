@@ -4,7 +4,7 @@
 --source include/master-slave.inc
 --connection master
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 --echo #
 --echo # WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
