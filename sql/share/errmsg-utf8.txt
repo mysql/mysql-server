@@ -7591,6 +7591,12 @@ ER_SERVER_ISNT_AVAILABLE
 ER_SESSION_WAS_KILLED
   eng "Session was killed"
 
+ER_CAPACITY_EXCEEDED
+  eng "Memory capacity of %llu bytes for '%s' exceeded. %s"
+
+ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER
+  eng "Range optimization was not done for this query."
+
 #
 #  End of 5.7 error messages.
 #

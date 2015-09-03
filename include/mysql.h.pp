@@ -299,6 +299,9 @@ typedef struct st_mem_root
   size_t block_size;
   unsigned int block_num;
   unsigned int first_block_usage;
+  size_t max_capacity;
+  size_t allocated_size;
+  my_bool error_for_capacity_exceeded;
   void (*error_handler)(void);
   PSI_memory_key m_psi_key;
 } MEM_ROOT;
