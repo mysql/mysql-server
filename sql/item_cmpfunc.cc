@@ -2692,7 +2692,8 @@ Item_func_if::str_op(String *str)
   String *res=arg->val_str(str);
   if (res)
     res->set_charset(collation.collation);
-  null_value=arg->null_value;
+  if (null_value=arg->null_value)
+    res= NULL;
   return res;
 }
 
@@ -2703,7 +2704,8 @@ Item_func_if::decimal_op(my_decimal *decimal_value)
   DBUG_ASSERT(fixed == 1);
   Item *arg= args[0]->val_bool() ? args[1] : args[2];
   my_decimal *value= arg->val_decimal(decimal_value);
-  null_value= arg->null_value;
+  if (null_value= arg->null_value)
+    value= NULL;
   return value;
 }
 

@@ -887,7 +887,7 @@ String *Item_func_hybrid_result_type::val_str(String *str)
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value, *val;
-    if (!(val= decimal_op(&decimal_value)))
+    if (!(val= decimal_op_with_null_check(&decimal_value)))
       return 0;                                 // null is set
     my_decimal_round(E_DEC_FATAL_ERROR, val, decimals, FALSE, val);
     str->set_charset(collation.collation);
@@ -914,24 +914,22 @@ String *Item_func_hybrid_result_type::val_str(String *str)
     if (is_temporal_type(field_type()))
     {
       MYSQL_TIME ltime;
-      if (date_op(&ltime,
-                  field_type() == MYSQL_TYPE_TIME ? TIME_TIME_ONLY : 0) ||
-          str->alloc(MAX_DATE_STRING_REP_LENGTH))
-      {
-        null_value= 1;
+      if (date_op_with_null_check(&ltime) ||
+          (null_value= str->alloc(MAX_DATE_STRING_REP_LENGTH)))
         return (String *) 0;
-      }
       ltime.time_type= mysql_type_to_time_type(field_type());
       str->length(my_TIME_to_str(&ltime, const_cast<char*>(str->ptr()), decimals));
       str->set_charset(&my_charset_bin);
+      DBUG_ASSERT(!null_value);
       return str;
     }
-    return str_op(&str_value);
+    return str_op_with_null_check(&str_value);
   case TIME_RESULT:
   case ROW_RESULT:
   case IMPOSSIBLE_RESULT:
     DBUG_ASSERT(0);
   }
+  DBUG_ASSERT(!null_value || (str == NULL));
   return str;
 }
 
@@ -944,7 +942,7 @@ double Item_func_hybrid_result_type::val_real()
   {
     my_decimal decimal_value, *val;
     double result;
-    if (!(val= decimal_op(&decimal_value)))
+    if (!(val= decimal_op_with_null_check(&decimal_value)))
       return 0.0;                               // null is set
     my_decimal2double(E_DEC_FATAL_ERROR, val, &result);
     return result;
@@ -961,18 +959,14 @@ double Item_func_hybrid_result_type::val_real()
     if (is_temporal_type(field_type()))
     {
       MYSQL_TIME ltime;
-      if (date_op(&ltime,
-                  field_type() == MYSQL_TYPE_TIME ? TIME_TIME_ONLY : 0 ))
-      {
-        null_value= 1;
+      if (date_op_with_null_check(&ltime))
         return 0;
-      }
       ltime.time_type= mysql_type_to_time_type(field_type());
       return TIME_to_double(&ltime);
     }
     char *end_not_used;
     int err_not_used;
-    String *res= str_op(&str_value);
+    String *res= str_op_with_null_check(&str_value);
     return (res ? my_strntod(res->charset(), (char*) res->ptr(), res->length(),
 			     &end_not_used, &err_not_used) : 0.0);
   }
@@ -992,7 +986,7 @@ longlong Item_func_hybrid_result_type::val_int()
   case DECIMAL_RESULT:
   {
     my_decimal decimal_value, *val;
-    if (!(val= decimal_op(&decimal_value)))
+    if (!(val= decimal_op_with_null_check(&decimal_value)))
       return 0;                                 // null is set
     longlong result;
     my_decimal2int(E_DEC_FATAL_ERROR, val, unsigned_flag, &result);
@@ -1007,18 +1001,14 @@ longlong Item_func_hybrid_result_type::val_int()
     if (is_temporal_type(field_type()))
     {
       MYSQL_TIME ltime;
-      if (date_op(&ltime,
-                  field_type() == MYSQL_TYPE_TIME ? TIME_TIME_ONLY : 0))
-      {
-        null_value= 1;
+      if (date_op_with_null_check(&ltime))
         return 0;
-      }
       ltime.time_type= mysql_type_to_time_type(field_type());
       return TIME_to_ulonglong(&ltime);
     }
     int err_not_used;
     String *res;
-    if (!(res= str_op(&str_value)))
+    if (!(res= str_op_with_null_check(&str_value)))
       return 0;
 
     char *end= (char*) res->ptr() + res->length();
@@ -1040,17 +1030,21 @@ my_decimal *Item_func_hybrid_result_type::val_decimal(my_decimal *decimal_value)
   DBUG_ASSERT(fixed == 1);
   switch (cached_result_type) {
   case DECIMAL_RESULT:
-    val= decimal_op(decimal_value);
+    val= decimal_op_with_null_check(decimal_value);
     break;
   case INT_RESULT:
   {
     longlong result= int_op();
+    if (null_value)
+      return NULL;
     int2my_decimal(E_DEC_FATAL_ERROR, result, unsigned_flag, decimal_value);
     break;
   }
   case REAL_RESULT:
   {
     double result= (double)real_op();
+    if (null_value)
+      return NULL;
     double2my_decimal(E_DEC_FATAL_ERROR, result, decimal_value);
     break;
   }
@@ -1059,19 +1053,20 @@ my_decimal *Item_func_hybrid_result_type::val_decimal(my_decimal *decimal_value)
     if (is_temporal_type(field_type()))
     {
       MYSQL_TIME ltime;
-      if (date_op(&ltime,
-                  field_type() == MYSQL_TYPE_TIME ? TIME_TIME_ONLY : 0))
+      if (date_op_with_null_check(&ltime))
       {
         my_decimal_set_zero(decimal_value);
-        null_value= 1;
         return 0;
       }
       ltime.time_type= mysql_type_to_time_type(field_type());
       return date2my_decimal(&ltime, decimal_value);
     }
     String *res;
-    if (!(res= str_op(&str_value)))
+    if (!(res= str_op_with_null_check(&str_value)))
+    {
+      null_value= 1;
       return NULL;
+    }
 
     str2my_decimal(E_DEC_FATAL_ERROR, (char*) res->ptr(),
                    res->length(), res->charset(), decimal_value);
@@ -1094,7 +1089,7 @@ bool Item_func_hybrid_result_type::get_date(MYSQL_TIME *ltime,
   case DECIMAL_RESULT:
   {
     my_decimal value, *res;
-    if (!(res= decimal_op(&value)) ||
+    if (!(res= decimal_op_with_null_check(&value)) ||
         decimal_to_datetime_with_warn(res, ltime, fuzzydate,
                                       field_name_or_null()))
       goto err;
@@ -1124,7 +1119,7 @@ bool Item_func_hybrid_result_type::get_date(MYSQL_TIME *ltime,
       return date_op(ltime, fuzzydate);
     char buff[40];
     String tmp(buff,sizeof(buff), &my_charset_bin),*res;
-    if (!(res= str_op(&tmp)) ||
+    if (!(res= str_op_with_null_check(&tmp)) ||
         str_to_datetime_with_warn(res->charset(), res->ptr(), res->length(),
                                   ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
       goto err;

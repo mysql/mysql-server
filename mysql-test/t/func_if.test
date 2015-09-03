@@ -206,6 +206,20 @@ SELECT if(1, NULL, (SELECT min('hello')));
 
 --echo End of 5.2 tests
 
+--echo #
+--echo # MDEV-8663: IF Statement returns multiple values erroneously
+--echo # (or Assertion `!null_value' failed in Item::send(Protocol*, String*)
+--echo #
+CREATE TABLE `t1` (
+`datas` VARCHAR(25) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `t1` VALUES ('1,2'), ('2,3'), ('3,4');
+
+SELECT IF(FIND_IN_SET('1', `datas`), 1.5, IF(FIND_IN_SET('2', `datas`), 2, NULL)) AS `First`, '1' AS `Second`, '2' AS `Third` FROM `t1`;
+
+drop table t1;
+
 --disable_query_log
 # Restore timezone to default
 set time_zone= @@global.time_zone;
