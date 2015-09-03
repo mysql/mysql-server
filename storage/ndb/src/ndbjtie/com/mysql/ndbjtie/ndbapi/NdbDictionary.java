@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -734,6 +734,8 @@ public class NdbDictionary extends Wrapper
         public final native boolean supportedAlterTable(TableConst/*_const Table &_*/ f, TableConst/*_const Table &_*/ t);
         public final native void removeCachedTable(String/*_const char *_*/ table);
         public final native void removeCachedIndex(String/*_const char *_*/ index, String/*_const char *_*/ table);
+        public final native void invalidateTable(String/*_const char *_*/ table);
+        public final native void invalidateIndex(String/*_const char *_*/ index, String/*_const char *_*/ table);
         public final native int createIndex(IndexConst/*_const Index &_*/ index, boolean offline /*_= false_*/);
         public final native int createIndex(IndexConst/*_const Index &_*/ index, TableConst/*_const Table &_*/ table, boolean offline /*_= false_*/);
         public final native int dropIndex(String/*_const char *_*/ indexName, String/*_const char *_*/ tableName);

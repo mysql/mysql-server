@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -897,6 +897,20 @@ struct NdbApiWrapper {
     ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
     {
         obj.removeCachedIndex(p0, p1);
+    }
+
+    static void
+    NdbDictionary__Dictionary__invalidateTable__0 // disambiguate overloaded function
+    ( NdbDictionary::Dictionary & obj, const char * p0 )
+    {
+        obj.invalidateTable(p0);
+    }
+
+    static void
+    NdbDictionary__Dictionary__invalidateIndex__1 // disambiguate overloaded function
+    ( NdbDictionary::Dictionary & obj, const char * p0, const char * p1 )
+    {
+        obj.invalidateIndex(p0, p1);
     }
 
     static int
