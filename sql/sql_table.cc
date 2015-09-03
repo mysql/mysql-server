@@ -7126,6 +7126,37 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0))
     goto cleanup;
 
+  if (alter_ctx->error_if_not_empty & Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+  {
+    // We should have upgraded from MDL_SHARED_UPGRADABLE to a lock
+    // blocking writes for it to be safe to check ha_records().
+    if (table->mdl_ticket->get_type() == MDL_SHARED_UPGRADABLE)
+    {
+      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      goto cleanup;
+    }
+
+    // Check if the handler supports ha_records()
+    if (!(table_list->table->file->ha_table_flags() & HA_HAS_RECORDS))
+    {
+      // If ha_records() is not supported, be conservative.
+      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      goto cleanup;
+    }
+
+    ha_rows tmp= 0;
+    if (table_list->table->file->ha_records(&tmp) || tmp > 0)
+    {
+      my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+      goto cleanup;
+    }
+
+    // Empty table, so don't allow inserts during inplace operation.
+    if (inplace_supported == HA_ALTER_INPLACE_NO_LOCK ||
+        inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE)
+      inplace_supported= HA_ALTER_INPLACE_SHARED_LOCK;
+  }
+
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_upgrade");
   THD_STAGE_INFO(thd, stage_alter_inplace_prepare);
 
@@ -7681,6 +7712,22 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (field->is_virtual_gcol())
         alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
+      /*
+        If the new column type is GEOMETRY (or a subtype) NOT NULL,
+        and the old column type is nullable and not GEOMETRY (or a
+        subtype), existing NULL values will be converted into empty
+        strings in non-strict mode. Empty strings are illegal values
+        in GEOMETRY columns.
+      */
+      if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
+          (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
+          field->type() != MYSQL_TYPE_GEOMETRY &&
+          field->maybe_null() &&
+          !thd->is_strict_mode())
+      {
+        alter_ctx->error_if_not_empty|=
+          Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;
+      }
     }
     else
     {
@@ -7758,8 +7805,27 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
          thd->is_strict_mode())
     {
         alter_ctx->datetime_field= def;
-        alter_ctx->error_if_not_empty= true;
+        alter_ctx->error_if_not_empty|=
+          Alter_table_ctx::DATETIME_WITHOUT_DEFAULT;
     }
+
+    /*
+      New GEOMETRY (and subtypes) columns can't be NOT NULL. To add a
+      GEOMETRY NOT NULL column, first create a GEOMETRY NULL column,
+      UPDATE the table to set a different value than NULL, and then do
+      a ALTER TABLE MODIFY COLUMN to set NOT NULL.
+
+      This restriction can be lifted once MySQL supports default
+      values (i.e., functions) for geometry columns. The new
+      restriction would then be for added GEOMETRY NOT NULL columns to
+      always have a provided default value.
+    */
+    if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
+        (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)))
+    {
+      alter_ctx->error_if_not_empty|= Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;
+    }
+
     if (!def->after)
       new_create_list.push_back(def);
     else
@@ -9553,15 +9619,20 @@ err_new_table_cleanup:
                           alter_ctx.new_db, alter_ctx.tmp_name,
                           (FN_IS_TMP | (no_ha_table ? NO_HA_TABLE : 0)));
 
-  /*
-    No default value was provided for a DATE/DATETIME field, the
-    current sql_mode doesn't allow the '0000-00-00' value and
-    the table to be altered isn't empty.
-    Report error here.
-  */
-  if (alter_ctx.error_if_not_empty &&
+  if (alter_ctx.error_if_not_empty & Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT)
+  {
+    my_error(ER_INVALID_USE_OF_NULL, MYF(0));
+  }
+  if ((alter_ctx.error_if_not_empty &
+       Alter_table_ctx::DATETIME_WITHOUT_DEFAULT) &&
       thd->get_stmt_da()->current_row_for_condition())
   {
+    /*
+      No default value was provided for a DATE/DATETIME field, the
+      current sql_mode doesn't allow the '0000-00-00' value and
+      the table to be altered isn't empty.
+      Report error here.
+    */
     uint f_length;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
     switch (alter_ctx.datetime_field->sql_type)

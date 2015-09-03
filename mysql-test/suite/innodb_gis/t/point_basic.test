@@ -60,13 +60,11 @@ SELECT ST_AsText(p), ST_AsText(g) FROM t1;
 
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g';
 
-ALTER TABLE t1 ADD COLUMN p1 POINT NOT NULL, ADD COLUMN p2 POINT NOT NULL, ADD KEY(p), ADD KEY(p1), ADD KEY(p2);
+ALTER TABLE t1 ADD COLUMN p1 POINT, ADD COLUMN p2 POINT, ADD KEY(p);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 
 --echo # NOT NULL POINT will use ''
---error ER_CANT_CREATE_GEOMETRY_OBJECT
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p1 = '';
---error ER_CANT_CREATE_GEOMETRY_OBJECT
 SELECT count(*) AS `Expect 4` FROM t1 WHERE p2 = '';
 
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p1;
@@ -93,6 +91,7 @@ DELETE FROM t1 WHERE p1 = ST_PointFromText('POINT(10 19)');
 SELECT ST_AsText(p1) FROM t1;
 
 --echo # Add spatial keys on the table
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE t1 ADD SPATIAL(p), ADD SPATIAL(p1);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
 
@@ -103,6 +102,7 @@ SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p1, ST_GeomFromText('
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p, ST_GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
 
 --echo # Drop spatial keys on the table
+--error ER_CANT_DROP_FIELD_OR_KEY
 ALTER TABLE t1 DROP KEY p, DROP KEY p1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
 
@@ -117,7 +117,7 @@ TRUNCATE t1;
 ALTER TABLE t1 DROP COLUMN p, DROP COLUMN p1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
 
-ALTER TABLE t1 ADD COLUMN p POINT NOT NULL, ADD COLUMN p1 POINT NOT NULL;
+ALTER TABLE t1 ADD COLUMN p POINT, ADD COLUMN p1 POINT;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1';
 
 SHOW CREATE TABLE t1;
@@ -133,13 +133,14 @@ SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p1 = ST_PointFromText('POINT(10
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p1, ST_GeomFromText('POLYGON((5 5, 20 5, 20 21, 5 21, 5 5))'));
 SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE MBRWithin(p, ST_GeomFromText('POLYGON((-1 0.5, -1 -0.5, 1 -0.5, 1 0.5, -1 0.5))'));
 
-ALTER TABLE t1 DROP COLUMN p1, ADD COLUMN p1 POINT NOT NULL, CHANGE COLUMN p pp POINT NOT NULL AFTER p1;
+ALTER TABLE t1 DROP COLUMN p1, ADD COLUMN p1 POINT, CHANGE COLUMN p pp POINT AFTER p1;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
 
 UPDATE t1 SET p1 = ST_PointFromText('POINT(5 5)');
 
 SELECT ST_AsText(pp), ST_AsText(p1) FROM t1;
 
+--error ER_SPATIAL_CANT_HAVE_NULL
 ALTER TABLE t1 ADD SPATIAL(p1), ADD SPATIAL(pp), ALGORITHM = COPY;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS WHERE name = 'pp' OR name = 'g' OR name = 'p1';
 

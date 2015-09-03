@@ -402,8 +402,12 @@ public:
   { return tmp_path; }
 
 public:
+  typedef uint error_if_not_empty_mask;
+  static const error_if_not_empty_mask DATETIME_WITHOUT_DEFAULT= 1 << 0;
+  static const error_if_not_empty_mask GEOMETRY_WITHOUT_DEFAULT= 1 << 1;
+
   Create_field *datetime_field;
-  bool         error_if_not_empty;
+  error_if_not_empty_mask error_if_not_empty;
   uint         tables_opened;
   const char   *db;
   const char   *table_name;
