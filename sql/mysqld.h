@@ -186,7 +186,7 @@ extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
 extern my_bool offline_mode;
-extern my_bool opt_log_backward_compatible_user_definitions;
+extern my_bool opt_log_builtin_as_identified_by_password;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;

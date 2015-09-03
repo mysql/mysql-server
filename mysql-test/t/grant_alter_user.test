@@ -497,11 +497,11 @@ drop user u1@localhost, u2@localhost, u3@localhost, u4@localhost, u5@localhost,
           u15@localhost, u16@localhost, u17@localhost, u18@localhost,
           u19@localhost;
 
---echo # test general log with log_backward_compatible_user_definitions ON
+--echo # test general log with log_builtin_as_identified_by_password ON
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
---echo # restarting the server with log_backward_compatible_user_definitions ON
+--echo # restarting the server with log_builtin_as_identified_by_password ON
 
 # Write file to make mysql-test-run.pl wait for the server to stop
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -513,7 +513,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
 -- source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-backward-compatible-user-definitions=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--log-builtin-as-identified-by-password=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Turn on reconnect
 --enable_reconnect
@@ -521,7 +521,7 @@ SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
 
-SHOW GLOBAL VARIABLES LIKE 'log_backward_compatible_user_definitions';
+SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;

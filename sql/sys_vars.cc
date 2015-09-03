@@ -5508,11 +5508,11 @@ static Sys_var_mybool Sys_offline_mode(
        &PLock_offline_mode, NOT_IN_BINLOG,
        ON_CHECK(0), ON_UPDATE(handle_offline_mode));
 
-static Sys_var_mybool Sys_log_backward_compatible_user_definitions(
-       "log_backward_compatible_user_definitions",
-       "Controls logging of CREATE/ALTER/GRANT user statements "
+static Sys_var_mybool Sys_log_builtin_as_identified_by_password(
+       "log_builtin_as_identified_by_password",
+       "Controls logging of CREATE/ALTER/GRANT and SET PASSWORD user statements "
        "in replication binlogs, general query logs and audit logs.",
-       GLOBAL_VAR(opt_log_backward_compatible_user_definitions),
+       GLOBAL_VAR(opt_log_builtin_as_identified_by_password),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static Sys_var_mybool Sys_avoid_temporal_upgrade(
