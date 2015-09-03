@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,6 @@ public:
       current_table= 1;
     }
 
-    alloced_sel_args= 0;
     using_real_indexes= true;
     key_parts= m_key_parts;
     key_parts_end= m_key_parts;

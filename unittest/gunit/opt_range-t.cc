@@ -1490,6 +1490,8 @@ TEST_F(OptRangeTest, CopyMin)
 */
 TEST_F(OptRangeTest, KeyOr1)
 {
+  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, 0, false);
+
   Fake_TABLE fake_table(new Item_int(3), new Item_int(4));
   Field *field_long3= fake_table.field[0];
   Field *field_long4= fake_table.field[1];
@@ -1542,7 +1544,7 @@ TEST_F(OptRangeTest, KeyOr1)
     sel_arg_lt4:       [--------------------->
   */
 
-  SEL_ARG *tmp= key_or(NULL, &sel_arg_lt3, &sel_arg_gt3);
+  SEL_ARG *tmp= key_or(&opt_param, &sel_arg_lt3, &sel_arg_gt3);
 
   /*
     Ranges now:
@@ -1557,7 +1559,7 @@ TEST_F(OptRangeTest, KeyOr1)
     "3 < field_1";
   EXPECT_STREQ(expected_merged, range_string.c_ptr());
 
-  SEL_ARG *tmp2= key_or(NULL, tmp, &sel_arg_lt4);
+  SEL_ARG *tmp2= key_or(&opt_param, tmp, &sel_arg_lt4);
   EXPECT_EQ(null_arg, tmp2);
 }
 

@@ -310,6 +310,7 @@ SET(TESTS
   thread_utils
   my_timer
   timespec
+  my_alloc
   )
  
 IF (UNIX)

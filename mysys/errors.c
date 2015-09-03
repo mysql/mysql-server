@@ -56,7 +56,8 @@ const char *globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d - %s)",
   "Can't change permissions of the file '%s' (Errcode: %d - %s)",
-  "Can't seek in file '%s' (Errcode: %d - %s)"
+  "Can't seek in file '%s' (Errcode: %d - %s)",
+  "Memory capacity exceeded (capacity %llu bytes)"
 };
 
 

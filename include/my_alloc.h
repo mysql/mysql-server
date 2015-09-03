@@ -54,6 +54,19 @@ typedef struct st_mem_root
   */
   unsigned int first_block_usage;
 
+  /*
+    Maximum amount of memory this mem_root can hold. A value of 0
+    implies there is no limit.
+  */
+  size_t max_capacity;
+
+  /* Allocated size for this mem_root */
+
+  size_t allocated_size;
+
+  /* Enable this for error reporting if capacity is exceeded */
+  my_bool error_for_capacity_exceeded;
+
   void (*error_handler)(void);
 
   PSI_memory_key m_psi_key;
