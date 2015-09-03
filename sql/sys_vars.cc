@@ -2668,6 +2668,20 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        SESSION_VAR(optimizer_search_depth), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, MAX_TABLES+1), DEFAULT(MAX_TABLES+1), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_range_optimizer_max_mem_size(
+      "range_optimizer_max_mem_size",
+      "Maximum amount of memory used by the range optimizer "
+      "to allocate predicates during range analysis. "
+      "The larger the number, more memory may be consumed during "
+      "range analysis. If the value is too low to completed range "
+      "optimization of a query, index range scan will not be "
+      "considered for this query. A value of 0 means range optimizer "
+      "does not have any cap on memory. ",
+      SESSION_VAR(range_optimizer_max_mem_size),
+      CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX),
+      DEFAULT(1536000),
+      BLOCK_SIZE(1));
+
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
