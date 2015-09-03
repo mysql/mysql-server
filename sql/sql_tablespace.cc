@@ -192,16 +192,25 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         my_error(ER_TABLESPACE_IS_NOT_EMPTY, MYF(0), ts_info->tablespace_name);
         break;
       case HA_ERR_WRONG_FILE_NAME:
-        my_error(ER_WRONG_FILE_NAME, MYF(0), ts_info->data_file_name, 0, "");
+        my_error(ER_WRONG_FILE_NAME, MYF(0), ts_info->data_file_name);
         break;
       case HA_ADMIN_FAILED:
-        my_error(ER_CANT_CREATE_FILE, MYF(0), ts_info->data_file_name, 0, "");
+        my_error(ER_CANT_CREATE_FILE, MYF(0), ts_info->data_file_name);
         break;
       case HA_ERR_INNODB_READ_ONLY:
         my_error(ER_INNODB_READ_ONLY, MYF(0));
         break;
+      case HA_ERR_RECORD_FILE_FULL:
+        my_error(ER_RECORD_FILE_FULL, MYF(0), ts_info->tablespace_name);
+        break;
+      case HA_WRONG_CREATE_OPTION:
+        my_error(ER_ILLEGAL_HA, MYF(0), ts_info->tablespace_name);
+        break;
+      case HA_ERR_TABLESPACE_EXISTS:
+        my_error(ER_TABLESPACE_EXISTS, MYF(0), ts_info->tablespace_name);
+        break;
       default:
-        my_error(error, MYF(0));
+        my_error(ER_GET_ERRNO, MYF(0), error);
       }
       DBUG_RETURN(error);
     }

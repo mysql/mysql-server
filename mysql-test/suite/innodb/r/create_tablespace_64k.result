@@ -20,42 +20,42 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 Error	1528	Failed to create TABLESPACE s_1k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_1k' doesn't have this option
 CREATE TABLESPACE s_2k ADD DATAFILE 's_2k.ibd' FILE_BLOCK_SIZE=2k;
 ERROR HY000: InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 Error	1528	Failed to create TABLESPACE s_2k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_2k' doesn't have this option
 CREATE TABLESPACE s_4k ADD DATAFILE 's_4k.ibd' FILE_BLOCK_SIZE=4k;
 ERROR HY000: InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 Error	1528	Failed to create TABLESPACE s_4k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_4k' doesn't have this option
 CREATE TABLESPACE s_8k ADD DATAFILE 's_8k.ibd' FILE_BLOCK_SIZE=8k;
 ERROR HY000: InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 Error	1528	Failed to create TABLESPACE s_8k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_8k' doesn't have this option
 CREATE TABLESPACE s_16k ADD DATAFILE 's_16k.ibd' FILE_BLOCK_SIZE=16k;
 ERROR HY000: InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 Error	1528	Failed to create TABLESPACE s_16k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_16k' doesn't have this option
 CREATE TABLESPACE s_32k ADD DATAFILE 's_32k.ibd' FILE_BLOCK_SIZE=32k;
 ERROR HY000: InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Cannot create a COMPRESSED tablespace when innodb_page_size > 16k.
 Error	1528	Failed to create TABLESPACE s_32k
-Error	140	Wrong create option
+Error	1031	Table storage engine for 's_32k' doesn't have this option
 CREATE TABLESPACE s_64k ADD DATAFILE 's_64k.ibd' FILE_BLOCK_SIZE=64k;
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
