@@ -18,7 +18,7 @@
 # Should be updated when creating a new NDB version
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=1
-NDB_VERSION_BUILD=37
+NDB_VERSION_BUILD=38
 NDB_VERSION_STATUS=""
 
 dnl ---------------------------------------------------------------------------
