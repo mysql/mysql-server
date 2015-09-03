@@ -2422,3 +2422,473 @@ ERROR HY000: Incorrect arguments to >
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t1) AS result;
 ERROR HY000: Incorrect arguments to >
 DROP TABLE t1;
+#
+# Bug #19880316 ALTER TABLE INSERTS INVALID VALUES IN GEOMETRY COLUMNS
+#
+# Add a GEOMETRY NOT NULL column to a table without rows
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+ALTER TABLE t1 ADD COLUMN g GEOMETRY NOT NULL, ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD COLUMN g2 GEOMETRY NOT NULL, ALGORITHM=COPY;
+ALTER TABLE t1 ADD COLUMN g3 GEOMETRY;
+ALTER TABLE t1 MODIFY COLUMN g3 GEOMETRY NOT NULL;
+ALTER TABLE t1 ADD COLUMN g4 GEOMETRY NOT NULL, ALGORITHM=DEFAULT;
+ALTER TABLE t1 ADD COLUMN g5 GEOMETRY NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` geometry NOT NULL,
+  `g2` geometry NOT NULL,
+  `g3` geometry NOT NULL,
+  `g4` geometry NOT NULL,
+  `g5` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+# Add a GEOMETRY NOT NULL column to a table with rows
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g GEOMETRY NOT NULL, ALGORITHM=INPLACE;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE t1 ADD COLUMN g GEOMETRY NOT NULL, ALGORITHM=COPY;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE t1 ADD COLUMN g GEOMETRY;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` geometry DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	NULL
+UPDATE t1 SET g=POINT(0,0) WHERE g IS NULL;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, ST_ASTEXT(g) FROM t1;
+i	ST_ASTEXT(g)
+0	POINT(0 0)
+DROP TABLE t1;
+# Convert an INT column without rows to GEOMETRY, and then to
+# GEOMETRY NOT NULL
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+ALTER TABLE t1 ADD COLUMN g INT;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+# Convert an INT column without rows to GEOMETRY NOT NULL
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+ALTER TABLE t1 ADD COLUMN g INT;
+ALTER TABLE t1 ADD COLUMN g2 INT;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
+SET @save_sql_mode=@@session.sql_mode;
+SET SESSION sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 MODIFY COLUMN g2 GEOMETRY NOT NULL;
+ALTER TABLE t1 CHANGE COLUMN g2 h2 GEOMETRY NOT NULL;
+SET SESSION sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `h` geometry NOT NULL,
+  `h2` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+# Convert an INT column with NULL values to GEOMETRY, and then
+# to GEOMETRY NOT NULL
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g INT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	NULL
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY;
+SELECT i, g FROM t1;
+i	g
+0	NULL
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` geometry DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	NULL
+DROP TABLE t1;
+# Convert an INT column with NULL values to GEOMETRY NOT NULL
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g INT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	NULL
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
+SET @save_sql_mode=@@session.sql_mode;
+SET SESSION sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SET SESSION sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	NULL
+DROP TABLE t1;
+# Convert an INT column without NULL values to GEOMETRY
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g INT DEFAULT 1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` int(11) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	1
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` int(11) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	1
+DROP TABLE t1;
+# Convert an INT column without NULL values to GEOMETRY NOT
+# NULL
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g INT DEFAULT 1;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` int(11) DEFAULT '1'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+i	g
+0	1
+DROP TABLE t1;
+# Convert a VARCHAR column with an empty string to GEOMETRY
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g VARCHAR(20) NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	
+DROP TABLE t1;
+# Convert a VARCHAR column with an empty string to GEOMETRY NOT
+# NULL
+CREATE TABLE t1 (
+i INT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+ALTER TABLE t1 ADD COLUMN g VARCHAR(20) NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL,
+  `g` varchar(20) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i, g FROM t1;
+i	g
+0	
+DROP TABLE t1;
+# Convert a BLOB column with a valid geometry in it to GEOMETRY
+# NOT NULL
+CREATE TABLE t1 (b BLOB);
+INSERT INTO t1 VALUES(POINT(0,0));
+ALTER TABLE t1 MODIFY COLUMN b BLOB;
+ALTER TABLE t1 ALGORITHM=COPY, MODIFY COLUMN b GEOMETRY NOT NULL;
+ALTER TABLE t1 MODIFY COLUMN b BLOB;
+INSERT INTO t1 VALUES(NULL);
+ALTER TABLE t1 ALGORITHM=COPY, MODIFY COLUMN b GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
+SET @save_sql_mode=@@session.sql_mode;
+SET SESSION sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 MODIFY COLUMN b GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SET SESSION sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` blob
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+b
+                       
+NULL
+DROP TABLE t1;
+# Convert a POINT column without rows to POLYGON
+CREATE TABLE t1 (
+p1 POINT,
+p2 POINT,
+p3 POINT,
+p4 POINT
+) ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY COLUMN p1 POLYGON;
+ALTER TABLE t1 CHANGE COLUMN p2 q2 POLYGON;
+ALTER TABLE t1 MODIFY COLUMN p3 POLYGON NOT NULL;
+ALTER TABLE t1 CHANGE COLUMN p4 q4 POLYGON NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `p1` polygon DEFAULT NULL,
+  `q2` polygon DEFAULT NULL,
+  `p3` polygon NOT NULL,
+  `q4` polygon NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+p1	q2	p3	q4
+DROP TABLE t1;
+# Convert a POINT column without NULL values to POLYGON
+CREATE TABLE t1 (
+p POINT
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(POINT(0,0));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `p` point DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT ST_AsText(p) FROM t1;
+ST_AsText(p)
+POINT(0 0)
+ALTER TABLE t1 MODIFY COLUMN p POLYGON;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE t1 CHANGE COLUMN p q POLYGON;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SELECT ST_AsText(p) FROM t1;
+ST_AsText(p)
+POINT(0 0)
+ALTER TABLE t1 MODIFY COLUMN p POLYGON NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+ALTER TABLE t1 CHANGE COLUMN p q POLYGON NOT NULL;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `p` point DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT ST_AsText(p) FROM t1;
+ST_AsText(p)
+POINT(0 0)
+DROP TABLE t1;
+# Convert a MULTIPOINT NOT NULL column with rows via
+# GEOMETRYCOLLECTION NOT NULL, to GEOMETRY NOT NULL and back
+CREATE TABLE t1 (
+mp MULTIPOINT NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(MULTIPOINT(POINT(1,1)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `mp` multipoint NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT ST_AsText(mp) FROM t1;
+ST_AsText(mp)
+MULTIPOINT(1 1)
+ALTER TABLE t1 MODIFY COLUMN mp GEOMETRYCOLLECTION NOT NULL;
+ALTER TABLE t1 MODIFY COLUMN mp GEOMETRY NOT NULL;
+ALTER TABLE t1 MODIFY COLUMN mp GEOMETRYCOLLECTION NOT NULL;
+ALTER TABLE t1 MODIFY COLUMN mp MULTIPOINT NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `mp` multipoint NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT ST_AsText(mp) FROM t1;
+ST_AsText(mp)
+MULTIPOINT(1 1)
+DROP TABLE t1;
+# Convert a GEOMETRY column without rows to GEOMETRY NOT NULL
+CREATE TABLE t1 (g GEOMETRY) ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY) ENGINE=MyISAM;
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+# Convert a GEOMETRY column with geometry data to GEOMETRY NOT
+# NULL
+CREATE TABLE t1 (g GEOMETRY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (POINT(0,0));
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+SELECT ST_ASTEXT(g) FROM t1;
+ST_ASTEXT(g)
+POINT(0 0)
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (POINT(0,0));
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+SELECT ST_ASTEXT(g) FROM t1;
+ST_ASTEXT(g)
+POINT(0 0)
+DROP TABLE t1;
+# Convert a GEOMETRY column with a NULL value to GEOMETRY NOT NULL
+CREATE TABLE t1 (g GEOMETRY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL);
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (NULL);
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT g FROM t1;
+g
+NULL
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+SET SESSION innodb_strict_mode=OFF;
+SET @save_sql_mode=@@session.sql_mode;
+SET SESSION sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
+ERROR 22004: Invalid use of NULL value
+SET SESSION sql_mode=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT g FROM t1;
+g
+NULL
+DROP TABLE t1;
