@@ -81,7 +81,8 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
     else if (user->auth.str)
     {
       str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      if (user->uses_identified_by_password_clause)
+      if (user->uses_identified_by_password_clause ||
+          user->uses_authentication_string_clause)
       {
         str->append(user->auth.str, user->auth.length);
         str->append("'");
@@ -308,8 +309,9 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
   lex->alter_password.update_password_expired_column= acl_user->password_expired;
   lex->alter_password.use_default_password_lifetime= acl_user->use_default_password_lifetime;
   lex->alter_password.expire_after_days= acl_user->password_lifetime;
-  lex->alter_password.update_account_locked_column= acl_user->account_locked;
+  lex->alter_password.update_account_locked_column= true;
   lex->alter_password.account_locked= acl_user->account_locked;
+  lex->alter_password.update_password_expired_fields= true;
 
   /* send the metadata to client */
   field=new Item_string("",0,&my_charset_latin1);
@@ -725,7 +727,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     and its a slave thread, then the password is already hashed. So
     do not generate another hash.
   */
-  if (opt_log_backward_compatible_user_definitions &&
+  if (opt_log_builtin_as_identified_by_password &&
       thd->slave_thread)
     combo->uses_identified_by_clause= false;
     
@@ -760,7 +762,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     Based on @@log-backward-compatible-user-definitions variable
     rewrite SET PASSWORD
   */
-  if (opt_log_backward_compatible_user_definitions)
+  if (opt_log_builtin_as_identified_by_password)
   {
     memcpy(hash_str, combo->auth.str, combo->auth.length);
     query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%s'",

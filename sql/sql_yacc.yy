@@ -2588,6 +2588,7 @@ clear_password_expire_options:
          /* Nothing */
          {
            LEX *lex=Lex;
+           lex->alter_password.update_password_expired_fields= false;
            lex->alter_password.update_password_expired_column= false;
            lex->alter_password.use_default_password_lifetime= true;
            lex->alter_password.expire_after_days= 0;
@@ -7633,6 +7634,7 @@ opt_account_lock_password_expire_option:
         | password_expire
           {
             LEX *lex=Lex;
+            lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.update_password_expired_column= true;
           }
         | password_expire INTERVAL_SYM real_ulong_num DAY_SYM
@@ -7645,15 +7647,20 @@ opt_account_lock_password_expire_option:
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
+            lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.expire_after_days= $3;
             lex->alter_password.use_default_password_lifetime= false;
           }
         | password_expire NEVER_SYM
           {
             LEX *lex=Lex;
+            lex->alter_password.update_password_expired_fields= true;
             lex->alter_password.use_default_password_lifetime= false;
           }
         | password_expire DEFAULT
+          {
+            Lex->alter_password.update_password_expired_fields= true;
+          }
         ;
 
 password_expire:

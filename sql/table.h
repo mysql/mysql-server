@@ -1598,6 +1598,7 @@ public:
   ALTER user ... PASSWORD EXPIRE ...
 */
 typedef struct st_lex_alter {
+  bool update_password_expired_fields;
   bool update_password_expired_column;
   bool use_default_password_lifetime;
   uint16 expire_after_days;
