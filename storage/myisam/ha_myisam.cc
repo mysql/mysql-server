@@ -796,33 +796,45 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   if (!(test_if_locked & HA_OPEN_TMP_TABLE) && opt_myisam_use_mmap)
     test_if_locked|= HA_OPEN_MMAP;
 
-  lock_shared_ha_data();
-  my_handler_share= static_cast<Myisam_handler_share*>(get_ha_share_ptr());
-  if (my_handler_share)
-    share= my_handler_share->m_share;
-
-  if (!(file= mi_open_share(name, share, mode,
-                            test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+  /*
+     We are allocating the handler share only in case of normal MyISAM tables
+  */
+  if (table->s->tmp_table == NO_TMP_TABLE)
   {
-    unlock_shared_ha_data();
-    return (my_errno ? my_errno : -1);
-  }
-  if (!my_handler_share)
-  {
-    my_handler_share= new (std::nothrow) Myisam_handler_share;
+    lock_shared_ha_data();
+    my_handler_share= static_cast <Myisam_handler_share*>(get_ha_share_ptr());
     if (my_handler_share)
+      share= my_handler_share->m_share;
+
+    if (!(file= mi_open_share(name, share, mode,
+                              test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     {
-      my_handler_share->m_share= file->s;
-      set_ha_share_ptr(static_cast<Handler_share*>(my_handler_share));
-    }
-    else
-    {
-      mi_close(file);
       unlock_shared_ha_data();
-      return (my_errno ? my_errno : HA_ERR_OUT_OF_MEM);
+      return (my_errno ? my_errno : -1);
     }
+    if (!my_handler_share)
+    {
+      my_handler_share= new (std::nothrow) Myisam_handler_share;
+      if (my_handler_share)
+      {
+        my_handler_share->m_share= file->s;
+        set_ha_share_ptr(static_cast <Handler_share*>(my_handler_share));
+      }
+      else
+      {
+        mi_close(file);
+        unlock_shared_ha_data();
+        return (my_errno ? my_errno : HA_ERR_OUT_OF_MEM);
+      }
+    }
+    unlock_shared_ha_data();
   }
-  unlock_shared_ha_data();
+  else
+     if (!(file=
+           mi_open_share(name, share, mode,
+                         test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
+       return (my_errno ? my_errno : -1);
+
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
     if ((my_errno= table2myisam(table, &keyinfo, &recinfo, &recs)))
@@ -883,7 +895,7 @@ int ha_myisam::close(void)
   my_bool closed_share= FALSE;
   lock_shared_ha_data();
   int err= mi_close_share(file, &closed_share);
-  file=0;
+  file= 0;
   /*
     Since tmp tables will also come to the same flow. To distinguesh with them
     we need to check table_share->tmp_table.
@@ -891,7 +903,7 @@ int ha_myisam::close(void)
   if (closed_share && table_share->tmp_table == NO_TMP_TABLE)
   {
     Myisam_handler_share *my_handler_share=
-      static_cast<Myisam_handler_share*>(get_ha_share_ptr());
+      static_cast <Myisam_handler_share*>(get_ha_share_ptr());
     if (my_handler_share && my_handler_share->m_share)
       delete (my_handler_share);
     set_ha_share_ptr(NULL);
