@@ -12,35 +12,35 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name ''.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE '.ibd';
 ERROR HY000: Incorrect File Name '.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name '.ibd'.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE './ibd';
 ERROR HY000: Incorrect File Name './ibd'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name './ibd'.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE './.ibd';
 ERROR HY000: Incorrect File Name './.ibd'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name './.ibd'.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE '../spaces/';
 ERROR HY000: Incorrect File Name '../spaces/'.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	Incorrect File Name '../spaces/'.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE 'test/bad.ibd';
 ERROR HY000: Incorrect File Name 'test/bad.ibd'.
 SHOW WARNINGS;
@@ -48,7 +48,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name 'test/bad.ibd'.
 Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE './test/bad.ibd';
 ERROR HY000: Incorrect File Name './test/bad.ibd'.
 SHOW WARNINGS;
@@ -56,7 +56,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name './test/bad.ibd'.
 Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE './test//bad.ibd';
 ERROR HY000: Incorrect File Name './test//bad.ibd'.
 SHOW WARNINGS;
@@ -64,7 +64,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name './test//bad.ibd'.
 Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE '../data/test/bad.ibd';
 ERROR HY000: Incorrect File Name '../data/test/bad.ibd'.
 SHOW WARNINGS;
@@ -72,7 +72,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name '../data/test/bad.ibd'.
 Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE '../data/../data/test/bad.ibd';
 ERROR HY000: Incorrect File Name '../data/../data/test/bad.ibd'.
 SHOW WARNINGS;
@@ -80,7 +80,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name '../data/../data/test/bad.ibd'.
 Error	3121	CREATE TABLESPACE data file cannot be under the datadir.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 CREATE TABLESPACE bad ADD DATAFILE '../does_not_exist/bad.ibd';
 ERROR HY000: Incorrect File Name '../does_not_exist/bad.ibd'.
 SHOW WARNINGS;
@@ -88,7 +88,7 @@ Level	Code	Message
 Error	3121	Incorrect File Name '../does_not_exist/bad.ibd'.
 Error	3121	The directory does not exist.
 Error	1528	Failed to create TABLESPACE bad
-Error	140	Wrong create option
+Error	1031	Table storage engine for 'bad' doesn't have this option
 #
 # Try a series of valid relative ADD DATAFILE entries.
 # General tablespace files can be in the datadir but they cannot be under the datadir.
