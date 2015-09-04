@@ -366,6 +366,8 @@ JOIN::optimize()
   THD_STAGE_INFO(thd, stage_statistics);
   if (make_join_plan())
   {
+    if (thd->killed)
+      thd->send_kill_message();
     DBUG_PRINT("error",("Error: JOIN::make_join_plan() failed"));
     DBUG_RETURN(1);
   }
