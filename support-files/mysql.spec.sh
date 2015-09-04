@@ -145,7 +145,7 @@
       %if "%elver" == "6" || "%elver" == "7"
         %define distro_description      Oracle Linux %elver
         %define distro_releasetag       el%elver
-        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
+        %define distro_buildreq         gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel numactl-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils net-tools
       %else
         %{error:Oracle Linux %{elver} is unsupported}
@@ -168,7 +168,7 @@
             %if "%rhelver" == "6"
               %define distro_description    Red Hat Enterprise Linux 6
               %define distro_releasetag     rhel6
-              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel
+              %define distro_buildreq       gcc-c++ ncurses-devel perl time zlib-devel cmake libaio-devel numactl-devel
               %define distro_requires       chkconfig coreutils grep procps shadow-utils net-tools
             %else
               %{error:Red Hat Enterprise Linux %{rhelver} is unsupported}
@@ -187,7 +187,7 @@
             %if "%susever" == "11"
               %define distro_description  SUSE Linux Enterprise Server 11
               %define distro_releasetag   sles11
-              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel
+              %define distro_buildreq     gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils zlib-devel cmake libaio-devel libnuma-devel
               %define distro_requires     aaa_base coreutils grep procps pwdutils
             %else
               %{error:SuSE %{susever} is unsupported}
