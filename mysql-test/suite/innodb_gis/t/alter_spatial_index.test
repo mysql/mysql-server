@@ -169,11 +169,13 @@ ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING BTREE;
 --error ER_PARSE_ERROR
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING HASH;
 
-
+--error ER_INVALID_USE_OF_NULL
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL,ALGORITHM=COPY;
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL;
 
 SHOW CREATE TABLE tab;
@@ -455,8 +457,10 @@ ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 
 ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
 
+--error ER_INVALID_USE_OF_NULL
 ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
 
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
@@ -478,6 +482,7 @@ DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
 
 ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL;
@@ -496,7 +501,6 @@ SET @g2 = ST_GeomFromText('LINESTRING(140 140,150 150,160 160)');
 SELECT c1,ST_Astext(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1) 
 AND MBREquals(tab.c3,@g2) ORDER BY c1;
 
---error ER_CANT_CREATE_GEOMETRY_OBJECT
 UPDATE tab SET C2 = ST_GeomFromText('POINT(2000 2000)')
 WHERE MBREquals(tab.c4, @g1) AND MBREquals(tab.c3,@g2);
 
@@ -668,7 +672,7 @@ alter table t1 add b geometry, add spatial index(b), algorithm=inplace;
 # alter table t1 add b geometry not null, add spatial index(b), algorithm=inplace;
 
 # Add a geometry column.
-alter table t1 add b geometry not null, algorithm=inplace;
+alter table t1 add b geometry, algorithm=inplace;
 
 # Add spatial index fail, since there's a NULL or invalid geo data.
 # The case has to be commented because it no longer fails and following cases
@@ -680,6 +684,7 @@ alter table t1 add b geometry not null, algorithm=inplace;
 update t1 set b = st_geomfromtext('point(0 0)');
 
 # Add spatial index success.
+--error ER_SPATIAL_CANT_HAVE_NULL
 alter table t1 add spatial index(b), algorithm=inplace;
 
 # Delete rows.
@@ -697,10 +702,11 @@ insert into t1 values(NULL);
 alter table t1 add b geometry, add spatial index(b), algorithm=copy;
 
 # Add spatial index fail, since there's a NULL or invalid geo data.
---error ER_CANT_CREATE_GEOMETRY_OBJECT
+--error ER_INVALID_USE_OF_NULL
 alter table t1 add b geometry not null, add spatial index(b), algorithm=copy;
 
 # Add a geometry column.
+--error ER_INVALID_USE_OF_NULL
 alter table t1 add b geometry not null, algorithm=copy;
 
 # Add spatial index.
@@ -710,9 +716,11 @@ alter table t1 add b geometry not null, algorithm=copy;
 #alter table t1 add spatial index(b), algorithm=copy;
 
 # Update invalide geo data to point(0 0).
+--error ER_BAD_FIELD_ERROR
 update t1 set b = st_geomfromtext('point(0 0)');
 
 # Add spatial index success.
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
 alter table t1 add spatial index(b), algorithm=copy;
 
 # Delete rows.
