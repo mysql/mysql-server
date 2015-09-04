@@ -198,12 +198,6 @@ public:
   // Set for RENAME INDEX
   static const uint ALTER_RENAME_INDEX          = 1L << 27;
 
-  // Set for adding/altering stored generated columns
-  static const uint ALTER_STORED_GCOLUMN        = 1L << 28;
-
-  // Set for adding/altering virtual generated columns
-  static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
-
   // Set for UPGRADE PARTITIONING
   static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 30;
 
@@ -411,6 +405,7 @@ public:
 
   Create_field *datetime_field;
   error_if_not_empty_mask error_if_not_empty;
+  bool         requires_generated_column_server_evaluation;
   uint         tables_opened;
   const char   *db;
   const char   *table_name;

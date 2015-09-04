@@ -193,16 +193,18 @@ SELECT pos, base_pos FROM informatiON_schema.innodb_sys_virtual;
 DROP TABLE t1;
 
 CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
 
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
 ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual, g INT );
 
-# Inplace add/DROP virtual COLUMNs can ONly go with their own, not to combine
+# Inplace ADD/DROP virtual COLUMNs can only go with their own, not to combine
 # with other operatiONs
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
-ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual), add INDEX idx (f), algorithm=inplace;
+ALTER TABLE t1 add COLUMN (h INT generated always as (a+1) virtual), add INDEX idx (h), algorithm=inplace;
 
-ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual), add INDEX idx (f), algorithm=copy;
+--enable_info
+ALTER TABLE t1 add COLUMN (h INT generated always as (a+1) virtual), add INDEX idx (h);
+--disable_info
 
 DROP TABLE t1;
 
@@ -607,8 +609,7 @@ INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
 INSERT INTO t VALUES(1, 2, DEFAULT, "uuu", 9, DEFAULT, "uu", DEFAULT);
 INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
 
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
-alter table t add  x int, add m int generated ALWAYS AS(x);
+alter table t add  x int, add xx int generated ALWAYS AS(x);
 
 DROP TABLE t;
 
@@ -933,3 +934,24 @@ ALTER TABLE t DROP COLUMN `pk`;
 SHOW CREATE TABLE t;
 
 DROP TABLE t;
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, "mm");
+INSERT INTO t VALUES (18, 1, DEFAULT, "mm");
+INSERT INTO t VALUES (28, 1, DEFAULT, "mm");
+INSERT INTO t VALUES (null, null, DEFAULT, "mm");
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t ADD COLUMN xs INT GENERATED ALWAYS AS(a+b), ADD COLUMN mm INT
+GENERATED ALWAYS AS(a+b) STORED, ALGORITHM = INPLACE;
+
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ALGORITHM = INPLACE;
+
+ALTER TABLE t DROP COLUMN x,  ALGORITHM = INPLACE;
+
+ALTER TABLE t ADD COLUMN x1 INT GENERATED ALWAYS AS(a+b), DROP COLUMN c,
+ALGORITHM = INPLACE;
+
+DROP TABLE t;
+
