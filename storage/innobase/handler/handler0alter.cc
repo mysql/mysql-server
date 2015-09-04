@@ -79,12 +79,12 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
 	/* CHANGE_CREATE_OPTION needs to check innobase_need_rebuild() */
 	| Alter_inplace_info::ALTER_COLUMN_NULLABLE
 	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
-	| Alter_inplace_info::ALTER_COLUMN_ORDER
-	| Alter_inplace_info::DROP_COLUMN
-	| Alter_inplace_info::ADD_COLUMN
+	| Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+	| Alter_inplace_info::DROP_STORED_COLUMN
+	| Alter_inplace_info::ADD_STORED_COLUMN
 	| Alter_inplace_info::RECREATE_TABLE
 	/*
-	| Alter_inplace_info::ALTER_COLUMN_TYPE
+	| Alter_inplace_info::ALTER_STORED_COLUMN_TYPE
 	*/
 	;
 
@@ -113,7 +113,11 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_NOREBUILD
 	| Alter_inplace_info::RENAME_INDEX
 	| Alter_inplace_info::ALTER_COLUMN_NAME
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
-	| Alter_inplace_info::ALTER_INDEX_COMMENT;
+	| Alter_inplace_info::ALTER_INDEX_COMMENT
+	| Alter_inplace_info::ADD_VIRTUAL_COLUMN
+	| Alter_inplace_info::DROP_VIRTUAL_COLUMN
+	| Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER
+	| Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
 
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
@@ -390,13 +394,6 @@ innobase_need_rebuild(
 		return(false);
 	}
 
-	if (ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD) {
-		if (ha_alter_info->alter_info->flags
-		    & Alter_info::ALTER_VIRTUAL_GCOLUMN) {
-			return(false);
-		}
-	}
-
 	return(!!(ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD));
 }
 
@@ -452,9 +449,10 @@ ha_innobase::check_if_supported_inplace_alter(
 		| INNOBASE_ALTER_REBUILD)) {
 
 		if (ha_alter_info->handler_flags
-		    & Alter_inplace_info::ALTER_COLUMN_TYPE)
+		    & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE) {
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+		}
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -519,24 +517,26 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	/* If there is add or drop virtual columns, we will support operations
 	with these 2 options alone with inplace interface for now */
-	if (ha_alter_info->alter_info->flags
-            & Alter_info::ALTER_VIRTUAL_GCOLUMN) {
+	if (ha_alter_info->handler_flags
+	    & (Alter_inplace_info::ADD_VIRTUAL_COLUMN
+	       | Alter_inplace_info::DROP_VIRTUAL_COLUMN
+	       | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
 		ulint	flags = ha_alter_info->handler_flags;
 
-		if (flags & Alter_inplace_info::ADD_INDEX
-		    && (flags & (Alter_inplace_info::DROP_COLUMN
-				 | Alter_inplace_info::ADD_COLUMN))) {
-			ha_alter_info->unsupported_reason =
-				innobase_get_err_msg(
-				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
-			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-		}
-
-		flags &= ~(Alter_inplace_info::DROP_COLUMN
-			   | Alter_inplace_info::ADD_COLUMN
+		/* TODO: uncomment the flags below, once we start to
+		support them */
+		flags &= ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN
+			   | Alter_inplace_info::DROP_VIRTUAL_COLUMN
+			   | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER
+			   /*
+			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+			   | Alter_inplace_info::ADD_STORED_COLUMN
+			   | Alter_inplace_info::DROP_STORED_COLUMN
+			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
 			   | Alter_inplace_info::ADD_INDEX
-			   | Alter_inplace_info::DROP_INDEX
-			   | Alter_inplace_info::ALTER_COLUMN_ORDER);
+			   | Alter_inplace_info::ADD_UNIQUE_INDEX
+			   */
+			   | Alter_inplace_info::DROP_INDEX);
 
 		if (flags != 0) {
 			ha_alter_info->unsupported_reason =
@@ -3215,8 +3215,9 @@ prepare_inplace_add_virtual(
                                         &is_unsigned, field);
 
 		if (!field->gcol_info || field->stored_in_db) {
-
-			return(false);
+			my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+				 field->field_name);
+			return(true);
 		}
 
 		col_len = field->pack_length();
@@ -3354,7 +3355,8 @@ prepare_inplace_drop_virtual(
                                         &is_unsigned, field);
 
 		if (!field->gcol_info || field->stored_in_db) {
-
+			my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+				 field->field_name);
 			return(true);
 		}
 
@@ -3573,6 +3575,8 @@ innobase_add_virtual_try(
 			&ctx->add_vcol[i], trx);
 
 		if (err != DB_SUCCESS) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 "InnoDB: ADD COLUMN...VIRTUAL");
 			return(true);
 		}
 	}
@@ -3593,6 +3597,8 @@ innobase_add_virtual_try(
 	err = innobase_update_n_virtual(user_table, new_n, trx);
 
 	if (err != DB_SUCCESS) {
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 "InnoDB: ADD COLUMN...VIRTUAL");
 		return(true);
 	}
 
@@ -3793,6 +3799,8 @@ innobase_drop_virtual_try(
 			user_table, pos, trx);
 
 		if (err != DB_SUCCESS) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 "InnoDB: DROP COLUMN...VIRTUAL");
 			return(true);
 		}
 
@@ -3801,6 +3809,8 @@ innobase_drop_virtual_try(
 			&(ctx->drop_vcol[i].m_col), i, trx);
 
 		if (err != DB_SUCCESS) {
+			my_error(ER_INTERNAL_ERROR, MYF(0),
+				 "InnoDB: DROP COLUMN...VIRTUAL");
 			return(true);
 		}
 	}
@@ -3819,7 +3829,8 @@ innobase_drop_virtual_try(
 	err = innobase_update_n_virtual(user_table, new_n, trx);
 
 	if (err != DB_SUCCESS) {
-		return(true);
+		my_error(ER_INTERNAL_ERROR, MYF(0),
+			 "InnoDB: DROP COLUMN...VIRTUAL");
 	}
 
 	return(false);
@@ -3886,32 +3897,19 @@ prepare_inplace_alter_table_dict(
 
 	trx_start_if_not_started_xa(ctx->prebuilt->trx, true);
 
-	if (ha_alter_info->alter_info->flags
-	    & Alter_info::ALTER_VIRTUAL_GCOLUMN) {
-		bool	ret = false;
-
-		if (ha_alter_info->handler_flags
-			   & Alter_inplace_info::DROP_COLUMN) {
-			ret = prepare_inplace_drop_virtual(
-				ha_alter_info, altered_table, old_table);
-
-			if (ret) {
-				DBUG_RETURN(true);
-			}
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::DROP_VIRTUAL_COLUMN) {
+		if (prepare_inplace_drop_virtual(
+			    ha_alter_info, altered_table, old_table)) {
+			DBUG_RETURN(true);
 		}
+	}
 
-		if (ha_alter_info->handler_flags
-		    & Alter_inplace_info::ADD_COLUMN) {
-			ret = prepare_inplace_add_virtual(
-				ha_alter_info, altered_table, old_table);
-			if (ret) {
-				DBUG_RETURN(true);
-			}
-		}
-
-		if (!(ha_alter_info->handler_flags
-		      & Alter_inplace_info::ADD_INDEX)) {
-			DBUG_RETURN(false);
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::ADD_VIRTUAL_COLUMN) {
+		if (prepare_inplace_add_virtual(
+			    ha_alter_info, altered_table, old_table)) {
+			DBUG_RETURN(true);
 		}
 	}
 
@@ -5485,6 +5483,21 @@ err_exit:
 				m_prebuilt->table, m_user_thd);
 
 		}
+
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
+		    && prepare_inplace_drop_virtual(
+			    ha_alter_info, altered_table, table)) {
+			DBUG_RETURN(true);
+		}
+
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
+		    && prepare_inplace_add_virtual(
+			    ha_alter_info, altered_table, table)) {
+			DBUG_RETURN(true);
+		}
+
 		DBUG_RETURN(false);
 	}
 
@@ -5524,12 +5537,13 @@ err_exit:
 				 FTS_DOC_ID_INDEX_NAME);
 			goto err_exit;
 		case FTS_EXIST_DOC_ID_INDEX:
-			DBUG_ASSERT(doc_col_no == fts_doc_col_no
-				    || doc_col_no == ULINT_UNDEFINED
-				    || (ha_alter_info->handler_flags
-					& (Alter_inplace_info::ALTER_COLUMN_ORDER
-					   | Alter_inplace_info::DROP_COLUMN
-					   | Alter_inplace_info::ADD_COLUMN)));
+			DBUG_ASSERT(
+				doc_col_no == fts_doc_col_no
+				|| doc_col_no == ULINT_UNDEFINED
+				|| (ha_alter_info->handler_flags
+				    & (Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
+				       | Alter_inplace_info::DROP_STORED_COLUMN
+				       | Alter_inplace_info::ADD_STORED_COLUMN)));
 		}
 	}
 
@@ -5637,13 +5651,6 @@ ok_exit:
 	    == Alter_inplace_info::CHANGE_CREATE_OPTION
 	    && !innobase_need_rebuild(ha_alter_info)) {
 		goto ok_exit;
-	}
-
-	if (ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD) {
-		if (ha_alter_info->alter_info->flags
-		    & Alter_info::ALTER_VIRTUAL_GCOLUMN) {
-			goto ok_exit;
-		}
 	}
 
 	ha_innobase_inplace_ctx*	ctx
@@ -6770,9 +6777,6 @@ commit_try_rebuild(
 		      & Alter_inplace_info::DROP_FOREIGN_KEY)
 		    || ctx->num_to_drop_fk > 0);
 
-	DBUG_ASSERT(ctx->num_to_drop_fk
-		    == ha_alter_info->alter_info->drop_list.elements);
-
 	for (dict_index_t* index = dict_table_get_first_index(rebuilt_table);
 	     index;
 	     index = dict_table_get_next_index(index)) {
@@ -7080,25 +7084,20 @@ commit_try_norebuild(
 		DBUG_RETURN(true);
 	}
 
-	if (ha_alter_info->alter_info->flags
-	    & Alter_info::ALTER_VIRTUAL_GCOLUMN) {
-		if (ha_alter_info->handler_flags
-			   & Alter_inplace_info::DROP_COLUMN) {
-			if (innobase_drop_virtual_try(
-				ha_alter_info, altered_table, old_table,
-				ctx->old_table, trx)) {
-				DBUG_RETURN(true);
-			}
-		}
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::DROP_VIRTUAL_COLUMN)
+	    && innobase_drop_virtual_try(
+		    ha_alter_info, altered_table, old_table,
+		    ctx->old_table, trx)) {
+		DBUG_RETURN(true);
+	}
 
-		if (ha_alter_info->handler_flags
-		    & Alter_inplace_info::ADD_COLUMN) {
-			if (innobase_add_virtual_try(
-				ha_alter_info, altered_table, old_table,
-				ctx->old_table, trx)) {
-				DBUG_RETURN(true);
-			}
-		}
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
+	    && innobase_add_virtual_try(
+		    ha_alter_info, altered_table, old_table,
+		    ctx->old_table, trx)) {
+		DBUG_RETURN(true);
 	}
 
 	DBUG_RETURN(false);
@@ -8137,7 +8136,7 @@ ha_innopart::check_if_supported_inplace_alter(
 	}
 	/* We cannot allow INPLACE to change order of KEY partitioning fields! */
 	if ((ha_alter_info->handler_flags
-	     & Alter_inplace_info::ALTER_COLUMN_ORDER)
+	     & Alter_inplace_info::ALTER_STORED_COLUMN_ORDER)
 	    && !m_part_info->same_key_column_order(
 				&ha_alter_info->alter_info->create_list)) {
 

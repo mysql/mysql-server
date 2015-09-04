@@ -4588,7 +4588,6 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ALTER_RENAME |
     Alter_inplace_info::RENAME_INDEX |
-    Alter_inplace_info::HA_ALTER_STORED_GCOL |
     Alter_inplace_info::ALTER_INDEX_COMMENT;
 
   /* Is there at least one operation that requires copy algorithm? */

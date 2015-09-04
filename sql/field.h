@@ -4314,6 +4314,8 @@ public:
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
   Create_field *clone(MEM_ROOT *mem_root) const
     { return new (mem_root) Create_field(*this); }
+  bool is_virtual_gcol() const
+  { return gcol_info && !gcol_info->get_field_stored(); }
   void create_length_to_internal_length(void);
 
   /* Init for a tmp table field. To be extended if need be. */

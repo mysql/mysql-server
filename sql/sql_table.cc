@@ -3990,8 +3990,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
 	DBUG_RETURN(TRUE);
       }
-      if (sql_field->gcol_info &&
-          !sql_field->gcol_info->get_field_stored())
+      if (sql_field->is_virtual_gcol())
       {
         const char *errmsg= NULL;
         if (key->type == KEYTYPE_FULLTEXT)
@@ -6186,10 +6185,7 @@ static bool fill_alter_inplace_info(THD *thd,
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
-  if (alter_info->flags & Alter_info::ALTER_ADD_COLUMN)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ADD_COLUMN;
-  if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN)
-    ha_alter_info->handler_flags|= Alter_inplace_info::DROP_COLUMN;
+
   /*
     Comparing new and old default values of column is cumbersome.
     So instead of using such a comparison for detecting if default
@@ -6233,7 +6229,7 @@ static bool fill_alter_inplace_info(THD *thd,
     upgrading VARCHAR column types.
   */
   if (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar)
-    ha_alter_info->handler_flags|=  Alter_inplace_info::ALTER_COLUMN_TYPE;
+    ha_alter_info->handler_flags|=  Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
 
   /*
     Go through fields in old version of table and detect changes to them.
@@ -6246,6 +6242,7 @@ static bool fill_alter_inplace_info(THD *thd,
     c) flags passed to storage engine contain more detailed information
        about nature of changes than those provided from parser.
   */
+  uint old_field_index_without_vgc= 0;
   for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
     /* Clear marker for renamed or dropped field
@@ -6254,11 +6251,14 @@ static bool fill_alter_inplace_info(THD *thd,
 
     /* Use transformed info to evaluate flags for storage engine. */
     uint new_field_index= 0;
+    uint new_field_index_without_vgc= 0;
     new_field_it.init(alter_info->create_list);
     while ((new_field= new_field_it++))
     {
       if (new_field->field == field)
         break;
+      if (new_field->stored_in_db)
+        new_field_index_without_vgc++;
       new_field_index++;
     }
 
@@ -6273,7 +6273,10 @@ static bool fill_alter_inplace_info(THD *thd,
       {
       case IS_EQUAL_NO:
         /* New column type is incompatible with old one. */
-        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
+        ha_alter_info->handler_flags|=
+          field->is_virtual_gcol() ?
+          Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE :
+          Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
         break;
       case IS_EQUAL_YES:
         /*
@@ -6296,8 +6299,6 @@ static bool fill_alter_inplace_info(THD *thd,
         break;
       default:
         DBUG_ASSERT(0);
-        /* Safety. */
-        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_TYPE;
       }
 
       bool field_renamed;
@@ -6339,9 +6340,20 @@ static bool fill_alter_inplace_info(THD *thd,
 
       /*
         Detect changes in column order.
+
+        Note that a stored column can't become virtual and vice versa
+        thanks to check in mysql_prepare_alter_table().
       */
-      if (field->field_index != new_field_index)
-        ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_ORDER;
+      if (field->stored_in_db)
+      {
+        if (old_field_index_without_vgc != new_field_index_without_vgc)
+          ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_STORED_COLUMN_ORDER;
+      }
+      else
+      {
+        if (field->field_index != new_field_index)
+          ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER;
+      }
 
       /* Detect changes in storage type of column */
       if (new_field->field_storage_type() != field->field_storage_type())
@@ -6357,48 +6369,38 @@ static bool fill_alter_inplace_info(THD *thd,
     {
       /*
         Field is not present in new version of table and therefore was dropped.
-        Corresponding storage engine flag should be already set.
       */
-      DBUG_ASSERT(ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN);
+      DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_DROP_COLUMN);
+      ha_alter_info->handler_flags|=
+        field->is_virtual_gcol() ?
+        Alter_inplace_info::DROP_VIRTUAL_COLUMN :
+        Alter_inplace_info::DROP_STORED_COLUMN;
       field->flags|= FIELD_IS_DROPPED;
     }
+    if (field->stored_in_db)
+      old_field_index_without_vgc++;
   }
 
-#ifndef DBUG_OFF
-  new_field_it.init(alter_info->create_list);
-  while ((new_field= new_field_it++))
-  {
-    if (! new_field->field)
-    {
-      /*
-        Field is not present in old version of table and therefore was added.
-        Again corresponding storage engine flag should be already set.
-      */
-      DBUG_ASSERT(ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN);
-      break;
-    }
-  }
-#endif /* DBUG_OFF */
-
-  if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN)
+  if (alter_info->flags & Alter_info::ALTER_ADD_COLUMN)
   {
     new_field_it.init(alter_info->create_list);
     while ((new_field= new_field_it++))
     {
       if (!new_field->field)
       {
-        DBUG_ASSERT(!new_field->field);
-        break;
+        /*
+          Field is not present in old version of table and therefore was added.
+        */
+        ha_alter_info->handler_flags|=
+          new_field->is_virtual_gcol() ?
+          Alter_inplace_info::ADD_VIRTUAL_COLUMN :
+          Alter_inplace_info::ADD_STORED_COLUMN;
       }
     }
-
-    /*
-      Check if the altered column is a stored generated field.
-      TODO: Mark such a column with an alter flag only if
-      the expression functions are not equal.
-    */
-    if (new_field->stored_in_db && new_field->gcol_info)
-      ha_alter_info->handler_flags|= Alter_inplace_info::HA_ALTER_STORED_GCOL;
+    /* One of these should be set since Alter_info::ALTER_ADD_COLUMN was set. */
+    DBUG_ASSERT(ha_alter_info->handler_flags &
+                (Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+                 Alter_inplace_info::ADD_STORED_COLUMN));
   }
 
   /*
@@ -6882,6 +6884,7 @@ bool alter_table_manage_keys(THD *thd, TABLE *table, int indexes_were_disabled,
   @param create_info  Information from the parsing phase about new
                       table properties.
   @param alter_info   Data related to detected changes.
+  @param alter_ctx    Runtime context for ALTER TABLE.
 
   @return false       In-place is possible, check with storage engine.
   @return true        Incompatible operations, must use table copy.
@@ -6889,7 +6892,8 @@ bool alter_table_manage_keys(THD *thd, TABLE *table, int indexes_were_disabled,
 
 static bool is_inplace_alter_impossible(TABLE *table,
                                         HA_CREATE_INFO *create_info,
-                                        const Alter_info *alter_info)
+                                        const Alter_info *alter_info,
+                                        const Alter_table_ctx *alter_ctx)
 {
   DBUG_ENTER("is_inplace_alter_impossible");
 
@@ -6911,9 +6915,9 @@ static bool is_inplace_alter_impossible(TABLE *table,
     Stored generated columns are evaluated in server, thus can't be added/changed
     inplace.
   */
-  if (alter_info->flags & (Alter_info::ALTER_ORDER |
-                           Alter_info::ALTER_KEYS_ONOFF |
-                           Alter_info::ALTER_STORED_GCOLUMN))
+  if ((alter_info->flags & (Alter_info::ALTER_ORDER |
+                            Alter_info::ALTER_KEYS_ONOFF)) ||
+      alter_ctx->requires_generated_column_server_evaluation)
     DBUG_RETURN(true);
 
   /*
@@ -7516,7 +7520,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List<Key_part_spec> key_parts;
   uint db_create_options= (table->s->db_create_options
                            & ~(HA_OPTION_PACK_RECORD));
-  uint used_fields= create_info->used_fields, new_vgcol= 0;
+  uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= true;
 
@@ -7599,10 +7603,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
           on table can be done.
         */
         if (field->is_virtual_gcol())
-        {
-          alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
           new_drop_list.push_back(drop);
-        }
 	break; // Column was found.
       }
     }
@@ -7629,6 +7630,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
                  "Changing the STORED status");
         goto err;
       }
+      if (field->is_gcol() && field->stored_in_db)
+        alter_ctx->requires_generated_column_server_evaluation= true;
       /*
         Add column being updated to the list of new columns.
         Note that columns with AFTER clauses are added to the end
@@ -7646,8 +7649,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         */
         def_it.remove();
       }
-      if (field->is_virtual_gcol())
-        alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
       /*
         If the new column type is GEOMETRY (or a subtype) NOT NULL,
         and the old column type is nullable and not GEOMETRY (or a
@@ -7720,11 +7721,9 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       goto err;
     }
 
-    if (def->gcol_info && !def->gcol_info->get_field_stored())
-    {
-      ++new_vgcol;
-      alter_info->flags|= Alter_info::ALTER_VIRTUAL_GCOLUMN;
-    }
+    if (!def->change && def->gcol_info && def->gcol_info->get_field_stored())
+      alter_ctx->requires_generated_column_server_evaluation= true;
+
     /*
       Check that the DATE/DATETIME not null field we are going to add is
       either has a default value or the '0000-00-00' is allowed by the
@@ -7818,14 +7817,6 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!new_create_list.elements)
   {
     my_error(ER_CANT_REMOVE_ALL_FIELDS, MYF(0));
-    goto err;
-  }
-  if (new_vgcol != 0 && new_vgcol != alter_info->create_list.elements)
-  {
-    // Can't add virtual GCs and other columns at the same time
-    my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
-             "Adding virtual generated columns and other columns "
-             "in one single ALTER statement");
     goto err;
   }
 
@@ -8916,7 +8907,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if ((thd->variables.old_alter_table &&
        alter_info->requested_algorithm !=
        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
-      || is_inplace_alter_impossible(table, create_info, alter_info)
+      || is_inplace_alter_impossible(table, create_info, alter_info, &alter_ctx)
       || (partition_changed &&
           !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
      )
