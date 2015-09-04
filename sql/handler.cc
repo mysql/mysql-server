@@ -4303,6 +4303,9 @@ void handler::drop_table(const char *name)
 int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 {
   int error;
+  bool skip_version_update = false;
+  bool is_upgrade = check_opt->sql_flags & TT_FOR_UPGRADE;
+
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
 
@@ -4314,16 +4317,29 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   {
     if ((error= check_old_types()))
       return error;
+
     error= ha_check_for_upgrade(check_opt);
-    if (error && (error != HA_ADMIN_NEEDS_CHECK))
-      return error;
-    if (!error && (check_opt->sql_flags & TT_FOR_UPGRADE))
-      return 0;
+    switch (error)
+    {
+      case HA_ADMIN_NEEDS_UPG_PART:
+        /* Skip version update as the table needs upgrade. */
+        skip_version_update= true;
+        /* Fall through */
+      case HA_ADMIN_OK:
+        if (is_upgrade)
+          return error;
+        /* Fall through */
+      case HA_ADMIN_NEEDS_CHECK:
+        break;
+      default:
+        return error;
+    }
   }
+
   if ((error= check(thd, check_opt)))
     return error;
   /* Skip updating frm version if not main handler. */
-  if (table->file != this)
+  if (table->file != this || skip_version_update)
     return error;
   return update_frm_version(table);
 }

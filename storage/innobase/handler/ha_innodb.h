@@ -497,6 +497,10 @@ protected:
 	/** Save CPU time with prebuilt/cached data structures */
 	row_prebuilt_t*		m_prebuilt;
 
+	/** prebuilt pointer for the right prebuilt. For native
+	partitioning, points to the current partition prebuilt. */
+	row_prebuilt_t**	m_prebuilt_ptr;
+
 	/** Thread handle of the user currently using the handler;
 	this is set in external_lock function */
 	THD*			m_user_thd;

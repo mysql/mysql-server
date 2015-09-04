@@ -113,7 +113,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	/** Dummy query graph */
 	que_thr_t*	thr;
 	/** The prebuilt struct of the creating instance */
-	row_prebuilt_t*	prebuilt;
+	row_prebuilt_t*&	prebuilt;
 	/** InnoDB indexes being created */
 	dict_index_t**	add_index;
 	/** MySQL key numbers for the InnoDB indexes that are being created */
@@ -175,7 +175,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	/** ALTER TABLE stage progress recorder */
 	ut_stage_alter_t* m_stage;
 
-	ha_innobase_inplace_ctx(row_prebuilt_t* prebuilt_arg,
+	ha_innobase_inplace_ctx(row_prebuilt_t*& prebuilt_arg,
 				dict_index_t** drop_arg,
 				ulint num_to_drop_arg,
 				dict_index_t** rename_arg,
@@ -5463,7 +5463,7 @@ err_exit:
 		if (heap) {
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
-					m_prebuilt,
+					(*m_prebuilt_ptr),
 					drop_index, n_drop_index,
 					rename_index, n_rename_index,
 					drop_fk, n_drop_fk,
@@ -5575,7 +5575,7 @@ found_col:
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 
 	ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
-		m_prebuilt,
+		(*m_prebuilt_ptr),
 		drop_index, n_drop_index,
 		rename_index, n_rename_index,
 		drop_fk, n_drop_fk, add_fk, n_add_fk,
@@ -8226,6 +8226,7 @@ ha_innopart::prepare_inplace_alter_table(
 
 	for (uint i = 0; i < m_tot_parts; i++) {
 		m_prebuilt = ctx_parts->prebuilt_array[i];
+		m_prebuilt_ptr = ctx_parts->prebuilt_array + i;
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
@@ -8237,6 +8238,7 @@ ha_innopart::prepare_inplace_alter_table(
 		}
 	}
 	m_prebuilt = ctx_parts->prebuilt_array[0];
+	m_prebuilt_ptr = &m_prebuilt;
 	ha_alter_info->handler_ctx = ctx_parts;
 	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
 	DBUG_RETURN(res);
@@ -8353,6 +8355,25 @@ end:
 	return(res);
 }
 
+/** Notify the storage engine that the table structure (.frm) has
+been updated.
+
+ha_partition allows inplace operations that also upgrades the engine
+if it supports partitioning natively. So if this is the case then
+we will remove the .par file since it is not used with ha_innopart
+(we use the internal data dictionary instead). */
+void
+ha_innopart::notify_table_changed()
+{
+	char	tmp_par_path[FN_REFLEN + 1];
+	strxnmov(tmp_par_path, FN_REFLEN, table->s->normalized_path.str,
+		".par", NullS);
+
+	if (my_access(tmp_par_path, W_OK) == 0)
+	{
+		my_delete(tmp_par_path, MYF(0));
+	}
+}
 
 /**
 @param thd the session

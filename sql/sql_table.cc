@@ -1514,7 +1514,7 @@ bool write_execute_ddl_log_entry(uint first_entry,
   if (!complete)
   {
     /*
-      We haven't synched the log entries yet, we synch them now before
+      We haven't synced the log entries yet, we sync them now before
       writing the execute entry. If complete is true we haven't written
       any log entries before, we are only here to write the execute
       entry to indicate it is done.
@@ -1811,11 +1811,6 @@ size_t build_table_shadow_filename(char *buff, size_t bufflen,
       WFRM_INITIAL_WRITE        If set we need to prepare table before
                                 creating the frm file
       WFRM_INSTALL_SHADOW       If set we should install the new frm
-      WFRM_KEEP_SHARE           If set we know that the share is to be
-                                retained and thus we should ensure share
-                                object is correct, if not set we don't
-                                set the new partition syntax string since
-                                we know the share object is destroyed.
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -1836,16 +1831,36 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     partitions in add/drop state have temporarily changed their state
     We set tmp_table to avoid get errors on naming of primary key index.
   */
-  int error= 0;
+  int error= false;
   char path[FN_REFLEN+1];
   char shadow_path[FN_REFLEN+1];
   char shadow_frm_name[FN_REFLEN+1];
   char frm_name[FN_REFLEN+1];
   char *part_syntax_buf;
   uint syntax_len;
-  partition_info *old_part_info= lpt->table->part_info;
+  handler *new_handler= lpt->table->file;
   DBUG_ENTER("mysql_write_frm");
 
+  if (flags & (WFRM_WRITE_SHADOW | WFRM_INSTALL_SHADOW))
+  {
+    handlerton *db_type_default= lpt->part_info->default_engine_type;
+    if (db_type_default != lpt->create_info->db_type &&
+        db_type_default->partition_flags)
+    {
+      /* Use the new storage engine that natively supports partitioning! */
+      lpt->create_info->db_type= lpt->part_info->default_engine_type;
+    }
+    if (lpt->table->file->ht != lpt->create_info->db_type)
+    {
+      DBUG_ASSERT(lpt->create_info->db_type->partition_flags != NULL);
+      new_handler= get_new_handler(NULL, lpt->thd->mem_root,
+                                   lpt->create_info->db_type);
+      if (new_handler == NULL)
+      {
+        DBUG_RETURN(true);
+      }
+    }
+  }
   /*
     Build shadow frm file name
   */
@@ -1853,17 +1868,28 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   strxmov(shadow_frm_name, shadow_path, reg_ext, NullS);
   if (flags & WFRM_WRITE_SHADOW)
   {
+    Partition_handler *part_handler= new_handler->get_partition_handler();
+    partition_info *old_part_info= NULL;
+    /*
+      Make sure the new part_info is used for the new definition. If it is
+      not fixed yet, then it is only a meta data change and the current
+      part_info can still be used.
+    */
+    if (part_handler != NULL && lpt->part_info != lpt->table->part_info &&
+        lpt->part_info->fixed == true)
+    {
+      old_part_info= lpt->table->part_info;
+      part_handler->set_part_info(lpt->part_info, false);
+    }
+
     if (mysql_prepare_create_table(lpt->thd, lpt->create_info,
                                    lpt->alter_info,
                                    /*tmp_table*/ 1,
                                    &lpt->db_options,
-                                   lpt->table->file,
+                                   new_handler,
                                    &lpt->key_info_buffer,
                                    &lpt->key_count,
-                                   /*select_field_count*/ 0))
-    {
-      DBUG_RETURN(TRUE);
-    }
+                                   /*select_field_count*/ 0) == 0)
     {
       partition_info *part_info= lpt->part_info;
       if (part_info)
@@ -1879,29 +1905,41 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         lpt->thd->variables.sql_mode= sql_mode_backup;
         if (part_syntax_buf == NULL)
         {
-          DBUG_RETURN(TRUE);
+          error= true;
+          goto end;
         }
         part_info->part_info_string= part_syntax_buf;
         part_info->part_info_len= syntax_len;
-        Partition_handler *part_handler;
-        part_handler= lpt->table->file->get_partition_handler();
-        part_handler->set_part_info(part_info, false);
+      }
+      /* Write shadow frm file */
+
+      lpt->create_info->table_options= lpt->db_options;
+      if (mysql_create_frm(lpt->thd, shadow_frm_name, lpt->db,
+                           lpt->table_name, lpt->create_info,
+                           lpt->alter_info->create_list, lpt->key_count,
+                           lpt->key_info_buffer, new_handler) ||
+          new_handler->ha_create_handler_files(shadow_path, NULL,
+                                               CHF_CREATE_FLAG,
+                                               lpt->create_info))
+      {
+        mysql_file_delete(key_file_frm, shadow_frm_name, MYF(0));
+        error= true;
       }
     }
-    /* Write shadow frm file */
-    lpt->create_info->table_options= lpt->db_options;
-    if ((mysql_create_frm(lpt->thd, shadow_frm_name, lpt->db,
-                          lpt->table_name, lpt->create_info,
-                          lpt->alter_info->create_list, lpt->key_count,
-                          lpt->key_info_buffer, lpt->table->file)) ||
-        lpt->table->file->ha_create_handler_files(shadow_path, NULL,
-                                                  CHF_CREATE_FLAG,
-                                                  lpt->create_info))
+    else
     {
-      mysql_file_delete(key_file_frm, shadow_frm_name, MYF(0));
-      error= 1;
+      error= true;
+    }
+    /* Revert to the old_part_info which the open table is based on. */
+    if (old_part_info != NULL)
+    {
+      part_handler->set_part_info(old_part_info, false);
+    }
+    if (error)
+    {
       goto end;
     }
+
   }
   if (flags & WFRM_PACK_FRM)
   {
@@ -1919,7 +1957,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       my_free(data);
       my_free(lpt->pack_frm_data);
       mem_alloc_error(length);
-      error= 1;
+      error= true;
       goto end;
     }
     error= mysql_file_delete(key_file_frm, shadow_frm_name, MYF(MY_WME));
@@ -1927,11 +1965,6 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   if (flags & WFRM_INSTALL_SHADOW)
   {
     partition_info *part_info= lpt->part_info;
-    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
-    if (part_handler && part_info)
-    {
-      part_handler->set_part_info(part_info, false);
-    }
     /*
       Build frm file name
     */
@@ -1955,62 +1988,18 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
         (sync_ddl_log(), FALSE) ||
         mysql_file_rename(key_file_frm,
                           shadow_frm_name, frm_name, MYF(MY_WME)) ||
-        lpt->table->file->ha_create_handler_files(path, shadow_path,
-                                                  CHF_RENAME_FLAG, NULL))
+        new_handler->ha_create_handler_files(path, shadow_path,
+                                             CHF_RENAME_FLAG, NULL))
     {
-      error= 1;
-      goto err;
+      error= true;
+      deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
+      part_info->frm_log_entry= NULL;
+      (void) sync_ddl_log();
+      goto end;
     }
-    if (part_info && (flags & WFRM_KEEP_SHARE))
-    {
-      TABLE_SHARE *share= lpt->table->s;
-      char *tmp_part_syntax_str;
-      sql_mode_t sql_mode_backup= lpt->thd->variables.sql_mode;
-      lpt->thd->variables.sql_mode&= ~(MODE_ANSI_QUOTES);
-      part_syntax_buf= generate_partition_syntax(part_info,
-                                                 &syntax_len,
-                                                 TRUE, TRUE,
-                                                 lpt->create_info,
-                                                 lpt->alter_info,
-                                                 NULL);
-      lpt->thd->variables.sql_mode= sql_mode_backup;
-      if (part_syntax_buf == NULL)
-      {
-        error= 1;
-        goto err;
-      }
-      if (share->partition_info_buffer_size < syntax_len + 1)
-      {
-        share->partition_info_buffer_size= syntax_len+1;
-        if (!(tmp_part_syntax_str= strmake_root(&share->mem_root,
-                                                part_syntax_buf,
-                                                syntax_len)))
-        {
-          error= 1;
-          goto err;
-        }
-        share->partition_info_str= tmp_part_syntax_str;
-      }
-      else
-        memcpy(share->partition_info_str, part_syntax_buf,
-               syntax_len + 1);
-      share->partition_info_str_len= part_info->part_info_len= syntax_len;
-      part_info->part_info_string= part_syntax_buf;
-    }
-
-err:
-    deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos);
-    part_info->frm_log_entry= NULL;
-    (void) sync_ddl_log();
-    ;
   }
 
 end:
-  if (old_part_info)
-  {
-    Partition_handler *part_handler= lpt->table->file->get_partition_handler();
-    part_handler->set_part_info(old_part_info, false);
-  }
   DBUG_RETURN(error);
 }
 
@@ -6293,6 +6282,9 @@ static bool fill_alter_inplace_info(THD *thd,
   /* Check for: ALTER TABLE FORCE, ALTER TABLE ENGINE and OPTIMIZE TABLE. */
   if (alter_info->flags & Alter_info::ALTER_RECREATE)
     ha_alter_info->handler_flags|= Alter_inplace_info::RECREATE_TABLE;
+  if (alter_info->flags & Alter_info::ALTER_UPGRADE_PARTITIONING)
+    ha_alter_info->handler_flags|=
+      Alter_inplace_info::ALTER_UPGRADE_PARTITIONING;
 
   /*
     If we altering table with old VARCHAR fields we will be automatically
@@ -6989,7 +6981,22 @@ static bool is_inplace_alter_impossible(TABLE *table,
     performed.
   */
   if (create_info->db_type != table->s->db_type())
-    DBUG_RETURN(true);
+  {
+    /*
+      If we are altering/recreating a table using the generic partitioning
+      engine ha_partition, but the real engine supports partitioning
+      natively, do not disallow INPLACE, since it will be handled in
+      ha_partition/real engine and allow the engine to be upgraded to native
+      partitioning!
+    */
+    if (!is_ha_partition_handlerton(table->s->db_type()) ||
+        !create_info->db_type->partition_flags ||
+        table->part_info->default_engine_type != create_info->db_type ||
+        (create_info->used_fields & HA_CREATE_USED_ENGINE))
+    {
+      DBUG_RETURN(true);
+    }
+  }
 
   /*
     There was a bug prior to mysql-4.0.25. Number of null fields was
@@ -7047,7 +7054,6 @@ static bool mysql_inplace_alter_table(THD *thd,
                                       Alter_table_ctx *alter_ctx)
 {
   Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN);
-  handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   Alter_info *alter_info= ha_alter_info->alter_info;
@@ -7276,12 +7282,12 @@ static bool mysql_inplace_alter_table(THD *thd,
     Replace the old .FRM with the new .FRM, but keep the old name for now.
     Rename to the new name (if needed) will be handled separately below.
   */
-  if (mysql_rename_table(db_type, alter_ctx->new_db, alter_ctx->tmp_name,
-                         alter_ctx->db, alter_ctx->alias,
+  if (mysql_rename_table(create_info->db_type, alter_ctx->new_db,
+                         alter_ctx->tmp_name, alter_ctx->db, alter_ctx->alias,
                          FN_FROM_IS_TMP | NO_HA_TABLE))
   {
     // Since changes were done in-place, we can't revert them.
-    (void) quick_rm_table(thd, db_type,
+    (void) quick_rm_table(thd, create_info->db_type,
                           alter_ctx->new_db, alter_ctx->tmp_name,
                           FN_IS_TMP | NO_HA_TABLE);
     DBUG_RETURN(true);
@@ -7312,7 +7318,8 @@ static bool mysql_inplace_alter_table(THD *thd,
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
                      alter_ctx->db, alter_ctx->table_name, false);
 
-    if (mysql_rename_table(db_type, alter_ctx->db, alter_ctx->table_name,
+    if (mysql_rename_table(create_info->db_type, alter_ctx->db,
+                           alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
     {
       /*
@@ -7332,7 +7339,7 @@ static bool mysql_inplace_alter_table(THD *thd,
         If the rename of trigger files fails, try to rename the table
         back so we at least have matching table and trigger files.
       */
-      (void) mysql_rename_table(db_type,
+      (void) mysql_rename_table(create_info->db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
                                 alter_ctx->db, alter_ctx->alias, NO_FK_CHECKS);
       DBUG_RETURN(true);
@@ -8925,8 +8932,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /*
       ALGORITHM and LOCK clauses are generally not allowed by the
       parser for operations related to partitioning.
-      The exceptions are ALTER_PARTITION and ALTER_REMOVE_PARTITIONING.
-      For consistency, we report ER_ALTER_OPERATION_NOT_SUPPORTED here.
+      The exceptions are ALTER_PARTITION, ALTER_UPGRADE_PARTITIONING
+      and ALTER_REMOVE_PARTITIONING.
+      The two first should be meta-data only changes and allowed with
+      INPLACE.
+      For consistency, we report ER_ALTER_OPERATION_NOT_SUPPORTED for other
+      combinations.
     */
     if (alter_info->requested_lock !=
         Alter_info::ALTER_TABLE_LOCK_DEFAULT)
@@ -8938,7 +8949,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
     else if (alter_info->requested_algorithm !=
-             Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+             Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT &&
+             !((alter_info->flags == Alter_info::ALTER_PARTITION ||
+                alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING) &&
+               alter_info->requested_algorithm ==
+                 Alter_info::ALTER_TABLE_ALGORITHM_INPLACE))
     {
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
                "ALGORITHM=COPY/INPLACE",
@@ -8972,10 +8987,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     - old_alter_table system variable is set without in-place requested using
       the ALGORITHM clause.
     - Or if in-place is impossible for given operation.
-    - Changes to partitioning which were not handled by fast_alter_part_table()
-      needs to be handled using table copying algorithm unless the engine
-      supports auto-partitioning as such engines can do some changes
-      using in-place API.
+    - Changes to partitioning which were not handled by
+      fast_alter_partition_table() needs to be handled using table copying
+      algorithm unless the engine supports auto-partitioning as such engines
+      can do some changes using in-place API.
   */
   if ((thd->variables.old_alter_table &&
        alter_info->requested_algorithm !=

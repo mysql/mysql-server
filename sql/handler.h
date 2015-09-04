@@ -67,6 +67,8 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
 #define HA_ADMIN_NEEDS_UPGRADE  -10
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
+/** Needs ALTER TABLE t UPGRADE PARTITIONING. */
+#define HA_ADMIN_NEEDS_UPG_PART -13
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -1203,6 +1205,9 @@ public:
 
   // Alter index comment
   static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 33;
+
+  // Upgrade partitioning
+  static const HA_ALTER_FLAGS ALTER_UPGRADE_PARTITIONING  = 1ULL << 34;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.

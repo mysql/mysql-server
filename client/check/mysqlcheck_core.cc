@@ -49,7 +49,7 @@ int what_to_do = 0;
 void (*DBError)(MYSQL *mysql, string when);
 
 static int first_error = 0;
-vector<string> tables4repair, tables4rebuild, alter_table_cmds;
+vector<string> tables4repair, tables4rebuild, alter_table_cmds, failed_tables;
 
 
 static int process_all_databases();
@@ -369,9 +369,9 @@ static void print_result()
         }
 
       }
-      found_error=0;
-      table_rebuild=0;
-      prev_alter[0]= 0;
+      found_error=   0;
+      table_rebuild= 0;
+      prev_alter[0]= '\0';
       if (opt_silent)
         continue;
     }
@@ -383,25 +383,36 @@ static void print_result()
       if (opt_auto_repair && strcmp(row[2],"note"))
       {
         const char *alter_txt= strstr(row[3], "ALTER TABLE");
-        found_error=1;
+        found_error= 1;
         if (alter_txt)
         {
-          table_rebuild=1;
+          table_rebuild= 1;
+          const char *match_str;
           if (!strncmp(row[3], KEY_PARTITIONING_CHANGED_STR,
-                       strlen(KEY_PARTITIONING_CHANGED_STR)) &&
-              strstr(alter_txt, "PARTITION BY"))
+                       strlen(KEY_PARTITIONING_CHANGED_STR)))
           {
-            if (strlen(alter_txt) >= MAX_ALTER_STR_SIZE)
+            if (strstr(alter_txt, "PARTITION BY") &&
+                strlen(alter_txt) < MAX_ALTER_STR_SIZE)
             {
-              printf("Error: Alter command too long (>= %d),"
-                     " please do \"%s\" or dump/reload to fix it!\n",
-                     MAX_ALTER_STR_SIZE,
-                     alter_txt);
-              table_rebuild= 0;
-              prev_alter[0]= 0;
+              strcpy(prev_alter, alter_txt);
             }
             else
-              strcpy(prev_alter, alter_txt);
+            {
+               printf("\nError: Alter command unknown or too long (%d >= %d), "
+                      "please investigate the above or dump/reload to fix it!"
+                      "\n",
+                      (int)strlen(alter_txt),
+                      MAX_ALTER_STR_SIZE);
+              found_error=   0;
+              table_rebuild= 0;
+              prev_alter[0]= '\0';
+              failed_tables.push_back(row[0]);
+            }
+          }
+          else if ((match_str= strstr(alter_txt, "` UPGRADE PARTITIONING")) &&
+                   strlen(match_str) == 22)
+          {
+            strcpy(prev_alter, alter_txt);
           }
         }
       }
@@ -486,8 +497,15 @@ void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
     process_databases(arguments);
   if (::opt_auto_repair)
   {
-    if (!::opt_silent && !(tables4repair.empty() && tables4rebuild.empty()))
-      puts("\nRepairing tables");
+    if (!::opt_silent)
+    {
+      if (!(tables4repair.empty() && tables4rebuild.empty()))
+        puts("\nRepairing tables");
+
+      if (!(alter_table_cmds.empty()))
+        puts("\nUpgrading tables");
+    }
+
     ::what_to_do = DO_REPAIR;
 
     vector<string>::iterator it;
@@ -501,7 +519,23 @@ void Mysql::Tools::Check::mysql_check(MYSQL* connection, int what_to_do,
     }
     for (it = alter_table_cmds.begin(); it != alter_table_cmds.end() ; it++)
     {
-      run_query(*it);
+      if (0 == run_query(*it))
+        printf("Running  : %s\nstatus   : OK\n", (*it).c_str());
+      else
+      {
+        fprintf(stderr, "Failed to %s\n", (*it).c_str());
+        fprintf(stderr, "Error: %s\n", mysql_error(sock));
+      }
+    }
+    if (!failed_tables.empty())
+    {
+      fprintf(stderr,
+              "These tables cannot be automatically upgraded,"
+              " see the log above:\n");
+    }
+    for (it = failed_tables.begin(); it != failed_tables.end() ; it++)
+    {
+      fprintf(stderr, "%s\n", it->c_str());
     }
   }
 }

@@ -924,6 +924,18 @@ send_result_message:
       break;
     }
 
+    case HA_ADMIN_NEEDS_UPG_PART:
+    {
+      char buf[MYSQL_ERRMSG_SIZE];
+      size_t length;
+
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPG_PART),
+                          table->db, table->table_name);
+      protocol->store(buf, length, system_charset_info);
+      break;
+    }
+
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
