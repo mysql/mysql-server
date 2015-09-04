@@ -204,6 +204,9 @@ public:
   // Set for adding/altering virtual generated columns
   static const uint ALTER_VIRTUAL_GCOLUMN       = 1L << 29;
 
+  // Set for UPGRADE PARTITIONING
+  static const uint ALTER_UPGRADE_PARTITIONING  = 1L << 30;
+
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
   /**

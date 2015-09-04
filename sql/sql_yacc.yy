@@ -8302,6 +8302,10 @@ alter_list_item:
           }
         | alter_algorithm_option
         | alter_lock_option
+        | UPGRADE_SYM PARTITIONING_SYM
+          {
+            Lex->alter_info.flags|= Alter_info::ALTER_UPGRADE_PARTITIONING;
+          }
         ;
 
 opt_index_lock_algorithm:

@@ -297,6 +297,16 @@ public:
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
 		bool			commit);
+
+	/** Notify the storage engine that the table structure (.frm) has
+	been updated.
+
+	ha_partition allows inplace operations that also upgrades the engine
+	if it supports partitioning natively. So if this is the case then
+	we will remove the .par file since it is not used with ha_innopart
+	(we use the internal data dictionary instead). */
+	void
+	notify_table_changed();
 	/** @} */
 
 	// TODO: should we implement init_table_handle_for_HANDLER() ?

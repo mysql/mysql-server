@@ -49,10 +49,21 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 sys.sys_config                                     OK
 test.emp1                                          OK
-test.emp2                                          OK
+test.emp2
+error    : Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `test`.`emp2` UPGRADE PARTITIONING
 test.emp3                                          OK
-test.emp4                                          OK
-test.purchase                                      OK
+test.emp4
+error    : Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `test`.`emp4` UPGRADE PARTITIONING
+test.purchase
+error    : Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `test`.`purchase` UPGRADE PARTITIONING
+
+Upgrading tables
+Running  : ALTER TABLE `test`.`emp2` UPGRADE PARTITIONING
+status   : OK
+Running  : ALTER TABLE `test`.`emp4` UPGRADE PARTITIONING
+status   : OK
+Running  : ALTER TABLE `test`.`purchase` UPGRADE PARTITIONING
+status   : OK
 # Stop server
 # Check the DB & tables with DML statements.
 use test;

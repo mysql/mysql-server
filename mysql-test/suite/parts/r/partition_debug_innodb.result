@@ -5220,3 +5220,2428 @@ a	b
 4	Original from partition p0
 DROP TABLE t2;
 SET SESSION debug="-d,exchange_partition_fail_9";
+# Test ALTER TABLE t1 UPGRADE PARTITIONING
+SET SESSION debug="+d,crash_upgrade_partition_1";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before crash
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Lost connection to MySQL server during query
+# State after crash (before recovery)
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+# State after crash recovery
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,crash_upgrade_partition_1";
+SET SESSION debug="+d,crash_upgrade_partition_2";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before crash
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Lost connection to MySQL server during query
+# State after crash (before recovery)
+#sql-t1.frm
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+# State after crash recovery
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,crash_upgrade_partition_2";
+SET SESSION debug="+d,crash_upgrade_partition_3";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before crash
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Lost connection to MySQL server during query
+# State after crash (before recovery)
+#sql-t1.frm
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+# State after crash recovery
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,crash_upgrade_partition_3";
+SET SESSION debug="+d,crash_upgrade_partition_4";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before crash
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Lost connection to MySQL server during query
+# State after crash (before recovery)
+#sql-t1.frm
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+# State after crash recovery
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,crash_upgrade_partition_4";
+SET SESSION debug="+d,crash_upgrade_partition_5";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before crash
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Lost connection to MySQL server during query
+# State after crash (before recovery)
+#sql-t1.frm
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+# State after crash recovery
+found 3 *.ibd file(s)
+.frm created by version >= 5.7.8
+DB_TYPE (byte 3): 12
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'InnoDB'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,crash_upgrade_partition_5";
+# Error recovery for ALTER TABLE t UPGRADE PARTITIONING
+SET SESSION debug="+d,fail_upgrade_partition_1";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+UNLOCK TABLES;
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,fail_upgrade_partition_1";
+SET SESSION debug="+d,fail_upgrade_partition_2";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+UNLOCK TABLES;
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,fail_upgrade_partition_2";
+SET SESSION debug="+d,fail_upgrade_partition_3";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+UNLOCK TABLES;
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,fail_upgrade_partition_3";
+SET SESSION debug="+d,fail_upgrade_partition_4";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+UNLOCK TABLES;
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,fail_upgrade_partition_4";
+SET SESSION debug="+d,fail_upgrade_partition_5";
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.frm created by version >= 5.7.8
+DB_TYPE (byte 3): 12
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'InnoDB'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+# Same test under LOCK TABLE
+CREATE TABLE t575 (a int PRIMARY KEY, b varchar(63))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+INSERT INTO t575 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+UPDATE t575 SET b = CONCAT("Filler_", a);
+INSERT INTO t575 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t575;
+INSERT INTO t575 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t575;
+RENAME TABLE t575 TO t1;
+# Flush out the old table definition so it can be replaced
+FLUSH TABLE t1;
+# Replace the .frm and copy a .par file, so it is the same as a 5.7.5
+# table. InnoDB internals is the same. Notice char(64) instead of (63)!
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# State before failure
+found 3 *.ibd file(s)
+.par file exists
+.frm created by version: 50705
+DB_TYPE (byte 3): 20
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'partition'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+t1.par
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 UPGRADE PARTITIONING;
+ERROR HY000: Unknown error
+# State after failure
+found 3 *.ibd file(s)
+.frm created by version >= 5.7.8
+DB_TYPE (byte 3): 12
+DEFAULT_PART_DB_TYPE (byte 61): 12
+DB_TYPE string: 'InnoDB'
+list_t1_1.txt
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#pmax.ibd
+t1.frm
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (200) ENGINE = InnoDB,
+ PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT * FROM t1;
+a	b
+1	Filler_1
+10	Filler_10
+101	Filler_101
+102	Filler_102
+103	Filler_103
+104	Filler_104
+105	Filler_105
+106	Filler_106
+107	Filler_107
+108	Filler_108
+109	Filler_109
+110	Filler_110
+2	Filler_2
+201	Filler_201
+202	Filler_202
+203	Filler_203
+204	Filler_204
+205	Filler_205
+206	Filler_206
+207	Filler_207
+208	Filler_208
+209	Filler_209
+210	Filler_210
+3	Filler_3
+301	Filler_301
+302	Filler_302
+303	Filler_303
+304	Filler_304
+305	Filler_305
+306	Filler_306
+307	Filler_307
+308	Filler_308
+309	Filler_309
+310	Filler_310
+4	Filler_4
+5	Filler_5
+6	Filler_6
+7	Filler_7
+8	Filler_8
+9	Filler_9
+UNLOCK TABLES;
+# Flush the table data files to get deterministic checksum of data files
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Verifying that the data files is the same
+DROP TABLE t1;
+SET SESSION debug="-d,fail_upgrade_partition_5";
