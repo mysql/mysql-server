@@ -7,6 +7,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_myisam.inc
 --source include/master-slave.inc
+
 SET @old_event_scheduler = @@global.event_scheduler;
 set global event_scheduler=1;
 
@@ -102,29 +103,4 @@ DROP EVENT event44331_2;
 DROP EVENT event44331_3;
 DROP EVENT event44331_4;
 --source include/sync_slave_sql_with_master.inc
-#
-# Bug #19286708 REPLICATION BROKEN AFTER CREATION OF SCHEDULED EVENTS
-# Testing create/alter event that has sysdate() (which makes statement unsafe)
-#
-connection master;
-call mtr.add_suppression("Unsafe statement written to the binary log");
---disable_warnings
-DELIMITER |;
-CREATE EVENT EVENT_WITH_SYSDATE
-ON SCHEDULE EVERY 30 MINUTE STARTS sysdate()
-ON COMPLETION PRESERVE
-DO BEGIN
-DECLARE EXIT HANDLER FOR SQLEXCEPTION
-SELECT CONCAT('SAMPLE MSG');
-END |
-
-ALTER EVENT EVENT_WITH_SYSDATE
-ON SCHEDULE
-EVERY 12 HOUR
-STARTS sysdate() |
-
-DROP EVENT EVENT_WITH_SYSDATE |
---enable_warnings
-DELIMITER ;|
-
 --source include/rpl_end.inc
