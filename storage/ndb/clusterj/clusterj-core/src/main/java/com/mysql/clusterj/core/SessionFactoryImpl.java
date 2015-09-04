@@ -577,10 +577,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                     if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for table " + tableName
                             + " for class " + cls.getName());
                     dictionary.removeCachedTable(tableName);
+                    for (ClusterConnection clusterConnection: pooledConnections) {
+                        clusterConnection.unloadSchema(tableName);
+                    }
                 }
-            }
-            for (ClusterConnection clusterConnection: pooledConnections) {
-                clusterConnection.unloadSchema(tableName);
             }
             return tableName;
         }
