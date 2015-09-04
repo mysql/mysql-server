@@ -661,7 +661,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 {
   int ret= 1;
   TABLE *table= NULL;
-  bool save_binlog_row_based= false;
   sp_head *sp= thd->lex->sphead;
   sql_mode_t saved_mode= thd->variables.sql_mode;
   /*
@@ -681,9 +680,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
-  /* Switch to the STATEMENT Format to replicate CREATE EVENT. */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
 
   DBUG_PRINT("info", ("name: %.*s", (int) parse_data->name.length,
              parse_data->name.str));
@@ -755,11 +751,6 @@ end:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   thd->variables.sql_mode= saved_mode;
-
-  /* Restore the state of binlog format */
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(MY_TEST(ret));
 }
 
@@ -789,7 +780,6 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 {
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
-  bool save_binlog_row_based= false;
   sp_head *sp= thd->lex->sphead;
   sql_mode_t saved_mode= thd->variables.sql_mode;
   /*
@@ -810,10 +800,6 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
-
-  /* Switch to the STATEMENT Format to replicate ALTER EVENT. */
-  if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
-    thd->clear_current_stmt_binlog_format_row();
 
   DBUG_PRINT("info", ("dbname: %s", parse_data->dbname.str));
   DBUG_PRINT("info", ("name: %s", parse_data->name.str));
@@ -880,10 +866,6 @@ end:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   thd->variables.sql_mode= saved_mode;
-  /* Restore the state of binlog format */
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-
   DBUG_RETURN(MY_TEST(ret));
 }
 
