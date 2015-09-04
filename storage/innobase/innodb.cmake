@@ -277,7 +277,8 @@ ENDIF()
 CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
 CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
 
-IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
+OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
+IF(WITH_NUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
     SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
     CHECK_C_SOURCE_COMPILES(
@@ -286,12 +287,9 @@ IF(HAVE_NUMA_H AND HAVE_NUMAIF_H)
     #include <numaif.h>
     int main()
     {
-       /* Silence a compiler warning (unused return value) that could cause
-       this program not to compile. */
-       int ret;
-       ret = set_mempolicy(MPOL_DEFAULT, 0, 0);
-       ret = numa_num_configured_cpus();
-       return(ret);
+       struct bitmask *all_nodes= numa_all_nodes_ptr;
+       set_mempolicy(MPOL_DEFAULT, 0, 0);
+       return all_nodes != NULL;
     }"
     HAVE_LIBNUMA)
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
@@ -300,8 +298,6 @@ ENDIF()
 IF(HAVE_LIBNUMA)
     LINK_LIBRARIES(numa)
 ENDIF()
-
-SET(WITH_NUMA 1 CACHE BOOL "Explicitly set NUMA memory allocation policy")
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
