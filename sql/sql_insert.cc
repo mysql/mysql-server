@@ -1424,6 +1424,9 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(true);
   }
 
+  if (!select_insert && select_lex->apply_local_transforms(thd, false))
+    DBUG_RETURN(true);
+
   DBUG_RETURN(false);
 }
 
