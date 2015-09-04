@@ -190,11 +190,13 @@ pos	base_pos
 262148	0
 DROP TABLE t1;
 CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
 ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual, g INT );
-ERROR HY000: 'Adding virtual generated columns and other columns in one single ALTER statement' is not supported for generated columns.
-ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual), add INDEX idx (f), algorithm=inplace;
+ALTER TABLE t1 add COLUMN (h INT generated always as (a+1) virtual), add INDEX idx (h), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
-ALTER TABLE t1 add COLUMN (f INT generated always as (a+1) virtual), add INDEX idx (f), algorithm=copy;
+ALTER TABLE t1 add COLUMN (h INT generated always as (a+1) virtual), add INDEX idx (h);
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
 CREATE TABLE t1(a INT);
 CREATE INDEX idx ON t1(a);
@@ -607,8 +609,7 @@ CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), j I
 INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
 INSERT INTO t VALUES(1, 2, DEFAULT, "uuu", 9, DEFAULT, "uu", DEFAULT);
 INSERT INTO t VALUES(3, 4, DEFAULT, "uooo", 1, DEFAULT, "umm", DEFAULT);
-alter table t add  x int, add m int generated ALWAYS AS(x);
-ERROR HY000: 'Adding virtual generated columns and other columns in one single ALTER statement' is not supported for generated columns.
+alter table t add  x int, add xx int generated ALWAYS AS(x);
 DROP TABLE t;
 CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10), j INT, m INT  GENERATED ALWAYS AS(b + j), n VARCHAR(10), p VARCHAR(20) GENERATED ALWAYS AS(CONCAT(n, h)), INDEX idx1(c), INDEX idx2 (m), INDEX idx3(p));
 INSERT INTO t VALUES(11, 22, DEFAULT, "AAA", 8, DEFAULT, "XXX", DEFAULT);
@@ -1076,4 +1077,17 @@ col_int_nokey) VIRTUAL NOT NULL,
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (col_int_key)
 PARTITIONS 3 */
+DROP TABLE t;
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+INSERT INTO t VALUES (11, 3, DEFAULT, "mm");
+INSERT INTO t VALUES (18, 1, DEFAULT, "mm");
+INSERT INTO t VALUES (28, 1, DEFAULT, "mm");
+INSERT INTO t VALUES (null, null, DEFAULT, "mm");
+ALTER TABLE t ADD COLUMN xs INT GENERATED ALWAYS AS(a+b), ADD COLUMN mm INT
+GENERATED ALWAYS AS(a+b) STORED, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ALGORITHM = INPLACE;
+ALTER TABLE t DROP COLUMN x,  ALGORITHM = INPLACE;
+ALTER TABLE t ADD COLUMN x1 INT GENERATED ALWAYS AS(a+b), DROP COLUMN c,
+ALGORITHM = INPLACE;
 DROP TABLE t;
