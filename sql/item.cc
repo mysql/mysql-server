@@ -10452,6 +10452,10 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
                       display_length(item) /
                       item->collation.collation->mbmaxlen *
                       collation.collation->mbmaxlen);
+
+      if (max_length > char_to_byte_length_safe(MAX_FIELD_CHARLENGTH,
+                                                collation.collation->mbmaxlen))
+        fld_type= MYSQL_TYPE_VAR_STRING;
     }
     else
       set_if_bigger(max_length, display_length(item));
