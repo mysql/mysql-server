@@ -782,7 +782,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
     timestamp to the slow log
   */
   end= my_stpcpy(end, ",timestamp=");
-  end= int10_to_str((long) current_utime / 1000000, end, 10);
+  end= int10_to_str((long) (current_utime / 1000000), end, 10);
 
   if (end != buff)
   {
