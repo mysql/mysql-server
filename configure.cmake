@@ -1146,10 +1146,13 @@ IF(HAVE_NUMAIF_H AND WITH_NUMA)
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
     CHECK_C_SOURCE_COMPILES(
     "
+    #include <numa.h>
     #include <numaif.h>
     int main()
     {
+       struct bitmask *all_nodes= numa_all_nodes_ptr;
        set_mempolicy(MPOL_DEFAULT, 0, 0);
+       return all_nodes != NULL;
     }"
     HAVE_LIBNUMA)
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
