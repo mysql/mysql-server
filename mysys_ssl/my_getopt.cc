@@ -1123,17 +1123,17 @@ static inline my_bool is_negative_num(char* num)
 
 static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 {
+  char buf[255];
   ulonglong num;
 
-  /*
-    Bug #14683107
-    eval_num_suffix uses strtoll, strtoull also seems to have the same
-    behaviour return 0xffffffffffffffff irrespective of the signedness
-    specification. Hence '-' is checked in the input and num is set to 0 if
-    it is present to force it to the lowest possible unsigned value.
-  */
+  /* If a negative number is specified as a value for the option. */
   if (arg == NULL || is_negative_num(arg) == TRUE)
-    num= 0;
+  {
+    num= (ulonglong) optp->min_value;
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "option '%s': value %s adjusted to %s",
+                             optp->name, arg, ullstr(num, buf));
+  }
   else
     num= eval_num_suffix_ull(arg, err, (char*) optp->name);
   
