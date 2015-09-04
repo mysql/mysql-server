@@ -112,8 +112,8 @@ find_matching_index(NDBDICT* dict,
     const NDBINDEX* index= dict->getIndexGlobal(index_name, *tab);
     if (index->getType() == NDBINDEX::UniqueHashIndex)
     {
-      uint cnt= 0;
-      for (unsigned j = 0; columns[j] != 0; j++)
+      uint cnt= 0, j;
+      for (j = 0; columns[j] != 0; j++)
       {
         /*
          * Search for matching columns in any order
@@ -133,7 +133,7 @@ find_matching_index(NDBDICT* dict,
         else
           break;
       }
-      if (cnt == index->getNoOfColumns())
+      if (cnt == index->getNoOfColumns() && columns[j] == 0)
       {
         /**
          * Full match...return this index, no need to look further

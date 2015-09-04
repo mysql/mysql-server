@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1493,12 +1493,22 @@ main(int argc, char** argv)
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
     for(Uint32 j= 0; j < g_consumers.size(); j++)
+    {
+      if(!checkDbAndTableName(metaData[i]))
+      {
+        /*
+         skip restoring the foreign key
+         its table/db is not in the include/exclude list
+        */
+        continue;
+      }
       if (!g_consumers[j]->fk(metaData.getObjType(i),
 			      metaData.getObjPtr(i)))
       {
         // no error is possible 
         assert(false);
       } 
+    }
   }
 
   debug << "Close tables" << endl; 
