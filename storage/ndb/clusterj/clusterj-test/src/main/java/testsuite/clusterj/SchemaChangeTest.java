@@ -63,18 +63,10 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
             "create table maldacena (" +
             "id int not null primary key," +
 
-            "string_null_hash varchar(20)," +
-            "string_null_btree varchar(300)," +
-            "string_null_both varchar(20)," +
-            "string_null_none varchar(300)," +
-
             "string_not_null_hash varchar(300) not null default '0'," +
             "string_not_null_btree varchar(20) not null default '0'," +
             "string_not_null_both varchar(300) not null default '0'," +
             "string_not_null_none varchar(20) not null default '0'," +
-            "unique key idx_string_null_hash (string_null_hash) using hash," +
-            "key idx_string_null_btree (string_null_btree)," +
-            "unique key idx_string_null_both (string_null_both)," +
 
             "unique key idx_string_not_null_hash (string_not_null_hash) using hash," +
             "key idx_string_not_null_btree (string_not_null_btree)," +
@@ -333,18 +325,6 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
 
         int getId();
         void setId(int id);
-
-        String getString_null_hash();
-        void setString_null_hash(String value);
-
-        String getString_null_btree();
-        void setString_null_btree(String value);
-
-        String getString_null_both();
-        void setString_null_both(String value);
-
-        String getString_null_none();
-        void setString_null_none(String value);
 
         String getString_not_null_hash();
         void setString_not_null_hash(String value);
