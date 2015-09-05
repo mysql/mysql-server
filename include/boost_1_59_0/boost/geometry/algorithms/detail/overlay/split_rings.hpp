@@ -156,8 +156,14 @@ template <overlay_type OverlayType, typename Ring, typename RobustPolicy>
 struct split_ring
 {
     template <typename RingCollection>
-    static inline void apply(Ring const&, RingCollection&, RobustPolicy const&)
+    static inline void apply(Ring const& ring,
+                             RingCollection& collection,
+                             RobustPolicy const& robust_policy)
     {
+        split_ring
+            <
+                overlay_union, Ring, RobustPolicy
+            >::apply(ring, collection, robust_policy);
     }
 };
 
@@ -398,8 +404,27 @@ template <overlay_type OverlayType>
 struct split_rings
 {
     template <typename RingCollection, typename RobustPolicy>
-    static inline void apply(RingCollection&, RobustPolicy const&)
+    static inline void apply(RingCollection& collection,
+                             RobustPolicy const& robust_policy)
     {
+        typedef typename boost::range_iterator
+            <
+                RingCollection
+            >::type ring_iterator_type;
+
+        RingCollection new_collection;
+        for (ring_iterator_type rit = boost::begin(collection);
+             rit != boost::end(collection);
+             ++rit)
+        {
+            split_ring
+                <
+                    OverlayType,
+                    typename boost::range_value<RingCollection>::type,
+                    RobustPolicy
+                >::apply(*rit, new_collection, robust_policy);
+        }
+        collection.swap(new_collection);
     }
 };
 

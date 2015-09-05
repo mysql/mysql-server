@@ -631,7 +631,7 @@ ST_INTERSECTION(
 ST_GEOMFROMTEXT(
 'LINESTRING(4 -3,2 -10,5 -5,8 5,8 -3,-4 -9,2 -2,-3 4,-7 5,-9 -10)'),
 ST_GEOMFROMTEXT('MULTIPOINT(-7 10,-9 8,3 3,5 5,10 -8,10 -9)'))))))));
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_union.
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 ######################################################################################################
 # BUG#20218936 : ASSERTION `(M_PREVIOUS_OPERATION != OVERLAY::OPERATION_CONTINUE)' FAILED
 ######################################################################################################
