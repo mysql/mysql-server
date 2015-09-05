@@ -30,39 +30,37 @@ import com.mysql.clusterj.query.PredicateOperand;
 import java.util.List;
 import java.util.Map;
 
-import testsuite.clusterj.model.StringTypes;
-
 public class SchemaChangeTest extends AbstractClusterJModelTest {
 
     private static final String alterTableDropBtreeIndexStatement =
-            "alter table stringtypes drop index idx_string_not_null_btree";
+            "alter table maldacena drop index idx_string_not_null_btree";
 
     private static final String alterTableAddBtreeIndexStatement =
-            "alter table stringtypes add index idx_string_not_null_btree (string_not_null_btree)";
+            "alter table maldacena add index idx_string_not_null_btree (string_not_null_btree)";
 
     private static final String alterTableDropHashIndexStatement =
-            "alter table stringtypes drop index idx_string_not_null_hash";
+            "alter table maldacena drop index idx_string_not_null_hash";
 
     private static final String alterTableAddHashIndexStatement =
-            "alter table stringtypes add unique index idx_string_not_null_hash (string_not_null_hash) using hash";
+            "alter table maldacena add unique index idx_string_not_null_hash (string_not_null_hash) using hash";
 
     private static final String alterTableDropBtreeColumnStatement =
-            "alter table stringtypes drop column string_not_null_btree";
+            "alter table maldacena drop column string_not_null_btree";
 
     private static final String alterTableAddBtreeColumnStatement =
-            "alter table stringtypes add string_not_null_btree varchar(20) not null default '0'";
+            "alter table maldacena add string_not_null_btree varchar(20) not null default '0'";
 
     private static final String alterTableDropHashColumnStatement =
-            "alter table stringtypes drop column string_not_null_hash";
+            "alter table maldacena drop column string_not_null_hash";
 
     private static final String alterTableAddHashColumnStatement =
-            "alter table stringtypes add string_not_null_hash varchar(300) not null default '0'";
+            "alter table maldacena add string_not_null_hash varchar(300) not null default '0'";
 
     private static final String dropTableStatement =
-            "drop table if exists stringtypes";
+            "drop table if exists maldacena";
 
     private static final String createTableStatement =
-            "create table stringtypes (" +
+            "create table maldacena (" +
             "id int not null primary key," +
 
             "string_null_hash varchar(20)," +
@@ -85,7 +83,7 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
             ") ENGINE=ndbcluster DEFAULT CHARSET=latin1";
 
     private static final String truncateTableStatement =
-            "truncate table stringtypes";
+            "truncate table maldacena";
 
     @Override
     public void localSetUp() {
@@ -94,9 +92,9 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
         session = sessionFactory.getSession();
         executeSQL(dropTableStatement);
         executeSQL(createTableStatement);
-        session.unloadSchema(StringTypes.class);
-        session.makePersistent(session.newInstance(StringTypes.class, 0));
-        addTearDownClasses(StringTypes.class);
+        session.unloadSchema(Maldacena.class);
+        session.makePersistent(session.newInstance(Maldacena.class, 0));
+        addTearDownClasses(Maldacena.class);
     }
 
     public void test() {
@@ -110,151 +108,151 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
     }
 
     protected void testTruncate() {
-        tryFind("testTruncate before truncate find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testTruncate before truncate unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryFind("testTruncate before truncate find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testTruncate before truncate unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropIndetestDropHashIndex before truncate unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryQuery("testDropIndetestDropHashIndex before truncate unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropHashIndex before truncate index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropHashIndex before truncate index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropHashIndex before truncate table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropHashIndex before truncate table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
         executeSQL(truncateTableStatement);
-        tryFind("testTruncate after truncate find", StringTypes.class, 0, 1, "code 241");
-        tryQuery("testTruncate after truncate unique key", StringTypes.class, "string_not_null_hash", "0", 0,
+        tryFind("testTruncate after truncate find", Maldacena.class, 0, 1, "code 241");
+        tryQuery("testTruncate after truncate unique key", Maldacena.class, "string_not_null_hash", "0", 0,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "code 241");
-        tryQuery("testTruncate after truncate index scan", StringTypes.class, "string_not_null_btree", "0", 0,
+        tryQuery("testTruncate after truncate index scan", Maldacena.class, "string_not_null_btree", "0", 0,
                 "INDEX_SCAN", "idx_string_not_null_btree", "code 241");
-        tryQuery("testTruncate after truncate table scan", StringTypes.class, "string_not_null_none", "0", 0,
+        tryQuery("testTruncate after truncate table scan", Maldacena.class, "string_not_null_none", "0", 0,
                 "TABLE_SCAN", "no index", "code 241");
-        session.unloadSchema(StringTypes.class);
-        session.makePersistent(session.newInstance(StringTypes.class, 0));
-        tryFind("testTruncate after unload schema find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testTruncate after unload schema unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        session.unloadSchema(Maldacena.class);
+        session.makePersistent(session.newInstance(Maldacena.class, 0));
+        tryFind("testTruncate after unload schema find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testTruncate after unload schema unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testTruncate after unload schema index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testTruncate after unload schema index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testTruncate after unload schema table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testTruncate after unload schema table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
     }
 
     protected void testDropTable() {
-        tryFind("testDropTable before drop table find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropTable before drop table unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryFind("testDropTable before drop table find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropTable before drop table unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropTable before drop table index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropTable before drop table index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropTable before drop table table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropTable before drop table table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
         executeSQL(dropTableStatement);
-        tryFind("testDropTable after drop table find", StringTypes.class, 0, 1, "code 284");
-        tryQuery("testDropTable after drop table unique key", StringTypes.class, "string_not_null_hash", "0", 0,
+        tryFind("testDropTable after drop table find", Maldacena.class, 0, 1, "code 284");
+        tryQuery("testDropTable after drop table unique key", Maldacena.class, "string_not_null_hash", "0", 0,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "code 284");
-        tryQuery("testDropTable after drop table index scan", StringTypes.class, "string_not_null_btree", "0", 0,
+        tryQuery("testDropTable after drop table index scan", Maldacena.class, "string_not_null_btree", "0", 0,
                 "INDEX_SCAN", "idx_string_not_null_btree", "code 284");
-        tryQuery("testDropTable after drop table table scan", StringTypes.class, "string_not_null_none", "0", 0,
+        tryQuery("testDropTable after drop table table scan", Maldacena.class, "string_not_null_none", "0", 0,
                 "TABLE_SCAN", "no index", "code 284");
         executeSQL(createTableStatement);
-        session.unloadSchema(StringTypes.class);
-        session.makePersistent(session.newInstance(StringTypes.class, 0));
-        tryFind("testDropTable after create table find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropTable after create table unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        session.unloadSchema(Maldacena.class);
+        session.makePersistent(session.newInstance(Maldacena.class, 0));
+        tryFind("testDropTable after create table find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropTable after create table unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropTable after create table index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropTable after create table index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropTable after create table table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropTable after create table table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
     }
 
     protected void testDropBtreeIndex() {
-        tryFind("testDropBtreeIndex before drop btree index find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropBtreeIndex before drop btree index unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryFind("testDropBtreeIndex before drop btree index find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropBtreeIndex before drop btree index unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropHashIndex before drop btree index index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropHashIndex before drop btree index index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropHashIndex before drop btree index table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropHashIndex before drop btree index table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
         executeSQL(alterTableDropBtreeIndexStatement);
-        tryFind("testDropBtreeIndex after drop btree index find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropBtreeIndex after drop btree index unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryFind("testDropBtreeIndex after drop btree index find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropBtreeIndex after drop btree index unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropBtreeIndex after drop btree index index scan", StringTypes.class, "string_not_null_btree", "0", 0,
+        tryQuery("testDropBtreeIndex after drop btree index index scan", Maldacena.class, "string_not_null_btree", "0", 0,
                 "INDEX_SCAN", "idx_string_not_null_btree", "code 284");
-        tryQuery("testDropBtreeIndex after drop btree index table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropBtreeIndex after drop btree index table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
         executeSQL(alterTableAddBtreeIndexStatement);
-        session.unloadSchema(StringTypes.class);
-        tryFind("testDropBtreeIndex after add btree index find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropBtreeIndex after add btree index unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        session.unloadSchema(Maldacena.class);
+        tryFind("testDropBtreeIndex after add btree index find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropBtreeIndex after add btree index unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropBtreeIndex after add btree index index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropBtreeIndex after add btree index index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropBtreeIndex after add btree index table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropBtreeIndex after add btree index table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
     }
 
     protected void testDropHashIndex() {
-        tryFind("testDropHashIndex before drop hash index find", StringTypes.class, 0, 1, "no error");
+        tryFind("testDropHashIndex before drop hash index find", Maldacena.class, 0, 1, "no error");
         executeSQL(alterTableDropHashIndexStatement);
-        tryFind("testDropHashIndex after drop hash index find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropHashIndex after drop hash index unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryFind("testDropHashIndex after drop hash index find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropHashIndex after drop hash index unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "code 284");
-        tryQuery("testDropHashIndex after drop hash index index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropHashIndex after drop hash index index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropHashIndex after drop hash index table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropHashIndex after drop hash index table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
         executeSQL(alterTableAddHashIndexStatement);
-        session.unloadSchema(StringTypes.class);
-        tryFind("testDropHashIndex after add hash index find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropHashIndex after add hash index unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        session.unloadSchema(Maldacena.class);
+        tryFind("testDropHashIndex after add hash index find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropHashIndex after add hash index unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropHashIndex after add hash index index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropHashIndex after add hash index index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropHashIndex after add hash index table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropHashIndex after add hash index table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
     }
 
     protected void testDropBtreeColumn() {
-        tryFind("testDropBtreeColumn before drop btree column find", StringTypes.class, 0, 1, "no error");
+        tryFind("testDropBtreeColumn before drop btree column find", Maldacena.class, 0, 1, "no error");
         executeSQL(alterTableDropBtreeColumnStatement);
-        tryFind("testDropBtreeColumn after drop btree column find", StringTypes.class, 0, 0, "code 284");
-        tryQuery("testDropBtreeColumn after drop btree column unique key", StringTypes.class, "string_not_null_hash", "0", 0,
+        tryFind("testDropBtreeColumn after drop btree column find", Maldacena.class, 0, 0, "code 284");
+        tryQuery("testDropBtreeColumn after drop btree column unique key", Maldacena.class, "string_not_null_hash", "0", 0,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "284");
-        tryQuery("testDropBtreeColumn after drop btree column index scan", StringTypes.class, "string_not_null_btree", "0", 0,
+        tryQuery("testDropBtreeColumn after drop btree column index scan", Maldacena.class, "string_not_null_btree", "0", 0,
                 "INDEX_SCAN", "idx_string_not_null_btree", "284");
-        tryQuery("testDropBtreeColumn after drop btree column table scan", StringTypes.class, "string_not_null_none", "0", 0,
+        tryQuery("testDropBtreeColumn after drop btree column table scan", Maldacena.class, "string_not_null_none", "0", 0,
                 "TABLE_SCAN", "no index", "code 284");
         executeSQL(alterTableAddBtreeColumnStatement);
         executeSQL(alterTableAddBtreeIndexStatement);
-        session.unloadSchema(StringTypes.class);
-        tryFind("testDropBtreeColumn after add btree index find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropBtreeColumn after add btree index unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        session.unloadSchema(Maldacena.class);
+        tryFind("testDropBtreeColumn after add btree index find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropBtreeColumn after add btree index unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropBtreeColumn after add btree index index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropBtreeColumn after add btree index index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropBtreeColumn after add btree index table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropBtreeColumn after add btree index table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
     }
 
     protected void testDropHashColumn() {
-        tryFind("testDropHashColumn before drop hash column find", StringTypes.class, 0, 1, "no error");
+        tryFind("testDropHashColumn before drop hash column find", Maldacena.class, 0, 1, "no error");
         executeSQL(alterTableDropHashColumnStatement);
-        tryFind("testDropHashColumn after drop hash column find", StringTypes.class, 0, 1, "code 284");
-        tryQuery("testDropHashColumn after drop hash column unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        tryFind("testDropHashColumn after drop hash column find", Maldacena.class, 0, 1, "code 284");
+        tryQuery("testDropHashColumn after drop hash column unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "code 284");
-        tryQuery("testDropHashColumn after drop hash column index scan", StringTypes.class, "string_not_null_btree", "0", 0,
+        tryQuery("testDropHashColumn after drop hash column index scan", Maldacena.class, "string_not_null_btree", "0", 0,
                 "INDEX_SCAN", "idx_string_not_null_btree", "code 284");
-        tryQuery("testDropHashColumn after drop hash column table scan", StringTypes.class, "string_not_null_none", "0", 0,
+        tryQuery("testDropHashColumn after drop hash column table scan", Maldacena.class, "string_not_null_none", "0", 0,
                 "TABLE_SCAN", "no index", "code 284");
         executeSQL(alterTableAddHashColumnStatement);
         executeSQL(alterTableAddHashIndexStatement);
-        session.unloadSchema(StringTypes.class);
-        tryFind("testDropHashColumn after add hash column find", StringTypes.class, 0, 1, "no error");
-        tryQuery("testDropHashColumn after add hash column unique key", StringTypes.class, "string_not_null_hash", "0", 1,
+        session.unloadSchema(Maldacena.class);
+        tryFind("testDropHashColumn after add hash column find", Maldacena.class, 0, 1, "no error");
+        tryQuery("testDropHashColumn after add hash column unique key", Maldacena.class, "string_not_null_hash", "0", 1,
                 "UNIQUE_KEY", "idx_string_not_null_hash", "no error");
-        tryQuery("testDropHashColumn after add hash column index scan", StringTypes.class, "string_not_null_btree", "0", 1,
+        tryQuery("testDropHashColumn after add hash column index scan", Maldacena.class, "string_not_null_btree", "0", 1,
                 "INDEX_SCAN", "idx_string_not_null_btree", "no error");
-        tryQuery("testDropHashColumn after add hash column table scan", StringTypes.class, "string_not_null_none", "0", 1,
+        tryQuery("testDropHashColumn after add hash column table scan", Maldacena.class, "string_not_null_none", "0", 1,
                 "TABLE_SCAN", "no index", "no error");
     }
 
@@ -328,10 +326,37 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
         }
     }
 
-    /** StringTypes dynamic class to map stringtypes after schema changes.
+    /** Maldacena class to map table maldacena.
      */
-    @PersistenceCapable(table="stringtypes")
-    public static class StringTypes2 extends DynamicObject {
-        public StringTypes2() {}
+    @PersistenceCapable(table="maldacena")
+    public static interface Maldacena {
+
+        int getId();
+        void setId(int id);
+
+        String getString_null_hash();
+        void setString_null_hash(String value);
+
+        String getString_null_btree();
+        void setString_null_btree(String value);
+
+        String getString_null_both();
+        void setString_null_both(String value);
+
+        String getString_null_none();
+        void setString_null_none(String value);
+
+        String getString_not_null_hash();
+        void setString_not_null_hash(String value);
+
+        String getString_not_null_btree();
+        void setString_not_null_btree(String value);
+
+        String getString_not_null_both();
+        void setString_not_null_both(String value);
+
+        String getString_not_null_none();
+        void setString_not_null_none(String value);
+
     }
 }
