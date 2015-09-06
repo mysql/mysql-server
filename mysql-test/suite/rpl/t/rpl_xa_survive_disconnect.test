@@ -133,6 +133,16 @@ while($i > 0)
   --dec $i
 }
 
+#
+# Prove the slave applier is capable to resume the prepared XA:s
+# upon its restart.
+#
+--connection slave
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
 --connection master
 --let $i = $bulk_trx_num
 while($i > 0)

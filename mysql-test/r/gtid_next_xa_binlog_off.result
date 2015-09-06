@@ -1,4 +1,3 @@
-call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
 include/rpl_init.inc [topology=none]
 include/rpl_default_connections.inc
 call mtr.add_suppression("Found 1 prepared XA transactions");
@@ -267,10 +266,23 @@ SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:14';
 XA START '14';
 INSERT INTO t1 VALUES(14);
 XA END '14';
-SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',14,14);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA COMMIT '14' one phase;
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -281,17 +293,26 @@ SET @@SESSION.innodb_lock_wait_timeout = 1;
 ---- XID 15, COMMIT: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:15 ----
 [connection master]
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
-SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',15,15);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA START '15';
 INSERT INTO t1 VALUES(15);
 XA END '15';
 XA PREPARE '15';
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA PREPARE trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
 [connection master]
 SHOW WARNINGS;
 Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
 Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_failure_prepare";
 include/assert.inc [Thread should not own any GTID.]
 [connection master1]
 include/assert.inc [No thread should own any GTID.]
@@ -322,10 +343,23 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=
 SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:16';
-SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',16,16);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA COMMIT '16' ;
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1401	XAER_RMERR: Fatal error occurred in the transaction branch - check your data for consistency
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -350,19 +384,32 @@ include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 SET @@SESSION.innodb_lock_wait_timeout = 1;
 SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_start = 17 AND interval_end = 17;
 one
-0
+1
 SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
 count(*)
-7
+10
 Warnings:
 Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 [connection master]
 error=
 SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:17';
-SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',17,17);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA COMMIT '17' ;
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -632,10 +679,22 @@ SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:31';
 XA START '31';
 INSERT INTO t1 VALUES(31);
 XA END '31';
-SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',31,31);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA ROLLBACK '31' ;
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -646,17 +705,26 @@ SET @@SESSION.innodb_lock_wait_timeout = 1;
 ---- XID 32, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:32 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:32 ----
 [connection master]
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:32';
-SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',32,32);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA START '32';
 INSERT INTO t1 VALUES(32);
 XA END '32';
 XA PREPARE '32';
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA PREPARE trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
 [connection master]
 SHOW WARNINGS;
 Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
 Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_failure_prepare";
 include/assert.inc [Thread should not own any GTID.]
 [connection master1]
 include/assert.inc [No thread should own any GTID.]
@@ -687,10 +755,22 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=
 SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:33';
-SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',33,33);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA ROLLBACK '33' ;
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -715,19 +795,32 @@ include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 SET @@SESSION.innodb_lock_wait_timeout = 1;
 SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_start = 34 AND interval_end = 34;
 one
-0
+1
 SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
 count(*)
-16
+20
 Warnings:
 Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 [connection master]
 error=
 SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:34';
-SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+BEGIN;
+INSERT INTO mysql.gtid_executed VALUES ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',34,34);
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
 XA ROLLBACK '34' ;
-ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
-SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ROLLBACK;
+*** The failed at XA COMMIT trx is rolled back, so XA RECOVER ***
+*** results in empty list: ***
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1205	Lock wait timeout exceeded; try restarting transaction
+Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
