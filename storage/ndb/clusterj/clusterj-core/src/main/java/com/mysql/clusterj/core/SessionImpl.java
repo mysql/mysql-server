@@ -211,6 +211,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     return domainTypeHandler.newInstance(smartValueHandler);
                 } else {
                     // not found
+                    keyHandler.release();
                     return null;
                 }
             } catch (ClusterJException ex) {
@@ -246,6 +247,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                 if (instanceHandler != null) {
                     // mark the handler as not found
                     instanceHandler.found(Boolean.FALSE);
+                    // release handler resources
+                    instanceHandler.release();
                 }
                 endAutoTransaction();
                 return null;

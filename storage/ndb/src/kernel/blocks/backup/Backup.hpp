@@ -555,6 +555,7 @@ public:
     Uint64 m_disk_write_speed_max;
     Uint64 m_disk_write_speed_max_other_node_restart;
     Uint64 m_disk_write_speed_max_own_restart;
+    Uint32 m_backup_disk_write_pct;
     Uint32 m_disk_synch_size;
     Uint32 m_diskless;
     Uint32 m_o_direct;
@@ -575,6 +576,8 @@ public:
   /*
     Variables that control checkpoint to disk speed
   */
+  bool m_is_lcp_running;
+  bool m_is_backup_running;
   bool m_is_any_node_restarting;
   bool m_node_restart_check_sent;
   bool m_our_node_started;
@@ -647,8 +650,9 @@ public:
   void calculate_next_delay(const NDB_TICKS curr_time);
   void monitor_disk_write_speed(const NDB_TICKS curr_time,
                                 const Uint64 millisPassed);
-  void adjust_disk_write_speed_down(int adjust_speed);
-  void adjust_disk_write_speed_up(int adjust_speed);
+  void calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed);
+  void adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed);
+  void adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed);
   void calculate_disk_write_speed(Signal *signal);
   void send_next_reset_disk_speed_counter(Signal *signal);
 
@@ -816,6 +820,19 @@ public:
   Uint32 instanceKey(BackupRecordPtr ptr) {
     return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
   }
+
+  bool is_backup_worker()
+  {
+    return isNdbMtLqh() ? (instance() == UserBackupInstanceKey) :  true;
+  }
+
+  /**
+   * Ugly shared state to allow different worker instances
+   * to detect that a backup is going, although they are
+   * not participating.
+   * Modified by the instance performing backup
+   */  
+  static bool g_is_backup_running;
 };
 
 inline
