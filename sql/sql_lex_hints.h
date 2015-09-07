@@ -28,9 +28,16 @@
 #include "sql_class.h"
 #include "sql_hints.yy.h"
 
+struct sql_digest_state;
 
 void hint_lex_init_maps(charset_info_st *cs, hint_lex_char_classes *hint_map);
 
+/// Lexical scanner for hint comments.
+///
+/// When the main lexical scanner recognizes the "/*+" delimiter, it calls
+/// the hint parser (HINT_PARSER_parse) to consume the rest of hint tokens
+/// including the */ delimiter. The hint parser uses Hint_scanner as its own
+/// lexer to scan hint-specific tokens.
 class Hint_scanner : public Sql_alloc
 {
   THD *thd;
@@ -46,6 +53,11 @@ class Hint_scanner : public Sql_alloc
 
   int prev_token;
 
+  /**
+    Digest buffer interface to append tokens.
+  */
+  sql_digest_state *digest_state;
+
 public:
   /**
     Current token (yytext) origin in the input_buf
@@ -60,17 +72,21 @@ public:
   */
   size_t yyleng;
 
+  bool has_hints; ///< True if a hint comment is not empty (has any hints).
+
 public:
-  Hint_scanner(THD *thd, size_t lineno_arg, const char *buf, size_t len);
+  Hint_scanner(THD *thd, size_t lineno_arg, const char *buf, size_t len,
+               sql_digest_state *digest_state_arg);
   size_t get_lineno() const { return lineno; }
   const char *get_ptr() const { return ptr; }
+  sql_digest_state *get_digest() { return digest_state; }
   void syntax_warning(const char *msg) const;
 
   int get_next_token()
   {
     DBUG_ENTER("Hint_scanner::get_next_token");
     prev_token= scan();
-
+    add_hint_token_digest();
     DBUG_RETURN(prev_token);
   }
 
@@ -413,6 +429,34 @@ protected:
     return;
   }
 
+  void add_hint_token_digest();
+
+private:
+  /**
+    Helper function to check digest buffer for overflow before adding tokens.
+
+    @param token        A token number to add.
+  */
+  void add_digest(uint token)
+  {
+    if (digest_state == NULL)
+      return; // Digest buffer is full.
+
+    YYSTYPE fake_yylvalue;
+    /*
+      YYSTYPE::LEX_STRING is designed to accept non-constant "char *": there is
+      a consideration, that the lexer returns MEM_ROOT-allocated string values
+      there, and the rest of server is welcome to modify that strings inplace
+      (ind it does that in a few rare cases).
+      The digest calculator never modify YYSTYPE::LEX_STRING::str data, so
+      it is not practical to add extra memory allocation there: const_cast is
+      enough.
+    */
+    fake_yylvalue.lex_str.str= const_cast<char *>(yytext);
+    fake_yylvalue.lex_str.length= yyleng;
+
+    digest_state= digest_add_token(digest_state, token, &fake_yylvalue);
+  }
 };
 
 

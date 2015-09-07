@@ -32,6 +32,9 @@
 #define SYM_OR_NULL(A) A
 #endif
 
+#define HINT_COMMENT_STARTER "/*+"
+#define HINT_COMMENT_TERMINATOR "*/"
+
 #define SYM(T, A)    STRING_WITH_LEN(T),SYM_OR_NULL(A),SG_KEYWORDS
 #define SYM_FN(T, A) STRING_WITH_LEN(T),SYM_OR_NULL(A),SG_FUNCTIONS
 #define SYM_HK(T, A) STRING_WITH_LEN(T),SYM_OR_NULL(A),SG_HINTABLE_KEYWORDS
@@ -724,7 +727,6 @@ static const SYMBOL symbols[] = {
   { SYM_H("BNL",                    BNL_HINT)},
   { SYM_H("DUPSWEEDOUT",            DUPSWEEDOUT_HINT)},
   { SYM_H("FIRSTMATCH",             FIRSTMATCH_HINT)},
-  { SYM_H("ICP",                    ICP_HINT)},
   { SYM_H("INTOEXISTS",             INTOEXISTS_HINT)},
   { SYM_H("LOOSESCAN",              LOOSESCAN_HINT)},
   { SYM_H("MATERIALIZATION",        MATERIALIZATION_HINT)},
