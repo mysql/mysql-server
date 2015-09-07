@@ -2744,7 +2744,7 @@ UPDATE mysql.user SET password_last_changed = (now() - INTERVAL 3 DAY) where use
 FLUSH PRIVILEGES;
 # Attempt to execute query should fail
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 # Doing something should fail
 SELECT 1;
 ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
@@ -2779,7 +2779,7 @@ NULL
 # This should not pass as default_password_lifetime
 # (which is 2 now) is being used.
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 SET GLOBAL default_password_lifetime = 0;
 ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 4 DAY;
 # Should report 4
@@ -2788,7 +2788,7 @@ password_lifetime
 4
 # This should not pass.
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 SET GLOBAL default_password_lifetime = @saved_value;
 ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 6 DAY;
 # Should report 6
