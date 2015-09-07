@@ -2035,6 +2035,7 @@ public:
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }
+  bool eq(const Item *item, bool binary_cmp) const;
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);

@@ -5795,6 +5795,24 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
 }
 
 
+bool Item_cond::eq(const Item *item, bool binary_cmp) const
+{
+  if (this == item)
+    return true;
+  if (item->type() != COND_ITEM)
+    return false;
+  const Item_cond *item_cond= down_cast<const Item_cond *>(item);
+  if (functype() != item_cond->functype() ||
+      arg_count != item_cond->arg_count ||
+      func_name() != item_cond->func_name())
+    return false;
+  for (size_t i= 0; i < arg_count; ++i)
+    if (!args[i]->eq(item_cond->args[i], binary_cmp))
+      return false;
+  return true;
+}
+
+
 bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg)
 {
   if ((walk & WALK_PREFIX) && (this->*processor)(arg))
