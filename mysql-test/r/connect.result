@@ -333,7 +333,7 @@ CREATE USER wl6587@localhost IDENTIFIED BY 'wl6587';
 ALTER USER wl6587@localhost PASSWORD EXPIRE;
 # non-interactive mysql should fail
 mysql: [Warning] Using a password on the command line interface can be insecure.
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 # mysqladmin non-password should fail
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqladmin: connect to server at 'localhost' failed

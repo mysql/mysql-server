@@ -73,6 +73,7 @@
 
 #include <algorithm>
 #include <sql_common.h>
+#include <mysqld_error.h>
 
 using std::min;
 using std::max;
@@ -4936,6 +4937,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
                           database, opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS))
   {
+    if(mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN)
+    {
+      tee_fprintf(stdout, "Please use --connect-expired-password option or " \
+                           "invoke mysql in interactive mode.\n");
+      return ignore_errors ? -1 : 1;
+    }
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
 	 mysql_errno(&mysql) != CR_CONNECTION_ERROR))
