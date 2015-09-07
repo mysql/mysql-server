@@ -2556,13 +2556,14 @@ mysql_execute_command(THD *thd, bool first_level)
     DBUG_EXECUTE_IF("use_attachable_trx",
                     thd->begin_attachable_transaction(););
 
-    thd->status_var.last_query_cost= 0.0;
-    thd->status_var.last_query_partial_plans= 0;
+    thd->clear_current_query_costs();
 
     res= select_precheck(thd, lex, all_tables, first_table);
 
     if (!res)
       res= execute_sqlcom_select(thd, all_tables);
+
+    thd->save_current_query_costs();
 
     DBUG_EXECUTE_IF("use_attachable_trx",
                     thd->end_attachable_transaction(););

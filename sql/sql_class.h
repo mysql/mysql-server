@@ -878,6 +878,43 @@ public:
   struct  System_status_var *initial_status_var; /* used by show status */
   // has status_var already been added to global_status_var?
   bool status_var_aggregated;
+
+  /**
+    Current query cost.
+    @sa system_status_var::last_query_cost
+  */
+  double m_current_query_cost;
+  /**
+    Current query partial plans.
+    @sa system_status_var::last_query_partial_plans
+  */
+  ulonglong m_current_query_partial_plans;
+
+  /**
+    Clear the query costs attributes for the current query.
+  */
+  void clear_current_query_costs()
+  {
+    m_current_query_cost= 0.0;
+    m_current_query_partial_plans= 0;
+  }
+
+  /**
+    Save the current query costs attributes in
+    the thread session status.
+    Use this method only after the query execution is completed,
+    so that
+      @code SHOW SESSION STATUS like 'last_query_%' @endcode
+      @code SELECT * from performance_schema.session_status
+      WHERE VARIABLE_NAME like 'last_query_%' @endcode
+    actually reports the previous query, not itself.
+  */
+  void save_current_query_costs()
+  {
+    status_var.last_query_cost= m_current_query_cost;
+    status_var.last_query_partial_plans= m_current_query_partial_plans;
+  }
+
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads.

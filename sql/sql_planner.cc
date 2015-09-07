@@ -931,7 +931,7 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
   float filter_effect= 1.0;
 
-  thd->status_var.last_query_partial_plans++;
+  thd->m_current_query_partial_plans++;
 
   /*
     Cannot use join buffering if either

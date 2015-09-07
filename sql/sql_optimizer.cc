@@ -694,13 +694,13 @@ JOIN::optimize()
       DBUG_RETURN(1);
   }
 
-  // Update last_query_cost to reflect actual need of filesort.
+  // Update m_current_query_cost to reflect actual need of filesort.
   if (sort_cost > 0.0 && !explain_flags.any(ESP_USING_FILESORT))
   {
     best_read-= sort_cost;
     sort_cost= 0.0;
     if (thd->lex->is_single_level_stmt())
-      thd->status_var.last_query_cost= best_read;
+      thd->m_current_query_cost= best_read;
   }
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
@@ -5034,12 +5034,12 @@ bool JOIN::make_join_plan()
 
   /*
     Store the cost of this query into a user variable
-    Don't update last_query_cost for statements that are not "flat joins" :
+    Don't update m_current_query_cost for statements that are not "flat joins" :
     i.e. they have subqueries, unions or call stored procedures.
     TODO: calculate a correct cost for a query with subqueries and UNIONs.
   */
   if (thd->lex->is_single_level_stmt())
-    thd->status_var.last_query_cost= best_read;
+    thd->m_current_query_cost= best_read;
 
   // Generate an execution plan from the found optimal join order.
   if (get_best_combination())
