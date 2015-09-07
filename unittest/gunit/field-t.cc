@@ -534,7 +534,7 @@ size_t mock_strnxfrm(const CHARSET_INFO *charset, uchar *, size_t dstlen, uint,
   // CHARSET_INFO is not polymorphic, hence the abomination.
   static_cast<const Mock_charset*>(charset)->strnxfrm_called= true;
   return dstlen;
-};
+}
 
 
 void test_integer_field(Field *field)
