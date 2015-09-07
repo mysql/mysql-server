@@ -718,7 +718,7 @@ CREATE USER u1@localhost PASSWORD EXPIRE;
 SELECT password_expired FROM mysql.user where user='u1';
 password_expired
 Y
-ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+Please use --connect-expired-password option or invoke mysql in interactive mode.
 DROP USER u1@localhost;
 # CREATE USER with password expire attributes for anonymous user
 CREATE USER '' PASSWORD EXPIRE;
