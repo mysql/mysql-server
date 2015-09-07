@@ -1213,7 +1213,7 @@ public:
   static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 36;
 
   // Upgrade partitioning
-  static const HA_ALTER_FLAGS ALTER_UPGRADE_PARTITIONING  = 1ULL << 34;
+  static const HA_ALTER_FLAGS ALTER_UPGRADE_PARTITIONING  = 1ULL << 37;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
