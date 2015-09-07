@@ -6273,10 +6273,12 @@ static bool fill_alter_inplace_info(THD *thd,
       {
       case IS_EQUAL_NO:
         /* New column type is incompatible with old one. */
-        ha_alter_info->handler_flags|=
-          field->is_virtual_gcol() ?
-          Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE :
-          Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+        if (field->is_virtual_gcol())
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+        else
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
         break;
       case IS_EQUAL_YES:
         /*
@@ -6371,10 +6373,12 @@ static bool fill_alter_inplace_info(THD *thd,
         Field is not present in new version of table and therefore was dropped.
       */
       DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_DROP_COLUMN);
-      ha_alter_info->handler_flags|=
-        field->is_virtual_gcol() ?
-        Alter_inplace_info::DROP_VIRTUAL_COLUMN :
-        Alter_inplace_info::DROP_STORED_COLUMN;
+      if (field->is_virtual_gcol())
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::DROP_VIRTUAL_COLUMN;
+      else
+        ha_alter_info->handler_flags|=
+          Alter_inplace_info::DROP_STORED_COLUMN;
       field->flags|= FIELD_IS_DROPPED;
     }
     if (field->stored_in_db)
@@ -6391,10 +6395,12 @@ static bool fill_alter_inplace_info(THD *thd,
         /*
           Field is not present in old version of table and therefore was added.
         */
-        ha_alter_info->handler_flags|=
-          new_field->is_virtual_gcol() ?
-          Alter_inplace_info::ADD_VIRTUAL_COLUMN :
-          Alter_inplace_info::ADD_STORED_COLUMN;
+        if (new_field->is_virtual_gcol())
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ADD_VIRTUAL_COLUMN;
+        else
+          ha_alter_info->handler_flags|=
+            Alter_inplace_info::ADD_STORED_COLUMN;
       }
     }
     /* One of these should be set since Alter_info::ALTER_ADD_COLUMN was set. */
