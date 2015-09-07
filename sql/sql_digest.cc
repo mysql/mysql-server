@@ -223,6 +223,7 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
     case IDENT:
     case IDENT_QUOTED:
     case TOK_IDENT:
+    case TOK_IDENT_AT:
       {
         char *id_ptr= NULL;
         int id_len= 0;
@@ -261,7 +262,10 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
         digest_output->append("`", 1);
         if (id_length > 0)
           digest_output->append(id_string, id_length);
-        digest_output->append("` ", 2);
+        if (tok == TOK_IDENT_AT) // No space before @ in "table@query_block".
+          digest_output->append("`", 1);
+        else
+          digest_output->append("` ", 2);
       }
       break;
 
@@ -566,6 +570,7 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
     }
     case IDENT:
     case IDENT_QUOTED:
+    case TOK_IDENT_AT:
     {
       YYSTYPE *lex_token= yylval;
       char *yytext= lex_token->lex_str.str;
@@ -579,7 +584,8 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
         We unify both to always print the same digest text,
         and always have the same digest hash.
       */
-      token= TOK_IDENT;
+      if (token != TOK_IDENT_AT)
+        token= TOK_IDENT;
       /* Add this token and identifier string to digest storage. */
       store_token_identifier(digest_storage, token, yylen, yytext);
 
