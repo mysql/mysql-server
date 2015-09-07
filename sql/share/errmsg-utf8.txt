@@ -7599,6 +7599,10 @@ ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER
 ER_TABLE_NEEDS_UPG_PART
   eng "Partitioning upgrade required. Please dump/reload to fix it or do: ALTER TABLE `%-.192s`.`%-.192s` UPGRADE PARTITIONING"
 
+ER_CANT_WAIT_FOR_EXECUTED_GTID_SET_WHILE_OWNING_A_GTID
+  eng "The client holds ownership of the GTID %s. Therefore, WAIT_FOR_EXECUTED_GTID_SET cannot wait for this GTID."
+
+
 #
 #  End of 5.7 error messages.
 #

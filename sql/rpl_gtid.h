@@ -827,27 +827,6 @@ public:
     mysql_mutex_assert_not_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
-  /**
-    Wait for signal on the n'th condition variable.
-
-    The caller must hold the read lock or write lock on sid_lock, as
-    well as the nth mutex lock, before invoking this function.  The
-    sid_lock will be released, whereas the mutex will be released
-    during the wait and (atomically) re-acquired when the wait ends.
-  */
-  inline void wait(const THD* thd, int n) const
-  {
-    DBUG_ENTER("Mutex_cond_array::wait");
-    Mutex_cond *mutex_cond= get_mutex_cond(n);
-    global_lock->unlock();
-    if (!check_thd_killed(thd))
-    {
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
-      mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
-    }
-    DBUG_VOID_RETURN;
-  }
 
   /**
     Wait for signal on the n'th condition variable.
@@ -858,26 +837,31 @@ public:
     during the wait and (atomically) re-acquired when the wait ends
     or the timeout is reached.
 
-    @param[in] sidno Sidno to wait for.
-    @param[in] abstime pointer to the absolute wating time
+    @param[in] thd THD object for the calling thread.
+    @param[in] n Condition variable to wait for.
+    @param[in] abstime The absolute point in time when the wait times
+    out and stops, or NULL to wait indefinitely.
 
-    @retval - 0 - success
-             !=0 - failure
+    @retval false Success.
+    @retval true Failure: either timeout or thread was killed.  If
+    thread was killed, the error has been generated.
   */
-  inline int wait(const THD* thd, int sidno, struct timespec* abstime) const
+  inline bool wait(const THD* thd, int sidno, struct timespec* abstime) const
   {
     DBUG_ENTER("Mutex_cond_array::wait");
     int error= 0;
     Mutex_cond *mutex_cond= get_mutex_cond(sidno);
     global_lock->unlock();
-    if (!check_thd_killed(thd))
-    {
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
+    mysql_mutex_assert_owner(&mutex_cond->mutex);
+    if (is_thd_killed(thd))
+      DBUG_RETURN(true);
+    if (abstime != NULL)
       error= mysql_cond_timedwait(&mutex_cond->cond,
                                   &mutex_cond->mutex, abstime);
-      mysql_mutex_assert_owner(&mutex_cond->mutex);
-    }
-    DBUG_RETURN(error);
+    else
+      mysql_cond_wait(&mutex_cond->cond, &mutex_cond->mutex);
+    mysql_mutex_assert_owner(&mutex_cond->mutex);
+    DBUG_RETURN(error == ETIMEDOUT || error == ETIME);
   }
 #ifndef MYSQL_CLIENT
   /// Execute THD::enter_cond for the n'th condition variable.
@@ -901,16 +885,15 @@ public:
     @return RETURN_OK or RETURN_REPORTED_ERROR
   */
   enum_return_status ensure_index(int n);
+private:
   /**
-    This function is used to check whether the given thd is killed
-    or not.
+    Return true if the given THD is killed.
 
     @param[in] thd -  The thread object
     @retval true  - thread is killed
             false - thread not killed
   */
-  bool check_thd_killed(const THD* thd) const;
-private:
+  bool is_thd_killed(const THD* thd) const;
   /// A mutex/cond pair.
   struct Mutex_cond
   {
@@ -1194,6 +1177,20 @@ public:
     @param other The Gtid_set to remove.
   */
   void remove_gtid_set(const Gtid_set *other);
+  /**
+    Removes all intervals of 'other' for a given SIDNO, from 'this'.
+
+    Example:
+    this = A:1-100, B:1-100
+    other = A:1-100, B:1-50, C:1-100
+    this.remove_intervals_for_sidno(other, B) = A:1-100, B:51-100
+
+    It is not required that the intervals exist in this Gtid_set.
+
+    @param other The set to remove.
+    @param sidno The sidno to remove.
+  */
+  void remove_intervals_for_sidno(Gtid_set *other, rpl_sidno sidno);
   /**
     Adds the set of GTIDs represented by the given string to this Gtid_set.
 
@@ -2674,7 +2671,9 @@ public:
   { sid_locks.assert_owner(sidno); }
 #ifndef MYSQL_CLIENT
   /**
-    Waits until the given GTID is not owned by any other thread.
+    Wait for a signal on the given SIDNO.
+
+    NOTE: This releases a lock!
 
     This requires that the caller holds a read lock on sid_lock.  It
     will release the lock before waiting; neither global_sid_lock nor
@@ -2682,16 +2681,35 @@ public:
     returns.
 
     @param thd THD object of the caller.
-    @param gtid Gtid to wait for.
-    @param timeout - pointer to the absolute timeout to wait for.
+    @param sidno Sidno to wait for.
+    @param[in] abstime The absolute point in time when the wait times
+    out and stops, or NULL to wait indefinitely.
 
-    @retval  0 success
-             !=0 timeout or some failure.
+    @retval false Success.
+    @retval true Failure: either timeout or thread was killed.  If
+    thread was killed, the error has been generated.
   */
-  int wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* timeout= NULL);
+  bool wait_for_sidno(THD *thd, rpl_sidno sidno, struct timespec *abstime);
+  /**
+    This is only a shorthand for wait_for_sidno, which contains
+    additional debug printouts and assertions for the case when the
+    caller waits for one specific GTID.
+  */
+  bool wait_for_gtid(THD *thd, const Gtid &gtid, struct timespec* abstime= NULL);
+  /**
+    Wait until the given Gtid_set is included in @@GLOBAL.GTID_EXECUTED.
 
+    @param thd The calling thread.
+    @param gtid_set Gtid_set to wait for.
+    @param[in] timeout The maximum number of milliseconds that the
+    function should wait, or 0 to wait indefinitely.
+
+    @retval false Success.
+    @retval true Failure: either timeout or thread was killed.  If
+    thread was killed, the error has been generated.
+   */
+  bool wait_for_gtid_set(THD *thd, Gtid_set *gtid_set, longlong timeout);
 #endif // ifndef MYSQL_CLIENT
-#ifdef HAVE_GTID_NEXT_LIST
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -2707,7 +2725,6 @@ public:
     Gtid_set has at least one GTID.
   */
   void broadcast_sidnos(const Gtid_set *set);
-#endif // ifdef HAVE_GTID_NEXT_LIST
   /**
     Ensure that owned_gtids, executed_gtids, lost_gtids, gtids_only_in_table,
     previous_gtids_logged and sid_locks have room for at least as many SIDNOs
@@ -2726,23 +2743,6 @@ public:
   enum_return_status ensure_sidno();
 
 #ifdef MYSQL_SERVER
-  /**
-    This function is used to wait for a given gtid until it is logged.
-
-    @param thd     - global thread pointer.
-    @param gtid    - Pointer to the Gtid set which gets updated.
-    @param timeout - Timeout value for which wait should be done in
-                     millisecond.
-
-    @return 0 - success
-            1 - timeout
-
-    For all other cases we will throw corresponding error messages using the
-    my_error(ER_*, MYF(0)) call and return with value of -1.
-
-   */
-  int wait_for_gtid_set(THD* thd, String* gtid, longlong timeout);
-#endif
   /**
     Adds the given Gtid_set to lost_gtids and executed_gtids.
     lost_gtids must be a subset of executed_gtids.

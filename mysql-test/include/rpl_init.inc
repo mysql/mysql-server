@@ -13,6 +13,7 @@
 #  - Sets the following mtr variables for convenience:
 #    $gtid_mode: the value of @@global.gtid_mode on server 1
 #    $gtid_mode_on: 1 if gtid_mode=on, 0 if gtid_mode=off
+#    $binlog_format: The value of @@global.binlog_format.
 #    $server_1_datadir, ..., $server_10_datadir: the @@datadir on each server.
 #    $server_1_uuid, ..., $server_10_uuid: the @@server_uuid on each server.
 #
