@@ -117,8 +117,6 @@ public:
   /**
     Initializes the map
 
-    @param null_val null value to be returned when element not found in the map
-
     @return
       false  success
       true   failure
@@ -159,8 +157,6 @@ public:
 
   /**
     Adds a pthread to the list
-
-    @param key   plugin
 
     @return
       false  success
@@ -343,8 +339,6 @@ public:
   /**
     Initializes the map
 
-    @param null_val null value to be returned when element not found in the map
-
     @return
       false  success
       true   failure
@@ -405,7 +399,6 @@ public:
 
     @param key     key
     @param plugin  secondary key
-    @param value   value
 
     @return
       false  success
@@ -947,7 +940,7 @@ bool Srv_session::is_valid(const Srv_session *session)
 /**
   Constructs a server session
 
-  @param error_cb       Default completion callback
+  @param err_cb         Default completion callback
   @param err_cb_ctx     Plugin's context, opaque pointer that would
                         be provided to callbacks. Might be NULL.
 */
@@ -1033,8 +1026,6 @@ bool Srv_session::open()
 
 /**
   Attaches the session to the current physical thread
-
-  @param session  Session handle
 
   @returns
     false   success

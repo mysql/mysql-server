@@ -185,10 +185,9 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
   (see set_error_reporting), but allocation is still performed.
 
   @param mem_root           memory root to allocate memory from
-  @length                   size to be allocated
+  @param length             size to be allocated
 
-  @retval
-  void *                    Pointer to the memory thats been allocated
+  @returns                  Pointer to the memory thats been allocated
   @retval
   NULL                      Memory is not available.
 */
@@ -551,7 +550,7 @@ void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t max_value)
   is exceeded. However allocation will still happen for the requested memory.
 
   @param mem_root        memory root
-  @param report_eroor    set to true if error should be reported
+  @param report_error    set to true if error should be reported
                          else set to false
 */
 void set_memroot_error_reporting(MEM_ROOT *mem_root, my_bool report_error)

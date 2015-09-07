@@ -2655,7 +2655,7 @@ public:
 
     @param[in] place the location that will change, and whose old value
                we need to remember for restoration
-    @param[in] the new value about to be inserted into *place, remember
+    @param[in] new_value new value about to be inserted into *place, remember
                for associative lookup, see replace_rollback_place()
   */
   void nocheck_register_item_tree_change(Item **place, Item *new_value);

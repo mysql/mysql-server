@@ -123,7 +123,7 @@ public:
   /**
     Constructs a server session
 
-    @param error_cb       Default completion callback
+    @param err_cb         Default completion callback
     @param err_cb_ctx     Plugin's context, opaque pointer that would
                           be provided to callbacks. Might be NULL.
   */

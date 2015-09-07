@@ -4986,7 +4986,7 @@ ha_check_if_table_exists(THD* thd, const char *db, const char *name,
 
   @param db                    Database name for the table.
   @param table_name            Table name to be checked.
-  @param is_system_table[out]  True if a system table belongs to sql_layer.
+  @param [out] is_sql_layer_system_table  True if a system table belongs to sql_layer.
 
   @return Operation status
     @retval  true              If the table name is a system table.
@@ -5042,7 +5042,6 @@ static bool check_if_system_table(const char *db,
 
   @param db                    Database name.
   @param table_name            Table name to be checked.
-  @param is_system_table[out]  True if the table belongs to sql_layer.
 
   @return Operation status
     @retval  true            If the table name is a sql-layer system table.

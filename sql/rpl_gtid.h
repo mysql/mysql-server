@@ -838,7 +838,7 @@ public:
     or the timeout is reached.
 
     @param[in] thd THD object for the calling thread.
-    @param[in] n Condition variable to wait for.
+    @param[in] sidno Condition variable to wait for.
     @param[in] abstime The absolute point in time when the wait times
     out and stops, or NULL to wait indefinitely.
 
@@ -1070,8 +1070,6 @@ public:
     @param sid_lock Read-write lock that protects updates to the
     number of SIDs. This may be NULL if such changes do not need to be
     protected.
-    @param free_intervals_mutex_key Performance_schema instrumentation
-    key to use for the free_intervals mutex.
   */
   Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock= NULL);
   /**
@@ -1084,8 +1082,6 @@ public:
     @param sid_lock Read/write lock to protect changes in the number
     of SIDs with. This may be NULL if such changes do not need to be
     protected.
-    @param free_intervals_mutex_key Performance_schema instrumentation
-    key to use for the free_intervals mutex.
 
     If sid_lock != NULL, then the read lock on sid_lock must be held
     before calling this function. If the array is grown, sid_lock is
