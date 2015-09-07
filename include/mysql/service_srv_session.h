@@ -17,7 +17,7 @@
 #define MYSQL_SRV_SESSION_SERVICE_INCLUDED
 
 /**
-  @file
+  @file include/mysql/service_srv_session.h
   Header file for the Server session service. This service is to provide
   of creating sessions with the server. These sessions can be furtherly used
   together with the Command service to execute commands in the server.

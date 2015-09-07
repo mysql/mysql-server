@@ -17,7 +17,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 /**
-  @file
+  @file include/mysql/service_command.h
   Header file for the Command service. This service is to provide means
   of executing different commands, like COM_QUERY, COM_STMT_PREPARE,
   in the server.

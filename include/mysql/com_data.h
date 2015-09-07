@@ -22,7 +22,7 @@
 
 
 /**
-@file
+  @file include/mysql/com_data.h
   Definition of COM_DATA to be used with the Command service as data input
   structure.
 */

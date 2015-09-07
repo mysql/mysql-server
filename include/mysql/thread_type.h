@@ -18,6 +18,10 @@
 #ifndef THREAD_TYPE_INCLUDED
 #define THREAD_TYPE_INCLUDED
 
+/**
+  @file include/mysql/thread_type.h
+*/
+
 #ifdef  __cplusplus
 extern "C"{
 #endif
