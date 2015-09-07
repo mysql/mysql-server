@@ -244,13 +244,15 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         Key_part_ptrArray key_part_ptrArray = null;
         if (keyPartsSize == 1) {
             // extract the ByteBuffer and length from the keyPart
-            ByteBuffer buffer = keyParts.get(0).buffer;
-            int length = keyParts.get(0).length;
+            KeyPart keyPart = keyParts.get(0);
+            ByteBuffer buffer = keyPart.buffer;
+            int length = keyPart.length;
             ndbTransaction = ndb.startTransaction(table, buffer, length);
             if (ndbTransaction == null) {
                 logger.warn(local.message("ERR_Transaction_Start_Failed",
                         tableName, buffer.position(), buffer.limit(), buffer.capacity(), length));
             }
+            bufferManager.returnPartitionKeyPartBuffer(length, buffer);
             handleError (ndbTransaction, ndb);
             return ndbTransaction;
         }
@@ -277,6 +279,11 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         } finally {
             // even if error, delete the key part array to avoid memory leaks
             Key_part_ptrArray.delete(key_part_ptrArray);
+            // return the borrowed buffers for the partition key
+            for (int i = 0; i < keyPartsSize; ++i) {
+                KeyPart keyPart = keyParts.get(i);
+                bufferManager.returnPartitionKeyPartBuffer(keyPart.length, keyPart.buffer);
+            }
         }
     }
 
@@ -481,6 +488,15 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             return resultDataBuffer;
         }
 
+        /** Borrow a buffer for a partition key part */
+        public ByteBuffer borrowPartitionKeyPartBuffer(int length) {
+            return pool.borrowBuffer(length);
+        }
+
+        /** Return a buffer used for a partition key part */
+        public void returnPartitionKeyPartBuffer(int length, ByteBuffer buffer) {
+            pool.returnBuffer(length, buffer);
+        }
     }
 
     public NdbRecordOperationImpl newNdbRecordOperationImpl(Table storeTable) {

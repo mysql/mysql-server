@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +113,8 @@ public:
   
   Uint32 getFreeSize() const { return m_free; }
 
+  Uint32 getFreeLwm() const { return m_freeLwm; }
+
   /**
    * reset
    */
@@ -133,6 +135,7 @@ private:
   Uint32 * m_buffer;
   Uint32 m_bufSize;
   Uint32 m_blockSize;
+  Uint32 m_freeLwm;
 
   void clear();
 };
@@ -148,6 +151,7 @@ void
 FsBuffer::clear(){
   m_minRead = m_maxRead = m_maxWrite = m_size = m_bufSize = m_free = 0;
   m_buffer = m_start = 0;
+  m_freeLwm = 0;
 }
 
 static 
@@ -210,6 +214,7 @@ FsBuffer::setup(Uint32 * Buffer,
 
   m_readIndex = m_writeIndex = m_eof = 0;
   m_free = m_size;
+  m_freeLwm = m_free;
   return valid();
 }
 
@@ -219,6 +224,7 @@ FsBuffer::reset()
 {
   m_readIndex = m_writeIndex = 0;
   m_free = m_size;
+  m_freeLwm = m_free;
   m_eof = 0;
 }
 
@@ -343,6 +349,8 @@ FsBuffer::updateWritePtr(Uint32 sz){
   
   const Uint32 Tnew = (Tw + sz);
   m_free -= sz;
+  m_freeLwm = MIN(m_free, m_freeLwm);
+
   if(Tnew < Ts){
     m_writeIndex = Tnew;
     DEBUG(ndbout_c("updateWritePtr(%d) m_writeIndex: %d",

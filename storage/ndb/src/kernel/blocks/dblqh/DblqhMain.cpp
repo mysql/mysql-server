@@ -26170,13 +26170,15 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
         ds->args[0] = 7012;
         sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
         
+        /* Get ref to our LDM's Backup instance */
+        const BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+        
         /* BACKUP : */
         ds->args[0] = 23;
-        sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        sendSignal(backupRef, GSN_DUMP_STATE_ORD, signal, 1, JBA);
         
         ds->args[0] = 24;
-        ds->args[1] = 2424;
-        sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+        sendSignal(backupRef, GSN_DUMP_STATE_ORD, signal, 1, JBA);
 
         /* LQH : */
         ds->args[0] = DumpStateOrd::LqhDumpLcpState;

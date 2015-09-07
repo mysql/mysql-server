@@ -414,6 +414,25 @@ public class Utility {
             byteBuffer.put((byte)(value >> 16));
         }
 
+        public void convertValue(ByteBuffer result, Column storeColumn, byte value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored in an int32
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putInt(value & 0xff);
+                    result.flip();
+                    return;
+                case Tinyint:
+                case Year:
+                    result.put(value);
+                    result.flip();
+                    return;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
+            }
+        }
+
         public ByteBuffer convertValue(Column storeColumn, byte value) {
             ByteBuffer result;
             switch (storeColumn.getType()) {
@@ -433,6 +452,25 @@ public class Utility {
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
+            }
+        }
+
+        public void convertValue(ByteBuffer result, Column storeColumn, short value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored in an int32
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putInt(value & 0xffff);
+                    result.flip();
+                    return;
+                case Smallint:
+                    result.order(ByteOrder.BIG_ENDIAN);
+                    result.putShort(value);
+                    result.flip();
+                    return;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
             }
         }
 
@@ -460,18 +498,22 @@ public class Utility {
 
         public ByteBuffer convertValue(Column storeColumn, int value) {
             ByteBuffer result = ByteBuffer.allocateDirect(4);
+            convertValue(result, storeColumn, value);
+            return result;
+        }
+
+        public void convertValue(ByteBuffer result, Column storeColumn, int value) {
             switch (storeColumn.getType()) {
                 case Bit:
                 case Int:
                     result.order(ByteOrder.BIG_ENDIAN);
-                    break;
+                    result.putInt(value);
+                    result.flip();
+                    return;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
             }
-            result.putInt(value);
-            result.flip();
-            return result;
         }
 
         public int convertIntValueForStorage(Column storeColumn, int value) {
@@ -488,6 +530,10 @@ public class Utility {
         public ByteBuffer convertValue(Column storeColumn, long value) {
             ByteBuffer result = ByteBuffer.allocateDirect(8);
             return convertValue(storeColumn, value, result);
+        }
+
+        public void convertValue(ByteBuffer result, Column storeColumn, long value) {
+            convertValue(storeColumn, value, result);
         }
 
         public ByteBuffer convertValue(Column storeColumn, long value, ByteBuffer result) {
@@ -774,6 +820,26 @@ public class Utility {
             byteBuffer.limit(3);
         }
 
+        public void convertValue(ByteBuffer result, Column storeColumn, byte value) {
+            switch (storeColumn.getType()) {
+                case Bit:
+                    // bit fields are always stored as int32
+                    result.order(ByteOrder.nativeOrder());
+                    result.putInt(value & 0xff);
+                    result.flip();
+                    return;
+                case Tinyint:
+                case Year:
+                    result.order(ByteOrder.nativeOrder());
+                    result.put(value);
+                    result.flip();
+                    return;
+                default:
+                    throw new ClusterJUserException(local.message(
+                            "ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
+            }
+        }
+
         public ByteBuffer convertValue(Column storeColumn, byte value) {
             ByteBuffer result;
             switch (storeColumn.getType()) {
@@ -798,14 +864,19 @@ public class Utility {
         }
 
         public ByteBuffer convertValue(Column storeColumn, short value) {
+            ByteBuffer result = ByteBuffer.allocateDirect(2);
+            convertValue(result, storeColumn, value);
+            return result;
+        }
+
+        public void convertValue(ByteBuffer result, Column storeColumn, short value) {
             switch (storeColumn.getType()) {
                 case Bit:
                 case Smallint:
-                    ByteBuffer result = ByteBuffer.allocateDirect(2);
                     result.order(ByteOrder.nativeOrder());
                     result.putShort(value);
                     result.flip();
-                    return result;
+                    return;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
@@ -813,14 +884,19 @@ public class Utility {
         }
 
         public ByteBuffer convertValue(Column storeColumn, int value) {
+            ByteBuffer result = ByteBuffer.allocateDirect(4);
+            convertValue(result, storeColumn, value);
+            return result;
+        }
+
+        public void convertValue(ByteBuffer result, Column storeColumn, int value) {
             switch (storeColumn.getType()) {
                 case Bit:
                 case Int:
-                    ByteBuffer result = ByteBuffer.allocateDirect(4);
                     result.order(ByteOrder.nativeOrder());
                     result.putInt(value);
                     result.flip();
-                    return result;
+                    return;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
@@ -836,6 +912,10 @@ public class Utility {
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
             }
+        }
+
+        public void convertValue(ByteBuffer result, Column storeColumn, long value) {
+            convertValue(storeColumn, value, result);
         }
 
         public ByteBuffer convertValue(Column storeColumn, long value) {
@@ -984,6 +1064,10 @@ public class Utility {
         public ByteBuffer convertValue(Column storeColumn, short value);
         public ByteBuffer convertValue(Column storeColumn, int value);
         public ByteBuffer convertValue(Column storeColumn, long value);
+        public void convertValue(ByteBuffer buffer, Column storeColumn, byte value);
+        public void convertValue(ByteBuffer buffer, Column storeColumn, short value);
+        public void convertValue(ByteBuffer buffer, Column storeColumn, int value);
+        public void convertValue(ByteBuffer buffer, Column storeColumn, long value);
         public boolean getBoolean(Column storeColumn, NdbRecAttr ndbRecAttr);
         public boolean getBoolean(Column storeColumn, int value);
         public int convertIntValueForStorage(Column storeColumn, int value);
@@ -1289,13 +1373,53 @@ public class Utility {
     }
 
     /** Convert the parameter value to a ByteBuffer that can be passed to ndbjtie.
-     * 
+     *
      * @param storeColumn the column definition
      * @param value the value to be converted
      * @return the ByteBuffer
      */
     public static ByteBuffer convertValue(Column storeColumn, long value) {
         return endianManager.convertValue(storeColumn, value);
+    }
+
+    /** Convert the parameter value and copy it into a ByteBuffer parameter that can be passed to ndbjtie.
+     *
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @param buffer the ByteBuffer
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, byte value) {
+        endianManager.convertValue(buffer, storeColumn, value);
+    }
+
+    /** Convert the parameter value and copy it into a ByteBuffer parameter that can be passed to ndbjtie.
+     *
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @param buffer the ByteBuffer
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, short value) {
+        endianManager.convertValue(buffer, storeColumn, value);
+    }
+
+    /** Convert the parameter value and copy it into a ByteBuffer parameter that can be passed to ndbjtie.
+     *
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @param buffer the ByteBuffer
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, int value) {
+        endianManager.convertValue(buffer, storeColumn, value);
+    }
+
+    /** Convert the parameter value and copy it into a ByteBuffer parameter that can be passed to ndbjtie.
+     *
+     * @param storeColumn the column definition
+     * @param value the value to be converted
+     * @param buffer the ByteBuffer
+     */
+    public static void convertValue(ByteBuffer buffer, Column storeColumn, long value) {
+        endianManager.convertValue(buffer, storeColumn, value);
     }
 
     /** Encode a String as a ByteBuffer that can be passed to ndbjtie.
@@ -1962,7 +2086,7 @@ public class Utility {
      * @return the encoded ByteBuffer with position set to prefixLength
      * and limit one past the last converted byte
      */
-    public static ByteBuffer encodeToByteBuffer(CharSequence string, int collation, int prefixLength) {
+    private static ByteBuffer encodeToByteBuffer(CharSequence string, int collation, int prefixLength) {
         if (string == null) return null;
         int inputLength = (string.length() * 2);
         ByteBuffer inputByteBuffer = ByteBuffer.allocateDirect(inputLength);
@@ -2003,10 +2127,10 @@ public class Utility {
      */
     public static ByteBuffer encode(String input, Column storeColumn, BufferManager bufferManager) {
         int collation = storeColumn.getCharsetNumber();
-//        System.out.println("Utility.encode storeColumn: " + storeColumn.getName() + 
-//                " charsetName " + storeColumn.getCharsetName() +
-//                " charsetNumber " + collation +
-//                " input '" + input + "'");
+        if (logger.isDetailEnabled()) logger.detail("Utility.encode storeColumn: " + storeColumn.getName() +
+                " charsetName " + storeColumn.getCharsetName() +
+                " charsetNumber " + collation +
+                " input '" + input + "'");
         CharsetConverter charsetConverter = getCharsetConverter(collation);
         CharSequence chars = input;
         int prefixLength = storeColumn.getPrefixLength();

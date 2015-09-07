@@ -169,6 +169,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_disk_write_speed_max_own_restart = 100 * (1024 * 1024);
   c_defaults.m_disk_synch_size = 4 * (1024 * 1024);
   c_defaults.m_o_direct = true;
+  c_defaults.m_backup_disk_write_pct = 50;
 
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0, noFrags = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
@@ -186,6 +187,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int64_parameter(p,
                 CFG_DB_MAX_DISK_WRITE_SPEED_OWN_RESTART,
                 &c_defaults.m_disk_write_speed_max_own_restart);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DISK_WRITE_PCT,
+                            &c_defaults.m_backup_disk_write_pct);
 
   ndb_mgm_get_int_parameter(p, CFG_DB_DISK_SYNCH_SIZE,
 			    &c_defaults.m_disk_synch_size);

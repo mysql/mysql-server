@@ -131,6 +131,8 @@ Backup::execSTTOR(Signal* signal)
     slowdowns_due_to_io_lag = 0;
     slowdowns_due_to_high_cpu = 0;
     disk_write_speed_set_to_min = 0;
+    m_is_lcp_running = false;
+    m_is_backup_running = false;
     m_is_any_node_restarting = false;
     m_node_restart_check_sent = false;
     m_our_node_started = false;
@@ -405,28 +407,122 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
   m_monitor_snapshot_start = curr_time;
 }
 
+/**
+ * Calculate the current max and min write speeds, based on the
+ * current disk-write demands on this LDM thread
+ */
 void
-Backup::adjust_disk_write_speed_down(int adjust_speed)
+Backup::calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed)
+{
+  jam();
+
+  max_speed = c_defaults.m_disk_write_speed_max;
+  min_speed = c_defaults.m_disk_write_speed_min;
+
+  if (m_is_any_node_restarting && m_is_lcp_running)
+  {
+    jam();
+    max_speed = c_defaults.m_disk_write_speed_max_other_node_restart;
+  }
+
+  /**
+   * Thread balance
+   *
+   * As Backup is currently run on one LDM instance, we need to take
+   * some steps to give it some extra DiskWriteSpeed allowance during
+   * a Backup.  This becomes more acute with more LDM threads.
+   * The correct way to handle this is to parallelise backup and
+   * the backup log.
+   *
+   * Until then, we will skew the per-LDM disk write speed bounds
+   * temporarily during a Backup so that LDM 1 has a large fixed
+   * portion as well as its usual 1/n share for LCP.
+   *
+   * When the Backup completes, balance is restored.
+   */
+
+  const Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+
+  if (m_is_backup_running && 
+      num_ldm_threads > 1)
+  {
+    jam();
+
+    const Uint64 node_max_speed = 
+      max_speed * 
+      num_ldm_threads;
+  
+    /* Backup will get a percentage of the node total allowance */
+    Uint64 node_backup_max_speed = 
+      (node_max_speed * c_defaults.m_backup_disk_write_pct) /
+      100;
+
+    /* LCP gets the rest */
+    Uint64 node_lcp_max_speed = 
+      node_max_speed - node_backup_max_speed;
+    
+    /* LDM threads get a fair share of the LCP allowance */
+    Uint64 ldm_thread_lcp_max_speed =
+      node_lcp_max_speed / num_ldm_threads;
+    
+    /* Backup LDM must perform both node Backup + thread LCP */
+    Uint64 backup_ldm_max_speed = 
+      node_backup_max_speed + 
+      ldm_thread_lcp_max_speed;
+    
+    /* Other LDMs just do thread LCP */
+    Uint64 other_ldm_max_speed = 
+      ldm_thread_lcp_max_speed;
+    
+    ndbrequire(backup_ldm_max_speed + 
+               ((num_ldm_threads - 1) * 
+                other_ldm_max_speed) <=
+               node_max_speed);
+    
+    if (is_backup_worker())
+    {
+      jam();
+      /**
+       * Min is set to node backup speed, 
+       * this should quickly increase the thread's
+       * allowance.
+       */
+      max_speed = backup_ldm_max_speed;
+      min_speed = node_backup_max_speed;
+    }
+    else
+    {
+      jam();
+      /**
+       * Trim write bandwidth available
+       * to other LDM threads
+       */
+      max_speed = other_ldm_max_speed;
+      min_speed = MIN(min_speed, max_speed);
+    }
+  }
+
+  ndbrequire(min_speed <= max_speed);
+}
+
+void
+Backup::adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed)
 {
   m_curr_disk_write_speed -= adjust_speed;
-  if (m_curr_disk_write_speed < c_defaults.m_disk_write_speed_min)
+  if (m_curr_disk_write_speed < min_speed)
   {
     disk_write_speed_set_to_min++;
-    m_curr_disk_write_speed = c_defaults.m_disk_write_speed_min;
+    m_curr_disk_write_speed = min_speed;
   }
 }
 
 void
-Backup::adjust_disk_write_speed_up(int adjust_speed)
+Backup::adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed)
 {
-  Uint64 max_disk_write_speed = m_is_any_node_restarting ?
-    c_defaults.m_disk_write_speed_max_other_node_restart :
-    c_defaults.m_disk_write_speed_max;
-
   m_curr_disk_write_speed += adjust_speed;
-  if (m_curr_disk_write_speed > max_disk_write_speed)
+  if (m_curr_disk_write_speed > max_speed)
   {
-    m_curr_disk_write_speed = max_disk_write_speed;
+    m_curr_disk_write_speed = max_speed;
   }
 }
 
@@ -437,19 +533,42 @@ Backup::adjust_disk_write_speed_up(int adjust_speed)
 void
 Backup::calculate_disk_write_speed(Signal *signal)
 {
-  Uint64 max_disk_write_speed = m_is_any_node_restarting ?
-    c_defaults.m_disk_write_speed_max_other_node_restart :
-    c_defaults.m_disk_write_speed_max;
+  Uint64 max_disk_write_speed, min_disk_write_speed;
+  calculate_current_speed_bounds(max_disk_write_speed,
+                                 min_disk_write_speed);
+
   /**
+   * It is possible that the limits (max + min) have moved so that
+   * the current speed is now outside them, if so we immediately
+   * track to the relevant limit.
+   * In these cases, the data collected for the last period regarding
+   * redo log etc will not be relevant here.
+   */
+  if (m_curr_disk_write_speed < min_disk_write_speed)
+  {
+    jam();
+    m_curr_disk_write_speed = min_disk_write_speed;
+    return;
+  }
+  else if (m_curr_disk_write_speed > max_disk_write_speed)
+  {
+    jam();
+    m_curr_disk_write_speed = max_disk_write_speed;
+    return;
+  }
+
+  /**
+   * Current speed is within bounds, now consider whether to adjust
+   * based on feedback.
+   * 
    * Calculate the max - min and divide by 12 to get the adjustment parameter
    * which is 8% of max - min. We will never adjust faster than this to avoid
-   * to quick adaptiveness. For adjustments down we will adapt faster for IO
+   * too quick adaptiveness. For adjustments down we will adapt faster for IO
    * lags, for CPU speed we will adapt a bit slower dependent on how high
    * the CPU load is.
    */
   int diff_disk_write_speed =
-    max_disk_write_speed -
-      c_defaults.m_disk_write_speed_min;
+    max_disk_write_speed - min_disk_write_speed;
 
   int adjust_speed_up = diff_disk_write_speed / 12;
   int adjust_speed_down_high = diff_disk_write_speed / 7;
@@ -484,7 +603,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
      */
     jam();
     slowdowns_due_to_io_lag++;
-    adjust_disk_write_speed_down(adjust_speed_down_high);
+    adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_high);
   }
   else
   {
@@ -537,7 +656,7 @@ Backup::calculate_disk_write_speed(Signal *signal)
     if (cpu_usage < 90)
     {
       jamEntry();
-      adjust_disk_write_speed_up(adjust_speed_up);
+      adjust_disk_write_speed_up(max_disk_write_speed, adjust_speed_up);
     }
     else if (cpu_usage < 95)
     {
@@ -548,21 +667,21 @@ Backup::calculate_disk_write_speed(Signal *signal)
       jamEntry();
       /* 95-96% load, slightly slow down */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down_low);
+      adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_low);
     }
     else if (cpu_usage < 99)
     {
       jamEntry();
       /* 97-98% load, slow down */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down_medium);
+      adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_medium);
     }
     else
     {
       jamEntry();
       /* 99-100% load, slow down a bit faster */
       slowdowns_due_to_high_cpu++;
-      adjust_disk_write_speed_down(adjust_speed_down_high);
+      adjust_disk_write_speed_down(min_disk_write_speed, adjust_speed_down_high);
     }
   }
 }
@@ -582,19 +701,46 @@ Backup::send_next_reset_disk_speed_counter(Signal *signal)
 void
 Backup::execCHECK_NODE_RESTARTCONF(Signal *signal)
 {
+  bool old_is_backup_running = m_is_backup_running;
   bool old_is_any_node_restarting = m_is_any_node_restarting;
-  m_is_any_node_restarting = (signal->theData[0] == 1);
+  m_is_lcp_running = (signal->theData[0] == 1);
+  m_is_backup_running = g_is_backup_running;  /* Global from backup instance */
+  m_is_any_node_restarting = (signal->theData[1] == 1);
+  const char* backup_text=NULL;
+  const char* restart_text=NULL;
+  
+  /* No logging of LCP start/stop w.r.t. Disk Speed */
+  if (old_is_backup_running != m_is_backup_running)
+  {
+    if (old_is_backup_running)
+    {
+      backup_text=" Backup completed";
+    }
+    else
+    {
+      backup_text=" Backup started";
+    }
+  }
   if (old_is_any_node_restarting != m_is_any_node_restarting)
   {
     if (old_is_any_node_restarting)
     {
-      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
-                          " no restarts ongoing anymore");
+      restart_text=" Node restart finished";
     }
     else
     {
-      g_eventLogger->info("We are adjusting Max Disk Write Speed,"
-                          " a restart is ongoing now");
+      restart_text=" Node restart ongoing";
+    }
+  }
+
+  if (is_backup_worker())
+  {
+    /* Just have one LDM log the transition */
+    if (backup_text || restart_text)
+    {
+      g_eventLogger->info("Adjusting disk write speed bounds due to :%s%s",
+                          (backup_text ? backup_text : ""),
+                          (restart_text ? restart_text : ""));
     }
   }
 }
@@ -4942,6 +5088,14 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
   ptr.p->slaveState.setState(STARTED);
   ptr.p->m_gsn = GSN_START_BACKUP_REQ;
 
+  /* At this point, we are effectively starting
+   * bulk file writes for this backup, so lets
+   * record the fact
+   */
+  ndbrequire(is_backup_worker());
+  ndbassert(!Backup::g_is_backup_running);
+  Backup::g_is_backup_running = true;
+
   /**
    * Start file threads...
    */
@@ -6822,6 +6976,24 @@ Backup::execFSCLOSECONF(Signal* signal)
 				    BackupFile::BF_CLOSING));
 
   
+  const Uint32 usableBytes = 
+    filePtr.p->operation.dataBuffer.getUsableSize() << 2;
+  const Uint32 freeLwmBytes = 
+    filePtr.p->operation.dataBuffer.getFreeLwm() << 2;
+
+  const BackupFormat::FileType ft = filePtr.p->fileType;
+
+  if (ft == BackupFormat::LOG_FILE ||
+      ft == BackupFormat::UNDO_FILE)
+  {
+    g_eventLogger->info("Backup log buffer report : size %u bytes, "
+                        "hwm %u bytes (%u pct)",
+                        usableBytes,
+                        (usableBytes - freeLwmBytes),
+                        ((usableBytes - freeLwmBytes) * 100) / 
+                        usableBytes);
+  }
+
   filePtr.p->m_flags &= ~(Uint32)(BackupFile::BF_OPEN |BackupFile::BF_CLOSING);
   filePtr.p->operation.dataBuffer.reset();
 
@@ -6842,6 +7014,11 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
   }
   
   jam();
+
+  /* Record end-of-backup */
+  ndbrequire(is_backup_worker());
+  //ndbassert(Backup::g_is_backup_running); /* !set on error paths */
+  Backup::g_is_backup_running = false;
 
   //error when do insert footer or close file
   if(ptr.p->checkError())
@@ -7751,3 +7928,5 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
              signal, LcpStatusRef::SignalLength, JBB);
   return;
 }
+
+bool Backup::g_is_backup_running = false;
