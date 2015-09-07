@@ -9,7 +9,6 @@ SELECT @@SESSION.GTID_EXECUTED;
 
 Warnings:
 Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
-Warning	1681	'@@SESSION.GTID_EXECUTED' is deprecated and will be removed in a future release.
 # Read-only.
 SET @@GLOBAL.GTID_EXECUTED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
 ERROR HY000: Variable 'gtid_executed' is a read only variable

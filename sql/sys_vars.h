@@ -2449,10 +2449,14 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_executed::session_value_ptr");
 
-    push_warning_printf(running_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
-                        ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                        "@@SESSION.GTID_EXECUTED");
+    if (!running_thd->gtid_executed_warning_issued)
+    {
+      push_warning_printf(running_thd, Sql_condition::SL_WARNING,
+          ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+          ER(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+          "@@SESSION.GTID_EXECUTED");
+      running_thd->gtid_executed_warning_issued= true;
+    }
     if (opt_bin_log &&
        (target_thd == running_thd)) /* Supported for current thread only. */
     {
