@@ -1,3 +1,5 @@
+# Can't run test of external client with embedded server
+--source include/not_embedded.inc
 --source include/have_innodb.inc
 
 let $MYSQLD_DATADIR=`SELECT @@datadir`;
