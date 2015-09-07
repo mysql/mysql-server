@@ -4342,6 +4342,23 @@ public:
   }
 };
 
+class Silence_deprecation_no_replacement_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT)
+      return true;
+
+    return false;
+  }
+};
+
+
 
 
 /**
@@ -7129,19 +7146,24 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 
 
   /*
-    Some system variables, for example sql_log_bin,
-    have special behavior because of deprecation.
-    - SELECT @@global.sql_log_bin
+    Some system variables, for example sql_log_bin
+    and gtid_executed, have special behavior because
+    of deprecation.
+    - SELECT @@global.sql_log_bin and
+      SELECT @@session.gtid_executed
       MUST print a deprecation warning,
       because such usage needs to be abandoned.
     - SELECT * from INFORMATION_SCHEMA.GLOBAL_VARIABLES
+      and SELECT * from INFORMATION_SCHEMA.SESSION_VARIABLES
       MUST NOT print a deprecation warning,
       since the application may not be looking for
-      the 'sql_log_bin' row anyway,
+      the 'sql_log_bin' or the 'gtid_executed' row anyway,
       and we do not want to create spurious warning noise.
   */
   Silence_deprecation_warnings silencer;
+  Silence_deprecation_no_replacement_warnings silencer_no_replacement;
   thd->push_internal_handler(&silencer);
+  thd->push_internal_handler(&silencer_no_replacement);
 
   /*
     Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
@@ -7166,6 +7188,7 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
     mysql_mutex_unlock(&LOCK_plugin_delete);
   }
 
+  thd->pop_internal_handler();
   thd->pop_internal_handler();
 
   DBUG_RETURN(res);

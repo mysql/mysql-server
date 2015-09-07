@@ -1118,6 +1118,7 @@ THD::THD(bool enable_plugins)
    mark_used_columns(MARK_COLUMNS_READ),
    want_privilege(0),
    lex(&main_lex),
+   gtid_executed_warning_issued(false),
    m_query_string(NULL_CSTR),
    m_db(NULL_CSTR),
    rli_fake(0), rli_slave(NULL),

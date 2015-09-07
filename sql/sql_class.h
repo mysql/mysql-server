@@ -1454,6 +1454,13 @@ public:
 
   LEX *lex;                                     // parse tree descriptor
 
+  /*
+   True if @@SESSION.GTID_EXECUTED was read once and the deprecation warning
+   was issued.
+   This flag needs to be removed once @@SESSION.GTID_EXECUTED is deprecated.
+  */
+  bool gtid_executed_warning_issued;
+
 private:
   /**
     The query associated with this statement.
