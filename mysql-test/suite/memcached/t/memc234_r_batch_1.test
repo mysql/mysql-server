@@ -1,10 +1,14 @@
+#
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+
 source include/not_valgrind.inc;
 source include/have_memcached_plugin.inc;
 source include/not_windows.inc;
 source include/have_innodb.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("daemon-memcached-r-batch-size': unsigned value");
+CALL mtr.add_suppression("daemon-memcached-r-batch-size': value");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
 CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 --enable_query_log
