@@ -2742,7 +2742,6 @@ public:
   */
   enum_return_status ensure_sidno();
 
-#ifdef MYSQL_SERVER
   /**
     Adds the given Gtid_set to lost_gtids and executed_gtids.
     lost_gtids must be a subset of executed_gtids.
