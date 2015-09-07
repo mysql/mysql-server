@@ -2212,6 +2212,16 @@ public:
     Transformer function for GC substitution. @see JOIN::substitute_gc()
   */
   virtual Item *gc_subst_transformer(uchar *arg) { return this; }
+  /**
+    Check if this item is of a type that is eligible for GC
+    substitution. All items that belong to subclasses of Item_func are
+    eligible for substitution. @see JOIN::substitute_gc()
+  */
+  bool can_be_substituted_for_gc() const
+  {
+    const Type t= type();
+    return t == FUNC_ITEM || t == COND_ITEM;
+  }
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
 };
