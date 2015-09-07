@@ -2817,6 +2817,25 @@ public:
   /** LALR(2) resolution, value of the look ahead token.*/
   LEX_YYSTYPE lookahead_yylval;
 
+  /// Skip adding of the current token's digest since it is already added
+  ///
+  /// Usually we calculate a digest token by token at the top-level function
+  /// of the lexer: MYSQLlex(). However, some complex ("hintable") tokens break
+  /// that data flow: for example, the `SELECT /*+ HINT(t) */` is the single
+  /// token from the main parser's point of view, and we add the "SELECT"
+  /// keyword to the digest buffer right after the lex_one_token() call,
+  /// but the "/*+ HINT(t) */" is a sequence of separate tokens from the hint
+  /// parser's point of view, and we add those tokens to the digest buffer
+  /// *inside* the lex_one_token() call. Thus, the usual data flow adds
+  /// tokens from the "/*+ HINT(t) */" string first, and only than it appends
+  /// the "SELECT" keyword token to that stream: "/*+ HINT(t) */ SELECT".
+  /// This is not acceptable, since we use the digest buffer to restore
+  /// query strings in their normalized forms, so the order of added tokens is
+  /// important. Thus, we add tokens of "hintable" keywords to a digest buffer
+  /// right in the hint parser and skip adding of them at the caller with the
+  /// help of skip_digest flag.
+  bool skip_digest;
+
   void add_digest_token(uint token, LEX_YYSTYPE yylval);
 
   void reduce_digest_token(uint token_left, uint token_right);
