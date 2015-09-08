@@ -693,14 +693,29 @@ bool start_slave_cmd(THD *thd)
 
     /*
       If the channel being used is a group replication channel we need to
-      disable the START SLAVE [IO_THREAD] command as group replication does
-      not support the command.
+      disable this command here as, in some cases, group replication does not
+      support them.
+
+      For channel group_replication_applier we disable START SLAVE [IO_THREAD]
+      command.
+
+      For channel group_replication_recovery we disable START SLAVE command
+      and its two thread variants.
     */
-    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(), true)
-        && (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)))
+    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel()) &&
+        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO))
+        || (!(msr_map.is_group_replication_channel_name(mi->get_channel(), true))
+        && (thd->lex->slave_thd_opt & SLAVE_SQL))))
     {
+      const char *command= "START SLAVE FOR CHANNEL";
+      if (thd->lex->slave_thd_opt & SLAVE_IO)
+        command= "START SLAVE IO_THREAD FOR CHANNEL";
+      else if (thd->lex->slave_thd_opt & SLAVE_SQL)
+        command= "START SLAVE SQL_THREAD FOR CHANNEL";
+
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "START SLAVE [IO_THREAD] FOR CHANNEL", mi->get_channel());
+               command, mi->get_channel(), command);
+
       goto err;
     }
 
@@ -756,14 +771,29 @@ bool stop_slave_cmd(THD *thd)
 
     /*
       If the channel being used is a group replication channel we need to
-      disable the STOP SLAVE [IO_THREAD] command as group replication does
-      not support the command.
+      disable this command here as, in some cases, group replication does not
+      support them.
+
+      For channel group_replication_applier we disable STOP SLAVE [IO_THREAD]
+      command.
+
+      For channel group_replication_recovery we disable STOP SLAVE command
+      and its two thread variants.
     */
-    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel(), true)
-        && (!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO)))
+    if (mi && msr_map.is_group_replication_channel_name(mi->get_channel()) &&
+        ((!thd->lex->slave_thd_opt || (thd->lex->slave_thd_opt & SLAVE_IO))
+        || (!(msr_map.is_group_replication_channel_name(mi->get_channel(), true))
+        && (thd->lex->slave_thd_opt & SLAVE_SQL))))
     {
+      const char *command= "STOP SLAVE FOR CHANNEL";
+      if (thd->lex->slave_thd_opt & SLAVE_IO)
+        command= "STOP SLAVE IO_THREAD FOR CHANNEL";
+      else if (thd->lex->slave_thd_opt & SLAVE_SQL)
+        command= "STOP SLAVE SQL_THREAD FOR CHANNEL";
+
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "STOP SLAVE [IO_THREAD] FOR CHANNEL", mi->get_channel());
+               command, mi->get_channel(), command);
+
       mysql_mutex_unlock(&LOCK_msr_map);
       DBUG_RETURN(true);
     }
