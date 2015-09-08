@@ -30,7 +30,6 @@
 
 #define MYSQL_CLIENT
 #undef MYSQL_SERVER
-#define DISABLE_PSI_MUTEX
 #include "client_priv.h"
 #include "my_default.h"
 #include <my_time.h>
