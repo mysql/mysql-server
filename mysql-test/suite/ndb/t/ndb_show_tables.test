@@ -1,4 +1,7 @@
 --source include/have_ndb.inc
+--source include/have_case_sensitive_file_system.inc
+# This test requires case sensitive file system as the database TEST_DB
+# is in upper case
 
 # BUG 11758430 - NDB_SHOW_TABLES SHOULD REQUIRE A DATABASE WHEN TABLE IS SUPPLIED
 
