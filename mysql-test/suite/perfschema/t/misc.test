@@ -3,6 +3,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source include/no_protocol.inc
 
 #
 # Bug#12790483 OBJECTS_SUMMARY_GLOBAL_BY_TYPE AND RENAME TABLE
@@ -201,7 +202,7 @@ truncate performance_schema.events_statements_history;
 select 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' AS A;
 
 # Should truncate at 1024 bytes (487 characters)
-set names utf8mb4;
+
 select _utf8mb4 'Ð²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑÐ²Ð°ÑÑ' as B;
 
-select sql_text from events_statements_history where sql_text like "%...";
+select count(*) from events_statements_history where sql_text like "%...";
