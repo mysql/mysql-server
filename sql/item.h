@@ -24,7 +24,6 @@
 #include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "mysql/service_parser.h"
 
-
 class user_var_entry;
 class Json_wrapper;
 
@@ -4185,6 +4184,8 @@ public:
     {
       maybe_null= true;
       first_inner_table= cached_table->first_leaf_table();
+      // @todo delete this when WL#6570 is implemented
+      (*ref)->maybe_null= true;
     }
   }
 
