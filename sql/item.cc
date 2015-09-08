@@ -5930,25 +5930,24 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     }
 
     /*
-      if it is not expression from merged VIEW we will set this field.
-
-      We can leave expression substituted from view for next PS/SP rexecution
-      (i.e. do not register this substitution for reverting on cleanup()
-      (register_item_tree_changing())), because this subtree will be
-      fix_field'ed during setup_tables()->setup_underlying() (i.e. before
-      all other expressions of query, and references on tables which do
-      not present in query will not make problems.
-
-      Also we suppose that view can't be changed during PS/SP life.
+      If inside an aggregation function, set the correct aggregation level.
+      Even if a view reference is found, the level is still the query block
+      associated with the context of the current item:
     */
-    if (from_field == view_ref_found)
-      return false;
-
-    set_field(from_field);
+    DBUG_ASSERT(from_field != view_ref_found ||
+                context->select_lex ==
+                dynamic_cast<Item_ident *>(*reference)->context->select_lex);
     if (thd->lex->in_sum_func &&
         thd->lex->in_sum_func->nest_level == context->select_lex->nest_level)
       set_if_bigger(thd->lex->in_sum_func->max_arg_level,
                     context->select_lex->nest_level);
+
+    // If view column reference, Item in *reference is completely resolved:
+    if (from_field == view_ref_found)
+      return false;
+
+    // Not view reference, not outer reference; need to set properties:
+    set_field(from_field);
   }
   else if (thd->mark_used_columns != MARK_COLUMNS_NONE)
   {
