@@ -154,7 +154,7 @@ TARGET_LINK_LIBRARIES(mysql_plugin mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 ADD_COMPILE_FLAGS(
   mysqlbinlog.cc
-  COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION"
+  COMPILE_FLAGS "-I${CMAKE_SOURCE_DIR}/sql" "-DHAVE_REPLICATION" "-DDISABLE_PSI_MUTEX"
 )
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient binlogevents_static)
 
