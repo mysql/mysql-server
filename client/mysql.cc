@@ -199,6 +199,25 @@ static const CHARSET_INFO *charset_info= &my_charset_latin1;
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
+/*
+  completion_hash is an auxiliary feature for mysql client to complete
+  an object name(db name, table name and field name) automatically.
+  e.g.
+  mysql> use my_d
+  then press <TAB>, it will check the hash and complete the db name
+  for users.
+  the result will be:
+  mysql> use my_dbname
+
+  In general, this feature is only on when it is an interactive mysql client.
+  It is not possible to use it in test case.
+
+  For using this feature in test case, we add the option in debug code.
+*/
+#ifndef DBUG_OFF
+static my_bool opt_build_completion_hash = FALSE;
+#endif
+
 #ifdef _WIN32
 /*
   A flag that indicates if --execute buffer has already been converted,
@@ -1859,6 +1878,13 @@ static struct my_option my_long_options[] =
    "password sandbox mode.",
    &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"build-completion-hash", 0,
+   "Build completion hash even when it is in batch mode. It is used for "
+   "test purpose, so it is just built when DEBUG is on.",
+   &opt_build_completion_hash, &opt_build_completion_hash, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -2952,8 +2978,14 @@ static void build_completion_hash(bool rehash, bool write_info)
   int i,j,num_fields;
   DBUG_ENTER("build_completion_hash");
 
-  if (status.batch || quick || !current_db)
-    DBUG_VOID_RETURN;			// We don't need completion in batches
+#ifndef DBUG_OFF
+  if (!opt_build_completion_hash)
+#endif
+  {
+    if (status.batch || quick || !current_db)
+      DBUG_VOID_RETURN;			// We don't need completion in batches
+  }
+
   if (!rehash)
     DBUG_VOID_RETURN;
 

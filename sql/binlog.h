@@ -806,6 +806,22 @@ public:
   bool write_gtid(THD *thd, binlog_cache_data *cache_data,
                   class Binlog_event_writer *writer);
 
+  /**
+     Write a dml into statement cache and then flush it into binlog. It writes
+     Gtid_log_event and BEGIN, COMMIT automatically.
+
+     It is aimed to handle cases of "background" logging where a statement is
+     logged indirectly, like "DELETE FROM a_memory_table". So don't use it on any
+     normal statement.
+
+     @param[IN] thd  the THD object of current thread.
+     @param[IN] stmt the DELETE statement.
+     @param[IN] stmt_len the length of DELETE statement.
+
+     @return Returns false if succeeds, otherwise true is returned.
+  */
+  bool write_dml_directly(THD* thd, const char *stmt, size_t stmt_len);
+
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
   bool write_incident(THD *thd, bool need_lock_log,

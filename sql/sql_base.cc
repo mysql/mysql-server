@@ -4094,10 +4094,8 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       error= temp_buf.append(".");
       append_identifier(thd, &temp_buf, share->table_name.str,
                         strlen(share->table_name.str));
-      int errcode= query_error_code(thd, TRUE);
-      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, TRUE, FALSE, errcode))
+      if (mysql_bin_log.write_dml_directly(thd, temp_buf.c_ptr_safe(),
+                                           temp_buf.length()))
         return TRUE;
       if (error)
       {
