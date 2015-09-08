@@ -8444,6 +8444,7 @@ PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_compress_gtid_table;
+PSI_cond_key key_COND_thr_lock;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_cond_slave_worker_hash;
@@ -8470,6 +8471,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_socket_listener_active, "COND_socket_listener_active", PSI_FLAG_GLOBAL},
   { &key_COND_start_signal_handler, "COND_start_signal_handler", PSI_FLAG_GLOBAL},
 #endif
+  { &key_COND_thr_lock, "COND_thr_lock", 0 },
   { &key_item_func_sleep_cond, "Item_func_sleep::cond", 0},
   { &key_master_info_data_cond, "Master_info::data_cond", 0},
   { &key_master_info_start_cond, "Master_info::start_cond", 0},

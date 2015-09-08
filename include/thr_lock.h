@@ -20,7 +20,7 @@
 
 #include <my_thread.h>
 #include <my_list.h>
-#include "my_thread_local.h"
+#include "mysql/psi/mysql_thread.h"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -92,6 +92,7 @@ extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 typedef struct st_thr_lock_info
 {
   my_thread_id thread_id;
+  mysql_cond_t *suspend;
 } THR_LOCK_INFO;
 
 
@@ -130,9 +131,9 @@ typedef struct st_thr_lock {
 
 extern LIST *thr_lock_thread_list;
 extern mysql_mutex_t THR_LOCK_lock;
-struct st_my_thread_var;
 
-void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id);
+void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id,
+                        mysql_cond_t *suspend);
 void thr_lock_init(THR_LOCK *lock);
 void thr_lock_delete(THR_LOCK *lock);
 void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
@@ -140,13 +141,11 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
 enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
                                    THR_LOCK_INFO *owner,
                                    enum thr_lock_type lock_type,
-                                   ulong lock_wait_timeout,
-                                   struct st_my_thread_var *thread_var);
+                                   ulong lock_wait_timeout);
 void thr_unlock(THR_LOCK_DATA *data);
 enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
                                          uint count, THR_LOCK_INFO *owner,
-                                         ulong lock_wait_timeout,
-                                         struct st_my_thread_var *thread_var);
+                                         ulong lock_wait_timeout);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
 void
 thr_lock_merge_status(THR_LOCK_DATA **data, uint count);

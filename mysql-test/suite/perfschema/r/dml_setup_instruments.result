@@ -47,8 +47,8 @@ wait/synch/cond/sql/COND_queue_state	YES	YES
 wait/synch/cond/sql/COND_server_started	YES	YES
 wait/synch/cond/sql/COND_thd_list	YES	YES
 wait/synch/cond/sql/COND_thread_cache	YES	YES
+wait/synch/cond/sql/COND_thr_lock	YES	YES
 wait/synch/cond/sql/Event_scheduler::COND_state	YES	YES
-wait/synch/cond/sql/Gtid_state	YES	YES
 select * from performance_schema.setup_instruments
 where name='Wait';
 select * from performance_schema.setup_instruments

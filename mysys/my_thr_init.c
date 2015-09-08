@@ -61,8 +61,6 @@ static void install_sigabrt_handler();
 
 void my_thread_global_reinit()
 {
-  struct st_my_thread_var *tmp;
-
   DBUG_ASSERT(my_thread_global_init_done);
 
 #ifdef HAVE_PSI_INTERFACE
@@ -92,12 +90,6 @@ void my_thread_global_reinit()
 
   mysql_cond_destroy(&THR_COND_threads);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads);
-
-  tmp= mysys_thread_var();
-  DBUG_ASSERT(tmp);
-
-  mysql_cond_destroy(&tmp->suspend);
-  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 }
 
 
@@ -254,8 +246,6 @@ my_bool my_thread_init()
   if (!(tmp= (struct st_my_thread_var *) calloc(1, sizeof(*tmp))))
     return TRUE;
 
-  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
-
   mysql_mutex_lock(&THR_LOCK_threads);
 #ifndef DBUG_OFF
   tmp->id= ++thread_id;
@@ -300,7 +290,6 @@ void my_thread_end()
       tmp->dbug= NULL;
     }
 #endif
-    mysql_cond_destroy(&tmp->suspend);
     free(tmp);
 
     /*

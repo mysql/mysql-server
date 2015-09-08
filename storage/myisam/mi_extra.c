@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -263,7 +263,8 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     break;
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
-      flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
+      flush_key_blocks(share->key_cache, keycache_thread_var(),
+                       share->kfile, FLUSH_KEEP);
 #ifndef _WIN32
     _mi_decrement_open_count(info);
 #endif

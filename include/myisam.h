@@ -462,6 +462,8 @@ void mi_change_key_cache(KEY_CACHE *old_key_cache,
 			 KEY_CACHE *new_key_cache);
 int mi_preload(MI_INFO *info, ulonglong key_map, my_bool ignore_leaves);
 
+extern st_keycache_thread_var main_thread_keycache_var;
+st_keycache_thread_var *keycache_thread_var();
 #ifdef	__cplusplus
 }
 #endif
