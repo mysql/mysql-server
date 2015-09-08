@@ -59,11 +59,10 @@ include/stop_slave.inc
 include/assert.inc [After stop slave for channel, replication_connection_configuration is intact]
 include/assert.inc [After stop slave for channel, service state is OFF for connection_status table.]
 include/assert.inc [After stop slave for channel, service state is OFF for applier_status table.]
-include/assert.inc [After stop slave for channel, service state is OFF by replication_applier_status_by_coordinator table.]
+include/assert.inc [After stop slave for channel, service state is OFF by replication_applier_status_by_worker table.]
 #
 #  Test case 6): Do a sanity check that joins can be performed as replication tables
 #                 contain multiple rows now.
-(select * from replication_connection_status, replication_applier_status_by_coordinator where replication_connection_status.channel_name= replication_applier_status_by_coordinator.channel_name);
 CHANNEL_NAME	channel_1
 GROUP_NAME	
 SOURCE_UUID	#
@@ -107,7 +106,7 @@ include/assert.inc [there shall be 1 in replication connection_configuration tab
 include/assert.inc [there shall be 1 in replication connection_status table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication applier_config table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication applier_status table after a channel is deleted.]
-include/assert.inc [there shall be 1 in replication applier_status_by_coordinator table after a channel is deleted.]
+include/assert.inc [there shall be 1 applier after a channel is deleted.]
 include/assert.inc [there shall be global.slave_parallel_workers rows after a channel is deleted.]
 #
 #  Test case 8: Do a complete delete and see if the number of rows are zero

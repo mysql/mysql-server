@@ -106,6 +106,11 @@ class table_replication_applier_status_by_worker: public PFS_engine_table
 {
 private:
   void make_row(Slave_worker *);
+  /*
+    Master_info to construct a row to display SQL Thread's status
+    information in STS mode
+  */
+  void make_row(Master_info *);
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
@@ -119,6 +124,10 @@ private:
   workers_per_channel m_pos;
   /** Next position. */
   workers_per_channel m_next_pos;
+  /** Current position. */
+  PFS_simple_index m_applier_pos;
+  /** Next position. */
+  PFS_simple_index m_applier_next_pos;
 
 protected:
   /**
