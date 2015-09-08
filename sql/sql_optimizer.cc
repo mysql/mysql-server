@@ -3011,11 +3011,15 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   tab->set_use_join_cache(tab->position()->use_join_buffer ?
                           JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE);
 
-  if (!(bnl_on || bka_on) || tableno == join->const_tables)
+  if (tableno == join->const_tables)
   {
     DBUG_ASSERT(tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
     return false;
   }
+
+  if (!(bnl_on || bka_on))
+    goto no_join_cache;
+
   /* 
     psergey-todo: why the below when execution code seems to handle the
     "range checked for each record" case?
@@ -3188,8 +3192,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   }
 
 no_join_cache:
-  if (bnl_on || bka_on)
-    revise_cache_usage(tab);
+  revise_cache_usage(tab);
   tab->set_use_join_cache(JOIN_CACHE::ALG_NONE);
   return false;
 }
