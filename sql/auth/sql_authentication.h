@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 #include "m_string.h"                   // LEX_CSTRING
-#include "my_thread.h"                  // my_thread_id
+#include "my_thread_local.h"            // my_thread_id
 #include "mysql/plugin_auth.h"          // MYSQL_SERVER_AUTH_INFO
 #include "sql_plugin_ref.h"             // plugin_ref
 

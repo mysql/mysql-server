@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "my_base.h"          // ha_rows
+#include "my_thread_local.h"  // my_thread_id
 #include "rpl_gtid.h"         // Gitd_specification
 #include "sql_plugin_ref.h"   // plugin_ref
 #include "sql_cmd.h"          // SQLCOM_END
@@ -25,7 +26,6 @@
 class MY_LOCALE;
 class Time_zone;
 typedef ulonglong sql_mode_t;
-typedef uint32 my_thread_id;
 typedef struct st_list LIST;
 typedef struct charset_info_st CHARSET_INFO;
 

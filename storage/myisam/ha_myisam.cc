@@ -2243,6 +2243,61 @@ static int myisam_panic(handlerton *hton, ha_panic_function flag)
   return mi_panic(flag);
 }
 
+
+extern "C" st_keycache_thread_var *keycache_thread_var()
+{
+  THD *thd= current_thd;
+  if (thd == NULL)
+  {
+    /*
+      This is not a thread belonging to a connection.
+      It will then be the main thread during startup/shutdown or
+      extra threads created for thr_find_all_keys().
+    */
+    return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+  }
+
+  /*
+    For connection threads keycache thread state is stored in Ha_data::ha_ptr.
+    This pointer has lifetime for the connection duration and is not used
+    for anything else by MyISAM.
+
+    @see Ha_data (sql_class.h)
+  */
+  st_keycache_thread_var *keycache_thread_var=
+    static_cast<st_keycache_thread_var *>(thd_get_ha_data(thd, myisam_hton));
+  if (!keycache_thread_var)
+  {
+    /* Lazy initialization */
+    keycache_thread_var=
+      static_cast<st_keycache_thread_var *>(my_malloc(
+        mi_key_memory_keycache_thread_var,
+        sizeof(st_keycache_thread_var),
+        MYF(MY_ZEROFILL)));
+    mysql_cond_init(mi_keycache_thread_var_suspend,
+                    &keycache_thread_var->suspend);
+    thd_set_ha_data(thd, myisam_hton, keycache_thread_var);
+  }
+  return keycache_thread_var;
+}
+
+
+static int myisam_close_connection(handlerton *hton, THD *thd)
+{
+  st_keycache_thread_var *keycache_thread_var=
+    static_cast<st_keycache_thread_var *>(thd_get_ha_data(thd, hton));
+
+  if (keycache_thread_var)
+  {
+    thd_set_ha_data(thd, hton, NULL);
+    mysql_cond_destroy(&keycache_thread_var->suspend);
+    my_free(keycache_thread_var);
+  }
+
+  return 0;
+}
+
+
 static int myisam_init(void *p)
 {
   handlerton *myisam_hton;
@@ -2264,9 +2319,23 @@ static int myisam_init(void *p)
   myisam_hton->db_type= DB_TYPE_MYISAM;
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
+  myisam_hton->close_connection= myisam_close_connection;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
 
+  main_thread_keycache_var= st_keycache_thread_var();
+  mysql_cond_init(mi_keycache_thread_var_suspend,
+                  &main_thread_keycache_var.suspend);
+  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
+  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+  return 0;
+}
+
+
+static int myisam_deinit(void *p)
+{
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
+  my_delete_thread_local_key(keycache_tls_key);
   return 0;
 }
 
@@ -2372,7 +2441,7 @@ mysql_declare_plugin(myisam)
   "MyISAM storage engine",
   PLUGIN_LICENSE_GPL,
   myisam_init, /* Plugin Init */
-  NULL, /* Plugin Deinit */
+  myisam_deinit, /* Plugin Deinit */
   0x0100, /* 1.0 */
   NULL,                       /* status variables                */
   myisam_sysvars,             /* system variables                */

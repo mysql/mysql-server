@@ -23,6 +23,7 @@
 
 #include "my_global.h"
 #include "ft_global.h"         // ft_hints
+#include "my_thread_local.h"   // my_errno
 #include "thr_lock.h"          // thr_lock_type
 #include "discrete_interval.h" // Discrete_interval
 #include "key.h"               // KEY

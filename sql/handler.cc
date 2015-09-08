@@ -5302,9 +5302,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
     ulonglong division_limit= key_cache->param_division_limit;
     ulonglong age_threshold=  key_cache->param_age_threshold;
     mysql_mutex_unlock(&LOCK_global_system_variables);
-    DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
-				  tmp_buff_size,
-				  division_limit, age_threshold));
+    const int retval= resize_key_cache(key_cache,
+                                       keycache_thread_var(),
+                                       tmp_block_size,
+                                       tmp_buff_size,
+                                       division_limit, age_threshold);
+    DBUG_RETURN(!retval);
   }
   DBUG_RETURN(0);
 }

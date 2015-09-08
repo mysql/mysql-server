@@ -290,6 +290,7 @@ static int check_k_link(MI_CHECK *param, MI_INFO *info, uint nr)
       avoid unecessary eviction of cache block.
     */
     if (!(buff=key_cache_read(info->s->key_cache,
+                              keycache_thread_var(),
                               info->s->kfile, next_link, DFLT_INIT_HITS,
                               (uchar*) info->buff, MI_MIN_KEY_BLOCK_LENGTH,
                               MI_MIN_KEY_BLOCK_LENGTH, 1)))
@@ -327,7 +328,7 @@ int chk_size(MI_CHECK *param, MI_INFO *info)
   if (!(param->testflag & T_SILENT)) puts("- check file-size");
 
   /* The following is needed if called externally (not from myisamchk) */
-  flush_key_blocks(info->s->key_cache,
+  flush_key_blocks(info->s->key_cache, keycache_thread_var(),
 		   info->s->kfile, FLUSH_FORCE_WRITE);
 
   size= mysql_file_seek(info->s->kfile, 0L, MY_SEEK_END, MYF(MY_THREADSAFE));
@@ -1459,7 +1460,8 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
         all blocks of this index file from key cache.
       */
       DBUG_PRINT("repair", ("all disabled are empty: create missing"));
-      error= flush_key_blocks(share->key_cache, share->kfile,
+      error= flush_key_blocks(share->key_cache, keycache_thread_var(),
+                              share->kfile,
                               FLUSH_FORCE_WRITE);
       goto end;
     }
@@ -1473,7 +1475,8 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
   }
 
   /* Remove all key blocks of this index file from key cache. */
-  if ((error= flush_key_blocks(share->key_cache, share->kfile,
+  if ((error= flush_key_blocks(share->key_cache, keycache_thread_var(),
+                               share->kfile,
                                FLUSH_IGNORE_CHANGED)))
     goto end; /* purecov: inspected */
 
@@ -1888,7 +1891,8 @@ int movepoint(MI_INFO *info, uchar *record, my_off_t oldpos,
 
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file)
 {
-  if (flush_key_blocks(key_cache, file, FLUSH_RELEASE))
+  if (flush_key_blocks(key_cache, keycache_thread_var(),
+                       file, FLUSH_RELEASE))
   {
     mi_check_print_error(param,"%d when trying to write bufferts",my_errno);
     return(1);
@@ -1963,7 +1967,8 @@ int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name)
   }
 
   /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->key_cache, keycache_thread_var(),
+                   share->kfile, FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
   old_state= share->state;			/* save state if not stored */

@@ -55,6 +55,7 @@
 */
 
 #include "my_thread.h"
+#include "my_thread_local.h"
 #include "thr_mutex.h"
 #include "thr_rwlock.h"
 #include "mysql/psi/psi.h"

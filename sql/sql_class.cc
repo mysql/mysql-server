@@ -561,6 +561,7 @@ THD::THD(bool enable_plugins)
   mysql_mutex_init(key_LOCK_query_plan, &LOCK_query_plan, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_current_cond, &LOCK_current_cond,
                    MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
 
   /* Variables with default values */
   proc_info="login";
@@ -599,7 +600,7 @@ THD::THD(bool enable_plugins)
     Make sure thr_lock_info_init() is called for threads which do not get
     assigned a proper thread_id value but keep using reserved_thread_id.
   */
-  thr_lock_info_init(&lock_info, m_thread_id);
+  thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 
   m_internal_handler= NULL;
   m_binlog_invoker= FALSE;
@@ -973,7 +974,7 @@ void THD::set_new_thread_id()
 {
   m_thread_id= Global_THD_manager::get_instance()->get_new_thread_id();
   variables.pseudo_thread_id= m_thread_id;
-  thr_lock_info_init(&lock_info, m_thread_id);
+  thr_lock_info_init(&lock_info, m_thread_id, &COND_thr_lock);
 }
 
 
@@ -1228,6 +1229,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_thd_query);
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_current_cond);
+  mysql_cond_destroy(&COND_thr_lock);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif

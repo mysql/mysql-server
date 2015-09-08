@@ -389,6 +389,7 @@ extern PSI_cond_key key_RELAYLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
+extern PSI_cond_key key_COND_thr_lock;
 #ifdef HAVE_REPLICATION
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;

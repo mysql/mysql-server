@@ -20,9 +20,12 @@
   @file include/my_thread_local.h
 */
 
-#include "mysql/psi/mysql_thread.h"
+#ifndef _WIN32
+#include <pthread.h>
+#endif
 
 struct _db_code_state_;
+typedef uint32 my_thread_id;
 
 C_MODE_START
 
@@ -84,9 +87,6 @@ struct st_my_thread_var
 */
   int thr_winerr;
 #endif
-  mysql_cond_t suspend;
-  struct st_my_thread_var *next,**prev;
-  void *opt_info;
 #ifndef DBUG_OFF
   my_thread_id id;
   struct _db_code_state_ *dbug;

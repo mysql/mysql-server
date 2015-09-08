@@ -1168,6 +1168,10 @@ public:
     thread can be unstuck.
   */
   mysql_cond_t * volatile current_cond;
+  /**
+    Condition variable used for waiting by the THR_LOCK.c subsystem.
+  */
+  mysql_cond_t COND_thr_lock;
 
 private:
   /**

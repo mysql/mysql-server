@@ -192,6 +192,11 @@ static HUFF_COUNTS *global_count;
 static char zero_string[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 static const char *load_default_groups[]= { "myisampack",0 };
 
+extern st_keycache_thread_var *keycache_thread_var()
+{
+  return &main_thread_keycache_var;
+}
+
 	/* The main program */
 
 int main(int argc, char **argv)
@@ -200,6 +205,10 @@ int main(int argc, char **argv)
   PACK_MRG_INFO merge;
   char **default_argv;
   MY_INIT(argv[0]);
+
+  memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &main_thread_keycache_var.suspend);
 
   if (load_defaults("my",load_default_groups,&argc,&argv))
     exit(1);
@@ -241,6 +250,7 @@ int main(int argc, char **argv)
   (void) fflush(stderr);
   free_defaults(default_argv);
   my_end(verbose ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error ? 2 : 0);
 }
 

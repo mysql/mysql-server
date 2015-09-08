@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,8 @@ int mi_panic(enum ha_panic_function flag)
       mysql_mutex_lock(&THR_LOCK_myisam);
       break;
     case HA_PANIC_WRITE:		/* Do this to free databases */
-      if (flush_key_blocks(info->s->key_cache, info->s->kfile, FLUSH_RELEASE))
+      if (flush_key_blocks(info->s->key_cache, keycache_thread_var(),
+                           info->s->kfile, FLUSH_RELEASE))
 	error=my_errno;
       if (info->opt_flag & WRITE_CACHE_USED)
 	if (flush_io_cache(&info->rec_cache))

@@ -73,12 +73,26 @@ static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
 
 MI_CHECK check_param;
 
+/* myisamchk can create multiple threads (see sort.c) */
+extern st_keycache_thread_var *keycache_thread_var()
+{
+  return (st_keycache_thread_var*)my_get_thread_local(keycache_tls_key);
+}
+
 	/* Main program */
 
 int main(int argc, char **argv)
 {
   int error;
   MY_INIT(argv[0]);
+
+  memset(&main_thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &main_thread_keycache_var.suspend);
+
+  (void)my_create_thread_local_key(&keycache_tls_key, NULL);
+  my_set_thread_local(keycache_tls_key, &main_thread_keycache_var);
+
   my_progname_short= my_progname+dirname_length(my_progname);
 
   myisamchk_init(&check_param);
@@ -127,6 +141,8 @@ int main(int argc, char **argv)
   free_tmpdir(&myisamchk_tmpdir);
   ft_free_stopwords();
   my_end(check_param.testflag & T_INFO ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
+  mysql_cond_destroy(&main_thread_keycache_var.suspend);
+  my_delete_thread_local_key(keycache_tls_key);
   exit(error);
 } /* main */
 
