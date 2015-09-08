@@ -6528,3 +6528,58 @@ SELECT
 FROM t1 AS x3;
 
 DROP TABLE t1,t2;
+
+--echo # Bug#21574933 Extra rows with derived table in subquery + XOR
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_date DATE,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,'2008-06-18'), (4,NULL);
+
+CREATE TABLE t2 (
+  col_date DATE,
+  pk INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES ('2002-02-02',1);
+
+CREATE TABLE t3 (
+  pk INT NOT NULL,
+  col_varchar VARCHAR(1),
+  col_int_key INT,
+  col_int INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t3 VALUES (4,'l',2,2);
+
+let $query=
+SELECT pk,
+       col_int IN
+       (SELECT innr1.pk
+        FROM t1 AS innr2
+             LEFT JOIN (SELECT pk, col_date FROM t2) AS innr1
+             ON innr2.col_date <> innr1.col_date
+        WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+
+eval explain $query;
+eval $query;
+
+let $query=
+SELECT pk,
+       col_int IN
+       (SELECT innr1.pk
+        FROM t1 AS innr2
+             LEFT JOIN (SELECT pk, date'2015-01-01' AS d FROM t2) AS innr1
+             ON innr2.col_date <> innr1.d
+        WHERE outr.col_int_key < 6) AS x
+FROM t3 AS outr;
+eval $query;
+
+DROP TABLE t1, t2, t3;
