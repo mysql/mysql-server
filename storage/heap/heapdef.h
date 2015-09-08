@@ -17,6 +17,7 @@
 
 #include <my_base.h>			/* This includes global */
 #include <my_thread.h>
+#include "my_thread_local.h"
 #include "heap.h"			/* Structs & some defines */
 #include "my_tree.h"
 #include "m_string.h"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
   DBUG_PRINT("enter",("page: %ld", (long) page));
 
   tmp=(uchar*) key_cache_read(info->s->key_cache,
+                              keycache_thread_var(),
                              info->s->kfile, page, level, (uchar*) buff,
 			     (uint) keyinfo->block_length,
 			     (uint) keyinfo->block_length,
@@ -85,6 +86,7 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
       info->state->key_file_length != page+length)
     length= ((mi_getint(buff)+IO_SIZE-1) & (uint) ~(IO_SIZE-1));
   DBUG_RETURN((key_cache_write(info->s->key_cache,
+                               keycache_thread_var(),
                          info->s->kfile,page, level, (uchar*) buff,length,
 			 (uint) keyinfo->block_length,
 			 (int) ((info->lock_type != F_UNLCK) ||
@@ -107,6 +109,7 @@ int _mi_dispose(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
   mi_sizestore(buff,old_link);
   info->s->state.changed|= STATE_NOT_SORTED_PAGES;
   DBUG_RETURN(key_cache_write(info->s->key_cache,
+                              keycache_thread_var(),
                               info->s->kfile, pos , level, buff,
 			      sizeof(buff),
 			      (uint) keyinfo->block_length,
@@ -137,6 +140,7 @@ my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level)
   else
   {
     if (!key_cache_read(info->s->key_cache,
+                        keycache_thread_var(),
                         info->s->kfile, pos, level,
 			buff,
 			(uint) sizeof(buff),

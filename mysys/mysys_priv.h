@@ -37,7 +37,7 @@ extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 extern PSI_rwlock_key key_SAFE_HASH_lock;
 
 extern PSI_cond_key key_IO_CACHE_SHARE_cond,
-  key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
+  key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
 
 #endif /* HAVE_PSI_INTERFACE */

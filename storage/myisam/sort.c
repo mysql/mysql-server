@@ -320,11 +320,17 @@ void *thr_find_all_keys(void *arg)
   uint keys= 0, sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
+  st_keycache_thread_var thread_keycache_var;
 
   error=1;
 
   if (my_thread_init())
     goto err;
+
+  memset(&thread_keycache_var, 0, sizeof(st_keycache_thread_var));
+  mysql_cond_init(PSI_NOT_INSTRUMENTED,
+                  &thread_keycache_var.suspend);
+  my_set_thread_local(keycache_tls_key, &thread_keycache_var);
 
   { /* Add extra block since DBUG_ENTER declare variables */
     DBUG_ENTER("thr_find_all_keys");
@@ -494,6 +500,7 @@ ok:
     mysql_mutex_unlock(&sort_param->sort_info->mutex);
     DBUG_PRINT("exit", ("======== ending thread ========"));
   }
+  mysql_cond_destroy(&thread_keycache_var.suspend);
   my_thread_end();
   return NULL;
 }

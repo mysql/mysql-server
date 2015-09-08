@@ -65,7 +65,8 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
     DBUG_EXECUTE_IF("crash_before_flush_keys",
                     if (share->kfile >= 0) abort(););
     if (share->kfile >= 0 &&
-	flush_key_blocks(share->key_cache, share->kfile,
+        flush_key_blocks(share->key_cache, keycache_thread_var(),
+                         share->kfile,
 			 share->temporary ? FLUSH_IGNORE_CHANGED :
 			 FLUSH_RELEASE))
       error=my_errno;
