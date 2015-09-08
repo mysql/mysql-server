@@ -131,7 +131,15 @@ int table_replication_applier_status_by_coordinator::rnd_next(void)
   {
     mi= msr_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0])
+    /*
+      Construct and display SQL Thread's (Coordinator) information in
+      'replication_applier_status_by_coordinator' table only in the case of
+      multi threaded slave mode. Code should do nothing in the case of single
+      threaded slave mode. In case of single threaded slave mode SQL Thread's
+      status will be reported as part of
+      'replication_applier_status_by_worker' table.
+    */
+    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count() > 0)
     {
       make_row(mi);
       m_next_pos.set_after(&m_pos);

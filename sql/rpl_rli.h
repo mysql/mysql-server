@@ -170,6 +170,16 @@ public:
    */
   bool replicate_same_server_id;
 
+  /*
+    The gtid (or anonymous) of the currently executing transaction, or
+    of the last executing transaction if no transaction is currently
+    executing.  This is used to fill the last_seen_transaction
+    column
+    of the table
+    performance_schema.replication_applier_status_by_worker.
+  */
+  Gtid_specification currently_executing_gtid;
+
   /*** The following variables can only be read when protect by data lock ****/
   /*
     cur_log_fd - file descriptor of the current read  relay log

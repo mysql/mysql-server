@@ -451,14 +451,6 @@ public:
     variable is set to true.
   */
   bool exit_incremented;
-  /*
-    The gtid (or anonymous) of the currently executing transaction, or
-    of the last executing transaction if no transaction is currently
-    executing.  This is used to fill the last_seen_transaction column
-    of the table
-    performance_schema.replication_applier_status_by_worker.
-  */
-  Gtid_specification currently_executing_gtid;
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);

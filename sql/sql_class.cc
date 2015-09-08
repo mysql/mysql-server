@@ -2954,7 +2954,9 @@ void THD::clear_next_event_pos()
 void THD::set_currently_executing_gtid_for_slave_thread()
 {
   /*
-    This function may be called in three cases:
+    This function may be called in four cases:
+
+    - From SQL thread while executing Gtid_log_event::do_apply_event
 
     - From an mts worker thread that executes a Gtid_log_event::do_apply_event.
 
@@ -2970,11 +2972,8 @@ void THD::set_currently_executing_gtid_for_slave_thread()
 
     Because of the last case, we don't assert(is_mts_worker())
   */
-  if (is_mts_worker(this))
-  {
-    dynamic_cast<Slave_worker *>(rli_slave)->currently_executing_gtid=
-      variables.gtid_next;
-  }
+  if (system_thread)
+    rli_slave->currently_executing_gtid= variables.gtid_next;
 }
 #endif
 

@@ -6926,6 +6926,7 @@ extern "C" void *handle_slave_sql(void *arg)
   set_timespec_nsec(&rli->ts_exec[0], 0);
   set_timespec_nsec(&rli->ts_exec[1], 0);
   set_timespec_nsec(&rli->stats_begin, 0);
+  rli->currently_executing_gtid.set_automatic();
 
   /* MTS: starting the worker pool */
   if (slave_start_workers(rli, rli->opt_slave_parallel_workers, &mts_inited) != 0)
