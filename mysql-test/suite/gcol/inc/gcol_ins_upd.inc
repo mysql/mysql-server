@@ -471,3 +471,23 @@ eval $query;
 SELECT * from C;
 DROP TABLE C;
 }
+
+if ($support_virtual_index)
+{
+--echo #
+--echo # Bug #21530366 CRASH/ASSERTION, CORRUPTION WITH INDEXES + 
+--echo #               VIRTUAL COLUMNS, BLOB
+--echo #
+
+CREATE TABLE t (
+  a INTEGER,
+  b BLOB GENERATED ALWAYS AS (a) VIRTUAL,
+  INDEX (b(57))
+);
+
+INSERT INTO t (a) VALUES (9);
+UPDATE t SET a = 10;
+DELETE FROM t WHERE a = 10;
+
+DROP TABLE t;
+}

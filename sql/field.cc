@@ -7950,7 +7950,7 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   :Field_longstr(ptr_arg, BLOB_PACK_LENGTH_TO_MAX_LENGH(blob_pack_length),
                  null_ptr_arg, null_bit_arg, unireg_check_arg, field_name_arg,
                  cs),
-   packlength(blob_pack_length), keep_old_value(false)
+   packlength(blob_pack_length)
 {
   DBUG_ASSERT(blob_pack_length <= 4); // Only pack lengths 1-4 supported currently
   flags|= BLOB_FLAG;
@@ -8134,20 +8134,6 @@ Field_blob::store_internal(const char *from, size_t length,
   }
 
   new_length= min<size_t>(max_data_length(), field_charset->mbmaxlen * length);
-
-  /*
-    For UPDATE statements that update a virtual generated column,
-    the storage engine might need to have access to the old value
-    for the generated column. If that is the case, we can not update
-    directly into the existing value but need to keep it. To do
-    this, we transfer the value string to old_value. A new string
-    will be allocated for the updated value.
-  */
-  if (keep_old_value)
-  {
-    DBUG_ASSERT(is_virtual_gcol());
-    old_value.takeover(value);
-  }
 
   if (value.alloc(new_length))
     goto oom_error;
@@ -8590,6 +8576,51 @@ uint Field_blob::is_equal(Create_field *new_field)
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
           && new_field->charset == field_charset &&
           new_field->pack_length == pack_length());
+}
+
+/**
+  Save the current BLOB value to avoid that it gets overwritten.
+
+  This is used when updating virtual generated columns that are
+  BLOBs. Some storage engines require that we have both the old and
+  new BLOB value for virtual generated columns that are indexed in
+  order for the storage engine to be able to maintain the index. This
+  function will transfer the buffer storing the current BLOB value
+  from 'value' to 'old_value'. This avoids that the current BLOB value
+  is over-written when the new BLOB value is saved into this field.
+
+  The reason this requires special handling when updating/deleting
+  virtual columns of BLOB type is that the BLOB value is not known to
+  the storage engine. For stored columns, the "old" BLOB value is read
+  by the storage engine, Field_blob is made to point to the engine's
+  internal buffer; Field_blob's internal buffer (Field_blob::value)
+  isn't used and remains available to store the "new" value.  For
+  virtual generated columns, the "old" value is written directly into
+  Field_blob::value when reading the record to be
+  updated/deleted. This is done in update_generated_read_fields(). 
+  Since, in this case, the "old" value already occupies the place to
+  store the "new" value, we must call this function before we write
+  the "new" value into Field_blob::value object so that the "old"
+  value does not get over-written. The table->record[1] buffer will
+  have a pointer that points to the memory buffer inside
+  old_value. The storage engine will use table->record[1] to read the
+  old value for the BLOB and use table->record[0] to read the new
+  value.
+
+  This function must be called before we store the new BLOB value in
+  this field object.
+*/
+
+void Field_blob::keep_old_value()
+{
+  /*
+    We should only need to keep a copy of the blob value in the case
+    where this is a virtual genarated column (that is indexed).
+  */
+  DBUG_ASSERT(is_virtual_gcol());
+
+  // Transfer ownership of the current BLOB value to old_value
+  old_value.takeover(value);
 }
 
 
