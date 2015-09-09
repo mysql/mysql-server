@@ -1055,7 +1055,8 @@ public:
   ulonglong first_successful_insert_id_in_cur_stmt, insert_id_for_cur_row;
   Discrete_interval auto_inc_interval_for_cur_row;
   Discrete_intervals_list auto_inc_intervals_forced;
-  ulonglong limit_found_rows;
+  ulonglong current_found_rows;
+  ulonglong previous_found_rows;
   ha_rows    cuted_fields, sent_row_count, examined_row_count;
   ulong client_capabilities;
   uint in_sub_stmt;
@@ -2316,9 +2317,17 @@ public:
   }
 
   /**
-    Stores the result of the FOUND_ROWS() function.
+    Stores the result of the FOUND_ROWS() function.  Set at query end, stable
+    throughout the query.
   */
-  ulonglong  limit_found_rows;
+  ulonglong  previous_found_rows;
+  /**
+    Dynamic, collected and set also in subqueries. Not stable throughout query.
+    previous_found_rows is a snapshot of this take at query end making it
+    stable throughout the next query, see update_previous_found_rows.
+  */
+  ulonglong  current_found_rows;
+
   /*
     Indicate if the gtid_executed table is being operated implicitly
     within current transaction. This happens because we are inserting
@@ -3068,8 +3077,20 @@ public:
   }
   inline ulonglong found_rows(void)
   {
-    return limit_found_rows;
+    return previous_found_rows;
   }
+
+  /*
+    Call when it is clear that the query is ended and we have collected the
+    right value for current_found_rows. Calling this method makes a snapshot of
+    that value and makes it ready and stable for subsequent FOUND_ROWS() call
+    in the next statement.
+  */
+  inline void update_previous_found_rows()
+  {
+    previous_found_rows= current_found_rows;
+  }
+
   /**
     Returns TRUE if session is in a multi-statement transaction mode.
 

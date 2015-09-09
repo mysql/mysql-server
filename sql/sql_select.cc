@@ -195,6 +195,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   DBUG_ASSERT(!thd->is_error());
 
+  thd->update_previous_found_rows();
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).

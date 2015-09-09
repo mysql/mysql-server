@@ -163,7 +163,7 @@ JOIN::exec()
         send_records= calc_found_rows ? 1 : thd->get_sent_row_count();
       }
       /* Query block (without union) always returns 0 or 1 row */
-      thd->limit_found_rows= send_records;
+      thd->current_found_rows= send_records;
     }
     else
     {
@@ -732,7 +732,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   /* Update results for FOUND_ROWS */
   if (!join->send_row_on_empty_set())
   {
-    join->thd->limit_found_rows= 0;
+    join->thd->current_found_rows= 0;
   }
 
   SELECT_LEX *const select= join->select_lex;
@@ -943,7 +943,7 @@ do_select(JOIN *join)
       error= join->first_select(join,qep_tab,1);
   }
 
-  join->thd->limit_found_rows= join->send_records;
+  join->thd->current_found_rows= join->send_records;
   /*
     For "order by with limit", we cannot rely on send_records, but need
     to use the rowcount read originally into the join_tab applying the
@@ -970,7 +970,7 @@ do_select(JOIN *join)
         sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR)
     {
-      join->thd->limit_found_rows= sort_tab->records();
+      join->thd->current_found_rows= sort_tab->records();
     }
   }
 
