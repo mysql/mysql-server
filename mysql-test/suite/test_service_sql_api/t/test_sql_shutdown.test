@@ -1,5 +1,6 @@
 --source include/not_embedded.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
+let MYSQLDDATADIR= `select @@datadir`;
 
 --echo ##########################################
 --echo # Run plugin
@@ -14,8 +15,34 @@ eval INSTALL PLUGIN test_sql_shutdown SONAME '$TEST_SQL_SHUTDOWN';
 --shutdown_server
 --source include/wait_until_disconnected.inc
 # Give implicitly called deinit of plugin time to write 'SERVER SHUTDOWN' to file
---sleep 3
+# The following perl snippet is waiting until the test plugin will be ready
+# to write into the log. The last line must contain "SERVER SHUTDOWN".
+# Then the test can cat the file content into the result file.
+perl;
+    use strict;
+    my $max_trials= 300;
+    my $fc_count= 0;
+    my $p_found= 1;
+    my $fn= "$ENV{'MYSQLDDATADIR'}/test_sql_shutdown.log";
+    my $search_pattern="SERVER SHUTDOWN";
+    while ($p_found and $fc_count < $max_trials) {
+         open(FILE, "<", $fn);
+         while (<FILE>) {
+              if (m{$search_pattern}) {
+                 $p_found= 0;
+                 close(FILE);
+                 exit;
+              }
+         }
+         sleep(2);
+         $fc_count++;
+         close(FILE);
+    }
+    print "Pattern \"$search_pattern\" not found\n";
+EOF
+
 cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
+
 
 --echo ##########################################
 --echo # Restart

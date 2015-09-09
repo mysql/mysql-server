@@ -648,7 +648,7 @@ static void test_sql(void *p)
     }
 
     while (!srv_session_server_is_available())
-      my_sleep(100000);
+      my_sleep(10000);
     plugin_init_cycle= SECOND_INIT;
   }
 
@@ -657,7 +657,7 @@ static void test_sql(void *p)
   if (plugin_init_cycle == FIRST_INIT)
   {
     while (srv_session_server_is_available())
-      my_sleep(100000);
+      my_sleep(10000);
 
     WRITE_STR("Apparently the server is shutting down\n");
   }
