@@ -1801,7 +1801,16 @@ innobase_create_index_def(
 		DBUG_ASSERT(!(key->flags & HA_NOSAME));
 		index->ind_type = DICT_SPATIAL;
 		ut_ad(n_fields == 1);
-		index->fields[0].col_no = key->key_part[0].fieldnr;
+		ulint	num_v = 0;
+
+		/* Need to count the virtual fields before this spatial
+		indexed field */
+		for (ulint i = 0; i < key->key_part->fieldnr; i++) {
+			if (innobase_is_v_fld(altered_table->field[i])) {
+				num_v++;
+			}
+		}
+		index->fields[0].col_no = key->key_part[0].fieldnr - num_v;
 		index->fields[0].prefix_len = 0;
 		index->fields[0].is_v_col = false;
 		if (!key->key_part[0].field->stored_in_db
