@@ -850,6 +850,14 @@ The following options may be given as the first argument:
  --range-alloc-block-size=# 
  Allocation block size for storing ranges during
  optimization
+ --range-optimizer-max-mem-size=# 
+ Maximum amount of memory used by the range optimizer to
+ allocate predicates during range analysis. The larger the
+ number, more memory may be consumed during range
+ analysis. If the value is too low to completed range
+ optimization of a query, index range scan will not be
+ considered for this query. A value of 0 means range
+ optimizer does not have any cap on memory. 
  --read-buffer-size=# 
  Each thread that does a sequential scan allocates a
  buffer of this size for each table it scans. If you do
