@@ -8041,9 +8041,9 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
   if (param->has_errors())
     return 0;
 
-  if (!key1)
+  if (key1 == NULL || key1->type == SEL_ARG::ALWAYS)
     return key2;
-  if (!key2)
+  if (key2 == NULL || key2->type == SEL_ARG::ALWAYS)
     return key1;
   if (key1->part != key2->part)
   {
