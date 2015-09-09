@@ -1590,7 +1590,6 @@ row_geo_field_is_valid(
 	return(true);
 }
 
-
 /** Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
 @param[in]	trx		transaction
@@ -3207,7 +3206,7 @@ row_merge_insert_index_tuples(
 			stage->inc();
 		}
 
-		 if (row_buf != NULL) {
+		if (row_buf != NULL) {
 			if (n_rows >= row_buf->n_tuples) {
 				break;
 			}
@@ -4234,6 +4233,29 @@ row_merge_drop_table(
 					trx, false, false));
 }
 
+/** Write an MLOG_INDEX_LOAD record to indicate in the redo-log
+that redo-logging of individual index pages was disabled, and
+the flushing of such pages to the data files was completed.
+@param[in]	index	an index tree on which redo logging was disabled */
+static
+void
+row_merge_write_redo(
+	const dict_index_t*	index)
+{
+	mtr_t	mtr;
+	byte*	log_ptr;
+
+	ut_ad(!dict_table_is_temporary(index->table));
+	mtr.start();
+	log_ptr = mlog_open(&mtr, 11 + 8);
+	log_ptr = mlog_write_initial_log_record_low(
+		MLOG_INDEX_LOAD,
+		index->space, index->page, log_ptr, &mtr);
+	mach_write_to_8(log_ptr, index->id);
+	mlog_close(&mtr, log_ptr + 8);
+	mtr.commit();
+}
+
 /** Build indexes on a table by reading a clustered index, creating a temporary
 file containing index entries, merge sorting these index entries and inserting
 sorted index entries to indexes.
@@ -4513,6 +4535,7 @@ wait_again:
 			ut_ad(need_flush_observer);
 
 			flush_observer->flush();
+			row_merge_write_redo(indexes[i]);
 
 			DEBUG_SYNC_C("row_log_apply_before");
 			error = row_log_apply(trx, sort_idx, table, stage);
@@ -4614,6 +4637,15 @@ func_exit:
 
 		if (trx_is_interrupted(trx)) {
 			error = DB_INTERRUPTED;
+		}
+
+		if (error == DB_SUCCESS && old_table != new_table) {
+			for (const dict_index_t* index
+				     = dict_table_get_first_index(new_table);
+			     index != NULL;
+			     index = dict_table_get_next_index(index)) {
+				row_merge_write_redo(index);
+			}
 		}
 	}
 
