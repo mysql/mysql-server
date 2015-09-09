@@ -125,7 +125,7 @@ void get_server_startup_prerequirements(Trans_context_info& requirements,
   @param[out] length                binary string length
 */
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
-                                      uint *length);
+                                      size_t *length);
 
 #if !defined(DBUG_OFF)
 /**
@@ -138,7 +138,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
   @return a pointer to text representation of the encoded set
 */
-char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, uint length);
+char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 #endif
 
 
