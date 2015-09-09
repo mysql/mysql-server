@@ -167,7 +167,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("TRANSACTIONS_COMMITTED_ALL_MEMBERS")},
-    {C_STRING_WITH_LEN("text")},
+    {C_STRING_WITH_LEN("longtext")},
     {NULL, 0}
   },
   {

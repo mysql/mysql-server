@@ -4301,7 +4301,7 @@ private:
   bool write_data_map(IO_CACHE* file, std::map<std::string, std::string> *map);
 #endif
 
-  int get_size_data_map(std::map<std::string, std::string> *map);
+  size_t get_size_data_map(std::map<std::string, std::string> *map);
 
 public:
 

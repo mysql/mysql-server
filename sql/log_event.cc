@@ -13371,9 +13371,12 @@ bool Transaction_context_log_event::write_snapshot_version(IO_CACHE* file)
   DBUG_ENTER("Transaction_context_log_event::write_snapshot_version");
   bool result= false;
 
-  uint16 len= get_snapshot_version_size();
+  uint32 len= get_snapshot_version_size();
   uchar *buffer= (uchar *) my_malloc(key_memory_log_event,
                                      len, MYF(MY_WME));
+  if (buffer == NULL)
+    DBUG_RETURN(true);
+
   snapshot_version->encode(buffer);
   if (wrapper_my_b_safe_write(file, buffer, len))
     result= true;
@@ -13505,11 +13508,11 @@ size_t View_change_log_event::get_data_size()
   DBUG_RETURN(size);
 }
 
-int
+size_t
 View_change_log_event::get_size_data_map(std::map<std::string, std::string> *map)
 {
   DBUG_ENTER("View_change_log_event::get_size_data_map");
-  int size= 0;
+  size_t size= 0;
 
   std::map<std::string, std::string>::iterator iter;
   size+= (ENCODED_CERT_INFO_KEY_SIZE_LEN +
@@ -13576,7 +13579,6 @@ void View_change_log_event::print(FILE *file,
       return -1;
    }
 
-   written_to_binlog= true;
    return mysql_bin_log.write_event(this);
  }
 
@@ -13596,7 +13598,6 @@ bool View_change_log_event::write_data_header(IO_CACHE* file){
   memcpy(buf, view_id, ENCODED_VIEW_ID_MAX_LEN);
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
-  buf[ENCODED_WRITTEN_FLAG_OFFSET]= written_to_binlog;
   DBUG_RETURN(wrapper_my_b_safe_write(file,(const uchar *) buf,
                                       Binary_log_event::VIEW_CHANGE_HEADER_LEN));
 }
@@ -13626,8 +13627,8 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
     const char *key= iter->first.c_str();
 
     uchar buf_value_len[ENCODED_CERT_INFO_VALUE_LEN];
-    uint16 value_len= iter->second.length();
-    int2store(buf_value_len, value_len);
+    uint32 value_len= iter->second.length();
+    int4store(buf_value_len, value_len);
 
     const char *value= iter->second.c_str();
 
