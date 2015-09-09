@@ -531,7 +531,9 @@ ha_innobase::check_if_supported_inplace_alter(
 			   */
 			   | Alter_inplace_info::DROP_INDEX);
 
-		if (flags != 0) {
+		if (flags != 0
+		    || (altered_table->s->partition_info_str
+			&& altered_table->s->partition_info_str_len)) {
 			ha_alter_info->unsupported_reason =
 				innobase_get_err_msg(
 				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
