@@ -233,8 +233,12 @@ enum mlog_id_t {
 	/** Table is being truncated. (Marked only for file-per-table) */
 	MLOG_TRUNCATE = 60,
 
+	/** notify that an index tree is being loaded without writing
+	redo log about individual pages */
+	MLOG_INDEX_LOAD = 61,
+
 	/** log for some persistent dynamic metadata change */
-	MLOG_TABLE_DYNAMIC_META = 61,
+	MLOG_TABLE_DYNAMIC_META = 62,
 
 	/** biggest value (used in assertions) */
 	MLOG_BIGGEST_TYPE = MLOG_TABLE_DYNAMIC_META

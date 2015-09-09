@@ -1456,6 +1456,11 @@ recv_parse_or_apply_log_rec_body(
 		before applying any log records. */
 		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
 				      apply));
+	case MLOG_INDEX_LOAD:
+		if (end_ptr < ptr + 8) {
+			return(NULL);
+		}
+		return(ptr + 8);
 	case MLOG_TRUNCATE:
 		return(truncate_t::parse_redo_entry(ptr, end_ptr, space_id));
 	default:
@@ -1931,6 +1936,8 @@ recv_add_to_hash_table(
 	ut_ad(type != MLOG_FILE_NAME);
 	ut_ad(type != MLOG_DUMMY_RECORD);
 	ut_ad(type != MLOG_CHECKPOINT);
+	ut_ad(type != MLOG_INDEX_LOAD);
+	ut_ad(type != MLOG_TRUNCATE);
 
 	len = rec_end - body;
 
@@ -2992,6 +2999,7 @@ loop:
 		case MLOG_FILE_RENAME2:
 		case MLOG_FILE_DELETE:
 		case MLOG_TABLE_DYNAMIC_META:
+		case MLOG_TRUNCATE:
 			/* These were already handled by
 			recv_parse_log_rec() and
 			recv_parse_or_apply_log_rec_body(). */
@@ -3004,13 +3012,6 @@ loop:
 			break;
 #endif /* UNIV_LOG_LSN_DEBUG */
 		default:
-			DBUG_PRINT("ib_log",
-				   ("scan " LSN_PF ": log rec %s"
-				    " len " ULINTPF
-				    " page " ULINTPF ":" ULINTPF,
-				    old_lsn, get_mlog_string(type),
-				    len, space, page_no));
-
 			switch (store) {
 			case STORE_NO:
 				break;
@@ -3026,6 +3027,14 @@ loop:
 					ptr + len, old_lsn,
 					recv_sys->recovered_lsn);
 			}
+			/* fall through */
+		case MLOG_INDEX_LOAD:
+			DBUG_PRINT("ib_log",
+				   ("scan " LSN_PF ": log rec %s"
+				    " len " ULINTPF
+				    " page " ULINTPF ":" ULINTPF,
+				    old_lsn, get_mlog_string(type),
+				    len, space, page_no));
 		}
 	} else {
 		/* Check that all the records associated with the single mtr
@@ -3142,6 +3151,8 @@ loop:
 			case MLOG_FILE_RENAME2:
 			case MLOG_FILE_DELETE:
 			case MLOG_TABLE_DYNAMIC_META:
+			case MLOG_INDEX_LOAD:
+			case MLOG_TRUNCATE:
 				/* These were already handled by
 				recv_parse_log_rec() and
 				recv_parse_or_apply_log_rec_body(). */
@@ -4388,6 +4399,9 @@ get_mlog_string(mlog_id_t type)
 
 	case MLOG_INIT_FILE_PAGE2:
 		return("MLOG_INIT_FILE_PAGE2");
+
+	case MLOG_INDEX_LOAD:
+		return("MLOG_INDEX_LOAD");
 
 	case MLOG_TRUNCATE:
 		return("MLOG_TRUNCATE");
