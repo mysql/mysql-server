@@ -51,7 +51,19 @@ SET GLOBAL SLAVE_PARALLEL_WORKERS= 1;
 --let $condition= = 'Waiting for an event from Coordinator'
 --source include/wait_show_condition.inc
 
---let $assert_cond= COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for an event from Coordinator"
+if (!$group_replication_plugin_installed)
+{
+  --let $assert_cond= COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for an event from Coordinator"
+}
+if ($group_replication_plugin_installed)
+{
+  # We will have one worker from the above configured slave plus the
+  # initial configured number of workers on group_replicatin_applier
+  # channel. group_replication_applier is not restarted during the
+  # test, so its configuration remains.
+  --let $workers= 1 + $old_slave_parallel_workers
+  --let $assert_cond= COUNT(*) = $workers FROM performance_schema.threads WHERE PROCESSLIST_STATE = "Waiting for an event from Coordinator"
+}
 --let $assert_text= The worker status should be set in P_S.threads
 --source include/assert.inc
 
