@@ -327,7 +327,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
 #endif //HAVE_REPLICATION
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
-                                      uint *length)
+                                      size_t *length)
 {
   global_sid_lock->wrlock();
 
@@ -350,7 +350,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
 #if !defined(DBUG_OFF)
 char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
-                                 uint length)
+                                 size_t length)
 {
   /* No sid_lock because this is a completely local object. */
   Sid_map sid_map(NULL);

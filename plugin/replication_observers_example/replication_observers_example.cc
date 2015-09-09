@@ -572,7 +572,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   bool server_engine_ready= channel_is_active("", CHANNEL_NO_THD);
 
   uchar *encoded_gtid_executed= NULL;
-  uint length;
+  size_t length;
   get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
 
 #if !defined(DBUG_OFF)
