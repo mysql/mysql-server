@@ -867,8 +867,10 @@ char* View_change_event::read_data_map(char *pos,
 {
   BAPI_ASSERT(map->empty());
   uint16_t created= 0;
+  uint32_t created_value= 0;
   for (uint32_t i= 0; i < map_len; i++)
   {
+    created=0;
     memcpy(&created, pos, sizeof(created));
     uint16_t key_len= (uint16_t) le16toh(created);
     pos+= ENCODED_CERT_INFO_KEY_SIZE_LEN;
@@ -876,9 +878,9 @@ char* View_change_event::read_data_map(char *pos,
     std::string key(pos, key_len);
     pos+= key_len;
 
-    created=0;
-    memcpy(&created, pos, sizeof(created));
-    uint32_t value_len= le32toh(created);
+    created_value=0;
+    memcpy(&created_value, pos, sizeof(created_value));
+    uint32_t value_len= le32toh(created_value);
     pos+= ENCODED_CERT_INFO_VALUE_LEN;
 
     std::string value(pos, value_len);
