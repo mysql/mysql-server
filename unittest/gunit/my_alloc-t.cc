@@ -156,6 +156,8 @@ TEST_F(MyAllocTest, CheckErrorReporting)
 
 TEST_F(MyPreAllocTest, PreAlloc)
 {
+  // PREALLOCATE_MEMORY_CHUNKS is not defined for valgrind and ASAN
+#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
   // MEMROOT has pre-allocated 2048 bytes memory plus some overhead
   size_t pre_allocated= m_prealloc_root.allocated_size;
   EXPECT_LT((unsigned int)2048, pre_allocated);
@@ -213,6 +215,7 @@ TEST_F(MyPreAllocTest, PreAlloc)
 
   free_root(&m_prealloc_root, 0);
   EXPECT_EQ((unsigned int)0, m_prealloc_root.allocated_size);
+#endif
 }
 
 }
