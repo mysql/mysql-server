@@ -520,7 +520,8 @@ THD::THD(bool enable_plugins)
   tmp_table=0;
   cuted_fields= 0L;
   m_sent_row_count= 0L;
-  limit_found_rows= 0;
+  current_found_rows= 0;
+  previous_found_rows= 0;
   is_operating_gtid_table_implicitly= false;
   is_operating_substatement_implicitly= false;
   m_row_count_func= -1;
@@ -2591,7 +2592,8 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   backup->count_cuted_fields= count_cuted_fields;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
-  backup->limit_found_rows= limit_found_rows;
+  backup->current_found_rows= current_found_rows;
+  backup->previous_found_rows= previous_found_rows;
   backup->examined_row_count= m_examined_row_count;
   backup->sent_row_count= m_sent_row_count;
   backup->cuted_fields=     cuted_fields;
@@ -2663,7 +2665,8 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
     backup->first_successful_insert_id_in_prev_stmt;
   first_successful_insert_id_in_cur_stmt= 
     backup->first_successful_insert_id_in_cur_stmt;
-  limit_found_rows= backup->limit_found_rows;
+  current_found_rows= backup->current_found_rows;
+  previous_found_rows= backup->previous_found_rows;
   set_sent_row_count(backup->sent_row_count);
   if (is_classic_protocol())
     get_protocol_classic()->set_client_capabilities(backup->client_capabilities);

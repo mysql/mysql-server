@@ -159,7 +159,7 @@ struct Query_cache_block
 
 struct Query_cache_query
 {
-  ulonglong limit_found_rows;
+  ulonglong current_found_rows;
   mysql_rwlock_t lock;
   Query_cache_block *res;
   Query_cache_tls *wri;
@@ -170,8 +170,8 @@ struct Query_cache_query
   Query_cache_query() {}                      /* Remove gcc warning */
   inline void init_n_lock();
   void unlock_n_destroy();
-  inline ulonglong found_rows()		   { return limit_found_rows; }
-  inline void found_rows(ulonglong rows)   { limit_found_rows= rows; }
+  inline ulonglong found_rows()        { return current_found_rows; }
+  inline void found_rows(ulonglong rows)   { current_found_rows= rows; }
   inline Query_cache_block *result()	   { return res; }
   inline void result(Query_cache_block *p) { res= p; }
   inline Query_cache_tls *writer()	   { return wri; }
