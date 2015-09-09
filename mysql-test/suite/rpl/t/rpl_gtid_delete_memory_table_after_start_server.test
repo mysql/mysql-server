@@ -33,6 +33,7 @@
 # correctly. A few extra test cases were added to verify some special
 # situations that updating or modifying a memory table.
 ################################################################################
+--source include/have_debug.inc
 --source include/have_gtid.inc
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
