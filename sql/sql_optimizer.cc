@@ -784,12 +784,13 @@ void JOIN::substitute_gc()
     for (uint i= 0; i < tl->table->s->fields; i++)
     {
       Field *fld= tl->table->field[i];
-      if (!fld->gcol_info || fld->part_of_key.is_clear_all() ||
-           fld->gcol_info->expr_item->type() != Item::FUNC_ITEM)
-        continue;
-      // Don't check allowed keys here as conditions/group/order use
-      // different keymaps for that
-      indexed_gc.push_back(fld);
+      if (fld->is_gcol() && !fld->part_of_key.is_clear_all() &&
+          fld->gcol_info->expr_item->can_be_substituted_for_gc())
+      {
+        // Don't check allowed keys here as conditions/group/order use
+        // different keymaps for that.
+        indexed_gc.push_back(fld);
+      }
     }
   }
   // No GC in the tables used in the query
@@ -828,7 +829,7 @@ void JOIN::substitute_gc()
   for (ORDER *ord= list; ord; ord= ord->next)
   {
     li.rewind();
-    if ((*ord->item)->type() != Item::FUNC_ITEM)
+    if (!(*ord->item)->can_be_substituted_for_gc())
       continue;
     while ((gc= li++))
     {

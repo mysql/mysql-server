@@ -968,11 +968,11 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type)
   if (!strcmp(expr->func_name(),"json_unquote") &&
       strcmp((*func)->func_name(),"json_unquote"))
   {
-    if (expr->arguments()[0]->type() != Item::FUNC_ITEM)
+    if (!expr->arguments()[0]->can_be_substituted_for_gc())
       return NULL;
-    expr= (Item_func*)expr->arguments()[0];
+    expr= down_cast<Item_func*>(expr->arguments()[0]);
   }
-  DBUG_ASSERT(expr->type() == Item::FUNC_ITEM);
+  DBUG_ASSERT(expr->can_be_substituted_for_gc());
 
   if (type == fld->result_type() && (*func)->eq(expr, false))
   {
@@ -1021,12 +1021,12 @@ Item *Item_func::gc_subst_transformer(uchar *arg)
     List<Field> *gc_fields= (List<Field> *)arg;
     List_iterator<Field> li(*gc_fields);
     // Check if we can substitute a function with a GC
-    if (args[0]->type() == FUNC_ITEM && args[1]->const_item())
+    if (args[0]->can_be_substituted_for_gc() && args[1]->const_item())
     {
       func= (Item_func**)args;
       val= args + 1;
     }
-    else if (args[1]->type() == FUNC_ITEM && args[0]->const_item())
+    else if (args[1]->can_be_substituted_for_gc() && args[0]->const_item())
     {
       func= (Item_func**)args + 1;
       val= args;
@@ -1061,7 +1061,7 @@ Item *Item_func::gc_subst_transformer(uchar *arg)
   {
     List<Field> *gc_fields= (List<Field> *)arg;
     List_iterator<Field> li(*gc_fields);
-    if (args[0]->type() != FUNC_ITEM)
+    if (!args[0]->can_be_substituted_for_gc())
       break;
     Item_result type= args[1]->result_type();
     bool can_do_subst= args[1]->const_item();

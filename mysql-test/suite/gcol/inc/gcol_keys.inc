@@ -694,3 +694,44 @@ DROP TABLE t;
 }
 
 --echo #
+--echo # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
+--echo #              WITH LOGICAL OPERATORS
+--echo #
+CREATE TABLE t (a INT, b INT,
+                gc_and INT GENERATED ALWAYS AS (a AND b) STORED,
+                gc_or INT GENERATED ALWAYS AS (a OR b) STORED,
+                gc_xor INT GENERATED ALWAYS AS (a XOR b) STORED,
+                gc_not INT GENERATED ALWAYS AS (NOT a) STORED,
+                gc_case INT GENERATED ALWAYS AS
+                (CASE WHEN (a AND b) THEN a ELSE b END) STORED,
+                INDEX(gc_and), INDEX(gc_or), INDEX(gc_xor), INDEX(gc_not),
+                INDEX(gc_case));
+INSERT INTO t (a, b) VALUES (0, 0), (0, 1), (1, 0), (1, 1);
+ANALYZE TABLE t;
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) = 1;
+SELECT a, b FROM t WHERE (a AND b) = 1;
+EXPLAIN SELECT a, b FROM t WHERE 1 = (a AND b);
+SELECT a, b FROM t WHERE 1 = (a AND b);
+EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) = 1;
+--sorted_result
+SELECT a, b FROM t WHERE (a OR b) = 1;
+EXPLAIN SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+--sorted_result
+SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
+# XOR and NOT worked even before the bug fix, but we test all logical
+# operators here for completeness.
+EXPLAIN SELECT a, b FROM t WHERE (a XOR b) = 1;
+--sorted_result
+SELECT a, b FROM t WHERE (a XOR b) = 1;
+EXPLAIN SELECT a FROM t WHERE (NOT a) = 1;
+SELECT a FROM t WHERE (NOT a) = 1;
+# Also verify that a logical expression nested inside another
+# expression doesn't prevent substitution.
+EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+--sorted_result
+SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+DROP TABLE t;
+
+--echo #
