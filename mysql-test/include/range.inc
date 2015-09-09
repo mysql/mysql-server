@@ -2310,3 +2310,42 @@ eval $query2;
 eval $query3;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #21761867: ASSERTION `TYPE_ARG == MAYBE_KEY ||
+--echo #                TYPE_ARG == IMPOSSIBLE' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  c10 INT NOT NULL,
+  c12 INT NOT NULL,
+  c18 INT,
+  PRIMARY KEY (c10,c12),
+  UNIQUE KEY key_c12(c12),
+  KEY key_c18(c18));
+
+INSERT INTO t1 VALUES(11,5,0), (12,6,1), (13,7,2), (14,8,3), (15,9,4);
+
+CREATE TABLE t2 (
+  c10 INT NOT NULL,
+  c12 INT NOT NULL,
+  PRIMARY KEY(c10,c12));
+
+CREATE TABLE t3 (c10 INT NOT NULL);
+
+SELECT t2.c10
+FROM t1
+     RIGHT JOIN t3
+     LEFT JOIN t2
+     ON t3.c10 = t2.c10
+     ON t1.c12 > t2.c12
+WHERE
+     t1.c10 <= 25
+     AND
+     t1.c18 IS NOT NULL
+     OR
+     t1.c10 > 5
+     AND
+     t1.c18 IN (15,16,18);
+
+DROP TABLE t1, t2, t3;
