@@ -8080,8 +8080,8 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
 {
   MYSQL_RES *res= NULL;     /* Note that here 'res' is meta data result set */
   MYSQL_STMT *stmt;
-  DYNAMIC_STRING ds_prepare_warnings;
-  DYNAMIC_STRING ds_execute_warnings;
+  DYNAMIC_STRING ds_prepare_warnings= DYNAMIC_STRING();
+  DYNAMIC_STRING ds_execute_warnings= DYNAMIC_STRING();
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
 
