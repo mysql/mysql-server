@@ -2197,6 +2197,19 @@ private:
   */
   Handler_share **ha_share;
 
+  /**
+    Some non-virtual ha_* functions, responsible for reading rows,
+    like ha_rnd_pos(), must ensure that virtual generated columns are
+    calculated before they return. For that, they should set this
+    member to true at their start, and check it before they return: if
+    the member is still true, it means they should calculate; if it's
+    false, it means the calculation has been done by some called
+    lower-level function and does not need to be re-done (which is why
+    we need this status flag: to avoid redundant calculations, for
+    performance).
+  */
+  bool m_update_generated_read_fields;
+
 public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
@@ -2214,7 +2227,7 @@ public:
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-    m_lock_type(F_UNLCK), ha_share(NULL)
+    m_lock_type(F_UNLCK), ha_share(NULL), m_update_generated_read_fields(false)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",

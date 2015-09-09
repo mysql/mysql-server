@@ -2811,10 +2811,16 @@ int handler::ha_rnd_next(uchar *buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == RND);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_next(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2839,10 +2845,16 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
   /* DBUG_ASSERT(inited == RND); */
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY, result,
     { result= rnd_pos(buf, pos); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2883,10 +2895,16 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2900,10 +2918,16 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_read_last_map(buf, key, keypart_map); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2923,10 +2947,16 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(end_range == NULL);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index, result,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, index);
+    m_update_generated_read_fields= false;
+  }
   return result;
 }
 
@@ -2951,10 +2981,16 @@ int handler::ha_index_next(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -2979,10 +3015,16 @@ int handler::ha_index_prev(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_prev(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -3007,10 +3049,16 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_first(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -3035,10 +3083,16 @@ int handler::ha_index_last(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_last(buf); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -3065,10 +3119,16 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index, result,
     { result= index_next_same(buf, key, keylen); })
-  if (!result && table->vfield)
+  if (!result && m_update_generated_read_fields)
+  {
     result= update_generated_read_fields(buf, table, active_index);
+    m_update_generated_read_fields= false;
+  }
   DBUG_RETURN(result);
 }
 
@@ -6139,6 +6199,9 @@ int handler::multi_range_read_next(char **range_info)
   int range_res;
   DBUG_ENTER("handler::multi_range_read_next");
 
+  // Set status for the need to update generated fields
+  m_update_generated_read_fields= table->has_gcol();
+
   if (!mrr_have_range)
   {
     mrr_have_range= TRUE;
@@ -6179,6 +6242,14 @@ scan_it_again:
   while ((result == HA_ERR_END_OF_FILE) && !range_res);
 
   *range_info= mrr_cur_range.ptr;
+
+  /* Update virtual generated fields */
+  if (!result && m_update_generated_read_fields)
+  {
+    result= update_generated_read_fields(table->record[0], table, active_index);
+    m_update_generated_read_fields= false;
+  }
+
   DBUG_PRINT("exit",("handler::multi_range_read_next result %d", result));
   DBUG_RETURN(result);
 }
