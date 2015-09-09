@@ -2522,7 +2522,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
   char buff[80], *pos, *out;
   COMMANDS *com;
   bool need_space= 0;
-  bool ss_comment= 0;
+  enum { SSC_NONE= 0, SSC_CONDITIONAL, SSC_HINT } ss_comment= SSC_NONE;
   DBUG_ENTER("add_line");
 
   if (!line[0] && buffer.is_empty())
@@ -2619,7 +2619,8 @@ static bool add_line(String &buffer, char *line, size_t line_length,
 	continue;
       }
     }
-    else if (!*ml_comment && !*in_string && is_prefix(pos, delimiter))
+    else if (!*ml_comment && !*in_string && ss_comment != SSC_HINT &&
+             is_prefix(pos, delimiter))
     {
       // Found a statement. Continue parsing after the delimiter
       pos+= delimiter_length;
@@ -2702,7 +2703,7 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       break;
     }
     else if (!*in_string && inchar == '/' && pos[1] == '*' &&
-	     pos[2] != '!' && pos[2] != '+')
+	     pos[2] != '!' && pos[2] != '+' && ss_comment != SSC_HINT)
     {
       if (preserve_comments)
       {
@@ -2739,14 +2740,18 @@ static bool add_line(String &buffer, char *line, size_t line_length,
     }      
     else
     {						// Add found char to buffer
-      if (!*in_string && inchar == '/' && pos[1] == '*' &&
-          (pos[2] == '!' || pos[2] == '+'))
-        ss_comment= 1;
+      if (!*in_string && inchar == '/' && pos[1] == '*')
+      {
+        if (pos[2] == '!')
+          ss_comment= SSC_CONDITIONAL;
+        else if (pos[2] == '+')
+          ss_comment= SSC_HINT;
+      }
       else if (!*in_string && ss_comment && inchar == '*' && *(pos + 1) == '/')
-        ss_comment= 0;
+        ss_comment= SSC_NONE;
       if (inchar == *in_string)
 	*in_string= 0;
-      else if (!*ml_comment && !*in_string &&
+      else if (!*ml_comment && !*in_string && ss_comment != SSC_HINT &&
 	       (inchar == '\'' || inchar == '"' || inchar == '`'))
 	*in_string= (char) inchar;
       if (!*ml_comment || preserve_comments)
