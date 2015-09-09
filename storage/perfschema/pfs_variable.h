@@ -678,6 +678,9 @@ private:
   /* Build status variable name with prefix. Return copy of the string. */
   char *make_show_var_name(const char* prefix, const char* name);
 
+  /* For the current THD, use initial_status_vars taken from before the query start. */
+  STATUS_VAR *set_status_vars(void);
+
   /* Build the list of status variables from SHOW_VAR array. */
   void manifest(THD *thd, const SHOW_VAR *show_var_array,
                 STATUS_VAR *status_var_array, const char *prefix, bool nested_array, bool strict);

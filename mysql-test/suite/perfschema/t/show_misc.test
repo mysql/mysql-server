@@ -26,6 +26,22 @@ SHOW STATUS LIKE 'Last_query_partial_plans';
 select 2;
 SHOW STATUS LIKE 'Last_query_cost';
 
+
+--echo ================================================================================
+--echo SHOW_COMPATIBILITY_56 = ON
+--echo ================================================================================
+flush status;
+set global show_compatibility_56 = on;
+SHOW STATUS LIKE 'Created_tmp_tables';
+
+--echo
+--echo ================================================================================
+--echo SHOW_COMPATIBILITY_56 = OFF
+--echo ================================================================================
+set global show_compatibility_56 = off;
+
+SHOW STATUS LIKE 'Created_tmp_tables';
+
 --echo
 --echo ================================================================================
 --echo CLEAN UP

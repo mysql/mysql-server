@@ -890,6 +890,20 @@ bool PFS_status_variable_cache::do_initialize_session(void)
 }
 
 /**
+  For the current THD, use initial_status_vars taken from before the query start.
+*/
+STATUS_VAR *PFS_status_variable_cache::set_status_vars(void)
+{
+  STATUS_VAR *status_vars;
+  if (m_safe_thd == m_current_thd && m_current_thd->initial_status_var != NULL)
+    status_vars= m_current_thd->initial_status_var;
+  else
+    status_vars= &m_safe_thd->status_var;
+
+  return status_vars;
+}
+
+/**
   Build cache for GLOBAL status variables using values totaled from all threads.
 */
 int PFS_status_variable_cache::do_materialize_global(void)
@@ -967,8 +981,9 @@ int PFS_status_variable_cache::do_materialize_all(THD* unsafe_thd)
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
-     */
-    manifest(m_safe_thd, m_show_var_array.begin(), &m_safe_thd->status_var, "", false, false);
+    */
+    STATUS_VAR *status_vars= set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false, false);
 
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
@@ -1012,8 +1027,9 @@ int PFS_status_variable_cache::do_materialize_session(THD* unsafe_thd)
     /*
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
-     */
-    manifest(m_safe_thd, m_show_var_array.begin(), &m_safe_thd->status_var, "", false, true);
+    */
+    STATUS_VAR *status_vars= set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false, true);
 
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
@@ -1054,7 +1070,8 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread)
       Build the status variable cache using the SHOW_VAR array as a reference.
       Use the status values from the THD protected by the thread manager lock.
     */
-    manifest(m_safe_thd, m_show_var_array.begin(), &m_safe_thd->status_var, "", false, true);
+    STATUS_VAR *status_vars= set_status_vars();
+    manifest(m_safe_thd, m_show_var_array.begin(), status_vars, "", false, true);
 
     /* Release lock taken in get_THD(). */
     mysql_mutex_unlock(&m_safe_thd->LOCK_thd_data);
