@@ -145,6 +145,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
+  channel_open_temp_tables.atomic_set(0);
 
   if (!rli_fake)
   {
@@ -1124,6 +1125,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 void Relay_log_info::close_temporary_tables()
 {
   TABLE *table,*next;
+  int num_closed_temp_tables= 0;
   DBUG_ENTER("Relay_log_info::close_temporary_tables");
 
   for (table=save_temporary_tables ; table ; table=next)
@@ -1135,9 +1137,11 @@ void Relay_log_info::close_temporary_tables()
     */
     DBUG_PRINT("info", ("table: 0x%lx", (long) table));
     close_temporary(NULL, table, true, false);
+    num_closed_temp_tables++;
   }
   save_temporary_tables= 0;
-  slave_open_temp_tables= 0;
+  slave_open_temp_tables.atomic_add(-num_closed_temp_tables);
+  channel_open_temp_tables.atomic_add(-num_closed_temp_tables);
   DBUG_VOID_RETURN;
 }
 

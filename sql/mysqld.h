@@ -23,6 +23,7 @@
 #include "my_thread_local.h"               // my_get_thread_local
 #include "sql_cmd.h"                       // SQLCOM_END
 #include "sql_const.h"                     // UUID_LENGTH
+#include "atomic_class.h"                  /* Atomic_int32 */
 
 class my_decimal;
 class THD;
@@ -202,7 +203,7 @@ extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
-extern int32 slave_open_temp_tables;
+extern Atomic_int32 slave_open_temp_tables;
 extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_time;
 extern ulong table_cache_size, table_def_size;
