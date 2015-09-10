@@ -476,7 +476,8 @@ extern PSI_thread_key key_thread_timer_notifier;
 extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_map;
-extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
+extern PSI_file_key key_file_binlog, key_file_binlog_cache,
+  key_file_binlog_index, key_file_binlog_index_cache, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
@@ -484,7 +485,7 @@ extern PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 extern PSI_file_key key_file_general_log, key_file_slow_log;
-extern PSI_file_key key_file_relaylog, key_file_relaylog_index;
+extern PSI_file_key key_file_relaylog, key_file_relaylog_cache, key_file_relaylog_index, key_file_relaylog_index_cache;
 extern PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
 void init_server_psi_keys();

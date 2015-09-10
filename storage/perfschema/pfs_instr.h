@@ -148,6 +148,8 @@ struct PFS_ALIGNED PFS_file : public PFS_instr
   PFS_file_class *m_class;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
+  /** True if a temporary file. */
+  bool m_temporary;
 };
 
 /** Instrumented table implementation. @see PSI_table. */

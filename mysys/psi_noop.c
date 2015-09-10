@@ -433,6 +433,12 @@ static void end_file_open_wait_and_bind_to_descriptor_noop
   return;
 }
 
+static void end_temp_file_open_wait_and_bind_to_descriptor_noop
+  (PSI_file_locker *locker NNN, File file NNN, const char *filaneme NNN)
+{
+  return;
+}
+
 static void start_file_wait_noop(PSI_file_locker *locker NNN,
                                  size_t count NNN,
                                  const char *src_file NNN,
@@ -929,6 +935,7 @@ static PSI PSI_noop=
   start_file_open_wait_noop,
   end_file_open_wait_noop,
   end_file_open_wait_and_bind_to_descriptor_noop,
+  end_temp_file_open_wait_and_bind_to_descriptor_noop,
   start_file_wait_noop,
   end_file_wait_noop,
   start_file_close_wait_noop,

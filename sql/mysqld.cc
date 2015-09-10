@@ -2663,7 +2663,9 @@ int init_common_variables()
                              key_BINLOG_update_cond,
                              key_BINLOG_prep_xids_cond,
                              key_file_binlog,
-                             key_file_binlog_index);
+                             key_file_binlog_index,
+                             key_file_binlog_cache,
+                             key_file_binlog_index_cache);
 #endif
 
   /*
@@ -8531,7 +8533,8 @@ static PSI_thread_info all_server_threads[]=
 };
 
 PSI_file_key key_file_map;
-PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
+PSI_file_key key_file_binlog, key_file_binlog_cache,
+  key_file_binlog_index, key_file_binlog_index_cache, key_file_casetest,
   key_file_dbopt, key_file_des_key_file, key_file_ERRMSG, key_select_to_file,
   key_file_fileparser, key_file_frm, key_file_global_ddl_log, key_file_load,
   key_file_loadfile, key_file_log_event_data, key_file_log_event_info,
@@ -8539,15 +8542,20 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 PSI_file_key key_file_general_log, key_file_slow_log;
-PSI_file_key key_file_relaylog, key_file_relaylog_index;
+PSI_file_key key_file_relaylog, key_file_relaylog_cache, key_file_relaylog_index, key_file_relaylog_index_cache;
 
 static PSI_file_info all_server_files[]=
 {
   { &key_file_map, "map", 0},
   { &key_file_binlog, "binlog", 0},
+  { &key_file_binlog_cache, "binlog_cache", 0},
   { &key_file_binlog_index, "binlog_index", 0},
+  { &key_file_binlog_index_cache, "binlog_index_cache", 0},
   { &key_file_relaylog, "relaylog", 0},
+  { &key_file_relaylog_cache, "relaylog_cache", 0},
   { &key_file_relaylog_index, "relaylog_index", 0},
+  { &key_file_relaylog_index_cache, "relaylog_index_cache", 0},
+  { &key_file_io_cache, "io_cache", 0},
   { &key_file_casetest, "casetest", 0},
   { &key_file_dbopt, "dbopt", 0},
   { &key_file_des_key_file, "des_key_file", 0},
