@@ -669,13 +669,13 @@ static void get_data_bin(struct st_plugin_ctx *pctx)
       case MYSQL_TYPE_TINY:
         {
           longlong temp_int= pctx->sql_int_value[row][col]*10;
-          WRITE_VAL2("%d*10=%d  ", pctx->sql_int_value[row][col], temp_int);
+          WRITE_VAL2("%lld*10=%lld  ", pctx->sql_int_value[row][col], temp_int);
           break;
         }
       case MYSQL_TYPE_LONGLONG:
         {
           longlong temp_longlong= pctx->sql_longlong_value[row][col]*10;
-          WRITE_VAL2("%d*10=%d  ", pctx->sql_longlong_value[row][col], temp_longlong);
+          WRITE_VAL2("%lld*10=%lld  ", pctx->sql_longlong_value[row][col], temp_longlong);
           break;
         }
       case MYSQL_TYPE_DECIMAL:
