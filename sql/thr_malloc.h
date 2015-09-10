@@ -23,7 +23,7 @@ typedef struct st_mem_root MEM_ROOT;
 typedef unsigned int PSI_memory_key;
 
 void init_sql_alloc(PSI_memory_key key,
-                    MEM_ROOT *root, uint block_size, uint pre_alloc_size);
+                    MEM_ROOT *root, size_t block_size, size_t pre_alloc_size);
 
 void *sql_alloc(size_t);
 void *sql_calloc(size_t);
