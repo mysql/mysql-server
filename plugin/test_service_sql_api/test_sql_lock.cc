@@ -923,6 +923,9 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
 {
   my_thread_attr_t attr;          /* Thread attributes */
   my_thread_attr_init(&attr);
+#ifndef _WIN32
+  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#endif
 
   struct test_thread_context context;
 
@@ -934,9 +937,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper, &context) != 0)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Could not create test session thread");
   else
-    do {
-      my_sleep(100000);
-    } while (context.thread_finished == false);
+    my_thread_join(&context.thread, NULL);
 }
 
 static int test_sql_service_plugin_init(void *p)

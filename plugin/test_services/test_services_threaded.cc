@@ -157,6 +157,9 @@ static int test_services_plugin_init(void *p)
 	    my_malloc(PSI_INSTRUMENT_ME,
                       sizeof(struct test_services_context), MYF(0));
   my_thread_attr_init(&attr);
+#ifndef _WIN32
+  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#endif
 
 /* now create the thread and call test_services within the thread. */
   if (my_thread_create(&con->test_services_thread, &attr, test_services, p) != 0)
