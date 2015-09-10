@@ -99,7 +99,7 @@ int main(int argc,char *argv[])
   if (!(info=mi_open(argv[0], O_RDONLY,
                      HA_OPEN_ABORT_IF_LOCKED|HA_OPEN_FROM_SQL_LAYER)))
   {
-    error=my_errno;
+    error=my_errno();
     goto err;
   }
 
@@ -225,7 +225,7 @@ int main(int argc,char *argv[])
 
 err:
   if (error && error != HA_ERR_END_OF_FILE)
-    printf("got error %d\n",my_errno);
+    printf("got error %d\n",my_errno());
   if (info)
     mi_close(info);
   mysql_cond_destroy(&main_thread_keycache_var.suspend);

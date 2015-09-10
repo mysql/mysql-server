@@ -91,12 +91,7 @@ void set_mi_settings(Master_info *mi, Channel_creation_info* channel_info)
 
 bool init_thread_context()
 {
-  if (!mysys_thread_var())
-  {
-    my_thread_init();
-    return true;
-  }
-  return false;
+  return my_thread_init();
 }
 
 void clean_thread_context()

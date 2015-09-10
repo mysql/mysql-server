@@ -164,7 +164,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   if (file >= 0)
   {
     pos= mysql_file_tell(file, MYF(0));
-    if ((pos == (my_off_t) -1) && (my_errno == ESPIPE))
+    if ((pos == (my_off_t) -1) && (my_errno() == ESPIPE))
     {
       /*
          This kind of object doesn't support seek() or tell(). Don't set a
@@ -435,7 +435,7 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count)
         info->file is a pipe or socket or FIFO.  We never should have tried
         to seek on that.  See Bugs#25807 and #22828 for more info.
       */
-      DBUG_ASSERT(my_errno != ESPIPE);
+      DBUG_ASSERT(my_errno() != ESPIPE);
       info->error= -1;
       DBUG_RETURN(1);
     }
@@ -1293,7 +1293,8 @@ int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
                   });
   if (pos_in_file+info->buffer_length > info->end_of_file)
   {
-    my_errno=errno=EFBIG;
+    errno=EFBIG;
+    set_my_errno(EFBIG);
     return info->error = -1;
   }
 

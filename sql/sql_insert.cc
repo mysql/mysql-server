@@ -1596,7 +1596,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       {
 	if (table->file->extra(HA_EXTRA_FLUSH_CACHE)) /* Not needed with NISAM */
 	{
-	  error=my_errno;
+	  error=my_errno();
 	  goto err;
 	}
 
@@ -2368,10 +2368,10 @@ bool Query_result_insert::send_eof()
   if (error)
   {
     myf error_flags= MYF(0);
-    if (table->file->is_fatal_error(my_errno))
+    if (table->file->is_fatal_error(my_errno()))
       error_flags|= ME_FATALERROR;
 
-    table->file->print_error(my_errno, error_flags);
+    table->file->print_error(my_errno(), error_flags);
     DBUG_RETURN(1);
   }
 

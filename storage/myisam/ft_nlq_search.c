@@ -342,7 +342,7 @@ int ft_nlq_read_next(FT_INFO *handler, char *record)
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;
   }
-  return my_errno;
+  return my_errno();
 }
 
 

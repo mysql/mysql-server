@@ -411,7 +411,7 @@ no_odirect:
 	}
 	if(n == -1 || n == 0)
 	{
-          ndbout_c("ndbzwrite|write returned %d: errno: %d my_errno: %d",n,errno,my_errno);
+          ndbout_c("ndbzwrite|write returned %d: errno: %d my_errno: %d",n,errno,my_errno());
 	  break;
 	}
 	size -= n;
@@ -528,7 +528,7 @@ no_odirect:
     if((err= ndbzdopen(&nzf, theFd, new_flags)) < 1)
     {
       ndbout_c("Stewart's brain broke: %d %d %s",
-               err, my_errno, theFileName.c_str());
+               err, my_errno(), theFileName.c_str());
       abort();
     }
   }
@@ -590,13 +590,13 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     }
     else if (return_value < 1 && nzf.z_eof!=1)
     {
-      if(my_errno==0 && errno==0 && error==0 && nzf.z_err==Z_STREAM_END)
+      if(my_errno()==0 && errno==0 && error==0 && nzf.z_err==Z_STREAM_END)
         break;
       DEBUG(ndbout_c("ERROR DURING %sRead: %d off: %d from %s",(use_gz)?"gz":"",size,offset,theFileName.c_str()));
       ndbout_c("ERROR IN PosixAsyncFile::readBuffer %d %d %d %d",
-               my_errno, errno, nzf.z_err, error);
+               my_errno(), errno, nzf.z_err, error);
       if(use_gz)
-        return my_errno;
+        return my_errno();
       return errno;
     }
     bytes_read = return_value;
@@ -691,9 +691,9 @@ int PosixAsyncFile::writeBuffer(const char *buf, size_t size, off_t offset)
       DEBUG(ndbout_c("EINTR in write"));
     } else if (return_value == -1 || return_value < 1){
       ndbout_c("ERROR IN PosixAsyncFile::writeBuffer %d %d %d",
-               my_errno, errno, nzf.z_err);
+               my_errno(), errno, nzf.z_err);
       if(use_gz)
-        return my_errno;
+        return my_errno();
       return errno;
     } else {
       bytes_written = return_value;
@@ -789,7 +789,7 @@ void PosixAsyncFile::appendReq(Request *request)
     }
     if(n == -1){
       if(use_gz)
-        request->error = my_errno;
+        request->error = my_errno();
       else
         request->error = errno;
       return;

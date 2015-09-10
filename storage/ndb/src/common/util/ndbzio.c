@@ -426,19 +426,19 @@ int ndbzdopen(ndbzio_stream *s, File fd, int Flags)
 int read_buffer(ndbzio_stream *s)
 {
   if (s->z_eof) return EOF;
-  my_errno= 0;
+  set_my_errno(0);
   if (s->stream.avail_in == 0)
   {
     s->stream.avail_in = (uInt)my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
     if(s->stream.avail_in > 0)
-      my_errno= 0;
+      set_my_errno(0);
     if (s->stream.avail_in == 0)
     {
       s->z_eof = 1;
     }
     s->stream.next_in = s->inbuf;
   }
-  return my_errno;
+  return my_errno();
 }
 
 /*
@@ -529,7 +529,7 @@ int check_header(ndbzio_stream *s)
     s->z_err = s->z_eof ? Z_DATA_ERROR : Z_OK;
     s->start = my_tell(s->file, MYF(0));
     if(s->start == (my_off_t)-1)
-      return my_errno;
+      return my_errno();
     s->start-= s->stream.avail_in;
   }
   else if (    s->stream.next_in[0] == az_magic[0]
@@ -543,7 +543,7 @@ int check_header(ndbzio_stream *s)
     }
     header_block = get_block(s,512);
     if(!header_block)
-      return my_errno;
+      return my_errno();
     read_header(s, header_block);
   }
   else
@@ -774,7 +774,7 @@ int write_buffer(ndbzio_stream *s)
                  MYF(0)) != AZ_BUFSIZE_WRITE)
     {
       s->z_err = Z_ERRNO;
-      return my_errno;
+      return my_errno();
     }
     s->stream.avail_out = AZ_BUFSIZE_WRITE;
   }

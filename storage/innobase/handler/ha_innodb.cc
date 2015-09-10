@@ -2107,11 +2107,11 @@ innobase_mysql_tmpfile(void)
 		if (fd2 < 0) {
 			char errbuf[MYSYS_STRERROR_SIZE];
 			DBUG_PRINT("error",("Got error %d on dup",fd2));
-			my_errno=errno;
+			set_my_errno(errno);
 			my_error(EE_OUT_OF_FILERESOURCES,
 				 MYF(0),
-				 "ib*", my_errno,
-				 my_strerror(errbuf, sizeof(errbuf), my_errno));
+				 "ib*", my_errno(),
+				 my_strerror(errbuf, sizeof(errbuf), my_errno()));
 		}
 		my_close(fd, MYF(MY_WME));
 	}
@@ -5561,7 +5561,7 @@ ha_innobase::open(
 			" file for the table exists. " << TROUBLESHOOTING_MSG;
 
 		free_share(m_share);
-		my_errno = ENOENT;
+		set_my_errno(ENOENT);
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
@@ -5614,7 +5614,7 @@ ha_innobase::open(
 		if (!sane) {
 			/* In-consistent fts index found. */
 			free_share(m_share);
-			my_errno = ENOENT;
+			set_my_errno(ENOENT);
 
 			dict_table_close(ib_table, FALSE, FALSE);
 			DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -5623,7 +5623,7 @@ ha_innobase::open(
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
 		free_share(m_share);
-		my_errno = ENOENT;
+		set_my_errno(ENOENT);
 
 		dict_table_close(ib_table, FALSE, FALSE);
 

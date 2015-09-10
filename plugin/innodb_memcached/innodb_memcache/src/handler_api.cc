@@ -113,13 +113,10 @@ handler_thd_attach(
 	THD*	thd = static_cast<THD*>(my_thd);
 
 	if (original_thd) {
-          *original_thd = static_cast<THD*>(my_get_thread_local(THR_THD));
-		assert(thd->mysys_var);
+          *original_thd = current_thd;
 	}
 
-	my_set_thread_local(THR_THD, thd);
-	my_set_thread_local(THR_MALLOC, &thd->mem_root);
-	set_mysys_thread_var(thd->mysys_var);
+	thd->store_globals();
 }
 
 /**********************************************************************//**

@@ -2637,7 +2637,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   }
   if (error)
   {
-    my_errno= error;                            /* Safeguard */
+    set_my_errno(error);                            /* Safeguard */
     DBUG_PRINT("error",("error: %d  errno: %d",error,errno));
   }
   else
@@ -4237,15 +4237,15 @@ int handler::delete_table(const char *name)
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
     {
-      if (my_errno != ENOENT)
+      if (my_errno() != ENOENT)
       {
         /*
           If error on the first existing file, return the error.
           Otherwise delete as much as possible.
         */
         if (enoent_or_zero)
-          return my_errno;
-	saved_error= my_errno;
+          return my_errno();
+	saved_error= my_errno();
       }
     }
     else
@@ -4265,7 +4265,8 @@ int handler::rename_table(const char * from, const char * to)
   {
     if (rename_file_ext(from, to, *ext))
     {
-      if ((error=my_errno) != ENOENT)
+      error= my_errno();
+      if (error != ENOENT)
 	break;
       error= 0;
     }
@@ -7686,7 +7687,8 @@ int handler::ha_write_row(uchar *buf)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  DBUG_RETURN(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  DBUG_RETURN(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY, error,
     { error= write_row(buf); })
@@ -7726,7 +7728,8 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  return(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  return(HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
     { error= update_row(old_data, new_data);})
@@ -7755,7 +7758,8 @@ int handler::ha_delete_row(const uchar *buf)
 
   DBUG_EXECUTE_IF("handler_crashed_table_on_usage",
                   my_error(HA_ERR_CRASHED, MYF(ME_ERRORLOG), table_share->table_name.str);
-                  return(my_errno= HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED);
+                  return(HA_ERR_CRASHED););
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

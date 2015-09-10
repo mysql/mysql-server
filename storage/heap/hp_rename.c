@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ int heap_rename(const char *old_name, const char *new_name)
                                       new_name, MYF(MY_WME))))
     {
       mysql_mutex_unlock(&THR_LOCK_heap);
-      DBUG_RETURN(my_errno);
+      DBUG_RETURN(my_errno());
     }
     my_free(info->name);
     info->name=name_buff;

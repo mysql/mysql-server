@@ -1599,7 +1599,7 @@ public:
   /**
     Protects THD data accessed from other threads.
     The attributes protected are:
-    - thd->mysys_var (used by KILL statement and shutdown).
+    - thd->is_killable (used by KILL statement and shutdown).
     - thd->user_vars (user variables, inspected by monitoring)
     Is locked when THD is deleted.
   */
@@ -1828,7 +1828,7 @@ public:
 #ifndef DBUG_OFF
   uint dbug_sentry; // watch out for memory corruption
 #endif
-  struct st_my_thread_var *mysys_var;
+  bool is_killable;
   /**
     Mutex protecting access to current_mutex and current_cond.
   */
@@ -2878,7 +2878,7 @@ public:
   void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();
-  bool restore_globals();
+  void restore_globals();
 
   inline void set_active_vio(Vio* vio)
   {
@@ -4137,13 +4137,13 @@ public:
   }
 
   /**
-    Assign a new value to mysys_var.
+    Assign a new value to is_killable
     Protected with the LOCK_thd_data mutex.
   */
-  void set_mysys_var(struct st_my_thread_var *new_mysys_var)
+  void set_is_killable(bool is_killable_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);
-    mysys_var= new_mysys_var;
+    is_killable= is_killable_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 

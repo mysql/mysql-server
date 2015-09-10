@@ -1313,7 +1313,7 @@ void handle_command_error(struct st_command *command, uint error)
     if (command->abort_on_error)
       die("command \"%.*s\" failed with error %d. my_errno=%d",
           static_cast<int>(command->first_word_len),
-          command->query, error, my_errno);
+          command->query, error, my_errno());
 
     i= match_expected_error(command, error, NULL);
 
@@ -1327,7 +1327,7 @@ void handle_command_error(struct st_command *command, uint error)
     if (command->expected_errors.count > 0)
       die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
           static_cast<int>(command->first_word_len),
-          command->query, error, my_errno);
+          command->query, error, my_errno());
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)

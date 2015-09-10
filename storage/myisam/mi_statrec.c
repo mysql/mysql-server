@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ int _mi_write_static_record(MI_INFO *info, const uchar *record)
     if (info->state->data_file_length > info->s->base.max_data_file_length-
 	info->s->base.pack_reclength)
     {
-      my_errno=HA_ERR_RECORD_FILE_FULL;
+      set_my_errno(HA_ERR_RECORD_FILE_FULL);
       return(2);
     }
     if (info->opt_flag & WRITE_CACHE_USED)
@@ -135,7 +135,7 @@ int _mi_cmp_static_record(MI_INFO *info, const uchar *old)
     {
       DBUG_DUMP("read",old,info->s->base.reclength);
       DBUG_DUMP("disk",info->rec_buff,info->s->base.reclength);
-      my_errno=HA_ERR_RECORD_CHANGED;		/* Record have changed */
+      set_my_errno(HA_ERR_RECORD_CHANGED);		/* Record have changed */
       DBUG_RETURN(1);
     }
   }
@@ -182,7 +182,7 @@ int _mi_read_static_record(MI_INFO *info, my_off_t pos,
     {
       if (!*record)
       {
-	my_errno=HA_ERR_RECORD_DELETED;
+	set_my_errno(HA_ERR_RECORD_DELETED);
 	return(1);				/* Record is deleted */
       }
       info->update|= HA_STATE_AKTIV;		/* Record is read */
@@ -210,7 +210,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
   if (info->opt_flag & WRITE_CACHE_USED &&
       (info->rec_cache.pos_in_file <= filepos || skip_deleted_blocks) &&
       flush_io_cache(&info->rec_cache))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
   if (info->opt_flag & READ_CACHE_USED)
   {						/* Cache in use */
     if (filepos == my_b_tell(&info->rec_cache) &&
@@ -228,7 +228,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
     if (filepos >= info->state->data_file_length)
     {						/* Test if new records */
       if (_mi_readinfo(info,F_RDLCK,0))
-	DBUG_RETURN(my_errno);
+	DBUG_RETURN(my_errno());
       locked=1;
     }
     else
@@ -238,7 +238,7 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
       {						/* record not in cache */
 	if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
 		    MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
-	  DBUG_RETURN(my_errno);
+	  DBUG_RETURN(my_errno());
 	locked=1;
       }
     }
@@ -249,7 +249,8 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
 		       (long) filepos/share->base.reclength, (long) filepos,
 		       (long) info->state->records, (long) info->state->del));
     fast_mi_writeinfo(info);
-    DBUG_RETURN(my_errno=HA_ERR_END_OF_FILE);
+    set_my_errno(HA_ERR_END_OF_FILE);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   info->lastpos= filepos;
   info->nextpos= filepos+share->base.pack_reclength;
@@ -259,9 +260,12 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
     if ((error=_mi_read_static_record(info,filepos,buf)))
     {
       if (error > 0)
-	error=my_errno=HA_ERR_RECORD_DELETED;
+      {
+        set_my_errno(HA_ERR_RECORD_DELETED);
+	error= HA_ERR_RECORD_DELETED;
+      }
       else
-	error=my_errno;
+	error= my_errno();
     }
     DBUG_RETURN(error);
   }
@@ -285,23 +289,24 @@ int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
   {
     if (!buf[0])
     {						/* Record is removed */
-      DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
+      set_my_errno(HA_ERR_RECORD_DELETED);
+      DBUG_RETURN(HA_ERR_RECORD_DELETED);
     }
 						/* Found and may be updated */
     info->update|= HA_STATE_AKTIV | HA_STATE_KEY_CHANGED;
     DBUG_RETURN(0);
   }
   /* error is TRUE. my_errno should be set if rec_cache.error == -1 */
-  if (info->rec_cache.error != -1 || my_errno == 0)
+  if (info->rec_cache.error != -1 || my_errno() == 0)
   {
     /*
       If we could not get a full record, we either have a broken record,
       or are at end of file.
     */
     if (info->rec_cache.error == 0)
-      my_errno= HA_ERR_END_OF_FILE;
+      set_my_errno(HA_ERR_END_OF_FILE);
     else
-      my_errno= HA_ERR_WRONG_IN_RECORD;
+      set_my_errno(HA_ERR_WRONG_IN_RECORD);
   }
-  DBUG_RETURN(my_errno);			/* Something wrong (EOF?) */
+  DBUG_RETURN(my_errno());			/* Something wrong (EOF?) */
 }

@@ -6860,7 +6860,7 @@ bool rm_temporary_table(handlerton *base, const char *path)
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",
-                      path, my_errno);
+                      path, my_errno());
   }
   delete file;
   DBUG_RETURN(error);

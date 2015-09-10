@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
   if (keys + uniques > MI_MAX_KEY || columns == 0)
   {
-    DBUG_RETURN(my_errno=HA_WRONG_CREATE_OPTION);
+    set_my_errno(HA_WRONG_CREATE_OPTION);
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   errpos=0;
@@ -96,7 +97,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	(ulong*) my_malloc(mi_key_memory_MYISAM_SHARE,
                            (keys + uniques)*MI_MAX_KEY_SEG*sizeof(long),
 			   MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
 
 	/* Start by checking fields and field-types used */
 
@@ -271,7 +272,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	    keyseg->type != HA_KEYTYPE_VARBINARY1 &&
             keyseg->type != HA_KEYTYPE_VARBINARY2)
         {
-          my_errno=HA_WRONG_CREATE_OPTION;
+          set_my_errno(HA_WRONG_CREATE_OPTION);
           goto err_no_lock;
         }
       }
@@ -292,7 +293,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	    keyseg->type != HA_KEYTYPE_VARTEXT1 &&
             keyseg->type != HA_KEYTYPE_VARTEXT2)
         {
-          my_errno=HA_WRONG_CREATE_OPTION;
+          set_my_errno(HA_WRONG_CREATE_OPTION);
           goto err_no_lock;
         }
         if (!(keyseg->flag & HA_BLOB_PART) &&
@@ -417,7 +418,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     key_segs+=keydef->keysegs;
     if (keydef->keysegs > MI_MAX_KEY_SEG)
     {
-      my_errno=HA_WRONG_CREATE_OPTION;
+      set_my_errno(HA_WRONG_CREATE_OPTION);
       goto err_no_lock;
     }
     /*
@@ -442,7 +443,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (keydef->block_length > MI_MAX_KEY_BLOCK_LENGTH ||
         length >= MI_MAX_KEY_BUFF)
     {
-      my_errno=HA_WRONG_CREATE_OPTION;
+      set_my_errno(HA_WRONG_CREATE_OPTION);
       goto err_no_lock;
     }
     set_if_bigger(max_key_block_length,keydef->block_length);
@@ -488,7 +489,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     my_printf_error(0, "MyISAM table '%s' has too many columns and/or "
                     "indexes and/or unique constraints.",
                     MYF(0), name + dirname_length(name));
-    my_errno= HA_WRONG_CREATE_OPTION;
+    set_my_errno(HA_WRONG_CREATE_OPTION);
     goto err_no_lock;
   }
 
@@ -623,7 +624,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     my_printf_error(0, "MyISAM table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
                     MYF(0), name + dirname_length(name));
-    my_errno= HA_ERR_TABLE_EXIST;
+    set_my_errno(HA_ERR_TABLE_EXIST);
     goto err;
   }
 
@@ -812,7 +813,7 @@ err:
     mysql_mutex_unlock(&THR_LOCK_myisam);
 
 err_no_lock:
-  save_errno=my_errno;
+  save_errno=my_errno();
   switch (errpos) {
   case 3:
     (void) mysql_file_close(dfile, MYF(0));
@@ -833,7 +834,8 @@ err_no_lock:
                                      MYF(0));
   }
   my_free(rec_per_key_part);
-  DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */
+  set_my_errno(save_errno);
+  DBUG_RETURN(save_errno);		/* return the fatal errno */
 }
 
 

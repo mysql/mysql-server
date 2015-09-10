@@ -39,20 +39,20 @@ int mi_panic(enum ha_panic_function flag)
     case HA_PANIC_CLOSE:
       mysql_mutex_unlock(&THR_LOCK_myisam);     /* Not exactly right... */
       if (mi_close(info))
-	error=my_errno;
+	error=my_errno();
       mysql_mutex_lock(&THR_LOCK_myisam);
       break;
     case HA_PANIC_WRITE:		/* Do this to free databases */
       if (flush_key_blocks(info->s->key_cache, keycache_thread_var(),
                            info->s->kfile, FLUSH_RELEASE))
-	error=my_errno;
+	error=my_errno();
       if (info->opt_flag & WRITE_CACHE_USED)
 	if (flush_io_cache(&info->rec_cache))
-	  error=my_errno;
+	  error=my_errno();
       if (info->opt_flag & READ_CACHE_USED)
       {
 	if (flush_io_cache(&info->rec_cache))
-	  error=my_errno;
+	  error=my_errno();
 	reinit_io_cache(&info->rec_cache,READ_CACHE,0,
 		       (pbool) (info->lock_type != F_UNLCK),1);
       }
@@ -60,13 +60,13 @@ int mi_panic(enum ha_panic_function flag)
       {
 	info->was_locked=info->lock_type;
 	if (mi_lock_database(info,F_UNLCK))
-	  error=my_errno;
+	  error=my_errno();
       }
     case HA_PANIC_READ:			/* Restore to before WRITE */
       if (info->was_locked)
       {
 	if (mi_lock_database(info, info->was_locked))
-	  error=my_errno;
+	  error=my_errno();
 	info->was_locked=0;
       }
       break;
@@ -80,5 +80,6 @@ int mi_panic(enum ha_panic_function flag)
   mysql_mutex_unlock(&THR_LOCK_myisam);
   if (!error)
     DBUG_RETURN(0);
-  DBUG_RETURN(my_errno=error);
+  set_my_errno(error);
+  DBUG_RETURN(error);
 } /* mi_panic */

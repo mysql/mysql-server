@@ -204,7 +204,7 @@ static void *my_raw_malloc(size_t size, myf my_flags)
 
   if (point == NULL)
   {
-    my_errno=errno;
+    set_my_errno(errno);
     if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
     if (my_flags & (MY_FAE+MY_WME))
@@ -261,7 +261,7 @@ end:
       DBUG_RETURN(oldpoint);
     if (my_flags & MY_FREE_ON_ERROR)
       my_free(oldpoint);
-    my_errno=errno;
+    set_my_errno(errno);
     if (my_flags & (MY_FAE+MY_WME))
       my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
                size);

@@ -64,10 +64,10 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
   */
   if (unlikely(fd >= 0 && rc < 0))
   {
-    int tmp= my_errno;
+    int tmp= my_errno();
     my_close(fd, MyFlags);
     my_delete(FileName, MyFlags);
-    my_errno= tmp;
+    set_my_errno(tmp);
   }
   
   DBUG_RETURN(rc);

@@ -4411,8 +4411,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
       if (!m_cond)
       {
-        my_errno= HA_ERR_OUT_OF_MEM;
-        DBUG_RETURN(my_errno);
+        set_my_errno(HA_ERR_OUT_OF_MEM);
+        DBUG_RETURN(my_errno());
       }       
       if (m_cond->generate_scan_filter_from_key(&code, &options, key_info,
                                                 start_key, end_key))
@@ -7637,8 +7637,9 @@ int ha_ndbcluster::info(uint flag)
 
     if (!m_table_info)
     {
-      if ((my_errno= check_ndb_connection(thd)))
-        DBUG_RETURN(my_errno);
+      set_my_errno(check_ndb_connection(thd));
+      if (my_errno())
+        DBUG_RETURN(my_errno());
     }
 
     /*
@@ -7699,8 +7700,9 @@ int ha_ndbcluster::info(uint flag)
     {
       if (!thd)
         thd= current_thd;
-      if ((my_errno= check_ndb_connection(thd)))
-        DBUG_RETURN(my_errno);
+      set_my_errno(check_ndb_connection(thd));
+      if (my_errno())
+        DBUG_RETURN(my_errno());
       Ndb *ndb= get_ndb(thd);
       Ndb_tuple_id_range_guard g(m_share);
       
@@ -8040,7 +8042,7 @@ int ha_ndbcluster::end_bulk_insert()
     bool allow_batch= (thd_ndb->m_handler != 0);
     error= flush_bulk_insert(allow_batch);
     if (error != 0)
-      my_errno= error;
+      set_my_errno(error);
   }
 
   m_rows_inserted= (ha_rows) 0;
@@ -9327,7 +9329,8 @@ create_ndb_column(THD *thd,
   // Set name
   if (col.setName(field->field_name))
   {
-    DBUG_RETURN(my_errno= errno);
+    set_my_errno(errno);
+    DBUG_RETURN(errno);
   }
   // Get char set
   CHARSET_INFO *cs= const_cast<CHARSET_INFO*>(field->charset());
@@ -9980,12 +9983,12 @@ int ha_ndbcluster::create(const char *name,
     /*
       Ndb does not support temporary tables
      */
-    my_errno= ER_ILLEGAL_HA_CREATE_OPTION;
+    set_my_errno(ER_ILLEGAL_HA_CREATE_OPTION);
     DBUG_PRINT("info", ("Ndb doesn't support temporary tables"));
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_ILLEGAL_HA_CREATE_OPTION,
                         "Ndb doesn't support temporary tables");
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
   }
 
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
@@ -10008,8 +10011,9 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  if ((my_errno= check_ndb_connection(thd)))
-    DBUG_RETURN(my_errno);
+  set_my_errno(check_ndb_connection(thd));
+  if (my_errno())
+    DBUG_RETURN(my_errno());
   
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
@@ -10022,22 +10026,23 @@ int ha_ndbcluster::create(const char *name,
       caller.
       Do Ndb specific stuff, such as create a .ndb file
     */
-    if ((my_errno= write_ndb_file(name)))
-      DBUG_RETURN(my_errno);
+    set_my_errno(write_ndb_file(name));
+    if (my_errno())
+      DBUG_RETURN(my_errno());
 
     ndbcluster_create_binlog_setup(thd, ndb, name, (uint)strlen(name),
                                    m_dbname, m_tabname, form);
-    if (my_errno == HA_ERR_TABLE_EXIST)
+    if (my_errno() == HA_ERR_TABLE_EXIST)
     {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_TABLE_EXISTS_ERROR,
                           "Failed to setup replication of table %s.%s",
                           m_dbname, m_tabname);
-      my_errno= 0;
+      set_my_errno(0);
     }
 
 
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
   }
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -10185,7 +10190,7 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
   {
-    my_errno= errno;
+    set_my_errno(errno);
     goto abort;
   }
   if (!ndb_sys_table)
@@ -10265,7 +10270,8 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("name: %s, type: %u, pack_length: %d",
                         field->field_name, field->real_type(),
                         field->pack_length()));
-    if ((my_errno= create_ndb_column(thd, col, field, create_info)))
+    set_my_errno(create_ndb_column(thd, col, field, create_info));
+    if (my_errno())
       goto abort;
 
     if (!use_disk &&
@@ -10274,7 +10280,7 @@ int ha_ndbcluster::create(const char *name,
 
     if (tab.addColumn(col))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       goto abort;
     }
     if (col.getPrimaryKey())
@@ -10341,7 +10347,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       goto abort;
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
@@ -10352,7 +10358,7 @@ int ha_ndbcluster::create(const char *name,
     col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       goto abort;
     }
     pk_length += 2;
@@ -10404,9 +10410,10 @@ int ha_ndbcluster::create(const char *name,
   DBUG_ASSERT(create_info->min_rows == table_share->min_rows);
 
   // Check partition info
-  if ((my_errno= create_table_set_up_partition_info(create_info,
-                                                    form->part_info,
-                                                    tab)))
+  set_my_errno(create_table_set_up_partition_info(create_info,
+                                                  form->part_info,
+                                                  tab));
+  if (my_errno())
     goto abort;
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
@@ -10447,7 +10454,7 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        my_errno= ndb_to_mysql_error(&err);
+        set_my_errno(ndb_to_mysql_error(&err));
         goto abort;
       }
 
@@ -10455,7 +10462,7 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        my_errno= ndb_to_mysql_error(&err);
+        set_my_errno(ndb_to_mysql_error(&err));
         goto abort;
       }
     }
@@ -10465,7 +10472,7 @@ int ha_ndbcluster::create(const char *name,
   if (dict->createTable(tab, &objId) != 0)
   {
     const NdbError err= dict->getNdbError();
-    my_errno= ndb_to_mysql_error(&err);
+    set_my_errno(ndb_to_mysql_error(&err));
     goto abort;
   }
 
@@ -10475,42 +10482,42 @@ int ha_ndbcluster::create(const char *name,
   // Create secondary indexes
   tab.assignObjId(objId);
   m_table= &tab;
-  my_errno= create_indexes(thd, ndb, form);
+  set_my_errno(create_indexes(thd, ndb, form));
 
-  if (!is_truncate && my_errno == 0)
+  if (!is_truncate && my_errno() == 0)
   {
-    my_errno= create_fks(thd, ndb);
+    set_my_errno(create_fks(thd, ndb));
   }
 
-  if (is_alter && my_errno == 0)
+  if (is_alter && my_errno() == 0)
   {
     /**
      * mysql doesnt know/care about FK (buhhh)
      *   so we need to copy the old ones ourselves
      */
-    my_errno= copy_fk_for_offline_alter(thd, ndb, &tab);
+    set_my_errno(copy_fk_for_offline_alter(thd, ndb, &tab));
   }
 
-  if (!fk_list_for_truncate.is_empty() && my_errno == 0)
+  if (!fk_list_for_truncate.is_empty() && my_errno() == 0)
   {
     /*
      create FKs for the new table from the list got from old table.
      for truncate table.
      */
-    my_errno= recreate_fk_for_truncate(thd, ndb, tab.getName(),
-                                       fk_list_for_truncate);
+    set_my_errno(recreate_fk_for_truncate(thd, ndb, tab.getName(),
+                                          fk_list_for_truncate));
   }
 
   m_table= 0;
 
-  if (!my_errno)
+  if (!my_errno())
   {
     /*
      * All steps have succeeded, try and commit schema transaction
      */
     if (dict->endSchemaTrans() == -1)
       goto err_return;
-    my_errno= write_ndb_file(name);
+    set_my_errno(write_ndb_file(name));
   }
   else
   {
@@ -10519,7 +10526,7 @@ abort:
  *  Some step during table creation failed, abort schema transaction
  */
     DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
-                        my_errno));
+                        my_errno()));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
       DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
@@ -10533,7 +10540,7 @@ abort:
       ndbtab_g.invalidate();
     }
 
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
 abort_return:
     DBUG_PRINT("info", ("Aborting schema transaction"));
     if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
@@ -10552,7 +10559,7 @@ err_return:
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   m_table= ndbtab_g.get_table();
 
-  if (my_errno)
+  if (my_errno())
   {
     /*
       Failed to create an index,
@@ -10590,7 +10597,7 @@ cleanup_failed:
       break;
     }
     m_table = 0;
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
   }
   else // if (!my_errno)
   {
@@ -10687,7 +10694,7 @@ cleanup_failed:
   }
 
   m_table= 0;
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 }
 
 
@@ -10803,7 +10810,8 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     ndb_index.setTemporary(TRUE); 
   if (ndb_index.setTable(m_tabname))
   {
-    DBUG_RETURN(my_errno= errno);
+    set_my_errno(errno);
+    DBUG_RETURN(errno);
   }
 
   for (; key_part != end; key_part++) 
@@ -10823,7 +10831,8 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
-      DBUG_RETURN(my_errno= errno);
+      set_my_errno(errno);
+      DBUG_RETURN(errno);
     }
   }
   
@@ -12602,7 +12611,7 @@ ndbcluster_drop_database_leftovers(const char* path)
       // Failed to delete the file. Ignore it since the DROP DATABASE
       // will report an error later when it tries to delete the directory
       DBUG_PRINT("error", ("Delete of of '%s' failed, my_errno: %d",
-                           file_path, my_errno));
+                           file_path, my_errno()));
     }
   }
 
@@ -14513,7 +14522,8 @@ int ha_ndbcluster::update_stats(THD *thd,
     Ndb *ndb= thd_ndb->ndb;
     if (ndb->setDatabaseName(m_dbname))
     {
-      DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
+      set_my_errno(HA_ERR_OUT_OF_MEM);
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
                                           m_ndb_record, &stat,
@@ -16243,7 +16253,7 @@ Ndb_util_thread::do_run()
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == NULL)
   {
-    my_errno= HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_VOID_RETURN;
   }
   THD_CHECK_SENTRY(thd);
@@ -16554,7 +16564,7 @@ ha_ndbcluster::cond_push(const Item *cond)
     m_cond= new ha_ndbcluster_cond;
   if (!m_cond)
   {
-    my_errno= HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(cond);
   }
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
@@ -17176,16 +17186,17 @@ enum_alter_inplace_result
            }
          }
          /* Create new field to check if it can be added */
-         if ((my_errno= create_ndb_column(thd, col, field, create_info,
-                                          COLUMN_FORMAT_TYPE_DYNAMIC)))
+         set_my_errno(create_ndb_column(thd, col, field, create_info,
+                                        COLUMN_FORMAT_TYPE_DYNAMIC));
+         if (my_errno())
          {
-           DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno));
+           DBUG_PRINT("info", ("create_ndb_column returned %u", my_errno()));
            DBUG_RETURN(HA_ALTER_ERROR);
          }
          if (new_tab.addColumn(col))
          {
-           my_errno= errno;
-           DBUG_PRINT("info", ("NdbDictionary::Table::addColumn returned %u", my_errno));
+           set_my_errno(errno);
+           DBUG_PRINT("info", ("NdbDictionary::Table::addColumn returned %u", my_errno()));
            DBUG_RETURN(HA_ALTER_ERROR);
          }
        }
@@ -17551,10 +17562,11 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
      {
        Field *field= altered_table->field[i];
        DBUG_PRINT("info", ("Found new field %s", field->field_name));
-       if ((my_errno= create_ndb_column(thd, col, field, create_info,
-                                        COLUMN_FORMAT_TYPE_DYNAMIC)))
+       set_my_errno(create_ndb_column(thd, col, field, create_info,
+                                      COLUMN_FORMAT_TYPE_DYNAMIC));
+       if (my_errno())
        {
-         error= my_errno;
+         error= my_errno();
          goto abort;
        }
        /*
@@ -17616,7 +17628,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     if (res == -1)
     {
       const NdbError err= dict->getNdbError();
-      my_errno= ndb_to_mysql_error(&err);
+      set_my_errno(ndb_to_mysql_error(&err));
       goto abort;
     }
   }
@@ -17636,7 +17648,8 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                             HA_ERR_CANNOT_ADD_FOREIGN, ER_CANNOT_ADD_FOREIGN));
         res= ER_CANNOT_ADD_FOREIGN;
       }
-      my_errno= error= res;
+      error= res;
+      set_my_errno(error);
       my_error(error, MYF(0), 0);
       goto abort;
     }
@@ -17682,7 +17695,7 @@ int ha_ndbcluster::alter_frm(const char *file,
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
     error= 1;
     my_error(ER_FILE_NOT_FOUND, MYF(0), file,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno)); 
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   else
   {

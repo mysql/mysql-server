@@ -78,7 +78,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
   if (flush_key_blocks(share->key_cache, keycache_thread_var(),
                        share->kfile, FLUSH_RELEASE))
   {
-    error= my_errno;
+    error= my_errno();
     mi_print_error(info->s, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* Mark that table must be checked */
   }
@@ -109,7 +109,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
   if (multi_key_cache_set((uchar*) share->unique_file_name,
                           share->unique_name_length,
 			  share->key_cache))
-    error= my_errno;
+    error= my_errno();
   mysql_mutex_unlock(&share->intern_lock);
   DBUG_RETURN(error);
 }

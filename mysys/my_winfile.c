@@ -474,7 +474,7 @@ int my_win_chsize(File fd,  my_off_t newlength)
   DBUG_RETURN(0);
 err:
   my_osmaperr(GetLastError());
-  my_errno= errno;
+  set_my_errno(errno);
   DBUG_RETURN(-1);
 }
 

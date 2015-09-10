@@ -65,7 +65,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
   {
     if (!my_stat(from, &stat_buff, MyFlags))
     {
-      my_errno=errno;
+      set_my_errno(errno);
       goto err;
     }
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && new_file_stat)
@@ -105,7 +105,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     /* Copy modes */
     if (chmod(to, stat_buff.st_mode & 07777))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       if (MyFlags & (MY_FAE+MY_WME))
       {
         char  errbuf[MYSYS_STRERROR_SIZE];
@@ -118,7 +118,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
     /* Copy ownership */
     if (chown(to, stat_buff.st_uid, stat_buff.st_gid))
     {
-      my_errno= errno;
+      set_my_errno(errno);
       if (MyFlags & (MY_FAE+MY_WME))
       {
         char  errbuf[MYSYS_STRERROR_SIZE];
