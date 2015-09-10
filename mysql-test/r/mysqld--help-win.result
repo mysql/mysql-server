@@ -1467,6 +1467,7 @@ query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
+range-optimizer-max-mem-size 1536000
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144
