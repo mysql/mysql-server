@@ -538,6 +538,8 @@ typedef struct PSI_file* (*end_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
+typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
+  (struct PSI_file_locker *locker, File file, const char *filename);
 typedef void (*start_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count,
    const char *src_file, uint src_line);
@@ -754,6 +756,8 @@ struct PSI_v1
   end_file_open_wait_v1_t end_file_open_wait;
   end_file_open_wait_and_bind_to_descriptor_v1_t
     end_file_open_wait_and_bind_to_descriptor;
+  end_temp_file_open_wait_and_bind_to_descriptor_v1_t
+    end_temp_file_open_wait_and_bind_to_descriptor;
   start_file_wait_v1_t start_file_wait;
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;

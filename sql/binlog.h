@@ -383,6 +383,10 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_file_key m_key_file_log;
   /** The instrumentation key to use for opening the log index file. */
   PSI_file_key m_key_file_log_index;
+  /** The instrumentation key to use for opening a log cache file. */
+  PSI_file_key m_key_file_log_cache;
+  /** The instrumentation key to use for opening a log index cache file. */
+  PSI_file_key m_key_file_log_index_cache;
 #endif
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
@@ -549,7 +553,9 @@ public:
                     PSI_cond_key key_update_cond,
                     PSI_cond_key key_prep_xids_cond,
                     PSI_file_key key_file_log,
-                    PSI_file_key key_file_log_index)
+                    PSI_file_key key_file_log_index,
+                    PSI_file_key key_file_log_cache,
+                    PSI_file_key key_file_log_index_cache)
   {
     m_key_COND_done= key_COND_done;
 
@@ -568,6 +574,8 @@ public:
     m_key_prep_xids_cond= key_prep_xids_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
+    m_key_file_log_cache= key_file_log_cache;
+    m_key_file_log_index_cache= key_file_log_index_cache;
   }
 #endif
 

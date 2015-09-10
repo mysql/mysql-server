@@ -61,6 +61,9 @@ PSI_file* pfs_end_file_open_wait_v1(PSI_file_locker *locker, void *result);
 void pfs_end_file_open_wait_and_bind_to_descriptor_v1
   (PSI_file_locker *locker, File file);
 
+void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1
+  (PSI_file_locker *locker, File file, const char *filename);
+
 void pfs_start_file_wait_v1(PSI_file_locker *locker,
                             size_t count,
                             const char *src_file,

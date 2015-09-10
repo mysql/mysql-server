@@ -1900,6 +1900,15 @@ typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
 
 /**
+  End a file instrumentation open operation, for non stream temporary files.
+  @param locker the file locker.
+  @param file the file number assigned by open() or create() for this file.
+  @param filename the file name generated during temporary file creation.
+*/
+typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
+  (struct PSI_file_locker *locker, File file, const char *filename);
+
+/**
   Record a file instrumentation start event.
   @param locker a file locker for the running thread
   @param op file operation to be performed
@@ -2540,6 +2549,9 @@ struct PSI_v1
   /** @sa end_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_file_open_wait_and_bind_to_descriptor_v1_t
     end_file_open_wait_and_bind_to_descriptor;
+  /** @sa end_temp_file_open_wait_and_bind_to_descriptor_v1_t. */
+  end_temp_file_open_wait_and_bind_to_descriptor_v1_t
+    end_temp_file_open_wait_and_bind_to_descriptor;
   /** @sa start_file_wait_v1_t. */
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */

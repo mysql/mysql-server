@@ -134,7 +134,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                          key_RELAYLOG_update_cond,
                          key_RELAYLOG_prep_xids_cond,
                          key_file_relaylog,
-                         key_file_relaylog_index);
+                         key_file_relaylog_index,
+                         key_file_relaylog_cache,
+                         key_file_relaylog_index_cache);
 #endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
