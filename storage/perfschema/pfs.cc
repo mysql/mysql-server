@@ -4686,7 +4686,6 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
     PFS_file *file= reinterpret_cast<PFS_file*> (state->m_file);
-    PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
 
     /* Release or destroy the file if necessary */
     switch(state->m_operation)
