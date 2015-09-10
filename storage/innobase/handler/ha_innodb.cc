@@ -6488,10 +6488,15 @@ build_template_field(
 			templ->rec_field_no = dict_index_get_nth_col_pos(
 						index, i);
 		}
-	} else if (!dict_index_is_clust(index)) {
-		templ->rec_field_no = dict_index_get_nth_col_or_prefix_pos(
-					index, v_no, FALSE, true);
+	} else {
 		templ->clust_rec_field_no = v_no;
+		if (dict_index_is_clust(index)) {
+			templ->rec_field_no = templ->clust_rec_field_no;
+		} else {
+			templ->rec_field_no
+				= dict_index_get_nth_col_or_prefix_pos(
+					index, v_no, FALSE, true);
+		}
 		templ->icp_rec_field_no = ULINT_UNDEFINED;
 	}
 
@@ -19828,6 +19833,7 @@ innobase_init_vc_templ(
 @param[in,out]	my_rec		mysql record to store the data
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
+@param[in]	ifield		index field
 @param[in]	in_purge	whether this is called by purge
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
@@ -19839,6 +19845,7 @@ innobase_get_computed_value(
 	byte*			my_rec,
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
+	const dict_field_t*	ifield,
 	bool			in_purge)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -19988,12 +19995,20 @@ innobase_get_computed_value(
 		vctempl->mysql_col_len, dict_table_is_comp(index->table));
 	field->type.prtype |= DATA_VIRTUAL;
 
+	ulint	max_prefix = col->m_col.max_prefix;
+
+	if (max_prefix && ifield
+	    && (ifield->prefix_len == 0
+	        || ifield->prefix_len > col->m_col.max_prefix)) {
+		max_prefix = ifield->prefix_len;
+	}
+
 	/* If this is a prefix index, we only need a portion of the field */
-	if (col->m_col.max_prefix) {
+	if (max_prefix) {
 		len = dtype_get_at_most_n_mbchars(
 			col->m_col.prtype,
 			col->m_col.mbminmaxlen,
-			col->m_col.max_prefix,
+			max_prefix,
 			field->len,
 			static_cast<char*>(dfield_get_data(field)));
 		dfield_set_len(field, len);
