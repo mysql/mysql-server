@@ -1214,7 +1214,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
     }
     keyuse++;
   } while (keyuse->table_ref == tab->table_ref && keyuse->key == key);
-  DBUG_ASSERT(length > 0 && keyparts != 0);
+  DBUG_ASSERT(keyparts > 0);
   *length_out= length;
   *keyparts_out= keyparts;
 }
