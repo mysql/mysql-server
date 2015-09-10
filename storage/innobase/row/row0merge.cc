@@ -579,9 +579,10 @@ row_merge_buf_add(
 			if (dict_col_is_virtual(col)) {
 				dict_index_t*	clust_index
 					= dict_table_get_first_index(new_table);
+
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index, NULL,
-					v_heap, NULL);
+					v_heap, NULL, ifield, false);
 
 				if (row_field == NULL) {
 					*err = DB_COMPUTE_VALUE_FAILED;

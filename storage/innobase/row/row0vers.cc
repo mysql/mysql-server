@@ -464,7 +464,7 @@ row_vers_build_clust_v_col(
 
 			innobase_get_computed_value(
 				row, col, clust_index, NULL, &local_heap,
-				heap, true);
+				heap, NULL, true);
 		}
 	}
 
