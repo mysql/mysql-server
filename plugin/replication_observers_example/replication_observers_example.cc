@@ -799,7 +799,7 @@ int test_channel_service_interface_io_thread()
   running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
   DBUG_ASSERT(!running);
 
-  return (error && exists && running && num_threads);
+  return (error && exists && running && num_threads && is_waiting);
 }
 
 /*
