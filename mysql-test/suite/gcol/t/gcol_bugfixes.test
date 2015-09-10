@@ -381,3 +381,24 @@ SELECT c FROM t1;
 SELECT c FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#21797776 ASSERTION `BIT < MAP->N_BITS' FAILED.
+--echo #
+
+CREATE TABLE C (
+col_int_1 INT,
+col_int_2 INT GENERATED ALWAYS AS (col_int_1 + col_int_1) STORED,
+col_int_3 INT GENERATED ALWAYS AS (col_int_2 + col_int_1) VIRTUAL
+);
+
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS
+ SELECT
+ col_int_2 AS field1, col_int_2 AS field2,
+ col_int_3 AS field3, col_int_3 AS field4
+ FROM C;
+
+SELECT * FROM v1;
+
+DROP TABLE C;
+DROP VIEW v1;
