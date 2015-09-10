@@ -89,14 +89,10 @@ static const char *user_privileged= "root";
 
 static void switch_user(MYSQL_SESSION session, const char *user)
 {
-  char * user_copy= my_strdup(STRING_PSI_MEMORY_KEY, user, MYF(MY_WME));
-  char * user_localhost_copy= my_strdup(STRING_PSI_MEMORY_KEY, user_localhost, MYF(MY_WME));
-  char * user_local_copy= my_strdup(STRING_PSI_MEMORY_KEY, user_local, MYF(MY_WME));
-  char * db_copy= my_strdup(STRING_PSI_MEMORY_KEY, "", MYF(MY_WME));
 
   MYSQL_SECURITY_CONTEXT sc;
   thd_get_security_context(srv_session_info_get_thd(session), &sc);
-  security_context_lookup(sc, user_copy, user_localhost_copy, user_local_copy, db_copy);
+  security_context_lookup(sc, user, user_localhost, user_local, "");
 }
 
 
@@ -778,6 +774,7 @@ void test_selects(MYSQL_SESSION session, void *p)
   }
 
   WRITE_DASHED_LINE();
+  delete plugin_ctx;
 
   DBUG_VOID_RETURN;
 }
@@ -853,6 +850,9 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
 {
   my_thread_attr_t attr;          /* Thread attributes */
   my_thread_attr_init(&attr);
+#ifndef _WIN32
+  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#endif
 
   struct test_thread_context context;
 
@@ -864,9 +864,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper, &context) != 0)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Could not create test session thread");
   else
-    do {
-      my_sleep(100000);
-    } while (context.thread_finished == false);
+    my_thread_join(&context.thread, NULL);
 }
 
 static int test_sql_service_plugin_init(void *p)

@@ -644,6 +644,7 @@ static void test_sql(void *p)
     if (srv_session_server_is_available() || !callback_called)
     {
       my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open failed");
+      delete plugin_ctx;
       DBUG_VOID_RETURN;
     }
 
@@ -667,6 +668,7 @@ static void test_sql(void *p)
   WRITE_VAL("\nClosing Session. Plugin init cycle = %d\n\n", plugin_init_cycle);
 
   srv_session_close(session);
+  delete plugin_ctx;
 
   DBUG_VOID_RETURN;
 }
@@ -715,6 +717,9 @@ static int test_sql_service_plugin_init(void *p)
   struct test_services_context *context;
   my_thread_attr_t attr;          /* Thread attributes */
   my_thread_attr_init(&attr);
+#ifndef _WIN32
+  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#endif
 
   context= (struct test_services_context *)
         my_malloc(PSI_INSTRUMENT_ME,
