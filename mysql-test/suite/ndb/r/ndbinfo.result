@@ -94,9 +94,11 @@ table_id	table_name	comment
 22	config_values	Configuration parameter values
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
-SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
+SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
+  WHERE t.table_id = c.table_id AND
+    t.table_id in (1,2,3,4,5,6);
 COUNT(*)
-529
+47
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
