@@ -2591,16 +2591,11 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       table_field= NULL;
     }
 
+    DBUG_ASSERT(tmp_table_field->gcol_info== NULL && tmp_table_field->stored_in_db);
     Create_field *cr_field= new Create_field(tmp_table_field, table_field);
 
     if (!cr_field)
       DBUG_RETURN(NULL);
-
-    /*
-      Inheriting vitual generated information is not allowed.
-    */
-    cr_field->gcol_info= NULL;
-    cr_field->stored_in_db= TRUE;
 
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
