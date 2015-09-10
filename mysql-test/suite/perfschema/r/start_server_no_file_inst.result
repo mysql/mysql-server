@@ -122,7 +122,7 @@ performance_schema_hosts_size	100
 performance_schema_max_cond_classes	80
 performance_schema_max_cond_instances	1000
 performance_schema_max_digest_length	1024
-performance_schema_max_file_classes	50
+performance_schema_max_file_classes	80
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	0
 performance_schema_max_index_stat	5000
@@ -153,7 +153,7 @@ show engine PERFORMANCE_SCHEMA status;
 show global status like "performance_schema%";
 show global variables like "performance_schema_max_file_classes";
 Variable_name	Value
-performance_schema_max_file_classes	50
+performance_schema_max_file_classes	80
 select count(*) > 0 from performance_schema.setup_instruments
 where name like "wait/io/file/%";
 count(*) > 0

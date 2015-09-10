@@ -37,7 +37,7 @@
   #define PFS_MAX_THREAD_CLASS 50
 #endif
 #ifndef PFS_MAX_FILE_CLASS
-  #define PFS_MAX_FILE_CLASS 50
+  #define PFS_MAX_FILE_CLASS 80
 #endif
 #ifndef PFS_MAX_FILE_HANDLE
   #define PFS_MAX_FILE_HANDLE 32768
