@@ -3077,7 +3077,7 @@ static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
        "Allocation block size for storing ranges during optimization",
        SESSION_VAR(range_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, ULONG_MAX),
+       VALID_RANGE(RANGE_ALLOC_BLOCK_SIZE, UINT32_MAX),
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
 
 static Sys_var_ulong Sys_multi_range_count(
@@ -3102,7 +3102,7 @@ static Sys_var_ulong Sys_query_alloc_block_size(
        "query_alloc_block_size",
        "Allocation block size for query parsing and execution",
        SESSION_VAR(query_alloc_block_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1024, ULONG_MAX), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
+       VALID_RANGE(1024, UINT_MAX32), DEFAULT(QUERY_ALLOC_BLOCK_SIZE),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_thd_mem_root));
 

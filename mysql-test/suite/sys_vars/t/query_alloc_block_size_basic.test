@@ -221,4 +221,3 @@ SELECT @@session.query_alloc_block_size;
 ########################################################
 #              END OF query_alloc_block_size TESTS     #
 ########################################################
-
