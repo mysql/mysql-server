@@ -231,7 +231,7 @@ row_sel_sec_rec_is_for_clust_rec(
 
 			vfield = innobase_get_computed_value(
 					row, v_col, clust_index,
-					NULL, &heap, NULL);
+					NULL, &heap, NULL, NULL, false);
 
 			clust_len = vfield->len;
 			clust_field = static_cast<byte*>(vfield->data);

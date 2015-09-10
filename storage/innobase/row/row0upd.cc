@@ -927,7 +927,7 @@ row_upd_build_difference_binary(
 
 			dfield_t*	vfield = innobase_get_computed_value(
 				update->old_vrow, col, index, NULL,
-				&v_heap, heap);
+				&v_heap, heap, NULL, false);
 
 			if (!dfield_data_is_binary_equal(
 				dfield, vfield->len,
@@ -1903,7 +1903,8 @@ row_upd_store_v_row(
 					deleting row */
 					innobase_get_computed_value(
 						node->row, col, index, NULL,
-						&heap, node->heap);
+						&heap, node->heap, NULL,
+						false);
 				}
 			}
 		}

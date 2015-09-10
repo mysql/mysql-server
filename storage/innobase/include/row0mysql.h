@@ -914,7 +914,8 @@ struct SysIndexCallback {
 @param[in]	index		index on the virtual column
 @param[in,out]	my_rec		MySQL record to store the rows
 @param[in,out]	local_heap	heap memory for processing large data etc.
-@param[in]	heap		memory heap that copies the actual index row
+@param[in,out]	heap		memory heap that copies the actual index row
+@param[in]	ifield		index field
 @param[in]	in_purge	whether this is called by purge
 @return the field filled with computed value */
 dfield_t*
@@ -925,7 +926,8 @@ innobase_get_computed_value(
 	byte*			my_rec,
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
-	bool			in_purge= false);
+	const dict_field_t*	ifield,
+	bool			in_purge);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

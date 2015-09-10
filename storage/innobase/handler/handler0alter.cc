@@ -541,6 +541,15 @@ ha_innobase::check_if_supported_inplace_alter(
 		}
 	}
 
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE
+	    && dict_table_has_indexed_v_cols(m_prebuilt->table)) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(
+			ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	/* We should be able to do the operation in-place.
 	See if we can do it online (LOCK=NONE). */
 	bool	online = true;
