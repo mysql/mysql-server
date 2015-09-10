@@ -653,6 +653,9 @@ static int test_query_kill(void *p)
     my_thread_attr_t attr;
 
     my_thread_attr_init(&attr);
+#ifndef _WIN32
+    (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+#endif
 
     if (my_thread_create(&thread_handle, &attr, (void *(*)(void *))test_session_thread, &tdata) != 0)
     {
