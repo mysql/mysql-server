@@ -740,13 +740,13 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
-    if (my_errno == ENOENT)
+    if (my_errno() == ENOENT)
       my_error(ER_BAD_DB_ERROR, MYF(0), db);
     else
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(ER_CANT_READ_DIR, MYF(0), path,
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
     DBUG_RETURN(FIND_FILES_DIR);
   }

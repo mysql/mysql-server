@@ -1220,7 +1220,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
            be uninitialized)
       */
       DBUG_PRINT("info", ("second packet->append failed (out of memory)"));
-      result= (my_errno == ENOMEM ? LOG_READ_MEM :
+      result= (my_errno() == ENOMEM ? LOG_READ_MEM :
                (file->error >= 0 ? LOG_READ_TRUNC: LOG_READ_IO));
       goto end;
     }
@@ -12151,7 +12151,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
       if (table->file->extra(HA_EXTRA_FLUSH_CACHE))
       {
         DBUG_PRINT("info",("Error when setting HA_EXTRA_FLUSH_CACHE"));
-        error= my_errno;
+        error= my_errno();
         goto error;
       }
 

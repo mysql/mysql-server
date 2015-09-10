@@ -1097,7 +1097,7 @@ share_error:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
-		my_errno = ENOENT;
+                set_my_errno(ENOENT);
 
 		lock_shared_ha_data();
 		m_part_share->close_table_parts();

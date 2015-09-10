@@ -790,7 +790,7 @@ static int rr_from_cache(READ_RECORD *info)
 	record_pos[info->error_offset]=1;
 	shortstore(record_pos,error);
 	DBUG_PRINT("error",("Got error: %d:%d when reading row",
-			    my_errno, (int) error));
+			    my_errno(), (int) error));
       }
       else
 	record_pos[info->error_offset]=0;

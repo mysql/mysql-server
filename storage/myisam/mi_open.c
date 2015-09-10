@@ -41,7 +41,7 @@ static void setup_key_functions(MI_KEYDEF *keyinfo);
 #define disk_pos_assert(pos, end_pos) \
 if (pos > end_pos)             \
 {                              \
-  my_errno=HA_ERR_CRASHED;     \
+  set_my_errno(HA_ERR_CRASHED);\
   goto err;                    \
 }
 
@@ -103,7 +103,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   if (my_is_symlink(org_name) &&
       (realpath_err || (*myisam_test_invalid_symlink)(name_buff)))
   {
-    my_errno= HA_WRONG_CREATE_OPTION;
+    set_my_errno(HA_WRONG_CREATE_OPTION);
     DBUG_RETURN (NULL);
   }
 
@@ -131,7 +131,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
                     if (strstr(name, "/t1"))
                     {
-                      my_errno= HA_ERR_CRASHED;
+                      set_my_errno(HA_ERR_CRASHED);
                       goto err;
                     });
     if ((kfile= mysql_file_open(mi_key_file_kfile,
@@ -150,7 +150,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     if (mysql_file_read(kfile, share->state.header.file_version, head_length,
                         MYF(MY_NABP)))
     {
-      my_errno= HA_ERR_NOT_A_TABLE;
+      set_my_errno(HA_ERR_NOT_A_TABLE);
       goto err;
     }
     if (memcmp((uchar*) share->state.header.file_version,
@@ -159,7 +159,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
       DBUG_DUMP("error_dump", share->state.header.file_version,
 		head_length);
-      my_errno=HA_ERR_NOT_A_TABLE;
+      set_my_errno(HA_ERR_NOT_A_TABLE);
       goto err;
     }
     share->options= mi_uint2korr(share->state.header.options);
@@ -171,14 +171,14 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
           HA_OPTION_RELIES_ON_SQL_LAYER))
     {
       DBUG_PRINT("error",("wrong options: 0x%lx", share->options));
-      my_errno=HA_ERR_OLD_FILE;
+      set_my_errno(HA_ERR_OLD_FILE);
       goto err;
     }
     if ((share->options & HA_OPTION_RELIES_ON_SQL_LAYER) &&
         ! (open_flags & HA_OPEN_FROM_SQL_LAYER))
     {
       DBUG_PRINT("error", ("table cannot be openned from non-sql layer"));
-      my_errno= HA_ERR_UNSUPPORTED;
+      set_my_errno(HA_ERR_UNSUPPORTED);
       goto err;
     }
     /* Don't call realpath() if the name can't be a link */
@@ -193,7 +193,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     base_pos=mi_uint2korr(share->state.header.base_pos);
     if (!(disk_cache= (uchar*) my_alloca(info_length+128)))
     {
-      my_errno=ENOMEM;
+      set_my_errno(ENOMEM);
       goto err;
     }
     end_pos=disk_cache+info_length;
@@ -211,7 +211,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     errpos=3;
     if (mysql_file_read(kfile, disk_cache, info_length, MYF(MY_NABP)))
     {
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       goto err;
     }
     len=mi_uint2korr(share->state.header.state_info_length);
@@ -247,8 +247,8 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
                           "changed: %u  open_count: %u  !locking: %d",
                           open_flags, share->state.changed,
                           share->state.open_count, my_disable_locking));
-      my_errno=((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
-		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
+      set_my_errno(((share->state.changed & STATE_CRASHED_ON_REPAIR) ?
+                    HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE));
       goto err;
     }
 
@@ -256,7 +256,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     if (share->base.keystart > 65535 || 
         share->base.rec_reflength > 8 || share->base.key_reflength > 7) 
     {
-      my_errno=HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       goto err;
     }
 
@@ -265,7 +265,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
 	key_parts > MI_MAX_KEY * MI_MAX_KEY_SEG)
     {
       DBUG_PRINT("error",("Wrong key info:  Max_key_length: %d  keys: %d  key_parts: %d", share->base.max_key_length, keys, key_parts));
-      my_errno=HA_ERR_UNSUPPORTED;
+      set_my_errno(HA_ERR_UNSUPPORTED);
       goto err;
     }
 
@@ -348,7 +348,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
               ! (share->options & (HA_OPTION_COMPRESS_RECORD |
                                    HA_OPTION_PACK_RECORD)))
           {
-            my_errno= HA_ERR_CRASHED;
+            set_my_errno(HA_ERR_CRASHED);
             goto err;
           }
 	  if (pos->type == HA_KEYTYPE_TEXT ||
@@ -359,7 +359,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
 	      pos->charset=default_charset_info;
 	    else if (!(pos->charset= get_charset(pos->language, MYF(MY_WME))))
 	    {
-	      my_errno=HA_ERR_UNKNOWN_CHARSET;
+	      set_my_errno(HA_ERR_UNKNOWN_CHARSET);
 	      goto err;
 	    }
 	  }
@@ -368,7 +368,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
           if (!(share->keyinfo[i].flag & HA_SPATIAL) &&
               pos->start > share->base.reclength)
           {
-            my_errno= HA_ERR_CRASHED;
+            set_my_errno(HA_ERR_CRASHED);
             goto err;
           }
 	}
@@ -395,7 +395,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
               pos[0].language= pos[-1].language;
               if (!(pos[0].charset= pos[-1].charset))
               {
-                my_errno=HA_ERR_CRASHED;
+                set_my_errno(HA_ERR_CRASHED);
                 goto err;
               }
               pos++;
@@ -441,7 +441,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
 	      pos->charset=default_charset_info;
 	    else if (!(pos->charset= get_charset(pos->language, MYF(MY_WME))))
 	    {
-	      my_errno=HA_ERR_UNKNOWN_CHARSET;
+	      set_my_errno(HA_ERR_UNKNOWN_CHARSET);
 	      goto err;
 	    }
 	  }
@@ -475,7 +475,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     if (offset > share->base.reclength)
     {
       /* purecov: begin inspected */
-      my_errno= HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       goto err;
       /* purecov: end */
     }
@@ -557,7 +557,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     share= old_share;
     if (mode == O_RDWR && share->mode == O_RDONLY)
     {
-      my_errno=EACCES;				/* Can't open in write mode */
+      set_my_errno(EACCES);				/* Can't open in write mode */
       goto err;
     }
     if (mi_open_datafile(&info, share, name, -1))
@@ -664,7 +664,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   DBUG_RETURN(m_info);
 
 err:
-  save_errno=my_errno ? my_errno : HA_ERR_END_OF_FILE;
+  save_errno=my_errno() ? my_errno() : HA_ERR_END_OF_FILE;
   if ((save_errno == HA_ERR_CRASHED) ||
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
       (save_errno == HA_ERR_CRASHED_ON_REPAIR))
@@ -696,7 +696,7 @@ err:
   }
   if (!internal_table)
     mysql_mutex_unlock(&THR_LOCK_myisam);
-  my_errno=save_errno;
+  set_my_errno(save_errno);
   DBUG_RETURN (NULL);
 } /* mi_open_share */
 
@@ -1231,7 +1231,7 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
       if (my_realpath(real_data_name, real_data_name, MYF(0)) ||
           (*myisam_test_invalid_symlink)(real_data_name))
       {
-        my_errno= HA_WRONG_CREATE_OPTION;
+        set_my_errno(HA_WRONG_CREATE_OPTION);
         return 1;
       }
       data_name= real_data_name;

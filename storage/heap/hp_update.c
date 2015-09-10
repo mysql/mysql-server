@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2002, 2004-2008 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +29,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
   pos=info->current_ptr;
 
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info,old))
-    DBUG_RETURN(my_errno);				/* Record changed */
+    DBUG_RETURN(my_errno());				/* Record changed */
   if (--(share->records) < share->blength >> 1) share->blength>>= 1;
   share->changed=1;
 
@@ -58,7 +57,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
   DBUG_RETURN(0);
 
  err:
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY)
+  if (my_errno() == HA_ERR_FOUND_DUPP_KEY)
   {
     info->errkey = (int) (keydef - share->keydef);
     if (keydef->algorithm == HA_KEY_ALG_BTREE)
@@ -68,7 +67,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
       {
         if (++(share->records) == share->blength)
 	  share->blength+= share->blength;
-        DBUG_RETURN(my_errno);
+        DBUG_RETURN(my_errno());
       }
       keydef--;
     }
@@ -85,5 +84,5 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
   }
   if (++(share->records) == share->blength)
     share->blength+= share->blength;
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 } /* heap_update */

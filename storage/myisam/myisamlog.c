@@ -501,9 +501,9 @@ static int examine_log(char * file_name, char **table_names)
 	{
 	  fflush(stdout);
 	  (void) fprintf(stderr,
-		       "Warning: error %d, expected %d on command %s at %s\n",
-		       my_errno,result,command_name[command],
-		       llstr(isamlog_filepos,llbuff));
+                         "Warning: error %d, expected %d on command %s at %s\n",
+                         my_errno(),result,command_name[command],
+                         llstr(isamlog_filepos,llbuff));
 	  fflush(stderr);
 	}
       }
@@ -530,7 +530,7 @@ static int examine_log(char * file_name, char **table_names)
 	}
 	mi_result=mi_delete(curr_file_info->isam,curr_file_info->record);
 	if ((mi_result == 0 && result) ||
-	    (mi_result && (uint) my_errno != result))
+	    (mi_result && (uint) my_errno() != result))
 	{
 	  if (!recover)
 	    goto com_err;
@@ -589,7 +589,7 @@ static int examine_log(char * file_name, char **table_names)
 	  mi_result=mi_update(curr_file_info->isam,curr_file_info->record,
 			      buff);
 	  if ((mi_result == 0 && result) ||
-	      (mi_result && (uint) my_errno != result))
+	      (mi_result && (uint) my_errno() != result))
 	  {
 	    if (!recover)
 	      goto com_err;
@@ -604,7 +604,7 @@ static int examine_log(char * file_name, char **table_names)
 	{
 	  mi_result=mi_write(curr_file_info->isam,buff);
 	  if ((mi_result == 0 && result) ||
-	      (mi_result && (uint) my_errno != result))
+	      (mi_result && (uint) my_errno() != result))
 	  {
 	    if (!recover)
 	      goto com_err;
@@ -665,14 +665,14 @@ static int examine_log(char * file_name, char **table_names)
 
  err:
   fflush(stdout);
-  (void) fprintf(stderr,"Got error %d when reading from logfile\n",my_errno);
+  (void) fprintf(stderr,"Got error %d when reading from logfile\n",my_errno());
   fflush(stderr);
   goto end;
  com_err:
   fflush(stdout);
   (void) fprintf(stderr,"Got error %d, expected %d on command %s at %s\n",
-	       my_errno,result,command_name[command],
-	       llstr(isamlog_filepos,llbuff));
+                 my_errno(),result,command_name[command],
+                 llstr(isamlog_filepos,llbuff));
   fflush(stderr);
  end:
   end_key_cache(dflt_key_cache, 1);

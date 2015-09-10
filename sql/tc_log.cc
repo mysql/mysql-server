@@ -108,7 +108,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
   fn_format(logname,opt_name,mysql_data_home,"",MY_UNPACK_FILENAME);
   if ((fd= mysql_file_open(key_file_tclog, logname, O_RDWR, MYF(0))) < 0)
   {
-    if (my_errno != ENOENT)
+    if (my_errno() != ENOENT)
       goto err;
     if (using_heuristic_recover())
       return 1;
@@ -140,7 +140,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
                         MAP_NOSYNC|MAP_SHARED, fd, 0);
   if (data == MAP_FAILED)
   {
-    my_errno=errno;
+    set_my_errno(errno);
     goto err;
   }
   inited=2;

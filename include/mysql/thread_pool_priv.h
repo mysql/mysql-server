@@ -124,7 +124,7 @@ bool thd_is_transaction_active(THD *thd);
 int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
 uint thd_get_net_read_write(THD *thd);
-void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var);
+void thd_set_not_killable(THD *thd);
 ulong  thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
 int thd_store_globals(THD* thd);

@@ -587,16 +587,16 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   }
   else
   {
-    if (my_errno != ENOENT)
+    if (my_errno() != ENOENT)
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_STAT, MYF(0), path,
-               my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
       DBUG_RETURN(true);
     }
     if (my_mkdir(path,0777,MYF(0)) < 0)
     {
-      my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno);
+      my_error(ER_CANT_CREATE_DB, MYF(0), db, my_errno());
       DBUG_RETURN(true);
     }
 
@@ -1108,11 +1108,11 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
         by concurrently running statement like REAPIR TABLE ...
       */
       if (my_delete_with_symlink(filePath, MYF(0)) &&
-          my_errno != ENOENT)
+          my_errno() != ENOENT)
       {
         char errbuf[MYSYS_STRERROR_SIZE];
         my_error(EE_DELETE, MYF(0), filePath,
-                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
         DBUG_RETURN(true);
       }
     }

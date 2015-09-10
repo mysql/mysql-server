@@ -818,7 +818,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
   {
     /* Avoid twice printing of isam file name */
     param->error_printed=1;
-    switch (my_errno) {
+    switch (my_errno()) {
     case HA_ERR_CRASHED:
       mi_check_print_error(param,"'%s' doesn't have a correct index definition. You need to recreate it before you can do a repair",filename);
       break;
@@ -848,7 +848,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       break;
     default:
       mi_check_print_error(param,"%d when opening MyISAM-table '%s'",
-		  my_errno,filename);
+                           my_errno(),filename);
       break;
     }
     DBUG_RETURN(1);
@@ -896,7 +896,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
       if (mi_close(info))
       {
 	mi_check_print_error(param,"%d when closing MyISAM-table '%s'",
-			     my_errno,filename);
+			     my_errno(),filename);
 	DBUG_RETURN(1);
       }
       DBUG_RETURN(0);
@@ -961,7 +961,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
     if (_mi_readinfo(info,lock_type,0))
     {
       mi_check_print_error(param,"Can't lock indexfile of '%s', error: %d",
-		  filename,my_errno);
+                           filename,my_errno());
       param->error_printed=0;
       goto end2;
     }
@@ -1149,7 +1149,7 @@ static int myisamchk(MI_CHECK *param, char * filename)
 end2:
   if (mi_close(info))
   {
-    mi_check_print_error(param,"%d when closing MyISAM-table '%s'",my_errno,filename);
+    mi_check_print_error(param,"%d when closing MyISAM-table '%s'",my_errno(),filename);
     DBUG_RETURN(1);
   }
   if (error == 0)
@@ -1671,7 +1671,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
 
     if ((*info->s->read_rnd)(info,sort_param->record,rec_pos,0))
     {
-      mi_check_print_error(param,"%d when reading datafile",my_errno);
+      mi_check_print_error(param,"%d when reading datafile",my_errno());
       goto err;
     }
     if (rec_pos != sort_param->filepos && update_index)
@@ -1681,7 +1681,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
       if (movepoint(info,sort_param->record,rec_pos,sort_param->filepos,
 		    sort_key))
       {
-	mi_check_print_error(param,"%d when updating key-pointers",my_errno);
+	mi_check_print_error(param,"%d when updating key-pointers",my_errno());
 	goto err;
       }
     }
@@ -1693,7 +1693,7 @@ static int sort_record_index(MI_SORT_PARAM *sort_param,MI_INFO *info,
   if (my_pwrite(info->s->kfile,(uchar*) buff,(uint) keyinfo->block_length,
 		page,param->myf_rw))
   {
-    mi_check_print_error(param,"%d when updating keyblock",my_errno);
+    mi_check_print_error(param,"%d when updating keyblock",my_errno());
     goto err;
   }
   DBUG_RETURN(0);

@@ -123,7 +123,7 @@ void thd_set_killed(THD *thd)
 
 void thd_clear_errors(THD *thd)
 {
-  my_errno= 0;
+  set_my_errno(0);
 }
 
 
@@ -160,7 +160,7 @@ THD *thd_get_current_thd()
 void reset_thread_globals(THD* thd)
 {
   thd->restore_globals();
-  thd->set_mysys_var(NULL);
+  thd->set_is_killable(false);
 }
 
 
@@ -242,15 +242,14 @@ void thd_set_net_read_write(THD *thd, uint val)
 
 
 /**
-  Set reference to mysys variable in THD object
+  Mark the THD as not killable as it is not currently used by a thread.
 
   @param thd             THD object
-  @param mysys_var       Reference to set
 */
 
-void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
+void thd_set_not_killable(THD *thd)
 {
-  thd->set_mysys_var(mysys_var);
+  thd->set_is_killable(false);
 }
 
 

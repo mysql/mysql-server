@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,10 +32,13 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
   DBUG_ENTER("mi_rnext_same");
 
   if ((int) (inx=info->lastinx) < 0 || info->lastpos == HA_OFFSET_ERROR)
-    DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
+  {
+    set_my_errno(HA_ERR_WRONG_INDEX);
+    DBUG_RETURN(HA_ERR_WRONG_INDEX);
+  }
   keyinfo=info->s->keyinfo+inx;
   if (fast_mi_readinfo(info))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
 
   if (info->s->concurrent_insert)
     mysql_rwlock_rdlock(&info->s->key_root_lock[inx]);
@@ -47,7 +50,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
 				 myisam_read_vec[info->last_key_func])))
       {
 	error=1;
-	my_errno=HA_ERR_END_OF_FILE;
+	set_my_errno(HA_ERR_END_OF_FILE);
 	info->lastpos= HA_OFFSET_ERROR;
 	break;
       }
@@ -71,7 +74,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
                        info->last_rkey_length, SEARCH_FIND, not_used))
         {
           error=1;
-          my_errno=HA_ERR_END_OF_FILE;
+          set_my_errno(HA_ERR_END_OF_FILE);
           info->lastpos= HA_OFFSET_ERROR;
           break;
         }
@@ -89,17 +92,17 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
 
   if (error)
   {
-    if (my_errno == HA_ERR_KEY_NOT_FOUND)
-      my_errno=HA_ERR_END_OF_FILE;
+    if (my_errno() == HA_ERR_KEY_NOT_FOUND)
+      set_my_errno(HA_ERR_END_OF_FILE);
   }
   else if (!buf)
   {
-    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
+    DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno() : 0);
   }
   else if (!(*info->read_record)(info,info->lastpos,buf))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 } /* mi_rnext_same */

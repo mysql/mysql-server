@@ -1033,7 +1033,7 @@ public:
     killing_thd->killed= THD::KILL_CONNECTION;
     MYSQL_CALLBACK(Connection_handler_manager::event_functions,
                    post_kill_notification, (killing_thd));
-    if (killing_thd->mysys_var)
+    if (killing_thd->is_killable)
     {
       mysql_mutex_lock(&killing_thd->LOCK_current_cond);
       if (killing_thd->current_cond)
@@ -3581,13 +3581,13 @@ static int flush_auto_options(const char* fname)
 
   if ((fd= my_open(fname, O_CREAT|O_RDWR, MYF(MY_WME))) < 0)
   {
-    sql_print_error("Failed to create file(file: '%s', errno %d)", fname, my_errno);
+    sql_print_error("Failed to create file(file: '%s', errno %d)", fname, my_errno());
     return 1;
   }
 
   if (init_io_cache(&io_cache, fd, IO_SIZE*2, WRITE_CACHE, 0L, 0, MYF(MY_WME)))
   {
-    sql_print_error("Failed to create a cache on (file: %s', errno %d)", fname, my_errno);
+    sql_print_error("Failed to create a cache on (file: %s', errno %d)", fname, my_errno());
     my_close(fd, MYF(MY_WME));
     return 1;
   }

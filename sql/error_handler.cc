@@ -40,7 +40,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 Sql_condition::enum_severity_level *level,
                                                 const char* msg)
 {
-  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
+  return ((sql_errno == EE_DELETE && my_errno() == ENOENT) ||
           sql_errno == ER_TRG_NO_DEFINER);
 }
 

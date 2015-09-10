@@ -9185,7 +9185,7 @@ static Log_event* next_event(Relay_log_info* rli)
         mysql_mutex_unlock(log_lock);
       sql_print_error("Slave SQL thread%s: I/O error reading "
                       "event(errno: %d  cur_log->error: %d)",
-                      rli->get_for_channel_str(), my_errno,cur_log->error);
+                      rli->get_for_channel_str(), my_errno(),cur_log->error);
       // set read position to the beginning of the event
       my_b_seek(cur_log,rli->get_event_relay_log_pos());
       /* otherwise, we have had a partial read */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
 
   if ((uint) inx >= share->keys)
   {
-    DBUG_RETURN(my_errno= HA_ERR_WRONG_INDEX);
+    set_my_errno(HA_ERR_WRONG_INDEX);
+    DBUG_RETURN(HA_ERR_WRONG_INDEX);
   }
   info->lastinx= inx;
   info->current_record= (ulong) ~0L;		/* For heap_rrnd() */
@@ -51,7 +52,8 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
 			       &info->last_pos, find_flag, &custom_arg)))
     {
       info->update= 0;
-      DBUG_RETURN(my_errno= HA_ERR_KEY_NOT_FOUND);
+      set_my_errno(HA_ERR_KEY_NOT_FOUND);
+      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
     }
     memcpy(&pos, pos + (*keyinfo->get_key_length)(keyinfo, pos), sizeof(uchar*));
     info->current_ptr= pos;
@@ -61,7 +63,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
     if (!(pos= hp_search(info, share->keydef + inx, key, 0)))
     {
       info->update= 0;
-      DBUG_RETURN(my_errno);
+      DBUG_RETURN(my_errno());
     }
     /*
       If key is unique and can accept NULL values, we still

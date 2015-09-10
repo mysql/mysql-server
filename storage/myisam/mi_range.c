@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -248,7 +248,7 @@ static double _mi_search_pos(MI_INFO *info,
 		     keynr,offset,max_keynr,nod_flag,flag));
   DBUG_RETURN((keynr+offset)/(max_keynr+1));
 err:
-  DBUG_PRINT("exit",("Error: %d",my_errno));
+  DBUG_PRINT("exit",("Error: %d",my_errno()));
   DBUG_RETURN (-1.0);
 }
 

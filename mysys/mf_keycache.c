@@ -329,7 +329,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
       }
       if (blocks < 8)
       {
-        my_errno= ENOMEM;
+        set_my_errno(ENOMEM);
         my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
                  blocks * keycache->key_cache_block_size);
         goto err;
@@ -395,7 +395,7 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
   DBUG_RETURN((int) keycache->disk_blocks);
 
 err:
-  error= my_errno;
+  error= my_errno();
   keycache->disk_blocks= 0;
   keycache->blocks=  0;
   if (keycache->block_mem)
@@ -408,7 +408,7 @@ err:
     my_free(keycache->block_root);
     keycache->block_root= NULL;
   }
-  my_errno= error;
+  set_my_errno(error);
   keycache->can_be_used= 0;
   DBUG_RETURN(0);
 }
@@ -2398,7 +2398,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
             this could only happen if we are using a file with
             small key blocks and are trying to read outside the file
           */
-          my_errno= -1;
+          set_my_errno(-1);
           block->status|= BLOCK_ERROR;
         }
         else

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ int heap_delete(HP_INFO *info, const uchar *record)
   test_active(info);
 
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info,record))
-    DBUG_RETURN(my_errno);			/* Record changed */
+    DBUG_RETURN(my_errno());			/* Record changed */
   share->changed=1;
 
   if ( --(share->records) < share->blength >> 1) share->blength>>=1;
@@ -56,7 +56,7 @@ int heap_delete(HP_INFO *info, const uchar *record)
 err:
   if (++(share->records) == share->blength)
     share->blength+= share->blength;
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 }
 
 
@@ -128,7 +128,8 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     gpos=pos;
     if (!(pos=pos->next_key))
     {
-      DBUG_RETURN(my_errno=HA_ERR_CRASHED);	/* This shouldn't happend */
+      set_my_errno(HA_ERR_CRASHED);
+      DBUG_RETURN(HA_ERR_CRASHED);	/* This shouldn't happend */
     }
   }
 

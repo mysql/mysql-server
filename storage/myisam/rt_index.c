@@ -61,7 +61,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
   
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
   {
-    my_errno = HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     return -1;
   }
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
@@ -134,7 +134,7 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
     }
   }
   info->lastpos = HA_OFFSET_ERROR;
-  my_errno = HA_ERR_KEY_NOT_FOUND;
+  set_my_errno(HA_ERR_KEY_NOT_FOUND);
   res = 1;
 
 ok:
@@ -176,7 +176,7 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
     // doesn't hold, the code in mi_rkey() that checks the record
     // count has to be changed.
     DBUG_ASSERT(info->s->state.state.records == 0);
-    my_errno= HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
 
@@ -251,7 +251,7 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
   }
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
-    my_errno= HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
   
@@ -355,7 +355,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
     }
   }
   info->lastpos = HA_OFFSET_ERROR;
-  my_errno = HA_ERR_KEY_NOT_FOUND;
+  set_my_errno(HA_ERR_KEY_NOT_FOUND);
   res = 1;
 
 ok:
@@ -383,7 +383,7 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
-    my_errno= HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
 
@@ -410,7 +410,7 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
 
   if (root == HA_OFFSET_ERROR)
   {
-    my_errno= HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
   
@@ -528,7 +528,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length + 
                                      MI_MAX_KEY_BUFF)))
   {
-    my_errno = HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1); /* purecov: inspected */
   }
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
@@ -753,7 +753,7 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 
   if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
   {
-    my_errno = HA_ERR_OUT_OF_MEM;
+    set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1); /* purecov: inspected */
   }
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
@@ -891,7 +891,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 
   if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
   {
-    my_errno= HA_ERR_END_OF_FILE;
+    set_my_errno(HA_ERR_END_OF_FILE);
     DBUG_RETURN(-1); /* purecov: inspected */
   }
   DBUG_PRINT("rtree", ("starting deletion at root page: %lu",
@@ -921,7 +921,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
 
         if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
         {
-          my_errno = HA_ERR_OUT_OF_MEM;
+          set_my_errno(HA_ERR_OUT_OF_MEM);
           goto err1;
         }
         if (!_mi_fetch_keypage(info, keyinfo, ReinsertList.pages[i].offs, 
@@ -987,7 +987,7 @@ err1:
     }
     case 1: /* not found */
     {
-      my_errno = HA_ERR_KEY_NOT_FOUND;
+      set_my_errno(HA_ERR_KEY_NOT_FOUND);
       DBUG_RETURN(-1); /* purecov: inspected */
     }
     default:

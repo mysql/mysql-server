@@ -3498,7 +3498,10 @@ protected:
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
-   { return (my_errno= HA_ERR_WRONG_COMMAND); }
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
 public:
   /**
     This method is similar to update_row, however the handler doesn't need
@@ -3529,7 +3532,10 @@ public:
     by one.
   */
   virtual int delete_all_rows()
-  { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
   /**
     Quickly remove all rows from a table.
 
@@ -3558,7 +3564,10 @@ public:
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int discard_or_import_tablespace(my_bool discard)
-  { return (my_errno=HA_ERR_WRONG_COMMAND); }
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
   virtual void drop_table(const char *name);
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
 

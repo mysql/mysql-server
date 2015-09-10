@@ -323,22 +323,7 @@ private:
   }
 
   int setup_thread_globals(THD *thd) const {
-    int error= 0;
-    THD *original_thd= my_thread_get_THR_THD();
-    MEM_ROOT ** original_mem_root= my_thread_get_THR_MALLOC();
-    if ((error= my_thread_set_THR_THD(thd)))
-      goto exit0;
-    if ((error= my_thread_set_THR_MALLOC(&thd->mem_root)))
-      goto exit1;
-    if ((error= set_mysys_thread_var(thd->mysys_var)))
-      goto exit2;
-    goto exit0;
-exit2:
-    error= my_thread_set_THR_MALLOC(original_mem_root);
-exit1:
-    error= my_thread_set_THR_THD(original_thd);
-exit0:
-    return error;
+    return thd->store_globals();
   }
 
   THD *m_original_thd;
@@ -2570,7 +2555,7 @@ int check_binlog_magic(IO_CACHE* log, const char** errmsg)
   if (my_b_read(log, (uchar*) magic, sizeof(magic)))
   {
     *errmsg = "I/O error reading the header from the binary log";
-    sql_print_error("%s, errno=%d, io cache code=%d", *errmsg, my_errno,
+    sql_print_error("%s, errno=%d, io cache code=%d", *errmsg, my_errno(),
 		    log->error);
     return 1;
   }
@@ -2593,7 +2578,7 @@ File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **err
                              MYF(MY_WME))) < 0)
   {
     sql_print_error("Failed to open log (file '%s', errno %d)",
-                    log_file_name, my_errno);
+                    log_file_name, my_errno());
     *errmsg = "Could not open log file";
     goto err;
   }
@@ -3443,7 +3428,7 @@ bool MYSQL_BIN_LOG::open(
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
   {
-    if (my_errno == ESPIPE)
+    if (my_errno() == ESPIPE)
       pos= 0;
     else
       goto err;
@@ -5072,7 +5057,7 @@ void MYSQL_BIN_LOG::set_write_error(THD *thd, bool is_transactional)
   if (check_write_error(thd))
     DBUG_VOID_RETURN;
 
-  if (my_errno == EFBIG)
+  if (my_errno() == EFBIG)
   {
     if (is_transactional)
     {
@@ -5356,7 +5341,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   {
     if ((error= my_delete_allow_opened(linfo.log_file_name, MYF(0))) != 0)
     {
-      if (my_errno == ENOENT) 
+      if (my_errno() == ENOENT) 
       {
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_LOG_PURGE_NO_FILE,
@@ -5364,7 +5349,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
                             linfo.log_file_name);
         sql_print_information("Failed to delete file '%s'",
                               linfo.log_file_name);
-        my_errno= 0;
+        set_my_errno(0);
         error= 0;
       }
       else
@@ -5388,7 +5373,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
   close(LOG_CLOSE_INDEX | LOG_CLOSE_TO_BE_OPENED);
   if ((error= my_delete_allow_opened(index_file_name, MYF(0))))	// Reset (open will update)
   {
-    if (my_errno == ENOENT) 
+    if (my_errno() == ENOENT)
     {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_LOG_PURGE_NO_FILE,
@@ -5396,7 +5381,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd, bool delete_only)
                           index_file_name);
       sql_print_information("Failed to delete file '%s'",
                             index_file_name);
-      my_errno= 0;
+      set_my_errno(0);
       error= 0;
     }
     else
@@ -6048,7 +6033,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
 
     if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &s, MYF(0)))
     {
-      if (my_errno == ENOENT) 
+      if (my_errno() == ENOENT) 
       {
         /*
           It's not fatal if we can't stat a log file that does not exist;
@@ -6063,7 +6048,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
         sql_print_information("Failed to execute mysql_file_stat on file '%s'",
 			      log_info.log_file_name);
-        my_errno= 0;
+        set_my_errno(0);
       }
       else
       {
@@ -6136,7 +6121,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         }
         else
         {
-          if (my_errno == ENOENT)
+          if (my_errno() == ENOENT)
           {
             if (thd)
             {
@@ -6147,7 +6132,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
             }
             sql_print_information("Failed to delete file '%s'",
                                   log_info.log_file_name);
-            my_errno= 0;
+            set_my_errno(0);
           }
           else
           {
@@ -6169,10 +6154,10 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
                                     "to the actual binlog files",
                                     log_info.log_file_name);
             }
-            if (my_errno == EMFILE)
+            if (my_errno() == EMFILE)
             {
               DBUG_PRINT("info",
-                         ("my_errno: %d, set ret = LOG_INFO_EMFILE", my_errno));
+                         ("my_errno: %d, set ret = LOG_INFO_EMFILE", my_errno()));
               error= LOG_INFO_EMFILE;
               goto err;
             }
@@ -6241,12 +6226,12 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time, bool auto_purge)
     if (!mysql_file_stat(m_key_file_log,
                          log_info.log_file_name, &stat_area, MYF(0)))
     {
-      if (my_errno == ENOENT)
+      if (my_errno() == ENOENT)
       {
         /*
           It's not fatal if we can't stat a log file that does not exist.
         */
-        my_errno= 0;
+        set_my_errno(0);
       }
       else
       {

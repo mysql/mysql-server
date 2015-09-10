@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@ int hp_rectest(HP_INFO *info, const uchar *old)
 
   if (memcmp(info->current_ptr,old,(size_t) info->s->reclength))
   {
-    DBUG_RETURN((my_errno=HA_ERR_RECORD_CHANGED)); /* Record have changed */
+    set_my_errno(HA_ERR_RECORD_CHANGED);
+    DBUG_RETURN(HA_ERR_RECORD_CHANGED); /* Record have changed */
   }
   DBUG_RETURN(0);
 } /* _heap_rectest */

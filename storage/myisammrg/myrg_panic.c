@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2001, 2005, 2006 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,11 +35,11 @@ int myrg_panic(enum ha_panic_function flag)
     next_open=list_element->next;		/* Save if close */
     info=(MYRG_INFO*) list_element->data;
     if (flag == HA_PANIC_CLOSE && myrg_close(info))
-      error=my_errno;
+      error=my_errno();
   }
   if (myrg_open_list && flag != HA_PANIC_CLOSE)
     DBUG_RETURN(mi_panic(flag));
   if (error)
-    my_errno=error;
+    set_my_errno(error);
   DBUG_RETURN(error);
 }
