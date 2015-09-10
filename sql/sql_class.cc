@@ -2973,9 +2973,11 @@ void THD::set_currently_executing_gtid_for_slave_thread()
       BINLOG statement containing a Format_description_log_event
       originating from the master.
 
-    Because of the last case, we don't assert(is_mts_worker())
+    Because of the last case, we need to add the following conditions to set
+    currently_executing_gtid.
   */
-  if (system_thread)
+  if (system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+      system_thread == SYSTEM_THREAD_SLAVE_WORKER)
     rli_slave->currently_executing_gtid= variables.gtid_next;
 }
 #endif
