@@ -2677,7 +2677,6 @@ ulong Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle
   master_version= !fdle ? slave_version : fdle->get_product_version();
   current_version= !rli_description_event ? slave_version :
     rli_description_event->get_product_version();
-
   return adapt_to_master_version_updown(master_version, current_version);
 }
 
