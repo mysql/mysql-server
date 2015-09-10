@@ -35,12 +35,12 @@ SELECT digest, digest_text FROM performance_schema.events_statements_history ORD
 digest	digest_text
 40809524c8e25ba9fd7ce7238c678bd4	SELECT /*+ BKA ( `t1`@`qb1` ) BNL ( @`qb1` `t1` ) DUPSWEEDOUT FIRSTMATCH INTOEXISTS LOOSESCAN MATERIALIZATION MRR ( `t1` ) NO_BKA ( `t2` ) NO_BNL ( `t2` ) NO_ICP ( `t2` ) NO_MRR ( `t2` ) NO_RANGE_OPTIMIZATION ( `t2` ) NO_SEMIJOIN ( `t2` ) QB_NAME ( `qb1` ) SEMIJOIN ( `t1` ) SUBQUERY ( `t1` ) */ * FROM `t1` , `t2` 
 7c570a66964a2ea44d39965715355bfe	SELECT * FROM `t1` , `t2` 
-SELECT * FROM t1, t2;
-SELECT /*+ MAX_EXECUTION_TIME(10) */ * FROM t1, t2;
+SELECT * FROM t2, t1;
+SELECT /*+ MAX_EXECUTION_TIME(10) */ * FROM t2, t1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
 digest	digest_text
-8779d834078e375375d81b54ba1764b3	SELECT /*+ MAX_EXECUTION_TIME (?) */ * FROM `t1` , `t2` 
-7c570a66964a2ea44d39965715355bfe	SELECT * FROM `t1` , `t2` 
+bcbe954225f0ba4c4a8d80b0c7673eab	SELECT /*+ MAX_EXECUTION_TIME (?) */ * FROM `t2` , `t1` 
+be7832454a870dd6751aa2ed9c2e1e88	SELECT * FROM `t2` , `t1` 
 SELECT 1;
 SELECT /*+ bad_hint_also_goes_to_digest */ 1;
 SELECT digest, digest_text FROM performance_schema.events_statements_history ORDER BY timer_start DESC LIMIT 2;
