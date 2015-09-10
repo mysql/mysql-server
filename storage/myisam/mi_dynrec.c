@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,7 +276,7 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record)
   if (!(rec_buff=(uchar*) my_malloc(mi_key_memory_record_buffer,
                                     reclength, MYF(0))))
   {
-    my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
+    set_my_errno(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
     return(-1);
   }
   reclength2= _mi_rec_pack(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
@@ -304,7 +304,7 @@ int _mi_update_blob_record(MI_INFO *info, my_off_t pos, const uchar *record)
   if (!(rec_buff=(uchar*) my_malloc(mi_key_memory_record_buffer,
                                     reclength, MYF(0))))
   {
-    my_errno= HA_ERR_OUT_OF_MEM; /* purecov: inspected */
+    set_my_errno(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
     return(-1);
   }
   reclength=_mi_rec_pack(info,rec_buff+ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER),
@@ -352,7 +352,7 @@ static int write_dynamic_record(MI_INFO *info, const uchar *record,
         info->state->empty - info->state->del * MI_MAX_DYN_BLOCK_HEADER <
         reclength + MI_MAX_DYN_BLOCK_HEADER)
     {
-      my_errno=HA_ERR_RECORD_FILE_FULL;
+      set_my_errno(HA_ERR_RECORD_FILE_FULL);
       DBUG_RETURN(1);
     }
   }
@@ -396,7 +396,7 @@ static int _mi_find_writepos(MI_INFO *info,
 	   BLOCK_DELETED))
     {
       DBUG_PRINT("error",("Delete link crashed"));
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      set_my_errno(HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(-1);
     }
     info->s->state.dellink=block_info.next_filepos;
@@ -417,7 +417,7 @@ static int _mi_find_writepos(MI_INFO *info,
     if (info->state->data_file_length >
 	(info->s->base.max_data_file_length - tmp))
     {
-      my_errno=HA_ERR_RECORD_FILE_FULL;
+      set_my_errno(HA_ERR_RECORD_FILE_FULL);
       DBUG_RETURN(-1);
     }
     if (tmp > MI_MAX_BLOCK_LENGTH)
@@ -521,7 +521,7 @@ static int update_backward_delete_link(MI_INFO *info, my_off_t delete_block,
     }
     else
     {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      set_my_errno(HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(1);				/* Wrong delete link */
     }
   }
@@ -553,7 +553,7 @@ static int delete_dynamic_record(MI_INFO *info, my_off_t filepos,
 	(length=(uint) (block_info.filepos-filepos) +block_info.block_len) <
 	MI_MIN_BLOCK_LENGTH)
     {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      set_my_errno(HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(1);
     }
     /* Check if next block is a delete block */
@@ -776,7 +776,7 @@ int _mi_write_part_record(MI_INFO *info,
 
   DBUG_RETURN(0);
 err:
-  DBUG_PRINT("exit",("errno: %d",my_errno));
+  DBUG_PRINT("exit",("errno: %d",my_errno()));
   DBUG_RETURN(1);
 } /*_mi_write_part_record */
 
@@ -818,7 +818,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
     {
       DBUG_PRINT("error",("Got wrong block info"));
       if (!(error & BLOCK_FATAL_ERROR))
-        my_errno=HA_ERR_WRONG_IN_RECORD;
+        set_my_errno(HA_ERR_WRONG_IN_RECORD);
       goto err;
     }
 
@@ -831,7 +831,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
           info->state->empty - info->state->del * MI_MAX_DYN_BLOCK_HEADER <
           reclength - block_info.rec_len + MI_MAX_DYN_BLOCK_HEADER)
       {
-        my_errno=HA_ERR_RECORD_FILE_FULL;
+        set_my_errno(HA_ERR_RECORD_FILE_FULL);
         goto err;
       }
     }
@@ -849,7 +849,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
       {
 	DBUG_PRINT("error",("Got wrong block info"));
 	if (!(error & BLOCK_FATAL_ERROR))
-	  my_errno=HA_ERR_WRONG_IN_RECORD;
+	  set_my_errno(HA_ERR_WRONG_IN_RECORD);
 	goto err;
       }
       length=(ulong) (block_info.filepos-filepos) + block_info.block_len;
@@ -1335,7 +1335,7 @@ ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
     DBUG_RETURN(found_length);
 
 err:
-  my_errno= HA_ERR_WRONG_IN_RECORD;
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);
   DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
 		      (long) to, (long) to_end, (long) from, (long) from_end));
   DBUG_DUMP("from",(uchar*) info->rec_buff,info->s->base.min_pack_length);
@@ -1461,7 +1461,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 	     BLOCK_FATAL_ERROR))
       {
 	if (b_type & (BLOCK_SYNC_ERROR | BLOCK_DELETED))
-	  my_errno=HA_ERR_RECORD_DELETED;
+	  set_my_errno(HA_ERR_RECORD_DELETED);
 	goto err;
       }
       if (block_of_record++ == 0)			/* First block */
@@ -1526,7 +1526,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
   DBUG_RETURN(-1);			/* Wrong data to read */
 
 panic:
-  my_errno=HA_ERR_WRONG_IN_RECORD;
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);
 err:
   (void) _mi_writeinfo(info,0);
   DBUG_RETURN(-1);
@@ -1608,7 +1608,7 @@ int _mi_cmp_dynamic_record(MI_INFO *info, const uchar *record)
 	     BLOCK_FATAL_ERROR))
       {
 	if (b_type & (BLOCK_SYNC_ERROR | BLOCK_DELETED))
-	  my_errno=HA_ERR_RECORD_CHANGED;
+	  set_my_errno(HA_ERR_RECORD_CHANGED);
 	goto err;
       }
       if (flag == 0)				/* First block */
@@ -1616,30 +1616,30 @@ int _mi_cmp_dynamic_record(MI_INFO *info, const uchar *record)
 	flag=1;
 	if (reclength != block_info.rec_len)
 	{
-	  my_errno=HA_ERR_RECORD_CHANGED;
+	  set_my_errno(HA_ERR_RECORD_CHANGED);
 	  goto err;
 	}
       } else if (reclength < block_info.data_len)
       {
-	my_errno=HA_ERR_WRONG_IN_RECORD;
+	set_my_errno(HA_ERR_WRONG_IN_RECORD);
 	goto err;
       }
       reclength-=block_info.data_len;
       if (_mi_cmp_buffer(info->dfile,record,block_info.filepos,
 			 block_info.data_len))
       {
-	my_errno=HA_ERR_RECORD_CHANGED;
+	set_my_errno(HA_ERR_RECORD_CHANGED);
 	goto err;
       }
       flag=1;
       record+=block_info.data_len;
     }
   }
-  my_errno=0;
+  set_my_errno(0);
 err:
   if (buffer != info->rec_buff)
     my_free((uchar*) buffer);
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 }
 
 
@@ -1725,7 +1725,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
     {
       if (my_lock(share->kfile,F_RDLCK,0L,F_TO_EOF,
 		  MYF(MY_SEEK_NOT_DONE) | info->lock_wait))
-	DBUG_RETURN(my_errno);
+	DBUG_RETURN(my_errno());
     }
   }
   else
@@ -1747,7 +1747,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
       }
       if (filepos >= info->state->data_file_length)
       {
-	my_errno= HA_ERR_END_OF_FILE;
+	set_my_errno(HA_ERR_END_OF_FILE);
 	goto err;
       }
     }
@@ -1765,7 +1765,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
       if (info->opt_flag & WRITE_CACHE_USED &&
 	  info->rec_cache.pos_in_file < filepos + MI_BLOCK_INFO_HEADER_LENGTH &&
 	  flush_io_cache(&info->rec_cache))
-	DBUG_RETURN(my_errno);
+	DBUG_RETURN(my_errno());
       info->rec_cache.seek_not_done=1;
       b_type=_mi_get_block_info(&block_info,info->dfile,filepos);
     }
@@ -1790,7 +1790,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
         if (block_of_record != 0)
           goto panic;
 
-	my_errno=HA_ERR_RECORD_DELETED;
+	set_my_errno(HA_ERR_RECORD_DELETED);
 	info->lastpos=block_info.filepos;
 	info->nextpos=block_info.filepos+block_info.block_len;
       }
@@ -1853,8 +1853,8 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
         if (mysql_file_read(info->dfile, (uchar*) to, block_info.data_len,
                             MYF(MY_NABP)))
 	{
-	  if (my_errno == -1)
-	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
+	  if (my_errno() == -1)
+	    set_my_errno(HA_ERR_WRONG_IN_RECORD);	/* Unexpected end of file */
 	  goto err;
 	}
       }
@@ -1878,14 +1878,15 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
   if (_mi_rec_unpack(info,buf,info->rec_buff,block_info.rec_len) !=
       MY_FILE_ERROR)
     DBUG_RETURN(0);
-  DBUG_RETURN(my_errno);			/* Wrong record */
+  DBUG_RETURN(my_errno());			/* Wrong record */
 
 panic:
-  my_errno=HA_ERR_WRONG_IN_RECORD;		/* Something is fatal wrong */
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);		/* Something is fatal wrong */
 err:
-  save_errno=my_errno;
+  save_errno=my_errno();
   (void) _mi_writeinfo(info,0);
-  DBUG_RETURN(my_errno=save_errno);
+  set_my_errno(save_errno);
+  DBUG_RETURN(save_errno);
 }
 
 
@@ -2020,6 +2021,6 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
   }
 
 err:
-  my_errno=HA_ERR_WRONG_IN_RECORD;	 /* Garbage */
+  set_my_errno(HA_ERR_WRONG_IN_RECORD);	 /* Garbage */
   return BLOCK_ERROR;
 }

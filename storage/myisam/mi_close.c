@@ -39,7 +39,7 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
   if (info->lock_type != F_UNLCK)
   {
     if (mi_lock_database(info,F_UNLCK))
-      error=my_errno;
+      error=my_errno();
   }
   mysql_mutex_lock(&share->intern_lock);
 
@@ -51,7 +51,7 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
   if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
   {
     if (end_io_cache(&info->rec_cache))
-      error=my_errno;
+      error=my_errno();
     info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   }
   flag= !--share->reopen;
@@ -69,7 +69,7 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
                          share->kfile,
 			 share->temporary ? FLUSH_IGNORE_CHANGED :
 			 FLUSH_RELEASE))
-      error=my_errno;
+      error=my_errno();
     if (share->kfile >= 0)
     {
       /*
@@ -83,7 +83,7 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
       /* Decrement open count must be last I/O on this file. */
       _mi_decrement_open_count(info);
       if (mysql_file_close(share->kfile, MYF(0)))
-        error = my_errno;
+        error = my_errno();
     }
     if (share->file_map)
     {
@@ -119,14 +119,15 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
     info->ftparser_param= 0;
   }
   if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
-    error = my_errno;
+    error = my_errno();
 
   myisam_log_command(MI_LOG_CLOSE,info,NULL,0,error);
   my_free(info);
 
   if (error)
   {
-    DBUG_RETURN(my_errno=error);
+    set_my_errno(error);
+    DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 } /* mi_close_share */

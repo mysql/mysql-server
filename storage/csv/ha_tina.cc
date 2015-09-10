@@ -406,7 +406,7 @@ int ha_tina::init_tina_writer()
   {
     DBUG_PRINT("info", ("Could not open tina file writes"));
     share->crashed= TRUE;
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
   }
   share->tina_write_opened= TRUE;
 
@@ -962,7 +962,7 @@ int ha_tina::open(const char *name, int mode, uint open_options)
                                   O_RDONLY, MYF(MY_WME))) == -1)
   {
     free_share(share);
-    DBUG_RETURN(my_errno ? my_errno : -1);
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
   }
 
   /*
@@ -1153,7 +1153,7 @@ int ha_tina::init_data_file()
         (data_file= mysql_file_open(csv_key_file_data,
                                     share->data_file_name, O_RDONLY,
                                     MYF(MY_WME))) == -1)
-      return my_errno ? my_errno : -1;
+      return my_errno() ? my_errno() : -1;
   }
   file_buff->init_buff(data_file);
   return 0;
@@ -1441,7 +1441,7 @@ int ha_tina::rnd_end()
     if ((data_file= mysql_file_open(csv_key_file_data,
                                     share->data_file_name,
                                     O_RDONLY, MYF(MY_WME))) == -1)
-      DBUG_RETURN(my_errno ? my_errno : -1);
+      DBUG_RETURN(my_errno() ? my_errno() : -1);
     /*
       As we reopened the data file, increase share->data_file_version 
       in order to force other threads waiting on a table lock and  
@@ -1598,7 +1598,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
       to satisfy Win.
     */
     if (mysql_file_close(share->tina_write_filedes, MYF(0)))
-      DBUG_RETURN(my_errno ? my_errno : -1);
+      DBUG_RETURN(my_errno() ? my_errno() : -1);
     share->tina_write_opened= FALSE;
   }
   if (mysql_file_close(data_file, MYF(0)) ||
@@ -1611,7 +1611,7 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   if ((data_file= mysql_file_open(csv_key_file_data,
                                   share->data_file_name, O_RDWR|O_APPEND,
                                   MYF(MY_WME))) == -1)
-     DBUG_RETURN(my_errno ? my_errno : -1);
+    DBUG_RETURN(my_errno() ? my_errno() : -1);
 
   /* Set new file size. The file size will be updated by ::update_status() */
   local_saved_data_file_length= (size_t) current_position;
@@ -1631,7 +1631,10 @@ int ha_tina::delete_all_rows()
   DBUG_ENTER("ha_tina::delete_all_rows");
 
   if (!records_is_known)
-    DBUG_RETURN(my_errno=HA_ERR_WRONG_COMMAND);
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  }
 
   if (!share->tina_write_opened)
     if (init_tina_writer())

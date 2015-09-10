@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,7 +156,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
   {
-    my_errno=HA_ERR_RECORD_FILE_FULL;
+    set_my_errno(HA_ERR_RECORD_FILE_FULL);
     goto err;
   }
   m_info->keys= min_keys;
@@ -178,9 +178,9 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   DBUG_RETURN(m_info);
 
 bad_children:
-  my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
+  set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
 err:
-  save_errno=my_errno;
+  save_errno=my_errno();
   switch (errpos) {
   case 3:
     while (files)
@@ -193,7 +193,7 @@ err:
   case 1:
     (void) mysql_file_close(fd, MYF(0));
   }
-  my_errno=save_errno;
+  set_my_errno(save_errno);
   DBUG_RETURN (NULL);
 }
 
@@ -333,7 +333,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
 
   /* purecov: begin inspected */
  err:
-  save_errno= my_errno;
+  save_errno= my_errno();
   switch (errpos) {
   case 3:
     my_free(m_info);
@@ -344,7 +344,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   case 1:
     (void) mysql_file_close(fd, MYF(0));
   }
-  my_errno= save_errno;
+  set_my_errno(save_errno);
   DBUG_RETURN (NULL);
   /* purecov: end */
 }
@@ -478,7 +478,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
 
   if (sizeof(my_off_t) == 4 && file_offset > (ulonglong) (ulong) ~0L)
   {
-    my_errno= HA_ERR_RECORD_FILE_FULL;
+    set_my_errno(HA_ERR_RECORD_FILE_FULL);
     goto err;
   }
   /* Don't mark table readonly, for ALTER TABLE ... UNION=(...) to work */
@@ -490,16 +490,16 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   DBUG_RETURN(0);
 
 bad_children:
-  my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
+  set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
 err:
-  save_errno= my_errno;
+  save_errno= my_errno();
   switch (errpos) {
   case 1:
     my_free(m_info->rec_per_key_part);
     m_info->rec_per_key_part= NULL;
   }
   mysql_mutex_unlock(&m_info->mutex);
-  my_errno= save_errno;
+  set_my_errno(save_errno);
   DBUG_RETURN(1);
 }
 

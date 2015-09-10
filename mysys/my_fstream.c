@@ -71,7 +71,7 @@ size_t my_fread(FILE *stream, uchar *Buffer, size_t Count, myf MyFlags)
                  my_strerror(errbuf, sizeof(errbuf), errno));
       }
     }
-    my_errno=errno ? errno : -1;
+    set_my_errno(errno ? errno : -1);
     if (ferror(stream) || MyFlags & (MY_NABP | MY_FNABP))
       DBUG_RETURN((size_t) -1);			/* Return with error */
   }
@@ -113,7 +113,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
                                    Count, stream)) != Count)
     {
       DBUG_PRINT("error",("Write only %d bytes", (int) writtenbytes));
-      my_errno=errno;
+      set_my_errno(errno);
       if (written != (size_t) -1)
       {
 	seekptr+=written;

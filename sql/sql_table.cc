@@ -1181,7 +1181,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           strxmov(to_path, ddl_log_entry->name, reg_ext, NullS);
           if ((error= mysql_file_delete(key_file_frm, to_path, MYF(MY_WME))))
           {
-            if (my_errno != ENOENT)
+            if (my_errno() != ENOENT)
               break;
           }
           DBUG_ASSERT(strcmp("partition", ddl_log_entry->handler_name));
@@ -5515,14 +5515,14 @@ mysql_rename_table(handlerton *base, const char *old_db,
   if (flags & NO_HA_TABLE)
   {
     if (rename_file_ext(from,to,reg_ext))
-      error= my_errno;
+      error= my_errno();
     (void) file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
   }
   else if (!file || !(error=file->ha_rename_table(from_base, to_base)))
   {
     if (!(flags & NO_FRM_RENAME) && rename_file_ext(from,to,reg_ext))
     {
-      error=my_errno;
+      error=my_errno();
       /* Restore old file name */
       if (file)
         file->ha_rename_table(to_base, from_base);
@@ -9935,7 +9935,7 @@ copy_data_between_tables(PSI_stage_progress *psi,
 
   if (to->file->ha_end_bulk_insert() && error <= 0)
   {
-    to->file->print_error(my_errno,MYF(0));
+    to->file->print_error(my_errno(),MYF(0));
     error= 1;
   }
 

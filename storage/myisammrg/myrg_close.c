@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,8 @@ int myrg_close(MYRG_INFO *info)
   my_free(info);
   if (error)
   {
-    DBUG_RETURN(my_errno=error);
+    set_my_errno(error);
+    DBUG_RETURN(error);
   }
   DBUG_RETURN(0);
 }

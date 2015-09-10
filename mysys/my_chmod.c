@@ -93,7 +93,7 @@ my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
   if (ret_val && (my_flags & (MY_FAE+MY_WME)))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    my_errno= errno;
+    set_my_errno(errno);
     my_error(EE_CHANGE_PERMISSIONS, MYF(0), filename,
              errno, my_strerror(errbuf, sizeof(errbuf), errno));
   }

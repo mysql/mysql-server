@@ -414,7 +414,7 @@ static MI_INFO *open_isam_file(char *name,int mode)
 			  (opt_wait ? HA_OPEN_WAIT_IF_LOCKED :
 			   HA_OPEN_ABORT_IF_LOCKED))))
   {
-    (void) fprintf(stderr, "%s gave error %d on open\n", name, my_errno);
+    (void) fprintf(stderr, "%s gave error %d on open\n", name, my_errno());
     DBUG_RETURN(0);
   }
   share=isam_file->s;

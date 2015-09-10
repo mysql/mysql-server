@@ -119,7 +119,7 @@ HP_INFO *heap_open(const char *name, int mode)
   mysql_mutex_lock(&THR_LOCK_heap);
   if (!(share= hp_find_named_heap(name)))
   {
-    my_errno= ENOENT;
+    set_my_errno(ENOENT);
     mysql_mutex_unlock(&THR_LOCK_heap);
     DBUG_RETURN(0);
   }

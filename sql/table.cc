@@ -833,7 +833,7 @@ err_not_open:
   if (error && !error_given)
   {
     share->error= error;
-    open_table_error(share, error, (share->open_errno= my_errno), 0);
+    open_table_error(share, error, (share->open_errno= my_errno()), 0);
   }
 
   DBUG_RETURN(error);
@@ -2560,7 +2560,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
  err:
   share->error= error;
-  share->open_errno= my_errno;
+  share->open_errno= my_errno();
   share->errarg= errarg;
   my_free(disk_buff);
   my_free(extra_segment_buff);
@@ -3238,7 +3238,7 @@ partititon_err:
 	    ibd file might be missing
           */
           error= 1;
-          DBUG_ASSERT(my_errno == HA_ERR_TABLESPACE_MISSING);
+          DBUG_ASSERT(my_errno() == HA_ERR_TABLESPACE_MISSING);
           break;
         case HA_ERR_NO_SUCH_TABLE:
 	  /*
@@ -3246,7 +3246,7 @@ partititon_err:
             as if the .frm file didn't exist
           */
 	  error= 1;
-	  my_errno= ENOENT;
+	  set_my_errno(ENOENT);
           break;
         case EMFILE:
 	  /*
@@ -3256,7 +3256,7 @@ partititon_err:
           DBUG_PRINT("error", ("open file: %s failed, too many files opened (errno: %d)", 
 		  share->normalized_path.str, ha_err));
 	  error= 1;
-	  my_errno= EMFILE;
+	  set_my_errno(EMFILE);
           break;
         default:
           outparam->file->print_error(ha_err, MYF(0));
@@ -3295,7 +3295,7 @@ partititon_err:
 
  err:
   if (! error_reported)
-    open_table_error(share, error, my_errno, 0);
+    open_table_error(share, error, my_errno(), 0);
   delete outparam->file;
   if (outparam->part_info)
     free_items(outparam->part_info->item_free_list);
@@ -3919,10 +3919,10 @@ File create_frm(THD *thd, const char *name, const char *db,
   }
   else
   {
-    if (my_errno == ENOENT)
+    if (my_errno() == ENOENT)
       my_error(ER_BAD_DB_ERROR,MYF(0),db);
     else
-      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno);
+      my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno());
   }
   return (file);
 } /* create_frm */

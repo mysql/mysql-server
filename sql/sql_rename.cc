@@ -315,7 +315,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       { 
         char errbuf[MYSYS_STRERROR_SIZE];
         my_error(ER_FILE_NOT_FOUND, MYF(0), name,
-                 my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+                 my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
       break;
   }

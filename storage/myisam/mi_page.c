@@ -38,10 +38,10 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
     info->buff_used=1;
   else if (!tmp)
   {
-    DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno));
+    DBUG_PRINT("error",("Got errno: %d from key_cache_read",my_errno()));
     info->last_keypage=HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
-    my_errno=HA_ERR_CRASHED;
+    set_my_errno(HA_ERR_CRASHED);
     DBUG_RETURN(0);
   }
   info->last_keypage=page;
@@ -53,7 +53,7 @@ uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
     DBUG_DUMP("page", tmp, keyinfo->block_length);
     info->last_keypage = HA_OFFSET_ERROR;
     mi_print_error(info->s, HA_ERR_CRASHED);
-    my_errno = HA_ERR_CRASHED;
+    set_my_errno(HA_ERR_CRASHED);
     tmp = 0;
   }
   DBUG_RETURN(tmp);
@@ -76,7 +76,7 @@ int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
 			(long) info->s->base.keystart,
 			(long) info->state->key_file_length,
 			(long) page));
-    my_errno=EINVAL;
+    set_my_errno(EINVAL);
     DBUG_RETURN((-1));
   }
   DBUG_PRINT("page",("write page at: %lu",(long) page));
@@ -131,7 +131,7 @@ my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level)
     if (info->state->key_file_length >=
 	info->s->base.max_key_file_length - keyinfo->block_length)
     {
-      my_errno=HA_ERR_INDEX_FILE_FULL;
+      set_my_errno(HA_ERR_INDEX_FILE_FULL);
       DBUG_RETURN(HA_OFFSET_ERROR);
     }
     pos=info->state->key_file_length;

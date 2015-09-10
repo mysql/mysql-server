@@ -356,7 +356,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), name, tmp_name,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     error_set= TRUE;
     goto err_rename;
   }
@@ -376,7 +376,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), from_name, name,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     error_set= TRUE;
     goto err_rename;
   }
@@ -396,7 +396,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), tmp_name, from_name,
-             my_errno, my_strerror(errbuf, sizeof(errbuf), my_errno));
+             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
     error_set= TRUE;
     goto err_rename;
   }

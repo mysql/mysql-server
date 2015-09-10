@@ -764,7 +764,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
                               test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
     {
       unlock_shared_ha_data();
-      return (my_errno ? my_errno : -1);
+      return (my_errno() ? my_errno() : -1);
     }
     if (!my_handler_share)
     {
@@ -778,7 +778,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
       {
         mi_close(file);
         unlock_shared_ha_data();
-        return (my_errno ? my_errno : HA_ERR_OUT_OF_MEM);
+        return (my_errno() ? my_errno() : HA_ERR_OUT_OF_MEM);
       }
     }
     unlock_shared_ha_data();
@@ -787,11 +787,12 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
      if (!(file=
            mi_open_share(name, share, mode,
                          test_if_locked | HA_OPEN_FROM_SQL_LAYER)))
-       return (my_errno ? my_errno : -1);
+       return (my_errno() ? my_errno() : -1);
 
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
-    if ((my_errno= table2myisam(table, &keyinfo, &recinfo, &recs)))
+    set_my_errno(table2myisam(table, &keyinfo, &recinfo, &recs));
+    if (my_errno())
     {
       /* purecov: begin inspected */
       DBUG_PRINT("error", ("Failed to convert TABLE object to MyISAM "
@@ -805,7 +806,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
                          true, table))
     {
       /* purecov: begin inspected */
-      my_errno= HA_ERR_CRASHED;
+      set_my_errno(HA_ERR_CRASHED);
       goto err;
       /* purecov: end */
     }
@@ -830,7 +831,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
         (struct st_mysql_ftparser *)plugin_decl(parser)->info;
     table->key_info[i].block_size= file->s->keyinfo[i].block_length;
   }
-  my_errno= 0;
+  set_my_errno(0);
   goto end;
  err:
   this->close();
@@ -841,7 +842,7 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
   */
   if (recinfo)
     my_free(recinfo);
-  return my_errno;
+  return my_errno();
 }
 
 int ha_myisam::close(void)
@@ -1072,7 +1073,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
   if ((error= repair(thd,param,1)) && param.retry_repair)
   {
     sql_print_warning("Warning: Optimize table got errno %d on %s.%s, retrying",
-                      my_errno, param.db_name, param.table_name);
+                      my_errno(), param.db_name, param.table_name);
     param.testflag&= ~T_REP_BY_SORT;
     error= repair(thd,param,1);
   }
@@ -1108,8 +1109,8 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
       mi_lock_database(file, table->s->tmp_table ? F_EXTRA_LCK : F_WRLCK))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
-    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno,
-                         my_strerror(errbuf, sizeof(errbuf), my_errno));
+    mi_check_print_error(&param, ER(ER_CANT_LOCK), my_errno(),
+                         my_strerror(errbuf, sizeof(errbuf), my_errno()));
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
@@ -1322,7 +1323,7 @@ int ha_myisam::preload_keys(THD* thd, HA_CHECK_OPT *check_opt)
       break;
     default:
       my_snprintf(buf, sizeof(buf),
-                  "Failed to read from index file (errno: %d)", my_errno);
+                  "Failed to read from index file (errno: %d)", my_errno());
       errmsg= buf;
     }
     error= HA_ADMIN_FAILED;
@@ -1457,7 +1458,7 @@ int ha_myisam::enable_indexes(uint mode)
     if ((error= (repair(thd,param,0) != HA_ADMIN_OK)) && param.retry_repair)
     {
       sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
-                        my_errno, param.db_name, param.table_name);
+                        my_errno(), param.db_name, param.table_name);
       /*
         Repairing by sort failed. Now try standard repair method.
         Still we want to fix only index file. If data file corruption

@@ -593,7 +593,7 @@ replace_record(THD *thd, TABLE *table,
     {
       if (table->file->extra(HA_EXTRA_FLUSH_CACHE))
       {
-        DBUG_RETURN(my_errno);
+        DBUG_RETURN(my_errno());
       }
 
       if (key == NULL)
@@ -2110,7 +2110,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
       if (table->file->extra(HA_EXTRA_FLUSH_CACHE))
       {
         DBUG_PRINT("info",("Error when setting HA_EXTRA_FLUSH_CACHE"));
-        DBUG_RETURN(my_errno);
+        DBUG_RETURN(my_errno());
       }
 
       if (key == NULL)

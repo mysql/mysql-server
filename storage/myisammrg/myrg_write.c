@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,5 +25,8 @@ int myrg_write(MYRG_INFO *info, uchar *rec)
   else if (info->merge_insert_method == MERGE_INSERT_TO_LAST)
     return mi_write((info->current_table=info->end_table-1)->table,rec);
   else /* unsupported insertion method */
-    return (my_errno= HA_ERR_WRONG_COMMAND);
+  {
+    set_my_errno(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
+  }
 }

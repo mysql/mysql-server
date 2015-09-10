@@ -202,7 +202,7 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
 					      buffer->bufread+1,
 					      MYF(MY_WME | MY_FAE))))
     {
-      buffer->error= my_errno;
+      buffer->error= my_errno();
       return (size_t) -1;
     }
     buffer->start_of_line=buffer->buffer+start_offset;
@@ -220,7 +220,7 @@ static size_t fill_buffer(LINE_BUFFER *buffer)
   if ((read_count= my_read(buffer->file, (uchar*) buffer->end, read_count,
 			   MYF(MY_WME))) == MY_FILE_ERROR)
   {
-    buffer->error= my_errno;
+    buffer->error= my_errno();
     return (size_t) -1;
   }
 

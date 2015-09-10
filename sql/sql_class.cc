@@ -550,7 +550,7 @@ void thd_set_killed(THD *thd)
 */
 void thd_clear_errors(THD *thd)
 {
-  my_errno= 0;
+  set_my_errno(0);
 }
 
 /**
@@ -581,7 +581,7 @@ THD *thd_get_current_thd()
 void reset_thread_globals(THD* thd)
 {
   thd->restore_globals();
-  thd->set_mysys_var(NULL);
+  thd->set_is_killable(false);
 }
 
 extern "C"
@@ -658,14 +658,13 @@ uint thd_get_net_read_write(THD *thd)
 }
 
 /**
-  Set reference to mysys variable in THD object
+  Mark the THD as not killable as it is not currently used by a thread.
 
   @param thd             THD object
-  @param mysys_var       Reference to set
 */
-void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
+void thd_set_not_killable(THD *thd)
 {
-  thd->set_mysys_var(mysys_var);
+  thd->set_is_killable(false);
 }
 
 /**
@@ -1077,7 +1076,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 Sql_condition::enum_severity_level *level,
                                                 const char* msg)
 {
-  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
+  return ((sql_errno == EE_DELETE && my_errno() == ENOENT) ||
           sql_errno == ER_TRG_NO_DEFINER);
 }
 
@@ -1228,7 +1227,7 @@ THD::THD(bool enable_plugins)
   query_name_consts= 0;
   db_charset= global_system_variables.collation_database;
   memset(ha_data, 0, sizeof(ha_data));
-  mysys_var=0;
+  is_killable= false;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
   commit_error= CE_NONE;
@@ -2116,7 +2115,7 @@ void THD::awake(THD::killed_state state_to_set)
 
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
-  if (mysys_var)
+  if (is_killable)
   {
     mysql_mutex_lock(&LOCK_current_cond);
     /*
@@ -2239,35 +2238,32 @@ bool THD::store_globals()
 
   if (my_thread_set_THR_THD(this) ||
       my_thread_set_THR_MALLOC(&mem_root))
-    return 1;
+    return true;
   /*
-    mysys_var is concurrently readable by a killer thread.
+    is_killable is concurrently readable by a killer thread.
     It is protected by LOCK_thd_data, it is not needed to lock while the
-    pointer is changing from NULL not non-NULL. If the kill thread reads
-    NULL it doesn't refer to anything, but if it is non-NULL we need to
-    ensure that the thread doesn't proceed to assign another thread to
-    have the mysys_var reference (which in fact refers to the worker
-    threads local storage with key THR_KEY_mysys. 
+    value is changing from false not true. If the kill thread reads
+    true we need to ensure that the thread doesn't proceed to assign
+    another thread to the same TLS reference.
   */
-  mysys_var= mysys_thread_var();
-  DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
+  is_killable= true;
 #ifndef DBUG_OFF
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
   */
-  mysys_var->id= m_thread_id;
+  set_my_thread_var_id(m_thread_id);
 #endif
   real_id= my_thread_self();                      // For debugging
 
-  return 0;
+  return false;
 }
 
 /*
   Remove the thread specific info (THD and mem_root pointer) stored during
   store_global call for this thread.
 */
-bool THD::restore_globals()
+void THD::restore_globals()
 {
   /*
     Assert that thread_stack is initialized: it's necessary to be able
@@ -2278,8 +2274,6 @@ bool THD::restore_globals()
   /* Undocking the thread specific data. */
   my_thread_set_THR_THD(NULL);
   my_thread_set_THR_MALLOC(NULL);
-
-  return 0;
 }
 
 
@@ -3402,8 +3396,8 @@ bool Query_result_dump::send_data(List<Item> &items)
     else if (my_b_write(&cache,(uchar*) res->ptr(),res->length()))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno,
-               my_strerror(errbuf, sizeof(errbuf), my_errno));
+      my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno(),
+               my_strerror(errbuf, sizeof(errbuf), my_errno()));
       goto err;
     }
   }

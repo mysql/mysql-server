@@ -283,7 +283,8 @@ int heap_delete_table(const char *name)
   }
   else
   {
-    result= my_errno=ENOENT;
+    result= ENOENT;
+    set_my_errno(result);
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(result);

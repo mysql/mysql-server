@@ -557,7 +557,7 @@ bool File_query_log::open()
 
   if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
   {
-    if (my_errno == ESPIPE)
+    if (my_errno() == ESPIPE)
       pos= 0;
     else
       goto err;

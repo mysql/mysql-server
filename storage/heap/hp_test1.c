@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     }
     flags[j]=1;
     if (verbose || error) printf("J= %2d  heap_write: %d  my_errno: %d\n",
-       j,error,my_errno);
+                                 j,error,my_errno());
   }
   if (heap_close(file))
     goto err;
@@ -102,14 +102,14 @@ int main(int argc, char **argv)
     if ((error = heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT)))
     {
       if (verbose || (flags[j] == 1 ||
-		      (error && my_errno != HA_ERR_KEY_NOT_FOUND)))
-	printf("key: %s  rkey:   %3d  my_errno: %3d\n",(char*) key,error,my_errno);
+		      (error && my_errno() != HA_ERR_KEY_NOT_FOUND)))
+	printf("key: %s  rkey:   %3d  my_errno: %3d\n",(char*) key,error,my_errno());
     }
     else
     {
       error=heap_delete(file,record);
       if (error || verbose)
-	printf("key: %s  delete: %d  my_errno: %d\n",(char*) key,error,my_errno);
+	printf("key: %s  delete: %d  my_errno: %d\n",(char*) key,error,my_errno());
       flags[j]=0;
       if (! error)
 	deleted++;
@@ -126,14 +126,14 @@ int main(int argc, char **argv)
   {
     sprintf((char*) key,"%6d",i);
     memmove(record + 1, key, 6);
-    my_errno=0;
+    set_my_errno(0);
     error=heap_rkey(file,record,0,key,6,HA_READ_KEY_EXACT);
     if (verbose ||
 	(error == 0 && flags[i] != 1) ||
-	(error && (flags[i] != 0 || my_errno != HA_ERR_KEY_NOT_FOUND)))
+	(error && (flags[i] != 0 || my_errno() != HA_ERR_KEY_NOT_FOUND)))
     {
       printf("key: %s  rkey: %3d  my_errno: %3d  record: %s\n",
-             (char*) key,error,my_errno,record+1);
+             (char*) key,error,my_errno(),record+1);
     }
   }
 
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
   my_end(MY_GIVE_INFO);
   return(0);
 err:
-  printf("got error: %d when using heap-database\n",my_errno);
+  printf("got error: %d when using heap-database\n",my_errno());
   return(1);
 } /* main */
 

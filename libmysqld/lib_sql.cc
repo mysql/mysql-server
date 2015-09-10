@@ -167,12 +167,9 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
                                               (uchar *) arg, arg_length);
   result= dispatch_command(thd, &com_data, command);
   thd->cur_data= 0;
-  thd->mysys_var= NULL;
 
   if (!skip_check)
     result= thd->is_error() ? -1 : 0;
-
-  thd->mysys_var= 0;
 
 #if defined(ENABLED_PROFILING)
   thd->profiling.finish_current_query();
@@ -730,7 +727,6 @@ void *create_embedded_thd(int client_flag)
   thd->data_tail= &thd->first_data;
   thd->get_protocol_classic()->wipe_net();
   Global_THD_manager::get_instance()->add_thd(thd);
-  thd->mysys_var= 0;
   return thd;
 err:
   delete(thd);

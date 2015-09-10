@@ -47,7 +47,8 @@ int my_access(const char *path, int amode)
   if (! result ||
       (fileinfo.dwFileAttributes & FILE_ATTRIBUTE_READONLY) && (amode & W_OK))
   {
-    my_errno= errno= EACCES;
+    errno= EACCES;
+    set_my_errno(EACCES);
     return -1;
   }
   return 0;

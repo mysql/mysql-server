@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,11 +38,12 @@ int heap_write(HP_INFO *info, const uchar *record)
 #ifndef DBUG_OFF
   if (info->mode & O_RDONLY)
   {
-    DBUG_RETURN(my_errno=EACCES);
+    set_my_errno(EACCES);
+    DBUG_RETURN(EACCES);
   }
 #endif
   if (!(pos=next_free_record_pos(share)))
-    DBUG_RETURN(my_errno);
+    DBUG_RETURN(my_errno());
   share->changed=1;
 
   for (keydef = share->keydef, end = keydef + share->keys; keydef < end;
@@ -67,7 +68,7 @@ int heap_write(HP_INFO *info, const uchar *record)
   DBUG_RETURN(0);
 
 err:
-  if (my_errno == HA_ERR_FOUND_DUPP_KEY)
+  if (my_errno() == HA_ERR_FOUND_DUPP_KEY)
     DBUG_PRINT("info",("Duplicate key: %d", (int) (keydef - share->keydef)));
   info->errkey= (int) (keydef - share->keydef);
   /*
@@ -76,7 +77,7 @@ err:
     either.  Otherwise for HASH index on HA_ERR_FOUND_DUPP_KEY the key
     was inserted and we have to delete it.
   */
-  if (keydef->algorithm == HA_KEY_ALG_BTREE || my_errno == ENOMEM)
+  if (keydef->algorithm == HA_KEY_ALG_BTREE || my_errno() == ENOMEM)
   {
     keydef--;
   }
@@ -92,7 +93,7 @@ err:
   share->del_link=pos;
   pos[share->reclength]=0;			/* Record deleted */
 
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno());
 } /* heap_write */
 
 /* 
@@ -121,7 +122,7 @@ int hp_rb_write_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   if (!tree_insert(&keyinfo->rb_tree, (void*)info->recbuf,
 		   custom_arg.key_length, &custom_arg))
   {
-    my_errno= HA_ERR_FOUND_DUPP_KEY;
+    set_my_errno(HA_ERR_FOUND_DUPP_KEY);
     return 1;
   }
   info->s->index_length+= (keyinfo->rb_tree.allocated-old_allocated);
@@ -150,7 +151,7 @@ static uchar *next_free_record_pos(HP_SHARE *info)
     if ((info->records > info->max_records && info->max_records) ||
         (info->data_length + info->index_length >= info->max_table_size))
     {
-      my_errno=HA_ERR_RECORD_FILE_FULL;
+      set_my_errno(HA_ERR_RECORD_FILE_FULL);
       DBUG_RETURN(NULL);
     }
     if (hp_get_new_block(&info->block,&length))
@@ -373,7 +374,8 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       {
 	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 1))
 	{
-	  DBUG_RETURN(my_errno=HA_ERR_FOUND_DUPP_KEY);
+          set_my_errno(HA_ERR_FOUND_DUPP_KEY);
+	  DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);
 	}
       } while ((pos=pos->next_key));
     }

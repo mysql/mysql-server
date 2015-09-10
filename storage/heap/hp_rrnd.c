@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,12 +34,14 @@ int heap_rrnd(HP_INFO *info, uchar *record, uchar *pos)
   if (!(info->current_ptr= pos))
   {
     info->update= 0;
-    DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
+    set_my_errno(HA_ERR_END_OF_FILE);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   if (!info->current_ptr[share->reclength])
   {
     info->update= HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND;
-    DBUG_RETURN(my_errno=HA_ERR_RECORD_DELETED);
+    set_my_errno(HA_ERR_RECORD_DELETED);
+    DBUG_RETURN(HA_ERR_RECORD_DELETED);
   }
   info->update=HA_STATE_PREV_FOUND | HA_STATE_NEXT_FOUND | HA_STATE_AKTIV;
   memcpy(record,info->current_ptr,(size_t) share->reclength);
