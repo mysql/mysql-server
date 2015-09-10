@@ -2582,8 +2582,8 @@ File open_binlog_file(IO_CACHE *log, const char *log_file_name, const char **err
     *errmsg = "Could not open log file";
     goto err;
   }
-  if (init_io_cache(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
-                    MYF(MY_WME|MY_DONT_CHECK_FILESIZE)))
+  if (init_io_cache_ext(log, file, IO_SIZE*2, READ_CACHE, 0, 0,
+                        MYF(MY_WME|MY_DONT_CHECK_FILESIZE), key_file_binlog_cache))
   {
     sql_print_error("Failed to create a cache on log (file '%s')",
                     log_file_name);
@@ -3521,10 +3521,11 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
                                       O_RDWR | O_CREAT | O_BINARY,
                                       MYF(MY_WME))) < 0 ||
        mysql_file_sync(index_file_nr, MYF(MY_WME)) ||
-       init_io_cache(&index_file, index_file_nr,
-                     IO_SIZE, READ_CACHE,
-                     mysql_file_seek(index_file_nr, 0L, MY_SEEK_END, MYF(0)),
-                                     0, MYF(MY_WME | MY_WAIT_IF_FULL)) ||
+       init_io_cache_ext(&index_file, index_file_nr,
+                         IO_SIZE, READ_CACHE,
+                         mysql_file_seek(index_file_nr, 0L, MY_SEEK_END, MYF(0)),
+                                         0, MYF(MY_WME | MY_WAIT_IF_FULL),
+                         m_key_file_log_index_cache) ||
       DBUG_EVALUATE_IF("fault_injection_openning_index", 1, 0))
   {
     /*
@@ -4929,9 +4930,10 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
                            O_RDWR | O_CREAT | O_BINARY,
                            MYF(MY_WME))) < 0 ||
            mysql_file_sync(fd, MYF(MY_WME)) ||
-           init_io_cache(&index_file, fd, IO_SIZE, READ_CACHE,
-                         mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(0)),
-                                         0, MYF(MY_WME | MY_WAIT_IF_FULL)))
+           init_io_cache_ext(&index_file, fd, IO_SIZE, READ_CACHE,
+                             mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(0)),
+                                             0, MYF(MY_WME | MY_WAIT_IF_FULL),
+                             key_file_binlog_index_cache))
   {
     error= -1;
     sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "

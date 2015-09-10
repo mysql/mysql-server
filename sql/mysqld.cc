@@ -2749,7 +2749,9 @@ int init_common_variables()
                              key_BINLOG_update_cond,
                              key_BINLOG_prep_xids_cond,
                              key_file_binlog,
-                             key_file_binlog_index);
+                             key_file_binlog_index,
+                             key_file_binlog_cache,
+                             key_file_binlog_index_cache);
 #endif
 
   /*
@@ -8588,7 +8590,9 @@ static PSI_thread_info all_server_threads[]=
 #endif // !EMBEDDED_LIBRARY
 
 PSI_file_key key_file_binlog;
+PSI_file_key key_file_binlog_cache;
 PSI_file_key key_file_binlog_index;
+PSI_file_key key_file_binlog_index_cache;
 PSI_file_key key_file_dbopt;
 PSI_file_key key_file_des_key_file;
 PSI_file_key key_file_ERRMSG;
@@ -8609,15 +8613,22 @@ PSI_file_key key_file_init;
 PSI_file_key key_file_general_log;
 PSI_file_key key_file_slow_log;
 PSI_file_key key_file_relaylog;
+PSI_file_key key_file_relaylog_cache;
 PSI_file_key key_file_relaylog_index;
+PSI_file_key key_file_relaylog_index_cache;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_file_info all_server_files[]=
 {
   { &key_file_binlog, "binlog", 0},
+  { &key_file_binlog_cache, "binlog_cache", 0},
   { &key_file_binlog_index, "binlog_index", 0},
+  { &key_file_binlog_index_cache, "binlog_index_cache", 0},
   { &key_file_relaylog, "relaylog", 0},
+  { &key_file_relaylog_cache, "relaylog_cache", 0},
   { &key_file_relaylog_index, "relaylog_index", 0},
+  { &key_file_relaylog_index_cache, "relaylog_index_cache", 0},
+  { &key_file_io_cache, "io_cache", 0},
   { &key_file_casetest, "casetest", 0},
   { &key_file_dbopt, "dbopt", 0},
   { &key_file_des_key_file, "des_key_file", 0},

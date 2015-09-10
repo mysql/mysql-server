@@ -4464,6 +4464,27 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_v1
 
 /**
   Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_temp_file_open_wait_and_bind_to_descriptor.
+*/
+void pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1
+  (PSI_file_locker *locker, File file, const char *filename)
+{
+  DBUG_ASSERT(filename != NULL);
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  /* Set filename that was generated during creation of temporary file. */
+  state->m_name= filename;
+  pfs_end_file_open_wait_and_bind_to_descriptor_v1(locker, file);
+
+  PFS_file *pfs_file= reinterpret_cast<PFS_file *> (state->m_file);
+  DBUG_ASSERT(pfs_file != NULL);
+  pfs_file->m_temporary= true;
+}
+
+
+/**
+  Implementation of the file instrumentation interface.
   @sa PSI_v1::start_file_wait.
 */
 void pfs_start_file_wait_v1(PSI_file_locker *locker,
@@ -4665,11 +4686,23 @@ void pfs_end_file_close_wait_v1(PSI_file_locker *locker, int rc)
   {
     PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
     PFS_file *file= reinterpret_cast<PFS_file*> (state->m_file);
+    PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
 
     /* Release or destroy the file if necessary */
     switch(state->m_operation)
     {
     case PSI_FILE_CLOSE:
+      if (file != NULL)
+      {
+        if (file->m_temporary)
+        {
+          DBUG_ASSERT(file->m_file_stat.m_open_count <= 1);
+          destroy_file(thread, file);
+        }
+        else
+          release_file(file);
+      }
+      break;
     case PSI_FILE_STREAM_CLOSE:
       if (file != NULL)
         release_file(file);
@@ -6943,6 +6976,7 @@ PSI_v1 PFS_v1=
   pfs_start_file_open_wait_v1,
   pfs_end_file_open_wait_v1,
   pfs_end_file_open_wait_and_bind_to_descriptor_v1,
+  pfs_end_temp_file_open_wait_and_bind_to_descriptor_v1,
   pfs_start_file_wait_v1,
   pfs_end_file_wait_v1,
   pfs_start_file_close_wait_v1,

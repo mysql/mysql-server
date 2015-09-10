@@ -870,6 +870,7 @@ search:
     pfs->m_file_stat.m_open_count= 1;
     pfs->m_file_stat.m_io_stat.reset();
     pfs->m_identity= (const void *)pfs;
+    pfs->m_temporary= false;
 
     int res;
     pfs->m_lock.dirty_to_allocated(& dirty_state);

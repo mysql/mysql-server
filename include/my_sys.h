@@ -432,6 +432,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   char *file_name;			/* if used with 'open_cached_file' */
   char *dir,*prefix;
   File file; /* file descriptor */
+  PSI_file_key file_key; /* instrumented file key */
+
   /*
     seek_not_done is set by my_b_seek() to inform the upcoming read/write
     operation that a seek needs to be preformed prior to the actual I/O
@@ -461,9 +463,10 @@ typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
 
 extern my_error_reporter my_charset_error_reporter;
 
-	/* defines for mf_iocache */
+/* defines for mf_iocache */
+extern PSI_file_key key_file_io_cache;
 
-	/* Test if buffer is inited */
+/* Test if buffer is inited */
 #define my_b_clear(info) (info)->buffer=0
 #define my_b_inited(info) (info)->buffer
 #define my_b_EOF INT_MIN
@@ -688,12 +691,16 @@ extern void my_qsort2(void *base_ptr, size_t total_elems, size_t size,
                       qsort2_cmp cmp, const void *cmp_argument);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
+extern int init_io_cache_ext(IO_CACHE *info,File file,size_t cachesize,
+                             enum cache_type type,my_off_t seek_offset,
+                             pbool use_async_io, myf cache_myflags,
+                             PSI_file_key file_key);
 extern int init_io_cache(IO_CACHE *info,File file,size_t cachesize,
-			 enum cache_type type,my_off_t seek_offset,
-			 pbool use_async_io, myf cache_myflags);
+                         enum cache_type type,my_off_t seek_offset,
+                         pbool use_async_io, myf cache_myflags);
 extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
-			       my_off_t seek_offset,pbool use_async_io,
-			       pbool clear_cache);
+                               my_off_t seek_offset,pbool use_async_io,
+                               pbool clear_cache);
 extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_read_r(IO_CACHE *info,uchar *Buffer,size_t Count);
