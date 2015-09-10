@@ -261,8 +261,8 @@ struct Slot {
 	/** Compressed data page, aligned and derived from compressed_ptr */
 	byte*			compressed_page;
 
-	/** true if the fil_page_compress() was successful */
-	bool			compress_ok;
+	/** true, if we shouldn't punch a hole after writing the page */
+	bool			skip_punch_hole;
 };
 
 /** The asynchronous i/o array structure */
@@ -850,6 +850,20 @@ public:
 	@return DB_SUCCESS or error code. */
 	static dberr_t post_io_processing(Slot* slot);
 
+	/** Decompress after a read and punch a hole in the file if
+	it was a write */
+	static dberr_t io_complete(const Slot* slot)
+	{
+		ut_a(slot->offset > 0);
+		ut_a(slot->type.is_read() || !slot->skip_punch_hole);
+
+		return(os_file_io_complete(
+				slot->type, slot->file, slot->buf,
+				slot->compressed_page, slot->original_len,
+				static_cast<ulint>(slot->offset),
+				slot->len));
+	}
+
 private:
 	/** Check whether the page was compressed.
 	@param[in]	slot		The slot that contains the IO request
@@ -905,20 +919,6 @@ private:
 	@param[in]	n_bytes		Total bytes read so far
 	@return DB_SUCCESS or error code */
 	static dberr_t check_read(Slot* slot, ulint n_bytes);
-
-	/** Decompress after a read and punch a hole in the file if
-	it was a write */
-	static dberr_t io_complete(const Slot* slot)
-	{
-		ut_a(slot->offset > 0);
-		ut_a(slot->type.is_read() || slot->compress_ok);
-
-		return(os_file_io_complete(
-				slot->type, slot->file, slot->buf,
-				slot->compressed_page, slot->original_len,
-				static_cast<ulint>(slot->offset),
-				slot->len));
-	}
 };
 
 /** Helper class for doing synchronous file IO. Currently, the objective
@@ -1098,13 +1098,18 @@ AIOHandler::post_io_processing(Slot* slot)
 				slot->len = slot->original_len;
 			}
 
-			err = io_complete(slot);
+			/* The punch hole has been done on collect() */
+
+			if (slot->type.is_read()) {
+				err = io_complete(slot);
+			} else {
+				err = DB_SUCCESS;
+			}
 
 			ut_ad(err == DB_SUCCESS
 			      || err == DB_UNSUPPORTED
 			      || err == DB_CORRUPTION
-			      || err == DB_IO_DECOMPRESS_FAIL
-			      || err == DB_IO_NO_PUNCH_HOLE);
+			      || err == DB_IO_DECOMPRESS_FAIL);
 		} else {
 
 			err = DB_SUCCESS;
@@ -1905,74 +1910,74 @@ os_file_create_subdirs_if_needed(
 @param[out]	buf		buffer to read or write
 @param[in,out]	n		number of bytes to read/write, starting from
 				offset
-@param[out]	err		DB_SUCCESS or error code
 @return pointer to allocated page, compressed data is written to the offset
-	that is aligned on UNIV_SECTOR_SIZE */
+	that is aligned on UNIV_SECTOR_SIZE of Block.m_ptr */
 static
 byte*
 os_file_compress_page(
-	const IORequest&	type,
-	void*&			buf,
-	ulint*			n,
-	dberr_t*		err)
+	IORequest&	type,
+	void*&		buf,
+	ulint*		n)
 {
 	ut_ad(!type.is_log());
 	ut_ad(type.is_write());
 	ut_ad(type.is_compressed());
 
-	// FIXME: We should use TLS for this and reduce the malloc/free
-
 	ulint	n_alloc = *n * 2;
 
+	ut_a(n_alloc < UNIV_PAGE_SIZE_MAX * 2);
 	ut_a(type.compression_algorithm().m_type != Compression::LZ4
 	     || static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
 	byte*	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(n_alloc));
 
 	if (ptr == NULL) {
-
-		*err = DB_OUT_OF_MEMORY;
-
 		return(NULL);
+	}
 
-	} else {
+	ulint	old_compressed_len;
+	ulint	compressed_len = *n;
 
-		ulint	compressed_len = *n;
-		ulint	old_compressed_len;
+	old_compressed_len = mach_read_from_2(
+		reinterpret_cast<byte*>(buf)
+		+ FIL_PAGE_COMPRESS_SIZE_V1);
 
-		old_compressed_len = mach_read_from_2(
-			reinterpret_cast<byte*>(buf)
-			+ FIL_PAGE_COMPRESS_SIZE_V1);
-
+	if (old_compressed_len > 0) {
 		old_compressed_len = ut_calc_align(
 			old_compressed_len + FIL_PAGE_DATA,
 			type.block_size());
-
-		byte*	compressed_page;
-
-		compressed_page = static_cast<byte*>(
-			ut_align(ptr, UNIV_SECTOR_SIZE));
-
-		byte*	buf_ptr;
-
-		buf_ptr = os_file_compress_page(
-			type.compression_algorithm(),
-			type.block_size(),
-			reinterpret_cast<byte*>(buf),
-			*n,
-			compressed_page,
-			&compressed_len);
-
-		bool	compressed = buf_ptr != buf;
-
-		if (compressed) {
-
-			buf = buf_ptr;
-			*n = compressed_len;
-		}
 	}
 
-	*err = DB_SUCCESS;
+	byte*	compressed_page;
+
+	compressed_page = static_cast<byte*>(
+		ut_align(ptr, UNIV_SECTOR_SIZE));
+
+	byte*	buf_ptr;
+
+	buf_ptr = os_file_compress_page(
+		type.compression_algorithm(),
+		type.block_size(),
+		reinterpret_cast<byte*>(buf),
+		*n,
+		compressed_page,
+		&compressed_len);
+
+	if (buf_ptr != buf) {
+		/* Set new compressed size to uncompressed page. */
+		memcpy(reinterpret_cast<byte*>(buf) + FIL_PAGE_COMPRESS_SIZE_V1,
+		       buf_ptr + FIL_PAGE_COMPRESS_SIZE_V1, 2);
+
+		buf = buf_ptr;
+		*n = compressed_len;
+
+		if (compressed_len >= old_compressed_len) {
+
+			ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
+
+			type.clear_punch_hole();
+		}
+	}
 
 	return(ptr);
 }
@@ -2009,6 +2014,7 @@ os_file_punch_hole_posix(
 	os_offset_t	off,
 	os_offset_t	len)
 {
+
 #ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
 	const int	mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
 
@@ -2331,6 +2337,21 @@ LinuxAIOHandler::collect()
 			/* We have not overstepped to next segment. */
 			ut_a(slot->pos < end_pos);
 
+			/* We never compress/decompress the first page */
+
+			if (slot->offset > 0
+			    && !slot->skip_punch_hole
+			    && slot->type.is_compression_enabled()
+			    && !slot->type.is_log()
+			    && slot->type.is_write()
+			    && slot->type.is_compressed()
+			    && slot->type.punch_hole()) {
+
+				slot->err = AIOHandler::io_complete(slot);
+			} else {
+				slot->err = DB_SUCCESS;
+			}
+
 			/* Mark this request as completed. The error handling
 			will be done in the calling function. */
 			m_array->acquire();
@@ -2338,7 +2359,6 @@ LinuxAIOHandler::collect()
 			slot->ret = events[i].res2;
 			slot->io_already_done = true;
 			slot->n_bytes = events[i].res;
-			slot->err = DB_SUCCESS;
 
 			m_array->release();
 		}
@@ -5206,7 +5226,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 static __attribute__((warn_unused_result))
 ssize_t
 os_file_io(
-	IORequest&	type,
+	const IORequest&in_type,
 	os_file_t	file,
 	void*		buf,
 	ulint		n,
@@ -5215,6 +5235,7 @@ os_file_io(
 {
 	byte*		ptr;
 	ulint		original_n = n;
+	IORequest	type = in_type;
 	byte*		compressed_page;
 	ssize_t		bytes_returned = 0;
 
@@ -5223,20 +5244,14 @@ os_file_io(
 		/* We don't compress the first page of any file. */
 		ut_ad(offset > 0);
 
-		ptr = os_file_compress_page(type, buf, &n, err);
-
-		if (*err != DB_SUCCESS) {
-
-			ut_ad(ptr == NULL);
-
-			return(-1);
-		}
+		ptr  = os_file_compress_page(type, buf, &n);
 
 		compressed_page = static_cast<byte*>(
 			ut_align(ptr, UNIV_SECTOR_SIZE));
 
 	} else {
-		ptr = compressed_page = NULL;
+		ptr = NULL;
+		compressed_page = NULL;
 	}
 
 	SyncFileIO	sync_file_io(file, buf, n, offset);
@@ -6663,7 +6678,6 @@ AIO::reserve_slot(
 	slot->ptr      = slot->buf;
 	slot->offset   = offset;
 	slot->err      = DB_SUCCESS;
-	slot->compress_ok = false;
 	slot->original_len = static_cast<uint32>(len);
 	slot->io_already_done = false;
 
@@ -6676,28 +6690,34 @@ AIO::reserve_slot(
 
 		release();
 
-		byte*	ptr;
 		ulint	compressed_len = len;
 
 		ulint	old_compressed_len;
 
 		old_compressed_len = mach_read_from_2(
-			reinterpret_cast<byte*>(buf)
-			+ FIL_PAGE_COMPRESS_SIZE_V1);
+			slot->buf + FIL_PAGE_COMPRESS_SIZE_V1);
 
-		old_compressed_len = ut_calc_align(
-			old_compressed_len + FIL_PAGE_DATA, type.block_size());
+		if (old_compressed_len > 0) {
+			old_compressed_len = ut_calc_align(
+				old_compressed_len + FIL_PAGE_DATA,
+				slot->type.block_size());
+		}
+
+		byte*	ptr;
 
 		ptr = os_file_compress_page(
 			slot->type.compression_algorithm(),
 			slot->type.block_size(),
-			reinterpret_cast<byte*>(buf),
+			slot->buf,
 			slot->len,
 			slot->compressed_page,
 			&compressed_len);
 
 		if (ptr != buf) {
-			len = compressed_len;
+			/* Set new compressed size to uncompressed page. */
+			memcpy(slot->buf + FIL_PAGE_COMPRESS_SIZE_V1,
+			       slot->compressed_page
+			       + FIL_PAGE_COMPRESS_SIZE_V1, 2);
 #ifdef _WIN32
 			slot->len = static_cast<DWORD>(compressed_len);
 #else
@@ -6705,10 +6725,20 @@ AIO::reserve_slot(
 #endif /* _WIN32 */
 			slot->buf = slot->compressed_page;
 			slot->ptr = slot->buf;
-			slot->compress_ok = true;
+
+			if (old_compressed_len > 0
+			    && compressed_len >= old_compressed_len) {
+
+				ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
+
+				slot->skip_punch_hole = true;
+
+			} else {
+				slot->skip_punch_hole = false;
+			}
 
 		} else {
-			slot->compress_ok = false;
+			slot->skip_punch_hole = false;
 		}
 
 		acquire();
