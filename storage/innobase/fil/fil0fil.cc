@@ -1999,11 +1999,12 @@ fil_create_directory_for_tablename(
 #ifndef UNIV_HOTBACKUP
 /** Write a log record about an operation on a tablespace file.
 @param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
-or MLOG_FILE_RENAME2
+or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
 @param[in]	path		file path
 @param[in]	new_path	if type is MLOG_FILE_RENAME2, the new name
+@param[in]	flags		if type is MLOG_FILE_CREATE2, the space flags
 @param[in,out]	mtr		mini-transaction */
 static
 void
@@ -2013,6 +2014,7 @@ fil_op_write_log(
 	ulint		first_page_no,
 	const char*	path,
 	const char*	new_path,
+	ulint		flags,
 	mtr_t*		mtr)
 {
 	byte*		log_ptr;
@@ -2025,7 +2027,7 @@ fil_op_write_log(
 	ut_ad(strchr(path, OS_PATH_SEPARATOR) != NULL);
 	ut_ad(strcmp(&path[strlen(path) - strlen(DOT_IBD)], DOT_IBD) == 0);
 
-	log_ptr = mlog_open(mtr, 11 + 2 + 1);
+	log_ptr = mlog_open(mtr, 11 + 4 + 2 + 1);
 
 	if (log_ptr == NULL) {
 		/* Logging in mtr is switched off during crash recovery:
@@ -2035,6 +2037,11 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_low(
 		type, space_id, first_page_no, log_ptr, mtr);
+
+	if (type == MLOG_FILE_CREATE2) {
+		mach_write_to_4(log_ptr, flags);
+		log_ptr += 4;
+	}
 
 	/* Let us store the strings as null-terminated for easier readability
 	and handling */
@@ -2063,6 +2070,7 @@ fil_op_write_log(
 		break;
 	case MLOG_FILE_NAME:
 	case MLOG_FILE_DELETE:
+	case MLOG_FILE_CREATE2:
 		break;
 	default:
 		ut_ad(0);
@@ -2088,7 +2096,7 @@ fil_name_write_rename(
 
 	fil_op_write_log(
 		MLOG_FILE_RENAME2,
-		space_id, first_page_no, old_name, new_name, mtr);
+		space_id, first_page_no, old_name, new_name, 0, mtr);
 }
 
 /** Write MLOG_FILE_NAME for a file.
@@ -2105,7 +2113,7 @@ fil_name_write(
 	mtr_t*		mtr)
 {
 	fil_op_write_log(
-		MLOG_FILE_NAME, space_id, first_page_no, name, NULL, mtr);
+		MLOG_FILE_NAME, space_id, first_page_no, name, NULL, 0, mtr);
 }
 
 /** Write MLOG_FILE_NAME for a file.
@@ -2758,7 +2766,7 @@ fil_delete_tablespace(
 		mtr_t		mtr;
 
 		mtr_start(&mtr);
-		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, &mtr);
+		fil_op_write_log(MLOG_FILE_DELETE, id, 0, path, NULL, 0, &mtr);
 		mtr_commit(&mtr);
 		/* Even if we got killed shortly after deleting the
 		tablespace file, the record must have already been
@@ -3625,11 +3633,14 @@ fil_ibd_create(
 
 #ifndef UNIV_HOTBACKUP
 	if (!is_temp) {
-		mtr_t		mtr;
+		mtr_t			mtr;
+		const fil_node_t*	file = UT_LIST_GET_FIRST(space->chain);
 
 		mtr_start(&mtr);
-		fil_name_write(space, 0, UT_LIST_GET_FIRST(space->chain),
-			       &mtr);
+		fil_op_write_log(
+			MLOG_FILE_CREATE2, space_id, 0, file->name,
+			NULL, space->flags, &mtr);
+		fil_name_write(space, 0, file, &mtr);
 		mtr_commit(&mtr);
 	}
 #endif
