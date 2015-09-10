@@ -46,8 +46,8 @@ SELECT /*+
 eval $check;
 
 --disable_result_log
-SELECT * FROM t1, t2;
-SELECT /*+ MAX_EXECUTION_TIME(10) */ * FROM t1, t2;
+SELECT * FROM t2, t1;
+SELECT /*+ MAX_EXECUTION_TIME(10) */ * FROM t2, t1;
 --enable_result_log
 eval $check;
 
