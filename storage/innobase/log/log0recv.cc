@@ -323,8 +323,8 @@ fil_name_process(
 @param[in]	end		end of the redo log buffer
 @param[in]	space_id	the tablespace ID
 @param[in]	first_page_no	first page number in the file
-@param[in]	type		MLOG_FILE_NAME or MLOG_FILE_RENAME2
-or MLOG_FILE_DELETE
+@param[in]	type		MLOG_FILE_NAME or MLOG_FILE_DELETE
+or MLOG_FILE_CREATE2 or MLOG_FILE_RENAME2
 @param[in]	apply		whether to apply the record
 @return pointer to next redo log record
 @retval NULL if this log record was truncated */
@@ -338,6 +338,20 @@ fil_name_parse(
 	mlog_id_t	type,
 	bool		apply)
 {
+#ifdef UNIV_HOTBACKUP
+	ulint		flags	= 0;
+#endif /* UNIV_HOTBACKUP */
+
+	if (type == MLOG_FILE_CREATE2) {
+		if (end < ptr + 4) {
+			return(NULL);
+		}
+#ifdef UNIV_HOTBACKUP
+		flags = mach_read_from_4(ptr);
+#endif /* UNIV_HOTBACKUP */
+		ptr += 4;
+	}
+
 	if (end < ptr + 2) {
 		return(NULL);
 	}
@@ -384,6 +398,11 @@ fil_name_parse(
 				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 			ut_a(err == DB_SUCCESS);
 		}
+#endif /* UNIV_HOTBACKUP */
+		break;
+	case MLOG_FILE_CREATE2:
+#ifdef UNIV_HOTBACKUP
+		/* if needed, invoke fil_ibd_create() with flags */
 #endif /* UNIV_HOTBACKUP */
 		break;
 	case MLOG_FILE_RENAME2:
@@ -1241,6 +1260,7 @@ recv_parse_or_apply_log_rec_body(
 	switch (type) {
 	case MLOG_FILE_NAME:
 	case MLOG_FILE_DELETE:
+	case MLOG_FILE_CREATE2:
 	case MLOG_FILE_RENAME2:
 		ut_ad(block == NULL);
 		/* Collect the file names when parsing the log,
@@ -1703,6 +1723,7 @@ recv_add_to_hash_table(
 	recv_addr_t*	recv_addr;
 
 	ut_ad(type != MLOG_FILE_DELETE);
+	ut_ad(type != MLOG_FILE_CREATE2);
 	ut_ad(type != MLOG_FILE_RENAME2);
 	ut_ad(type != MLOG_FILE_NAME);
 	ut_ad(type != MLOG_DUMMY_RECORD);
@@ -2740,8 +2761,9 @@ loop:
 			}
 			break;
 		case MLOG_FILE_NAME:
-		case MLOG_FILE_RENAME2:
 		case MLOG_FILE_DELETE:
+		case MLOG_FILE_CREATE2:
+		case MLOG_FILE_RENAME2:
 		case MLOG_TRUNCATE:
 			/* These were already handled by
 			recv_parse_log_rec() and
@@ -2891,8 +2913,9 @@ loop:
 				break;
 #endif /* UNIV_LOG_LSN_DEBUG */
 			case MLOG_FILE_NAME:
-			case MLOG_FILE_RENAME2:
 			case MLOG_FILE_DELETE:
+			case MLOG_FILE_CREATE2:
+			case MLOG_FILE_RENAME2:
 			case MLOG_INDEX_LOAD:
 			case MLOG_TRUNCATE:
 				/* These were already handled by
@@ -4149,6 +4172,9 @@ get_mlog_string(mlog_id_t type)
 
 	case MLOG_COMP_PAGE_REORGANIZE:
 		return("MLOG_COMP_PAGE_REORGANIZE");
+
+	case MLOG_FILE_CREATE2:
+		return("MLOG_FILE_CREATE2");
 
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		return("MLOG_ZIP_WRITE_NODE_PTR");
