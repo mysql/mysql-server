@@ -1130,7 +1130,9 @@ public:
   /**
     adaptation for the slave applier to specific master versions.
   */
-  void adapt_to_master_version(Format_description_log_event *fdle);
+  ulong adapt_to_master_version(Format_description_log_event *fdle);
+  ulong adapt_to_master_version_updown(ulong master_version,
+                                       ulong current_version);
   uchar slave_version_split[3]; // bytes of the slave server version
   /*
     relay log info repository should be updated on relay log
