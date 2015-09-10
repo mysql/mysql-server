@@ -22,6 +22,8 @@
 #include "rpl_msr.h"         /* Multisource replication */
 #include "rpl_rli.h"
 #include "rpl_rli_pdb.h"
+#include "mysqld_thd_manager.h" // Global_THD_manager
+#include "sql_parse.h"          // Find_thd_with_id
 
 int initialize_channel_service_interface()
 {
@@ -553,26 +555,55 @@ int channel_get_thread_id(const char* channel,
       {
         mysql_mutex_lock(&mi->rli->run_lock);
 
-        int num_workers= mi->rli->slave_parallel_workers;
-        if (num_workers > 1)
+        if (mi->rli->slave_parallel_workers > 0)
         {
+          // Parallel applier.
+          size_t num_workers= mi->rli->get_worker_count();
+          number_threads= 1 + num_workers;
           *thread_id=
               (unsigned long*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                         num_workers * sizeof(unsigned long),
+                                         number_threads * sizeof(unsigned long),
                                          MYF(MY_WME));
-          unsigned long *appliers_id_pointer= *thread_id;
+          unsigned long *thread_id_pointer= *thread_id;
 
-          for (int i= 0; i < num_workers; i++, appliers_id_pointer++)
+          // Set default values on thread_id array.
+          for (int i= 0; i < number_threads; i++, thread_id_pointer++)
+            *thread_id_pointer= -1;
+          thread_id_pointer= *thread_id;
+
+          // Coordinator thread id.
+          if (mi->rli->info_thd != NULL)
           {
-            mysql_mutex_lock(&mi->rli->workers.at(i)->info_thd_lock);
-            *appliers_id_pointer= mi->rli->workers.at(i)->info_thd->thread_id();
-            mysql_mutex_unlock(&mi->rli->workers.at(i)->info_thd_lock);
+            mysql_mutex_lock(&mi->rli->info_thd_lock);
+            *thread_id_pointer= mi->rli->info_thd->thread_id();
+            mysql_mutex_unlock(&mi->rli->info_thd_lock);
+            thread_id_pointer++;
           }
 
-          number_threads= num_workers;
+          // Workers thread id.
+          if (mi->rli->workers_array_initialized)
+          {
+            for (size_t i= 0; i < num_workers; i++, thread_id_pointer++)
+            {
+              Slave_worker* worker= mi->rli->get_worker(i);
+              if (worker != NULL)
+              {
+                mysql_mutex_lock(&worker->jobs_lock);
+                if (worker->info_thd != NULL &&
+                    worker->running_status != Slave_worker::NOT_RUNNING)
+                {
+                  mysql_mutex_lock(&worker->info_thd_lock);
+                  *thread_id_pointer= worker->info_thd->thread_id();
+                  mysql_mutex_unlock(&worker->info_thd_lock);
+                }
+                mysql_mutex_unlock(&worker->jobs_lock);
+              }
+            }
+          }
         }
         else
         {
+          // Sequential applier.
           if (mi->rli->info_thd != NULL)
           {
             *thread_id= (unsigned long*) my_malloc(PSI_NOT_INSTRUMENTED,
@@ -641,9 +672,9 @@ int channel_queue_packet(const char* channel,
   DBUG_RETURN(queue_event(mi, buf, event_len));
 }
 
-int channel_wait_until_apply_queue_empty(char* channel, long long timeout)
+int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
 {
-  DBUG_ENTER("channel_wait_until_apply_queue_empty(channel, timeout)");
+  DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 
   Master_info *mi= msr_map.get_mi(channel);
 
@@ -661,6 +692,83 @@ int channel_wait_until_apply_queue_empty(char* channel, long long timeout)
     DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
 
   DBUG_RETURN(error);
+}
+
+int channel_is_applier_waiting(char* channel)
+{
+  DBUG_ENTER("channel_is_applier_waiting(channel)");
+  int result= RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
+
+  Master_info *mi= msr_map.get_mi(channel);
+
+  if (mi == NULL)
+  {
+    DBUG_RETURN(result);
+  }
+
+  unsigned long* thread_ids= NULL;
+  int number_appliers= channel_get_thread_id(channel,
+                                             CHANNEL_APPLIER_THREAD,
+                                             &thread_ids);
+
+  if (number_appliers <= 0)
+  {
+    goto end;
+  }
+
+  if (number_appliers == 1)
+  {
+    result= channel_is_applier_thread_waiting(*thread_ids);
+  }
+  else if (number_appliers > 1)
+  {
+    int waiting= 0;
+
+    // Check if coordinator is waiting.
+    waiting += channel_is_applier_thread_waiting(thread_ids[0]);
+
+    // Check if workers are waiting.
+    for (int i= 1; i < number_appliers; i++)
+      waiting += channel_is_applier_thread_waiting(thread_ids[i], true);
+
+    // Check if all are waiting.
+    if (waiting == number_appliers)
+      result= 1;
+    else
+      result= 0;
+  }
+
+end:
+  my_free(thread_ids);
+
+  DBUG_RETURN(result);
+}
+
+int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker)
+{
+  DBUG_ENTER("channel_is_applier_thread_waiting(thread_id, worker)");
+  bool result= -1;
+
+  Find_thd_with_id find_thd_with_id(thread_id);
+  THD *thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
+  if (thd)
+  {
+    result= 0;
+
+    const char *proc_info= thd->get_proc_info();
+    if (proc_info)
+    {
+      const char* stage_name= stage_slave_has_read_all_relay_log.m_name;
+      if (worker)
+        stage_name= stage_slave_waiting_event_from_coordinator.m_name;
+
+      if (!strcmp(proc_info, stage_name))
+        result= 1;
+    }
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
+  }
+
+  DBUG_RETURN(result);
 }
 
 int channel_flush(const char* channel)

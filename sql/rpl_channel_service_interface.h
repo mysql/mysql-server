@@ -217,7 +217,8 @@ bool channel_is_active(const char* channel, enum_channel_thread_types type);
 
 /**
   Returns the id(s) of the channel threads: receiver or applier.
-  If more than one applier exists, an array is returned
+  If more than one applier exists, an array is returned, on which first
+  index is coordinator thread id.
 
   @param[in]  channel      The channel name
   @param[in]  thread_type  The thread type (receiver or applier)
@@ -270,7 +271,37 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
-int channel_wait_until_apply_queue_empty(char* channel, long long timeout);
+int channel_wait_until_apply_queue_applied(char* channel, long long timeout);
+
+/**
+  Checks if the applier, and its workers when parallel applier is
+  enabled, has already consumed all relay log, that is, applier is
+  waiting for transactions to be queued.
+
+  @param channel  The channel name
+
+  @return the operation status
+    @retval <0  Error
+    @retval  0  Applier is not waiting
+    @retval  1  Applier is waiting
+*/
+int channel_is_applier_waiting(char* channel);
+
+/**
+  Checks if the applier thread, and its workers when parallel applier is
+  enabled, has already consumed all relay log, that is, applier thread
+  is waiting for transactions to be queued.
+
+  @param thread_id  the applier thread id to check
+  @param worker     flag to indicate if thread is a parallel worker
+
+  @return the operation status
+    @retval -1  Unable to find applier thread
+    @retval  0  Applier thread is not waiting
+    @retval  1  Applier thread is waiting
+*/
+int channel_is_applier_thread_waiting(unsigned long thread_id,
+                                      bool worker= false);
 
 /**
   Flush the channel.

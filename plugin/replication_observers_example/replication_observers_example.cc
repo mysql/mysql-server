@@ -664,7 +664,7 @@ int test_channel_service_interface()
     DBUG_ASSERT(running);
 
     //Wait for execution of events (none in this case so it should return OK)
-    error= channel_wait_until_apply_queue_empty(interface_channel, 100000);
+    error= channel_wait_until_apply_queue_applied(interface_channel, 100000);
     DBUG_ASSERT(!error);
 
     //Get the last delivered gno (should be 0)
@@ -731,7 +731,7 @@ int test_channel_service_interface()
     int num_appliers= channel_get_thread_id(interface_channel,
                                             CHANNEL_APPLIER_THREAD,
                                             &applier_id);
-    DBUG_ASSERT(num_appliers == 3);
+    DBUG_ASSERT(num_appliers == 4);
 
     unsigned long thread_id= 0;
     for (int i = 0; i < num_appliers; i++)
@@ -770,19 +770,22 @@ int test_channel_service_interface_io_thread()
   bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
   DBUG_ASSERT(exists);
 
-  //Assert that the applier receiver is running
+  //Assert that the receiver is running
   bool running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
   DBUG_ASSERT(running);
 
   //Extract the receiver id
   long unsigned int * thread_id= NULL;
   int num_threads= channel_get_thread_id(interface_channel,
-                                         CHANNEL_APPLIER_THREAD,
+                                         CHANNEL_RECEIVER_THREAD,
                                          &thread_id);
   DBUG_ASSERT(num_threads == 1);
   DBUG_ASSERT(*thread_id > 0);
   my_free(thread_id);
 
+  //Check that the applier thread is waiting for events to be queued.
+  int is_waiting= channel_is_applier_waiting(interface_channel);
+  DBUG_ASSERT(is_waiting == 1);
 
   //Stop the channel
   error= channel_stop(interface_channel,
