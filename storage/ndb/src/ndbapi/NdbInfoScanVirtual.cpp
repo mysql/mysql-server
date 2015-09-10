@@ -506,16 +506,11 @@ public:
     {
     case ConfigInfo::CI_BOOL:
     {
-       // param_default
-      const char* default_value = "";
+      // param_default
+      BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%s", "");
       if (info.hasDefault(section, param_name))
-      {
-        if (info.getDefault(section, param_name))
-          default_value = "true";
-        else
-          default_value = "false";
-      }
-      w.write_string(default_value);
+        BaseString::snprintf(tmp_buf, sizeof(tmp_buf), "%llu", info.getDefault(section, param_name));
+      w.write_string(tmp_buf);
 
        // param_min
       w.write_string("");
