@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/queues.c
   Code for handling of priority Queues.
-  Implemention of queues from "Algoritms in C" by Robert Sedgewick.
+  Implementation of queues from "Algoritms in C" by Robert Sedgewick.
   An optimisation of _downheap suggested in Exercise 7.51 in "Data
   Structures & Algorithms in C++" by Mark Allen Weiss, Second Edition
   was implemented by Mikael Ronstrom 2005. Also the O(N) algorithm

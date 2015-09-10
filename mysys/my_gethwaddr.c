@@ -13,8 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* get hardware address for an interface */
-/* if there are many available, any non-zero one can be used */
+/**
+  @file mysys/my_gethwaddr.c
+  Get hardware address for an interface.
+  If there are many available, any non-zero one can be used.
+*/
 
 #include "mysys_priv.h"
 #include "my_sys.h"

@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/my_symlink2.c
   Advanced symlink handling.
   This is used in MyISAM to let users symlinks tables to different disk.
   The main idea with these functions is to automaticly create, delete and

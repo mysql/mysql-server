@@ -13,9 +13,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/* get time since epoc in 100 nanosec units */
-/* thus to get the current time we should use the system function
-   with the highest possible resolution */
+/**
+  @file mysys/my_getsystime.c
+  Get time since epoch in 100 nanoseconds units.
+  Thus to get the current time we should use the system function
+  with the highest possible resolution
+*/
 
 #include "mysys_priv.h"
 #include "my_static.h"

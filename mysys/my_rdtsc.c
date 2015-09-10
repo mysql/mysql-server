@@ -13,10 +13,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  rdtsc3 -- multi-platform timer code
-  pgulutzan@mysql.com, 2005-08-29
-  modified 2008-11-02
+/**
+  @file mysys/my_rdtsc.c
+  Multi-platform timer code.
 
   Functions:
 

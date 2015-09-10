@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/thr_lock.c
 Read and write locks for Posix threads. All tread must acquire
 all locks it needs through thr_multi_lock() to avoid dead-locks.
 A lock consists of a master lock (THR_LOCK), and lock instances
@@ -64,7 +65,6 @@ get_status:
 
 The lock algorithm allows one to have one TL_WRITE_CONCURRENT_INSERT
 lock at the same time as multiple read locks.
-
 */
 
 #include "mysys_priv.h"

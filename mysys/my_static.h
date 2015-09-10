@@ -16,9 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Static variables for mysys library. All definied here for easy making of
-  a shared library
+/**
+  @file mysys/my_static.h
+  Static variables for mysys library. All defined here for easy making of
+  a shared library.
 */
 
 #include "my_global.h"

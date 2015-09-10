@@ -16,6 +16,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
    02110-1301  USA */
 
+/**
+  @file mysys/test_dir.c
+*/
+
 /* TODO: Test all functions  */
 
 #include "mysys_priv.h"

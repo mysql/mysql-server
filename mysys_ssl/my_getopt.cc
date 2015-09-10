@@ -13,6 +13,10 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+  @file mysys_ssl/my_getopt.cc
+*/
+
 #include <my_global.h>
 #include <m_string.h>
 #include <stdlib.h>

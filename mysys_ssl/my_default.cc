@@ -13,28 +13,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/****************************************************************************
- Add all options from files named "group".cnf from the default_directories
- before the command line arguments.
- On Windows defaults will also search in the Windows directory for a file
- called 'group'.ini
- As long as the program uses the last argument for conflicting
- options one only have to add a call to "load_defaults" to enable
- use of default values.
- pre- and end 'blank space' are removed from options and values. The
- following escape sequences are recognized in values:  \b \t \n \r \\
+/**
+  @file mysys_ssl/my_default.cc
+  Add all options from files named "group".cnf from the default_directories
+  before the command line arguments.
+  On Windows defaults will also search in the Windows directory for a file
+  called 'group'.ini
+  As long as the program uses the last argument for conflicting
+  options one only have to add a call to "load_defaults" to enable
+  use of default values.
+  pre- and end 'blank space' are removed from options and values. The
+  following escape sequences are recognized in values:  @code \b \t \n \r \\ @endcode
 
- The following arguments are handled automatically;  If used, they must be
- first argument on the command line!
- --no-defaults	; no options are read, except for the ones provided in the
-                  login file.
- --defaults-file=full-path-to-default-file	; Only this file will be read.
- --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
- --defaults-group-suffix  ; Also read groups with concat(group, suffix)
- --print-defaults	  ; Print the modified command line and exit
- --login-path=login-path-name ; Read options under login-path-name from
+  The following arguments are handled automatically;  If used, they must be
+  first argument on the command line!
+  --no-defaults	; no options are read, except for the ones provided in the
+                   login file.
+  --defaults-file=full-path-to-default-file	; Only this file will be read.
+  --defaults-extra-file=full-path-to-default-file ; Read this file before ~/
+  --defaults-group-suffix  ; Also read groups with concat(group, suffix)
+  --print-defaults	  ; Print the modified command line and exit
+  --login-path=login-path-name ; Read options under login-path-name from
                                 the login file.
-****************************************************************************/
+*/
 
 #include "../mysys/mysys_priv.h"
 #include "my_default.h"

@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/my_winfile.c
   The purpose of this file is to provide implementation of file IO routines on 
   Windows that can be thought as drop-in replacement for corresponding C runtime
   functionality.
@@ -33,7 +34,7 @@
   Implemented are
   - POSIX routines(e.g open, read, lseek ...)
   - Some ANSI C stream routines (fopen, fdopen, fileno, fclose)
-  - Windows CRT equvalients (my_get_osfhandle, open_osfhandle)
+  - Windows CRT equivalents (my_get_osfhandle, open_osfhandle)
 
   Worth to note:
   - File descriptors used here are located in a range that is not compatible 
@@ -41,7 +42,7 @@
   range in my_win_* function will be punished with DBUG_ASSERT()
 
   - File streams (FILE *) are actually from the C runtime. The routines provided
-  here are useful only in scernarios that use low-level IO with my_win_fileno()
+  here are useful only in scenarios that use low-level IO with my_win_fileno()
 */
 
 #ifdef _WIN32

@@ -15,9 +15,7 @@
 
 
 /**
-  @file
-
-  @brief
+  @file mysys_ssl/my_sha1.cc
   Wrapper functions for OpenSSL, YaSSL implementations. Also provides a
   Compatibility layer to make available YaSSL's SHA1 implementation.
 */

@@ -15,6 +15,10 @@
 
 /* Written by Sinisa Milivojevic <sinisa@mysql.com> */
 
+/**
+  @file mysys/my_compress.c
+*/
+
 #include <my_global.h>
 #include <mysys_priv.h>
 #ifdef HAVE_COMPRESS

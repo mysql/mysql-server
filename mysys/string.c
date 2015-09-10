@@ -13,10 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Code for handling strings with can grow dynamicly.
-  Copyright Monty Program KB.
-  By monty.
+/**
+  @file mysys/string.c
+  Code for handling strings with can grow dynamically.
 */
 
 #include "mysys_priv.h"

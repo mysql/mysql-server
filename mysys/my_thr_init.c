@@ -13,8 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Functions to handle initializating and allocationg of all mysys & debug
+/**
+  @file mysys/my_thr_init.c
+  Functions to handle initialization and allocation of all mysys & debug
   thread variables.
 */
 

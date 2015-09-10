@@ -13,9 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
+/**
+  @file mysys/tree.c
   Code for handling red-black (balanced) binary trees.
-  key in tree is allocated accrding to following:
+  key in tree is allocated according to following:
 
   1) If size < 0 then tree will not allocate keys and only a pointer to
      each key is saved in tree.
@@ -29,8 +30,8 @@
   3) if key_size is given to init_tree then each node will continue the
      key and calls to insert_key may increase length of key.
      if key_size > sizeof(pointer) and key_size is a multiple of 8 (double
-     allign) then key will be put on a 8 alligned adress. Else
-     the key will be on adress (element+1). This is transparent for user
+     align) then key will be put on a 8 aligned address. Else
+     the key will be on address (element+1). This is transparent for user
      compare and search functions uses a pointer to given key-argument.
 
   - If you use a free function for tree-elements and you are freeing

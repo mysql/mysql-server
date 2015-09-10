@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/* Functions to handle typelib */
+/**
+  @file mysys/typelib.c
+  Functions to handle typelib
+*/
 
 #include "mysys_priv.h"
 #include "typelib.h"

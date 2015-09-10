@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
-/*
+/**
+  @file mysys_ssl/my_murmur3.cc
   Implementation of 32-bit version of MurmurHash3 - fast non-cryptographic
   hash function with good statistical properties, which is based on public
   domain code by Austin Appleby.

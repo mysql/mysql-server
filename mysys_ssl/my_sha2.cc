@@ -15,7 +15,7 @@
 
 
 /**
-  @file
+  @file mysys_ssl/my_sha2.cc
   A compatibility layer to our built-in SSL implementation, to mimic the
   oft-used external library, OpenSSL.
 */
