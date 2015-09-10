@@ -156,3 +156,30 @@ XA START 'xid1';
 
 XA COMMIT 'xid1';
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#20538956 - XA PREPARE ERROR BRANCH LEAVES THE TRANSACTION IN SCREWED STATE
+--echo #
+--connect (con1, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+CREATE TABLE t1 (a INT);
+
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+SET @@session.debug = '+d,simulate_xa_failure_prepare';
+--error ER_XA_RBROLLBACK
+XA PREPARE 'xid1';
+SET @@session.debug = '-d,simulate_xa_failure_prepare';
+
+--error ER_XAER_NOTA
+XA ROLLBACK 'xid1';
+
+#
+# The following query failed before patch applied.
+#
+
+XA START 'trx_another_one';
+--disconnect con1
+--connection default
+DROP TABLE t1;
