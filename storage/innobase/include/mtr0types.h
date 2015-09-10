@@ -189,7 +189,7 @@ enum mlog_id_t {
 	MLOG_COMP_PAGE_REORGANIZE = 46,
 
 	/** log record about creating an .ibd file, with format */
-	//MLOG_FILE_CREATE2 = 47,
+	MLOG_FILE_CREATE2 = 47,
 
 	/** write the node pointer of a record on a compressed
 	non-leaf B-tree page */
