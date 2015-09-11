@@ -28,6 +28,7 @@
 #include "sql_bitmap.h"    // Bitmap
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
+#include "lock.h"          // Tablespace_hash_set
 
 /* Structs that defines the TABLE */
 class File_parser;
@@ -2846,37 +2847,34 @@ void free_table_share(TABLE_SHARE *share);
   Get the tablespace name for a table.
 
   This function will open the .FRM file for the given TABLE_LIST element
-  and get the tablespace name, if present. For NDB tables with version
-  before 50120, the function will ask the SE for the tablespace name,
-  because for these tables, the tablespace name is not stored in the.FRM
-  file, but only within the SE itself.
+  and fill Tablespace_hash_set with the tablespace name used by table and
+  table partitions, if present. For NDB tables with version before 50120,
+  the function will ask the SE for the tablespace name, because for these
+  tables, the tablespace name is not stored in the.FRM file, but only
+  within the SE itself.
 
   @note The function does *not* consider errors. If the file is not present,
         this does not raise an error. The reason is that this function will
         be used for tables that may not exist, e.g. in the context of
         'DROP TABLE IF EXISTS', which does not care whether the table
-        exists or not. If an error occurs, the function will return NULL.
+        exists or not. The function returns success in this case.
 
-  @note The return value is a char pointer to the tablespace name. The
-        string is allocated in the memory root of the thd, and will be
-        freed implicitly.
+  @note Strings inserted into hash are allocated in the memory
+        root of the thd, and will be freed implicitly.
 
-  @note When the tablespace name is written, there is no distinction between
-        a tablespace name which is empty, and the NULL string pointer. Thus,
-        when reading the name, we will always return a string of length 0 or
-        more, unless there is an error, in which case we will return NULL.
+  @param thd    - Thread context.
+  @param table  - Table from which we read the tablespace names.
+  @param tablespace_set (OUT)- Hash set to be filled with tablespace names.
 
-  @note If the tablespace name is invalid, the name will be ignored, and the
-        function will return NULL.
+  @retval true  - On failure, especially due to memory allocation errors
+                  and partition string parse errors.
+  @retval false - On success. Even if tablespaces are not used by table.
+*/
 
-  @param thd    Thread context
-  @param table  Table for which to get the tablespace name
-
-  @return Pointer to string holding a valid tablespace name. If an error
-          occurs, the function returns NULL.
- */
-
-const char *get_tablespace_name(THD *thd, const TABLE_LIST *table);
+bool get_table_and_parts_tablespace_names(
+       THD *thd,
+       TABLE_LIST *table,
+       Tablespace_hash_set *tablespace_set);
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);

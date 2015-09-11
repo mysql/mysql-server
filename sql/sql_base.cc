@@ -5164,14 +5164,6 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
   return (uchar*) table->db;
 }
 
-extern "C" uchar *tablespace_set_get_key(const uchar *record, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
-{
-  const char *tblspace_name= reinterpret_cast<const char *>(record);
-  *length= strlen(tblspace_name);
-  return reinterpret_cast<uchar*>(const_cast<char*>(tblspace_name));
-}
-
 
 /**
   Run the server hook called "before_dml". This is a hook originated from
@@ -5195,6 +5187,128 @@ int run_before_dml_hook(THD *thd)
     my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
 
   return out_value;
+}
+
+/**
+  Acquire IX metadata locks on tablespace names used by LOCK
+  TABLES or by a DDL statement.
+
+  @note That the tablespace MDL locks are taken only after locks
+  on tables are acquired. So it is recommended to maintain this
+  same lock order across the server. It is very easy to break the
+  this lock order if we invoke acquire_locks() with list of MDL
+  requests which contain both MDL_key::TABLE and
+  MDL_key::TABLESPACE. We would end-up in deadlock then.
+
+  @param thd               Thread context.
+  @param tables_start      Start of list of tables on which locks
+                           should be acquired.
+  @param tables_end        End of list of tables.
+  @param lock_wait_timeout Seconds to wait before timeout.
+  @param flags             Bitmap of flags to modify how the
+                           tables will be open, see open_table()
+                           description for details.
+
+  @retval true   Failure (e.g. connection was killed)
+  @retval false  Success.
+*/
+static bool
+get_and_lock_tablespace_names(THD *thd,
+                              TABLE_LIST *tables_start,
+                              TABLE_LIST *tables_end,
+                              ulong lock_wait_timeout,
+                              uint flags)
+{
+
+  // If this is a DISCARD or IMPORT TABLESPACE command (indicated by
+  // the THD:: tablespace_op flag), we skip this phase, because these
+  // commands are only used for file-per-table tablespaces, which we
+  // do not lock.  We also skip this phase if we are within the
+  // context of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
+  // statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
+  if (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK || thd_tablespace_op(thd))
+    return false;
+
+  // Add tablespace names used under partition/subpartition definitions.
+  Tablespace_hash_set tablespace_set(PSI_INSTRUMENT_ME);
+  if ((thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+       thd->lex->sql_command == SQLCOM_ALTER_TABLE) &&
+      fill_partition_tablespace_names(thd->work_part_info, &tablespace_set))
+    return true;
+
+  // The first step is to loop over the tables, make sure we have
+  // locked the names, and then get hold of the tablespace names from
+  // the .FRM file.
+  TABLE_LIST *table;
+  for (table= tables_start; table && table != tables_end;
+       table= table->next_global)
+  {
+    // Consider only non-temporary tables. The if clauses below have the
+    // following meaning:
+    //
+    // !MDL_SHARED_READ_ONLY                   Not a LOCK TABLE ... READ.
+    //                                         In that case, tables will not
+    //                                         be altered, created or dropped,
+    //                                         so no need to IX lock the
+    //                                         tablespace.
+    // is_ddl_or...request() || ...FOR_CREATE  Request for a strong DDL or
+    //                                         LOCK TABLES type lock, or a
+    //                                         table to be created.
+    // !OT_TEMPORARY_ONLY                      Not a user defined tmp table.
+    // !(OT_TEMPORARY_OR_BASE && is_temp...()) Not a pre-opened tmp table.
+    if (table->mdl_request.type != MDL_SHARED_READ_ONLY            &&
+        (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
+         table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)      &&
+        table->open_type != OT_TEMPORARY_ONLY                      &&
+        !(table->open_type == OT_TEMPORARY_OR_BASE &&
+          is_temporary_table(table)))
+    {
+      // We have basically three situations here:
+      //
+      // 1. Lock only the target tablespace name and tablespace
+      //    names that are used by partitions (e.g. CREATE TABLE
+      //    explicitly specifying the tablespace names).
+      // 2. Lock only the existing tablespace name and tablespace
+      //    names that are used by partitions (e.g. ALTER TABLE t
+      //    ADD COLUMN ... where t is defined in some tablespace s.
+      // 3. Lock both the target and the existing tablespace names
+      //    along with tablespace names used by partitions. (e.g.
+      //    ALTER TABLE t TABLESPACE s2, where t is defined in
+      //    some tablespace s)
+      if (table->target_tablespace_name.length > 0 &&
+          tablespace_set.insert(
+            const_cast<char*>(table->target_tablespace_name.str)))
+        return true;
+
+      // No need to try this for tables to be created since they are not
+      // yet present in the dictionary.
+      if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE)
+      {
+        // Assert that we have an MDL lock on the table name. Needed to read
+        // the dictionary safely.
+        DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::TABLE, table->db, table->table_name, MDL_SHARED));
+
+        /*
+          Add names of tablespaces used by table or by its
+          partitions/subpartitions. Read FRM file and get
+          the information.
+        */
+        if (get_table_and_parts_tablespace_names(thd, table, &tablespace_set))
+            return true;
+      }
+    }
+
+  } // End of for(;;)
+
+  /*
+    After we have identified the tablespace names, we iterate
+    over the names and acquire IX locks on each of them.
+  */
+  if (lock_tablespace_names(thd, &tablespace_set, lock_wait_timeout))
+    return true;
+
+  return false;
 }
 
 /**
@@ -5304,108 +5418,14 @@ lock_table_names(THD *thd,
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return true;
 
-  // Phase 4: Lock tablespace names. This cannot be done as part of the
-  //          previous phases, because we need to read the .FRM file to
-  //          get hold of the tablespace name, and in order to do this,
-  //          we must have acquired a lock on the table. If this is a
-  //          DISCARD or IMPORT TABLESPACE command (indicated by the THD::
-  //          tablespace_op flag), we skip this phase, because these commands
-  //          are only used for file-per-table tablespaces, which we do
-  //          not lock. We also skip this phase if we are within the context
-  //          of a FLUSH TABLE WITH READ LOCK or FLUSH TABLE FOR EXPORT
-  //          statement, indicated by the MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK flag.
-  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !thd->tablespace_op)
-  {
-    MDL_request_list mdl_tablespace_requests;
-
-    // The first step is to loop over the tables, make sure we have
-    // locked the names, and then peek into the .FRM files to get hold of
-    // the tablespace names.
-    Hash_set<char, tablespace_set_get_key> tablespace_set(PSI_INSTRUMENT_ME);
-    for (table= tables_start; table && table != tables_end;
-         table= table->next_global)
-    {
-      // Consider only non-temporary tables. The if clauses below have the
-      // following meaning:
-      //
-      // !MDL_SHARED_READ_ONLY                   Not a LOCK TABLE ... READ.
-      //                                         In that case, tables will not
-      //                                         be altered, created or dropped,
-      //                                         so no need to IX lock the
-      //                                         tablespace.
-      // is_ddl_or...request() || ...FOR_CREATE  Request for a strong DDL or
-      //                                         LOCK TABLES type lock, or a
-      //                                         table to be created.
-      // !OT_TEMPORARY_ONLY                      Not a user defined tmp table.
-      // !(OT_TEMPORARY_OR_BASE && is_temp...()) Not a pre-opened tmp table.
-      if (table->mdl_request.type != MDL_SHARED_READ_ONLY            &&
-          (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
-           table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)      &&
-          table->open_type != OT_TEMPORARY_ONLY                      &&
-          !(table->open_type == OT_TEMPORARY_OR_BASE &&
-            is_temporary_table(table)))
-      {
-        // We have basically three situations here:
-        //
-        // 1. Lock only the target tablespace name (e.g. CREATE TABLE
-        //    explicitly specifying the tablespace name).
-        // 2. Lock only the existing tablespace name (e.g. ALTER TABLE t
-        //    ADD COLUMN ... where t is defined in some tablespace s.
-        // 3. Lock both the target and the existing tablespace names
-        //    (e.g. ALTER TABLE t TABLESPACE s2, where t is defined in
-        //    some tablespace s)
-        //
-        // Please note that for partitioned tables assigning different
-        // partitions to different tablespaces, MDL locks for the different
-        // partition tablespaces are not acquired. The reason is that this
-        // is not supported by the SEs.
-        if (table->target_tablespace_name.length > 0)
-          tablespace_set.insert(const_cast<char*>(
-                                  table->target_tablespace_name.str));
-
-        // No need to try this for tables to be created since they do not
-        // have an .FRM file.
-        if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE)
-        {
-          // Assert that we have an MDL lock on the table name. Needed to read
-          // the .FRM file safely.
-          DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
-                  MDL_key::TABLE, table->db, table->table_name, MDL_SHARED));
-
-          // Get the tablespace name from the .FRM file of the table.
-          const char *target_tablespace_name= get_tablespace_name(thd, table);
-          if (target_tablespace_name && strlen(target_tablespace_name))
-            tablespace_set.insert(const_cast<char*>(target_tablespace_name));
-        }
-      }
-    }
-
-    // After we have identified the tablespace names, we iterate over the
-    // names and add lock requests for each of them.
-    if (!tablespace_set.is_empty())
-    {
-      Hash_set<char, tablespace_set_get_key>::Iterator it(tablespace_set);
-      char *tablespace= NULL;
-      while ((tablespace= it++))
-      {
-        MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
-        if (tablespace_request == NULL)
-          return true;
-        MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE,
-                         "", tablespace, MDL_INTENTION_EXCLUSIVE,
-                         MDL_TRANSACTION);
-        mdl_tablespace_requests.push_front(tablespace_request);
-      }
-
-      // Finally, the requests are acquired.
-      if (thd->mdl_context.acquire_locks(&mdl_tablespace_requests,
-                                         lock_wait_timeout))
-        return true;
-
-      DEBUG_SYNC(thd, "after_wait_locked_tablespace_name_for_table");
-    }
-  }
-  return false;
+  /*
+    Phase 4: Lock tablespace names. This cannot be done as part
+    of the previous phases, because we need to read the
+    dictionary to get hold of the tablespace name, and in order
+    to do this, we must have acquired a lock on the table.
+  */
+  return get_and_lock_tablespace_names(
+           thd, tables_start, tables_end, lock_wait_timeout, flags);
 }
 
 
