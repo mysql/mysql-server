@@ -807,6 +807,10 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
+insert into t3 values ('1 - 05', '2 - 05');
+insert into t3 values ('1 - 06', '2 - 06');
+insert into t3 values ('1 - 07', '2 - 07');
+insert into t3 values ('1 - 08', '2 - 08');
 
 explain extended
 select * from t1
