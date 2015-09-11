@@ -2644,6 +2644,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   int error;
   DBUG_ENTER("mi_repair_parallel");
 
+  memset(&new_data_cache, 0, sizeof(IO_CACHE));
   start_records=info->state->records;
   got_error=1;
   new_file= -1;

@@ -20475,10 +20475,10 @@ static void test_bug20821550()
   int ret_val;
   ulong max_allowed_packet_value= 8192*2;
   ulong net_buffer_length_value= 8192*4;
-  ulong save_max_allowed_packet_value;
-  ulong save_net_buffer_length_value;
-  ulong ret_max_allowed_packet_value;
-  ulong ret_net_buffer_length_value;
+  ulong save_max_allowed_packet_value= 0;
+  ulong save_net_buffer_length_value= 0;
+  ulong ret_max_allowed_packet_value= 0;
+  ulong ret_net_buffer_length_value= 0;
 
   myheader("test_bug20821550");
 
