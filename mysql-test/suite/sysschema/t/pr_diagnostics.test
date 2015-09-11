@@ -1,0 +1,45 @@
+########### suite/sysschema/t/pr_diagnostics.test #############
+#                                                             #
+# Testing of of the sys.diagnostics()) procedure              #
+#                                                             #
+# Creation:                                                   #
+# 2015-07-28 jkrogh Implement this test as part of            #
+#                   WL#7804 REPORT FOR SUPPORT                #
+#                                                             #
+###############################################################
+
+-- source include/not_embedded.inc
+
+# Sanity check that the procedure completes two iterations with full debug,
+# raw output, and Information Schema table outputs without generating
+# any warnings.
+
+--disable_result_log
+SET @sys.debug                        = 'ON',
+    @sys.diagnostics.allow_i_s_tables = 'ON',
+    @sys.diagnostics.include_raw      = 'ON';
+
+# First use @@global.show_compatibility_56 = ON
+SET @tmp_show_compatibility_56   = @@global.show_compatibility_56,
+    GLOBAL show_compatibility_56 = ON;
+CALL sys.diagnostics(4, 2, 'full');
+
+# Then use @@global.show_compatibility_56 = OFF
+SET GLOBAL show_compatibility_56 = OFF;
+CALL sys.diagnostics(4, 2, 'full');
+
+SET GLOBAL show_compatibility_56 = @tmp_show_compatibility_56,
+    @tmp_show_compatibility_56   = NULL;
+
+SET @sys.debug                        = 'OFF',
+    @sys.diagnostics.allow_i_s_tables = 'OFF',
+    @sys.diagnostics.include_raw      = 'OFF';
+--enable_result_log
+
+# Check input variable validation
+-- error S45000
+CALL sys.diagnostics(0, 0, 'full');
+-- error S45000
+CALL sys.diagnostics(2, 0, 'full');
+-- error S45000
+CALL sys.diagnostics(1, 2, 'full');

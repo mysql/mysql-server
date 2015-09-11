@@ -2,6 +2,7 @@ DESC sys.innodb_lock_waits;
 Field	Type	Null	Key	Default	Extra
 wait_started	datetime	YES		NULL	
 wait_age	time	YES		NULL	
+wait_age_secs	bigint(21)	YES		NULL	
 locked_table	varchar(1024)	NO			
 locked_index	varchar(1024)	YES		NULL	
 locked_type	varchar(32)	NO			
@@ -23,11 +24,14 @@ blocking_trx_started	datetime	NO		0000-00-00 00:00:00
 blocking_trx_age	time	YES		NULL	
 blocking_trx_rows_locked	bigint(21) unsigned	NO		0	
 blocking_trx_rows_modified	bigint(21) unsigned	NO		0	
+sql_kill_blocking_query	varchar(32)	YES		NULL	
+sql_kill_blocking_connection	varchar(26)	YES		NULL	
 SELECT * FROM sys.innodb_lock_waits;
 DESC sys.x$innodb_lock_waits;
 Field	Type	Null	Key	Default	Extra
 wait_started	datetime	YES		NULL	
 wait_age	time	YES		NULL	
+wait_age_secs	bigint(21)	YES		NULL	
 locked_table	varchar(1024)	NO			
 locked_index	varchar(1024)	YES		NULL	
 locked_type	varchar(32)	NO			
@@ -49,4 +53,6 @@ blocking_trx_started	datetime	NO		0000-00-00 00:00:00
 blocking_trx_age	time	YES		NULL	
 blocking_trx_rows_locked	bigint(21) unsigned	NO		0	
 blocking_trx_rows_modified	bigint(21) unsigned	NO		0	
+sql_kill_blocking_query	varchar(32)	YES		NULL	
+sql_kill_blocking_connection	varchar(26)	YES		NULL	
 SELECT * FROM sys.x$innodb_lock_waits;

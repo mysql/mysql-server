@@ -221,6 +221,7 @@ WHERE table_name LIKE 't1_%'
 ORDER BY grantee, table_name;
 --error ER_NONEXISTING_GRANT
 SHOW GRANTS FOR 'testuser1'@'localhost';
+--sorted_result
 SHOW GRANTS FOR 'the_user'@'localhost';
 #
 # Check modification of TABLE_SCHEMA (no migration of permissions)
@@ -233,6 +234,7 @@ RENAME TABLE test.t1_view  TO db_datadict.t1_view;
 SELECT DISTINCT table_schema,table_name FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name;
+--sorted_result
 SHOW GRANTS FOR 'the_user'@'localhost';
 REVOKE ALL PRIVILEGES ON test.t1_table FROM 'the_user'@'localhost';
 REVOKE ALL PRIVILEGES ON test.t1_view  FROM 'the_user'@'localhost';
