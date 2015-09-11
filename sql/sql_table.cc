@@ -5544,6 +5544,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   bool res= TRUE;
   bool is_trans= FALSE;
   uint not_used;
+  Tablespace_hash_set tablespace_set(PSI_INSTRUMENT_ME);
+
   DBUG_ENTER("mysql_create_like_table");
 
   /*
@@ -5579,18 +5581,33 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     the tablespace name from the table share instead of reading it from the
     .FRM file.
   */
+
+  // Add the tablespace name, if used.
   if (src_table->table->s->tablespace &&
       strlen(src_table->table->s->tablespace) > 0)
   {
     DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                   src_table->db, src_table->table_name, MDL_SHARED));
-    MDL_request tablespace_request;
-    MDL_REQUEST_INIT(&tablespace_request, MDL_key::TABLESPACE, "",
-                     src_table->table->s->tablespace, MDL_INTENTION_EXCLUSIVE,
-                     MDL_TRANSACTION);
-    if (thd->mdl_context.acquire_lock(&tablespace_request,
-                                      thd->variables.lock_wait_timeout))
+
+    if (tablespace_set.insert(
+          const_cast<char*>(src_table->table->s->tablespace)))
       DBUG_RETURN(true);
+  }
+
+  // Add tablespace names used under partition/subpartition definitions.
+  if (fill_partition_tablespace_names(
+        src_table->table->part_info, &tablespace_set))
+    DBUG_RETURN(true);
+
+  /*
+    After we have identified the tablespace names, we iterate
+    over the names and acquire MDL lock for each of them.
+  */
+  if (lock_tablespace_names(thd,
+                            &tablespace_set,
+                            thd->variables.lock_wait_timeout))
+  {
+    DBUG_RETURN(true);
   }
 
   /* Fill HA_CREATE_INFO and Alter_info with description of source table. */
@@ -8606,6 +8623,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
     }
   }
+
+  // Reject invalid tablespace names specified for partitions.
+  if (check_partition_tablespace_names(thd->lex->part_info))
+    DBUG_RETURN(true);
+
+  /*
+    Assign the partition info, so that the locks on tablespaces
+    assigned for any new partitions added would be acuired during
+    open_table.
+  */
+  thd->work_part_info= thd->lex->part_info;
 
   /*
     Code below can handle only base tables so ensure that we won't open a view.

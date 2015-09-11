@@ -863,6 +863,61 @@ bool lock_tablespace_name(THD *thd, const char *tablespace)
   return false;
 }
 
+// Function generating hash key for Tablespace_hash_set.
+extern "C" uchar *tablespace_set_get_key(const uchar *record,
+                                         size_t *length,
+                                         my_bool not_used __attribute__((unused)))
+{
+  const char *tblspace_name= reinterpret_cast<const char *>(record);
+  *length= strlen(tblspace_name);
+  return reinterpret_cast<uchar*>(const_cast<char*>(tblspace_name));
+}
+
+/**
+  Acquire IX MDL lock each tablespace name from the given set.
+
+  @param thd               - Thread invoking this function.
+  @param tablespace_set    - Set of tablespace names to be lock.
+  @param lock_wait_timeout - Lock timeout.
+
+  @return true - On failure
+  @return false - On Success.
+*/
+bool lock_tablespace_names(
+       THD *thd,
+       Tablespace_hash_set *tablespace_set,
+       ulong lock_wait_timeout)
+{
+  // Stop if we have nothing to lock
+  if (tablespace_set->is_empty())
+    return false;
+
+  // Prepare MDL_request's for all tablespace names.
+  MDL_request_list mdl_tablespace_requests;
+  Tablespace_hash_set::Iterator it(*tablespace_set);
+  char *tablespace= NULL;
+  while ((tablespace= it++))
+  {
+    DBUG_ASSERT(strlen(tablespace));
+
+    MDL_request *tablespace_request= new (thd->mem_root) MDL_request;
+    if (tablespace_request == NULL)
+      return true;
+    MDL_REQUEST_INIT(tablespace_request, MDL_key::TABLESPACE,
+                     "", tablespace, MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+    mdl_tablespace_requests.push_front(tablespace_request);
+  }
+
+  // Finally, acquire IX MDL locks.
+  if (thd->mdl_context.acquire_locks(&mdl_tablespace_requests,
+                                     lock_wait_timeout))
+    return true;
+
+  DEBUG_SYNC(thd, "after_wait_locked_tablespace_name_for_table");
+
+  return false;
+}
 
 /**
   Obtain an exclusive metadata lock on an object name.

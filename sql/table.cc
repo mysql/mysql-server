@@ -36,7 +36,8 @@
 #include "sql_base.h"                    // OPEN_VIEW_ONLY
 #include "sql_class.h"                   // THD
 #include "sql_parse.h"                   // check_stack_overrun
-#include "sql_partition.h"               // mysql_unpack_partition
+#include "sql_partition.h"               // mysql_unpack_partition,
+                                         // get_partition_tablespace_names
 #include "sql_plugin.h"                  // plugin_unlock
 #include "sql_select.h"                  // actual_key_parts
 #include "sql_table.h"                   // build_table_filename
@@ -985,7 +986,10 @@ public:
 };
 
 
-const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
+bool get_table_and_parts_tablespace_names(
+       THD *thd,
+       TABLE_LIST *table,
+       Tablespace_hash_set *tablespace_set)
 {
   // Prepare the path to the .FRM file and open the file
   char path[FN_REFLEN + 1];           //< Path to .FRM file
@@ -996,7 +1000,7 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   // the file in this case.
   File file= mysql_file_open(key_file_frm, path, O_RDONLY | O_SHARE, MYF(0));
   if (file < 0)
-    return NULL;
+    return false;
 
   // Next, we read the header and do some basic verification of the
   // header fields.
@@ -1008,7 +1012,7 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   {
     // Upon failure, return NULL, but here, we have to close the file first.
     mysql_file_close(file, MYF(MY_WME));
-    return NULL;
+    return false;
   }
 
   // For mysql versions before 50120, NDB stored the tablespace names only
@@ -1057,10 +1061,16 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     }
     plugin_unlock(NULL, se_plugin);
 
-    // The buffers being freed at the end of the function are not allocated
-    // yet, so it is safe to return directly, after closing the file.
-    mysql_file_close(file, MYF(MY_WME));
-    return tablespace_name;
+    if (tablespace_name &&
+        strlen(tablespace_name) &&
+        tablespace_set->insert(const_cast<char*>(tablespace_name)))
+    {
+      mysql_file_close(file, MYF(MY_WME));
+      return true;
+    }
+
+    // Proceed to read tablespace names used by // partitions.
+    // Reading them from partition_info_str string in .FRM
   }
 
   // For other engines, and for cluster tables with version >= 50120, we
@@ -1070,9 +1080,10 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   const uint n_length= uint4korr(head + 55);   //< Length of extra segment
   if (n_length == 0 || pos == 0)
   {
-    // If failing, return NULL, but here, we have to close the file first.
+    // We close the file and return success, as we no form info
+    // or extra segment.
     mysql_file_close(file, MYF(MY_WME));
-    return NULL;
+    return false;
   }
 
   // Now, we are done with the basic verification. The outline of the
@@ -1144,6 +1155,7 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
   }
 
   // Read the form information, allocate and read the extra segment.
+  bool error= true;
   mysql_file_seek(file, pos, MY_SEEK_SET,MYF(0));
   uchar forminfo[288];
   uchar *extra_segment_buff= static_cast<uchar*>(
@@ -1164,8 +1176,29 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     next_chunk+= uint2korr(next_chunk) + 2;   // Connect string
     if (next_chunk + 2 < buff_end)
       next_chunk+= uint2korr(next_chunk) + 2; // DB type
-    if (next_chunk + 5 < buff_end)
-      next_chunk+= 5 + uint4korr(next_chunk); // Partitioning
+    if (next_chunk + 5 < buff_end) // Partitioning
+    {
+      uint32 partition_info_str_len = uint4korr(next_chunk);
+      const char *partition_info_str= NULL;
+
+      if (partition_info_str_len)
+      {
+        if (!(partition_info_str= (const char*)
+              memdup_root(thd->mem_root, next_chunk + 4,
+                          partition_info_str_len + 1)))
+        {
+          goto err;
+        }
+
+        // Fill tablespace names used by partition into tablespace_set.
+        if (get_partition_tablespace_names(
+              thd, partition_info_str, partition_info_str_len, tablespace_set))
+        {
+          goto err;
+        }
+      }
+      next_chunk+= 5 + partition_info_str_len;
+    }
     if (uint4korr(head + 51) >= 50110 && next_chunk < buff_end)
       next_chunk++;                           // Auto_partitioned
 
@@ -1200,12 +1233,21 @@ const char *get_tablespace_name(THD *thd, const TABLE_LIST *table)
     }
   }
 
+  // Fill tablespace name used by table, if present.
+  if (tablespace_name &&
+      strlen(tablespace_name) &&
+      tablespace_set->insert(const_cast<char*>(tablespace_name)))
+    error= true;
+  else
+    error= false;
+
+err:
   // Free the dynamically allocated buffers and close the .FRM file
   my_free(extra_segment_buff);
   my_free(disk_buff);
   mysql_file_close(file, MYF(MY_WME));
 
-  return tablespace_name;
+  return error;
 }
 
 

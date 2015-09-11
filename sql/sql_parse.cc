@@ -2802,6 +2802,10 @@ case SQLCOM_PREPARE:
       }
     }
 
+    // Reject invalid tablespace names specified for partitions.
+    if (check_partition_tablespace_names(thd->lex->part_info))
+      goto end_with_restore_list;
+
     /* Fix names if symlinked or relocated tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
