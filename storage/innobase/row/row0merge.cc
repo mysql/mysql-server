@@ -1608,6 +1608,7 @@ or NULL
 @param[in]	key_numbers	MySQL key numbers to create
 @param[in]	n_index		number of indexes to create
 @param[in]	add_cols	default values of added columns, or NULL
+@param[in]	add_v		newly added virtual columns along with indexes
 @param[in]	col_map		mapping of old column numbers to new ones, or
 NULL if old_table == new_table
 @param[in]	add_autoinc	number of added AUTO_INCREMENT columns, or
@@ -1636,6 +1637,7 @@ row_merge_read_clustered_index(
 	const ulint*		key_numbers,
 	ulint			n_index,
 	const dtuple_t*		add_cols,
+	const dict_add_v_col_t*	add_v,
 	const ulint*		col_map,
 	ulint			add_autoinc,
 	ib_sequence_t&		sequence,
@@ -2030,9 +2032,10 @@ end_of_index:
 
 		/* Build a row based on the clustered index. */
 
-		row = row_build(ROW_COPY_POINTERS, clust_index,
-				rec, offsets, new_table,
-				add_cols, col_map, &ext, row_heap);
+		row = row_build_w_add_vcol(ROW_COPY_POINTERS, clust_index,
+					   rec, offsets, new_table,
+					   add_cols, add_v, col_map, &ext,
+					   row_heap);
 		ut_ad(row);
 
 		for (ulint i = 0; i < n_nonnull; i++) {
@@ -4081,16 +4084,19 @@ row_merge_rename_tables_dict(
 	return(err);
 }
 
-/*********************************************************************//**
-Create and execute a query graph for creating an index.
+/** Create and execute a query graph for creating an index.
+@param[in,out]	trx	trx
+@param[in,out]	table	table
+@param[in,out]	index	index
+@param[in]	add_v	new virtual columns added along with add index call
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
 row_merge_create_index_graph(
-/*=========================*/
-	trx_t*		trx,		/*!< in: trx */
-	dict_table_t*	table,		/*!< in: table */
-	dict_index_t*	index)		/*!< in: index */
+	trx_t*			trx,
+	dict_table_t*		table,
+	dict_index_t*		index,
+	const dict_add_v_col_t* add_v)
 {
 	ind_node_t*	node;		/*!< Index creation node */
 	mem_heap_t*	heap;		/*!< Memory heap */
@@ -4106,7 +4112,7 @@ row_merge_create_index_graph(
 	heap = mem_heap_create(512);
 
 	index->table = table;
-	node = ind_create_graph_create(index, heap);
+	node = ind_create_graph_create(index, heap, add_v);
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
 	ut_a(thr == que_fork_start_command(
@@ -4121,16 +4127,19 @@ row_merge_create_index_graph(
 	DBUG_RETURN(err);
 }
 
-/*********************************************************************//**
-Create the index and load in to the dictionary.
+/** Create the index and load in to the dictionary.
+@param[in,out]	trx		trx (sets error_state)
+@param[in,out]	table		the index is on this table
+@param[in]	index_def	the index definition
+@param[in]	add_v		new virtual columns added along with add
+				index call
 @return index, or NULL on error */
 dict_index_t*
 row_merge_create_index(
-/*===================*/
-	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
-	dict_table_t*		table,	/*!< in: the index is on this table */
-	const index_def_t*	index_def)
-					/*!< in: the index definition */
+	trx_t*			trx,
+	dict_table_t*		table,
+	const index_def_t*	index_def,
+	const dict_add_v_col_t*	add_v)
 {
 	dict_index_t*	index;
 	dberr_t		err;
@@ -4157,8 +4166,16 @@ row_merge_create_index(
 		index_field_t*	ifield = &index_def->fields[i];
 
 		if (ifield->is_v_col) {
-			name = dict_table_get_v_col_name(
-				table, ifield->col_no);
+			if (ifield->col_no >= table->n_v_def) {
+				ut_ad(ifield->col_no < table->n_v_def
+				      + add_v->n_v_col);
+				ut_ad(ifield->col_no >= table->n_v_def);
+				name = add_v->v_col_name[
+					ifield->col_no - table->n_v_def];
+			} else {
+				name = dict_table_get_v_col_name(
+					table, ifield->col_no);
+			}
 		} else {
 			name = dict_table_get_col_name(table, ifield->col_no);
 		}
@@ -4167,7 +4184,7 @@ row_merge_create_index(
 	}
 
 	/* Add the index to SYS_INDEXES, using the index prototype. */
-	err = row_merge_create_index_graph(trx, table, index);
+	err = row_merge_create_index_graph(trx, table, index, add_v);
 
 	if (err == DB_SUCCESS) {
 
@@ -4281,6 +4298,7 @@ existing order
 @param[in,out]	stage		performance schema accounting object, used by
 ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
 this function and it will be passed to other functions for further accounting.
+@param[in]	add_v		new virtual columns added along with indexes
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -4297,7 +4315,8 @@ row_merge_build_indexes(
 	ulint			add_autoinc,
 	ib_sequence_t&		sequence,
 	bool			skip_pk_sort,
-	ut_stage_alter_t*	stage)
+	ut_stage_alter_t*	stage,
+	const dict_add_v_col_t*	add_v)
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -4411,8 +4430,8 @@ row_merge_build_indexes(
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
-		n_indexes, add_cols, col_map, add_autoinc, sequence,
-		block, skip_pk_sort, &tmpfd, stage);
+		n_indexes, add_cols, add_v, col_map, add_autoinc,
+		sequence, block, skip_pk_sort, &tmpfd, stage);
 
 	stage->end_phase_read_pk();
 

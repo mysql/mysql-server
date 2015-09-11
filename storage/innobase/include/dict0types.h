@@ -39,6 +39,7 @@ struct dict_v_col_t;
 
 struct ind_node_t;
 struct tab_node_t;
+struct dict_add_v_col_t;
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */

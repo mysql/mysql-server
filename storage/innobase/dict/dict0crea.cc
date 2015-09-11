@@ -1366,15 +1366,17 @@ tab_create_graph_create(
 	return(node);
 }
 
-/*********************************************************************//**
-Creates an index create graph.
+/** Creates an index create graph.
+@param[in]	index	index to create, built as a memory data structure
+@param[in,out]	heap	heap where created
+@param[in]	add_v	new virtual columns added in the same clause with
+			add index
 @return own: index create node */
 ind_node_t*
 ind_create_graph_create(
-/*====================*/
-	dict_index_t*	index,	/*!< in: index to create, built as a memory data
-				structure */
-	mem_heap_t*	heap)	/*!< in: heap where created */
+	dict_index_t*		index,
+	mem_heap_t*		heap,
+	const dict_add_v_col_t*	add_v)
 {
 	ind_node_t*	node;
 
@@ -1384,6 +1386,8 @@ ind_create_graph_create(
 	node->common.type = QUE_NODE_CREATE_INDEX;
 
 	node->index = index;
+
+	node->add_v = add_v;
 
 	node->state = INDEX_BUILD_INDEX_DEF;
 	node->page_no = FIL_NULL;
@@ -1597,8 +1601,8 @@ dict_create_index_step(
 
 		space_index_t	index_id = node->index->id;
 
-		err = dict_index_add_to_cache(
-			node->table, node->index, FIL_NULL,
+		err = dict_index_add_to_cache_w_vcol(
+			node->table, node->index, node->add_v, FIL_NULL,
 			trx_is_strict(trx)
 			|| dict_table_has_atomic_blobs(node->table));
 

@@ -43,15 +43,17 @@ tab_create_graph_create(
 	dict_table_t*	table,		/*!< in: table to create, built as
 					a memory data structure */
 	mem_heap_t*	heap);		/*!< in: heap where created */
-/*********************************************************************//**
-Creates an index create graph.
+/** Creates an index create graph.
+@param[in]	index	index to create, built as a memory data structure
+@param[in,out]	heap	heap where created
+@param[in]	add_v	new virtual columns added in the same clause with
+			add index
 @return own: index create node */
 ind_node_t*
 ind_create_graph_create(
-/*====================*/
-	dict_index_t*	index,		/*!< in: index to create, built
-					as a memory data structure */
-	mem_heap_t*	heap);		/*!< in: heap where created */
+	dict_index_t*		index,
+	mem_heap_t*		heap,
+	const dict_add_v_col_t*	add_v);
 
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
@@ -315,6 +317,9 @@ struct ind_node_t{
 	ulint		field_no;	/* next field definition to insert */
 	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
 					storage */
+	const dict_add_v_col_t*
+			add_v;		/*!< new virtual columns that being
+					added along with an add index call */
 };
 
 /** Compose a column number for a virtual column, stored in the "POS" field

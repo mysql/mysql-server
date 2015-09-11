@@ -517,7 +517,7 @@ info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE b b int(11) after c;
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
-# TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB
+# TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
 ALTER TABLE t CHANGE c c varchar(10) as ('a');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0

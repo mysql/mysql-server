@@ -3189,7 +3189,7 @@ row_create_index_for_mysql(
 
 		heap = mem_heap_create(512);
 
-		node = ind_create_graph_create(index, heap);
+		node = ind_create_graph_create(index, heap, NULL);
 
 		thr = pars_complete_graph_for_exec(node, trx, heap);
 

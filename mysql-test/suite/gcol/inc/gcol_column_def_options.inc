@@ -424,7 +424,7 @@ ALTER TABLE t CHANGE c c int(11) as (a), CHANGE f f varchar(10) as('bbb');
 --echo # Change order should be ALGORITHM=INPLACE on Innodb
 ALTER TABLE t CHANGE c c int(11) as (a) after f;
 ALTER TABLE t CHANGE b b int(11) after c;
---echo # TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB
+--echo # TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
 ALTER TABLE t CHANGE c c varchar(10) as ('a');
 --echo # Changing stored column type is ALGORITHM=COPY
 ALTER TABLE t CHANGE dd d varchar(10);
