@@ -3511,10 +3511,10 @@ update t22 set c = '2005-12-08 15:58:27' where a = 255;
 explain select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	Using temporary; Using filesort
-1	SIMPLE	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	1.00	Using where
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using temporary; Using filesort
+1	SIMPLE	t22	NULL	ALL	NULL	NULL	NULL	NULL	26	3.85	Using where
 1	SIMPLE	t21	NULL	ALL	NULL	NULL	NULL	NULL	26	10.00	Using where
-2	MATERIALIZED	t11	NULL	ALL	NULL	NULL	NULL	NULL	8	3.12	Using where
+2	MATERIALIZED	t11	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 2	MATERIALIZED	t12	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t21`.`a` AS `a`,`test`.`t21`.`b` AS `b`,`test`.`t21`.`c` AS `c` from `test`.`t21` semi join (`test`.`t11` join `test`.`t12`) join `test`.`t22` where ((`test`.`t22`.`a` = `<subquery2>`.`a`) and (`test`.`t21`.`a` = `<subquery2>`.`a`) and (`test`.`t12`.`a` = `test`.`t11`.`a`) and isnull(`test`.`t22`.`c`) and (`test`.`t11`.`a` in (255,256)) and isnull(`test`.`t11`.`c`)) order by `test`.`t21`.`a`
@@ -4416,7 +4416,7 @@ from t1_16
 where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -4489,6 +4489,10 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
+insert into t3 values ('1 - 05', '2 - 05');
+insert into t3 values ('1 - 06', '2 - 06');
+insert into t3 values ('1 - 07', '2 - 07');
+insert into t3 values ('1 - 08', '2 - 08');
 explain extended
 select * from t1
 where concat(a1,'x') IN
@@ -4499,9 +4503,9 @@ where t2.b2 = substring(t2_16.b2,1,6) and
 t2.b1 IN (select c1 from t3 where c2 > '0')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1_16	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t2_16	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	8.33	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -4553,7 +4557,7 @@ from t1_512
 where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1_512	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t1_512	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2_512	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -4662,7 +4666,7 @@ from t1_513
 where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1_513	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t1_513	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2_513	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -4753,7 +4757,7 @@ from t1_1024
 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t1_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2_1024	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -4862,7 +4866,7 @@ from t1_1025
 where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t1_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2_1025	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -6745,7 +6749,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS 
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	1.56	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7181,7 +7185,7 @@ and t2.uid=t1.fid;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	ref	uid	uid	5	const	1	50.00	Using where
 Warnings:
@@ -7227,7 +7231,7 @@ INSERT INTO t2 VALUES (13, 1.454);
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	11.11	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`f2` = `<subquery2>`.`f2`) and (`test`.`t1`.`f1` = `<subquery2>`.`f1`))
@@ -9179,7 +9183,7 @@ AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	grandparent1	NULL	ref	col_int_key	col_int_key	4	func	2	2.50	Using where
+2	DEPENDENT SUBQUERY	grandparent1	NULL	ref	col_int_key	col_int_key	4	func	2	9.09	Using where
 2	DEPENDENT SUBQUERY	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	8	test.grandparent1.col_int_nokey,test.grandparent1.col_int_nokey	1	100.00	NULL
 3	MATERIALIZED	parent1	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	NULL
 3	MATERIALIZED	parent2	NULL	ref	col_int_key	col_int_key	4	test.parent1.col_int_nokey	2	100.00	Using index
@@ -9210,7 +9214,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "10.45"
+            "query_cost": "10.48"
           },
           "nested_loop": [
             {
@@ -9230,12 +9234,12 @@ EXPLAIN
                 ],
                 "rows_examined_per_scan": 2,
                 "rows_produced_per_join": 0,
-                "filtered": "2.50",
+                "filtered": "9.09",
                 "cost_info": {
                   "read_cost": "2.00",
-                  "eval_cost": "0.01",
+                  "eval_cost": "0.04",
                   "prefix_cost": "2.40",
-                  "data_read_per_join": "0"
+                  "data_read_per_join": "2"
                 },
                 "used_columns": [
                   "col_int_nokey",
@@ -9871,7 +9875,7 @@ FROM t2 LEFT JOIN t3 USING (col_varchar_key) )
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	gp2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where
-1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	3	22.22	Using where
+1	SIMPLE	gp1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t2	NULL	index	col_varchar_key	col_varchar_key	4	NULL	1	100.00	Using index
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 2	MATERIALIZED	t3	NULL	ref	col_varchar_key	col_varchar_key	4	test.t2.col_varchar_key	2	100.00	Using index
@@ -11612,7 +11616,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "149.72"
+      "query_cost": "150.38"
     },
     "nested_loop": [
       {
@@ -11711,9 +11715,9 @@ EXPLAIN
           "rows_produced_per_join": 2,
           "filtered": "100.00",
           "cost_info": {
-            "read_cost": "1.33",
+            "read_cost": "2.00",
             "eval_cost": "0.40",
-            "prefix_cost": "137.49",
+            "prefix_cost": "138.15",
             "data_read_per_join": "48"
           },
           "used_columns": [
@@ -11732,7 +11736,7 @@ EXPLAIN
           "cost_info": {
             "read_cost": "4.23",
             "eval_cost": "8.00",
-            "prefix_cost": "149.72",
+            "prefix_cost": "150.39",
             "data_read_per_join": "960"
           },
           "used_columns": [

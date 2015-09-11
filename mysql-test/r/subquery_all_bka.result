@@ -4561,7 +4561,7 @@ new1	10	10	NULL
 explain extended
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2 where a=10 and b=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	8	1.56	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
