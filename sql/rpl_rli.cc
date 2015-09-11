@@ -2554,19 +2554,8 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 
     if (info_thd)
     {
-      /*
-        When the slave applier thread executes a
-        Format_description_log_event originating from a master
-        (corresponding to a new master binary log), set gtid_next to
-        NOT_YET_DETERMINED.  This tells the slave thread that:
-        - If a Gtid_log_event is read subsequently, gtid_next will be
-          set to the given GTID (this is done in
-          Gtid_log_event::do_apply_event().
-        - If a statement is executed before any Gtid_log_event, then
-          gtid_next is set to anonymous (this is done in
-          gtid_pre_statement_checks()).
-      */
-      if (fe->server_id != ::server_id &&
+      // See rpl_rli_pdb.h:Slave_worker::set_rli_description_event.
+      if (!is_in_group() &&
           (info_thd->variables.gtid_next.type == AUTOMATIC_GROUP ||
            info_thd->variables.gtid_next.type == UNDEFINED_GROUP))
       {

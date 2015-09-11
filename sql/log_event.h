@@ -381,7 +381,6 @@ typedef struct st_print_event_info
   uint charset_database_number;
   my_thread_id thread_id;
   bool thread_id_printed;
-  uint32 server_id_from_fd_event;
 
   st_print_event_info();
 
@@ -440,22 +439,6 @@ typedef struct st_print_event_info
    */
   bool skipped_event_in_transaction;
 
-  /* true if gtid_next is set with a value */
-  bool is_gtid_next_set;
-
-  /*
-    Determines if the current value of gtid_next needs to be restored
-    to AUTOMATIC if the binary log would end after the current event.
-
-    If the log ends after a transaction, then this should be false.
-    If the log ends in the middle of a transaction, then this should
-    be true; this can happen for relay logs where transactions are
-    split over multiple logs.
-
-    Set to true initially, and after a Gtid_log_event is processed.
-    Set to false if is_gtid_next_set is true.
-   */
-  bool is_gtid_next_valid;
 } PRINT_EVENT_INFO;
 #endif
 
