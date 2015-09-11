@@ -218,7 +218,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *);
+  virtual bool store_decimal(const my_decimal *, uint, uint);
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs)
   { return store(from, length, cs, result_cs); }
   virtual bool store(float nr, uint32 decimals, String *buffer);
@@ -258,7 +258,7 @@ public:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *);
+  virtual bool store_decimal(const my_decimal *, uint, uint);
   virtual bool store(MYSQL_TIME *time, uint precision);
   virtual bool store_date(MYSQL_TIME *time);
   virtual bool store_time(MYSQL_TIME *time, uint precision);

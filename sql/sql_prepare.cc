@@ -177,7 +177,7 @@ protected:
   virtual bool store_short(longlong from);
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *);
+  virtual bool store_decimal(const my_decimal *, uint, uint);
   virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
@@ -4351,13 +4351,14 @@ bool Protocol_local::store_longlong(longlong value, bool unsigned_flag)
 
 /** Store a decimal in string format in a result set column */
 
-bool Protocol_local::store_decimal(const my_decimal *value)
+bool Protocol_local::store_decimal(const my_decimal *value, uint prec,
+                                   uint dec)
 {
   char buf[DECIMAL_MAX_STR_LENGTH];
   String str(buf, sizeof (buf), &my_charset_bin);
   int rc;
 
-  rc= my_decimal2string(E_DEC_FATAL_ERROR, value, 0, 0, 0, &str);
+  rc= my_decimal2string(E_DEC_FATAL_ERROR, value, prec, dec, '0', &str);
 
   if (rc)
     return TRUE;
