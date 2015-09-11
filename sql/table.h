@@ -1273,7 +1273,8 @@ public:
   void prepare_for_position(void);
 
   void mark_column_used(THD *thd, Field *field, enum enum_mark_columns mark);
-  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map);
+  void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
+                                           uint key_parts= UINT_MAX);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(void);
