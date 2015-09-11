@@ -706,3 +706,43 @@ DROP TABLE t2, t1;
 SET DEBUG_SYNC= 'RESET';
 disconnect con1;
 disconnect con2;
+#
+# BUG#21631284: DROP VIRTUAL COLUMN RESULT IN DROP WRONG INDEX.
+#
+# Index is not rebuilt, since there is no change in the definition.
+CREATE TABLE t1 (fld1 VARCHAR(300), fld2 INT, KEY idx1(fld2, fld1(200)))
+ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+#Without the patch, an error is reported.
+ALTER TABLE t1 FORCE;
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+# Index is rebuilt since the index is changed from prefixed
+# to non-prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+#Without the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+# Coverage test cases.
+# Index is rebuilt since the index is changed from non-prefixed
+# to prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1)) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+#In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+# Index is not rebuilt since the index prefix length is
+# the same.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+#In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(20);
+#cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
