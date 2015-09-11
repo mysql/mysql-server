@@ -172,7 +172,20 @@ source include/assert.inc;
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_coordinator, Last_Error_Message, 1);
+}
 
 let PS_VALUE= $ps_value;
 let SSS_VALUE= $sss_value;
@@ -271,7 +284,20 @@ source include/assert.inc;
 # So, the equality of error messages is checked using the below perl code.
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
+# Post Bug20001173 fix in STS mode check performance_schema.replication_applier_status_by_worker
+# table for applier status.
+let $worker_count= `select @@global.slave_parallel_workers`;
+if ($worker_count == 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_worker, Last_Error_Message, 1);
+}
+# In MTS mode check
+# performance_schema.replication_applier_status_by_coordinator
+# table for applier status.
+if ($worker_count != 0)
+{
+  let $ps_value= query_get_value(select Last_Error_Message from performance_schema.replication_applier_status_by_coordinator, Last_Error_Message, 1);
+}
 
 let PS_VALUE= $ps_value;
 let SSS_VALUE= $sss_value;
