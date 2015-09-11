@@ -1430,7 +1430,7 @@ performance-schema-instrument
 performance-schema-max-cond-classes 80
 performance-schema-max-cond-instances -1
 performance-schema-max-digest-length 1024
-performance-schema-max-file-classes 50
+performance-schema-max-file-classes 80
 performance-schema-max-file-handles 32768
 performance-schema-max-file-instances -1
 performance-schema-max-index-stat -1
