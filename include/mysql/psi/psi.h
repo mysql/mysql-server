@@ -798,7 +798,10 @@ typedef unsigned int PSI_thread_key;
   To instrument a file, a file key must be obtained using @c register_file.
   Using a zero key always disable the instrumentation.
 */
+#ifndef PSI_FILE_KEY_DEFINED
 typedef unsigned int PSI_file_key;
+#define PSI_FILE_KEY_DEFINED
+#endif
 
 /**
   Instrumented stage key.
