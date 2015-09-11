@@ -1,0 +1,35 @@
+-- source include/not_embedded.inc
+# Tests for sys schema
+# Verify the sys.sql_mode_drop() function perfoms as expected
+
+# Remove from front of list
+SELECT sys.list_drop('1,2,3,4,5', '1');
+
+# Remove from middle of list
+SELECT sys.list_drop('1,2,3,4,5', '3');
+
+# Remove from end of list
+SELECT sys.list_drop('1,2,3,4,5', '5');
+
+# Make sure spaces are appropriately dealt with
+SELECT sys.list_drop('1, 2, 3, 4, 5', '1');
+SELECT sys.list_drop('1, 2, 3, 4, 5', '3');
+SELECT sys.list_drop('1, 2, 3, 4, 5', '5');
+
+# Should return an error with a NULL value to drop
+--error 1138
+SELECT sys.list_drop('1,2,3,4,5', NULL);
+
+# Test the sql mode update use case
+# save old mode to restore
+SET @sqlmode := @@sql_mode;
+
+SELECT @@sql_mode;
+
+SET SESSION sql_mode = sys.list_drop(@@sql_mode, 'STRICT_TRANS_TABLES');
+
+SELECT @@sql_mode;
+
+# restore old mode
+SET SESSION sql_mode = @sqlmode;
+SET @sqlmode := NULL;

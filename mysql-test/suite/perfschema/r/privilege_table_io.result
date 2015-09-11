@@ -115,12 +115,14 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	db	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	proxies_priv	fetch	1
+wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	tables_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	procs_priv	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	1

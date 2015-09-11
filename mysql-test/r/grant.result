@@ -687,9 +687,9 @@ GRANT ALL PRIVILEGES ON mysqltest.dummytable TO dummy@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.dummyview TO dummy@localhost;
 SHOW GRANTS FOR dummy@localhost;
 Grants for dummy@localhost
-GRANT USAGE ON *.* TO 'dummy'@'localhost'
-GRANT ALL PRIVILEGES ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
 GRANT ALL PRIVILEGES ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -700,9 +700,9 @@ mysqltest	dummyview	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, REF
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR dummy@localhost;
 Grants for dummy@localhost
-GRANT USAGE ON *.* TO 'dummy'@'localhost'
-GRANT ALL PRIVILEGES ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
 GRANT ALL PRIVILEGES ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+GRANT ALL PRIVILEGES ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
@@ -731,9 +731,9 @@ GRANT CREATE VIEW ON mysqltest.dummytable TO dummy@localhost;
 GRANT CREATE VIEW ON mysqltest.dummyview TO dummy@localhost;
 SHOW GRANTS FOR dummy@localhost;
 Grants for dummy@localhost
-GRANT USAGE ON *.* TO 'dummy'@'localhost'
-GRANT CREATE VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
 GRANT CREATE VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+GRANT CREATE VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -744,9 +744,9 @@ mysqltest	dummyview	CREATE VIEW
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR dummy@localhost;
 Grants for dummy@localhost
-GRANT USAGE ON *.* TO 'dummy'@'localhost'
-GRANT CREATE VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
 GRANT CREATE VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+GRANT CREATE VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
@@ -765,9 +765,9 @@ GRANT SHOW VIEW ON mysqltest.dummytable TO dummy@localhost;
 GRANT SHOW VIEW ON mysqltest.dummyview TO dummy@localhost;
 SHOW GRANTS FOR dummy@localhost;
 Grants for dummy@localhost
-GRANT USAGE ON *.* TO 'dummy'@'localhost'
-GRANT SHOW VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
 GRANT SHOW VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+GRANT SHOW VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -778,9 +778,9 @@ mysqltest	dummyview	SHOW VIEW
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR dummy@localhost;
 Grants for dummy@localhost
-GRANT USAGE ON *.* TO 'dummy'@'localhost'
-GRANT SHOW VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
 GRANT SHOW VIEW ON `mysqltest`.`dummytable` TO 'dummy'@'localhost'
+GRANT SHOW VIEW ON `mysqltest`.`dummyview` TO 'dummy'@'localhost'
+GRANT USAGE ON *.* TO 'dummy'@'localhost'
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
@@ -998,7 +998,7 @@ show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
 GRANT UPDATE ON `test`.`t1` TO 'mysqltest_8'@'%'
-select * from  information_schema.table_privileges;
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'mysqltest_8'@'%'	def	test	t1	UPDATE	NO
 'mysqltest_8'@''	def	test	t1	UPDATE	NO
@@ -1012,7 +1012,7 @@ GRANT USAGE ON *.* TO 'mysqltest_8'@''
 show grants for mysqltest_8;
 Grants for mysqltest_8@%
 GRANT USAGE ON *.* TO 'mysqltest_8'@'%'
-select * from  information_schema.table_privileges;
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 flush privileges;
 show grants for mysqltest_8@'';
@@ -1039,9 +1039,9 @@ GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@'%'
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'mysqltest_8'@'host8'	def	USAGE	NO
 'mysqltest_8'@'%'	def	USAGE	NO
 'mysqltest_8'@''	def	USAGE	NO
+'mysqltest_8'@'host8'	def	USAGE	NO
 select * from t1;
 a
 flush privileges;
@@ -1064,8 +1064,8 @@ GRANT ALL PRIVILEGES ON `mysqltest`.* TO 'mysqltest_8'@'%'
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
-'mysqltest_8'@'host8'	def	USAGE	NO
 'mysqltest_8'@'%'	def	USAGE	NO
+'mysqltest_8'@'host8'	def	USAGE	NO
 drop user mysqltest_8;
 connect(localhost,mysqltest_8,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'mysqltest_8'@'localhost' (using password: NO)
@@ -1706,8 +1706,8 @@ ERROR 42000: SELECT command denied to user 'mysqluser1'@'localhost' for table 't
 show grants for mysqluser10@localhost;
 Grants for mysqluser10@localhost
 GRANT USAGE ON *.* TO 'mysqluser10'@'localhost'
-GRANT SELECT ON `mysqltest1`.`t22` TO 'mysqluser10'@'localhost'
 GRANT SELECT ON `mysqltest1`.`t11` TO 'mysqluser10'@'localhost'
+GRANT SELECT ON `mysqltest1`.`t22` TO 'mysqluser10'@'localhost'
 GRANT EXECUTE ON PROCEDURE `mysqltest1`.`p1` TO 'mysqluser10'@'localhost'
 GRANT EXECUTE ON FUNCTION `mysqltest1`.`f1` TO 'mysqluser10'@'localhost'
 select db, routine_name, routine_type, proc_priv from mysql.procs_priv where user='mysqluser10' and host='localhost';

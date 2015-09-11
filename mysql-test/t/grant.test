@@ -456,12 +456,14 @@ CREATE TABLE mysqltest.dummytable (dummyfield INT);
 CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
 GRANT ALL PRIVILEGES ON mysqltest.dummytable TO dummy@localhost;
 GRANT ALL PRIVILEGES ON mysqltest.dummyview TO dummy@localhost;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -478,12 +480,14 @@ CREATE TABLE mysqltest.dummytable (dummyfield INT);
 CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
 GRANT CREATE VIEW ON mysqltest.dummytable TO dummy@localhost;
 GRANT CREATE VIEW ON mysqltest.dummyview TO dummy@localhost;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -498,12 +502,14 @@ CREATE TABLE mysqltest.dummytable (dummyfield INT);
 CREATE VIEW mysqltest.dummyview AS SELECT dummyfield FROM mysqltest.dummytable;
 GRANT SHOW VIEW ON mysqltest.dummytable TO dummy@localhost;
 GRANT SHOW VIEW ON mysqltest.dummyview TO dummy@localhost;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 use INFORMATION_SCHEMA;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
 = '\'dummy\'@\'localhost\'' GROUP BY TABLE_SCHEMA, TABLE_NAME;
 FLUSH PRIVILEGES;
+--sorted_result
 SHOW GRANTS FOR dummy@localhost;
 SELECT TABLE_SCHEMA, TABLE_NAME, GROUP_CONCAT(PRIVILEGE_TYPE ORDER BY
 PRIVILEGE_TYPE SEPARATOR ', ') AS PRIVILEGES FROM TABLE_PRIVILEGES WHERE GRANTEE
@@ -626,6 +632,7 @@ grant select on mysqltest.* to mysqltest_8@;
 show grants for mysqltest_8@;
 grant select on mysqltest.* to mysqltest_8;
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.schema_privileges
 where grantee like "'mysqltest_8'%";
 connect (conn3,localhost,mysqltest_8,,);
@@ -636,6 +643,7 @@ revoke select on mysqltest.* from mysqltest_8@'';
 revoke select on mysqltest.* from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.schema_privileges
 where grantee like "'mysqltest_8'%";
 flush privileges;
@@ -655,6 +663,7 @@ show grants for mysqltest_8;
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.column_privileges;
 connect (conn4,localhost,mysqltest_8,,);
 select * from t1;
@@ -664,6 +673,7 @@ revoke update (a) on t1 from mysqltest_8@'';
 revoke update (a) on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.column_privileges;
 flush privileges;
 show grants for mysqltest_8@'';
@@ -677,7 +687,8 @@ show grants for mysqltest_8;
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
-select * from  information_schema.table_privileges;
+--sorted_result
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 connect (conn5,localhost,mysqltest_8,,);
 select * from t1;
 disconnect conn5;
@@ -686,7 +697,8 @@ revoke update on t1 from mysqltest_8@'';
 revoke update on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
-select * from  information_schema.table_privileges;
+--sorted_result
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
@@ -699,6 +711,7 @@ grant update (a) on t1 to mysqltest_8@'';
 grant all privileges on mysqltest.* to mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 connect (conn5,localhost,mysqltest_8,,);
@@ -712,6 +725,7 @@ drop user mysqltest_8@'';
 --error ER_NONEXISTING_GRANT
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
+--sorted_result
 select * from  information_schema.user_privileges
 where grantee like "'mysqltest_8'%";
 drop user mysqltest_8;
