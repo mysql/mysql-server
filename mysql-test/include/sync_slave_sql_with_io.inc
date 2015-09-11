@@ -32,6 +32,7 @@
 
 --source include/save_io_thread_pos.inc
 --source include/sync_slave_sql.inc
+--let $_saved_channel_name=
 
 --let $include_filename= sync_slave_sql_with_io.inc
 --source include/end_include_file.inc

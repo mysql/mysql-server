@@ -48,7 +48,7 @@
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
-#include "rpl_msr.h"                     // msr_map
+#include "rpl_msr.h"                     // channel_map
 #include "rpl_mts_submode.h"             // MTS_PARALLEL_TYPE_DB_NAME
 #include "rpl_rli.h"                     // Relay_log_info
 #include "rpl_slave.h"                   // SLAVE_THD_TYPE
@@ -1090,18 +1090,18 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
                           opt_mi_repository_id: opt_rli_repository_id))
       return FALSE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
   /* Repository conversion not possible, when multiple channels exist */
-  if (msr_map.get_num_instances(true) > 1)
+  if (channel_map.get_num_instances(true) > 1)
   {
       msg= "Repository conversion is possible when only default channel exists";
       my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
-      mysql_mutex_unlock(&LOCK_msr_map);
+      channel_map.unlock();
       return TRUE;
   }
 
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_default_channel_mi();
 
   if (mi != NULL)
   {
@@ -1155,7 +1155,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
     }
     unlock_slave_threads(mi);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif
   return ret;
 }
@@ -2284,14 +2284,14 @@ static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)
   {
     Master_info *mi =NULL;
 
-    mysql_mutex_lock(&LOCK_msr_map);
-    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    channel_map.wrlock();
+    for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
     {
       mi= it->second;
       if (mi!= NULL)
         mi->rli->relay_log.set_max_size(max_binlog_size);
     }
-    mysql_mutex_unlock(&LOCK_msr_map);
+    channel_map.unlock();
   }
 #endif
   return false;
@@ -2457,8 +2457,8 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 #ifdef HAVE_REPLICATION
   Master_info *mi= NULL;
 
-  mysql_mutex_lock(&LOCK_msr_map);
-  for (mi_map::iterator it= msr_map.begin(); it!=msr_map.end(); it++)
+  channel_map.wrlock();
+  for (mi_map::iterator it= channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -2466,7 +2466,7 @@ static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
       mi->rli->relay_log.set_max_size(max_relay_log_size ?
                                       max_relay_log_size: max_binlog_size);
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif
   return false;
 }
@@ -3407,9 +3407,9 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
   if (check_not_null_not_empty(self, thd, var))
     return true;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
-  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
   {
     mi= it->second;
     if (mi)
@@ -3423,7 +3423,7 @@ static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
       mysql_mutex_unlock(&mi->rli->run_lock);
     }
   }
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   return result;
 }
 
@@ -3607,7 +3607,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var)
     - gtid_mode is not changed while some other thread is rotating
     the binlog.
 
-    Hold lock_msr_map so that:
+    Hold channel_map lock so that:
     - gtid_mode is not changed during the execution of some
     replication command; particularly CHANGE MASTER. CHANGE MASTER
     checks if GTID_MODE is compatible with AUTO_POSITION, and
@@ -3623,7 +3623,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var)
     to take the other locks.
   */
   gtid_mode_lock->wrlock();
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   global_sid_lock->wrlock();
   int lock_count= 4;
@@ -3658,7 +3658,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var)
   // Cannot set OFF when some channel uses AUTO_POSITION.
   if (new_gtid_mode == GTID_MODE_OFF)
   {
-    for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+    for (mi_map::iterator it= channel_map.begin();
+         it!= channel_map.end(); it++)
     {
       Master_info *mi= it->second;
       DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
@@ -3791,7 +3792,7 @@ err:
   if (lock_count == 4)
     global_sid_lock->unlock();
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   gtid_mode_lock->unlock();
   DBUG_RETURN(ret);
 }
@@ -5271,20 +5272,20 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 
   /*
    Here we have lock on LOCK_global_system_variables and we need
-    lock on LOCK_msr_map. In START_SLAVE handler, we take these
+    lock on channel_map lock. In START_SLAVE handler, we take these
     two locks in different order. This can lead to DEADLOCKs. See
     BUG#14236151 for more details.
    So we release lock on LOCK_global_system_variables before acquiring
-    lock on LOCK_msr_map. But this could lead to isolation issues
-    between multiple seters. Hence introducing secondary guard
+    lock on channel_map lock. But this could lead to isolation issues
+    between multiple setters. Hence introducing secondary guard
     for this global variable and releasing the lock here and acquiring
     locks back again at the end of this function.
    */
   mysql_mutex_unlock(&LOCK_slave_net_timeout);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
-  for (mi_map::iterator it=msr_map.begin(); it!=msr_map.end(); it++)
+  for (mi_map::iterator it=channel_map.begin(); it!=channel_map.end(); it++)
   {
     mi= it->second;
 
@@ -5297,7 +5298,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                    ER_THD(thd, ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
   mysql_mutex_lock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;

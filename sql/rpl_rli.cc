@@ -22,7 +22,7 @@
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
 #include "rpl_info_factory.h"      // Rpl_info_factory
 #include "rpl_mi.h"                // Master_info
-#include "rpl_msr.h"               // msr_map
+#include "rpl_msr.h"               // channel_map
 #include "rpl_rli_pdb.h"           // Slave_worker
 #include "sql_base.h"              // close_thread_tables
 #include "strfunc.h"               // strconvert
@@ -1817,22 +1817,26 @@ bool mysql_show_relaylog_events(THD* thd)
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS);
 
-  if (!thd->lex->mi.for_channel && msr_map.get_num_instances() > 1)
+  channel_map.wrlock();
+
+  if (!thd->lex->mi.for_channel && channel_map.get_num_instances() > 1)
   {
     my_error(ER_SLAVE_MULTIPLE_CHANNELS_CMD, MYF(0));
-    DBUG_RETURN(true);
+    res= true;
+    goto err;
   }
 
   Log_event::init_show_field_list(&field_list);
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
+  {
+    res= true;
+    goto err;
+  }
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  mi= channel_map.get_mi(thd->lex->mi.channel);
 
-  mi= msr_map.get_mi(thd->lex->mi.channel);
-
-  if (!mi && strcmp(thd->lex->mi.channel, msr_map.get_default_channel()))
+  if (!mi && strcmp(thd->lex->mi.channel, channel_map.get_default_channel()))
   {
     my_error(ER_SLAVE_CHANNEL_DOES_NOT_EXIST, MYF(0), thd->lex->mi.channel);
     res= true;
@@ -1849,7 +1853,7 @@ bool mysql_show_relaylog_events(THD* thd)
   res= show_binlog_events(thd, &mi->rli->relay_log);
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   DBUG_RETURN(res);
 }

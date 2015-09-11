@@ -216,30 +216,29 @@ int channel_create(const char* channel,
 {
   DBUG_ENTER("channel_create");
 
-  Master_info *mi= 0;
+  Master_info *mi= NULL;
   int error= 0;
   LEX_MASTER_INFO* lex_mi= NULL;
 
   bool thd_created= false;
   THD *thd= current_thd;
 
-  mysql_mutex_lock(&LOCK_msr_map);
-
   //Don't create default channels
-  if (!strcmp(msr_map.get_default_channel(), channel))
-  {
-    error= RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR;
-    goto err;
-  }
+  if (!strcmp(channel_map.get_default_channel(), channel))
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
 
+  /* Service channels are not supposed to use sql_slave_skip_counter */
+  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
   if (sql_slave_skip_counter > 0)
-  {
     error= RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
-    goto err;
-  }
+  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+  if (error)
+    DBUG_RETURN(error);
+
+  channel_map.wrlock();
 
   /* Get the Master_info of the channel */
-  mi= msr_map.get_mi(channel);
+  mi= channel_map.get_mi(channel);
 
     /* create a new channel if doesn't exist */
   if (!mi)
@@ -296,7 +295,7 @@ int channel_create(const char* channel,
   set_mi_settings(mi, channel_info);
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 
   if (thd_created)
   {
@@ -314,22 +313,31 @@ int channel_start(const char* channel,
                   int wait_for_connection)
 {
   DBUG_ENTER("channel_start(channel, threads_to_start, wait_for_connection");
-
-  Master_info *mi= msr_map.get_mi(channel);
   int error= 0;
+  int thread_mask= 0;
+  LEX_MASTER_INFO lex_mi;
+  ulong thread_start_id= 0;
+  bool thd_created= false;
+  THD* thd= current_thd;
+
+  /* Service channels are not supposed to use sql_slave_skip_counter */
+  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
+  if (sql_slave_skip_counter > 0)
+    error= RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
+  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+  if (error)
+    DBUG_RETURN(error);
+
+  channel_map.wrlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    error= RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
+    goto err;
   }
 
-  if (sql_slave_skip_counter > 0)
-  {
-    error= RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
-    DBUG_RETURN(error);
-  }
-
-  int thread_mask= 0;
   if (threads_to_start & CHANNEL_APPLIER_THREAD)
   {
     thread_mask |= SLAVE_SQL;
@@ -341,12 +349,11 @@ int channel_start(const char* channel,
 
   //Nothing to be done here
   if (!thread_mask)
-    DBUG_RETURN(0);
+    goto err;
 
   LEX_SLAVE_CONNECTION lex_connection;
   lex_connection.reset();
 
-  LEX_MASTER_INFO lex_mi;
   if (connection_info->until_condition != CHANNEL_NO_UNTIL_CONDITION)
   {
     switch (connection_info->until_condition)
@@ -371,13 +378,9 @@ int channel_start(const char* channel,
     }
   }
 
-  ulong thread_start_id= 0;
   if (wait_for_connection && (thread_mask & SLAVE_IO))
     thread_start_id= mi->slave_run_id;
 
-  bool thd_created= false;
-
-  THD* thd= current_thd;
   if (!thd)
   {
     thd_created= true;
@@ -412,6 +415,9 @@ int channel_start(const char* channel,
     }
   }
 
+err:
+  channel_map.unlock();
+
   if (thd_created)
   {
     delete_surrogate_thread(thd);
@@ -426,12 +432,17 @@ int channel_stop(const char* channel,
 {
   DBUG_ENTER("channel_stop(channel, stop_receiver, stop_applier, timeout");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
+
+  mi->channel_rdlock();
 
   int thread_mask= 0;
   int server_thd_mask= 0;
@@ -452,6 +463,8 @@ int channel_stop(const char* channel,
 
   if (thread_mask == 0)
   {
+    mi->channel_unlock();
+    channel_map.unlock();
     DBUG_RETURN(0);
   }
 
@@ -459,6 +472,9 @@ int channel_stop(const char* channel,
 
   int error= terminate_slave_threads(mi, thread_mask, timeout, false);
   unlock_slave_threads(mi);
+
+  mi->channel_unlock();
+  channel_map.unlock();
 
   if (thd_init)
   {
@@ -472,16 +488,21 @@ int channel_purge_queue(const char* channel, bool reset_all)
 {
   DBUG_ENTER("channel_purge_queue(channel, only_purge");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.wrlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   bool thd_init= init_thread_context();
 
   int error= reset_slave(current_thd, mi, reset_all);
+
+  channel_map.unlock();
 
   if (thd_init)
   {
@@ -493,17 +514,25 @@ int channel_purge_queue(const char* channel, bool reset_all)
 
 bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
 {
+  int thread_mask= 0;
   DBUG_ENTER("channel_is_active(channel, thd_type");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(false);
   }
 
-  int thread_mask= 0;
+  mi->channel_rdlock();
+
   init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
+
+  mi->channel_unlock();
+  channel_map.unlock();
 
   switch(thd_type)
   {
@@ -527,12 +556,17 @@ int channel_get_thread_id(const char* channel,
 
   int number_threads= -1;
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
+
+  mi->channel_rdlock();
 
   switch(thd_type)
   {
@@ -620,6 +654,9 @@ int channel_get_thread_id(const char* channel,
       DBUG_RETURN(number_threads);
   }
 
+  mi->channel_unlock();
+  channel_map.unlock();
+
   DBUG_RETURN(number_threads);
 }
 
@@ -627,13 +664,17 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
 {
   DBUG_ENTER("channel_get_last_delivered_gno(channel, sidno)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
+  mi->channel_rdlock();
   rpl_gno last_gno= 0;
 
   global_sid_lock->rdlock();
@@ -651,6 +692,9 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   my_free(retrieved_gtid_set_string);
 #endif
 
+  mi->channel_unlock();
+  channel_map.unlock();
+
   DBUG_RETURN(last_gno);
 }
 
@@ -658,35 +702,48 @@ int channel_queue_packet(const char* channel,
                          const char* buf,
                          unsigned long event_len)
 {
+  int result;
   DBUG_ENTER("channel_queue_packet(channel, event_buffer, event_len)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
-  DBUG_RETURN(queue_event(mi, buf, event_len));
+  result= queue_event(mi, buf, event_len);
+
+  channel_map.unlock();
+
+  DBUG_RETURN(result);
 }
 
 int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
 {
   DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
+
+  channel_map.unlock();
 
   int error = mi->rli->wait_for_gtid_set(current_thd, mi->rli->get_gtid_set(),
                                          timeout);
 
-  if(error == -1)
+  if (error == -1)
     DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
-  if(error == -2)
+  if (error == -2)
     DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
 
   DBUG_RETURN(error);
@@ -697,10 +754,13 @@ int channel_is_applier_waiting(char* channel)
   DBUG_ENTER("channel_is_applier_waiting(channel)");
   int result= RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(result);
   }
 
@@ -737,6 +797,7 @@ int channel_is_applier_waiting(char* channel)
   }
 
 end:
+  channel_map.unlock();
   my_free(thread_ids);
 
   DBUG_RETURN(result);
@@ -773,14 +834,19 @@ int channel_flush(const char* channel)
 {
   DBUG_ENTER("channel_flush(channel)");
 
-  Master_info *mi= msr_map.get_mi(channel);
+  channel_map.rdlock();
+
+  Master_info *mi= channel_map.get_mi(channel);
 
   if (mi == NULL)
   {
+    channel_map.unlock();
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
   bool error= flush_relay_logs(mi);
+
+  channel_map.unlock();
 
   DBUG_RETURN(error ? 1 : 0);
 }

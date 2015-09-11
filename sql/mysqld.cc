@@ -267,7 +267,6 @@ static PSI_mutex_key key_LOCK_status;
 static PSI_mutex_key key_LOCK_manager;
 static PSI_mutex_key key_LOCK_crypt;
 static PSI_mutex_key key_LOCK_user_conn;
-static PSI_mutex_key key_LOCK_msr_map;
 static PSI_mutex_key key_LOCK_global_system_variables;
 static PSI_mutex_key key_LOCK_prepared_stmt_count;
 static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
@@ -700,7 +699,7 @@ mysql_mutex_t
   LOCK_status, LOCK_uuid_generator,
   LOCK_crypt,
   LOCK_global_system_variables,
-  LOCK_user_conn, LOCK_msr_map,
+  LOCK_user_conn,
   LOCK_error_messages;
 mysql_mutex_t LOCK_sql_rand;
 
@@ -1492,7 +1491,6 @@ static void clean_up_mutexes()
 #ifdef HAVE_OPENSSL
   mysql_mutex_destroy(&LOCK_des_key_file);
 #endif
-  mysql_mutex_destroy(&LOCK_msr_map);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
   mysql_rwlock_destroy(&LOCK_sys_init_slave);
   mysql_mutex_destroy(&LOCK_global_system_variables);
@@ -3198,7 +3196,6 @@ static int init_thread_environment()
                    &LOCK_manager, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_crypt, &LOCK_crypt, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_user_conn, &LOCK_user_conn, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_msr_map, &LOCK_msr_map, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_global_system_variables,
                    &LOCK_global_system_variables, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_system_variables_hash,
@@ -6002,9 +5999,7 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 #ifdef HAVE_REPLICATION
 /**
   After Multisource replication, this function only shows the value
-  of default channel.  default channel if created during init_slave()
-  always exist and is not destroyed, LOCK_msr_map is not needed.
-  Initially, a lock was needed which was removed for the bug????
+  of default channel.
 
   To know the status of other channels, performance schema replication
   tables comes to the rescue.
@@ -6015,8 +6010,8 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 */
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
-
-  Master_info *mi =msr_map.get_mi(msr_map.get_default_channel());
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
   {
@@ -6029,6 +6024,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -6039,9 +6035,8 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 */
 static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 {
-
-  Master_info *mi;
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
   {
@@ -6052,6 +6047,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -6060,8 +6056,8 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
 */
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
-  Master_info *mi;
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
   {
@@ -6072,6 +6068,7 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -6082,8 +6079,8 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
 
-  Master_info *mi;
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
   {
@@ -6101,6 +6098,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -6111,8 +6109,8 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
   DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
 
-  Master_info *mi;
-  mi=  msr_map.get_mi(msr_map.get_default_channel());
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_default_channel_mi();
 
   if (mi)
   {
@@ -6123,6 +6121,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
 
+  channel_map.unlock();
   return 0;
 }
 
@@ -8390,7 +8389,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
-  { &key_LOCK_msr_map, "LOCK_msr_map", PSI_FLAG_GLOBAL},
   { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0 },
   { &key_LOCK_crypt, "LOCK_crypt", PSI_FLAG_GLOBAL},
   { &key_LOCK_error_log, "LOCK_error_log", PSI_FLAG_GLOBAL},
@@ -8455,6 +8453,8 @@ static PSI_mutex_info all_server_mutexes[]=
 PSI_rwlock_key key_rwlock_LOCK_grant;
 PSI_rwlock_key key_rwlock_LOCK_logger;
 PSI_rwlock_key key_rwlock_query_cache_query_lock;
+PSI_rwlock_key key_rwlock_channel_map_lock;
+PSI_rwlock_key key_rwlock_channel_lock;
 
 PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
@@ -8479,6 +8479,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL},
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_GLOBAL},
+  { &key_rwlock_channel_map_lock, "channel_map_lock", 0},
+  { &key_rwlock_channel_lock, "channel_lock", 0},
   { &key_rwlock_Trans_delegate_lock, "Trans_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Server_state_delegate_lock, "Server_state_delegate::lock", PSI_FLAG_GLOBAL},
   { &key_rwlock_Binlog_storage_delegate_lock, "Binlog_storage_delegate::lock", PSI_FLAG_GLOBAL}

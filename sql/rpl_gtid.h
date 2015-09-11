@@ -308,8 +308,8 @@ enum enum_gtid_mode_lock
   GTID_MODE_LOCK_GTID_MODE,
   /// global_sid_lock held.
   GTID_MODE_LOCK_SID,
-  /// LOCK_msr_map held.
-  GTID_MODE_LOCK_MSR_MAP
+  /// read or write lock on channel_map lock is held.
+  GTID_MODE_LOCK_CHANNEL_MAP
 /*
   Currently, no function that calls get_gtid_mode needs
   this. Uncomment this, and uncomment the case in get_gtid_mode, if it

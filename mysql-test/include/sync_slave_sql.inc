@@ -108,7 +108,7 @@ if (!$_sync_with_gtids)
 {
   if ($rpl_debug)
   {
-    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout,$_sss_channel_param)
+    --echo debug: MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)
   }
   --let $_sss_result= `SELECT MASTER_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
 }

@@ -39,7 +39,7 @@
 #include "tztime.h"               // Time_zone
 #include "binlog.h"               // mysql_bin_log
 #include "rpl_rli.h"              // sql_slave_skip_counter
-#include "rpl_msr.h"              // msr_map
+#include "rpl_msr.h"              // channel_map
 #include "rpl_group_replication.h"// is_group_replication_running
 #include "mysqld.h"               // max_system_variables test_flags ...
 

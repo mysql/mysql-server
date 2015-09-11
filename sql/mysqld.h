@@ -368,6 +368,8 @@ extern PSI_mutex_key key_mutex_slave_worker_hash;
 extern PSI_rwlock_key key_rwlock_LOCK_grant;
 extern PSI_rwlock_key key_rwlock_LOCK_logger;
 extern PSI_rwlock_key key_rwlock_query_cache_query_lock;
+extern PSI_rwlock_key key_rwlock_channel_map_lock;
+extern PSI_rwlock_key key_rwlock_channel_lock;
 
 extern PSI_cond_key key_PAGE_cond;
 extern PSI_cond_key key_COND_active;
@@ -603,7 +605,6 @@ extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
 extern mysql_mutex_t LOCK_status;
 extern mysql_mutex_t LOCK_uuid_generator;
 extern mysql_mutex_t LOCK_crypt;
-extern mysql_mutex_t LOCK_msr_map;
 extern mysql_mutex_t LOCK_manager;
 extern mysql_mutex_t LOCK_global_system_variables;
 extern mysql_mutex_t LOCK_user_conn;

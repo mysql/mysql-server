@@ -23,7 +23,6 @@
 
 #include "my_global.h"
 #include "table_replication_connection_status.h"
-#include "mysqld.h"                             // LOCK_msr_map
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "rpl_slave.h"
@@ -183,7 +182,7 @@ void table_replication_connection_status::reset_position(void)
 ha_rows table_replication_connection_status::get_row_count()
 {
   /*A lock is not needed for an estimate */
-  return msr_map.get_max_channels();
+  return channel_map.get_max_channels();
 }
 
 
@@ -191,51 +190,45 @@ ha_rows table_replication_connection_status::get_row_count()
 int table_replication_connection_status::rnd_next(void)
 {
   Master_info *mi= NULL;
+  int res= HA_ERR_END_OF_FILE;
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.m_index < msr_map.get_max_channels();
+       m_pos.m_index < channel_map.get_max_channels() && res != 0;
        m_pos.next())
   {
-    mi= msr_map.get_mi_at_pos(m_pos.m_index);
+    mi= channel_map.get_mi_at_pos(m_pos.m_index);
 
     if (mi && mi->host[0])
     {
       make_row(mi);
       m_next_pos.set_after(&m_pos);
-
-      mysql_mutex_unlock(&LOCK_msr_map);
-      return 0;
+      res= 0;
     }
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-
-  return HA_ERR_END_OF_FILE;
-
+  channel_map.unlock();
+  return res;
 }
 
 int table_replication_connection_status::rnd_pos(const void *pos)
 {
   Master_info *mi;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.rdlock();
 
-  if ((mi= msr_map.get_mi_at_pos(m_pos.m_index)))
+  if ((mi= channel_map.get_mi_at_pos(m_pos.m_index)))
   {
     make_row(mi);
-
-    mysql_mutex_unlock(&LOCK_msr_map);
-    return 0;
+    res= 0;
   }
 
-  mysql_mutex_unlock(&LOCK_msr_map);
-
-  return HA_ERR_RECORD_DELETED;
-
+  channel_map.unlock();
+  return res;
 }
 
 void table_replication_connection_status::make_row(Master_info *mi)
@@ -260,7 +253,7 @@ void table_replication_connection_status::make_row(Master_info *mi)
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
 
   if (is_group_replication_plugin_loaded() &&
-      msr_map.is_group_replication_channel_name(mi->get_channel(), true))
+      channel_map.is_group_replication_channel_name(mi->get_channel(), true))
   {
     /*
       Group Replication applier channel.

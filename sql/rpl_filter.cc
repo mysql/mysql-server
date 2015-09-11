@@ -17,10 +17,10 @@
 
 #include "auth_common.h"                // SUPER_ACL
 #include "item.h"                       // Item
-#include "mysqld.h"                     // table_alias_charset LOCK_msr_map
+#include "mysqld.h"                     // table_alias_charset
 #include "psi_memory_key.h"
 #include "rpl_mi.h"                     // Master_info
-#include "rpl_msr.h"                    // msr_map
+#include "rpl_msr.h"                    // channel_map
 #include "rpl_rli.h"                    // Relay_log_info
 #include "rpl_slave.h"                  // SLAVE_SQL
 #include "table.h"                      // TABLE_LIST
@@ -1032,9 +1032,9 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
     would act on a single channel. This part of the code
     will be properly fixed in that WL.
   */
-  mysql_mutex_lock(&LOCK_msr_map);
+  channel_map.wrlock();
 
-  mi= msr_map.get_mi(msr_map.get_default_channel());
+  mi= channel_map.get_default_channel_mi();
 
   if (!mi)
   {
@@ -1043,7 +1043,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
     goto err;
   }
 
-  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
   {
     mi= it->second;
     if (mi)
@@ -1052,7 +1052,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
 
   /* check the running status of all SQL threads */
 
-  for (mi_map::iterator it= msr_map.begin(); it!= msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it!= channel_map.end(); it++)
   {
     mi= it->second;
     if (mi)
@@ -1082,7 +1082,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
     }
   }
 
-  for (mi_map::iterator it= msr_map.begin(); it !=msr_map.end(); it++)
+  for (mi_map::iterator it= channel_map.begin(); it !=channel_map.end(); it++)
   {
    mi= it->second;
    if (mi)
@@ -1095,7 +1095,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD* thd)
   my_ok(thd);
 
 err:
-  mysql_mutex_unlock(&LOCK_msr_map);
+  channel_map.unlock();
 #endif //HAVE_REPLICATION
   DBUG_RETURN(ret);
 }

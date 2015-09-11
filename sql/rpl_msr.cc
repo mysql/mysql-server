@@ -28,6 +28,8 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
 {
   DBUG_ENTER("Multisource_info::add_mi");
 
+  m_channel_map_lock->assert_some_wrlock();
+
   mi_map::const_iterator it;
   std::pair<mi_map::iterator, bool>  ret;
   bool res= false;
@@ -56,6 +58,10 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
   if(!ret.second)
     DBUG_RETURN(true);
 
+  /* Save the pointer for the default_channel to avoid searching it */
+  if (!strcmp(channel_name, get_default_channel()))
+    default_channel_mi= mi;
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   res= add_mi_to_rpl_pfs_mi(mi);
 #endif
@@ -68,6 +74,8 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
 Master_info* Multisource_info::get_mi(const char* channel_name)
 {
   DBUG_ENTER("Multisource_info::get_mi");
+
+  m_channel_map_lock->assert_some_lock();
 
   DBUG_ASSERT(channel_name != 0);
 
@@ -101,6 +109,8 @@ Master_info* Multisource_info::get_mi(const char* channel_name)
 void Multisource_info::delete_mi(const char* channel_name)
 {
   DBUG_ENTER("Multisource_info::delete_mi");
+
+  m_channel_map_lock->assert_some_wrlock();
 
   Master_info *mi= 0;
   mi_map::iterator it;
@@ -142,9 +152,13 @@ void Multisource_info::delete_mi(const char* channel_name)
   /* erase from the map */
   map_it->second.erase(it);
 
+  if (default_channel_mi == mi)
+    default_channel_mi= NULL;
+
   /* delete the master info */
   if (mi)
   {
+    mi->channel_assert_some_wrlock();
     if(mi->rli)
     {
       delete mi->rli;
@@ -173,6 +187,8 @@ bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi)
 {
   DBUG_ENTER("Multisource_info::add_mi_to_rpl_pfs_mi");
 
+  m_channel_map_lock->assert_some_wrlock();
+
   bool res=true; // not added
 
   /* Point to this added mi in the rpl_pfs_mi*/
@@ -191,6 +207,8 @@ bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi)
 
 int Multisource_info::get_index_from_rpl_pfs_mi(const char * channel_name)
 {
+  m_channel_map_lock->assert_some_lock();
+
   Master_info* mi= 0;
   for (uint i= 0; i < MAX_CHANNELS; i++)
   {
@@ -209,9 +227,14 @@ Master_info*  Multisource_info::get_mi_at_pos(uint pos)
 {
   DBUG_ENTER("Multisource_info::get_mi_at_pos");
 
+  m_channel_map_lock->assert_some_lock();
+
   if ( pos < MAX_CHANNELS)
     DBUG_RETURN(rpl_pfs_mi[pos]);
 
   DBUG_RETURN(0);
 }
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+/* There is only one channel_map for the whole server */
+Multisource_info channel_map;

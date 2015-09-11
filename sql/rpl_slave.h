@@ -105,8 +105,8 @@ extern bool server_id_supplied;
 /*
   MUTEXES in replication:
 
-  LOCK_msr_map: This is to lock the Multisource datastructure (msr_map).
-  Generally it used to retrieve an mi from msr_map.It is used to SERIALIZE ALL
+  channel_map lock: This is to lock the Multisource datastructure (channel_map).
+  Generally it used to retrieve an mi from channel_map.It is used to SERIALIZE ALL
   administrative commands of replication: START SLAVE, STOP SLAVE, CHANGE
   MASTER, RESET SLAVE, end_slave() (when mysqld stops) [init_slave() does not
   need it it's called early]. Any of these commands holds the mutex from the
@@ -150,7 +150,7 @@ extern bool server_id_supplied;
       mi.data_lock, rli.data_lock, mi.err_lock, rli.err_lock
 
     stop_slave:
-      LOCK_msr_map,
+      channel_map lock,
       ( mi.run_lock, thd.LOCK_thd_data
       | rli.run_lock, thd.LOCK_thd_data
       | relay.LOCK_log
@@ -221,12 +221,12 @@ extern bool server_id_supplied;
       relay.log_lock
 
     Sys_var_gtid_mode::global_update:
-      gtid_mode_lock, LOCK_msr_map, binlog.LOCK_log, global_sid_lock
+      gtid_mode_lock, channel_map lock, binlog.LOCK_log, global_sid_lock
 
   So the DAG of lock acquisition order (not counting the buggy
   purge_logs) is, empirically:
 
-    gtid_mode_lock, LOCK_msr_map, mi.run_lock, rli.run_lock,
+    gtid_mode_lock, channel_map lock, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
         ( LOCK_thd_list,
           (

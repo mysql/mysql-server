@@ -32,9 +32,13 @@
 #
 --let $_saved_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $_saved_channel_name= $rpl_channel_name
 if ($rpl_multi_source)
 {
-  --let $_saved_channel_name= `SELECT CONCAT('channel_', @@GLOBAL.SERVER_ID)`
+  if (!$rpl_channel_name)
+  {
+    --let $_saved_channel_name= `SELECT CONCAT('channel_', @@GLOBAL.SERVER_ID)`
+  }
 }
 if ($use_gtids)
 {
