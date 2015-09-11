@@ -342,50 +342,42 @@ row_build_index_entry_low(
 	return(entry);
 }
 
-/*******************************************************************//**
-An inverse function to row_build_index_entry. Builds a row from a
-record in a clustered index.
-@return own: row built; see the NOTE below! */
+/** An inverse function to row_build_index_entry. Builds a row from a
+record in a clustered index, with possible indexing on ongoing
+addition of new virtual columns.
+@param[in]	type		ROW_COPY_POINTERS or ROW_COPY_DATA;
+@param[in]	index		clustered index
+@param[in]	rec		record in the clustered index
+@param[in]	offsets		rec_get_offsets(rec,index) or NULL
+@param[in]	col_table	table, to check which
+				externally stored columns
+				occur in the ordering columns
+				of an index, or NULL if
+				index->table should be
+				consulted instead
+@param[in]	add_cols	default values of added columns, or NULL
+@param[in]	add_v		new virtual columns added
+				along with new indexes
+@param[in]	col_map		mapping of old column
+				numbers to new ones, or NULL
+@param[in]	ext		cache of externally stored column
+				prefixes, or NULL
+@param[in]	heap		memory heap from which
+				the memory needed is allocated
+@return own: row built; */
+static inline
 dtuple_t*
-row_build(
-/*======*/
-	ulint			type,	/*!< in: ROW_COPY_POINTERS or
-					ROW_COPY_DATA; the latter
-					copies also the data fields to
-					heap while the first only
-					places pointers to data fields
-					on the index page, and thus is
-					more efficient */
-	const dict_index_t*	index,	/*!< in: clustered index */
-	const rec_t*		rec,	/*!< in: record in the clustered
-					index; NOTE: in the case
-					ROW_COPY_POINTERS the data
-					fields in the row will point
-					directly into this record,
-					therefore, the buffer page of
-					this record must be at least
-					s-latched and the latch held
-					as long as the row dtuple is used! */
-	const ulint*		offsets,/*!< in: rec_get_offsets(rec,index)
-					or NULL, in which case this function
-					will invoke rec_get_offsets() */
+row_build_low(
+	ulint			type,
+	const dict_index_t*	index,
+	const rec_t*		rec,
+	const ulint*		offsets,
 	const dict_table_t*	col_table,
-					/*!< in: table, to check which
-					externally stored columns
-					occur in the ordering columns
-					of an index, or NULL if
-					index->table should be
-					consulted instead */
 	const dtuple_t*		add_cols,
-					/*!< in: default values of
-					added columns, or NULL */
-	const ulint*		col_map,/*!< in: mapping of old column
-					numbers to new ones, or NULL */
-	row_ext_t**		ext,	/*!< out, own: cache of
-					externally stored column
-					prefixes, or NULL */
-	mem_heap_t*		heap)	/*!< in: memory heap from which
-					the memory needed is allocated */
+	const dict_add_v_col_t*	add_v,
+	const ulint*		col_map,
+	row_ext_t**		ext,
+	mem_heap_t*		heap)
 {
 	const byte*		copy;
 	dtuple_t*		row;
@@ -458,6 +450,18 @@ row_build(
 			dict_col_copy_type(
 				dict_table_get_nth_col(col_table, i),
 				dfield_get_type(dtuple_get_nth_field(row, i)));
+		}
+	} else if (add_v != NULL) {
+		row = dtuple_create_with_vcol(
+			heap, dict_table_get_n_cols(col_table),
+			dict_table_get_n_v_cols(col_table) + add_v->n_v_col);
+		dict_table_copy_types(row, col_table);
+
+		for (ulint i = 0; i < add_v->n_v_col; i++) {
+			dict_col_copy_type(
+				&add_v->v_col[i].m_col,
+				dfield_get_type(dtuple_get_nth_v_field(
+					row, i + col_table->n_v_def)));
 		}
 	} else {
 		row = dtuple_create_with_vcol(
@@ -546,6 +550,96 @@ row_build(
 	}
 
 	return(row);
+}
+
+
+/*******************************************************************//**
+An inverse function to row_build_index_entry. Builds a row from a
+record in a clustered index.
+@return own: row built; see the NOTE below! */
+dtuple_t*
+row_build(
+/*======*/
+	ulint			type,	/*!< in: ROW_COPY_POINTERS or
+					ROW_COPY_DATA; the latter
+					copies also the data fields to
+					heap while the first only
+					places pointers to data fields
+					on the index page, and thus is
+					more efficient */
+	const dict_index_t*	index,	/*!< in: clustered index */
+	const rec_t*		rec,	/*!< in: record in the clustered
+					index; NOTE: in the case
+					ROW_COPY_POINTERS the data
+					fields in the row will point
+					directly into this record,
+					therefore, the buffer page of
+					this record must be at least
+					s-latched and the latch held
+					as long as the row dtuple is used! */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec,index)
+					or NULL, in which case this function
+					will invoke rec_get_offsets() */
+	const dict_table_t*	col_table,
+					/*!< in: table, to check which
+					externally stored columns
+					occur in the ordering columns
+					of an index, or NULL if
+					index->table should be
+					consulted instead */
+	const dtuple_t*		add_cols,
+					/*!< in: default values of
+					added columns, or NULL */
+	const ulint*		col_map,/*!< in: mapping of old column
+					numbers to new ones, or NULL */
+	row_ext_t**		ext,	/*!< out, own: cache of
+					externally stored column
+					prefixes, or NULL */
+	mem_heap_t*		heap)	/*!< in: memory heap from which
+					 the memory needed is allocated */
+{
+	return(row_build_low(type, index, rec, offsets, col_table,
+			     add_cols, NULL, col_map, ext, heap));
+}
+
+/** An inverse function to row_build_index_entry. Builds a row from a
+record in a clustered index, with possible indexing on ongoing
+addition of new virtual columns.
+@param[in]	type		ROW_COPY_POINTERS or ROW_COPY_DATA;
+@param[in]	index		clustered index
+@param[in]	rec		record in the clustered index
+@param[in]	offsets		rec_get_offsets(rec,index) or NULL
+@param[in]	col_table	table, to check which
+				externally stored columns
+				occur in the ordering columns
+				of an index, or NULL if
+				index->table should be
+				consulted instead
+@param[in]	add_cols	default values of added columns, or NULL
+@param[in]	add_v		new virtual columns added
+				along with new indexes
+@param[in]	col_map		mapping of old column
+				numbers to new ones, or NULL
+@param[in]	ext		cache of externally stored column
+				prefixes, or NULL
+@param[in]	heap		memory heap from which
+				the memory needed is allocated
+@return own: row built; */
+dtuple_t*
+row_build_w_add_vcol(
+	ulint			type,
+	const dict_index_t*	index,
+	const rec_t*		rec,
+	const ulint*		offsets,
+	const dict_table_t*	col_table,
+	const dtuple_t*		add_cols,
+	const dict_add_v_col_t*	add_v,
+	const ulint*		col_map,
+	row_ext_t**		ext,
+	mem_heap_t*		heap)
+{
+	return(row_build_low(type, index, rec, offsets, col_table,
+			     add_cols, add_v, col_map, ext, heap));
 }
 
 /*******************************************************************//**

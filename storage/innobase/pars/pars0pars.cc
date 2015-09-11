@@ -2003,7 +2003,7 @@ pars_create_index(
 		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
-	node = ind_create_graph_create(index, pars_sym_tab_global->heap);
+	node = ind_create_graph_create(index, pars_sym_tab_global->heap, NULL);
 
 	table_sym->resolved = TRUE;
 	table_sym->token_type = SYM_TABLE;

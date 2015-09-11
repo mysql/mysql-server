@@ -530,8 +530,8 @@ ALTER TABLE t ADD d int, ADD f char(10) AS ('aaa');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE d dd int, CHANGE f ff varchar(10) AS ('bbb');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 # Only drop/add/change virtual, inplace is supported for Innodb
 ALTER TABLE t DROP c, DROP ff;
 affected rows: 0
@@ -549,10 +549,10 @@ info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE b b int(11) after c;
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
-# TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB
+# TODO: Changing virtual column type should be ALGORITHM=INPLACE on InnoDB, current it goes only with COPY method
 ALTER TABLE t CHANGE c c varchar(10) as ('a');
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 # Changing stored column type is ALGORITHM=COPY
 ALTER TABLE t CHANGE dd d varchar(10);
 affected rows: 1
