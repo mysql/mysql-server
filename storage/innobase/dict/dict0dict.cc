@@ -119,16 +119,18 @@ ulong	zip_pad_max = 50;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
-/*******************************************************************//**
-Tries to find column names for the index and sets the col field of the
+/** Tries to find column names for the index and sets the col field of the
 index.
+@param[in]	table	table
+@param[in]	index	index
+@param[in]	add_v	new virtual columns added along with an add index call
 @return TRUE if the column names were found */
 static
 ibool
 dict_index_find_cols(
-/*=================*/
-	dict_table_t*	table,	/*!< in: table */
-	dict_index_t*	index);	/*!< in: index */
+	const dict_table_t*	table,
+	dict_index_t*		index,
+	const dict_add_v_col_t*	add_v);
 /*******************************************************************//**
 Builds the internal dictionary cache representation for a clustered
 index, containing also system fields not defined by the user.
@@ -2677,19 +2679,45 @@ add_field_size:
 	return(FALSE);
 }
 
-/**********************************************************************//**
-Adds an index to the dictionary cache.
+/** Adds an index to the dictionary cache.
+@param[in,out]	table	table on which the index is
+@param[in,out]	index	index; NOTE! The index memory
+			object is freed in this function!
+@param[in]	page_no	root page number of the index
+@param[in]	strict	TRUE=refuse to create the index
+			if records could be too big to fit in
+			an B-tree page
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 dberr_t
 dict_index_add_to_cache(
-/*====================*/
-	dict_table_t*	table,	/*!< in: table on which the index is */
-	dict_index_t*	index,	/*!< in, own: index; NOTE! The index memory
-				object is freed in this function! */
-	ulint		page_no,/*!< in: root page number of the index */
-	ibool		strict)	/*!< in: TRUE=refuse to create the index
-				if records could be too big to fit in
-				an B-tree page */
+	dict_table_t*	table,
+	dict_index_t*	index,
+	ulint		page_no,
+	ibool		strict)
+{
+	return(dict_index_add_to_cache_w_vcol(
+		table, index, NULL, page_no, strict));
+}
+
+/** Adds an index to the dictionary cache, with possible indexing newly
+added column.
+@param[in,out]	table	table on which the index is
+@param[in,out]	index	index; NOTE! The index memory
+			object is freed in this function!
+@param[in]	add_v	new virtual column that being added along with
+			an add index call
+@param[in]	page_no	root page number of the index
+@param[in]	strict	TRUE=refuse to create the index
+			if records could be too big to fit in
+			an B-tree page
+@return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
+dberr_t
+dict_index_add_to_cache_w_vcol(
+	dict_table_t*		table,
+	dict_index_t*		index,
+	const dict_add_v_col_t* add_v,
+	ulint			page_no,
+	ibool			strict)
 {
 	dict_index_t*	new_index;
 	ulint		n_ord;
@@ -2706,7 +2734,7 @@ dict_index_add_to_cache(
 	ut_a(!dict_index_is_clust(index)
 	     || UT_LIST_GET_LEN(table->indexes) == 0);
 
-	if (!dict_index_find_cols(table, index)) {
+	if (!dict_index_find_cols(table, index, add_v)) {
 
 		dict_mem_index_free(index);
 		return(DB_CORRUPTION);
@@ -3005,16 +3033,18 @@ dict_index_remove_from_cache(
 	dict_index_remove_from_cache_low(table, index, FALSE);
 }
 
-/*******************************************************************//**
-Tries to find column names for the index and sets the col field of the
+/** Tries to find column names for the index and sets the col field of the
 index.
+@param[in]	table	table
+@param[in,out]	index	index
+@param[in]	add_v	new virtual columns added along with an add index call
 @return TRUE if the column names were found */
 static
 ibool
 dict_index_find_cols(
-/*=================*/
-	dict_table_t*	table,	/*!< in: table */
-	dict_index_t*	index)	/*!< in: index */
+	const dict_table_t*	table,
+	dict_index_t*		index,
+	const dict_add_v_col_t*	add_v)
 {
 	std::vector<ulint, ut_allocator<ulint> >	col_added;
 	std::vector<ulint, ut_allocator<ulint> >	v_col_added;
@@ -3076,6 +3106,18 @@ dict_index_find_cols(
 				goto found;
 			}
 		}
+
+		if (add_v) {
+			for (j = 0; j < add_v->n_v_col; j++) {
+				if (!strcmp(add_v->v_col_name[j],
+					    field->name)) {
+					field->col = const_cast<dict_col_t*>(
+						&add_v->v_col[j].m_col);
+					goto found;
+				}
+			}
+		}
+
 dup_err:
 #ifdef UNIV_DEBUG
 		/* It is an error not to find a matching column. */
@@ -3228,7 +3270,13 @@ dict_table_copy_v_types(
 	dtuple_t*		tuple,
 	const dict_table_t*	table)
 {
-	for (ulint i = 0; i < dtuple_get_n_v_fields(tuple); i++) {
+	/* tuple could have more virtual columns than existing table,
+	if we are calling this for creating index along with adding
+	virtual columns */
+	ulint	n_fields = ut_min(dtuple_get_n_v_fields(tuple),
+				  static_cast<ulint>(table->n_v_def));
+
+	for (ulint i = 0; i < n_fields; i++) {
 
 		dfield_t*	dfield	= dtuple_get_nth_v_field(tuple, i);
 		dtype_t*	dtype	= dfield_get_type(dfield);

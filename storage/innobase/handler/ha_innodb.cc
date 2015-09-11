@@ -4955,7 +4955,6 @@ innobase_match_index_columns(
 
 /** Build a template for a base column for a virtual column
 @param[in]	table		MySQL TABLE
-@param[in]	ib_table	InnoDB dict_table_t
 @param[in]	clust_index	InnoDB clustered index
 @param[in]	field		field in MySQL table
 @param[in]	col		InnoDB column
@@ -4966,10 +4965,9 @@ static
 void
 innobase_vcol_build_templ(
 	const TABLE*		table,
-	const dict_table_t*	ib_table,
 	dict_index_t*		clust_index,
 	Field*			field,
-	dict_col_t*		col,
+	const dict_col_t*	col,
 	mysql_row_templ_t*	templ,
 	ulint			col_no)
 {
@@ -5023,15 +5021,19 @@ innobase_build_v_templ_callback(
 	const TABLE*	table,
 	void*		ib_table)
 {
-	const dict_table_t* t_table = const_cast<const dict_table_t*>(
-					static_cast<dict_table_t*>(ib_table));
-	innobase_build_v_templ(table, t_table, t_table->vc_templ, true, NULL);
+	const dict_table_t* t_table = static_cast<dict_table_t*>(ib_table);
+
+	innobase_build_v_templ(table, t_table, t_table->vc_templ, NULL,
+			       true, NULL);
 }
 
-/** Build template for the virtual columns and their base columns
+/** Build template for the virtual columns and their base columns. This
+is done when the table first opened.
 @param[in]	table		MySQL TABLE
 @param[in]	ib_table	InnoDB dict_table_t
 @param[in,out]	s_templ		InnoDB template structure
+@param[in]	add_v		new virtual columns added along with
+				add index call
 @param[in]	locked		true if innobase_share_mutex is held
 @param[in]	share_tbl_name	original MySQL table name */
 void
@@ -5039,6 +5041,7 @@ innobase_build_v_templ(
 	const TABLE*		table,
 	const dict_table_t*	ib_table,
 	innodb_col_templ_t*	s_templ,
+	const dict_add_v_col_t*	add_v,
 	bool			locked,
 	const char*		share_tbl_name)
 {
@@ -5046,8 +5049,13 @@ innobase_build_v_templ(
 	ulint	n_v_col = ib_table->n_v_cols;
 	bool	marker[REC_MAX_N_FIELDS];
 
-	ut_ad(n_v_col > 0);
 	ut_ad(ncol < REC_MAX_N_FIELDS);
+
+	if (add_v != NULL) {
+		n_v_col += add_v->n_v_col;
+	}
+
+	ut_ad(n_v_col > 0);
 
 	if (!locked) {
 		mysql_mutex_lock(&innobase_share_mutex);
@@ -5072,11 +5080,23 @@ innobase_build_v_templ(
 
 	/* Mark those columns could be base columns */
 	for (ulint i = 0; i < ib_table->n_v_cols; i++) {
-		dict_v_col_t*	vcol = dict_table_get_nth_v_col(ib_table, i);
+		const dict_v_col_t*	vcol = dict_table_get_nth_v_col(
+							ib_table, i);
 
 		for (ulint j = 0; j < vcol->num_base; j++) {
 			ulint	col_no = vcol->base_col[j]->ind;
 			marker[col_no] = true;
+		}
+	}
+
+	if (add_v) {
+		for (ulint i = 0; i < add_v->n_v_col; i++) {
+			const dict_v_col_t*	vcol = &add_v->v_col[i];
+
+			for (ulint j = 0; j < vcol->num_base; j++) {
+				ulint	col_no = vcol->base_col[j]->ind;
+				marker[col_no] = true;
+			}
 		}
 	}
 
@@ -5091,13 +5111,23 @@ innobase_build_v_templ(
 		/* Build template for virtual columns */
 		if (innobase_is_v_fld(field)) {
 #ifdef UNIV_DEBUG
-			const char*	name = dict_table_get_v_col_name(
-						ib_table, z);
+			const char*	name;
+
+			if (z >= ib_table->n_v_def) {
+				name = add_v->v_col_name[z - ib_table->n_v_def];
+			} else {
+				name = dict_table_get_v_col_name(ib_table, z);
+			}
 
 			ut_ad(!ut_strcmp(name, field->field_name));
 #endif
-			dict_v_col_t*	vcol = dict_table_get_nth_v_col(
-				ib_table, z);
+			const dict_v_col_t*	vcol;
+
+			if (z >= ib_table->n_v_def) {
+				vcol = &add_v->v_col[z - ib_table->n_v_def];
+			} else {
+				vcol = dict_table_get_nth_v_col(ib_table, z);
+			}
 
 			s_templ->vtempl[z + s_templ->n_col]
 				= static_cast<mysql_row_templ_t*>(
@@ -5105,7 +5135,7 @@ innobase_build_v_templ(
 					sizeof *s_templ->vtempl[j]));
 
 			innobase_vcol_build_templ(
-				table, ib_table, clust_index, field,
+				table, clust_index, field,
 				&vcol->m_col,
 				s_templ->vtempl[z + s_templ->n_col],
 				z);
@@ -5133,7 +5163,7 @@ innobase_build_v_templ(
 					sizeof *s_templ->vtempl[j]));
 
 			innobase_vcol_build_templ(
-				table, ib_table, clust_index, field, col,
+				table, clust_index, field, col,
 				s_templ->vtempl[j], j);
 		}
 
@@ -5631,8 +5661,8 @@ ha_innobase::open(
 	if (ib_table->n_v_cols) {
 		if (!m_share->s_templ.vtempl) {
 			innobase_build_v_templ(
-				table, ib_table, &(m_share->s_templ), false,
-				m_share->table_name);
+				table, ib_table, &(m_share->s_templ), NULL,
+				false, m_share->table_name);
 
 			mysql_mutex_lock(&innobase_share_mutex);
 			if (ib_table->vc_templ
@@ -15544,7 +15574,7 @@ refresh_share_vtempl(
 	free_share_vtemp(share);
 
 	innobase_build_v_templ(
-		mysql_table, ib_table, &(share->s_templ), true,
+		mysql_table, ib_table, &(share->s_templ), NULL, true,
 		share->table_name);
 
 	mysql_mutex_unlock(&innobase_share_mutex);

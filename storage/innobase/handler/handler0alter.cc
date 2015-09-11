@@ -109,8 +109,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_NOREBUILD
 	| Alter_inplace_info::ALTER_INDEX_COMMENT
 	| Alter_inplace_info::ADD_VIRTUAL_COLUMN
 	| Alter_inplace_info::DROP_VIRTUAL_COLUMN
-	| Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER
-	| Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+	| Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER;
+	/* | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE; */
 
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
@@ -389,6 +389,88 @@ innobase_need_rebuild(
 
 	return(!!(ha_alter_info->handler_flags & INNOBASE_ALTER_REBUILD));
 }
+/** Check if virtual column in old and new table are in order, excluding
+those dropped column. This is needed because when we drop a virtual column,
+ALTER_VIRTUAL_COLUMN_ORDER is also turned on, so we can't decide if this
+is a real ORDER change or just DROP COLUMN
+@param[in]	table		old TABLE
+@param[in]	altered_table	new TABLE
+@param[in]	ha_alter_info	Structure describing changes to be done
+by ALTER TABLE and holding data used during in-place alter.
+@return	true is all columns in order, false otherwise. */
+static
+bool
+check_v_col_in_order(
+	const TABLE*		table,
+	const TABLE*		altered_table,
+	Alter_inplace_info*	ha_alter_info)
+{
+	ulint	j = 0;
+
+	/* directly return true if ALTER_VIRTUAL_COLUMN_ORDER is not on */
+	if (!(ha_alter_info->handler_flags
+              & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER)) {
+		return(true);
+	}
+
+	for (ulint i = 0; i < table->s->fields; i++) {
+		Field*		field = table->s->field[i];
+		bool		dropped = false;
+		Alter_drop*	drop;
+
+		if (field->stored_in_db) {
+			continue;
+		}
+
+		ut_ad(innobase_is_v_fld(field));
+
+		/* Check if this column is in drop list */
+		List_iterator_fast<Alter_drop> cf_it(
+			ha_alter_info->alter_info->drop_list);
+
+		while ((drop = (cf_it++)) != NULL) {
+			if (my_strcasecmp(system_charset_info,
+					  field->field_name, drop->name) == 0) {
+				dropped = true;
+				break;
+			}
+		}
+
+		if (dropped) {
+			continue;
+		}
+
+		/* Now check if the next virtual column in altered table
+		matches this column */
+		while (j < altered_table->s->fields) {
+			 Field*  new_field = altered_table->s->field[j];
+
+			if (new_field->stored_in_db) {
+				j++;
+				continue;
+			}
+
+			if (my_strcasecmp(system_charset_info,
+					  field->field_name,
+					  new_field->field_name) != 0) {
+				/* different column */
+				return(false);
+			} else {
+				j++;
+				break;
+			}
+		}
+
+		if (j > altered_table->s->fields) {
+			/* there should not be less column in new table
+			without them being in drop list */
+			ut_ad(0);
+			return(false);
+		}
+	}
+
+	return(true);
+}
 
 /** Check if InnoDB supports a particular alter table in-place
 @param altered_table TABLE object for new version of table.
@@ -526,28 +608,34 @@ ha_innobase::check_if_supported_inplace_alter(
 			   | Alter_inplace_info::ADD_STORED_COLUMN
 			   | Alter_inplace_info::DROP_STORED_COLUMN
 			   | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
-			   | Alter_inplace_info::ADD_INDEX
 			   | Alter_inplace_info::ADD_UNIQUE_INDEX
 			   */
+			   | Alter_inplace_info::ADD_INDEX
 			   | Alter_inplace_info::DROP_INDEX);
 
 		if (flags != 0
 		    || (altered_table->s->partition_info_str
-			&& altered_table->s->partition_info_str_len)) {
+			&& altered_table->s->partition_info_str_len)
+		    || (!check_v_col_in_order(
+			this->table, altered_table, ha_alter_info))) {
 			ha_alter_info->unsupported_reason =
 				innobase_get_err_msg(
 				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
-	}
 
-	if (ha_alter_info->handler_flags
-	    & Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE
-	    && dict_table_has_indexed_v_cols(m_prebuilt->table)) {
-		ha_alter_info->unsupported_reason =
-			innobase_get_err_msg(
-			ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		/* Do not support inplace alter table drop virtual
+		columns and add index together yet */
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ADD_INDEX)
+		    && (ha_alter_info->handler_flags
+			& Alter_inplace_info::DROP_VIRTUAL_COLUMN)) {
+
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 	}
 
 	/* We should be able to do the operation in-place.
@@ -640,6 +728,13 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
+		online = false;
+	}
+
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
+	    && (ha_alter_info->handler_flags
+	        & Alter_inplace_info::ADD_INDEX)) {
 		online = false;
 	}
 
@@ -3188,8 +3283,8 @@ prepare_inplace_add_virtual(
 			       + ctx->num_to_drop_vcol - table->s->fields;
 
 	ctx->add_vcol = static_cast<dict_v_col_t*>(
-		 mem_heap_alloc(ctx->heap, ctx->num_to_add_vcol
-				* sizeof *ctx->add_vcol));
+		 mem_heap_zalloc(ctx->heap, ctx->num_to_add_vcol
+				 * sizeof *ctx->add_vcol));
 	ctx->add_vcol_name = static_cast<const char**>(
 		 mem_heap_alloc(ctx->heap, ctx->num_to_add_vcol
 				* sizeof *ctx->add_vcol_name));
@@ -3887,6 +3982,7 @@ prepare_inplace_alter_table_dict(
 	ulint			new_clustered	= 0;
 	dberr_t			error;
 	ulint			num_fts_index;
+	dict_add_v_col_t*	add_v = NULL;
 	ha_innobase_inplace_ctx*ctx;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
@@ -3924,7 +4020,22 @@ prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, old_table)) {
 			DBUG_RETURN(true);
 		}
+
+		/* Need information for newly added virtual columns
+		for create index */
+		if (ha_alter_info->handler_flags
+		    & Alter_inplace_info::ADD_INDEX) {
+			add_v = static_cast<dict_add_v_col_t*>(
+				mem_heap_alloc(ctx->heap, sizeof *add_v));
+			add_v->n_v_col = ctx->num_to_add_vcol;
+			add_v->v_col = ctx->add_vcol;
+			add_v->v_col_name = ctx->add_vcol_name;
+		}
 	}
+
+	/* There should be no order change for virtual columns coming in
+	here */
+	ut_ad(check_v_col_in_order(old_table, altered_table, ha_alter_info));
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
@@ -4354,7 +4465,7 @@ new_clustered_failed:
 
 		ctx->add_index[a] = row_merge_create_index(
 			ctx->trx, ctx->new_table,
-			&index_defs[a]);
+			&index_defs[a], add_v);
 
 		add_key_nums[a] = index_defs[a].key_number;
 
@@ -5646,7 +5757,11 @@ ha_innobase::inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info)
 {
-	dberr_t	error;
+	dberr_t			error;
+	dict_add_v_col_t*	add_v = NULL;
+	innodb_col_templ_t*	s_templ = NULL;
+	innodb_col_templ_t*	old_templ = NULL;
+
 
 	DBUG_ENTER("inplace_alter_table");
 	DBUG_ASSERT(!srv_read_only_mode);
@@ -5690,16 +5805,40 @@ ok_exit:
 		goto all_done;
 	}
 
-	INNOBASE_SHARE		x_share;
-
+	/* If we are doing a table rebuilding or having added virtual
+	columns in the same clause, we will need to build a table template
+	that carries translation information between MySQL TABLE and InnoDB
+	table, which indicates the virtual columns and their base columns
+	info. This is used to do the computation callback, so that the
+	data in base columns can be extracted send to server */
 	if (ctx->need_rebuild() && ctx->new_table->n_v_cols) {
-		x_share.s_templ.vtempl = NULL;
+		s_templ = static_cast<innodb_col_templ_t*>(
+			mem_heap_alloc(ctx->heap, sizeof *s_templ));
+		s_templ->vtempl = NULL;
 
 		innobase_build_v_templ(
-			altered_table, ctx->new_table, &x_share.s_templ,
-			false, NULL);
+			altered_table, ctx->new_table, s_templ,
+			NULL, false, NULL);
 
-		ctx->new_table->vc_templ = &x_share.s_templ;
+		ctx->new_table->vc_templ = s_templ;
+	} else if (ctx->num_to_add_vcol) {
+		ut_ad(!ctx->online);
+		s_templ = static_cast<innodb_col_templ_t*>(
+				mem_heap_alloc(ctx->heap, sizeof *s_templ));
+
+		add_v = static_cast<dict_add_v_col_t*>(
+			mem_heap_alloc(ctx->heap, sizeof *add_v));
+		add_v->n_v_col = ctx->num_to_add_vcol;
+		add_v->v_col = ctx->add_vcol;
+		add_v->v_col_name = ctx->add_vcol_name;
+
+		s_templ->vtempl = NULL;
+
+		innobase_build_v_templ(
+			altered_table, ctx->new_table, s_templ,
+			add_v, false, NULL);
+		old_templ = ctx->new_table->vc_templ;
+		ctx->new_table->vc_templ = s_templ;
 	}
 
 	/* Read the clustered index of the table and build
@@ -5714,10 +5853,15 @@ ok_exit:
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
-		ctx->m_stage);
+		ctx->m_stage, add_v);
 
-	if (ctx->need_rebuild() && ctx->new_table->n_v_cols) {
-		free_share_vtemp(&x_share);
+	if (s_templ) {
+		ut_ad(ctx->need_rebuild() || ctx->new_table->n_v_cols);
+		free_vc_templ(s_templ);
+
+		if (old_templ) {
+			ctx->new_table->vc_templ = old_templ;
+		}
 	}
 
 #ifndef DBUG_OFF

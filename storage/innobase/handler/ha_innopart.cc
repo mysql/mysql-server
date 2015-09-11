@@ -240,7 +240,7 @@ Ha_innopart_share::set_v_templ(
 			m_s_templ = static_cast<innodb_col_templ_t*>(
 				ut_zalloc_nokey( sizeof *m_s_templ));
 			innobase_build_v_templ(table, ib_table,
-					       m_s_templ, false, name);
+					       m_s_templ, NULL, false, name);
 
 			for (ulint i = 0; i < m_tot_parts; i++) {
 				m_table_parts[i]->vc_templ = m_s_templ;
