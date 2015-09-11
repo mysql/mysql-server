@@ -87,6 +87,12 @@ Field *create_tmp_field_from_field(THD *thd, Field *org_field,
       new_field->flags&= ~NOT_NULL_FLAG;	// Because of outer join
     if (org_field->type() == FIELD_TYPE_DOUBLE)
       ((Field_double *) new_field)->not_fixed= TRUE;
+    /*
+      This field will belong to an internal temporary table, it cannot be
+      generated.
+    */
+    new_field->gcol_info= NULL;
+    new_field->stored_in_db= true;
   }
   return new_field;
 }
@@ -2343,14 +2349,10 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace)
 {
-  /*
-    For internal tmp table, we don't support generated columns.
-    Because gcol_info is copied during create_tmp_field_from_field,
-    we have to clear it.
-    @todo it would be better to do it when creating the field.
-  */
+#ifndef DBUG_OFF
   for (uint i= 0; i < table->s->fields; i++)
-    table->field[i]->gcol_info= NULL;
+    DBUG_ASSERT(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
+#endif
 
   if (table->s->db_type() == innodb_hton)
   {

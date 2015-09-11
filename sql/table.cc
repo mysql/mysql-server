@@ -6058,18 +6058,25 @@ void TABLE::mark_columns_used_by_index(uint index)
 
 /*
   mark columns used by key, but don't reset other fields
+  @param  index     index number
+  @param  bitmap    bitmap to mark
+  @param  key_parts Number of leading key parts to mark. Default is UINT_MAX.
+
+  @todo consider using actual_key_parts(key_info[index]) instead of
+  key_info[index].user_defined_key_parts: if the PK suffix of a secondary
+  index is usable it should be marked.
 */
 
 void TABLE::mark_columns_used_by_index_no_reset(uint index,
-                                                   MY_BITMAP *bitmap)
+                                                MY_BITMAP *bitmap,
+                                                uint key_parts)
 {
   KEY_PART_INFO *key_part= key_info[index].key_part;
-  KEY_PART_INFO *key_part_end= (key_part +
-                                key_info[index].user_defined_key_parts);
+  KEY_PART_INFO *key_part_end=
+    key_part +
+    std::min(key_info[index].user_defined_key_parts, key_parts);
   for (;key_part != key_part_end; key_part++)
-  {
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
-  }
 }
 
 

@@ -380,3 +380,66 @@ c
 4
 5
 DROP TABLE t1;
+#
+# Bug#21797776 ASSERTION `BIT < MAP->N_BITS' FAILED.
+#
+CREATE TABLE C (
+col_int_1 INT,
+col_int_2 INT GENERATED ALWAYS AS (col_int_1 + col_int_1) STORED,
+col_int_3 INT GENERATED ALWAYS AS (col_int_2 + col_int_1) VIRTUAL
+);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS
+SELECT
+col_int_2 AS field1, col_int_2 AS field2,
+col_int_3 AS field3, col_int_3 AS field4
+FROM C;
+SELECT * FROM v1;
+field1	field2	field3	field4
+DROP TABLE C;
+DROP VIEW v1;
+#
+# Bug#21613615 GCOLS: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || BITMAP_IS_SET
+#
+CREATE TABLE t (a INT);
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL,
+KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+EXPLAIN SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where 0
+SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
+1
+EXPLAIN SELECT (SELECT MAX(c) FROM v);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`v`.`c`) from `test`.`v`) AS `(SELECT MAX(c) FROM v)`
+SELECT (SELECT MAX(c) FROM v);
+(SELECT MAX(c) FROM v)
+1
+DROP TABLE t, v;
+CREATE TABLE v (
+a INT,
+c INT,
+b CHAR(2) GENERATED ALWAYS AS (a IN (1)) VIRTUAL, KEY(c,b(1)));
+INSERT INTO v (a,c) VALUES (1,1);
+SELECT MAX(c), COUNT(b) FROM v;
+MAX(c)	COUNT(b)
+1	1
+DROP TABLE v;
+CREATE TABLE v (
+a INT PRIMARY KEY,
+b INT, KEY(b));
+INSERT INTO v (a,b) VALUES (1,1);
+SELECT MAX(a) FROM v WHERE b=1;
+MAX(a)
+1
+DROP TABLE v;
