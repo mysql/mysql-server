@@ -297,7 +297,11 @@ struct st_my_file_info
 
 extern struct st_my_file_info *my_file_info;
 
+/* needed for client-only build */
+#ifndef PSI_FILE_KEY_DEFINED
 typedef unsigned int PSI_file_key;
+#define PSI_FILE_KEY_DEFINED
+#endif
 
 typedef struct st_dynamic_array
 {
