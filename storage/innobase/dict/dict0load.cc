@@ -2354,7 +2354,7 @@ err_len:
 		goto err_len;
 	}
 	type = mach_read_from_4(field);
-	if (type & (~0 << DICT_IT_BITS)) {
+	if (type & (~0U << DICT_IT_BITS)) {
 		return("unknown SYS_INDEXES.TYPE bits");
 	}
 

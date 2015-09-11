@@ -1092,8 +1092,8 @@ my_bool STDCALL mysql_embedded(void)
 
 void my_net_local_init(NET *net)
 {
-  ulong local_net_buffer_length;
-  ulong local_max_allowed_packet;
+  ulong local_net_buffer_length= 0;
+  ulong local_max_allowed_packet= 0;
 
   (void) mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
                           &local_max_allowed_packet);
