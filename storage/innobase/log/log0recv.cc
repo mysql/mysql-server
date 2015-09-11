@@ -1009,91 +1009,17 @@ recv_check_log_header_checksum(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Find the latest checkpoint in the format-0 log header.
-@param[out]	max_group	log group, or NULL
-@param[out]	max_field	LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
-@return error code or DB_SUCCESS */
-static __attribute__((warn_unused_result))
-dberr_t
-recv_find_max_checkpoint_0(
-	log_group_t**	max_group,
-	ulint*		max_field)
-{
-	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-	ib_uint64_t	max_no = 0;
-	ib_uint64_t	checkpoint_no;
-	byte*		buf	= log_sys->checkpoint_buf;
+/** Copy of the LOG_HEADER_CREATOR field. */
+static char log_header_creator[LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR + 1];
 
-	ut_ad(group->format == 0);
-	ut_ad(UT_LIST_GET_NEXT(log_groups, group) == NULL);
-
-	/** Offset of the first checkpoint checksum */
-	static const uint CHECKSUM_1 = 288;
-	/** Offset of the second checkpoint checksum */
-	static const uint CHECKSUM_2 = CHECKSUM_1 + 4;
-	/** Most significant bits of the checkpoint offset */
-	static const uint OFFSET_HIGH32 = CHECKSUM_2 + 12;
-	/** Least significant bits of the checkpoint offset */
-	static const uint OFFSET_LOW32 = 16;
-
-	for (ulint field = LOG_CHECKPOINT_1; field <= LOG_CHECKPOINT_2;
-	     field += LOG_CHECKPOINT_2 - LOG_CHECKPOINT_1) {
-		log_group_header_read(group, field);
-
-		if (static_cast<uint32_t>(ut_fold_binary(buf, CHECKSUM_1))
-		    != mach_read_from_4(buf + CHECKSUM_1)
-		    || static_cast<uint32_t>(
-			    ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
-					   CHECKSUM_2 - LOG_CHECKPOINT_LSN))
-		    != mach_read_from_4(buf + CHECKSUM_2)) {
-			DBUG_PRINT("ib_log",
-				   ("invalid pre-5.7.9 checkpoint " ULINTPF,
-				    field));
-			continue;
-		}
-
-		group->state = LOG_GROUP_OK;
-
-		group->lsn = mach_read_from_8(
-			buf + LOG_CHECKPOINT_LSN);
-		group->lsn_offset = static_cast<ib_uint64_t>(
-			mach_read_from_4(buf + OFFSET_HIGH32)) << 32
-			| mach_read_from_4(buf + OFFSET_LOW32);
-		checkpoint_no = mach_read_from_8(
-			buf + LOG_CHECKPOINT_NO);
-
-		DBUG_PRINT("ib_log",
-			   ("checkpoint " UINT64PF " at " LSN_PF
-			    " found in group " ULINTPF,
-			    checkpoint_no, group->lsn, group->id));
-
-		if (checkpoint_no >= max_no) {
-			*max_group = group;
-			*max_field = field;
-			max_no = checkpoint_no;
-		}
-	}
-
-	if (*max_group != NULL) {
-		return(DB_SUCCESS);
-	}
-
-	ib::error() << "Upgrade after a crash is not supported."
-		" This redo log was created before MySQL 5.7.9,"
-		" and we did not find a valid checkpoint."
-		" Please follow the instructions at"
-		" " REFMAN "upgrading.html";
-	return(DB_ERROR);
-}
-
-/** Determine if a pre-5.7.9 redo log is clean.
+/** Determine if a redo log from MySQL 5.7.9 is clean.
 @param[in]	lsn	checkpoint LSN
 @return error code
 @retval	DB_SUCCESS	if the redo log is clean
 @retval DB_ERROR	if the redo log is corrupted or dirty */
 static
 dberr_t
-recv_log_format_0_recover(lsn_t lsn)
+recv_log_recover_5_7(lsn_t lsn)
 {
 	log_mutex_enter();
 	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -1106,7 +1032,7 @@ recv_log_format_0_recover(lsn_t lsn)
 
 	static const char* NO_UPGRADE_RECOVERY_MSG =
 		"Upgrade after a crash is not supported."
-		" This redo log was created before MySQL 5.7.9";
+		" This redo log was created with ";
 	static const char* NO_UPGRADE_RTFM_MSG =
 		". Please follow the instructions at "
 		REFMAN "upgrading.html";
@@ -1118,17 +1044,25 @@ recv_log_format_0_recover(lsn_t lsn)
 			% univ_page_size.physical()),
 	       OS_FILE_LOG_BLOCK_SIZE, buf, NULL);
 
-	if (log_block_calc_checksum_format_0(buf)
-	    != log_block_get_checksum(buf)) {
+	if (log_block_calc_checksum(buf) != log_block_get_checksum(buf)) {
 		ib::error() << NO_UPGRADE_RECOVERY_MSG
+			<< log_header_creator
 			<< ", and it appears corrupted"
 			<< NO_UPGRADE_RTFM_MSG;
 		return(DB_CORRUPTION);
 	}
 
+	/* On a clean shutdown, there will only be the MLOG_CHECKPOINT
+	record pointing to our checkpoint. */
+
 	if (log_block_get_data_len(buf)
-	    != (source_offset & (OS_FILE_LOG_BLOCK_SIZE - 1))) {
+	    != ((source_offset + SIZE_OF_MLOG_CHECKPOINT)
+		& (OS_FILE_LOG_BLOCK_SIZE - 1))
+	    || log_block_get_first_rec_group(buf) != LOG_BLOCK_HDR_SIZE
+	    || mach_read_from_1(buf + LOG_BLOCK_HDR_SIZE) != MLOG_CHECKPOINT
+	    || mach_read_from_8(buf + (LOG_BLOCK_HDR_SIZE + 1)) != lsn) {
 		ib::error() << NO_UPGRADE_RECOVERY_MSG
+			<< log_header_creator
 			<< NO_UPGRADE_RTFM_MSG;
 		return(DB_ERROR);
 	}
@@ -1183,25 +1117,26 @@ recv_find_max_checkpoint(
 			return(DB_CORRUPTION);
 		}
 
+		memcpy(log_header_creator, buf + LOG_HEADER_CREATOR,
+		       sizeof log_header_creator);
+		log_header_creator[(sizeof log_header_creator) - 1] = 0;
+
 		switch (group->format) {
 		case 0:
-			return(recv_find_max_checkpoint_0(
-				       max_group, max_field));
+			ib::error() << "Unsupported redo log format."
+				" The redo log was created"
+				" before MySQL 5.7.9.";
+			return(DB_ERROR);
+		case LOG_HEADER_FORMAT_5_7_9:
+			/* The checkpoint page format is identical. */
 		case LOG_HEADER_FORMAT_CURRENT:
 			break;
 		default:
-			/* Ensure that the string is NUL-terminated. */
-			buf[LOG_HEADER_CREATOR_END] = 0;
 			ib::error() << "Unsupported redo log format."
 				" The redo log was created"
-				" with " << buf + LOG_HEADER_CREATOR <<
+				" with " << log_header_creator <<
 				". Please follow the instructions at "
 				REFMAN "upgrading-downgrading.html";
-			/* Do not issue a message about a possibility
-			to cleanly shut down the newer server version
-			and to remove the redo logs, because the
-			format of the system data structures may
-			radically change after MySQL 5.7. */
 			return(DB_ERROR);
 		}
 
@@ -3833,9 +3768,9 @@ recv_recovery_from_checkpoint_start(
 	ut_ad(recv_sys->n_addrs == 0);
 	contiguous_lsn = checkpoint_lsn;
 	switch (group->format) {
-	case 0:
+	case LOG_HEADER_FORMAT_5_7_9:
 		log_mutex_exit();
-		return(recv_log_format_0_recover(checkpoint_lsn));
+		return(recv_log_recover_5_7(checkpoint_lsn));
 	case LOG_HEADER_FORMAT_CURRENT:
 		break;
 	default:

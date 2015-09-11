@@ -508,12 +508,10 @@ extern my_bool	innodb_log_checksums;
 This used to be called LOG_GROUP_ID and always written as 0,
 because InnoDB never supported more than one copy of the redo log. */
 #define LOG_HEADER_FORMAT	0
-/** 4 unused (zero-initialized) bytes. In format version 0, the
-LOG_FILE_START_LSN started here, 4 bytes earlier than LOG_HEADER_START_LSN,
-which the LOG_FILE_START_LSN was renamed to. */
+/** 4 unused (zero-initialized) bytes. */
 #define LOG_HEADER_PAD1		4
-/** LSN of the start of data in this log file (with format version 1;
-in format version 0, it was called LOG_FILE_START_LSN and at offset 4). */
+/** LSN of the start of data in this log file
+(with format version 1 and 2). */
 #define LOG_HEADER_START_LSN	8
 /** A null-terminated string which will contain either the string 'ibbackup'
 and the creation time if the log file was created by mysqlbackup --restore,
@@ -524,9 +522,16 @@ or the MySQL version that created the redo log file. */
 /** Contents of the LOG_HEADER_CREATOR field */
 #define LOG_HEADER_CREATOR_CURRENT	"MySQL " INNODB_VERSION_STR
 
-/** The redo log format identifier corresponding to the current format version.
-Stored in LOG_HEADER_FORMAT. */
-#define LOG_HEADER_FORMAT_CURRENT	1
+/** Supported redo log formats. Stored in LOG_HEADER_FORMAT. */
+enum log_header_format_t
+{
+	/** The MySQL 5.7.9 redo log format identifier. We can support recovery
+	from this format if the redo log is clean (logically empty). */
+	LOG_HEADER_FORMAT_5_7_9 = 1,
+	/** The redo log format identifier
+	corresponding to the current format version. */
+	LOG_HEADER_FORMAT_CURRENT = 2
+};
 /* @} */
 
 #define LOG_CHECKPOINT_1	OS_FILE_LOG_BLOCK_SIZE
