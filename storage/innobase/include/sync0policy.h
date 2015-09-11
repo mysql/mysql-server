@@ -380,19 +380,6 @@ public:
 		return(m_id);
 	}
 
-	/** @return the name of the file where it was created */
-	const char* get_create_filename() const
-		UNIV_NOTHROW
-	{
-		return("buf0buf.cc");
-	}
-
-	/** @return the line where it was created  */
-	ulint get_create_line() const
-	{
-		return(0);
-	}
-
 	/** @return the string representation */
 	std::string to_string() const;
 
@@ -541,19 +528,6 @@ public:
 	latch_id_t get_id() const
 	{
 		return(m_id);
-	}
-
-	/** @return the name of the file where it was created */
-	const char* get_create_filename() const
-		UNIV_NOTHROW
-	{
-		return("buf0buf.cc");
-	}
-
-	/** @return 0 */
-	ulint get_create_line() const
-	{
-		return(0);
 	}
 
 	/** @return the string representation */

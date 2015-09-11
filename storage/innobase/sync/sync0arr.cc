@@ -513,14 +513,13 @@ sync_array_cell_print(
 #endif /* UNIV_DEBUG */
 
 		fprintf(file,
-			"Mutex at %p created file %s line %lu, lock var %lu\n"
+			"Mutex at %p, %s, lock var %lu\n"
 #ifdef UNIV_DEBUG
 			"Last time reserved in file %s line %lu"
 #endif /* UNIV_DEBUG */
 			"\n",
 			(void*) mutex,
-			innobase_basename(policy.get_create_filename()),
-			(ulong) policy.get_create_line(),
+			policy.to_string().c_str(),
 			(ulong) mutex->state()
 #ifdef UNIV_DEBUG
 			,name,
@@ -541,14 +540,13 @@ sync_array_cell_print(
 #endif /* UNIV_DEBUG */
 
 		fprintf(file,
-			"Mutex at %p created file %s line %lu, lock var %lu\n"
+			"Mutex at %p, %s, lock var %lu\n"
 #ifdef UNIV_DEBUG
 			"Last time reserved in file %s line %lu"
 #endif /* UNIV_DEBUG */
 			"\n",
 			(void*) mutex,
-			innobase_basename(policy.get_create_filename()),
-			(ulong) policy.get_create_line(),
+			policy.to_string().c_str(),
 			(ulong) mutex->state()
 #ifdef UNIV_DEBUG
 			,name,
