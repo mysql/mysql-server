@@ -4561,7 +4561,7 @@ new1	10	10	NULL
 explain extended
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2 where a=10 and b=10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	8	1.56	Using where
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7010,7 +7010,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	5.33	Range checked for each record (index map: 0x4)
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Range checked for each record (index map: 0x4)
 2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7055,7 +7055,7 @@ EXPLAIN EXTENDED SELECT * FROM v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index
-3	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	5.33	Using where
+3	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
 3	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
@@ -7087,7 +7087,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	PRIMARY	t1	NULL	index	NULL	col_varchar_key	7	NULL	5	100.00	Using where; Using index
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	5.33	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where
 2	DEPENDENT SUBQUERY	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	test.t1.pk	2	100.00	Using index
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.

@@ -766,7 +766,7 @@ v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	v	NULL	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	100.00	NULL
-1	SIMPLE	s	NULL	ref	OXLEFT,OXROOTID	OXROOTID	34	const	5	11.11	Using where
+1	SIMPLE	s	NULL	ref	OXLEFT,OXROOTID	OXROOTID	34	const	5	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`s`.`OXID` AS `oxid` from `test`.`t1` `v` join `test`.`t1` `s` where ((`test`.`s`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`v`.`OXROOTID` = 'd8c4177d09f8b11f5.52725521') and (`test`.`s`.`OXLEFT` > `test`.`v`.`OXLEFT`) and (`test`.`s`.`OXLEFT` < `test`.`v`.`OXRIGHT`))
 SELECT s.oxid FROM t1 v, t1 s 
@@ -1238,7 +1238,7 @@ A1	2005-11-15 00:00:00	2000.000
 DROP INDEX `PRIMARY` ON t1;
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	8.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Warning	1292	Incorrect datetime value: '2005-12-01 24:00:00' for column 'started' at row 1
 Note	1003	/* select#1 */ select `test`.`t1`.`item` AS `item`,`test`.`t1`.`started` AS `started`,`test`.`t1`.`price` AS `price` from `test`.`t1` where ((`test`.`t1`.`item` = 'A1') and (`test`.`t1`.`started` <= '2005-12-01 24:00:00'))
@@ -3059,7 +3059,7 @@ WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t5	NULL	ALL	a	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	4.08	Range checked for each record (index map: 0x1)
+1	SIMPLE	t7	NULL	ALL	a	NULL	NULL	NULL	7	14.29	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
 FLUSH STATUS;

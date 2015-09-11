@@ -145,7 +145,7 @@ DROP TABLE t1, t2, t3, t4;
 --echo # semi-join materialization (if enabled)
 
 CREATE TABLE t1 (a INT);
-INSERT INTO t1 VALUES (1), (1), (1);
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
 CREATE TABLE t2 (a INT) SELECT * FROM t1;
 CREATE TABLE t3 (a INT) SELECT * FROM t1;
 CREATE TABLE t4 (a INT) SELECT * FROM t1;
