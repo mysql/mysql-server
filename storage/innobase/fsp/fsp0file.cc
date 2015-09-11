@@ -579,9 +579,16 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 
 		return(DB_CORRUPTION);
 
-	} else if (fil_space_read_name_and_filepath(
-			   m_space_id, &prev_name, &prev_filepath)
-		   && (0 != strcmp(m_filepath, prev_filepath))) {
+	}
+
+	if (fil_space_read_name_and_filepath(
+		m_space_id, &prev_name, &prev_filepath)) {
+
+		if (0 == strcmp(m_filepath, prev_filepath)) {
+			ut_free(prev_name);
+			ut_free(prev_filepath);
+			return(DB_SUCCESS);
+		}
 
 		/* Make sure the space_id has not already been opened. */
 		ib::error() << "Attempted to open a previously opened"
