@@ -267,7 +267,16 @@ extern char*	srv_log_group_home_dir;
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
+/** At startup, this is the current redo log file size.
+During startup, if this is different from srv_log_file_size_requested
+(innodb_log_file_size), the redo log will be rebuilt and this size
+will be initialized to srv_log_file_size_requested.
+When upgrading from a previous redo log format, this will be set to 0,
+and writing to the redo log is not allowed.
+
+During startup, this is in bytes, and later converted to pages. */
 extern ib_uint64_t	srv_log_file_size;
+/** The value of the startup parameter innodb_log_file_size */
 extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
@@ -371,9 +380,6 @@ extern my_bool			srv_stats_auto_recalc;
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
-
-/* Checksum algorithm used for the redo log file blocks */
-extern ulong	srv_log_checksum_algorithm;
 
 extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;

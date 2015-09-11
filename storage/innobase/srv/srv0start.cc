@@ -1351,10 +1351,19 @@ srv_prepare_to_delete_redo_log_files(
 
 		flushed_lsn = log_sys->lsn;
 
-		ib::warn() << "Resizing redo log from " << n_files << "*"
-			<< srv_log_file_size << " to " << srv_n_log_files
-			<< "*" << srv_log_file_size_requested << " pages"
-			", LSN=" << flushed_lsn;
+		{
+			ib::warn	warning;
+			if (srv_log_file_size == 0) {
+				warning << "Upgrading redo log: ";
+			} else {
+				warning << "Resizing redo log from "
+					<< n_files << "*"
+					<< srv_log_file_size << " to ";
+			}
+			warning << srv_n_log_files << "*"
+				<< srv_log_file_size_requested
+				<< " pages, LSN=" << flushed_lsn;
+		}
 
 		/* Flush the old log files. */
 		log_mutex_exit();

@@ -787,46 +787,165 @@ recv_synchronize_groups(void)
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/***********************************************************************//**
-Checks the consistency of the checkpoint info
-@return TRUE if ok */
+/** Check the consistency of a log header block.
+@param[in]	log header block
+@return true if ok */
 static
-ibool
-recv_check_cp_is_consistent(
-/*========================*/
-	const byte*	buf)	/*!< in: buffer containing checkpoint info */
+bool
+recv_check_log_header_checksum(
+	const byte*	buf)
 {
-	ulint	fold;
-
-	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
-
-	if ((fold & 0xFFFFFFFFUL) != mach_read_from_4(
-		    buf + LOG_CHECKPOINT_CHECKSUM_1)) {
-		return(FALSE);
-	}
-
-	fold = ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
-			      LOG_CHECKPOINT_CHECKSUM_2 - LOG_CHECKPOINT_LSN);
-
-	if ((fold & 0xFFFFFFFFUL) != mach_read_from_4(
-		    buf + LOG_CHECKPOINT_CHECKSUM_2)) {
-		return(FALSE);
-	}
-
-	return(TRUE);
+	return(log_block_get_checksum(buf)
+	       == log_block_calc_checksum_crc32(buf));
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************//**
-Looks for the maximum consistent checkpoint from the log groups.
+/** Find the latest checkpoint in the format-0 log header.
+@param[out]	max_group	log group, or NULL
+@param[out]	max_field	LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
 @return error code or DB_SUCCESS */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
+dberr_t
+recv_find_max_checkpoint_0(
+	log_group_t**	max_group,
+	ulint*		max_field)
+{
+	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	ib_uint64_t	max_no = 0;
+	ib_uint64_t	checkpoint_no;
+	byte*		buf	= log_sys->checkpoint_buf;
+
+	ut_ad(group->format == 0);
+	ut_ad(UT_LIST_GET_NEXT(log_groups, group) == NULL);
+
+	/** Offset of the first checkpoint checksum */
+	static const uint CHECKSUM_1 = 288;
+	/** Offset of the second checkpoint checksum */
+	static const uint CHECKSUM_2 = CHECKSUM_1 + 4;
+	/** Most significant bits of the checkpoint offset */
+	static const uint OFFSET_HIGH32 = CHECKSUM_2 + 12;
+	/** Least significant bits of the checkpoint offset */
+	static const uint OFFSET_LOW32 = 16;
+
+	for (ulint field = LOG_CHECKPOINT_1; field <= LOG_CHECKPOINT_2;
+	     field += LOG_CHECKPOINT_2 - LOG_CHECKPOINT_1) {
+		log_group_header_read(group, field);
+
+		if (static_cast<uint32_t>(ut_fold_binary(buf, CHECKSUM_1))
+		    != mach_read_from_4(buf + CHECKSUM_1)
+		    || static_cast<uint32_t>(
+			    ut_fold_binary(buf + LOG_CHECKPOINT_LSN,
+					   CHECKSUM_2 - LOG_CHECKPOINT_LSN))
+		    != mach_read_from_4(buf + CHECKSUM_2)) {
+			DBUG_PRINT("ib_log",
+				   ("invalid pre-5.7.9 checkpoint " ULINTPF,
+				    field));
+			continue;
+		}
+
+		group->state = LOG_GROUP_OK;
+
+		group->lsn = mach_read_from_8(
+			buf + LOG_CHECKPOINT_LSN);
+		group->lsn_offset = static_cast<ib_uint64_t>(
+			mach_read_from_4(buf + OFFSET_HIGH32)) << 32
+			| mach_read_from_4(buf + OFFSET_LOW32);
+		checkpoint_no = mach_read_from_8(
+			buf + LOG_CHECKPOINT_NO);
+
+		DBUG_PRINT("ib_log",
+			   ("checkpoint " UINT64PF " at " LSN_PF
+			    " found in group " ULINTPF,
+			    checkpoint_no, group->lsn, group->id));
+
+		if (checkpoint_no >= max_no) {
+			*max_group = group;
+			*max_field = field;
+			max_no = checkpoint_no;
+		}
+	}
+
+	if (*max_group != NULL) {
+		return(DB_SUCCESS);
+	}
+
+	ib::error() << "Upgrade after a crash is not supported."
+		" This redo log was created before MySQL 5.7.9,"
+		" and we did not find a valid checkpoint."
+		" Please follow the instructions at"
+		" " REFMAN "upgrading.html";
+	return(DB_ERROR);
+}
+
+/** Determine if a pre-5.7.9 redo log is clean.
+@param[in]	lsn	checkpoint LSN
+@return error code
+@retval	DB_SUCCESS	if the redo log is clean
+@retval DB_ERROR	if the redo log is corrupted or dirty */
+static
+dberr_t
+recv_log_format_0_recover(lsn_t lsn)
+{
+	log_mutex_enter();
+	log_group_t*	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	const lsn_t	source_offset
+		= log_group_calc_lsn_offset(lsn, group);
+	log_mutex_exit();
+	const ulint	page_no
+		= (ulint) (source_offset / univ_page_size.physical());
+	byte*		buf = log_sys->buf;
+
+	static const char* NO_UPGRADE_RECOVERY_MSG =
+		"Upgrade after a crash is not supported."
+		" This redo log was created before MySQL 5.7.9";
+	static const char* NO_UPGRADE_RTFM_MSG =
+		". Please follow the instructions at "
+		REFMAN "upgrading.html";
+
+	fil_io(IORequestLogRead, true,
+	       page_id_t(group->space_id, page_no),
+	       univ_page_size,
+	       (ulint) ((source_offset & ~(OS_FILE_LOG_BLOCK_SIZE - 1))
+			% univ_page_size.physical()),
+	       OS_FILE_LOG_BLOCK_SIZE, buf, NULL);
+
+	if (log_block_calc_checksum_format_0(buf)
+	    != log_block_get_checksum(buf)) {
+		ib::error() << NO_UPGRADE_RECOVERY_MSG
+			<< ", and it appears corrupted"
+			<< NO_UPGRADE_RTFM_MSG;
+		return(DB_CORRUPTION);
+	}
+
+	if (log_block_get_data_len(buf)
+	    != (source_offset & (OS_FILE_LOG_BLOCK_SIZE - 1))) {
+		ib::error() << NO_UPGRADE_RECOVERY_MSG
+			<< NO_UPGRADE_RTFM_MSG;
+		return(DB_ERROR);
+	}
+
+	/* Mark the redo log for upgrading. */
+	srv_log_file_size = 0;
+	recv_sys->parse_start_lsn = recv_sys->recovered_lsn
+		= recv_sys->scanned_lsn
+		= recv_sys->mlog_checkpoint_lsn = lsn;
+	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn
+		= log_sys->lsn = log_sys->write_lsn
+		= log_sys->current_flush_lsn = log_sys->flushed_to_disk_lsn
+		= lsn;
+	log_sys->next_checkpoint_no = 0;
+	return(DB_SUCCESS);
+}
+
+/** Find the latest checkpoint in the log header.
+@param[out]	max_group	log group, or NULL
+@param[out]	max_field	LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
+@return error code or DB_SUCCESS */
+static __attribute__((warn_unused_result))
 dberr_t
 recv_find_max_checkpoint(
-/*=====================*/
-	log_group_t**	max_group,	/*!< out: max group */
-	ulint*		max_field)	/*!< out: LOG_CHECKPOINT_1 or
-					LOG_CHECKPOINT_2 */
+	log_group_t**	max_group,
+	ulint*		max_field)
 {
 	log_group_t*	group;
 	ib_uint64_t	max_no;
@@ -845,20 +964,51 @@ recv_find_max_checkpoint(
 	while (group) {
 		group->state = LOG_GROUP_CORRUPTED;
 
+		log_group_header_read(group, 0);
+		/* Check the header page checksum. There was no
+		checksum in the first redo log format (version 0). */
+		group->format = mach_read_from_4(buf + LOG_HEADER_FORMAT);
+		if (group->format != 0
+		    && !recv_check_log_header_checksum(buf)) {
+			ib::error() << "Invalid redo log header checksum.";
+			return(DB_CORRUPTION);
+		}
+
+		switch (group->format) {
+		case 0:
+			return(recv_find_max_checkpoint_0(
+				       max_group, max_field));
+		case LOG_HEADER_FORMAT_CURRENT:
+			break;
+		default:
+			/* Ensure that the string is NUL-terminated. */
+			buf[LOG_HEADER_CREATOR_END] = 0;
+			ib::error() << "Unsupported redo log format."
+				" The redo log was created"
+				" with " << buf + LOG_HEADER_CREATOR <<
+				". Please follow the instructions at "
+				REFMAN "upgrading-downgrading.html";
+			/* Do not issue a message about a possibility
+			to cleanly shut down the newer server version
+			and to remove the redo logs, because the
+			format of the system data structures may
+			radically change after MySQL 5.7. */
+			return(DB_ERROR);
+		}
+
 		for (field = LOG_CHECKPOINT_1; field <= LOG_CHECKPOINT_2;
 		     field += LOG_CHECKPOINT_2 - LOG_CHECKPOINT_1) {
 
-			log_group_read_checkpoint_info(group, field);
+			log_group_header_read(group, field);
 
-			if (!recv_check_cp_is_consistent(buf)) {
+			if (!recv_check_log_header_checksum(buf)) {
 				DBUG_PRINT("ib_log",
 					   ("invalid checkpoint,"
 					    " group " ULINTPF " at " ULINTPF
 					    ", checksum %x",
 					    group->id, field,
-					    (unsigned) mach_read_from_4(
-						    LOG_CHECKPOINT_CHECKSUM_1
-						    + buf)));
+					    (unsigned) log_block_get_checksum(
+						    buf)));
 				continue;
 			}
 
@@ -866,10 +1016,8 @@ recv_find_max_checkpoint(
 
 			group->lsn = mach_read_from_8(
 				buf + LOG_CHECKPOINT_LSN);
-			group->lsn_offset = mach_read_from_4(
-				buf + LOG_CHECKPOINT_OFFSET_LOW32);
-			group->lsn_offset |= ((lsn_t) mach_read_from_4(
-				buf + LOG_CHECKPOINT_OFFSET_HIGH32)) << 32;
+			group->lsn_offset = mach_read_from_8(
+				buf + LOG_CHECKPOINT_OFFSET);
 			checkpoint_no = mach_read_from_8(
 				buf + LOG_CHECKPOINT_NO);
 
@@ -889,12 +1037,15 @@ recv_find_max_checkpoint(
 	}
 
 	if (*max_group == NULL) {
-		ib::error() << "No valid checkpoint found. If this error"
-			" appears when you are creating an InnoDB database,"
-			" the problem may be that during an earlier attempt"
-			" you managed to create the InnoDB data files, but log"
-			" file creation failed. If that is the case; "
-			<< ERROR_CREATING_MSG;
+		/* Before 5.7.9, we could get here during database
+		initialization if we created an ib_logfile0 file that
+		was filled with zeroes, and were killed. After
+		5.7.9, we would reject such a file already earlier,
+		when checking the file header. */
+		ib::error() << "No valid checkpoint found"
+			" (corrupted redo log)."
+			" You can try --innodb-force-recovery=6"
+			" as a last resort.";
 		return(DB_ERROR);
 	}
 
@@ -922,14 +1073,14 @@ recv_read_checkpoint_info_for_backup(
 
 	cp_buf = hdr + LOG_CHECKPOINT_1;
 
-	if (recv_check_cp_is_consistent(cp_buf)) {
+	if (recv_check_log_header_checksum(cp_buf)) {
 		max_cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
 		max_cp = LOG_CHECKPOINT_1;
 	}
 
 	cp_buf = hdr + LOG_CHECKPOINT_2;
 
-	if (recv_check_cp_is_consistent(cp_buf)) {
+	if (recv_check_log_header_checksum(cp_buf)) {
 		if (mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO) > max_cp_no) {
 			max_cp = LOG_CHECKPOINT_2;
 		}
@@ -955,186 +1106,18 @@ recv_read_checkpoint_info_for_backup(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Calculate the checksum of the given redo log block using different
-checksum algorithms and see if any of them matches with what has been
-stored in the block itself.
-@param[in]	block		the redo log block
-@param[in]	block_checksum	checksum stored in the redo log block.
-@return true if there is a checksum match, false otherwise. */
+/** Check the 4-byte checksum to the trailer checksum field of a log
+block.
+@param[in]	log block
+@return whether the checksum matches */
 static
 bool
-log_block_checksum_weak_validation(
-	const byte*	block,
-	ulint		block_checksum)
-{
-	/* The algorithm specified in srv_log_checksum_algorithm has already
-	been checked.  So no need to check it again */
-	switch (srv_log_checksum_algorithm) {
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-		if (block_checksum == log_block_calc_checksum_none(block)
-		    || block_checksum == log_block_calc_checksum_innodb(block)) {
-			return(true);
-		}
-		break;
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-		if (block_checksum == log_block_calc_checksum_none(block)
-		    || block_checksum == log_block_calc_checksum_crc32(block)
-		    || block_checksum
-		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
-			return(true);
-		}
-		break;
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-		if (block_checksum == log_block_calc_checksum_crc32(block)
-		    || block_checksum
-		    == log_block_calc_checksum_crc32_legacy_big_endian(block)
-		    || block_checksum
-		    == log_block_calc_checksum_innodb(block)) {
-			return(true);
-		}
-		break;
-	}
-	return(false);
-}
-
-/** Get the name of the checksum algorithm that matches with the checksum
-stored in the redo log block.
-@param[in]	block		the redo log block
-@param[in]	block_checksum	checksum stored in the redo log block.
-@return name of the checksum algorithm, if a match is found.
-@return the string "NULL", if no match is found.*/
-static
-const char*
-log_block_checksum_what_matches(
-	const byte*	block,
-	ulint		block_checksum)
-{
-	/* The algorithm specified in srv_log_checksum_algorithm has already
-	been checked.  So no need to check it again */
-	switch (srv_log_checksum_algorithm) {
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-		if (block_checksum == log_block_calc_checksum_none(block)) {
-			return("none");
-		}
-		if (block_checksum == log_block_calc_checksum_innodb(block)) {
-			return("innodb");
-		}
-		break;
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-		if (block_checksum == log_block_calc_checksum_none(block)) {
-			return("none");
-		}
-		if (block_checksum == log_block_calc_checksum_crc32(block)
-		    || block_checksum
-		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
-			return("crc32");
-		}
-		break;
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-		if (block_checksum == log_block_calc_checksum_crc32(block)
-		    || block_checksum
-		    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
-			return("crc32");
-		}
-		if (block_checksum == log_block_calc_checksum_innodb(block)) {
-			return("innodb");
-		}
-		break;
-	}
-	return("NULL");
-}
-
-static
-void
-log_block_checksum_fail_fatal(
-	const byte*	block,
-	ulint		block_checksum,
-	ulint		calc_checksum)
-{
-	ib::error() << "log block checksum mismatch: expected checksum is "
-		<< block_checksum << ", but calculated checksum is "
-		<< calc_checksum;
-
-	/* Find the algorithm that matches */
-	const char*	algo = log_block_checksum_what_matches(
-		block, block_checksum);
-
-	/* Get the algorithm specified */
-	const char*	current_algo = buf_checksum_algorithm_name(
-		static_cast<srv_checksum_algorithm_t>(
-			srv_log_checksum_algorithm));
-
-	ib::error() << "current InnoDB log checksum type: "
-		<< current_algo
-		<< ", detected log checksum type: "
-		<< algo;
-
-	ib::fatal() << "STRICT method was specified for"
-		" innodb_log_checksum, so we intentionally"
-		" assert here.";
-}
-
-/******************************************************//**
-Checks the 4-byte checksum to the trailer checksum field of a log
-block.  We also accept a log block in the old format before
-InnoDB-3.23.52 where the checksum field contains the log block number.
-@return TRUE if ok, or if the log block may be in the format of InnoDB
-version predating 3.23.52 */
-static
-ibool
-log_block_checksum_is_ok_or_old_format(
-/*===================================*/
+log_block_checksum_is_ok(
 	const byte*	block)	/*!< in: pointer to a log block */
 {
-	const srv_checksum_algorithm_t	curr_algo
-		= static_cast<const srv_checksum_algorithm_t>(
-			srv_log_checksum_algorithm);
-
-	if (curr_algo == SRV_CHECKSUM_ALGORITHM_NONE) {
-		return(TRUE);
-	}
-
-	const ulint	block_checksum = log_block_get_checksum(block);
-	const ulint	calc_checksum  = log_block_calc_checksum(block);
-
-	if (block_checksum == calc_checksum) {
-		return(TRUE);
-	}
-
-	if ((curr_algo == SRV_CHECKSUM_ALGORITHM_CRC32
-	     || curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32)
-	    /* Normal crc32 has already been checked above by
-	    log_block_calc_checksum(). */
-	    && block_checksum
-	    == log_block_calc_checksum_crc32_legacy_big_endian(block)) {
-		return(TRUE);
-	}
-
-	if (is_checksum_strict(curr_algo)) {
-
-		log_block_checksum_fail_fatal(block, block_checksum,
-					      calc_checksum);
-
-	} else if (log_block_checksum_weak_validation(block,
-						      block_checksum)) {
-
-			return(TRUE);
-	}
-
-	if (log_block_get_hdr_no(block) == block_checksum) {
-
-		/* We assume the log block is in the format of
-		InnoDB version < 3.23.52 and the block is ok */
-#if 0
-		fprintf(stderr,
-			"InnoDB: Scanned old format < InnoDB-3.23.52"
-			" log block number %lu\n",
-			log_block_get_hdr_no(block));
-#endif
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(!innodb_log_checksums
+	       || log_block_get_checksum(block)
+	       == log_block_calc_checksum(block));
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -1172,7 +1155,7 @@ recv_scan_log_seg_for_backup(
 #endif
 
 		if (no != log_block_convert_lsn_to_no(*scanned_lsn)
-		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
+		    || !log_block_checksum_is_ok(log_block)) {
 #if 0
 			fprintf(stderr,
 				"Log block n:o %lu, scanned lsn n:o %lu\n",
@@ -3080,28 +3063,30 @@ recv_scan_log_recs(
 	do {
 		ut_ad(!finished);
 		no = log_block_get_hdr_no(log_block);
-		/*
-		fprintf(stderr, "Log block header no %lu\n", no);
+		ulint expected_no = log_block_convert_lsn_to_no(scanned_lsn);
+		if (no != expected_no) {
+			/* Garbage or an incompletely written log block.
 
-		fprintf(stderr, "Scanned lsn no %lu\n",
-		log_block_convert_lsn_to_no(scanned_lsn));
-		*/
-		if (no != log_block_convert_lsn_to_no(scanned_lsn)
-		    || !log_block_checksum_is_ok_or_old_format(log_block)) {
+			We will not report any error, because this can
+			happen when InnoDB was killed while it was
+			writing redo log. We simply treat this as an
+			abrupt end of the redo log. */
+			finished = true;
+			break;
+		}
 
-			if (no == log_block_convert_lsn_to_no(scanned_lsn)
-			    && !log_block_checksum_is_ok_or_old_format(
-				    log_block)) {
+		if (!log_block_checksum_is_ok(log_block)) {
+			ib::error() << "Log block " << no <<
+				" at lsn " << scanned_lsn << " has valid"
+				" header, but checksum field contains "
+				<< log_block_get_checksum(log_block)
+				<< ", should be "
+				<< log_block_calc_checksum(log_block);
+			/* Garbage or an incompletely written log block.
 
-				ib::error() << "Log block no " << no << " at"
-					" lsn " << scanned_lsn << " has ok"
-					" header, but checksum field contains "
-					<< log_block_get_checksum(log_block)
-					<< ", should be "
-					<< log_block_calc_checksum(log_block);
-			}
-
-			/* Garbage or an incompletely written log block */
+			This could be the result of killing the server
+			while it was writing this log block. We treat
+			this as an abrupt end of the redo log. */
 			finished = true;
 			break;
 		}
@@ -3525,7 +3510,7 @@ recv_recovery_from_checkpoint_start(
 		return(err);
 	}
 
-	log_group_read_checkpoint_info(max_cp_group, max_cp_field);
+	log_group_header_read(max_cp_group, max_cp_field);
 
 	buf = log_sys->checkpoint_buf;
 
@@ -3540,7 +3525,7 @@ recv_recovery_from_checkpoint_start(
 	fil_io(IORequestLogRead, true, page_id, univ_page_size, 0,
 	       LOG_FILE_HDR_SIZE, log_hdr_buf, max_cp_group);
 
-	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
+	if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR,
 			   (byte*)"ibbackup", (sizeof "ibbackup") - 1)) {
 
 		if (srv_read_only_mode) {
@@ -3557,14 +3542,17 @@ recv_recovery_from_checkpoint_start(
 
 		ib::info() << "The log file was created by mysqlbackup"
 			" --apply-log at "
-			<< log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP
+			<< log_hdr_buf + LOG_HEADER_CREATOR
 			<< ". The following crash recovery is part of a"
 			" normal restore.";
 
-		/* Wipe over the label now */
-
-		memset(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
-		       ' ', 4);
+		/* Replace the label. */
+		ut_ad(LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR
+		      >= sizeof LOG_HEADER_CREATOR_CURRENT);
+		memset(log_hdr_buf + LOG_HEADER_CREATOR, 0,
+		       LOG_HEADER_CREATOR_END - LOG_HEADER_CREATOR);
+		strcpy(reinterpret_cast<char*>(log_hdr_buf)
+		       + LOG_HEADER_CREATOR, LOG_HEADER_CREATOR_CURRENT);
 
 		/* Write to the log file to wipe over the label */
 		fil_io(IORequestLogWrite, true, page_id,
@@ -3584,8 +3572,21 @@ recv_recovery_from_checkpoint_start(
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 	ut_ad(recv_sys->n_addrs == 0);
-	/* Look for MLOG_CHECKPOINT. */
 	contiguous_lsn = checkpoint_lsn;
+	switch (group->format) {
+	case 0:
+		log_mutex_exit();
+		return(recv_log_format_0_recover(checkpoint_lsn));
+	case LOG_HEADER_FORMAT_CURRENT:
+		break;
+	default:
+		ut_ad(0);
+		recv_sys->found_corrupt_log = true;
+		log_mutex_exit();
+		return(DB_ERROR);
+	}
+
+	/* Look for MLOG_CHECKPOINT. */
 	recv_group_scan_log_recs(group, &contiguous_lsn, false);
 	/* The first scan should not have stored or applied any records. */
 	ut_ad(recv_sys->n_addrs == 0);
@@ -3603,6 +3604,10 @@ recv_recovery_from_checkpoint_start(
 				" MLOG_CHECKPOINT between the checkpoint "
 				<< checkpoint_lsn << " and the end "
 				<< group->scanned_lsn << ".";
+			if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+				log_mutex_exit();
+				return(DB_ERROR);
+			}
 		}
 
 		group->scanned_lsn = checkpoint_lsn;

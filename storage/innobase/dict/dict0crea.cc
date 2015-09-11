@@ -1892,6 +1892,13 @@ dict_create_or_check_sys_virtual()
 		return(DB_SUCCESS);
 	}
 
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+	    || srv_read_only_mode) {
+		ib::error() << "Cannot create sys_virtual system tables;"
+			" running in read-only mode.";
+		return(DB_ERROR);
+	}
+
 	trx = trx_allocate_for_mysql();
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
