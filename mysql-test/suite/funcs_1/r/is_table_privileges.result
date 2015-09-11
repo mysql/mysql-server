@@ -55,6 +55,7 @@ IS_GRANTABLE	varchar(3)	NO
 SELECT table_catalog, table_schema, table_name, privilege_type
 FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL;
 table_catalog	table_schema	table_name	privilege_type
+def	sys	sys_config	SELECT
 ######################################################################
 # Testcase 3.2.11.2+3.2.11.3+3.2.11.4:
 #          INFORMATION_SCHEMA.TABLE_PRIVILEGES accessible information
@@ -219,9 +220,9 @@ SHOW GRANTS FOR 'testuser1'@'localhost';
 ERROR 42000: There is no such grant defined for user 'testuser1' on host 'localhost'
 SHOW GRANTS FOR 'the_user'@'localhost';
 Grants for the_user@localhost
-GRANT USAGE ON *.* TO 'the_user'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
 GRANT ALL PRIVILEGES ON `test`.`t1_table` TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
+GRANT USAGE ON *.* TO 'the_user'@'localhost'
 SELECT DISTINCT table_schema,table_name FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'
 ORDER BY table_schema,table_name;
@@ -239,9 +240,9 @@ test	t1_table
 test	t1_view
 SHOW GRANTS FOR 'the_user'@'localhost';
 Grants for the_user@localhost
-GRANT USAGE ON *.* TO 'the_user'@'localhost'
-GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
 GRANT ALL PRIVILEGES ON `test`.`t1_table` TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
+GRANT USAGE ON *.* TO 'the_user'@'localhost'
 REVOKE ALL PRIVILEGES ON test.t1_table FROM 'the_user'@'localhost';
 REVOKE ALL PRIVILEGES ON test.t1_view  FROM 'the_user'@'localhost';
 DROP VIEW test.t1_view;

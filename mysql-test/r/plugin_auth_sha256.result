@@ -13,6 +13,7 @@ root	mysql_native_password
 root	mysql_native_password
 root	mysql_native_password
 kristofer	sha256_password
+mysql.sys	mysql_native_password
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 kristofer@localhost	kristofer@%
@@ -105,6 +106,7 @@ root	mysql_native_password
 root	mysql_native_password
 root	mysql_native_password
 root	mysql_native_password
+mysql.sys	mysql_native_password
 kristofer	sha256_password
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()

@@ -1,0 +1,474 @@
+use test;
+DROP TABLE IF EXISTS t1;
+DROP TEMPORARY TABLE IF EXISTS tmp_digests_ini;
+DROP VIEW IF EXISTS view_digests;
+CREATE TABLE t1 (id INT PRIMARY KEY, val int);
+use test;
+CALL sys.ps_setup_disable_thread(CONNECTION_ID());
+CALL sys.ps_setup_enable_consumer('events_statements_history_long');
+CALL sys.ps_truncate_all_tables(FALSE);
+INSERT INTO t1 VALUES (1, SLEEP(0.2));
+UPDATE t1 SET val = 1+SLEEP(1.6) WHERE id = 1;
+SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id+SLEEP(1.2);
+id	val
+1	1
+CALL sys.statement_performance_analyzer('create_tmp', 'test.tmp_digests_ini', NULL);
+CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
+CALL sys.statement_performance_analyzer('save', 'test.tmp_digests_ini', NULL);
+DO SLEEP(1.2);
+INSERT INTO t1 VALUES (2, SLEEP(0.6));
+UPDATE t1 SET val = 1+SLEEP(3.0) WHERE id = 2;
+SELECT t1a.* FROM t1 AS t1a LEFT OUTER JOIN (SELECT * FROM t1 AS t1b1 INNER JOIN t1 AS t1b2 USING (id, val)) AS t1b ON t1b.id > t1a.id ORDER BY t1a.val, t1a.id+SLEEP(0.8);
+id	val
+1	1
+2	1
+CALL sys.statement_performance_analyzer('snapshot', NULL, NULL);
+SELECT DIGEST, COUNT_STAR FROM performance_schema.events_statements_summary_by_digest ORDER BY first_seen;
+DIGEST	COUNT_STAR
+DIGEST_INSERT	2
+DIGEST_UPDATE	2
+DIGEST_SELECT	2
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_runtimes_in_95th_percentile');;
+Next Output	Queries with Runtime in 95th Percentile
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+full_scan	
+exec_count	2
+err_count	0
+warn_count	0
+total_latency	O_UPD_TOTAL_LATENCY
+max_latency	O_UPD_MAX_LATENCY
+avg_latency	O_UPD_AVG_LATENCY
+rows_sent	0
+rows_sent_avg	0
+rows_examined	2
+rows_examined_avg	1
+first_seen	O_UPD_FIRST_SEEN
+last_seen	O_UPD_LAST_SEEN
+digest	DIGEST_UPDATE
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_runtimes_in_95th_percentile');;
+Next Output	Queries with Runtime in 95th Percentile
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+full_scan	
+exec_count	1
+err_count	0
+warn_count	0
+total_latency	D_UPD_LATENCY
+max_latency	D_UPD_LATENCY
+avg_latency	D_UPD_LATENCY
+rows_sent	0
+rows_sent_avg	0
+rows_examined	1
+rows_examined_avg	1
+first_seen	O_UPD_FIRST_SEEN
+last_seen	O_UPD_LAST_SEEN
+digest	DIGEST_UPDATE
+CALL sys.statement_performance_analyzer('overall', NULL, 'analysis');;
+Next Output	Top 100 Queries Ordered by Total Latency
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+full_scan	
+exec_count	2
+err_count	0
+warn_count	0
+total_latency	O_UPD_TOTAL_LATENCY
+max_latency	O_UPD_MAX_LATENCY
+avg_latency	O_UPD_AVG_LATENCY
+lock_latency	LOCK_LATENCY
+rows_sent	0
+rows_sent_avg	0
+rows_examined	2
+rows_examined_avg	1
+rows_affected	2
+rows_affected_avg	1
+tmp_tables	0
+tmp_disk_tables	0
+rows_sorted	0
+sort_merge_passes	0
+digest	DIGEST_UPDATE
+first_seen	O_UPD_FIRST_SEEN
+last_seen	O_UPD_LAST_SEEN
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+full_scan	*
+exec_count	2
+err_count	0
+warn_count	0
+total_latency	O_SEL_TOTAL_LATENCY
+max_latency	O_SEL_MAX_LATENCY
+avg_latency	O_SEL_AVG_LATENCY
+lock_latency	LOCK_LATENCY
+rows_sent	3
+rows_sent_avg	2
+rows_examined	15
+rows_examined_avg	8
+rows_affected	0
+rows_affected_avg	0
+tmp_tables	2
+tmp_disk_tables	0
+rows_sorted	3
+sort_merge_passes	0
+digest	DIGEST_SELECT
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
+db	test
+full_scan	
+exec_count	2
+err_count	0
+warn_count	0
+total_latency	O_INS_TOTAL_LATENCY
+max_latency	O_INS_MAX_LATENCY
+avg_latency	O_INS_AVG_LATENCY
+lock_latency	LOCK_LATENCY
+rows_sent	0
+rows_sent_avg	0
+rows_examined	0
+rows_examined_avg	0
+rows_affected	2
+rows_affected_avg	1
+tmp_tables	0
+tmp_disk_tables	0
+rows_sorted	0
+sort_merge_passes	0
+digest	DIGEST_INSERT
+first_seen	O_INS_FIRST_SEEN
+last_seen	O_INS_LAST_SEEN
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');;
+Next Output	Top 100 Queries Ordered by Total Latency
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+full_scan	
+exec_count	1
+err_count	0
+warn_count	0
+total_latency	D_UPD_LATENCY
+max_latency	D_UPD_LATENCY
+avg_latency	D_UPD_LATENCY
+lock_latency	LOCK_LATENCY
+rows_sent	0
+rows_sent_avg	0
+rows_examined	1
+rows_examined_avg	1
+rows_affected	1
+rows_affected_avg	1
+tmp_tables	0
+tmp_disk_tables	0
+rows_sorted	0
+sort_merge_passes	0
+digest	DIGEST_UPDATE
+first_seen	O_UPD_FIRST_SEEN
+last_seen	O_UPD_LAST_SEEN
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+full_scan	*
+exec_count	1
+err_count	0
+warn_count	0
+total_latency	D_SEL_LATENCY
+max_latency	D_SEL_LATENCY
+avg_latency	D_SEL_LATENCY
+lock_latency	LOCK_LATENCY
+rows_sent	2
+rows_sent_avg	2
+rows_examined	10
+rows_examined_avg	10
+rows_affected	0
+rows_affected_avg	0
+tmp_tables	1
+tmp_disk_tables	0
+rows_sorted	2
+sort_merge_passes	0
+digest	DIGEST_SELECT
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
+db	test
+full_scan	
+exec_count	1
+err_count	0
+warn_count	0
+total_latency	D_INS_LATENCY
+max_latency	D_INS_LATENCY
+avg_latency	D_INS_LATENCY
+lock_latency	LOCK_LATENCY
+rows_sent	0
+rows_sent_avg	0
+rows_examined	0
+rows_examined_avg	0
+rows_affected	1
+rows_affected_avg	1
+tmp_tables	0
+tmp_disk_tables	0
+rows_sorted	0
+sort_merge_passes	0
+digest	DIGEST_INSERT
+first_seen	O_INS_FIRST_SEEN
+last_seen	O_INS_LAST_SEEN
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_errors_or_warnings');;
+Next Output	Top 100 Queries with Errors
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_errors_or_warnings');;
+Next Output	Top 100 Queries with Errors
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_full_table_scans');;
+Next Output	Top 100 Queries with Full Table Scan
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	2
+total_latency	O_SEL_TOTAL_LATENCY
+no_index_used_count	2
+no_good_index_used_count	0
+no_index_used_pct	100
+rows_sent	3
+rows_examined	15
+rows_sent_avg	2
+rows_examined_avg	8
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+digest	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_full_table_scans');;
+Next Output	Top 100 Queries with Full Table Scan
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	1
+total_latency	D_SEL_TOTAL_LATENCY
+no_index_used_count	1
+no_good_index_used_count	0
+no_index_used_pct	100
+rows_sent	2
+rows_examined	10
+rows_sent_avg	2
+rows_examined_avg	10
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+digest	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_sorting');;
+Next Output	Top 100 Queries with Sorting
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	2
+total_latency	O_SEL_TOTAL_LATENCY
+sort_merge_passes	0
+avg_sort_merges	0
+sorts_using_scans	2
+sort_using_range	0
+rows_sorted	3
+avg_rows_sorted	2
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+digest	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_sorting');;
+Next Output	Top 100 Queries with Sorting
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	1
+total_latency	D_SEL_TOTAL_LATENCY
+sort_merge_passes	0
+avg_sort_merges	0
+sorts_using_scans	1
+sort_using_range	0
+rows_sorted	2
+avg_rows_sorted	2
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+digest	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('overall', NULL, 'with_temp_tables');;
+Next Output	Top 100 Queries with Internal Temporary Tables
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	2
+total_latency	O_SEL_TOTAL_LATENCY
+memory_tmp_tables	2
+disk_tmp_tables	0
+avg_tmp_tables_per_query	1
+tmp_tables_to_disk_pct	0
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+digest	DIGEST_SELECT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'with_temp_tables');;
+Next Output	Top 100 Queries with Internal Temporary Tables
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	1
+total_latency	D_SEL_TOTAL_LATENCY
+memory_tmp_tables	1
+disk_tmp_tables	0
+avg_tmp_tables_per_query	1
+tmp_tables_to_disk_pct	0
+first_seen	O_SEL_FIRST_SEEN
+last_seen	O_SEL_LAST_SEEN
+digest	DIGEST_SELECT
+CREATE VIEW test.view_digests AS
+SELECT sys.format_statement(DIGEST_TEXT) AS query,
+SCHEMA_NAME AS db,
+COUNT_STAR AS exec_count,
+sys.format_time(SUM_TIMER_WAIT) AS total_latency,
+sys.format_time(AVG_TIMER_WAIT) AS avg_latency,
+ROUND(IFNULL(SUM_ROWS_SENT / NULLIF(COUNT_STAR, 0), 0)) AS rows_sent_avg,
+ROUND(IFNULL(SUM_ROWS_EXAMINED / NULLIF(COUNT_STAR, 0), 0)) AS rows_examined_avg,
+ROUND(IFNULL(SUM_ROWS_AFFECTED / NULLIF(COUNT_STAR, 0), 0)) AS rows_affected_avg,
+DIGEST AS digest
+FROM performance_schema.events_statements_summary_by_digest
+ORDER BY SUM_TIMER_WAIT DESC;
+SET @sys.statement_performance_analyzer.view = 'test.view_digests';
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');;
+Next Output	Top 100 Queries Using Custom View
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+exec_count	2
+total_latency	O_UPD_TOTAL_LATENCY
+avg_latency	O_UPD_AVG_LATENCY
+rows_sent_avg	0
+rows_examined_avg	1
+rows_affected_avg	1
+digest	DIGEST_UPDATE
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	2
+total_latency	O_SEL_TOTAL_LATENCY
+avg_latency	O_SEL_AVG_LATENCY
+rows_sent_avg	2
+rows_examined_avg	8
+rows_affected_avg	0
+digest	DIGEST_SELECT
+query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
+db	test
+exec_count	2
+total_latency	O_INS_TOTAL_LATENCY
+avg_latency	O_INS_AVG_LATENCY
+rows_sent_avg	0
+rows_examined_avg	0
+rows_affected_avg	1
+digest	DIGEST_INSERT
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'custom');;
+Next Output	Top 100 Queries Using Custom View
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+exec_count	1
+total_latency	D_UPD_TOTAL_LATENCY
+avg_latency	D_UPD_TOTAL_LATENCY
+rows_sent_avg	0
+rows_examined_avg	1
+rows_affected_avg	1
+digest	DIGEST_UPDATE
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	1
+total_latency	D_SEL_TOTAL_LATENCY
+avg_latency	D_SEL_TOTAL_LATENCY
+rows_sent_avg	2
+rows_examined_avg	10
+rows_affected_avg	0
+digest	DIGEST_SELECT
+query	INSERT INTO `t1` VALUES ( ? , `SLEEP` (?) ) 
+db	test
+exec_count	1
+total_latency	D_INS_TOTAL_LATENCY
+avg_latency	D_INS_TOTAL_LATENCY
+rows_sent_avg	0
+rows_examined_avg	0
+rows_affected_avg	1
+digest	DIGEST_INSERT
+SET @sys.statement_performance_analyzer.limit = 2;
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');;
+Next Output	Top 2 Queries Using Custom View
+query	UPDATE `t1` SET `val` = ? + `SLEEP` (?) WHERE `id` = ? 
+db	test
+exec_count	2
+total_latency	O_UPD_TOTAL_LATENCY
+avg_latency	O_UPD_AVG_LATENCY
+rows_sent_avg	0
+rows_examined_avg	1
+rows_affected_avg	1
+digest	DIGEST_UPDATE
+query	SELECT `t1a` . * FROM `t1` AS  ...  , `t1a` . `id` + `SLEEP` (?) 
+db	test
+exec_count	2
+total_latency	O_SEL_TOTAL_LATENCY
+avg_latency	O_SEL_AVG_LATENCY
+rows_sent_avg	2
+rows_examined_avg	8
+rows_affected_avg	0
+digest	DIGEST_SELECT
+SET SESSION sql_mode = 'NO_AUTO_CREATE_USER';
+CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
+ERROR 45000: Unknown action. Supported actions are: cleanup, create_table, create_tmp, delta, overall, save, snapshot
+SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
+ERROR 01000: Data truncated for column 'in_action' at row 1
+CALL sys.statement_performance_analyzer('create_tmp', 'sys.tmp_digests', NULL);
+ERROR 45000: Invalid value for in_table: `sys`.`tmp_digests` is reserved table name.
+CALL sys.statement_performance_analyzer('create_tmp', 'sys.tmp_digests_delta', NULL);
+ERROR 45000: Invalid value for in_table: `sys`.`tmp_digests_delta` is reserved table name.
+CALL sys.statement_performance_analyzer('create_tmp', 'tmp_digests', NULL);
+ERROR 45000: Invalid value for in_table: `sys`.`tmp_digests` is reserved table name.
+CALL sys.statement_performance_analyzer('create_tmp', 'test.tmp_digests', NULL);
+CREATE TABLE test.tmp_unsupported LIKE test.tmp_digests_ini;
+CALL sys.statement_performance_analyzer('create_tmp', 'test.tmp_digests_ini', NULL);
+ERROR 45000: Cannot create the table `test`.`tmp_digests_ini` as it already exists.
+CALL sys.statement_performance_analyzer('create_table', 'test.tmp_digests_ini', NULL);
+ERROR 45000: Cannot create the table `test`.`tmp_digests_ini` as it already exists as a temporary table.
+CALL sys.statement_performance_analyzer('create_table', 'test.tmp_unsupported', NULL);
+ERROR 45000: Cannot create the table `test`.`tmp_unsupported` as it already exists.
+ALTER TABLE test.tmp_unsupported ADD COLUMN myvar int DEFAULT 0;
+CALL sys.statement_performance_analyzer('save', 'test.tmp_unsupported', NULL);
+ERROR 45000: The table `test`.`tmp_unsupported` has the wrong definition.
+CALL sys.statement_performance_analyzer('snapshot', 'test.new_table', NULL);
+ERROR 45000: The snapshot action requires in_table to be NULL, NOW() or specify an existing table. The table ...`.`new_table` does not exist.
+CALL sys.statement_performance_analyzer('overall', 'test.new_table', 'analysis');
+ERROR 45000: The overall action requires in_table to be NULL, NOW() or specify an existing table. The table ...`.`new_table` does not exist.
+CALL sys.statement_performance_analyzer('delta', 'test.new_table', 'analysis');
+ERROR 45000: The delta action requires in_table to be an existing table. The table `test`.`new_table` does not exist.
+CALL sys.statement_performance_analyzer('save', 'test.new_table', NULL);
+ERROR 45000: The save action requires in_table to be an existing table. The table `test`.`new_table` does not exist.
+SET @sys.statement_performance_analyzer.view = NULL;
+DELETE FROM sys.sys_config WHERE variable = 'statement_performance_analyzer.view';
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+Next Output
+Top 2 Queries Using Custom View
+ERROR 45000: The @sys.statement_performance_analyzer.view user variable must be set with the view or query to use.
+SET @sys.statement_performance_analyzer.view = 'test.tmp_unsupported';
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+Next Output
+Top 2 Queries Using Custom View
+ERROR 45000: The @sys.statement_performance_analyzer.view user variable is set but specified neither an existing view nor a query.
+CALL sys.table_exists('sys', 'tmp_digests', @exists);
+SELECT @exists;
+@exists
+TEMPORARY
+CALL sys.table_exists('sys', 'tmp_digests_delta', @exists);
+SELECT @exists;
+@exists
+TEMPORARY
+CALL sys.statement_performance_analyzer('cleanup', NULL, NULL);
+DROP TEMPORARY TABLE sys.tmp_digests;
+ERROR 42S02: Unknown table 'sys.tmp_digests'
+DROP TEMPORARY TABLE sys.tmp_digests_delta;
+ERROR 42S02: Unknown table 'sys.tmp_digests_delta'
+CALL sys.statement_performance_analyzer('delta', 'test.tmp_digests_ini', 'analysis');
+ERROR 45000: An existing snapshot generated with the statement_performance_analyzer() must exist.
+DROP TEMPORARY TABLE sys.tmp_digests_delta;
+ERROR 42S02: Unknown table 'sys.tmp_digests_delta'
+SET @identifier := REPEAT('a', 65);
+CALL sys.statement_performance_analyzer('snapshot', CONCAT(@identifier, '.', @identifier), NULL);
+ERROR 22001: Data too long for column 'in_table' at row 1
+DROP TEMPORARY TABLE test.tmp_digests_ini;
+DROP TEMPORARY TABLE test.tmp_digests;
+DROP TABLE test.tmp_unsupported;
+DROP TABLE test.t1;
+DROP VIEW view_digests;
+SET @identifier := NULL;
+SET SESSION sql_mode = @@global.sql_mode;
+SET @sys.statement_performance_analyzer.limit = NULL;
+SET @sys.statement_performance_analyzer.view = NULL;
+UPDATE performance_schema.setup_consumers SET enabled = 'YES';
+SET @sys.ignore_sys_config_triggers := true;
+DELETE FROM sys.sys_config;
+INSERT IGNORE INTO sys.sys_config (variable, value) VALUES
+('statement_truncate_len', 64),
+('statement_performance_analyzer.limit', 100),
+('statement_performance_analyzer.view', NULL),
+('diagnostics.allow_i_s_tables', 'OFF'),
+('diagnostics.include_raw', 'OFF'),
+('ps_thread_trx_info.max_length', 65535);
+SET @sys.ignore_sys_config_triggers := NULL;
