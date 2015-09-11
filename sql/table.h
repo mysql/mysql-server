@@ -1937,6 +1937,24 @@ struct TABLE_LIST
       tr= tr->merge_underlying_list;
     return tr;
   }
+
+  /// Return any leaf table that is not an inner table of an outer join
+  /// @todo when WL#6570 is implemented, replace with first_leaf_table()
+  TABLE_LIST *any_outer_leaf_table()
+  {
+    TABLE_LIST *tr= this;
+    while (tr->merge_underlying_list)
+    {
+      tr= tr->merge_underlying_list;
+      /*
+        "while" is used, however, an "if" might be sufficient since there is
+        no more than one inner table in a join nest (with outer_join true).
+      */
+      while (tr->outer_join)
+        tr= tr->next_local;
+    }
+    return tr;
+  }
   /**
     Set the LEX object of a view (will also define this as a view).
     @note: The value 1 is used to indicate a view but without a valid

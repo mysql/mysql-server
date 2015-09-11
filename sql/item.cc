@@ -8667,7 +8667,7 @@ bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
   if (cached_table->is_inner_table_of_outer_join())
   {
     maybe_null= true;
-    first_inner_table= cached_table->first_leaf_table();
+    first_inner_table= cached_table->any_outer_leaf_table();
     // @todo delete this when WL#6570 is implemented
     (*ref)->maybe_null= true;
   }
