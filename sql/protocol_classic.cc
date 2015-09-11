@@ -1377,7 +1377,7 @@ bool Protocol_text::store_longlong(longlong from, bool unsigned_flag)
 }
 
 
-bool Protocol_text::store_decimal(const my_decimal *d)
+bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec)
 {
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
@@ -1387,7 +1387,7 @@ bool Protocol_text::store_decimal(const my_decimal *d)
 #endif
   char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
-  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
+  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
   return net_store_data((uchar *) str.ptr(), str.length());
 }
 
@@ -1669,10 +1669,10 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag)
 }
 
 
-bool Protocol_binary::store_decimal(const my_decimal *d)
+bool Protocol_binary::store_decimal(const my_decimal *d, uint prec, uint dec)
 {
   if(send_metadata)
-    return Protocol_text::store_decimal(d);
+    return Protocol_text::store_decimal(d, prec, dec);
 #ifndef DBUG_OFF
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(field_types == 0 ||
@@ -1682,7 +1682,7 @@ bool Protocol_binary::store_decimal(const my_decimal *d)
 #endif
   char buff[DECIMAL_MAX_STR_LENGTH + 1];
   String str(buff, sizeof(buff), &my_charset_bin);
-  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
+  (void) my_decimal2string(E_DEC_FATAL_ERROR, d, prec, dec, '0', &str);
   return store(str.ptr(), str.length(), str.charset(), result_cs);
 }
 

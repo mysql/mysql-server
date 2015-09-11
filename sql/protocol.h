@@ -107,7 +107,7 @@ public:
   virtual bool store_short(longlong from)= 0;
   virtual bool store_long(longlong from)= 0;
   virtual bool store_longlong(longlong from, bool unsigned_flag)= 0;
-  virtual bool store_decimal(const my_decimal *)= 0;
+  virtual bool store_decimal(const my_decimal *, uint, uint)= 0;
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs)= 0;
   virtual bool store(float from, uint32 decimals, String *buffer)= 0;

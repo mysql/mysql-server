@@ -3307,7 +3307,8 @@ bool Field_new_decimal::send_binary(Protocol *protocol)
   my_decimal dec_value;
   if (is_null())
     return protocol->store_null();
-  return protocol->store_decimal(val_decimal(&dec_value));
+  return protocol->store_decimal(val_decimal(&dec_value),
+                                 zerofill ? precision : 0, dec);
 }
 
 

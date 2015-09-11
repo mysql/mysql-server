@@ -132,13 +132,15 @@ public:
   /**
     Sends DECIMAL value
 
-    @param d value
+    @param d    value
+    @param prec field's precision, unused
+    @param dec  field's decimals, unused
 
     @return
       false  success
       true   failure
   */
-  virtual bool store_decimal(const my_decimal * d);
+  virtual bool store_decimal(const my_decimal * d, uint, uint);
 
   /**
     Sends string (CHAR/VARCHAR/TEXT/BLOB) value

@@ -102,7 +102,18 @@ bool Protocol_callback::store_longlong(longlong from, bool is_unsigned)
   return false;
 }
 
-bool Protocol_callback::store_decimal(const my_decimal * d)
+/**
+  Sends DECIMAL value
+
+  @param d    value
+  @param prec field's precision, unused
+  @param dec  field's decimals, unused
+
+  @return
+    false  success
+    true   failure
+*/
+bool Protocol_callback::store_decimal(const my_decimal * d, uint prec, uint dec)
 {
   if (callbacks.get_decimal)
     return callbacks.get_decimal(callbacks_ctx, d);

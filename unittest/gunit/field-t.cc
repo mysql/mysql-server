@@ -126,7 +126,7 @@ public:
   virtual bool store_long(longlong from) { return false; }
   virtual bool store_longlong(longlong from, bool unsigned_flag)
   { return false; }
-  virtual bool store_decimal(const my_decimal *) { return false; }
+  virtual bool store_decimal(const my_decimal *, uint, uint) { return false; }
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs) { return false; }
   virtual bool store(float from, uint32 decimals, String *buffer)
