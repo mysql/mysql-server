@@ -3716,6 +3716,8 @@ fil_ibd_open(
 	ut_ad(!fix_dict || rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
 	ut_ad(!fix_dict || mutex_own(&dict_sys->mutex));
+	ut_ad(!fix_dict || !srv_read_only_mode);
+	ut_ad(!fix_dict || srv_log_file_size != 0);
 	ut_ad(fil_type_is_data(purpose));
 
 	if (!fsp_flags_is_valid(flags)) {

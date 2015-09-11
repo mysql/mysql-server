@@ -262,8 +262,7 @@ static TYPELIB innodb_stats_method_typelib = {
 	NULL
 };
 
-/** Possible values for system variable "innodb_checksum_algorithm" and
-"innodb_log_checksum_algorithm". */
+/** Possible values of the parameter innodb_checksum_algorithm */
 static const char* innodb_checksum_algorithm_names[] = {
 	"crc32",
 	"strict_crc32",
@@ -3179,26 +3178,15 @@ static const char*	deprecated_file_format_max
 	= DEPRECATED_FORMAT_PARAMETER("innodb_file_format_max");
 
 /** Update log_checksum_algorithm_ptr with a pointer to the function
-corresponding to the given checksum algorithm.
-@param[in]	algorithm	the checksum algorithm */
+corresponding to whether checksums are enabled.
+@param[in]	check	whether redo log block checksums are enabled */
 static
 void
-innodb_log_checksum_func_update(ulint	algorithm)
+innodb_log_checksums_func_update(bool	check)
 {
-	switch (algorithm) {
-	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-		log_checksum_algorithm_ptr = log_block_calc_checksum_innodb;
-		break;
-	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-		log_checksum_algorithm_ptr = log_block_calc_checksum_crc32;
-		break;
-	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-		log_checksum_algorithm_ptr = log_block_calc_checksum_none;
-		break;
-	}
+	log_checksum_algorithm_ptr = check
+		? log_block_calc_checksum_crc32
+		: log_block_calc_checksum_none;
 }
 
 /*********************************************************************//**
@@ -3605,7 +3593,7 @@ innobase_change_buffering_inited_ok:
 		srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_NONE;
 	}
 
-	innodb_log_checksum_func_update(srv_log_checksum_algorithm);
+	innodb_log_checksums_func_update(innodb_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
 	if ((os_use_large_pages = my_use_large_pages)) {
@@ -18466,28 +18454,25 @@ innodb_status_output_update(
 	os_event_set(lock_sys->timeout_event);
 }
 
-/** On update hook for the innodb_log_checksum_algorithm variable.
+/** Update the innodb_log_checksums parameter.
 @param[in]	thd	thread handle
 @param[in]	var	system variable
 @param[out]	var_ptr	current value
 @param[in]	save	immediate result from check function */
 static
 void
-innodb_log_checksum_algorithm_update(
+innodb_log_checksums_update(
 	THD*				thd,
 	struct st_mysql_sys_var*	var,
 	void*				var_ptr,
 	const void*			save)
 {
-	srv_checksum_algorithm_t        algorithm;
-
-	algorithm = static_cast<srv_checksum_algorithm_t>(
-		*static_cast<const ulong*>(save));
+	my_bool	check = *static_cast<my_bool*>(var_ptr)
+		= *static_cast<const my_bool*>(save);
 
 	/* Make sure we are the only log user */
 	mutex_enter(&log_sys->mutex);
-	innodb_log_checksum_func_update(algorithm);
-	srv_log_checksum_algorithm = algorithm;
+	innodb_log_checksums_func_update(check);
 	mutex_exit(&log_sys->mutex);
 }
 
@@ -18525,29 +18510,10 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
   NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
   &innodb_checksum_algorithm_typelib);
 
-static MYSQL_SYSVAR_ENUM(log_checksum_algorithm, srv_log_checksum_algorithm,
+static MYSQL_SYSVAR_BOOL(log_checksums, innodb_log_checksums,
   PLUGIN_VAR_RQCMDARG,
-  "The algorithm InnoDB uses for redo log block checksums. Possible values are"
-  " CRC32 (hardware accelerated if the CPU supports it)"
-    " write crc32, allow any of the other checksums to match when reading;"
-  " STRICT_CRC32 "
-    " write crc32, do not allow other algorithms to match when reading;"
-  " INNODB"
-    " write a software calculated checksum, allow any other checksums"
-    " to match when reading;"
-  " STRICT_INNODB"
-    " write a software calculated checksum, do not allow other algorithms"
-    " to match when reading;"
-  " NONE"
-    " write a constant magic number, do not do any checksum verification"
-    " when reading"
-  " STRICT_NONE"
-    " write a constant magic number, do not allow values other than that"
-    " magic number when reading;"
-  " Redo logs created when this option is set to crc32, strict_crc32, none, or"
-  " strict_none will not be readable by MySQL versions older than 5.7.6",
-  NULL, innodb_log_checksum_algorithm_update, SRV_CHECKSUM_ALGORITHM_INNODB,
-  &innodb_checksum_algorithm_typelib);
+  "Whether to compute and require checksums for InnoDB redo log blocks",
+  NULL, innodb_log_checksums_update, TRUE);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -19448,7 +19414,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(lru_scan_depth),
   MYSQL_SYSVAR(flush_neighbors),
   MYSQL_SYSVAR(checksum_algorithm),
-  MYSQL_SYSVAR(log_checksum_algorithm),
+  MYSQL_SYSVAR(log_checksums),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),

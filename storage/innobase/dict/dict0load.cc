@@ -1218,7 +1218,7 @@ dict_check_sys_tablespaces(
 		/* Check that the .ibd file exists. */
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode,
+			!srv_read_only_mode && srv_log_file_size != 0,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,
@@ -1469,7 +1469,7 @@ dict_check_sys_tables(
 		ulint	fsp_flags = dict_tf_to_fsp_flags(flags, is_temp);
 		dberr_t	err = fil_ibd_open(
 			validate,
-			!srv_read_only_mode,
+			!srv_read_only_mode && srv_log_file_size != 0,
 			FIL_TYPE_TABLESPACE,
 			space_id,
 			fsp_flags,

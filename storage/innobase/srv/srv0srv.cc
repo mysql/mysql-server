@@ -184,8 +184,16 @@ ulong	srv_debug_compress;
 char*	srv_log_group_home_dir	= NULL;
 
 ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
-/* size in database pages */
-ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
+/** At startup, this is the current redo log file size.
+During startup, if this is different from srv_log_file_size_requested
+(innodb_log_file_size), the redo log will be rebuilt and this size
+will be initialized to srv_log_file_size_requested.
+When upgrading from a previous redo log format, this will be set to 0,
+and writing to the redo log is not allowed.
+
+During startup, this is in bytes, and later converted to pages. */
+ib_uint64_t	srv_log_file_size;
+/** The value of the startup parameter innodb_log_file_size */
 ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
 ulint		srv_log_buffer_size = ULINT_MAX;
@@ -364,8 +372,6 @@ of the pages are used for single page flushing. */
 ulong	srv_doublewrite_batch_size	= 120;
 
 ulong	srv_replication_delay		= 0;
-
-ulong	srv_log_checksum_algorithm	= SRV_CHECKSUM_ALGORITHM_INNODB;
 
 /*-------------------------------------------*/
 ulong	srv_n_spin_wait_rounds	= 30;
