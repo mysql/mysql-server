@@ -8368,9 +8368,10 @@ Compression::deserialize(
 
 	mach_write_to_2(src + FIL_PAGE_TYPE, header.m_original_type);
 
-	ut_ad(memcmp(src + FIL_PAGE_LSN + 4,
-		     src + (header.m_original_size + FIL_PAGE_DATA)
-		     - FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4) == 0);
+	ut_ad(dblwr_recover
+	      || memcmp(src + FIL_PAGE_LSN + 4,
+			src + (header.m_original_size + FIL_PAGE_DATA)
+			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4) == 0);
 
 	if (allocated) {
 		ut_free(dst);
