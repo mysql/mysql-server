@@ -1,0 +1,55 @@
+###############################################################################
+# Bug #21816399 5.6.24: LOST DATA DURING MASTER RESTART IF PARTIAL TRANSACT HAS
+# BEEN DOWNLOADED
+#
+# Problem: If dump thread is killed (during shutdown/explicit kill) during
+#  dumping a non-active binary log, events in the binary log are not getting
+#  replicated.
+# Steps to reproduce:
+#  1) Create a binary log with some events
+#  2) Rotate it to make it non-active log
+#  3) While dump thread is sending data to slave, kill it.
+#  4) Make sure that dump thread is killed
+#  5) Start dump thread
+#  6) See that there is no issue in replication
+###############################################################################
+
+--source include/have_binlog_format_statement.inc
+--source include/have_debug.inc
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+
+#  1) Create a binary log with some events
+CREATE TABLE t1(i INT) engine=innodb;
+INSERT INTO t1 VALUES (1);
+
+#  2) Rotate it to make it non-active log
+FLUSH LOGS;
+
+#  3) While dump thread is sending data to slave, kill it.
+SET GLOBAL DEBUG='+d,simulate_dump_thread_kill';
+--connection slave
+--source include/start_slave.inc
+
+#  4) Make sure that dump thread is killed
+--connection master
+--let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND = 'Binlog dump' OR COMMAND = 'Binlog Dump GTID'
+--source include/wait_condition.inc
+SET GLOBAL DEBUG='-d,simulate_dump_thread_kill';
+
+#  5) Start dump thread
+--connection slave
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+#  6) See that there is no issue in replication
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+--let diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+# Cleanup
+--connection master
+DROP TABLE t1;
+--source include/rpl_end.inc
