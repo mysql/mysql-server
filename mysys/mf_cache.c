@@ -18,7 +18,9 @@
   Open a temporary file and cache it with io_cache. Delete it on close.
 */
 
+#include "my_global.h"
 #include "mysys_priv.h"
+#include "mysql/psi/mysql_file.h"
 #include "my_sys.h"
 #include <m_string.h>
 #include "my_static.h"

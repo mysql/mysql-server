@@ -297,6 +297,8 @@ struct st_my_file_info
 
 extern struct st_my_file_info *my_file_info;
 
+typedef unsigned int PSI_file_key;
+
 typedef struct st_dynamic_array
 {
   uchar *buffer;
