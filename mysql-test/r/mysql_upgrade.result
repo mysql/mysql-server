@@ -931,7 +931,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
-The sys schema is already up to date (version 1.4.0).
+The sys schema is already up to date (version 1.5.0).
 Checking databases.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
@@ -1228,6 +1228,8 @@ sys.sys_config                                     OK
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
 ROUTINE_NAME
 create_synonym_db
+diagnostics
+execute_prepared_stmt
 ps_setup_disable_background_threads
 ps_setup_disable_consumer
 ps_setup_disable_instrument
@@ -1249,6 +1251,8 @@ ps_statement_avg_latency_histogram
 ps_trace_statement_digest
 ps_trace_thread
 ps_truncate_all_tables
+statement_performance_analyzer
+table_exists
 # Now drop functions and make sure re-install is done
 DROP FUNCTION sys.format_bytes;
 DROP FUNCTION sys.format_time;
@@ -1294,14 +1298,21 @@ format_bytes
 format_path
 format_statement
 format_time
+list_add
+list_drop
 ps_is_account_enabled
 ps_is_consumer_enabled
 ps_is_instrument_default_enabled
 ps_is_instrument_default_timed
 ps_is_thread_instrumented
+ps_thread_account
 ps_thread_id
 ps_thread_stack
+ps_thread_trx_info
 sys_get_config
+version_major
+version_minor
+version_patch
 # Now drop views and make sure re-install is done
 DROP VIEW sys.host_summary;
 DROP VIEW sys.processlist;
@@ -1361,14 +1372,20 @@ memory_by_thread_by_current_bytes
 memory_by_user_by_current_bytes
 memory_global_by_current_bytes
 memory_global_total
+metrics
 processlist
 ps_check_lost_instrumentation
+schema_auto_increment_columns
 schema_index_statistics
 schema_object_overview
+schema_redundant_indexes
+schema_table_lock_waits
 schema_table_statistics
 schema_table_statistics_with_buffer
 schema_tables_with_full_table_scans
 schema_unused_indexes
+session
+session_ssl_status
 statement_analysis
 statements_with_errors_or_warnings
 statements_with_full_table_scans
@@ -1411,10 +1428,13 @@ x$processlist
 x$ps_digest_95th_percentile_by_avg_us
 x$ps_digest_avg_latency_distribution
 x$ps_schema_table_statistics_io
+x$schema_flattened_keys
 x$schema_index_statistics
+x$schema_table_lock_waits
 x$schema_table_statistics
 x$schema_table_statistics_with_buffer
 x$schema_tables_with_full_table_scans
+x$session
 x$statement_analysis
 x$statements_with_errors_or_warnings
 x$statements_with_full_table_scans

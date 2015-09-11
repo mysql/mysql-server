@@ -228,7 +228,7 @@ create view v4 (c) as select COLLATION_NAME from information_schema.collations
 where COLLATION_NAME like "latin1%";
 select * from v4;
 show keys from v4;
-select * from information_schema.views where TABLE_NAME like "v%";
+select * from information_schema.views where TABLE_SCHEMA != 'sys' and TABLE_NAME like "v%";
 drop view v0, v1, v2, v3, v4;
 
 #
@@ -281,8 +281,8 @@ create view v2 (c) as select a from t1 WITH LOCAL CHECK OPTION;
 create view v3 (c) as select a from t1 WITH CASCADED CHECK OPTION;
 select * from information_schema.views where table_schema != 'sys';
 grant select (a) on test.t1 to joe@localhost with grant option;
-select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES;
-select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES;
+select * from INFORMATION_SCHEMA.COLUMN_PRIVILEGES WHERE table_schema != 'sys';
+select * from INFORMATION_SCHEMA.TABLE_PRIVILEGES WHERE table_schema != 'sys';
 drop view v1, v2, v3;
 drop table t1;
 delete from mysql.user where user='joe';
@@ -506,11 +506,11 @@ drop table t_crashme;
 # Bug#7217 information_schema: columns are varbinary() instead of timestamp
 #
 select table_schema, table_name, column_name from information_schema.columns
-where table_schema not like 'performance_schema'
+where table_schema not in ('performance_schema', 'sys')
   and data_type = 'longtext';
 
 select table_name, column_name, data_type from information_schema.columns
-where table_schema not like 'performance_schema'
+where table_schema not in ('performance_schema', 'sys')
   and data_type = 'datetime'
   and table_name not like 'innodb_%';
 
@@ -832,7 +832,7 @@ CREATE FUNCTION func2() RETURNS BIGINT RETURN 1;
 delimiter //;
 CREATE FUNCTION func1() RETURNS BIGINT
 BEGIN
-  RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS);
+  RETURN ( SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA != 'sys');
 END//
 delimiter ;//
 
