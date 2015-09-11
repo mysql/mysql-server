@@ -1043,6 +1043,61 @@ disconnect con2;
 
 --disable_connect_log
 
+--echo #
+--echo # BUG#21631284: DROP VIRTUAL COLUMN RESULT IN DROP WRONG INDEX.
+--echo #
+
+--echo # Index is not rebuilt, since there is no change in the definition.
+CREATE TABLE t1 (fld1 VARCHAR(300), fld2 INT, KEY idx1(fld2, fld1(200)))
+ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+
+--echo #Without the patch, an error is reported.
+ALTER TABLE t1 FORCE;
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+
+--echo # Index is rebuilt since the index is changed from prefixed
+--echo # to non-prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+
+--echo #Without the patch, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+
+--echo # Coverage test cases.
+
+--echo # Index is rebuilt since the index is changed from non-prefixed
+--echo # to prefixed index.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1)) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_one";
+
+--echo #In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(5);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_one";
+
+--echo # Index is not rebuilt since the index prefix length is
+--echo # the same.
+CREATE TABLE t1 (fld1 CHAR(10), KEY idx1(fld1(5))) ENGINE=InnoDB;
+SET debug="+d,innodb_index_drop_count_zero";
+
+--echo #In case of incorrect behavior, an error is reported.
+ALTER TABLE t1 MODIFY fld1 CHAR(20);
+
+--echo #cleanup
+DROP TABLE t1;
+SET debug="-d,innodb_index_drop_count_zero";
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

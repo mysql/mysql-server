@@ -6060,16 +6060,6 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
     if (key_part->length != new_part->length)
       return true;
 
-    /*
-      Key definition has changed, if the key is converted from a
-      non-prefixed key to a prefixed key.
-      Ex: When the column length is increased but the key part
-      length remains the same.
-    */
-    if (!(key_part->key_part_flag & HA_PART_KEY_SEG) &&
-         (new_key->flags & HA_KEY_HAS_PART_KEY_SEG))
-      return true;
-
     new_field= get_field_by_index(alter_info, new_part->fieldnr);
 
     /*
@@ -6080,6 +6070,26 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
     if (! new_field->field ||
         new_field->field->field_index != key_part->fieldnr - 1)
       return true;
+
+    /*
+      Key definition has changed, if the key is converted from a
+      non-prefixed key to a prefixed key or vice-versa. This
+      is because InnoDB treats prefix keys differently from
+      full-column keys. Ignoring BLOBs since the key_length()
+      is not set correctly and also the prefix is ignored
+      for FULLTEXT keys.
+      Ex: When the column length is increased but the key part
+      length remains the same.
+    */
+    if (!(new_field->flags & BLOB_FLAG) &&
+        (table_key->algorithm != HA_KEY_ALG_FULLTEXT))
+    {
+      bool old_part_key_seg= (key_part->key_part_flag & HA_PART_KEY_SEG);
+      bool new_part_key_seg= (new_field->key_length != new_part->length);
+
+      if (old_part_key_seg ^ new_part_key_seg)
+        return true;
+    }
   }
 
   return false;
@@ -9104,6 +9114,26 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* Fill the Alter_inplace_info structure. */
     if (fill_alter_inplace_info(thd, table, varchar, &ha_alter_info))
       goto err_new_table_cleanup;
+
+    DBUG_EXECUTE_IF("innodb_index_drop_count_zero",
+                    {
+                      if (ha_alter_info.index_drop_count)
+                      {
+                        my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+                                 "Index rebuild", "Without rebuild");
+                        DBUG_RETURN(true);
+                      }
+                    };);
+
+   DBUG_EXECUTE_IF("innodb_index_drop_count_one",
+                    {
+                      if (ha_alter_info.index_drop_count != 1)
+                      {
+                        my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+                                 "Index change", "Index rebuild");
+                        DBUG_RETURN(true);
+                      }
+                    };);
 
     // We assume that the table is non-temporary.
     DBUG_ASSERT(!table->s->tmp_table);
