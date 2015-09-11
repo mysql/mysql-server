@@ -18,6 +18,7 @@
 
 #include "thr_lock.h"                           /* thr_lock_type */
 #include "mdl.h"
+#include "sql_hset.h"        // Hash_set
 
 // Forward declarations
 struct TABLE;
@@ -36,8 +37,25 @@ void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a,MYSQL_LOCK *b);
 /* Lock based on name */
 bool lock_schema_name(THD *thd, const char *db);
+
 /* Lock based on tablespace name */
 bool lock_tablespace_name(THD *thd, const char *tablespace);
+
+// Function generating hash key for Tablespace_hash_set.
+extern "C" uchar *tablespace_set_get_key(
+                    const uchar *record,
+                    size_t *length,
+                    my_bool not_used);
+
+// Hash_set to hold set of tablespace names.
+typedef Hash_set<char, tablespace_set_get_key> Tablespace_hash_set;
+
+// Lock tablespace names.
+bool lock_tablespace_names(
+       THD *thd,
+       Tablespace_hash_set *tablespace_set,
+       ulong lock_wait_timeout);
+
 /* Lock based on stored routine name */
 bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                       const char *db, const char *name);

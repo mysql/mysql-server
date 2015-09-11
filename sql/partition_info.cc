@@ -27,7 +27,7 @@
 #include "table_trigger_dispatcher.h"         // Table_trigger_dispatcher
 #include "trigger_chain.h"                    // Trigger_chain
 #include "partitioning/partition_handler.h"   // PART_DEF_NAME, Partition_share
-
+#include "sql_tablespace.h"                   // check_tablespace_name
 
 partition_info *partition_info::get_clone(bool reset /* = false */)
 {
@@ -3228,3 +3228,93 @@ void partition_info::print_debug(const char *str, uint *value)
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
 }
+
+/**
+  Fill the Tablespace_hash_set with the tablespace names
+  used by the partitions on the table.
+
+  @param part_info      - Partition info that could be using tablespaces.
+  @param tablespace_set - (OUT) Tablespace_hash_set where tablespace
+                          names are collected.
+
+  @return true - On failure.
+  @return false - On success.
+*/
+bool fill_partition_tablespace_names(
+       partition_info *part_info,
+       Tablespace_hash_set *tablespace_set)
+{
+  // Do nothing if table is not partitioned.
+  if (!part_info)
+    return false;
+
+  // Traverse through all partitions.
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *part_elem;
+  while ((part_elem= part_it++))
+  {
+    // Add tablespace name from partition elements, if used.
+    if (part_elem->tablespace_name &&
+        strlen(part_elem->tablespace_name) &&
+        tablespace_set->insert(const_cast<char*>(part_elem->tablespace_name)))
+      return true;
+
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem= sub_it++))
+    {
+      // Add tablespace name from sub-partition elements, if used.
+      if (sub_elem->tablespace_name &&
+          strlen(sub_elem->tablespace_name) &&
+          tablespace_set->insert(const_cast<char*>(sub_elem->tablespace_name)))
+      return true;
+
+    }
+  }
+
+  return false;
+}
+
+/**
+  Check if all tablespace names specified for partitions
+  are valid.
+
+  @param part_info  - Partition info that could be using tablespaces.
+
+  @return true  - One of tablespace names specified is invalid and
+                  a error is reported.
+  @return false - All the tablespace names specified for
+                  partitions are valid.
+*/
+bool check_partition_tablespace_names(partition_info *part_info)
+{
+  // Do nothing if table is not partitioned.
+  if (!part_info)
+    return false;
+
+  // Traverse through all partitions.
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *part_elem;
+  while ((part_elem= part_it++))
+  {
+    // Check tablespace names from partition elements, if used.
+    if (part_elem->tablespace_name &&
+        check_tablespace_name(part_elem->tablespace_name))
+      return true;
+
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem= sub_it++))
+    {
+      // Add tablespace name from sub-partition elements, if used.
+      if (sub_elem->tablespace_name &&
+          check_tablespace_name(sub_elem->tablespace_name))
+        return true;
+    }
+  }
+
+  return false;
+}
+
