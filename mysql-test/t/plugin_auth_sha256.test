@@ -15,7 +15,7 @@ CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 SET GLOBAL old_passwords= 2;
 SET SESSION old_passwords= 2;
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user;
+SELECT user, plugin FROM mysql.user ORDER BY user;
 connect(con1,localhost,kristofer,secret,,);
 connection con1;
 SELECT USER(),CURRENT_USER();
@@ -107,7 +107,7 @@ CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';
 SET GLOBAL old_passwords= 2;
 SET SESSION old_passwords= 2;
 ALTER USER 'kristofer' IDENTIFIED BY 'secret';
-SELECT user, plugin FROM mysql.user;
+SELECT user, plugin FROM mysql.user ORDER BY user;
 --disable_query_log
 connect(con1,localhost,kristofer,secret);
 --enable_query_log
