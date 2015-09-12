@@ -22,6 +22,7 @@ SELECT user, host, plugin, LENGTH(authentication_string) > 0
 FROM mysql.user;
 user	host	plugin	LENGTH(authentication_string) > 0
 root	localhost	sha256_password	0
+mysql.sys	localhost	mysql_native_password	1
 CREATE DATABASE test;
 # shut server down
 # Server is down
