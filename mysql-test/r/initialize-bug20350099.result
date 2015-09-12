@@ -19,10 +19,10 @@ SET PASSWORD='';
 # Check the count of columns in mysql
 # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-FROM mysql.user;
+FROM mysql.user ORDER BY user;
 user	host	plugin	LENGTH(authentication_string)
-root	localhost	mysql_native_password	0
 mysql.sys	localhost	mysql_native_password	41
+root	localhost	mysql_native_password	0
 # shut server down
 # Server is down
 # close the test connection
