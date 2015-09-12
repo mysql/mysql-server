@@ -85,7 +85,7 @@ SELECT TABLE_NAME,COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 
 --echo # check the user account
 SELECT user, host, plugin, LENGTH(authentication_string)
-  FROM mysql.user;
+  FROM mysql.user ORDER BY user;
 
 --echo # shut server down
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
