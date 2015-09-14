@@ -23770,7 +23770,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     ndbout_c("PACK_TABLE_PAGE_WORDS %u", PACK_TABLE_PAGE_WORDS);
     ndbout_c("PACK_TABLE_PAGES %u", PACK_TABLE_PAGES);
     ndbout_c("ZPAGEREC %u", ZPAGEREC);
-    ndbout_c("Total bytes : %lu", ZPAGEREC * sizeof(PageRecord));
+    ndbout_c("Total bytes : %lu",
+             (unsigned long) ZPAGEREC * sizeof(PageRecord));
     ndbout_c("LCP Tab def write ops inUse %u queued %u",
              c_lcpTabDefWritesControl.inUse,
              c_lcpTabDefWritesControl.queuedRequests);
