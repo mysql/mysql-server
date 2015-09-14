@@ -2963,6 +2963,14 @@ void Item_func_between::fix_length_and_dec()
   reject_geometry_args(arg_count, args, this);
 
   /*
+    JSON values will be compared as strings, and not with the JSON
+    comparator as one might expect. Raise a warning if one of the
+    arguments is JSON.
+  */
+  unsupported_json_comparison(arg_count, args,
+                              "comparison of JSON in the BETWEEN operator");
+
+  /*
     Detect the comparison of DATE/DATETIME items.
     At least one of items should be a DATE/DATETIME item and other items
     should return the STRING result.
@@ -5304,6 +5312,16 @@ void Item_func_in::fix_length_and_dec()
           (!list_contains_null() && !args[0]->maybe_null))) // 4
       bisection_possible= false;
   }
+
+  /*
+    JSON values will be compared as strings, and not with the JSON
+    comparator as one might expect. Raise a warning if one of the
+    arguments is JSON. (The degenerate case x IN (y) may get rewritten
+    to x = y, though, and then the JSON comparator will be used if one
+    of the arguments is JSON.)
+  */
+  unsupported_json_comparison(arg_count, args,
+                              "comparison of JSON in the IN operator");
 
   if (type_cnt == 1)
   {

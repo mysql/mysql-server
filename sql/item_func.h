@@ -28,7 +28,8 @@ class PT_item_list;
 
 extern void reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
-
+void unsupported_json_comparison(size_t arg_count, Item **args,
+                                 const char *msg);
 
 class Item_func :public Item_result_field
 {
