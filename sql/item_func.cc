@@ -1266,6 +1266,35 @@ void reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
 }
 
 
+/**
+  Go through the arguments of a function and check if any of them are
+  JSON. If a JSON argument is found, raise a warning saying that this
+  operation is not supported yet. This function is used to notify
+  users that they are comparing JSON values using a mechanism that has
+  not yet been updated to use the JSON comparator. JSON values are
+  typically handled as strings in that case.
+
+  @param arg_count  the number of arguments
+  @param args       the arguments to go through looking for JSON values
+  @param msg        the message that explains what is not supported
+*/
+void unsupported_json_comparison(size_t arg_count, Item **args, const char *msg)
+{
+  for (size_t i= 0; i < arg_count; ++i)
+  {
+    if (args[i]->result_type() == STRING_RESULT &&
+        args[i]->field_type() == MYSQL_TYPE_JSON)
+    {
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_NOT_SUPPORTED_YET,
+                          ER_THD(current_thd, ER_NOT_SUPPORTED_YET),
+                          msg);
+      break;
+    }
+  }
+}
+
+
 void Item_func_numhybrid::fix_length_and_dec()
 {
   fix_num_length_and_dec();
@@ -3496,6 +3525,18 @@ void Item_func_min_max::fix_length_and_dec()
   else if (cmp_type == REAL_RESULT)
     fix_char_length(float_length(decimals));
   cached_field_type= agg_field_type(args, arg_count);
+  /*
+    LEAST and GREATEST convert JSON values to strings before they are
+    compared, so their JSON nature is lost. Raise a warning to
+    indicate to the users that the values are not compared using the
+    JSON comparator, as they might expect. Also update the field type
+    of the result to reflect that the result is a string.
+  */
+  unsupported_json_comparison(arg_count, args,
+                              "comparison of JSON in the "
+                              "LEAST and GREATEST operators");
+  if (cached_field_type == MYSQL_TYPE_JSON)
+    cached_field_type= MYSQL_TYPE_VARCHAR;
   reject_geometry_args(arg_count, args, this);
 }
 
