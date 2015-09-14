@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2015, Oracle and/or itr affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,15 +50,6 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
 ENDMACRO()
 
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
-
-# Temporarily remove -Werror from compiler flags until
-# storage/ndb/ can be built with it
-IF(CMAKE_C_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-ENDIF()
-IF(CMAKE_CXX_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-ENDIF()
 
 # Disable specific types of warnings for storage/ndb
 # if the compiler supports the flag
