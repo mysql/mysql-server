@@ -60,8 +60,14 @@ INSERT INTO t1 VALUES (1);
 --let $assert_text= SQL thread for ch1 is running
 --source include/assert.inc
 --let $ch1_sql_status=query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'ch1', Slave_SQL_Running_State, 1)
---let $assert_cond= [ SELECT "$ch1_sql_status" = "System lock" OR "$ch1_sql_status" = "Waiting for workers to exit" ]
---let $assert_text= SQL thread for ch1 running state is 'System lock' or 'Waiting for workers to exit'
+# This is the expected state with a non-MTS slave.
+--let $cond1 = "System lock"
+# This is the expected state with a MTS slave.
+--let $cond2 = "Waiting for workers to exit"
+# This is the expected state when server query_cache_type option is set.
+--let $cond3 = "invalidating query cache entries (table)"
+--let $assert_cond= [ SELECT "$ch1_sql_status" = $cond1 OR "$ch1_sql_status" = $cond2 OR "$ch1_sql_status" = $cond3 ]
+--let $assert_text= SQL thread for ch1 running state is $cond1 or $cond2 or $cond3
 --source include/assert.inc
 
 --echo Stop ch2 SQL thread while stopping ch1 SQL thread
