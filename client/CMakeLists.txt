@@ -78,6 +78,10 @@ ADD_CONVENIENCE_LIBRARY(boost_lib
 SET_TARGET_PROPERTIES(boost_lib
   PROPERTIES COMPILE_FLAGS "-DBOOST_THREAD_BUILD_LIB")
 
+IF(HAVE_clock_gettime_IN_rt)
+  TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
+ENDIF()
+
 # Do not build library unless it is needed by some other target.
 SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
 
