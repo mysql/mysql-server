@@ -3,10 +3,10 @@
   edit the XML definitions in sql/share/charsets/ instead.
 
   To re-generate, run the following in the strings/ directory:
-    ./conf_to_src ../sql/share/charsets/ > FILE
+    ./conf_to_src {CMAKE_SOURCE_DIR}/sql/share/charsets/ > ctype-extra.c
 */
 
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6878,7 +6878,7 @@ CHARSET_INFO compiled_charsets[] = {
   0,                          /* escape_with_backslash_is_dangerous */
   1,                          /* levels_for_compare */
   1,                          /* levels_for_order   */
-  &my_charset_8bit_handler,
+  &my_charset_ascii_handler,
   &my_collation_8bit_simple_ci_handler,
 }
 ,
@@ -8033,7 +8033,7 @@ CHARSET_INFO compiled_charsets[] = {
   0,                          /* escape_with_backslash_is_dangerous */
   1,                          /* levels_for_compare */
   1,                          /* levels_for_order   */
-  &my_charset_8bit_handler,
+  &my_charset_ascii_handler,
   &my_collation_8bit_bin_handler,
 }
 ,

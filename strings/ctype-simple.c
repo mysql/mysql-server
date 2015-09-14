@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1150,6 +1150,27 @@ skip:
   return 0;
 }
 
+size_t my_well_formed_len_ascii(const CHARSET_INFO *cs __attribute__((unused)),
+                                const char *start, const char *end,
+                                size_t nchars, int *error)
+{
+  /**
+    @todo: Currently return warning on invalid character.
+           Return error in future release.
+  */
+  const char* oldstart = start;
+  *error= 0;
+  while (start < end)
+  {
+    if ((*start & 0x80) != 0)
+    {
+      *error = 1;
+      break;
+    }
+    start++;
+  }
+  return MY_MIN((size_t)(end - oldstart), nchars);
+}
 
 typedef struct
 {
@@ -1843,6 +1864,37 @@ MY_CHARSET_HANDLER my_charset_8bit_handler=
     my_numchars_8bit,
     my_charpos_8bit,
     my_well_formed_len_8bit,
+    my_lengthsp_8bit,
+    my_numcells_8bit,
+    my_mb_wc_8bit,
+    my_wc_mb_8bit,
+    my_mb_ctype_8bit,
+    my_caseup_str_8bit,
+    my_casedn_str_8bit,
+    my_caseup_8bit,
+    my_casedn_8bit,
+    my_snprintf_8bit,
+    my_long10_to_str_8bit,
+    my_longlong10_to_str_8bit,
+    my_fill_8bit,
+    my_strntol_8bit,
+    my_strntoul_8bit,
+    my_strntoll_8bit,
+    my_strntoull_8bit,
+    my_strntod_8bit,
+    my_strtoll10_8bit,
+    my_strntoull10rnd_8bit,
+    my_scan_8bit
+};
+
+MY_CHARSET_HANDLER my_charset_ascii_handler=
+{
+    my_cset_init_8bit,
+    NULL,                /* ismbchar      */
+    my_mbcharlen_8bit,   /* mbcharlen     */
+    my_numchars_8bit,
+    my_charpos_8bit,
+    my_well_formed_len_ascii,
     my_lengthsp_8bit,
     my_numcells_8bit,
     my_mb_wc_8bit,
