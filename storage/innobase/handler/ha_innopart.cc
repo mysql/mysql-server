@@ -1787,6 +1787,7 @@ ha_innopart::index_end()
 
 	if (part_id == MY_BIT_NONE) {
 		/* Never initialized any index. */
+		active_index = MAX_KEY;
 		DBUG_RETURN(0);
 	}
 	if (m_ordered) {
