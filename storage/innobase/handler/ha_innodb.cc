@@ -6935,6 +6935,25 @@ ha_innobase::build_template(
 			const Field*	field;
 
 			if (whole_row) {
+				/* Even this is whole_row, if the seach is
+				on a virtual column, and read_just_key is
+				set, and field is not in this index, we
+				will not try to fill the value since they
+				are not stored in such index nor in the
+				cluster index. */
+				if (innobase_is_v_fld(table->field[i])
+				    && m_prebuilt->read_just_key
+				    && !dict_index_contains_col_or_prefix(
+					m_prebuilt->index, num_v, true))
+				{
+					ut_ad(!bitmap_is_set(
+						table->read_set, i));
+					ut_ad(!bitmap_is_set(
+						table->write_set, i));
+
+					continue;
+				}
+
 				field = table->field[i];
 			} else {
 				ibool	contain;
