@@ -7,7 +7,11 @@ let MYSQLDDATADIR= `select @@datadir`;
 --echo ##########################################
 --replace_result $TEST_SQL_SHUTDOWN TEST_SQL_SHUTDOWN
 eval INSTALL PLUGIN test_sql_shutdown SONAME '$TEST_SQL_SHUTDOWN';
-
+# Wait until the plugin thread has opened a session.
+# That's for the deterministic result also on slow machines.
+let $wait_condition= SELECT count(*) > 0 FROM information_schema.processlist WHERE info LIKE 'PLUGIN%';
+--source include/wait_condition.inc
+SELECT count(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%';
 --echo ##########################################
 --echo # Shutdown
 --echo ##########################################
@@ -34,12 +38,13 @@ perl;
                  exit;
               }
          }
-         sleep(2);
+         sleep(1);
          $fc_count++;
          close(FILE);
     }
     print "Pattern \"$search_pattern\" not found\n";
 EOF
+--sleep 2
 
 cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 
@@ -50,6 +55,7 @@ cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
+--sleep 1
 cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 
 SELECT plugin_name, plugin_status, plugin_type,
