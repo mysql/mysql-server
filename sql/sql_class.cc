@@ -258,21 +258,18 @@ THD::Attachable_trx::~Attachable_trx()
   // it in other places on SQL-layer as well.
   trans_commit_attachable(m_thd);
 
-  // Remember the handlerton of an open table to call the handlerton after the
-  // tables are closed.
-
-  handlerton *ht= m_thd->open_tables ?
-                  m_thd->open_tables->file->ht :
-                  innodb_hton;
-
   // Close all the tables that are open till now.
 
   close_thread_tables(m_thd);
 
-  // Remove the attachable transaction from InnoDB mysql_trx_list.
-
-  if (ht && ht->close_connection)
-    ht->close_connection(ht, m_thd);
+  // Cleanup connection specific state which was created for attachable
+  // transaction (for InnoDB removes cached transaction object).
+  //
+  // Note that we need to call handlerton::close_connection for all SEs
+  // and not only SEs which participated in attachable transaction since
+  // connection specific state can be created when TABLE object is simply
+  // expelled from the Table Cache (e.g. this happens for MyISAM).
+  ha_close_connection(m_thd);
 
   // Restore the transaction state.
 
@@ -285,9 +282,6 @@ THD::Attachable_trx::~Attachable_trx()
     m_thd->lex->restore_backup_query_tables_list(
       &m_trx_state.m_query_tables_list);
   }
-
-  DBUG_ASSERT(m_thd->ha_data[ht->slot].ha_ptr ==
-              m_trx_state.m_ha_data[ht->slot].ha_ptr);
 }
 
 /****************************************************************************
