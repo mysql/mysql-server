@@ -34,7 +34,7 @@
 # situations that updating or modifying a memory table.
 ################################################################################
 --source include/not_group_replication_plugin.inc
---source include/have_debug.inc
+--source include/mysql_have_debug.inc
 --source include/have_gtid.inc
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
