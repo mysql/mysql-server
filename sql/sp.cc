@@ -2626,26 +2626,24 @@ bool sp_check_name(LEX_STRING *ident)
   the global table list, e.g. "mysql", "proc".
 */
 TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
-                                   const char *db, const char *name,
-                                   thr_lock_type locktype,
-                                   enum_mdl_type mdl_type)
+                                   const char *db, const char *name)
 {
-  TABLE_LIST *table= (TABLE_LIST *)thd->mem_calloc(sizeof(TABLE_LIST));
+  TABLE_LIST *table= static_cast<TABLE_LIST*>(thd->alloc(sizeof(TABLE_LIST)));
 
   if (!table)
     return NULL;
 
-  table->db_length= strlen(db);
-  table->db= thd->strmake(db, table->db_length);
-  table->table_name_length= strlen(name);
-  table->table_name= thd->strmake(name, table->table_name_length);
-  table->alias= thd->mem_strdup(name);
-  table->lock_type= locktype;
+  size_t db_length= strlen(db);
+  size_t table_name_length= strlen(name);
+
+  table->init_one_table(thd->strmake(db, db_length), db_length,
+                        thd->strmake(name, table_name_length),
+                        table_name_length,
+                        thd->mem_strdup(name),
+                        TL_IGNORE, MDL_SHARED_NO_WRITE);
+
   table->select_lex= lex->current_select();
   table->cacheable_table= 1;
-  MDL_REQUEST_INIT(&table->mdl_request,
-                   MDL_key::TABLE, table->db, table->table_name,
-                   mdl_type, MDL_TRANSACTION);
 
   lex->add_to_query_tables(table);
 
