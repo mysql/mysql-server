@@ -159,7 +159,6 @@ IF(NOT WITHOUT_SERVER)
     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_sys_schema.sql
     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
     ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
-    ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix_for_downgrade.sql
     ${FIX_PRIVILEGES_SQL}
     DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
   )
