@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2382,7 +2382,8 @@ static const st_conflict_fn_def conflict_fns[]=
     &resolve_col_args[0], row_conflict_fn_old,         0 },
   { "NDB$EPOCH2_TRANS",   CFT_NDB_EPOCH2_TRANS,
     &epoch_fn_args[0],    row_conflict_fn_epoch2,
-    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR | CF_TRANSACTIONAL},
+    CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR | 
+    CF_TRANSACTIONAL | CF_DEL_DEL_CFT },
   { "NDB$EPOCH2",         CFT_NDB_EPOCH2,
     &epoch_fn_args[0],    row_conflict_fn_epoch2,      
     CF_REFLECT_SEC_OPS | CF_USE_ROLE_VAR
