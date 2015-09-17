@@ -207,9 +207,7 @@ uint sp_get_flags_for_command(LEX *lex);
 bool sp_check_name(LEX_STRING *ident);
 
 TABLE_LIST *sp_add_to_query_tables(THD *thd, LEX *lex,
-                                   const char *db, const char *name,
-                                   thr_lock_type locktype,
-                                   enum_mdl_type mdl_type);
+                                   const char *db, const char *name);
 
 bool sp_check_show_access(THD *thd, sp_head *sp, bool *full_access);
 
