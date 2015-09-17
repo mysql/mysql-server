@@ -4729,7 +4729,7 @@ bool user_var_entry::realloc(uint length)
   @retval  true    on allocation error
 
 */
-bool user_var_entry::store(void *from, uint length, Item_result type)
+bool user_var_entry::store(const void *from, uint length, Item_result type)
 {
   // Store strings with end \0
   if (realloc(length + MY_TEST(type == STRING_RESULT)))
@@ -4763,7 +4763,7 @@ bool user_var_entry::store(void *from, uint length, Item_result type)
     true    failure
 */
 
-bool user_var_entry::store(void *ptr, uint length, Item_result type,
+bool user_var_entry::store(const void *ptr, uint length, Item_result type,
                            const CHARSET_INFO *cs, Derivation dv,
                            bool unsigned_arg)
 {
@@ -4776,7 +4776,7 @@ bool user_var_entry::store(void *ptr, uint length, Item_result type,
 
 
 bool
-Item_func_set_user_var::update_hash(void *ptr, uint length,
+Item_func_set_user_var::update_hash(const void *ptr, uint length,
                                     Item_result res_type,
                                     const CHARSET_INFO *cs, Derivation dv,
                                     bool unsigned_arg)
@@ -4790,8 +4790,16 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
     null_value= ((Item_field*)args[0])->field->is_null();
   else
     null_value= args[0]->null_value;
+
+  if (ptr == NULL)
+  {
+    DBUG_ASSERT(length == 0);
+    null_value= true;
+  }
+
   if (null_value && null_item)
     res_type= entry->type();                    // Don't change type of item
+
   if (null_value)
     entry->set_null_value(res_type);
   else if (entry->store(ptr, length, res_type, cs, dv, unsigned_arg))
@@ -5046,13 +5054,13 @@ Item_func_set_user_var::update()
   switch (cached_result_type) {
   case REAL_RESULT:
   {
-    res= update_hash((void*) &save_result.vreal,sizeof(save_result.vreal),
+    res= update_hash(&save_result.vreal,sizeof(save_result.vreal),
 		     REAL_RESULT, default_charset(), DERIVATION_IMPLICIT, 0);
     break;
   }
   case INT_RESULT:
   {
-    res= update_hash((void*) &save_result.vint, sizeof(save_result.vint),
+    res= update_hash(&save_result.vint, sizeof(save_result.vint),
                      INT_RESULT, default_charset(), DERIVATION_IMPLICIT,
                      unsigned_flag);
     break;
@@ -5060,10 +5068,10 @@ Item_func_set_user_var::update()
   case STRING_RESULT:
   {
     if (!save_result.vstr)					// Null value
-      res= update_hash((void*) 0, 0, STRING_RESULT, &my_charset_bin,
+      res= update_hash(NULL, 0, STRING_RESULT, &my_charset_bin,
 		       DERIVATION_IMPLICIT, 0);
     else
-      res= update_hash((void*) save_result.vstr->ptr(),
+      res= update_hash(save_result.vstr->ptr(),
 		       save_result.vstr->length(), STRING_RESULT,
 		       save_result.vstr->charset(),
 		       DERIVATION_IMPLICIT, 0);
@@ -5072,10 +5080,10 @@ Item_func_set_user_var::update()
   case DECIMAL_RESULT:
   {
     if (!save_result.vdec)					// Null value
-      res= update_hash((void*) 0, 0, DECIMAL_RESULT, &my_charset_bin,
+      res= update_hash(NULL, 0, DECIMAL_RESULT, &my_charset_bin,
                        DERIVATION_IMPLICIT, 0);
     else
-      res= update_hash((void*) save_result.vdec,
+      res= update_hash(save_result.vdec,
                        sizeof(my_decimal), DECIMAL_RESULT,
                        default_charset(), DERIVATION_IMPLICIT, 0);
     break;
