@@ -5861,7 +5861,7 @@ ok_exit:
 		ctx->m_stage, add_v);
 
 	if (s_templ) {
-		ut_ad(ctx->need_rebuild() || ctx->new_table->n_v_cols);
+		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol);
 		free_vc_templ(s_templ);
 
 		if (old_templ) {
