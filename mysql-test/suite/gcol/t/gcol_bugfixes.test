@@ -461,3 +461,13 @@ SELECT f();
 DROP FUNCTION f;
 SELECT * FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #21808680: JSON + GENERATED COLUMN CORRUPTS TABLE CACHE
+--echo #                MEMORY, CRASHES
+--echo #
+CREATE TABLE t (a INT, b JSON, c TEXT GENERATED ALWAYS AS (REPEAT(a=b, 2)));
+INSERT INTO t (a, b) VALUES (1, '2'), (3, '3');
+# The next statement used to crash.
+SELECT * FROM t;
+DROP TABLE t;
