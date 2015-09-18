@@ -3107,8 +3107,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
   }
   
-  Uint32 memory_usage = (m_max_alloc  == 0) ? 0 :
-    (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
+  const Uint32 used_data_sz = (m_total_alloc - m_free_data_sz);
+  const Uint32 memory_usage = (m_max_alloc == 0) ? 0 :
+    (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
 
   if (m_event_buffer_manager.onEventDataReceived(memory_usage, gci))
     reportStatus(true/*force_report*/);
@@ -4200,19 +4201,21 @@ send_report:
 void
 NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage)
 {
+  // m_total_alloc  >= m_free_data_sz always.
+  const Uint32 used_data_sz = (m_total_alloc - m_free_data_sz);
+
   usage.allocated_bytes = m_total_alloc;
-  usage.used_bytes = m_total_alloc - m_free_data_sz;
+  usage.used_bytes = used_data_sz;
 
   // If there's no configured max limit then
   // the percentage is a fraction of the total allocated.
 
   Uint32 ret = 0;
   // m_max_alloc == 0 ==> unlimited usage,
-  // m_total_alloc  >= m_free_data_sz always.
   if (m_max_alloc > 0)
-    ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_max_alloc);
+    ret = (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
   else if (m_total_alloc > 0)
-    ret = (Uint32)(100 * (m_total_alloc - m_free_data_sz) / m_total_alloc);
+    ret = (Uint32)((100 * (Uint64)used_data_sz) / m_total_alloc);
 
   usage.usage_percent = ret;
 }
