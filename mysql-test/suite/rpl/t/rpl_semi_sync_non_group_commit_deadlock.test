@@ -20,6 +20,7 @@ SET GLOBAL rpl_semi_sync_master_timeout= 600000;
 
 --let $connections= 11
 --let $loops= 500
+--let $error_simulation= 0
 
 --source extra/rpl_tests/rpl_semi_sync_group_commit_deadlock.inc
 
