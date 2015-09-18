@@ -7460,39 +7460,6 @@ bool is_simple_order(ORDER *order)
   return TRUE;
 }
 
-/**
-  Check whether a given virtual generated column is part of a covering index.
-
-  @note that this ignores the number of key parts used by MySQL: if the index
-  is on (other, vgcol) and MySQL chooses to use it but only its first
-  key part, this function still returns true. Fortunately, if vgcol is needed
-  it is in read_set, and is part of the complete index, then InnoDB will read
-  the complete index entry (see build_template_needs_field()) and provide the
-  vgcol's value. So the number of key parts used by MySQL is irrelevant here.
-
-  @param table        pointer of the table
-  @param index_no     the number of index to be checked
-  @param vfield       the pointer of checked virtual generated column
-
-  @return true if the column is covered by the given index.
-*/
-static bool
-index_contains_this_virtual_gcol(const TABLE *table, uint index_no,
-                                 const Field *vfield)
-{
-  DBUG_ASSERT(index_no != MAX_KEY && table->key_read);
-  const KEY *key= table->key_info + index_no;
-
-  for (KEY_PART_INFO *key_part= key->key_part;
-       key_part < key->key_part + key->user_defined_key_parts;
-       key_part++)
-  {
-    if (key_part->field == vfield)
-      return true;
-  }
-  return false;
-}
-
 
 /**
   Repoint a table's fields from old_rec to new_rec
@@ -7512,21 +7479,42 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec)
 
 
 /**
-  Evaluate each virtual generated column marked in read_set.
+  Evaluate necessary virtual generated columns.
   This is used right after reading a row from the storage engine.
 
-  @note this is not necessary for stored generated fields.
+  @note this is not necessary for stored generated columns, as they are
+  provided by the storage engine.
 
   @param buf[in,out]     the buffer to store data
   @param table           the TABLE object
-  @param active_index    the number of key for index scan(MAX_KEY is default)
+  @param active_index    the number of key for index scan (MAX_KEY is default)
 
   @return true if error.
+
+  @todo see below for potential conflict with Bug#21815348 .
  */
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
 {
   DBUG_ENTER("update_generated_read_fields");
   DBUG_ASSERT(table && table->vfield);
+  if (active_index != MAX_KEY && table->key_read)
+  {
+    /*
+      The covering index is providing all necessary columns, including
+      generated ones.
+      Note that this logic may have to be reconsidered when we fix
+      Bug#21815348; indeed, for that bug it could be possible to implement the
+      following optimization: if A is an indexed base column, and B is a
+      virtual generated column dependent on A, "select B from t" could choose
+      an index-only scan over the index of A and calculate values of B on the
+      fly. In that case, we would come here, however calculation of B would
+      still be needed.
+      Currently MySQL doesn't choose an index scan in that case because it
+      considers B as independent from A, in its index-scan decision logic.
+    */
+    DBUG_RETURN(false);
+  }
+
   int error= 0;
 
   /*
@@ -7541,18 +7529,13 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
   {
     Field *vfield= *vfield_ptr;
     DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-    /**
+    /*
       Only calculate those virtual generated fields that are marked in the
-      read_set bitmap and not filled.
-      @todo: Consider replacing index_contains_this_virtual_gcol with
-             a test on part_of_key below.
+      read_set bitmap.
     */
     if (!vfield->stored_in_db &&
-        bitmap_is_set(table->read_set, vfield->field_index) &&
-        !(active_index != MAX_KEY && table->key_read &&
-          index_contains_this_virtual_gcol(table, active_index, vfield)))
+        bitmap_is_set(table->read_set, vfield->field_index))
     {
-      /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())
