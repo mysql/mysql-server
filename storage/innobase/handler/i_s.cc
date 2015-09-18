@@ -6768,8 +6768,22 @@ i_s_sys_tables_fill_table_stats(
 			heap, rec, &table_rec,
 			DICT_TABLE_LOAD_FROM_CACHE, &mtr);
 
-		ref_count = table_rec->get_ref_count();
+		if (table_rec != NULL) {
+			ut_ad(err_msg == NULL);
+
+			ref_count = table_rec->get_ref_count();
+
+			/* Protect the dict_table_t object by incrementing
+			the reference count. */
+			table_rec->acquire();
+		}
+
 		mutex_exit(&dict_sys->mutex);
+
+		DBUG_EXECUTE_IF("test_sys_tablestats", {
+			if (strcmp("test/t1", table_rec->name.m_name) == 0 ) {
+				DEBUG_SYNC_C("dict_table_not_protected");
+			}});
 
 		if (!err_msg) {
 			i_s_dict_fill_sys_tablestats(thd, table_rec, ref_count,
@@ -6784,6 +6798,11 @@ i_s_sys_tables_fill_table_stats(
 
 		/* Get the next record */
 		mutex_enter(&dict_sys->mutex);
+
+		if (table_rec != NULL) {
+			table_rec->release();
+		}
+
 		mtr_start(&mtr);
 		rec = dict_getnext_system(&pcur, &mtr);
 	}
