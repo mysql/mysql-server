@@ -6685,7 +6685,7 @@ i_s_sys_tables_fill_table_stats(
 	while (rec) {
 		const char*	err_msg;
 		dict_table_t*	table_rec;
-		ulint		ref_count;
+		ulint		ref_count = 0;
 
 		/* Fetch the dict_table_t structure corresponding to
 		this SYS_TABLES record */
@@ -6710,7 +6710,7 @@ i_s_sys_tables_fill_table_stats(
 				DEBUG_SYNC_C("dict_table_not_protected");
 			}});
 
-		if (!err_msg) {
+		if (table_rec != NULL) {
 			i_s_dict_fill_sys_tablestats(thd, table_rec, ref_count,
 						     tables->table);
 		} else {
