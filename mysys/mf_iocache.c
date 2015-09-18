@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1740,6 +1740,10 @@ int my_b_flush_io_cache(IO_CACHE *info,
   DBUG_ENTER("my_b_flush_io_cache");
   DBUG_PRINT("enter", ("cache: 0x%lx", (long) info));
 
+  DBUG_EXECUTE_IF("simulate_error_during_flush_cache_to_file",
+                  {
+                    DBUG_RETURN(TRUE);
+                  });
   if (!append_cache)
     need_append_buffer_lock= 0;
 
