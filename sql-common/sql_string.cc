@@ -181,6 +181,9 @@ bool String::copy()
    before copying and the old buffer freed. Character set information is also
    copied.
 
+   If str is the same as this and str doesn't own its buffer, a
+   new buffer is allocated and it's owned by str.
+
    @param str The string whose internal buffer is to be copied.
 
    @retval false Success.
@@ -188,10 +191,27 @@ bool String::copy()
 */
 bool String::copy(const String &str)
 {
+  /*
+    If &str == this and it owns the buffer, this operation is a no-op, so skip
+    the meaningless copy. Otherwise if we do, we will read freed memory at
+    the memmove call below.
+  */
+  if (&str == this && str.is_alloced())
+    return false;
+
+  /*
+    If a String s doesn't own its buffer, here we should allocate
+    a new buffer owned by s and copy the contents there. But alloc()
+    will change this->m_ptr and this->m_length, and if this == &str, this
+    will also change str->m_ptr and str->m_length, so we need to save
+    these values first.
+  */
+  const size_t str_length= str.m_length;
+  const char *str_ptr= str.m_ptr;
   if (alloc(str.m_length))
     return true;
-  m_length= str.m_length;
-  memmove(m_ptr, str.m_ptr, m_length);		// May be overlapping
+  m_length= str_length;
+  memmove(m_ptr, str_ptr, m_length);		// May be overlapping
   m_ptr[m_length]= 0;
   m_charset= str.m_charset;
   return false;
