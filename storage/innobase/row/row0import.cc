@@ -2068,8 +2068,20 @@ PageConverter::validate(
 		return(IMPORT_PAGE_STATUS_CORRUPTED);
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
-		const byte*	b = page;
-		const byte*	e = b + m_page_size;
+		ulint		checksum;
+
+		checksum = mach_read_from_4(page + FIL_PAGE_SPACE_OR_CHKSUM);
+		if (checksum != 0) {
+			/* Checksum check passed in buf_page_is_corrupted(). */
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"%s: Page %lu checksum %lu should be zero.",
+				m_filepath, (ulong) (offset / m_page_size),
+				checksum);
+		}
+
+		const byte*	b = page + FIL_PAGE_OFFSET;
+		const byte*	e = page + m_page_size
+				    - FIL_PAGE_END_LSN_OLD_CHKSUM;
 
 		/* If the page number is zero and offset > 0 then
 		the entire page MUST consist of zeroes. If not then
