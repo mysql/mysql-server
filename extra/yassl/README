@@ -12,6 +12,14 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.3.8 (9/17/2015)
+    This release of yaSSL fixes a high security vulnerability.  All users
+    SHOULD update.  If using yaSSL for TLS on the server side with private
+    RSA keys allowing ephemeral key exchange you MUST update and regenerate
+    the RSA private keys.  This report is detailed in:
+    https://people.redhat.com/~fweimer/rsa-crt-leaks.pdf
+    yaSSL now detects RSA signature faults and returns an error.
+
 yaSSL Patch notes, version 2.3.7e (6/26/2015)
     This release of yaSSL includes a fix for Date less than comparison.
     Previously yaSSL would return true on less than comparisons if the Dates
