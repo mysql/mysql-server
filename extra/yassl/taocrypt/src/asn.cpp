@@ -119,7 +119,7 @@ bool operator>(tm& a, tm& b)
 
 bool operator<(tm& a, tm&b)
 {
-    return !(a>b);
+    return (b>a);
 }
 
 
