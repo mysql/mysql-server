@@ -44,8 +44,6 @@ perl;
     }
     print "Pattern \"$search_pattern\" not found\n";
 EOF
---sleep 2
-
 cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 
 
@@ -55,7 +53,6 @@ cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
---sleep 1
 cat_file $MYSQLD_DATADIR/test_sql_shutdown.log;
 
 SELECT plugin_name, plugin_status, plugin_type,
@@ -67,5 +64,4 @@ WHERE plugin_name LIKE "test_sql_shutdown";
 --echo # Stop plugin
 --echo ##########################################
 UNINSTALL PLUGIN test_sql_shutdown;
---sleep 1
 remove_file $MYSQLD_DATADIR/test_sql_shutdown.log;
