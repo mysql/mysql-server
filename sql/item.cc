@@ -362,9 +362,13 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
+    /*
+      The conversion may fail in strict mode. Do not return a NULL pointer,
+      as the result may be used in subsequent arithmetic operations.
+    */
     my_decimal_set_zero(decimal_value);
     null_value= 1;                               // set NULL, stop processing
-    return 0;
+    return decimal_value;;
   }
   return date2my_decimal(&ltime, decimal_value);
 }
