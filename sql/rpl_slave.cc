@@ -4476,6 +4476,10 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   thd->clear_active_vio();
 #endif
   end_server(mysql);
+  DBUG_EXECUTE_IF("simulate_no_master_reconnect",
+                   {
+                     return 1;
+                   });
   if ((*retry_count)++)
   {
     if (*retry_count > mi->retry_count)
