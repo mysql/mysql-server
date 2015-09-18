@@ -55,7 +55,7 @@ bool Query_result_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return false;
   }
-  if (fill_record(thd, table->visible_field_ptr(), values, NULL, NULL))
+  if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL))
     return true;                /* purecov: inspected */
 
   if (!check_unique_constraint(table))
@@ -306,7 +306,7 @@ bool Query_result_union_direct::send_data(List<Item> &items)
     return false;
   }
 
-  if (fill_record(thd, table->field, items, NULL, NULL))
+  if (fill_record(thd, table, table->field, items, NULL, NULL))
     return true; /* purecov: inspected */
 
   return result->send_data(unit->item_list);
