@@ -491,3 +491,24 @@ DELETE FROM t WHERE a = 10;
 
 DROP TABLE t;
 }
+
+if ($support_virtual_index)
+{
+--echo # Bug#21807818: Generated columns not updated with empty insert list
+
+--source include/turn_off_strict_mode.inc
+
+CREATE TABLE t (
+a BLOB GENERATED ALWAYS AS ('') VIRTUAL,
+b TIMESTAMP(4) GENERATED ALWAYS AS ('') VIRTUAL NOT NULL,
+KEY (a(183),b)
+);
+
+INSERT INTO t VALUES(), (), ();
+
+DELETE IGNORE FROM t;
+
+DROP TABLE t;
+
+--source include/restore_strict_mode.inc
+}

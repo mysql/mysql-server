@@ -240,9 +240,9 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, ulong privilege,
                   List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update);
-bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
+bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
-bool fill_record(THD *thd, Field **field, List<Item> &values,
+bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 
 bool check_record(THD *thd, Field **ptr);
