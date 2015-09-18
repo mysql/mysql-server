@@ -2353,7 +2353,7 @@ bool Query_result_update::send_data(List<Item> &not_used_values)
       }
 
       /* Store regular updated fields in the row. */
-      fill_record(thd,
+      fill_record(thd, tmp_table,
                   tmp_table->visible_field_ptr() +
                   1 + unupdated_check_opt_tables.elements,
                   *values_for_table[offset], NULL, NULL);
