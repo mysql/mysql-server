@@ -6132,6 +6132,17 @@ EXPLAIN
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#21828321: JSON FUNCS CALL DBUG_ABORT OR EXIT() ON WINDOWS!
+--echo #
+# LEAST and GREATEST treat JSON arguments as strings for now. They used to hit
+# an assertion if used in a JSON context and all arguments were JSON values, or
+# a mix of NULLs and JSON values.
+SELECT JSON_ARRAY(LEAST(NULL, NULL), GREATEST(NULL, NULL), LEAST(j1, NULL),
+                  GREATEST(NULL, j2), LEAST(j1, j2), GREATEST(j1, j2)) AS j
+FROM (SELECT CAST('1' AS JSON) AS j1, CAST('2' AS JSON) AS j2) t;
+
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql
