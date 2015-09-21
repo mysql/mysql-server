@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testScan
+args: -n TupCheckSumError T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MissingOperation T6
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommitRollback626 T1 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n UnlockBatch T6
+max-time: 180
+
+cmd: testBasic
+args: -n RollbackDeleteMultiple T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneOpInScanTrans T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n testDropDDObjects T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdate2 T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n Bug56829 T1
+max-time: 180
+
+cmd: test_event
+args: -n Multi
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug20185 T1
+max-time: 180
+
+cmd: testDict
+args: -n Bug24631 T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug18044717 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanReadAndLocker T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n PkRead
+max-time: 360
+
+cmd: testBasic
+args: -n ReadWithLocksAndInserts T6 D1 D2
+max-time: 360
+
+cmd: testDict
+args: -n CreateAndDropDuring T6 D1 D2
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug41469 T1
+max-time: 1620
+
+cmd: testNodeRestart
+args: -n DeleteRestart T1
+max-time: 540
+
+cmd: testSystemRestart
+args: -n Bug46412 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n ForceStopAndRestart T1
+max-time: 540
+
+cmd: testScan
+args: -n ScanUpdateRestart T6
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n MixReadUnlockRestart T1
+max-time: 1080
+
+cmd: testDict
+args: -n TemporaryTables T1 T6
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
+max-time: 1440
+
+cmd: testScan
+args: -n ScanReadWhileNodeIsDown D1 D2
+max-time: 1980
+
+cmd: testNodeRestart
+args: -n mixedmultiop T1 I2 I3 D2
+max-time: 3600
+
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T13
+max-time: 5220
+

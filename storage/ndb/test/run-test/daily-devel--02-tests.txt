@@ -1,0 +1,69 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNodeRestart
+args: -n Bug42422 -l 1 T1
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug16007980 T1
+max-time: 1620
+
+cmd: testNodeRestart
+args: -n LCPScanFragWatchdogIsolation T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug16772 T1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n SR_DD_2 D2
+max-time: 1260
+
+cmd: test_event
+args: -r 5000 -n Bug30780 T1
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n Bug41295 T1
+max-time: 2160
+
+cmd: testBasic
+args: -n Bug54986 D2
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n Bug48474 T1
+max-time: 1080
+
+cmd: testSRBank
+args: -n NR -l 300 -r 15 T1
+max-time: 1980
+
+cmd: atrt-testBackup
+args: -n BackupBank T6
+max-time: 1800
+
+cmd: testIndex
+args: -n NF_Mixed T1 T6 T13
+max-time: 1980
+
+cmd: testDict
+args: -n SchemaTrans -l 1
+max-time: 4140
+
