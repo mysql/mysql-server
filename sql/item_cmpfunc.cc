@@ -2487,12 +2487,12 @@ void Item_in_optimizer::replace_argument(THD *thd, Item **oldpp, Item *newp)
   Item_in_subselect *ss= down_cast<Item_in_subselect *>(args[1]);
   thd->change_item_tree(&ss->left_expr, newp);
   /*
-    fix_left() does cache setup. This setup() does (mainly) cache->example=arg[0];
-    we could wonder why change_item_tree isn't used instead of this simple
-    assignment. The reason is that cache->setup() is called at every
-    fix_fields(), so every execution, so it's not important if the previous
-    execution left a non-rolled-back now-pointing-to-garbage cache->example -
-    it will be overwritten.
+    fix_left() does cache setup. This setup() does (mainly)
+    cache->example=arg[0]; we could wonder why change_item_tree isn't used
+    instead of this simple assignment. The reason is that cache->setup() is
+    called at every fix_fields(), so every execution, so it's not important if
+    the previous execution left a non-rolled-back now-pointing-to-garbage
+    cache->example - it will be overwritten.
   */
   fix_left(thd, NULL);
 }
