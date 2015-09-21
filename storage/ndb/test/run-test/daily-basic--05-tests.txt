@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testBasic
+args: -n Commit626 T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkRead T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordPKUpdate T1 T6 T15
+max-time: 180
+
+cmd: testDict
+args: -l 1 -n FailCreateHashmap T1
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneOpBeforeOpenScan T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n Bug50118 T1
+max-time: 180
+
+cmd: testIndex
+args: -n FireTrigOverload T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAndPkRead T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -l 100 -n Bug37158
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug15685 T1
+max-time: 180
+
+cmd: testIndex
+args: -n BuildDuring_O T6
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36247 T1
+max-time: 720
+
+cmd: testDict
+args: -n Bug14645319 T1
+max-time: 180
+
+cmd: testSystemRestart
+args: -n Bug29167 T1
+max-time: 900
+
+cmd: testSystemRestart
+args: -l 1 -n SR9 T1
+max-time: 360
+
+cmd: testIndex
+args: -n Bug21384
+max-time: 540
+
+cmd: testDict
+args: -n Bug13416603 I2
+max-time: 540
+
+cmd: testOIBasic
+args: -case hz
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug32922 T1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n Bug54611 T1
+max-time: 900
+
+cmd: atrt-testBackup
+args: -n NFMasterAsSlave T1
+max-time: 1080
+
+cmd: testMgm
+args: testMgm
+max-time: 900
+
+cmd: testSystemRestart
+args: -n basic T1
+max-time: 1080
+
+cmd: testSystemRestart
+args: -n SR_DD_3b D2
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR3 T6
+max-time: 2880
+
+cmd: testNodeRestart
+args: -n Bug18612SR T1
+max-time: 2520
+
+cmd: testSystemRestart
+args: -n SR_UNDO T6
+max-time: 3240
+

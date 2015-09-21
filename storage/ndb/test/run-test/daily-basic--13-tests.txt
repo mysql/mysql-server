@@ -1,0 +1,125 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testLimits
+args: -n ExhaustSegmentedSectionPk WIDE_2COL
+max-time: 180
+
+cmd: testDict
+args: -n CreateInvalidTables T1
+max-time: 180
+
+cmd: testScan
+args: -n CheckAfterTerror T1 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n LeakApiConnectObjects T1
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommitAndClose T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n NextScanWhenNoMore T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n CreateMaxTables T6
+max-time: 180
+
+cmd: test_event
+args: -n Bug35208 T1
+max-time: 180
+
+cmd: testBasic
+args: -n DeleteRead
+max-time: 180
+
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwait_Version2 T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkReadAndLocker2 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdate
+max-time: 180
+
+cmd: testScan
+args: -n ScanRead488Timeout -l 10 T6 D1 D2
+max-time: 180
+
+cmd: testNodeRestart
+args: -n MasterFailSlowLCP T1
+max-time: 900
+
+cmd: testScan
+args: -n ScanReadError5030 T1 D1 D2
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n FailMasterAsSlave T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead40RandomTable -l 100 T1
+max-time: 540
+
+cmd: testScan
+args: -n ScanRead488O -l 10 T6 D1 D2
+max-time: 360
+
+cmd: test_event
+args: -n Bug37442 T1
+max-time: 540
+
+cmd: testDict
+args: -n FailAddPartition T1 I3
+max-time: 720
+
+cmd: testTimeout
+args: T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug27283 T1
+max-time: 1260
+
+cmd: testNodeRestart
+args: -n RestartAllNodesError9999 T6 T13
+max-time: 1440
+
+cmd: testIndex
+args: -n NFNR2 T6 T13
+max-time: 1620
+
+cmd: testSystemRestart
+args: -n SR_DD_2b D1
+max-time: 2160
+
+cmd: testSystemRestart
+args: -n SR4 T6
+max-time: 3240
+
+cmd: testPartitioning
+args: --forceshortreqs
+max-time: 3960
+

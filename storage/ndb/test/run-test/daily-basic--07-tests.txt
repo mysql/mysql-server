@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n ExecuteAsynch T1
+max-time: 180
+
+cmd: test_event
+args: -n bug37672 T1
+max-time: 180
+
+cmd: test_event
+args: -n NextEventRemoveInconsisEvent T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxNdb T6
+max-time: 180
+
+cmd: testBasic
+args: -n RollbackUpdate T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ExecuteScanWithoutOpenScan T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -l 1 -n SR7 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadError8081 T1 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n RecordSpecificationBackwardCompatibility
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug28717 T1
+max-time: 540
+
+cmd: testBasicAsynch
+args: -n PkReadAsynch
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug32160 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_slow T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkDirtyRead
+max-time: 360
+
+cmd: testBasic
+args: -n MassiveRollback2 T1 T6 D1 D2
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n FailSlave T1
+max-time: 360
+
+cmd: testDict
+args: -n FragmentTypeAllSmall T1 T6
+max-time: 360
+
+cmd: testSystemRestart
+args: -l 2 -n Bug28770 T1
+max-time: 540
+
+cmd: testBlobs
+args: -version 1 -rows 25
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug18414 T1
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug43888 T1
+max-time: 720
+
+cmd: atrt-testBackup
+args: -n NFSlave T1
+max-time: 1080
+
+cmd: testIndex
+args: -n DeferredMixedLoad T1 T6 T13
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug16895311 T1
+max-time: 1080
+
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D1
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n Bug44952 T1
+max-time: 3420
+
+cmd: testSystemRestart
+args: -n SR2 D1
+max-time: 3600
+
+cmd: testIndex
+args: -l 2 -n SR1 T6 T13
+max-time: 4680
+

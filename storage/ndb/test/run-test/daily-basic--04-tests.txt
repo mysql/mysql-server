@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n Bug_11133 T1 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n CommitAsMuch626 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n Bug48700 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordCICharPKUpdate T1
+max-time: 180
+
+cmd: testBasic
+args: -n AccCommitOrder T1
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneScanPerTrans T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n TestFragmentedSend T1
+max-time: 180
+
+cmd: testBlobs
+args: -bug 36756 -skip p
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug57650 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanRead240
+max-time: 180
+
+cmd: testDict
+args: -n GetTabInfoRef T1
+max-time: 180
+
+cmd: testDict
+args: -n Bug21755 T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug24543 T1
+max-time: 360
+
+cmd: testBasic
+args: -n PkSimpleRead
+max-time: 360
+
+cmd: testNdbApi
+args: -n ApiFailReqBehaviour T1
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug15632 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead488T -l 10 T6 D1 D2
+max-time: 360
+
+cmd: testDict
+args: -n Bug46552 T1
+max-time: 540
+
+cmd: testBasic
+args: --forceshortreqs -n PkUpdate
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug25468 T1
+max-time: 720
+
+cmd: testScan
+args: -n CheckGetValue T6 D1 D2
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug26481 T1
+max-time: 900
+
+cmd: testScan
+args: -n Bug12324191 T1 T6 T13
+max-time: 720
+
+cmd: testNdbApi
+args: -n DeleteNdb T1 T6
+max-time: 1440
+
+cmd: testScan
+args: -n ScanReadRestart D1 D2
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n MNF -l 15 T1
+max-time: 3600
+
+cmd: testDict
+args: -n Restart_NR2 T1 I3
+max-time: 4680
+
+cmd: testSystemRestart
+args: -n SR1 D2
+max-time: 4320
+

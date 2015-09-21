@@ -1,0 +1,130 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testScan
+args: -n Bug36124 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanKeyInfoExhaust T1
+max-time: 180
+
+cmd: testBasic
+args: -n InsertError T1
+max-time: 180
+
+cmd: test_event
+args: -n Bug56579 T1
+max-time: 180
+
+cmd: testBasic
+args: -n ImplicitRollbackDelete T1 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n Bug54944 T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkInsertTwice T1 T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxGetValue T1 T6 T13
+max-time: 180
+
+cmd: testBasic
+args: -r 10 -n Bug59496_case2 T2
+max-time: 180
+
+cmd: testScan
+args: -n ScanRead16
+max-time: 180
+
+cmd: testBasic
+args: -n UnlockUpdateBatch T3
+max-time: 180
+
+cmd: test_event_merge
+args: --no-implicit-nulls --no-multiops
+max-time: 180
+
+cmd: testIndex
+args: -n BuildDuring T6
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug19202654 T1
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n BackupDDL T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanReadError5024 T1 D1 D2
+max-time: 360
+
+cmd: testSystemRestart
+args: -n Bug27434 T1
+max-time: 360
+
+cmd: testBasic
+args: -n TupError
+max-time: 540
+
+cmd: DbAsyncGenerator
+args: -time 60 -p 1 -proc 25
+max-time: 360
+type: bench
+
+cmd: testNdbApi
+args: -n NdbClusterConnectSR T1
+max-time: 720
+
+cmd: testScan
+args: -n ScanRead40 -l 100 T1 D1 D2
+max-time: 1260
+
+cmd: testNodeRestart
+args: -n Bug27466 T1
+max-time: 900
+
+cmd: testSystemRestart
+args: -n SR_DD_2 D1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug25984 T1
+max-time: 1620
+
+cmd: testScan
+args: -n CheckInactivityTimeOut T6 D1 D2
+max-time: 900
+
+cmd: testSystemRestart
+args: -n to I3
+max-time: 1980
+
+cmd: test_event
+args: -n EventOperationApplier -l 2
+max-time: 2520
+
+cmd: testSystemRestart
+args: -n SR1 T1
+max-time: 4320
+

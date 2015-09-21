@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testIndex
+args: -n MixedTransaction T1
+max-time: 180
+
+cmd: testScan
+args: -n CloseRefresh T1
+max-time: 180
+
+cmd: testBlobs
+args: -skip hp -bug 28116
+max-time: 180
+
+cmd: testNdbApi
+args: -n UpdateWithoutKeys T6 D1 D2
+max-time: 180
+
+cmd: testBlobs
+args: -bug 45768 -skip p
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort240 T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -l 1 -n SR6 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxEqual
+max-time: 180
+
+cmd: testDict
+args: -n TableAddAttrsDuring T1 T6
+max-time: 180
+
+cmd: testBasic
+args: -r 10 -n Bug59496_case1 T2
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_non_master T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanDelete
+max-time: 180
+
+cmd: testDict
+args: -n FragmentTypeSingle T1
+max-time: 180
+
+cmd: testIndex
+args: -n CreateLoadDrop T1
+max-time: 360
+
+cmd: testScan
+args: -n Bug42559 T6 D1 D2
+max-time: 360
+
+cmd: testDict
+args: -n Bug29501 T1
+max-time: 360
+
+cmd: testScan
+args: -n Bug54945 T1
+max-time: 540
+
+cmd: testBlobs
+args: -rows 25
+max-time: 540
+
+cmd: testBasic
+args: -n DDInsertFailUpdateBatch
+max-time: 720
+
+cmd: test_event
+args: -n Bug37338 T1
+max-time: 720
+
+cmd: testNodeRestart
+args: -n TwoNodeFailure T6 T13
+max-time: 2880
+
+cmd: testNodeRestart
+args: -n Bug16944817 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T13
+max-time: 1260
+
+cmd: testScan
+args: -n ScanRead100 -l 100 T1 D1 D2
+max-time: 1980
+
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
+max-time: 1260
+
+cmd: testNodeRestart
+args: -n Terror T6 T13
+max-time: 2880
+
+cmd: testSpj
+args: -n NF_Join T6 T13
+max-time: 3600
+
+cmd: testIndex
+args: -n DeferredMixedLoadError T1 T6 T13
+max-time: 3960
+

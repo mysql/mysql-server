@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testDict
+args: -n Bug54651 T1
+max-time: 180
+
+cmd: testIndex
+args: -n Bug12315582 T1
+max-time: 180
+
+cmd: testIndex
+args: -n Bug60851 T1
+max-time: 180
+
+cmd: testBasic
+args: -n DoubleUnlock T1
+max-time: 180
+
+cmd: testBasic
+args: -n CommitDelete T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOpenScanOnce T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n Bug24447 T1
+max-time: 180
+
+cmd: DbCreate
+args: DbCreate
+max-time: 180
+
+cmd: testDict
+args: -n IndexStatCreate T1
+max-time: 180
+
+cmd: testDataBuffers
+args: testDataBuffers
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug31980 T1
+max-time: 180
+
+cmd: testBasic
+args: -n MassiveRollback4 T1 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n PkRead WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36246 T1
+max-time: 720
+
+cmd: testScanFilter
+args: T1
+max-time: 360
+
+cmd: testIndexStat
+args: testIndexStat
+max-time: 540
+
+cmd: testDict
+args: -n CreateAndDropAtRandom -l 200 T1
+max-time: 360
+
+cmd: testBasic
+args: -n PkUpdate WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+max-time: 540
+
+cmd: testBasic
+args: -n PkUpdate
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug29364 T1
+max-time: 2160
+
+cmd: testScan
+args: -n InsertDelete T1 T6 D1 D2
+max-time: 540
+
+cmd: testBasic
+args: -n Fill T13
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D1
+max-time: 1080
+
+cmd: testScan
+args: -n ScanVariants
+max-time: 900
+
+cmd: testScan
+args: -n ScanReadError5021 T1 D1 D2
+max-time: 1800
+
+cmd: testDict
+args: -l 1 -n FailAddFragment
+max-time: 1980
+
+cmd: testScan
+args: -n ScanUpdateRestart D1 D2
+max-time: 2160
+
+cmd: testSystemRestart
+args: -n SR1 D1
+max-time: 4320
+

@@ -1,0 +1,125 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testLimits
+args: -n ExhaustSegmentedSectionScan WIDE_2COL
+max-time: 180
+
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitWakeup T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n WaitUntilReady T1 T6 T13
+max-time: 180
+
+cmd: testNdbApi
+args: -n UpdateWithoutValues T6 D1 D2
+max-time: 180
+
+cmd: testBlobs
+args: -bug 27018 -skip p
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort15 T6 D1 D2
+max-time: 180
+
+cmd: flexHammer
+args: -r 5 -t 32
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdateAndScanRead T6 D1 D2
+max-time: 180
+
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitPkRead T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n UnlockScan T1
+max-time: 180
+
+cmd: testScan
+args: -n Bug42545 -l 1 T1
+max-time: 180
+
+cmd: test_event
+args: -n Bug57886 T1
+max-time: 180
+
+cmd: testBasicAsynch
+args: -n PkUpdateAsynch
+max-time: 180
+
+cmd: testScan
+args: -n ScanWithLocksAndInserts T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -n Bug46651 T1
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead488 -l 10 T6 D1 D2
+max-time: 360
+
+cmd: testBasic
+args: -n PkDelete
+max-time: 540
+
+cmd: test_event
+args: -n EventOperationApplier_NS T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug16834416 T1
+max-time: 540
+
+cmd: testDict
+args: -n Bug36702 D1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug25554 T1
+max-time: 1440
+
+cmd: testSystemRestart
+args: -n Bug41915 D2
+max-time: 900
+
+cmd: testSystemRestart
+args: -n SR_DD_1_LCP D2
+max-time: 1440
+
+cmd: testIndex
+args: -n NFNR2_O T6 T13
+max-time: 1440
+
+cmd: testSystemRestart
+args: -n SR_DD_2b D2
+max-time: 1980
+
+cmd: testIndex
+args: -n NF_DeferredMixed T1 T6 T13
+max-time: 1800
+
+cmd: testNodeRestart
+args: -n RestartRandomNodeInitial T6 T13
+max-time: 4860
+

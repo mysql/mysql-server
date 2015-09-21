@@ -1,0 +1,125 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n SchemaObjectOwnerCheck T1
+max-time: 180
+
+cmd: testBasic
+args: -n CommitTry626 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n InsertError2 T1
+max-time: 180
+
+cmd: testIndex
+args: -n RefreshWithOrderedIndex T2 D2
+max-time: 180
+
+cmd: testBasic
+args: -n CommitAsMuch630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort T6 D1 D2
+max-time: 180
+
+cmd: testInterpreter
+args: T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordRowLength
+max-time: 180
+
+cmd: testIndex
+args: -n ConstraintDetails
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbClusterConnect T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkReadUpdateAndLocker T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n PkInsert
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug57767 T2
+max-time: 180
+
+cmd: testBasic
+args: -r 5000 -n 899 T15 D1 D2
+max-time: 360
+
+cmd: testNodeRestart
+args: -n RestartMasterNodeError T6 T13
+max-time: 180
+
+cmd: testDict
+args: -n Bug53944 T1
+max-time: 360
+
+cmd: testDict
+args: -n FragmentTypeAllLarge T1 T6
+max-time: 540
+
+cmd: testLimits
+args: -n DropSignalFragments T1
+max-time: 720
+
+cmd: testBasic
+args: -n Bug16834333 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug26457 T1
+max-time: 900
+
+cmd: testBasic
+args: -n UpdateAndRead
+max-time: 1080
+
+cmd: testRedo
+args: -nRedoFull T1
+max-time: 1620
+
+cmd: testScan
+args: -n TupScanRead100 -l 100 T1 D1 D2
+max-time: 1980
+
+cmd: testIndex
+args: -n NFNR1_O T6 T13
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n RestartRandomNode T6 T13
+max-time: 1620
+
+cmd: test_event
+args: -n CreateDropNR T1
+max-time: 3960
+
+cmd: testSystemRestart
+args: -n SR2 T6
+max-time: 3960
+

@@ -1,0 +1,69 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n SimpleReadAbortOnError T1 T6 T15
+max-time: 180
+
+cmd: testDict
+args: -n DictTakeOver_1 T1
+max-time: 1440
+
+cmd: testNdbApi
+args: -n MaxOperations T1 T6 T13
+max-time: 540
+
+cmd: testNodeRestart
+args: -n GetTabInfoOverload T1
+max-time: 540
+
+cmd: testSystemRestart
+args: -n SR_DD_3 D1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n GcpStopIsolation T1 --loops=1
+max-time: 1080
+
+cmd: test_event
+args: -l 10 -n Bug27169 T1
+max-time: 1440
+
+cmd: testIndex
+args: -n NFNR1 T6 T13
+max-time: 1620
+
+cmd: testSystemRestart
+args: -n SR_DD_3b_LCP D2
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR_DD_2b_LCP D2
+max-time: 1800
+
+cmd: testSystemRestart
+args: -n to D2
+max-time: 2700
+
+cmd: testDict
+args: -n Bug46585 T1 I3 D1
+max-time: 2160
+
+cmd: testPartitioning
+args: testPartitioning
+max-time: 4320
+
