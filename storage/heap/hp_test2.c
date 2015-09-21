@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
   get_options(argc,argv);
 
   memset(&hp_create_info, 0, sizeof(hp_create_info));
-  hp_create_info.max_table_size= 1024L*1024L;
+  hp_create_info.max_table_size= 1024L * 1024L * 2;
   hp_create_info.keys= keys;
   hp_create_info.keydef= keyinfo;
   hp_create_info.reclength= reclength;
