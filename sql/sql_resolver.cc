@@ -3486,7 +3486,8 @@ bool SELECT_LEX::change_group_ref(THD *thd, Item_func *expr, bool *changed)
           if (!(new_item= new Item_ref(&context, group->item, 0,
                                        item->item_name.ptr())))
             return true;              /* purecov: inspected */
-          thd->change_item_tree(arg, new_item);
+
+          expr->replace_argument(thd, arg, new_item);
           arg_changed= true;
         }
       }
