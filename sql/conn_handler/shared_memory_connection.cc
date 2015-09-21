@@ -179,6 +179,20 @@ bool Shared_mem_listener::setup_listener()
     errmsg="Could not create answer event";
     goto error;
   }
+
+  my_stpcpy(m_suffix_pos, "CONNECT_NAMED_MUTEX");
+  HANDLE connect_named_mutex= CreateMutex(NULL, FALSE, m_temp_buffer);
+  if (connect_named_mutex == NULL)
+  {
+    errmsg="Unable to create connect named mutex.";
+    goto error;
+  }
+  if ( GetLastError() == ERROR_ALREADY_EXISTS)
+  {
+    errmsg="Another instance of application already running.";
+    goto error;
+  }
+
   my_stpcpy(m_suffix_pos, "CONNECT_DATA");
   if ((m_connect_file_map=
        CreateFileMapping(INVALID_HANDLE_VALUE, m_sa_mapping, PAGE_READWRITE, 0,
