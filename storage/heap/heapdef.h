@@ -51,6 +51,7 @@ typedef struct st_hp_hash_info
 {
   struct st_hp_hash_info *next_key;
   uchar *ptr_to_rec;
+  ulong hash;                           /* Cached key hash value. */
 } HASH_INFO;
 
 typedef struct {

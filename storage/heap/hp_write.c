@@ -166,6 +166,24 @@ static uchar *next_free_record_pos(HP_SHARE *info)
 }
 
 
+/**
+  Populate HASH_INFO structure.
+  
+  @param key           Pointer to a HASH_INFO key to be populated
+  @param next_key      HASH_INFO next_key value
+  @param ptr_to_rec    HASH_INFO ptr_to_rec value
+  @param hash          HASH_INFO hash value
+*/
+
+static inline void set_hash_key(HASH_INFO *key, HASH_INFO *next_key,
+                                uchar *ptr_to_rec, ulong hash)
+{
+  key->next_key= next_key;
+  key->ptr_to_rec= ptr_to_rec;
+  key->hash= hash;
+}
+
+
 /*
   Write a hash-key to the hash-index
   SYNOPSIS
@@ -198,6 +216,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   int flag;
   ulong halfbuff,hashnr,first_index;
   uchar *ptr_to_rec= NULL, *ptr_to_rec2= NULL;
+  ulong hash1= 0, hash2= 0;
   HASH_INFO *empty, *gpos= NULL, *gpos2= NULL, *pos;
   DBUG_ENTER("hp_write_key");
 
@@ -227,7 +246,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   {
     do
     {
-      hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
+      hashnr= pos->hash;
       if (flag == 0)
       {
         /* 
@@ -279,13 +298,13 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 	  if (!(flag & LOWUSED))
 	  {
 	    /* Change link of previous lower-list key */
-	    gpos->ptr_to_rec=ptr_to_rec;
-	    gpos->next_key=pos;
+            set_hash_key(gpos, pos, ptr_to_rec, hash1);
 	    flag= (flag & HIGHFIND) | (LOWFIND | LOWUSED);
 	  }
 	  gpos=pos;
 	  ptr_to_rec=pos->ptr_to_rec;
 	}
+	hash1= pos->hash;
       }
       else
       {
@@ -303,13 +322,13 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 	  if (!(flag & HIGHUSED))
 	  {
 	    /* Change link of previous upper-list key and save */
-	    gpos2->ptr_to_rec=ptr_to_rec2;
-	    gpos2->next_key=pos;
+	    set_hash_key(gpos2, pos, ptr_to_rec2, hash2);
 	    flag= (flag & LOWFIND) | (HIGHFIND | HIGHUSED);
 	  }
 	  gpos2=pos;
 	  ptr_to_rec2=pos->ptr_to_rec;
 	}
+	hash2= pos->hash;
       }
     }
     while ((pos=pos->next_key));
@@ -325,42 +344,36 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 
     if ((flag & (LOWFIND | LOWUSED)) == LOWFIND)
     {
-      gpos->ptr_to_rec=ptr_to_rec;
-      gpos->next_key=0;
+      set_hash_key(gpos, NULL, ptr_to_rec, hash1);
     }
     if ((flag & (HIGHFIND | HIGHUSED)) == HIGHFIND)
     {
-      gpos2->ptr_to_rec=ptr_to_rec2;
-      gpos2->next_key=0;
+      set_hash_key(gpos2, NULL, ptr_to_rec2, hash2);
     }
   }
   /* Check if we are at the empty position */
-
-  pos=hp_find_hash(&keyinfo->block, hp_mask(hp_rec_hashnr(keyinfo, record),
-					 share->blength, share->records + 1));
+  hash1= hp_rec_hashnr(keyinfo, record);
+  pos= hp_find_hash(&keyinfo->block, hp_mask(hash1, share->blength,
+                                             share->records + 1));
   if (pos == empty)
   {
-    pos->ptr_to_rec=recpos;
-    pos->next_key=0;
+    set_hash_key(pos, NULL, recpos, hash1);
     keyinfo->hash_buckets++;
   }
   else
   {
     /* Check if more records in same hash-nr family */
     empty[0]=pos[0];
-    gpos=hp_find_hash(&keyinfo->block,
-		      hp_mask(hp_rec_hashnr(keyinfo, pos->ptr_to_rec),
-			      share->blength, share->records + 1));
+    gpos= hp_find_hash(&keyinfo->block, hp_mask(pos->hash, share->blength,
+                                                share->records + 1));
     if (pos == gpos)
     {
-      pos->ptr_to_rec=recpos;
-      pos->next_key=empty;
+      set_hash_key(pos, empty, recpos, hash1);
     }
     else
     {
+      set_hash_key(pos, NULL, recpos, hash1);
       keyinfo->hash_buckets++;
-      pos->ptr_to_rec=recpos;
-      pos->next_key=0;
       hp_movelink(pos, gpos, empty);
     }
 

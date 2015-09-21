@@ -149,8 +149,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
   else if (pos->next_key)
   {
     empty=pos->next_key;
-    pos->ptr_to_rec=empty->ptr_to_rec;
-    pos->next_key=empty->next_key;
+    *pos= *empty;
   }
   else
     keyinfo->hash_buckets--;
@@ -159,7 +158,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     DBUG_RETURN (0);
 
   /* Move the last key (lastpos) */
-  lastpos_hashnr = hp_rec_hashnr(keyinfo, lastpos->ptr_to_rec);
+  lastpos_hashnr= lastpos->hash;
   /* pos is where lastpos should be */
   pos=hp_find_hash(&keyinfo->block, hp_mask(lastpos_hashnr, share->blength,
 					    share->records));
@@ -168,7 +167,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
     empty[0]=lastpos[0];
     DBUG_RETURN(0);
   }
-  pos_hashnr = hp_rec_hashnr(keyinfo, pos->ptr_to_rec);
+  pos_hashnr= pos->hash;
   /* pos3 is where the pos should be */
   pos3= hp_find_hash(&keyinfo->block,
 		     hp_mask(pos_hashnr, share->blength, share->records));
