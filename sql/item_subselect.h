@@ -407,13 +407,12 @@ private:
     - the same transformation is done on SELECT2; but the wrapped 'x' doesn't
       need to be created again, the one created for SELECT1 could be reused
 
-    - to achieve this, the wrapped 'x' is stored in member 'm_injected_left_expr'
-      when it is created for SELECT1, and is later reused for SELECT2.
-  */
+    - to achieve this, the wrapped 'x' is stored in member
+      'm_injected_left_expr' when it is created for SELECT1, and is later
+      reused for SELECT2.
 
-  /**
-    This will refer to a cached value which is reevaluated once for each candidate
-    row, cf. setup in ::single_value_transformer.
+    This will refer to a cached value which is reevaluated once for each
+    candidate row, cf. setup in ::single_value_transformer.
   */
   Item_direct_ref *m_injected_left_expr;
 
@@ -493,7 +492,8 @@ public:
 
   Item_in_subselect()
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
-    left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
+    left_expr_cache_filled(false), need_expr_cache(TRUE),
+    m_injected_left_expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
     in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
