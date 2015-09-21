@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ LOCK=$HOME/.autotest-lock
 while [ "$1" ]
 do
         case "$1" in
+                --verbose=*) verbose=`echo $1 | sed s/--verbose=//`;;
                 --verbose) verbose=`expr $verbose + 1`;;
                 --conf=*) conf=`echo $1 | sed s/--conf=//`;;
                 --version) echo $VERSION; exit;;
@@ -81,6 +82,9 @@ do
 	        --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
 	        --nolock) nolock=true;;
 	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
+                --baseport=*) baseport_arg="$1";;
+                --base-dir=*) base_dir=`echo $1 | sed s/--base-dir=//`;;
+                --clusters=*) clusters_arg="$1";;
         esac
         shift
 done
@@ -171,7 +175,9 @@ fi
 ###############################################
 
 test_dir=$install_dir0/mysql-test/ndb
-atrt=$test_dir/atrt
+atrt=`PATH=$test_dir:$PATH which atrt`
+ndb_cpcc=`PATH=$install_dir0/bin:$PATH which ndb_cpcc`
+
 test_file=$test_dir/$RUN-tests.txt
 
 if [ ! -f "$test_file" ]
@@ -189,7 +195,7 @@ fi
 ############################
 # check ndb_cpcc fail hosts#
 ############################
-failed=`ndb_cpcc $hosts | awk '{ if($1=="Failed"){ print;}}'`
+failed=`$ndb_cpcc $hosts | awk '{ if($1=="Failed"){ print;}}'`
 if [ "$failed" ]
 then
   echo "Cant contact cpcd on $failed, exiting"
@@ -299,14 +305,17 @@ then
 fi
 
 # Setup configuration
-$atrt Cdq $prefix my.cnf
+$atrt Cdq ${clusters_arg} $prefix my.cnf
 
 # Start...
 args=""
 args="--report-file=report.txt"
 args="$args --log-file=log.txt"
 args="$args --testcase-file=$test_dir/$RUN-tests.txt"
+args="$args ${baseport_arg}"
+args="$args ${clusters_arg}"
 args="$args $prefix"
+args="$args --verbose=${verbose}"
 $atrt $args my.cnf
 
 # Make tar-ball
