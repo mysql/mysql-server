@@ -1106,6 +1106,12 @@ Item *Item_func::gc_subst_transformer(uchar *arg)
 }
 
 
+void Item_func::replace_argument(THD *thd, Item **oldpp, Item *newp)
+{
+  thd->change_item_tree(oldpp, newp);
+}
+
+
 double Item_int_func::val_real()
 {
   DBUG_ASSERT(fixed == 1);

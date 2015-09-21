@@ -319,6 +319,7 @@ public:
   Item_cache **get_cache() { return &cache; }
   void keep_top_level_cache();
   Item *transform(Item_transformer transformer, uchar *arg);
+  void replace_argument(THD *thd, Item **oldpp, Item *newp);
 };
 
 /// Abstract factory interface for creating comparison predicates.

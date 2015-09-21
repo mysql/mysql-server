@@ -1402,7 +1402,7 @@ bool Item_in_subselect::test_limit()
 Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     SELECT_LEX *select):
   Item_exists_subselect(), left_expr(left_exp), left_expr_cache(NULL),
-  left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+  left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
 {
@@ -1420,7 +1420,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 Item_in_subselect::Item_in_subselect(const POS &pos, Item * left_exp,
 				     PT_subselect *pt_subselect_arg)
 : super(pos), left_expr(left_exp), left_expr_cache(NULL),
-  left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
+  left_expr_cache_filled(false), need_expr_cache(TRUE), m_injected_left_expr(NULL),
   optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
   in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL),
   pt_subselect(pt_subselect_arg)
@@ -1878,7 +1878,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    Item_ref *const left=
+    Item_direct_ref *const left=
       new Item_direct_ref(&select->context, (Item**)optimizer->get_cache(),
 			 (char *)"<no matter>", (char *)in_left_expr_name);
     if (left == NULL)
@@ -1888,7 +1888,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     if (!left_expr->const_item())
       left->depended_from= select->outer_select();
 
-    expr= left;
+    m_injected_left_expr= left;
 
     DBUG_ASSERT(in2exists_info == NULL);
     in2exists_info= new In2exists_info;
@@ -1970,7 +1970,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       select->group_list.elements)
   {
     bool tmp;
-    Item_bool_func *item= func->create(expr,
+    Item_bool_func *item= func->create(m_injected_left_expr,
                              new Item_ref_null_helper(&select->context,
                                                       this,
                                                       &select->ref_ptrs[0],
@@ -2017,7 +2017,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
     if (select->table_list.elements || select->where_cond())
     {
       bool tmp;
-      Item_bool_func *item= func->create(expr, orig_item);
+      Item_bool_func *item= func->create(m_injected_left_expr, orig_item);
       /*
         We may soon add a 'OR inner IS NULL' to 'item', but that may later be
         removed if 'inner' is not nullable, so the in2exists mark must be on
@@ -2109,7 +2109,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
           argument (reference) to fix_fields()
 	*/
         Item_bool_func *new_having=
-          func->create(expr,
+          func->create(m_injected_left_expr,
                        new Item_ref_null_helper(&select->context, this,
                                             &select->ref_ptrs[0],
                                             (char *)"<no matter>",

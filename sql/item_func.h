@@ -453,6 +453,12 @@ public:
   }
   virtual Item *gc_subst_transformer(uchar *arg);
 
+  /**
+    Does essentially the same as THD::change_item_tree, plus
+    maintains any necessary any invariants.
+  */
+  virtual void replace_argument(THD *thd, Item **oldpp, Item *newp);
+
 protected:
   /**
     Whether or not an item should contribute to the filtering effect
