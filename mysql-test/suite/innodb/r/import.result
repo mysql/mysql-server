@@ -9,14 +9,14 @@ ALTER TABLE t1 ADD INDEX ind2(c3, c1(10), c2);
 ALTER TABLE t1 ADD INDEX ind3(c2, c3, c1(20));
 INSERT INTO t1 VALUES ('Test Data -1', 'Test Data -2', 'Test Data -3');
 # Test with 2ndary index having prefix
-FLUSH TABLES t1 FOR EXPORT;
+FLUSH TABLES test.t1 FOR EXPORT;
 UNLOCK TABLES;
-ALTER TABLE t1 DISCARD TABLESPACE;
-ALTER TABLE t1 IMPORT TABLESPACE;
-CHECK TABLE t1;
+ALTER TABLE test.t1 DISCARD TABLESPACE;
+ALTER TABLE test.t1 IMPORT TABLESPACE;
+CHECK TABLE test.t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SHOW CREATE TABLE t1;
+SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
@@ -27,19 +27,19 @@ t1	CREATE TABLE `t1` (
   KEY `ind2` (`c3`,`c1`(10),`c2`),
   KEY `ind3` (`c2`,`c3`,`c1`(20))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * FROM t1;
+SELECT * FROM test.t1;
 c1	c2	c3
 Test Data -1	Test Data -2	Test Data -3
 # Test with PK & 2ndary index with prefix
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1(5), c2(10), c3(20));
-FLUSH TABLES t1 FOR EXPORT;
+FLUSH TABLES test.t1 FOR EXPORT;
 UNLOCK TABLES;
-ALTER TABLE t1 DISCARD TABLESPACE;
-ALTER TABLE t1 IMPORT TABLESPACE;
-CHECK TABLE t1;
+ALTER TABLE test.t1 DISCARD TABLESPACE;
+ALTER TABLE test.t1 IMPORT TABLESPACE;
+CHECK TABLE test.t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SHOW CREATE TABLE t1;
+SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(32) NOT NULL,
@@ -50,7 +50,7 @@ t1	CREATE TABLE `t1` (
   KEY `ind2` (`c3`,`c1`(10),`c2`),
   KEY `ind3` (`c2`,`c3`,`c1`(20))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SELECT * FROM t1;
+SELECT * FROM test.t1;
 c1	c2	c3
 Test Data -1	Test Data -2	Test Data -3
 DROP TABLE t1;
