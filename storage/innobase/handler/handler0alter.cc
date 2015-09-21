@@ -7108,6 +7108,61 @@ commit_cache_rebuild(
 	DBUG_VOID_RETURN;
 }
 
+/** Store the column number of the columns in a list belonging
+to indexes which are not being dropped.
+@param[in]      ctx             In-place ALTER TABLE context
+@param[in, out] drop_col_list   list which will be set, containing columns
+				which is part of index being dropped */
+static
+void
+get_col_list_to_be_dropped(
+        ha_innobase_inplace_ctx*        ctx,
+        std::set<ulint>&                drop_col_list)
+{
+        for (ulint index_count = 0; index_count < ctx->num_to_drop_index;
+             index_count++) {
+                dict_index_t* index = ctx->drop_index[index_count];
+
+                for (ulint col = 0; col < index->n_user_defined_cols; col++) {
+                        ulint col_no = dict_index_get_nth_col_no(index, col);
+                        drop_col_list.insert(col_no);
+                }
+        }
+}
+
+/** For each column, which is part of an index which is not going to be
+dropped, it checks if the column number of the column is same as col_no
+argument passed.
+@param[in]      table   table object
+@param[in]      col_no  column number of the column which is to be checked
+@retval true column exists
+@retval false column does not exist. */
+static
+bool
+check_col_exists_in_indexes(
+        const dict_table_t*	table,
+        ulint			col_no)
+{
+        for (dict_index_t* index = dict_table_get_first_index(table); index;
+             index = dict_table_get_next_index(index)) {
+
+                if (index->to_be_dropped) {
+                        continue;
+                }
+
+                for (ulint col = 0; col < index->n_user_defined_cols; col++) {
+
+                        ulint index_col_no = dict_index_get_nth_col_no(
+                                                index, col);
+                        if (col_no == index_col_no) {
+                                return(true);
+                        }
+                }
+        }
+
+        return(false);
+}
+
 /** Commit the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the data dictionary tables,
 when not rebuilding the table.
@@ -7140,6 +7195,21 @@ commit_try_norebuild(
 		    == ha_alter_info->alter_info->drop_list.elements
 		    || ctx->num_to_drop_vcol
 		       == ha_alter_info->alter_info->drop_list.elements);
+
+
+        std::set<ulint> drop_list;
+        std::set<ulint>::iterator col_no;
+
+	/* Check if the column, part of an index to be dropped is part of any
+	other index which is not being dropped. If it so, then set the ord_part
+	of the column to 0. */
+        get_col_list_to_be_dropped(ctx, drop_list);
+
+        for(col_no = drop_list.begin(); col_no != drop_list.end(); ++col_no) {
+                if (!check_col_exists_in_indexes(ctx->new_table, *col_no)) {
+			ctx->new_table->cols[*col_no].ord_part = 0;
+                }
+        }
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];
