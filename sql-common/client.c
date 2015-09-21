@@ -452,6 +452,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
   HANDLE event_client_read = NULL;
   HANDLE event_conn_closed = NULL;
   HANDLE handle_file_map = NULL;
+  HANDLE connect_named_mutex = NULL;
   ulong connect_number;
   char connect_number_char[22], *p;
   char *tmp= NULL;
@@ -522,6 +523,14 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     goto err;
   }
 
+  my_stpcpy(suffix_pos, "CONNECT_NAMED_MUTEX");
+  connect_named_mutex= CreateMutex(NULL, TRUE, tmp);
+  if (connect_named_mutex == NULL)
+  {
+    error_allow= CR_SHARED_MEMORY_CONNECT_SET_ERROR;
+    goto err;
+  }
+
   /* Send to server request of connection */
   if (!SetEvent(event_connect_request))
   {
@@ -536,6 +545,8 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     error_allow = CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR;
     goto err;
   }
+
+  ReleaseMutex(connect_named_mutex);
 
   /* Get number of connection */
   connect_number = uint4korr(handle_connect_map);/*WAX2*/
@@ -644,6 +655,9 @@ err:
     CloseHandle(handle_connect_file_map);
   if (error_allow)
   {
+    if (connect_named_mutex)
+      ReleaseMutex(connect_named_mutex);
+
     if (error_allow == CR_SHARED_MEMORY_EVENT_ERROR)
       set_mysql_extended_error(mysql, error_allow, unknown_sqlstate,
                                ER(error_allow), suffix_pos, error_code);
