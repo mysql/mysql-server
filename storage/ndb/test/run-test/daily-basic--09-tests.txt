@@ -1,0 +1,125 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testBasic
+args: -n NoCommitRollback626 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n Bug48700 T1
+max-time: 180
+
+cmd: testScan
+args: -n CheckAfterTerror T1 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n UnlockBatch T6
+max-time: 180
+
+cmd: testBasic
+args: -n LeakApiConnectObjects T1
+max-time: 180
+
+cmd: testBasic
+args: -n NoCommitAndClose T1 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n PkInsertTwice T1 T6 D1 D2
+max-time: 180
+
+cmd: DbCreate
+args: DbCreate
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxEqual
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdateAbort16 T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n UnlockUpdateBatch T3
+max-time: 180
+
+cmd: testBasicAsynch
+args: -n PkDeleteAsynch
+max-time: 180
+
+cmd: flexBench
+args: -c 25 -t 10
+max-time: 180
+
+cmd: testDict
+args: -n FK_Bug18069680 T1
+max-time: 360
+
+cmd: testIndexStat
+args: testIndexStat
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug18044717 T1
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n FailSlave T1
+max-time: 360
+
+cmd: testOIBasic
+args: -case gz
+max-time: 360
+
+cmd: testNodeRestart
+args: -n TwoMasterNodeFailure T6 T13
+max-time: 2340
+
+cmd: testDict
+args: -n Bug13416603 I2
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug25364 T1
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n Bug56044 T1
+max-time: 1080
+
+cmd: testMgm
+args: testMgm
+max-time: 900
+
+cmd: testNodeRestart
+args: -n RestartAllNodesAbort T6 T13
+max-time: 1800
+
+cmd: testNodeRestart
+args: -n Bug16895311 T1
+max-time: 2160
+
+cmd: testNodeRestart
+args: -n RestartRandomNode T6 T13
+max-time: 2160
+
+cmd: testNodeRestart
+args: -n Bug18612SR T1
+max-time: 2520
+

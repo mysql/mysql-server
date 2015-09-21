@@ -1,0 +1,73 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testBasic
+args: -n RefreshTuple T6 D1
+max-time: 180
+
+cmd: testFK
+args: -n Basic55 T1
+max-time: 180
+
+cmd: testDict
+args: -n DictTakeOver_1 T1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug16766493 D1
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead100 -l 100 T1 D1 D2
+max-time: 540
+
+cmd: testSystemRestart
+args: -n Bug46412 T1
+max-time: 1260
+
+cmd: testSystemRestart
+args: -n SR_DD_3 D1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n Bug41295 T1
+max-time: 1260
+
+cmd: testDict
+args: -n FK_SRNR1 T1
+max-time: 2160
+
+cmd: testBasic
+args: -n Bug54986 D2
+max-time: 1800
+
+cmd: testSystemRestart
+args: -n SR_DD_2b_LCP D1
+max-time: 1800
+
+cmd: testIndex
+args: -n NFNR1 T6 T13
+max-time: 2880
+
+cmd: testSystemRestart
+args: -n to D2
+max-time: 3600
+
+cmd: testNodeRestart
+args: -n Bug34216 -l 10 T1 I3 D2
+max-time: 4680
+

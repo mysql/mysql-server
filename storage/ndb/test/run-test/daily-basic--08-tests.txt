@@ -1,0 +1,129 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: test_event
+args: -n Bug44915 T1
+max-time: 180
+
+cmd: testIndex
+args: -n Bug12315582 T1
+max-time: 180
+
+cmd: test_event
+args: -n NextEventRemoveInconsisEvent T1
+max-time: 180
+
+cmd: testDict
+args: -l 1 -n FailCreateHashmap T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadError5025 T1 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxTransactions T1 T6 T13
+max-time: 180
+
+cmd: testBlobs
+args: -bug 27370 -skip p
+max-time: 180
+
+cmd: testNdbApi
+args: -n MaxGetValue T1 T6 T13
+max-time: 180
+
+cmd: testBasic
+args: -n Bug27756
+max-time: 180
+
+cmd: testDict
+args: -n TableAddAttrsDuring T1 T6
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadCommitted240
+max-time: 180
+
+cmd: testNdbApi
+args: -n UnlockMulti T3
+max-time: 360
+
+cmd: testScan
+args: -n ScanRead488Timeout -l 10 T6 D1 D2
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug31980 T1
+max-time: 360
+
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_slow T1
+max-time: 360
+
+cmd: testBasic
+args: -r 5000 -n 899 T15 D1 D2
+max-time: 360
+
+cmd: testNodeRestart
+args: -n Bug29364 T1
+max-time: 1620
+
+cmd: testScan
+args: -n ScanReadError5023 T1 D1 D2
+max-time: 540
+
+cmd: testNdbApi
+args: -n UnlockBasic T1
+max-time: 540
+
+cmd: testNdbinfo
+args: testNdbinfo
+max-time: 720
+
+cmd: testBasic
+args: -n Fill T13
+max-time: 1440
+
+cmd: testNodeRestart
+args: -n LCPTakeOver T6
+max-time: 4680
+
+cmd: testIndex
+args: -n CreateAll T1 T13 T14
+max-time: 1260
+
+cmd: testNodeRestart
+args: -n RestartRandomNodeError T6 T13
+max-time: 1800
+
+cmd: testNodeRestart
+args: -n Bug48474 T1
+max-time: 1080
+
+cmd: testNodeRestart
+args: -n -l 3 -n Bug43224 T1
+max-time: 1800
+
+cmd: testLimits
+args: -n SlowDihFileWrites T1
+max-time: 3780
+
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T13
+max-time: 4860
+

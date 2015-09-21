@@ -1,0 +1,130 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n SimpleReadAbortOnError T1 T6 T15
+max-time: 180
+
+cmd: testBasic
+args: -n InsertError2 T1
+max-time: 180
+
+cmd: testFK
+args: -n CreateDropError T1
+max-time: 180
+
+cmd: test_event
+args: -n Bug56579 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n UpdateWithoutKeys T6 D1 D2
+max-time: 180
+
+cmd: testBasic
+args: -n RollbackDeleteMultiple T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n OnlyOneOpInScanTrans T6 D1 D2
+max-time: 180
+
+cmd: testSystemRestart
+args: -l 1 -n SR7 T1
+max-time: 180
+
+cmd: test_event
+args: -n Bug35208 T1
+max-time: 180
+
+cmd: testFK
+args: -n Cascade1 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n RecordSpecificationBackwardCompatibility
+max-time: 180
+
+cmd: testDataBuffers
+args: testDataBuffers
+max-time: 180
+
+cmd: testDict
+args: -n GetTabInfoRef T1
+max-time: 180
+
+cmd: testBlobs
+args: -bug 48040 -skip p
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug24543 T1
+max-time: 360
+
+cmd: testDict
+args: -n Bug14645319 T1
+max-time: 360
+
+cmd: testLimits
+args: -n DropSignalFragments T1
+max-time: 720
+
+cmd: testNodeRestart
+args: -n Bug21271 T6
+max-time: 540
+
+cmd: testIndex
+args: -n InsertDelete T1
+max-time: 360
+
+cmd: DbAsyncGenerator
+args: -time 60 -p 200
+max-time: 360
+type: bench
+
+cmd: atrt-testBackup
+args: -n FailMaster T1
+max-time: 360
+
+cmd: testIndex
+args: --forceshortreqs -n InsertDelete T2
+max-time: 720
+
+cmd: testRedo
+args: -nRedoFull T1
+max-time: 1440
+
+cmd: testSystemRestart
+args: -n SR_DD_2_LCP D2
+max-time: 1260
+
+cmd: testNdbApi
+args: -n DeleteNdb T1 T6
+max-time: 1980
+
+cmd: testScan
+args: -n ScanReadRestart D1 D2
+max-time: 2160
+
+cmd: test_event
+args: -n CreateDropNR T1
+max-time: 3600
+
+cmd: testSystemRestart
+args: -n SR2 D1
+max-time: 4860
+

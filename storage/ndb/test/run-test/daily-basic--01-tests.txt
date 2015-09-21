@@ -1,0 +1,130 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: test_event
+args: -n Bug18703871 T1
+max-time: 180
+
+cmd: testDict
+args: -n CreateInvalidTables T1
+max-time: 180
+
+cmd: test_event
+args: -n bug37672 T1
+max-time: 180
+
+cmd: testNativeDefault
+args: testNativeDefault
+max-time: 180
+
+cmd: testBasic
+args: -n Bug54944 T1
+max-time: 180
+
+cmd: testBasic
+args: -n CommitAsMuch630 T1 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort240 T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n testDropDDObjects T1
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug17882305 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n NdbRecordRowLength
+max-time: 180
+
+cmd: testNodeRestart
+args: -n Bug36246 T1
+max-time: 540
+
+cmd: testDict
+args: -n Bug57057 T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n Bug28443
+max-time: 180
+
+cmd: testBasic
+args: -n PkRead WIDE_MAXKEY_HUGO WIDE_MAXATTR_HUGO WIDE_MAXKEYMAXCOLS_HUGO WIDE_MINKEYMAXCOLS_HUGO
+max-time: 180
+
+cmd: testDict
+args: -n Bug24631 T1
+max-time: 360
+
+cmd: testBasic
+args: -n PkSimpleRead
+max-time: 360
+
+cmd: testScanFilter
+args: T1
+max-time: 360
+
+cmd: testIndex
+args: -n Bug21384
+max-time: 360
+
+cmd: testDict
+args: -n CreateAndDropWithData
+max-time: 360
+
+cmd: DbAsyncGenerator
+args: -time 60 -p 1
+max-time: 360
+type: bench
+
+cmd: testDict
+args: -n TableAddAttrs
+max-time: 540
+
+cmd: test_event
+args: -n Bug37442 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug43888 T1
+max-time: 1080
+
+cmd: atrt-testBackup
+args: -n NFSlave T1
+max-time: 1440
+
+cmd: atrt-testBackup
+args: -n NFMaster T1
+max-time: 1980
+
+cmd: testIndex
+args: -n NFNR2_O T6 T13
+max-time: 2340
+
+cmd: testIndex
+args: -n NF_DeferredMixed T1 T6 T13
+max-time: 3780
+
+cmd: testSystemRestart
+args: -n SR2 T1
+max-time: 4860
+
