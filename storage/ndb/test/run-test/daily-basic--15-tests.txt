@@ -1,0 +1,57 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testBasic
+args: -n CommitAsMuch626 T6 D1 D2
+max-time: 180
+
+cmd: testIndex
+args: -n Bug60851 T1
+max-time: 180
+
+cmd: testBlobs
+args: -bug 27018 -skip p
+max-time: 180
+
+cmd: testIndex
+args: -n Bug46069 T1
+max-time: 360
+
+cmd: testSystemRestart
+args: -n Bug29167 T1
+max-time: 720
+
+cmd: testScan
+args: -n ScanParallelism
+max-time: 360
+
+cmd: test_event
+args: -n Bug34853 T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n LateCommit T1
+max-time: 900
+
+cmd: atrt-testBackup
+args: -n NFMasterAsSlave T1
+max-time: 1440
+
+cmd: testScan
+args: -n ScanReadRestart T1 T6 T13
+max-time: 3060
+

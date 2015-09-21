@@ -1,0 +1,125 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testNdbApi
+args: -n Scan_4006 T1 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n GetOperationNoTab T6
+max-time: 180
+
+cmd: testNdbApi
+args: -n ExecuteAsynch T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkRead T1
+max-time: 180
+
+cmd: testIndex
+args: -n RefreshWithOrderedIndex T2 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAbort15 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n Bug24447 T1
+max-time: 180
+
+cmd: testScan
+args: -n ScanUpdate2 T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n ScanReadAndPkRead T6 D1 D2
+max-time: 180
+
+cmd: testNdbApi
+args: -n Bug44065
+max-time: 180
+
+cmd: testNdbApi
+args: -n UnlockScan T1
+max-time: 180
+
+cmd: testBasic
+args: -n PkReadUpdateAndLocker T6 D1 D2
+max-time: 180
+
+cmd: testScan
+args: -n Bug42559 T6 D1 D2
+max-time: 180
+
+cmd: testDict
+args: -n Bug21755 T1
+max-time: 360
+
+cmd: testScan
+args: -n CheckInactivityBeforeClose T6 D1 D2
+max-time: 180
+
+cmd: atrt-testBackup
+args: -n Bug19202654 T1
+max-time: 360
+
+cmd: testBasic
+args: -n ReadWithLocksAndInserts T6 D1 D2
+max-time: 540
+
+cmd: testDict
+args: -n CreateAndDropDuring T6 D1 D2
+max-time: 360
+
+cmd: testBasic
+args: -n PkDelete
+max-time: 540
+
+cmd: testNodeRestart
+args: -n DeleteRestart T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n Bug25554 T1
+max-time: 1260
+
+cmd: testScan
+args: -n CheckGetValue T6 D1 D2
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug26481 T1
+max-time: 1620
+
+cmd: testNodeRestart
+args: -n RestartAllNodesError9999 T6 T13
+max-time: 1980
+
+cmd: testNodeRestart
+args: -n RestartAllNodes T6 T13
+max-time: 1980
+
+cmd: testNodeRestart
+args: -n NF_Hammer -r 5 T1
+max-time: 2520
+
+cmd: testSpj
+args: -n NF_Join T6 T13
+max-time: 4860
+

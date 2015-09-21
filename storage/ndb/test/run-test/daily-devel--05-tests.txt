@@ -1,0 +1,73 @@
+# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+#
+# GENERATED FILE
+#
+cmd: testFK
+args: -n Basic1 T1
+max-time: 180
+
+cmd: testFK
+args: -n CreateDropDuring T1
+max-time: 180
+
+cmd: testNdbApi
+args: -n FragmentedApiFailure T1
+max-time: 180
+
+cmd: testDict
+args: -n Bug53944 T1
+max-time: 540
+
+cmd: testNodeRestart
+args: -n TestLCPFSErr --record=100000 T1
+max-time: 900
+
+cmd: testNodeRestart
+args: -n Bug16772 T1
+max-time: 720
+
+cmd: testSystemRestart
+args: -n SR_DD_3_LCP D1
+max-time: 1080
+
+cmd: test_event
+args: -n EventOperationApplier_NS T1
+max-time: 3420
+
+cmd: testNodeRestart
+args: -n pnr_lcp T1
+max-time: 1440
+
+cmd: testSystemRestart
+args: -n SR_DD_2b_LCP D2
+max-time: 1620
+
+cmd: testSRBank
+args: -n NR -l 300 -r 15 T1
+max-time: 1980
+
+cmd: testIndex
+args: -n NFNR1_O T6 T13
+max-time: 3060
+
+cmd: testNodeRestart
+args: -n MixedPkRead T6 T13
+max-time: 3600
+
+cmd: testOIBasic
+args: -case abcdefz
+max-time: 4320
+
