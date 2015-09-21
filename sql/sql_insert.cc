@@ -2683,8 +2683,11 @@ int Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   if (!(table= create_table_from_items(thd, create_info, create_table,
                                        alter_info, &values)))
+  {
+    my_error(ER_CANT_CREATE_TABLE,MYF(0), create_table->table_name, table);
     /* abort() deletes table */
     DBUG_RETURN(-1);
+  }
 
   if (table->s->fields < values.elements)
   {
