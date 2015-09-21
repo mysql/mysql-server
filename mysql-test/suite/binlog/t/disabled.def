@@ -9,4 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog_max_flush_queue_time_warn : BUG#21503595 2015-09-07 Arun Disabled since this leads to failure
