@@ -1429,7 +1429,7 @@ public:
   virtual void store_value(Item *item)
   {
     String *res= item->val_str(&value);
-    if(res && (res != &value))
+    if (res && (res != &value || !res->is_alloced()))
     {
       // 'res' may point in item's transient internal data, so make a copy
       value.copy(*res);
