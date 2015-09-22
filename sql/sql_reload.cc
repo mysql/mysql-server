@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "rpl_rli.h"     // rotate_relay_log
 #include "rpl_mi.h"
 #include "debug_sync.h"
+#include "des_key_file.h"
 
 
 /**
@@ -325,7 +326,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
 #endif
-#ifdef OPENSSL
+#ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
