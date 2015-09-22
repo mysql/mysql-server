@@ -1,4 +1,6 @@
 --source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
 
 --echo #
 --echo # Bug #21794102 HANDLE_FATAL_SIGNAL (SIG=11) IN
