@@ -3214,8 +3214,7 @@ row_create_index_for_mysql(
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
 			!dict_table_is_intrinsic(table)
-			&& (trx_is_strict(trx)
-			    || dict_table_has_atomic_blobs(table)));
+			&& trx_is_strict(trx));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;

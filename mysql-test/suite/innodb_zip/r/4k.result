@@ -321,7 +321,6 @@ CREATE INDEX t1d ON t1 (d(767));
 UPDATE t1 SET d=@e;
 ERROR HY000: Undo log record is too big.
 CREATE INDEX t1e ON t1 (e(767));
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -349,7 +348,8 @@ t1	CREATE TABLE `t1` (
   KEY `t1a` (`a`(767)),
   KEY `t1b` (`b`(767)),
   KEY `t1c` (`c`(767)),
-  KEY `t1d` (`d`(767))
+  KEY `t1d` (`d`(767)),
+  KEY `t1e` (`e`(767))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 SET SESSION innodb_strict_mode = OFF;
@@ -420,7 +420,9 @@ CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767)))
@@ -433,7 +435,9 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+Warnings:
+Warning	139	Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+DROP TABLE t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));

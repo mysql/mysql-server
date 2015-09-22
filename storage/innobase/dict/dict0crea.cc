@@ -1603,8 +1603,7 @@ dict_create_index_step(
 
 		err = dict_index_add_to_cache_w_vcol(
 			node->table, node->index, node->add_v, FIL_NULL,
-			trx_is_strict(trx)
-			|| dict_table_has_atomic_blobs(node->table));
+			trx_is_strict(trx));
 
 		if (err != DB_SUCCESS) {
 			node->index = NULL;
