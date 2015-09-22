@@ -810,6 +810,7 @@ extern mysql_mutex_t
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
        LOCK_offline_mode, LOCK_default_password_lifetime;
 #ifdef HAVE_OPENSSL
+extern char* des_key_file;
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
