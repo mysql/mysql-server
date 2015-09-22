@@ -24,6 +24,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbBackup.hpp>
 #include <Bitmask.hpp>
+#include <NdbMgmd.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1320,6 +1321,100 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   
   return result;
 }
+int
+runOneNodeWithCleanFilesystem(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  const int nodeCount = restarter.getNumDbNodes();
+  int master = restarter.getMasterNodeId();
+  int other_ng_node = restarter.getRandomNodeOtherNodeGroup(master, rand());
+  int other_ng = restarter.getNodeGroup(other_ng_node);
+  Vector<int> nodeIds;
+  for(int i = 0; i<nodeCount; i++)
+  {
+    int node = restarter.getDbNodeId(i);
+    if (restarter.getNodeGroup(node) == other_ng)
+      nodeIds.push_back(node);
+  }
+
+  if (nodeIds.size() == 0) {
+    g_err << "[SKIPPED] Test skipped.  Need at least two node groups." << endl;
+    return NDBT_OK;
+  }
+
+  /**
+   * All nodes but one in a node group will be taken down early so
+   * that their filesystem are too old for recreating node group.
+   * The last node is taken down late and causing cluster down, and
+   * before restarted that nodes file system is cleared.
+   * Restarting cluster should now fail in a controlled.
+   */
+  do {
+    ndbout_c("master: %u, victim node group: %u", master, other_ng);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val2, 2);
+
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+    struct ndb_logevent event;
+
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+
+    for(unsigned i=1; i < nodeIds.size(); i++)
+    {
+      int node = nodeIds[i];
+      g_info << "Crashing node " << node << ", will have old logs" << endl;
+      CHECK(restarter.insertErrorInNode(node, 7183) == 0);
+      CHECK(restarter.waitNodesNoStart(&node, 1) == 0);
+
+      // Wait for an global checkpoint to complete
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    }
+
+    // Wait for some more global checkpoint to complete
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    ndb_mgm_destroy_logevent_handle(&handle);
+
+    // Crash last node in victim node group
+    int node = nodeIds[0];
+    CHECK(restarter.insertErrorInAllNodes(944) == 0);
+    g_info << "Crashing node " << node << endl;
+    CHECK(restarter.insertErrorInNode(node, 7183) == 0);
+    CHECK(restarter.waitNodesNoStart(&node, 1) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+
+    restarter.dumpStateAllNodes(val2, 2);
+    CHECK(restarter.insertErrorInAllNodes(944) == 0);
+    g_info << "Save file system clean on restart for node " << node << endl;
+    CHECK(restarter.insertError2InNode(node, 2000, 944) == 0);
+
+    restarter.startAll();
+    // Wait a short while for start phase 0, but cluster might already stopped again
+    (void) restarter.waitClusterStartPhase(0, 5 /* attempts */);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    g_info << "Cluster failed start as expected" << endl;
+
+    // A successul test must leave a live cluster behind
+    g_info << "Restore file system on restart for node " << node << endl;
+    CHECK(restarter.insertError2InNode(node, 2001, 0) == 0);
+    restarter.startAll();
+  } while(false);
+
+  return result;
+}
+
 int
 runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
   Ndb* pNdb = GETNDB(step);
@@ -2690,6 +2785,15 @@ TESTCASE("Bug29167", "")
 {
   INITIALIZER(runWaitStarted);
   STEP(runBug29167);
+}
+TESTCASE("OneNodeWithCleanFilesystem",
+         "Test system restart with a nodegroup there one node "
+         "was up to date when cluster went down but filesystem "
+         "is gone on restart, and the other nodes died earlier "
+         "having too old redo logs to use for restart.")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runOneNodeWithCleanFilesystem);
 }
 TESTCASE("Bug28770",
          "Check readTableFile1 fails, readTableFile2 succeeds\n"
