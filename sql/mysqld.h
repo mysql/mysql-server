@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -349,6 +349,7 @@ extern mysql_mutex_t
 extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thread_count;
 extern MYSQL_PLUGIN_IMPORT mysql_mutex_t LOCK_thd_remove;
 #ifdef HAVE_OPENSSL
+extern char* des_key_file;
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
