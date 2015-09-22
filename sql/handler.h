@@ -1216,6 +1216,9 @@ public:
   // Upgrade partitioning
   static const HA_ALTER_FLAGS ALTER_UPGRADE_PARTITIONING  = 1ULL << 37;
 
+  // New/changed virtual generated column require validation
+  static const HA_ALTER_FLAGS VALIDATE_VIRTUAL_COLUMN    = 1ULL << 38;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

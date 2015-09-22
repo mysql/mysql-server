@@ -573,7 +573,7 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   /* Table and partition has same structure/options */
 
-  if (alter_info->with_validation)
+  if (alter_info->with_validation != Alter_info::ALTER_WITHOUT_VALIDATION)
   {
     thd_proc_info(thd, "verifying data with partition");
 
