@@ -2198,6 +2198,28 @@ id
 2
 3
 DROP TABLE t3;
+#
+# Bug#17167633 WKT <EXACT NUMERIC LITERAL> WITHOUT LEADING ZEROS
+#
+SELECT ST_AsText(ST_PointFromText('POINT(1 . 1)'));
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+SELECT ST_AsText(ST_PointFromText('POINT(1 .1)'));
+ST_AsText(ST_PointFromText('POINT(1 .1)'))
+POINT(1 0.1)
+SELECT ST_AsText(ST_LineFromText('LINESTRING(.0 0,0 0,0 0)'));
+ST_AsText(ST_LineFromText('LINESTRING(.0 0,0 0,0 0)'))
+LINESTRING(0 0,0 0,0 0)
+SELECT ST_X(ST_PointFromText('POINT(.0  0)'));
+ST_X(ST_PointFromText('POINT(.0  0)'))
+0
+SELECT ST_Y(ST_PointFromText('point(0  .0)'));
+ST_Y(ST_PointFromText('point(0  .0)'))
+0
+CREATE TABLE t1 (col_1 CHAR(7));
+INSERT INTO t1 VALUES ('POINT(.');
+SELECT ST_GeomFromText(col_1) FROM t1;
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
+DROP TABLE t1;
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
