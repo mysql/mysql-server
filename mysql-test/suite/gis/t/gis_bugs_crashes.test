@@ -6480,3 +6480,10 @@ CREATE TABLE t(col_a INTEGER) ENGINE=InnoDB;
 INSERT INTO t VALUES (0), (0), (0);
 SELECT ST_IsValid(NULL) NOT IN (SELECT col_a FROM t) FROM t;
 DROP TABLE t;
+
+--echo ######################################################################################################
+--echo # BUG#21767301: ASSERTION `IT->OPERATIONS[0].OPERATION == OPERATION_UNION' FAILED
+--echo ######################################################################################################
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((1 8,-17 -13,19
+-9,1 8))'), ST_GEOMFROMTEXT('POLYGON((8 6,5 7,-1 4,-8 -7,0 -17,8 6),(3 6,5
+5,0 -2,3 6))')));
