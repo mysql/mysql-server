@@ -5048,10 +5048,22 @@ mysql_compare_tables(TABLE *table,
 
     /* Check if field was renamed */
     field->flags&= ~FIELD_IS_RENAMED;
-    if (my_strcasecmp(system_charset_info,
-		      field->field_name,
-		      tmp_new_field->field_name))
-      field->flags|= FIELD_IS_RENAMED;      
+
+    /*
+      InnoDB data dictionary is case sensitive so we should use string case
+      sensitive comparison between fields. Note: strcmp branch is to be
+      removed in future when we fix it in InnoDB.
+    */
+    if ((table->s->db_type())->db_type == DB_TYPE_INNODB &&
+         strcmp(field->field_name,tmp_new_field->field_name))
+      field->flags|= FIELD_IS_RENAMED;
+    else
+    {
+      if (my_strcasecmp(system_charset_info,
+                        field->field_name,
+                        tmp_new_field->field_name))
+        field->flags|= FIELD_IS_RENAMED;
+    }
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(tmp_new_field)))
