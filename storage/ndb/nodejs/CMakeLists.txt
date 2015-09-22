@@ -52,11 +52,22 @@ link_directories(
 add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
 add_definitions(-D_BUILDING_NODE_EXTENSION)
 
-# Temporarily remove -Werror compiler flag for nodejs adapter
-# build until BUG#21880029 has been fixed
-IF(CMAKE_CXX_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+# Disable specific types of warnings for storage/ndb/nodejs
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning "vla")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
 ENDIF()
+
 
 set(ADAPTER_SOURCE_FILES
   Adapter/impl/common/src/async_common.cpp
