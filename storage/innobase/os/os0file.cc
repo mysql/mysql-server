@@ -1926,7 +1926,7 @@ os_file_compress_page(
 
 	ulint	n_alloc = *n * 2;
 
-	ut_a(n_alloc < UNIV_PAGE_SIZE_MAX * 2);
+	ut_a(n_alloc <= UNIV_PAGE_SIZE_MAX * 2);
 	ut_a(type.compression_algorithm().m_type != Compression::LZ4
 	     || static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
