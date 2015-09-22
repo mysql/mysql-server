@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -295,6 +295,7 @@ bool Item_in_subselect::finalize_materialization_transform(JOIN *join)
       For some reason we cannot use materialization for this IN predicate.
       Delete all materialization-related objects, and return error.
     */
+    new_engine->cleanup();
     delete new_engine;
     return true;
   }
@@ -2747,7 +2748,7 @@ bool subselect_single_select_engine::exec()
     if (join->optimize())
     {
       optimize_error= true;
-      rc= join->error ? join->error : 1;
+      rc= 1;
       goto exit;
     }
     if (item->engine_changed)
@@ -3560,21 +3561,20 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     - here we initialize only those members that are used by
       subselect_indexsubquery_engine, so these objects are incomplete.
   */ 
-  JOIN_TAB * const tmp_tab= new (thd->mem_root) JOIN_TAB;
-  if (tmp_tab == NULL)
+  if (!(tab= new (thd->mem_root) JOIN_TAB))
     DBUG_RETURN(TRUE);
-  tmp_tab->table= tmp_table;
-  tmp_tab->ref.key= 0; /* The only temp table index. */
-  tmp_tab->ref.key_length= tmp_key->key_length;
-  if (!(tmp_tab->ref.key_buff=
+  tab->table= tmp_table;
+  tab->ref.key= 0; /* The only temp table index. */
+  tab->ref.key_length= tmp_key->key_length;
+  if (!(tab->ref.key_buff=
         (uchar*) thd->calloc(ALIGN_SIZE(tmp_key->key_length) * 2)) ||
-      !(tmp_tab->ref.key_copy=
+      !(tab->ref.key_copy=
         (store_key**) thd->alloc((sizeof(store_key*) * tmp_key_parts))) ||
-      !(tmp_tab->ref.items=
+      !(tab->ref.items=
         (Item**) thd->alloc(sizeof(Item*) * tmp_key_parts)))
     DBUG_RETURN(TRUE);
 
-  uchar *cur_ref_buff= tmp_tab->ref.key_buff;
+  uchar *cur_ref_buff= tab->ref.key_buff;
 
   /*
     Like semijoin-materialization-lookup (see create_subquery_equalities()),
@@ -3618,11 +3618,11 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     /* Item for the corresponding field from the materialized temp table. */
     Item_field *right_col_item;
     const bool nullable= key_parts[part_no].field->real_maybe_null();
-    tmp_tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
+    tab->ref.items[part_no]= item_in->left_expr->element_index(part_no);
 
     if (!(right_col_item= new Item_field(thd, context, 
                                          key_parts[part_no].field)) ||
-        !(eq_cond= new Item_func_eq(tmp_tab->ref.items[part_no],
+        !(eq_cond= new Item_func_eq(tab->ref.items[part_no],
                                     right_col_item)) ||
         ((Item_cond_and*)cond)->add(eq_cond))
     {
@@ -3631,7 +3631,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       DBUG_RETURN(TRUE);
     }
 
-    tmp_tab->ref.key_copy[part_no]= 
+    tab->ref.key_copy[part_no]=
       new store_key_item(thd, key_parts[part_no].field,
                          /* TODO:
                             the NULL byte is taken into account in
@@ -3642,7 +3642,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
                          cur_ref_buff + (nullable ? 1 : 0),
                          nullable ? cur_ref_buff : 0,
                          key_parts[part_no].length,
-                         tmp_tab->ref.items[part_no]);
+                         tab->ref.items[part_no]);
     if (nullable &&          // nullable column in tmp table,
         // and UNKNOWN should not be interpreted as FALSE
         !item_in->is_top_level_item())
@@ -3650,25 +3650,22 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
       // It must be the single column, or we wouldn't be here
       DBUG_ASSERT(tmp_key_parts == 1);
       // Be ready to search for NULL into inner column:
-      tmp_tab->ref.null_ref_key= cur_ref_buff;
+      tab->ref.null_ref_key= cur_ref_buff;
       mat_table_has_nulls= NEX_UNKNOWN;
     }
     else
     {
-      tmp_tab->ref.null_ref_key= NULL;
+      tab->ref.null_ref_key= NULL;
       mat_table_has_nulls= NEX_IRRELEVANT_OR_FALSE;
     }
 
     cur_ref_buff+= key_parts[part_no].store_length;
   }
-  tmp_tab->ref.key_err= 1;
-  tmp_tab->ref.key_parts= tmp_key_parts;
+  tab->ref.key_err= 1;
+  tab->ref.key_parts= tmp_key_parts;
 
   if (cond->fix_fields(thd, &cond))
     DBUG_RETURN(TRUE);
-
-  // Set 'tab' only when function cannot fail, because of assert in destructor
-  tab= tmp_tab;
 
   /*
     Create and optimize the JOIN that will be used to materialize
