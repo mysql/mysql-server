@@ -2027,3 +2027,7 @@ max-time : 600
 cmd: testBasic
 args: -n AccCommitOrder T1
 
+max-time: 300
+cmd: testSystemRestart
+args: -n OneNodeWithCleanFilesystem T1
+
