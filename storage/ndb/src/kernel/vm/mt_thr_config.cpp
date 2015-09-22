@@ -783,9 +783,15 @@ parseUnsigned(char *& str, unsigned * dst)
   char * endptr = 0;
   errno = 0;
   long val = strtol(str, &endptr, 0);
-  if (errno == ERANGE)
+  // Check value out of 'long' range
+  if ((val == LONG_MIN || val == LONG_MAX) && errno == ERANGE)
     return -1;
-  if (val < 0 || Int64(val) > 0xFFFFFFFF)
+  // Don't accept negative numbers
+  if (val < 0)
+    return -1;
+  // Don't allow larger than 'unsigned' max
+  const long unsigned_max = UINT_MAX;
+  if (val > unsigned_max)
     return -1;
   if (endptr == str)
     return -1;
