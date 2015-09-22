@@ -3834,7 +3834,7 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
         Uint32 varlen = ((Uint16*)src_data)[mm_vars];
         Uint32 *dynstart = ALIGN_WORD(varstart + varlen);
 
-        ndbassert(src_len >= (dynstart - src_data));
+        ndbassert((ptrdiff_t)src_len >= (dynstart - src_data));
         src_len -= Uint32(dynstart - src_data);
         src_data = dynstart;
       }
@@ -4074,7 +4074,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
       dst->m_max_var_offset= varlen;
 
       Uint32 dynlen = Uint32(src_len - (dynstart - src_data));
-      ndbassert(src_len >= (dynstart - src_data));
+      ndbassert((ptrdiff_t)src_len >= (dynstart - src_data));
       dst->m_dyn_data_ptr= (char*)dynstart;
       dst->m_dyn_part_len= dynlen;
       // Do or not to to do
