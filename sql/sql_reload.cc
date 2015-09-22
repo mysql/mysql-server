@@ -33,7 +33,7 @@
 #include "current_thd.h" // my_thread_set_THR_THD
 #include "sql_cache.h"   // query_cache
 #include "log.h"         // query_logger
-
+#include "des_key_file.h"
 
 /**
   Reload/resets privileges and the different caches.
@@ -322,7 +322,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
 #endif
-#ifdef OPENSSL
+#ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
