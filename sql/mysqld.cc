@@ -4324,7 +4324,7 @@ int mysqld_main(int argc, char **argv)
 
   ho_error= handle_early_options();
 
-#if !defined(_WIN32) && !defined(EMBEDDED_LIBARARY)
+#if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 
   if (opt_bootstrap && opt_daemonize)
   {
