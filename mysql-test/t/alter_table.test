@@ -1261,3 +1261,22 @@ CREATE TABLE time_zone (dummy int) ENGINE=merge;
 CREATE TABLE help_topic (dummy int) ENGINE=innodb;
 use test;
 --echo # End of Bug#11815557
+
+--echo #
+--echo # Bug#20755615	CREATING INDEX ON A RENAMED
+--echo #                COLUMN WITH CASE CRASH .FRM FILE
+--echo #
+
+CREATE TABLE t1 (D INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 MODIFY COLUMN d INT;
+ALTER TABLE t1 ADD INDEX (d);
+DROP TABLE t1;
+
+CREATE TABLE t1 (`é` int) ENGINE=innodb;
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 CHANGE `é` `É` INT;
+ALTER TABLE t1 ADD INDEX (`É`);
+SELECT * FROM t1;
+DROP TABLE t1;
+

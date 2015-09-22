@@ -1488,3 +1488,20 @@ CREATE TABLE help_topic (dummy int) ENGINE=innodb;
 ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.help_topic]
 use test;
 # End of Bug#11815557
+#
+# Bug#20755615	CREATING INDEX ON A RENAMED
+#                COLUMN WITH CASE CRASH .FRM FILE
+#
+CREATE TABLE t1 (D INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 MODIFY COLUMN d INT;
+ALTER TABLE t1 ADD INDEX (d);
+DROP TABLE t1;
+CREATE TABLE t1 (`é` int) ENGINE=innodb;
+INSERT INTO t1 VALUES (10);
+ALTER TABLE t1 CHANGE `é` `É` INT;
+ALTER TABLE t1 ADD INDEX (`É`);
+SELECT * FROM t1;
+É
+10
+DROP TABLE t1;
