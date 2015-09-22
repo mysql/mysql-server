@@ -4189,8 +4189,9 @@ prepare_inplace_alter_table_dict(
 		/* Use the old tablespace unless the tablespace
 		is changing. */
 		if (DICT_TF_HAS_SHARED_SPACE(user_table->flags)
-		    && (0 == strcmp(ha_alter_info->create_info->tablespace,
-				    user_table->tablespace))) {
+		    && (ha_alter_info->create_info->tablespace == NULL
+			|| (0 == strcmp(ha_alter_info->create_info->tablespace,
+				    user_table->tablespace)))) {
 			space_id = user_table->space;
 		} else if (tablespace_is_shared_space(
 				ha_alter_info->create_info)) {
