@@ -17,7 +17,9 @@
 #include <m_string.h>
 #include <m_ctype.h>
 #include <fcntl.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <my_xml.h>
 
 #define ROW_LEN		16
