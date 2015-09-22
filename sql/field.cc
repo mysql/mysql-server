@@ -1253,6 +1253,65 @@ static void set_decimal_warning(Field_new_decimal *field,
   }
 }
 
+
+/**
+  Copy string with optional character set conversion.
+
+  This calls helper function well_formed_copy_nchars to copy string
+  with optional character set convertion. Specially, it checks if
+  the ASCII code point exceeds code range. If YES, it allows the
+  input but raises a warning.
+
+  @param to_cs                    Character set of "to" string
+  @param to                       Store result here
+  @param to_length                Maxinum length of "to" string
+  @param from_cs                  From character set
+  @param from                     Copy from here
+  @param from_length              Length of from string
+  @param nchars                   Copy not more that nchars characters
+  @param well_formed_error_pos    Return position when "from" is not well
+                                  formed or NULL otherwise.
+  @param cannot_convert_error_pos Return position where a not convertable
+                                  character met, or NULL otherwise.
+  @param from_end_pos             Return position where scanning of "from"
+                                  string stopped.
+
+  @retval length of bytes copied to 'to'
+*/
+
+size_t field_well_formed_copy_nchars(const CHARSET_INFO *to_cs,
+                                     char *to, size_t to_length,
+                                     const CHARSET_INFO *from_cs,
+                                     const char *from, size_t from_length,
+                                     size_t nchars,
+                                     const char **well_formed_error_pos,
+                                     const char **cannot_convert_error_pos,
+                                     const char **from_end_pos)
+{
+  size_t res = well_formed_copy_nchars(to_cs, to, to_length, from_cs,
+                                       from, from_length, nchars,
+                                       well_formed_error_pos,
+                                       cannot_convert_error_pos,
+                                       from_end_pos);
+  /*
+   If the code point is out of ascii range, we only give user a warning
+   in 5.7. Need to change to give a ERROR in future version.
+  */
+  if ((to_cs->state & MY_CS_PUREASCII) && *well_formed_error_pos != NULL)
+  {
+    char tmp[32];
+    *well_formed_error_pos = NULL;
+    convert_to_printable(tmp, sizeof(tmp), from, from_length, from_cs, 6);
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_INVALID_CHARACTER_STRING,
+                        ER_THD(current_thd, ER_INVALID_CHARACTER_STRING),
+                        "ascii", tmp);
+  }
+  return res;
+
+}
+
+
 /**
   Check whether a field type can be partially indexed by a key.
 
@@ -6997,7 +7056,7 @@ Field_string::store(const char *from, size_t length,const CHARSET_INFO *cs)
   /* See the comment for Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
 
-  copy_length= well_formed_copy_nchars(field_charset,
+  copy_length= field_well_formed_copy_nchars(field_charset,
                                        (char*) ptr, field_length,
                                        cs, from, length,
                                        field_length / field_charset->mbmaxlen,
@@ -7499,7 +7558,7 @@ type_conversion_status Field_varstring::store(const char *from, size_t length,
   const char *cannot_convert_error_pos;
   const char *from_end_pos;
 
-  copy_length= well_formed_copy_nchars(field_charset,
+  copy_length= field_well_formed_copy_nchars(field_charset,
                                        (char*) ptr + length_bytes,
                                        field_length,
                                        cs, from, length,
@@ -8150,7 +8209,7 @@ Field_blob::store_internal(const char *from, size_t length,
       is never used to limit the length of the data. The cut of long data
       is done with the new_length value.
     */
-    size_t copy_length= well_formed_copy_nchars(field_charset,
+    size_t copy_length= field_well_formed_copy_nchars(field_charset,
                                                 tmp, new_length,
                                                 cs, from, length,
                                                 length,
