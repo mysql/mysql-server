@@ -153,8 +153,11 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
 {
   String str;
   String *strat_name= args[0]->val_str_ascii(&str);
-  if (args[0]->null_value)
-    return error_str();
+  if ((null_value= args[0]->null_value))
+  {
+    DBUG_ASSERT(maybe_null);
+    return NULL;
+  }
 
   // Get the NULL-terminated ascii string.
   const char *pstrat_name= strat_name->c_ptr_safe();
@@ -198,8 +201,11 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
       }
 
       double val= args[1]->val_real();
-      if (args[1]->null_value)
-        return error_str();
+      if ((null_value= args[1]->null_value))
+      {
+        DBUG_ASSERT(maybe_null);
+        return NULL;
+      }
       if (val <= 0)
       {
         my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
