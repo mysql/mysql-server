@@ -31,6 +31,7 @@
 #include "connection_handler_impl.h"
 #include "opt_costconstantcache.h"     // reload_optimizer_cost_constants
 #include "log.h"         // query_logger
+#include "des_key_file.h"
 
 
 /**
@@ -314,7 +315,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
   }
 #endif
-#ifdef OPENSSL
+#ifdef HAVE_OPENSSL
    if (options & REFRESH_DES_KEY_FILE)
    {
      if (des_key_file && load_des_key_file(des_key_file))
