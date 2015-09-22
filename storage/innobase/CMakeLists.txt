@@ -161,10 +161,13 @@ ENDIF()
 # Avoid generating Hardware Capabilities due to crc32 instructions
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
   INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  ADD_COMPILE_FLAGS(
-    ut/ut0crc32.cc
-    COMPILE_FLAGS "-Wa,-nH"
-  )
+  MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
+  IF(HAVE_WA_NH)
+    ADD_COMPILE_FLAGS(
+      ut/ut0crc32.cc
+      COMPILE_FLAGS "-Wa,-nH"
+    )
+  ENDIF()
 ENDIF()
 
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+
