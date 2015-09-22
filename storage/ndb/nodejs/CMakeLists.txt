@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  
+# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.  
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,6 +51,12 @@ link_directories(
 
 add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
 add_definitions(-D_BUILDING_NODE_EXTENSION)
+
+# Temporarily remove -Werror compiler flag for nodejs adapter
+# build until BUG#21880029 has been fixed
+IF(CMAKE_CXX_FLAGS)
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ENDIF()
 
 set(ADAPTER_SOURCE_FILES
   Adapter/impl/common/src/async_common.cpp
