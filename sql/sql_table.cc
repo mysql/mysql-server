@@ -6308,6 +6308,8 @@ static bool fill_alter_inplace_info(THD *thd,
   if (alter_info->flags & Alter_info::ALTER_UPGRADE_PARTITIONING)
     ha_alter_info->handler_flags|=
       Alter_inplace_info::ALTER_UPGRADE_PARTITIONING;
+  if (alter_info->with_validation == Alter_info::ALTER_WITH_VALIDATION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::VALIDATE_VIRTUAL_COLUMN;
 
   /*
     If we altering table with old VARCHAR fields we will be automatically
@@ -8683,6 +8685,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
       DBUG_RETURN(true);
     }
+  }
+
+  if (alter_info->with_validation != Alter_info::ALTER_VALIDATION_DEFAULT &&
+      !(alter_info->flags & 
+        (Alter_info::ALTER_ADD_COLUMN | Alter_info::ALTER_CHANGE_COLUMN)))
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "ALTER","WITH VALIDATION");
+    DBUG_RETURN(true);
   }
 
   THD_STAGE_INFO(thd, stage_init);
