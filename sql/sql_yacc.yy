@@ -7911,10 +7911,18 @@ alter_commands:
 
 opt_validation:
           /* empty */
-        | WITH VALIDATION_SYM
+        | alter_opt_validation
+        ;
+
+alter_opt_validation:
+        WITH VALIDATION_SYM
+          {
+            Lex->alter_info.with_validation= Alter_info::ALTER_WITH_VALIDATION;
+          }
         | WITHOUT_SYM VALIDATION_SYM
           {
-            Lex->alter_info.with_validation= false;
+            Lex->alter_info.with_validation=
+              Alter_info::ALTER_WITHOUT_VALIDATION;
           }
 	    ;
 
@@ -8240,6 +8248,7 @@ alter_list_item:
           }
         | alter_algorithm_option
         | alter_lock_option
+        | alter_opt_validation
         ;
 
 opt_index_lock_algorithm:

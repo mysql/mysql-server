@@ -1205,6 +1205,9 @@ public:
   // Alter index comment
   static const HA_ALTER_FLAGS ALTER_INDEX_COMMENT        = 1ULL << 36;
 
+  // New/changed virtual generated column require validation
+  static const HA_ALTER_FLAGS VALIDATE_VIRTUAL_COLUMN    = 1ULL << 37;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
