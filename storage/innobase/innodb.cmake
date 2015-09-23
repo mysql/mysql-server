@@ -301,5 +301,4 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-		    ${BOOST_INCLUDE_DIR})
+		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)

@@ -16,6 +16,7 @@
 # This is the CMakeLists for InnoDB
 
 INCLUDE(innodb.cmake)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 SET(INNOBASE_SOURCES
 	api/api0api.cc
@@ -189,3 +190,12 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
     COMPILE_FLAGS "-O0"
   )
 ENDIF()
+
+ADD_COMPILE_FLAGS(
+  btr/btr0btr.cc
+  buf/buf0buf.cc
+  buf/buf0lru.cc
+  handler/i_s.cc
+  handler/ha_innodb.cc
+  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+)

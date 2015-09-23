@@ -1296,14 +1296,14 @@ LatchDebug::shutdown()
 
 	mutex_free(&rw_lock_debug_mutex);
 
+	ut_a(s_initialized);
+
+	s_initialized = false;
+
 	if (instance() == NULL) {
 
 		return;
 	}
-
-	ut_a(s_initialized);
-
-	s_initialized = false;
 
 	UT_DELETE(s_instance);
 
