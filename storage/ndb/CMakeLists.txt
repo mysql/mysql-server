@@ -55,7 +55,10 @@ NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)
   INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning "unused-but-set-variable" "strict-aliasing")
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "error=maybe-uninitialized")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
