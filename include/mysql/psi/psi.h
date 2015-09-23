@@ -1594,6 +1594,13 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
 
 /**
+  Assign the current operating system thread id to an instrumented thread.
+  The operating system task id is obtained from @c gettid()
+  @param thread the instrumented thread
+*/
+typedef void (*set_thread_os_id_v1_t)(struct PSI_thread *thread);
+
+/**
   Get the instrumentation for the running thread.
   For this function to return a result,
   the thread instrumentation must have been attached to the
@@ -2484,6 +2491,8 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa set_thread_THD_v1_t. */
   set_thread_THD_v1_t set_thread_THD;
+  /** @sa set_thread_os_id_v1_t. */
+  set_thread_os_id_v1_t set_thread_os_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
   /** @sa set_thread_user_v1_t. */

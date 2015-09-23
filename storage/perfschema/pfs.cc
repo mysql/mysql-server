@@ -2177,6 +2177,7 @@ extern "C" void* pfs_spawn_thread(void *arg)
     pfs= create_thread(klass, typed_arg->m_child_identity, 0);
     if (likely(pfs != NULL))
     {
+      pfs->m_thread_os_id= my_thread_os_id();
       clear_thread_account(pfs);
 
       pfs->m_parent_thread_internal_id= typed_arg->m_thread_internal_id;
@@ -2304,6 +2305,18 @@ void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd)
   if (unlikely(pfs == NULL))
     return;
   pfs->m_thd= thd;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread_os_thread_id.
+*/
+void pfs_set_thread_os_id_v1(PSI_thread *thread)
+{
+  PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
+  if (unlikely(pfs == NULL))
+    return;
+  pfs->m_thread_os_id= my_thread_os_id();
 }
 
 /**
@@ -6939,6 +6952,7 @@ PSI_v1 PFS_v1=
   pfs_new_thread_v1,
   pfs_set_thread_id_v1,
   pfs_set_thread_THD_v1,
+  pfs_set_thread_os_id_v1,
   pfs_get_thread_v1,
   pfs_set_thread_user_v1,
   pfs_set_thread_account_v1,

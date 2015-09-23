@@ -42,7 +42,7 @@ class PFS_buffer_processor;
 template <class T, class U, class V>
 class PFS_buffer_iterator;
 
-template <class T, int PAGE_SIZE, int PAGE_COUNT, class U, class V>
+template <class T, int PFS_PAGE_SIZE, int PFS_PAGE_COUNT, class U, class V>
 class PFS_buffer_scalable_iterator;
 
 template <class T>
@@ -54,7 +54,7 @@ class PFS_buffer_default_allocator;
 template <class T, class U, class V>
 class PFS_buffer_container;
 
-template <class T, int PAGE_SIZE, int PAGE_COUNT, class U, class V>
+template <class T, int PFS_PAGE_SIZE, int PFS_PAGE_COUNT, class U, class V>
 class PFS_buffer_scalable_container;
 
 template <class T>
@@ -362,20 +362,20 @@ private:
 };
 
 template <class T,
-          int PAGE_SIZE,
-          int PAGE_COUNT,
+          int PFS_PAGE_SIZE,
+          int PFS_PAGE_COUNT,
           class U = PFS_buffer_default_array<T>,
           class V = PFS_buffer_default_allocator<T> >
 class PFS_buffer_scalable_container
 {
 public:
-  friend class PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V>;
+  friend class PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>;
 
   typedef T value_type;
   typedef U array_type;
   typedef V allocator_type;
   typedef PFS_buffer_const_iterator<T> const_iterator_type;
-  typedef PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V> iterator_type;
+  typedef PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V> iterator_type;
   typedef PFS_buffer_processor<T> processor_type;
   typedef void (*function_type)(value_type *);
 
@@ -389,14 +389,14 @@ public:
     int i;
 
     m_full= true;
-    m_max= PAGE_COUNT * PAGE_SIZE;
-    m_max_page_count= PAGE_COUNT;
-    m_last_page_size= PAGE_SIZE;
+    m_max= PFS_PAGE_COUNT * PFS_PAGE_SIZE;
+    m_max_page_count= PFS_PAGE_COUNT;
+    m_last_page_size= PFS_PAGE_SIZE;
     m_lost= 0;
     m_monotonic.m_u32= 0;
     m_max_page_index.m_u32= 0;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       m_pages[i]= NULL;
     }
@@ -408,14 +408,14 @@ public:
     }
     else if (max_size > 0)
     {
-      if (max_size % PAGE_SIZE == 0)
+      if (max_size % PFS_PAGE_SIZE == 0)
       {
-        m_max_page_count= max_size / PAGE_SIZE;
+        m_max_page_count= max_size / PFS_PAGE_SIZE;
       }
       else
       {
-        m_max_page_count= max_size / PAGE_SIZE + 1;
-        m_last_page_size= max_size % PAGE_SIZE;
+        m_max_page_count= max_size / PFS_PAGE_SIZE + 1;
+        m_last_page_size= max_size % PFS_PAGE_SIZE;
       }
       /* Bounded allocation. */
       m_full= false;
@@ -433,12 +433,12 @@ public:
     int i;
     array_type *page;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
-        m_allocator->free_array(page, PAGE_SIZE);
+        m_allocator->free_array(page, PFS_PAGE_SIZE);
         delete page;
         m_pages[i]= NULL;
       }
@@ -449,7 +449,7 @@ public:
   {
     ulong page_count= PFS_atomic::load_u32(& m_max_page_index.m_u32);
 
-    return page_count * PAGE_SIZE;
+    return page_count * PFS_PAGE_SIZE;
   }
 
   ulong get_row_size() const
@@ -557,10 +557,10 @@ public:
         array= new array_type();
         builtin_memory_scalable_buffer.count_alloc(sizeof (array_type));
 
-        int rc= m_allocator->alloc_array(array, PAGE_SIZE);
+        int rc= m_allocator->alloc_array(array, PFS_PAGE_SIZE);
         if (rc != 0)
         {
-          m_allocator->free_array(array, PAGE_SIZE);
+          m_allocator->free_array(array, PFS_PAGE_SIZE);
           delete array;
           builtin_memory_scalable_buffer.count_free(sizeof (array_type));
           m_lost++;
@@ -584,7 +584,7 @@ public:
           old_array= static_cast<array_type *>(old_ptr);
 
           /* Delete the page */
-          m_allocator->free_array(array, PAGE_SIZE);
+          m_allocator->free_array(array, PFS_PAGE_SIZE);
           delete array;
           builtin_memory_scalable_buffer.count_free(sizeof (array_type));
 
@@ -620,13 +620,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         if ((pfs <= safe_pfs) &&
             (safe_pfs < pfs_last))
@@ -643,13 +643,13 @@ public:
 
   iterator_type iterate()
   {
-    return PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V>(this, 0);
+    return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(this, 0);
   }
 
   iterator_type iterate(uint index)
   {
     DBUG_ASSERT(index <= m_max);
-    return PFS_buffer_scalable_iterator<T, PAGE_SIZE, PAGE_COUNT, U, V>(this, index);
+    return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(this, index);
   }
 
   void apply(function_type fct)
@@ -659,13 +659,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -686,13 +686,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -710,13 +710,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -737,13 +737,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         while (pfs < pfs_last)
         {
@@ -758,11 +758,11 @@ public:
   {
     DBUG_ASSERT(index < m_max);
 
-    uint index_1= index / PAGE_SIZE;
+    uint index_1= index / PFS_PAGE_SIZE;
     array_type *page= m_pages[index_1];
     if (page != NULL)
     {
-      uint index_2= index % PAGE_SIZE;
+      uint index_2= index % PFS_PAGE_SIZE;
       value_type *pfs= page->m_ptr + index_2;
 
       if (pfs->m_lock.is_populated())
@@ -782,7 +782,7 @@ public:
       return NULL;
     }
 
-    uint index_1= index / PAGE_SIZE;
+    uint index_1= index / PFS_PAGE_SIZE;
     array_type *page= m_pages[index_1];
 
     if (page == NULL)
@@ -792,7 +792,7 @@ public:
     }
 
     *has_more= true;
-    uint index_2= index % PAGE_SIZE;
+    uint index_2= index % PFS_PAGE_SIZE;
     value_type *pfs= page->m_ptr + index_2;
 
     if (pfs->m_lock.is_populated())
@@ -811,13 +811,13 @@ public:
     value_type *pfs;
     value_type *pfs_last;
 
-    for (i=0 ; i < PAGE_COUNT; i++)
+    for (i=0 ; i < PFS_PAGE_COUNT; i++)
     {
       page= m_pages[i];
       if (page != NULL)
       {
         pfs= page->m_ptr;
-        pfs_last= pfs + PAGE_SIZE;
+        pfs_last= pfs + PFS_PAGE_SIZE;
 
         if ((pfs <= unsafe) &&
             (unsafe < pfs_last))
@@ -839,7 +839,7 @@ private:
   uint get_page_logical_size(uint page_index)
   {
     if (page_index + 1 < m_max_page_count)
-      return PAGE_SIZE;
+      return PFS_PAGE_SIZE;
     return m_last_page_size;
   }
 
@@ -847,8 +847,8 @@ private:
   {
     DBUG_ASSERT(index <= m_max);
 
-    uint index_1= index / PAGE_SIZE;
-    uint index_2= index % PAGE_SIZE;
+    uint index_1= index / PFS_PAGE_SIZE;
+    uint index_2= index % PFS_PAGE_SIZE;
     array_type *page;
     value_type *pfs_first;
     value_type *pfs;
@@ -866,13 +866,13 @@ private:
 
       pfs_first= page->m_ptr;
       pfs= pfs_first + index_2;
-      pfs_last= pfs_first + PAGE_SIZE;
+      pfs_last= pfs_first + PFS_PAGE_SIZE;
 
       while (pfs < pfs_last)
       {
         if (pfs->m_lock.is_populated())
         {
-          uint found= index_1 * PAGE_SIZE + static_cast<uint>(pfs - pfs_first);
+          uint found= index_1 * PFS_PAGE_SIZE + static_cast<uint>(pfs - pfs_first);
           *found_index= found;
           index= found + 1;
           return pfs;
@@ -883,7 +883,7 @@ private:
       index_1++;
       index_2= 0;
     }
-    while (index_1 < PAGE_COUNT);
+    while (index_1 < PFS_PAGE_COUNT);
 
     index= static_cast<uint>(m_max);
     return NULL;
@@ -895,7 +895,7 @@ private:
   PFS_cacheline_uint32 m_max_page_index;
   ulong m_max_page_count;
   ulong m_last_page_size;
-  array_type * m_pages[PAGE_COUNT];
+  array_type * m_pages[PFS_PAGE_COUNT];
   allocator_type *m_allocator;
 };
 

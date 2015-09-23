@@ -352,6 +352,14 @@
 #cmakedefine DISABLE_PSI_MEMORY 1
 #cmakedefine DISABLE_PSI_TRANSACTION 1
 
+/*
+ * syscall
+*/
+#cmakedefine HAVE_SYS_THREAD_SELFID 1
+#cmakedefine HAVE_SYS_GETTID 1
+#cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
+#cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
+
 /* Platform-specific C++ compiler behaviors we rely upon */
 
 /*
