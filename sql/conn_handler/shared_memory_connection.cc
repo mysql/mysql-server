@@ -129,7 +129,7 @@ void Shared_mem_listener::close_shared_mem()
   if (m_connect_map)
     UnmapViewOfFile(m_connect_map);
   if (m_connect_named_mutex)
-	  CloseHandle(m_connect_named_mutex);
+    CloseHandle(m_connect_named_mutex);
   if (m_connect_file_map)
     CloseHandle(m_connect_file_map);
   if (m_event_connect_answer)
@@ -182,7 +182,7 @@ bool Shared_mem_listener::setup_listener()
   }
 
   my_stpcpy(m_suffix_pos, "CONNECT_NAMED_MUTEX");
-  HANDLE m_connect_named_mutex= CreateMutex(NULL, FALSE, m_temp_buffer);
+  m_connect_named_mutex= CreateMutex(NULL, FALSE, m_temp_buffer);
   if (m_connect_named_mutex == NULL)
   {
     errmsg="Unable to create connect named mutex.";
