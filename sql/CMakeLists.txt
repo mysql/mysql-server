@@ -315,8 +315,8 @@ ADD_COMPILE_FLAGS(
 )
 
 # Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
+MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+IF(HAVE_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     handler.cc
     item_geofunc.cc
@@ -330,8 +330,8 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
 ENDIF()
 
 # Boost source has logical && with non-zero constant
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
-IF(HAVE_NO_LOGICAL_OP)
+MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+IF(HAVE_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     item_geofunc_buffer.cc
@@ -344,9 +344,8 @@ IF(HAVE_NO_LOGICAL_OP)
 ENDIF()
 
 # Some Boost 1.58 source does not adhere to stricter C++11 rules
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-c++11-extra-semi"
-                           HAVE_NO_CPP11_EXTRA_SEMI)
-IF(HAVE_NO_CPP11_EXTRA_SEMI)
+MY_CHECK_CXX_COMPILER_FLAG("-Wc++11-extra-semi" HAVE_CPP11_EXTRA_SEMI)
+IF(HAVE_CPP11_EXTRA_SEMI)
   ADD_COMPILE_FLAGS(
     item_geofunc.cc
     item_geofunc_buffer.cc

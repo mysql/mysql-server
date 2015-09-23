@@ -104,9 +104,8 @@ IF (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro"))
      client_base ${LZ4_LIBRARY} boost_lib)
 
    # Boost source has unused local typedefs.
-   MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs"
-     HAVE_NO_UNUSED_TYPEDEFS)
-   IF(HAVE_NO_UNUSED_TYPEDEFS)
+   MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+   IF(HAVE_UNUSED_TYPEDEFS)
      ADD_COMPILE_FLAGS(
        abstract_crawler.cc
        abstract_mysql_chain_element_extension.cc

@@ -85,8 +85,8 @@ ENDIF()
 # Do not build library unless it is needed by some other target.
 SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-logical-op" HAVE_NO_LOGICAL_OP)
-IF(HAVE_NO_LOGICAL_OP)
+MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
+IF(HAVE_LOGICAL_OP)
   ADD_COMPILE_FLAGS(
     ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
     COMPILE_FLAGS "-Wno-logical-op"
@@ -94,8 +94,8 @@ IF(HAVE_NO_LOGICAL_OP)
 ENDIF()
 
 # Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
-IF(HAVE_NO_UNUSED_TYPEDEFS)
+MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
+IF(HAVE_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
     ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/once.cpp
     ${BOOST_SOURCES_DIR}/libs/thread/src/pthread/thread.cpp
