@@ -90,7 +90,7 @@ let SEARCH_PATTERN= Aborting;
 --source include/search_pattern_in_file.inc
 
 --echo # Now start server normally without ssl support, with MEM and require-secure-transport=on
---exec echo "restart:--loose-enable-named-pipe --loose-shared-memory=1 --require-secure-transport=on --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--loose-enable-named-pipe --loose-shared-memory=1 --shared_memory_base_name=server_inst_sh_mem --require-secure-transport=on --skip-ssl" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -101,7 +101,7 @@ let SEARCH_PATTERN= Aborting;
 --disable_query_log
 --Error ER_SECURE_TRANSPORT_REQUIRED
 connect(pipe_con3,localhost,root,,,,,PIPE);
-connect(memory_con2,localhost,root,,,,$shm_name,SHM);
+connect(memory_con2,localhost,root,,,,server_inst_sh_mem,SHM);
 SET @@global.require_secure_transport = Off;
 disconnect memory_con2;
 --enable_query_log
