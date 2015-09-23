@@ -58,7 +58,10 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   FOREACH(warning
           "unused-but-set-variable"
           "strict-aliasing"
-          "error=maybe-uninitialized")
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized"
+          "error=uninitialized")
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
