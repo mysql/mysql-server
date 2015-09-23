@@ -205,6 +205,11 @@ static void set_thread_THD_noop(PSI_thread *thread NNN, THD *thd NNN)
   return;
 }
 
+static void set_thread_os_id_noop(PSI_thread *thread NNN)
+{
+  return;
+}
+
 static PSI_thread*
 get_thread_noop(void NNN)
 {
@@ -899,6 +904,7 @@ static PSI PSI_noop=
   new_thread_noop,
   set_thread_id_noop,
   set_thread_THD_noop,
+  set_thread_os_id_noop,
   get_thread_noop,
   set_thread_user_noop,
   set_thread_user_host_noop,

@@ -73,6 +73,8 @@ struct row_threads
   ulonglong m_parent_thread_internal_id;
   /** Column CONNECTION_TYPE. */
   enum_vio_type m_connection_type;
+  /** Column THREAD_OS_ID. */
+  my_thread_os_id_t m_thread_os_id;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */
