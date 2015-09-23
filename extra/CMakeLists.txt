@@ -143,10 +143,13 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
      CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
     INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    ADD_COMPILE_FLAGS(
-      ../storage/innobase/ut/ut0crc32.cc
-      COMPILE_FLAGS "-Wa,-nH"
-    )
+    MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
+    IF(HAVE_WA_NH)
+      ADD_COMPILE_FLAGS(
+        ../storage/innobase/ut/ut0crc32.cc
+        COMPILE_FLAGS "-Wa,-nH"
+      )
+    ENDIF()
   ENDIF()
 
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
