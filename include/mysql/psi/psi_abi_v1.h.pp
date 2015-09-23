@@ -451,6 +451,7 @@ typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
                                     THD *thd);
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
+typedef void (*set_thread_os_id_v1_t)(struct PSI_thread *thread);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
 typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
@@ -719,6 +720,7 @@ struct PSI_v1
   new_thread_v1_t new_thread;
   set_thread_id_v1_t set_thread_id;
   set_thread_THD_v1_t set_thread_THD;
+  set_thread_os_id_v1_t set_thread_os_id;
   get_thread_v1_t get_thread;
   set_thread_user_v1_t set_thread_user;
   set_thread_account_v1_t set_thread_account;

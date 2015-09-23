@@ -103,12 +103,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("CONNECTION_TYPE") },
     { C_STRING_WITH_LEN("varchar(16)") },
     { NULL, 0 }
-  }
+  },
+  {
+    { C_STRING_WITH_LEN("THREAD_OS_ID") },
+    { C_STRING_WITH_LEN("bigint(20)") },
+    { NULL, 0}
+  },
 };
 
 TABLE_FIELD_DEF
 table_threads::m_field_def=
-{ 16, field_types };
+{ 17, field_types };
 
 PFS_engine_table_share
 table_threads::m_share=
@@ -156,6 +161,7 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
   m_row.m_processlist_id= pfs->m_processlist_id;
+  m_row.m_thread_os_id= pfs->m_thread_os_id;
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
@@ -366,6 +372,12 @@ int table_threads::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
+      case 16: /* THREAD_OS_ID */
+        if (m_row.m_thread_os_id > 0)
+          set_field_ulonglong(f, m_row.m_thread_os_id);
+        else
+          f->set_null();
+        break;
       default:
         DBUG_ASSERT(false);
       }
@@ -401,7 +413,6 @@ int table_threads::update_row_values(TABLE *table,
       case 10: /* PROCESSLIST_INFO */
       case 11: /* PARENT_THREAD_ID */
       case 12: /* ROLE */
-      case 15: /* CONNECTION_TYPE */
         return HA_ERR_WRONG_COMMAND;
       case 13: /* INSTRUMENTED */
         value= (enum_yes_no) get_field_enum(f);
@@ -411,6 +422,9 @@ int table_threads::update_row_values(TABLE *table,
         value= (enum_yes_no) get_field_enum(f);
         m_row.m_psi->set_history((value == ENUM_YES) ? true : false);
         break;
+      case 15: /* CONNECTION_TYPE */
+      case 16: /* THREAD_OS_ID */
+        return HA_ERR_WRONG_COMMAND;
       default:
         DBUG_ASSERT(false);
       }

@@ -273,6 +273,7 @@ extern "C" void *handle_connection(void *arg)
       */
       PSI_thread *psi= PSI_THREAD_CALL(new_thread)
         (key_thread_one_connection, thd, thd->thread_id());
+      PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);
     }
 #endif
