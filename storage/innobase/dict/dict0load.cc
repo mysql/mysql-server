@@ -2485,6 +2485,7 @@ dict_load_indexes(
 				we will continue to load the index and
 				let caller deal with this error. However
 				mark the index as corrupted. */
+				index->table = table;
 				dict_set_corrupted(index);
 
 				ib::info() << "Index is corrupt but forcing"
