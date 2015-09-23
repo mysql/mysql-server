@@ -1448,8 +1448,9 @@ int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       Skip key parts that are constants in the WHERE clause.
       These are already skipped in the ORDER BY by const_expression_in_where()
     */
-    for (; const_key_parts & 1 ; const_key_parts>>= 1)
-      key_part++; 
+    for (; const_key_parts & 1 && key_part < key_part_end ;
+         const_key_parts>>= 1)
+      key_part++;
 
     if (key_part == key_part_end)
     {
