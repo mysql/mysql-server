@@ -137,3 +137,13 @@ HELP '%function_2';
 # Cleanup
 SET @@global.innodb_thread_concurrency = default;
 SET @@global.innodb_thread_sleep_delay = default;
+
+--echo #
+--echo # Bug#21871451: INNODB: FAILING ASSERTION: !(&BUF_POOL->MUTEX)
+--echo #
+
+SELECT 'SUCCESS_INNODB_CMPMEM' FROM DUAL WHERE EXISTS
+(SELECT * FROM INFORMATION_SCHEMA.INNODB_CMPMEM);
+
+SELECT 'SUCCESS_INNODB_CMP' FROM DUAL WHERE EXISTS
+(SELECT * FROM INFORMATION_SCHEMA.INNODB_CMPMEM_RESET);
