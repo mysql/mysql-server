@@ -2088,45 +2088,52 @@ i_s_cmpmem_fill_low(
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-		buf_pool_t*	buf_pool;
+		buf_pool_t*		buf_pool;
+		ulint			zip_free_len_local[BUF_BUDDY_SIZES_MAX + 1];
+		buf_buddy_stat_t	buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
 
 		status	= 0;
 
 		buf_pool = buf_pool_from_array(i);
 
+		/* Save buddy stats for buffer pool in local variables. */
 		buf_pool_mutex_enter(buf_pool);
+		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+
+			zip_free_len_local[x] = (x < BUF_BUDDY_SIZES) ?
+				UT_LIST_GET_LEN(buf_pool->zip_free[x]) : 0;
+
+			buddy_stat_local[x] = buf_pool->buddy_stat[x];
+
+			if (reset) {
+				/* This is protected by buf_pool->mutex. */
+				buf_pool->buddy_stat[x].relocated = 0;
+				buf_pool->buddy_stat[x].relocated_usec = 0;
+			}
+		}
+		buf_pool_mutex_exit(buf_pool);
 
 		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 			buf_buddy_stat_t*	buddy_stat;
 
-			buddy_stat = &buf_pool->buddy_stat[x];
+			buddy_stat = &buddy_stat_local[x];
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
 			table->field[1]->store(static_cast<double>(i));
 			table->field[2]->store(static_cast<double>(
 				buddy_stat->used));
 			table->field[3]->store(static_cast<double>(
-				(x < BUF_BUDDY_SIZES)
-				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
-				: 0));
+				zip_free_len_local[x]));
 			table->field[4]->store(
 				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
 				static_cast<double>(buddy_stat->relocated_usec / 1000000));
-
-			if (reset) {
-				/* This is protected by buf_pool->mutex. */
-				buddy_stat->relocated = 0;
-				buddy_stat->relocated_usec = 0;
-			}
 
 			if (schema_table_store_record(thd, table)) {
 				status = 1;
 				break;
 			}
 		}
-
-		buf_pool_mutex_exit(buf_pool);
 
 		if (status) {
 			break;
