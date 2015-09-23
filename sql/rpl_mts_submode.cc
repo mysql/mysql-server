@@ -876,10 +876,20 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
       while (!worker && !thd->killed)
       {
         /*
-          wait and get a free worker.
-          todo: replace with First Available assignement policy
+          Busy wait with yielding thread control before to next attempt
+          to find a free worker. As of current, a worker
+          can't have more than one assigned group of events in its
+          queue.
+
+          todo: replace this At-Most-One assignment policy with
+                First Available Worker as
+                this method clearly can't be considered as optimal.
         */
+#if !defined(_WIN32)
+        sched_yield();
+#else
         my_sleep(rli->mts_coordinator_basic_nap);
+#endif
         worker= get_free_worker(rli);
       }
       THD_STAGE_INFO(thd, *old_stage);
