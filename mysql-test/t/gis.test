@@ -2779,3 +2779,11 @@ SELECT ST_ISVALID(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((5 6,-15
 SELECT point(1,1) IN ('1',1,'1') AS res;
 SELECT st_centroid(point(1,1)) IN ('1',1,'1') AS res;
 DO st_centroid(point(1,1)) IN ('1',1,'1');
+
+--echo #
+--echo # Bug #21841051 PREPARE STATEMENT RETURNS DIFFERENT NUMBER OF ROWS WHEN
+--echo # EXECUTED SECOND TIME
+--echo #
+
+SELECT ST_AsText(ST_GeomFromText('POINT(0 0)', NULL));
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', NULL));

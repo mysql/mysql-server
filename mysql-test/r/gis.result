@@ -2957,3 +2957,13 @@ SELECT st_centroid(point(1,1)) IN ('1',1,'1') AS res;
 res
 0
 DO st_centroid(point(1,1)) IN ('1',1,'1');
+#
+# Bug #21841051 PREPARE STATEMENT RETURNS DIFFERENT NUMBER OF ROWS WHEN
+# EXECUTED SECOND TIME
+#
+SELECT ST_AsText(ST_GeomFromText('POINT(0 0)', NULL));
+ST_AsText(ST_GeomFromText('POINT(0 0)', NULL))
+NULL
+SELECT ST_SRID(ST_GeomFromText('POINT(0 0)', NULL));
+ST_SRID(ST_GeomFromText('POINT(0 0)', NULL))
+NULL

@@ -126,8 +126,16 @@ String *Item_func_geometry_from_text::val_str(String *str)
   Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
   uint32 srid= 0;
 
-  if ((arg_count == 2) && !args[1]->null_value)
-    srid= (uint32)args[1]->val_int();
+  if (arg_count == 2)
+  {
+    if ((null_value= args[1]->null_value))
+    {
+      DBUG_ASSERT(maybe_null);
+      return NULL;
+    }
+    else
+      srid= (uint32)args[1]->val_int();
+  }
 
   str->set_charset(&my_charset_bin);
   if ((null_value= str->reserve(GEOM_HEADER_SIZE, 512)))
@@ -3780,9 +3788,10 @@ longlong Item_func_issimple::val_int()
 
   tmp.length(0);
   String *arg_wkb= args[0]->val_str(&tmp);
-  if (args[0]->null_value)
+  if ((null_value= args[0]->null_value))
   {
-    DBUG_RETURN(error_int());
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0);
   }
   if (arg_wkb == NULL)
   {
