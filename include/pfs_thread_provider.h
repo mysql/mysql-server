@@ -75,6 +75,7 @@ pfs_new_thread_v1(PSI_thread_key key, const void *identity, ulonglong processlis
 
 void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id);
 void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd);
+void pfs_set_thread_os_id_v1(PSI_thread *thread);
 
 PSI_thread*
 pfs_get_thread_v1(void);
