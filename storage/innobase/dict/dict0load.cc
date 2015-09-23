@@ -2572,7 +2572,7 @@ dict_load_indexes(
 				dictionary cache for such metadata corruption,
 				since we would always be able to set it
 				when loading the dictionary cache */
-				ut_ad(index->table == table);
+				index->table = table;
 				dict_set_corrupted_index_cache_only(index);
 
 				ib::info() << "Index is corrupt but forcing"
