@@ -98,6 +98,7 @@
     LOCK_plugin_delete              (block plugin delete)
      LOCK_system_variables_hash
      LOCK_thd_data                  (block THD delete)
+     LOCK_thd_sysvar                (block system variable updates, alloc_and_copy_thd_dynamic_variables)
        LOCK_global_system_variables (very briefly held)
 
   Status Variables
