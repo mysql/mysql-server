@@ -4175,6 +4175,14 @@ row_merge_create_index(
 			} else {
 				name = dict_table_get_v_col_name(
 					table, ifield->col_no);
+
+				if (dict_table_has_base_in_foreign(
+					    table, ifield->col_no)) {
+					my_error(ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT,
+						 MYF(0));
+					trx->error_state = DB_NO_VIRTUAL_INDEX_ON_FK;
+					DBUG_RETURN(NULL);
+				}
 			}
 		} else {
 			name = dict_table_get_col_name(table, ifield->col_no);

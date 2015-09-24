@@ -1093,3 +1093,92 @@ ALTER TABLE t1 CHANGE  d d INT GENERATED ALWAYS AS(a+b) FIRST;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+
+# Test foreign key which could be a base column of indexed virtual column
+CREATE TABLE parent (id INT PRIMARY KEY) ENGINE=INNODB;
+
+CREATE TABLE child (
+    id INT,
+    parent_id INT,
+    x int(11) GENERATED ALWAYS AS (parent_id+1),
+    INDEX par_ind (parent_id),
+    FOREIGN KEY (parent_id)
+        REFERENCES parent(id)
+        ON DELETE CASCADE
+) ENGINE=INNODB;
+
+--error ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
+ALTER TABLE child ADD INDEX `i1` (x);
+
+# If foreign constrain does not have cascade clause, or with "no action" clause
+# the index can still be created
+CREATE TABLE child_1 (
+    id INT,
+    parent_id INT,
+    x int(11) GENERATED ALWAYS AS (parent_id+1),
+    INDEX par_ind (parent_id),
+    FOREIGN KEY (parent_id)
+        REFERENCES parent(id)
+) ENGINE=INNODB;
+
+# This should be successful
+ALTER TABLE child_1 ADD INDEX `i1` (x);
+
+DROP TABLE child_1;
+
+DROP TABLE child;
+
+# This should fail
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE child (
+    id INT,
+    parent_id INT,
+    x int(11) GENERATED ALWAYS AS (parent_id+1),
+    INDEX par_ind (parent_id),
+    INDEX i1 (x),
+
+    FOREIGN KEY (parent_id)
+        REFERENCES parent(id)
+        ON DELETE CASCADE
+) ENGINE=INNODB;
+
+CREATE TABLE child (
+    id INT,
+    parent_id INT,
+    x int(11) GENERATED ALWAYS AS (parent_id+1),
+    INDEX par_ind (parent_id),
+    INDEX `i1` (x)
+) ENGINE=INNODB;
+
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE CASCADE;
+
+# Check inplace option
+SET foreign_key_checks = 0;
+
+--error ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE CASCADE;
+
+--error ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON DELETE SET NULL;
+
+--error ER_CANNOT_ADD_FOREIGN_BASE_COL_VIRTUAL
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id)
+ON UPDATE CASCADE;
+
+# this should be successful
+ALTER TABLE child ADD FOREIGN KEY (parent_id)
+REFERENCES parent(id);
+
+SET foreign_key_checks = 1;
+
+DROP TABLE child;
+
+DROP TABLE parent;
