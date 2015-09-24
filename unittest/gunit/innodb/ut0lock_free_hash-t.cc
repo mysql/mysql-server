@@ -434,7 +434,7 @@ TEST_F(ut0lock_free_hash, single_threaded)
 #if defined(HEAVY_TEST)
 	const size_t	n_iter = 512;
 #else
-	const size_t	n_iter = 128;
+	const size_t	n_iter = 128 / 8;
 #endif
 
 	for (size_t it = 0; it < n_iter; it++) {
@@ -577,7 +577,7 @@ DECLARE_THREAD(thread_0r100w)(
 #if defined(HEAVY_TEST)
 	const size_t	n_iter = 512 * 4096 / p->n_common;
 #else
-	const size_t	n_iter = 4 * 4096 / p->n_common;
+	const size_t	n_iter = 4096 / p->n_common;
 #endif
 
 	for (size_t i = 0; i < n_iter; i++) {
@@ -675,7 +675,7 @@ DECLARE_THREAD(thread_50r50w)(
 #if defined(HEAVY_TEST)
 	const size_t	n_iter = 512;
 #else
-	const size_t	n_iter = 4;
+	const size_t	n_iter = 1;
 #endif
 
 	for (size_t i = 0; i < n_iter; i++) {
@@ -755,7 +755,7 @@ DECLARE_THREAD(thread_100r0w)(
 #if defined(HEAVY_TEST)
 	const size_t	n_iter = 512;
 #else
-	const size_t	n_iter = 4;
+	const size_t	n_iter = 1;
 #endif
 
 	for (size_t i = 0; i < n_iter; i++) {
