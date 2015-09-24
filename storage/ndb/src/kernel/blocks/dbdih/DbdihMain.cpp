@@ -1515,13 +1515,14 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
         {
           ndbrequire(ng < MAX_NDB_NODES);
           Uint32 gci = node_gcis[i];
-          if (gci < SYSFILE->lastCompletedGCI[i])
+          if (gci > 0 && gci + 1 == SYSFILE->lastCompletedGCI[i])
           {
             jam();
             /**
              * Handle case, where *I* know that node complete GCI
              *   but node does not...bug#29167
              *   i.e node died before it wrote own sysfile
+             *   and node it only one gci behind
              */
             gci = SYSFILE->lastCompletedGCI[i];
           }
@@ -11995,6 +11996,17 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       }
       replicaPtr.i = nextReplicaPtrI;
     }//while
+    if (fragPtr.p->storedReplicas == RNIL)
+    {
+      // This should have been caught in Dbdih::execDIH_RESTARTREQ
+      char buf[255];
+      BaseString::snprintf
+        (buf, sizeof(buf),
+         "Nodegroup %u has not enough data on disk for restart.", i);
+      progError(__LINE__,
+                NDBD_EXIT_INSUFFICENT_NODES,
+                buf);
+    }
     updateNodeInfo(fragPtr);
   }
 }

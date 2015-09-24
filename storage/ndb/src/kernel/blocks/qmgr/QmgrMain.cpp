@@ -1745,6 +1745,7 @@ missing_nodegroup:
 			 "Unable to start missing node group! "
 			 " starting: %s (missing fs for: %s)",
 			 mask1, mask2);
+    CRASH_INSERTION(944);
     progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
     return 0;                                     // Deadcode
   }
@@ -1758,6 +1759,7 @@ incomplete_log:
 			 "Incomplete log for node group: %d! "
 			 " starting nodes: %s",
 			 incompleteng, mask1);
+    CRASH_INSERTION(944);
     progError(__LINE__, NDBD_EXIT_INSUFFICENT_NODES, buf);
     return 0;                                     // Deadcode
   }
@@ -3330,6 +3332,7 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
     jam();
     CRASH_INSERTION(932);
     CRASH_INSERTION(938);
+    CRASH_INSERTION(944);
     BaseString::snprintf(buf, 100, "Node %u disconnected", nodeId);    
     progError(__LINE__, NDBD_EXIT_SR_OTHERNODEFAILED, buf);
     ndbrequire(false);
@@ -6081,6 +6084,7 @@ Qmgr::stateArbitCrash(Signal* signal)
   CRASH_INSERTION(932);
   CRASH_INSERTION(938);
   CRASH_INSERTION(943);
+  CRASH_INSERTION(944);
   progError(__LINE__, NDBD_EXIT_ARBIT_SHUTDOWN,
             "Arbitrator decided to shutdown this node");
 }
