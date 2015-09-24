@@ -751,6 +751,7 @@ static void usage(void)
 }
 
 
+extern "C" {
 static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                char *argument)
@@ -819,6 +820,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   }
   DBUG_RETURN(0);
+}
 }
 
 

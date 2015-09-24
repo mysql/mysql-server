@@ -370,6 +370,7 @@ void usage(void)
 }
 
 
+extern "C" {
 static my_bool
 my_arguments_get_one_option(int optid,
                             const struct my_option *opt __attribute__((unused)),
@@ -386,6 +387,7 @@ my_arguments_get_one_option(int optid,
       exit(0);
   }
   return 0;
+}
 }
 
 

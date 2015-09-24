@@ -53,12 +53,10 @@
 
 #include "prealloced_array.h"
 
-C_MODE_START
 #ifdef HAVE_PSI_INTERFACE
 extern PSI_file_key key_file_cnf;
 #endif
 PSI_memory_key key_memory_defaults;
-C_MODE_END
 
 /**
    arguments separator

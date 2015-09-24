@@ -2809,12 +2809,12 @@ C_MODE_END
 
 #if defined(USE_NEW_READLINE_INTERFACE) 
 static int fake_magic_space(int, int);
-extern "C" char *no_completion(const char*,int)
+char *no_completion(const char*,int)
 #elif defined(USE_LIBEDIT_INTERFACE)
 static int fake_magic_space(const char *, int);
-extern "C" int no_completion(const char*,int)
+int no_completion(const char*,int)
 #else
-extern "C" char *no_completion()
+char *no_completion()
 #endif
 {
   return 0;					/* No filename completion */

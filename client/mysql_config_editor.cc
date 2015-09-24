@@ -100,6 +100,7 @@ enum commands {
   MY_CONFIG_HELP
 };
 
+extern "C" {
 struct my_command_data {
   const int id;
   const char *name;
@@ -109,6 +110,7 @@ struct my_command_data {
                                  const struct my_option *opt,
                                  char *argument);
 };
+}
 
 
 /* mysql_config_editor utility options. */
@@ -212,6 +214,7 @@ static struct my_option my_help_command_options[]=
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+extern "C" {
 static my_bool
 my_program_get_one_option(int optid,
                           const struct my_option *opt __attribute__((unused)),
@@ -320,6 +323,7 @@ my_reset_command_get_one_option(int optid,
     break;
   }
   return 0;
+}
 }
 
 static struct my_command_data command_data[]=

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,12 +47,12 @@ int name##_test()
 extern "C" void __gcov_flush(void);
 #endif
 
-/* stacktrace.c needs min unless MY_MIN is defined */
+/* stacktrace.cc needs min unless MY_MIN is defined */
 #if !defined MY_MIN && !defined min
 #define min(a, b)    ((a) < (b) ? (a) : (b)) 
 #endif
 
-#include <../../../mysys/stacktrace.c>
+#include <../../../mysys/stacktrace.cc>
 
 
 #endif

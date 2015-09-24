@@ -170,7 +170,7 @@ public:
 
   virtual void SetUp()
   {
-    my_init_dynamic_array(&m_keyuse_dyn,
+    dynarray_unittest::my_init_dynamic_array(&m_keyuse_dyn,
                           PSI_NOT_INSTRUMENTED,
                           sizeof(Key_use), NULL,
                           num_elements, 64);

@@ -26,6 +26,8 @@
 #include <my_list.h>
 #include "mysql/psi/mysql_thread.h"
 
+extern mysql_mutex_t THR_LOCK_lock;
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -134,7 +136,6 @@ typedef struct st_thr_lock {
 
 
 extern LIST *thr_lock_thread_list;
-extern mysql_mutex_t THR_LOCK_lock;
 
 void thr_lock_info_init(THR_LOCK_INFO *info, my_thread_id thread_id,
                         mysql_cond_t *suspend);

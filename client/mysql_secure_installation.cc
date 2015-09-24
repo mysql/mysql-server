@@ -120,6 +120,7 @@ static void free_resources()
     free_defaults(defaults_argv);
 }
 
+extern "C" {
 static my_bool
 my_arguments_get_one_option(int optid,
                             const struct my_option *opt __attribute__((unused)),
@@ -163,6 +164,7 @@ my_arguments_get_one_option(int optid,
     break;
   }
   return 0;
+}
 }
 
 
