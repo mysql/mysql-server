@@ -6,6 +6,12 @@ if (`select plugin_auth_version <= "5.5.43-MariaDB-37.2" from information_schema
 # Embedded server does not support restarting.
 --source include/not_embedded.inc
 
+# MDEV-8841 - close tables opened by previous tests, 
+# so they don't get marked crashed when the server gets crashed
+--disable_query_log
+FLUSH TABLES;
+--enable_query_log
+
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 connect (con1,localhost,root);
