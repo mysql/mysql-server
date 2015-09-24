@@ -413,20 +413,17 @@ NULL-friendliness is not required for propagation).
 @li or A contains at least one non-nullable expression, which makes A -> B
 NULL-friendly.
 
-Implementation of view merging makes it difficult to use rule above for a
-merged view. Indeed, if the view is merged, it is difficult to identify in
-which join nest it was and what its columns were [this may be solvable after
-WL#5275 is pushed, using Item_view_ref::cached_table]. So, for a merged view,
-we use a different rule:
+The above is fine for materialized views. For merged views, we cannot study the
+query expression of the view, it has been merged (and scattered), so we use a
+different rule:
 @li a merged view is similar to a join nest inserted in the parent query, so
 for dependencies based on keys or join conditions, we simply follow
 propagation rules of the non-view sections.
-@li For expression-based dependencies (VE3 depends on VE1 and VE2), which may
-not be NULL-friendly, we determine (approximately - using slightly too broad
-criteria) whether the view belongs to some embedding join nest which is on the
-weak side of some outer join, and if it does, we require that the left set be
-non-empty and that if VE1 and VE2 are NULL then VE3 must be NULL, which makes
-the dependency NULL-friendly.
+@li For expression-based dependencies (VE3 depends on VE1 and VE2, VE3
+belonging to the view SELECT list), which may not be NULL-friendly, we require
+@li the same non-weak-side criterion as above
+@li or that the left set of the dependency be non-empty and that if VE1 and
+VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 */
 
 #include "my_global.h"
