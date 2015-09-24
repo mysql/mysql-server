@@ -377,17 +377,17 @@ public:
 
   void no_rows_in_result()
   {
-    bool_func_call_args info;
-    info.original_func_item= this;
-    info.bool_function= &Item::no_rows_in_result;
-    walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      args[i]->no_rows_in_result();
+    }
   }
   void restore_to_before_no_rows_in_result()
   {
-    bool_func_call_args info;
-    info.original_func_item= this;
-    info.bool_function= &Item::restore_to_before_no_rows_in_result;
-    walk(&Item::call_bool_func_processor, FALSE, (uchar*) &info);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      args[i]->no_rows_in_result();
+    }
   }
 };
 
